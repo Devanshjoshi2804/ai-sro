@@ -764,7 +764,13 @@ function watching(status) {
   return watchCard(status, false, mine, {
     title: "Watching this tab",
     says:
-      `Everything you do in ${mine.host || "this tab"} is evidence. What you repeat` +
+      // `on` and not `host`: a watched tab is watched wherever it navigates,
+      // and `host` is the one the watch was GRANTED for. The panel read the
+      // granted one and told an operator standing on a Keycloak sign-in page
+      // that everything they did on `blueyonderalphaus.b2clogin.com` was
+      // evidence -- naming a system that was not on their screen, about a
+      // page that was in fact being recorded.
+      `Everything you do in ${mine.on || mine.host || "this tab"} is evidence. What you repeat` +
       " becomes a task worth offering; teach one deliberately at any time." +
       elsewhere,
     metrics:

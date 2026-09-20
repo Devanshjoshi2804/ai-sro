@@ -74,7 +74,7 @@ globalThis.chrome = {
     },
   },
   webNavigation: {
-    onCommitted: { addListener: () => {} },
+    onCommitted: { addListener: (fn) => (globalThis.__committed = fn) },
     onCompleted: { addListener: () => {} },
     onCreatedNavigationTarget: { addListener: () => {} },
   },
@@ -99,7 +99,10 @@ globalThis.chrome = {
     unregisterContentScripts: async () => {},
     registerContentScripts: async () => {},
   },
-  permissions: { getAll: async () => ({ origins: [] }), contains: async () => false },
+  permissions: {
+    getAll: async () => ({ origins: [] }),
+    contains: async () => false,
+  },
   // Held rather than dropped: four characters have to say the most important
   // true thing, and which one they say is a rule worth a test.
   action: {
@@ -192,7 +195,8 @@ const rigServer = async (url, options = {}) => {
     body: options.body,
     headers: options.headers || {},
   });
-  if (base !== BACKEND) return json({ detail: `the rig serves nothing: ${path}` }, 404);
+  if (base !== BACKEND)
+    return json({ detail: `the rig serves nothing: ${path}` }, 404);
   if (path === "/v1/workflow-runs/run-9/approve") {
     return approveRefusal
       ? json({ detail: approveRefusal.detail }, approveRefusal.status)
@@ -200,10 +204,12 @@ const rigServer = async (url, options = {}) => {
   }
   if (path.endsWith("/heartbeat"))
     return json({ policy_version: 0, policy: null, pause: false });
-  if (path === "/v1/shapes") return json({ shapes: shapesServed, can_find: shapesCanFind });
+  if (path === "/v1/shapes")
+    return json({ shapes: shapesServed, can_find: shapesCanFind });
   if (path === "/v1/threads/thr-1/messages")
     return json(threadSaid || { id: "thr-1", messages: [] });
-  if (path === "/v1/chat") return chatRead ? json(chatRead) : json({ detail: "no model" }, 503);
+  if (path === "/v1/chat")
+    return chatRead ? json(chatRead) : json({ detail: "no model" }, 503);
   if (path === "/v1/chat/run-started") return json({}, 204);
   if (path === "/v1/chat/about-an-offer")
     return askedAbout
@@ -222,7 +228,9 @@ const rigServer = async (url, options = {}) => {
   }
   if (path === "/v1/ask") {
     if (lookupRead) return json({ kind: "lookup", lookup: lookupRead });
-    return chatRead ? json({ kind: "job", job: chatRead }) : json({ detail: "no model" }, 503);
+    return chatRead
+      ? json({ kind: "job", job: chatRead })
+      : json({ detail: "no model" }, 503);
   }
   if (path === "/v1/offers") {
     return offerRefusal
@@ -230,10 +238,14 @@ const rigServer = async (url, options = {}) => {
       : json({ offer_id: "off_1" }, 201);
   }
   // The backend answers the whole row, where the rig answered `{run_id}`.
-  if (path === "/v1/workflow-runs") return json({ ...rigRunServed, id: "run-9" }, 201);
-  if (path === "/v1/workflow-runs/run-9/abort") return json({ ...rigRunServed }, 202);
+  if (path === "/v1/workflow-runs")
+    return json({ ...rigRunServed, id: "run-9" }, 201);
+  if (path === "/v1/workflow-runs/run-9/abort")
+    return json({ ...rigRunServed }, 202);
   if (path === `/v1/workflow-runs/${rigRunServed.id}`) {
-    return rigRunFails ? json({ detail: "the backend is down" }, 503) : json(rigRunServed);
+    return rigRunFails
+      ? json({ detail: "the backend is down" }, 503)
+      : json(rigRunServed);
   }
   return json({ detail: `nothing serves ${path}` }, 404);
 };
@@ -252,7 +264,10 @@ function json(body, status = 200) {
 let mailLooked = null;
 const mailLooks = [];
 
-const offersSent = () => calls.filter((call) => call.path === "/v1/offers").map((call) => JSON.parse(call.body));
+const offersSent = () =>
+  calls
+    .filter((call) => call.path === "/v1/offers")
+    .map((call) => JSON.parse(call.body));
 
 await import("./service-worker.js");
 const { perform, abort } = await import("./commands.js");
@@ -271,7 +286,13 @@ function gesture(identity, value) {
     {
       kind: "gesture",
       frameUrl: PAGE,
-      gesture: { url: PAGE, target: { component: { itemId: identity } }, kind: "type", value, at: 1 },
+      gesture: {
+        url: PAGE,
+        target: { component: { itemId: identity } },
+        kind: "type",
+        value,
+        at: 1,
+      },
     },
     { tab: { id: TAB, url: PAGE } },
   );
@@ -346,11 +367,20 @@ test("an empty answer is not cached, and the shapes asked for are this browser's
   shapesServed = [];
 
   await gesture("a", "NEW");
-  const askedWhileEmpty = calls.filter((call) => call.path === "/v1/shapes").length;
-  assert.ok(askedWhileEmpty >= 1, "nothing was ever asked for this browser's shapes");
+  const askedWhileEmpty = calls.filter(
+    (call) => call.path === "/v1/shapes",
+  ).length;
+  assert.ok(
+    askedWhileEmpty >= 1,
+    "nothing was ever asked for this browser's shapes",
+  );
 
   const asking = calls.filter((call) => call.path === "/v1/shapes").at(-1);
-  assert.equal(asking.base, BACKEND, "the shapes were asked of something that is not the backend");
+  assert.equal(
+    asking.base,
+    BACKEND,
+    "the shapes were asked of something that is not the backend",
+  );
   assert.equal(asking.method, "GET");
   assert.equal(
     new URLSearchParams(asking.query).get("device_id"),
@@ -387,12 +417,19 @@ test("an empty answer is not cached, and the shapes asked for are this browser's
   shapesCanFind = true;
   await gesture("a", "NEW");
   await gesture("b", "north");
-  await until(() => openOnes().length === 1, "a backend that had answered [] once was never asked again");
+  await until(
+    () => openOnes().length === 1,
+    "a backend that had answered [] once was never asked again",
+  );
   assert.ok(
     calls.filter((call) => call.path === "/v1/shapes").length > askedWhileEmpty,
     "the empty answer was cached",
   );
-  assert.equal(openOnes()[0].canFind, true, "the prefix card asked for what the run can find");
+  assert.equal(
+    openOnes()[0].canFind,
+    true,
+    "the prefix card asked for what the run can find",
+  );
 });
 
 test("two gestures into a proven job become one offer, and a third upgrades it", async () => {
@@ -400,7 +437,10 @@ test("two gestures into a proven job become one offer, and a third upgrades it",
 
   await gesture("a", "NEW");
   await gesture("b", "north");
-  await until(() => openOnes().length === 1, "two gestures into the job offered nothing");
+  await until(
+    () => openOnes().length === 1,
+    "two gestures into the job offered nothing",
+  );
 
   const first = openOnes()[0];
   assert.equal(first.source, "rig");
@@ -415,14 +455,25 @@ test("two gestures into a proven job become one offer, and a third upgrades it",
   assert.deepEqual(pill.args.slice(1, 2), ["Create Work Area"]);
 
   await gesture("c", "x");
-  await until(() => openOnes()[0]?.k === 3, "the third gesture did not carry the offer further");
+  await until(
+    () => openOnes()[0]?.k === 3,
+    "the third gesture did not carry the offer further",
+  );
 
   // One record, still the same one. A longer prefix is the same offer knowing
   // more, so nothing ended and the rig was told about no fate at all.
   assert.equal(nudges().length, 1, "the upgrade left a second record behind");
   assert.equal(openOnes()[0].id, first.id, "the upgrade minted a new offer");
-  assert.equal(openOnes()[0].at, first.at, "the upgrade moved when the offer was made");
-  assert.deepEqual(offersSent(), [], `an upgrade reported ${JSON.stringify(offersSent())}`);
+  assert.equal(
+    openOnes()[0].at,
+    first.at,
+    "the upgrade moved when the offer was made",
+  );
+  assert.deepEqual(
+    offersSent(),
+    [],
+    `an upgrade reported ${JSON.stringify(offersSent())}`,
+  );
 });
 
 test("nothing is offered while this browser is performing a run", async () => {
@@ -436,7 +487,11 @@ test("nothing is offered while this browser is performing a run", async () => {
   // Long enough for the offer to have appeared if the guard were not there:
   // the same wait the test above needs to see one.
   await new Promise((resolve) => setTimeout(resolve, 60));
-  assert.deepEqual(openOnes(), [], "it offered over a run it was already performing");
+  assert.deepEqual(
+    openOnes(),
+    [],
+    "it offered over a run it was already performing",
+  );
 
   abort("run-live");
 });
@@ -474,7 +529,11 @@ test("a finished card is re-read once, because the backend's answer moves", asyn
   const first = await send({ kind: "status" });
   const again = await send({ kind: "status" });
 
-  assert.equal(first.finished.undo, "wfl_delete", "the card was drawn from the stale row");
+  assert.equal(
+    first.finished.undo,
+    "wfl_delete",
+    "the card was drawn from the stale row",
+  );
   assert.deepEqual(first.finished.undoes_by, { "Customer Type": "GZ5" });
   // Once per worker life: a re-read on every poll is a call a second.
   assert.equal(
@@ -482,7 +541,11 @@ test("a finished card is re-read once, because the backend's answer moves", asyn
     1,
     "it asked again on the second poll",
   );
-  assert.equal(again.finished.undo, "wfl_delete", "the refreshed row was not kept");
+  assert.equal(
+    again.finished.undo,
+    "wfl_delete",
+    "the refreshed row was not kept",
+  );
 });
 
 test("an undo names the run it takes back", async () => {
@@ -508,7 +571,11 @@ test("an undo names the run it takes back", async () => {
   const started = JSON.parse(press.body);
   assert.equal(started.workflow_id, "wfl_delete");
   assert.equal(started.undoes_run, "run_made_it");
-  assert.equal(started.live, true, "an undo that does not write takes nothing back");
+  assert.equal(
+    started.live,
+    true,
+    "an undo that does not write takes nothing back",
+  );
 });
 
 test("an ordinary press takes nothing back", async () => {
@@ -524,7 +591,11 @@ test("an ordinary press takes nothing back", async () => {
 
   const press = calls.find((call) => call.path === "/v1/workflow-runs");
   const started = JSON.parse(press.body);
-  assert.equal(started.undoes_run, undefined, "an ordinary run claimed to undo something");
+  assert.equal(
+    started.undoes_run,
+    undefined,
+    "an ordinary run claimed to undo something",
+  );
 });
 
 test("yes starts the run, and marks the offer accepted on the list as it is then", async () => {
@@ -537,12 +608,20 @@ test("yes starts the run, and marks the offer accepted on the list as it is then
   await until(() => openOnes().length === 1, "no offer to accept");
   const offer = openOnes()[0];
 
-  const answer = await send({ kind: "start-rig-run", nudgeId: offer.id, values: { description: "dock" } });
+  const answer = await send({
+    kind: "start-rig-run",
+    nudgeId: offer.id,
+    values: { description: "dock" },
+  });
 
   assert.deepEqual(answer, { ok: true, run_id: "run-9" });
   const press = calls.find((call) => call.path === "/v1/workflow-runs");
   assert.ok(press, "the press never reached `POST /v1/workflow-runs`");
-  assert.equal(press.base, BACKEND, "the press went somewhere that is not the backend");
+  assert.equal(
+    press.base,
+    BACKEND,
+    "the press went somewhere that is not the backend",
+  );
   assert.equal(press.method, "POST");
   assert.equal(
     press.headers["X-Device-Secret"],
@@ -565,7 +644,11 @@ test("yes starts the run, and marks the offer accepted on the list as it is then
   // steps is a different number. The backend has the steps behind the shape
   // and converts; sending `from_step` marked steps done that nobody did.
   assert.equal(started.matched, 2);
-  assert.equal(started.from_step, undefined, "a gesture count went out as a step count");
+  assert.equal(
+    started.from_step,
+    undefined,
+    "a gesture count went out as a step count",
+  );
   assert.equal(started.live, true);
   assert.equal(started.allow_focus, true);
   // Which browser to drive is a body field here and not the query, unlike
@@ -580,14 +663,25 @@ test("yes starts the run, and marks the offer accepted on the list as it is then
   );
   // `started_by` is gone: the backend reads it off the credential, and a
   // request that says who authorised it is a signature nobody checked.
-  assert.equal(started.started_by, undefined, "the press still claims who started it");
+  assert.equal(
+    started.started_by,
+    undefined,
+    "the press still claims who started it",
+  );
   // What the panel was told wins over what the page was read for, and what the
   // page gave is still there.
   assert.deepEqual(started.values, { workArea: "NEW", description: "dock" });
 
   assert.equal(nudges().find((n) => n.id === offer.id).state, "accepted");
-  assert.deepEqual(held.get("sro.activeRun"), { runId: "run-9", at: held.get("sro.activeRun").at, source: "rig" });
-  await until(() => offersSent().length === 1, "the rig was never told the offer was taken");
+  assert.deepEqual(held.get("sro.activeRun"), {
+    runId: "run-9",
+    at: held.get("sro.activeRun").at,
+    source: "rig",
+  });
+  await until(
+    () => offersSent().length === 1,
+    "the rig was never told the offer was taken",
+  );
   assert.equal(offersSent()[0].fate, "accepted");
   assert.equal(offersSent()[0].run_id, "run-9");
   assert.equal(offersSent()[0].k, 2);
@@ -619,13 +713,25 @@ test("an offer taken has left open before the run is asked for, so nothing else 
     return rigServer(url, options);
   };
 
-  const answer = await send({ kind: "start-rig-run", nudgeId: offer.id, values: {} });
+  const answer = await send({
+    kind: "start-rig-run",
+    nudgeId: offer.id,
+    values: {},
+  });
 
   assert.deepEqual(answer, { ok: true, run_id: "run-9" });
-  assert.equal(whileStarting, "accepted", "the offer was still open while its run was being started");
+  assert.equal(
+    whileStarting,
+    "accepted",
+    "the offer was still open while its run was being started",
+  );
   assert.equal(nudges().find((n) => n.id === offer.id).state, "accepted");
   await new Promise((resolve) => setTimeout(resolve, 30));
-  assert.deepEqual(offersSent().map((each) => each.fate), ["accepted"], "one offer reported two fates");
+  assert.deepEqual(
+    offersSent().map((each) => each.fate),
+    ["accepted"],
+    "one offer reported two fates",
+  );
 });
 
 test("a start whose POST fails leaves the offer open and reports nothing", async () => {
@@ -641,20 +747,35 @@ test("a start whose POST fails leaves the offer open and reports nothing", async
   globalThis.fetch = async (url, options = {}) => {
     const path = String(url).slice(BACKEND.length);
     calls.push({ path, method: options.method || "GET", body: options.body });
-    if (path === "/v1/workflow-runs") return json({ detail: "the backend is down" }, 503);
+    if (path === "/v1/workflow-runs")
+      return json({ detail: "the backend is down" }, 503);
     return rigServer(url, options);
   };
 
-  const answer = await send({ kind: "start-rig-run", nudgeId: offer.id, values: {} });
+  const answer = await send({
+    kind: "start-rig-run",
+    nudgeId: offer.id,
+    values: {},
+  });
 
   assert.equal(answer.ok, false);
-  assert.equal(nudges().find((n) => n.id === offer.id).state, "open", "a refused start ended the offer");
-  assert.equal(held.get("sro.activeRun"), undefined, "a run that never started is being drawn");
+  assert.equal(
+    nudges().find((n) => n.id === offer.id).state,
+    "open",
+    "a refused start ended the offer",
+  );
+  assert.equal(
+    held.get("sro.activeRun"),
+    undefined,
+    "a run that never started is being drawn",
+  );
   await new Promise((resolve) => setTimeout(resolve, 30));
   assert.deepEqual(offersSent(), [], "a start that failed reported a fate");
 
   // And it is still the operator's to answer.
-  assert.deepEqual(await send({ kind: "drop-nudge", nudgeId: offer.id }), { ok: true });
+  assert.deepEqual(await send({ kind: "drop-nudge", nudgeId: offer.id }), {
+    ok: true,
+  });
   assert.equal(nudges().find((n) => n.id === offer.id).state, "dismissed");
 });
 
@@ -665,15 +786,27 @@ test("a backend nudge a prefix match supersedes ends as expired, not as nothing"
   // the day is drawn from.
   ready();
   const arrival = {
-    id: "n_arrival", at: new Date().toISOString(), title: "Create Work Area",
-    startsOn: PAGE, tabId: TAB, state: "open", source: "backend",
-    workflowId: null, k: 0, values: {}, missing: [], parameters: [],
+    id: "n_arrival",
+    at: new Date().toISOString(),
+    title: "Create Work Area",
+    startsOn: PAGE,
+    tabId: TAB,
+    state: "open",
+    source: "backend",
+    workflowId: null,
+    k: 0,
+    values: {},
+    missing: [],
+    parameters: [],
   };
   held.set("sro.nudges", [arrival]);
 
   await gesture("a", "NEW");
   await gesture("b", "north");
-  await until(() => openOnes()[0]?.source === "rig", "the prefix match never landed");
+  await until(
+    () => openOnes()[0]?.source === "rig",
+    "the prefix match never landed",
+  );
 
   assert.equal(openOnes().length, 1, "two offers are open at once");
   const was = nudges().find((n) => n.id === "n_arrival");
@@ -691,7 +824,13 @@ test("marking accepted does not write back a list read before the run started", 
   // Something else writes the list while the POST is in flight -- a sweep, a
   // gesture on another tab. Writing back the copy read before the POST would
   // silently undo it.
-  const meanwhile = { id: "n_other", state: "open", source: "backend", tabId: 2, at: offer.at };
+  const meanwhile = {
+    id: "n_other",
+    state: "open",
+    source: "backend",
+    tabId: 2,
+    at: offer.at,
+  };
   globalThis.fetch = async (url, options = {}) => {
     const [path] = String(url).slice(BACKEND.length).split("?");
     calls.push({ path, method: options.method || "GET", body: options.body });
@@ -720,9 +859,14 @@ test("dropping an offer ends it and says so once", async () => {
   await until(() => openOnes().length === 1, "no offer to drop");
   const offer = openOnes()[0];
 
-  assert.deepEqual(await send({ kind: "drop-nudge", nudgeId: offer.id }), { ok: true });
+  assert.deepEqual(await send({ kind: "drop-nudge", nudgeId: offer.id }), {
+    ok: true,
+  });
   assert.equal(nudges().find((n) => n.id === offer.id).state, "dismissed");
-  await until(() => offersSent().length === 1, "the rig was never told the offer was refused");
+  await until(
+    () => offersSent().length === 1,
+    "the rig was never told the offer was refused",
+  );
   assert.equal(offersSent()[0].fate, "dismissed");
 
   // Dropping it again, or answering it after it was dropped: an offer with two
@@ -745,13 +889,28 @@ test("an offer that was dropped cannot then be started", async () => {
   const offer = openOnes()[0];
 
   await send({ kind: "drop-nudge", nudgeId: offer.id });
-  const answer = await send({ kind: "start-rig-run", nudgeId: offer.id, values: { description: "dock" } });
+  const answer = await send({
+    kind: "start-rig-run",
+    nudgeId: offer.id,
+    values: { description: "dock" },
+  });
 
-  assert.deepEqual(answer, { ok: false, error: "this offer has already ended" });
-  assert.equal(calls.filter((call) => call.path === "/v1/workflow-runs").length, 0, "a dropped offer started a run");
+  assert.deepEqual(answer, {
+    ok: false,
+    error: "this offer has already ended",
+  });
+  assert.equal(
+    calls.filter((call) => call.path === "/v1/workflow-runs").length,
+    0,
+    "a dropped offer started a run",
+  );
   assert.equal(nudges().find((n) => n.id === offer.id).state, "dismissed");
   await new Promise((resolve) => setTimeout(resolve, 30));
-  assert.deepEqual(offersSent().map((each) => each.fate), ["dismissed"], "one offer reported two fates");
+  assert.deepEqual(
+    offersSent().map((each) => each.fate),
+    ["dismissed"],
+    "one offer reported two fates",
+  );
 });
 
 test("an offer's fate is recorded against the browser that showed it, in the query and not the body", async () => {
@@ -770,10 +929,17 @@ test("an offer's fate is recorded against the browser that showed it, in the que
   await until(() => openOnes().length === 1, "no offer to drop");
 
   await send({ kind: "drop-nudge", nudgeId: openOnes()[0].id });
-  await until(() => calls.some((call) => call.path === "/v1/offers"), "no fate was reported");
+  await until(
+    () => calls.some((call) => call.path === "/v1/offers"),
+    "no fate was reported",
+  );
 
   const fate = calls.find((call) => call.path === "/v1/offers");
-  assert.equal(fate.base, BACKEND, "the fate went somewhere that is not the backend");
+  assert.equal(
+    fate.base,
+    BACKEND,
+    "the fate went somewhere that is not the backend",
+  );
   assert.equal(fate.method, "POST");
   assert.equal(
     new URLSearchParams(fate.query).get("device_id"),
@@ -805,9 +971,20 @@ test("an offer the backend refuses is a false, and never a throw", async () => {
   // only that something failed.
   ready();
   const { api } = await import("./api.js");
-  const offer = { workflow_id: "wfl_wa", k: 2, fate: "did_it", run_id: null, device_id: "dev-1", at: null };
+  const offer = {
+    workflow_id: "wfl_wa",
+    k: 2,
+    fate: "did_it",
+    run_id: null,
+    device_id: "dev-1",
+    at: null,
+  };
 
-  assert.equal(await api.reportOffer(offer), true, "a fate the backend recorded was reported as lost");
+  assert.equal(
+    await api.reportOffer(offer),
+    true,
+    "a fate the backend recorded was reported as lost",
+  );
 
   offerRefusal = { status: 403, detail: "an offer is a browser's to record" };
   assert.equal(
@@ -820,7 +997,11 @@ test("an offer the backend refuses is a false, and never a throw", async () => {
   globalThis.fetch = async () => {
     throw new TypeError("Failed to fetch");
   };
-  assert.equal(await api.reportOffer(offer), false, "a backend that could not be reached threw");
+  assert.equal(
+    await api.reportOffer(offer),
+    false,
+    "a backend that could not be reached threw",
+  );
   globalThis.fetch = rigServer;
   offerRefusal = null;
 });
@@ -856,14 +1037,24 @@ test("the run the rig is driving is drawn while it runs, and Approve reaches the
   // browser -- checked against what is actually held, never against a literal,
   // because a literal on both sides is what let the same mutation live through
   // 27 suites in task 1.
-  assert.equal(answered.deviceId, held.get("sro.deviceId"), "status named a browser that is not this one");
+  assert.equal(
+    answered.deviceId,
+    held.get("sro.deviceId"),
+    "status named a browser that is not this one",
+  );
   const shown = answered.performing;
   assert.equal(shown.source, "rig");
-  assert.equal(shown.run?.id, "run-9", "the panel was told a rig run is happening but not which");
+  assert.equal(
+    shown.run?.id,
+    "run-9",
+    "the panel was told a rig run is happening but not which",
+  );
   abort("run-9");
 
   const answer = await send({ kind: "approve-rig-run", runId: "run-9" });
-  const approve = calls.find((call) => call.path === "/v1/workflow-runs/run-9/approve");
+  const approve = calls.find(
+    (call) => call.path === "/v1/workflow-runs/run-9/approve",
+  );
   assert.ok(approve, "Approve never reached the door that lets the write out");
   assert.equal(approve.method, "POST");
   assert.deepEqual(answer, { order: 0, first: true });
@@ -887,9 +1078,15 @@ test("Approve proves this browser twice -- the query and the secret -- or the ba
 
   const answer = await send({ kind: "approve-rig-run", runId: "run-9" });
 
-  const approve = calls.find((call) => call.path === "/v1/workflow-runs/run-9/approve");
+  const approve = calls.find(
+    (call) => call.path === "/v1/workflow-runs/run-9/approve",
+  );
   assert.ok(approve, "Approve did not reach /v1/workflow-runs/{id}/approve");
-  assert.equal(approve.base, BACKEND, "Approve went somewhere that is not the backend");
+  assert.equal(
+    approve.base,
+    BACKEND,
+    "Approve went somewhere that is not the backend",
+  );
   assert.equal(approve.method, "POST");
   assert.equal(
     new URLSearchParams(approve.query).get("device_id"),
@@ -908,7 +1105,11 @@ test("Approve proves this browser twice -- the query and the secret -- or the ba
   );
   // No body at all: the route takes none, and a `device_id` in one would be a
   // second answer to which browser is asking that nothing checks.
-  assert.equal(approve.body, undefined, "the tap sent a body the route does not read");
+  assert.equal(
+    approve.body,
+    undefined,
+    "the tap sent a body the route does not read",
+  );
   // And the old rig door was not knocked on instead, or as well.
   assert.equal(
     calls.filter((call) => call.path === "/v1/runs/run-9/approve").length,
@@ -926,7 +1127,10 @@ test("a backend that refuses the approval is a refusal in the panel, not a succe
   // test above is the success half: a refusal test that never makes a
   // successful request proves only that something failed.
   ready();
-  approveRefusal = { status: 403, detail: "that browser is not driving this run" };
+  approveRefusal = {
+    status: 403,
+    detail: "that browser is not driving this run",
+  };
   held.set("sro.activeRun", { runId: "run-9", at: Date.now(), source: "rig" });
 
   assert.deepEqual(await send({ kind: "approve-rig-run", runId: "run-9" }), {
@@ -938,7 +1142,8 @@ test("a backend that refuses the approval is a refusal in the panel, not a succe
 });
 
 /** How many times this browser has asked the rig what the run is doing. */
-const asked = () => calls.filter((call) => call.path === "/v1/workflow-runs/run-9").length;
+const asked = () =>
+  calls.filter((call) => call.path === "/v1/workflow-runs/run-9").length;
 
 test("a rig run this browser did not start is polled from status, and a failed ask is asked again", async () => {
   // No `start-rig-run` here. `commands.js` writes this record for every command
@@ -950,7 +1155,10 @@ test("a rig run this browser did not start is polled from status, and a failed a
   rigRunFails = true;
 
   await send({ kind: "status" });
-  await until(() => asked() === 1, "opening the panel over a rig run asked the rig nothing");
+  await until(
+    () => asked() === 1,
+    "opening the panel over a rig run asked the rig nothing",
+  );
   // One ask per status read, however slow the rig is. Without the in-flight
   // guard the panel's two-second poll would stack a request per read on top of
   // the timer's own.
@@ -962,7 +1170,10 @@ test("a rig run this browser did not start is polled from status, and a failed a
   // this next status read is the only thing left that can restart it.
   rigRunFails = false;
   await send({ kind: "status" });
-  await until(() => asked() >= 2, "a poll whose first ask failed was never asked again");
+  await until(
+    () => asked() >= 2,
+    "a poll whose first ask failed was never asked again",
+  );
 
   held.delete("sro.activeRun");
 });
@@ -997,7 +1208,11 @@ test("a run parked on an approval is still drawn, and nothing is offered over it
   await gesture("a", "NEW");
   await gesture("b", "north");
   await new Promise((resolve) => setTimeout(resolve, 60));
-  assert.deepEqual(openOnes(), [], "it offered a run over a write parked for approval");
+  assert.deepEqual(
+    openOnes(),
+    [],
+    "it offered a run over a write parked for approval",
+  );
 
   held.delete("sro.activeRun");
 });
@@ -1040,12 +1255,22 @@ test("Stop tells the backend to stop the workflow run, with no body naming a bro
   const answer = await send({ kind: "abort-run", runId: "run-9" });
 
   assert.equal(answer.ok, true);
-  assert.equal(answer.error, undefined, `Stop reported a failure: ${answer.error}`);
-  const stop = calls.find((call) => call.path === "/v1/workflow-runs/run-9/abort");
+  assert.equal(
+    answer.error,
+    undefined,
+    `Stop reported a failure: ${answer.error}`,
+  );
+  const stop = calls.find(
+    (call) => call.path === "/v1/workflow-runs/run-9/abort",
+  );
   assert.ok(stop, "Stop never reached the backend's abort door");
   assert.equal(stop.base, BACKEND);
   assert.equal(stop.method, "POST");
-  assert.equal(stop.body, undefined, "Stop sent a body the route does not read");
+  assert.equal(
+    stop.body,
+    undefined,
+    "Stop sent a body the route does not read",
+  );
   assert.equal(
     stop.headers["X-Device-Secret"],
     held.get("sro.deviceSecret"),
@@ -1069,7 +1294,10 @@ test("Stop tells the backend to stop the workflow run, with no body naming a bro
   // the operator's as stopped.
   const { api } = await import("./api.js");
   const asked = [];
-  globalThis.fetch = async (url) => (asked.push(String(url)), json({ id: "run-c4e7" }, 202));
+  globalThis.fetch = async (url) => (
+    asked.push(String(url)),
+    json({ id: "run-c4e7" }, 202)
+  );
   await api.rigAbort("run-c4e7");
   assert.equal(asked.at(-1), `${BACKEND}/v1/workflow-runs/run-c4e7/abort`);
   globalThis.fetch = rigServer;
@@ -1087,7 +1315,8 @@ test("a backend that will not stop the run says so to the operator who pressed S
   globalThis.fetch = async (url, options = {}) => {
     const [path] = String(url).slice(BACKEND.length).split("?");
     calls.push({ path, method: options.method || "GET", body: options.body });
-    if (path === "/v1/workflow-runs/run-9/abort") return json({ detail: "no such run here" }, 404);
+    if (path === "/v1/workflow-runs/run-9/abort")
+      return json({ detail: "no such run here" }, 404);
     return rigServer(url, options);
   };
 
@@ -1131,7 +1360,10 @@ test("the shapes read are the ones the named browser is served, and a refusal is
     "dev-other-6b90",
     "the browser named by the caller is not the browser the request asks for",
   );
-  assert.ok(asked.at(-1).startsWith(`${BACKEND}/v1/shapes`), `shapes were read from ${asked.at(-1)}`);
+  assert.ok(
+    asked.at(-1).startsWith(`${BACKEND}/v1/shapes`),
+    `shapes were read from ${asked.at(-1)}`,
+  );
 
   globalThis.fetch = async () => json({ detail: "device was not found" }, 404);
   assert.deepEqual(
@@ -1163,7 +1395,11 @@ test("an upload names this browser to the backend, and only the backend's refusa
   ready();
   const { api, ApiError } = await import("./api.js");
 
-  const batch = { batch_id: "bat-7c31", device_id: "dev-ready-2f8a", events: [{ at: 91 }] };
+  const batch = {
+    batch_id: "bat-7c31",
+    device_id: "dev-ready-2f8a",
+    events: [{ at: 91 }],
+  };
   let served = json({ accepted: 1, batch_id: "bat-7c31" });
   const asked = [];
   globalThis.fetch = async (url, options = {}) => {
@@ -1177,11 +1413,19 @@ test("an upload names this browser to the backend, and only the backend's refusa
     "what the backend said about the upload did not reach the caller",
   );
   const sent = asked.at(-1);
-  assert.equal(sent.url, `${BACKEND}/v1/observations`, `the batch was posted to ${sent.url}`);
+  assert.equal(
+    sent.url,
+    `${BACKEND}/v1/observations`,
+    `the batch was posted to ${sent.url}`,
+  );
   assert.equal(sent.method, "POST");
   // The body, not a body. A batch replaced by a constant is every operator's
   // demonstration uploaded as somebody else's.
-  assert.deepEqual(JSON.parse(sent.body), batch, "the batch posted was not the batch given");
+  assert.deepEqual(
+    JSON.parse(sent.body),
+    batch,
+    "the batch posted was not the batch given",
+  );
   assert.equal(sent.headers.Authorization, `Bearer ${held.get("sro.token")}`);
   assert.equal(sent.headers["X-Device-Secret"], held.get("sro.deviceSecret"));
 
@@ -1190,9 +1434,21 @@ test("an upload names this browser to the backend, and only the backend's refusa
   const form = { pretend: "multipart" };
   served = json({ artifact_id: "art_4d02" });
   assert.deepEqual(await api.artifact(form), { artifact_id: "art_4d02" });
-  assert.equal(asked.at(-1).url, `${BACKEND}/v1/observations/artifacts`, "a picture went somewhere else");
-  assert.equal(asked.at(-1).body, form, "the multipart body was mangled on the way out");
-  assert.equal(asked.at(-1).headers["Content-Type"], undefined, "a boundary-less Content-Type was set");
+  assert.equal(
+    asked.at(-1).url,
+    `${BACKEND}/v1/observations/artifacts`,
+    "a picture went somewhere else",
+  );
+  assert.equal(
+    asked.at(-1).body,
+    form,
+    "the multipart body was mangled on the way out",
+  );
+  assert.equal(
+    asked.at(-1).headers["Content-Type"],
+    undefined,
+    "a boundary-less Content-Type was set",
+  );
 
   // The status `upload.js` reads to decide whether to drop the rows. It must
   // be the backend's, unchanged, and it must arrive as a throw -- a refusal
@@ -1201,8 +1457,15 @@ test("an upload names this browser to the backend, and only the backend's refusa
   await assert.rejects(
     () => api.observations(batch),
     (error) => {
-      assert.ok(error instanceof ApiError, "a refused upload did not come back as an ApiError");
-      assert.equal(error.status, 413, "the status upload.js drops rows on was not the backend's");
+      assert.ok(
+        error instanceof ApiError,
+        "a refused upload did not come back as an ApiError",
+      );
+      assert.equal(
+        error.status,
+        413,
+        "the status upload.js drops rows on was not the backend's",
+      );
       return true;
     },
     "a backend that refused the batch was reported to the caller as success",
@@ -1230,10 +1493,21 @@ test("an update takes the rig's settings off this browser, and a launch tries ag
   held.set("sro.rigRefusal", "/v1/observations 403: not yours");
 
   globalThis.__installed();
-  await until(() => !held.has("sro.rigToken"), "the update left the tenant's rig bearer on this browser");
+  await until(
+    () => !held.has("sro.rigToken"),
+    "the update left the tenant's rig bearer on this browser",
+  );
   assert.equal(held.has("sro.rigUrl"), false, "the rig url outlived the rig");
-  assert.equal(held.has("sro.rigRefusal"), false, "a refusal from a rig there no longer is");
-  assert.equal(held.get("sro.token"), "tenant-cred-4e17", "the credential still in use was taken too");
+  assert.equal(
+    held.has("sro.rigRefusal"),
+    false,
+    "a refusal from a rig there no longer is",
+  );
+  assert.equal(
+    held.get("sro.token"),
+    "tenant-cred-4e17",
+    "the credential still in use was taken too",
+  );
 
   // Fire-and-forget in a worker Chrome may evict at any await point, and
   // `onInstalled` does not fire again until the next update -- which may never
@@ -1258,10 +1532,19 @@ test("a run started elsewhere is drawn with its steps even when no source word a
     outcome: "running",
     steps: [
       { order: 1, verdict: "held", says: "Enter username." },
-      { order: 2, verdict: "awaiting", says: "Sign in.", sent: { kind: "ui.perform" } },
+      {
+        order: 2,
+        verdict: "awaiting",
+        says: "Sign in.",
+        sent: { kind: "ui.perform" },
+      },
     ],
   };
-  held.set("sro.activeRun", { runId: "run-elsewhere", at: Date.now(), source: "backend" });
+  held.set("sro.activeRun", {
+    runId: "run-elsewhere",
+    at: Date.now(),
+    source: "backend",
+  });
 
   // Polled, as the panel really does it: `status` kicks the fetch and does not
   // wait for it, so the picture lands on a later tick than the one that asked.
@@ -1271,9 +1554,14 @@ test("a run started elsewhere is drawn with its steps even when no source word a
     return Boolean(status.performing?.run);
   }, "the run was never drawn, however many times the panel asked");
 
-  assert.equal(status.performing?.runId, "run-elsewhere", "the run was not drawn at all");
   assert.equal(
-    status.performing?.run?.steps?.find((step) => step.outcome === "awaiting")?.index,
+    status.performing?.runId,
+    "run-elsewhere",
+    "the run was not drawn at all",
+  );
+  assert.equal(
+    status.performing?.run?.steps?.find((step) => step.outcome === "awaiting")
+      ?.index,
     2,
     "the parked step never reached the panel, so neither did its Approve",
   );
@@ -1295,17 +1583,34 @@ test("a sentence in the panel becomes the same offer a recognised walk makes", a
     cost_usd: 0.0023,
   };
 
-  await send({ kind: "thread-say", threadId: "thr-1", text: "create a work area called APITEST1", tabId: TAB });
+  await send({
+    kind: "thread-say",
+    threadId: "thr-1",
+    text: "create a work area called APITEST1",
+    tabId: TAB,
+  });
   await until(() => openOnes().length === 1, "the sentence made no offer");
 
   const [offered] = openOnes();
   assert.equal(offered.source, "rig");
   assert.equal(offered.workflowId, "wfl_wa");
-  assert.equal(offered.title, "Create Work Area", "the title comes off the served shape, not the id");
-  assert.equal(offered.k, 0, "nothing has been done yet: the card asks, it does not offer to finish");
+  assert.equal(
+    offered.title,
+    "Create Work Area",
+    "the title comes off the served shape, not the id",
+  );
+  assert.equal(
+    offered.k,
+    0,
+    "nothing has been done yet: the card asks, it does not offer to finish",
+  );
   assert.deepEqual(offered.values, { workArea: "APITEST1" });
   assert.deepEqual(offered.missing, ["description"]);
-  assert.equal(offered.tabId, TAB, "an offer drawn for no tab is an offer the panel never shows");
+  assert.equal(
+    offered.tabId,
+    TAB,
+    "an offer drawn for no tab is an offer the panel never shows",
+  );
   assert.deepEqual(
     calls.filter((call) => call.path === "/v1/workflow-runs"),
     [],
@@ -1322,7 +1627,12 @@ test("the answer that finishes a job resumes it where it stopped", async () => {
   threadSaid = {
     id: "thr-1",
     messages: [
-      { id: "m1", speaker: "operator", text: "NSRO", said_at: "2026-09-18T10:20:01Z" },
+      {
+        id: "m1",
+        speaker: "operator",
+        text: "NSRO",
+        said_at: "2026-09-18T10:20:01Z",
+      },
       {
         id: "m2",
         speaker: "assistant",
@@ -1340,15 +1650,26 @@ test("the answer that finishes a job resumes it where it stopped", async () => {
     ],
   };
 
-  await send({ kind: "thread-say", threadId: "thr-1", text: "NSRO", tabId: TAB });
+  await send({
+    kind: "thread-say",
+    threadId: "thr-1",
+    text: "NSRO",
+    tabId: TAB,
+  });
   await until(
     () => calls.some((call) => call.path === "/v1/workflow-runs"),
     "the last answer started nothing",
   );
 
-  const started = JSON.parse(calls.find((call) => call.path === "/v1/workflow-runs").body);
+  const started = JSON.parse(
+    calls.find((call) => call.path === "/v1/workflow-runs").body,
+  );
   assert.equal(started.workflow_id, "wfl_wa");
-  assert.equal(started.from_step, 4, "it started the job again from the beginning");
+  assert.equal(
+    started.from_step,
+    4,
+    "it started the job again from the beginning",
+  );
   // `matched` is a GESTURE count and stays 0: sending a step as one is the
   // defect that marked steps done nobody had done.
   assert.equal(started.matched, 0);
@@ -1400,7 +1721,11 @@ test("a sentence typed under a standing question is not read a second time", asy
     [],
     "the sentence was read a second time while its question was still standing",
   );
-  assert.deepEqual(openOnes(), [], "a standing question became an offer to do something else");
+  assert.deepEqual(
+    openOnes(),
+    [],
+    "a standing question became an offer to do something else",
+  );
   threadSaid = null;
 });
 
@@ -1412,9 +1737,17 @@ test("a question is answered rather than turned into an offer", async () => {
   ready();
   lookupRead = {
     question: "which suppliers are set up at SG",
-    lookups: [{ system: "blue_yonder", how: "call", target: "/data/WM/wm/suppliers" }],
+    lookups: [
+      { system: "blue_yonder", how: "call", target: "/data/WM/wm/suppliers" },
+    ],
     answers: [
-      { system: "blue_yonder", target: "/data/WM/wm/suppliers", ok: true, status: 200, body: '{"rows":5}' },
+      {
+        system: "blue_yonder",
+        target: "/data/WM/wm/suppliers",
+        ok: true,
+        status: 200,
+        body: '{"rows":5}',
+      },
     ],
   };
 
@@ -1429,7 +1762,11 @@ test("a question is answered rather than turned into an offer", async () => {
   const answered = held.get("sro.answer");
   assert.equal(answered.said, "which suppliers are set up at SG");
   assert.equal(answered.answers[0].status, 200);
-  assert.deepEqual(openOnes(), [], "a question was turned into an offer to run something");
+  assert.deepEqual(
+    openOnes(),
+    [],
+    "a question was turned into an offer to run something",
+  );
 });
 
 test("a rule that almost fired is held where the panel can say so", async () => {
@@ -1472,7 +1809,11 @@ test("a page cannot put its own words on the panel through a near miss", async (
   ]);
 
   await send(
-    { kind: "watch-nearly", triggerId: "trg-1", terms: ["click here to claim your prize"] },
+    {
+      kind: "watch-nearly",
+      triggerId: "trg-1",
+      terms: ["click here to claim your prize"],
+    },
     { url: "https://mail.google.com/mail/u/0/#inbox" },
   );
 
@@ -1491,13 +1832,27 @@ test("a mail whose watch asks is answered, not turned into an offer to run", asy
       asks: true,
       host: "mail.google.com",
       terms: [{ field: "subject", contains: "how many" }],
-      values: [{ name: "question", where: { strategy: "css_path", query: "div.mail-body" } }],
+      values: [
+        {
+          name: "question",
+          where: { strategy: "css_path", query: "div.mail-body" },
+        },
+      ],
     },
   ]);
   lookupRead = {
     question: "how many suppliers are set up at SG",
-    lookups: [{ system: "blue_yonder", how: "call", target: "/data/WM/wm/suppliers" }],
-    answers: [{ system: "blue_yonder", target: "/data/WM/wm/suppliers", ok: true, body: "5" }],
+    lookups: [
+      { system: "blue_yonder", how: "call", target: "/data/WM/wm/suppliers" },
+    ],
+    answers: [
+      {
+        system: "blue_yonder",
+        target: "/data/WM/wm/suppliers",
+        ok: true,
+        body: "5",
+      },
+    ],
   };
 
   const answered = await send(
@@ -1510,14 +1865,20 @@ test("a mail whose watch asks is answered, not turned into an offer to run", asy
   );
 
   assert.equal(answered.asked, true);
-  assert.deepEqual(lookedUp, [{ question: "how many suppliers are set up at SG" }]);
+  assert.deepEqual(lookedUp, [
+    { question: "how many suppliers are set up at SG" },
+  ]);
   assert.equal(held.get("sro.answer").answers[0].body, "5");
   assert.deepEqual(
     calls.filter((call) => call.path.includes("/matched")),
     [],
     "a question was reported as a mail match for a job",
   );
-  assert.deepEqual(held.get("sro.offers") || [], [], "a question left an offer nobody can press");
+  assert.deepEqual(
+    held.get("sro.offers") || [],
+    [],
+    "a question left an offer nobody can press",
+  );
 });
 
 test("a watch that asks and finds no question in the mail says so and asks nobody", async () => {
@@ -1530,7 +1891,12 @@ test("a watch that asks and finds no question in the mail says so and asks nobod
       asks: true,
       host: "mail.google.com",
       terms: [{ field: "subject", contains: "how many" }],
-      values: [{ name: "question", where: { strategy: "css_path", query: "div.mail-body" } }],
+      values: [
+        {
+          name: "question",
+          where: { strategy: "css_path", query: "div.mail-body" },
+        },
+      ],
     },
   ]);
 
@@ -1550,13 +1916,17 @@ test("a sentence about nothing says something and offers nothing", async () => {
   // `ready()` above already signed this browser in.
   chatRead = { workflow_id: null, values: {}, missing: [] };
 
-  const said = await send({ kind: "thread-say", threadId: "thr-1", text: "how do I log in", tabId: TAB });
+  const said = await send({
+    kind: "thread-say",
+    threadId: "thr-1",
+    text: "how do I log in",
+    tabId: TAB,
+  });
 
   assert.ok(said, "the sentence was not said at all");
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.deepEqual(openOnes(), []);
 });
-
 
 test("the panel's tick reads the mailbox, and not on every tick", async () => {
   // The panel asks on the poll it already runs -- "has anything been said to
@@ -1564,14 +1934,30 @@ test("the panel's tick reads the mailbox, and not on every tick", async () => {
   // The throttle is here rather than in the panel because the panel is closed
   // most of the day and there may be more than one of them.
   ready();
-  mailLooked = { offered: [{ message: "m-1", workflow_id: "wfl_1", title: "Create a Customer Type", values: {}, missing: [] }], read: 4, why: "offered Create a Customer Type" };
+  mailLooked = {
+    offered: [
+      {
+        message: "m-1",
+        workflow_id: "wfl_1",
+        title: "Create a Customer Type",
+        values: {},
+        missing: [],
+      },
+    ],
+    read: 4,
+    why: "offered Create a Customer Type",
+  };
 
   const first = await send({ kind: "look-in-the-mail" });
   const second = await send({ kind: "look-in-the-mail" });
 
   assert.deepEqual(first, { ok: true, offered: 1, read: 4 });
   assert.equal(second.skipped, "looked recently");
-  assert.deepEqual(mailLooks, ["POST"], "the mailbox was read twice in five seconds");
+  assert.deepEqual(
+    mailLooks,
+    ["POST"],
+    "the mailbox was read twice in five seconds",
+  );
 });
 
 test("a mail becomes a card that waits, not a line in the conversation", async () => {
@@ -1607,9 +1993,16 @@ test("a mail becomes a card that waits, not a line in the conversation", async (
   // they missed.
   assert.ok(card.expiresAt > Date.now(), "the card was born quiet");
   assert.equal(card.keeps, true);
-  assert.equal(card.tabId, null, "a mail card tied to a tab is one the panel never draws");
+  assert.equal(
+    card.tabId,
+    null,
+    "a mail card tied to a tab is one the panel never draws",
+  );
   // And nothing was said into the thread.
-  assert.equal(calls.filter((call) => call.path.startsWith("/v1/threads")).length, 0);
+  assert.equal(
+    calls.filter((call) => call.path.startsWith("/v1/threads")).length,
+    0,
+  );
 });
 
 test("the mailbox is read on the beat, not only while somebody is watching", async () => {
@@ -1617,7 +2010,11 @@ test("the mailbox is read on the beat, not only while somebody is watching", asy
   // somebody needs to find waiting when they open it, and a look that runs
   // only on the panel's own tick cannot produce one.
   ready();
-  mailLooked = { offered: [], read: 2, why: "read 2, and none of them asks for a job" };
+  mailLooked = {
+    offered: [],
+    read: 2,
+    why: "read 2, and none of them asks for a job",
+  };
 
   await globalThis.__beat({ name: "sro-heartbeat" });
   // The alarm's work is fired and not awaited -- nothing is waiting on it --
@@ -1636,7 +2033,13 @@ test("the icon counts what is waiting, and recording still wins it", async () =>
   ready();
   mailLooked = {
     offered: [
-      { message: "m-7", workflow_id: "wfl_1", title: "Create a Customer Type", values: {}, missing: [] },
+      {
+        message: "m-7",
+        workflow_id: "wfl_1",
+        title: "Create a Customer Type",
+        values: {},
+        missing: [],
+      },
     ],
     read: 1,
     why: "offered Create a Customer Type",
@@ -1654,7 +2057,11 @@ test("the icon counts what is waiting, and recording still wins it", async () =>
   // keeps rather than one this test arranges.
   await send({ kind: "set-paused", paused: true });
 
-  assert.equal(badges.at(-1).text, "1", "nothing on the icon said a request was waiting");
+  assert.equal(
+    badges.at(-1).text,
+    "1",
+    "nothing on the icon said a request was waiting",
+  );
   assert.match(titles.at(-1), /1 request waiting/);
 });
 
@@ -1664,7 +2071,11 @@ test("a browser with no mailbox behind it stops asking rather than calling all d
   // minute" would be a call every minute forever for an answer that cannot
   // change until somebody authorises one.
   ready();
-  mailLooked = { offered: [], read: 0, why: "the mailbox could not be reached: no grant" };
+  mailLooked = {
+    offered: [],
+    read: 0,
+    why: "the mailbox could not be reached: no grant",
+  };
 
   await send({ kind: "look-in-the-mail" });
   const again = await send({ kind: "look-in-the-mail" });
@@ -1694,25 +2105,44 @@ test("the run an answer starts is said into the conversation that authorised it"
   threadSaid = {
     id: "thr-1",
     messages: [
-      { id: "m1", speaker: "operator", text: "NSRO", said_at: "2026-09-18T11:20:01Z" },
       {
-        id: "m2", speaker: "assistant", text: "Running Create a Customer Type now.",
+        id: "m1",
+        speaker: "operator",
+        text: "NSRO",
+        said_at: "2026-09-18T11:20:01Z",
+      },
+      {
+        id: "m2",
+        speaker: "assistant",
+        text: "Running Create a Customer Type now.",
         said_at: "2026-09-18T11:20:02Z",
         decision: {
-          kind: "job", workflow_id: "wfl_wa", resume: true, from_step: 0,
-          title: "Create a Customer Type", values: { workArea: "NSRO" }, watched: true,
+          kind: "job",
+          workflow_id: "wfl_wa",
+          resume: true,
+          from_step: 0,
+          title: "Create a Customer Type",
+          values: { workArea: "NSRO" },
+          watched: true,
         },
       },
     ],
   };
 
-  await send({ kind: "thread-say", threadId: "thr-1", text: "NSRO", tabId: TAB });
+  await send({
+    kind: "thread-say",
+    threadId: "thr-1",
+    text: "NSRO",
+    tabId: TAB,
+  });
   await until(
     () => calls.some((call) => call.path === "/v1/chat/run-started"),
     "the thread was never told which run came of the answer",
   );
 
-  const told = JSON.parse(calls.find((call) => call.path === "/v1/chat/run-started").body);
+  const told = JSON.parse(
+    calls.find((call) => call.path === "/v1/chat/run-started").body,
+  );
   assert.equal(told.run_id, "run-9");
   assert.equal(told.title, "Create a Customer Type");
   threadSaid = null;
@@ -1781,14 +2211,20 @@ test("the same job asked for on another thread is another request", async () => 
   held.set("sro.mailLooked", null);
   mailLooked = asked("m-201", "t-two");
   await send({ kind: "look-in-the-mail" });
-  await until(() => openOnes().length === 2, "a second request was folded into the first");
+  await until(
+    () => openOnes().length === 2,
+    "a second request was folded into the first",
+  );
 });
 
 test("two different jobs on one thread are two requests", async () => {
   // A conversation can turn to something else. What makes two mails one
   // request is the thread AND the job, not the thread alone.
   ready();
-  shapesServed = [SHAPE, { ...SHAPE, id: "wfl_other", title: "Create a Work Area" }];
+  shapesServed = [
+    SHAPE,
+    { ...SHAPE, id: "wfl_other", title: "Create a Work Area" },
+  ];
   const asked = (message, workflow) => ({
     read: 1,
     why: "offered something",
@@ -1796,7 +2232,10 @@ test("two different jobs on one thread are two requests", async () => {
       {
         message,
         workflow_id: workflow,
-        title: workflow === "wfl_wa" ? "Create a Customer Type" : "Create a Work Area",
+        title:
+          workflow === "wfl_wa"
+            ? "Create a Customer Type"
+            : "Create a Work Area",
         values: { "Customer Type": "GV2" },
         missing: [],
         thread: "t-same",
@@ -1862,15 +2301,137 @@ test("a tab that records half is repaired once, and only once", async () => {
   reloads.length = 0;
 
   const deaf = { tab: { id: 4242 } };
-  await globalThis.__handle({ kind: "calls-not-recordable", holding: false }, deaf, () => {});
-  await until(() => reloads.length === 1, "a page with nothing typed in it was not repaired");
+  await globalThis.__handle(
+    { kind: "calls-not-recordable", holding: false },
+    deaf,
+    () => {},
+  );
+  await until(
+    () => reloads.length === 1,
+    "a page with nothing typed in it was not repaired",
+  );
 
   // It is still deaf a second later, because the reload did not take. It is
   // not reloaded again: it goes on the card and waits to be asked, which is
   // where it was before any of this.
-  await globalThis.__handle({ kind: "calls-not-recordable", holding: false }, deaf, () => {});
+  await globalThis.__handle(
+    { kind: "calls-not-recordable", holding: false },
+    deaf,
+    () => {},
+  );
   await new Promise((done) => setTimeout(done, 20));
   assert.deepEqual(reloads, [4242], "the worker reloaded the same tab twice");
+});
+
+test("a page whose frames all report at once is still repaired only once", async () => {
+  // The case the sequential test above could not see. One page is one tab id
+  // and MANY FRAMES: a page with a dozen iframes reports a half-installed
+  // recorder a dozen times in the same turn, from the same `sender.tab.id`.
+  //
+  // The guard asked storage whether the tab had been repaired and marked it
+  // afterwards, with an await between -- so every report that arrived before
+  // the first one finished reading saw an unclaimed tab, and every one of
+  // them reloaded it. Measured on the deployment 2026-09-20: tab 148284819
+  // reloaded fifteen times and 148284734 eight, inside one minute, each
+  // reload narrated truthfully by a guard doing exactly what it was written
+  // to do and unable to see the other fourteen.
+  ready();
+  reloads.length = 0;
+
+  const page = { tab: { id: 7373 } };
+  // Not awaited in between, which is the whole point: this is one turn.
+  await Promise.all(
+    Array.from({ length: 12 }, () =>
+      globalThis.__handle(
+        { kind: "calls-not-recordable", holding: false },
+        page,
+        () => {},
+      ),
+    ),
+  );
+  await new Promise((done) => setTimeout(done, 30));
+
+  assert.deepEqual(
+    reloads,
+    [7373],
+    `one page was reloaded ${reloads.length} times`,
+  );
+});
+
+test("the reload a repair performs does not undo the claim that made it", async () => {
+  // The loop, and the guard drove it.
+  //
+  // `chrome.tabs.reload` commits like any other navigation, so the reload the
+  // worker had just performed arrived at `onCommitted`, which forgot the
+  // claim -- and the fresh page reported the same half-installed recorder to
+  // a worker that had never heard of it. Measured on the deployment
+  // 2026-09-20: two tabs, twenty-three reloads, inside one minute, every one
+  // of them narrated truthfully.
+  ready();
+  reloads.length = 0;
+
+  const deaf = { tab: { id: 8484 } };
+  await globalThis.__handle(
+    { kind: "calls-not-recordable", holding: false },
+    deaf,
+    () => {},
+  );
+  await until(() => reloads.length === 1, "the page was not repaired at all");
+
+  // The reload commits. Chrome says what kind of navigation it was.
+  await globalThis.__committed({
+    frameId: 0,
+    tabId: 8484,
+    url: "https://wms.example/receiving",
+    timeStamp: Date.now(),
+    transitionType: "reload",
+  });
+  await globalThis.__handle(
+    { kind: "calls-not-recordable", holding: false },
+    deaf,
+    () => {},
+  );
+  await new Promise((done) => setTimeout(done, 30));
+
+  assert.deepEqual(
+    reloads,
+    [8484],
+    `the page was reloaded ${reloads.length} times`,
+  );
+});
+
+test("a tab that goes somewhere else gets its own repair", async () => {
+  // The other side, and the reason the forgetting exists at all: a fresh
+  // document gets a fresh patch at `document_start`, so whatever was wrong
+  // with the last one is not wrong with this one. An operator who works in
+  // one tab all day must not spend its only repair on the first page.
+  ready();
+  reloads.length = 0;
+
+  const deaf = { tab: { id: 9595 } };
+  await globalThis.__handle(
+    { kind: "calls-not-recordable", holding: false },
+    deaf,
+    () => {},
+  );
+  await until(() => reloads.length === 1, "the page was not repaired at all");
+
+  await globalThis.__committed({
+    frameId: 0,
+    tabId: 9595,
+    url: "https://wms.example/somewhere-else",
+    timeStamp: Date.now(),
+    transitionType: "link",
+  });
+  await globalThis.__handle(
+    { kind: "calls-not-recordable", holding: false },
+    deaf,
+    () => {},
+  );
+  await until(
+    () => reloads.length === 2,
+    "a different page was refused a repair it never had",
+  );
 });
 
 test("a tab holding something typed is never reloaded", async () => {
@@ -1887,7 +2448,11 @@ test("a tab holding something typed is never reloaded", async () => {
   );
   await new Promise((done) => setTimeout(done, 20));
 
-  assert.deepEqual(reloads, [], "somebody's half-filled form was reloaded away");
+  assert.deepEqual(
+    reloads,
+    [],
+    "somebody's half-filled form was reloaded away",
+  );
 });
 
 test("a finished card ends when the operator says they have read it", async () => {
@@ -1906,7 +2471,11 @@ test("a finished card ends when the operator says they have read it", async () =
 
   await send({ kind: "forget-run" });
 
-  assert.equal(held.get("sro.finishedRun"), null, "the card the operator dismissed is still held");
+  assert.equal(
+    held.get("sro.finishedRun"),
+    null,
+    "the card the operator dismissed is still held",
+  );
 });
 
 test("taking an offer up into the conversation ends the card", async () => {
@@ -1940,7 +2509,11 @@ test("taking an offer up into the conversation ends the card", async () => {
   assert.equal(answer.ok, true, answer.error);
 
   // Ended, so a second press cannot stack a second question.
-  assert.equal(openOnes().length, 0, "the card is still open after being taken up");
+  assert.equal(
+    openOnes().length,
+    0,
+    "the card is still open after being taken up",
+  );
   const again = await send({ kind: "ask-about-offer", nudgeId: card.id });
   assert.equal(again.ok, false);
   assert.match(String(again.error), /already ended/);
@@ -1963,8 +2536,12 @@ test("an asking that fails leaves the offer theirs to answer", async () => {
     why: "offered Create a Customer Type",
     offered: [
       {
-        message: "m-89", workflow_id: "wfl_wa", title: "Create a Customer Type",
-        values: {}, missing: ["Customer Type"], thread: "t-89",
+        message: "m-89",
+        workflow_id: "wfl_wa",
+        title: "Create a Customer Type",
+        values: {},
+        missing: ["Customer Type"],
+        thread: "t-89",
       },
     ],
   };
@@ -2020,7 +2597,11 @@ test("a mail offer this browser cannot keep is said out loud, not swallowed", as
   const looked = await send({ kind: "look-in-the-mail" });
   globalThis.chrome.storage.local.set = set;
 
-  assert.equal(looked.skipped, undefined, `the look did not run: ${looked.skipped}`);
+  assert.equal(
+    looked.skipped,
+    undefined,
+    `the look did not run: ${looked.skipped}`,
+  );
   assert.equal(looked.offered, 0, "it counted an offer it did not keep");
   const status = await send({ kind: "status" });
   assert.match(
@@ -2077,5 +2658,9 @@ test("what this browser decided rides out on the next beat", async () => {
     .filter((call) => call.path.endsWith("/heartbeat"))
     .map((call) => (JSON.parse(call.body).said || []).join("\n"))
     .filter((lines) => lines.includes("m-88"));
-  assert.equal(beats.length, 1, `it said the same line on ${beats.length} beats`);
+  assert.equal(
+    beats.length,
+    1,
+    `it said the same line on ${beats.length} beats`,
+  );
 });

@@ -157,7 +157,20 @@ chrome.webNavigation.onCommitted.addListener((d) => {
   // which is the only moment one can safely happen -- so whatever was wrong
   // with the last document is not wrong with this one.
   halfDeaf.delete(d.tabId);
-  void forgetRepaired(d.tabId);
+  // Except when this document IS the repair.
+  //
+  // `chrome.tabs.reload` commits like any other navigation, so the reload the
+  // worker performed arrived here and forgot the claim it had just made. The
+  // fresh page reported the same half-installed recorder to a worker that had
+  // never heard of it, which reloaded it, which committed, which forgot --
+  // the loop this guard exists to stop, driven by the guard itself. Measured
+  // on the deployment 2026-09-20: two tabs, twenty-three reloads, one minute.
+  //
+  // `reload` covers the operator pressing it too, which costs that tab its
+  // repair for a page it is already on. That is the conservative side: a
+  // repair not offered goes on the card and waits to be asked, and a repair
+  // offered forever is a browser nobody can use.
+  if (d.transitionType !== "reload") void forgetRepaired(d.tabId);
   // A system the operator watches everywhere is watched here too, whoever
   // opened this tab -- them, a link, or a run opening one for itself. On the
   // deployment, 2026-09-17, a run drove a tab it had opened while the panel
@@ -1059,8 +1072,17 @@ async function watchedTabs() {
   const alive = await Promise.all(
     watched.map(async (entry) => {
       try {
-        await chrome.tabs.get(entry.tabId);
-        return entry;
+        const tab = await chrome.tabs.get(entry.tabId);
+        // Where it is NOW, beside the host the watch was granted for.
+        //
+        // `host` is written once, when the watch is made, and is what the
+        // grant was asked about -- so it has to stay that, or closing the tab
+        // would revoke a grant for a host it never left. It is not where the
+        // tab is: a watched tab is watched wherever it navigates, and the
+        // panel read `host` and told an operator standing on a Keycloak
+        // sign-in page that everything they did on `blueyonderalphaus.
+        // b2clogin.com` was evidence. Measured on the deployment 2026-09-20.
+        return { ...entry, on: hostOf(tab.url || "") };
       } catch {
         return null;
       }
@@ -1071,7 +1093,13 @@ async function watchedTabs() {
   // disk, a quota -- and a gesture lost because the housekeeping beside it
   // threw is the same bug as a gesture lost to a failed screenshot.
   if (kept.length !== watched.length)
-    await state.setWatched(kept).catch(() => {});
+    // Without the derived half: `on` is read off the live tab every time this
+    // is called, and a copy of it in storage is a second answer that goes
+    // stale the moment the tab moves -- which is the defect this adds `on` to
+    // fix.
+    await state
+      .setWatched(kept.map(({ on: _on, ...kept_ }) => kept_))
+      .catch(() => {});
   return kept;
 }
 
@@ -1367,23 +1395,41 @@ const halfDeaf = new Set();
  */
 const repaired = new Set();
 
-/** Whether this tab has had its one repair, in this worker or any before it. */
-async function alreadyRepaired(tabId) {
-  if (repaired.has(tabId)) return true;
-  return (await state.repaired()).includes(tabId);
-}
-
-/** Remember it, for the workers after this one. */
-async function markRepaired(tabId) {
-  repaired.add(tabId);
-  await serially(async () => {
+/** Claim this tab's one repair, or say somebody already has it.
+ *
+ * Asking and claiming in ONE turn, under the lock, and that is the whole
+ * point. It used to be `alreadyRepaired` then `markRepaired`, with an await
+ * between them -- so every report that arrived before the first one finished
+ * reading storage saw an unclaimed tab, and every one of them reloaded it.
+ *
+ * Which is not a rare race. One page is one tab id and many FRAMES: a page
+ * with a dozen iframes reports a half-installed recorder a dozen times in the
+ * same turn, from the same `sender.tab.id`. Measured on the deployment
+ * 2026-09-20: tab 148284819 reloaded fifteen times and tab 148284734 eight,
+ * inside one minute, each reload narrated truthfully by a guard that was
+ * doing exactly what it was written to do and could not see the other
+ * fourteen.
+ *
+ * The in-memory Set stays in front of the storage read for the common case --
+ * a tab asking twice in one worker's life should not cost one -- but it is
+ * now read and written on the same side of the lock as the list.
+ */
+async function claimRepair(tabId) {
+  return serially(async () => {
+    if (repaired.has(tabId)) return false;
     const held = await state.repaired();
-    if (!held.includes(tabId)) {
-      // Bounded: tab ids are reused by Chrome and a list that only grows is a
-      // list that refuses a repair to a tab that has never had one. The newest
-      // few are the ones a loop would be about.
-      await state.setRepaired([...held, tabId].slice(-K_REPAIRED));
+    if (held.includes(tabId)) {
+      // Remembered here too, so the next report in this worker's life is
+      // answered without a storage read.
+      repaired.add(tabId);
+      return false;
     }
+    repaired.add(tabId);
+    // Bounded: tab ids are reused by Chrome and a list that only grows is a
+    // list that refuses a repair to a tab that has never had one. The newest
+    // few are the ones a loop would be about.
+    await state.setRepaired([...held, tabId].slice(-K_REPAIRED));
+    return true;
   });
 }
 
@@ -1466,9 +1512,8 @@ async function handle(message, sender) {
         message.holding === false &&
         deafTab >= 0 &&
         !running &&
-        !(await alreadyRepaired(deafTab))
+        (await claimRepair(deafTab))
       ) {
-        await markRepaired(deafTab);
         try {
           await chrome.tabs.reload(deafTab);
           await narrate(
@@ -2094,7 +2139,11 @@ async function handle(message, sender) {
             ? `taking back what ${message.workflowId} made: run ${run.id}`
             : `trying ${message.workflowId} again: run ${run.id}`,
         );
-        await state.setActiveRun({ runId: run.id, at: Date.now(), source: "rig" });
+        await state.setActiveRun({
+          runId: run.id,
+          at: Date.now(),
+          source: "rig",
+        });
         return { ok: true, run_id: run.id };
       } catch (error) {
         return { ok: false, error: error.problem?.detail || error.message };

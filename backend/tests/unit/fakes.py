@@ -1234,6 +1234,11 @@ class FakeChannel:
                 "kind": kind,
                 "payload": dict(payload),
                 "run_id": run_id,
+                # How long the caller said it may take. Kept because it is a
+                # decision somebody makes and nothing could see: a lookup
+                # inside a conversation turn waits a different length of time
+                # from one somebody is watching a spinner for.
+                "deadline_s": deadline_s,
             }
         )
         queued = self.script.get(kind)

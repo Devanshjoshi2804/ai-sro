@@ -336,6 +336,7 @@ async def test_a_look_is_where_the_browser_is_and_what_is_on_the_screen() -> Non
             "kind": "ui.url",
             "run_id": "run_1",
             "payload": {"origin": "http://127.0.0.1:63319"},
+            "deadline_s": None,
         },
         {
             "tenant_id": "acme",
@@ -349,6 +350,9 @@ async def test_a_look_is_where_the_browser_is_and_what_is_on_the_screen() -> Non
                 "origin": "http://127.0.0.1:63319",
                 "allow_focus": True,
             },
+            # A run's own steps carry no deadline: the executor has its own
+            # budget and the channel's default is what it wants.
+            "deadline_s": None,
         },
     ]
 

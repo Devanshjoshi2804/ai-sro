@@ -29,7 +29,12 @@ from sro.application.intent.next_steps import SuggestNext
 from sro.application.intent.resolve import Resolution, ResolveIntent
 from sro.application.knowledge.open_questions import Ambiguity, AskAbout
 from sro.application.lookup.plan_lookups import PlanLookups
-from sro.application.lookup.run_lookups import Answers, Looked, RunLookups
+from sro.application.lookup.run_lookups import (
+    K_WHILE_TALKING,
+    Answers,
+    Looked,
+    RunLookups,
+)
 from sro.application.ports.http import TargetUnreachable
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
@@ -1115,7 +1120,18 @@ class Converse:
         # `allow_focus` false, always. A question is not a reason to take the
         # screen somebody is working on -- that is the refusal
         # (`focus_not_permitted`) this whole path exists to stop meeting.
-        return await self._run_lookups.execute(ctx, plan=planned.plan, allow_focus=False)
+        #
+        # And `K_WHILE_TALKING`, not the lookup door's own budget. A reply in a
+        # panel is a turn in a conversation, and a turn that takes a minute has
+        # stopped being one: measured on the deployment 2026-09-21, request
+        # `req_10d3ff9b`, the browser's socket dropped twice inside one
+        # request, a command waited out the full 45 seconds, and the reply took
+        # 67459ms. Routing the conversation through this door is what made a
+        # thread reply wait on a browser at all; this is what stops it waiting
+        # on one that is not answering.
+        return await self._run_lookups.execute(
+            ctx, plan=planned.plan, allow_focus=False, within=K_WHILE_TALKING
+        )
 
     async def _say_what_was_found(
         self, ctx: RequestContext, *, thread_id: ThreadId, text: str, found: Answers
@@ -1380,6 +1396,17 @@ sentence, and a sentence about fifty records is the raw-JSON preview this
 replaced."""
 
 
+K_RAN_OUT = ("timeout", "timed out", "deadline")
+"""What the channel says when nobody answered in time. The extension's own
+words, matched here rather than translated -- `unreachable` is a browser that
+said no and this is one that said nothing, and they want different sentences."""
+
+
+def _ran_out(detail: str) -> bool:
+    said = (detail or "").lower()
+    return any(word in said for word in K_RAN_OUT)
+
+
 def _seen(looked: Looked) -> dict[str, object]:
     """One answer, in the shape every surface draws it from. See
     `domain.lookup.answer.as_seen` -- the trimming is there so the card, the
@@ -1404,6 +1431,15 @@ def _what_was_found(found: Answers) -> str:
     answered = [one for one in found.looked if one.ok]
     if not answered:
         why = next((one.detail for one in found.looked if one.detail), "")
+        # Name the browser where the browser is what did not answer. "I could
+        # not read that. timeout" is a sentence about this system's plumbing;
+        # the person reading it can see their own browser and can do something
+        # about it.
+        if any(_ran_out(one.detail) for one in found.looked):
+            return (
+                "I could not reach your browser in time, so I have not read that yet."
+                " Ask again and I will try once more."
+            )
         return f"I could not read that. {why}".strip()
     # The reader's own sentence, where it read records.
     #

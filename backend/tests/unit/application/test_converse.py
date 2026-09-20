@@ -881,19 +881,40 @@ class _Plans:
 
 
 class _Runs:
-    """A browser that answers the plan with fifty records."""
+    """A browser that answers the plan, or does not."""
 
-    def __init__(self) -> None:
+    def __init__(self, ok: bool = True, detail: str = "") -> None:
         self.focus: list[bool] = []
+        self.within: list[float] = []
+        self._ok = ok
+        self._detail = detail
 
     async def execute(
-        self, _ctx: object, *, plan: object, allow_focus: bool = False, **_rest: object
+        self,
+        _ctx: object,
+        *,
+        plan: object,
+        allow_focus: bool = False,
+        within: float = 45.0,
+        **_rest: object,
     ) -> object:
         import json as _json
 
         from sro.application.lookup.run_lookups import Answers, Looked
 
         self.focus.append(allow_focus)
+        self.within.append(within)
+        if not self._ok:
+            return Answers(
+                plan=plan,  # type: ignore[arg-type]
+                looked=(
+                    Looked(
+                        lookup=plan.lookups[0],  # type: ignore[attr-defined]
+                        ok=False,
+                        detail=self._detail,
+                    ),
+                ),
+            )
         body = _json.dumps(
             {"data": [{"customerType": "KKYT", "longDescription": "my sro is best"}]}
         )
@@ -952,6 +973,57 @@ async def test_a_question_never_takes_the_screen_somebody_is_working_on() -> Non
     await converse.execute(CTX, thread_id=thread_id, text="is there a customer type KKYT")
 
     assert runs.focus == [False]
+
+
+async def test_a_conversation_does_not_wait_on_a_browser_for_a_minute() -> None:
+    """A reply in a panel is a turn in a conversation, and a turn that takes a
+    minute has stopped being one.
+
+    Measured on the deployment 2026-09-21, request `req_10d3ff9b`: the
+    browser's socket dropped twice inside one request, a command waited out
+    the lookup door's full 45 seconds, and the reply took 67459ms. Routing the
+    conversation through that door is what made a thread reply wait on a
+    browser at all.
+    """
+    from sro.application.lookup.run_lookups import K_DEADLINE_S, K_WHILE_TALKING
+
+    uow = FakeUnitOfWork()
+    converse, thread_id = await _asked(uow, [])
+    runs = _Runs()
+    converse._plan_lookups = _Plans()  # type: ignore[assignment]
+    converse._run_lookups = runs  # type: ignore[assignment]
+
+    await converse.execute(CTX, thread_id=thread_id, text="is there a customer type KKYT")
+
+    assert runs.within == [K_WHILE_TALKING]
+    assert K_WHILE_TALKING < K_DEADLINE_S, "a conversation waits as long as a lookup does"
+
+
+async def test_a_browser_that_never_answered_is_said_in_words_a_person_can_act_on() -> None:
+    """ "I could not read that. timeout" is a sentence about this system's
+    plumbing. The person reading it can see their own browser."""
+    uow = FakeUnitOfWork()
+    converse, thread_id = await _asked(uow, [])
+    converse._plan_lookups = _Plans()  # type: ignore[assignment]
+    converse._run_lookups = _Runs(ok=False, detail="timeout after 10000ms")  # type: ignore[assignment]
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="is there a customer type KKYT")
+
+    assert "could not reach your browser" in said.messages[-1].text
+    assert "timeout" not in said.messages[-1].text
+
+
+async def test_a_browser_that_refused_still_says_what_it_refused_with() -> None:
+    """A browser that said no is a different problem from one that said
+    nothing, and flattening them throws away the one thing that says which."""
+    uow = FakeUnitOfWork()
+    converse, thread_id = await _asked(uow, [])
+    converse._plan_lookups = _Plans()  # type: ignore[assignment]
+    converse._run_lookups = _Runs(ok=False, detail="no tab is open on that system")  # type: ignore[assignment]
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="is there a customer type KKYT")
+
+    assert "no tab is open on that system" in said.messages[-1].text
 
 
 async def test_a_sentence_that_asks_for_work_is_not_looked_up() -> None:

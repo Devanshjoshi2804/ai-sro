@@ -13,7 +13,7 @@ import json
 import pytest
 
 from sro.application.context import RequestContext
-from sro.application.lookup.run_lookups import RunLookups
+from sro.application.lookup.run_lookups import K_DEADLINE_S, RunLookups
 from sro.application.ports.channel import Reply
 from sro.domain.lookup.address import address_for
 from sro.domain.lookup.plan import Lookup, Plan
@@ -228,6 +228,60 @@ async def test_what_came_back_is_read_by_the_reader_every_other_read_uses() -> N
     assert "supplierNumber" in read.columns and "supplierName" in read.columns
     assert "URNFormat" not in read.columns and "self_uri" not in read.columns
     assert read.columns.index("supplierName") < read.columns.index("bulkPickingFlag")
+
+
+async def test_the_caller_says_how_long_a_lookup_may_take() -> None:
+    """The two callers have different budgets and the constant only had one.
+
+    A lookup somebody asked for may take as long as the slowest warehouse. A
+    lookup inside a conversation turn may not: measured on the deployment
+    2026-09-21, request `req_10d3ff9b`, the browser's socket dropped twice
+    inside one request, a command waited out the full 45 seconds, and a panel
+    reply took 67459ms.
+    """
+    channel = FakeChannel({"http.send": [Reply(ok=True, result={"status": 200})]})
+    uow = FakeUnitOfWork()
+    await uow.gestures.add_gestures((_gesture(_call()),))
+
+    await RunLookups(uow, channel).execute(
+        CTX, plan=Plan(question="q", lookups=(CALL,)), within=10.0
+    )
+
+    assert [one["deadline_s"] for one in channel.sent] == [10.0]
+
+
+async def test_a_lookup_nobody_budgeted_takes_the_door_s_own_time() -> None:
+    """`/v1/lookups` and `/v1/ask` are where the answer IS the request, and
+    nothing else is held up behind it."""
+    channel = FakeChannel({"http.send": [Reply(ok=True, result={"status": 200})]})
+    uow = FakeUnitOfWork()
+    await uow.gestures.add_gestures((_gesture(_call()),))
+
+    await RunLookups(uow, channel).execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    assert [one["deadline_s"] for one in channel.sent] == [K_DEADLINE_S]
+
+
+async def test_the_budget_holds_across_a_reopen_too() -> None:
+    """A system nobody has open costs three commands. Under one budget they
+    are three short waits; under none they were three long ones."""
+    channel = FakeChannel(
+        {
+            "http.send": [
+                Reply(ok=False, error_kind="no_tab_for_system", error_detail="no tab"),
+                Reply(ok=True, result={"status": 200}),
+            ],
+            "tab.open": [Reply(ok=True, result={"opened": True})],
+        }
+    )
+    uow = FakeUnitOfWork()
+    await uow.gestures.add_gestures((_gesture(_call()),))
+
+    await RunLookups(uow, channel).execute(
+        CTX, plan=Plan(question="q", lookups=(CALL,)), within=10.0
+    )
+
+    assert [one["deadline_s"] for one in channel.sent] == [10.0, 10.0, 10.0]
 
 
 async def test_an_answer_that_is_not_records_is_left_as_it_came() -> None:

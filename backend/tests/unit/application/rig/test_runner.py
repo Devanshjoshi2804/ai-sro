@@ -6151,23 +6151,25 @@ async def test_a_step_the_operator_fixed_by_hand_is_what_the_next_run_tries() ->
     assert [(one.ord, one.found_by) for one in kept] == [(0, "by_hand")]
 
 
-async def test_a_sign_in_whose_page_is_gone_after_a_step_held_is_done() -> None:
-    """Measured on the deployment 2026-09-20, run `run_83efedf5`.
+async def test_a_sign_in_whose_page_is_gone_asks_rather_than_calling_itself_done() -> None:
+    """The rule that used to live here read this as "already signed in", and
+    it was the wrong way round.
 
-    The operator was already signed in. Step 0 typed the username and held;
-    the page went through; step 1 asked for a password on a screen that no
-    longer existed and the run failed `no_tab_for_system`. The card sat there,
-    and the operator -- looking at the warehouse, signed in -- was asked to
-    sign in.
+    It said: a job that does nothing but sign in, a step that cannot find its
+    tab, and an EARLIER step that held -- so the page went away because the
+    sign-in completed. But on a job that IS the sign-in, an earlier step
+    holding means the LOGIN FORM was being filled. It is the strongest
+    evidence in the run that nobody is signed in yet.
 
-    A job that does nothing but sign in has one origin and one purpose, and
-    the thing that takes an identity provider's page away is the sign-in
-    completing.
+    Measured on the deployment 2026-09-20, run `run_28f14216`: step 0 typed
+    `RKUCHIYAGM` into the Keycloak username box and held, step 1 was skipped
+    as "already signed in", the run ended `held` -- and the operator was
+    sitting in front of that same form with the password box empty and
+    nothing on screen asking them for anything. A skipped step asks for
+    nothing, which is how this painted over the password card.
     """
     uow = await _fixture()
     workflow = await _workflow(uow)
-    # Both steps on one origin, which is what makes this a way in rather than
-    # a job that goes on to do something.
     channel = FakeChannel(
         {
             **_looks(8),
@@ -6178,17 +6180,33 @@ async def test_a_sign_in_whose_page_is_gone_after_a_step_held_is_done() -> None:
         }
     )
     asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": ""}))
+    approvals = Approvals()
 
-    run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+    task = asyncio.create_task(
+        _ran(
+            uow,
+            workflow,
+            channel=channel,
+            asker=asker,
+            values={},
+            earned=True,
+            approvals=approvals,
+        )
+    )
+    approvals.approve(await _parked(approvals))
+    run = await task
 
-    assert run.outcome == "held", [(s.order, s.verdict, s.reason[:60]) for s in run.steps]
-    assert "already signed in" in run.steps[-1].reason
+    assert run.outcome != "held", [(s.order, s.verdict, s.reason[:60]) for s in run.steps]
+    assert not any("already signed in" in one.reason for one in run.steps)
+    assert not any(one.verdict == "skipped" for one in run.steps), (
+        "a step nobody could perform was recorded as one there was nothing to do"
+    )
 
 
 async def test_a_sign_in_that_never_found_its_page_still_asks() -> None:
-    """A sign-in that could not reach its page from the very beginning has
-    signed nobody in. That is the case the park exists for, and it still
-    parks."""
+    """The same answer from the very beginning: a sign-in that could not reach
+    its page has signed nobody in, and the operator is the one who can see the
+    screen."""
     uow = await _fixture()
     workflow = await _workflow(uow)
     channel = FakeChannel(

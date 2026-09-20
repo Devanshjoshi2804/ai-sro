@@ -103,7 +103,7 @@ from sro.domain.shared.hosts import same_screen, screen_of, system_of
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
-from sro.domain.skill.signing_in import is_a_way_in, signs_in_at
+from sro.domain.skill.signing_in import signs_in_at
 from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.telemetry.whose import attribute
 
@@ -2688,40 +2688,33 @@ async def run_workflow(
                 # The claim is not given back before the second send. The
                 # release below reads the FINAL reply, which is what decides
                 # whether anything left the browser.
-                # The page a sign-in signs in AT, gone after the sign-in
-                # worked.
+                # There WAS a rule here that read this as "already signed in",
+                # and it was wrong. It said: a job that does nothing but sign
+                # in, a step that cannot find its tab, and an earlier step that
+                # held -- so the page went away because the sign-in completed.
                 #
-                # A job that does nothing but sign in has one origin and one
-                # purpose. When a step of it cannot find a tab on that origin
-                # and an EARLIER step of this run already held, the browser was
-                # there a moment ago and is not now -- and the thing that takes
-                # an identity provider's page away is the sign-in completing.
-                # There is nothing left for the rest of the job to do.
+                # On a job that IS the sign-in, an earlier step holding means
+                # the LOGIN FORM was being filled. It is the strongest evidence
+                # in the run that nobody is signed in yet, and it was read as
+                # the opposite. Measured on the deployment 2026-09-20, run
+                # `run_28f14216`: step 0 typed `RKUCHIYAGM` into the Keycloak
+                # username box and held, step 1 was skipped as "already signed
+                # in", the run ended `held` -- and the operator was sitting in
+                # front of that same form with the password box empty and
+                # nothing on screen asking them for anything.
                 #
-                # Measured on the deployment 2026-09-20, run `run_83efedf5`:
-                # the operator was already signed in, step 0 typed the username
-                # and held, the page went through, and step 1 asked for a
-                # password on a screen that no longer existed. The run failed,
-                # the card sat there, and the operator -- who was looking at
-                # the warehouse, signed in -- was asked to sign in.
+                # What it was built for -- `run_83efedf5` -- has the same shape
+                # and a different cause: the browser lost the tab it had pinned
+                # when this worker was evicted between two commands, which
+                # `commands.js` now carries through storage. A failure read as
+                # a success is how a fault gets a coat of paint instead of a
+                # fix, and this one painted over the password card: a skipped
+                # step asks for nothing.
                 #
-                # Only where a step held first. A sign-in that could not find
-                # its page from the very beginning has not signed anybody in;
-                # that is `_let_in`'s case below, and it still asks.
-                if (
-                    not reply.ok
-                    and reply.error_kind in K_NOT_HERE
-                    and is_a_way_in(workflow, by_id)
-                    and any(one.verdict == "held" for one in run.steps)
-                ):
-                    record.verdict, record.verdict_by = "skipped", "none"
-                    record.reason = (
-                        "the page this signs in at is gone, and a step before"
-                        " this one held -- already signed in"
-                    )
-                    run.outcome = "held"
-                    await _save(uow, run)
-                    return run
+                # So a sign-in that cannot find its page asks, whatever held
+                # before it. That is `_let_in`, below, and it is the only
+                # honest answer from here -- the operator can see the screen
+                # and this cannot.
                 if (
                     live
                     and not asked_for_a_browser

@@ -157,7 +157,7 @@ chrome.webNavigation.onCommitted.addListener((d) => {
   // which is the only moment one can safely happen -- so whatever was wrong
   // with the last document is not wrong with this one.
   halfDeaf.delete(d.tabId);
-  repaired.delete(d.tabId);
+  void forgetRepaired(d.tabId);
   // A system the operator watches everywhere is watched here too, whoever
   // opened this tab -- them, a link, or a run opening one for itself. On the
   // deployment, 2026-09-17, a run drove a tab it had opened while the panel
@@ -1211,7 +1211,7 @@ function unwatch(tabId) {
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   halfDeaf.delete(tabId);
-  repaired.delete(tabId);
+  void forgetRepaired(tabId);
   void forgetTail(tabId);
   void releaseTree(tabId);
   void unwatch(tabId);
@@ -1327,8 +1327,63 @@ const halfDeaf = new Set();
  *
  * Forgotten when the tab goes, beside `halfDeaf`, so a tab id Chrome reuses
  * for something else is not refused a repair it has never had.
+ *
+ * **In storage, because "ever" is longer than this worker lives.** It was a
+ * module Set, and a module Set is emptied every time the worker is evicted --
+ * which is every few seconds. So the guard held for one eviction cycle and the
+ * loop it exists to stop ran anyway, just with a pause in it.
+ *
+ * Measured on the deployment 2026-09-20: the console's own page reloaded 68
+ * times in four minutes, once every three and a half seconds, each reload
+ * reporting the same half-installed recorder to a fresh worker that had never
+ * heard of it. The page was unusable and the extension was narrating the
+ * repair each time, truthfully.
+ *
+ * The in-memory Set stays in front of it: the common case is a tab asking
+ * twice in one worker's life, and that should not cost a storage read.
  */
 const repaired = new Set();
+
+/** Whether this tab has had its one repair, in this worker or any before it. */
+async function alreadyRepaired(tabId) {
+  if (repaired.has(tabId)) return true;
+  return (await state.repaired()).includes(tabId);
+}
+
+/** Remember it, for the workers after this one. */
+async function markRepaired(tabId) {
+  repaired.add(tabId);
+  await serially(async () => {
+    const held = await state.repaired();
+    if (!held.includes(tabId)) {
+      // Bounded: tab ids are reused by Chrome and a list that only grows is a
+      // list that refuses a repair to a tab that has never had one. The newest
+      // few are the ones a loop would be about.
+      await state.setRepaired([...held, tabId].slice(-K_REPAIRED));
+    }
+  });
+}
+
+/** Forget a tab that has gone, in both places.
+ *
+ * Chrome hands the same tab id out again, so a record that outlived the tab
+ * refuses a repair to a page that has never had one -- which is the failure
+ * the in-memory Set was already careful about, and which persisting it would
+ * have made permanent.
+ */
+async function forgetRepaired(tabId) {
+  repaired.delete(tabId);
+  await serially(async () => {
+    const held = await state.repaired();
+    if (held.includes(tabId)) {
+      await state.setRepaired(held.filter((one) => one !== tabId));
+    }
+  });
+}
+
+/** How many repaired tabs are remembered. A browser with thirty tabs open,
+ * each repaired once, is the most this ever has to hold. */
+const K_REPAIRED = 40;
 
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   // Returning true keeps the channel open for the async answer.
@@ -1388,9 +1443,9 @@ async function handle(message, sender) {
         message.holding === false &&
         deafTab >= 0 &&
         !running &&
-        !repaired.has(deafTab)
+        !(await alreadyRepaired(deafTab))
       ) {
-        repaired.add(deafTab);
+        await markRepaired(deafTab);
         try {
           await chrome.tabs.reload(deafTab);
           await narrate(

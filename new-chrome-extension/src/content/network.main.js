@@ -108,7 +108,26 @@
 
   // The random half matters: this file runs in every frame of every tab, and a
   // counter plus a millisecond collides across frames that load together.
-  const REALM = crypto.randomUUID();
+  //
+  // Not `crypto.randomUUID()`, which exists only in a SECURE context. This
+  // file runs in the page's own realm, and a page on plain http has no such
+  // method -- so the whole of this threw on the first line that touched it,
+  // uncaught, and every patch below it was never installed. A tab on http
+  // recorded no traffic at all and said so once, in a console nobody had
+  // open.
+  //
+  // Measured on this deployment 2026-09-20: the console itself is served over
+  // http, and `network.main.js:111 Uncaught` is what its page said. A
+  // warehouse served the same way would have been just as silent.
+  //
+  // `getRandomValues` is not secure-context-gated and is what `randomUUID` is
+  // built on; the last fallback is for a realm that has neither, where a
+  // collision is still better than no recorder.
+  const REALM = (() => {
+    const bytes = globalThis.crypto?.getRandomValues?.(new Uint8Array(8));
+    if (bytes) return [...bytes].map((one) => one.toString(16).padStart(2, "0")).join("");
+    return `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`;
+  })();
   let counter = 0;
   const nextId = () => `req_${REALM.slice(0, 8)}_${counter++}`;
 

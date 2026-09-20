@@ -53,6 +53,7 @@ const KEYS = {
   arrived: "sro.arrived",
   nearMisses: "sro.nearMisses",
   said: "sro.said",
+  repaired: "sro.repaired",
 };
 
 // Whichever deployment this build belongs to. `make gen-deployment` writes it;
@@ -174,6 +175,12 @@ export const state = {
   // the ones written just before it went. See `said.js`.
   said: () => read(KEYS.said, []),
   setSaid: (lines) => write(KEYS.said, lines),
+
+  // Tabs this browser has already reloaded once to repair a half-installed
+  // recorder. In storage because the guard is "once per tab, EVER" and the
+  // worker holding it is evicted every few seconds. See `service-worker.js`.
+  repaired: () => read(KEYS.repaired, []),
+  setRepaired: (tabIds) => write(KEYS.repaired, tabIds),
 
   muted: () => read(KEYS.muted, {}),
   setMuted: (muted) => write(KEYS.muted, muted),

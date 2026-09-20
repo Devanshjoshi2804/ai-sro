@@ -362,6 +362,21 @@ body {
   white-space: nowrap;
 }
 
+/* The row the question named.
+ *
+ * "is there a customer type called KKYT" is answered by one of these rows and
+ * not by the table, and eight rows of a warehouse collection look alike. The
+ * row is put first by `result.js`; this is what lets the eye stop there.
+ */
+.rows tr[data-asked="1"] td {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.rows tr[data-asked="1"] {
+  background: var(--tint, rgb(255 255 255 / 6%));
+}
+
 /* Which half of the panel you are on.
  *
  * ONE control, not two buttons standing near each other: a segmented switch in

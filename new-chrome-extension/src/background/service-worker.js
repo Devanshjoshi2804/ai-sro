@@ -545,6 +545,29 @@ function jobInTheReply(thread) {
   return null;
 }
 
+/** Whether that reply is a question the conversation is still waiting on.
+ *
+ * A sentence typed under a standing question has already been read -- against
+ * the question, which is the only reading of it that is about anything. When
+ * it was not the answer, the thread says so and asks again, and reading those
+ * same words a second time against the rig's jobs is a reading of a sentence
+ * that was never about a job.
+ *
+ * Measured on the deployment 2026-09-19, thread thr_163bf91b: the operator was
+ * asked "Create a Client. Address takes 40 characters. What should it be?",
+ * typed `testing for new purpose`, and got back both halves at once -- the
+ * conversation correctly saying "I am still waiting on this one", and an open
+ * offer to create a WAREHOUSE EQUIPMENT TYPE named after their sentence.
+ */
+function stillAsking(thread) {
+  for (const message of [...(thread?.messages || [])].reverse()) {
+    if (message.speaker !== "assistant") continue;
+    const decision = message.decision || {};
+    return decision.kind === "needs_values" && Boolean(decision.workflow_id);
+  }
+  return false;
+}
+
 /** Start a job that was already said yes to, as soon as the last answer lands.
  *
  * The run went looking for values nobody typed, came back short of one, and
@@ -2266,7 +2289,11 @@ async function handle(message, sender) {
       // second time is how a panel teaches somebody to stop reading it.
       if (placed?.resume) void resumeTheJob(placed);
       else if (placed) void offerFromJob(placed, message.tabId ?? null);
-      else void offerFromWords(message.text, message.tabId ?? null);
+      // And a sentence the thread is still holding a question open for is not
+      // an unread sentence. `offerFromWords` is for the case where the door
+      // read it and placed no job at all.
+      else if (!stillAsking(said))
+        void offerFromWords(message.text, message.tabId ?? null);
       return said;
     }
     case "run-skill":

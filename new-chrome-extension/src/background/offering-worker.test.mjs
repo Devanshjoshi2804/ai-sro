@@ -1356,6 +1356,54 @@ test("the answer that finishes a job resumes it where it stopped", async () => {
   threadSaid = null;
 });
 
+test("a sentence typed under a standing question is not read a second time", async () => {
+  // Measured on the deployment 2026-09-19, thread thr_163bf91b. The operator
+  // was asked "Create a Client. Address takes 40 characters. What should it
+  // be?" and typed `testing for new purpose`. The conversation did the right
+  // thing -- the reading said that was not an answer, and it asked again --
+  // and the browser then read the SAME words a second time against the rig's
+  // jobs and drew an open offer to create a warehouse equipment type.
+  //
+  // Two answers on screen to one sentence, and the wrong one was the one with
+  // a button on it.
+  ready();
+  chatRead = { workflow_id: "wfl_wa", values: {}, missing: [] };
+  threadSaid = {
+    id: "thr-1",
+    messages: [
+      {
+        id: "m1",
+        speaker: "assistant",
+        text: "I am still waiting on this one. Address takes 40 characters. What should it be?",
+        said_at: "2026-09-19T10:20:02Z",
+        decision: {
+          kind: "needs_values",
+          workflow_id: "wfl_client",
+          missing: ["Address", "Name"],
+        },
+      },
+    ],
+  };
+
+  await send({
+    kind: "thread-say",
+    threadId: "thr-1",
+    text: "testing for new purpose",
+    tabId: TAB,
+  });
+  // The offer is made off the reply and not awaited by it, so this has to let
+  // the worker finish being wrong before it can say it was not.
+  await new Promise((resolve) => setTimeout(resolve, 100));
+
+  assert.deepEqual(
+    calls.filter((call) => call.path === "/v1/ask").map((call) => call.path),
+    [],
+    "the sentence was read a second time while its question was still standing",
+  );
+  assert.deepEqual(openOnes(), [], "a standing question became an offer to do something else");
+  threadSaid = null;
+});
+
 test("a question is answered rather than turned into an offer", async () => {
   // The other half of the same box. An instruction becomes a card somebody
   // presses; a question has already been looked up by the time the answer

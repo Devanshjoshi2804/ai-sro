@@ -36,6 +36,13 @@ def configure_logging(
     _shape = AsJson() if as_json else Plainly(_FORMAT)
     _loud = Louder(floor, frozenset(louder_for))
 
+    # Before either branch, because which one this process takes says nothing
+    # about whether uvicorn is serving it. uvicorn's own dictConfig puts
+    # handlers on `uvicorn.access` and `uvicorn.error` and NOT on the root --
+    # so the API, which is the one process with an access log to borrow, takes
+    # the second branch below and reached this nowhere at all.
+    _borrow_uvicorns(_shape)
+
     root = logging.getLogger()
     if root.handlers:
         # Something already owns logging (pytest, an OTel handler, a worker
@@ -54,7 +61,6 @@ def configure_logging(
             for handler in ours.handlers:
                 if handler.get_name() == _HANDLER:
                     handler.setFormatter(_shape)
-        _borrow_uvicorns(_shape)
         return
 
     root.addHandler(_stream(_shape, _loud))

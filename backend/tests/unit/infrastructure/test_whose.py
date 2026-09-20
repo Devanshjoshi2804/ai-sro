@@ -264,3 +264,51 @@ def test_with_nobody_named_nothing_below_the_floor_gets_through() -> None:
         Attribution().filter(record)
 
     assert loud.filter(record) is False
+
+
+def test_uvicorns_own_lines_are_rendered_the_way_everything_else_is() -> None:
+    """`uvicorn.access` is the only record that a request ARRIVED, and it was
+    the last plain-text line in a deployment whose logs are otherwise JSON.
+
+    Asserted against uvicorn's real arrangement: its dictConfig puts handlers
+    on `uvicorn.access` and `uvicorn.error` and NOT on the root. The first
+    version of this borrowed them only on the branch a process with a root
+    handler takes -- which the API, the one process with an access log worth
+    borrowing, is not.
+    """
+    from sro.observability import configure_logging
+
+    access = logging.getLogger("uvicorn.access")
+    theirs = logging.StreamHandler()
+    theirs.setFormatter(logging.Formatter("%(message)s"))
+    access.addHandler(theirs)
+    # And with the ROOT bare, which is the arrangement uvicorn leaves behind
+    # and the one the API actually runs in. Under pytest the root has handlers
+    # and `configure_logging` takes its other branch, so a test that did not
+    # do this passed with the borrow on the wrong branch -- which is how it
+    # shipped that way.
+    root = logging.getLogger()
+    was_root = list(root.handlers)
+    root.handlers = []
+    try:
+        configure_logging(as_json=True)
+        assert isinstance(theirs.formatter, AsJson), "uvicorn kept its own shape"
+        assert any(isinstance(one, Attribution) for one in theirs.filters)
+    finally:
+        access.removeHandler(theirs)
+        root.handlers = was_root
+
+
+def test_nothing_is_installed_where_uvicorn_installed_nothing() -> None:
+    """A deployment that runs this app some other way is not one whose access
+    log this should invent."""
+    from sro.observability import configure_logging
+
+    access = logging.getLogger("uvicorn.access")
+    was = list(access.handlers)
+    access.handlers = []
+    try:
+        configure_logging(as_json=True)
+        assert access.handlers == []
+    finally:
+        access.handlers = was

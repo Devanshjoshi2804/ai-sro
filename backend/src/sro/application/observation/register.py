@@ -16,6 +16,7 @@ from sro.domain.observation.grant import LONGEST
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId
+from sro.infrastructure.telemetry.whose import attribute
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,6 +193,13 @@ class ReadDevice:
         async with self._uow as uow:
             device = await uow.devices.get(ctx.tenant_id, device_id)
         refuse_unless_itself(device, secret, device_id)
+        # After it has proved itself, never before -- `asking_device`'s rule,
+        # and this is the other half of the same check. Here rather than at the
+        # six routes that make it: the device id is in the path on every
+        # `/v1/agents/{device_id}/...` route and was on none of their log
+        # lines, and one attribution where they all go through is smaller than
+        # six that the seventh will forget.
+        attribute(device=device.id.value)
         return device
 
 

@@ -147,3 +147,34 @@ def test_every_dependency_that_attributes_is_awaited_rather_than_threaded() -> N
     assert threaded == [], (
         f"these attribute from a threadpool, where the context is a copy nobody reads: {threaded}"
     )
+
+
+async def test_a_browser_that_proved_itself_is_on_the_line() -> None:
+    """Every `/v1/agents/{device_id}/...` route carries the device in its path
+    and carried it on none of its log lines: they take `device_id: str` and
+    prove it in the handler, so `asking_device` -- which attributes for the
+    query-string case -- never ran.
+
+    Attributed where they all prove it, and only after they have. A line
+    attributing work to a browser that FAILED to prove it is worse than one
+    attributing it to nobody.
+    """
+    from sro.application.context import RequestContext
+    from sro.application.observation.register import ReadDevice, RegisterDevice
+    from sro.domain.shared.errors import NotFound
+    from sro.domain.shared.identifiers import PrincipalId, TenantId
+    from tests.unit.fakes import FakeClock, FakeIdFactory, FakeUnitOfWork
+
+    ctx = RequestContext(tenant_id=TenantId("greyorange"), principal_id=PrincipalId("rudy"))
+    uow = FakeUnitOfWork()
+    registered = await RegisterDevice(uow, FakeClock(), FakeIdFactory()).execute(
+        ctx, label="laptop", extension_version="0.1.0"
+    )
+
+    with pytest.raises(NotFound):
+        await ReadDevice(uow).execute(ctx, device_id=registered.device_id, secret="not the secret")
+    assert "device" not in whose(), "a browser that failed to prove itself was attributed anyway"
+
+    await ReadDevice(uow).execute(ctx, device_id=registered.device_id, secret=registered.secret)
+
+    assert whose()["device"] == registered.device_id.value

@@ -42,6 +42,7 @@ from sro.domain.chat.asking import (
     said_yes,
     too_long_for,
 )
+from sro.domain.chat.is_it_an_answer import said_as_the_value
 from sro.domain.chat.thread import Message, Said, Speaker, Thread, ThreadId
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
 from sro.domain.shared.errors import DomainError
@@ -363,7 +364,9 @@ class Converse:
                 Message(
                     id=self._ids.new_message_id(),
                     speaker=Speaker.ASSISTANT,
-                    text=f"{_nothing_back(said_before)}{question(pending)}",
+                    text=(
+                        f"{_nothing_back(said_before)}{question(pending)}{_the_way_out(pending)}"
+                    ),
                     said_at=self._clock.now(),
                     decision={
                         "kind": NEEDS,
@@ -400,6 +403,15 @@ class Converse:
         """
         if let_go(text) or self._answers is None:
             return text, ""
+        # Named by the person themselves, and nothing needs to be read.
+        #
+        # This is the way out of the loop. The reading is told to refuse when
+        # it is unsure, which is the right default and leaves an operator who
+        # typed a real value with no move except typing it again -- so the
+        # re-ask below tells them this form exists, and this takes it.
+        named = said_as_the_value(pending, text)
+        if named is not None:
+            return named, ""
         read = await self._answers.execute(ctx, pending, text)
         if read.answers:
             return read.value or text, ""
@@ -1263,6 +1275,22 @@ def _nothing_back(said: Sequence[Message]) -> str:
         to = str(decision.get("to") or "")
         return f"Nothing back from {to} yet. " if to else "Nothing back yet. "
     return "I am still waiting on this one. "
+
+
+def _the_way_out(pending: Pending) -> str:
+    """How to be taken at your word, said where it is needed.
+
+    Every re-ask happens because a reading refused to take a sentence as the
+    value, and that reading is told to refuse when it is unsure -- which is
+    the right default and leaves somebody who typed a real value with no move
+    except typing it again and being refused again. `question` already names
+    that loop as the thing this design must not be, for the length case. This
+    is the same exit for the reading case: `said_as_the_value` takes a value
+    the person named themselves without asking anybody, and this is the only
+    place they are ever told so.
+    """
+    asked = pending.asking_for
+    return f' If you did mean that as {asked}, say "{asked}: ..." and I will take it.'
 
 
 def _gathered(thread: Thread, skill_id: str | None) -> dict[str, str]:

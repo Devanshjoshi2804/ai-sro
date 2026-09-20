@@ -545,6 +545,49 @@ async def test_asking_for_a_different_job_is_still_heard() -> None:
     assert pending_job(said.messages) is not None
 
 
+async def test_a_refused_sentence_is_told_how_to_be_taken_at_its_word() -> None:
+    """A reading told to refuse when it is unsure is the right default and it
+    leaves a loop nobody can get out of: the operator types a real value, is
+    told "I am still waiting on this one", types it again and is refused
+    again. `question` already names that loop as the thing this must not be,
+    for the length case. This is the same exit for the reading case.
+
+    Measured on the deployment 2026-09-19, thread thr_163bf91b: asked what
+    Address should be, the operator typed `testing for new purpose` and was
+    told only that the wait continued.
+    """
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked(uow, ["Customer Type"])
+    converse._answers = _Reads(answers=False)  # type: ignore[assignment]
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="testing for new purpose")
+
+    assert 'say "Customer Type: ..." and I will take it' in said.messages[-1].text, said.messages[
+        -1
+    ].text
+
+
+async def test_a_value_the_person_named_themselves_is_taken_without_a_reading() -> None:
+    """And the exit has to work, which means going nowhere near the thing that
+    refused them. A way out that is itself read by the reading is not one."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked(uow, ["Customer Type"])
+    reads = _Reads(answers=False)
+    converse._answers = reads  # type: ignore[assignment]
+
+    said = await converse.execute(
+        CTX, thread_id=thread_id, text="Customer Type: testing for new purpose"
+    )
+
+    assert reads.asked == [], "the way out of the loop went through the thing being got out of"
+    last = said.messages[-1]
+    assert last.decision is not None and last.decision["kind"] == "job"
+    # The value, not the sentence that named it.
+    assert last.decision["values"] == {"Customer Type": "testing for new purpose"}
+
+
 async def test_a_sentence_that_is_an_answer_still_is() -> None:
     """The reading is a gate, not a wall. What it says answers, answers."""
     uow = FakeUnitOfWork()

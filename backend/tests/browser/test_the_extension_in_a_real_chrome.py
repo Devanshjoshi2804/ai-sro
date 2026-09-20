@@ -1292,10 +1292,23 @@ def test_the_run_names_the_page_rather_than_taking_whatever_is_in_front(
     assert untouched == "", "the run typed into the page that happened to be in front"
 
 
-def test_a_run_whose_system_is_not_open_is_told_so(browser: Any, stub: Any, channel: Any) -> None:
-    """`no_tab_for_system`, which the backend counts as a device that could not
-    be driven rather than a skill whose control moved. A browser with no tab on
-    the system is somebody who closed it, not a page that changed."""
+def test_a_run_whose_system_is_not_open_is_told_where_it_is(
+    browser: Any, stub: Any, channel: Any
+) -> None:
+    """Not on the system, and told so by being told where it IS.
+
+    This used to answer `no_tab_for_system`, and the run built a look with no
+    url at all and reported "the browser is on None" -- measured on the
+    deployment 2026-09-19, run `run_fdc7e7ff`, with the operator looking at a
+    sign-in page the whole time. A sign-in page is on another origin by
+    definition, so the one case this refusal was written for is the case it
+    was wrong about.
+
+    Reading is not driving: nothing is performed in that tab. `url` stays null,
+    which is what the step is judged on -- the run still fails, because it is
+    not on the screen it was demonstrated on -- and `elsewhere` is what makes
+    the failure say something.
+    """
     open_channel, page = _dial(browser, stub, channel)
 
     open_channel.command(
@@ -1304,11 +1317,13 @@ def test_a_run_whose_system_is_not_open_is_told_so(browser: Any, stub: Any, chan
         {"origin": "https://wms.nowhere.example"},
     )
     answer = open_channel.answer("cmd_absent")
+    here = page.url
     page.close()
 
-    assert answer["ok"] is False
-    assert answer["error"]["kind"] == "no_tab_for_system", answer
-    assert "wms.nowhere.example" in answer["error"]["detail"], answer
+    assert answer["ok"] is True, answer
+    assert answer["result"]["url"] is None, "the run was told it was on the system it asked for"
+    assert answer["result"]["elsewhere"] == here, answer
+    assert "wms.nowhere.example" not in str(answer["result"]["elsewhere"]), answer
 
 
 def test_a_run_that_may_not_take_the_screen_is_refused_rather_than_taking_it(

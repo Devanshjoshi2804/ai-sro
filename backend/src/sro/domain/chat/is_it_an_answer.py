@@ -60,6 +60,40 @@ def plainly_a_value(pending: Pending, said: str) -> bool:
     return holds is None or len(value) <= holds
 
 
+K_SAID_AS = (":", "=")
+"""How somebody names the field themselves. `Address: SRO Depot One`."""
+
+
+def said_as_the_value(pending: Pending, said: str) -> str | None:
+    """The value where the person named the field themselves, or None.
+
+    The way out. A reading that refuses is told to refuse when it is unsure,
+    and that is the right default -- but it leaves an operator who typed a
+    real value with no move except typing it again and being refused again,
+    which is the loop `question` exists to not be. `Address: testing for new
+    purpose` is somebody saying what the sentence is FOR, and nothing needs to
+    be read to know it.
+
+    Only the field standing in front of them. `url: http://…` typed under a
+    question about Address is not a value named for Address, and taking it
+    would be the substring matching this whole module replaced.
+    """
+    value = said.strip()
+    for mark in K_SAID_AS:
+        head, found, rest = value.partition(mark)
+        if not found:
+            continue
+        return rest.strip() or None if _plainly(head) == _plainly(pending.asking_for) else None
+    return None
+
+
+def _plainly(name: str) -> str:
+    """A field name as a person would type it. `long_description` and
+    `Long Description` are the same name, and the one on the form is not
+    always the one the job declares."""
+    return " ".join(name.replace("_", " ").replace("-", " ").lower().split())
+
+
 HOW_TO_READ = """You are told a question a warehouse system has asked somebody, and the next \
 thing that person typed. Say whether what they typed is the ANSWER to that \
 question.
@@ -122,5 +156,7 @@ __all__ = [
     "HOW_TO_READ",
     "IS_IT_AN_ANSWER_SCHEMA",
     "K_ONE_WORD",
+    "K_SAID_AS",
     "plainly_a_value",
+    "said_as_the_value",
 ]

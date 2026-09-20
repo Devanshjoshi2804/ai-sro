@@ -8,7 +8,7 @@ never gets taken for a code.
 from __future__ import annotations
 
 from sro.domain.chat.asking import Pending
-from sro.domain.chat.is_it_an_answer import plainly_a_value
+from sro.domain.chat.is_it_an_answer import plainly_a_value, said_as_the_value
 
 
 def _asking(**over: object) -> Pending:
@@ -52,3 +52,41 @@ def test_a_word_the_box_will_not_hold_is_not_obvious_either() -> None:
 
 def test_nothing_typed_is_not_a_value() -> None:
     assert plainly_a_value(_asking(), "   ") is False
+
+
+def test_a_value_the_person_named_themselves_needs_nobody_to_read_it() -> None:
+    """The way out of the loop. The reading is told to refuse when it is
+    unsure -- right as a default, and it leaves somebody who typed a real
+    value with no move except typing it again and being refused again."""
+    asking = _asking(missing=("Address",))
+
+    assert said_as_the_value(asking, "Address: testing for new purpose") == (
+        "testing for new purpose"
+    )
+    assert said_as_the_value(asking, "address = SRO Depot One") == "SRO Depot One"
+
+
+def test_only_the_field_standing_in_front_of_them() -> None:
+    """`url: http://…` typed under a question about Address is not a value
+    named for Address, and taking it would be the substring matching this
+    whole module exists to have replaced."""
+    asking = _asking(missing=("Address",))
+
+    assert said_as_the_value(asking, "url: http://wms/clients") is None
+    assert said_as_the_value(asking, "Name: SROCL01") is None
+
+
+def test_a_name_is_the_same_name_however_the_form_spells_it() -> None:
+    """The name the job declares is not always the name on the screen in front
+    of them: `customertype-longDescription` is asked for as it is declared."""
+    asking = _asking(missing=("long_description",))
+
+    assert said_as_the_value(asking, "Long Description: north dock") == "north dock"
+
+
+def test_naming_the_field_and_saying_nothing_after_it_is_not_a_value() -> None:
+    assert said_as_the_value(_asking(missing=("Address",)), "Address:") is None
+
+
+def test_a_sentence_that_names_no_field_is_read_the_ordinary_way() -> None:
+    assert said_as_the_value(_asking(missing=("Address",)), "has reply arrived") is None

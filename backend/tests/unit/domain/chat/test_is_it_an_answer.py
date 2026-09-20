@@ -90,3 +90,45 @@ def test_naming_the_field_and_saying_nothing_after_it_is_not_a_value() -> None:
 
 def test_a_sentence_that_names_no_field_is_read_the_ordinary_way() -> None:
     assert said_as_the_value(_asking(missing=("Address",)), "has reply arrived") is None
+
+
+def test_a_box_roomy_enough_for_prose_takes_prose() -> None:
+    """The whole of this module exists because `HAS REPLY ARRIVED` went into a
+    FOUR-character box. A two-thousand-character description is not that box.
+
+    Measured on the deployment 2026-09-20: asked what `Customer Type
+    Description` should be, the operator typed `my sro is best` twice and was
+    refused twice -- the model calling it "a casual comment or test remark".
+    It was the description. Asking a reading to judge somebody's prose is
+    asking it a question it cannot answer.
+    """
+    asking = _asking(missing=("Description",), limits={"Description": 2000})
+
+    assert plainly_a_value(asking, "my sro is best") is True
+    assert plainly_a_value(asking, "leaning new SRO type 01, for the north dock") is True
+
+
+def test_a_question_is_still_a_question_however_roomy_the_box() -> None:
+    """The one part of the sentence rule a prose field keeps. A comma and a
+    colon are ordinary inside a description; a question mark is the clearest
+    signal a person ever gives that they are asking rather than answering."""
+    asking = _asking(missing=("Description",), limits={"Description": 2000})
+
+    assert plainly_a_value(asking, "has the reply arrived?") is False
+    # And the punctuation prose does carry is not held against it.
+    assert plainly_a_value(asking, "north dock, second aisle: overflow only") is True
+
+
+def test_prose_too_long_for_its_own_box_is_not_obviously_a_value() -> None:
+    asking = _asking(missing=("Description",), limits={"Description": 200})
+
+    assert plainly_a_value(asking, "x" * 201) is False
+
+
+def test_a_short_box_keeps_every_bit_of_the_old_rule() -> None:
+    """The four-character box, unchanged. `K_PROSE` is a rule about roomy
+    fields and must not have loosened the one this was written for."""
+    asking = _asking(limits={"Customer Type": 4})
+
+    assert plainly_a_value(asking, "has reply arrived") is False
+    assert plainly_a_value(asking, "GU9") is True

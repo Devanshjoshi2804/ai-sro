@@ -39,6 +39,28 @@ K_SENTENCE = "?!,;:"
 person ever gives that they are asking rather than answering, and this system
 threw it away."""
 
+K_PROSE = 200
+"""How roomy a box has to be before what goes in it is prose.
+
+The whole of this module exists because `HAS REPLY ARRIVED` was typed into a
+**four-character** box. That is the harm: a sentence in a field that cannot
+hold a sentence, in a live warehouse system.
+
+A field that holds two thousand characters is not that field. It is a
+description, and a description is prose -- so a reading asked "is this really
+the description" is being asked to judge somebody's prose, which it cannot do
+and should not be asked to. Measured on the deployment 2026-09-20: asked what
+`Customer Type Description` should be, the operator typed `my sro is best`
+twice and was refused twice, the model calling it "a casual comment or test
+remark". It was the description. It was the second-longest field in the job
+and there was nothing else it could have been.
+
+Two hundred, because that is comfortably longer than any code, id, quantity or
+date this system has met and comfortably shorter than any description field it
+has. Nothing is read INTO the number: what it separates is "a box a sentence
+fits in" from "a box a sentence does not fit in", and those are far apart.
+"""
+
 
 def plainly_a_value(pending: Pending, said: str) -> bool:
     """Whether this is a value with no doubt about it -- no reading needed.
@@ -49,14 +71,25 @@ def plainly_a_value(pending: Pending, said: str) -> bool:
     wide is what happened on 2026-09-18.
     """
     value = said.strip()
-    if not value or len(value.split()) != 1 or len(value) > K_ONE_WORD:
+    if not value:
+        return False
+    holds = pending.limits.get(pending.asking_for)
+    # A box roomy enough for prose, holding prose that fits. See `K_PROSE`.
+    #
+    # The question mark still decides, and only it: a comma, a colon and a
+    # semicolon are ordinary inside a description, while a question mark is
+    # the clearest signal a person ever gives that they are asking rather than
+    # answering -- which is what `K_SENTENCE` says about it and the only part
+    # of that rule a prose field has any business keeping.
+    if holds is not None and holds >= K_PROSE:
+        return len(value) <= holds and "?" not in value
+    if len(value.split()) != 1 or len(value) > K_ONE_WORD:
         return False
     if any(mark in value for mark in K_SENTENCE):
         return False
     # And it has to fit the box it is for. A lone word too long for the field
     # is already refused further down, but it is not OBVIOUSLY a value either,
     # and the question this asks is about obviousness.
-    holds = pending.limits.get(pending.asking_for)
     return holds is None or len(value) <= holds
 
 
@@ -156,6 +189,7 @@ __all__ = [
     "HOW_TO_READ",
     "IS_IT_AN_ANSWER_SCHEMA",
     "K_ONE_WORD",
+    "K_PROSE",
     "K_SAID_AS",
     "plainly_a_value",
     "said_as_the_value",

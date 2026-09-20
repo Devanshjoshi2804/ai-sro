@@ -70,7 +70,7 @@ from sro.domain.execution.planning import (
     unreplayable,
     value_for,
 )
-from sro.domain.execution.secrets import field_of, needs_a_secret, secret_key_for
+from sro.domain.execution.secrets import field_of, needs_a_secret, secret_key_of
 from sro.domain.execution.verified_writes import VerifiedWrite, verified_write_for
 from sro.domain.execution.write_plan import WritePlan, wanted_by, write_plan_for
 from sro.domain.observation.gesture import Call, Gesture, Kind
@@ -562,7 +562,31 @@ async def plan_step(
                 f"step {step.order} types a password and this run has no vault to ask",
                 answer,
             )
-        wanted = secret_key_for(tenant_id or "", primary)
+        # For the page the browser is ACTUALLY in front of, and only then the
+        # one the recording names.
+        #
+        # `secret_key_for` reads the origin off the recorded gesture, which is
+        # right while the browser is on the page that was recorded. A sign-in
+        # that bounced somewhere else is the case it is wrong for, and it is
+        # also the case a sign-in step is most often in.
+        #
+        # Measured on the deployment 2026-09-20, run `run_b949148d`: `Log in
+        # using Azure B2C SSO` is mined entirely on
+        # `blueyonderalphaus.b2clogin.com`, the live sign-in bounced to
+        # Keycloak, and this asked for -- and typed -- the b2clogin password
+        # on the Keycloak form. The page said *Invalid username or password*.
+        # A credential in the wrong system's box is worse than a step that
+        # fails: it spends an account's lockout budget, and it is the
+        # operator's account.
+        #
+        # `elsewhere_is_ours` and not `elsewhere`: the browser answers with the
+        # tab in front when this run pinned none, and a password for whatever
+        # window happened to be open is a credential prompt for a system
+        # nobody named.
+        here = look.url or (look.elsewhere if look.elsewhere_is_ours else "")
+        recorded = origin_of(primary.url or "") or (primary.system or "")
+        on = origin_of(here) or recorded
+        wanted = secret_key_of(tenant_id or "", on, field_of(primary))
         secret = await secret_for(wanted)
         if not secret:
             # The refusal carries what it wanted as STRUCTURE and not only as
@@ -575,7 +599,7 @@ async def plan_step(
                 "none",
                 {
                     "needs_secret": {
-                        "system": origin_of(primary.url or "") or (primary.system or ""),
+                        "system": on,
                         "field": field_of(primary),
                         "key": wanted,
                     }

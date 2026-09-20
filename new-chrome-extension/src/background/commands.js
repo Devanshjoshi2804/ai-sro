@@ -945,29 +945,26 @@ async function uiUrl(payload, runId) {
   // can name a login, a dialog or a half-drawn page rather than a `None`. The
   // step still fails -- it is not on the screen it was demonstrated on -- and
   // it fails legibly.
-  const elsewhere = await whereItActuallyIs(runId);
+  //
+  // And WHICH of the two it is, because the answer decides different things.
+  // The run's own pinned tab is this run, wherever it has got to -- a page
+  // the job itself navigated to, and the page it is about to be driven in.
+  // The tab in front is a guess: the operator's other window, a mailbox, a
+  // search. Both are worth REPORTING; only the first is worth ACTING on, and
+  // the backend could not tell them apart -- so a password was asked for on
+  // whatever page happened to be visible.
+  const own = await theRunsOwnTab(runId);
+  const elsewhere = own || (await theTabInFront());
   if (!elsewhere) return failure("no_tab_for_system", noPage(payload.origin));
   return {
     ok: true,
     result: {
       url: null,
       elsewhere: elsewhere.url,
+      elsewhere_is_ours: Boolean(own),
       ...(await whatThePageSays(elsewhere.id)),
     },
   };
-}
-
-/** The tab this run is driving, wherever it has got to.
- *
- * `tabForRun` keeps a run on one tab AND on one origin, which is what stops a
- * job crossing systems by accident. This asks the other question: whatever
- * origin it is on now, which page is this run in front of? The run's pinned
- * tab first, then the visible one, because an interruption -- a login, an
- * exception dialog, a session that timed out -- lands in the tab the operator
- * is looking at.
- */
-async function whereItActuallyIs(runId) {
-  return (await theRunsOwnTab(runId)) || (await theTabInFront());
 }
 
 /** The tab this run pinned, wherever it has since got to, or null.

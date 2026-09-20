@@ -874,6 +874,7 @@ async def _where(
         screenshot=None,
         digest="",
         elsewhere=str(where.result.get("elsewhere") or "") if where.ok else "",
+        elsewhere_is_ours=bool(where.ok and where.result.get("elsewhere_is_ours")),
         signed_out=bool(where.ok and where.result.get("signed_out")),
         dialog=str(where.result.get("dialog") or "") if where.ok else "",
         loading=bool(where.ok and where.result.get("loading")),
@@ -932,6 +933,7 @@ async def _look(
         # only route steps would ever notice a login page, and a route step is
         # the one kind that already knows where it is.
         elsewhere=str(where.result.get("elsewhere") or "") if where.ok else "",
+        elsewhere_is_ours=bool(where.ok and where.result.get("elsewhere_is_ours")),
         signed_out=bool(where.ok and where.result.get("signed_out")),
         dialog=str(where.result.get("dialog") or "") if where.ok else "",
         loading=bool(where.ok and where.result.get("loading")),
@@ -2939,20 +2941,57 @@ async def run_workflow(
                     # wrong password or a second factor, and a run that tried
                     # again would spend an account's lockout budget on a
                     # credential that is not going to start working.
-                    if not signed_in_here and await _sign_in_here(
-                        channel=channel,
-                        tenant_id=tenant_id,
-                        device_id=device_id,
-                        run_id=run.id,
-                        origin=origin,
-                        where=after.url or origin or "",
-                        secret_for=secret_for,
-                        record=record,
+                    # The page the browser is ACTUALLY in front of, and only
+                    # then the one the recording named.
+                    #
+                    # A credential belongs to the system whose box it is typed
+                    # into. `after.url` is empty whenever the step's own origin
+                    # is not where the tab got to -- which is every sign-in
+                    # that bounced -- so this used to fall back to the
+                    # RECORDING's origin and ask for that system's password
+                    # while the operator looked at another system's form.
+                    #
+                    # Measured on the deployment 2026-09-20, run
+                    # `run_b949148d`: `Log in using Azure B2C SSO` is mined
+                    # entirely on `blueyonderalphaus.b2clogin.com`, the live
+                    # sign-in bounced to Keycloak, and the b2clogin password
+                    # went into the Keycloak form. The page said *Invalid
+                    # username or password*. A credential in the wrong
+                    # system's box is worse than a step that fails: it spends
+                    # an account's lockout budget, and it is the operator's
+                    # account.
+                    #
+                    # `elsewhere_is_ours` and not `elsewhere`: the browser
+                    # answers with the tab in front when this run pinned none,
+                    # and "your password for <whatever window was open>" is a
+                    # credential prompt for a system nobody named.
+                    here = after.url or (after.elsewhere if after.elsewhere_is_ours else "")
+                    # And a credential goes out only where this run can say
+                    # which page it is for. `sign_in` fills the run's own tab
+                    # WHEREVER it has got to -- it has to, a sign-in page is on
+                    # another host by design -- so the origin in the command is
+                    # not a guard on where the typing lands. This is: with no
+                    # reading of where the browser is, the honest answer is to
+                    # ask rather than to send somebody's password somewhere
+                    # nothing looked at.
+                    if (
+                        here
+                        and not signed_in_here
+                        and await _sign_in_here(
+                            channel=channel,
+                            tenant_id=tenant_id,
+                            device_id=device_id,
+                            run_id=run.id,
+                            origin=origin,
+                            where=here,
+                            secret_for=secret_for,
+                            record=record,
+                        )
                     ):
                         signed_in_here = True
                         continue
                     record.sent = await _ask_for_the_password(
-                        record.sent, after.url or origin or "", tenant_id, secret_for
+                        record.sent, here or origin or "", tenant_id, secret_for
                     )
                 _bill(record, verdict.answer)
                 record.verdict, record.verdict_by = verdict.state, verdict.by

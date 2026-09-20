@@ -4773,6 +4773,166 @@ async def test_a_step_that_wants_a_password_keeps_saying_so_after_the_rung_gives
     assert "value" not in step.sent["payload"]
 
 
+async def test_the_password_asked_for_is_the_one_for_the_page_in_front_of_them() -> None:
+    """A credential belongs to the system whose box it is typed into.
+
+    `after.url` is empty whenever the step's own origin is not where the tab
+    got to -- which is every sign-in that bounced -- and this used to fall
+    back to the origin the RECORDING names. Measured on the deployment
+    2026-09-20, run `run_b949148d`: `Log in using Azure B2C SSO` is mined
+    entirely on `blueyonderalphaus.b2clogin.com`, the live sign-in bounced to
+    Keycloak, the b2clogin password went into the Keycloak form, and the page
+    said *Invalid username or password*. That spends an account's lockout
+    budget, and it is the operator's account.
+    """
+    uow = await _fixture()
+    workflow = await _a_password_step(uow)
+    asked: list[str] = []
+
+    run = await asyncio.wait_for(
+        run_workflow(
+            uow,
+            workflow,
+            tenant_id=TENANT,
+            values={},
+            channel=FakeChannel(_bounced_to("https://keycloak.example/auth", ours=True)),
+            device_id=DEVICE,
+            asker=FakeAsker(_plan("type", "x")),
+            plan_model="flash",
+            rescue_model="pro",
+            live=True,
+            allow_focus=True,
+            started_by="form",
+            stops=Stops(),
+            approvals=Approvals(),
+            cap_usd=-1.0,
+            secret_for=lambda key: _noted(key, asked),
+        ),
+        timeout=5,
+    )
+
+    wants = run.steps[0].sent["payload"]["needs_secret"]  # type: ignore[index]
+    # `origin_of`'s spelling, which is what `secret_key_of` stores under on
+    # both sides: host and port, no scheme.
+    assert wants["system"] == "keycloak.example", wants
+    assert not any("127.0.0.1" in one for one in asked), (
+        f"it went looking for the recorded system's credential: {asked}"
+    )
+
+
+async def test_no_credential_goes_out_for_a_page_this_run_never_opened() -> None:
+    """The browser answers with the tab IN FRONT when this run pinned none --
+    the operator's other window, a mailbox, a search. "Your password for
+    <whatever was open>" is a credential prompt for a system nobody named, and
+    sending one there types somebody's password into a page nothing looked at.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    # Signed out, and the browser is on a page this run never opened: the
+    # operator's other window. This is the rung that signs a run back in, and
+    # the vault has something for every key it is asked.
+    channel = FakeChannel(
+        {
+            "ui.url": [
+                Reply(
+                    ok=True,
+                    result={
+                        "url": None,
+                        "elsewhere": "https://someone-elses-tab.example/x",
+                        "elsewhere_is_ours": False,
+                        "signed_out": True,
+                    },
+                )
+            ]
+            * 12,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+            ]
+            * 12,
+            "ui.perform": [Reply(ok=False, error_kind="control_not_found", error_detail="gone")]
+            * 12,
+        }
+    )
+
+    await asyncio.wait_for(
+        run_workflow(
+            uow,
+            workflow,
+            tenant_id=TENANT,
+            values={},
+            channel=channel,
+            device_id=DEVICE,
+            asker=_PerSchemaAsker(
+                plan=_plan("click"), verdict=Answer(data={"held": False, "why": "not there"})
+            ),
+            plan_model="flash",
+            rescue_model="pro",
+            live=True,
+            allow_focus=True,
+            started_by="form",
+            stops=Stops(),
+            approvals=Approvals(),
+            cap_usd=-1.0,
+            secret_for=lambda _key: _a_password(),
+        ),
+        timeout=10,
+    )
+
+    assert not [one for one in channel.sent if one["kind"] == "sign_in"], (
+        "a password was sent to a page this run never opened"
+    )
+
+
+async def _a_password_step(uow: FakeUnitOfWork) -> Workflow:
+    """One step that types a password, on the evidence's own origin."""
+    typed = next(g for g in _evidence(uow) if g.action.kind == "type")
+    assert typed.action.target is not None
+    secret = replace(
+        typed,
+        id="ges_bounced",
+        action=replace(typed.action, target=replace(typed.action.target, secret=True), value=None),
+    )
+    await uow.gestures.add_gestures((secret,))
+    return Workflow(
+        id="wfl_bounced",
+        tenant=ELSEWHERE,
+        title="sign in",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[Step(order=0, says="Type the password.", system=None, cites=["ges_bounced"])],
+        parameters=[],
+    )
+
+
+def _bounced_to(url: str, *, ours: bool) -> dict[str, list[Reply]]:
+    """A browser that is not on the step's origin, and says where it is.
+
+    `ours` is the whole of what this test turns on: the run's own pinned tab,
+    which is the page this job navigated to, against the tab that happens to
+    be in front.
+    """
+    return {
+        "ui.url": [
+            Reply(ok=True, result={"url": None, "elsewhere": url, "elsewhere_is_ours": ours})
+        ]
+        * 8,
+        "screenshot": [
+            Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+        ]
+        * 8,
+    }
+
+
+async def _noted(key: str, into: list[str]) -> str | None:
+    """A vault that holds nothing and remembers what it was asked for."""
+    into.append(key)
+    return None
+
+
+async def _a_password() -> str | None:
+    return "not-the-real-one"
+
+
 async def _nothing_stored() -> str | None:
     """A vault that holds no password for the key it was asked about.
 

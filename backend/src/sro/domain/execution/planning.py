@@ -169,6 +169,24 @@ class Look:
     Empty when the browser is where the step expected it, and when there was
     no tab at all to ask about."""
 
+    elsewhere_is_ours: bool = False
+    """Whether `elsewhere` is THIS RUN's own tab, or a guess.
+
+    The browser answers with the run's pinned tab where it has one -- the page
+    this job navigated to, and the page it is about to be driven in -- and
+    otherwise with whatever tab is in front, which is the operator's other
+    window, a mailbox, a search. Both are worth REPORTING and only the first
+    is worth ACTING on, and nothing could tell them apart.
+
+    What that cost, measured on the deployment 2026-09-20, run
+    `run_b949148d`: `Log in using Azure B2C SSO` is a job whose every gesture
+    is on `blueyonderalphaus.b2clogin.com`. The live sign-in bounced to
+    Keycloak instead, and the run -- unable to read where it was -- fell back
+    to the origin its RECORDING named, asked for the b2clogin password, and
+    typed it into the Keycloak form. The page said *Invalid username or
+    password*. A credential in the wrong system's box is worse than a step
+    that fails: it spends an account's lockout budget."""
+
     signed_out: bool = False
     """The page in front of the browser is asking somebody to sign in.
 

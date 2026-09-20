@@ -3022,6 +3022,85 @@ test("and one that is still running still is", async () => {
   );
 });
 
+test("a rule that fired on THIS page asks on Home", async () => {
+  // `waitingOnYou`'s own comments record the last time this card could not be
+  // seen: drawn in the console, another tab, which from where the operator
+  // was standing is indistinguishable from nothing having happened -- "I just
+  // logged in, nothing on panel". It moved into the panel and stopped one
+  // pane short.
+  //
+  // Measured on the deployment 2026-09-20: `trg_a925ce7d` fired on the
+  // Keycloak sign-in page at 17:25 and wrote two confirmations, both still
+  // waiting, while the operator looked at Home and saw a run card for a
+  // different job. An arrival rule fires BECAUSE of the page in front of
+  // somebody, and Home is the pane about the page in front of somebody.
+  const here = {
+    id: 7,
+    host: "keycloak.example",
+    url: "https://keycloak.example/auth/realms/x/protocol/openid-connect/auth?state=abc",
+  };
+  const it = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "keycloak.example", on: "keycloak.example" }],
+      waiting: [
+        {
+          id: "cnf-1",
+          trigger_id: "trg-1",
+          skill_name: "Log in to Keycloak",
+          because: "an arrival trigger fired",
+          asked_at: new Date().toISOString(),
+          values: {},
+          page: "keycloak.example/auth/realms/x/protocol/openid-connect/auth",
+          still_there: true,
+        },
+      ],
+    },
+    here,
+  );
+
+  assert.ok(
+    it.cards.find((one) => words(one).includes("Log in to Keycloak")),
+    "the ask fired on this page was nowhere on the pane about this page",
+  );
+});
+
+test("and one about a page they are not on stays out of the way", async () => {
+  // A card about somewhere else belongs in the list rather than in front of
+  // the page being worked.
+  const here = {
+    id: 7,
+    host: "wms.example",
+    url: "https://wms.example/receiving",
+  };
+  const it = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", on: "wms.example" }],
+      waiting: [
+        {
+          id: "cnf-1",
+          trigger_id: "trg-1",
+          skill_name: "Log in to Keycloak",
+          because: "an arrival trigger fired",
+          asked_at: new Date().toISOString(),
+          values: {},
+          page: "keycloak.example/auth/realms/x/protocol/openid-connect/auth",
+          still_there: true,
+        },
+      ],
+    },
+    here,
+  );
+
+  assert.ok(
+    !it.cards.find((one) => words(one).includes("Log in to Keycloak")),
+    "an ask about another page was put in front of the one being worked",
+  );
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

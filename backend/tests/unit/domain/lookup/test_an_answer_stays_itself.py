@@ -1,83 +1,153 @@
-"""A trimmed answer is a shorter answer, not a different kind of thing."""
+"""One reader, one shape, every surface.
+
+The lookup plane was the only read in this system that did not go through
+`application.execution.answer.read_answer`. It handed the raw body on, and
+each surface that drew it parsed JSON, picked columns and counted rows for
+itself -- so each of them guessed, and the panel guessed badly.
+"""
 
 from __future__ import annotations
 
 import json
 
-from sro.domain.lookup.answer import K_ANSWER_CHARS, K_ANSWER_ROWS, as_seen, trimmed
+from sro.application.execution.answer import read_answer
+from sro.domain.lookup.answer import K_ANSWER_CHARS, K_SAMPLE, as_seen, subject_of, trimmed
+
+WMS = "https://wms.example/data/WM/wm/customerTypes"
 
 
-def _many(rows: int) -> str:
-    """A warehouse collection: many records, forty fields each."""
-    record = {f"field{n}": "x" * 40 for n in range(40)}
-    return json.dumps({"@type": "ResponseBodyWrapper", "data": [record] * rows})
+def _payload(rows: list[dict[str, object]]) -> str:
+    return json.dumps({"@type": "ResponseBodyWrapper", "data": rows})
 
 
-def test_a_body_of_records_is_cut_by_record_and_still_parses() -> None:
-    """Measured on the deployment 2026-09-21: fifty customer types of forty
-    fields each went past 64KB, the cut landed mid-object, and the panel --
-    which reads `data` to count and tabulate -- fell back to 240 characters of
-    raw JSON. That answers nothing and never reaches the row the question was
-    about."""
-    body = _many(500)
-    assert len(body) > K_ANSWER_CHARS
-
-    kept, cut = trimmed(body)
-
-    assert cut is True
-    assert kept is not None
-    said = json.loads(kept)
-    assert len(said["data"]) == K_ANSWER_ROWS
-    assert said["@type"] == "ResponseBodyWrapper", "the envelope went with the rows"
-
-
-def test_an_answer_that_fits_is_left_exactly_alone() -> None:
-    body = _many(2)
-
-    assert trimmed(body) == (body, False)
+def _customer_types(n: int) -> list[dict[str, object]]:
+    """The shape this deployment actually answers with: the fields that matter
+    buried under alphabetised nulls, and a `self_uri` repeating the address."""
+    return [
+        {
+            "URNFormat": None,
+            "absoluteGroup": None,
+            "allocationSearchPath": None,
+            "bulkPickingFlag": False,
+            "customerType": f"CT{at}",
+            "longDescription": f"leaning SRO {at}",
+            "self_uri": f"{WMS}/CT{at}",
+        }
+        for at in range(n)
+    ]
 
 
-def test_a_body_that_is_not_records_is_cut_the_way_it_always_was() -> None:
-    """A page of HTML, one object, a picture. There is nothing structural to
-    preserve, and a character cut is the honest answer."""
-    page = "<html>" + ("x" * K_ANSWER_CHARS) + "</html>"
-
-    kept, cut = trimmed(page)
-
-    assert cut is True
-    assert kept == page[:K_ANSWER_CHARS]
-
-
-def test_a_short_list_of_very_fat_records_is_not_pretended_to_fit() -> None:
-    """Fewer records than the row cap, and still too big: the rows cannot be
-    dropped without lying about how many there are, so the character cut
-    stands and `truncated` says so."""
-    body = json.dumps({"data": [{"huge": "x" * K_ANSWER_CHARS}]})
-
-    kept, cut = trimmed(body)
-
-    assert cut is True
-    assert kept is not None and len(kept) == K_ANSWER_CHARS
-
-
-def test_nothing_to_trim_is_nothing() -> None:
-    assert trimmed(None) == (None, False)
-
-
-def test_the_shape_every_surface_draws_from() -> None:
-    """One shaping, used by the wire and by the conversation. Two would be two
-    answers to the same question."""
-    seen = as_seen(
+def _seen(rows: list[dict[str, object]], *, target: str = "/data/WM/wm/customerTypes") -> dict:
+    body = _payload(rows)
+    return as_seen(
         system="WM",
-        target="/data/WM/wm/customerTypes",
+        target=target,
         ok=True,
         detail="",
-        answer={"status": 200, "body": '{"data":[{"customerType":"KKYT"}]}'},
+        answer={"status": 200, "body": body},
+        read=read_answer(body, url=WMS),
     )
 
-    assert seen["status"] == 200
-    assert seen["truncated"] is False
-    assert "KKYT" in str(seen["body"])
+
+# --- what crosses -------------------------------------------------------------
+
+
+def test_records_cross_as_records_and_never_as_a_body() -> None:
+    """The raw body is what every surface was guessing at. It does not travel
+    for an answer that is records."""
+    seen = _seen(_customer_types(3))
+
+    assert seen["body"] is None
+    assert seen["read"] is not None
+
+
+def test_the_columns_are_the_ones_that_carry_something() -> None:
+    """Measured on the deployment 2026-09-21, beside the warehouse's own
+    screen. The WMS grid showed `Customer Type | Description`; the panel showed
+    `URNFORMAT | ABSOLUTEGROUP | ALLOCATIONSEARCHPATH` as columns of em dashes,
+    because it took the first six KEYS of a payload that alphabetises."""
+    columns = _seen(_customer_types(3))["read"]["columns"]
+
+    assert "customerType" in columns
+    assert "longDescription" in columns
+    assert "URNFormat" not in columns, columns
+    assert "absoluteGroup" not in columns, columns
+
+
+def test_a_link_repeating_the_address_is_not_a_column() -> None:
+    """`self_uri` says where the request was made to, which the card already
+    says above the table."""
+    assert "self_uri" not in _seen(_customer_types(3))["read"]["columns"]
+
+
+def test_the_identifying_fields_come_first() -> None:
+    """A code and a name tell one record from another; a boolean does not.
+    This is the half `answer.py` does that nothing on the drawing side could:
+    it is a ranking, not a filter."""
+    columns = _seen(_customer_types(3))["read"]["columns"]
+
+    assert columns.index("customerType") < columns.index("bulkPickingFlag")
+    assert columns.index("longDescription") < columns.index("bulkPickingFlag")
+
+
+def test_the_records_are_projected_onto_those_columns() -> None:
+    first = _seen(_customer_types(2))["read"]["records"][0]
+
+    assert first["customerType"] == "CT0"
+    assert "URNFormat" not in first, "an empty field crossed the wire to be drawn as a dash"
+
+
+# --- what it says -------------------------------------------------------------
+
+
+def test_the_sentence_is_the_answer_a_question_wanted() -> None:
+    """Deterministic -- counted and named from the payload, never summarised
+    by a model, because "16" has to be 16."""
+    said = _seen(_customer_types(2))["read"]["sentence"]
+
+    assert "2 customer type" in said, said
+    assert "CT0" in said
+
+
+def test_one_record_is_said_in_the_singular() -> None:
+    assert _seen(_customer_types(1))["read"]["sentence"].startswith("One customer type")
+
+
+def test_nothing_found_says_so_rather_than_drawing_an_empty_table() -> None:
+    assert "Nothing matched" in _seen([])["read"]["sentence"]
+
+
+# --- what the records are OF --------------------------------------------------
+
+
+def test_the_subject_comes_from_the_address_the_records_came_from() -> None:
+    """The reader is handed a body and never the question, so it cannot know
+    what the records are of. The address does."""
+    assert subject_of("/data/WM/wm/customerTypes") == "customer type"
+    assert subject_of("/data/WM/wm/suppliers") == "supplier"
+    assert subject_of("/data/MCS/rpux/currencies") == "currency"
+
+
+def test_a_screen_route_is_not_a_subject() -> None:
+    """`#wm.config/wm.config.partners.customers.types////` names a screen, and
+    "There are 50 wm.config.partners.customers.types" is a sentence nobody
+    wrote on purpose."""
+    assert subject_of("#wm.config/wm.config.partners.customers.types////") == ""
+
+
+# --- what does not read as records --------------------------------------------
+
+
+def test_a_page_of_html_keeps_its_body_and_is_cut_by_character() -> None:
+    """There is nothing structural in it to cut along."""
+    page = "<html>" + ("x" * K_ANSWER_CHARS) + "</html>"
+    seen = as_seen(
+        system="WM", target="/portal", ok=True, detail="", answer={"status": 200, "body": page}
+    )
+
+    assert seen["read"] is None
+    assert seen["truncated"] is True
+    assert seen["body"] == page[:K_ANSWER_CHARS]
 
 
 def test_a_picture_is_not_carried() -> None:
@@ -91,5 +161,25 @@ def test_a_picture_is_not_carried() -> None:
         answer={"image_base64": "iVBORw0KGgo=", "width": 1280, "height": 800},
     )
 
-    assert seen["body"] is None
+    assert seen["body"] is None and seen["read"] is None
     assert "image_base64" not in seen
+
+
+def test_a_short_body_is_left_exactly_alone() -> None:
+    assert trimmed("{}") == ("{}", False)
+    assert trimmed(None) == (None, False)
+
+
+# --- how much crosses ----------------------------------------------------------
+
+
+def test_more_records_than_a_surface_draws_do_not_all_cross() -> None:
+    """`answer.py` bounds its sample where the answer IS the product -- a
+    taught read whose rows a person works from. A panel draws eight and offers
+    the console for the rest."""
+    seen = _seen(_customer_types(K_SAMPLE + 50))
+
+    assert len(seen["read"]["records"]) == K_SAMPLE
+    assert seen["truncated"] is True
+    # And the count is still the count, not the size of what crossed.
+    assert seen["read"]["counted"] == K_SAMPLE + 50

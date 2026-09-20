@@ -34895,6 +34895,18 @@
             ],
             "title": "Body"
           },
+          "read": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read"
+          },
           "truncated": {
             "type": "boolean",
             "title": "Truncated",

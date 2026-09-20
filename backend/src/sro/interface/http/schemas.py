@@ -35,7 +35,7 @@ from sro.domain.chat.thread import Thread
 from sro.domain.execution.learned_step import Taught
 from sro.domain.execution.run import Medium, Run, StepOutcome
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
-from sro.domain.lookup.answer import trimmed
+from sro.domain.lookup.answer import as_seen
 from sro.domain.lookup.plan import Asked, Lookup
 from sro.domain.observation.attempts import Attempt
 from sro.domain.observation.batch import CaptureMode, RejectedEvent
@@ -3082,6 +3082,16 @@ class LookedModel(BaseModel):
     detail: str
     status: int | None = None
     body: str | None = None
+    """The raw body, and only for an answer that is NOT records: a page of
+    HTML, one scalar, a screen. Records cross as `read`, because every surface
+    that was handed a body parsed it for itself and each of them guessed."""
+
+    read: dict[str, object] | None = None
+    """The records, READ -- see `domain.lookup.answer.as_seen`. The count the
+    system itself stated, the columns that carry a value ranked with code,
+    name and description first, the records projected onto them, and the
+    sentence that says it in a line."""
+
     truncated: bool = False
     """The picture a screen lookup takes is deliberately NOT here. It is
     hundreds of kilobytes of base64 per screen, and nothing on this side of the
@@ -3093,11 +3103,15 @@ class LookedModel(BaseModel):
 
     @classmethod
     def of(cls, looked: Looked) -> LookedModel:
+        seen = as_seen(
+            system=looked.lookup.system,
+            target=looked.lookup.target,
+            ok=looked.ok,
+            detail=looked.detail,
+            answer=looked.answer,
+            read=looked.read,
+        )
         answer = dict(looked.answer)
-        body = answer.get("body")
-        text = body if isinstance(body, str) else None
-        status = answer.get("status")
-        kept, cut = trimmed(text)
         return cls(
             system=looked.lookup.system,
             how=looked.lookup.how,
@@ -3105,9 +3119,10 @@ class LookedModel(BaseModel):
             url=looked.url,
             ok=looked.ok,
             detail=looked.detail,
-            status=status if isinstance(status, int) else None,
-            body=kept,
-            truncated=cut,
+            status=seen["status"],
+            body=seen["body"],
+            read=seen["read"],
+            truncated=bool(seen["truncated"]),
             seen={
                 name: value
                 for name, value in answer.items()

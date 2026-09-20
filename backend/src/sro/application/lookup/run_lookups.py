@@ -37,6 +37,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from sro.application.context import RequestContext
+from sro.application.execution.answer import Answer, read_answer
 from sro.application.ports.channel import Channel, Reply
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.lookup.address import Address, address_for
@@ -69,6 +70,29 @@ class Looked:
     ok: bool
     url: str = ""
     answer: Mapping[str, object] = field(default_factory=dict)
+    read: Answer | None = None
+    """The records in it, READ, rather than the body they arrived in.
+
+    Every other read in this system goes through `read_answer`: the taught
+    skill's own calls, a derived read, the capability probe. The lookup plane
+    was the one that did not -- it handed the raw body on and left whoever
+    drew it to parse JSON, pick columns and count rows.
+
+    So each surface guessed, and the panel guessed badly. Measured on the
+    deployment 2026-09-21: asked "is there a customer type called KKYT", it
+    drew `URNFORMAT | ABSOLUTEGROUP | ALLOCATIONSEARCHPATH` -- the first six
+    KEYS of a payload that alphabetises -- as five columns of em dashes,
+    beside a warehouse screen showing `Customer Type` and `Description`.
+
+    `answer.py` had already solved every part of that, for the plane that uses
+    it: a column earns its place by carrying a value, the ranking puts code,
+    name and description first, `self_uri` is dropped as a link, two columns
+    holding the same value in every row are one, the count is the system's own
+    total rather than the page length, and `sentence()` says it in a line.
+
+    None where there are no records to speak of -- a page of HTML, one scalar,
+    a screen's photograph. Those keep `answer` and are drawn from it."""
+
     detail: str = ""
     """Why not, when not. Kept in the extension's own words -- `no_tab_for_origin`
     is a different problem from `unreachable`, and flattening them to "failed"
@@ -214,11 +238,17 @@ def _call_payload(address: Address) -> dict[str, object]:
 
 
 def _looked(lookup: Lookup, address: Address, reply: Reply) -> Looked:
+    result = reply.result if reply.ok else {}
+    body = result.get("body") if isinstance(result, Mapping) else None
     return Looked(
         lookup=lookup,
         ok=reply.ok,
         url=address.url,
-        answer=reply.result if reply.ok else {},
+        answer=result,
+        # `url` so the counting is honest: `limit=50` in the query and `50` in
+        # the envelope are the same fact about what we ASKED for, and a total
+        # that merely echoes our own paging is not a total.
+        read=read_answer(body, url=address.url) if isinstance(body, str) else None,
         detail="" if reply.ok else reply.detail,
     )
 

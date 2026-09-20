@@ -47,7 +47,7 @@ from sro.domain.chat.asking import (
 from sro.domain.chat.is_it_an_answer import said_as_the_value
 from sro.domain.chat.thread import Message, Said, Speaker, Thread, ThreadId
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
-from sro.domain.lookup.answer import as_seen
+from sro.domain.lookup.answer import as_seen, subject_of
 from sro.domain.lookup.asking import is_a_question
 from sro.domain.shared.errors import DomainError
 from sro.domain.skill.skill import Skill
@@ -1390,6 +1390,7 @@ def _seen(looked: Looked) -> dict[str, object]:
         ok=looked.ok,
         detail=looked.detail,
         answer=looked.answer,
+        read=looked.read,
     )
 
 
@@ -1404,6 +1405,19 @@ def _what_was_found(found: Answers) -> str:
     if not answered:
         why = next((one.detail for one in found.looked if one.detail), "")
         return f"I could not read that. {why}".strip()
+    # The reader's own sentence, where it read records.
+    #
+    # `Answer.sentence` is deterministic -- counted and named from the payload,
+    # never summarised by a model, because "16" has to be 16 -- and it is the
+    # line somebody asking a question wanted instead of a table. "Read from
+    # /data/WM/wm/customerTypes" was this door describing its own plumbing.
+    said = [
+        one.read.sentence(subject_of(one.lookup.target) or "record")
+        for one in answered
+        if one.read is not None
+    ]
+    if said:
+        return " ".join(said)
     where = ", ".join(sorted({one.lookup.target for one in answered}))
     return f"Read from {where}."
 

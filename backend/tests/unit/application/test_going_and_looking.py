@@ -8,6 +8,8 @@ and photographed, with one system's failure kept as one system's failure.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from sro.application.context import RequestContext
@@ -180,6 +182,67 @@ async def test_a_call_goes_out_as_a_get_in_the_operators_own_session() -> None:
     assert sent["payload"]["method"] == "GET"
     assert sent["payload"]["live_headers"] == ["X-Requested-With"]
     assert answers.any_answered and answers.looked[0].answer["rows"] == 5
+
+
+async def test_what_came_back_is_read_by_the_reader_every_other_read_uses() -> None:
+    """The lookup plane was the ONE read in this system that did not.
+
+    It handed the raw body on, so each surface that drew an answer parsed
+    JSON, hunted for the rows and picked columns for itself -- three guesses
+    at one question. Measured on the deployment 2026-09-21, beside the
+    warehouse's own screen: the WMS grid showed `Customer Type | Description`,
+    and the panel drew `URNFORMAT | ABSOLUTEGROUP | ALLOCATIONSEARCHPATH` as
+    columns of em dashes, which are the first six KEYS of a payload that
+    alphabetises.
+
+    `application.execution.answer` had already decided every part of that, for
+    the plane that uses it.
+    """
+    body = json.dumps(
+        {
+            "totalCount": 137,
+            "data": [
+                {
+                    "URNFormat": None,
+                    "absoluteGroup": None,
+                    "bulkPickingFlag": False,
+                    "supplierNumber": "100012",
+                    "supplierName": "ACME LOGISTICS",
+                    "self_uri": f"{WMS}{SUPPLIERS}/100012",
+                }
+            ],
+        }
+    )
+    channel = FakeChannel({"http.send": [Reply(ok=True, result={"status": 200, "body": body})]})
+    uow = FakeUnitOfWork()
+    await uow.gestures.add_gestures((_gesture(_call()),))
+
+    answers = await RunLookups(uow, channel).execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    read = answers.looked[0].read
+    assert read is not None, "the body crossed unread, for every surface to guess at"
+    # The count the SYSTEM stated, not the length of the page it sent.
+    assert read.counted == 137
+    # The columns that carry something, identifying ones first, and no link
+    # repeating the address the request was made to.
+    assert "supplierNumber" in read.columns and "supplierName" in read.columns
+    assert "URNFormat" not in read.columns and "self_uri" not in read.columns
+    assert read.columns.index("supplierName") < read.columns.index("bulkPickingFlag")
+
+
+async def test_an_answer_that_is_not_records_is_left_as_it_came() -> None:
+    """A page of HTML, a scalar, a screen's photograph. There is nothing for
+    the reader to read, and the surfaces draw those from the body."""
+    channel = FakeChannel(
+        {"http.send": [Reply(ok=True, result={"status": 200, "body": "<html>a page</html>"})]}
+    )
+    uow = FakeUnitOfWork()
+    await uow.gestures.add_gestures((_gesture(_call()),))
+
+    answers = await RunLookups(uow, channel).execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    assert answers.looked[0].read is None
+    assert answers.looked[0].answer["body"] == "<html>a page</html>"
 
 
 async def test_a_screen_is_put_up_and_then_photographed() -> None:

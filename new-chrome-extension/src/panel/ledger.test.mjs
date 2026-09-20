@@ -1633,15 +1633,23 @@ test("a lookup's answer is a count and a table, not a wall of JSON", () => {
                   status: 200,
                   detail: "",
                   truncated: false,
-                  body: JSON.stringify({
-                    data: [
+                  body: null,
+                  read: {
+                    rows: 2,
+                    counted: 2,
+                    partial: false,
+                    subject: "customer type",
+                    sentence:
+                      "There are 2 customer type: KKYT (my sro is best), DDD (leaning SRO 2).",
+                    columns: ["customerType", "longDescription"],
+                    records: [
                       {
                         customerType: "KKYT",
                         longDescription: "my sro is best",
                       },
                       { customerType: "DDD", longDescription: "leaning SRO 2" },
                     ],
-                  }),
+                  },
                 },
               ],
             },
@@ -1655,7 +1663,7 @@ test("a lookup's answer is a count and a table, not a wall of JSON", () => {
 
   const said = words(item);
   assert.equal(item.dataset.kind, "looked");
-  assert.match(said, /2 found/, `no count: ${said}`);
+  assert.match(said, /There are 2 customer type/, `no sentence: ${said}`);
   assert.match(
     said,
     /KKYT/,

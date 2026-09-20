@@ -149,3 +149,79 @@ async def test_a_request_carries_who_asked_from_the_moment_it_is_known() -> None
     }
     assert by_tenant["acme"]["principal"] == "someone-else", "no tenant wore another's"
     assert whose() == {}, "and nothing outlived either request"
+
+
+# --- a door that refuses says so --------------------------------------------
+
+
+def test_every_refusal_this_api_makes_is_said_out_loud() -> None:
+    """Each of the three renderers, because each is reached by a different kind
+    of failure and a record kept in one of them is a record missing from the
+    other two.
+
+    A refusal used to answer a problem document and leave no trace behind it.
+    An operator whose button did nothing has a refusal with a reason in it, and
+    the only copy of that reason was in their browser.
+
+    Through a real handler rather than `caplog`: what is being asserted is that
+    the attribution reaches a record on its way out, and that happens in a
+    handler's own filter.
+    """
+    from fastapi import HTTPException
+    from fastapi.exceptions import RequestValidationError
+
+    from sro.domain.shared.errors import NotFound
+    from sro.interface.http.errors import _http_problem, _problem, _validation_problem
+
+    class _Ask:
+        method = "POST"
+        url = type("U", (), {"path": "/v1/threads/thr_1/messages"})()
+
+    kept: list[logging.LogRecord] = []
+
+    class _Kept(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            kept.append(record)
+
+    handler = _Kept()
+    handler.addFilter(Attribution())
+    logger = logging.getLogger("sro.interface.http.errors")
+    logger.addHandler(handler)
+    was = logger.level
+    logger.setLevel(logging.WARNING)
+    try:
+        asked = _Ask()
+        with about(tenant="greyorange", principal="rudy", request="req_1"):
+            _problem(asked, NotFound("no such thread"))
+            _http_problem(asked, HTTPException(status_code=404, detail="device was not found"))
+            _validation_problem(asked, RequestValidationError([]))
+    finally:
+        logger.removeHandler(handler)
+        logger.setLevel(was)
+
+    said = [record.getMessage() for record in kept]
+    assert len(said) == 3, said
+    assert all("refused" in one and "/v1/threads/thr_1/messages" in one for one in said), said
+    assert "no such thread" in said[0]
+    assert "device was not found" in said[1]
+    # And each one names who was refused, without any of the three being told.
+    assert all(record.whose["tenant"] == "greyorange" for record in kept)  # type: ignore[attr-defined]
+    assert all(record.whose["principal"] == "rudy" for record in kept)  # type: ignore[attr-defined]
+
+
+def test_a_server_fault_is_louder_than_a_caller_s_mistake(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from fastapi import HTTPException
+
+    from sro.interface.http.errors import _http_problem
+
+    class _Ask:
+        method = "GET"
+        url = type("U", (), {"path": "/v1/skills"})()
+
+    with caplog.at_level(logging.INFO, logger="sro.interface.http.errors"):
+        _http_problem(_Ask(), HTTPException(status_code=404, detail="gone"))
+        _http_problem(_Ask(), HTTPException(status_code=503, detail="no vault"))
+
+    assert [record.levelno for record in caplog.records] == [logging.WARNING, logging.ERROR]

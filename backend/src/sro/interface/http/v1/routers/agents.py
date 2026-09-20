@@ -77,12 +77,6 @@ async def heartbeat(
     so it comes back as the same device holding a secret. That is the whole
     migration, and it costs one operator nothing and one heartbeat.
     """
-    # What the browser decided since the last beat, straight into the same log
-    # the ladder narrates into. Trimmed here rather than trusted: a device is
-    # not a trusted writer, and a line long enough to bury a log is a line
-    # somebody would have to grep around.
-    for line in body.said:
-        logger.info("%s said: %s", device_id, line[:K_SAID_CHARS].replace("\n", " "))
     beat = await container.record_heartbeat().execute(
         ctx,
         device_id=DeviceId(device_id),
@@ -91,6 +85,19 @@ async def heartbeat(
         queued_bytes=body.queued_bytes,
         policy_version=body.policy_version,
     )
+    # What the browser decided since the last beat, straight into the same log
+    # the ladder narrates into. Trimmed here rather than trusted: a device is
+    # not a trusted writer, and a line long enough to bury a log is a line
+    # somebody would have to grep around.
+    #
+    # AFTER the beat, which is where the browser proves it is itself. These
+    # used to be written first, so anything holding a device id -- a namespace,
+    # not a credential -- could put lines of its choosing into this tenant's
+    # log without ever answering for them. The id is no longer interpolated
+    # either: `refuse_unless_itself` attributes the request to the browser, so
+    # every one of these carries it the way every other line does.
+    for line in body.said:
+        logger.info("said: %s", line[:K_SAID_CHARS].replace("\n", " "))
     return HeartbeatResponse(
         policy_version=beat.policy_version,
         policy=None if beat.policy is None else ObservationPolicyModel.of(beat.policy),

@@ -171,8 +171,9 @@ async def test_a_browser_that_proved_itself_is_on_the_line() -> None:
         ctx, label="laptop", extension_version="0.1.0"
     )
 
+    wrong = "not the one this browser was minted"
     with pytest.raises(NotFound):
-        await ReadDevice(uow).execute(ctx, device_id=registered.device_id, secret="not the secret")
+        await ReadDevice(uow).execute(ctx, device_id=registered.device_id, secret=wrong)
     assert "device" not in whose(), "a browser that failed to prove itself was attributed anyway"
 
     await ReadDevice(uow).execute(ctx, device_id=registered.device_id, secret=registered.secret)

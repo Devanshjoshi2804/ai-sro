@@ -209,3 +209,38 @@ async def test_a_device_from_before_secrets_existed_is_refused_and_not_stranded(
     assert minted
     for response in await _every_route(client, LENA, secret=minted):
         assert response.status_code != 404 or response.json()["detail"] == "no such watch"
+
+
+async def test_nothing_a_browser_says_reaches_the_log_before_it_proves_itself(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The fifth rule, and the one that was the other way round.
+
+    A heartbeat carries `said` -- what the browser decided since the last beat,
+    written into the same log the ladder narrates into. It was written FIRST,
+    before the beat proved anything, so a caller holding a device id and no
+    secret could put lines of its choosing into this tenant's log and walk away
+    with a 404. A device id in a path is a namespace, not a credential; that is
+    the whole reason every other rule in this file exists.
+    """
+    import logging
+
+    _device(uow, LENA, HERS)
+    at = f"/v1/agents/{LENA.value}/heartbeat"
+    said = {"said": ["ui.perform refused: no_tab_for_system"]}
+
+    with caplog.at_level(logging.INFO):
+        refused = await client.post(at, json=said, headers={"X-Device-Secret": "not hers"})
+
+    assert refused.status_code == 404
+    assert not [one for one in caplog.records if "no_tab_for_system" in one.getMessage()], (
+        "a caller that could not prove itself wrote into this tenant's log"
+    )
+
+    with caplog.at_level(logging.INFO):
+        assert (
+            await client.post(at, json=said, headers={"X-Device-Secret": HERS})
+        ).status_code == 200
+
+    [line] = [one for one in caplog.records if "no_tab_for_system" in one.getMessage()]
+    assert line.getMessage() == "said: ui.perform refused: no_tab_for_system"

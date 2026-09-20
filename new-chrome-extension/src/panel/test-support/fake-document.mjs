@@ -44,6 +44,11 @@ export function node(tag) {
     get innerHTML() {
       return "";
     },
+    /** What a list redraws with. The real one detaches every child and puts
+     * these in their place; nothing here has a parent to detach from. */
+    replaceChildren(...added) {
+      this.kids = [...added];
+    },
     append(...added) {
       this.kids.push(...added);
     },

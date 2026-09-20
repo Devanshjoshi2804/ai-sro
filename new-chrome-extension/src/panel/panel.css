@@ -331,50 +331,88 @@ body {
   color: var(--warn);
 }
 
-.rows {
-  overflow-x: auto;
-  margin-top: 4px;
+/* A warehouse record, read downwards.
+ *
+ * This was a table. Ten fields across 360 pixels is a horizontal scroller, and
+ * what falls off the right is whichever columns the system serialised last --
+ * measured on the deployment 2026-09-21, a reader had to drag sideways past
+ * `INVENTORYSTATUSPROGRESSION` to reach anything they had asked about. A card
+ * reads in the direction this panel has room in.
+ */
+.records {
+  margin-top: 8px;
 }
 
-.rows table {
-  border-collapse: collapse;
-  font:
-    400 11.5px/1.5 ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    monospace;
+.record-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.rows th {
-  padding: 3px 10px 3px 0;
-  border-bottom: 1px solid var(--line);
-  color: var(--ink-mute);
+.record {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--sunk, rgb(255 255 255 / 2%));
+}
+
+/* The record the question named. It is first, and eight cards look alike. */
+.record[data-asked="1"] {
+  border-color: var(--brand, #dc582a);
+  background: var(--tint, rgb(220 88 42 / 8%));
+}
+
+.record-name {
+  margin: 0 0 4px;
   font-weight: 600;
+  color: var(--ink);
+}
+
+.record-field {
+  margin: 0;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  /* The value wraps; the label does not. A field name broken across two lines
+   * is a column header pretending to be prose. */
+  flex-wrap: wrap;
+}
+
+.record-label {
+  color: var(--ink-mute);
   font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  text-align: left;
   white-space: nowrap;
+  /* Enough that the values line up at a glance, and not so much that a long
+   * field name pushes every value off the card. */
+  min-width: 9ch;
 }
 
-.rows td {
-  padding: 3px 10px 3px 0;
-  white-space: nowrap;
+.record-value {
+  /* The whole reason this is not a table: a value that does not fit wraps
+   * rather than disappearing to the right. */
+  overflow-wrap: anywhere;
 }
 
-/* The row the question named.
- *
- * "is there a customer type called KKYT" is answered by one of these rows and
- * not by the table, and eight rows of a warehouse collection look alike. The
- * row is put first by `result.js`; this is what lets the eye stop there.
- */
-.rows tr[data-asked="1"] td {
-  color: var(--ink);
-  font-weight: 600;
+.paging {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
 }
 
-.rows tr[data-asked="1"] {
-  background: var(--tint, rgb(255 255 255 / 6%));
+.paging .note {
+  margin: 0;
+}
+
+.paging button[disabled] {
+  opacity: 0.4;
+  cursor: default;
 }
 
 /* Which half of the panel you are on.

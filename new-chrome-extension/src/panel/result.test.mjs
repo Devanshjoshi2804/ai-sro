@@ -28,6 +28,20 @@ const tests = [];
 let failed = 0;
 const test = (name, fn) => tests.push([name, fn]);
 
+/** The card list, the cards in it, and the pager -- named once, because a
+ * test reaching into `kids[0].kids[1]` is a test that breaks when a wrapper
+ * moves and says nothing about what broke. */
+const records = (card) => card.kids.find((kid) => kid.className === "records");
+const shown = (card) =>
+  records(card).kids.find((kid) => kid.className === "record-list").kids;
+const paging = (card) =>
+  records(card).kids.find((kid) => kid.className === "paging");
+const next = (card) => {
+  paging(card)
+    .kids.find((kid) => kid.textContent === "→")
+    .listeners.click[0]();
+};
+
 /** An answer as the backend now sends one.
  *
  * `over.read` MERGES into the read rather than replacing it -- a helper whose
@@ -94,25 +108,57 @@ test("the columns are the ones the reader ranked, drawn as given", () => {
   assert.ok(!said.includes("URNFormat"), said);
 });
 
-test("eight rows, and the rest are in the console", () => {
-  // A panel beside a warehouse screen is not where somebody reads two hundred
-  // rows.
+test("a page at a time, and a way to the rest", () => {
+  // "first 8 of 110 -- the rest are in the console" is this panel telling
+  // somebody to go and use a different product. 110 records is not a report;
+  // it is a list somebody can page through where they are standing.
   const card = result(read(types(20)));
-  const table = card.kids.find((kid) => kid.className === "rows").kids[0];
 
-  assert.equal(
-    table.kids.length - 1,
-    K_ROWS,
-    "more rows than the panel can hold",
+  assert.equal(shown(card).length, K_ROWS, "more records than a page holds");
+  assert.match(words(card), /1–8 of 20/);
+
+  next(card);
+
+  assert.match(words(card), /9–16 of 20/);
+  assert.match(
+    words(shown(card)[0]),
+    /CT8/,
+    "the second page starts where the first ended",
   );
-  assert.match(words(card), /first 8 of 20/);
 });
 
-test("a field the record does not carry is a dash, not a blank", () => {
-  // In a warehouse "no value" and "the value is empty" are different facts.
-  const card = result(read([{ customerType: "CT1" }]));
+test("the last page stops rather than running off the end", () => {
+  const card = result(read(types(10)));
 
-  assert.match(words(card), /—/);
+  next(card);
+
+  assert.equal(
+    shown(card).length,
+    2,
+    "a short last page was padded or overran",
+  );
+  assert.match(words(card), /9–10 of 10/);
+});
+
+test("one page of records is drawn without controls nobody needs", () => {
+  const card = result(read(types(3)));
+
+  assert.equal(paging(card), undefined, "paging was drawn for a single page");
+  assert.match(words(card), /1–3 of 3/);
+});
+
+test("a record reads downwards, and the fields it does not carry are left out", () => {
+  // A table needs every row to have every column. A card does not, and eight
+  // dashes under a heading is a card that says nothing.
+  const card = result(read([{ customerType: "KKYT", longDescription: "" }]));
+  const [only] = shown(card);
+  const said = words(only);
+
+  assert.match(said, /KKYT/);
+  assert.ok(
+    !said.includes("longDescription"),
+    `an empty field was drawn: ${said}`,
+  );
 });
 
 test("the record the question names comes first, and says so", () => {
@@ -126,14 +172,9 @@ test("the record the question names comes first, and says so", () => {
     ]),
     { asked: "is there a customer type called KKYT" },
   );
-  const table = card.kids.find((kid) => kid.className === "rows").kids[0];
-  const first = table.kids[1];
+  const [first] = shown(card);
 
-  assert.match(
-    words(first),
-    /KKYT/,
-    `the record asked about is not first: ${words(table)}`,
-  );
+  assert.match(words(first), /KKYT/, "the record asked about is not first");
   assert.equal(
     first.dataset.asked,
     "1",
@@ -141,13 +182,36 @@ test("the record the question names comes first, and says so", () => {
   );
 });
 
+test("a word that describes the whole result names nothing in it", () => {
+  // Measured on the deployment 2026-09-21. Asked "is there a customer type
+  // called KKYT" over 110 records, `type` appeared in forty descriptions
+  // ("leaning new SRO type 004"). Forty were promoted ahead of the one the
+  // question named, and KKYT was not in the eight drawn.
+  const noisy = Array.from({ length: 40 }, (_, at) => ({
+    customerType: `CT${at}`,
+    longDescription: `leaning new SRO type ${at}`,
+  }));
+  const card = result(
+    read([...noisy, { customerType: "KKYT", longDescription: "mine" }]),
+    {
+      asked: "is there a customer type called KKYT",
+    },
+  );
+  const [first] = shown(card);
+
+  assert.match(
+    words(first),
+    /KKYT/,
+    `a word matching most of the result won: ${words(first)}`,
+  );
+});
+
 test("a question that names nothing in the records leaves the order alone", () => {
   // A system's own order is a fact about the system, and shuffling what
   // nobody asked about would be this panel inventing a ranking.
   const card = result(read(types(5)), { asked: "how many are there" });
-  const table = card.kids.find((kid) => kid.className === "rows").kids[0];
 
-  assert.match(words(table.kids[1]), /CT0/);
+  assert.match(words(shown(card)[0]), /CT0/);
 });
 
 test("a count nobody could state is never drawn as one", () => {
@@ -157,7 +221,7 @@ test("a count nobody could state is never drawn as one", () => {
     read(types(50), { read: { counted: null, partial: true } }),
   );
 
-  assert.match(words(card), /first 8 of 50\+/);
+  assert.match(words(card), /1–8 of 50\+/);
 });
 
 test("a collapsed answer says what it found and offers to show it", () => {
@@ -168,9 +232,10 @@ test("a collapsed answer says what it found and offers to show it", () => {
   });
 
   assert.match(words(card), /There are 239 customer type/);
-  assert.ok(
-    !card.kids.some((kid) => kid.className === "rows"),
-    "the table was drawn in a collapsed answer",
+  assert.equal(
+    records(card),
+    undefined,
+    "the list was drawn in a collapsed answer",
   );
   card.kids.find((kid) => kid.tag === "button").listeners.click[0]();
   assert.deepEqual(opened, [1]);

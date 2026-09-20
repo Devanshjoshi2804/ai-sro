@@ -42,6 +42,11 @@ export const K_ROWS = 8;
  * fat field cannot push every other column off the panel. */
 export const K_CELL = 40;
 
+/** How much of a result a word may pick out and still be said to name
+ * something. A quarter: past that it is describing the collection rather than
+ * choosing within it. */
+export const K_TELLING = 0.25;
+
 /**
  * The card, or `null` when there is nothing to say at all.
  *
@@ -112,22 +117,139 @@ export function result(looked, { open = true, onOpen, asked = "" } = {}) {
   // whatever the system returned first, and KKYT was not among them -- an
   // answer that contains the answer and does not show it.
   const ordered = _ordered(records, asked);
-  box.append(_table(ordered, read.columns || [], asked));
-
-  const counted = read.counted;
-  const total =
-    counted === null || counted === undefined
-      ? `${records.length}+`
-      : String(counted);
-  if (ordered.length > K_ROWS || (counted ?? 0) > K_ROWS) {
-    box.append(
-      _line(
-        "note",
-        `first ${K_ROWS} of ${total} — the rest are in the console`,
-      ),
-    );
-  }
+  box.append(_cards(ordered, read.columns || [], asked, read));
   return box;
+}
+
+/** The records as cards, a page at a time.
+ *
+ * A table in this column could not be read. Ten fields of a warehouse record
+ * across 360 pixels is a horizontal scroller, and what falls off the right is
+ * arbitrary -- measured on the deployment 2026-09-21, the visible columns were
+ * `LONGDESCRIPTION | RESOURCEID | INVENTORYSTATUSPROGRESSION | VE…` and the
+ * reader had to drag sideways to learn anything else. A card reads downwards,
+ * which is the direction this panel already has room in.
+ *
+ * And a page at a time, because "first 8 of 110 -- the rest are in the
+ * console" is this panel telling somebody to go and use a different product.
+ * 110 records is not a report; it is a list somebody can page through where
+ * they are standing.
+ *
+ * The page lives in this closure. The ledger redraws only when its signature
+ * changes, so paging survives a poll -- and a redraw that DOES happen is one
+ * where something was said, which is a reasonable moment to be back at the
+ * first page.
+ */
+function _cards(records, columns, asked, read) {
+  const holder = document.createElement("div");
+  holder.className = "records";
+  const list = document.createElement("ul");
+  list.className = "record-list";
+  const foot = document.createElement("p");
+  foot.className = "note";
+
+  const pages = Math.max(1, Math.ceil(records.length / K_ROWS));
+  let page = 0;
+
+  const draw = () => {
+    list.replaceChildren();
+    const from = page * K_ROWS;
+    for (const record of records.slice(from, from + K_ROWS)) {
+      list.append(_card(record, columns, asked));
+    }
+    const last = Math.min(from + K_ROWS, records.length);
+    const counted = read.counted;
+    // What is on this page, of what there is. `+` where more exist than
+    // crossed the wire, so the number is never read as the whole set.
+    const whole =
+      counted === null || counted === undefined
+        ? `${records.length}+`
+        : String(counted);
+    foot.textContent = `${from + 1}–${last} of ${whole}`;
+  };
+
+  if (pages > 1) {
+    const back = document.createElement("button");
+    back.type = "button";
+    back.className = "quiet";
+    back.textContent = "←";
+    back.setAttribute("aria-label", "previous records");
+    const on = document.createElement("button");
+    on.type = "button";
+    on.className = "quiet";
+    on.textContent = "→";
+    on.setAttribute("aria-label", "more records");
+    const settle = () => {
+      back.disabled = page === 0;
+      on.disabled = page >= pages - 1;
+    };
+    back.addEventListener("click", () => {
+      page = Math.max(0, page - 1);
+      draw();
+      settle();
+    });
+    on.addEventListener("click", () => {
+      page = Math.min(pages - 1, page + 1);
+      draw();
+      settle();
+    });
+    draw();
+    settle();
+    const paging = document.createElement("div");
+    paging.className = "paging";
+    paging.append(back, foot, on);
+    holder.append(list, paging);
+    return holder;
+  }
+
+  draw();
+  holder.append(list, foot);
+  return holder;
+}
+
+/** One record, read downwards.
+ *
+ * The first column is the heading: `answer.py` ranks the columns and puts the
+ * identifying one first -- a code, a name, a description -- so the heading is
+ * what a person would call this record rather than whichever field the system
+ * happened to serialise first.
+ */
+function _card(record, columns, asked) {
+  const item = document.createElement("li");
+  item.className = "record";
+  const words = _distinguishing(_asked(asked), [record]);
+  if (words.length && _names(record, words)) item.dataset.asked = "1";
+
+  const [first, ...rest] = columns;
+  const head = document.createElement("p");
+  head.className = "record-name";
+  head.textContent = _value(record[first]);
+  item.append(head);
+
+  for (const column of rest) {
+    const value = record[column];
+    // A field this record does not carry is left out entirely rather than
+    // drawn as a dash. A table needs every row to have every column; a card
+    // does not, and eight dashes under a heading is a card that says nothing.
+    if (value === undefined || value === null || value === "") continue;
+    const line = document.createElement("p");
+    line.className = "record-field";
+    const name = document.createElement("span");
+    name.className = "record-label";
+    name.textContent = column;
+    const said = document.createElement("span");
+    said.className = "record-value";
+    said.textContent = _value(value);
+    line.append(name, said);
+    item.append(line);
+  }
+  return item;
+}
+
+function _value(value) {
+  if (value === undefined || value === null || value === "") return "—";
+  const said = String(value);
+  return said.length > K_CELL ? said.slice(0, K_CELL) + "…" : said;
 }
 
 /** The records, with the ones the question names at the front.
@@ -136,13 +258,36 @@ export function result(looked, { open = true, onOpen, asked = "" } = {}) {
  * shuffling what nobody asked about would be this panel inventing a ranking.
  */
 function _ordered(records, asked) {
-  const words = _asked(asked);
+  const words = _distinguishing(_asked(asked), records);
   if (!words.length) return records;
   const hit = (record) => _names(record, words);
   const named = records.filter(hit);
   return named.length
     ? [...named, ...records.filter((record) => !hit(record))]
     : records;
+}
+
+/** The words that actually tell these records apart.
+ *
+ * Measured on the deployment 2026-09-21. Asked "is there a customer type
+ * called KKYT" over 110 records, every word of the question was matched
+ * against every value -- and `type` appears in forty descriptions ("leaning
+ * new SRO type 004"), `customer` in another. Forty records were promoted
+ * ahead of the one the question named, and KKYT was not in the eight drawn.
+ *
+ * A word that matches most of the result distinguishes nothing; a word that
+ * matches a few is the one somebody typed to find them. So the bar is how
+ * much of the result a word picks out, not how long it is or whether somebody
+ * listed it as common. `kkyt` picks out one of 110 and stays; `type` picks out
+ * forty and goes.
+ */
+function _distinguishing(words, records) {
+  if (!records.length) return words;
+  const most = Math.max(1, Math.floor(records.length * K_TELLING));
+  return words.filter((word) => {
+    const picks = records.filter((record) => _names(record, [word])).length;
+    return picks > 0 && picks <= most;
+  });
 }
 
 function _names(record, words) {
@@ -196,50 +341,6 @@ const _COMMON = new Set([
   "from",
   "into",
 ]);
-
-function _table(records, columns, asked) {
-  const scroll = document.createElement("div");
-  // Its own scroller. A wide table must not make the whole panel scroll
-  // sideways, which takes the composer and every card with it.
-  scroll.className = "rows";
-  const table = document.createElement("table");
-
-  const head = document.createElement("tr");
-  for (const column of columns) {
-    const cell = document.createElement("th");
-    cell.textContent = column;
-    head.append(cell);
-  }
-  table.append(head);
-
-  const words = _asked(asked);
-  for (const record of records.slice(0, K_ROWS)) {
-    const line = document.createElement("tr");
-    // Said on the row rather than only implied by its position, so the eye can
-    // find it among eight that otherwise look alike.
-    if (words.length && _names(record, words)) line.dataset.asked = "1";
-    for (const column of columns) {
-      const cell = document.createElement("td");
-      // An em dash for a field this record does not carry, because an empty
-      // cell reads as a value that is blank -- and in a warehouse those are
-      // different facts.
-      const value = record[column];
-      cell.textContent =
-        value === undefined || value === null || value === ""
-          ? "—"
-          : _cell(value);
-      line.append(cell);
-    }
-    table.append(line);
-  }
-  scroll.append(table);
-  return scroll;
-}
-
-function _cell(value) {
-  const said = String(value);
-  return said.length > K_CELL ? said.slice(0, K_CELL) + "…" : said;
-}
 
 /** What the system said went wrong, in its own words.
  *

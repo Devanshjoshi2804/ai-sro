@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from sro.domain.observation.attempts import DONE, NOTHING
 from sro.domain.shared.identifiers import ConfirmationId
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import AnsweredModel, ConfirmationModel, DeclineRequest
@@ -68,6 +69,16 @@ async def approve(confirmation_id: str, container: ContainerDep, ctx: ContextDep
     answered = await container.answer_confirmation().approve(
         ctx, confirmation_id=ConfirmationId(confirmation_id)
     )
+    # An approval that starts nothing is the shape this records. The card is
+    # answered either way -- the row for it exists -- and whether a run came
+    # out of the yes is the thing nobody could see afterwards.
+    await container.record_attempt().execute(
+        ctx,
+        asked_for="approve a write",
+        came_of=DONE if answered.run_id else NOTHING,
+        why="" if answered.run_id else "nothing was left to run by the time it was approved",
+        about={"run": answered.run_id.value if answered.run_id else ""},
+    )
     return AnsweredModel(
         confirmation_id=answered.confirmation_id.value,
         answer=answered.answer.value,
@@ -86,6 +97,12 @@ async def decline(
     clearest evidence there is about a trigger that should not exist."""
     answered = await container.answer_confirmation().decline(
         ctx, confirmation_id=ConfirmationId(confirmation_id), note=body.note
+    )
+    # A person saying no is not a refusal BY this system, so it is `done`: they
+    # asked to decline and they declined. What `refused` would mean here is
+    # that the decline itself was turned down, which is a different sentence.
+    await container.record_attempt().execute(
+        ctx, asked_for="decline a write", came_of=DONE, why=body.note or ""
     )
     return AnsweredModel(
         confirmation_id=answered.confirmation_id.value, answer=answered.answer.value

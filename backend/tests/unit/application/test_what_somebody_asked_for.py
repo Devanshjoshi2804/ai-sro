@@ -102,3 +102,73 @@ async def test_the_audit_carries_them_beside_what_already_worked() -> None:
     audit = await ReadAudit(uow).execute(CTX, since=SINCE)
 
     assert [one.came_of for one in audit.attempts] == [NOTHING]
+
+
+# --- the doors themselves ----------------------------------------------------
+
+
+def test_every_door_that_records_one_uses_an_outcome_this_system_knows() -> None:
+    """A door is the only thing that decides what an attempt came to, and a
+    door that invents an outcome has it dropped -- logged, not raised, so the
+    person in front of it never learns. Which makes this the one place the
+    vocabulary can be checked at all.
+
+    Read off the source rather than by driving each route: what is being
+    asserted is that no door anywhere passes a bare string, which no amount of
+    exercising the routes I happen to think of can establish.
+    """
+    import re
+    from pathlib import Path
+
+    doors = Path("src/sro/interface/http/v1/routers")
+    calls: list[tuple[str, str]] = []
+    for door in doors.rglob("*.py"):
+        said = door.read_text()
+        for call in re.finditer(r"record_attempt\(\)\.execute\((.*?)\n    \)", said, re.S):
+            calls.append((door.name, call.group(1)))
+
+    assert calls, "no door records an attempt"
+    for name, written in calls:
+        outcome = re.search(r"came_of=([^,\n]+)", written)
+        assert outcome, f"{name}: a recorded attempt with no outcome"
+        # A name from the domain's own vocabulary, or a conditional between
+        # two of them. Never a literal: a string here is a column of free text
+        # within a month.
+        assert not outcome.group(1).strip().startswith(('"', "'")), (
+            f"{name}: {outcome.group(1).strip()} is a literal, not one of the names"
+        )
+
+
+def test_every_way_a_person_can_ask_this_system_for_something() -> None:
+    """The whole vocabulary, in one place, read off the doors themselves.
+
+    Not the set of FILES that record one -- that passed with a door's recording
+    deleted, because its neighbour in the same file still had one. This is the
+    list somebody reads to know what an audit can tell them, and a door that
+    stops recording takes its line out of it.
+    """
+    import re
+    from pathlib import Path
+
+    doors = Path("src/sro/interface/http/v1/routers")
+    asked = set()
+    for door in doors.rglob("*.py"):
+        for line in re.findall(r"asked_for=.*", door.read_text()):
+            # Every string in the value, because a door may choose between two
+            # -- the press door says "take back a run" or "press a job"
+            # depending on whether the run undoes another. Cut at `came_of`,
+            # since a short door puts the whole call on one line and the ids in
+            # `about` are strings too.
+            asked.update(re.findall(r'"([^"]+)"', line.split("came_of")[0]))
+
+    assert asked == {
+        "fire an arrival rule",  # a rule they made, firing where they arrived
+        "ask for a job in words",  # a sentence that named a job, or did not
+        "approve a write",  # yes on a card
+        "decline a write",  # no on a card
+        "press a job",  # the button
+        "take back a run",  # the undo
+        "stop a run",
+        "approve a step",  # the tap that lets one write out
+        "call a run's result wrong",
+    }, asked

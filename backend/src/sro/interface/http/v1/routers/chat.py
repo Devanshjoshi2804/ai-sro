@@ -23,6 +23,7 @@ from fastapi import APIRouter, status
 
 from sro.domain.chat.asking import Pending
 from sro.domain.chat.thread import ThreadId
+from sro.domain.observation.attempts import DONE, NOTHING
 from sro.interface.http.asking import TenantOnly
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
@@ -47,7 +48,23 @@ async def read_chat(body: ChatRequest, container: ContainerDep, ctx: ContextDep)
     behind because the tenant was billed for it, but the answer is an offer and
     the operator may walk away from it.
     """
-    return ChatResponse.of(await container.read_chat().execute(ctx, utterance=body.utterance))
+    read = await container.read_chat().execute(ctx, utterance=body.utterance)
+    # A sentence that named no job. The tenant was billed for the reading and
+    # the `chats` row records that, in a table about what was SPENT -- and
+    # from where the operator is standing this is the plainest version of the
+    # whole complaint: they asked for something and nothing came back.
+    #
+    # The sentence itself is not recorded, here or anywhere: `ChatReading` has
+    # no column for an operator's words about their own warehouse, and an
+    # attempt is not the place to give them one.
+    await container.record_attempt().execute(
+        ctx,
+        asked_for="ask for a job in words",
+        came_of=DONE if read.workflow_id else NOTHING,
+        why="" if read.workflow_id else "no job of this tenant's matched what was asked for",
+        about={"workflow": read.workflow_id or ""},
+    )
+    return ChatResponse.of(read)
 
 
 @router.post("/chat/about-an-offer", status_code=status.HTTP_200_OK)

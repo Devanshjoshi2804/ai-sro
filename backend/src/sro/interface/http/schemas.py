@@ -35,6 +35,7 @@ from sro.domain.chat.thread import Thread
 from sro.domain.execution.learned_step import Taught
 from sro.domain.execution.run import Medium, Run, StepOutcome
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.lookup.answer import trimmed
 from sro.domain.lookup.plan import Asked, Lookup
 from sro.domain.observation.attempts import Attempt
 from sro.domain.observation.batch import CaptureMode, RejectedEvent
@@ -3070,16 +3071,6 @@ class AskedModel(BaseModel):
         )
 
 
-K_ANSWER_CHARS = 64 * 1024
-"""How much of one system's answer comes back through this door.
-
-The extension already caps a response body at 1MB. This is smaller because
-four systems answering at that size is a four-megabyte response to a question
-somebody typed, and the part that answers "which suppliers are at SG" is at
-the front. `truncated` says when the rest was left behind, because an answer
-silently cut in half is a wrong answer with no sign on it."""
-
-
 class LookedModel(BaseModel):
     """What one lookup came back with, or why it did not."""
 
@@ -3106,6 +3097,7 @@ class LookedModel(BaseModel):
         body = answer.get("body")
         text = body if isinstance(body, str) else None
         status = answer.get("status")
+        kept, cut = trimmed(text)
         return cls(
             system=looked.lookup.system,
             how=looked.lookup.how,
@@ -3114,8 +3106,8 @@ class LookedModel(BaseModel):
             ok=looked.ok,
             detail=looked.detail,
             status=status if isinstance(status, int) else None,
-            body=text[:K_ANSWER_CHARS] if text is not None else None,
-            truncated=bool(text is not None and len(text) > K_ANSWER_CHARS),
+            body=kept,
+            truncated=cut,
             seen={
                 name: value
                 for name, value in answer.items()

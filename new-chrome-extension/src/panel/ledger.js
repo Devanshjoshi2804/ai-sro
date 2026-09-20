@@ -887,6 +887,29 @@ function saying(
   const kind = message.decision?.kind;
   if (kind) item.dataset.kind = kind;
 
+  // What a lookup came back with, drawn the way the answer card draws it.
+  //
+  // The conversation used to carry the SCREEN WALK for a question -- "Nobody
+  // has demonstrated reading that, so I will work it out on the screen" --
+  // while the answer itself arrived through `/v1/ask` into a card beside it.
+  // Now the door that owns a question answers into the thread, and `result()`
+  // is what makes fifty records readable: a count and the first few in a
+  // table, rather than 240 characters of raw JSON that never reach the row
+  // somebody asked about.
+  if (kind === "looked") {
+    const found = document.createElement("ul");
+    found.className = "answers";
+    for (const one of message.decision.answers || []) {
+      const line = document.createElement("li");
+      line.dataset.ok = String(Boolean(one.ok));
+      const drawn = result(one);
+      if (drawn) line.append(drawn);
+      found.append(line);
+    }
+    item.append(found);
+    return item;
+  }
+
   if (kind === "offer") {
     const already = spent.get(message.decision.candidate_id);
     // Answered further down the thread: the words stay, the buttons go. The

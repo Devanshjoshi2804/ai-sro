@@ -858,3 +858,112 @@ async def test_the_question_says_what_the_box_holds_when_anything_knows() -> Non
     said = await converse.execute(CTX, thread_id=thread_id, text="GPP")
 
     assert said.messages[-1].text == "longDescription takes 28 characters. What should it be?"
+
+
+class _Plans:
+    """A lookup planner that answers with one ready plan, or none."""
+
+    def __init__(self, ready: bool = True) -> None:
+        self._ready = ready
+        self.asked: list[str] = []
+
+    async def execute(self, _ctx: object, *, question: str, system: str | None = None) -> object:
+        from sro.application.lookup.plan_lookups import Planned
+        from sro.domain.lookup.plan import Lookup, Plan
+
+        self.asked.append(question)
+        looks = (
+            (Lookup(system="WM", how="call", target="/data/WM/wm/customerTypes"),)
+            if self._ready
+            else ()
+        )
+        return Planned(Plan(question=question, lookups=looks))
+
+
+class _Runs:
+    """A browser that answers the plan with fifty records."""
+
+    def __init__(self) -> None:
+        self.focus: list[bool] = []
+
+    async def execute(
+        self, _ctx: object, *, plan: object, allow_focus: bool = False, **_rest: object
+    ) -> object:
+        import json as _json
+
+        from sro.application.lookup.run_lookups import Answers, Looked
+
+        self.focus.append(allow_focus)
+        body = _json.dumps(
+            {"data": [{"customerType": "KKYT", "longDescription": "my sro is best"}]}
+        )
+        return Answers(
+            plan=plan,  # type: ignore[arg-type]
+            looked=(
+                Looked(
+                    lookup=plan.lookups[0],  # type: ignore[attr-defined]
+                    ok=True,
+                    url="https://wms.example/data/WM/wm/customerTypes",
+                    answer={"status": 200, "body": body},
+                ),
+            ),
+        )
+
+
+async def test_a_question_nothing_was_taught_for_goes_to_the_lookup_door() -> None:
+    """Measured on the deployment 2026-09-21. Asked "is there a customer type
+    called KKYT", three doors answered one sentence:
+
+        18:30:26  POST /v1/lookups             3601ms
+        18:30:35  POST /v1/threads/../messages 7691ms  <- the screen walk
+        18:30:43  POST /v1/ask                 6567ms  <- the answer
+
+    and the wrong one arrived first. This door replied "Nobody has
+    demonstrated reading that, so I will work it out on the screen" with five
+    screens to open, while the lookup door planned
+    `call /data/WM/wm/customerTypes`, got 200, and found KKYT.
+    """
+    uow = FakeUnitOfWork()
+    converse, thread_id = await _asked(uow, [])
+    plans, runs = _Plans(), _Runs()
+    converse._plan_lookups = plans  # type: ignore[assignment]
+    converse._run_lookups = runs  # type: ignore[assignment]
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="is there a customer type KKYT")
+
+    assert plans.asked == ["is there a customer type KKYT"]
+    last = said.messages[-1]
+    assert last.decision is not None and last.decision["kind"] == "looked"
+    [answer] = last.decision["answers"]  # type: ignore[index]
+    assert answer["target"] == "/data/WM/wm/customerTypes"
+    assert "KKYT" in str(answer["body"])
+    assert "screen" not in last.text.lower(), last.text
+
+
+async def test_a_question_never_takes_the_screen_somebody_is_working_on() -> None:
+    """`focus_not_permitted` is the refusal this path exists to stop meeting.
+    A question is not a reason to navigate the tab in front of an operator."""
+    uow = FakeUnitOfWork()
+    converse, thread_id = await _asked(uow, [])
+    runs = _Runs()
+    converse._plan_lookups = _Plans()  # type: ignore[assignment]
+    converse._run_lookups = runs  # type: ignore[assignment]
+
+    await converse.execute(CTX, thread_id=thread_id, text="is there a customer type KKYT")
+
+    assert runs.focus == [False]
+
+
+async def test_a_sentence_that_asks_for_work_is_not_looked_up() -> None:
+    """The gate is `is_a_question`, the same word rule `/v1/ask` decides by --
+    so the two doors cannot disagree about what a question is."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked(uow, [])
+    plans = _Plans()
+    converse._plan_lookups = plans  # type: ignore[assignment]
+    converse._run_lookups = _Runs()  # type: ignore[assignment]
+
+    await converse.execute(CTX, thread_id=thread_id, text="create a customer type called GPP")
+
+    assert plans.asked == [], "a sentence asking for work was sent to the lookup door"

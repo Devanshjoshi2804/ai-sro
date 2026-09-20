@@ -1025,6 +1025,11 @@ class Container:
             # actually do: a deployment with no connector still demands the
             # values, because on that one nothing can go and find them.
             can_gather=self.can_gather,
+            # The door that owns a question. `/v1/ask` has always decided
+            # which of the two worlds a sentence belongs to; this door never
+            # asked, and answered questions with proposals to open screens.
+            plan_lookups=self.plan_lookups(),
+            run_lookups=self.run_lookups(),
             # Whether what somebody typed while a question stands is the answer
             # to it. The fast model, for `read_chat`'s reason: an operator is
             # standing at the panel waiting to find out what happens to the

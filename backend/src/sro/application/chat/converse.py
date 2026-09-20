@@ -28,6 +28,8 @@ from sro.application.intent.narrow import NarrowARead, NeedToAsk, value_key
 from sro.application.intent.next_steps import SuggestNext
 from sro.application.intent.resolve import Resolution, ResolveIntent
 from sro.application.knowledge.open_questions import Ambiguity, AskAbout
+from sro.application.lookup.plan_lookups import PlanLookups
+from sro.application.lookup.run_lookups import Answers, Looked, RunLookups
 from sro.application.ports.http import TargetUnreachable
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
@@ -45,6 +47,8 @@ from sro.domain.chat.asking import (
 from sro.domain.chat.is_it_an_answer import said_as_the_value
 from sro.domain.chat.thread import Message, Said, Speaker, Thread, ThreadId
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
+from sro.domain.lookup.answer import as_seen
+from sro.domain.lookup.asking import is_a_question
 from sro.domain.shared.errors import DomainError
 from sro.domain.skill.skill import Skill
 
@@ -85,6 +89,8 @@ class Converse:
         reads_jobs: ReadChat | None = None,
         can_gather: bool = False,
         answers: IsItAnAnswer | None = None,
+        plan_lookups: PlanLookups | None = None,
+        run_lookups: RunLookups | None = None,
     ) -> None:
         self._uow = uow
         self._resolver = resolver
@@ -108,6 +114,20 @@ class Converse:
         # the connector is a deployment's, and a browser cannot know whether
         # this one has a mailbox it may read.
         self._can_gather = can_gather
+        # The door that owns a question.
+        #
+        # `/v1/ask` has always decided which of the two worlds a sentence
+        # belongs to -- an instruction for the jobs, a question for the
+        # lookups -- and this door never asked. So a question nothing was
+        # taught for came back here as a PROPOSAL to open five screens and
+        # work it out, seven seconds before the lookup door answered it
+        # properly from an endpoint. Two answers on screen to one sentence,
+        # and the wrong one first.
+        #
+        # Optional, like every other model-backed service here: a deployment
+        # without one behaves exactly as this door did before.
+        self._plan_lookups = plan_lookups
+        self._run_lookups = run_lookups
 
     async def note(self, ctx: RequestContext, *, thread_id: ThreadId, text: str) -> None:
         """Write something into the thread that nobody asked a question for.
@@ -270,6 +290,32 @@ class Converse:
             after=_last_asked(thread),
             pinned=_awaiting(thread),
         )
+
+        # A question nothing was taught for belongs to the lookup door.
+        #
+        # The taught path below still comes first -- a skill that knows which
+        # call answers a question is a better answer than a plan made from the
+        # knowledge base. This is the case where there is no such skill, and
+        # where this door used to answer with a PROPOSAL: "Nobody has
+        # demonstrated reading that, so I will work it out on the screen",
+        # followed by five screens to open.
+        #
+        # Measured on the deployment 2026-09-21. Asked "is there a customer
+        # type called KKYT", three doors answered one sentence:
+        #
+        #   18:30:26  POST /v1/lookups            3601ms
+        #   18:30:35  POST /v1/threads/../messages 7691ms  <- the screen walk
+        #   18:30:43  POST /v1/ask                 6567ms  <- the answer
+        #
+        # The wrong one arrived first and read as final. The lookup planned
+        # `call /data/WM/wm/customerTypes`, got 200, and found KKYT -- which
+        # this door proposed to go and read off a screen instead.
+        #
+        # `is_a_question` is the same word rule `/v1/ask` decides by, with no
+        # model, so the two doors cannot disagree about what a question is.
+        looked = await self._look_it_up(ctx, text, resolution)
+        if looked is not None:
+            return await self._say_what_was_found(ctx, thread_id=thread_id, text=text, found=looked)
 
         # A question is answered from the system, now. The taught skill knows
         # which call answers it; what it saw when it was taught is a description
@@ -1041,6 +1087,76 @@ class Converse:
             ),
         )
 
+    async def _look_it_up(
+        self, ctx: RequestContext, text: str, resolution: Resolution
+    ) -> Answers | None:
+        """The lookup door's answer to this question, or None if it is not one.
+
+        None on every path that is not "a question with no skill behind it":
+        a sentence that asks for work, a question a taught skill matched, a
+        deployment with no lookup services, a plan that came back unready.
+        Each of those falls through to what this door did before, which is
+        still the right answer for them.
+        """
+        if self._plan_lookups is None or self._run_lookups is None:
+            return None
+        if resolution.matched is not None or not is_a_question(text):
+            return None
+        try:
+            planned = await self._plan_lookups.execute(ctx, question=text)
+        except DomainError as refusal:
+            logger.info("%s: the lookup could not be planned: %s", ctx.tenant_id.value, refusal)
+            return None
+        if not planned.plan.ready:
+            # Nothing here knows how to look it up, which is the case the
+            # proposal below is genuinely for: it says what the knowledge base
+            # has and offers to work the screen out once.
+            return None
+        # `allow_focus` false, always. A question is not a reason to take the
+        # screen somebody is working on -- that is the refusal
+        # (`focus_not_permitted`) this whole path exists to stop meeting.
+        return await self._run_lookups.execute(ctx, plan=planned.plan, allow_focus=False)
+
+    async def _say_what_was_found(
+        self, ctx: RequestContext, *, thread_id: ThreadId, text: str, found: Answers
+    ) -> Thread:
+        """The answer, in the thread, carried as structure rather than prose.
+
+        The panel already has the renderer: `result.js` reads a body, counts
+        the records and draws the first few in a table. What it could not do
+        was reach one -- a lookup's answer arrived only through `/v1/ask`, into
+        a card beside the conversation, while the conversation itself carried
+        the screen walk. So the decision carries the same shape that card is
+        built from and the thread draws it the same way.
+        """
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            now = self._clock.now()
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.OPERATOR,
+                    text=text,
+                    said_at=now,
+                )
+            )
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.ASSISTANT,
+                    text=_what_was_found(found),
+                    said_at=now,
+                    decision={
+                        "kind": LOOKED,
+                        "question": text,
+                        "answers": [_seen(one) for one in found.looked],
+                    },
+                )
+            )
+            await uow.threads.save(thread)
+            await uow.commit()
+        return thread
+
     async def _answer_now(self, ctx: RequestContext, resolution: Resolution) -> Run | None:
         """Run a read the moment it is asked for, and answer with what came back."""
         matched = resolution.matched
@@ -1253,6 +1369,43 @@ def _awaiting(thread: Thread) -> str | None:
             return str(matched) if matched else None
         return None
     return None
+
+
+LOOKED = "looked"
+"""The decision a lookup's answer rides on into the conversation.
+
+Its own kind, and not `note`: the panel draws it with `result()`, which counts
+the records and puts the first few in a table. A kind nobody recognises is a
+sentence, and a sentence about fifty records is the raw-JSON preview this
+replaced."""
+
+
+def _seen(looked: Looked) -> dict[str, object]:
+    """One answer, in the shape every surface draws it from. See
+    `domain.lookup.answer.as_seen` -- the trimming is there so the card, the
+    conversation and a model asked to read it all get the same answer."""
+    return as_seen(
+        system=looked.lookup.system,
+        target=looked.lookup.target,
+        ok=looked.ok,
+        detail=looked.detail,
+        answer=looked.answer,
+    )
+
+
+def _what_was_found(found: Answers) -> str:
+    """The sentence above the table, for a surface that draws no table.
+
+    Deliberately thin. What the answer SAYS is in the records, and a sentence
+    claiming to summarise them would be this system inventing a number: the
+    table is the answer and this is its label.
+    """
+    answered = [one for one in found.looked if one.ok]
+    if not answered:
+        why = next((one.detail for one in found.looked if one.detail), "")
+        return f"I could not read that. {why}".strip()
+    where = ", ".join(sorted({one.lookup.target for one in answered}))
+    return f"Read from {where}."
 
 
 def _nothing_back(said: Sequence[Message]) -> str:

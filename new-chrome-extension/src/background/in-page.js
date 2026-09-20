@@ -714,7 +714,9 @@ export function viewportInPage() {
   for (const el of document.querySelectorAll(
     "[role=alert], [role=alertdialog], [role=status], [aria-live=assertive], [aria-live=polite]",
   )) {
-    const says = (el.innerText || el.textContent || "").trim().replace(/\s+/g, " ");
+    const says = (el.innerText || el.textContent || "")
+      .trim()
+      .replace(/\s+/g, " ");
     if (says) seen.push(`says: ${says.slice(0, 300)}`);
     if (seen.length >= K_NAMED) break;
   }
@@ -736,7 +738,11 @@ export function viewportInPage() {
   // one from each end in turn means a page longer than either budget is still
   // described from both, which is the whole point.
   const order = [];
-  for (let front = 0, back = all.length - 1; front <= back; front += 1, back -= 1) {
+  for (
+    let front = 0, back = all.length - 1;
+    front <= back;
+    front += 1, back -= 1
+  ) {
     if (order.length >= K_LOOKED_AT) break;
     order.push(front);
     if (back !== front && order.length < K_LOOKED_AT) order.push(back);
@@ -751,7 +757,12 @@ export function viewportInPage() {
     // fractions of the viewport, so a row scrolled a thousand pixels below it
     // was being described at `y: 4300` in a space that ends at 1000. Wrong as
     // well as slow.
-    if (rect.bottom < 0 || rect.top > height || rect.right < 0 || rect.left > width)
+    if (
+      rect.bottom < 0 ||
+      rect.top > height ||
+      rect.right < 0 ||
+      rect.left > width
+    )
       continue;
     const label = (
       el.getAttribute("aria-label") ||
@@ -866,6 +877,65 @@ export async function sendInPage(payload) {
         error: {
           kind: "unreachable",
           detail: `the system did not answer within ${took}ms`,
+        },
+      };
+    }
+    // And WHICH of the four it was, where one cheap question can say.
+    //
+    // The comment above lists them: the host did not resolve, the connection
+    // was refused, CORS refused the response, the document was torn down. It
+    // leaves out the one that is commonest in a warehouse and is not a
+    // network fault at all -- the session expired, the endpoint answered 302
+    // to an identity provider on another origin, and `redirect: "follow"`
+    // walked the fetch across an origin boundary it is not allowed to cross.
+    // Same `TypeError: Failed to fetch`, and nothing about it is unreachable.
+    //
+    // Measured on the deployment 2026-09-21. `GET /data/WM/wm/customerTypes`
+    // answered 200 with fifty records at 18:30 and `Failed to fetch after
+    // 341ms` at 20:10, with the operator's own machine reaching that exact
+    // address in 12ms and being answered 302. Between the two, they had been
+    // signed out. The panel said "unreachable", which sent everybody looking
+    // at the network.
+    //
+    // Only on the failure path, and only one request: `redirect: "manual"`
+    // does not follow, so a redirect comes back as an opaque response instead
+    // of an exception. A run's own replayed calls keep following redirects,
+    // because a POST that legitimately redirects is a POST that worked.
+    // Inline, and it has to be: `executeScript` serialises this function to
+    // source and evaluates it in the page, so anything it names from this
+    // module does not exist where it runs. `injected.test.mjs` holds that --
+    // it caught this as a `ReferenceError` on a path that only runs when
+    // something has already gone wrong, which is the path nobody watches.
+    //
+    // `redirect: "manual"` hands back an opaque response for a redirect
+    // instead of walking it to another origin and throwing. `opaqueredirect`
+    // is the whole of the signal and no header of it is readable, which is
+    // fine: that it redirects at all is what says the data is not there.
+    //
+    // Never allowed to throw. A diagnostic that can fail the thing it is
+    // diagnosing is worse than no diagnostic.
+    let redirected = false;
+    try {
+      const looked = await fetch(payload.url, {
+        method: "GET",
+        credentials: "include",
+        redirect: "manual",
+        signal: AbortSignal.timeout(4000),
+      });
+      redirected =
+        looked.type === "opaqueredirect" ||
+        (looked.status >= 300 && looked.status < 400);
+    } catch {
+      redirected = false;
+    }
+    if (redirected) {
+      return {
+        ok: false,
+        error: {
+          kind: "signed_out",
+          detail:
+            "that system answered with a redirect rather than data, which is" +
+            " what it does when the session has gone -- sign in and ask again",
         },
       };
     }

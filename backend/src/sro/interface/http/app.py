@@ -145,6 +145,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging(
         level="DEBUG" if settings.debug else "INFO",
         as_json=settings.environment != "local",
+        louder_for=frozenset(
+            one.strip() for one in settings.louder_for.split(",") if one.strip()
+        ),
     )
     container = build_container()
     app.state.container = container

@@ -75,6 +75,14 @@ class Settings(BaseSettings):
     environment: str = "local"
     debug: bool = False
 
+    louder_for: str = ""
+    """Tenants whose lines come through at DEBUG while the rest stay at INFO.
+
+    Comma separated, and normally empty. A deployment asked to work out what
+    happened to one customer had two choices and both were bad: turn the whole
+    process to DEBUG -- every tenant, every sweep, every query, for as long as
+    it takes to reproduce -- or see nothing. See `telemetry.whose.Louder`."""
+
     revision: str = Field(default_factory=_git_head)
     """The commit this process is running, resolved once at startup.
 

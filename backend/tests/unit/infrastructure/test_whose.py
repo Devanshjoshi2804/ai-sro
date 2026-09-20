@@ -18,6 +18,7 @@ import pytest
 from sro.infrastructure.telemetry.whose import (
     AsJson,
     Attribution,
+    Louder,
     Plainly,
     about,
     attribute,
@@ -225,3 +226,41 @@ def test_a_server_fault_is_louder_than_a_caller_s_mistake(
         _http_problem(_Ask(), HTTPException(status_code=503, detail="no vault"))
 
     assert [record.levelno for record in caplog.records] == [logging.WARNING, logging.ERROR]
+
+
+# --- one tenant louder than the rest ------------------------------------------
+
+
+def test_one_tenant_can_be_turned_up_without_turning_everything_up() -> None:
+    """A deployment asked what happened to one customer had two choices and
+    both are bad: the whole process at DEBUG -- every tenant, every sweep,
+    every query, for as long as it takes to reproduce -- or nothing.
+
+    The attribution is what makes the third option possible: the record already
+    knows whose it is by the time a filter sees it.
+    """
+    loud = Louder(logging.INFO, frozenset({"greyorange"}))
+
+    def seen(level: int, tenant: str | None) -> bool:
+        record = logging.LogRecord("sro.mining", level, __file__, 1, "a thing", (), None)
+        with about(tenant=tenant):
+            Attribution().filter(record)
+        return loud.filter(record)
+
+    assert seen(logging.DEBUG, "greyorange") is True, "the tenant asked for"
+    assert seen(logging.DEBUG, "acme") is False, "and not the one beside it"
+    assert seen(logging.DEBUG, None) is False, "nor work belonging to nobody"
+    # Everything at or above the floor comes through however it is attributed.
+    assert seen(logging.INFO, "acme") is True
+    assert seen(logging.WARNING, None) is True
+
+
+def test_with_nobody_named_nothing_below_the_floor_gets_through() -> None:
+    """The ordinary case, and the one a deployment runs in."""
+    loud = Louder(logging.INFO, frozenset())
+    record = logging.LogRecord("sro.mining", logging.DEBUG, __file__, 1, "a thing", (), None)
+
+    with about(tenant="greyorange"):
+        Attribution().filter(record)
+
+    assert loud.filter(record) is False

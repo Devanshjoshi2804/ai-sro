@@ -21,6 +21,15 @@
  * through two hundred runs. */
 export const K_LINES = 12;
 
+/** How many of this browser's own lines are shown under the runs.
+ *
+ * Fewer than the runs, and last, because they answer a narrower question.
+ * A run that ended is a thing a person recognises; a refusal is what they go
+ * looking for once the run does not explain itself. Six is the last minute or
+ * two of a browser that is going wrong, which is the window somebody is in
+ * when they open this. */
+export const K_SAID = 6;
+
 /** What each outcome is called where a person reads it.
  *
  * The rig's own words, which are not the backend's: `held` is a run every step
@@ -45,7 +54,7 @@ export const ENDINGS = {
  * the way out, which is also the escape key: an overlay a person cannot
  * dismiss without finding the one small button is a trap on a 360-pixel panel.
  */
-export function history(runs, { onClose, now = Date.now() } = {}) {
+export function history(runs, { onClose, said = [], now = Date.now() } = {}) {
   const box = document.createElement("section");
   box.className = "history";
   box.setAttribute("role", "dialog");
@@ -69,7 +78,7 @@ export function history(runs, { onClose, now = Date.now() } = {}) {
     if (event.key === "Escape") onClose?.();
   });
 
-  if (!runs.length) {
+  if (!runs.length && !said.length) {
     const none = document.createElement("p");
     none.className = "detail";
     // Not "nothing has run": this browser may simply not have been told yet,
@@ -82,7 +91,7 @@ export function history(runs, { onClose, now = Date.now() } = {}) {
 
   const list = document.createElement("ul");
   list.className = "history-list";
-  for (const run of runs.slice(0, K_LINES)) {
+  for (const run of (runs || []).slice(0, K_LINES)) {
     const line = document.createElement("li");
     const what = document.createElement("span");
     what.className = "what";
@@ -97,7 +106,41 @@ export function history(runs, { onClose, now = Date.now() } = {}) {
     list.append(line);
   }
   box.append(list);
+  box.append(...whatThisBrowserSaid(said));
   return box;
+}
+
+/** This browser's own last few refusals, under the runs.
+ *
+ * The lines are already kept and already shipped -- the heartbeat carries them
+ * and the deployment writes them beside its own. What was missing is the
+ * operator's own copy: they are standing in front of the browser that refused,
+ * being told nothing, while the only account of it travels to a server they
+ * cannot read.
+ *
+ * Shown as they were written, which is deliberate. These are not sentences
+ * composed for this surface -- they are what went up the wire, ids and all, so
+ * that an operator reading one to somebody on a call is reading the same
+ * string that is in the deployment's log.
+ *
+ * Empty draws nothing at all. A heading over an empty list is a panel telling
+ * somebody where a thing would be if it existed.
+ */
+function whatThisBrowserSaid(said) {
+  const lines = (said || []).slice(-K_SAID).reverse();
+  if (!lines.length) return [];
+  const title = document.createElement("h4");
+  title.className = "history-said-head";
+  title.textContent = "This browser said";
+  const list = document.createElement("ul");
+  list.className = "history-said";
+  for (const line of lines) {
+    const row = document.createElement("li");
+    row.className = "detail";
+    row.textContent = String(line);
+    list.append(row);
+  }
+  return [title, list];
 }
 
 /** How long ago, in the words somebody would use.

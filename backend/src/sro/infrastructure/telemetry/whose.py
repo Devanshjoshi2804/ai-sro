@@ -121,6 +121,39 @@ def attribute(**ids: str | int | None) -> None:
     _WHOSE.set({**(_WHOSE.get() or {}), **given})
 
 
+class Louder(logging.Filter):
+    """Let one tenant's lines through below the level everything else is at.
+
+    A deployment that wants to see what happened to ONE customer had two
+    choices, and both are bad: turn the whole process to DEBUG -- every tenant,
+    every sweep, every query, for as long as it takes to reproduce -- or see
+    nothing. On a single-tenant deployment the first is merely expensive; on a
+    shared one it is a bill and a haystack.
+
+    So the level is raised for a named few. `SRO_LOUDER_FOR=greyorange,acme`
+    puts those tenants at DEBUG while the rest stay where they were, and the
+    attribution is what makes it possible at all: the record already knows
+    whose it is by the time a filter sees it.
+
+    A filter can only widen what a LOGGER already let through, so the logger
+    sits at the lower level and this holds everything else back. That is the
+    one awkward half of doing it this way, and it is written here because the
+    alternative -- a handler per tenant -- is a handler set that changes as
+    tenants arrive.
+    """
+
+    def __init__(self, floor: int, loud: frozenset[str]) -> None:
+        super().__init__()
+        self._floor = floor
+        self._loud = loud
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.levelno >= self._floor:
+            return True
+        mine = getattr(record, "whose", None) or whose()
+        return str(mine.get("tenant", "")) in self._loud
+
+
 class Attribution(logging.Filter):
     """Copies the current attribution onto every record.
 
@@ -171,4 +204,13 @@ class AsJson(logging.Formatter):
         return json.dumps(said, ensure_ascii=False, default=str)
 
 
-__all__ = ["KNOWN", "AsJson", "Attribution", "Plainly", "about", "attribute", "whose"]
+__all__ = [
+    "KNOWN",
+    "AsJson",
+    "Attribution",
+    "Louder",
+    "Plainly",
+    "about",
+    "attribute",
+    "whose",
+]

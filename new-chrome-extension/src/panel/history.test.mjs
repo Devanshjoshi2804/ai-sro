@@ -8,7 +8,7 @@ import { install, of, words } from "./test-support/fake-document.mjs";
 
 install();
 
-const { ENDINGS, K_LINES, ago, history } = await import("./history.js");
+const { ENDINGS, K_LINES, K_SAID, ago, history } = await import("./history.js");
 
 const tests = [];
 let failed = 0;
@@ -82,6 +82,56 @@ test("how long ago, in the words somebody would use", () => {
   // A row whose time this browser cannot read says nothing rather than
   // "NaN ago".
   assert.equal(ago("", NOW), "");
+});
+
+const saidList = (box) => of(box, "ul").find((one) => one.className === "history-said");
+
+test("this browser's own refusals are under the runs", () => {
+  // The lines are already kept and already shipped -- the heartbeat carries
+  // them and the deployment writes them beside its own. What was missing is
+  // the operator's copy: they stand in front of the browser that refused,
+  // being told nothing, while the only account of it goes to a server they
+  // cannot read.
+  const box = history([run()], {
+    said: [
+      "warn a command was refused [command=cmd_9f21 kind=ui.perform run=run_1 error=no_tab_for_system]",
+    ],
+    now: NOW,
+  });
+
+  const said = saidList(box);
+  assert.ok(said, "the operator's own copy is not there");
+  assert.equal(of(said, "li").length, 1);
+  // As it was written: an operator reading one to somebody on a call is
+  // reading the same string that is in the deployment's log.
+  assert.match(words(said), /no_tab_for_system/);
+  assert.match(words(said), /cmd_9f21/);
+});
+
+test("newest first, and only the last few", () => {
+  const many = Array.from({ length: 20 }, (_, n) => `warn refusal ${n}`);
+
+  const box = history([], { said: many, now: NOW });
+
+  const rows = of(saidList(box), "li");
+  assert.equal(rows.length, K_SAID);
+  assert.match(words(rows[0]), /refusal 19$/, "the newest is first");
+});
+
+test("nothing said draws no heading", () => {
+  // A heading over an empty list is a panel telling somebody where a thing
+  // would be if it existed.
+  const box = history([run()], { now: NOW });
+
+  assert.equal(saidList(box), undefined);
+  assert.equal(of(box, "h4").length, 0);
+});
+
+test("a browser with no runs but something to say still says it", () => {
+  const box = history([], { said: ["error a command blew up"], now: NOW });
+
+  assert.match(words(box), /a command blew up/);
+  assert.doesNotMatch(words(box), /Nothing here yet/);
 });
 
 for (const [name, fn] of tests) {

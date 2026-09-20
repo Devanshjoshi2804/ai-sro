@@ -15,7 +15,7 @@ import {
   performing,
   RUN_QUIET_MS,
 } from "./commands.js";
-import { MAX_SAID, narrate } from "./said.js";
+import { MAX_SAID, narrate, said } from "./said.js";
 import { serially } from "./serially.js";
 import * as queue from "./queue.js";
 import { redactUrl } from "../content/sensitivity.module.js";
@@ -1813,6 +1813,13 @@ async function handle(message, sender) {
         if (was.state === "open") void report(was, "dismissed");
       }
       return { ok: true, nudge: was || null };
+    }
+    case "what-this-browser-said": {
+      // What is waiting to go up on the next beat, for the operator standing
+      // in front of the browser that refused. Read only: the heartbeat still
+      // takes them, and a panel that emptied the buffer to draw it would cost
+      // the deployment the same lines.
+      return await said();
     }
     case "keep-secret": {
       // Straight through to the backend and gone. Not held here even for the

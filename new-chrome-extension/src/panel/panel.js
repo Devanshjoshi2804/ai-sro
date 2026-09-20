@@ -2015,8 +2015,13 @@ async function openHistory() {
   over.hidden = false;
   over.replaceChildren();
   let runs = [];
+  let said = [];
   try {
     runs = (await ask({ kind: "recent-runs", limit: K_HISTORY })) || [];
+    // Asked separately, and never allowed to cost the runs: this browser's own
+    // lines are the smaller half of the overlay, and a worker that cannot
+    // answer for them is not a reason to show nothing at all.
+    said = (await ask({ kind: "what-this-browser-said" }).catch(() => [])) || [];
   } catch (error) {
     const said = document.createElement("p");
     said.className = "detail";
@@ -2027,6 +2032,7 @@ async function openHistory() {
   over.dataset.kind = "history";
   over.replaceChildren(
     history(runs, {
+      said,
       onClose: () => {
         over.hidden = true;
         over.replaceChildren();

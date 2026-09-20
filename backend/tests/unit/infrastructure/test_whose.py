@@ -101,7 +101,7 @@ def test_json_says_what_blew_up() -> None:
 async def test_one_task_does_not_attribute_another_task_s_lines() -> None:
     """What makes `attribute` sound: asyncio copies the context into a task, so
     a run that sets its own id cannot put it on a sibling's lines."""
-    seen: dict[str, dict[str, object]] = {}
+    seen: dict[str, dict[str, str | int]] = {}
 
     async def a_run(name: str) -> None:
         attribute(run=name)
@@ -206,8 +206,8 @@ def test_every_refusal_this_api_makes_is_said_out_loud() -> None:
     assert "no such thread" in said[0]
     assert "device was not found" in said[1]
     # And each one names who was refused, without any of the three being told.
-    assert all(record.whose["tenant"] == "greyorange" for record in kept)  # type: ignore[attr-defined]
-    assert all(record.whose["principal"] == "rudy" for record in kept)  # type: ignore[attr-defined]
+    assert all(record.whose["tenant"] == "greyorange" for record in kept)
+    assert all(record.whose["principal"] == "rudy" for record in kept)
 
 
 def test_a_server_fault_is_louder_than_a_caller_s_mistake(

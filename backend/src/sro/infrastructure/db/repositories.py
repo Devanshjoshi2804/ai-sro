@@ -61,6 +61,7 @@ from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.skill import Skill
 from sro.domain.trigger.confirmation import Answer, Confirmation
 from sro.domain.trigger.trigger import Trigger
+from sro.infrastructure.db.attempts import SqlAttemptRepository
 from sro.infrastructure.db.codec import dump_policy, when
 from sro.infrastructure.db.evidence import SqlGestureRepository, SqlPoolRepository
 from sro.infrastructure.db.mappers import (
@@ -1107,6 +1108,7 @@ class SqlUnitOfWork(UnitOfWork):
         self.gestures = SqlGestureRepository(self._session)
         self.workflow_runs = SqlWorkflowRunRepository(self._session)
         self.workflows = SqlWorkflowRepository(self._session)
+        self.attempts = SqlAttemptRepository(self._session)
         self.offers = SqlOfferRepository(self._session)
         self.chats = SqlChatRepository(self._session)
         self.spend = SqlSpendRepository(self._session)

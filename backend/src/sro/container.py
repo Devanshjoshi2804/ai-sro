@@ -99,6 +99,7 @@ from sro.application.observation.propose import AnswerJoin, ProposeAboutCandidat
 from sro.application.observation.read_gesture import ReadGestures
 from sro.application.observation.read_pool import ReadPool
 from sro.application.observation.read_shots import ReadShots
+from sro.application.observation.record_attempt import RecordAttempt
 from sro.application.observation.register import (
     GrantHost,
     ReadDevice,
@@ -670,6 +671,11 @@ class Container:
 
     def delete_trigger(self) -> DeleteTrigger:
         return DeleteTrigger(self.unit_of_work(), self.scheduler)
+
+    def record_attempt(self) -> RecordAttempt:
+        """What somebody asked for, and what came of it. See
+        `sro.domain.observation.attempts` for what belongs there."""
+        return RecordAttempt(self.unit_of_work(), self.ids, self.clock)
 
     def fire_trigger(self) -> FireTrigger:
         """`start_run` and `pursuits` are the job half, beside the skill half's

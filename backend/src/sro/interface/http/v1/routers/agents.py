@@ -11,6 +11,7 @@ from fastapi import APIRouter, Body, status
 from sro.application.context import RequestContext
 from sro.application.trigger.fire_trigger import blank_inputs
 from sro.container import Container
+from sro.domain.observation.attempts import DONE, NOTHING
 from sro.domain.observation.grant import LONGEST
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import DeviceId, TriggerId
@@ -233,6 +234,23 @@ async def arrival_fire(
         # operator has rules for.
         raise NotFound("no such arrival")
     fired = await container.fire_trigger().execute(arrival.id)
+    # What the operator asked for and what came of it -- including the case
+    # that used to leave nothing at all behind. `FireTrigger` skips rather
+    # than starting a run whose required inputs are empty, and a skip answers
+    # 202 with a `run_id` of null: from the browser it is a press that did
+    # nothing, and until this there was no record anywhere that it had
+    # happened.
+    await container.record_attempt().execute(
+        ctx,
+        asked_for="fire an arrival rule",
+        came_of=NOTHING if fired.skipped else DONE,
+        why="the rule had no value for something the job needs" if fired.skipped else "",
+        about={
+            "trigger": fired.trigger_id.value,
+            "run": fired.run_id.value if fired.run_id else "",
+            "device": device_id,
+        },
+    )
     return FiredModel(
         trigger_id=fired.trigger_id.value,
         run_id=fired.run_id.value if fired.run_id else None,

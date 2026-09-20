@@ -58,7 +58,7 @@ def test_what_the_caller_adds_rides_on_top(sent: InMemorySpanExporter) -> None:
 def test_a_span_may_not_be_attributed_to_just_anything() -> None:
     """The same closed list the log lines hold, because a span goes to the same
     collector: a customer's name must not be able to arrive as an attribute."""
-    with pytest.raises(ValueError, match="customer_name"), doing("x", customer_name="ACME"):  # type: ignore[call-arg]
+    with pytest.raises(ValueError, match="customer_name"), doing("x", customer_name="ACME"):
         pass
 
 

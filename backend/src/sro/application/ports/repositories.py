@@ -20,6 +20,7 @@ from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel, KnowledgeEntry
+from sro.domain.observation.attempts import Attempt
 from sro.domain.observation.batch import ObservationBatch
 from sro.domain.observation.candidate import CandidateStatus, TaskCandidate
 from sro.domain.observation.device import AgentDevice
@@ -1049,6 +1050,35 @@ class WorkflowRepository(Protocol):
         ...
 
 
+class AttemptRepository(Protocol):
+    """Something a person asked for, and what came of it.
+
+    One write and one read, and the write never raises: see `record`.
+    """
+
+    async def record(self, attempt: Attempt) -> None:
+        """One attempt, one row -- and nothing this raises reaches the caller.
+
+        The callers are doors in the middle of answering somebody, most of them
+        in the middle of REFUSING somebody, and a refusal that turns into a 500
+        because the recording of it failed is strictly worse than the silence
+        this replaces. An implementation that cannot write says so in the log
+        and returns.
+        """
+        ...
+
+    async def since(
+        self, tenant_id: TenantId, *, since: datetime, limit: int
+    ) -> tuple[Attempt, ...]:
+        """This tenant's attempts, newest first, capped.
+
+        Newest first because a day is read from the end: the question is what
+        just happened, and an audit that starts at breakfast makes somebody
+        scroll to reach it.
+        """
+        ...
+
+
 class OfferRepository(Protocol):
     """What the extension offered, and what became of it.
 
@@ -1146,6 +1176,7 @@ class UnitOfWork(Protocol):
     gestures: GestureRepository
     workflow_runs: WorkflowRunRepository
     workflows: WorkflowRepository
+    attempts: AttemptRepository
     offers: OfferRepository
     chats: ChatRepository
     spend: SpendRepository

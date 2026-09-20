@@ -34,6 +34,7 @@ from sro.application.ports.http import (
 from sro.application.ports.intent import Extraction, Reading
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import (
+    AttemptRepository,
     BrowserSessionRepository,
     CandidateRepository,
     ChatRepository,
@@ -85,6 +86,7 @@ from sro.domain.knowledge.entry import (
     KnowledgeEntry,
     KnowledgeId,
 )
+from sro.domain.observation.attempts import Attempt
 from sro.domain.observation.batch import ObservationBatch
 from sro.domain.observation.candidate import CandidateStatus, TaskCandidate
 from sro.domain.observation.device import AgentDevice
@@ -2009,6 +2011,38 @@ class FakeWorkflowRepository:
         )
 
 
+class FakeAttemptRepository:
+    """Attempts, in a list.
+
+    Faithful about the one rule that matters: `record` never raises. A test
+    that wants to see a door survive a store that will not take its attempt
+    sets `refusing`.
+    """
+
+    def __init__(self) -> None:
+        self.rows: list[Attempt] = []
+        self.refusing = False
+
+    async def record(self, attempt: Attempt) -> None:
+        if self.refusing:
+            # Exactly what the real one does: the log keeps it, the caller is
+            # never told, and the door goes on answering the person in front
+            # of it.
+            return
+        self.rows.append(attempt)
+
+    async def since(
+        self, tenant_id: TenantId, *, since: datetime, limit: int
+    ) -> tuple[Attempt, ...]:
+        mine = [
+            one
+            for one in self.rows
+            if one.tenant == tenant_id.value and datetime.fromisoformat(one.at) >= since
+        ]
+        mine.sort(key=lambda one: one.at, reverse=True)
+        return tuple(mine[:limit])
+
+
 class FakeOfferRepository:
     """What was offered, in a list, in the order it arrived.
 
@@ -2170,6 +2204,7 @@ _REPOSITORIES = frozenset(
         "gestures",
         "workflow_runs",
         "workflows",
+        "attempts",
         "offers",
         "chats",
         "spend",
@@ -2204,6 +2239,7 @@ class FakeUnitOfWork:
     gestures: GestureRepository
     workflow_runs: WorkflowRunRepository
     workflows: WorkflowRepository
+    attempts: AttemptRepository
     offers: OfferRepository
     chats: ChatRepository
     spend: SpendRepository
@@ -2233,6 +2269,7 @@ class FakeUnitOfWork:
         # declared as the port -- a port has no such flag.
         self._workflows = FakeWorkflowRepository(self.workflow_runs)
         self.workflows = self._workflows
+        self.attempts = FakeAttemptRepository()
         self.offers = FakeOfferRepository()
         self.chats = FakeChatRepository()
         # One database in the store: the day's bill is summed over the same

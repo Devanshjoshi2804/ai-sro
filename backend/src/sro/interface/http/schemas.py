@@ -36,6 +36,7 @@ from sro.domain.execution.learned_step import Taught
 from sro.domain.execution.run import Medium, Run, StepOutcome
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.lookup.plan import Asked, Lookup
+from sro.domain.observation.attempts import Attempt
 from sro.domain.observation.batch import CaptureMode, RejectedEvent
 from sro.domain.observation.candidate import (
     Episode,
@@ -1922,6 +1923,34 @@ class AuditChatModel(BaseModel):
         )
 
 
+class AuditAttemptModel(BaseModel):
+    """Something somebody asked for, and what came of it.
+
+    The four models beside this one are state that already existed; this one is
+    the press that started nothing, which had no row anywhere until it did.
+    """
+
+    id: str
+    at: str
+    asked_for: str
+    came_of: str
+    principal: str
+    why: str
+    about: dict[str, str]
+
+    @classmethod
+    def of(cls, attempt: Attempt) -> AuditAttemptModel:
+        return cls(
+            id=attempt.id,
+            at=attempt.at,
+            asked_for=attempt.asked_for,
+            came_of=attempt.came_of,
+            principal=attempt.principal,
+            why=attempt.why,
+            about=dict(attempt.about),
+        )
+
+
 class AuditResponse(BaseModel):
     since: str
     """The bound the four reads actually used, normalised to UTC.
@@ -1936,6 +1965,9 @@ class AuditResponse(BaseModel):
     offers: list[AuditOfferModel]
     devices: list[AuditDeviceModel]
     chats: list[AuditChatModel]
+    attempts: list[AuditAttemptModel] = Field(default_factory=list)
+    """Newest first, and defaulted: a console written against the other four
+    goes on working."""
 
     @classmethod
     def of(cls, audit: Audit) -> AuditResponse:
@@ -1945,6 +1977,7 @@ class AuditResponse(BaseModel):
             offers=[AuditOfferModel.of(offer) for offer in audit.offers],
             devices=[AuditDeviceModel.of(device) for device in audit.devices],
             chats=[AuditChatModel.of(chat) for chat in audit.chats],
+            attempts=[AuditAttemptModel.of(one) for one in audit.attempts],
         )
 
 

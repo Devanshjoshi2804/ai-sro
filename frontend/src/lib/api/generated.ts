@@ -2803,6 +2803,31 @@ export interface components {
             written_by?: string | null;
         };
         /**
+         * AuditAttemptModel
+         * @description Something somebody asked for, and what came of it.
+         *
+         *     The four models beside this one are state that already existed; this one is
+         *     the press that started nothing, which had no row anywhere until it did.
+         */
+        AuditAttemptModel: {
+            /** Id */
+            id: string;
+            /** At */
+            at: string;
+            /** Asked For */
+            asked_for: string;
+            /** Came Of */
+            came_of: string;
+            /** Principal */
+            principal: string;
+            /** Why */
+            why: string;
+            /** About */
+            about: {
+                [key: string]: string;
+            };
+        };
+        /**
          * AuditChatModel
          * @description The chat door, used: when, for which job, at what cost.
          *
@@ -2874,6 +2899,8 @@ export interface components {
             devices: components["schemas"]["AuditDeviceModel"][];
             /** Chats */
             chats: components["schemas"]["AuditChatModel"][];
+            /** Attempts */
+            attempts?: components["schemas"]["AuditAttemptModel"][];
         };
         /**
          * AuditStepModel

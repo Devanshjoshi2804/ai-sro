@@ -1265,6 +1265,34 @@ class MiningPassRow(Base):
     __table_args__ = (Index("ix_mining_passes_tenant_started", "tenant_id", "started_at"),)
 
 
+class AttemptRow(Base):
+    """Something a person asked this system for, and what came of it.
+
+    Append-only, and nothing in this system's behaviour reads it: that is what
+    makes it safe to write from a door that is in the middle of refusing
+    something. See `sro.domain.observation.attempts` for what belongs here and
+    what does not.
+    """
+
+    __tablename__ = "attempts"
+    # The only question this table is asked: what happened to this tenant,
+    # since when. A plain index on the tenant would make Postgres sort a
+    # tenant's whole history to answer it.
+    __table_args__ = (Index("ix_attempts_tenant_at", "tenant_id", "at"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    # `offers`' tiebreak, for its reason: several attempts share a second and
+    # "newest" has to mean arrival order once `at` ties.
+    seq: Mapped[int] = mapped_column(BigInteger, Identity(), nullable=False)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    principal: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    asked_for: Mapped[str] = mapped_column(Text, nullable=False)
+    came_of: Mapped[str] = mapped_column(String(16), nullable=False)
+    why: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    about: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict)
+
+
 class OfferRow(Base):
     """One offer the extension made from a recognised prefix, and its fate.
 

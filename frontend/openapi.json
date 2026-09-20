@@ -32738,6 +32738,53 @@
         ],
         "title": "AssertionModel"
       },
+      "AuditAttemptModel": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "at": {
+            "type": "string",
+            "title": "At"
+          },
+          "asked_for": {
+            "type": "string",
+            "title": "Asked For"
+          },
+          "came_of": {
+            "type": "string",
+            "title": "Came Of"
+          },
+          "principal": {
+            "type": "string",
+            "title": "Principal"
+          },
+          "why": {
+            "type": "string",
+            "title": "Why"
+          },
+          "about": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "About"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "asked_for",
+          "came_of",
+          "principal",
+          "why",
+          "about"
+        ],
+        "title": "AuditAttemptModel",
+        "description": "Something somebody asked for, and what came of it.\n\nThe four models beside this one are state that already existed; this one is\nthe press that started nothing, which had no row anywhere until it did."
+      },
       "AuditChatModel": {
         "properties": {
           "id": {
@@ -32906,6 +32953,13 @@
             },
             "type": "array",
             "title": "Chats"
+          },
+          "attempts": {
+            "items": {
+              "$ref": "#/components/schemas/AuditAttemptModel"
+            },
+            "type": "array",
+            "title": "Attempts"
           }
         },
         "type": "object",

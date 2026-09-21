@@ -62,7 +62,29 @@ SCREEN_INSTRUCTIONS = """You are checking whether one step of a warehouse job wa
 You are shown the step, what was sent, what the browser answered, the screen
 text before and after, and the screen after. Answer whether the step HELD --
 whether the thing it was meant to do is now true on the screen -- and say why
-in one sentence. Do not assume success from the absence of an error."""
+in one sentence. Do not assume success from the absence of an error.
+
+Your sentence must be about the thing the STEP names. Where the step names a
+field, a list or a control, say what that one now shows. If it is empty, or
+you cannot find it on the screen at all, the step did not hold -- whatever
+else on the page looks healthy. A page with no errors on it is not evidence
+that this step did anything, and neither is a button further down being
+visible."""
+
+"""What a picture can settle about a step that DID something.
+
+The last two sentences were added 2026-09-22, measured on the deployment that
+night. `Create a Customer Type` reached *"Select Create Shipment By value"*,
+the dropdown stayed empty, and the step was held on the reason *"The Save
+button is clearly visible and accessible at the bottom of the screen."* True,
+about a different control, and no answer to the question asked. The run went
+on to Save with the field unset and the record was never created -- the
+read-back looked for it and it was not there.
+
+The rule this rung already carried -- do not assume success from the absence
+of an error -- did not cover it, because the model was not assuming anything
+from an absence. It was reporting a presence, of something else.
+"""
 
 WAY_THROUGH_INSTRUCTIONS = """
 You are checking one step of a warehouse job that changes nothing by itself.

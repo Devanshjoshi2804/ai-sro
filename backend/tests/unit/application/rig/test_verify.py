@@ -669,6 +669,14 @@ async def test_the_screen_belt_asks_the_named_model_against_the_verdict_schema()
     # the one that promotes a step to held.
     assert asker.asked[0]["instructions"] == SCREEN_INSTRUCTIONS
     assert "Do not assume success from the absence of an error." in SCREEN_INSTRUCTIONS
+    # And the half that rule did not cover. Measured on the deployment
+    # 2026-09-22: `Select Create Shipment By value` was held because "The Save
+    # button is clearly visible and accessible at the bottom of the screen" --
+    # a true sentence about a different control, with the dropdown plainly
+    # empty. Nothing was being assumed from an absence; a presence was being
+    # reported, of something else.
+    assert "must be about the thing the STEP names" in SCREEN_INSTRUCTIONS
+    assert "whatever\nelse on the page looks healthy" in SCREEN_INSTRUCTIONS
 
 
 async def test_a_step_that_changes_nothing_is_asked_whether_the_job_can_go_on() -> None:

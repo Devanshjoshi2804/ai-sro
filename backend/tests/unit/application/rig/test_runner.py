@@ -4815,7 +4815,7 @@ async def test_the_password_asked_for_is_the_one_for_the_page_in_front_of_them()
         timeout=5,
     )
 
-    wants = run.steps[0].sent["payload"]["needs_secret"]  # type: ignore[index]
+    wants = run.steps[0].sent["payload"]["needs_secret"]
     # `origin_of`'s spelling, which is what `secret_key_of` stores under on
     # both sides: host and port, no scheme.
     assert wants["system"] == "keycloak.example", wants

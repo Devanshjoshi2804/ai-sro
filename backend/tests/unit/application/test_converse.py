@@ -906,10 +906,10 @@ class _Runs:
         self.within.append(within)
         if not self._ok:
             return Answers(
-                plan=plan,  # type: ignore[arg-type]
+                plan=plan,
                 looked=(
                     Looked(
-                        lookup=plan.lookups[0],  # type: ignore[attr-defined]
+                        lookup=plan.lookups[0],
                         ok=False,
                         detail=self._detail,
                     ),
@@ -919,10 +919,10 @@ class _Runs:
             {"data": [{"customerType": "KKYT", "longDescription": "my sro is best"}]}
         )
         return Answers(
-            plan=plan,  # type: ignore[arg-type]
+            plan=plan,
             looked=(
                 Looked(
-                    lookup=plan.lookups[0],  # type: ignore[attr-defined]
+                    lookup=plan.lookups[0],
                     ok=True,
                     url="https://wms.example/data/WM/wm/customerTypes",
                     answer={"status": 200, "body": body},
@@ -955,7 +955,9 @@ async def test_a_question_nothing_was_taught_for_goes_to_the_lookup_door() -> No
     assert plans.asked == ["is there a customer type KKYT"]
     last = said.messages[-1]
     assert last.decision is not None and last.decision["kind"] == "looked"
-    [answer] = last.decision["answers"]  # type: ignore[index]
+    answers = last.decision["answers"]
+    assert isinstance(answers, list)
+    [answer] = answers
     assert answer["target"] == "/data/WM/wm/customerTypes"
     assert "KKYT" in str(answer["body"])
     assert "screen" not in last.text.lower(), last.text

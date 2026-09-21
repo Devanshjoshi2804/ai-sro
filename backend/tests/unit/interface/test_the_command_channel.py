@@ -114,7 +114,7 @@ def test_a_browser_that_went_does_not_become_an_unhandled_exception(
         raise ConnectionResetError("the browser went")
 
     was = WebSocket.close
-    WebSocket.close = gone  # type: ignore[method-assign]
+    WebSocket.close = gone  # type: ignore[method-assign, assignment]
     try:
         with client.websocket_connect(
             f"/v1/agents/{LAPTOP}/commands", subprotocols=["bearer", token_for(), SECRET]

@@ -30,7 +30,7 @@ def _served() -> FastAPI:
 
     @app.get("/thing", dependencies=[Depends(credentialled)])
     def thing() -> dict[str, str]:
-        return {"said": whose().get("request", "")}
+        return {"said": str(whose().get("request", ""))}
 
     @app.get("/health")
     def health() -> dict[str, bool]:
@@ -61,10 +61,11 @@ def test_the_line_carries_whoever_the_route_turned_out_to_be(
 
     [line] = [one for one in caplog.records if one.name == "sro.http"]
     assert "GET /thing 200" in line.getMessage()
-    assert line.whose == {  # type: ignore[attr-defined]
+    whose_line: dict[str, object] = line.whose
+    assert whose_line == {
         "tenant": "greyorange",
         "principal": "rudy",
-        "request": line.whose["request"],  # type: ignore[index]
+        "request": whose_line["request"],
     }
 
 
@@ -79,7 +80,7 @@ def test_the_request_id_the_client_sent_is_the_one_on_the_line(
 
     assert said.json() == {"said": "req_theirs"}
     [line] = [one for one in caplog.records if one.name == "sro.http"]
-    assert line.whose["request"] == "req_theirs"  # type: ignore[index]
+    assert line.whose["request"] == "req_theirs"
 
 
 def test_the_health_check_is_not_six_thousand_lines_a_day(

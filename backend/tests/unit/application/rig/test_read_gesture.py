@@ -24,8 +24,18 @@ from sro.application.observation.read_gesture import (
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
 from sro.domain.chat.reading import ChatReading
+from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.observation.batch import CaptureMode, ObservationBatch
-from sro.domain.observation.gesture import Action, Body, Call, Gesture, Intent, Target
+from sro.domain.observation.driving import was_our_own_driving
+from sro.domain.observation.gesture import (
+    Action,
+    Body,
+    Call,
+    Gesture,
+    GestureBatch,
+    Intent,
+    Target,
+)
 from sro.domain.observation.reading import INSTRUCTIONS, INTENT_SCHEMA, TAIL
 from sro.domain.observation.redaction import is_secret_name
 from sro.domain.observation.trim import is_secret
@@ -370,6 +380,104 @@ async def test_every_unread_gesture_of_this_tenant_gets_one_reading() -> None:
     assert written == len(day)
     assert len(asker.asked) == len(day)
     assert len(await uow.gestures.intents_for(TENANT)) == len(day)
+
+
+async def test_what_this_browser_did_while_driving_a_run_is_not_read_at_all() -> None:
+    """The second check against mining our own replays.
+
+    The extension drops what it is driving before it is ever uploaded, and
+    that was the only thing standing between a run and the evidence plane --
+    one check too few for a rule whose cost is a task mined from a robot
+    imitating a person and then offered back as worth automating. Every other
+    capture rule here is enforced twice.
+
+    Marked rather than hidden, which is what makes it safe to do in this loop:
+    `unread` means "has no intent row", so a gesture merely skipped would come
+    back on every pass forever and a window of them would stall the reading.
+    And no model call, so a replay costs nothing to leave out.
+    """
+    uow, day = await _stored(TENANT)
+    await _driving(uow, day)
+    asker = FakeAsker(*_answers(len(day)))
+
+    written = await read_new_gestures(
+        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP
+    )
+
+    assert written == 0
+    assert asker.asked == [], "a replay was read on the tenant's bill"
+    marked = await uow.gestures.intents_for(TENANT)
+    assert len(marked) == len(day), "they would be read again on the next pass"
+    assert all(was_our_own_driving(intent) for intent in marked)
+    assert all(intent.act is None and intent.cost_usd == 0 for intent in marked)
+
+
+async def test_the_same_browser_working_before_the_run_is_read_as_usual() -> None:
+    """The window is the run's, not the browser's. An operator who typed into
+    the same tab a minute before the press is working."""
+    uow, day = await _stored(TENANT)
+    await _driving(uow, day, from_after_them=True)
+    asker = FakeAsker(*_answers(len(day)))
+
+    written = await read_new_gestures(
+        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP
+    )
+
+    assert written == len(day)
+    assert len(asker.asked) == len(day)
+
+
+async def _driving(
+    uow: FakeUnitOfWork, day: list[Gesture], *, from_after_them: bool = False
+) -> None:
+    """A run of ours on the browser these gestures came from.
+
+    The batch is what makes the two clocks comparable: it says when the upload
+    ended on the DEVICE's clock and when it reached us on OURS, and the
+    difference is that browser's offset. Both are stored here exactly as the
+    real one keeps them -- strings, from the device, unaltered.
+    """
+    first, last = min(one.at for one in day), max(one.at for one in day)
+    received = datetime.fromtimestamp(last, tz=UTC) + timedelta(seconds=2)
+    await uow.gestures.add_batch(
+        GestureBatch(
+            batch_id=day[0].batch_id,
+            device_id="dev_browsertest",
+            tenant=TENANT.value,
+            mode="passive",
+            received_at=received.isoformat(),
+            started_at=datetime.fromtimestamp(first, tz=UTC).isoformat(),
+            ended_at=datetime.fromtimestamp(last, tz=UTC).isoformat(),
+        )
+    )
+    # Either side of the same gestures: the run that was driving while they
+    # happened, or the one that started half a minute after the last of them.
+    began, ended = (
+        (
+            datetime.fromtimestamp(last, tz=UTC) + timedelta(seconds=30),
+            datetime.fromtimestamp(last, tz=UTC) + timedelta(minutes=2),
+        )
+        if from_after_them
+        else (
+            datetime.fromtimestamp(first, tz=UTC) - timedelta(minutes=1),
+            datetime.fromtimestamp(last, tz=UTC) + timedelta(minutes=1),
+        )
+    )
+    await uow.workflow_runs.save(
+        WorkflowRun(
+            id="run_replay",
+            tenant=TENANT.value,
+            workflow_id="wfl_1",
+            device_id="dev_browsertest",
+            values={},
+            started_by="form",
+            live=True,
+            allow_focus=True,
+            started_at=began.isoformat(),
+            finished_at=ended.isoformat(),
+            outcome="held",
+        )
+    )
 
 
 async def test_a_second_tenants_gestures_are_not_read_on_this_ones_bill() -> None:

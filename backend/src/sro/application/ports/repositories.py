@@ -24,6 +24,7 @@ from sro.domain.observation.attempts import Attempt
 from sro.domain.observation.batch import ObservationBatch
 from sro.domain.observation.candidate import CandidateStatus, TaskCandidate
 from sro.domain.observation.device import AgentDevice
+from sro.domain.observation.driving import Driving, Uploaded
 from sro.domain.observation.gesture import Gesture, GestureBatch, Intent
 from sro.domain.observation.identity import ShapeKey
 from sro.domain.observation.mining import MiningPass
@@ -610,6 +611,17 @@ class GestureRepository(Protocol):
         """
         ...
 
+    async def uploads_for(
+        self, tenant_id: TenantId, batch_ids: tuple[str, ...]
+    ) -> Mapping[str, Uploaded]:
+        """What each of these uploads said about the clock it was recorded on.
+
+        The device's window and the moment we received it, which is the only
+        thing that makes a browser's timestamps comparable with this server's.
+        See `domain/observation/driving.py`.
+        """
+        ...
+
     async def unread(self, tenant_id: TenantId, *, limit: int) -> tuple[Gesture, ...]:
         """Gestures with no intent row yet, oldest first."""
         ...
@@ -853,6 +865,15 @@ class WorkflowRunRepository(Protocol):
         """Every run started at or after this ISO instant, newest first, with
         its steps. The spine of the audit: the approvals on each are read
         beside it, through ``approvals``."""
+        ...
+
+    async def driving_windows(self, tenant_id: TenantId) -> tuple[Driving, ...]:
+        """When each of this tenant's runs held a browser, on this clock.
+
+        What a second check against mining our own replays needs, and nothing
+        else: which device, from when, until when. See
+        `domain/observation/driving.py`.
+        """
         ...
 
     async def in_flight(self, tenant_id: TenantId, device_id: DeviceId) -> str | None:

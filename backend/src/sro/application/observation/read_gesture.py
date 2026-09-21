@@ -31,6 +31,7 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.application.shared.locks import one_at_a_time
 from sro.application.shared.refusals import OverCap
+from sro.domain.observation.driving import WAS_OUR_OWN_DRIVING, our_own_driving
 from sro.domain.observation.gesture import Gesture, Intent
 from sro.domain.observation.reading import (
     INSTRUCTIONS,
@@ -162,6 +163,50 @@ async def read_new_gestures(
         )
 
 
+async def _not_our_own_driving(
+    uow: UnitOfWork, tenant_id: TenantId, rows: tuple[Gesture, ...]
+) -> tuple[Gesture, ...]:
+    """The ones an operator made, with this system's own replays taken out.
+
+    The second check. The extension drops what it is driving before it is ever
+    uploaded, and that was the only thing standing between a run and the
+    evidence plane -- one check too few for a rule whose cost is a task mined
+    from a robot imitating a person and then offered back as worth automating.
+    Every other capture rule in this system is enforced twice, for the reason
+    `ObservationPolicy.allows` gives: an extension that is wrong, old or lying
+    does not get to write into the evidence plane.
+
+    **Marked, not hidden.** Each one gets an intent saying what it is, which
+    is what makes this safe to do here: `unread` is "has no intent row", so a
+    gesture merely skipped would come back on every pass forever and the
+    reading loop would stall on a window of them. An intent with no `act` is
+    already what every later reader treats as nothing to learn from, the day's
+    spend counts it at nothing because nothing was asked, and the record says
+    which run it was -- so somebody reading the evidence can tell a replay
+    from a gap.
+    """
+    if not rows:
+        return rows
+    ours = our_own_driving(
+        [(row.id, row.batch_id, row.at) for row in rows],
+        await uow.gestures.uploads_for(tenant_id, tuple(sorted({row.batch_id for row in rows}))),
+        await uow.workflow_runs.driving_windows(tenant_id),
+    )
+    if not ours:
+        return rows
+    for row in rows:
+        if row.id in ours:
+            await uow.gestures.save_intent(
+                Intent(gesture_id=row.id, tenant=tenant_id.value, why=WAS_OUR_OWN_DRIVING)
+            )
+    logger.info(
+        "%s: %d gesture(s) were this browser's own driving, not read",
+        tenant_id.value,
+        len(ours),
+    )
+    return tuple(row for row in rows if row.id not in ours)
+
+
 async def _read_unread(
     uow: UnitOfWork,
     *,
@@ -184,6 +229,7 @@ async def _read_unread(
     # as unusable and the gestures route returns an intent rather than null.
     # Not both billed and hidden -- pick one, and this picks visible.
     rows = await uow.gestures.unread(tenant_id, limit=limit)
+    rows = await _not_our_own_driving(uow, tenant_id, rows)
 
     why = await over_cap(uow, tenant_id, now=now, cap_usd=cap_usd)
     if why:

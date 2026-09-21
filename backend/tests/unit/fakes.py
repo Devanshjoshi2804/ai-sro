@@ -90,6 +90,7 @@ from sro.domain.observation.attempts import Attempt
 from sro.domain.observation.batch import ObservationBatch
 from sro.domain.observation.candidate import CandidateStatus, TaskCandidate
 from sro.domain.observation.device import AgentDevice
+from sro.domain.observation.driving import Driving, Uploaded
 from sro.domain.observation.gesture import Gesture, GestureBatch, Intent
 from sro.domain.observation.identity import ShapeKey
 from sro.domain.observation.mining import MiningPass
@@ -1412,6 +1413,14 @@ class FakeToolCallRepository:
         self.when.pop(where, None)
 
 
+def _read_clock(said: str) -> datetime | None:
+    """A batch's timestamp as the store keeps it: a string, sometimes empty."""
+    try:
+        return datetime.fromisoformat(said) if said else None
+    except ValueError:
+        return None
+
+
 class FakeGestureRepository:
     """The evidence plane in three dicts.
 
@@ -1470,6 +1479,24 @@ class FakeGestureRepository:
         # (at, id), as the store orders it: `at` is the browser's clock and
         # two gestures of one burst share it.
         return tuple(sorted(found, key=lambda gesture: (gesture.at, gesture.id)))
+
+    async def uploads_for(
+        self, tenant_id: TenantId, batch_ids: tuple[str, ...]
+    ) -> Mapping[str, Uploaded]:
+        """What each upload said about its own clock.
+
+        Off `self.batches`, which is what a real one reads too: a fake that
+        invented a clock would answer questions the store cannot.
+        """
+        return {
+            batch_id: Uploaded(
+                device_id=batch.device_id,
+                ended_at=_read_clock(batch.ended_at),
+                received_at=_read_clock(batch.received_at),
+            )
+            for batch_id in batch_ids
+            if (batch := self.batches.get(batch_id)) is not None and batch.tenant == tenant_id.value
+        }
 
     async def unread(self, tenant_id: TenantId, *, limit: int) -> tuple[Gesture, ...]:
         found = [
@@ -1766,6 +1793,22 @@ class FakeWorkflowRunRepository:
         return tuple(
             deepcopy(run)
             for run in sorted(found, key=lambda run: (when(run.started_at), run.id), reverse=True)
+        )
+
+    async def driving_windows(self, tenant_id: TenantId) -> tuple[Driving, ...]:
+        """Off the same rows `in_flight` reads, with the clock parsed.
+
+        A run's times are ISO strings in this aggregate and real timestamps in
+        the store, which is exactly the seam this method exists to hide.
+        """
+        return tuple(
+            Driving(
+                device_id=run.device_id,
+                started_at=when(run.started_at),
+                finished_at=when(run.finished_at) if run.finished_at else None,
+            )
+            for run in self.rows.values()
+            if run.tenant == tenant_id.value
         )
 
     async def in_flight(self, tenant_id: TenantId, device_id: DeviceId) -> str | None:

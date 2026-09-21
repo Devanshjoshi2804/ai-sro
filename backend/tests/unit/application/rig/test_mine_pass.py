@@ -23,7 +23,8 @@ from sro.application.observation.mine_pass import MinePass
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
 from sro.domain.chat.reading import ChatReading
-from sro.domain.observation.gesture import Gesture
+from sro.domain.observation.driving import WAS_OUR_OWN_DRIVING
+from sro.domain.observation.gesture import Gesture, Intent
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.infrastructure.db.codec import when
@@ -195,6 +196,35 @@ async def test_ours_reaches_the_pass_this_door_opens() -> None:
 
     assert result.kept == 0
     assert result.rejections[0].reason == "not a job"
+
+
+async def test_a_replay_of_our_own_is_not_evidence_this_pass_can_mine() -> None:
+    """The other half of the second check.
+
+    The reading loop MARKS a gesture this browser made while driving a run of
+    its own -- it does not hide it, because `unread` means "has no intent row"
+    and a gesture merely skipped would come back forever. So mining is where
+    the mark has to be acted on, and a gesture the model was never asked about
+    still packs, still scores and can still end up in a candidate.
+
+    What it costs to be missing is not a stray row: it is a task mined from a
+    robot imitating a person, and offered back as worth automating.
+    """
+    uow, ids = await _day()
+    for gesture_id in ids:
+        await uow.gestures.save_intent(
+            Intent(gesture_id=gesture_id, tenant=TENANT.value, why=WAS_OUR_OWN_DRIVING)
+        )
+    asker = FakeAsker(Answer(data={"workflows": [_proposal(ids[:2])]}, cost_usd=0.01))
+
+    result = await _pass(uow, asker=asker).execute(_ctx())
+
+    assert result.kept == 0, "a job was mined from this system driving itself"
+    # The pass itself still runs and still asks: a window with nothing in it is
+    # not this rule's business, and a tenant whose whole day was replays is the
+    # same case as one who did nothing at all. What it must not do is propose a
+    # job from that evidence, which is what `kept` says.
+    assert [one.id for one in await uow.workflows.known(TENANT)] == []
 
 
 async def test_a_negative_cap_is_no_cap_and_the_pass_runs() -> None:

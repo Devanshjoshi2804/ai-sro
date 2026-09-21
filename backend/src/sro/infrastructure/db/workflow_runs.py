@@ -37,6 +37,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sro.application.ports.repositories import WorkflowRunRepository
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
+from sro.domain.observation.driving import Driving
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.infrastructure.db.codec import when
@@ -362,6 +363,27 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
             )
         ).scalars()
         return await self._with_steps(rows.all())
+
+    async def driving_windows(self, tenant_id: TenantId) -> tuple[Driving, ...]:
+        """Three columns rather than whole runs.
+
+        The caller wants to know whether a browser was being driven at an
+        instant, and a run row carries its steps, its withheld writes and
+        everything a model said about it. Reading those to compare two
+        timestamps would make a check that exists to be cheap the most
+        expensive thing in a mining pass.
+        """
+        rows = await self._session.execute(
+            select(
+                WorkflowRunRow.device_id,
+                WorkflowRunRow.started_at,
+                WorkflowRunRow.finished_at,
+            ).where(WorkflowRunRow.tenant_id == tenant_id.value)
+        )
+        return tuple(
+            Driving(device_id=device_id, started_at=started_at, finished_at=finished_at)
+            for device_id, started_at, finished_at in rows
+        )
 
     async def in_flight(self, tenant_id: TenantId, device_id: DeviceId) -> str | None:
         # A read the caller acts on, and no longer the only thing standing

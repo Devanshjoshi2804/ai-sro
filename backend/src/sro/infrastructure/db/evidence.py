@@ -35,6 +35,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sro.application.ports.repositories import GestureRepository, PoolRepository
+from sro.domain.observation.driving import Uploaded
 from sro.domain.observation.gesture import (
     Action,
     Call,
@@ -148,6 +149,19 @@ def _row_to_intent(row: IntentRow) -> Intent:
     )
 
 
+def _when(said: str) -> datetime | None:
+    """A device's own timestamp, as it sent it, or nothing.
+
+    Empty for uploads from before the protocol carried both clocks, and
+    `fromisoformat` is strict: what it cannot read is a clock this cannot
+    reason about, which is not an error -- it is one gesture left alone.
+    """
+    try:
+        return datetime.fromisoformat(said) if said else None
+    except ValueError:
+        return None
+
+
 class SqlGestureRepository(GestureRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -219,6 +233,36 @@ class SqlGestureRepository(GestureRepository):
             .all()
         )
         return tuple(_row_to_gesture(row) for row in rows)
+
+    async def uploads_for(
+        self, tenant_id: TenantId, batch_ids: tuple[str, ...]
+    ) -> Mapping[str, Uploaded]:
+        if not batch_ids:
+            return {}
+        rows = (
+            (
+                await self._session.execute(
+                    select(GestureBatchRow).where(
+                        GestureBatchRow.tenant_id == tenant_id.value,
+                        GestureBatchRow.batch_id.in_(batch_ids),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        return {
+            row.batch_id: Uploaded(
+                device_id=row.device_id,
+                # Kept as the device sent it, which is a string and may be
+                # empty: uploads predating the two clocks carry neither, and a
+                # batch that cannot say what its clock was doing is one nothing
+                # here will guess about.
+                ended_at=_when(row.ended_at),
+                received_at=row.received_at,
+            )
+            for row in rows
+        }
 
     async def unread(self, tenant_id: TenantId, *, limit: int) -> tuple[Gesture, ...]:
         # A gesture that was read is never offered again, error or not: the

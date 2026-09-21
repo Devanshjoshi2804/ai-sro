@@ -24,6 +24,7 @@ from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.shared.locks import one_at_a_time
 from sro.domain.execution.uses_edges import uses_edges
+from sro.domain.observation.driving import was_our_own_driving
 from sro.domain.observation.gesture import Gesture, Intent
 from sro.domain.observation.identity import Resolution, resolve, shape_key
 from sro.domain.observation.mining import MiningPass
@@ -587,6 +588,21 @@ async def _one_pass(
     # fixes half of it.
     gestures = list(await uow.gestures.gestures_for(tenant_id))
     intents = {intent.gesture_id: intent for intent in await uow.gestures.intents_for(tenant_id)}
+    # What this browser did while it was driving a run of its own is not
+    # somebody working, and the reading loop marked it rather than hiding it
+    # -- see `domain/observation/driving.py`. Dropped HERE as well as there,
+    # because mining reads a gesture whether or not it carries a reading: one
+    # the model was never asked about still packs, still scores and can still
+    # end up in a candidate. Skipping it in only one of the two places would
+    # be the rule with a copy per caller that this system keeps not having.
+    driven = {gesture_id for gesture_id, intent in intents.items() if was_our_own_driving(intent)}
+    if driven:
+        logger.info(
+            "%s: %d gesture(s) left out of this pass -- this browser's own driving",
+            tenant_id.value,
+            len(driven),
+        )
+        gestures = [gesture for gesture in gestures if gesture.id not in driven]
     by_id = {gesture.id: gesture for gesture in gestures}
 
     crossings = shared_values(gestures, intents, frequencies_over(gestures, intents))

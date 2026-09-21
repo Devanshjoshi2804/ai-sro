@@ -57,6 +57,15 @@ class LearnedParameter:
     it, because two fields can share a label and two fields cannot share an
     itemId. Empty where no recording of this control carried one."""
 
+    in_all: bool = True
+    """Whether every doing compared reached this control.
+
+    A control two doings varied is a parameter -- that is the bar, and it does
+    not change. But where a THIRD doing never reached it, the job has a route
+    that does not need it, and a run taking that route must not be stopped for
+    want of a value. See `_not_given`, which is where the difference is felt.
+    """
+
     names: tuple[str, ...] = ()
     """Every name this one control answers to, `name` included.
 
@@ -232,36 +241,51 @@ def parameters_across(
     if len(doings) < K_MIN_OCCURRENCES:
         return ()
 
-    found = []
-    for first in doings[0]:
-        # The same control in every other doing, by any of the names it had.
-        #
-        # This used to be a set intersection of one name each, which is only
-        # right while every recording of a form names its fields the same way.
-        # The real `Create a Customer Type` was recorded once with labels and
-        # once with input names, so the intersection was empty, both doings
-        # contributed their own pair, and the job ended up declaring four
-        # parameters for two fields.
-        # In order, label first, because the order is what `same_control`
-        # reads to tell a label from the name the page knows a control by.
-        names = list(first.names)
-        key = first.key
-        values = [first.value]
-        for doing in doings[1:]:
-            also = next(
-                (one for one in doing if same_control(one.names, names, key=one.key, theirs=key)),
-                None,
-            )
-            if also is None:
-                break
-            names += [one for one in also.names if one not in names]
-            key = key or also.key
-            values.append(also.value)
-        else:
-            # Only controls every doing reached. One that appears in a single
-            # doing is a difference between the recordings, not a value the job
-            # takes -- the operator may simply have taken a different route.
-            if len(set(values)) > 1:
+    found: list[LearnedParameter] = []
+    # Every control ANY doing reached, and not only the first doing's.
+    #
+    # This iterated `doings[0]` -- the stored job, doing number one -- and
+    # broke out the moment a later doing did not have that control. So a
+    # control two LATER doings both varied was never looked at at all, and
+    # because a stored job's steps never grow it could never become a
+    # parameter however often it was used: an operator fills a field on
+    # Tuesday and again on Wednesday, each time with a different value, and
+    # the job goes on not knowing the field exists.
+    #
+    # The bar is unchanged. `K_MIN_OCCURRENCES` doings must have reached the
+    # control and its value must have varied across them, so the reason the
+    # old loop gave still holds -- one appearance is a difference between the
+    # recordings rather than a value the job takes, and one value cannot be
+    # told from a constant. What has gone is the accident of WHICH doing a
+    # control first appeared in.
+    for nth, doing in enumerate(doings):
+        for put in doing:
+            if any(
+                same_control(put.names, one.names, key=put.key, theirs=one.key) for one in found
+            ):
+                continue
+            names = list(put.names)
+            key = put.key
+            values = [put.value]
+            reached = 1
+            for other, elsewhere in enumerate(doings):
+                if other == nth:
+                    continue
+                also = next(
+                    (
+                        one
+                        for one in elsewhere
+                        if same_control(one.names, names, key=one.key, theirs=key)
+                    ),
+                    None,
+                )
+                if also is None:
+                    continue
+                reached += 1
+                names += [one for one in also.names if one not in names]
+                key = key or also.key
+                values.append(also.value)
+            if reached >= K_MIN_OCCURRENCES and len(set(values)) > 1:
                 found.append(
                     LearnedParameter(
                         # The readable name, and every name beside it. `names`
@@ -271,6 +295,7 @@ def parameters_across(
                         seen=tuple(values),
                         names=tuple(names),
                         key=key,
+                        in_all=reached == len(doings),
                     )
                 )
     return _told_apart(found)

@@ -1037,11 +1037,19 @@ def _not_given(workflow: Workflow, values: Mapping[str, str]) -> tuple[str, ...]
 
     A blank counts as missing, for `typed_values`' reason: a parameter answered
     with an empty string is a parameter nobody answered.
+
+    **Only the ones every doing reached.** A control two doings varied is a
+    parameter and the job knows it -- but where a third doing never reached
+    it, the job has a route that does not need it, and stopping a run of that
+    route for want of a value nobody was going to type would make learning a
+    field cost the job the ability to run without it. `in_all` is absent on
+    every parameter stored before this existed, and absent reads as "yes":
+    those were all learnt under the rule that required every doing.
     """
     declared = [
         str(name)
         for parameter in workflow.parameters
-        if isinstance(name := parameter.get("name"), str) and name
+        if isinstance(name := parameter.get("name"), str) and name and parameter.get("in_all", True)
     ]
     return tuple(name for name in declared if not values.get(name, "").strip())
 

@@ -11,7 +11,7 @@ from dataclasses import replace
 
 import pytest
 
-from sro.domain.observation.gesture import Gesture, Intent, ValueSeen
+from sro.domain.observation.gesture import Component, Gesture, Intent, ValueSeen
 from sro.domain.skill.learned import parameters_across
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.domain.rig.conftest import gestures as _gestures
@@ -383,3 +383,80 @@ def test_two_fields_that_share_a_label_stay_two() -> None:
     # And neither is called by the label they share, because two questions
     # worded identically are worse than one ugly name.
     assert sorted(p.name for p in found) == ["clientCode", "otherSection"]
+
+
+# -- a field the first doing never touched -----------------------------------
+#
+# Asked on the deployment 2026-09-21, and true at the time: an operator does a
+# job on Monday, and on Tuesday fills a field that was on the form all along
+# but nobody had typed into -- then on Wednesday fills it again, with something
+# else. Two doings varied it, which is this system's whole bar for a
+# parameter. It was never even looked at, because the search iterated the
+# FIRST doing's controls and a stored job's steps never grow. The field could
+# not become a parameter however many times it was used.
+
+
+def _doing_with(extra: str | None, typed: str, suffix: str) -> tuple[Workflow, dict, dict]:
+    """A doing that also types `extra` into a second control, or does not."""
+    workflow, by_id, intents = _doing(typed, suffix)
+    if extra is None:
+        return workflow, by_id, intents
+    template = next(g for g in by_id.values() if g.action.kind == "type")
+    another = copy.deepcopy(template)
+    another.id = f"ges_dock_{suffix}"
+    another.at = template.at + 1
+    was = template.action.target
+    assert was is not None, "the fixture's typed gesture lost its target"
+    another.action = replace(
+        template.action,
+        value=extra,
+        target=replace(was, component=Component(item_id="inboundDock", field_label="Inbound Dock")),
+    )
+    by_id[another.id] = another
+    workflow.steps = [
+        Step(order=0, says="type the code", system=None, cites=list(by_id)),
+    ]
+    return workflow, by_id, intents
+
+
+def test_a_control_two_later_doings_varied_is_a_parameter() -> None:
+    monday = _doing_with(None, "TEST1", "a")
+    tuesday = _doing_with("DOCK-1", "TEST2", "b")
+    wednesday = _doing_with("DOCK-2", "TEST3", "c")
+
+    found = parameters_across([monday, tuesday, wednesday])
+
+    names = {one.name for one in found}
+    assert "Inbound Dock" in names, f"the field was never looked at: {sorted(names)}"
+
+
+def test_a_control_not_every_doing_reached_does_not_ask_every_run_for_a_value() -> None:
+    """Learning a field must not cost the job the ability to run without it.
+    Monday's route never reached this control, so a run taking that route is
+    not short of anything -- see `_not_given`, which is where it is felt."""
+    found = parameters_across(
+        [
+            _doing_with(None, "TEST1", "a"),
+            _doing_with("DOCK-1", "TEST2", "b"),
+            _doing_with("DOCK-2", "TEST3", "c"),
+        ]
+    )
+
+    dock = next(one for one in found if one.name == "Inbound Dock")
+    code = next(one for one in found if one.name != "Inbound Dock")
+    assert dock.in_all is False
+    assert code.in_all is True, "a control every doing typed is still asked for"
+
+
+def test_one_appearance_is_still_not_a_parameter() -> None:
+    """The reason the old loop gave, and it has not changed: one appearance is
+    a difference between the recordings rather than a value the job takes, and
+    one value cannot be told from a constant."""
+    found = parameters_across(
+        [
+            _doing_with(None, "TEST1", "a"),
+            _doing_with("DOCK-1", "TEST2", "b"),
+        ]
+    )
+
+    assert "Inbound Dock" not in {one.name for one in found}

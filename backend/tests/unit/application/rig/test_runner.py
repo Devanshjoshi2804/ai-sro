@@ -4824,6 +4824,68 @@ async def test_the_password_asked_for_is_the_one_for_the_page_in_front_of_them()
     )
 
 
+async def test_a_parameter_not_every_doing_reached_does_not_stop_a_run() -> None:
+    """Learning a field must not cost the job the ability to run without it.
+
+    A control two doings varied is a parameter, and the job now learns it even
+    where a third doing never reached that control. But that third doing is a
+    ROUTE, and a run taking it is not short of anything: stopping it for want
+    of a value nobody on that route was going to type would make learning a
+    field strictly worse than not learning it.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.parameters = [
+        {"name": "Customer Type", "seen_values": ["GZ1", "GZ2"], "in_all": True},
+        {"name": "Inbound Dock", "seen_values": ["DOCK-1", "DOCK-2"], "in_all": False},
+    ]
+    await uow.workflows.save(workflow)
+
+    async def _found_nothing(wanted: Sequence[str]) -> Gathered:
+        return Gathered(missing=tuple(wanted), why="the mailbox holds none of the values")
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=FakeChannel({**_looks(8), "ui.perform": [_performed()] * 4}),
+        asker=FakeAsker(_plan("type", "GZ9")),
+        values={"Customer Type": "GZ9"},
+        earned=True,
+        gather_values=_found_nothing,
+    )
+
+    assert "Inbound Dock" not in list(run.needs or []), (
+        f"the run was stopped wanting a value no route needed: {run.needs}"
+    )
+    assert "nobody gave a value" not in (run.steps[0].reason or "")
+
+
+async def test_a_parameter_every_doing_reached_still_stops_a_run() -> None:
+    """The half that must not move. A value nobody typed and nobody could find
+    is not a value, and a run that carried on without it pressed Save on a form
+    somebody else had half filled -- measured on the deployment 2026-09-16."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.parameters = [{"name": "Customer Type", "seen_values": ["GZ1", "GZ2"], "in_all": True}]
+    await uow.workflows.save(workflow)
+
+    async def _found_nothing(wanted: Sequence[str]) -> Gathered:
+        return Gathered(missing=tuple(wanted), why="the mailbox holds none of the values")
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=FakeChannel(_looks(8)),
+        asker=FakeAsker(_plan("type", "x")),
+        values={},
+        earned=True,
+        gather_values=_found_nothing,
+    )
+
+    assert run.outcome == "stopped"
+    assert run.needs == ["Customer Type"]
+
+
 async def test_the_password_planned_for_is_never_keyed_to_somebody_else_s_window() -> None:
     """The same rule as the test above, on the path that actually asks.
 

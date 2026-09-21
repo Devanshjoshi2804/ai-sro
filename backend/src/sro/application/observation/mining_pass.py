@@ -346,6 +346,11 @@ async def learn_parameters(
                     # cannot share an itemId.
                     "key": parameter.key,
                     "seen_values": list(parameter.seen),
+                    # Whether every doing compared reached it. A control two
+                    # doings varied is a parameter; one a third doing never
+                    # reached belongs to a route, and a run taking the other
+                    # route must not stop for want of it.
+                    "in_all": parameter.in_all,
                 }
             )
             continue

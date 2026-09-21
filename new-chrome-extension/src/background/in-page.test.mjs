@@ -330,3 +330,89 @@ test("a box that took what it was given says nothing", () => {
 
   assert.equal(answer.result.short, null);
 });
+
+// --- which part of a component a click lands on ------------------------------
+
+/** An Ext field, as `ComponentQuery` hands one back. */
+function field({ trigger = null, composite = false, named = false } = {}) {
+  const input = element({ tagName: "INPUT", typeable: true });
+  // `act` scrolls a control into view before it touches it; the point-path
+  // fixtures above never reach that line, so the fake has no such method.
+  input.scrollIntoView = () => {};
+  if (trigger) trigger.scrollIntoView = () => {};
+  const c = { isVisible: () => true, inputEl: { dom: input }, el: { dom: input } };
+  if (trigger && composite) c.triggerEl = { item: (n) => (n === 0 ? { dom: trigger } : null) };
+  else if (trigger && named) c.triggers = { picker: { el: { dom: trigger } } };
+  else if (trigger) c.triggerEl = { dom: trigger };
+  return { c, input };
+}
+
+function withExt(components) {
+  globalThis.window.Ext = { ComponentQuery: { query: () => components } };
+}
+
+test("a click on a dropdown lands on its trigger, not on its text box", () => {
+  // Measured on the deployment 2026-09-22. `Click the Create Shipment By
+  // dropdown` landed every time -- ok: true, matched_by: component -- and the
+  // list never opened, so the step after it had no option to select and the
+  // job could not finish. A combobox's `inputEl` is its text box; the list
+  // opens from the arrow beside it. The operator's own recording of that click
+  // names the trigger: div#ext-gen2855, xtype combobox.
+  const arrow = element({ tagName: "DIV" });
+  const { c, input } = field({ trigger: arrow });
+  withExt([c]);
+
+  const answer = performInPage({
+    action: "click",
+    locators: [{ strategy: "component", query: "combobox#createShipmentBy" }],
+  });
+
+  assert.equal(answer.ok, true);
+  assert.ok(arrow.events.includes("click"), "the arrow was never clicked");
+  assert.ok(!input.events.includes("click"), "the text box was clicked instead");
+});
+
+test("the trigger is found whichever shape this Ext keeps it in", () => {
+  for (const shape of [{ composite: true }, { named: true }]) {
+    const arrow = element({ tagName: "DIV" });
+    const { c } = field({ trigger: arrow, ...shape });
+    withExt([c]);
+
+    performInPage({
+      action: "click",
+      locators: [{ strategy: "component", query: "combobox#x" }],
+    });
+
+    assert.ok(arrow.events.includes("click"), `the ${Object.keys(shape)[0]} shape was missed`);
+  }
+});
+
+test("a field with no trigger is still clicked where it always was", () => {
+  const { c, input } = field();
+  withExt([c]);
+
+  const answer = performInPage({
+    action: "click",
+    locators: [{ strategy: "component", query: "textfield#code" }],
+  });
+
+  assert.equal(answer.ok, true);
+  assert.ok(input.events.includes("click"));
+});
+
+test("typing still goes to the text box, never to the trigger", () => {
+  // `type` and `select` want the input they always wanted. Sending them to the
+  // arrow would break every field that works today to fix one that does not.
+  const arrow = element({ tagName: "DIV" });
+  const { c, input } = field({ trigger: arrow });
+  withExt([c]);
+
+  performInPage({
+    action: "type",
+    value: "NRT2",
+    locators: [{ strategy: "component", query: "combobox#createShipmentBy" }],
+  });
+
+  assert.equal(input.value, "NRT2");
+  assert.ok(!arrow.events.includes("click"), "the arrow was typed into");
+});

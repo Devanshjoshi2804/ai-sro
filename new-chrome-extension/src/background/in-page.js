@@ -42,6 +42,51 @@ export function performInPage(payload) {
     }
   };
 
+  // The trigger of a field that has one -- the arrow beside a dropdown.
+  //
+  // Ext keeps it in two shapes across versions: `triggerEl` is an Element on
+  // some and a CompositeElement of several on others, and newer ones carry a
+  // `triggers` object keyed by name. Read rather than assumed, and null where
+  // the component has none, which is every ordinary button and text box.
+  const triggerOf = (c) => {
+    const one = c.triggerEl;
+    if (one?.dom) return one.dom;
+    if (typeof one?.item === "function") {
+      const first = one.item(0);
+      if (first?.dom) return first.dom;
+    }
+    const named = c.triggers && Object.values(c.triggers)[0];
+    return named?.el?.dom || null;
+  };
+
+  // Which element of a component a command has to land on.
+  //
+  // A combobox's `inputEl` is its text box. Clicking that focuses the field
+  // and nothing else: the list opens from the TRIGGER, a separate element
+  // beside it. Measured on the deployment 2026-09-22 -- `Click the Create
+  // Shipment By dropdown` landed every time (`ok: true, matched_by:
+  // component`), the list never opened, and the step after it had no option
+  // to select. The operator's own recording of that click names the trigger:
+  // `div#ext-gen2855`, at `.../td[3]/div[1]` inside the field's own table,
+  // xtype `combobox`. We were resolving the right control and then handing
+  // the one part of it that cannot do the job.
+  //
+  // Only for a click, and only where a trigger exists. `type` and `select`
+  // want the input they always wanted.
+  //
+  // ponytail: a click recorded merely to FOCUS an editable combobox now opens
+  // its list instead. Nothing on this deployment records one -- a step that
+  // focuses is followed by a `type`, which focuses anyway -- and telling the
+  // two apart needs the recorded target's tag in the payload, which the plan
+  // does not carry today. Add it if a stray open list is ever seen.
+  const partOf = (c) => {
+    if (payload.action === "click") {
+      const arrow = triggerOf(c);
+      if (arrow) return arrow;
+    }
+    return (c.inputEl || c.btnEl || c.el)?.dom;
+  };
+
   const resolve = (locator) => {
     const wanted = locator.query;
     let found = [];
@@ -54,7 +99,7 @@ export function performInPage(payload) {
           .filter(
             (c) => !locator.visible_only || (c.isVisible && c.isVisible(true)),
           )
-          .map((c) => (c.inputEl || c.btnEl || c.el)?.dom)
+          .map((c) => partOf(c))
           .filter(Boolean);
         break;
       }

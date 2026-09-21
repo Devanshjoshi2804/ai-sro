@@ -102,9 +102,72 @@ chrome.runtime.onStartup.addListener(() => {
   void settle();
 });
 
+/** A new version, held until there is a gap to land it in.
+ *
+ * An extension update is not free to whoever is mid-task when it lands. The
+ * worker is torn down and rebuilt, so a run this browser is driving stops
+ * between two steps -- a half-made record in a warehouse -- and a
+ * demonstration being recorded loses its `chrome.debugger` attachment, which
+ * means the banner goes, the events stop, and the recording is never sealed.
+ * Neither is recoverable afterwards, and neither is anything the operator did
+ * wrong.
+ *
+ * Registering this listener is what buys the choice: with one attached Chrome
+ * holds the update instead of installing it at the first opportunity, and
+ * `chrome.runtime.reload()` is how this worker says "now is a good moment".
+ *
+ * What is deliberately NOT gated on: a page with a half-filled form. An update
+ * does not reload anybody's tab -- the form is still there afterwards. What it
+ * does is leave every open tab recording half of what it sees, and the repair
+ * for THAT already asks the page whether it is holding anything before
+ * reloading it. Gating here as well would be the same question asked twice,
+ * and the second one would hold an update back for a form nothing is going to
+ * disturb.
+ *
+ * The version lives in a module variable, which MV3 evicts -- and that is the
+ * correct place for it. A worker that has been evicted is a browser with
+ * nothing in flight, which is exactly when Chrome installs a held update on
+ * its own. Losing this is the update landing in the gap by another route.
+ */
+let updateWaiting = null;
+
+chrome.runtime.onUpdateAvailable?.addListener((details) => {
+  updateWaiting = details?.version || "a new version";
+  void landTheUpdate();
+});
+
+/** Install it, if nothing would be lost by restarting right now.
+ *
+ * Returns whether it went. Nothing after `chrome.runtime.reload()` runs.
+ */
+async function landTheUpdate() {
+  if (!updateWaiting) return false;
+  // A run is a form being filled in a warehouse, a step at a time.
+  if ((await state.activeRun())?.runId) return false;
+  // And a demonstration is the one thing here that cannot be repeated: the
+  // operator did it once, in front of the browser.
+  if (await state.teaching()) return false;
+  // Said before the restart, not after: there is no after.
+  await narrate(
+    `version ${updateWaiting} was installed while nothing was in flight`,
+  );
+  // Asked for once. Nothing below this line runs in a browser that restarts,
+  // and a browser that somehow does not is one Chrome installs the held
+  // update in anyway the moment this worker next idles -- which is the
+  // fallback this whole arrangement is a refinement of, not a race with it.
+  updateWaiting = null;
+  chrome.runtime.reload();
+  return true;
+}
+
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === BEAT) {
     void beat();
+    // And a held update, once a minute, because the gap it is waiting for is
+    // the end of a run or the end of a demonstration -- and hooking both of
+    // those in every place they can end is a list that the next one to be
+    // added will not be on.
+    void landTheUpdate();
     // The one trigger that does not need the panel open. A run performed and
     // then left alone -- the ordinary case, not the exception -- goes quiet in
     // a worker that idles out long before an operator comes back to look, and

@@ -29,6 +29,8 @@ const badges = [];
 const titles = [];
 /** Every script the worker painted into a page: the nudge pill, mostly. */
 const painted = [];
+/** Every time the worker restarted itself to install a waiting update. */
+const reloadedForUpdate = [];
 
 globalThis.chrome = {
   storage: {
@@ -54,6 +56,15 @@ globalThis.chrome = {
       addListener: (fn) => {
         globalThis.__started = fn;
       },
+    },
+    // An update that has been downloaded and is waiting to be installed.
+    onUpdateAvailable: {
+      addListener: (fn) => {
+        globalThis.__updateReady = fn;
+      },
+    },
+    reload: () => {
+      reloadedForUpdate.push(Date.now());
     },
     onMessage: {
       addListener: (fn) => {
@@ -318,6 +329,7 @@ function ready() {
   held.clear();
   calls = [];
   painted.length = 0;
+  reloadedForUpdate.length = 0;
   shapesServed = [SHAPE];
   shapesCanFind = false;
   rigRunServed = { id: "run-9", outcome: "held", steps: [] };
@@ -875,6 +887,75 @@ test("dropping an offer ends it and says so once", async () => {
   await send({ kind: "nudge-answer", id: offer.id, answer: "not-here" });
   await new Promise((resolve) => setTimeout(resolve, 30));
   assert.equal(offersSent().length, 1, "one offer reported two fates");
+});
+
+test("an update waits for the end of a run, and installs itself in the gap", async () => {
+  // An update is not free to whoever is mid-task. The worker is torn down and
+  // rebuilt, so a run this browser is driving stops between two steps -- a
+  // half-made record in a warehouse -- and neither half is recoverable.
+  //
+  // Registering the listener at all is what buys the choice: with one
+  // attached Chrome holds the update instead of installing it at the first
+  // opportunity, and reloading is this worker saying "now is a good moment".
+  ready();
+  held.set("sro.activeRun", { runId: "run_9", at: Date.now() });
+
+  globalThis.__updateReady({ version: "1.4.0" });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(
+    reloadedForUpdate,
+    [],
+    "an update landed across a run this browser was driving",
+  );
+
+  // The run ends, and the beat is where the gap is noticed -- hooking every
+  // place a run can end is a list the next one will not be on.
+  held.set("sro.activeRun", null);
+  await globalThis.__beat({ name: "sro-heartbeat" });
+  await until(
+    () => reloadedForUpdate.length === 1,
+    "the update was still waiting with nothing in flight",
+  );
+});
+
+test("and for the end of a demonstration, which cannot be done twice", async () => {
+  // A demonstration loses its `chrome.debugger` attachment when the worker
+  // restarts: the banner goes, the events stop, and the recording is never
+  // sealed. The operator did it once, in front of the browser.
+  ready();
+  held.set("sro.teaching", { recordingId: "rec_1", tabId: TAB });
+
+  globalThis.__updateReady({ version: "1.4.0" });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(reloadedForUpdate, [], "an update landed mid-demonstration");
+
+  held.set("sro.teaching", null);
+  await globalThis.__beat({ name: "sro-heartbeat" });
+  await until(
+    () => reloadedForUpdate.length === 1,
+    "the update was still waiting after the demonstration ended",
+  );
+});
+
+test("a browser with nothing in flight takes it at once", async () => {
+  ready();
+
+  globalThis.__updateReady({ version: "1.4.0" });
+
+  await until(
+    () => reloadedForUpdate.length === 1,
+    "an idle browser sat on a downloaded update",
+  );
+});
+
+test("and a beat with no update waiting restarts nothing", async () => {
+  // The guard that keeps this from being a worker that reboots once a minute.
+  ready();
+
+  await globalThis.__beat({ name: "sro-heartbeat" });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  assert.deepEqual(reloadedForUpdate, []);
 });
 
 test("a month of offers is dropped in one pass, and each still reports its own fate", async () => {

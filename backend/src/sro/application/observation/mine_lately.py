@@ -152,6 +152,22 @@ class MineLately:
         evidence it could not hold has more to say about a day nobody added to,
         and a pass whose window held everything does not.
 
+        **And the second way is bounded**, which it was not. A store bigger
+        than one window leaves evidence out of EVERY pass -- 1,981 of 2,066 on
+        this deployment, an average of 444 gestures against a window of 154 --
+        so `left_out` was permanently true and the question below it was never
+        reached. The sweep paid for a pass a minute over evidence nobody had
+        added to: 463 passes on a day that captured 56 gestures, $220.95 of
+        them, every captured gesture read about 352 times. Measured
+        2026-09-21, over 904 gestures and $937.46.
+
+        The reasoning was right for ONE more pass and wrong for an unbounded
+        sequence of them. The pool rotates which part of a day gets read, so
+        enough passes to sweep the store once is exactly what "more to say"
+        is worth -- and after that a pass sees what an earlier one already saw.
+        So: as many extra passes as the store takes windows, counted since the
+        last upload, and then quiet until somebody works again.
+
         A tenant that has never been mined is always worth a pass.
         """
         passes = await uow.workflows.passes(tenant_id)
@@ -159,12 +175,25 @@ class MineLately:
             return True
         # `passes` is oldest first, by `started_at` then id.
         last = passes[-1]
-        if last.left_out:
-            return True
         # The pass's own clock, against the server's `received_at` on a batch.
         # A pass that was refused before it read anything still wrote its row,
         # so this is "since anything last looked", which is what it should be.
-        return bool(await uow.gestures.tenants_since(_when(last.started_at)))
+        if await uow.gestures.tenants_since(_when(last.started_at)):
+            return True
+        if not last.left_out:
+            return False
+        newest = await uow.gestures.newest_arrival(tenant_id)
+        if newest is None:
+            # Evidence this tenant no longer has, or never had by this route.
+            # Nothing to sweep and nothing to count passes against.
+            return False
+        # How many windows this store takes, from what the last pass actually
+        # saw rather than from a count of the table: the window is what the
+        # budget allowed, and `left_out` is what would not fit beside it.
+        held = max(1, last.window_size)
+        windows = -(-(held + last.left_out) // held)
+        since_anybody_worked = sum(1 for one in passes if _when(one.started_at) > newest)
+        return since_anybody_worked < windows
 
     async def execute(self, *, now: datetime) -> dict[str, MineResult]:
         since = now - timedelta(hours=self._window_hours)

@@ -1506,6 +1506,21 @@ class FakeGestureRepository:
         ]
         return tuple(found[:limit])
 
+    async def newest_arrival(self, tenant_id: TenantId) -> datetime | None:
+        """The store's rule, not a convenient one: batches that CARRIED
+        something. An idle browser posts an empty batch a minute forever, and
+        counting those as arrivals would keep a tenant looking busy while
+        nobody worked."""
+        carried = {gesture.batch_id for gesture in self.rows.values()}
+        taken = [
+            when
+            for batch in self.batches.values()
+            if batch.tenant == tenant_id.value
+            and batch.batch_id in carried
+            and (when := _read_clock(batch.received_at)) is not None
+        ]
+        return max(taken, default=None)
+
     async def tenants_since(self, since: datetime) -> tuple[TenantId, ...]:
         # ``received_at`` is an ISO string on the record and a real timestamp
         # in the column, so the store compares datetimes and this parses one.

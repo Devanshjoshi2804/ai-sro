@@ -18,7 +18,7 @@ from sro.application.context import RequestContext
 from sro.application.observation.mine_lately import MineLately
 from sro.application.observation.mining_pass import MineResult
 from sro.application.shared.refusals import OverCap
-from sro.domain.observation.gesture import GestureBatch
+from sro.domain.observation.gesture import Action, Gesture, GestureBatch
 from sro.domain.observation.mining import MiningPass
 from tests.unit.fakes import FakeUnitOfWork
 
@@ -60,6 +60,15 @@ of them is about."""
 
 
 async def _recorded(uow: FakeUnitOfWork, *tenants: str, taken: datetime = SETTLED) -> None:
+    """A batch that carried something, which is the only kind the store counts.
+
+    The gesture is not decoration. `tenants_since` and `newest_arrival` both
+    ask for batches with evidence in them, because a watching extension
+    uploads on its timer whether or not anybody did anything -- and an empty
+    heartbeat answering "this tenant is busy" is how mining once stopped
+    running altogether while the product was in use. A fixture with no gesture
+    in it is a batch the real store would not count.
+    """
     for tenant in tenants:
         await uow.gestures.add_batch(
             GestureBatch(
@@ -68,6 +77,22 @@ async def _recorded(uow: FakeUnitOfWork, *tenants: str, taken: datetime = SETTLE
                 device_id="dev_1",
                 mode="watch",
                 received_at=taken.isoformat(),
+            )
+        )
+        await uow.gestures.add_gestures(
+            (
+                Gesture(
+                    id=f"ges_{tenant}",
+                    tenant=tenant,
+                    stream_id=f"str_{tenant}",
+                    batch_id=f"bat_{tenant}",
+                    at=taken.timestamp(),
+                    url="https://wms.example/receiving",
+                    system="https://wms.example",
+                    tab_id=1,
+                    frame_url=None,
+                    action=Action(kind="click", at=taken.timestamp()),
+                ),
             )
         )
 
@@ -223,13 +248,21 @@ async def test_a_tenant_whose_reading_is_refused_is_not_then_mined() -> None:
     assert mined["new"].kept == 1
 
 
-async def _mined(uow: FakeUnitOfWork, tenant: str, *, left_out: int, at: datetime) -> None:
+async def _mined(
+    uow: FakeUnitOfWork,
+    tenant: str,
+    *,
+    left_out: int,
+    at: datetime,
+    window_size: int = 0,
+) -> None:
     await uow.workflows.add_pass(
         MiningPass(
             id=f"pas_{tenant}_{at.isoformat()}",
             tenant=tenant,
             started_at=at.isoformat(),
             left_out=left_out,
+            window_size=window_size,
         )
     )
 
@@ -276,6 +309,86 @@ async def test_a_pass_that_could_not_hold_the_day_is_worth_another_one() -> None
 
     assert passes.asked == ["acme"]
     assert mined["acme"].kept == 1
+
+
+async def test_the_day_too_big_for_one_window_is_swept_once_and_then_left_alone() -> None:
+    """The loop this branch became, measured on the deployment 2026-09-21.
+
+    A store bigger than one window leaves evidence out of EVERY pass -- 1,981
+    of 2,066 there, an average of 444 gestures against a window of 154 -- so
+    `left_out` was permanently true, the "has anything new arrived" question
+    below it was never reached, and the sweep paid for a pass a minute over
+    evidence nobody had added to. 463 passes on a day that captured 56
+    gestures, $220.95 of them, every captured gesture read about 352 times.
+
+    Enough passes to sweep the store once is what "more to say" is worth. The
+    pool rotates which part of a day gets read; after it has been round once,
+    a further pass sees what an earlier one already saw.
+    """
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
+    # A window that holds a tenth of what there is: ten passes to sweep it.
+    for nth in range(9):
+        await _mined(
+            uow,
+            "acme",
+            left_out=90,
+            window_size=10,
+            at=NOW - timedelta(minutes=50 - nth),
+        )
+    passes = _Passes()
+
+    assert (await _swept(uow, passes))["acme"].kept == 1, "it stopped before one sweep"
+
+    # And the tenth closes it. Nothing has arrived since, so there is nothing
+    # left for an eleventh to see.
+    await _mined(uow, "acme", left_out=90, window_size=10, at=NOW - timedelta(minutes=40))
+    quiet = _Passes()
+
+    assert await _swept(uow, quiet) == {}
+    assert quiet.asked == [], "it went on paying for a day nobody added to"
+
+
+async def test_evidence_arriving_starts_the_sweep_again() -> None:
+    """The counter is "passes since anybody worked", not a lifetime quota: a
+    tenant that has been swept out and then does something is a tenant with
+    something new to read."""
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
+    for nth in range(12):
+        await _mined(uow, "acme", left_out=90, window_size=10, at=NOW - timedelta(minutes=50 - nth))
+    assert await _swept(uow, _Passes()) == {}, "the fixture was not swept out to begin with"
+
+    # Somebody works. The batch is newer than every pass above it.
+    await uow.gestures.add_batch(
+        GestureBatch(
+            batch_id="bat_acme_2",
+            tenant="acme",
+            device_id="dev_1",
+            mode="watch",
+            received_at=(NOW - timedelta(minutes=6)).isoformat(),
+        )
+    )
+    await uow.gestures.add_gestures(
+        (
+            Gesture(
+                id="ges_acme_2",
+                tenant="acme",
+                stream_id="str_acme",
+                batch_id="bat_acme_2",
+                at=(NOW - timedelta(minutes=6)).timestamp(),
+                url="https://wms.example/receiving",
+                system="https://wms.example",
+                tab_id=1,
+                frame_url=None,
+                action=Action(kind="click", at=(NOW - timedelta(minutes=6)).timestamp()),
+            ),
+        )
+    )
+    passes = _Passes()
+
+    assert (await _swept(uow, passes))["acme"].kept == 1
+    assert passes.asked == ["acme"]
 
 
 async def test_a_tenant_nobody_has_ever_mined_is_always_worth_a_pass() -> None:

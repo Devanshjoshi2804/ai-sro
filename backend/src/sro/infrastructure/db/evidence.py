@@ -278,6 +278,22 @@ class SqlGestureRepository(GestureRepository):
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(_row_to_gesture(row) for row in rows)
 
+    async def newest_arrival(self, tenant_id: TenantId) -> datetime | None:
+        # The same `received_at` and the same "carried something" rule as
+        # `tenants_since` below, so the two agree about what an arrival is: a
+        # watching extension uploads on its timer whether or not anybody did
+        # anything, and counting an empty heartbeat would keep a tenant
+        # looking busy while nobody worked.
+        carried = (
+            select(GestureRow.id).where(GestureRow.batch_id == GestureBatchRow.batch_id).exists()
+        )
+        newest: datetime | None = await self._session.scalar(
+            select(func.max(GestureBatchRow.received_at)).where(
+                GestureBatchRow.tenant_id == tenant_id.value, carried
+            )
+        )
+        return newest
+
     async def tenants_since(self, since: datetime) -> tuple[TenantId, ...]:
         # ``received_at`` and not ``ended_at``: the first is when this process
         # took the upload and the second is the device's own clock, kept as a

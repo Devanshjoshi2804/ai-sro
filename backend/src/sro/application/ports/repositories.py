@@ -626,6 +626,16 @@ class GestureRepository(Protocol):
         """Gestures with no intent row yet, oldest first."""
         ...
 
+    async def newest_arrival(self, tenant_id: TenantId) -> datetime | None:
+        """When this tenant's evidence last arrived, or nothing if it never has.
+
+        The server's clock, off the same `received_at` and the same "carried
+        something" rule `tenants_since` uses, so the two agree about what an
+        arrival is. `MineLately` reads it to ask how many passes have run since
+        anybody added to the store.
+        """
+        ...
+
     async def tenants_since(self, since: datetime) -> tuple[TenantId, ...]:
         """Every tenant whose browsers uploaded in the window.
 

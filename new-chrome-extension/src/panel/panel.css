@@ -1275,6 +1275,23 @@ a:focus-visible {
   top: 52px;
   max-height: 62vh;
   overflow-y: auto;
+  /* An overlay occludes. That is the whole of what makes it one.
+   *
+   * Only the backlog had a background, so "Recent tasks" drew its lines over
+   * whatever pane was behind -- the conversation showed straight through it
+   * and the two sets of words sat on top of each other. Measured on the
+   * deployment 2026-09-21: `Create a Customer Type` superimposed on
+   * `Log in to Keycloak — an arrival trigger fired. Shall I?`, both legible,
+   * neither readable.
+   *
+   * Here rather than on each kind, because it is true of both and a rule that
+   * has to be remembered per kind is one the third kind will be missing.
+   */
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 35%);
 }
 
 /* The backlog uses the height it has.
@@ -1298,11 +1315,6 @@ a:focus-visible {
    * floor -- a queue should be as tall as its queue.
    */
   max-height: calc(100% - 52px - 62px);
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--card);
-  box-shadow: 0 10px 30px rgb(0 0 0 / 35%);
 }
 
 /* The backlog, in the slot history uses. Same overlay, same furniture -- what

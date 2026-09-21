@@ -21,6 +21,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { fakeIndexedDB } from "./test-support/fake-indexeddb.mjs";
+// The evidence plane itself. Every gate below is about what does and does not
+// reach it, and the count is the only honest way to ask.
+const queue = await import("./queue.js");
 
 globalThis.indexedDB = fakeIndexedDB();
 
@@ -92,6 +95,10 @@ globalThis.chrome = {
   tabs: {
     onRemoved: { addListener: () => {} },
     get: async (tabId) => ({ id: tabId, url: PAGE }),
+    // The one tab this browser has, however a caller asks for it. `drivenTab`
+    // looks a run's tab up this way, and without it no command here ever
+    // reaches a tab -- so nothing could test what a run does to one.
+    query: async () => [{ id: TAB, url: PAGE, active: true }],
     reload: async (tabId) => {
       reloads.push(tabId);
     },
@@ -2811,4 +2818,78 @@ test("what this browser decided rides out on the next beat", async () => {
     1,
     `it said the same line on ${beats.length} beats`,
   );
+});
+
+// -- what may become evidence -------------------------------------------------
+//
+// Three gates stand between a gesture and the evidence plane, and not one of
+// them had a test: deleting any of the three left all 287 extension checks
+// green. They are each about somebody's privacy or about what this system
+// learns from, which makes an untested gate the most expensive kind here.
+
+/** How many rows are waiting to go up. */
+async function queued() {
+  return queue.count();
+}
+
+test("a tab nobody is watching is not recorded, whatever it sends", async () => {
+  // A content script outlives the watch that installed it -- a tab whose
+  // grant expired, one the operator stopped watching, one left open from
+  // before. The gate is here and not in the page because a page cannot be
+  // trusted to stop sending.
+  ready();
+  held.set("sro.watched", []);
+  await queue.clear();
+
+  const said = await gesture("a", "NEW");
+
+  assert.equal(said.ok, false);
+  assert.equal(await queued(), 0, "an unwatched tab was recorded");
+});
+
+test("an excluded host is not recorded even when its tab is watched", async () => {
+  // The tenant's own policy, enforced a second time here because the first
+  // enforcement is a content script that may be old, wrong or lying. What
+  // this protects is a mailbox: the comment above the gate records a
+  // deployment where one host became 97% of a day's capture.
+  ready();
+  held.set("sro.policy", {
+    capture_enabled: true,
+    exclude_hosts: ["wms.example"],
+  });
+  await queue.clear();
+
+  const said = await gesture("a", "NEW");
+
+  assert.equal(said.ok, false);
+  assert.equal(
+    await queued(),
+    0,
+    "an excluded host reached the evidence plane",
+  );
+});
+
+test("what this browser does while performing a run is not evidence of anybody working", async () => {
+  // A replay's own clicks, mined as though somebody had done them, is this
+  // system learning a task from a robot imitating a person -- and then
+  // offering it back as something worth automating.
+  //
+  // `perform` rather than a flag in storage: what marks a tab as driven is a
+  // module-scope map inside `commands.js`, set by the command itself, and a
+  // test that set anything else would be testing its own fixture.
+  ready();
+  // A command that actually touches the tab, because that is what marks it:
+  // `ui.perform` calls `hold(tab.id)` either side of the injection.
+  await perform({
+    run_id: "run-driving",
+    kind: "ui.perform",
+    payload: { origin: H, action: "click", target: { css: "#go" } },
+  });
+  await queue.clear();
+
+  const said = await gesture("a", "NEW");
+
+  assert.equal(said.ok, false);
+  assert.equal(await queued(), 0, "a run recorded its own driving as evidence");
+  abort("run-driving");
 });

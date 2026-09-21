@@ -409,7 +409,9 @@ class Converse:
         # sentence, not a second copy of the question they are already looking
         # at. What they are not owed is a plan this door invented because it
         # had nothing.
-        if standing and resolution.proposal is not None:
+        if resolution.proposal is not None and (
+            standing or await self._question_stands(ctx, thread_id)
+        ):
             return await self._also_said(ctx, thread_id=thread_id, text=text)
 
         async with self._uow as uow:
@@ -446,6 +448,41 @@ class Converse:
             await uow.threads.save(thread)
             await uow.commit()
         return thread
+
+    async def _question_stands(self, ctx: RequestContext, thread_id: ThreadId) -> bool:
+        """Whether a question is standing NOW, rather than when this request
+        began.
+
+        `execute` reads the thread once, at the top, and everything after that
+        is a model call: the reading, the placement, the resolver. Seconds. And
+        the question this door would talk over is written by somebody else --
+        `RunWorkflow._ask_for_values` (`workflow_runs.py:589`), from a task the
+        start-run route spawned and never awaited (`routers/workflow_runs.py:
+        139`), after a whole live browser run has tried and failed to find the
+        values. Two independent transactions on one thread, no lock between
+        them.
+
+        Measured on the deployment 2026-09-22 at 01:06. The operator asked for
+        a customer type, the run went to look in their mail, and they typed
+        `i will type` while it was looking. This door had read the thread
+        before the run's question was committed, so `pending_job` saw a job
+        offer rather than a question, `standing` was false, and the guard below
+        never fired: *"Nobody has demonstrated that, so I would work it out on
+        the screen: i will type"*, and five Configuration menus. The question
+        landed a moment later and was buried under them -- which is why the
+        stored thread has the question at 20 and the plan at 22.
+
+        So the freshest possible read, at the last possible moment, and only on
+        the path that is about to say the one thing worth not saying. It does
+        not close the window -- an operator who types before the run has asked
+        anything still meets a thread with no question in it -- and that
+        remainder is the run's own flight, not this read. What it does close is
+        every case where the question was already written by the time this door
+        decided, which is the case that was measured.
+        """
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+        return pending_job(thread.messages) is not None
 
     async def _also_said(self, ctx: RequestContext, *, thread_id: ThreadId, text: str) -> Thread:
         """Write down what they said, without acting on it.

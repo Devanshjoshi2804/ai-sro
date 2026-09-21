@@ -603,6 +603,83 @@ async def test_a_plan_made_on_the_screen_does_not_take_the_question_away() -> No
     assert not any("Carriers" in (m.text or "") for m in said.messages[before:])
 
 
+async def test_a_question_that_arrives_while_this_door_is_thinking_is_not_talked_over() -> None:
+    """The race, measured on the deployment 2026-09-22 at 01:06.
+
+    `execute` reads the thread once at the top and then spends seconds in model
+    calls. The question it must not talk over is written by somebody else --
+    `RunWorkflow._ask_for_values`, from a task the start-run route spawned and
+    never awaited, after a live browser run has been to look in the operator's
+    mail. The operator typed `i will type` while it was looking, this door had
+    read a thread that held only the job offer, and the plan went out over a
+    question that landed a moment later.
+
+    Here the question arrives between the read at the top and the decision at
+    the bottom, which is exactly that interleaving.
+    """
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    await RecordClaims(uow, FakeClock(), FakeIdFactory(), FakeEmbedder()).execute(
+        CTX,
+        (
+            Claim(
+                system="blue_yonder",
+                kind=EntryKind.SCREEN,
+                key="#wm.config/wm.config.partners.carriers////",
+                title="Configuration ▸ Partners ▸ Carriers",
+                body={"label": "Carriers"},
+                source="index/app-map.json",
+                evidence=EvidenceLevel.OBSERVED,
+            ),
+        ),
+    )
+    converse = await _with_a_job(uow, None)
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    thread_id = thread.id
+    before = len((await uow.threads.list_for_tenant(CTX.tenant_id, limit=1))[0].messages)
+
+    # The run's own question, committed by another transaction after this door
+    # has already read the thread and while it is still resolving.
+    asked_late = False
+
+    async def _ask_while_resolving(*args: object, **kwargs: object) -> object:
+        nonlocal asked_late
+        if not asked_late:
+            asked_late = True
+            late = await uow.threads.get(CTX.tenant_id, thread_id)
+            late.say(
+                Message(
+                    id=MessageId("msg_late"),
+                    speaker=Speaker.ASSISTANT,
+                    text="Create a Customer Type. What should Customer Type be?",
+                    said_at=FakeClock().now(),
+                    decision={
+                        "kind": NEEDS,
+                        "workflow_id": "wfl_1",
+                        "title": "Create a Customer Type",
+                        "values": {},
+                        "missing": ["Customer Type"],
+                        "items": [],
+                        "watched": True,
+                    },
+                )
+            )
+            await uow.threads.save(late)
+            await uow.commit()
+        return await _resolve(*args, **kwargs)
+
+    _resolve = converse._resolver.execute
+    converse._resolver.execute = _ask_while_resolving  # type: ignore[method-assign]
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="add a carrier")
+
+    assert asked_late, "the fixture did not reproduce the interleaving"
+    assert not any("Carriers" in (m.text or "") for m in said.messages[before:]), (
+        "a plan went out over a question that had arrived while this door was thinking"
+    )
+    assert pending_job(said.messages) is not None, "the question it did not ask is still standing"
+
+
 async def test_a_plan_made_on_the_screen_is_still_offered_with_no_question_standing() -> None:
     """The gate is the standing question, not the proposal. With nothing
     waiting on an answer, a sentence nobody has taught a skill for is still

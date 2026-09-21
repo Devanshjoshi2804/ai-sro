@@ -44,19 +44,34 @@ export function node(tag) {
     get innerHTML() {
       return "";
     },
-    /** What a list redraws with. The real one detaches every child and puts
-     * these in their place; nothing here has a parent to detach from. */
+    /** What a list redraws with: every child detached, these in their place. */
     replaceChildren(...added) {
-      this.kids = [...added];
+      for (const kid of this.kids) kid.parent = null;
+      this.kids = [];
+      this.append(...added);
     },
     append(...added) {
+      for (const kid of added) kid.parent = this;
       this.kids.push(...added);
     },
     prepend(...added) {
+      for (const kid of added) kid.parent = this;
       this.kids.unshift(...added);
     },
+    /** Detached, not merely flagged.
+     *
+     * This used to set `removed` and leave the node in its parent's `kids`,
+     * so a test asking "is the button still there" was answered yes for a
+     * button the real DOM had taken away. A fake that lies about removal
+     * hides exactly the bugs a panel has: a control that outlives the state
+     * it belonged to. `removed` is kept for the tests that read it.
+     */
     remove() {
       this.removed = true;
+      const parent = this.parent;
+      if (!parent) return;
+      parent.kids = parent.kids.filter((kid) => kid !== this);
+      this.parent = null;
     },
     addEventListener(kind, fn) {
       (this.listeners[kind] ??= []).push(fn);

@@ -115,7 +115,7 @@ export function result(looked, { open = true, onOpen } = {}) {
   // wrong place. The console draws these same answers and a model reading one
   // has the same problem, and a rule with a copy per surface drifts on all of
   // them.
-  box.append(_cards(records, read.columns || [], read));
+  box.append(_cards(records, read.rest || [], read.columns || [], read));
   return box;
 }
 
@@ -138,7 +138,7 @@ export function result(looked, { open = true, onOpen } = {}) {
  * where something was said, which is a reasonable moment to be back at the
  * first page.
  */
-function _cards(records, columns, read) {
+function _cards(records, rest, columns, read) {
   const holder = document.createElement("div");
   holder.className = "records";
   const list = document.createElement("ul");
@@ -146,27 +146,41 @@ function _cards(records, columns, read) {
   const foot = document.createElement("p");
   foot.className = "note";
 
-  const pages = Math.max(1, Math.ceil(records.length / K_ROWS));
+  // The answer, and the collection it came out of.
+  //
+  // A question that named a record is answered with that record -- and
+  // somebody who wanted the collection after all should not have to ask again
+  // in different words. `rest` is empty when the question named nothing,
+  // because then the answer IS the collection and a button to show it would
+  // change nothing.
+  const answer = records;
+  let showing = answer;
   let page = 0;
+  const pages = () => Math.max(1, Math.ceil(showing.length / K_ROWS));
 
   const draw = () => {
     list.replaceChildren();
     const from = page * K_ROWS;
-    for (const record of records.slice(from, from + K_ROWS)) {
+    for (const record of showing.slice(from, from + K_ROWS)) {
       list.append(_card(record, columns));
     }
-    const last = Math.min(from + K_ROWS, records.length);
+    const last = Math.min(from + K_ROWS, showing.length);
     const counted = read.counted;
-    // What is on this page, of what there is. `+` where more exist than
-    // crossed the wire, so the number is never read as the whole set.
+    // `+` where more exist than crossed the wire, so the number is never read
+    // as the whole set.
     const whole =
       counted === null || counted === undefined
-        ? `${records.length}+`
+        ? `${showing.length}+`
         : String(counted);
-    foot.textContent = `${from + 1}–${last} of ${whole}`;
+    foot.textContent =
+      showing === answer && rest.length
+        ? // The answer is one of many, and says so rather than reading as all
+          // there is.
+          `${showing.length} of ${whole}`
+        : `${from + 1}–${last} of ${whole}`;
   };
 
-  if (pages > 1) {
+  const pager = () => {
     const back = document.createElement("button");
     back.type = "button";
     back.className = "quiet";
@@ -179,29 +193,46 @@ function _cards(records, columns, read) {
     on.setAttribute("aria-label", "more records");
     const settle = () => {
       back.disabled = page === 0;
-      on.disabled = page >= pages - 1;
+      on.disabled = page >= pages() - 1;
     };
-    back.addEventListener("click", () => {
-      page = Math.max(0, page - 1);
+    const go = (to) => {
+      page = to;
       draw();
       settle();
-    });
-    on.addEventListener("click", () => {
-      page = Math.min(pages - 1, page + 1);
+    };
+    back.addEventListener("click", () => go(Math.max(0, page - 1)));
+    on.addEventListener("click", () => go(Math.min(pages() - 1, page + 1)));
+    settle();
+    const box = document.createElement("div");
+    box.className = "paging";
+    box.append(back, foot, on);
+    return box;
+  };
+
+  // The way to the rest, where there is a rest.
+  if (rest.length) {
+    const all = document.createElement("button");
+    all.type = "button";
+    all.className = "quiet";
+    all.textContent = `show all ${read.counted ?? answer.length + rest.length}`;
+    all.addEventListener("click", () => {
+      showing = [...answer, ...rest];
+      page = 0;
+      all.remove();
+      foot.remove();
       draw();
-      settle();
+      // The answer stays first: it is still the answer, and a list that
+      // reordered itself when somebody asked to see more of it would have
+      // hidden what they came for.
+      holder.append(pages() > 1 ? pager() : foot);
     });
     draw();
-    settle();
-    const paging = document.createElement("div");
-    paging.className = "paging";
-    paging.append(back, foot, on);
-    holder.append(list, paging);
+    holder.append(list, foot, all);
     return holder;
   }
 
   draw();
-  holder.append(list, foot);
+  holder.append(list, pages() > 1 ? pager() : foot);
   return holder;
 }
 

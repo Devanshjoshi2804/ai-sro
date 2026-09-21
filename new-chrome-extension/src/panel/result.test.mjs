@@ -36,6 +36,10 @@ const shown = (card) =>
   records(card).kids.find((kid) => kid.className === "record-list").kids;
 const paging = (card) =>
   records(card).kids.find((kid) => kid.className === "paging");
+const button = (card, text) =>
+  records(card).kids.find(
+    (kid) => kid.tag === "button" && String(kid.textContent || "").includes(text),
+  );
 const next = (card) => {
   paging(card)
     .kids.find((kid) => kid.textContent === "→")
@@ -186,6 +190,53 @@ test("a collapsed answer says what it found and offers to show it", () => {
   );
   card.kids.find((kid) => kid.tag === "button").listeners.click[0]();
   assert.deepEqual(opened, [1]);
+});
+
+test("an answer that is one of many offers the rest", () => {
+  // A question that named a record is answered with that record -- and
+  // somebody who wanted the collection after all should not have to ask again
+  // in different words.
+  const card = result(
+    read([{ customerType: "KKYT", longDescription: "my sro is best" }], {
+      read: { counted: 110, rest: types(40) },
+    }),
+  );
+
+  assert.match(words(card), /1 of 110/, "the answer read as all there is");
+  assert.ok(button(card, "show all 110"), "no way to the rest");
+  assert.equal(shown(card).length, 1);
+});
+
+test("and showing them keeps the answer first", () => {
+  // A list that reordered itself when somebody asked to see more of it would
+  // have hidden what they came for.
+  const card = result(
+    read([{ customerType: "KKYT", longDescription: "my sro is best" }], {
+      read: { counted: 110, rest: types(40) },
+    }),
+  );
+
+  button(card, "show all").listeners.click[0]();
+
+  assert.match(
+    words(shown(card)[0]),
+    /KKYT/,
+    "the answer was shuffled into the list",
+  );
+  assert.match(words(card), /1–8 of 110/);
+  assert.equal(
+    button(card, "show all"),
+    undefined,
+    "the button stayed after it was pressed",
+  );
+});
+
+test("an answer that is already the collection offers nothing more", () => {
+  // `records` is all of them, and a button that changes nothing is a button
+  // somebody presses once and stops trusting.
+  const card = result(read(types(5)));
+
+  assert.equal(button(card, "show all"), undefined);
 });
 
 test("nothing found is said, not drawn as an empty table", () => {

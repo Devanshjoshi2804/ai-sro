@@ -232,3 +232,36 @@ def test_a_name_nothing_carries_is_answered_no() -> None:
     # is the collection's, because "no" and "you did not ask about one of
     # these" are different facts and only the records can tell them apart.
     assert read["matched"] == 0
+
+
+def test_the_ones_it_did_not_name_travel_too() -> None:
+    """A question that named a record is answered with that record -- and
+    somebody who wanted the collection after all should not have to ask again
+    in different words."""
+    rows = [*_customer_types(40), {"customerType": "KKYT", "longDescription": "my sro is best"}]
+    read = _seen(rows)["read"]
+
+    assert [one["customerType"] for one in read["records"]] == ["KKYT"]
+    assert len(read["rest"]) == 40
+    assert "KKYT" not in [one["customerType"] for one in read["rest"]]
+
+
+def test_a_question_that_named_nothing_has_no_rest_to_offer() -> None:
+    """`records` is already all of them, and a second copy of the same list
+    would be a button that changes nothing."""
+    read = _seen(_customer_types(5), asked="how many customer types are there")["read"]
+
+    assert read["rest"] == []
+    assert len(read["records"]) == 5
+
+
+def test_an_answer_costs_the_same_whether_it_named_something_or_not() -> None:
+    """Matched and rest share the bound, so filtering is not paid for with a
+    bigger payload."""
+    rows = [
+        *_customer_types(K_SAMPLE + 50),
+        {"customerType": "KKYT", "longDescription": "my sro is best"},
+    ]
+    read = _seen(rows)["read"]
+
+    assert len(read["records"]) + len(read["rest"]) <= K_SAMPLE

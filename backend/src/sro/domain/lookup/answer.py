@@ -142,6 +142,15 @@ def as_seen(
     # surface drifts on all of them.
     matched = [dict(one) for one in named(question, every, subject)] if question else []
     shown = matched or every
+    # And the ones it did not name, so the answer can be an answer without
+    # being the only thing a person may see. A question that named a record is
+    # answered with that record -- and somebody who wanted the collection
+    # after all should not have to ask again in different words.
+    #
+    # Bounded together rather than separately: matched and rest share
+    # `K_SAMPLE`, so an answer costs the same on the wire whether it named
+    # something or not.
+    rest = [one for one in every if one not in shown][: max(0, K_SAMPLE - len(shown))]
     return {
         **seen,
         "body": None,
@@ -160,6 +169,9 @@ def as_seen(
             ),
             "columns": list(read.columns),
             "records": [dict(one) for one in shown[:K_SAMPLE]],
+            # Everything the question did NOT name. Empty where it named
+            # nothing, because then `records` is already all of them.
+            "rest": [dict(one) for one in rest] if matched else [],
             # How many of the collection these are, so a surface can say "1 of
             # 110" and offer the rest rather than pretending the answer is the
             # whole of it.

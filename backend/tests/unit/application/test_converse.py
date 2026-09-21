@@ -9,10 +9,12 @@ from sro.application.chat.understand import Understood
 from sro.application.context import RequestContext
 from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
+from sro.application.knowledge.record_claim import Claim, RecordClaims
 from sro.application.knowledge.retrieve import Retrieve
 from sro.domain.chat.asking import NEEDS, pending_job
 from sro.domain.chat.thread import Message, MessageId, Speaker, ThreadId
 from sro.domain.execution.run import RunId
+from sro.domain.knowledge.entry import EntryKind, EvidenceLevel
 from sro.domain.shared.identifiers import SkillId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.promotion import PromotionStage
@@ -534,6 +536,7 @@ async def test_asking_for_a_different_job_is_still_heard() -> None:
     await _taught(uow)
     converse, thread_id = await _asked(uow, ["Customer Type"])
     converse._answers = _Reads(answers=False, about="another_task")  # type: ignore[assignment]
+    before = len((await uow.threads.list_for_tenant(CTX.tenant_id, limit=1))[0].messages)
 
     said = await converse.execute(
         CTX, thread_id=thread_id, text="create a warehouse equipment type instead"
@@ -541,8 +544,92 @@ async def test_asking_for_a_different_job_is_still_heard() -> None:
 
     # Handled as the request it is -- and the question is still standing under
     # it, because nothing answered it.
-    assert len(said.messages) >= 3
+    #
+    # Counted as what this turn ADDED, not as the thread's length: a total
+    # holds at ">= 3" whether the request was heard or swallowed, and this is
+    # the test that has to tell those apart. Three: what they said, the answer
+    # to it, and the question again. Two would be the swallow.
+    assert len(said.messages) - before == 3, [m.text for m in said.messages[before:]]
     assert pending_job(said.messages) is not None
+
+
+async def test_a_plan_made_on_the_screen_does_not_take_the_question_away() -> None:
+    """Measured on the deployment 2026-09-21 at 17:10, in an operator's own
+    conversation. Asked *"longDescription takes 2000 characters. What should
+    it be?"*, they replied **"i wll type"** -- saying they would type the
+    value -- and were answered:
+
+        Nobody has demonstrated that, so I would work it out on the screen:
+        i wll type. It changes the system, so say go and I will do it while
+        you watch.
+
+    followed by five Configuration menus nobody had mentioned. The reading
+    called it `another_task`, and no wording will make that reading always
+    right.
+
+    What is decidable is not whether the sentence was a request -- it is
+    whether there was anything to say. A taught skill, a lookup, a read, even
+    "nothing has been taught for that" are all answers somebody asked for. A
+    plan this door assembled out of the knowledge base, under a question of
+    its own that is still standing, is not.
+    """
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    # The knowledge base knows the screen, so the resolver reaches a proposal:
+    # the exact state the deployment was in.
+    await RecordClaims(uow, FakeClock(), FakeIdFactory(), FakeEmbedder()).execute(
+        CTX,
+        (
+            Claim(
+                system="blue_yonder",
+                kind=EntryKind.SCREEN,
+                key="#wm.config/wm.config.partners.carriers////",
+                title="Configuration ▸ Partners ▸ Carriers",
+                body={"label": "Carriers"},
+                source="index/app-map.json",
+                evidence=EvidenceLevel.OBSERVED,
+            ),
+        ),
+    )
+    converse, thread_id = await _asked(uow, ["Customer Type"])
+    converse._answers = _Reads(answers=False, about="another_task")  # type: ignore[assignment]
+    before = len((await uow.threads.list_for_tenant(CTX.tenant_id, limit=1))[0].messages)
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="add a carrier")
+
+    assert pending_job(said.messages) is not None, "the question it asked was taken away"
+    # What they said, and the question again. Nothing proposing work.
+    assert len(said.messages) - before == 2, [m.text for m in said.messages[before:]]
+    assert not any("Carriers" in (m.text or "") for m in said.messages[before:])
+
+
+async def test_a_plan_made_on_the_screen_is_still_offered_with_no_question_standing() -> None:
+    """The gate is the standing question, not the proposal. With nothing
+    waiting on an answer, a sentence nobody has taught a skill for is still
+    worth a plan -- that door is the whole reason the knowledge base is
+    indexed."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    await RecordClaims(uow, FakeClock(), FakeIdFactory(), FakeEmbedder()).execute(
+        CTX,
+        (
+            Claim(
+                system="blue_yonder",
+                kind=EntryKind.SCREEN,
+                key="#wm.config/wm.config.partners.carriers////",
+                title="Configuration ▸ Partners ▸ Carriers",
+                body={"label": "Carriers"},
+                source="index/app-map.json",
+                evidence=EvidenceLevel.OBSERVED,
+            ),
+        ),
+    )
+    converse = await _with_a_job(uow, None)
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+
+    said = await converse.execute(CTX, thread_id=thread.id, text="add a carrier")
+
+    assert "Carriers" in (said.messages[-1].text or "")
 
 
 async def test_a_refused_sentence_is_told_how_to_be_taken_at_its_word() -> None:

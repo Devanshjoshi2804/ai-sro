@@ -79,6 +79,19 @@ class StartThread:
         return thread
 
 
+class _NotAsked:
+    """Nobody has placed this sentence against the jobs yet.
+
+    A sentinel rather than `None`, because `None` is already an answer on this
+    path -- it is what `_placed_by_the_rig` returns for a sentence that names
+    no job, which is exactly the case that must not be confused with "not
+    looked at".
+    """
+
+
+NOT_ASKED = _NotAsked()
+
+
 class Converse:
     def __init__(
         self,
@@ -212,6 +225,39 @@ class Converse:
                 return await self._ask_it_again(
                     ctx, thread_id=thread_id, pending=waiting, said_before=said_before
                 )
+            # And only where the jobs agree that it IS one.
+            #
+            # `another_task` is a model's reading of a sentence, and the
+            # sentence that named this was `i wll type` -- the operator saying
+            # they would type the value, in answer to a question asking for
+            # it. Read as a request for different work, it went to the door
+            # that proposes work: "Nobody has demonstrated that, so I would
+            # work it out on the screen: i wll type", and five Configuration
+            # menus nobody had mentioned. Measured on the deployment
+            # 2026-09-21 at 17:10, in an operator's own conversation.
+            #
+            # The reading was wrong and no wording will make it always right.
+            #
+            # Refusing to carry on at all is not the answer either. Whether a
+            # sentence is a request for different work cannot be decided from
+            # the sentence -- "create an equipment type instead" places against
+            # nothing on a tenant that has never demonstrated one, and it is
+            # still a request. The door's own test says so: *somebody who says
+            # "create an equipment type instead" has asked for work, and a door
+            # that replied "I am still waiting on Customer Type" to that would
+            # be the old swallowing with better manners*.
+            #
+            # What CAN be decided is whether there is anything to say. The harm
+            # measured was not the carrying on; it was the PROPOSAL -- a door
+            # with no taught skill, no lookup and no read still answering, out
+            # of a plan it made from the screen. So the sentence is carried on
+            # with (`standing`), and where all this door has for it is a plan
+            # made up on the spot, it says nothing and the standing question is
+            # what the operator sees.
+            #
+            # The placement is handed down, so this costs no extra model call
+            # on the path that does turn out to be another task.
+            placed = await self._placed_by_the_rig(ctx, text)
             # Said, answered, and then asked again.
             #
             # The asking again is not politeness. `pending_job` reads the LAST
@@ -221,7 +267,13 @@ class Converse:
             # road. Repeating it is also what a person does: they answer what
             # they were asked, and then say what they are still waiting for.
             await self._carry_on(
-                ctx, thread_id=thread_id, text=text, system=system, parameters=parameters
+                ctx,
+                thread_id=thread_id,
+                text=text,
+                system=system,
+                parameters=parameters,
+                placed=placed,
+                standing=True,
             )
             return await self._ask_it_again(
                 ctx, thread_id=thread_id, pending=waiting, said_before=said_before
@@ -238,6 +290,8 @@ class Converse:
         text: str,
         system: str | None = None,
         parameters: dict[str, str] | None = None,
+        placed: Understood | _NotAsked | None = NOT_ASKED,
+        standing: bool = False,
     ) -> Thread:
         """Everything this door does with a sentence that answers no question.
 
@@ -276,7 +330,12 @@ class Converse:
         # reading the panel's offer is built from, rather than this door
         # spending one on the skills library and the browser spending another
         # on the jobs.
-        placed = await self._placed_by_the_rig(ctx, text)
+        # Asked here, unless the caller has already asked. A sentence typed
+        # under a standing question is placed against the jobs BEFORE the
+        # question is abandoned, and asking a second time would be a second
+        # model call for an answer this already has.
+        if isinstance(placed, _NotAsked):
+            placed = await self._placed_by_the_rig(ctx, text)
         if placed is not None:
             return await self._say_the_job(ctx, thread_id=thread_id, text=text, placed=placed)
         async with self._uow as uow:
@@ -339,6 +398,20 @@ class Converse:
         # the confident wrong answer wearing a table.
         run = None if narrowed else await self._answer_now(ctx, resolution)
 
+        # A plan made up on the screen, under a question of ours that is still
+        # standing. This is the one thing this door says that is worth not
+        # saying: "Nobody has demonstrated that, so I would work it out on the
+        # screen: i wll type", and five Configuration menus nobody mentioned.
+        #
+        # Only the PROPOSAL. A taught skill still answers, a lookup still
+        # answers, and so does "Nothing has been taught for that" -- somebody
+        # who asks for work this tenant has never demonstrated is owed that
+        # sentence, not a second copy of the question they are already looking
+        # at. What they are not owed is a plan this door invented because it
+        # had nothing.
+        if standing and resolution.proposal is not None:
+            return await self._also_said(ctx, thread_id=thread_id, text=text)
+
         async with self._uow as uow:
             thread = await uow.threads.get(ctx.tenant_id, thread_id)
             now = self._clock.now()
@@ -374,7 +447,7 @@ class Converse:
             await uow.commit()
         return thread
 
-    async def _also_said(self, ctx: RequestContext, *, thread_id: ThreadId, text: str) -> None:
+    async def _also_said(self, ctx: RequestContext, *, thread_id: ThreadId, text: str) -> Thread:
         """Write down what they said, without acting on it.
 
         The sentence is theirs and it was said: a conversation that answers a
@@ -393,6 +466,7 @@ class Converse:
             )
             await uow.threads.save(thread)
             await uow.commit()
+        return thread
 
     async def _ask_it_again(
         self,

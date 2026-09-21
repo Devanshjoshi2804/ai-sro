@@ -2247,7 +2247,7 @@ async function clearBacklog(ids) {
   paintBacklog(true);
 }
 
-/** How many runs the overlay asks for. The console is where a log is read. */
+/** How many runs the Tasks pane asks for. The console is where a log is read. */
 const K_HISTORY = 12;
 
 /** A conversation somebody deliberately started.

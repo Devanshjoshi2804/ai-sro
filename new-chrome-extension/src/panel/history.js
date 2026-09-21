@@ -55,11 +55,13 @@ export const ENDINGS = {
 };
 
 /**
- * The overlay, or `null` when there is nothing to show yet.
+ * The pane, which always draws: an empty one says so in a sentence.
  *
- * `runs` are `WorkflowRunModel` rows as the backend sends them. `onClose` is
- * the way out, which is also the escape key: an overlay a person cannot
- * dismiss without finding the one small button is a trap on a 360-pixel panel.
+ * `runs` are rows as `asPanelRun` keeps them -- NOT as the backend sends them,
+ * which is what this said and what cost the list its outcome and its time:
+ * that mapping is a whitelist, it renames `outcome` to `status`, and reading
+ * a field it does not carry draws a blank. `onOpen` is given the run and its
+ * line, and opens the record under it.
  */
 export function history(runs, { onOpen, said = [], now = Date.now() } = {}) {
   const box = document.createElement("section");

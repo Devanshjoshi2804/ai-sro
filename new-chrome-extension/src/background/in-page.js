@@ -402,6 +402,17 @@ export function performInPage(payload) {
     : "";
   return {
     ok: false,
+    // The locators that were attempted, as data rather than prose.
+    //
+    // `detail` has carried this as a sentence since it was written, and a
+    // sentence is what a person reads, not what a record keeps: `_result` in
+    // the backend keeps `error_kind` and drops the rest, so a
+    // `control_not_found` in `workflow_run_steps` said only that something was
+    // not found. On 2026-09-21 the same step refused twice -- KKYT on the 20th,
+    // SMK1 that night -- and answering "which locator, in which frame, against
+    // what" took five rounds of pasting into a console with the dialog held
+    // open by hand. The browser knew all of it at the time and threw it away.
+    result: { tried: tried.slice(0, 8) },
     error: {
       kind: "control_not_found",
       detail: `no control matched: ${tried.join(", ") || "nothing"}${also}`,

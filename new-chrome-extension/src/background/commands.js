@@ -457,13 +457,22 @@ async function uiPerform(payload, runId) {
   const tab = await awake(await tabForRun(payload, runId));
   if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
   hold(tab.id);
-  const frameId = await frameHolding(tab.id, payload);
+  const { frameId, claims } = await frameHolding(tab.id, payload);
   const answer =
     frameId === undefined
       ? await inPage(tab.id, performInPage, [payload])
       : await inFrame(tab.id, frameId, performInPage, [payload]);
   hold(tab.id);
   if (answer?.ok) await reacted(tab.id, payload.action);
+  // Where it looked, on the path where that is the question.
+  //
+  // A failing step's record held `error_kind` and nothing else, so the frame
+  // the act went to -- and whether any frame had claimed the control at all --
+  // was knowable only by reproducing it by hand. It is known here, for free,
+  // at the moment it stops being recoverable.
+  if (answer && !answer.ok) {
+    answer.result = { ...(answer.result || {}), acted_in: frameId ?? null, claims };
+  }
   // What "the page did not answer" actually means, said where it is known.
   //
   // It means the injection produced no result: the frame is gone, the tab was
@@ -797,9 +806,25 @@ async function frameHolding(tabId, payload) {
   } catch {
     // A page that cannot be scripted at all. The single-frame attempt below
     // fails the same way and says so in the language the run already reads.
-    return undefined;
+    return { frameId: undefined, claims: [] };
   }
-  return frameOf(answers);
+  return { frameId: frameOf(answers), claims: claimsOf(answers) };
+}
+
+/** What every frame answered, for a failure to carry.
+ *
+ * `frameOf` reduces the probe to one number and throws the rest away, and the
+ * rest is the diagnosis: "no frame claimed it" and "three frames claimed it"
+ * both arrive as `undefined`, and they are different faults wanting different
+ * fixes. Kept as frame ids and counts -- this system's own numbers, nothing
+ * off the page -- so a run record can hold it.
+ */
+export function claimsOf(answers) {
+  return (answers || []).slice(0, 12).map((each) => ({
+    frame: each?.frameId ?? null,
+    ok: Boolean(each?.result?.ok),
+    candidates: Number(each?.result?.result?.candidates ?? 0),
+  }));
 }
 
 /** The one frame that claimed the control, or `undefined`.

@@ -15,7 +15,7 @@
 
 import assert from "node:assert";
 
-import { frameOf } from "./commands.js";
+import { claimsOf, frameOf } from "./commands.js";
 
 const claimed = (frameId) => ({ frameId, result: { ok: true, result: { probed: true } } });
 const empty = (frameId) => ({ frameId, result: { ok: false, error: { kind: "control_not_found" } } });
@@ -41,3 +41,45 @@ assert.equal(frameOf([]), undefined);
 assert.equal(frameOf(undefined), undefined);
 
 console.log("frames.test.mjs: ok");
+
+// -- what every frame answered, which `frameOf` reduces away ------------------
+//
+// `frameOf` collapses "no frame claimed it" and "three frames claimed it" into
+// the same `undefined`, and they are different faults wanting different fixes.
+// The same step refused twice on the deployment -- KKYT 2026-09-20, SMK1 the
+// night after -- and telling those two apart took five rounds of pasting into a
+// console with the dialog held open by hand, because nothing kept the probe.
+
+const someClaimed = [empty(0), claimed(7)];
+
+assert.deepEqual(claimsOf(someClaimed), [
+  { frame: 0, ok: false, candidates: 0 },
+  { frame: 7, ok: true, candidates: 0 },
+]);
+
+// The two cases `frameOf` cannot tell apart, told apart.
+assert.equal(frameOf([empty(0), empty(9)]), undefined);
+assert.equal(frameOf([claimed(0), claimed(3)]), undefined);
+assert.deepEqual(
+  claimsOf([empty(0), empty(9)]).map((one) => one.ok),
+  [false, false],
+  "nobody claimed it",
+);
+assert.deepEqual(
+  claimsOf([claimed(0), claimed(3)]).map((one) => one.ok),
+  [true, true],
+  "everybody claimed it -- a different fault entirely",
+);
+
+// How many each frame had, where the probe said so.
+assert.deepEqual(
+  claimsOf([{ frameId: 4, result: { ok: true, result: { candidates: 3 } } }]),
+  [{ frame: 4, ok: true, candidates: 3 }],
+);
+
+// A frame that answered nothing at all is still a frame that was asked.
+assert.deepEqual(claimsOf([{ frameId: 2 }]), [{ frame: 2, ok: false, candidates: 0 }]);
+assert.deepEqual(claimsOf([]), []);
+assert.deepEqual(claimsOf(undefined), []);
+
+console.log("frames: ok");

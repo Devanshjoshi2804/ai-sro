@@ -163,6 +163,59 @@ def test_what_the_browser_answered_is_kept_and_what_it_answered_with_is_not() ->
     }
 
 
+def test_a_control_that_was_not_found_keeps_what_was_tried_and_where_it_looked() -> None:
+    """The same step refused twice on the deployment -- KKYT on 2026-09-20 and
+    SMK1 on the 21st -- and the record of both was `error_kind:
+    control_not_found` and nothing else. Which locators were attempted, and
+    whether any frame had claimed the control at all, was knowable only by
+    reproducing the failure by hand with the dialog held open. The browser
+    knows all of it at the moment it gives up."""
+    refused = Reply(
+        ok=False,
+        error_kind="control_not_found",
+        error_detail="no control matched: component=toolbar button#ok, text=OK",
+        result={
+            "tried": ["component=toolbar button#ok", "text=OK", "css_path=a#button-1029"],
+            "claims": [
+                {"frame": 0, "ok": False, "candidates": 0},
+                {"frame": 7, "ok": True, "candidates": 1},
+            ],
+            "acted_in": 7,
+        },
+    )
+
+    kept = _result(refused)
+
+    assert kept["tried"] == [
+        "component=toolbar button#ok",
+        "text=OK",
+        "css_path=a#button-1029",
+    ]
+    assert kept["claims"] == [
+        {"frame": 0, "ok": False, "candidates": 0},
+        {"frame": 7, "ok": True, "candidates": 1},
+    ]
+    assert kept["acted_in"] == 7, "which frame was acted in, not just which was chosen"
+
+
+def test_what_a_failing_page_says_about_itself_is_not_kept() -> None:
+    """`error_detail` carries near-miss control NAMES read off the page, to be
+    read by a person and by the model asked to rescue the step. A run record
+    holds it for longer than a prompt does, and the rule this function opens by
+    stating is that it has no business holding what the page said."""
+    refused = Reply(
+        ok=False,
+        error_kind="control_not_found",
+        error_detail='no control matched: text=OK; the page has td "ACME-4471"',
+        result={"tried": ["text=OK"]},
+    )
+
+    kept = _result(refused)
+
+    assert "error_detail" not in kept
+    assert not any("ACME-4471" in str(value) for value in kept.values())
+
+
 def test_a_reply_whose_status_and_match_are_not_what_they_claim_are_dropped() -> None:
     """New. The three facts are typed where they are read: `status` is compared
     against the evidence's own statuses and `matched_by` is compared against

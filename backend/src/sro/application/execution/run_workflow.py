@@ -994,6 +994,36 @@ def _result(reply: Reply, *, wrote: bool = False) -> dict[str, object]:
         shown["wrote"] = True
     if not reply.ok:
         shown["error_kind"] = reply.error_kind
+        # What was tried, and where it looked.
+        #
+        # `error_kind` alone says a control was not found and nothing about
+        # which locators were attempted or which frames answered the probe --
+        # and those are the whole diagnosis. The same step refused twice on the
+        # deployment (KKYT 2026-09-20, SMK1 2026-09-21) and reading the second
+        # one took five rounds of pasting into a console with the dialog held
+        # open by hand, because the browser knew all of this at the time and
+        # nothing kept it.
+        #
+        # This system's own selectors and frame ids. Not `error_detail`, which
+        # carries near-miss control NAMES read off the page -- a run record has
+        # no more business holding those than a prompt does, which is the rule
+        # this function opens by stating.
+        tried = reply.result.get("tried")
+        if isinstance(tried, list):
+            shown["tried"] = [str(one)[:120] for one in tried[:8]]
+        claims = reply.result.get("claims")
+        if isinstance(claims, list):
+            shown["claims"] = [
+                {
+                    "frame": one.get("frame"),
+                    "ok": bool(one.get("ok")),
+                    "candidates": one.get("candidates"),
+                }
+                for one in claims[:12]
+                if isinstance(one, dict)
+            ]
+        if "acted_in" in reply.result:
+            shown["acted_in"] = reply.result["acted_in"]
     return shown
 
 

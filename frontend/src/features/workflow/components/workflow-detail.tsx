@@ -19,13 +19,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
 import {
+  listRunsOfWorkflow,
   listWorkflows,
   readEvidence,
   workflowKeys,
+  workflowRunKeys,
   type WorkflowModel,
   type WorkflowStepModel,
 } from "@/features/workflow/api";
-import { became } from "@/features/workflow/format";
+import { became, outcomeLabel, when } from "@/features/workflow/format";
+import { RunForm } from "@/features/workflow/components/run-form";
+import { Button } from "@/components/ui/button";
 
 /** The recorder's own gesture shape. The route types it loosely, so it is read
  *  defensively rather than off a name the generator does not emit. */
@@ -93,8 +97,8 @@ export function WorkflowDetail({ workflowId }: { workflowId: string }) {
         <h1 className="text-2xl font-semibold">No such job</h1>
         <p className="text-muted-foreground text-sm">
           Nothing here has this id. A mining pass can retire a job it no longer proposes.{" "}
-          <Link href="/jobs" className="text-brand underline">
-            Back to Jobs
+          <Link href="/knowledge" className="text-brand underline">
+            Back to What we know
           </Link>
           .
         </p>
@@ -111,6 +115,18 @@ export function WorkflowDetail({ workflowId }: { workflowId: string }) {
   return (
     <div className="space-y-6">
       <header className="space-y-2">
+        {/* The list this came from is What we know now, and nothing else on
+            this page leads back to it. */}
+        <nav aria-label="Breadcrumb" className="text-muted-foreground text-xs">
+          <Link
+            href="/knowledge"
+            className="hover:text-foreground underline-offset-4 hover:underline"
+          >
+            What we know
+          </Link>
+          <span aria-hidden> / </span>
+          <span>Jobs</span>
+        </nav>
         <div className="flex flex-wrap items-baseline gap-3">
           <h1 className="text-2xl font-semibold">{job.title}</h1>
           <span className="text-muted-foreground font-mono text-xs">{job.pass_id}</span>
@@ -148,6 +164,8 @@ export function WorkflowDetail({ workflowId }: { workflowId: string }) {
         </Card>
       )}
 
+      <RunIt job={job} />
+
       <Parameters job={job} />
 
       <Card>
@@ -167,6 +185,8 @@ export function WorkflowDetail({ workflowId }: { workflowId: string }) {
           ))}
         </CardContent>
       </Card>
+
+      <Runs workflowId={job.id} />
 
       <Card>
         <CardHeader>
@@ -192,6 +212,81 @@ export function WorkflowDetail({ workflowId }: { workflowId: string }) {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+/** Run it from here, the same form the list opens inline. */
+function RunIt({ job }: { job: WorkflowModel }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
+        <CardTitle className="text-base">Run this job</CardTitle>
+        <Button
+          type="button"
+          size="sm"
+          variant={open ? "secondary" : "default"}
+          onClick={() => setOpen(!open)}
+        >
+          {open ? "Cancel" : "Run"}
+        </Button>
+      </CardHeader>
+      {open && (
+        <CardContent>
+          <RunForm workflow={job} />
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * Every run of this job, newest first.
+ *
+ * On the job's own page because there is no Runs page any more, and a run is
+ * only ever asked about in terms of what it was a run of.
+ */
+function Runs({ workflowId }: { workflowId: string }) {
+  const runs = useQuery({
+    queryKey: workflowRunKeys.of(workflowId),
+    queryFn: () => listRunsOfWorkflow(workflowId),
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Runs</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {runs.isPending ? (
+          <Skeleton className="h-16 w-full" />
+        ) : runs.error ? (
+          <p className="text-destructive text-sm">{say(runs.error)}</p>
+        ) : runs.data.length === 0 ? (
+          <p className="text-muted-foreground text-sm">Never run.</p>
+        ) : (
+          // Newest first is how the server ordered them; sorting here would be
+          // this page inventing an order the row numbers do not agree with.
+          <ul className="divide-y text-sm">
+            {runs.data.map((run) => (
+              <li key={run.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2">
+                <span className="text-muted-foreground font-mono text-xs tabular-nums">
+                  {when(run.started_at)}
+                </span>
+                <span>{outcomeLabel(run)}</span>
+                <span className="text-muted-foreground text-xs">by {run.started_by}</span>
+                <Link
+                  href={`/jobs/runs/${run.id}`}
+                  className="text-brand ml-auto text-xs underline"
+                >
+                  Open
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

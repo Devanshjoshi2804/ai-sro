@@ -6,7 +6,6 @@ export type WorkflowRunModel = Schemas["WorkflowRunModel"];
 export type WorkflowRunStepModel = Schemas["WorkflowRunStepModel"];
 export type DeviceLineModel = Schemas["DeviceLineModel"];
 export type AuditResponse = Schemas["AuditResponse"];
-export type SpendResponse = Schemas["SpendResponse"];
 
 export type EvidenceResponse = Schemas["EvidenceResponse"];
 
@@ -24,7 +23,6 @@ export const workflowRunKeys = {
 
 export const rosterKeys = { all: ["roster"] as const };
 export const auditKeys = { since: (iso: string) => ["audit", iso] as const };
-export const spendKeys = { all: ["spend"] as const };
 
 export const listWorkflows = () =>
   api.get<{ workflows: WorkflowModel[] }>("/v1/workflows").then((r) => r.workflows);
@@ -92,5 +90,3 @@ export const restoreBrowser = (deviceId: string) =>
 
 export const readAudit = (sinceIso: string) =>
   api.get<AuditResponse>(`/v1/audit?since=${encodeURIComponent(sinceIso)}`);
-
-export const readSpend = () => api.get<SpendResponse>("/v1/spend");

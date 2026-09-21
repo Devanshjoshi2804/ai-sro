@@ -30,20 +30,12 @@ OUT = Path(os.environ.get("SRO_SHOTS", "/tmp/sro-shots"))
 
 ROUTES = (
     # Bar order, left to right, so a contact sheet reads the way the nav does.
-    # `/waiting` was missing here while its page existed, which is the failure
-    # this list is for: a route nobody shoots is a route nobody compares.
+    # A route nobody shoots is a route nobody compares -- and a removed page
+    # left in here shoots its redirect target twice and calls it coverage.
     "/console",
-    "/waiting",
-    "/needs",
-    "/overview",
-    "/jobs",
-    "/recordings",
-    "/runs",
-    "/triggers",
-    "/browsers",
-    "/audit",
-    "/spend",
     "/knowledge",
+    "/triggers",
+    "/overview",
 )
 
 WIDTHS = (1512, 900, 560)

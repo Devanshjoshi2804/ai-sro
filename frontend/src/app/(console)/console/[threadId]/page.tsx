@@ -1,5 +1,4 @@
 import { Console } from "@/features/console/console";
-import { ThreadProvider } from "@/features/console/thread-store";
 
 /**
  * One conversation, at its own address.
@@ -11,9 +10,5 @@ import { ThreadProvider } from "@/features/console/thread-store";
  */
 export default async function ThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
   const { threadId } = await params;
-  return (
-    <ThreadProvider>
-      <Console threadId={threadId} />
-    </ThreadProvider>
-  );
+  return <Console threadId={threadId} />;
 }

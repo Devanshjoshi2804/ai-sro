@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  became,
-  money,
-  outcomeLabel,
-  spendLine,
-  when,
-  startOfToday,
-} from "@/features/workflow/format";
+import { became, money, outcomeLabel, when, startOfToday } from "@/features/workflow/format";
 
 describe("money", () => {
   it("says unpriced rather than inventing a free call", () => {
@@ -44,37 +37,6 @@ describe("became", () => {
     expect(became({ total: 3, held: 2, stale: 2, earned: false })).toBe(
       "3 runs · 2 held · 2 steps matched weakly",
     );
-  });
-});
-
-describe("spendLine", () => {
-  it("puts the day against its cap", () => {
-    expect(spendLine({ cost_usd: 0.881104, unpriced: 0, cap_usd: 100 })).toEqual({
-      text: "$0.8811 of $100.00 today",
-      overCap: false,
-    });
-  });
-  it("counts unpriced calls beside the total and never inside it", () => {
-    expect(spendLine({ cost_usd: 0, unpriced: 3, cap_usd: 100 }).text).toBe(
-      "$0.0000 of $100.00 today · 3 unpriced",
-    );
-  });
-  it("omits the unpriced clause at zero rather than writing 0 unpriced", () => {
-    expect(spendLine({ cost_usd: 1, unpriced: 0, cap_usd: 10 }).text).toBe(
-      "$1.0000 of $10.00 today",
-    );
-  });
-  it("is over cap at the cap, not past it — that is where the 429 starts", () => {
-    expect(spendLine({ cost_usd: 10, unpriced: 0, cap_usd: 10 }).overCap).toBe(true);
-  });
-  it("an unpriced day stops the day just as hard as one over the cap", () => {
-    expect(spendLine({ cost_usd: 0, unpriced: 1, cap_usd: 10 }).overCap).toBe(true);
-  });
-  it("a negative cap means no cap, and the day is not over it", () => {
-    expect(spendLine({ cost_usd: 99, unpriced: 0, cap_usd: -1 })).toEqual({
-      text: "$99.0000 spent today",
-      overCap: false,
-    });
   });
 });
 

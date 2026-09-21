@@ -140,10 +140,23 @@ export function TopBar({
  * they were was the `<h1>`. `aria-current` as well as the underline: the colour
  * is not the answer for somebody who cannot see it.
  */
-export function BarLink({ href, children }: { href: string; children: ReactNode }) {
+export function BarLink({
+  href,
+  also = [],
+  children,
+}: {
+  href: string;
+  /** Other places that are part of this one. A job and a run of one keep
+   *  their `/jobs/...` addresses -- the extension's panel links to both -- and
+   *  are read as part of What we know, so that is what stays lit on them. */
+  also?: string[];
+  children: ReactNode;
+}) {
   const pathname = usePathname();
-  // Prefix rather than equality, or `/skills/skl_…` would light nothing.
-  const here = pathname === href || pathname.startsWith(`${href}/`);
+  // Prefix rather than equality, or `/jobs/wfl_…` would light nothing.
+  const here = [href, ...also].some(
+    (place) => pathname === place || pathname.startsWith(`${place}/`),
+  );
   return (
     <Link
       href={href}

@@ -54,7 +54,7 @@ export function OpenQuestions({
       void client.invalidateQueries({ queryKey: knowledgeKeys.questions });
       void client.invalidateQueries({ queryKey: knowledgeKeys.summary });
       toast.success("Answered", {
-        description: "Every skill taught after this reads your answer instead of asking.",
+        description: "Every job after this reads your answer instead of asking.",
       });
     },
     onError: (error) =>

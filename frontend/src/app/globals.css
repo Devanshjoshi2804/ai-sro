@@ -198,3 +198,20 @@ html[data-embedded] [data-chrome="page"] {
   max-width: none;
   padding: 12px;
 }
+
+/* The console's composer is one box, and focus is drawn on the box.
+ *
+ * The input sits inside a bordered, rounded form. With the base layer's
+ * `:focus-visible` ring on the input, focusing it drew a second rounded box
+ * inside the first. The ring moves to the form -- still visible, still only on
+ * focus -- and the input inside it draws none. A stylesheet rule rather than
+ * `outline: "none"` inline, which `painted.test.ts` refuses for good reason:
+ * nothing could put that back. */
+[data-console="composer"]:focus-within {
+  border-color: var(--brand-accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand-accent) 25%, transparent);
+}
+
+[data-console="composer"] input:focus-visible {
+  outline: none;
+}

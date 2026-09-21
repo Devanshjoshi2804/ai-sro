@@ -95,5 +95,17 @@ class Answer:
     # or the SDK did not give back real usage counts. A $0.00 row and an
     # honestly-unpriced row look the same in cost_usd alone -- this is what
     # tells them apart.
+    truncated: bool = False
+    """Whether the model was cut off by the output ceiling rather than
+    answering.
+
+    A fact about the call and not a kind of error, because the caller acts on
+    it: thinking is billed inside `maxOutputTokens` on Gemini and the ceiling
+    is the model's own, so the only remedy is to think less. `GeminiAsker`
+    reads this to ask again one level down. Told apart from `error` rather
+    than parsed back out of it, for the reason every sentence in this system
+    is: a name read out of prose breaks the first time the prose is reworded.
+    """
+
     unpriced: bool = False
     error: str | None = None

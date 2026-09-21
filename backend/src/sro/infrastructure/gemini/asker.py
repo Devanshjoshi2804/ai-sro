@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from dataclasses import replace
 from typing import Any
 
 from sro.domain.shared.prices import Answer, Effort, is_priced, price
@@ -32,6 +33,24 @@ it (the API takes a level or a budget, never both, and this model ignores the
 budget); the level is the knob, and a model that thinks too much for its own
 ceiling needs a lower one. Anthropic bills thinking outside its ceiling and is
 unaffected."""
+
+
+LESS_THINKING: dict[Effort, Effort] = {"high": "medium", "medium": "low", "low": "minimal"}
+"""One step down the only knob there is.
+
+`maxOutputTokens` is a hard ceiling on thinking AND answer together -- Google
+says so in as many words -- and 65,536 is the model's own limit, not a setting.
+There is no thinking budget on Gemini 3.x: the API takes a level, and a model
+that thinks too much for its own ceiling needs a lower one.
+
+So a truncated pass is not a failure to report, it is a level to lower. Asked
+again one step down, once: measured on this deployment 2026-09-21, the same
+158,193-token window that spent all 65,536 tokens thinking at `medium` and
+answered nothing answered at `low` in 10,757 tokens for $0.16, and kept a job.
+Without this the pass costs $0.36 and yields nothing at all.
+
+`minimal` is the floor, and a call already there is one nothing here can help.
+"""
 
 
 def truncated(response: Any) -> bool:
@@ -144,6 +163,33 @@ class GeminiAsker:
         images: tuple[bytes, ...] = (),
         effort: Effort | None = None,
     ) -> Answer:
+        parts = self._parts(instructions, evidence, image, images)
+        answer = await self._asked_once(model=model, parts=parts, schema=schema, effort=effort)
+        lower = LESS_THINKING.get(effort) if effort is not None else None
+        if not answer.truncated or lower is None:
+            return answer
+        # The first call was billed whether or not it said anything, so the
+        # second's numbers are ADDED to it rather than replacing them: a row
+        # that reported only the answer that arrived would understate a pass
+        # that had to ask twice, which is the one figure this is about.
+        logger.info("the answer hit the output ceiling at %s; asking again at %s", effort, lower)
+        again = await self._asked_once(model=model, parts=parts, schema=schema, effort=lower)
+        return replace(
+            again,
+            in_tokens=answer.in_tokens + again.in_tokens,
+            out_tokens=answer.out_tokens + again.out_tokens,
+            thought_tokens=answer.thought_tokens + again.thought_tokens,
+            cost_usd=answer.cost_usd + again.cost_usd,
+            unpriced=answer.unpriced or again.unpriced,
+        )
+
+    def _parts(
+        self,
+        instructions: str,
+        evidence: str,
+        image: bytes | None,
+        images: tuple[bytes, ...],
+    ) -> list[Any]:
         from google.genai import types
 
         # A falsy instruction would otherwise ship as a leading Part(text=''):
@@ -156,7 +202,11 @@ class GeminiAsker:
         # is now and then the page the failed attempt left behind.
         for more in images:
             parts.append(types.Part.from_bytes(data=more, mime_type="image/png"))
+        return parts
 
+    async def _asked_once(
+        self, *, model: str, parts: list[Any], schema: dict[str, object], effort: Effort | None
+    ) -> Answer:
         problem: Exception | None = None
         response = None
         # The most expensive thing this system does, and the one whose time
@@ -238,6 +288,7 @@ class GeminiAsker:
                 cost_usd=cost,
                 unpriced=unpriced,
                 error=why,
+                truncated=truncated(response),
             )
 
         return Answer(

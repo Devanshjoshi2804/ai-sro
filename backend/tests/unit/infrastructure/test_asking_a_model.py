@@ -521,3 +521,112 @@ def test_the_timeout_is_bounded_even_for_a_caller_that_names_none() -> None:
     """A script or a bake-off that builds this directly is bounded too, rather
     than inheriting the SDK's indefinite wait."""
     assert K_TIMEOUT_MS > 0
+
+
+# -- a truncated answer is a level to lower, not a failure to report ----------
+#
+# `maxOutputTokens` is a hard ceiling on thinking AND answer together -- Google
+# says so in as many words -- and 65,536 is the model's own limit rather than a
+# setting. There is no thinking budget on Gemini 3.x. So the only remedy is to
+# think less, and the pass may as well do it itself.
+#
+# Measured on the deployment 2026-09-21: the same 158,193-token window that
+# spent all 65,536 tokens thinking at `medium` and answered nothing answered at
+# `low` in 10,757 tokens for $0.16, and kept a job. Without this the pass cost
+# $0.36 and yielded nothing.
+
+
+def _cut_off() -> Any:
+    return SimpleNamespace(
+        text='{"workflows": [{"title": "Create Work Ar',
+        usage_metadata=SimpleNamespace(prompt_token_count=100, candidates_token_count=65536),
+        candidates=[SimpleNamespace(finish_reason=SimpleNamespace(name="MAX_TOKENS"))],
+    )
+
+
+def _answered() -> Any:
+    return SimpleNamespace(
+        text=json.dumps({"workflows": []}),
+        usage_metadata=SimpleNamespace(prompt_token_count=100, candidates_token_count=20),
+    )
+
+
+async def test_an_answer_cut_off_by_the_ceiling_is_asked_again_thinking_less() -> None:
+    answers = iter([_cut_off(), _answered()])
+    client, models = _fake_client(lambda: next(answers))
+
+    answer = await GeminiAsker(api_key="unused", client=client).ask(
+        model="gemini-3.8-flash",
+        instructions="i",
+        evidence="e",
+        schema={"type": "object"},
+        effort="medium",
+    )
+
+    assert answer.data == {"workflows": []}, "it gave up on a call it could have finished"
+    assert models.last_config.thinking_config.thinking_level.value.lower() == "low"
+    # Both calls were billed -- the first said nothing and was charged for it --
+    # so the row carries the sum rather than only the answer that arrived.
+    assert answer.in_tokens == 200
+    assert answer.out_tokens == 65556
+    assert answer.cost_usd == pytest.approx(
+        price("gemini-3.8-flash", 100, 65536) + price("gemini-3.8-flash", 100, 20)
+    ), "the pass that had to ask twice was charged for one call"
+    assert answer.error is None
+
+
+async def test_it_asks_again_once_and_not_forever() -> None:
+    """A second ceiling is a window too big for this model at any level it can
+    step down to from here, and the row should say so rather than the process
+    spending the tenant's day finding out."""
+    client, _ = _fake_client(_cut_off)
+
+    answer = await GeminiAsker(api_key="unused", client=client).ask(
+        model="gemini-3.8-flash",
+        instructions="i",
+        evidence="e",
+        schema={"type": "object"},
+        effort="medium",
+    )
+
+    assert answer.error and answer.error.startswith("truncated:")
+    assert answer.out_tokens == 131072, "both attempts are on the bill"
+
+
+async def test_a_call_that_named_no_level_has_none_to_lower() -> None:
+    """Most callers. Nothing here invents a level for a caller that did not
+    ask for one -- that would change what every other door sends."""
+    calls = []
+
+    def _once() -> Any:
+        calls.append(1)
+        return _cut_off()
+
+    client, _ = _fake_client(_once)
+
+    answer = await GeminiAsker(api_key="unused", client=client).ask(
+        model="gemini-3.8-flash", instructions="i", evidence="e", schema={"type": "object"}
+    )
+
+    assert len(calls) == 1
+    assert answer.error and answer.error.startswith("truncated:")
+
+
+async def test_a_call_already_thinking_as_little_as_it_can_is_not_asked_again() -> None:
+    calls = []
+
+    def _once() -> Any:
+        calls.append(1)
+        return _cut_off()
+
+    client, _ = _fake_client(_once)
+
+    await GeminiAsker(api_key="unused", client=client).ask(
+        model="gemini-3.8-flash",
+        instructions="i",
+        evidence="e",
+        schema={"type": "object"},
+        effort="minimal",
+    )
+
+    assert len(calls) == 1, "there is no level below minimal"

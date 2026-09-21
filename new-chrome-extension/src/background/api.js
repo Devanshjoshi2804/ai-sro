@@ -76,6 +76,106 @@ async function call(
   return response.status === 204 ? null : response.json();
 }
 
+/** One workflow run, in the shape the panel's run card draws.
+ *
+ * Its own function so a run read from the LIST is the same shape as one
+ * read on its own. The backend answers whole rows -- `list_workflow_runs`
+ * says so: "the rows are whole, where the rig sent one line each with the
+ * full record a GET away" -- and the panel could not draw them, because only
+ * `rigRun` mapped `outcome`/`order`/`verdict` onto `status`/`index`/`outcome`.
+ * So the history overlay held twelve runs in full and could show a title and
+ * a word.
+ *
+ * The mapping is a whitelist, and the comment inside it records what happens
+ * when somebody forgets to add to it: a card that silently draws nothing and
+ * looks like code nobody changed. One copy is one place to add.
+ */
+export function asPanelRun(run) {
+  return {
+    id: run.id,
+    source: "rig",
+    status: run.outcome,
+    // Which of the two ways it did the job, and what it could not find.
+    //
+    // This mapping is a whitelist -- what is not named here does not reach
+    // the panel -- and these two were added to the row and to the card
+    // without ever being added in between. So every run drew "Nobody was
+    // watching, so it replayed the call" including the ones somebody
+    // pressed and watched, and a run that stopped to ask carried no names
+    // for the panel to notice. Measured on the deployment, 2026-09-17 at
+    // 10:49: `watched=true` on the row, "nobody was watching" on the card.
+    watched: Boolean(run.watched),
+    needs: run.needs || [],
+    // What the run wrote, so the card can name the record rather than only
+    // reporting the machinery that made it. Added here THIRD, after the row
+    // and the card, which is precisely the mistake the paragraph above
+    // records -- a whitelist nobody adds to is a card that silently draws
+    // nothing and looks like code that was never changed.
+    values: run.values || {},
+    // And what takes it back. Added here, in `finishing.js`, and drawn on
+    // the card -- all three, because this is the whitelist whose own comment
+    // above records what happens when one of them is forgotten: a card that
+    // silently draws nothing and looks like code nobody changed.
+    undo: run.undo || null,
+    undoes_by: run.undoes_by || null,
+    // And, the other way round, which run THIS one takes back -- so an undo
+    // that failed reads as the record still being out there rather than as
+    // a job that failed on its own.
+    undoes_run: run.undoes_run || null,
+    // Whether a person may simply press it again: the run stopped and
+    // nothing it did may have landed. The backend decides it -- a second
+    // press after a write nobody could confirm is two records.
+    try_again: Boolean(run.try_again),
+    // And which job to press: `values` and `items` were already here, and
+    // this is the third thing a press needs. The run's own conversation is
+    // deliberately not carried -- a retry that comes up short asks in the
+    // panel, where the person who pressed it is.
+    workflow_id: run.workflow_id || "",
+    // What it read out of the mail, so the card can say where a value it
+    // was never given came from.
+    gathered: run.gathered || {},
+    doing: run.doing || "",
+    // The things this run was asked to do its repeated block for. The card
+    // draws a line per thing so somebody watching knows which of the three
+    // records is being made now, and how many are left.
+    items: run.items || [],
+    steps: (run.steps || []).map((step) => ({
+      index: step.order,
+      // Which thing on the list this row was done for, and which step of the
+      // job it is. `null` on every step of a job that does one thing once,
+      // which is most of them.
+      item: step.item ?? null,
+      of_step: step.of_step ?? step.order,
+      // What the warehouse called the record this step made, where it made
+      // one. The panel says which records a run created, because nothing
+      // here can take one back and a person has to be able to go and look.
+      made: step.made || {},
+      outcome: step.verdict,
+      says: step.says,
+      reason: step.reason,
+      // What the step would send, on a step the rig has stopped to ask
+      // about. Nothing has gone out yet -- this is the command itself, and
+      // it is the only thing the panel can put in front of the person whose
+      // approval the run is waiting for. `null` where there is none, so the
+      // card has one shape whichever verdict the step carries.
+      sent: step.sent || null,
+      // How the control was found -- the locator rung that caught it, or
+      // `sight` when no recorded identity did and the model pointed at the
+      // screen -- and what the call that planned it cost. Both are the
+      // rig's own accounting and neither is invented here: `unpriced` is a
+      // call whose cost could not be established -- not a free one -- and
+      // the row says so rather than drawing a zero. `stale` is the rig
+      // saying the page has moved under this step: found, but not where
+      // the job was taught it would be.
+      matched_by: step.matched_by || null,
+      stale: Boolean(step.stale),
+      cost_usd: typeof step.cost_usd === "number" ? step.cost_usd : null,
+      unpriced: Boolean(step.unpriced),
+    })),
+    withheld: run.withheld || [],
+  };
+}
+
 export const api = {
   register: (label, extensionVersion) =>
     call("/v1/agents/register", {
@@ -193,92 +293,8 @@ export const api = {
    * read to decide which door to ask about a run, and it is a workflow run
    * either way. Phase 7 is where that word can change, with its readers.
    */
-  rigRun: async (runId) => {
-    const run = await call(`/v1/workflow-runs/${encodeURIComponent(runId)}`);
-    return {
-      id: run.id,
-      source: "rig",
-      status: run.outcome,
-      // Which of the two ways it did the job, and what it could not find.
-      //
-      // This mapping is a whitelist -- what is not named here does not reach
-      // the panel -- and these two were added to the row and to the card
-      // without ever being added in between. So every run drew "Nobody was
-      // watching, so it replayed the call" including the ones somebody
-      // pressed and watched, and a run that stopped to ask carried no names
-      // for the panel to notice. Measured on the deployment, 2026-09-17 at
-      // 10:49: `watched=true` on the row, "nobody was watching" on the card.
-      watched: Boolean(run.watched),
-      needs: run.needs || [],
-      // What the run wrote, so the card can name the record rather than only
-      // reporting the machinery that made it. Added here THIRD, after the row
-      // and the card, which is precisely the mistake the paragraph above
-      // records -- a whitelist nobody adds to is a card that silently draws
-      // nothing and looks like code that was never changed.
-      values: run.values || {},
-      // And what takes it back. Added here, in `finishing.js`, and drawn on
-      // the card -- all three, because this is the whitelist whose own comment
-      // above records what happens when one of them is forgotten: a card that
-      // silently draws nothing and looks like code nobody changed.
-      undo: run.undo || null,
-      undoes_by: run.undoes_by || null,
-      // And, the other way round, which run THIS one takes back -- so an undo
-      // that failed reads as the record still being out there rather than as
-      // a job that failed on its own.
-      undoes_run: run.undoes_run || null,
-      // Whether a person may simply press it again: the run stopped and
-      // nothing it did may have landed. The backend decides it -- a second
-      // press after a write nobody could confirm is two records.
-      try_again: Boolean(run.try_again),
-      // And which job to press: `values` and `items` were already here, and
-      // this is the third thing a press needs. The run's own conversation is
-      // deliberately not carried -- a retry that comes up short asks in the
-      // panel, where the person who pressed it is.
-      workflow_id: run.workflow_id || "",
-      // What it read out of the mail, so the card can say where a value it
-      // was never given came from.
-      gathered: run.gathered || {},
-      doing: run.doing || "",
-      // The things this run was asked to do its repeated block for. The card
-      // draws a line per thing so somebody watching knows which of the three
-      // records is being made now, and how many are left.
-      items: run.items || [],
-      steps: (run.steps || []).map((step) => ({
-        index: step.order,
-        // Which thing on the list this row was done for, and which step of the
-        // job it is. `null` on every step of a job that does one thing once,
-        // which is most of them.
-        item: step.item ?? null,
-        of_step: step.of_step ?? step.order,
-        // What the warehouse called the record this step made, where it made
-        // one. The panel says which records a run created, because nothing
-        // here can take one back and a person has to be able to go and look.
-        made: step.made || {},
-        outcome: step.verdict,
-        says: step.says,
-        reason: step.reason,
-        // What the step would send, on a step the rig has stopped to ask
-        // about. Nothing has gone out yet -- this is the command itself, and
-        // it is the only thing the panel can put in front of the person whose
-        // approval the run is waiting for. `null` where there is none, so the
-        // card has one shape whichever verdict the step carries.
-        sent: step.sent || null,
-        // How the control was found -- the locator rung that caught it, or
-        // `sight` when no recorded identity did and the model pointed at the
-        // screen -- and what the call that planned it cost. Both are the
-        // rig's own accounting and neither is invented here: `unpriced` is a
-        // call whose cost could not be established -- not a free one -- and
-        // the row says so rather than drawing a zero. `stale` is the rig
-        // saying the page has moved under this step: found, but not where
-        // the job was taught it would be.
-        matched_by: step.matched_by || null,
-        stale: Boolean(step.stale),
-        cost_usd: typeof step.cost_usd === "number" ? step.cost_usd : null,
-        unpriced: Boolean(step.unpriced),
-      })),
-      withheld: run.withheld || [],
-    };
-  },
+  rigRun: async (runId) =>
+    asPanelRun(await call(`/v1/workflow-runs/${encodeURIComponent(runId)}`)),
 
   /** Stop a workflow run this browser is driving. It takes effect at the next
    * step: a gesture already sent cannot be recalled from a warehouse.
@@ -425,8 +441,10 @@ export const api = {
    * run there has ever been: this is a glance at what happened lately, and the
    * console is where somebody reads a log.
    */
-  rigRuns: (limit = 12) =>
-    call(`/v1/workflow-runs?limit=${encodeURIComponent(limit)}`),
+  rigRuns: async (limit = 12) =>
+    (await call(`/v1/workflow-runs?limit=${encodeURIComponent(limit)}`)).map(
+      asPanelRun,
+    ),
 
   /** A fresh conversation, when somebody asks for one. */
   newThread: () => call("/v1/threads", { method: "POST" }),

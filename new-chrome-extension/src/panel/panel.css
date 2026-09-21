@@ -1058,6 +1058,46 @@ button.danger:hover:not(:disabled) {
   grid-column: 1 / -1;
 }
 
+/* A recent task is a line you can open.
+ *
+ * It was three spans and nothing to press, over a run the browser was already
+ * holding whole. A button rather than a clickable row: a row that does
+ * something is a control, and a control that is not a button is one a keyboard
+ * cannot reach and a screen reader does not announce.
+ */
+.history-line {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: baseline;
+  width: 100%;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.history-line:hover,
+.history-line:focus-visible {
+  background: var(--tint, rgb(255 255 255 / 6%));
+}
+
+.history-list li[data-open="1"] .history-line {
+  background: var(--tint, rgb(255 255 255 / 6%));
+}
+
+/* The record under the line it belongs to, indented so the list still reads
+   as a list with one of its lines opened. */
+.record-of-a-run {
+  margin: 4px 0 8px 8px;
+  padding-left: 8px;
+  border-left: 2px solid var(--line);
+}
+
 /* -- a nudge ---------------------------------------------------------------- */
 
 /* The one entry that carries the accent, because it is the one asking to be
@@ -1249,8 +1289,15 @@ a:focus-visible {
  * rather than busy.
  */
 #history[data-kind="pending"] {
-  bottom: 62px;
-  max-height: none;
+  /* The height it NEEDS, up to the height there is.
+   *
+   * `bottom` stretched the box to the composer whatever was in it, so one
+   * waiting request drew a card and then two thirds of a panel of empty
+   * black with a ✕ in the corner. The note above is about eleven decisions
+   * not fitting in 62vh, and the answer to that is a bigger ceiling, not a
+   * floor -- a queue should be as tall as its queue.
+   */
+  max-height: calc(100% - 52px - 62px);
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 12px;

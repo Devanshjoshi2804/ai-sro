@@ -13,6 +13,7 @@ const { ENDINGS, K_LINES, K_SAID, ago, history } = await import("./history.js");
 const tests = [];
 let failed = 0;
 const test = (name, fn) => tests.push([name, fn]);
+const press = (el) => el.listeners.click[0]();
 
 const NOW = Date.parse("2026-09-17T10:00:00Z");
 const run = (over = {}) => ({
@@ -41,7 +42,10 @@ test("the rig's own words, not the backend's", () => {
   assert.equal(ENDINGS.stopped, "stopped to ask");
   // And an outcome this browser has never heard of is shown as it came: a
   // deployment may add one, and drawing nothing would hide the run.
-  assert.match(words(history([run({ outcome: "quarantined" })], {})), /quarantined/);
+  assert.match(
+    words(history([run({ outcome: "quarantined" })], {})),
+    /quarantined/,
+  );
 });
 
 test("a job with no title is named by the only thing there is", () => {
@@ -50,7 +54,9 @@ test("a job with no title is named by the only thing there is", () => {
 });
 
 test("it stops at a screenful; a log is what the console is for", () => {
-  const many = Array.from({ length: K_LINES + 6 }, (_, n) => run({ id: `run_${n}` }));
+  const many = Array.from({ length: K_LINES + 6 }, (_, n) =>
+    run({ id: `run_${n}` }),
+  );
   assert.equal(of(history(many, { now: NOW }), "li").length, K_LINES);
 });
 
@@ -60,6 +66,51 @@ test("nothing yet says so without claiming nothing has happened", () => {
   const over = history([], {});
   assert.match(words(over), /Nothing here yet/);
   assert.doesNotMatch(words(over), /never|no runs/i);
+});
+
+test("a recent task is a line you can open", () => {
+  // These were three spans and nothing to press, over a run the browser was
+  // already holding whole -- the list door answers whole rows. A list of
+  // titles over records nobody can reach stops one question short of the
+  // question somebody opened it to answer: did the customer type one get
+  // made.
+  const opened = [];
+  const over = history([run()], {
+    now: NOW,
+    onOpen: (one) => opened.push(one.id),
+  });
+  const [button] = of(over, "button").filter(
+    (one) => one.className === "history-line",
+  );
+
+  assert.ok(button, "the line is not a control");
+  press(button);
+
+  assert.deepEqual(opened, ["run_1"]);
+});
+
+test("and it is a button, so a keyboard reaches it", () => {
+  // A row that does something is a control, and a control that is not a
+  // button is one a keyboard cannot reach and a screen reader does not
+  // announce.
+  const over = history([run()], { now: NOW });
+  const [button] = of(over, "button").filter(
+    (one) => one.className === "history-line",
+  );
+
+  assert.equal(button.type, "button");
+  assert.match(words(button), /Create a Customer Type/);
+});
+
+test("a list nobody gave an opener to still draws", () => {
+  // `onOpen` is optional, like `onClose`: the overlay is drawn by more than
+  // one caller and a missing handler must not be a missing list.
+  const over = history([run()], { now: NOW });
+  const [button] = of(over, "button").filter(
+    (one) => one.className === "history-line",
+  );
+
+  press(button);
 });
 
 test("the way out is a press and the escape key", () => {
@@ -84,7 +135,8 @@ test("how long ago, in the words somebody would use", () => {
   assert.equal(ago("", NOW), "");
 });
 
-const saidList = (box) => of(box, "ul").find((one) => one.className === "history-said");
+const saidList = (box) =>
+  of(box, "ul").find((one) => one.className === "history-said");
 
 test("this browser's own refusals are under the runs", () => {
   // The lines are already kept and already shipped -- the heartbeat carries

@@ -54,7 +54,10 @@ export const ENDINGS = {
  * the way out, which is also the escape key: an overlay a person cannot
  * dismiss without finding the one small button is a trap on a 360-pixel panel.
  */
-export function history(runs, { onClose, said = [], now = Date.now() } = {}) {
+export function history(
+  runs,
+  { onClose, onOpen, said = [], now = Date.now() } = {},
+) {
   const box = document.createElement("section");
   box.className = "history";
   box.setAttribute("role", "dialog");
@@ -93,6 +96,21 @@ export function history(runs, { onClose, said = [], now = Date.now() } = {}) {
   list.className = "history-list";
   for (const run of (runs || []).slice(0, K_LINES)) {
     const line = document.createElement("li");
+    // A line you can open.
+    //
+    // These were three spans and nothing to press. The question somebody
+    // opens this to answer is "did the customer type one get made", and the
+    // answer is in the run -- which the browser is already holding whole,
+    // because the list door answers whole rows. A list of titles over records
+    // nobody can reach is a list that stops one question short of its own
+    // purpose.
+    //
+    // A button, not a click on the row: a row that does something is a
+    // control, and a control that is not a button is one a keyboard cannot
+    // reach and a screen reader does not announce.
+    const open = document.createElement("button");
+    open.type = "button";
+    open.className = "history-line";
     const what = document.createElement("span");
     what.className = "what";
     what.textContent = run.title || run.workflow_id || "a job";
@@ -102,7 +120,9 @@ export function history(runs, { onClose, said = [], now = Date.now() } = {}) {
     const when = document.createElement("span");
     when.className = "when";
     when.textContent = ago(run.started_at, now);
-    line.append(what, how, when);
+    open.append(what, how, when);
+    open.addEventListener("click", () => onOpen?.(run, line));
+    line.append(open);
     list.append(line);
   }
   box.append(list);

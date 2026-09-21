@@ -2101,6 +2101,32 @@ async function openHistory() {
         over.hidden = true;
         over.replaceChildren();
       },
+      // Opened where it is, rather than somewhere else.
+      //
+      // The run is already here in full -- the list door answers whole rows --
+      // so there is nothing to fetch and nowhere to navigate to. A line that
+      // sent somebody to another pane would lose the list they were reading,
+      // which is the thing they opened this to read.
+      onOpen: (run, line) => {
+        const already = line.querySelector?.(".record-of-a-run");
+        if (already) {
+          already.remove();
+          line.dataset.open = "";
+          return;
+        }
+        // One at a time. Twelve open cards is the scrolling column this
+        // overlay exists to not be.
+        for (const other of over.querySelectorAll?.(".record-of-a-run") || []) {
+          other.remove();
+        }
+        for (const other of over.querySelectorAll?.("[data-open='1']") || []) {
+          other.dataset.open = "";
+        }
+        const card = runCard({ run }, { stop: false });
+        card.classList?.add?.("record-of-a-run");
+        line.append(card);
+        line.dataset.open = "1";
+      },
     }),
   );
 }

@@ -224,3 +224,179 @@ def test_the_closest_shape_match_wins_not_the_last_one_that_qualified() -> None:
 
     assert resolution.workflow_id == "wfl_exact"
     assert resolution.score == 1.0
+
+
+KEYCLOAK = "https://keycloak-service-exec-wms-keycloak-prod.us.live.external.byp.ai"
+MAIL = "https://mail.google.com"
+WMS = "https://bf56-kms-wms-web-np2.jdadelivers.com"
+
+
+def test_a_job_that_does_one_thing_twice_is_not_a_new_job_every_pass() -> None:
+    """A shape is a SET, so a job whose two steps touch the same control the
+    same way is one entry wide -- and the absolute bar then asked it for two
+    shared steps it could not have.
+
+    Measured on the deployment 2026-09-19, tenant `greyorange`. Containment
+    against the stored job was 1.0, a perfect match, and `1 >= 2` refused it.
+    The tenant ended the day holding THREE `Log in to Keycloak`, each offering
+    itself on the sign-in page, so signing in never made the card stop.
+    """
+    stored = _workflow(
+        ["ges_a", "ges_b", "ges_c"],
+        [
+            [KEYCLOAK, "name|Username or email", "type"],
+            [KEYCLOAK, "anon|click", "click"],
+            [KEYCLOAK, "anon|type", "type"],
+        ],
+        id="wfl_stored",
+    )
+    again = _workflow(
+        ["ges_d", "ges_e"],
+        [
+            [KEYCLOAK, "name|Username or email", "type"],
+            [KEYCLOAK, "name|Username or email", "type"],
+        ],
+    )
+
+    resolution = resolve(again, [stored])
+
+    assert resolution.kind == "same_job"
+    assert resolution.workflow_id == "wfl_stored"
+
+
+def test_a_step_nobody_could_name_matches_the_named_one_it_is() -> None:
+    """`target_identity` falls back to `anon|click` when a recording gives it
+    nothing to work with, and whether it has anything to work with is a property
+    of that recording, not of the job.
+
+    Measured 2026-09-19: two `Reply to Email` three hours apart, identical but
+    for the first step -- `link|Reply` in one reading, `anon|click` in the
+    other. The overlap was the Send button alone, one step, under the bar.
+    """
+    stored = _workflow(
+        ["ges_a", "ges_b"],
+        [[MAIL, "link|Reply", "click"], [MAIL, "button|Send", "click"]],
+        id="wfl_stored",
+    )
+    again = _workflow(
+        ["ges_c", "ges_d"],
+        [[MAIL, "anon|click", "click"], [MAIL, "button|Send", "click"]],
+    )
+
+    assert resolve(again, [stored]).kind == "same_job"
+
+
+def test_an_unnamed_step_matches_one_named_step_and_not_two() -> None:
+    """Otherwise a pair of anonymous clicks on one system would claim every
+    named click on it, and two unrelated jobs would be one."""
+    stored = _workflow(
+        ["ges_a", "ges_b"],
+        [[MAIL, "link|Reply", "click"], [MAIL, "button|Send", "click"]],
+        id="wfl_stored",
+    )
+    mystery = _workflow(
+        ["ges_c", "ges_d", "ges_e"],
+        [
+            [MAIL, "anon|click", "click"],
+            [MAIL, "anon|click", "click"],
+            [MAIL, "link|Archive", "click"],
+        ],
+    )
+
+    # One anonymous entry after the set collapse, so exactly one named step is
+    # claimable -- and this proposal has a step of its own that is nowhere in
+    # the stored job.
+    assert resolve(mystery, [stored]).kind == "new"
+
+
+def test_a_job_is_not_folded_into_one_that_shares_a_single_generic_click() -> None:
+    """The trap the absolute bar exists for, and it is not hypothetical.
+
+    `Navigate to Receiving` on the deployment is one `tabItem` click repeated
+    three times -- one distinct entry, and `tabItem` is the component id of
+    every tab on that system. Scaling the bar down to the smaller shape folded
+    a two-step `Navigate to Warehouse Sub-menu` into it on the strength of that
+    one click. Wholly-contained is the honest reading instead: every distinct
+    step the proposal has must already exist in that job.
+    """
+    generic = _workflow(
+        ["ges_a", "ges_b", "ges_c"],
+        [[WMS, "tabItem", "click"], [WMS, "tabItem", "click"], [WMS, "tabItem", "click"]],
+        id="wfl_generic",
+    )
+    other = _workflow(
+        ["ges_d", "ges_e"],
+        [[WMS, "toolbar button", "click"], [WMS, "tabItem", "click"]],
+    )
+
+    assert resolve(other, [generic]).kind == "new"
+
+
+def test_a_lookup_two_jobs_begin_with_still_does_not_join_them() -> None:
+    """The original argument for the bar, unchanged."""
+    mine = _workflow(
+        [f"ges_m{n}" for n in range(4)],
+        [[WMS, "lookup", "type"]] + [[WMS, f"mine{n}", "click"] for n in range(3)],
+    )
+    theirs = _workflow(
+        [f"ges_t{n}" for n in range(4)],
+        [[WMS, "lookup", "type"]] + [[WMS, f"theirs{n}", "click"] for n in range(3)],
+        id="wfl_theirs",
+    )
+
+    assert resolve(mine, [theirs]).kind == "new"
+
+
+def test_an_unnamed_step_is_not_aliased_across_systems_or_kinds() -> None:
+    """`anon|click` says "a click here we could not name", and the here and the
+    click are the rest of what it says. A rule that dropped either would match
+    a click in a mailbox to a Save in a warehouse."""
+    stored = _workflow(
+        ["ges_a", "ges_b"],
+        [[WMS, "saveButton", "click"], [WMS, "clientCode", "type"]],
+        id="wfl_stored",
+    )
+    elsewhere = _workflow(
+        ["ges_c", "ges_d"],
+        [[MAIL, "anon|click", "click"], [WMS, "clientCode", "type"]],
+    )
+    wrong_kind = _workflow(
+        ["ges_e", "ges_f"],
+        [[WMS, "anon|type", "type"], [WMS, "anon|press", "press"]],
+    )
+
+    assert resolve(elsewhere, [stored]).kind == "new", "a click elsewhere is not that click"
+    assert resolve(wrong_kind, [stored]).kind == "new", "typing is not clicking"
+
+
+def test_the_score_counts_the_same_shared_steps_the_bar_does() -> None:
+    """Two gates that disagree about what a shared step is are one gate.
+
+    Here the raw set intersection is one entry of three -- 0.33, under
+    K_SAME_JOB -- while every step of the proposal is in fact present in the
+    stored job, two of them under names this recording could not read. Scored
+    the raw way the job is refused and mined again as a duplicate, which is the
+    whole failure being repaired.
+    """
+    stored = _workflow(
+        ["ges_a", "ges_b", "ges_c"],
+        [
+            [MAIL, "link|Reply", "click"],
+            [MAIL, "textbox|Message Body", "type"],
+            [MAIL, "button|Send", "click"],
+        ],
+        id="wfl_stored",
+    )
+    again = _workflow(
+        ["ges_d", "ges_e", "ges_f"],
+        [
+            [MAIL, "anon|click", "click"],
+            [MAIL, "anon|type", "type"],
+            [MAIL, "button|Send", "click"],
+        ],
+    )
+
+    resolution = resolve(again, [stored])
+
+    assert resolution.kind == "same_job"
+    assert resolution.score == 1.0, "every step of it is in that job"

@@ -71,34 +71,44 @@ a run, and this one releases it to let the write out. Both reach the register
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import datetime
 
+from sro.application.chat.announce import SayWhatHappened
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
+from sro.application.execution.declared import declared_limits, names_of, screen_for
+from sro.application.execution.effects import wrote
+from sro.application.execution.gather import GatherContext
 from sro.application.execution.read_runs import NOT_IN_A_BROWSER_HERE, CannotStop
-from sro.application.execution.run_workflow import KnownFields, run_workflow
+from sro.application.execution.run_workflow import GatherValues, KnownFields, run_workflow
 from sro.application.execution.stops import Stops
 from sro.application.intent.spend import over_cap
 from sro.application.knowledge.retrieve import Question, Retrieve
 from sro.application.ports.channel import Channel
 from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
-from sro.application.ports.system import Clock
+from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.vault import CredentialVault, VaultUnavailable
 from sro.application.shared.refusals import OverCap
+from sro.domain.chat.asking import NEEDS, Pending, question
+from sro.domain.chat.thread import Speaker
 from sro.domain.execution.evidence import unperformable
+from sro.domain.execution.gathering import Gathered
+from sro.domain.execution.learned_step import limits_for
 from sro.domain.execution.verified_writes import VerifiedWrite
+from sro.domain.execution.waiting import as_said, waiting_on
 from sro.domain.execution.workflow_run import (
     RunStep,
     WorkflowRun,
     already_running,
     new_run_id,
 )
+from sro.domain.execution.write_plan import begins_again_at, seen_values
 from sro.domain.knowledge.entry import EntryKind
 from sro.domain.shared.errors import Conflict, DomainError, NotFound
-from sro.domain.shared.identifiers import DeviceId
-from sro.domain.skill.reversals import undoes
+from sro.domain.shared.identifiers import DeviceId, PrincipalId
+from sro.domain.skill.reversals import addresses, asks_for, identifies, undoes
 from sro.domain.skill.shape import resumes_at
 from sro.domain.skill.workflow import cited_ids
 
@@ -115,6 +125,16 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
+DraftsForTheAsker = Callable[[RequestContext, str, Pending], Awaitable[bool]]
+"""Write a mail to whoever asked, for a run that came up short.
+
+A callable rather than the use case, for `GatherValues`' reason: this object
+is built once per request and the drafter needs the request's own tenant and
+operator. Optional throughout -- a deployment with no mailbox runs exactly as
+it did, stopping with the question and asking nobody else.
+"""
+
+
 class RunRefused(Exception):
     """The press named something this job cannot be performed with.
 
@@ -129,6 +149,39 @@ class RunRefused(Exception):
     """
 
     code = "run_refused"
+
+
+K_EVERY_FORM = 400
+"""How many create forms one lookup asks for.
+
+Every one, rather than a search: `search` matches terms against a claim's title
+and key, and a form's key is its route -- so a lookup for `customerType` finds
+nothing at all, which is how this was first built and why it said nothing.
+Measured on QA 2026-09-16: 88 forms, 756 fields, 0.09 seconds for the lot.
+Four hundred is room for a base four times that size before a write stops
+seeing the screen it is writing to.
+"""
+
+
+def _asking(needs: Sequence[str], title: str, limits: Mapping[str, int]) -> str:
+    """The sentence that opens the question, in the words of what went wrong.
+
+    Two different things bring a run here and they want two different
+    questions. A value nobody could find is "I could not find X". A value that
+    would not fit is "X holds 28 characters" -- and asking that one the first
+    way gets the same value back, because nothing has told the person their
+    description is twice the length the box takes. The browser did not say so:
+    it truncated in silence, which is why the limit had to be discovered at
+    all.
+    """
+    capped = [name for name in needs if name in limits]
+    if not capped:
+        return f"I could not find {', '.join(needs)} for {title}. "
+    said = ", ".join(f"{name} holds {limits[name]} characters" for name in capped)
+    rest = [name for name in needs if name not in limits]
+    return f"For {title}, {said} — longer than what I was given. " + (
+        f"I could not find {', '.join(rest)} either. " if rest else ""
+    )
 
 
 class StartWorkflowRun:
@@ -156,8 +209,12 @@ class StartWorkflowRun:
         verified_writes: tuple[VerifiedWrite, ...] = (),
         vault: CredentialVault | None = None,
         retrieve: Retrieve | None = None,
+        gather: GatherContext | None = None,
+        ids: IdFactory | None = None,
+        asker_drafts: DraftsForTheAsker | None = None,
     ) -> None:
         self._uow = uow
+        self._asker_drafts: DraftsForTheAsker | None = asker_drafts
         # Where a password comes from when a step types one. `None` is a
         # deployment with no vault configured: the run still happens, and a
         # step that needs a password refuses with the key it wanted rather
@@ -168,6 +225,14 @@ class StartWorkflowRun:
         # says nothing about its fields, exactly as every run did before the
         # claims were ingested.
         self._retrieve = retrieve
+        # Where a value comes from when nobody typed one. `None` is a
+        # deployment with no connector, and a run with missing values then
+        # refuses exactly as it always did.
+        self._gather = gather
+        # What names a message when a run that came up short asks for what it
+        # could not find. `None` is a deployment that has not wired it: the run
+        # still stops with its sentence, and nobody is asked.
+        self._ids = ids
         self._channel = channel
         # `Asker | None` rather than through `asker_or_refuse` in the container,
         # for `ReadChat`'s reason: a factory that raised would make the factory
@@ -191,12 +256,29 @@ class StartWorkflowRun:
         values: Mapping[str, str],
         live: bool,
         allow_focus: bool,
+        watched: bool = False,
         from_step: int = 0,
         matched: int | None = None,
         items: Sequence[Mapping[str, str]] = (),
         run_id: str | None = None,
+        conversation: tuple[str, str] = ("", ""),
+        undoes_run: str = "",
     ) -> WorkflowRun:
-        """The claimed row, or the refusal that stopped it being claimed."""
+        """The claimed row, or the refusal that stopped it being claimed.
+
+        `undoes_run` is the run this one takes back, where a press on a result
+        card started it. Refused where that run has already been taken back by
+        a run that held: an undo pressed twice is a second delete addressed to
+        a record the first one removed, and the warehouse's answer to that is
+        nobody's idea of a good surprise.
+
+        `conversation` is the outside thread this run answers to, where it came
+        from one -- a request read out of somebody's mail. A run that comes up
+        short can then be found again by a reply to that mail, which is the one
+        address the panel does not have: the person who knows the missing value
+        is usually whoever sent the request, and they are not sitting in front
+        of this. See `domain/execution/waiting.py`.
+        """
         # Before the session is opened: neither refusal needs a database, and a
         # 503 that first took a connection is a 503 that made the outage
         # slightly worse.
@@ -250,7 +332,49 @@ class StartWorkflowRun:
                 if declared.get("name")
                 and any(str(declared["name"]) not in one for one in supplied)
             )
-            if absent:
+            # Refused only where nothing could go and find them.
+            #
+            # A person pressing start with a field empty should be told, and
+            # that is what this has always done. A deployment that can read the
+            # operator's mailbox has a second answer: the run goes and looks,
+            # and refuses at the step if the mailbox does not hold it either.
+            # Held here rather than downstream so the refusal still arrives at
+            # the press, in front of the person who can fix it, for every
+            # deployment that cannot gather.
+            #
+            # A list is a different matter and keeps the old rule whatever is
+            # configured: "add these three" where the third names no code is a
+            # run that would perform it with somebody else's, and a gather
+            # cannot tell which of three rows a mailbox meant.
+            # A parameter somebody TYPED blank is refused whatever else is
+            # configured. `given` strips an empty value out, so by here " " and
+            # "never mentioned" look identical -- and they are not the same
+            # fact. A person who typed a space has said something, and reading
+            # their mailbox instead would overrule them; a person who said
+            # nothing has left the question open for somebody to answer.
+            blank = sorted(
+                name
+                for one in ([values, *items] if workflow.repeat is not None else [values])
+                for name, value in one.items()
+                if not value.strip() and any(d.get("name") == name for d in workflow.parameters)
+            )
+            if blank:
+                raise RunRefused(f"this job needs a value for: {', '.join(blank)}")
+            # Refused only where nothing could go and find them.
+            #
+            # A person pressing start with a field absent should be told, and
+            # that is what this has always done. A deployment that can read the
+            # operator's mailbox has a second answer: the run goes and looks,
+            # and refuses at the step if the mailbox does not hold it either.
+            # Held here rather than downstream so the refusal still arrives at
+            # the press, in front of the person who can fix it, for every
+            # deployment that cannot gather.
+            #
+            # A list keeps the old rule whatever is configured: "add these
+            # three" where the third names no code is a run that would perform
+            # it with somebody else's, and a gather cannot tell which of three
+            # rows a mailbox meant.
+            if absent and (self._gather is None or things):
                 raise RunRefused(f"this job needs a value for: {', '.join(absent)}")
             if not workflow.steps:
                 raise RunRefused("this job has no steps")
@@ -293,6 +417,18 @@ class StartWorkflowRun:
             # It is a stored row going bad rather than a bad row being stored:
             # the workflow outlives the gestures it cites, and no check at mine
             # time can see that coming.
+            # An undo already taken. Refused here rather than reported by the
+            # card, because the card is one browser's copy and a second window
+            # holds another -- and what two presses buy is a second delete
+            # addressed to a record the first one removed.
+            #
+            # Only against a run that HELD. One that failed left the record
+            # where it was, and refusing a second attempt because the first did
+            # not work is refusing the one attempt that might.
+            if undoes_run.strip():
+                already = await uow.workflow_runs.taken_back_by(ctx.tenant_id, undoes_run.strip())
+                if already is not None:
+                    raise RunRefused(f"{undoes_run.strip()} was already taken back by {already}")
             undoable = unperformable(workflow, by_id, from_step=from_step)
             if undoable is not None:
                 raise RunRefused(
@@ -307,9 +443,23 @@ class StartWorkflowRun:
                 started_by=ctx.principal_id.value,
                 live=live,
                 allow_focus=allow_focus,
+                # Whether somebody is standing in front of it. A press in an open
+                # panel means "show me"; a trigger at three in the morning means
+                # "just do it". See `WorkflowRun.watched`.
+                watched=watched,
                 started_at=now.isoformat(),
                 from_step=from_step,
                 items=things,
+                # Recorded at the start rather than at the stop, because the
+                # stop is not the only thing that can want it and a run that
+                # crashed still came from somewhere. Cleared below where the
+                # run ends with nothing outstanding: a finished job is not
+                # waiting to hear anything.
+                awaiting=as_said(waiting_on(*conversation, now=now)),
+                # The run this one takes back, where it is an undo of one. An
+                # id and never a status: whether it worked is this run's own
+                # outcome, read where every other outcome is read.
+                undoes_run=undoes_run.strip() or None,
             )
             # Raises `Conflict` -- the same one the read above gives, in the
             # same words -- where the unique partial index refuses a second
@@ -387,7 +537,8 @@ class StartWorkflowRun:
             asker = asker_or_refuse(self._asker)
             async with self._uow as uow:
                 workflow = await uow.workflows.get(ctx.tenant_id, run.workflow_id)
-                await run_workflow(
+                title = workflow.title
+                done = await run_workflow(
                     uow,
                     workflow,
                     # The same cap the press was judged against, so the run can
@@ -403,6 +554,7 @@ class StartWorkflowRun:
                     rescue_model=self._rescue_model,
                     live=run.live,
                     allow_focus=run.allow_focus,
+                    watched=run.watched,
                     started_by=run.started_by,
                     stops=self._stops,
                     approvals=self._approvals,
@@ -412,10 +564,210 @@ class StartWorkflowRun:
                     verified_writes=self._verified_writes,
                     secret_for=self._secret_for,
                     known_fields=None if self._retrieve is None else self._known_fields(ctx),
+                    gather_values=(
+                        None
+                        if self._gather is None
+                        else self._gathering(ctx, workflow.title, seen_values(workflow))
+                    ),
                 )
         except Exception as error:
             logger.exception("a run in an operator's browser could not be finished")
             await self._close(ctx, run.id, f"{type(error).__name__}: {error}")
+        else:
+            # Outside the unit of work, because asking opens its own: the run
+            # is over and its row is written, and a question that shared the
+            # run's transaction would be a question that vanishes with it.
+            await self._settle_the_wait(ctx, done)
+            await self._ask_for_values(ctx, done, title)
+
+    async def _settle_the_wait(self, ctx: RequestContext, run: WorkflowRun) -> None:
+        """A run that came out whole is not waiting to hear anything.
+
+        The address was written at the start, before anybody knew how the run
+        would end, so the end is where it is either kept or let go. Kept is the
+        interesting half and needs no writing: the row already says which
+        conversation this run answers to, and a reply arriving there is the
+        answer to a question that is still open.
+
+        Let go is this. A job that found everything and wrote its record has
+        nothing outstanding, and a mail arriving on that thread a week later --
+        "thanks", or a fresh request -- must not be read as an answer to it.
+        Cleared rather than left to expire, because seven days of a finished
+        run claiming every reply to its own thread is seven days of the next
+        request being swallowed by the last one.
+        """
+        if not run.awaiting:
+            return
+        async with self._uow as uow:
+            # The committed row and not the copy in hand, which is what
+            # `run_workflow` handed back and may be a step behind what it
+            # saved. Whether anything is still outstanding is a question about
+            # the row a reply would find, so it is asked of that row.
+            saved = await uow.workflow_runs.get(ctx.tenant_id, run.id)
+            if saved is None or saved.needs:
+                return
+            saved.awaiting = None
+            await uow.workflow_runs.save(saved)
+            # And committed. Without this the clear is rolled back when the
+            # unit of work exits, and the row goes on naming a conversation it
+            # is no longer waiting on -- for seven days, swallowing every reply
+            # to that thread as an answer to a job that finished.
+            #
+            # The unit tests passed: `FakeUnitOfWork` does not require a commit
+            # to have happened, so it agreed with the code rather than with the
+            # store. Measured on the deployment 2026-09-18 -- a run held, needs
+            # empty, `awaiting` still set.
+            await uow.commit()
+
+    async def _ask_for_values(self, ctx: RequestContext, run: WorkflowRun, title: str) -> None:
+        """Turn a run that came up short into a question somebody can answer.
+
+        The alternative, and what this replaces, is a row reading "nobody gave
+        a value for Customer Type, and your mail does not say either" -- true,
+        and the end of it. The operator had already said yes; what they get for
+        it is a dead card and a job to start again from the beginning.
+
+        One question, for one value, in their own conversation. What is
+        established so far rides on the decision, so the answer is readable off
+        the thread rather than out of a session nothing survives, and the last
+        answer starts the job on the yes they already gave.
+
+        `ids` is optional for the same reason the rest of this object's
+        collaborators are: a deployment that has not wired it runs exactly as
+        it did before, stopping with the sentence and asking nobody.
+        """
+        if not run.needs or self._ids is None:
+            return
+        # What the boxes behind these names will hold, where a run has found
+        # out. A question that asks for a value again without saying why the
+        # last one would not do gets the same value back -- the person has no
+        # way to know the field stops at 28 characters, because the browser
+        # never said so and neither did we.
+        async with self._uow as uow:
+            learnt = await uow.workflows.learned_for(run.workflow_id)
+            workflow = await uow.workflows.get(ctx.tenant_id, run.workflow_id)
+            # Which of this job's steps wrote, so the resumed one can be told
+            # where it may safely start over. Read here rather than inferred
+            # from the run's own record: what a STEP does is a fact about the
+            # job and its evidence, and a run that stopped early performed too
+            # few of them to say.
+            cited = (
+                await uow.gestures.gestures_for(
+                    ctx.tenant_id,
+                    ids=tuple(sorted({one for step in workflow.steps for one in step.cites})),
+                )
+                if workflow
+                else ()
+            )
+        by_id = {gesture.id: gesture for gesture in cited}
+        steps = workflow.steps if workflow else []
+        limits = limits_for(
+            steps,
+            learnt,
+            # And what the vendor's own dictionary says, for the fields no run
+            # has hit yet. A job whose first request is too long would
+            # otherwise learn that by sending it.
+            await declared_limits(
+                self._uow,
+                ctx.tenant_id,
+                names_of(workflow) if workflow else [],
+                await screen_for(self._uow, ctx.tenant_id, workflow) if workflow else "",
+            ),
+        )
+        pending = Pending(
+            workflow_id=run.workflow_id,
+            title=title,
+            values=dict(run.values),
+            missing=tuple(run.needs),
+            items=tuple(dict(one) for one in run.items),
+            watched=run.watched,
+            limits=limits,
+            # Where the run the answer starts has to begin.
+            #
+            # Not the step that stopped, which is where this started: that one
+            # re-types a field into whatever is on the screen a minute later,
+            # and the operator may well have navigated off the half-filled form
+            # by then. So it goes back to the beginning of the block that BUILT
+            # that screen -- pressing Add, opening the tab, the typing before
+            # it -- and rebuilds the form the value is going into.
+            #
+            # `begins_again_at` partitions at the last write for the reason
+            # everything here does: a write that may have landed is not a step
+            # to try again, and nothing it returns is on the far side of one.
+            from_step=(
+                begins_again_at(workflow, by_id, stopped_at=run.steps[-1].order)
+                if workflow and run.steps
+                else 0
+            ),
+        )
+        await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+            ctx,
+            # The person this run was for, not whoever is at the door: a
+            # question in the wrong conversation is worse than none.
+            for_operator=PrincipalId(run.started_by) if run.started_by else ctx.principal_id,
+            text=_asking(run.needs, title, limits) + question(pending),
+            # A question, not an announcement: `pending_job` reads back what the
+            # ASSISTANT last decided, so this is what makes the answer findable.
+            speaker=Speaker.ASSISTANT,
+            decision={
+                "kind": NEEDS,
+                "workflow_id": pending.workflow_id,
+                "title": pending.title,
+                "values": dict(pending.values),
+                "missing": list(pending.missing),
+                "items": [dict(one) for one in pending.items],
+                # Which way the job will be done when it runs. The person is
+                # in the panel answering questions, so they are watching -- but
+                # it is carried rather than assumed, because a run started by a
+                # trigger that asked and was answered hours later is not.
+                "watched": pending.watched,
+                "limits": dict(limits),
+                "from_step": pending.from_step,
+                "from_run": run.id,
+            },
+        )
+        # And whoever sent the request, where there is one and a way to reach
+        # them.
+        #
+        # The question above goes to the operator, which is right and usually
+        # enough. It is not enough for the case this whole path was built
+        # around: a mail asking for a customer type by description, no code in
+        # it, none in the thread, and an operator who did not write the request
+        # and has no way of knowing. The person who does is whoever sent it.
+        #
+        # Drafted, never sent. What leaves here is words in the operator's own
+        # conversation with a press under them, and the press is the only thing
+        # that reaches a mailbox.
+        #
+        # Nothing here can stop the question that has already been asked: a
+        # deployment with no connector, a thread that cannot be read, a run
+        # nobody can trace to a request -- all of them mean no draft and none
+        # of them means no question.
+        if self._asker_drafts is not None:
+            try:
+                await self._asker_drafts(ctx, run.id, pending)
+            except Exception:
+                logger.exception("%s could not be drafted a mail about", run.id)
+
+    def _gathering(
+        self, ctx: RequestContext, job: str, seen: Mapping[str, frozenset[str]]
+    ) -> GatherValues:
+        """Bound to this request's own tenant and operator.
+
+        A closure for `_known_fields`' reason -- `run_workflow` has no
+        `RequestContext` -- and for one more that matters here: a mailbox is
+        reached as ONE person, and the person is the one this run is for.
+        """
+
+        async def look(wanted: Sequence[str]) -> Gathered:
+            return await self._gather.execute(  # type: ignore[union-attr]
+                ctx,
+                job=job,
+                wanted=wanted,
+                seen={name: tuple(sorted(values)) for name, values in seen.items()},
+            )
+
+        return look
 
     def _known_fields(self, ctx: RequestContext) -> KnownFields:
         """What the dictionary says about these body keys, by key.
@@ -431,9 +783,26 @@ class StartWorkflowRun:
         rather than a search, and nothing here asks a vector store a question
         it cannot answer without embeddings. Measured on QA 2026-09-16: 404
         field claims, 0 embeddings, and the lookup answers.
+
+        **And the FORM, which disagrees with the dictionary and is right.** The
+        dictionary is what the vendor DOCUMENTS; a form model was captured from
+        the real form an operator uses, which is why its claims are `OBSERVED`
+        and the dictionary's are `ASSERTED`. Measured on QA 2026-09-16: the
+        dictionary says `customerType` holds 60 characters, the Customer Types
+        create form says 4, and the ledger's own gotcha -- somebody's
+        measurement -- says `csttyp truncates at 4 chars`. Two of the three
+        agree, and the card was reading the third: a request for `NEWSROTEST`
+        would have been sent, truncated to `NEWS`, answered 201, and read back
+        as the record the system actually made, with nothing to say so.
+
+        So the form's numbers win where it has one, and what it says is
+        REQUIRED comes back too -- a field the form marks required and the
+        write does not carry is the other fact worth a line.
         """
 
-        async def look(keys: tuple[str, ...]) -> Mapping[str, Mapping[str, object]]:
+        async def look(
+            keys: tuple[str, ...], screen: str = ""
+        ) -> Mapping[str, Mapping[str, object]]:
             if not keys:
                 return {}
             found = await self._retrieve.execute(  # type: ignore[union-attr]
@@ -444,13 +813,70 @@ class StartWorkflowRun:
             # keys asked about. `search` is an OR over the terms, so a lookup
             # for two fields answers with claims for either -- and a claim for
             # a field this write does not fill must not be read as one it does.
-            return {
-                entry.key: entry.body
+            known: dict[str, dict[str, object]] = {
+                entry.key: dict(entry.body)
                 for entry in found
                 if entry.key in keys and isinstance(entry.body, Mapping)
             }
+            for slot, seen in (await self._forms(ctx, screen)).items():
+                known.setdefault(slot, {}).update(seen)
+            return known
 
         return look
+
+    async def _forms(self, ctx: RequestContext, screen: str) -> Mapping[str, Mapping[str, object]]:
+        """What the real create form for THIS screen says about its fields.
+
+        By the screen and never by the body key. A key does not name a form:
+        measured on QA 2026-09-16, `customerType` is posted by two of them --
+        Customer Types and Existing Customers -- so a lookup by key would lend
+        one screen's required fields to another screen's write and say that a
+        customer number nobody asked for was missing.
+
+        A form claim's key IS its route, `#wm.config/wm.config.partners.customers.types////`,
+        and the step's own screen is the url the demonstrations agree on. One
+        contains the other, which is the whole join.
+
+        Every form, once, rather than a search: `search` matches terms against
+        a claim's title and key, and neither carries the body keys -- a lookup
+        for `customerType` finds nothing at all. Measured: 88 forms, 756
+        fields, 0.09s for the lot, which is cheaper than being wrong.
+
+        Silent where the screen matches no form. A write whose screen nothing
+        documents is one the dictionary still describes field by field, and a
+        guess between two forms is how this would start inventing missing
+        fields.
+        """
+        if not screen.strip():
+            return {}
+        found = await self._retrieve.execute(  # type: ignore[union-attr]
+            ctx, Question(text="", kinds=(EntryKind.FORM,), limit=K_EVERY_FORM)
+        )
+        seen: dict[str, dict[str, object]] = {}
+        for entry in found:
+            route = (entry.key or "").rstrip("/")
+            if not route or route not in screen:
+                continue
+            fields = (entry.body or {}).get("fields")
+            if not isinstance(fields, list):
+                continue
+            for one in fields:
+                if not isinstance(one, Mapping):
+                    continue
+                slot = one.get("field")
+                if not isinstance(slot, str):
+                    continue
+                said: dict[str, object] = {"observed": True}
+                if isinstance(one.get("label"), str):
+                    said["labels"] = [one["label"]]
+                if isinstance(one.get("maxLength"), int) and not isinstance(
+                    one.get("maxLength"), bool
+                ):
+                    said["max_length"] = one["maxLength"]
+                if one.get("required") is True:
+                    said["required"] = True
+                seen.setdefault(slot, {}).update(said)
+        return seen
 
     async def _close(self, ctx: RequestContext, run_id: str, reason: str) -> None:
         """Mark a row nobody is driving any more, on a session of its own.
@@ -584,19 +1010,32 @@ class GetWorkflowRun:
                 raise NotFound("no such run")
             return run
 
-    async def undo_for(self, ctx: RequestContext, run: WorkflowRun) -> str | None:
+    async def undo_for(self, ctx: RequestContext, run: WorkflowRun) -> tuple[str, str, str] | None:
         """Which of this tenant's jobs takes back what this run made, if any.
 
         Asked only of a run that is over and made something: a run still going
         may make more, and a run that made nothing has nothing to take back --
         and this is a read of every job's evidence, on a door the panel polls.
 
-        Answers an id and never starts anything. What a press would have to do
-        -- address each created record by whatever the warehouse called it --
-        is a mapping this has no evidence for, and a wrong mapping deletes the
-        wrong record.
+        Answers WHAT and never starts anything: the job that takes it back, and
+        the one record it would address. The second half is what this said it
+        lacked -- *a mapping this has no evidence for, and a wrong mapping
+        deletes the wrong record* -- and the evidence arrived with `made_by`: a
+        step that created something records what the warehouse called it.
+
+        `addresses` refuses anything but one record named one way, for the
+        reason that sentence gives. A run that made two would need two deletes,
+        and an undo that takes back half of what a run did is worse than none.
         """
-        if run.outcome == "running" or not any(step.made for step in run.steps):
+        # A run still going may make more; a run that wrote nothing has
+        # nothing to take back.
+        #
+        # `wrote` beside `made`: a write performed on the page carries the
+        # marker and no record, because the browser sees a call's status and
+        # never what came back. Read on `made` alone this returned None for
+        # every run that did the job through the form -- which is every run a
+        # person watched.
+        if run.outcome == "running" or not any(step.made or wrote(step) for step in run.steps):
             return None
         async with self._uow as uow:
             known = list(await uow.workflows.known(ctx.tenant_id))
@@ -606,7 +1045,60 @@ class GetWorkflowRun:
             gestures = {
                 gesture.id: gesture for gesture in await uow.gestures.gestures_for(ctx.tenant_id)
             }
-            return undoes(made, gestures, known)
+            takes_back = undoes(made, gestures, known)
+            if takes_back is None:
+                return None
+            # And which record. Without it the panel can name a job and not
+            # press it, which is where this has stood since it was written.
+            #
+            # `identifies` reads the undo's own delete for the field it
+            # addresses a record by -- the key in its body whose value is the
+            # segment in its path. Measured on the deployment 2026-09-19: the
+            # pair was found and not one of ninety-two runs could offer the
+            # button, because each run's `made` carries the two slots the
+            # read-back confirmed and a record named two ways is a record this
+            # cannot name. `None` where the delete does not say, which is the
+            # old rule exactly.
+            undo_job = next(one for one in known if one.id == takes_back)
+            which = addresses(
+                [step.made for step in run.steps if step.made], identifies(undo_job, gestures)
+            )
+            asks = asks_for(undo_job)
+            if which is None and asks:
+                # A write performed on the PAGE has no record to read.
+                #
+                # `made` is filled from a response body, and the browser sees a
+                # call's status and never what came back -- deliberately, a
+                # create's answer is a row of somebody's data. So a run that
+                # typed into the form and pressed Save knows exactly what it
+                # wrote and carries no `made` at all. Measured on the
+                # deployment 2026-09-19, run `run_b31b610d`: `POST
+                # /data/WM/wm/customerTypes returned 201`, held by the status
+                # belt, `made = {}` -- and no undo could be offered for a
+                # record whose code is on the card in front of the operator.
+                #
+                # What the run was ASKED for, then, under the name the undo
+                # asks by. Not a guess about the warehouse: it is the value a
+                # person supplied, the write held, and the card already says
+                # it. Where the form transformed what was typed -- the ledger's
+                # own `csttyp truncates at 4 chars` -- the delete addresses a
+                # record that is not there and answers 404, which is the safe
+                # way round.
+                typed = str(run.values.get(asks, "")).strip()
+                if typed:
+                    which = (asks, typed)
+            if which is None:
+                return None
+            _, names = which
+            # Under the name the UNDO asks for, not the one the warehouse
+            # answers with. `Delete a Customer Type` declares one parameter and
+            # it is called `Customer Type`; the record it removes is keyed
+            # `customerType` in the body. A press that sent the body key would
+            # name a parameter the job does not have, and the run would refuse
+            # it as a value nobody supplied.
+            if asks is None:
+                return None
+            return takes_back, asks, names
 
 
 class AbortWorkflowRun:

@@ -7,7 +7,11 @@ could quietly put a model's reading of somebody's mail into a warehouse write.
 
 from __future__ import annotations
 
+import json
+
 from sro.domain.execution.gathering import (
+    K_BODY,
+    K_HIT,
     K_NOTE,
     Found,
     Gathered,
@@ -86,3 +90,52 @@ def test_a_note_is_one_line_however_the_mailbox_wrapped_it() -> None:
     said = note("read msg-1", "a\n\n   b\tc")
 
     assert said == "read msg-1 -> a b c"
+
+
+def test_every_hit_in_a_search_reaches_the_round_that_could_read_it() -> None:
+    """The defect measured on the deployment 2026-09-16.
+
+    `search_threads` answered with five threads and a flat 240-character cut
+    kept the first one, mid-snippet. The four ids behind it were never shown to
+    the round whose only way forward was to read one of them -- so it said
+    `done` with nothing, and "the mailbox does not hold this" was a statement
+    about the prompt again.
+
+    A body is one thing and is trimmed as one. A list is trimmed row by row.
+    """
+    said = note(
+        "search 'customer type'",
+        json.dumps(
+            {
+                "messages": [
+                    {"id": f"m-{n}", "subject": "Fwd: Create a customer TYPE", "snippet": "x" * 400}
+                    for n in range(5)
+                ]
+            }
+        ),
+    )
+
+    assert [f"m-{n}" in said for n in range(5)] == [True] * 5
+    # And no hit arrived whole: five untrimmed rows would be four screens of
+    # mail, which is the accumulation the note exists to prevent.
+    assert all(len(row) < K_HIT * 2 for row in said.split(" | "))
+
+
+def test_a_search_that_found_nothing_says_so_in_words() -> None:
+    """`{"messages": []}` is a shape, not a sentence. The round that reads it
+    has to be able to tell an empty mailbox from a mailbox it never reached."""
+    assert note("search 'customer type'", '{"messages": []}').endswith("no messages")
+
+
+def test_a_message_that_was_read_keeps_enough_of_itself_to_quote_from() -> None:
+    """The one call whose whole point is the text a value is quoted out of.
+
+    A request that opens with a greeting and a line of context has spent 240
+    characters before it says the code, so `K_NOTE` would cut the answer off
+    exactly where the value is.
+    """
+    body = "Hi team, " + ("context " * 40) + "the code is ZQ50."
+    said = note("read m-1", json.dumps({"id": "m-1", "body": body}))
+
+    assert "the code is ZQ50." in said
+    assert len(said) < K_BODY * 2

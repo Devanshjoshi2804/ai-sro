@@ -18,6 +18,7 @@ from sqlalchemy import event, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from sro.application.context import RequestContext
 from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
 from sro.domain.shared.errors import Conflict
@@ -25,6 +26,14 @@ from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId, Tenant
 from sro.domain.skill import PromotionStage
 from sro.infrastructure.db.models import WorkflowRunStepRow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
+
+
+class _Clock:
+    """Enough of a clock for the one method under test."""
+
+    def now(self) -> datetime:
+        return datetime(2026, 9, 18, tzinfo=UTC)
+
 
 TENANT = TenantId("acme")
 OTHER_TENANT = TenantId("other-corp")
@@ -259,6 +268,216 @@ class TestWorkflowRuns:
 
         async with SqlUnitOfWork(session_factory) as uow:
             assert await uow.workflow_runs.in_flight(TENANT, DeviceId("dev_1")) is None
+
+    async def test_which_run_took_this_one_back_survives_the_round_trip(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Both directions of the mapping, and both answers of the lookup: an
+        undo that held is what refuses a second press, and one that failed left
+        the record exactly where it was."""
+        made = _run()
+        undo = _run(device_id="dev_2", undoes_run=made.id, outcome="held")
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(made)
+            await uow.workflow_runs.save(undo)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            read = await uow.workflow_runs.get(TENANT, undo.id)
+            assert read is not None and read.undoes_run == made.id
+            assert (await uow.workflow_runs.get(TENANT, made.id)) is not None
+            assert (await uow.workflow_runs.get(TENANT, made.id)).undoes_run is None
+            assert await uow.workflow_runs.taken_back_by(TENANT, made.id) == undo.id
+            # Scoped, like every other read here.
+            assert await uow.workflow_runs.taken_back_by(OTHER_TENANT, made.id) is None
+            # And nothing has taken back the undo itself.
+            assert await uow.workflow_runs.taken_back_by(TENANT, undo.id) is None
+
+        undo.outcome = "failed"
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(undo)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            # An undo that did not work is not a record that is gone, and the
+            # second press is the one that might still remove it.
+            assert await uow.workflow_runs.taken_back_by(TENANT, made.id) is None
+
+    async def test_a_run_is_found_again_by_the_conversation_it_answers_to(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The question is asked inside a JSON document, which is the reason
+        this is here and not only against the fake: `awaiting ->> 'thread'` is
+        a string nothing type-checks, and a typo in it answers "no run is
+        waiting" for every reply anybody ever sends.
+        """
+        waiting = _run(
+            device_id="dev_a",
+            outcome="stopped",
+            needs=["Customer Type"],
+            awaiting={"server": "gmail", "thread": "t-9", "until": "2099-01-01T00:00:00+00:00"},
+        )
+        # Started LATER, so the newest-first ordering would hand this one back
+        # if the tenant clause were missing: a thread id is somebody else's
+        # mail, and a reply to it resuming this tenant's run is the boundary
+        # undone by an ORDER BY.
+        elsewhere = _run(
+            device_id="dev_b",
+            tenant=OTHER_TENANT.value,
+            outcome="stopped",
+            started_at="2026-09-06T10:00:00+00:00",
+            awaiting={"server": "gmail", "thread": "t-9", "until": "2099-01-01T00:00:00+00:00"},
+        )
+        # A run whose stored thread is blank. Nothing writes one -- `waiting_on`
+        # refuses to build a wait with no conversation in it -- but a hand
+        # edit or an older row can, and a blank matching a blank is one run
+        # answering a reply to something else entirely.
+        blank = _run(
+            device_id="dev_e",
+            outcome="stopped",
+            awaiting={"server": "gmail", "thread": "", "until": "2099-01-01T00:00:00+00:00"},
+        )
+        plain = _run(device_id="dev_c", outcome="held")
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            for one in (waiting, elsewhere, blank, plain):
+                await uow.workflow_runs.save(one)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            found = await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-9")
+            # The document is read back whole, not only matched on.
+            assert found is not None and found.id == waiting.id
+            assert found.awaiting == waiting.awaiting
+            assert found.needs == ["Customer Type"]
+            # Another tenant's conversation is not this tenant's.
+            assert found.tenant == TENANT.value
+
+            # A thread nobody named, a connector nobody named, and a run that
+            # named neither: three ways of asking about nothing.
+            assert await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-8") is None
+            assert await uow.workflow_runs.waiting_on(TENANT, server="slack", thread="t-9") is None
+            assert await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="") is None
+            assert await uow.workflow_runs.waiting_on(TENANT, server="", thread="t-9") is None
+
+    async def test_clearing_a_wait_without_committing_does_not_clear_it(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The shape of a real defect, kept as a test rather than a memory.
+
+        `_settle_the_wait` saved the cleared row and never committed, so the
+        clear was rolled back on the way out and the run went on naming a
+        conversation it had finished with -- for seven days, swallowing every
+        reply to that thread. Every unit test passed: `FakeUnitOfWork` does not
+        require a commit, so it agreed with the code rather than with the
+        store. Measured on the deployment 2026-09-18.
+        """
+        run = _run(
+            device_id="dev_f",
+            outcome="held",
+            awaiting={"server": "gmail", "thread": "t-6", "until": "2099-01-01T00:00:00+00:00"},
+        )
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+
+        # Saved and NOT committed, which is what the defect did.
+        async with SqlUnitOfWork(session_factory) as uow:
+            found = await uow.workflow_runs.get(TENANT, run.id)
+            assert found is not None
+            found.awaiting = None
+            await uow.workflow_runs.save(found)
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            still = await uow.workflow_runs.get(TENANT, run.id)
+            assert still is not None
+            assert still.awaiting is not None, (
+                "an uncommitted clear appeared to stick, so this test cannot "
+                "catch the defect it was written for"
+            )
+
+        # And committed, which is what it does now.
+        async with SqlUnitOfWork(session_factory) as uow:
+            found = await uow.workflow_runs.get(TENANT, run.id)
+            assert found is not None
+            found.awaiting = None
+            await uow.workflow_runs.save(found)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            gone = await uow.workflow_runs.get(TENANT, run.id)
+            assert gone is not None and gone.awaiting is None
+            assert await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-6") is None
+
+    async def test_the_settling_itself_survives_the_unit_of_work_closing(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The call site, not just the mechanism.
+
+        The test above proves an uncommitted write rolls back. It does not stop
+        anybody removing the commit from `_settle_the_wait` again, because the
+        unit tests cannot see the difference -- `FakeUnitOfWork` does not
+        require one. So this drives the real method against real Postgres and
+        reads the row back in a session of its own.
+        """
+        from sro.application.execution.approvals import Approvals
+        from sro.application.execution.stops import Stops
+        from sro.application.execution.workflow_runs import StartWorkflowRun
+
+        run = _run(
+            device_id="dev_g",
+            outcome="held",
+            awaiting={"server": "gmail", "thread": "t-5", "until": "2099-01-01T00:00:00+00:00"},
+        )
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+
+        starter = StartWorkflowRun(
+            SqlUnitOfWork(session_factory),
+            channel=None,
+            asker=None,
+            plan_model="m",
+            rescue_model="m",
+            clock=_Clock(),
+            cap_usd=1.0,
+            stops=Stops(),
+            approvals=Approvals(),
+        )
+        await starter._settle_the_wait(
+            RequestContext(tenant_id=TENANT, principal_id=PrincipalId("operator")), run
+        )
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            settled = await uow.workflow_runs.get(TENANT, run.id)
+            assert settled is not None
+            assert settled.awaiting is None, "the clear did not survive the unit of work closing"
+
+    async def test_a_run_that_stopped_waiting_is_found_by_nobody(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Cleared rather than left to expire: seven days of a finished run
+        claiming every reply to its own thread is seven days of the next
+        request on it being swallowed by the last one."""
+        run = _run(
+            device_id="dev_d",
+            outcome="held",
+            awaiting={"server": "gmail", "thread": "t-7", "until": "2099-01-01T00:00:00+00:00"},
+        )
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+
+        run.awaiting = None
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-7") is None
+            saved = await uow.workflow_runs.get(TENANT, run.id)
+            assert saved is not None and saved.awaiting is None
 
     async def test_the_tally_is_one_group_by_and_never_loads_a_run(
         self,

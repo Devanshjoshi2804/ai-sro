@@ -99,6 +99,10 @@ class _Container(_FakeContainer):
                 plan: Plan,
                 device_id: DeviceId | None = None,
                 allow_focus: bool = False,
+                # The deadline the conversation door passes. Named here only so
+                # this stands in for the real one: a fake whose signature has
+                # drifted from what it replaces is a test of nothing.
+                within: float = 0.0,
             ) -> Answers:
                 outer.looked.append(plan)
                 outer.allow_focus = allow_focus

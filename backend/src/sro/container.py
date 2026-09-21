@@ -18,9 +18,13 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, a
 from sro.application.analytics.audit import ReadAudit
 from sro.application.analytics.summary import ReadSummary
 from sro.application.capture.devices import ReadRoster, RestoreDevice, RevokeDevice
+from sro.application.chat.about_an_offer import AskAboutTheOffer, SayTheRunStarted
+from sro.application.chat.ask_the_asker import DraftForTheAsker, SendTheDraft
 from sro.application.chat.converse import Converse, StartThread
+from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.chat.read_chat import ReadChat
 from sro.application.chat.read_threads import ReadThreads
+from sro.application.chat.reading_an_answer import IsItAnAnswer
 from sro.application.connection.browsers import Browsers
 from sro.application.connection.check_session import CheckSession
 from sro.application.connection.connect_system import (
@@ -49,6 +53,7 @@ from sro.application.execution.execute_skill import (
     FinishRun,
     StartRun,
 )
+from sro.application.execution.gather import GatherContext
 from sro.application.execution.pursue_goal import PursueGoal
 from sro.application.execution.pursuits import Pursuits
 from sro.application.execution.read_runs import GetRun, ListRuns, StopRun
@@ -57,6 +62,7 @@ from sro.application.execution.run_from_preview import RunFromPreview
 from sro.application.execution.self_heal import SelfHeal
 from sro.application.execution.stops import Stops
 from sro.application.execution.vision_step import PerformWithVision
+from sro.application.execution.what_a_job_taught import ReadWhatAJobTaught
 from sro.application.execution.workflow_runs import (
     AbortWorkflowRun,
     ApproveWorkflowStep,
@@ -93,6 +99,7 @@ from sro.application.observation.propose import AnswerJoin, ProposeAboutCandidat
 from sro.application.observation.read_gesture import ReadGestures
 from sro.application.observation.read_pool import ReadPool
 from sro.application.observation.read_shots import ReadShots
+from sro.application.observation.record_attempt import RecordAttempt
 from sro.application.observation.register import (
     GrantHost,
     ReadDevice,
@@ -158,6 +165,7 @@ from sro.application.trigger.fire_trigger import FireTrigger
 from sro.application.trigger.read_triggers import DeleteTrigger, ReadTriggers, SetTriggerEnabled
 from sro.application.trigger.receive_inbound import ReceiveInbound
 from sro.config import Settings, get_settings
+from sro.domain.chat.asking import Pending
 from sro.domain.shared.prices import DaySpend
 from sro.infrastructure.agent.channel import SocketChannel
 from sro.infrastructure.agent.drivers import RemoteAgents
@@ -645,7 +653,15 @@ class Container:
         return DismissCandidate(self.unit_of_work(), self.clock, self.ids)
 
     def create_trigger(self) -> CreateTrigger:
-        return CreateTrigger(self.unit_of_work(), self.clock, self.ids, self.scheduler)
+        return CreateTrigger(
+            self.unit_of_work(),
+            self.clock,
+            self.ids,
+            self.scheduler,
+            # The same pair `start_workflow_run` builds its gather out of, so
+            # this door and the run door agree about what a job needs typed.
+            can_gather=self.can_gather,
+        )
 
     def read_triggers(self) -> ReadTriggers:
         return ReadTriggers(self.unit_of_work())
@@ -655,6 +671,11 @@ class Container:
 
     def delete_trigger(self) -> DeleteTrigger:
         return DeleteTrigger(self.unit_of_work(), self.scheduler)
+
+    def record_attempt(self) -> RecordAttempt:
+        """What somebody asked for, and what came of it. See
+        `sro.domain.observation.attempts` for what belongs there."""
+        return RecordAttempt(self.unit_of_work(), self.ids, self.clock)
 
     def fire_trigger(self) -> FireTrigger:
         """`start_run` and `pursuits` are the job half, beside the skill half's
@@ -999,7 +1020,85 @@ class Container:
             # typing at a browser whose rig holds the job they mean was being
             # answered out of a skills library that does not.
             self.read_chat(),
+            # The same two things `start_workflow_run` builds its gather out
+            # of. Asked here so the card a person reads says what the run will
+            # actually do: a deployment with no connector still demands the
+            # values, because on that one nothing can go and find them.
+            can_gather=self.can_gather,
+            # The door that owns a question. `/v1/ask` has always decided
+            # which of the two worlds a sentence belongs to; this door never
+            # asked, and answered questions with proposals to open screens.
+            plan_lookups=self.plan_lookups(),
+            run_lookups=self.run_lookups(),
+            # Whether what somebody typed while a question stands is the answer
+            # to it. The fast model, for `read_chat`'s reason: an operator is
+            # standing at the panel waiting to find out what happens to the
+            # sentence they just pressed Enter on.
+            answers=IsItAnAnswer(self.asker, model=self.settings.gemini_plan_model),
         )
+
+    def read_what_a_job_taught(self) -> ReadWhatAJobTaught:
+        """What a job has changed its mind about, for somebody to read."""
+        return ReadWhatAJobTaught(self.unit_of_work())
+
+    def ask_about_the_offer(self) -> AskAboutTheOffer:
+        """The card's way into the conversation the chat door already runs."""
+        return AskAboutTheOffer(self.unit_of_work(), self.clock, self.ids, self._drafting_for)
+
+    def draft_for_the_asker(self) -> DraftForTheAsker:
+        """Write the mail to whoever asked. It cannot send one."""
+        return DraftForTheAsker(self.unit_of_work(), self.tools, self.clock, self.ids)
+
+    def send_the_draft(self) -> SendTheDraft:
+        """Send the mail a person read and pressed. It cannot write one."""
+        return SendTheDraft(self.unit_of_work(), self.tools, self.clock, self.ids)
+
+    def say_the_run_started(self) -> SayTheRunStarted:
+        """The other half of the spine: what came of the answer."""
+        return SayTheRunStarted(self.unit_of_work(), self.clock, self.ids)
+
+    def from_the_mail(self) -> FromTheMail:
+        """The rung that reads an arriving mail for what it asks.
+
+        `Asker | None` rather than through `asker_or_refuse` here, for the
+        reason every other factory gives: a container that raised would be
+        unbuildable on a deployment with no key, instead of refusing at the one
+        call that needs a model. The guard is in `FromTheMail.execute`.
+        """
+        return FromTheMail(
+            self.unit_of_work(),
+            self.tools,
+            self.asker,
+            model=self.settings.gemini_plan_model,
+            # The same one a run uses. An offer that names the values it is
+            # about is an offer somebody can answer; the run gathers anyway, so
+            # this is the same work moved to where the decision is made.
+            # For the one thing this door says in the operator's own thread:
+            # that a reply has answered the question standing there.
+            clock=self.clock,
+            ids=self.ids,
+            gather=GatherContext(
+                tools=self.tools, asker=self.asker, model=self.settings.gemini_plan_model
+            )
+            if self.asker is not None
+            else None,
+        )
+
+    @property
+    def can_gather(self) -> bool:
+        """Whether a run of a mined job can go and find a value nobody typed.
+
+        One place, because four now ask: the chat door (so the card says "I
+        will look in your mail" rather than demanding), the trigger door (so a
+        watch on a job may be made at all), the mail look itself, and
+        `/v1/shapes` (so the OFFER a browser draws from a prefix match says the
+        same thing as the one it draws from a sentence).
+
+        The same pair `start_workflow_run` builds its gather out of: a mailbox
+        to read and a model to read it with. A deployment missing either still
+        asks for the values, because on that one nothing can go and find them.
+        """
+        return self.tools.available and self.asker is not None
 
     def read_threads(self) -> ReadThreads:
         return ReadThreads(self.unit_of_work())
@@ -1073,7 +1172,32 @@ class Container:
             # so the person who taps Approve is shown it. Built here and not
             # in the runner, which never learns what a vector store is.
             retrieve=self.retrieve_knowledge(),
+            # Where a value comes from when nobody typed one: the operator's
+            # own mailbox, reached as them.
+            gather=GatherContext(
+                tools=self.tools, asker=self.asker, model=self.settings.gemini_plan_model
+            )
+            if self.asker is not None
+            else None,
+            # What names the message a run writes when it comes up short and
+            # asks the operator for what it could not find.
+            ids=self.ids,
+            # And the mail to whoever sent the request, for the case the panel
+            # cannot answer: the operator did not write it and does not know.
+            # A closure for `gather`'s reason -- the drafter needs this
+            # request's own tenant and operator, and the runner has no
+            # `RequestContext` to give it.
+            asker_drafts=self._drafting,
         )
+
+    async def _drafting(self, ctx: RequestContext, run_id: str, pending: Pending) -> bool:
+        """Bound to one request, so the mailbox is read as the right person."""
+        return await self.draft_for_the_asker().execute(ctx, pending, run_id=run_id)
+
+    async def _drafting_for(self, ctx: RequestContext, pending: Pending, thread: str) -> bool:
+        """The same, for an offer -- which names its mail before any run has
+        been started to hang one on."""
+        return await self.draft_for_the_asker().execute(ctx, pending, thread=thread)
 
     def list_workflow_runs(self) -> ListWorkflowRuns:
         """The runs of mined jobs, newest first. Not `list_runs` above, which

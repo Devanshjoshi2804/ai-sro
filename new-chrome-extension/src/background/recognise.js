@@ -19,6 +19,8 @@
 // holds. Twelve held the end of every job and forgot every value typed at
 // its start -- measured 0 of 11 lifted by the end of the doing. Matching
 // cost is a handful of string compares per shape per gesture either way.
+import { samePage } from "./same-page.js";
+
 export const K_TAIL = 40;
 export const K_OFFER_AFTER = 2;
 
@@ -197,11 +199,60 @@ export function resting(shape, now = Date.now()) {
  * filter tested `shape.shape[0][0]` instead, which is the same index only when
  * k is 1, and k is never 1: it stops at `offer_after`, whose floor is 2.
  */
-export function match(tail, shapes) {
+/** Whether this job's own screen is one the operator has left.
+ *
+ * **Every screen of this application shares its controls.** ExtJS names them
+ * by component: `tabItem` is every tab, `addButton` every Add, `ok` every
+ * confirm -- so the opening of "add a supplier" is, to a shape, the opening of
+ * "add a client", "add an area" or "add a customer type". Nothing in a triple
+ * tells them apart.
+ *
+ * Measured on the deployment 2026-09-20. The operator created three clients on
+ * `#wm.config/wm.config.partners.clients` -- Partners tab, Add, fill, Save --
+ * and was offered `Initiate Add Supplier`, whose shape opens `tabItem`, `ok`,
+ * `addButton` and whose every gesture was recorded on the suppliers screen.
+ * The offer was right about the gestures and wrong about the job.
+ *
+ * So a job is not offered while the operator is somewhere else in the same
+ * application. `starts_on` is the url of the first gesture the job's first
+ * step cites -- the screen it begins on -- and `samePage` compares the two the
+ * way this application addresses a screen: origin and path and fragment,
+ * without the query, because the WMS routes on the fragment and puts a site
+ * code in the query.
+ *
+ * Only within one application. A job that reads a request in a mailbox and
+ * does it in the warehouse begins on a different origin from the one it is
+ * recognised on, and that is this system's whole purpose rather than a
+ * mismatch -- so a `starts_on` elsewhere says nothing here and is left alone.
+ *
+ * ponytail: the screen, not the control. Two jobs that genuinely begin on one
+ * screen -- add a client and delete a client -- are still told apart only by
+ * their triples, and on this platform those may not tell them apart at all.
+ * The upgrade is to require an offer to rest on at least one control that is
+ * not common currency across the tenant's jobs, which needs the whole shape
+ * list to judge one shape and is a bigger change than the failure warrants.
+ */
+function elsewhereInTheSameApp(shape, page) {
+  // No guards for a missing page or a shape with no screen: `new URL` throws
+  // on either, which the origin comparison below reads as nothing to compare.
+  const origin = (url) => {
+    try {
+      return new URL(url).origin;
+    } catch {
+      return null;
+    }
+  };
+  const here = origin(page);
+  if (!here || here !== origin(shape.starts_on)) return false;
+  return !samePage(shape.starts_on, page);
+}
+
+export function match(tail, shapes, page = null) {
   let best = null;
   let shared = false;
   for (const shape of shapes) {
     if (!shape.shape?.length || resting(shape)) continue;
+    if (elsewhereInTheSameApp(shape, page)) continue;
     // The rig may say a job is offered later than the default: its earlier
     // offers kept diverging at the default.
     const after = shape.offer_after ?? K_OFFER_AFTER;

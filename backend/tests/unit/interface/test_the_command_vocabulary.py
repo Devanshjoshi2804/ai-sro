@@ -128,19 +128,24 @@ def test_the_extension_answers_with_every_field_this_backend_reads() -> None:
 def test_the_panel_reads_a_run_by_fields_the_backend_really_answers_with() -> None:
     """One level up the same wire: the run's JSON rather than the command's.
 
-    `api.rigRun` maps the backend's row onto the panel's own words -- `outcome`
+    `asPanelRun` maps the backend's row onto the panel's own words -- `outcome`
     to `status`, `{order, verdict}` to `{index, outcome}` -- and that mapping
     layer is kept deliberately (see the spec's phase 5 amendment). What is not
     deliberate is it reading a field this backend does not answer with: the
     card then draws a blank where the step's verdict goes, on a run somebody is
     watching, and no test anywhere goes red.
 
+    It used to live inside `rigRun:` and this sliced from there. It is its own
+    function now, so a run read from the LIST is the same shape as one read on
+    its own -- and this test is what said so: it went red with "the mapping
+    moved", which is the sentence it was given for exactly this.
+
     Against the Pydantic models rather than `frontend/openapi.json`, which is
     generated and can be stale: the models are what the route really returns.
     """
     body = _extension("api.js", where="src/background")
-    start = body.index("rigRun:")
-    reading = body[start : body.index("\n  },", start)]
+    start = body.index("export function asPanelRun(")
+    reading = body[start : body.index("\n}", start)]
 
     for prefix, model in (("run", WorkflowRunModel), ("step", WorkflowRunStepModel)):
         read = set(re.findall(rf"\b{prefix}\.([a-z_]+)", reading))

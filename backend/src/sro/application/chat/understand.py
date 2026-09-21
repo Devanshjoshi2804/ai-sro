@@ -17,11 +17,14 @@ already paid for the call it stops.
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
+from types import MappingProxyType
 
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
+from sro.domain.chat.asked_by import mails_behind, texts
 from sro.domain.chat.reading import INSTRUCTIONS, UNDERSTAND_SCHEMA, ChatReading, new_chat_id
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
@@ -62,11 +65,43 @@ class Understood:
     performs exactly as a job run for none, so a caller that ignores this is
     not wrong, only limited to the first thing somebody asked for."""
 
+    aside: dict[str, str] = field(default_factory=dict)
+    """What those fields were given, kept beside their names.
+
+    A form posts far more fields than a job varies, so where the dictionary
+    names the slot the write can fill it after all -- and it cannot fill a
+    value this threw away. Set aside rather than in `values`, because `values`
+    is what the job itself declares and this is not that."""
+
+    unasked: list[str] = field(default_factory=list)
+    """What the request asked for that this job has no parameter for.
+
+    Dropped from `values`, which is right -- a key the workflow never declared
+    is a value nothing asked for. Named here because the silence was the fault:
+    a job's parameters are what two doings proved VARY and the form has far
+    more fields than that, so `code GV3, description X, Department Inbound` is
+    a reasonable request answered by a record with no Department in it and
+    nothing anywhere saying so.
+
+    The run already says this after the press. Nobody can consent to a write
+    they cannot see, and after the press is after the record."""
+
 
 async def understand(
-    utterance: str, workflows: list[Workflow], asker: Asker, model: str
+    utterance: str,
+    workflows: list[Workflow],
+    asker: Asker,
+    model: str,
+    asked_by: Mapping[str, Sequence[str]] = MappingProxyType({}),
 ) -> Understood:
-    """Which of these jobs the operator meant, with what values, missing what."""
+    """Which of these jobs the operator meant, with what values, missing what.
+
+    `asked_by` is the mails each job was asked for by, where the demonstration
+    recorded any -- see `domain.chat.asked_by`. It is the one thing this door
+    was never shown and the one thing that says what a REQUEST for a job looks
+    like, as opposed to what the job is called. A job with none is matched on
+    its title and narrative exactly as it always was.
+    """
     held = [
         {
             "id": w.id,
@@ -77,6 +112,10 @@ async def understand(
                 for p in w.parameters
                 if isinstance(p, dict)
             ],
+            # Omitted rather than empty where there are none: a field reading
+            # `[]` invites "this job is never asked for by mail", which is a
+            # claim about the tenant's history and not about the job.
+            **({"asked_by": list(said)} if (said := asked_by.get(w.id)) else {}),
         }
         for w in workflows
     ]
@@ -113,7 +152,28 @@ async def understand(
         for p in (raw if isinstance(raw, list) else ())
         if isinstance(p, dict)
     )
-    values = {k: v for k, v in pairs if isinstance(k, str) and k in declared and isinstance(v, str)}
+    read = [(k, v) for k, v in pairs if isinstance(k, str) and isinstance(v, str)]
+    values = {k: v for k, v in read if k in declared}
+    # What the request asked for that this job cannot write.
+    #
+    # The dropping above is right: a key the workflow never declared is a value
+    # nothing asked for, arriving in a sentence a stranger could have written.
+    # The SILENCE is the fault. A job's parameters are what two doings proved
+    # VARY, and the form has far more fields than that -- so a mail saying
+    # "code GV3, description X, Department Inbound" is a perfectly reasonable
+    # request, and this made a record with no Department in it and said nothing
+    # anywhere.
+    #
+    # A run says so after the press (`run.unasked`). Nobody can consent to a
+    # write they cannot see, and after the press is after the record.
+    unasked = sorted({k for k, _ in read if k not in declared})
+    # And what they SAID, not only which fields they named.
+    #
+    # The names alone let the card say "this job cannot set Department". The
+    # values are what makes it sometimes untrue: a form posts far more fields
+    # than a job varies, so where the dictionary names the slot the write can
+    # fill it after all -- and it cannot fill what was thrown away here.
+    aside = {k: v for k, v in read if k not in declared}
     items = _things(answer.data.get("items"), declared)
     # Read and ignored. `missing` stays in the schema because a model asked to
     # name what is absent picks values more carefully than one that is not --
@@ -136,7 +196,36 @@ async def understand(
         for one in (nearly if isinstance(nearly, list) else [])
         if isinstance(one, str) and one in by_id and one != chosen.id
     ]
-    sure = bool(answer.data.get("sure", True)) and not also
+    # An alternative the sentence cannot fill is not an alternative.
+    #
+    # Measured on the deployment 2026-09-19. A mail saying `customer type :-
+    # GZ2 / description :- undo round two` was read as `Create a Customer
+    # Type` -- the only job of that name, with eighty-seven runs behind it --
+    # and the model named `Forward an Email` as one it might have meant
+    # instead. `sure` went false and the mail path said nothing at all, so the
+    # request sat unread in a mailbox while the tenant held the job it asked
+    # for.
+    #
+    # The sentence settles it. `Forward an Email` declares recipients, and the
+    # mail names none of them; `Create a Customer Type` declares a code and a
+    # description, and the mail gives both. A job whose parameters this
+    # sentence cannot supply is not a job this sentence was asking for --
+    # which is a fact about the two, not a confidence.
+    #
+    # Only where the CHOSEN job is itself fully supplied: a sentence that
+    # fills neither is genuinely ambiguous, and this must not make it sure by
+    # eliminating everything.
+    named = {name for name, _ in read}
+    settled = (
+        bool(also) and _fills(chosen, named) and not any(_fills(by_id[one], named) for one in also)
+    )
+    if settled:
+        also = []
+    # `settled` overrides the model's own hedge, and only in the case it was
+    # measured on: it named alternatives, and the sentence fills this job's
+    # parameters and none of theirs. A model unsure for some OTHER reason
+    # names nothing to be unsure between, and is left exactly as it was.
+    sure = (bool(answer.data.get("sure", True)) or settled) and not also
     supplied = [{**values, **item} for item in items] or [values]
     # A thing the filter emptied still counts here. The operator said "these
     # two", and a run that quietly does one of them is a run that did not do
@@ -148,7 +237,23 @@ async def understand(
         for name in declared
         if isinstance(name, str) and any(name not in one for one in supplied)
     )
-    return Understood(chosen.id, answer, values, missing, sure, also, items)
+    return Understood(
+        chosen.id, answer, values, missing, sure, also, items, aside=aside, unasked=unasked
+    )
+
+
+def _fills(job: Workflow, said: set[str]) -> bool:
+    """Whether this sentence named every parameter that job declares.
+
+    Names only, because that is what the reading has: the model returns the
+    slots it recognised, and a job asking for a slot nobody named cannot be
+    what the sentence was about. A job that declares nothing is filled by
+    anything, which is honest -- there is nothing in it to tell apart.
+    """
+    declared = {
+        str(one.get("name")) for one in job.parameters if isinstance(one, dict) and one.get("name")
+    }
+    return declared <= said
 
 
 def _things(raw: object, declared: set[object]) -> list[dict[str, str]]:
@@ -205,7 +310,19 @@ async def read_utterance(
     money and returned nothing. `now` is the caller's clock rather than one
     read here, so a test can move it.
     """
-    got = await understand(utterance, list(await uow.workflows.known(tenant_id)), asker, model)
+    workflows = list(await uow.workflows.known(tenant_id))
+    # The mails behind each job, read off the gestures they cite. One query for
+    # every job the tenant holds, before the model call rather than per job:
+    # the alternative is a round trip per workflow on the door an operator
+    # waits at.
+    cited = await uow.gestures.gestures_for(
+        tenant_id, ids=tuple(sorted({one for w in workflows for s in w.steps for one in s.cites}))
+    )
+    by_id = {gesture.id: gesture for gesture in cited}
+    asked_by = {w.id: texts(mails_behind(w, by_id)) for w in workflows}
+    got = await understand(
+        utterance, workflows, asker, model, {w: said for w, said in asked_by.items() if said}
+    )
     answer = got.answer
     await uow.chats.record(
         ChatReading(

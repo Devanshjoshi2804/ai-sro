@@ -26,6 +26,7 @@ from sro.application.context import RequestContext
 from sro.domain.observation.device import AgentDevice
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId, TenantId
 from sro.domain.skill.promotion import PromotionStage
+from sro.domain.skill.workflow import Step, Workflow
 from sro.interface.http.app import create_app
 from sro.interface.http.deps import get_container
 from tests import factories as f
@@ -339,8 +340,13 @@ async def test_a_reported_match_offers_rather_than_running(
     assert matched.json() == {
         "trigger_id": trigger_id,
         "skill_id": created.json()["skill_id"],
+        # A watch may name a job instead, and the card needs to know which door
+        # the press goes to.
+        "workflow_id": None,
+        "title": "Resolve a short ship",
         "values": {"shipment_id": "SH-4471"},
         "missing": [],
+        "can_find": False,
     }
     # Nothing started, and nothing was written down: the values came out of
     # somebody's mail and this is the boundary that keeps them out of storage.
@@ -609,3 +615,68 @@ async def test_a_match_nobody_gave_an_offer_id_for_says_nothing(
     assert [
         m for m in thread["messages"] if (m["decision"] or {}).get("kind") == "mail_match"
     ] == []
+
+
+async def _watched_job(uow: FakeUnitOfWork, *, device_id: DeviceId) -> tuple[str, str]:
+    """A mined job, and a watch that recognises the mail asking for one."""
+    job = Workflow(
+        id="wfl_watched",
+        tenant=f.TENANT.value,
+        title="Create a Customer Type",
+        narrative="open the screen, type the code, save",
+        steps=[Step(order=0, says="open the screen", system="wms.test", cites=["ges-1"])],
+        parameters=[{"name": "shipment_id", "seen_values": ["SH-1"]}],
+    )
+    await uow.workflows.save(job)
+    _device(uow, device_id)
+    return job.id, job.title
+
+
+async def test_a_mail_can_be_watched_for_on_a_mined_job(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """The refusal this replaces: *"a job cannot be watched for yet: schedule it
+    instead"*. Its reason was that this path read a SKILL's inputs to say what
+    the mail had not named, so a job would be a card with no sentence on it. It
+    reads a job's declared parameters now.
+
+    The whole path in one test, because the parts were built in three places: a
+    watch that names a job is created, a browser reports what it recognised,
+    and the answer says what the job is called and what it would run with.
+    """
+    workflow_id, title = await _watched_job(uow, device_id=LENA)
+
+    created = await client.post(
+        "/v1/triggers",
+        json={
+            "workflow_id": workflow_id,
+            "kind": "watch",
+            "watch": WATCH,
+            "device_id": LENA.value,
+            "authorized_by": True,
+        },
+    )
+    assert created.status_code == 201, created.text
+
+    matched = await client.post(
+        f"/v1/agents/{LENA.value}/watches/{created.json()['id']}/matched",
+        json={"shipment_id": "SH-4471"},
+        headers=_proving(LENA),
+    )
+
+    assert matched.status_code == 200, matched.text
+    assert matched.json() == {
+        "trigger_id": created.json()["id"],
+        "skill_id": None,
+        "workflow_id": workflow_id,
+        "title": title,
+        "values": {"shipment_id": "SH-4471"},
+        # The mail named the one parameter the job declares, so there is
+        # nothing for a card to ask about or for a run to go and find.
+        "missing": [],
+        # This deployment has no connector and no model: a value the mail had
+        # not named would still be something a person has to supply.
+        "can_find": False,
+    }
+    # Still an offer and not a run: recognising a mail is not the press.
+    assert uow.runs.rows == {}

@@ -31,6 +31,7 @@ from fastapi import Depends, HTTPException, Query, status
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import DeviceId
 from sro.interface.http.deps import ContainerDep, ContextDep, DeviceSecretDep
+from sro.whose import attribute
 
 
 async def asking_device(
@@ -91,6 +92,11 @@ async def asking_device(
         await container.read_device().execute(ctx, device_id=named, secret=x_device_secret)
     except NotFound as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    # After it has proved itself, never before. A device id in the query string
+    # is a caller's claim; this is the first point it is a fact, and a log line
+    # attributing work to a browser that failed to prove it is worse than one
+    # attributing it to nobody.
+    attribute(device=named.value)
     return named
 
 

@@ -61,8 +61,12 @@ def test_the_threshold_is_what_decides_it_and_not_the_arithmetic(
 def test_what_the_operator_typed_differently_is_the_parameter() -> None:
     found = parameters_across([_doing("TEST1", "a"), _doing("TEST2", "b")])
 
-    assert [p.name for p in found] == ["clientCode"], "named after the control, not the value"
+    # The label, because that is the name a person is shown and asked about;
+    # the input's own name is kept beside it so a doing recorded the other way
+    # is still this control.
+    assert [p.name for p in found] == ["Client Code"], "named after the control, not the value"
     assert found[0].seen == ("TEST1", "TEST2")
+    assert "clientCode" in found[0].names, "the name the form posts it under was dropped"
 
 
 def test_what_they_typed_identically_is_part_of_the_job() -> None:
@@ -232,7 +236,11 @@ def test_a_select_and_an_upload_are_typing_too() -> None:
 
         found = {p.name: p.seen for p in parameters_across([first, second])}
 
-        assert found.get(f"the{kind.title()}") == ("ONE", "TWO"), kind
+        # Under the label, because this fixture's extra gesture is a copy of
+        # the typed one and carries its label. What is being asserted is that
+        # the kind was read at all: the base control is constant across both
+        # doings, so this value can only have come from the select or upload.
+        assert found.get("Client Code") == ("ONE", "TWO"), kind
 
 
 def test_a_gesture_that_contributes_nothing_does_not_end_the_walk() -> None:
@@ -319,4 +327,59 @@ def test_a_value_only_the_reading_saw_still_names_a_parameter() -> None:
         )
     }
 
-    assert found.get("readOnlyCombo") == ("FROM-A", "FROM-B")
+    assert found.get("Client Code") == ("FROM-A", "FROM-B")
+
+
+def test_one_field_recorded_two_ways_is_one_parameter() -> None:
+    """The defect this cost a deployment, in the smallest shape that has it.
+
+    `Create a Customer Type` on the real store held four parameters for two
+    fields: `Customer Type` and `customertype-customerType` with two values
+    each, and the same pair again for the description. The page names a field
+    twice -- the label a person reads, the input name the form posts -- and
+    which of the two a recording carries is a fact about that recording. Two
+    doings that carried different ones agreed on nothing, so each contributed
+    its own parameter.
+
+    What the operator then saw was four boxes on the offer card for two
+    values, two of them asking for a name nobody has ever typed.
+    """
+    first, second = _doing("TEST1", "a"), _doing("TEST2", "b")
+    # The second recording carried only the input name for the same field.
+    for gesture in second[1].values():
+        target = gesture.action.target
+        if target is None or target.component is None:
+            continue
+        gesture.action = replace(
+            gesture.action,
+            target=replace(target, component=replace(target.component, field_label=None)),
+        )
+
+    found = parameters_across([first, second])
+
+    assert len(found) == 1, [p.name for p in found]
+    assert found[0].seen == ("TEST1", "TEST2"), "the two doings were not read as one control"
+    # And it answers to both, so the doing after this recognises it either way.
+    assert set(found[0].names) == {"Client Code", "clientCode"}
+
+
+def test_two_fields_that_share_a_label_stay_two() -> None:
+    """The other half of the same rule. A form can carry a Description in each
+    of two sections; the page's own name for each is what says they are two,
+    and merging them would be one parameter where the job has two."""
+    first, second = _doing("TEST1", "a"), _doing("TEST2", "b")
+    for doing, value in ((first, "ONE"), (second, "TWO")):
+        made = _extra(doing, "ges_other_section", at=9.0, value=value)
+        target = made.action.target
+        assert target is not None and target.component is not None
+        made.action = replace(
+            made.action,
+            target=replace(target, component=replace(target.component, item_id="otherSection")),
+        )
+
+    found = parameters_across([first, second])
+
+    assert len(found) == 2, [p.name for p in found]
+    # And neither is called by the label they share, because two questions
+    # worded identically are worse than one ugly name.
+    assert sorted(p.name for p in found) == ["clientCode", "otherSection"]

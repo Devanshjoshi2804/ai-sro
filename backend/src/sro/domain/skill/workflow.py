@@ -44,6 +44,30 @@ class Step:
     cites: list[str] = field(default_factory=list)
     parameters: list[str] = field(default_factory=list)
 
+    uses: list[int] = field(default_factory=list)
+    """The earlier steps whose output this one consumes, by `order`.
+
+    CrewAI's `Task.context: list[Task]`, and its argument: a task that names
+    the prior tasks it depends on can be READ. One inspectable line answers
+    "how does step five get step two's id", where an implicit shared map means
+    reading the whole job and guessing.
+
+    What an earlier step produced is `RunStep.made` -- what the warehouse
+    called the record it created -- and it reaches this step's values under
+    `step<order>.<field>`. Namespaced rather than merged flat, because a create
+    answering `{"id": ...}` and a job with a parameter called `id` would
+    otherwise silently be the same thing.
+
+    **Empty on every job mined so far, and honestly so.** Measured on the
+    deployment 2026-09-19: thirteen runs have made a record and not one has
+    made two, so no mined job has this shape and nothing emits the edge yet.
+    It is declared here because composition is what needs it -- a person
+    joining two jobs has to say how the second gets the first's output -- and
+    the edge is discoverable from evidence rather than guessed when mining
+    comes to it: a value typed in step five that equals what step two's
+    response returned IS this edge, and the recorded calls hold both halves.
+    """
+
 
 @dataclass
 class Workflow:

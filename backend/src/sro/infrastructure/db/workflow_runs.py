@@ -64,6 +64,14 @@ def _run_values(run: WorkflowRun) -> dict[str, Any]:
         "thought_tokens": run.thought_tokens,
         "cost_usd": run.cost_usd,
         "wrong_because": run.wrong_because,
+        "watched": run.watched,
+        "doing": run.doing,
+        "gathered": {k: dict(v) for k, v in run.gathered.items()},
+        "needs": list(run.needs),
+        "unasked": list(run.unasked),
+        "awaiting": dict(run.awaiting) if run.awaiting else None,
+        "asked_the_asker": run.asked_the_asker,
+        "undoes_run": run.undoes_run,
         "unpriced": run.unpriced,
     }
 
@@ -135,6 +143,22 @@ def _row_to_run(row: WorkflowRunRow, steps: list[RunStep]) -> WorkflowRun:
         finished_at=None if row.finished_at is None else row.finished_at.isoformat(),
         outcome=row.outcome,
         wrong_because=row.wrong_because,
+        watched=bool(row.watched),
+        doing=row.doing or "",
+        gathered={
+            str(k): {str(a): str(b) for a, b in v.items()}
+            for k, v in (row.gathered or {}).items()
+            if isinstance(v, dict)
+        },
+        needs=[str(one) for one in (row.needs or [])],
+        unasked=[str(one) for one in (row.unasked or [])],
+        asked_the_asker=bool(row.asked_the_asker),
+        undoes_run=row.undoes_run,
+        awaiting=(
+            {str(key): str(value) for key, value in row.awaiting.items()}
+            if isinstance(row.awaiting, dict)
+            else None
+        ),
         from_step=row.from_step,
         items=[dict(item) for item in (row.items or [])],
         steps=steps,
@@ -271,6 +295,19 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
         ).scalars()
         return await self._with_steps(rows.all())
 
+    async def taken_back_by(self, tenant_id: TenantId, run_id: str) -> str | None:
+        # Only a run that HELD. One that failed left the record where it was,
+        # and refusing a second attempt because the first did not work is
+        # refusing the one attempt that might.
+        found = await self._session.scalar(
+            select(WorkflowRunRow.id).where(
+                WorkflowRunRow.tenant_id == tenant_id.value,
+                WorkflowRunRow.undoes_run == run_id,
+                WorkflowRunRow.outcome == "held",
+            )
+        )
+        return str(found) if found else None
+
     async def failures(self, tenant_id: TenantId) -> Mapping[str, int]:
         # One count for the tenant, beside `tallies` and for the same reason it
         # is batched. `stopped` and `aborted` are deliberately not here: a run
@@ -360,6 +397,36 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
             .limit(1)
         )
         return busy
+
+    async def waiting_on(
+        self, tenant_id: TenantId, *, server: str, thread: str
+    ) -> WorkflowRun | None:
+        """Against the expression index 0062 adds, and never on a blank.
+
+        `waiting_on` refuses to build a wait with no conversation in it, so
+        nothing WRITES a blank thread -- but a hand edit, a restore, or a row
+        from a deployment that did can leave one, and without this guard a
+        caller asking about `""` matches it. That is one run answering a reply
+        to something else entirely, which is a warehouse record written from
+        somebody's unrelated sentence.
+        """
+        if not server.strip() or not thread.strip():
+            return None
+        query = (
+            self._rows()
+            .where(
+                WorkflowRunRow.tenant_id == tenant_id.value,
+                WorkflowRunRow.awaiting.isnot(None),
+                WorkflowRunRow.awaiting["server"].astext == server.strip(),
+                WorkflowRunRow.awaiting["thread"].astext == thread.strip(),
+            )
+            # The last question asked about this conversation is the live one.
+            .order_by(WorkflowRunRow.started_at.desc(), WorkflowRunRow.id.desc())
+            .limit(1)
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        found = await self._with_steps(rows)
+        return found[0] if found else None
 
     async def awaiting(self, tenant_id: TenantId) -> tuple[tuple[str, int, str], ...]:
         query = (

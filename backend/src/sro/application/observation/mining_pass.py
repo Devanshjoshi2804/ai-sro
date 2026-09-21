@@ -23,6 +23,7 @@ from sro.application.intent.spend import over_cap
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.shared.locks import one_at_a_time
+from sro.domain.execution.uses_edges import uses_edges
 from sro.domain.observation.gesture import Gesture, Intent
 from sro.domain.observation.identity import Resolution, resolve, shape_key
 from sro.domain.observation.mining import MiningPass
@@ -55,7 +56,7 @@ from sro.domain.skill.checks import (
     validate,
     work_only,
 )
-from sro.domain.skill.learned import LearnedParameter, parameters_across
+from sro.domain.skill.learned import LearnedParameter, parameters_across, same_control
 from sro.domain.skill.passwords import with_passwords
 from sro.domain.skill.presses import with_the_press
 from sro.domain.skill.repeats import detect as repeated_block
@@ -67,6 +68,7 @@ from sro.domain.skill.umbrella import (
     workflow_from,
 )
 from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
+from sro.whose import attribute
 
 __all__ = [
     "MineResult",
@@ -295,8 +297,24 @@ async def learn_parameters(
         stored = await uow.workflows.get(tenant_id, known_id)
     except NotFound:
         return 0
+    # The repair first, and whatever else this pass does or does not learn.
+    #
+    # A job mined before a control's names were recorded holds one entry per
+    # name -- the deployment's `Create a Customer Type` had four for two fields
+    # -- and the operator meets that as four boxes on an offer card. Folding it
+    # here rather than only on the path that learns something means a job is
+    # repaired by any pass that recognises it, not only by one that happens to
+    # see a new value.
+    folded = _folded(stored.parameters)
+    repaired = len(folded) != len(stored.parameters)
+    stored.parameters = folded
+
     found = parameters_across([(stored, by_id, intents), (proposal, by_id, intents)])
     if not found:
+        if repaired:
+            await uow.workflows.save(stored)
+        # Nothing was LEARNT. A fold is not learning -- it is this pass
+        # noticing that two of the job's parameters were always one.
         return 0
     # A third doing widens what an existing parameter has been given rather
     # than being discarded. This always diffs the STORED steps -- doing #1 --
@@ -308,20 +326,49 @@ async def learn_parameters(
     by_name = {str(p["name"]): p for p in stored.parameters if "name" in p}
     fresh: list[dict[str, object]] = []
     widened = 0
+    named = False
     for parameter in found:
-        existing = by_name.get(parameter.name) or _same_control(parameter, stored.parameters)
+        existing = (
+            by_name.get(parameter.name)
+            or _known_by(parameter, stored.parameters)
+            or _same_control(parameter, stored.parameters)
+        )
         if existing is None:
-            fresh.append({"name": parameter.name, "seen_values": list(parameter.seen)})
+            fresh.append(
+                {
+                    "name": parameter.name,
+                    # Every name this control answers to, so the doing after
+                    # this one recognises it however the page named it then.
+                    "names": list(parameter.names),
+                    # The page's own name for the control, where a recording
+                    # carried one: two fields can share a label and two fields
+                    # cannot share an itemId.
+                    "key": parameter.key,
+                    "seen_values": list(parameter.seen),
+                }
+            )
             continue
+        # The names widen the same way the values do. A parameter first learnt
+        # from a recording that carried only a label is how a job came to hold
+        # two entries for one field; a stored parameter that has since been
+        # seen under the page's own name will not do it again.
+        known = _names_of(existing)
+        existing["names"] = [*known, *[one for one in parameter.names if one not in known]]
+        existing["key"] = str(existing.get("key") or "") or parameter.key
+        # Writing the names down is worth a save even when no value changed.
+        # It is what lets the fold below see that this entry and the one under
+        # the page's own name for the same control are one -- a job stored
+        # before any of this has nothing else to recognise itself by.
+        named = named or existing["names"] != known
         was = existing.get("seen_values")
         seen = [str(value) for value in was] if isinstance(was, list) else []
         added = [value for value in parameter.seen if value not in seen]
         if added:
             existing["seen_values"] = [*seen, *added]
             widened += 1
-    if not fresh and not widened:
+    if not fresh and not widened and not repaired and not named:
         return 0
-    stored.parameters = [*stored.parameters, *fresh]
+    stored.parameters = _folded([*stored.parameters, *fresh])
     # And the name stops describing the first doing. A title is minted from one
     # occurrence, values and all, and this is the only moment the system finds
     # out that one of those values varies -- so the job is renamed where it is
@@ -330,6 +377,119 @@ async def learn_parameters(
     stored.generalise_title()
     await uow.workflows.save(stored)
     return len(fresh) + widened
+
+
+def _names_of(parameter: dict[str, object]) -> list[str]:
+    """Every name a stored parameter answers to, its own included.
+
+    `names` is absent on everything learnt before it existed, and those entries
+    answer to exactly the one name they were written with.
+    """
+    listed = parameter.get("names")
+    known = [str(one) for one in listed] if isinstance(listed, list) else []
+    said = str(parameter.get("name") or "")
+    return known if said in known or not said else [said, *known]
+
+
+def _known_by(
+    parameter: LearnedParameter, stored: list[dict[str, object]]
+) -> dict[str, object] | None:
+    """The stored parameter that is this control under another of its names.
+
+    The page names one field twice -- `Customer Type` on the label,
+    `customertype-customerType` on the input -- and which of them a recording
+    carries is a fact about the recording. The real `Create a Customer Type`
+    was captured both ways and came to declare four parameters for two fields:
+    four boxes on the offer card, two of them asking for values nobody has ever
+    typed.
+    """
+    for candidate in stored:
+        if same_control(
+            _names_of(candidate),
+            list(parameter.names),
+            key=str(candidate.get("key") or ""),
+            theirs=parameter.key,
+        ):
+            return candidate
+    return None
+
+
+def _folded(parameters: list[dict[str, object]]) -> list[dict[str, object]]:
+    """One entry per control, for a job that already has two.
+
+    The fix above stops a second entry being written; this is what clears the
+    ones already stored. A job mined before it keeps both entries until the
+    next pass touches it, and that pass is where the two are recognised as one
+    -- the values of each are kept, because `seen_values` promises every value
+    observed and the entries being folded observed different doings.
+
+    The surviving name is the first one, which is the entry that has been on
+    this job longest.
+
+    **And where the names cannot decide, the values do.** An entry stored
+    before controls were keyed carries a name the model wrote and nothing else,
+    so it shares no name with the entry the evidence later produced and no key
+    to compare -- two opinions about one control, agreeing on nothing a string
+    comparison can see.
+
+    Measured on the deployment 2026-09-19. `Delete a Customer Type` held
+
+        {"name": "Customer Type",   "seen_values": ["GDD"]}
+        {"key":  "filterComboBox",  "seen_values": ["GDD", "GSQ", "GZ4"]}
+
+    -- one field, the filter the customer type is typed into, declared twice.
+    A job declaring two parameters demands two values before it will run, and
+    nobody has ever been asked for a `filterComboBox`, so the job stopped
+    before its first step on a name the operator has no way to answer.
+
+    The same subtraction `_same_control` makes below and for the same reason:
+    one entry's every observed value already recorded against the other was
+    read off the same typing. It carries the same cost, stated there -- two
+    genuinely distinct controls that varied over one value set merge, and the
+    second loses its machine name.
+    """
+    kept: list[dict[str, object]] = []
+    for parameter in parameters:
+        names = _names_of(parameter)
+        key = str(parameter.get("key") or "")
+        already = next(
+            (
+                one
+                for one in kept
+                if same_control(_names_of(one), names, key=str(one.get("key") or ""), theirs=key)
+                or _same_typing(one, parameter)
+            ),
+            None,
+        )
+        if already is None:
+            kept.append(parameter)
+            continue
+        known = _names_of(already)
+        already["names"] = [*known, *[one for one in names if one not in known]]
+        already["key"] = str(already.get("key") or "") or key
+        was, theirs = already.get("seen_values"), parameter.get("seen_values")
+        seen = [str(value) for value in was] if isinstance(was, list) else []
+        more = [str(value) for value in theirs] if isinstance(theirs, list) else []
+        already["seen_values"] = [*seen, *[one for one in more if one not in seen]]
+    return kept
+
+
+def _values_of(parameter: dict[str, object]) -> set[str]:
+    seen = parameter.get("seen_values")
+    return {str(value) for value in seen} if isinstance(seen, list) else set()
+
+
+def _same_typing(one: dict[str, object], other: dict[str, object]) -> bool:
+    """Whether two stored parameters were read off the same typing.
+
+    Either one's values wholly inside the other's, which is what two readings
+    of one control look like when one of them has seen more doings than the
+    other. Two empties are not evidence of anything and never match.
+    """
+    mine, theirs = _values_of(one), _values_of(other)
+    if not mine or not theirs:
+        return False
+    return mine <= theirs or theirs <= mine
 
 
 def _same_control(
@@ -378,6 +538,10 @@ def _packed(gesture: Gesture, intent: Intent | None, linked: set[str]) -> Packed
         evidence=evidence,
         strength=strength(gesture, intent, linked),
         tokens=evidence_tokens(evidence),
+        # So a pooled gesture joins its own browser's run rather than a
+        # nameless one shared with every other pooled item. `pack` reads this
+        # to admit a chosen item's lead-up with it.
+        stream_id=gesture.stream_id,
     )
 
 
@@ -406,6 +570,10 @@ async def _one_pass(
     # day a pass is billed to is the day its caller meant.
     started_at = now.isoformat()
     pass_id = new_pass_id()
+    # So every line this pass writes -- what it proposed, what it refused and
+    # why, what it recognised -- says which tenant's day it was reading and
+    # which reading it was.
+    attribute(tenant=tenant_id.value, pass_id=pass_id)
 
     # ponytail: this reads the tenant's WHOLE HISTORY, not a day. Neither
     # `gestures_for` nor `intents_for` takes a time bound, so every pass
@@ -507,6 +675,26 @@ async def _one_pass(
         # cannot afford. "" for a gesture whose system could not be established,
         # which `validate` reads as "unknown" rather than as a system of its own.
         evidence = {item.gesture_id: by_id[item.gesture_id].system or "" for item in window.items}
+        # The same window, as gestures, for the two passes below that ADD a
+        # citation to a proposal.
+        #
+        # `validate` refuses a workflow citing a gesture outside the window --
+        # rightly: a job may only be built out of what was read. But
+        # `with_passwords` and `with_the_press` both searched `by_id`, which is
+        # every gesture this tenant has ever produced, so either could reach
+        # past the window and hand `validate` a citation it was bound to
+        # refuse. The proposal died for a citation the model never made.
+        #
+        # Measured on the deployment 2026-09-20, on nearly every pass:
+        #
+        #     Delete a Customer Type: 1 step(s) repointed at the control the
+        #                             operator pressed
+        #     Delete a Customer Type: refused -- unknown gesture (ges_60e165c1)
+        #
+        # -- the repoint and the refusal, one line apart, all evening. A job
+        # this tenant already has, re-proposed and re-refused every pass, at
+        # the price of the model call that proposed it.
+        shown = {item.gesture_id: by_id[item.gesture_id] for item in window.items}
 
         kept: list[Workflow] = []
         # Every proposal that survived `validate`, whether or not it was saved. A
@@ -533,7 +721,7 @@ async def _one_pass(
             # added from the evidence rather than asked for, and it is judged
             # like any other step: `validate` sees a step citing a real
             # gesture of this doing.
-            typed = with_passwords(proposal, by_id)
+            typed = with_passwords(proposal, shown)
             if typed:
                 logger.info(
                     "%s: %s credential step(s) the model could not see",
@@ -543,7 +731,7 @@ async def _one_pass(
             # And the opposite failure: a gesture the model could see and
             # passed over. A step that cites the login card rather than the
             # Sign In button inside it runs, answers ok, and signs nobody in.
-            pressed = with_the_press(proposal, by_id)
+            pressed = with_the_press(proposal, shown)
             if pressed:
                 logger.info(
                     "%s: %s step(s) repointed at the control the operator pressed",
@@ -555,6 +743,24 @@ async def _one_pass(
             # equipment type" whose evidence shows three added in a row is a
             # job that can be asked for three at a time -- and until somebody
             # asks for three, it runs exactly as it always did.
+            # Which step took its value from which, read off the evidence.
+            #
+            # Before `validate`, because validate REFUSES a bad edge -- a step
+            # using a later one, or one that is not there -- and an edge this
+            # wrote is exactly as suspect as an edge a model wrote. The rule
+            # here only ever looks backwards, so the check should never fire;
+            # a producer trusted because it is careful is a producer nobody
+            # checks.
+            for order, used in uses_edges(proposal, by_id).items():
+                for step in proposal.steps:
+                    if step.order == order:
+                        step.uses = used
+                        logger.info(
+                            "%s: step %s uses the answer from step(s) %s",
+                            proposal.title,
+                            order,
+                            ", ".join(str(one) for one in used),
+                        )
             proposal.repeat = repeated_block(proposal, by_id)
             if proposal.repeat is not None:
                 logger.info(
@@ -566,6 +772,22 @@ async def _one_pass(
             rejection = validate(proposal, evidence) or work_only(proposal, by_id, ours=ours)
             if rejection is not None:
                 result.rejections.append(rejection)
+                # Said out loud, because a job refused in silence is a job
+                # nobody can fix. The pass has always carried these and only
+                # ever counted them, so the row a person reads says a number
+                # and the log says nothing at all.
+                #
+                # Measured on the deployment 2026-09-20: `Create a Client` was
+                # proposed on two passes running -- the operator had just
+                # demonstrated it three times, and the miner even found the
+                # repeat -- and kept on neither. Which gate refused it, and
+                # why, was not recoverable from anything this system stores.
+                logger.info(
+                    "%s: refused -- %s (%s)",
+                    rejection.workflow_title,
+                    rejection.reason,
+                    rejection.detail,
+                )
                 continue
             # Dropped rather than refused: the JOB is sound and only its
             # declaration of what varies is not, so refusing it would throw
@@ -596,6 +818,28 @@ async def _one_pass(
             # both read an empty store and both saved.
             resolution = resolve(proposal, known + kept)
             result.resolutions.append(resolution)
+            # What became of it, said out loud.
+            #
+            # A pass reporting "0 job(s) kept of 7 proposed" is reporting three
+            # different things at once -- refused, recognised as one already
+            # stored, or the same evidence read twice -- and only the first of
+            # them is a problem. Measured on the deployment 2026-09-20: the
+            # operator demonstrated `Create a Client` three times, the miner
+            # kept it, and the passes after that said `0 kept` because it was
+            # being recognised. Nothing anywhere could tell that apart from the
+            # job being thrown away, and I read it as thrown away.
+            logger.info(
+                "%s: %s%s",
+                proposal.title,
+                {
+                    "new": "kept, nothing like it was stored",
+                    "same_job": "recognised as a job already stored",
+                    "same_occurrence": "this evidence has been read before",
+                }.get(resolution.kind, resolution.kind),
+                f" -- {resolution.workflow_id} at {resolution.score:.2f}"
+                if resolution.workflow_id
+                else "",
+            )
             placed.append(proposal)
             if resolution.kind == "new":
                 proposal.pass_id = pass_id

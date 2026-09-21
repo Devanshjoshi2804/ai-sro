@@ -33,7 +33,8 @@ from sro.application.execution.workflow_runs import RunRefused, StartWorkflowRun
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
 from sro.domain.chat.reading import ChatReading
-from sro.domain.execution.workflow_run import WorkflowRun
+from sro.domain.execution.waiting import K_PATIENCE, read_wait, still_waiting
+from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
@@ -43,6 +44,7 @@ from tests.unit.fakes import (
     FakeChannel,
     FakeClock,
     FakeGestureRepository,
+    FakeIdFactory,
     FakeUnitOfWork,
 )
 
@@ -195,10 +197,13 @@ async def _press(
     from_step: int = 0,
     matched: int | None = None,
     run_id: str | None = None,
+    conversation: tuple[str, str] = ("", ""),
+    undoes_run: str = "",
 ) -> WorkflowRun:
     return await starter.execute(
         ctx or _ctx(),
         run_id=run_id,
+        conversation=conversation,
         workflow_id=workflow_id,
         device_id=device_id,
         values={"clientCode": "NEWTESTS"} if values is None else values,
@@ -206,6 +211,7 @@ async def _press(
         allow_focus=allow_focus,
         from_step=from_step,
         matched=matched,
+        undoes_run=undoes_run,
     )
 
 
@@ -895,3 +901,206 @@ async def test_a_row_the_loop_already_closed_is_left_as_the_loop_left_it() -> No
     again = await uow.workflow_runs.get(TENANT, claimed.id)
     assert again is not None and again.outcome == finished.outcome
     assert again.steps[-1].reason == finished.steps[-1].reason
+
+
+async def test_a_run_started_from_a_mail_records_the_conversation_it_answers_to() -> None:
+    """The address a reply finds it by.
+
+    Written at the start rather than at the stop, because the stop is not the
+    only thing that can want it: a run that crashed still came from somewhere,
+    and a row that only records its origin on the tidy path records it for the
+    runs nobody needs to chase.
+    """
+    uow = await _held()
+
+    run = await _press(_starter(uow), conversation=("gmail", "t-9"))
+
+    assert run.awaiting is not None
+    assert (run.awaiting["server"], run.awaiting["thread"]) == ("gmail", "t-9")
+    # And a deadline, because a pause with no end to it is an abandonment.
+    assert still_waiting(read_wait(run.awaiting), NOW)
+    assert not still_waiting(read_wait(run.awaiting), NOW + K_PATIENCE + timedelta(seconds=1))
+
+
+async def test_a_press_that_came_from_no_mailbox_waits_on_nothing() -> None:
+    """A blank address would match the next blank one: two runs neither of
+    which came out of a mailbox would answer each other's replies."""
+    uow = await _held()
+
+    assert (await _press(_starter(uow))).awaiting is None
+
+    other = await _held()
+    assert (await _press(_starter(other), conversation=("gmail", ""))).awaiting is None
+
+
+async def test_a_run_that_came_out_whole_stops_waiting_to_hear_anything() -> None:
+    """Cleared rather than left to expire.
+
+    Seven days of a finished run claiming every reply to its own thread is
+    seven days of the next request on it being swallowed by the last one --
+    "thanks, that worked" read as the answer to a question nobody still has.
+    """
+    uow = await _held()
+    run = await _press(_starter(uow), conversation=("gmail", "t-9"))
+
+    await _starter(uow)._settle_the_wait(_ctx(), run)
+
+    saved = await uow.workflow_runs.get(TENANT, run.id)
+    assert saved is not None and saved.awaiting is None
+    assert await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-9") is None
+
+
+async def test_a_run_still_short_of_a_value_keeps_its_address() -> None:
+    """Which needs no writing: the row already says which conversation this run
+    answers to, and the reply arriving there is the answer to a question that
+    is still open."""
+    uow = await _held()
+    run = await _press(_starter(uow), conversation=("gmail", "t-9"))
+    run.needs = ["Customer Type"]
+    await uow.workflow_runs.save(run)
+
+    await _starter(uow)._settle_the_wait(_ctx(), run)
+
+    found = await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-9")
+    assert found is not None and found.id == run.id
+
+
+async def test_nothing_is_waiting_on_a_conversation_nobody_named() -> None:
+    uow = await _held()
+    await _press(_starter(uow), conversation=("gmail", "t-9"))
+
+    assert await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="") is None
+    assert await uow.workflow_runs.waiting_on(TENANT, server="", thread="t-9") is None
+    assert await uow.workflow_runs.waiting_on(RIVAL, server="gmail", thread="t-9") is None
+
+
+async def test_the_question_says_which_step_the_run_had_reached() -> None:
+    """So the answer resumes the job rather than restarting it.
+
+    A run that comes up short ends, and the one the answer starts would
+    otherwise begin at step 0 -- re-opening the mail, re-navigating, pressing
+    Add again and re-typing both fields, to arrive back at the box it stopped
+    in front of.
+    """
+    uow = await _held()
+    run = await _press(_starter(uow))
+    run.steps = [
+        RunStep(order=0, says="open the screen", verdict="held", verdict_by="status"),
+        RunStep(order=4, says="type the code", verdict="failed", verdict_by="read"),
+    ]
+    run.needs = ["Customer Type"]
+    await uow.workflow_runs.save(run)
+
+    starter = StartWorkflowRun(
+        uow,
+        channel=_Browsers(),
+        asker=_A_MODEL,
+        plan_model=PLAN,
+        rescue_model=RESCUE,
+        clock=FakeClock(NOW),
+        cap_usd=CAP,
+        stops=Stops(),
+        approvals=Approvals(),
+        ids=FakeIdFactory(),
+    )
+    await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
+
+    # In the thread of whoever the run was FOR, which the fixture calls `form`
+    # -- a question in the wrong conversation is worse than none.
+    threads = await uow.threads.list_for_tenant(
+        TENANT, opened_by=PrincipalId(run.started_by), limit=1
+    )
+    assert threads, "no question was asked"
+    decision = threads[0].messages[-1].decision
+    assert decision is not None
+    # NOT the step that stopped. That one re-types a field into whatever is on
+    # screen a minute later, and the operator may have walked off the
+    # half-filled form. So it goes back to the beginning of the block that
+    # built the screen -- here the job's first step, because nothing in it
+    # writes until the end.
+    assert decision["from_step"] == 0
+    assert decision["from_run"] == run.id
+
+
+# --- the undo and the run it takes back --------------------------------------
+
+
+async def _finished(uow: FakeUnitOfWork, run: WorkflowRun, outcome: str) -> WorkflowRun:
+    run.outcome = outcome
+    run.finished_at = NOW.isoformat()
+    await uow.workflow_runs.save(run)
+    return run
+
+
+async def test_a_run_says_which_run_it_takes_back() -> None:
+    """The whole point of the column: two rows that can be put side by side.
+    Without it the delete goes off alone, and a person looking at the failed
+    undo cannot tell which record is still sitting in the warehouse."""
+    uow = await _held()
+    made = await _finished(uow, await _press(_starter(uow)), "held")
+
+    undo = await _press(_starter(uow), undoes_run=made.id)
+
+    assert undo.undoes_run == made.id
+    stored = await uow.workflow_runs.get(TENANT, undo.id)
+    assert stored is not None and stored.undoes_run == made.id
+
+
+async def test_an_ordinary_press_takes_back_nothing() -> None:
+    """NULL and not the empty string. A column that says "" for every run that
+    is not an undo is a column that has to be read twice to mean nothing."""
+    uow = await _held()
+
+    await _finished(uow, await _press(_starter(uow)), "held")
+
+    assert (await _press(_starter(uow), undoes_run="   ")).undoes_run is None
+
+
+async def test_the_same_run_cannot_be_taken_back_twice() -> None:
+    """Two panels showing one card, two presses. The second delete is addressed
+    to a record the first one removed -- at best a 404, at worst somebody
+    else's record that took the id since."""
+    uow = await _held()
+    made = await _finished(uow, await _press(_starter(uow)), "held")
+    await _finished(uow, await _press(_starter(uow), undoes_run=made.id), "held")
+
+    with pytest.raises(RunRefused, match="already taken back"):
+        await _press(_starter(uow), undoes_run=made.id)
+
+
+async def test_an_undo_that_failed_can_be_tried_again() -> None:
+    """The refusal is about a record that is gone, not about having asked. A
+    first attempt that never wrote left the record exactly where it was, and
+    refusing the second is refusing the one press that could still work."""
+    uow = await _held()
+    made = await _finished(uow, await _press(_starter(uow)), "held")
+    await _finished(uow, await _press(_starter(uow), undoes_run=made.id), "failed")
+
+    again = await _press(_starter(uow), undoes_run=made.id)
+
+    assert again.undoes_run == made.id
+
+
+async def test_another_tenants_undo_does_not_block_this_one() -> None:
+    """`taken_back_by` is scoped, like every other read here. Run ids are
+    unguessable, but a lookup that is not scoped is one leak away from one
+    tenant's press refusing another's."""
+    uow = await _held()
+    rival = replace(
+        _workflow(tenant=RIVAL, workflow_id="wfl_rival"),
+        steps=[Step(order=n, says=f"step {n}", system=None, cites=[f"rgs-{n}"]) for n in range(5)],
+    )
+    await uow.workflows.save(rival)
+    await uow.gestures.add_gestures(tuple(_gesture(f"rgs-{n}", tenant=RIVAL) for n in range(5)))
+    made = await _finished(uow, await _press(_starter(uow)), "held")
+    browsers = _Browsers({TENANT.value: (LAPTOP,), RIVAL.value: (DESK,)})
+    theirs = await _press(
+        _starter(uow, channel=browsers),
+        ctx=_ctx(tenant=RIVAL),
+        workflow_id="wfl_rival",
+        device_id=DESK,
+        undoes_run=made.id,
+    )
+    await _finished(uow, theirs, "held")
+
+    assert (await _press(_starter(uow), undoes_run=made.id)).undoes_run == made.id

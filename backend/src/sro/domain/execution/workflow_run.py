@@ -176,6 +176,115 @@ class WorkflowRun:
     cost_usd: float = 0.0
     unpriced: bool = False
 
+    watched: bool = False
+    """Whether somebody is standing in front of this run.
+
+    The system has two ways to do the same job and they are not
+    interchangeable. Replaying the call is fast, deterministic and invisible:
+    the steps that only put the form on the screen are skipped, and the record
+    appears without anything moving. Performing it is slower, costs a reading
+    per step, and is the one a person can WATCH -- the fields fill, the button
+    is pressed, and somebody at the screen can see their job being done and
+    stop it.
+
+    Written on the row rather than decided per step, because deciding per step
+    is how a run came to skip the typing (it was going to post) and then press
+    Save as if it had typed. One decision, for the whole run.
+
+    A press in an open panel means "show me". A trigger at three in the morning
+    means "just do it"."""
+
+    doing: str = ""
+    """What this run is doing when it has no step to show for it.
+
+    Everything a run does is a step, with one exception: the gather runs BEFORE
+    the first step, because a value nobody typed has to be found before
+    anything can be planned with it. Measured on the deployment 2026-09-16 --
+    an operator pressed "Yes, do it" and the card said "Step 0" for three and a
+    half minutes while the run read their mailbox and the model retried a 5xx.
+    The run was working the whole time and nothing anywhere said so.
+
+    One line, in the words somebody watching would use, written before the
+    looking starts and cleared when it ends. Empty for every run that only ever
+    did its steps, which is what a run normally is."""
+
+    gathered: dict[str, dict[str, str]] = field(default_factory=dict)
+    """Parameter -> where its value was read, for values nobody typed.
+
+    A value the operator typed into the press needs no provenance: they are
+    standing there and they meant it. A value read out of a mailbox is only as
+    good as the message it came from, and both the person approving the write
+    and an audit a month later have to be able to go and look -- so the message
+    id and the span it was quoted from are kept beside the run.
+
+    Empty for every run whose values came from a person, which is most of them
+    and all of them before 2026-09-16."""
+
+    unasked: list[str] = field(default_factory=list)
+    """What the request asked for that this job declares no parameter for.
+
+    A job's parameters are what two doings proved VARY. `Create a Customer
+    Type` declares two, because its two demonstrations differed in two fields
+    and nothing else -- and the form has a dozen more, every one of them an
+    ordinary thing for somebody to ask for.
+
+    Ask for one and the run makes a record without it. That is right: nothing
+    demonstrated that slot, and a run that wrote into it would be guessing at a
+    warehouse. Saying nothing about it is not right, and it is the shape of
+    every fault here worth having -- three things asked for, two in the record,
+    and nothing naming the third.
+
+    Names and never values. This is read by a panel and a log, and what
+    somebody wrote in their own mail is theirs."""
+
+    needs: list[str] = field(default_factory=list)
+    """What this run could not find a value for, and stopped to ask about.
+
+    The run goes and looks for whatever nobody typed. When the looking comes
+    back short the run ends -- it must, because a write with a blank in it is a
+    wrong record -- and until now that was the end of the whole thing: the
+    operator read "nobody gave a value for X, and your mail does not say
+    either" and started over.
+
+    So the names are kept, and what happens next is a question in their own
+    conversation rather than a dead row. One question per value, in words; the
+    answers come back as an ordinary sentence and the job runs with the full
+    set on the yes they already gave.
+
+    Empty for every run that found everything, which is nearly all of them."""
+
+    undoes_run: str | None = None
+    """The run this one takes back, where it is an undo of one.
+
+    The first place two jobs in this system are one piece of work. Pressing
+    `Undo it` starts an ordinary run of an ordinary mined job, which is right --
+    it goes through the same ladder, gate and belts as anything else -- and
+    leaves the two with nothing between them: the delete goes off alone, and if
+    it fails, the card that offered it is gone and nobody knows the record is
+    still there.
+
+    An id and never a status. Whether the undo worked is this run's own
+    outcome, read where every other outcome is read."""
+
+    asked_the_asker: bool = False
+    """Whether this run has already written to whoever sent the request.
+
+    One mail per run, and read off the row rather than counted in a process: a
+    worker that restarted between one stop and the next would otherwise buy
+    somebody a second mail about one request. A mail cannot be unsent."""
+
+    awaiting: dict[str, str] | None = None
+    """The outside conversation this run ended waiting to hear back on.
+
+    A run that comes up short asks, and until now it could only ask the person
+    with the panel open. The person who knows the answer is often somebody
+    else -- whoever sent the mail that asked for the job -- and an answer that
+    arrives in a mailbox has to be able to find the run waiting for it.
+
+    None for every run nobody outside was asked about. See
+    `domain/execution/waiting.py`, which holds the deadline: a pause with no
+    end to it is not a pause."""
+
     wrong_because: str | None = None
     """What the operator said was wrong with what this run made.
 

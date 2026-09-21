@@ -66,6 +66,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 
 from sro.domain.execution.evidence import READ_METHODS, recorded_call
 from sro.domain.execution.planning import unreplayable
@@ -246,6 +247,46 @@ def _echoed(step: Step, by_id: Mapping[str, Gesture], like: Call) -> frozenset[s
     return None if echoed is None else frozenset(echoed)
 
 
+def _returned(step: Step, by_id: Mapping[str, Gesture], like: Call) -> frozenset[str] | None:
+    """The keys the record came back HOLDING, whatever value they held.
+
+    `_echoed`'s weaker sibling, and the right question for a slot no
+    demonstration filled. That one asks whether the server gave a key back
+    unchanged, which is the test for trusting a value without looking. This
+    asks only whether the key is IN the record the server returned -- which is
+    what makes a read-back able to check it afterwards.
+
+    The difference is not academic and it is not small. Measured on this
+    deployment's own create, 2026-09-19: **46 keys sent, 43 in the record, 15
+    echoed unchanged.** The 28 that disagree are the boxes nobody touched --
+    sent as `""` and stored as `null` -- so the echo test excludes precisely
+    the fields a request might name and a demonstration never filled, which is
+    every field item 4 exists for.
+
+    A key present in the record is a key the server acknowledges. Whether it
+    accepted THIS value is a different question, and it is the one the
+    read-back answers at run time -- and fails the step on.
+
+    `all`, and `None` where no demonstration answered, both for `_echoed`'s
+    reasons: one doing that returned a key proves nothing if another did not,
+    and absence of evidence about a slot is not evidence about the slot.
+    """
+    returned: set[str] | None = None
+    for cited in step.cites:
+        gesture = by_id.get(cited)
+        if gesture is None:
+            continue
+        for call in gesture.requests:
+            if not _same_endpoint(call, like) or unreplayable(call):
+                continue
+            back = _record(call.response_body.text if call.response_body else None)
+            if back is None:
+                continue
+            held = set(back)
+            returned = held if returned is None else (returned & held)
+    return None if returned is None else frozenset(returned)
+
+
 def _slots(bodies: list[dict[str, object]]) -> frozenset[str]:
     """The keys the job varies: present in every doing, differing in at least one.
 
@@ -264,11 +305,53 @@ def _slots(bodies: list[dict[str, object]]) -> frozenset[str]:
     )
 
 
+def wanted_by(
+    step: Step,
+    by_id: Mapping[str, Gesture],
+    seen: Mapping[str, frozenset[str]],
+) -> frozenset[str]:
+    """The parameters whose values this step's own body carries.
+
+    Asked WITHOUT the run's values, which is the whole point of it: the
+    question "does this call need a value from this run" has to be answerable
+    before anybody knows whether the run has one. `_assigned` answers a
+    narrower question -- which parameter owns which slot, given what this run
+    was given -- and it cannot see a parameter the run is missing, because a
+    parameter with no value never appears in `values` to be matched.
+
+    That blind spot is what let a run with NO values replay a demonstration
+    byte for byte: every guard downstream asked "were we given values we could
+    not place", and a run given nothing has none to fail to place.
+
+    Empty for a call that carries no parameter at all -- most calls -- which is
+    what keeps this from turning every replay into a click.
+    """
+    call = recorded_call(step, by_id)
+    if call is None or call.method.upper() in READ_METHODS or unreplayable(call):
+        return frozenset()
+    bodies = _bodies_of(step, by_id, call)
+    if not bodies:
+        return frozenset()
+    owners: set[str] = set()
+    for slot in sorted(_slots(bodies)):
+        taken = {body[slot] for body in bodies if isinstance(body.get(slot), str)}
+        if not taken:
+            continue
+        # The same claim `_assigned` makes, minus the run's values: a parameter
+        # owns a slot when every value that slot was seen taking is one the
+        # operator was seen typing into that parameter's control.
+        claiming = [name for name, observed in seen.items() if taken <= observed]
+        if len(claiming) == 1:
+            owners.add(claiming[0])
+    return frozenset(owners)
+
+
 def _assigned(
     slots: frozenset[str],
     bodies: list[dict[str, object]],
     values: Mapping[str, str],
     seen: Mapping[str, frozenset[str]],
+    elsewhere: frozenset[str] = frozenset(),
 ) -> dict[str, str] | None:
     """Which parameter owns which slot, or None where that is not a fact.
 
@@ -278,22 +361,66 @@ def _assigned(
     claim, and a parameter claiming two slots.
     """
     claimed: dict[str, str] = {}
+    # Every parameter that turned out to have somewhere to go, which is not the
+    # same list as `claimed.values()` once two of them name one slot.
+    placed: set[str] = set()
     for slot in sorted(slots):
         taken = {body[slot] for body in bodies if isinstance(body.get(slot), str)}
         if not taken:
             continue
         owners = [name for name, observed in seen.items() if name in values and taken <= observed]
-        if len(owners) > 1:
+        # Two parameters claiming one slot is a refusal only when they
+        # DISAGREE.
+        #
+        # This job declares four parameters for two values: `Customer Type` and
+        # `customertype-customerType` are the same thing under the label the
+        # operator reads and the key the form posts, and mining named both.
+        # Both then claim `customerType`, and refusing on the count alone made
+        # the write unreplayable for every run that supplied them -- which is
+        # every run the gather fills, because it answers for each parameter the
+        # job declares. Measured on the deployment 2026-09-16: the replay was
+        # refused, the ladder fell to a model, and the model pressed Save on a
+        # form that run had never filled.
+        #
+        # Two names for one value is not ambiguity. Two values for one slot is,
+        # and it still refuses: there is no way to tell which the operator
+        # meant, and a warehouse record is the wrong place to guess.
+        if len({values[name] for name in owners}) > 1:
             return None
         if owners:
             claimed[slot] = owners[0]
+            placed.update(owners)
     if len(set(claimed.values())) != len(claimed):
         return None
     # Every value this run was given must have somewhere to go. A parameter the
     # operator supplied that no key carries is the transformed-value case, and
     # sending the body without it would send the demonstration's value in its
     # place -- silently, because the endpoint answers 201 either way.
-    if any(name not in claimed.values() for name in values):
+    #
+    # Unless it is the SAME value that already went somewhere. Measured on the
+    # deployment 2026-09-16: mining declared this job's two fields four times
+    # -- `Customer Type`, the label an operator reads, beside
+    # `customertype-customerType`, the key the form posts -- and the gather
+    # answers for every parameter a job declares, so a run arrives holding four
+    # values for two slots. Two of them are placed and two are the same strings
+    # under another name, and refusing on that made the write unreplayable for
+    # every gathered run: the ladder then fell to a model, and the model
+    # pressed Save on a form that run had never filled.
+    #
+    # A value that equals one already in the body is carried, whatever it is
+    # called. A DIFFERENT value with nowhere to go is still the transformed
+    # case and still refuses -- that is the one this rule was written for.
+    carried = {values[name] for name in placed}
+    # `elsewhere` is the names that have a DECLARED slot to go to, which is the
+    # other half of "must have somewhere to go". A value that binds to a
+    # dictionary-named key is not a value with nowhere to go, and refusing the
+    # whole plan for it would mean a request naming one extra field falls back
+    # to the interface for every field -- the opposite of what naming it was
+    # for.
+    if any(
+        name not in placed and name not in elsewhere and values[name] not in carried
+        for name in values
+    ):
         return None
     return claimed
 
@@ -304,6 +431,7 @@ def write_plan_for(
     values: Mapping[str, str],
     verified: tuple[VerifiedWrite, ...],
     seen: Mapping[str, frozenset[str]],
+    keys: Mapping[str, str] = MappingProxyType({}),
 ) -> WritePlan | None:
     """The call this step would send with this run's values in it, or None.
 
@@ -338,7 +466,27 @@ def write_plan_for(
         return None
 
     slots = _slots(bodies)
-    claimed = _assigned(slots, bodies, values, seen)
+    echoed = _echoed(step, by_id, call)
+    # Worked out BEFORE the assignment, because the assignment has to know
+    # about it: a value with a declared slot to go to is not a value with
+    # nowhere to go, and refusing the whole plan for one would send every field
+    # through the interface because a request named one extra.
+    # `_returned` and not `_echoed`: the echo test is for trusting a value
+    # without looking, and this is the opposite -- a slot that will be looked
+    # at. See `_returned`, which carries the measurement.
+    also = _undemonstrated(keys, values, bodies[0], slots, _returned(step, by_id, call))
+    # Every name with a declared slot, not only the ones actually filled.
+    #
+    # "Every value must have somewhere to go" exists for the TRANSFORMED case:
+    # a value that should have gone into a varied slot and did not means the
+    # demonstration's value goes out in its place, silently, because the
+    # endpoint answers 201 either way. A field the dictionary names is not that
+    # case -- nothing is being substituted for it, the slot goes out as the
+    # empty string the form sends for a box nobody touched -- and refusing the
+    # whole replay for it would send every field through the interface, which
+    # cannot set that field either. The cost would be paid for nothing.
+    named = frozenset(keys)
+    claimed = _assigned(slots, bodies, values, seen, named)
     if claimed is None:
         return None
     if not claimed:
@@ -354,22 +502,131 @@ def write_plan_for(
         # evidence it was never going to have, for a body nobody rewrote.
         return None
 
+    # And the fields nobody demonstrated, where the record can be made to prove
+    # them.
+    #
+    # A job's slots are what two doings proved VARY, and the form posts far
+    # more than that -- 46 keys, 44 of them byte-identical across all three
+    # bodies. So a request naming `Department: Inbound` has named a slot this
+    # write already sends, as the empty string the form sends for a box nobody
+    # touched, and the value had nowhere to go.
+    #
+    # `keys` is `field_notes.keys_named`: the declared label-to-key join, with
+    # its own refusals. Not the suffix match this module argues against at
+    # length -- that argument is about INFERRING a correspondence from two
+    # strings, and this is reading one somebody wrote down.
     aimed = dict(bodies[0])
     for slot, parameter in claimed.items():
         aimed[slot] = values[parameter]
-    echoed = _echoed(step, by_id, call)
+    aimed.update(also)
     return WritePlan(
         method=call.method.upper(),
         url=call.url,
         body=json.dumps(aimed, ensure_ascii=False),
-        filled=dict(claimed),
+        filled={**claimed, **{slot: slot for slot in also}},
         confirm={
-            slot: values[parameter]
-            for slot, parameter in claimed.items()
-            if echoed is None or slot in echoed
+            **{
+                slot: values[parameter]
+                for slot, parameter in claimed.items()
+                if echoed is None or slot in echoed
+            },
+            # Unconditionally, which is the whole of what makes the binding
+            # above safe: a slot no demonstration exercised has to PROVE it
+            # landed rather than be trusted to a status. `_undemonstrated`
+            # refuses any slot that cannot be read back, so everything here is
+            # provable by construction.
+            **also,
         },
         entry=entry,
     )
+
+
+def _undemonstrated(
+    keys: Mapping[str, str],
+    values: Mapping[str, str],
+    body: Mapping[str, object],
+    slots: frozenset[str],
+    returned: frozenset[str] | None,
+) -> dict[str, str]:
+    """Values for slots no demonstration varied, and only the provable ones.
+
+    Four refusals, and each is the difference between filling a form and
+    inventing an API.
+
+    **A slot the body already sends.** Adding a key no recorded body carried is
+    this system deciding what the endpoint accepts, from a dictionary that
+    describes a screen. The form posts every field it has; a box nobody touched
+    goes out as the empty string, and filling that is editing a request rather
+    than composing one.
+
+    **Not a slot the evidence already binds.** `_assigned` decided those from
+    what the operator was seen typing, which is stronger than a declaration.
+
+    **Only a slot the record comes back holding.** This is item 5 and it is the
+    reason item 4 is safe at all: nothing demonstrated this slot, so a status
+    proves nothing about it -- the request went and the field may have been
+    ignored, renamed or silently dropped. A key the server returns is one a
+    read-back can check; one it never returns cannot be checked at all, and a
+    value written where nobody can confirm it is exactly the wrong record this
+    whole ladder exists to prevent.
+
+    Returned, and deliberately not ECHOED. The echo test asks whether a value
+    came back unchanged, which is the test for trusting one without looking --
+    and 28 of the 46 keys in this deployment's create are boxes nobody touched,
+    sent as `""` and stored as `null`, so it would exclude exactly the fields
+    this is for. Whether the server accepts THIS value is what the read-back
+    answers, and fails the step on.
+
+    **And never where the demonstrations answered nothing at all.** `None` is
+    "no evidence about the record's shape", which is not evidence about it.
+    """
+    if not keys or returned is None:
+        return {}
+    filled: dict[str, str] = {}
+    for name, slot in keys.items():
+        value = values.get(name)
+        if value is None or slot in slots or slot not in body or slot not in returned:
+            continue
+        filled[slot] = value
+    return filled
+
+
+def begins_again_at(workflow: Workflow, by_id: Mapping[str, Gesture], *, stopped_at: int) -> int:
+    """Where a run has to start over so the screen the stopped step needed is
+    there again.
+
+    A run that came up short of a value ends in front of a half-filled form.
+    Resuming at the step that stopped re-types one field into whatever is on
+    the screen a minute later -- which is right if the form is still open, and
+    wrong every other way it can go: the operator navigated off it, the session
+    timed out, the page reset. The step then acts on a screen that is not the
+    one it was recorded against.
+
+    So the run goes back to the beginning of the block that BUILT that screen:
+    the first step after the last write before it. Everything from there to the
+    stopped step is scaffolding and keystrokes -- pressing Add, opening a tab,
+    typing into a form nothing has posted yet -- and re-performing it rebuilds
+    the form the value is going into.
+
+    **Nothing in that stretch wrote, and that is the whole safety argument.**
+    The partition is at the last write precisely so a resumed run cannot
+    re-perform one: a write that went out and may have landed is not a step to
+    try again, and this returns a step strictly after every write the run
+    performed. The same rule, and the same reasoning, as `scaffolding_for` --
+    which is why they compute the same boundary and sit next to each other.
+
+    `stopped_at` itself where there is nothing before it to rebuild from, which
+    is a run that stopped on its own first step.
+    """
+    from sro.domain.execution.evidence import writes
+
+    ordered = sorted(workflow.steps, key=lambda step: step.order)
+    before = [step for step in ordered if step.order < stopped_at]
+    since = 0
+    for position, step in enumerate(before):
+        if writes(step, by_id):
+            since = position + 1
+    return before[since].order if since < len(before) else stopped_at
 
 
 def scaffolding_for(

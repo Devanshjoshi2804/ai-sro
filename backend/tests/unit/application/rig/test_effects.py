@@ -31,7 +31,12 @@ nothing away from the job, because that step sent nothing.
 
 from copy import deepcopy
 
-from sro.application.execution.effects import earned, forget_effects, record_effect
+from sro.application.execution.effects import (
+    can_try_again,
+    earned,
+    forget_effects,
+    record_effect,
+)
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.shared.identifiers import TenantId
 from tests.unit.fakes import FakeWorkflowRepository, FakeWorkflowRunRepository
@@ -46,14 +51,16 @@ _FINISHED = "2026-03-04T10:01:00+00:00"
 _AT = "2026-03-04T10:00:30+00:00"
 
 
-def _wrote(order: int = 1, *, verdict: str = "held", by: str = "status") -> RunStep:
+def _wrote(
+    order: int = 1, *, verdict: str = "held", by: str = "status", status: int = 201
+) -> RunStep:
     """A step that sent something the warehouse may have kept."""
     return RunStep(
         order=order,
         says="save the count",
         verdict=verdict,
         verdict_by=by,
-        result={"ok": True, "status": 201, "matched_by": None, "wrote": True},
+        result={"ok": True, "status": status, "matched_by": None, "wrote": True},
     )
 
 
@@ -176,7 +183,11 @@ async def test_a_failed_write_starts_the_earning_again() -> None:
     await _proven(workflows, runs, 3)
     assert await earned(workflows, _TENANT, _WORKFLOW) is True
 
-    spoiled = _run("run_bad", [_wrote(verdict="failed", by="status")])
+    # A write that went out and could not be shown to have held -- which is
+    # what un-earning is for. NOT one the server refused: `by="status"` on a
+    # failure is a 4xx, and a warehouse that answered 422 wrote nothing. See
+    # `may_have_landed`.
+    spoiled = _run("run_bad", [_wrote(verdict="failed", by="screen")])
     await runs.save(spoiled)
     assert await forget_effects(workflows, spoiled) == 3
     assert await earned(workflows, _TENANT, _WORKFLOW) is False
@@ -191,7 +202,7 @@ async def test_a_failed_write_empties_the_register_of_the_workflow_not_of_the_ru
     kept = deepcopy(workflows.effects)
     assert {run_id for _, run_id, _ in kept} == {"run_0", "run_1", "run_2"}
 
-    spoiled = _run("run_bad", [_wrote(verdict="failed", by="status")])
+    spoiled = _run("run_bad", [_wrote(verdict="failed", by="screen")])
     await runs.save(spoiled)
     await forget_effects(workflows, spoiled)
 
@@ -393,3 +404,154 @@ async def test_one_write_verified_twice_is_one_effect() -> None:
     await record_effect(workflows, run, _wrote(1, by="read"), at=_AT)
 
     assert workflows.effects == {(_WORKFLOW, "run_0", 1): ("read", _AT)}
+
+
+# -- and only where the write may really have landed ---------------------------
+
+
+def _never_sent(order: int = 1, *, kind: str = "unreachable") -> RunStep:
+    """A write the browser never performed: unreachable, no tab on the system,
+    no control found, or an approval nobody gave inside five minutes. The
+    runner marks the step as a write at SEND time, so the marker is there and
+    the command never left the machine."""
+    return RunStep(
+        order=order,
+        says="save the count",
+        verdict="failed",
+        verdict_by="none",
+        result={"ok": False, "status": None, "error_kind": kind, "wrote": True},
+    )
+
+
+async def test_a_write_the_browser_never_performed_costs_the_job_nothing() -> None:
+    """Measured on the deployment 2026-09-19: `Create a Customer Type` had
+    twenty live runs whose write held by a state belt and ONE row in its
+    register, because seventeen other runs failed a write and each wiped it
+    whole. Ten of those seventeen never wrote anything -- five `Failed to
+    fetch`, one with no CSRF token, one with no tab, one with no control, two
+    approvals that timed out. The job could never reach `K_EARNED_RUNS`, so
+    every run ever done asked a person to tap approve."""
+    workflows, runs = _store()
+    await _proven(workflows, runs, 3)
+
+    fumbled = _run("run_never", [_never_sent()])
+    await runs.save(fumbled)
+
+    assert await forget_effects(workflows, fumbled) == 0
+    assert await earned(workflows, _TENANT, _WORKFLOW) is True
+
+
+async def test_a_write_the_server_refused_costs_the_job_nothing() -> None:
+    """A warehouse that answered 422 did not write the record, and the run is
+    free to try again -- which is the same reading the rescue gate makes two
+    lines away."""
+    workflows, runs = _store()
+    await _proven(workflows, runs, 3)
+
+    refused = _run("run_422", [_wrote(verdict="failed", by="status", status=422)])
+    await runs.save(refused)
+
+    assert await forget_effects(workflows, refused) == 0
+    assert await earned(workflows, _TENANT, _WORKFLOW) is True
+
+
+async def test_a_server_that_broke_half_way_still_un_earns() -> None:
+    """A `5xx` is not a refusal. The server may have written and then failed,
+    or a proxy may have given up on an answer that was already on its way --
+    which is the state the register exists to be careful about."""
+    workflows, runs = _store()
+    await _proven(workflows, runs, 3)
+
+    broke = _run("run_500", [_wrote(verdict="failed", by="status", status=500)])
+    await runs.save(broke)
+
+    assert await forget_effects(workflows, broke) == 3
+    assert await earned(workflows, _TENANT, _WORKFLOW) is False
+
+
+# -- and a job that deletes earns the same way -------------------------------
+
+
+def _deleted(order: int = 1, *, verdict: str = "held", by: str = "status") -> RunStep:
+    """A step that removed a record: `204`, and the write marker the runner
+    sets at send time for anything that is not a read."""
+    return RunStep(
+        order=order,
+        says="confirm the deletion",
+        verdict=verdict,
+        verdict_by=by,
+        result={"ok": True, "status": 204, "matched_by": None, "wrote": True},
+    )
+
+
+async def test_a_job_that_deletes_earns_autonomy_exactly_as_one_that_creates() -> None:
+    """The operator's decision, 2026-09-19, asked and answered: *if delete is
+    performed it should earn autonomy too*.
+
+    Nothing here special-cases a method and this test is what keeps it that
+    way. The argument for an exception is real -- a delete is the one write
+    that cannot be undone by another job of this system -- and it was put to
+    the person whose warehouse it is, who said the rule is the rule: three live
+    runs whose every write a state belt saw, whatever the method.
+
+    An undo is the job this decides for. It runs through the same door as any
+    other press (`undo-rig-run` starts an ordinary run of an ordinary mined
+    job, deliberately), so before this it asked for a tap every time, forever,
+    however many times it had been watched to work.
+    """
+    workflows, runs = _store()
+    for i in range(3):
+        await _ran(workflows, runs, _run(f"run_gone_{i}", [_deleted()]))
+
+    assert await earned(workflows, _TENANT, _WORKFLOW) is True
+
+
+async def test_a_delete_that_could_not_be_shown_to_have_held_un_earns_the_same_way() -> None:
+    """And the other half of the same rule. A record that may or may not still
+    be there is exactly the state a person is asked about."""
+    workflows, runs = _store()
+    for i in range(3):
+        await _ran(workflows, runs, _run(f"run_gone_{i}", [_deleted()]))
+
+    spoiled = _run("run_bad", [_deleted(verdict="failed", by="screen")])
+    await runs.save(spoiled)
+
+    assert await forget_effects(workflows, spoiled) == 3
+    assert await earned(workflows, _TENANT, _WORKFLOW) is False
+
+
+# -- and whether a person may simply press it again ---------------------------
+
+
+def test_a_run_that_stopped_without_writing_can_be_tried_again() -> None:
+    """The deployment's own dead end, 2026-09-19: a run stopped on a sign-in
+    page, the offer that started it was spent, and the card offered a person
+    nothing but OK. Nothing it did reached the warehouse -- the step never got
+    past navigating -- so one press is safe."""
+    stopped = _run("run_1", [_read(verdict="held"), _never_sent(2)], outcome="stopped")
+
+    assert can_try_again(stopped) is True
+
+
+def test_a_run_whose_write_may_be_in_the_warehouse_is_not_offered_again() -> None:
+    """A second press after a write nobody could confirm is how a customer
+    gets two of something. No button is better than that."""
+    unknown = _run("run_2", [_wrote(verdict="failed", by="screen")], outcome="stopped")
+
+    assert can_try_again(unknown) is False
+
+
+def test_a_write_the_server_refused_leaves_the_press_available() -> None:
+    """422 wrote nothing, so trying again is the whole point -- and it is the
+    same reading `may_have_landed` makes for the register."""
+    refused = _run("run_3", [_wrote(verdict="failed", by="status", status=422)], outcome="stopped")
+
+    assert can_try_again(refused) is True
+
+
+def test_a_run_that_held_has_nothing_to_try_again() -> None:
+    assert can_try_again(_run("run_4", [_wrote()], outcome="held")) is False
+
+
+def test_a_run_still_going_is_not_pressable_either() -> None:
+    assert can_try_again(_run("run_5", [_wrote()], outcome="running")) is False

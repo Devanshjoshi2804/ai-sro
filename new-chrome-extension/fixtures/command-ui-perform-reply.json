@@ -3,8 +3,18 @@
   "ok": true,
   "result": {
     "candidates": 1,
+    "control": {
+      "item_id": "client",
+      "name": "clientCode",
+      "tag": "input"
+    },
     "detail": null,
+    "matched": {
+      "query": "panel#clients textfield#clientCode",
+      "strategy": "component"
+    },
     "matched_by": "component",
-    "performed": true
+    "performed": true,
+    "short": null
   }
 }

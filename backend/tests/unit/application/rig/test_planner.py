@@ -902,13 +902,19 @@ async def test_a_replayed_call_still_carries_the_answer_that_planned_it() -> Non
     assert planned.answer is not None and planned.answer.cost_usd == 0.002, "the runner bills it"
 
 
-def _seen(width: int = 800, height: int = 600, picture: bytes | None = b"png") -> Look:
+def _seen(
+    width: int = 800,
+    height: int = 600,
+    picture: bytes | None = b"png",
+    refused: str = "",
+) -> Look:
     return Look(
         url="http://127.0.0.1:63319/form",
         screenshot=picture,
         digest="Client Code Save",
         width=width,
         height=height,
+        refused=refused,
     )
 
 
@@ -917,6 +923,7 @@ async def _by_sight(
     look: Look | None = None,
     values: Mapping[str, str] | None = None,
     gesture: Gesture | None = None,
+    opened: bool = False,
 ) -> tuple[Planned, FakeAsker]:
     gesture = gesture or _typed()
     asker = FakeAsker(answer)
@@ -935,6 +942,7 @@ async def _by_sight(
         asker=asker,
         model="pro",
         failure="control_not_found: gone",
+        opened=opened,
     )
     return planned, asker
 
@@ -1007,6 +1015,16 @@ async def test_no_picture_no_size_or_no_answer_is_no_plan() -> None:
     assert blind.kind == "none" and blind.why == "no screen to look at" and not asker.asked
     sizeless, asker = await _by_sight(_sight(), look=_seen(width=0))
     assert sizeless.kind == "none" and sizeless.why == "no screen to look at" and not asker.asked
+    # And with the browser's own reason where it gave one. Measured on the
+    # deployment, 2026-09-17 at 15:20: two runs gave up on the same step saying
+    # "no screen to look at", and nothing anywhere said whether the tab had
+    # refused the screen, was not the visible one, or had answered with a
+    # picture of no size. Three faults, three fixes, told apart by nothing.
+    said, _ = await _by_sight(
+        _sight(),
+        look=_seen(picture=None, refused="focus_not_permitted: not the visible one"),
+    )
+    assert said.why == "no screen to look at: focus_not_permitted: not the visible one"
     refused, _ = await _by_sight(Answer(error="503 UNAVAILABLE", unpriced=True))
     assert refused.kind == "none" and refused.why == "503 UNAVAILABLE"
     assert refused.answer.unpriced is True, "the refused call is still the bill"
@@ -1165,6 +1183,108 @@ async def test_a_click_nobody_asked_a_value_of_is_planned_as_itself() -> None:
     assert planned.opens is False
     assert planned.payload["action"] == "click"
     assert "opening the list" not in planned.why
+
+
+async def test_the_sight_rung_opens_what_the_control_is_under() -> None:
+    """Measured on the deployment, 2026-09-17.
+
+    The step clicks the "Customer Types" tab, and this rung answered "not
+    currently visible on the screen. It is likely under the 'Partners' menu
+    which needs to be opened first" -- the right answer, as prose, with no way
+    to act on it. The run then did the job by its call, which is the fallback
+    and not the point: a job whose write has no call would have stopped there
+    holding the fix.
+
+    The same two-click shape a dropdown already uses: this one opens, the
+    runner plans again with a fresh picture, and the second answers the step.
+    """
+    planned, _ = await _by_sight(
+        _sight(
+            found=False,
+            points_at="what_reveals_it",
+            x=120,
+            y=44,
+            why="not visible; it is under the Partners menu",
+        )
+    )
+
+    assert planned.kind == "ui.perform_at"
+    assert planned.opens is True, "the runner would have taken this for the step itself"
+    assert planned.payload["x"] == 120
+    assert planned.payload["action"] == "click"
+    assert "Partners" in planned.why
+
+
+async def test_an_older_answer_with_no_enum_still_means_what_it_meant() -> None:
+    """`points_at` is required, so every current answer carries it -- but a
+    deployment pinned to an earlier model answers with `found` alone, and those
+    answers still mean what they always did."""
+    planned, _ = await _by_sight(_sight(found=True, x=40, y=50, action="click"))
+    assert planned.kind == "ui.perform_at"
+
+    refused, _ = await _by_sight(_sight(found=False, why="not on this screen"))
+    assert refused.kind == "none"
+
+
+async def test_a_dialog_in_the_way_is_dismissed_like_a_menu_is_opened() -> None:
+    """Measured on the deployment, 2026-09-17. The screen rung walked the menu
+    and reached the Customer Types screen -- and a modal sat over the form:
+
+        Exception Occurred
+        Processing completed without exception. (Status: 0)   [ OK ]
+
+    A warehouse system puts one of those in front of a page for things that
+    are not errors at all. Until this, the rung could only clear it by calling
+    an OK button "what reveals it", which the instructions steer against -- so
+    a run reached the right screen and stopped in front of a notice.
+
+    One answer for both shapes: click it, take a new picture, and the step is
+    what you answer then.
+    """
+    planned, _ = await _by_sight(
+        _sight(
+            found=False,
+            points_at="what_is_in_the_way",
+            x=300,
+            y=420,
+            why="a dialog headed Exception Occurred is over the form",
+        )
+    )
+
+    assert planned.kind == "ui.perform_at"
+    assert planned.opens is True, "the runner would have taken this for the step itself"
+    assert planned.payload["x"] == 300
+    assert "clearing what is in the way" in planned.why
+
+
+async def test_a_menu_may_be_opened_again_because_a_screen_has_more_than_one() -> None:
+    """A screen is answered with as many clicks as it takes: open the menu, see
+    the item, click it. A rung allowed exactly one thing could not reach a
+    control under a menu nobody demonstrated -- measured on the deployment
+    across 2026-09-16 and 17, where that job never once reached its form.
+
+    How many is the RUNNER's to bound (`K_OPENINGS`), and it refuses the rest.
+    What this rung must not do is point at the same thing twice, which the
+    fresh picture it is shown each time is what settles.
+    """
+    planned, _ = await _by_sight(
+        _sight(found=False, points_at="what_reveals_it", x=120, y=44, why="under the next one"),
+        opened=True,
+    )
+
+    assert planned.kind == "ui.perform_at"
+    assert planned.opens is True
+    assert planned.payload["x"] == 120
+
+
+async def test_a_point_to_open_that_is_not_on_the_screen_is_not_taken() -> None:
+    """The rung's whole rule is that it does not guess, and the picture IS the
+    viewport: a point outside it was not seen."""
+    planned, _ = await _by_sight(
+        _sight(found=False, points_at="what_reveals_it", x=4000, y=44, why="under a menu")
+    )
+
+    assert planned.kind == "none"
 
 
 async def test_the_sight_rung_with_no_picture_costs_nothing_and_says_so() -> None:

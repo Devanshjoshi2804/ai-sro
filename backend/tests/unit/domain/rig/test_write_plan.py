@@ -18,10 +18,13 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 
+from sro.domain.execution.field_notes import keys_named
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.write_plan import (
+    begins_again_at,
     scaffolding_for,
     seen_values,
+    wanted_by,
     write_plan_for,
 )
 from sro.domain.observation.gesture import Action, Body, Call, Gesture, Target
@@ -274,10 +277,37 @@ def test_a_parameter_this_run_supplied_that_the_body_does_not_carry_refuses() ->
     assert plan is None
 
 
-def test_one_value_two_parameters_could_claim_refuses_the_plan() -> None:
+def test_two_parameters_that_disagree_about_one_slot_refuse_the_plan() -> None:
     """A constant of the job that happens to equal some parameter's value turns
-    into a slot the runner would substitute. With one body there is no way to
-    tell, so neither claims it."""
+    into a slot the runner would substitute. Where two parameters claim one
+    slot and say DIFFERENT things, there is no way to tell which the operator
+    meant, and a warehouse record is the wrong place to guess."""
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        _twice(),
+        {CODE: "GPDP", "other": "SOMETHING ELSE"},
+        LEDGER,
+        {CODE: SEEN[CODE], "other": SEEN[CODE]},
+    )
+
+    assert plan is None
+
+
+def test_two_names_for_one_value_is_not_ambiguity() -> None:
+    """The rule above used to refuse on the COUNT of claimants, and that broke
+    the one job this deployment runs.
+
+    Mining named the same value twice -- `Customer Type`, the label an operator
+    reads, and `customertype-customerType`, the key the form posts -- so both
+    claim the one slot. Refusing on the count made the write unreplayable for
+    every run that supplied them, which is every run the gather fills, because
+    it answers for each parameter the job declares. Measured on the deployment
+    2026-09-16: the replay was refused, the ladder fell to a model, and the
+    model pressed Save on a form that run had never filled.
+
+    Two names for one value is not ambiguity. Two values for one slot is, and
+    the test above still holds it.
+    """
     plan = write_plan_for(
         _step("g1", "g2"),
         _twice(),
@@ -286,7 +316,8 @@ def test_one_value_two_parameters_could_claim_refuses_the_plan() -> None:
         {CODE: SEEN[CODE], "other": SEEN[CODE]},
     )
 
-    assert plan is None
+    assert plan is not None
+    assert '"GPDP"' in plan.body
 
 
 def test_one_demonstration_names_no_parameters_and_so_replays_nothing() -> None:
@@ -761,3 +792,303 @@ def test_a_body_that_cannot_be_replayed_is_not_evidence_about_any_slot() -> None
     assert plan.confirm == {"customerType": "GPDP", "longDescription": "new"}, (
         "a doing nothing may replay is not a doing that says what the server keeps"
     )
+
+
+def test_a_call_says_which_parameters_its_body_carries_without_being_given_any() -> None:
+    """`wanted_by` is asked BEFORE anybody knows what the run holds, which is
+    the whole point of it.
+
+    Every guard downstream asked "were we given values we could not place", and
+    a run given nothing has none to fail to place -- so the one case where
+    replaying a recording is most certainly wrong was the one case they let
+    through. Measured on the deployment 2026-09-16: a run whose gather came
+    back empty replayed the demonstration's own body.
+    """
+    # Both fields this job varies, named without a single value being supplied.
+    assert wanted_by(_step("g1", "g2"), _twice(), SEEN) == frozenset({CODE, DESCRIPTION})
+    # A call whose body carries no parameter at all still replays exactly as it
+    # was demonstrated, which is what most calls are.
+    assert wanted_by(_step("g1"), {"g1": _saving("g1", CREATED)}, SEEN) == frozenset()
+
+
+def test_the_same_value_under_two_names_is_carried_rather_than_refused() -> None:
+    """The rule this narrows exists for the transformed-value case: a value the
+    operator supplied that no key carries means the body would go out with the
+    demonstration's value in its place, silently, because the endpoint answers
+    201 either way.
+
+    A value that equals one already IN the body is not that. Measured on the
+    deployment 2026-09-16: mining declared this job's two fields four times --
+    `Customer Type`, the label an operator reads, beside
+    `customertype-customerType`, the key the form posts -- and the gather
+    answers for every parameter a job declares, so every gathered run arrived
+    holding four values for two slots. Two were placed, two were the same
+    strings under another name, and the plan refused: the ladder fell to a
+    model, and the model pressed Save on a form that run had never filled.
+    """
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        _twice(),
+        {CODE: "GPDP", DESCRIPTION: DESCRIBED, "Customer Type": "GPDP"},
+        LEDGER,
+        SEEN,
+    )
+
+    assert plan is not None
+    assert json.loads(plan.body)["customerType"] == "GPDP"
+
+
+def test_a_different_value_with_nowhere_to_go_still_refuses() -> None:
+    """The half of that rule which must not move. A value the body does not
+    carry, and which is not something the body carries under another name, is
+    the transformed case -- and sending the body without it sends the
+    demonstration's value instead."""
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        _twice(),
+        {CODE: "GPDP", DESCRIPTION: DESCRIBED, "site": "SG"},
+        LEDGER,
+        SEEN,
+    )
+
+    assert plan is None
+
+
+# -- where a run that came up short has to start over ---------------------------
+
+
+def test_a_resumed_run_goes_back_to_where_the_form_was_built() -> None:
+    """Not to the step that stopped.
+
+    That one re-types a field into whatever is on the screen a minute later,
+    and the operator may well have navigated off the half-filled form by then:
+    the step acts on a screen that is not the one it was recorded against.
+    """
+    by_id = {"t4": _typing("t4", 4), "t5": _typing("t5", 5)}
+    job = _job(
+        Step(order=2, says="open the screen", system=HOST, cites=[]),
+        Step(order=3, says="press Add", system=HOST, cites=[]),
+        Step(order=4, says="type the code", system=HOST, cites=["t4"]),
+        Step(order=5, says="type the description", system=HOST, cites=["t5"]),
+    )
+
+    # Stopped typing the description: back to opening the screen, because
+    # nothing between them wrote.
+    assert begins_again_at(job, by_id, stopped_at=5) == 2
+
+
+def test_a_resumed_run_never_starts_on_the_far_side_of_a_write() -> None:
+    """The whole safety argument, and the same one `scaffolding_for` makes: a
+    write that went out and may have landed is not a step to try again."""
+    by_id = {"g1": _saving("g1", CREATED), "t7": _typing("t7", 7), "t8": _typing("t8", 8)}
+    job = _job(
+        Step(order=2, says="open the screen", system=HOST, cites=[]),
+        _step("g1"),
+        Step(order=7, says="press Add again", system=HOST, cites=["t7"]),
+        Step(order=8, says="type the second code", system=HOST, cites=["t8"]),
+    )
+
+    # The save at step 6 is behind it, so the rebuild starts AFTER it -- never
+    # at step 2, which would create the first record a second time.
+    assert begins_again_at(job, by_id, stopped_at=8) == 7
+
+
+def test_a_run_that_stopped_on_its_own_first_step_starts_there() -> None:
+    """There is nothing before it to rebuild from."""
+    job = _job(Step(order=2, says="open the screen", system=HOST, cites=[]))
+
+    assert begins_again_at(job, {}, stopped_at=2) == 2
+
+
+# -- a field nobody demonstrated, and what makes filling it safe ---------------
+
+DECLARED = keys_named(["Department"], {"departmentNumber": {"labels": ["Department"]}})
+"""The join `field_notes.keys_named` makes, which is what the runner hands in.
+`_slots` never names `departmentNumber` -- both doings send it empty, so it
+does not vary -- and the form posts it all the same, which is what makes it
+fillable at all."""
+
+
+def test_a_field_no_doing_varied_is_filled_from_the_declared_key() -> None:
+    """The case this exists for.
+
+    A job's slots are what two doings proved VARY, and the form posts 46 keys.
+    So `Department: Inbound` is a reasonable request naming a slot this write
+    already sends -- as the empty string the form sends for a box nobody
+    touched -- and the value had nowhere to go.
+    """
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        {
+            "g1": _answered("g1", CREATED, {"customerType": "GGD", "departmentNumber": ""}),
+            "g2": _answered(
+                "g2",
+                {**CREATED, "customerType": "GKB"},
+                {"customerType": "GKB", "departmentNumber": ""},
+            ),
+        },
+        {CODE: "GPDP", "Department": "Inbound"},
+        LEDGER,
+        {CODE: SEEN[CODE]},
+        DECLARED,
+    )
+
+    assert plan is not None
+    sent = json.loads(plan.body or "{}")
+    assert sent["departmentNumber"] == "Inbound"
+    # And it must prove it landed. Nothing demonstrated this slot, so a status
+    # says nothing about it: the request went, and the field may have been
+    # ignored, renamed or silently dropped.
+    assert plan.confirm["departmentNumber"] == "Inbound"
+
+
+def test_a_field_the_server_never_echoes_is_not_filled_at_all() -> None:
+    """Item 5, and the reason item 4 is safe. A slot no later read can be
+    checked against is a value written where nobody can confirm it -- which is
+    the wrong record this whole ladder exists to prevent."""
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        {
+            "g1": _answered("g1", CREATED, {"customerType": "GGD"}),
+            "g2": _answered("g2", {**CREATED, "customerType": "GKB"}, {"customerType": "GKB"}),
+        },
+        {CODE: "GPDP", "Department": "Inbound"},
+        LEDGER,
+        {CODE: SEEN[CODE]},
+        DECLARED,
+    )
+
+    assert plan is not None
+    assert json.loads(plan.body or "{}")["departmentNumber"] == ""
+    assert "departmentNumber" not in plan.confirm
+
+
+def test_demonstrations_that_answered_nothing_fill_nothing_undemonstrated() -> None:
+    """`None` is "no evidence about echoing", which is not evidence of
+    echoing."""
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        _twice(),
+        {CODE: "GPDP", "Department": "Inbound"},
+        LEDGER,
+        {CODE: SEEN[CODE]},
+        DECLARED,
+    )
+
+    assert plan is not None
+    assert json.loads(plan.body or "{}")["departmentNumber"] == ""
+
+
+def test_a_declared_key_no_recorded_body_carries_is_not_added() -> None:
+    """Adding a key no body ever sent is this system deciding what the endpoint
+    accepts, from a dictionary that describes a screen."""
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        {
+            "g1": _answered("g1", CREATED, {"customerType": "GGD", "invented": "x"}),
+            "g2": _answered(
+                "g2", {**CREATED, "customerType": "GKB"}, {"customerType": "GKB", "invented": "x"}
+            ),
+        },
+        {CODE: "GPDP", "Nowhere": "Inbound"},
+        LEDGER,
+        {CODE: SEEN[CODE]},
+        keys_named(["Nowhere"], {"invented": {"labels": ["Nowhere"]}}),
+    )
+
+    assert plan is not None
+    assert "invented" not in json.loads(plan.body or "{}")
+
+
+def test_the_evidence_wins_where_both_could_bind_one_slot() -> None:
+    """`_assigned` decided from what the operator was seen typing, which is
+    stronger than a declaration."""
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        {
+            "g1": _answered("g1", CREATED, {"customerType": "GGD"}),
+            "g2": _answered("g2", {**CREATED, "customerType": "GKB"}, {"customerType": "GKB"}),
+        },
+        {CODE: "GPDP", "Customer Type": "OTHER"},
+        LEDGER,
+        {CODE: SEEN[CODE]},
+        keys_named(["Customer Type"], {"customerType": {"labels": ["Customer Type"]}}),
+    )
+
+    assert plan is not None
+    assert json.loads(plan.body or "{}")["customerType"] == "GPDP"
+    assert plan.filled["customerType"] == CODE
+
+
+def test_a_slot_the_record_returns_but_never_echoed_is_still_fillable() -> None:
+    """The difference between `_returned` and `_echoed`, measured.
+
+    On this deployment's own create, 2026-09-19: 46 keys sent, 43 in the
+    record, 15 echoed unchanged. The 28 that disagree are the boxes nobody
+    touched -- sent as `""` and stored as `null` -- so an echo test excludes
+    precisely the fields a request might name and a demonstration never
+    filled, which is every field this exists for.
+
+    Whether the server accepts THIS value is what the read-back answers, and
+    fails the step on.
+    """
+    answer = {"customerType": "GGD", "departmentNumber": None}
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        {
+            "g1": _answered("g1", CREATED, answer),
+            "g2": _answered(
+                "g2", {**CREATED, "customerType": "GKB"}, {**answer, "customerType": "GKB"}
+            ),
+        },
+        {CODE: "GPDP", "Department": "Inbound"},
+        LEDGER,
+        {CODE: SEEN[CODE]},
+        DECLARED,
+    )
+
+    assert plan is not None
+    # Sent as "" by both doings and returned as null by both, so nothing
+    # echoed it -- and the record plainly holds the key.
+    assert json.loads(plan.body or "{}")["departmentNumber"] == "Inbound"
+    assert plan.confirm["departmentNumber"] == "Inbound"
+
+
+def test_a_slot_no_record_ever_held_is_not_filled() -> None:
+    """A key the server never returns cannot be checked at all, and a value
+    written where nobody can confirm it is the wrong record this ladder exists
+    to prevent."""
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        {
+            "g1": _answered("g1", CREATED, {"customerType": "GGD"}),
+            "g2": _answered("g2", {**CREATED, "customerType": "GKB"}, {"customerType": "GKB"}),
+        },
+        {CODE: "GPDP", "Department": "Inbound"},
+        LEDGER,
+        {CODE: SEEN[CODE]},
+        DECLARED,
+    )
+
+    assert plan is not None
+    assert json.loads(plan.body or "{}")["departmentNumber"] == ""
+    assert "departmentNumber" not in plan.confirm
+
+
+def test_one_doing_that_returned_a_key_is_not_enough() -> None:
+    """`all`, not `any`: one doing that returned a key proves nothing if
+    another did not."""
+    plan = write_plan_for(
+        _step("g1", "g2"),
+        {
+            "g1": _answered("g1", CREATED, {"customerType": "GGD", "departmentNumber": None}),
+            "g2": _answered("g2", {**CREATED, "customerType": "GKB"}, {"customerType": "GKB"}),
+        },
+        {CODE: "GPDP", "Department": "Inbound"},
+        LEDGER,
+        {CODE: SEEN[CODE]},
+        DECLARED,
+    )
+
+    assert plan is not None
+    assert json.loads(plan.body or "{}")["departmentNumber"] == ""

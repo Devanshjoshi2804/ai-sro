@@ -238,6 +238,13 @@ measure: ## What this system has actually done, and what every number stands on
 	$(BACKEND) uv run python scripts/measure.py $(if $(tenant),--tenant $(tenant),) \
 		--questions scripts/measure-questions.txt $(if $(json),--json $(json),)
 
+press-report: ## What one press of each mined job would write: make press-report [tenants="acme new"]
+	@# Reads only, and the questions are the ones that found three defects in
+	@# a day: which Saves write twice (the shape the replay refuses), which
+	@# steps use which, and whether any job takes another job's output. Run it
+	@# ON a deployment to measure that deployment.
+	$(BACKEND) uv run python scripts/what_one_press_writes.py $(or $(tenants),)
+
 test-extension: ## The extension's own self-checks, in plain node
 	@# Discovered, not listed. This target named all 25 suites by hand until
 	@# 2026-09-10, and the list was load-bearing in the wrong direction: phase

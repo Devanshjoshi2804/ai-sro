@@ -349,6 +349,8 @@ def test_every_door_that_needs_a_model_refuses_through_the_one_guard() -> None:
         "sro/application/observation/read_gesture.py",
         # POST /v1/chat
         "sro/application/chat/read_chat.py",
+        # POST /v1/chat/from-the-mail -- one reading per mail it looks at.
+        "sro/application/chat/from_the_mail.py",
         # POST /v1/workflow-runs -- both the press and the rescue path.
         "sro/application/execution/workflow_runs.py",
         # Planning where to look for the answer to a question. No route yet:

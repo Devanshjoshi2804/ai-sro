@@ -312,9 +312,59 @@
   setTimeout(() => {
     if (expected !== null) return;
     chrome.runtime
-      .sendMessage({ kind: "calls-not-recordable", url: location.href })
+      .sendMessage({
+        kind: "calls-not-recordable",
+        url: location.href,
+        // Whether this page has anything to lose.
+        //
+        // The fix is a reload and the worker will not do one unasked, for the
+        // right reason: a page with a half-filled form on it is exactly the
+        // state this system spends its care protecting, and throwing that away
+        // to repair its own plumbing would be the worst trade it could make.
+        //
+        // But a page with nothing typed into it has nothing to lose, and
+        // asking somebody to press a button to fix a fault they did not cause
+        // -- every time an extension update lands -- is a tax for no benefit.
+        // So the page says which it is and the worker decides.
+        holding: holdingSomething(),
+      })
       .catch(() => {});
   }, 1000);
+
+  /** Whether anything on this page would be lost by reloading it.
+   *
+   * Deliberately generous about what counts. A false "holding something" costs
+   * one banner and one press; a false "holding nothing" costs somebody the
+   * form they were half way through, and those are not the same mistake.
+   *
+   * So: any text a person could have typed, any box they could have ticked
+   * away from how it loaded, and any page that has asked the browser to warn
+   * before leaving -- which is the page itself saying it has unsaved state,
+   * and the only signal here that comes from the application rather than from
+   * guessing at its markup.
+   */
+  function holdingSomething() {
+    try {
+      for (const field of document.querySelectorAll("input, textarea, select")) {
+        if (field.type === "password") return true;
+        if (field.type === "checkbox" || field.type === "radio") {
+          if (field.checked !== field.defaultChecked) return true;
+          continue;
+        }
+        if (field.tagName === "SELECT") {
+          if (field.selectedIndex > 0) return true;
+          continue;
+        }
+        const now = String(field.value ?? "");
+        if (now && now !== String(field.defaultValue ?? "")) return true;
+      }
+      return Boolean(window.onbeforeunload);
+    } catch {
+      // A page that cannot be read is a page nothing can say this about, and
+      // the safe answer to "may I throw this away" is no.
+      return true;
+    }
+  }
 
   const looksLikeRecord = (raw) =>
     raw &&

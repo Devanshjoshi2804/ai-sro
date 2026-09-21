@@ -55,6 +55,13 @@ assertion this constant has is derived from it and measured with the same
 under-counting `tokens()`, so 150,000 -- the value that shipped 204,747 tokens
 and cost $2.00 -- passed all of them.
 """
+K_LEAD_UP_S = 180.0
+"""How far back a chosen gesture reaches for the work that led to it, in seconds.
+
+Three minutes of one stream: long enough for somebody to open a screen, filter a
+grid, pick a row and press the button; short enough that the job before this one
+is not swept in with it."""
+
 K_MIN_GESTURES = 25
 K_MAX_GESTURE_TOKENS = 2_000
 K_ENDS = 12
@@ -175,6 +182,11 @@ class Packed:
     strength: float
     tokens: int
 
+    stream_id: str = ""
+    """Which browser this came from, so `pack` can tell a gesture's own lead-up
+    from somebody else's work at the same moment. Defaulted because a hand-built
+    item in a test is not about two streams."""
+
 
 @dataclass
 class Window:
@@ -292,12 +304,35 @@ def as_evidence(gesture: Gesture, intent: Intent | None) -> dict[str, object]:
     }
 
 
+def _mutates(gesture: Gesture) -> bool:
+    return any(request.method != "GET" for request in gesture.requests)
+
+
+def _wrote(item: Packed) -> bool:
+    """Whether a packed item's trimmed evidence still shows a write.
+
+    A pooled gesture arrives as evidence rather than as a `Gesture`, and the
+    trim keeps each call's method -- so the same question is answerable, just
+    from the other side.
+    """
+    gesture = item.evidence.get("gesture")
+    if not isinstance(gesture, dict):
+        return False
+    calls = gesture.get("calls")
+    if not isinstance(calls, list):
+        return False
+    return any(
+        isinstance(call, dict) and str(call.get("method", "")).upper() not in ("GET", "")
+        for call in calls
+    )
+
+
 def strength(gesture: Gesture, intent: Intent | None, linked: set[str]) -> float:
     """What earns a place at the ends of the window. Never stated in the prompt:
     telling a model which evidence is most relevant was measured to reduce
     accuracy in all five languages tested."""
     score = 1.0
-    if any(request.method != "GET" for request in gesture.requests):
+    if _mutates(gesture):
         score += 1.0
     if intent is not None and intent.confidence == "high":
         score += 0.5
@@ -352,6 +387,11 @@ def pack(
     candidates: list[Packed] = [
         replace(item, strength=item.strength + K_POOL_BONUS) for item in pool
     ]
+    # Which candidates carry a write, by id, so the loop below can ask without
+    # reaching back for the Gesture -- a pooled item arrives already packed and
+    # has none to reach for.
+    writing = {gesture.id for gesture in gestures if _mutates(gesture)}
+    writing |= {item.gesture_id for item in pool if _wrote(item)}
     for gesture in gestures:
         intent = intents.get(gesture.id)
         evidence = as_evidence(gesture, intent)
@@ -362,6 +402,7 @@ def pack(
                 evidence=evidence,
                 strength=strength(gesture, intent, linked),
                 tokens=evidence_tokens(evidence),
+                stream_id=gesture.stream_id,
             )
         )
 
@@ -379,15 +420,73 @@ def pack(
         - tokens(json.dumps(known, indent=1, ensure_ascii=False))
         - tokens(kb)
     )
+    # A write is not admitted without the work that led to it.
+    #
+    # **A demonstration is several quiet gestures and then a write, and the
+    # ranking was built to split exactly that shape.** The gesture carrying a
+    # mutation scores 2.0 and the clicks that made it possible score 1.0, so the
+    # packer took the write and left the job behind -- and a model shown one
+    # orphan click cannot propose the job it belongs to. `validate` would refuse
+    # a one-step proposal even if it did.
+    #
+    # Measured on the deployment 2026-09-19. The operator deleted customer type
+    # GZ4 by hand in a watched tab; `DELETE /wm/customerTypes/GZ4` answered 200
+    # and all twelve gestures of it were captured. With the tie-break above
+    # fixed the window reached that evening and admitted exactly one of the
+    # twelve: the confirm click carrying the DELETE. The eleven that show HOW to
+    # cause it were still out. With this it admits all twelve, and the window
+    # grows from 114 items to 161 -- a lead-up is clicks, and clicks are cheap.
+    #
+    # Only a write anchors a group, and that is the narrow reading on purpose.
+    # Every gesture dragging three minutes of history in with it would let one
+    # scroll spend the window, and the failure this repairs is specifically that
+    # an EFFECT was shown without its cause. A write is evidence that something
+    # is possible; the gestures before it are evidence of how to do it, and the
+    # second is what a job is made of.
+    #
+    # ponytail: greedy per-write, not sitting-level packing. Two writes three
+    # minutes apart still merge their lead-ups, and a lead-up wider than the
+    # room left is dropped while its write is kept. The upgrade is ranking whole
+    # sittings; this is the smallest thing that stops the splitting, and it is
+    # measurable against the same store that found it.
+    by_stream: dict[str, list[Packed]] = {}
+    for item in candidates:
+        by_stream.setdefault(item.stream_id, []).append(item)
+    for run in by_stream.values():
+        run.sort(key=lambda item: item.at)
+
     chosen: list[Packed] = []
-    left_out: list[str] = []
+    taken: set[str] = set()
     spent = 0
-    for item in sorted(candidates, key=lambda i: (-i.strength, i.at)):
-        if spent + item.tokens > room and len(chosen) >= K_MIN_GESTURES:
-            left_out.append(item.gesture_id)
+    for item in sorted(candidates, key=lambda i: (-i.strength, -i.at)):
+        if item.gesture_id in taken:
             continue
-        chosen.append(item)
-        spent += item.tokens
+        group = [item]
+        if item.gesture_id in writing:
+            group = [
+                one
+                for one in by_stream.get(item.stream_id, ())
+                if one.gesture_id not in taken
+                and one.gesture_id != item.gesture_id
+                and item.at - K_LEAD_UP_S <= one.at < item.at
+            ] + group
+        cost = sum(one.tokens for one in group)
+        if spent + cost > room:
+            # The floor is a floor on ITEMS, so a group that will not fit falls
+            # back to the write alone rather than spending the allowance a whole
+            # demonstration at a time. Below the floor the budget yields, which
+            # is what it has always done: a window of nothing is worse than a
+            # window over its estimate.
+            if len(chosen) >= K_MIN_GESTURES:
+                continue
+            group, cost = [item], item.tokens
+        chosen.extend(group)
+        taken |= {one.gesture_id for one in group}
+        spent += cost
+    # Everything the window could not take, named once. Built at the end rather
+    # than as the loop goes: an item passed over on its own turn can still be
+    # admitted afterwards as a write's lead-up.
+    left_out = [one.gesture_id for one in candidates if one.gesture_id not in taken]
 
     chosen.sort(key=lambda item: item.at)
     return Window(items=chosen, spent=spent, left_out=left_out)

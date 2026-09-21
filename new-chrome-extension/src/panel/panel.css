@@ -8,7 +8,11 @@
    * changed is that they are no longer a second, slightly-wrong copy of the
    * console's colours. */
   color-scheme: dark;
-  font-family: var(--font-body, system-ui), -apple-system, "Segoe UI", sans-serif;
+  font-family:
+    var(--font-body, system-ui),
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
   font-size: 13px;
 
   --ground: var(--brand-ground);
@@ -26,7 +30,6 @@
   --mono: var(--font-mono-face, ui-monospace), SFMono-Regular, Menlo, monospace;
 }
 
-
 /* Every surface here is toggled by the `hidden` attribute rather than by a
    class, and a bare `.menu { display: flex }` outranks the user-agent's
    `[hidden] { display: none }`. Without this the profile menu and the console
@@ -39,6 +42,10 @@ body {
   margin: 0;
   display: flex;
   flex-direction: column;
+  /* What the history overlay is positioned against. Without it the overlay
+     anchors to the viewport, which is the same rectangle today and is not the
+     thing it is meant to sit over. */
+  position: relative;
   /* Exactly the viewport, not at least it: the panel is a fixed frame, and the
      composer is pinned to its bottom rather than to the end of the page. */
   height: 100vh;
@@ -268,8 +275,358 @@ body {
   background: var(--warn-wash);
 }
 
+/* A step that is happening, rather than one that has.
+ *
+ * The glyph is a character and says the right thing at a glance -- ○ waiting,
+ * ● now, ✓ held -- but a run in flight and a run that stopped on a live step
+ * draw the identical dot. A slow pulse is the difference, and it is the one
+ * thing on this panel that should move: it means "still going", which is the
+ * question somebody watching actually has.
+ */
+.run[data-status="running"] .step .glyph[data-live="true"] {
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Somebody who has asked for less movement gets less movement. The dot still
+   says which step is live; it simply stops breathing. */
+@media (prefers-reduced-motion: reduce) {
+  .run[data-status="running"] .step .glyph[data-live="true"] {
+    animation: none;
+  }
+}
+
+/* What a lookup came back with.
+ *
+ * The count is the answer and is sized as one; the table under it is what
+ * somebody checks it against. Its own sideways scroller, so a wide record
+ * cannot make the whole panel scroll and take the composer with it.
+ */
+.result .count {
+  margin: 2px 0 6px;
+  font: 700 15px/1.2 inherit;
+  color: var(--ink);
+}
+
+/* The eyebrow: what this is about, above what it says. 10.5/700/.08em,
+   uppercase, muted -- the label idiom the console's cards use, so a person
+   moving between the two surfaces is reading the same shape. */
+.result .where {
+  font: 700 10.5px/1.4 inherit;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.result[data-ok="false"] .detail {
+  color: var(--warn);
+}
+
+/* A warehouse record, read downwards.
+ *
+ * This was a table. Ten fields across 360 pixels is a horizontal scroller, and
+ * what falls off the right is whichever columns the system serialised last --
+ * measured on the deployment 2026-09-21, a reader had to drag sideways past
+ * `INVENTORYSTATUSPROGRESSION` to reach anything they had asked about. A card
+ * reads in the direction this panel has room in.
+ */
+.records {
+  margin-top: 8px;
+}
+
+.record-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.record {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--sunk, rgb(255 255 255 / 2%));
+}
+
+/* The record the question named. It is first, and eight cards look alike. */
+.record[data-asked="1"] {
+  border-color: var(--brand, #dc582a);
+  background: var(--tint, rgb(220 88 42 / 8%));
+}
+
+.record-name {
+  margin: 0 0 4px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.record-field {
+  margin: 0;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  /* The value wraps; the label does not. A field name broken across two lines
+   * is a column header pretending to be prose. */
+  flex-wrap: wrap;
+}
+
+.record-label {
+  color: var(--ink-mute);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  /* Enough that the values line up at a glance, and not so much that a long
+   * field name pushes every value off the card. */
+  min-width: 9ch;
+}
+
+.record-value {
+  /* The whole reason this is not a table: a value that does not fit wraps
+   * rather than disappearing to the right. */
+  overflow-wrap: anywhere;
+}
+
+.paging {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.paging .note {
+  margin: 0;
+}
+
+.paging button[disabled] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Which half of the panel you are on.
+ *
+ * ONE control, not two buttons standing near each other: a segmented switch in
+ * a single rounded well, which is the idiom the rest of this product's chrome
+ * uses and the thing the first version got wrong -- `display:flex` on each tab
+ * made every tab a block, and they stacked one above the other like two stray
+ * boxes.
+ *
+ * Above the scroll and never moving, because the control that says where you
+ * are must not itself be somewhere you have to look for.
+ */
+#panes {
+  flex: 0 0 auto;
+  padding: 10px 14px 2px;
+}
+
+/* In the strip, pushed to its right: the name is on the left and this is the
+   other end of the same line. `margin-left: auto` rather than a spacer, so the
+   profile disc after it stays where it has always been. */
+.panes {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  /* Room between them. At 2px five glyphs read as one smudged control, and the
+     thing a person is aiming at on a panel beside a warehouse screen is a
+     shape they can hit without looking twice. */
+  gap: 6px;
+  padding: 3px 5px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: var(--brand-surface-2);
+}
+
+/* A square for a glyph, not a pill for a word. Four of these and the profile
+   disc fit in the strip beside the name, which is the row this cluster moved
+   into so the panel stopped spending one of its six on navigation. */
+.pane-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 30px;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-mute);
+  /* The shorthand LAST, and carrying the size. A `font-size` above a `font`
+     shorthand is a line that does nothing -- the shorthand resets it -- and
+     this cluster was drawing 12px glyphs while the file said 13.
+     Sixteen because these are shapes rather than letters: a glyph at body size
+     is a smudge on a panel somebody glances at from a warehouse aisle. */
+  font: 600 18px/1 inherit;
+  cursor: pointer;
+  /* The one transition on this control. A segment that snaps is a segment
+     somebody presses twice to see whether it worked. */
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.pane-tab:hover {
+  color: var(--ink-soft);
+}
+
+.pane-tab[aria-selected="true"] {
+  background: var(--brand-raised);
+  color: var(--ink);
+}
+
+/* Somebody who asked for less movement gets none of this one either. */
+@media (prefers-reduced-motion: reduce) {
+  .pane-tab {
+    transition: none;
+  }
+}
+
+/* Arriving on a pane, rather than appearing on it.
+ *
+ * `hidden` snaps: the cards are gone and the conversation is simply there, and
+ * on a 400-pixel column that reads as a flicker rather than as a move. A short
+ * fade is the whole difference between a switch and a jump -- and it runs on
+ * showing only, so nothing is ever waiting on an animation to leave.
+ */
+#cards:not([hidden]),
+#thread:not([hidden]) {
+  animation: pane-in 140ms ease-out;
+}
+
+@keyframes pane-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #cards:not([hidden]),
+  #thread:not([hidden]) {
+    animation: none;
+  }
+}
+
+/* The one number a person on the wrong pane needs. Toned, never accented:
+ * `brand.css` says state colours are not the accent, and this is a state. */
+/* On the corner of its own icon, not in the row beside it.
+ *
+ * Inline, it was a third item inside a 32-pixel square: the square grew, the
+ * cluster spread, and an eleven-request badge shunted the clock along the
+ * strip. A count is a mark ON a thing, and the thing it is on is the tray. */
+.pane-count {
+  position: absolute;
+  top: -3px;
+  right: -4px;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  /* Against the strip behind it, so a badge over a glyph still reads as two
+     things rather than one busy one. */
+  border: 1.5px solid var(--brand-surface-2);
+  background: var(--warn);
+  color: var(--card);
+  font: 700 10.5px/1.6 inherit;
+  text-align: center;
+}
+
+/* What arrived while nobody was looking.
+ *
+ * Pinned above the scroll, so a request nobody has answered is never something
+ * to find by scrolling. Folded it is one line; opened it drops the cards down
+ * and scrolls within itself rather than pushing the panel's own column around
+ * -- five waiting requests must not bury the card for the run happening now.
+ */
+#waiting:not([hidden]) {
+  flex: 0 0 auto;
+  padding: 10px 14px 0;
+}
+
+.waiting-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.waiting-head .what {
+  flex: 1 1 auto;
+}
+
+.waiting-head .note {
+  flex: 0 0 auto;
+}
+
+.waiting-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
 .card[data-tone="live"] {
   border-left: 3px solid var(--accent);
+}
+
+/* Something turning, while something is happening.
+
+   The live card already said what it was doing and how long it had been doing
+   it, and both of those are text that sits still. A person glancing at a panel
+   reads movement before they read words: no movement is a run that has hung,
+   whatever the words say. */
+.spinner {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 7px;
+  vertical-align: -1px;
+  border: 1.5px solid var(--accent);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Somebody who has asked their browser to stop moving things has asked this
+   too. The ring stays -- it is the marker that this card is the live one --
+   and only the turning goes. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
 }
 
 .card h3 {
@@ -588,22 +945,64 @@ button.danger:hover:not(:disabled) {
   overflow-wrap: anywhere;
 }
 
+/* The box is the control. The border belongs to it rather than to the field
+   inside it, so the one press that is not the Enter key can sit in its corner
+   instead of spending a third of a 360-pixel row on the word "Send". */
+.composer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+/* The field, bare: the box around it is already drawing the border, and two
+   borders one inside the other is what a form looks like. */
 .composer input {
   flex: 1;
   min-width: 0;
-  padding: 7px 10px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--card);
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
   color: var(--ink);
   font: inherit;
   font-size: 12.5px;
 }
 
+.composer input:focus-visible {
+  outline: none;
+}
+
+/* The focus ring moves to the box, because the box is what somebody sees. A
+   field with no ring and no border is a field nobody can tell is focused. */
+.composer:focus-within {
+  border-color: var(--accent);
+}
+
+.composer .tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.composer .send {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
 .composer input::placeholder {
   color: var(--ink-mute);
 }
-
 
 /* -- the time rail ---------------------------------------------------------- */
 
@@ -631,6 +1030,90 @@ button.danger:hover:not(:disabled) {
   min-width: 0;
 }
 
+/* An answer is read down the column, not across it.
+ *
+ * `.message` is a row: the time, then everything else beside it. For a
+ * `looked` message that put the QUESTION in a narrow left column and the
+ * records in what was left, which is the sideways reading this whole card was
+ * changed to avoid. The question is a heading here and the answer is under
+ * it, at the full width of the panel.
+ */
+.message[data-kind="looked"] {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+}
+
+.message[data-kind="looked"] > .when {
+  grid-column: 1;
+}
+
+.message[data-kind="looked"] > .what {
+  grid-column: 2;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.message[data-kind="looked"] > .answers {
+  grid-column: 1 / -1;
+}
+
+/* A recent task is a line you can open.
+ *
+ * It was three spans and nothing to press, over a run the browser was already
+ * holding whole. A button rather than a clickable row: a row that does
+ * something is a control, and a control that is not a button is one a keyboard
+ * cannot reach and a screen reader does not announce.
+ */
+.history-line {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: baseline;
+  width: 100%;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.history-line:hover,
+.history-line:focus-visible {
+  background: var(--tint, rgb(255 255 255 / 6%));
+}
+
+.history-list li[data-open="1"] .history-line {
+  background: var(--tint, rgb(255 255 255 / 6%));
+}
+
+/* How it ended, in the one place colour earns its keep: finding the run that
+   went wrong in a list where every line reads the same words. Three states,
+   not one per outcome -- a palette with a shade per ending is a legend to
+   learn. On the OUTCOME word only, so the title stays the title. */
+.history-list li[data-ended="bad"] .detail {
+  color: var(--brand-danger);
+}
+
+.history-list li[data-ended="asking"] .detail {
+  color: var(--warn);
+}
+
+.history-list li[data-ended="live"] .detail {
+  color: var(--accent);
+}
+
+/* The record under the line it belongs to, indented so the list still reads
+   as a list with one of its lines opened. */
+.record-of-a-run {
+  margin: 4px 0 8px 8px;
+  padding-left: 8px;
+  border-left: 2px solid var(--line);
+}
+
 /* -- a nudge ---------------------------------------------------------------- */
 
 /* The one entry that carries the accent, because it is the one asking to be
@@ -638,6 +1121,49 @@ button.danger:hover:not(:disabled) {
 .message[data-kind="nudge"][data-state="open"] {
   border-left: 2px solid var(--accent);
   padding-left: 10px;
+}
+
+/* The band under a card that is asking for a decision, and the keys named on
+   its buttons. The way out first and the primary press last, which is the
+   order of every dialog this panel sits beside. */
+.message .actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.message .actions kbd {
+  margin-left: 6px;
+  padding: 1px 4px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 10.5px;
+  color: var(--ink-mute);
+  opacity: 0.85;
+}
+
+/* What a write would use, shut by default. Twelve values in a 360-pixel column
+   push the two controls the card exists for below the fold. */
+.message .request summary {
+  cursor: pointer;
+  font-size: 11.5px;
+  color: var(--ink-mute);
+}
+
+.message .request[open] summary {
+  margin-bottom: 4px;
+}
+
+/* The boxes, when somebody asks for them. A message is a flex ROW, so four
+   inputs appended straight into it share one 360-pixel line and hold three
+   characters each -- which is what the offer card looked like on 2026-09-16.
+   One per line, and only from the press that reveals them. */
+.message .fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
 }
 
 /* Once it has ended it is a line about something that happened, like the rest.
@@ -745,5 +1271,535 @@ a:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .run .glyph {
     transition: none;
+  }
+}
+
+/* -- what happened lately, over the top of it ------------------------------- */
+
+/* An overlay and not a pane. History is something you glance at and leave; a
+   pane is somewhere a person can be left, and coming back tomorrow to find the
+   panel showing last week is how a surface stops being about now.
+
+   Over the scroll rather than over the whole panel: the strip stays readable,
+   so somebody can see which tab they are docked beside while they read what
+   was done to it. */
+#history {
+  position: absolute;
+  z-index: 3;
+  left: 8px;
+  right: 8px;
+  top: 52px;
+  max-height: 62vh;
+  overflow-y: auto;
+  /* An overlay occludes. That is the whole of what makes it one.
+   *
+   * Only the backlog had a background, so "Recent tasks" drew its lines over
+   * whatever pane was behind -- the conversation showed straight through it
+   * and the two sets of words sat on top of each other. Measured on the
+   * deployment 2026-09-21: `Create a Customer Type` superimposed on
+   * `Log in to Keycloak — an arrival trigger fired. Shall I?`, both legible,
+   * neither readable.
+   *
+   * Here rather than on each kind, because it is true of both and a rule that
+   * has to be remembered per kind is one the third kind will be missing.
+   */
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 35%);
+}
+
+/* The backlog uses the height it has.
+ *
+ * `history` is twelve lines of what happened and 62vh is generous for it. A
+ * queue of eleven decisions in the same box is a third of a screen of list
+ * with two thirds of empty panel under it, scrolling inside itself while the
+ * space it needs sits there unused. Seen on the deployment 2026-09-18.
+ *
+ * To the bottom, less the composer: the box under it is where somebody answers
+ * a question, and an overlay that covered it would make the panel feel stuck
+ * rather than busy.
+ */
+#history[data-kind="pending"] {
+  /* The height it NEEDS, up to the height there is.
+   *
+   * `bottom` stretched the box to the composer whatever was in it, so one
+   * waiting request drew a card and then two thirds of a panel of empty
+   * black with a ✕ in the corner. The note above is about eleven decisions
+   * not fitting in 62vh, and the answer to that is a bigger ceiling, not a
+   * floor -- a queue should be as tall as its queue.
+   */
+  max-height: calc(100% - 52px - 62px);
+}
+
+/* The backlog, in the slot history uses. Same overlay, same furniture -- what
+ * differs is that every line here wants a decision, so the rows carry buttons
+ * and the days carry a heading. */
+.pending .history-list li {
+  display: block;
+  /* Tighter than a history line, because there are more of them and each one
+     carries a decision: eleven rows at card spacing is a scroll nobody reaches
+     the end of. */
+  padding: 8px 0;
+}
+
+/* The presses, sized for a list rather than for a card. The card on Home is
+   the one being decided now and its buttons are the size of that; these are a
+   queue being gone through. */
+.pending .row {
+  margin-top: 6px;
+}
+
+.pending .row button {
+  padding: 5px 11px;
+  font-size: 12px;
+}
+
+/* The day a group of requests arrived on. A request is a thing somebody asked
+ * for on a day, and "Tuesday" is how anybody talks about it -- a list of clock
+ * times with no days in it cannot tell an hour ago from a week ago. */
+.pending-day {
+  /* The day, and the way to clear that day, on one line. The heading is what
+     somebody scans a month-deep queue by, and the control belongs to the day
+     it names rather than floating between two of them. */
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 14px 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.pending-day:first-of-type {
+  margin-top: 6px;
+}
+
+/* What it is still short of, marked as the different decision it is: pressing
+   yes on this opens a question rather than starting a job. */
+.pending .detail[data-kind="short"] {
+  color: var(--accent);
+}
+
+/* Answered here, and then plainly done with. The row stays -- the list does
+   not redraw on a press, and a line that vanished under the finger would leave
+   somebody unsure which one they just answered. */
+.pending li[data-answered] {
+  opacity: 0.45;
+}
+
+.history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.history-head h3 {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.history-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.history-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+}
+
+/* The title takes the room and the two facts after it keep theirs: a long job
+   name must push neither the outcome nor the time off the line. */
+.history-list .what {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-list .detail,
+.history-list .when {
+  flex: 0 0 auto;
+  color: var(--ink-mute);
+  font-size: 11px;
+}
+
+/* A sentence that has left and not been answered.
+ *
+ * Dimmed rather than greyed out: it is not disabled, it is not yet confirmed,
+ * and the difference matters to somebody watching for whether their words went
+ * anywhere. The server's copy replaces it a moment later at full strength,
+ * which is the only signal needed that it landed.
+ */
+.message[data-state="sending"] .what {
+  opacity: 0.62;
+}
+
+.thinking {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.15em;
+  opacity: 0.72;
+  font-variant: all-small-caps;
+  letter-spacing: 0.04em;
+}
+
+/* The dots, moving. Opacity rather than anything that changes layout: this
+ * sits in a column of text and a pulse that reflowed it would push the whole
+ * conversation about once a second. */
+.thinking .dots {
+  animation: thinking 1.1s ease-in-out infinite;
+}
+
+@keyframes thinking {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Somebody who has asked for less movement gets the word and no pulse. The
+ * word is the part that carries the meaning; the animation is decoration on
+ * top of it, which is the right thing to drop. */
+@media (prefers-reduced-motion: reduce) {
+  .thinking .dots {
+    animation: none;
+    opacity: 0.8;
+  }
+}
+
+/* A field the request named and this job cannot write.
+ *
+ * Toned like the limit beside it rather than accented: it is a fact about what
+ * the press will and will not do, and a person still presses. An alarm here
+ * would be an alarm on every request that named one extra field.
+ */
+.message .detail[data-kind="unasked"] {
+  color: var(--warn);
+}
+
+/* A mail that has gone and an answer that has not come.
+ *
+ * Set apart from what was SAID, because it is not a thing anybody said: it is
+ * a state, redrawn every few seconds for as long as it lasts, and a bubble
+ * that looked like a sentence would have the conversation appearing to repeat
+ * itself. A dotted edge says "this is the panel's own note", the same way the
+ * time column says "this is when".
+ */
+.message[data-kind="awaiting-mail"] {
+  border-style: dashed;
+  background: transparent;
+}
+
+/* And while a mailbox is actually being read, the accent -- for the two or
+ * three seconds that is true. What is being animated is a fact: a request is
+ * out. Nothing here moves on its own when nothing is happening. */
+.message[data-kind="awaiting-mail"][data-state="looking"] {
+  border-color: var(--accent);
+  border-style: solid;
+}
+
+.message[data-kind="awaiting-mail"][data-state="looking"] .what {
+  animation: awaiting-breath 2s ease-in-out infinite;
+}
+
+@keyframes awaiting-breath {
+  0%,
+  100% {
+    opacity: 0.66;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message[data-kind="awaiting-mail"][data-state="looking"] .what {
+    animation: none;
+  }
+}
+
+/* A job that finished, as the thing it is rather than a report on itself.
+ *
+ * The values are the card. What ran, what it cost and which rung matched are
+ * how it happened, and how is what you go and look for when the answer
+ * surprises you -- so they fold away underneath.
+ */
+.made {
+  position: relative;
+  padding: 16px 14px 12px;
+  border-radius: 12px;
+  background: var(--card);
+  /* Room for the border to travel in without the text moving when it does. */
+  isolation: isolate;
+}
+
+/* The border, moving.
+ *
+ * A pseudo-element rather than a border: an animated `border-color` cannot
+ * travel around an edge, and animating the element's own background would put
+ * the movement behind the words. This paints a conic sweep one pixel outside
+ * the card and lets the card sit on top of it.
+ */
+.made::before {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border-radius: 13.5px;
+  z-index: -1;
+  background: conic-gradient(
+    from var(--sweep, 0deg),
+    var(--accent) 0deg,
+    var(--accent) 40deg,
+    var(--line) 120deg,
+    var(--line) 360deg
+  );
+  animation: made-sweep 2.4s linear infinite;
+}
+
+/* `@property` so the angle can be animated at all: a plain custom property is
+ * a string to the engine and jumps from one keyframe to the next. Where it is
+ * unsupported the sweep simply does not move, and the border is still there. */
+@property --sweep {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes made-sweep {
+  to {
+    --sweep: 360deg;
+  }
+}
+
+/* Read, so it stops. A card that pulses forever is one people learn not to
+ * see, and the press is what says somebody has read it. */
+.made[data-read="true"]::before {
+  animation: none;
+}
+
+.made-what {
+  margin: 0 0 6px;
+  font-size: 19px;
+  line-height: 1.25;
+  font-weight: 600;
+  color: var(--ink);
+  /* A description can be long. Breaking inside a word is uglier than a line
+   * that runs on, but a value that overflows the panel is unreadable. */
+  overflow-wrap: anywhere;
+}
+
+.made-steps {
+  margin-top: 10px;
+}
+
+.made-steps summary {
+  cursor: pointer;
+  color: var(--ink-mute);
+  font-size: 12px;
+  list-style: none;
+}
+
+.made-steps summary::-webkit-details-marker {
+  display: none;
+}
+
+.made-steps summary::before {
+  content: "▸ ";
+}
+
+.made-steps[open] summary::before {
+  content: "▾ ";
+}
+
+/* Folded away, the run card inside carries no heading of its own: the card
+ * above it already said what happened. */
+.made-steps .run > .what:empty {
+  display: none;
+}
+
+/* Somebody who has asked for less movement gets the border and no sweep. The
+ * border is the part that carries the meaning. */
+@media (prefers-reduced-motion: reduce) {
+  .made::before {
+    animation: none;
+  }
+}
+
+/* A card that has just arrived, for the twenty seconds after it does.
+ *
+ * The same moving border the result card uses, for the same reason: it is the
+ * one thing on the panel that was not there a moment ago. An answer that comes
+ * back by mail puts a card on Home while the operator is reading the
+ * conversation -- the panel switches to Home for it, and this is what says
+ * which of the cards there is the one they were sent to see.
+ */
+.message[data-fresh] {
+  position: relative;
+  isolation: isolate;
+}
+
+.message[data-fresh]::before {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border-radius: 11.5px;
+  z-index: -1;
+  background: conic-gradient(
+    from var(--sweep, 0deg),
+    var(--accent) 0deg,
+    var(--accent) 40deg,
+    var(--line) 120deg,
+    var(--line) 360deg
+  );
+  animation: made-sweep 2.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message[data-fresh]::before {
+    animation: none;
+  }
+}
+
+/* The mail this system would send, before anybody has agreed to it.
+ *
+ * Set apart from the sentence above it and readable as what it is: a person is
+ * being asked to authorise these exact words leaving the company over their
+ * name, and words they have to squint at are words they will press past.
+ */
+.draft {
+  margin: 8px 0 10px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--line);
+  background: var(--ground);
+  border-radius: 0 8px 8px 0;
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  /* A mail is plain text and its line breaks are the shape it is read in --
+   * but a long line must wrap rather than scroll a 360px panel sideways. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+/* A drafted mail stacks; it does not sit in columns.
+ *
+ * `.message` is a flex ROW -- a fixed cell for the time, then everything the
+ * message is -- and that is right for a card whose content is one paragraph
+ * with a row of buttons beside it. A draft is four things: the sentence, who
+ * it goes to, the mail itself, and the press. As flex items those became four
+ * columns in a 360-pixel panel, each about eighty pixels wide, and the mail
+ * somebody is being asked to authorise was a ribbon of single words.
+ *
+ * A grid rather than `flex-direction: column`, so the time keeps its own cell
+ * and stays out of the text -- the same shape the row gives, turned upright.
+ */
+.message[data-kind="mail_draft"] {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 2px;
+  align-items: start;
+}
+
+/* Everything but the time lives in the second column, one under the next. */
+.message[data-kind="mail_draft"] > :not(.when) {
+  grid-column: 2;
+}
+
+/* The subject reads as the subject: it is the line somebody recognises the
+   request by, and at detail weight it disappears into the address above it. */
+.message[data-kind="mail_draft"] .subject {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* The press sits under the mail rather than beside it: a button level with the
+   first line of a mail somebody has not read yet is a button pressed before
+   the mail was read. */
+.message[data-kind="mail_draft"] .row {
+  margin-top: 4px;
+}
+
+/* -- what is coming, while it is coming ------------------------------------- */
+
+/* A word is not a loading state.
+ *
+ * `Looking…` on its own is a pane that looks broken for as long as two round
+ * trips take and then jumps. These are the lines themselves, greyed: the pane
+ * has its layout before the data lands, and nothing moves when it does.
+ */
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 4px;
+}
+
+.loading-line {
+  height: 11px;
+  border-radius: 5px;
+  /* Its own colour rather than a card's: this is the absence of content, and
+     a bar the colour of a surface reads as a surface. */
+  background: linear-gradient(
+    90deg,
+    var(--line) 0%,
+    var(--line-soft) 40%,
+    var(--line) 80%
+  );
+  background-size: 300% 100%;
+  animation: loading-sweep 1.4s ease-in-out infinite;
+}
+
+/* Ragged, because a stack of identical bars reads as a graphic and a ragged
+   one reads as text that has not arrived. */
+.loading-line[data-of="1"] {
+  width: 92%;
+}
+
+.loading-line[data-of="2"] {
+  width: 64%;
+}
+
+.loading-line[data-of="3"] {
+  width: 78%;
+}
+
+@keyframes loading-sweep {
+  from {
+    background-position: 120% 0;
+  }
+
+  to {
+    background-position: -20% 0;
+  }
+}
+
+/* Somebody who has asked for less movement gets a still placeholder. It says
+   the same thing; the sweep is what says it is still going. */
+@media (prefers-reduced-motion: reduce) {
+  .loading-line {
+    animation: none;
+    background: var(--line);
   }
 }

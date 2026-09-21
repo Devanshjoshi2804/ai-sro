@@ -46,6 +46,7 @@ const browser = {
   CustomEvent: "readonly",
   Event: "readonly",
   EventTarget: "readonly",
+  FocusEvent: "readonly",
   KeyboardEvent: "readonly",
   MouseEvent: "readonly",
   PointerEvent: "readonly",
@@ -80,7 +81,12 @@ export default [
       globals: browser,
     },
     linterOptions: { reportUnusedDisableDirectives: true },
-    rules: { "no-undef": "error" },
+    // `no-dupe-keys` for the same reason `no-undef` is here: the wire
+    // whitelists in `api.js` are long object literals, one key was written
+    // into one of them twice, and the later copy silently won. Nothing said
+    // so, and the field a card draws is exactly the thing nobody notices is
+    // being drawn from the wrong line.
+    rules: { "no-undef": "error", "no-dupe-keys": "error" },
   },
   {
     // The application's own framework, read from the page's realm. Not ours to
@@ -93,7 +99,16 @@ export default [
     // Test files and the scripts run in node and reach for its own globals.
     files: ["src/**/*.test.mjs", "scripts/**/*.mjs"],
     languageOptions: {
-      globals: { ...browser, process: "readonly", Buffer: "readonly", __dirname: "readonly" },
+      globals: {
+        ...browser,
+        process: "readonly",
+        Buffer: "readonly",
+        __dirname: "readonly",
+        // Node's own, and the panel's tests reach for it: a fake that must let
+        // the microtask queue drain waits a TICK rather than a millisecond,
+        // and `setTimeout(0)` is not the same thing.
+        setImmediate: "readonly",
+      },
     },
   },
 ];

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
 from typing import Annotated
 
@@ -10,12 +11,14 @@ from fastapi import APIRouter, Body, status
 from sro.application.context import RequestContext
 from sro.application.trigger.fire_trigger import blank_inputs
 from sro.container import Container
+from sro.domain.observation.attempts import DONE, NOTHING
 from sro.domain.observation.grant import LONGEST
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import DeviceId, TriggerId
 from sro.domain.trigger.trigger import Trigger
 from sro.interface.http.deps import ContainerDep, ContextDep, DeviceSecretDep
 from sro.interface.http.schemas import (
+    K_SAID_CHARS,
     DeviceModel,
     FiredModel,
     GrantRequest,
@@ -28,6 +31,8 @@ from sro.interface.http.schemas import (
     TriggerModel,
     WatchMatchModel,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -80,6 +85,19 @@ async def heartbeat(
         queued_bytes=body.queued_bytes,
         policy_version=body.policy_version,
     )
+    # What the browser decided since the last beat, straight into the same log
+    # the ladder narrates into. Trimmed here rather than trusted: a device is
+    # not a trusted writer, and a line long enough to bury a log is a line
+    # somebody would have to grep around.
+    #
+    # AFTER the beat, which is where the browser proves it is itself. These
+    # used to be written first, so anything holding a device id -- a namespace,
+    # not a credential -- could put lines of its choosing into this tenant's
+    # log without ever answering for them. The id is no longer interpolated
+    # either: `refuse_unless_itself` attributes the request to the browser, so
+    # every one of these carries it the way every other line does.
+    for line in body.said:
+        logger.info("said: %s", line[:K_SAID_CHARS].replace("\n", " "))
     return HeartbeatResponse(
         policy_version=beat.policy_version,
         policy=None if beat.policy is None else ObservationPolicyModel.of(beat.policy),
@@ -223,6 +241,23 @@ async def arrival_fire(
         # operator has rules for.
         raise NotFound("no such arrival")
     fired = await container.fire_trigger().execute(arrival.id)
+    # What the operator asked for and what came of it -- including the case
+    # that used to leave nothing at all behind. `FireTrigger` skips rather
+    # than starting a run whose required inputs are empty, and a skip answers
+    # 202 with a `run_id` of null: from the browser it is a press that did
+    # nothing, and until this there was no record anywhere that it had
+    # happened.
+    await container.record_attempt().execute(
+        ctx,
+        asked_for="fire an arrival rule",
+        came_of=NOTHING if fired.skipped else DONE,
+        why="the rule had no value for something the job needs" if fired.skipped else "",
+        about={
+            "trigger": fired.trigger_id.value,
+            "run": fired.run_id.value if fired.run_id else "",
+            "device": device_id,
+        },
+    )
     return FiredModel(
         trigger_id=fired.trigger_id.value,
         run_id=fired.run_id.value if fired.run_id else None,
@@ -288,11 +323,28 @@ async def watch_matched(
         container, ctx, device_id=device_id, trigger_id=trigger_id, secret=x_device_secret
     )
     running_with = watch.values_from(values)
-    # `_watch_of` has already refused a watch with no skill behind it.
-    assert watch.skill_id is not None  # noqa: S101
-    skill = await container.get_skill().execute(ctx, skill_id=watch.skill_id)
-    version = skill.runnable
-    missing = [] if version is None else blank_inputs(version, running_with)
+    # A skill or a mined job. Both answer the same two questions -- what is this
+    # called, and what did the mail not say -- out of different places: a
+    # skill's runnable version declares its inputs, a job declares its
+    # parameters. `_watch_of` has already refused a watch that names neither.
+    if watch.workflow_id is not None:
+        job = await container.read_workflows().one(ctx, workflow_id=str(watch.workflow_id))
+        named = job.title
+        missing = sorted(
+            str(declared["name"])
+            for declared in job.parameters
+            if declared.get("name") and not running_with.get(str(declared["name"]), "").strip()
+        )
+    else:
+        assert watch.skill_id is not None  # noqa: S101
+        skill = await container.get_skill().execute(ctx, skill_id=watch.skill_id)
+        version = skill.runnable
+        named = skill.name
+        # A skill with no runnable version is not a shortage of values, and
+        # saying "nothing said shipment_id" about one would send somebody
+        # looking in the mail for a value that was never the problem. The press
+        # answers that one, with the trigger's own words.
+        missing = [] if version is None else blank_inputs(version, running_with)
     if offer:
         # Said into the conversation as well as answered here, so the operator
         # sees it somewhere that survives the panel closing. Names only: the
@@ -309,19 +361,24 @@ async def watch_matched(
             thread_id=thread.id,
             offer_id=offer,
             trigger_id=watch.id.value,
-            skill=skill,
+            named=named,
+            skill_id="" if watch.skill_id is None else watch.skill_id.value,
+            workflow_id="" if watch.workflow_id is None else str(watch.workflow_id),
             read=sorted(running_with),
             missing=missing,
         )
     return WatchMatchModel(
         trigger_id=watch.id.value,
-        skill_id=watch.skill_id.value,
+        skill_id=None if watch.skill_id is None else watch.skill_id.value,
+        workflow_id=None if watch.workflow_id is None else str(watch.workflow_id),
+        title=named,
         values=running_with,
-        # A skill with no runnable version is not a shortage of values, and
-        # saying "nothing said shipment_id" about one would send somebody
-        # looking in the mail for a value that was never the problem. The press
-        # answers that one, with the trigger's own words.
-        missing=[] if version is None else blank_inputs(version, running_with),
+        missing=missing,
+        # Whether what the mail did not say stops the press. A deployment that
+        # can read the operator's mailbox answers a missing value by going and
+        # looking for it, and a card that refused to start would be the panel
+        # asking for what the run already knows how to find.
+        can_find=container.tools.available and container.asker is not None,
     )
 
 
@@ -378,12 +435,10 @@ async def _watch_of(
     watch = next((trigger for trigger in watches if trigger.id == TriggerId(trigger_id)), None)
     if watch is None:
         raise NotFound("no such watch")
-    if watch.skill_id is None:
-        # `CreateTrigger` refuses a watch on a mined job, because this path
-        # reads a skill's inputs to say what the mail did not name. A row
-        # written before that check existed would reach the two calls below
-        # with nothing to read, so it is the same `NotFound` everything else
-        # here answers rather than a 500 about a field.
+    if watch.skill_id is None and watch.workflow_id is None:
+        # A watch that asks a question runs nothing, and the two calls below
+        # would reach it with nothing to describe. The same `NotFound`
+        # everything else here answers, rather than a 500 about a field.
         raise NotFound("no such watch")
     return watch
 

@@ -106,6 +106,22 @@ others you considered in `also` -- a person will be asked which. Guessing
 confidently is worse than saying you are unsure: what gets done with this
 answer is work in a warehouse, and there may be twenty of it.
 
+Some jobs carry `asked_by`: the mails this operator acted on before doing that
+job, as their mailbox recorded them. That is what a REQUEST for the job looks
+like, which is not the same thing as what the job is called -- a request rarely
+uses the job's words, and "please set up a new client category" is a request
+for `Create a Customer Type` however little the two sentences share. Read them
+as examples of the kind of ask, and prefer a job whose examples are asking for
+the same work as what was said.
+
+Never take a value out of one. They are somebody's old requests, and the codes
+and names in them belong to records that already exist -- answering with one
+would do the job again for the wrong thing. A job with no `asked_by` is not a
+job nobody asks for: it is a job whose demonstration began on a page, so match
+it on its title and narrative as you would have anyway. And examples raise your
+confidence about which job, never about whether you were told enough: a value
+the operator did not give is still missing.
+
 An operator may name several things for one job: three equipment types in one
 mail, four work areas in one sentence. That is one job done once per thing.
 Answer one entry in `items` for each thing, carrying that thing's own values,

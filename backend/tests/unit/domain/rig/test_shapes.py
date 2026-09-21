@@ -660,3 +660,53 @@ def test_a_pick_on_a_struck_out_control_puts_nothing() -> None:
     struck = replace(picked.action, target=replace(picked.action.target, secret=True))
 
     assert put_by(replace(picked, action=struck)) == set()
+
+
+# --- a mailbox is where work is asked for, not work to repeat ----------------
+
+
+def _in_a_mailbox(by_id: dict[str, Gesture], *, host: str = "mail.google.com") -> Workflow:
+    """The same three-step job, done entirely in a mailbox -- which is what the
+    miner makes of an operator who lives in their mail: this deployment holds
+    four `Compose Email`, two `Reply to Email` and two `Forward an Email`."""
+    for one in by_id.values():
+        one.url = f"https://{host}/mail/u/0/#inbox"
+        one.page_url = one.url
+        one.system = f"https://{host}"
+    return _workflow(by_id)
+
+
+def test_a_job_done_entirely_in_a_mailbox_is_not_served() -> None:
+    """The matcher offers a job when the last gestures look like its first, and
+    in a mailbox that is most of the time. Measured 2026-09-19: an operator
+    working through six requests was offered `Forward an Email` on nearly every
+    screen, with the card that mattered underneath it -- and the mail reader
+    hesitated between `Create a Customer Type` and `Forward an Email` for a
+    mail that plainly asked for the first."""
+    by_id = _evidence()
+
+    assert _served(_in_a_mailbox(by_id), by_id) is None
+
+
+def test_the_other_mailboxes_this_system_knows_about_count_too() -> None:
+    """`K_MAILBOXES` is the named list `asked_by` reads requests out of, and
+    both halves of the system have to mean the same thing by "a mailbox"."""
+    by_id = _evidence()
+
+    assert _served(_in_a_mailbox(by_id, host="outlook.office.com"), by_id) is None
+
+
+def test_a_job_that_reads_a_mail_and_then_acts_is_still_served() -> None:
+    """The shape this whole system is for. Every gesture, not any: a job that
+    reads a request and then does it in the warehouse cites gestures on both,
+    and refusing that would turn off the product."""
+    by_id = _evidence()
+    reads_first = _typed(by_id)
+    reads_first.url = "https://mail.google.com/mail/u/0/#inbox"
+    reads_first.page_url = reads_first.url
+    reads_first.system = "https://mail.google.com"
+
+    shape = _served(_workflow(by_id), by_id)
+
+    assert shape is not None
+    assert shape.id == "wfl_1"

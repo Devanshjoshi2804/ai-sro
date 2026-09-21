@@ -31,7 +31,9 @@ passes them down.
 
 from __future__ import annotations
 
+import asyncio
 import json
+import time
 from collections.abc import Mapping, Sequence
 from types import MappingProxyType
 
@@ -39,9 +41,11 @@ from sro.application.context import RequestContext
 from sro.application.ports.model import Asker
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.domain.execution.gathering import (
+    K_PATIENCE_S,
     K_ROUNDS,
     Found,
     Gathered,
+    dropped,
     keep,
     note,
     still_wanted,
@@ -120,6 +124,7 @@ class GatherContext:
         seen: Mapping[str, Sequence[str]] = MappingProxyType({}),
         because: str = "",
         rounds: int = K_ROUNDS,
+        patience: float = K_PATIENCE_S,
     ) -> Gathered:
         """Look, up to `rounds` times, and come back with what was found.
 
@@ -131,43 +136,104 @@ class GatherContext:
         exists to have fixed.
         """
         found: dict[str, Found] = {}
+        # Names the mail offered that this job declares no parameter for. A
+        # request asking for a field the job cannot take is a request half
+        # done, and silence about the other half is the fault this exists to
+        # stop being invisible.
+        unasked: set[str] = set()
         looked: list[str] = []
         history: list[str] = []
         spent = Answer()
+        # A clock as well as a counter. See `K_PATIENCE_S`: rounds bound how
+        # many times this looks, and on the day the model answers a round with
+        # a 5xx the retry that follows is measured in minutes.
+        until = time.monotonic() + patience
+
+        # The first look is not the model's to choose.
+        #
+        # Asked to find values with nothing to start from, it answered `done`
+        # with no values on round one and never touched the mailbox -- a
+        # refusal to look wearing the face of a conclusion. Measured on the
+        # deployment 2026-09-16: a run with no values gathered nothing and the
+        # connector logged no request at all.
+        #
+        # So the job's own name is the first query, deterministically, and the
+        # model's first decision is made with results in front of it. Cheaper
+        # by a call, and it means "the mailbox does not hold this" is always a
+        # statement about the mailbox rather than about the prompt.
+        opening = because.strip() or job.strip()
+        if opening:
+            asked, said = await self._search(ctx, opening)
+            looked.append(asked)
+            history.append(note(asked, said))
 
         for _ in range(rounds):
             missing = still_wanted(wanted, found)
             if not missing:
                 break
-            answer = await self._asker.ask(
-                model=self._model,
-                instructions=INSTRUCTIONS,
-                evidence=json.dumps(
-                    {
-                        "job": job,
-                        "asked_for": because,
-                        "still_needed": list(missing),
-                        "seen_before": {name: list(seen.get(name, ())) for name in missing},
-                        "already_looked_at": history,
-                    },
-                    indent=2,
-                    ensure_ascii=False,
-                ),
-                schema=STEP_SCHEMA,
-                effort=None,
-            )
+            # What is left of the budget, and never more. `K_ROUNDS` bounds
+            # how many times this looks; this bounds how long looking may
+            # take, which on the day the model answers with a 5xx is a
+            # different number by two orders of magnitude.
+            left = until - time.monotonic()
+            if left <= 0:
+                return Gathered(
+                    values=found,
+                    missing=missing,
+                    looked=tuple(looked),
+                    unasked=tuple(sorted(unasked)),
+                    why=_ran_out(found, missing),
+                )
+            try:
+                answer = await asyncio.wait_for(
+                    self._asker.ask(
+                        model=self._model,
+                        instructions=INSTRUCTIONS,
+                        evidence=json.dumps(
+                            {
+                                "job": job,
+                                "asked_for": because,
+                                "still_needed": list(missing),
+                                "seen_before": {name: list(seen.get(name, ())) for name in missing},
+                                "already_looked_at": history,
+                            },
+                            indent=2,
+                            ensure_ascii=False,
+                        ),
+                        schema=STEP_SCHEMA,
+                        effort=None,
+                    ),
+                    left,
+                )
+            except TimeoutError:
+                # The same answer as a mailbox that holds nothing, because to
+                # the run it is the same fact: nobody found the value, so a
+                # person is asked. What WAS found is kept -- a code read in the
+                # first round is not less true for the second round being slow.
+                return Gathered(
+                    values=found,
+                    missing=still_wanted(wanted, found),
+                    looked=tuple(looked),
+                    unasked=tuple(sorted(unasked)),
+                    why=_ran_out(found, still_wanted(wanted, found)),
+                )
             spent = _also(spent, answer)
             if answer.data is None:
                 return Gathered(
                     values=found,
                     missing=still_wanted(wanted, found),
                     looked=tuple(looked),
+                    unasked=tuple(sorted(unasked)),
                     why=answer.error or "the model returned nothing",
                 )
 
             action = str(answer.data.get("action") or "")
             if action == "done":
-                found.update(keep(_values_in(answer.data), wanted))
+                offered = _values_in(answer.data)
+                found.update(keep(offered, wanted))
+                # What it offered that this job has no parameter for, kept so
+                # somebody can be told. See `dropped`.
+                unasked |= set(dropped(offered, wanted))
                 break
 
             asked, said = await self._look(ctx, action, answer.data)
@@ -187,6 +253,7 @@ class GatherContext:
             values=found,
             missing=missing,
             looked=tuple(looked),
+            unasked=tuple(sorted(unasked)),
             why=_sentence(found, missing),
         )
 
@@ -205,9 +272,8 @@ class GatherContext:
             query = str(said.get("query") or "").strip()
             if not query:
                 return "", ""
-            asked = f"search {query!r}"
-            tool, arguments = "search_threads", {"query": query, "limit": "5"}
-        elif action == "read":
+            return await self._search(ctx, query)
+        if action == "read":
             message = str(said.get("message_id") or "").strip()
             if not message:
                 return "", ""
@@ -222,9 +288,26 @@ class GatherContext:
         else:
             return "", ""
 
+        return await self._ask_the_mailbox(ctx, asked, tool, arguments)
+
+    async def _search(self, ctx: RequestContext, query: str) -> tuple[str, str]:
+        """One search, by whatever words were chosen for it."""
+        return await self._ask_the_mailbox(
+            ctx, f"search {query!r}", "search_threads", {"query": query, "limit": "5"}
+        )
+
+    async def _ask_the_mailbox(
+        self, ctx: RequestContext, asked: str, tool: str, arguments: Mapping[str, str]
+    ) -> tuple[str, str]:
+        """One call, as this operator. What was asked, and what came back.
+
+        A connector that refuses is an observation the next round is told
+        about, not an exception: the loop then has a chance to try a different
+        query rather than the whole gather failing on one bad call.
+        """
         try:
             answered = await self._tools.call(
-                ctx.tenant_id, ctx.principal_id, SERVER, tool, arguments
+                ctx.tenant_id, ctx.principal_id, SERVER, tool, dict(arguments)
             )
         except ToolsUnavailable as gone:
             return asked, f"the mailbox could not be reached: {gone}"
@@ -255,6 +338,17 @@ def _values_in(said: Mapping[str, object]) -> dict[str, Found]:
             quoting=quoting if isinstance(quoting, str) else "",
         )
     return found
+
+
+def _ran_out(found: Mapping[str, Found], missing: Sequence[str]) -> str:
+    """What happened when the clock beat the mailbox.
+
+    Said as what it is rather than as a failure: the run's next move for a
+    value nobody found is to ask a person, and that is the same move it makes
+    for a mailbox that genuinely does not hold one.
+    """
+    had = "found " + ", ".join(sorted(found)) + ", then " if found else ""
+    return f"{had}ran out of time looking for " + ", ".join(missing)
 
 
 def _sentence(found: Mapping[str, Found], missing: Sequence[str]) -> str:

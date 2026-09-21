@@ -134,8 +134,10 @@ def _starter(uow: FakeUnitOfWork) -> StartWorkflowRun:
     )
 
 
-def _create(uow: FakeUnitOfWork, scheduler: FakeScheduler) -> CreateTrigger:
-    return CreateTrigger(uow, FakeClock(NOW), FakeIdFactory(), scheduler)
+def _create(
+    uow: FakeUnitOfWork, scheduler: FakeScheduler, *, can_gather: bool = False
+) -> CreateTrigger:
+    return CreateTrigger(uow, FakeClock(NOW), FakeIdFactory(), scheduler, can_gather=can_gather)
 
 
 def _new(**over: object) -> NewTrigger:
@@ -217,16 +219,48 @@ async def test_a_message_pointed_at_a_parameter_the_job_has_not_got_is_refused()
         await _create(uow, scheduler).execute(CTX, _new(from_message=("shipment_id",)))
 
 
-async def test_a_job_cannot_be_watched_for_yet() -> None:
-    """Refused rather than half-built.
+def _watching(**over: object) -> NewTrigger:
+    """A watch on a mined job: the rule that recognises the mail, and the job
+    it fires."""
+    asked: dict[str, object] = {
+        "kind": TriggerKind.WATCH,
+        "cron": None,
+        "watch": Watch(
+            host="mail.google.com",
+            terms=(Term(field=TermField.SUBJECT, contains="customer type"),),
+            subject_at=SUBJECT_IS_HERE,
+            values=(),
+        ),
+    }
+    asked.update(over)
+    return _new(**asked)
 
-    The browser evaluates a watch and offers what it matched, and that path
-    reads a SKILL's inputs to say what the mail did not name. A watch firing
-    into a job would be a card with no sentence on it."""
+
+async def test_a_job_can_be_watched_for_where_a_run_can_go_and_find_the_rest() -> None:
+    """The refusal this replaces said a watch on a job would be "a card with no
+    sentence on it", because the match path read a SKILL's inputs to say what
+    the mail did not name. It reads a job's parameters now, and a run reads the
+    mailbox for whatever neither the trigger nor the rule supplied.
+    """
     uow, scheduler = await _held(), FakeScheduler()
 
-    with pytest.raises(TriggerRefused, match="watched"):
-        await _create(uow, scheduler).execute(CTX, _new(kind=TriggerKind.WATCH, cron=None))
+    trigger = await _create(uow, scheduler, can_gather=True).execute(CTX, _watching())
+
+    assert trigger.workflow_id == "wfl_1"
+    # The rule itself, on the row. Without it the trigger is a watch that
+    # matches nothing, which never fires and never says why.
+    assert trigger.watch is not None and trigger.watch.host == "mail.google.com"
+    assert scheduler.scheduled == {}, "a watch is evaluated by a browser, not by a clock"
+
+
+async def test_a_deployment_that_cannot_look_still_refuses_a_job_it_could_not_fill() -> None:
+    """The relaxation is only where it can be kept. With no mailbox to read,
+    a parameter neither the trigger nor the mail supplies is a run that fails
+    every time it fires -- refused once, now, in front of a person."""
+    uow, scheduler = await _held(), FakeScheduler()
+
+    with pytest.raises(TriggerRefused, match="this job needs"):
+        await _create(uow, scheduler).execute(CTX, _watching(parameters={}))
 
 
 async def test_a_trigger_runs_one_thing_and_says_so_rather_than_raising_a_500() -> None:

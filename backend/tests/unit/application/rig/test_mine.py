@@ -29,12 +29,13 @@ import pytest
 
 from sro.application.observation.mining_pass import (
     MineResult,
+    _folded,
     fill_in_passwords,
     mine,
     propose,
     rekey_workflows,
 )
-from sro.domain.observation.gesture import Gesture, Intent, ValueSeen
+from sro.domain.observation.gesture import Gesture, Intent, Target, ValueSeen
 from sro.domain.observation.pool import K_POOL_AGE
 from sro.domain.observation.trim import is_secret
 from sro.domain.observation.window import K_WINDOW_TOKENS, Packed, Window
@@ -126,10 +127,18 @@ def _rows(uow: FakeUnitOfWork) -> dict[str, Gesture]:
 
 
 def _seen(parameters: list[dict[str, object]], name: str) -> list[str]:
-    """Every value one stored parameter has been given, as strings. The
-    workflow's `parameters` came off a model answer and are typed `object`."""
+    """Every value one stored parameter has been given, as strings.
+
+    By ANY of the control's names. A field is `Client Code` on its label and
+    `clientCode` on the input, and which of those a parameter is called is a
+    fact about the recording it was learnt from -- looking it up by one name
+    only is how a test would go on passing while the job grew a second entry
+    for the same field.
+    """
     for parameter in parameters:
-        if parameter.get("name") == name:
+        listed = parameter.get("names")
+        known = {str(one) for one in listed} if isinstance(listed, list) else set()
+        if parameter.get("name") == name or name in known:
             values = parameter.get("seen_values")
             return [str(value) for value in values] if isinstance(values, list) else []
     return []
@@ -505,13 +514,14 @@ async def test_a_gesture_linked_across_two_systems_earns_its_place() -> None:
     and every pool test stayed green while fresh evidence quietly lost it.
     This pass has an empty pool.
 
-    Planted against `at`: the linked pair is the LATEST evidence of the day,
-    so a window ordered on time alone leaves it out. Sizes do not enter into
+    Planted against `at`: the linked pair is the EARLIEST evidence of the day,
+    so a window ordered on time alone -- `pack` breaks ties newest-first --
+    leaves it out. Sizes do not enter into
     it -- the budget here cannot hold anything, so K_MIN_GESTURES decides who
     is in and strength decides which.
     """
     uow, _, weak_ids = await _crowded_day(strong=0, weak=30)
-    await _link(uow, weak_ids[-2:], "CROSSES-TWO-SYSTEMS", "https://sap.example")
+    await _link(uow, weak_ids[:2], "CROSSES-TWO-SYSTEMS", "https://sap.example")
     asker = FakeAsker(_found())
 
     result = await _mine(uow, asker, kb=CROWDED_KB)
@@ -520,8 +530,8 @@ async def test_a_gesture_linked_across_two_systems_earns_its_place() -> None:
     day = str(asker.asked[0]["evidence"]).split("## Values appearing in more than one system")[0]
 
     assert result.window_size == 25
-    assert weak_ids[-1] in day and weak_ids[-2] in day, "a crossing is what pulls evidence in"
-    assert weak_ids[-3] not in day, "and it displaced an unlinked peer to do it"
+    assert weak_ids[0] in day and weak_ids[1] in day, "a crossing is what pulls evidence in"
+    assert weak_ids[5] not in day, "and it displaced an unlinked peer to do it"
 
 
 # --------------------------------------------------------------------------
@@ -590,16 +600,16 @@ async def test_evidence_the_budget_left_out_lands_in_the_pool() -> None:
     gestures and an operator day runs to a few thousand, so past one window the
     same tail lost every pass forever while the count faithfully said so."""
     uow, strong_ids, weak_ids = await _crowded_day(strong=20, weak=10)
-    read = strong_ids + weak_ids[:5]
+    read = strong_ids + weak_ids[-5:]
 
     result = await _mine(uow, FakeAsker(_found(_proposal(read))), kb=CROWDED_KB)
 
     assert result.rejections == []
     assert result.window_size == len(read)
-    assert result.left_out == len(weak_ids[5:])
+    assert result.left_out == len(weak_ids[:5])
     # The pass cited everything it read, so the pool holds exactly what the
     # budget refused. Before the fix it held nothing at all.
-    assert await _pool_ids(uow) == set(weak_ids[5:])
+    assert await _pool_ids(uow) == set(weak_ids[:5])
 
 
 async def test_evidence_the_window_never_showed_does_not_spend_its_patience() -> None:
@@ -613,7 +623,7 @@ async def test_evidence_the_window_never_showed_does_not_spend_its_patience() ->
 
     ages = {entry.gesture_id: (entry.age, entry.waited) for entry in await uow.pool.waiting(TENANT)}
     assert ages[strong_ids[0]] == (1, 0), "shown and not cited: one reading of patience spent"
-    assert ages[weak_ids[-1]] == (0, 1), "never shown: it waited, it did not read"
+    assert ages[weak_ids[0]] == (0, 1), "never shown: it waited, it did not read"
 
 
 async def test_an_entry_that_has_waited_longer_outranks_one_that_has_not() -> None:
@@ -628,7 +638,9 @@ async def test_an_entry_that_has_waited_longer_outranks_one_that_has_not() -> No
     the per-pass bonus and left the two equal -- would take the other one.
     """
     uow, _strong, weak_ids = await _crowded_day(strong=24, weak=2)
-    patient, hasty = weak_ids[1], weak_ids[0]
+    # The EARLIER of the two is the patient one: `pack` breaks a tie
+    # newest-first, so without its waiting bonus this is the one that loses.
+    patient, hasty = weak_ids[0], weak_ids[1]
     await uow.pool.add_unclaimed(TENANT, window_ids=(patient,), claimed=frozenset())
     # An empty window: a pass that packed nothing passed everything over.
     await uow.pool.age(TENANT, shown=())
@@ -649,9 +661,9 @@ async def test_a_gesture_the_budget_left_out_is_read_by_the_next_pass() -> None:
     workflow over the tail, and a tail still outside the window is refused for
     citing gestures the pass never saw."""
     uow, strong_ids, weak_ids = await _crowded_day(strong=20, weak=10)
-    tail = weak_ids[5:]
+    tail = weak_ids[:5]
     asker = FakeAsker(
-        _found(_proposal(strong_ids + weak_ids[:5])),
+        _found(_proposal(strong_ids + weak_ids[-5:])),
         _found(_proposal(tail, title="the tail")),
     )
 
@@ -659,7 +671,13 @@ async def test_a_gesture_the_budget_left_out_is_read_by_the_next_pass() -> None:
     second = await _mine(uow, asker, kb=CROWDED_KB)
 
     assert [r.reason for r in second.rejections] == []
-    assert second.kept == 1
+    # Cited, not kept. The tail's proposal has the shape of the job the first
+    # pass already stored, so `resolve` now folds it in rather than minting a
+    # second row -- which is the point of `resolve` and not of this test. What
+    # this test is about is that the tail was SHOWN: nothing the window held
+    # went uncited, and a tail still outside the window would have been refused
+    # above for citing gestures the pass never saw.
+    assert second.unplaced == 0
     # The window is the same size; the bonus changed who is in it. The fresh
     # weak gestures that displaced the tail last pass are this pass's tail.
     assert second.window_size == 25
@@ -675,7 +693,9 @@ async def test_a_retired_gesture_loses_its_bonus_and_not_its_place() -> None:
     place in a window with room (it was never removed from the running).
     """
     uow, strong_ids, weak_ids = await _crowded_day(strong=24, weak=5)
-    retiree = weak_ids[-1]
+    # The earliest weak gesture: `pack` breaks a tie newest-first, so once the
+    # bonus is gone this is the one fresh evidence beats.
+    retiree = weak_ids[0]
     await uow.pool.add_unclaimed(TENANT, window_ids=(retiree,), claimed=frozenset())
     for _ in range(K_POOL_AGE + 1):
         await uow.pool.age(TENANT)
@@ -685,13 +705,13 @@ async def test_a_retired_gesture_loses_its_bonus_and_not_its_place() -> None:
     tight = await _mine(uow, asker, kb=CROWDED_KB)
     roomy = await _mine(uow, asker)
 
-    # 24 strong and one weak, and the weak place goes to the earliest of them
+    # 24 strong and one weak, and the weak place goes to the latest of them
     # rather than to the retiree, which would have taken it at 1.5.
     assert tight.window_size == 25
     assert retiree not in str(asker.asked[0]["evidence"]), (
         "a retired entry competes without its bonus"
     )
-    assert weak_ids[0] in str(asker.asked[0]["evidence"]), (
+    assert weak_ids[-1] in str(asker.asked[0]["evidence"]), (
         "the place it lost went to fresh evidence"
     )
     # Same day, a budget with room for everything: it is still evidence.
@@ -1055,6 +1075,195 @@ async def test_a_control_the_model_already_named_does_not_gain_a_second_paramete
     assert names == ["Client Code"], f"one control, one parameter; got {names}"
     assert "clientCode" not in names, "not the same field again under its item_id"
     assert second.learned_parameters == 0, "recognising a control is not learning a new one"
+
+
+async def test_a_job_already_holding_two_entries_for_one_field_is_folded() -> None:
+    """The repair, for the jobs this defect has already been written into.
+
+    The deployment's `Create a Customer Type` carried four parameters for two
+    fields -- `Customer Type` beside `customertype-customerType`, and the same
+    again for the description -- because the page names a field twice and its
+    two recordings carried different names. The fix above stops a second entry
+    being written; this is what clears the ones already stored, on the next
+    pass that touches the job.
+
+    Both entries' values survive the fold. `seen_values` promises every value
+    observed and the two halves observed different doings, so throwing one
+    away would narrow a parameter to make a list tidy.
+    """
+    uow, ids = await _day()
+    original = [_rows(uow)[gesture_id] for gesture_id in ids]
+    await _mine(uow, FakeAsker(_found(_proposal(ids))))
+
+    # The job as the defect left it: one control, two entries, one of them
+    # under the name the form posts it by.
+    stored = (await uow.workflows.known(TENANT))[0]
+    stored.parameters = [
+        {"name": "Client Code", "seen_values": ["ACME-4471"]},
+        {"name": "clientCode", "seen_values": ["FROM-THE-OTHER-ENTRY"]},
+    ]
+    await uow.workflows.save(stored)
+
+    again = _redone(original, "SOMETHING-ELSE", "again", 10_000.0)
+    await uow.gestures.add_gestures(tuple(again))
+    await _mine(uow, FakeAsker(_found(_proposal([g.id for g in again]))))
+
+    stored = (await uow.workflows.known(TENANT))[0]
+    names = [parameter.get("name") for parameter in stored.parameters]
+    assert names == ["Client Code"], f"one control, one parameter; got {names}"
+    seen = _seen(stored.parameters, "clientCode")
+    assert "FROM-THE-OTHER-ENTRY" in seen, "the folded entry's values were thrown away"
+    assert "SOMETHING-ELSE" in seen, "and this doing still widened it"
+
+
+def test_two_entries_sharing_no_name_are_one_control_if_the_typing_says_so() -> None:
+    """The fold itself, rather than through a pass: `learn_parameters` re-derives
+    parameters from the evidence afterwards and would merge these by value on
+    its own, so a test that only ran the pass could not see whether the fold did
+    anything.
+
+    Measured on the deployment 2026-09-19, `Delete a Customer Type`:
+
+        {"name": "Customer Type",  "seen_values": ["GDD"]}
+        {"key":  "filterComboBox", "seen_values": ["GDD", "GSQ", "GZ4"]}
+
+    No key on the first, no name in common with the second, and one field
+    between them -- the filter the customer type is typed into. A job declaring
+    two parameters demands two values before it will run, and nobody has ever
+    been asked for a `filterComboBox`.
+    """
+    folded = _folded(
+        [
+            {"name": "Customer Type", "seen_values": ["GDD"]},
+            {
+                "key": "filterComboBox",
+                "name": "filterComboBox",
+                "names": ["filterComboBox"],
+                "seen_values": ["GDD", "GSQ", "GZ4"],
+            },
+        ]
+    )
+
+    assert [one.get("name") for one in folded] == ["Customer Type"]
+    assert folded[0].get("key") == "filterComboBox", "it kept the name the form posts it by"
+    assert folded[0].get("seen_values") == ["GDD", "GSQ", "GZ4"], "every value observed"
+
+
+def test_two_controls_that_merely_crossed_on_one_value_are_still_two() -> None:
+    """Containment, not overlap. Two controls that each once held `SG` -- a site
+    code is in half the fields on this platform -- are two controls, and folding
+    them would take a parameter off a job that has it."""
+    folded = _folded(
+        [
+            {"name": "Warehouse", "seen_values": ["SG", "NL"]},
+            {"name": "Client Site", "seen_values": ["SG", "DE"]},
+        ]
+    )
+
+    assert [one.get("name") for one in folded] == ["Warehouse", "Client Site"]
+
+
+async def test_two_entries_sharing_no_name_are_folded_by_the_typing_they_read() -> None:
+    """An entry stored before controls were keyed carries a name the model
+    wrote and nothing else -- no key to compare, and no name in common with the
+    entry the evidence later produced. Two opinions about one control, agreeing
+    on nothing a string comparison can see.
+
+    Measured on the deployment 2026-09-19, `Delete a Customer Type`:
+
+        {"name": "Customer Type",  "seen_values": ["GDD"]}
+        {"key":  "filterComboBox", "seen_values": ["GDD", "GSQ", "GZ4"]}
+
+    One field -- the filter the customer type is typed into -- declared twice.
+    A job declaring two parameters demands two values before it will run, and
+    nobody has ever been asked for a `filterComboBox`, so the job stopped
+    before its first step on a name the operator cannot answer.
+    """
+    uow, ids = await _day()
+    original = [_rows(uow)[gesture_id] for gesture_id in ids]
+    await _mine(uow, FakeAsker(_found(_proposal(ids))))
+
+    stored = (await uow.workflows.known(TENANT))[0]
+    typed = _seen(stored.parameters, "clientCode")
+    stored.parameters = [
+        # The model's own word for it, from a pass before any of this was
+        # recorded: no key, and a name the evidence never produced.
+        {"name": "Client Code", "seen_values": typed[:1]},
+        # And what the evidence says, under the name the form posts it by.
+        {"key": "clientCode", "name": "clientCode", "names": ["clientCode"], "seen_values": typed},
+    ]
+    await uow.workflows.save(stored)
+
+    again = _redone(original, "SOMETHING-ELSE", "again", 10_000.0)
+    await uow.gestures.add_gestures(tuple(again))
+    await _mine(uow, FakeAsker(_found(_proposal([g.id for g in again]))))
+
+    stored = (await uow.workflows.known(TENANT))[0]
+    names = [parameter.get("name") for parameter in stored.parameters]
+    assert names == ["Client Code"], f"one control, one parameter; got {names}"
+
+
+async def test_two_controls_that_never_typed_the_same_thing_stay_apart() -> None:
+    """The values decide only where they are evidence. Two entries whose
+    observed values are disjoint are two controls, and an entry that has
+    observed nothing is evidence of nothing."""
+    uow, ids = await _day()
+    original = [_rows(uow)[gesture_id] for gesture_id in ids]
+    await _mine(uow, FakeAsker(_found(_proposal(ids))))
+
+    stored = (await uow.workflows.known(TENANT))[0]
+    stored.parameters = [
+        {"name": "Client Code", "seen_values": ["ACME-4471"]},
+        {"name": "Warehouse", "seen_values": ["SG"]},
+        {"name": "Never Typed", "seen_values": []},
+    ]
+    await uow.workflows.save(stored)
+
+    again = _redone(original, "SOMETHING-ELSE", "again", 10_000.0)
+    await uow.gestures.add_gestures(tuple(again))
+    await _mine(uow, FakeAsker(_found(_proposal([g.id for g in again]))))
+
+    stored = (await uow.workflows.known(TENANT))[0]
+    names = [parameter.get("name") for parameter in stored.parameters]
+    assert "Warehouse" in names, f"a different control was folded away; got {names}"
+    assert "Never Typed" in names, f"an empty entry matched something; got {names}"
+
+
+async def test_a_pass_that_learns_nothing_still_folds_what_is_already_wrong() -> None:
+    """The repair must not depend on the job being done differently again.
+
+    A job whose values have settled -- the same customer type every time --
+    learns nothing on any further pass, and under a fold that ran only on the
+    learning path it would carry its duplicate parameters forever. The
+    operator's four boxes are not waiting for a new value.
+
+    It reports nothing learnt, because nothing was: noticing that two of a
+    job's parameters were always one is not a value it did not have before.
+    """
+    uow, ids = await _day()
+    original = [_rows(uow)[gesture_id] for gesture_id in ids]
+    await _mine(uow, FakeAsker(_found(_proposal(ids))))
+
+    settled = _redone(original, "SOMETHING-ELSE", "again", 10_000.0)
+    await uow.gestures.add_gestures(tuple(settled))
+    await _mine(uow, FakeAsker(_found(_proposal([g.id for g in settled]))))
+
+    # The job as the defect left it, and a doing that teaches nothing new.
+    stored = (await uow.workflows.known(TENANT))[0]
+    stored.parameters = [
+        {"name": "Client Code", "seen_values": ["ACME-4471", "SOMETHING-ELSE"]},
+        {"name": "clientCode", "seen_values": ["ACME-4471", "SOMETHING-ELSE"]},
+    ]
+    await uow.workflows.save(stored)
+
+    same = _redone(original, "SOMETHING-ELSE", "thrice", 20_000.0)
+    await uow.gestures.add_gestures(tuple(same))
+    pass_ = await _mine(uow, FakeAsker(_found(_proposal([g.id for g in same]))))
+
+    assert pass_.learned_parameters == 0, "a fold is not something learnt"
+    stored = (await uow.workflows.known(TENANT))[0]
+    names = [parameter.get("name") for parameter in stored.parameters]
+    assert names == ["Client Code"], f"one control, one parameter; got {names}"
 
 
 def _redone_both(rows: list[Gesture], value: str, suffix: str, offset: float) -> list[Gesture]:
@@ -1545,3 +1754,106 @@ async def test_filling_the_same_job_twice_changes_nothing_the_second_time() -> N
 
     assert await fill_in_passwords(uow, tenant_id=TENANT) == 1
     assert await fill_in_passwords(uow, tenant_id=TENANT) == 0
+
+
+async def test_a_refused_proposal_says_which_gate_refused_it(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A job refused in silence is a job nobody can fix.
+
+    Measured on the deployment 2026-09-20: `Create a Client` was proposed on
+    two passes running -- the operator had just demonstrated it three times and
+    the miner even found the repeat -- and kept on neither. Which gate refused
+    it, and why, was not recoverable from anything this system stored: the pass
+    row carries a count and the log carried nothing.
+    """
+    uow, ids = await _day()
+    # A step citing a gesture no window ever held, which `validate` refuses.
+    proposal = _proposal(ids)
+    proposal["steps"][0]["cites"] = ["ges_never_captured"]
+
+    with caplog.at_level(logging.INFO, logger="sro.application.observation.mining_pass"):
+        result = await _mine(uow, FakeAsker(_found(proposal)))
+
+    assert len(result.rejections) == 1
+    said = " ".join(record.getMessage() for record in caplog.records)
+    assert "refused" in said, said
+    assert "unknown gesture" in said, "it did not say which gate"
+    assert "ges_never_captured" in said, "it did not say what about the job was wrong"
+
+
+async def test_a_pass_says_what_became_of_every_proposal(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """`0 job(s) kept of 7 proposed` reports three different things at once --
+    refused, recognised as one already stored, or the same evidence read twice
+    -- and only the first is a problem.
+
+    Measured on the deployment 2026-09-20: the operator demonstrated `Create a
+    Client` three times, the miner kept it, and every pass afterwards said
+    `0 kept` because it was being recognised. Nothing recorded could tell that
+    apart from the job being thrown away.
+    """
+    uow, ids = await _day()
+    original = [_rows(uow)[gesture_id] for gesture_id in ids]
+
+    with caplog.at_level(logging.INFO, logger="sro.application.observation.mining_pass"):
+        await _mine(uow, FakeAsker(_found(_proposal(ids))))
+        first = " ".join(record.getMessage() for record in caplog.records)
+        caplog.clear()
+        again = _redone(original, "SOMETHING-ELSE", "again", 10_000.0)
+        await uow.gestures.add_gestures(tuple(again))
+        await _mine(uow, FakeAsker(_found(_proposal([g.id for g in again]))))
+        second = " ".join(record.getMessage() for record in caplog.records)
+
+    assert "kept, nothing like it was stored" in first, first
+    assert "recognised as a job already stored" in second, second
+
+
+async def test_a_proposal_is_not_repointed_at_a_gesture_nobody_read() -> None:
+    """`validate` refuses a workflow citing a gesture outside the window --
+    rightly, since a job may only be built out of what was read. So the two
+    passes that ADD a citation must not reach past it.
+
+    Measured on the deployment 2026-09-20, one line apart, on nearly every
+    pass:
+
+        Delete a Customer Type: 1 step(s) repointed at the control the
+                                operator pressed
+        Delete a Customer Type: refused -- unknown gesture (ges_60e165c1)
+
+    A job the tenant already had, re-proposed and re-refused all evening, each
+    time at the price of the model call that proposed it. `with_the_press`
+    searched every gesture the tenant has ever produced and repointed the step
+    at one the model was never shown.
+    """
+    uow, strong_ids, _weak = await _crowded_day(strong=24, weak=0)
+    writing = _rows(uow)[strong_ids[0]]
+    # A click that landed on nothing built to be clicked -- a div -- which is
+    # what sends `with_the_press` looking for the real control. Strong enough
+    # to be in the window: it carries the same write the others do.
+    vague = replace(
+        writing,
+        id="ges_a_click_on_a_div",
+        at=2000.0,
+        action=replace(writing.action, at=2000.0, target=Target(tag="div")),
+    )
+    # And the control that was really pressed, a second later on the same
+    # system. Captured, no traffic, so the budget leaves it out -- and the
+    # model never saw it.
+    plain = replace(
+        writing,
+        id="ges_never_in_the_window",
+        at=2001.0,
+        requests=[],
+        action=replace(writing.action, at=2001.0, target=Target(tag="button", name="Save")),
+    )
+    await uow.gestures.add_gestures((vague, plain))
+
+    result = await _mine(
+        uow, FakeAsker(_found(_proposal([vague.id, strong_ids[0]]))), kb=CROWDED_KB
+    )
+
+    assert [(r.reason, r.detail) for r in result.rejections] == [], (
+        "a citation the pass added itself was refused as one the model invented"
+    )

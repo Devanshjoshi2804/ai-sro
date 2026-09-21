@@ -15,6 +15,7 @@ import logging
 from typing import Any
 
 from sro.domain.shared.prices import Answer, Effort, is_priced, price
+from sro.infrastructure.telemetry.otel import doing
 
 logger = logging.getLogger(__name__)
 
@@ -158,27 +159,32 @@ class GeminiAsker:
 
         problem: Exception | None = None
         response = None
-        for attempt in range(K_TRIES):
-            try:
-                response = await self._client.aio.models.generate_content(
-                    model=model,
-                    contents=parts,
-                    config=build_config(schema=schema, effort=effort),
-                )
-                problem = None
-                break
-            # Broad on purpose: a rig keeps going, and the row records why.
-            except Exception as raised:
-                problem = raised
-                if attempt + 1 >= K_TRIES or not _worth_retrying(raised):
+        # The most expensive thing this system does, and the one whose time
+        # nothing could account for: a request that took ninety seconds said so
+        # and said nothing about which of its model calls that was.
+        with doing("model.ask") as span:
+            span.set_attribute("model", model)
+            for attempt in range(K_TRIES):
+                try:
+                    response = await self._client.aio.models.generate_content(
+                        model=model,
+                        contents=parts,
+                        config=build_config(schema=schema, effort=effort),
+                    )
+                    problem = None
                     break
-                logger.warning(
-                    "%s from the model, retrying (%d of %d)",
-                    type(raised).__name__,
-                    attempt + 2,
-                    K_TRIES,
-                )
-                await asyncio.sleep(K_BACKOFF_S * (attempt + 1))
+                # Broad on purpose: a rig keeps going, and the row records why.
+                except Exception as raised:
+                    problem = raised
+                    if attempt + 1 >= K_TRIES or not _worth_retrying(raised):
+                        break
+                    logger.warning(
+                        "%s from the model, retrying (%d of %d)",
+                        type(raised).__name__,
+                        attempt + 2,
+                        K_TRIES,
+                    )
+                    await asyncio.sleep(K_BACKOFF_S * (attempt + 1))
         if problem is not None or response is None:
             # The call may or may not have been billed before it failed, and we
             # cannot tell -- so the cost figure (0.0 here) is not to be trusted.

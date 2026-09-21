@@ -18,6 +18,7 @@ globalThis.Event = FakeEvent;
 globalThis.MouseEvent = FakeEvent;
 globalThis.PointerEvent = FakeEvent;
 globalThis.KeyboardEvent = FakeEvent;
+globalThis.FocusEvent = FakeEvent;
 globalThis.window = { scrollBy: () => {} };
 
 // The two input prototypes `type` writes through. A `value` accessor on the
@@ -34,13 +35,26 @@ class HTMLTextAreaElement extends HTMLInputElement {}
 globalThis.HTMLInputElement = HTMLInputElement;
 globalThis.HTMLTextAreaElement = HTMLTextAreaElement;
 
-function element({ tagName = "BUTTON", typeable = false } = {}) {
+function element({ tagName = "BUTTON", typeable = false, src, box, name = "" } = {}) {
   const el = typeable ? new HTMLInputElement() : {};
   el.tagName = tagName;
+  el.innerText = name;
+  el.id = "";
+  // Every element a page script touches can be asked about its attributes;
+  // the naming a successful command reports back reads three of them.
+  el.getAttribute = () => null;
+  if (src !== undefined) el.src = src;
+  // Only a frame is measured, and only by the branch that hands its position
+  // to the worker.
+  el.getBoundingClientRect = () => box || { left: 0, top: 0, width: 0, height: 0 };
   el.events = [];
   el.focused = 0;
   el.dispatchEvent = (event) => el.events.push(event.type);
   if (typeable) el.focus = () => (el.focused += 1);
+  // Left as well as entered: a field commits its value to the framework behind
+  // it when it is blurred, and nothing here did that until 2026-09-17.
+  el.blurred = 0;
+  if (typeable) el.blur = () => (el.blurred += 1);
   return el;
 }
 
@@ -71,14 +85,46 @@ test("nothing at the point is a control that was not found", () => {
   assert.equal(answer.error.kind, "control_not_found");
 });
 
-test("a point inside a frame is a control this document did not find", () => {
+test("a point inside a frame says where the frame is, so it can be asked", () => {
+  // The picture the model is shown is the top document's viewport, and a
+  // warehouse application inside an iframe puts every control in another
+  // document: the point is right and the document is wrong. Firing here would
+  // hit the frame element, reach nothing, and report `performed`.
+  //
+  // Measured on the deployment, 2026-09-17: the rung that looks at a picture
+  // finally pointed at a control and got "that point is inside a frame", which
+  // made it useless on the one system it exists for.
   for (const tagName of ["IFRAME", "FRAME"]) {
-    at = element({ tagName });
+    at = element({
+      tagName,
+      src: "https://wms.example/portal/app",
+      box: { left: 12, top: 80, width: 900, height: 600 },
+    });
     const answer = performAtInPage({ x: 5, y: 5, action: "click" });
     assert.equal(answer.ok, false, tagName);
-    assert.equal(answer.error.kind, "control_not_found");
+    assert.equal(answer.error.kind, "point_in_a_frame");
+    assert.equal(answer.error.frame.src, "https://wms.example/portal/app");
+    assert.equal(answer.error.frame.left, 12);
+    assert.equal(answer.error.frame.top, 80);
     assert.deepEqual(at.events, [], "no event reached the frame element");
   }
+});
+
+test("what worked is named, so the job can keep it", () => {
+  // A step whose recorded identity has rotted is found by a rung further down
+  // -- text, a css path, a point on a picture -- and that discovery used to
+  // live for exactly one command. Measured on the deployment, 2026-09-17: the
+  // rung that looks at a picture worked out "Customer Types is under Partners"
+  // three times in one afternoon, and the job knew no more at the end of it.
+  // Through the point, which is the expensive rung: a model looked at a
+  // picture to find this control, and naming it is what lets the next run
+  // find it with a locator instead of another picture.
+  at = element({ tagName: "BUTTON", name: "Customer Types" });
+  const answer = performAtInPage({ x: 40, y: 30, action: "click" });
+
+  assert.equal(answer.ok, true);
+  assert.equal(answer.result.control.tag, "button");
+  assert.equal(answer.result.control.name, "Customer Types");
 });
 
 test("a click is the whole pointer sequence, on the element at the point", () => {
@@ -95,13 +141,21 @@ test("typing focuses the element at the point and puts the value through its set
   assert.equal(answer.ok, true);
   assert.equal(at.focused, 1, "focused explicitly: a synthetic click moves no focus");
   assert.equal(at.value, "ab");
-  // click, cleared (input), then per character keydown/input/keyup, then change.
+  // click, cleared (input), then per character keydown/input/keyup, then
+  // change -- and then LEFT, which is when a field commits its value to the
+  // framework behind it. Measured on the deployment, 2026-09-17 at 23:40:
+  // `run_6ddc89d5` typed GT2, the screen showed GT2, and the Save came back
+  // "a validation error on Customer Type" because ExtJS still held the empty
+  // value it had never been told to replace. A person never hits this: their
+  // click on the next control blurs the last one, and a synthetic click moves
+  // no focus.
   assert.deepEqual(at.events, [
     "click", "input",
     "keydown", "input", "keyup",
     "keydown", "input", "keyup",
-    "change",
+    "change", "focusout", "blur",
   ]);
+  assert.equal(at.blurred, 1, "it typed into the field and never left it");
 });
 
 test("typing into something that cannot be typed into says so rather than performing", () => {
@@ -162,4 +216,117 @@ test("a page with nothing like it says so with an empty list, not a catalogue", 
   });
 
   assert.deepEqual(answer.error.nearby, []);
+});
+
+test("the locator path leaves the field too, not only the point path", () => {
+  // The path a run actually takes. `run_6ddc89d5`, the deployment,
+  // 2026-09-17 at 23:40, matched `component` -- which is `performInPage`, not
+  // `performAtInPage` -- typed GT2, showed GT2 on the screen, and had the Save
+  // refused with "a validation error on Customer Type". The framework behind
+  // the box keeps its own value and takes the DOM's when the field is LEFT,
+  // and nothing here ever left it.
+  const field = new HTMLInputElement();
+  Object.assign(field, {
+    tagName: "INPUT",
+    innerText: "",
+    id: "customerType",
+    getAttribute: () => null,
+    matches: (selector) => selector.includes("customerType"),
+    events: [],
+    focused: 0,
+    blurred: 0,
+    scrollIntoView: () => {},
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 80, height: 20 }),
+  });
+  field.dispatchEvent = (event) => field.events.push(event.type);
+  field.focus = () => (field.focused += 1);
+  field.blur = () => (field.blurred += 1);
+  onScreen = [field];
+  globalThis.document.querySelectorAll = () => onScreen;
+
+  const answer = performInPage({
+    action: "type",
+    value: "GT2",
+    locators: [{ strategy: "css_path", query: "#customerType" }],
+  });
+
+  assert.equal(answer.ok, true, JSON.stringify(answer));
+  assert.equal(field.value, "GT2");
+  assert.equal(field.blurred, 1, "it typed into the field and never left it");
+  assert.deepEqual(field.events.slice(-3), ["change", "focusout", "blur"]);
+});
+
+test("a box that would not take what it was given says how much it kept", () => {
+  // The browser truncates silently and BEFORE the request. On the deployment
+  // `Warehouse.Description` stops at about 28 characters with no error and no
+  // warning, so the shortened value is what goes into the body, comes back
+  // from the read, and appears in the photograph. Every belt the run has
+  // agrees, because every one of them compares the record to itself. This is
+  // the only moment the difference exists.
+  const field = new HTMLInputElement();
+  Object.assign(field, {
+    tagName: "INPUT",
+    innerText: "",
+    id: "longDescription",
+    getAttribute: () => null,
+    matches: (selector) => selector.includes("longDescription"),
+    events: [],
+    focused: 0,
+    blurred: 0,
+    scrollIntoView: () => {},
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 80, height: 20 }),
+  });
+  field.dispatchEvent = () => {};
+  field.focus = () => (field.focused += 1);
+  field.blur = () => (field.blurred += 1);
+  // A field with a maxlength keeps a prefix and drops the rest, exactly as a
+  // real one does. Modelled on the READ rather than the write, because the
+  // page code assigns through the PROTOTYPE's setter -- deliberately, so a
+  // framework watching the property sees the change -- and an instance setter
+  // would never be called.
+  Object.defineProperty(field, "value", {
+    get() {
+      return String(this._value ?? "").slice(0, 8);
+    },
+    configurable: true,
+  });
+  onScreen = [field];
+  globalThis.document.querySelectorAll = () => onScreen;
+
+  const answer = performInPage({
+    action: "type",
+    value: "a description far longer than the box",
+    locators: [{ strategy: "css_path", query: "#longDescription" }],
+  });
+
+  assert.equal(answer.ok, true, JSON.stringify(answer));
+  assert.equal(answer.result.short.kept, 8);
+  assert.equal(answer.result.short.asked, 37);
+  assert.equal(answer.result.short.truncated, true);
+});
+
+test("a box that took what it was given says nothing", () => {
+  const field = new HTMLInputElement();
+  Object.assign(field, {
+    tagName: "INPUT",
+    innerText: "",
+    id: "customerType",
+    getAttribute: () => null,
+    matches: (selector) => selector.includes("customerType"),
+    scrollIntoView: () => {},
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 80, height: 20 }),
+  });
+  field.dispatchEvent = () => {};
+  field.focus = () => {};
+  field.blur = () => {};
+  onScreen = [field];
+  globalThis.document.querySelectorAll = () => onScreen;
+
+  const answer = performInPage({
+    action: "type",
+    value: "GV3",
+    locators: [{ strategy: "css_path", query: "#customerType" }],
+  });
+
+  assert.equal(answer.result.short, null);
 });

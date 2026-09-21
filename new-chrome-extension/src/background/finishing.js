@@ -39,7 +39,10 @@ export async function noteFinished(active) {
   // run, two resources behind two doors. The spelling is the persisted one.
   const source = active.source === "rig" ? "rig" : "backend";
   try {
-    const run = source === "rig" ? await api.rigRun(active.runId) : await api.run(active.runId);
+    const run =
+      source === "rig"
+        ? await api.rigRun(active.runId)
+        : await api.run(active.runId);
     // The one status both vocabularies share, and it means the same thing in
     // each: the quiet window landed between two of the run's own steps rather
     // than after its last one. Nothing is stored and `state.activeRun()` is
@@ -64,6 +67,38 @@ export async function noteFinished(active) {
       // backend refuses to hear it about a second time, and `undoRun` sent a
       // `run-wrong` guaranteed to fail.
       wrongBecause: run.wrong_because || null,
+      // What it went looking for and could not find. The question about each
+      // of these is already in the operator's thread -- the backend wrote it
+      // as the run closed -- and this is what tells the panel to take them
+      // there rather than leave them reading "The run stopped".
+      needs: run.needs || [],
+      // What it wrote, so the card can name the record rather than only
+      // reporting the machinery that made it.
+      //
+      // This projection is a SUBSET of the run and that is deliberate -- a
+      // stored copy of every field would be a second, staler run row in
+      // browser storage. It is also the third place today a wire broke one
+      // layer from where it was checked: `WorkflowRunModel` carries `values`,
+      // and nothing carried it this far, so a card built to name the record
+      // named nothing and looked exactly like a card that had not been
+      // changed.
+      values: run.values || {},
+      // The second of the two whitelists this has to pass. `values` was added
+      // to one and not the other once already.
+      undo: run.undo || null,
+      undoes_by: run.undoes_by || null,
+      undoes_run: run.undoes_run || null,
+      // Whether a person may simply press it again: the run stopped and
+      // nothing it did may have landed. The backend decides it -- a second
+      // press after a write nobody could confirm is two records.
+      try_again: Boolean(run.try_again),
+      // And which job to press: `values` and `items` were already here, and
+      // this is the third thing a press needs. The run's own conversation is
+      // deliberately not carried -- a retry that comes up short asks in the
+      // panel, where the person who pressed it is.
+      workflow_id: run.workflow_id || "",
+      gathered: run.gathered || {},
+      watched: Boolean(run.watched),
       at: Date.now(),
     });
   } catch (error) {

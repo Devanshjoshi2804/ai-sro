@@ -16,6 +16,7 @@ from fastapi import Depends, Header, HTTPException, Request, status
 from sro.application.context import RequestContext
 from sro.application.ports.auth import CredentialRejected, Unconfigured
 from sro.container import Container
+from sro.whose import attribute
 
 
 def get_container(request: Request) -> Container:
@@ -23,7 +24,7 @@ def get_container(request: Request) -> Container:
     return container
 
 
-def get_context(
+async def get_context(
     container: Annotated[Container, Depends(get_container)],
     authorization: Annotated[str | None, Header()] = None,
 ) -> RequestContext:
@@ -32,6 +33,14 @@ def get_context(
     The 401 says a credential is needed and nothing else. Which part was wrong
     -- absent, expired, or signed by somebody else -- is only useful to
     somebody working out what to try next.
+
+    `async`, and that is load-bearing: FastAPI runs a SYNC dependency in a
+    threadpool, and `run_in_threadpool` gives it a COPY of the context. The
+    `attribute` below then set the tenant in the copy, which was thrown away
+    when the thread finished -- so every line an HTTP route wrote carried a
+    request id and no tenant at all, which is exactly the attribution this
+    plane exists for. Verifying a credential is a signature check and blocks
+    on nothing, so there was never a thread worth spending on it either.
     """
     if not authorization:
         raise HTTPException(
@@ -54,6 +63,11 @@ def get_context(
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
 
+    # From here on, every line this request writes says whose it is. The
+    # middleware gave it an id before anything knew who was asking; this is
+    # the first moment anything does. Inside the request's own task, so it
+    # lasts exactly as long as the request -- see `whose.attribute`.
+    attribute(tenant=caller.tenant_id.value, principal=caller.principal_id.value)
     return RequestContext(tenant_id=caller.tenant_id, principal_id=caller.principal_id)
 
 
@@ -73,3 +87,18 @@ Declared with a default of `""` at every use rather than as required, because a
 422 naming a missing header is itself an answer: absent, wrong, and belonging
 to somebody else must all be the one 404.
 """
+
+
+async def about_thread(thread_id: str) -> None:
+    """Attribute this request to the conversation it is about.
+
+    A dependency rather than a line in each handler: it is declared once beside
+    the route and FastAPI resolves `thread_id` from the path it already
+    matched, so a route that has a thread cannot be added without one. Nothing
+    is returned -- the attribution is the whole of the effect.
+    """
+    attribute(thread=thread_id)
+
+
+AboutThread = Depends(about_thread)
+"""Put this in a thread route's `dependencies=[...]`. See `about_thread`."""

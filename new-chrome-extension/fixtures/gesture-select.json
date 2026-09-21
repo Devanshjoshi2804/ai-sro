@@ -4,7 +4,7 @@
     "kind": "select",
     "target": {
       "tag": "select",
-      "role": null,
+      "role": "combobox",
       "name": "Dock",
       "secret": false,
       "text": "choose\nDock 3",
@@ -26,10 +26,10 @@
     "value": "D3",
     "secret": false,
     "modifiers": [],
-    "at": 1788165604.661,
-    "url": "http://127.0.0.1:63319/"
+    "at": 1789915822.259,
+    "url": "http://127.0.0.1:51729/"
   },
-  "tab_id": 1766715008,
-  "frame_url": "http://127.0.0.1:63319/",
-  "page_url": "http://127.0.0.1:63319/"
+  "tab_id": 247501454,
+  "frame_url": "http://127.0.0.1:51729/",
+  "page_url": "http://127.0.0.1:51729/"
 }

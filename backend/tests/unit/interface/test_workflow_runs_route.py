@@ -58,7 +58,7 @@ from sro.config import Settings
 from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
-from sro.domain.observation.gesture import Action, Call, Gesture
+from sro.domain.observation.gesture import Action, Body, Call, Gesture
 from sro.domain.shared.identifiers import DeviceId, SkillId, TenantId
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.workflow import Step, Workflow
@@ -316,6 +316,28 @@ async def test_the_values_come_from_the_body_trimmed(
     assert made.json()["values"] == {"clientCode": "THIRD", "zone": "4"}
 
 
+async def test_which_run_this_press_takes_back_comes_from_the_body(
+    client: httpx.AsyncClient, held: Workflow
+) -> None:
+    """The undo's other half. A route that dropped this claims a run that
+    deletes a record and says nothing about which run made it -- and the
+    refusal of a second press, which is the only thing standing between two
+    open panels and two deletes, never fires."""
+    made = await client.post("/v1/workflow-runs", json=_body(undoes_run="run_earlier"))
+
+    assert made.json()["undoes_run"] == "run_earlier"
+
+
+async def test_a_press_that_takes_nothing_back_says_so(
+    client: httpx.AsyncClient, held: Workflow
+) -> None:
+    """Null, and not absent: a field the panel has to test for two ways is a
+    field somebody will test for one way."""
+    made = await client.post("/v1/workflow-runs", json=_body())
+
+    assert made.json()["undoes_run"] is None
+
+
 async def test_a_live_press_claims_a_live_run(client: httpx.AsyncClient, held: Workflow) -> None:
     """The one field that decides whether a warehouse is written to. A route
     that hardcoded `live=False` looks healthy and never writes anything."""
@@ -497,6 +519,25 @@ async def test_a_job_this_tenant_does_not_have_answers_404(
     assert spawned.handed_over == 1
 
 
+async def test_a_value_nobody_mentioned_is_gone_and_looked_for_rather_than_refused(
+    client: httpx.AsyncClient, held: Workflow, spawned: _Spawned
+) -> None:
+    """The press is not the only place a value can come from.
+
+    A deployment that can read the operator's mailbox answers a missing value
+    by going to look, and refuses at the step if the mailbox does not hold it
+    either. A deployment that cannot still refuses here, in front of the person
+    who could fix it -- which is every test above this one.
+
+    Blank is the other half and keeps its 400: see the test below. A person who
+    typed a space has said something.
+    """
+    landed = await client.post("/v1/workflow-runs", json=_body(values={}))
+
+    assert landed.status_code == 201, landed.json()
+    assert spawned.handed_over == 1, "the run was claimed but nobody was given it to perform"
+
+
 async def test_a_declared_value_that_is_only_whitespace_answers_400(
     client: httpx.AsyncClient, held: Workflow, spawned: _Spawned
 ) -> None:
@@ -642,6 +683,7 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
             )
         ],
         withheld=[{"step": 2, "planned": {"kind": "http.send"}}],
+        undoes_run="run_before",
         in_tokens=11,
         out_tokens=22,
         thought_tokens=33,
@@ -708,10 +750,31 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
         # Nothing this tenant has been seen doing takes back what this run
         # made -- which is every tenant until somebody deletes one of these in
         # front of the recorder.
+        # Empty because a person typed these values. Filled only for a value
+        # nobody typed, with the message it was read out of.
+        # Which of the two ways this run did the job: replayed the call, or
+        # did it in front of somebody. False is the replay, and the default.
+        "watched": False,
+        "needs": [],
+        # Names the request asked for that this job has no parameter for.
+        "unasked": [],
+        # What a run is doing when it has no step to show for it: reading a
+        # mailbox. Empty here, and empty for a finished run always.
+        "doing": "",
+        "gathered": {},
         # Null because nobody has reported this run. The card that reports one
         # reads this to stop offering to report it twice.
         "wrong_because": None,
         "undo": None,
+        # And which record it would address, which is null for the same reason
+        # and one more: a run that made nothing has nothing to name.
+        "undoes_by": None,
+        # The other direction: which run this one takes back. Carried, not
+        # null, because a field that is null in the one test that reads the
+        # whole wire is a field the mapping can drop without anybody noticing.
+        "undoes_run": "run_before",
+        # This one HELD: there is nothing to try again.
+        "try_again": False,
     }
 
 
@@ -1831,7 +1894,15 @@ async def test_a_run_that_made_records_says_what_takes_them_back(
     has evidence for, and a wrong mapping deletes the wrong record.
     """
     made = await _a_job_that_creates(uow, "wfl_made", "ges_made", 201, "/wm/equipmentTypes")
-    await _a_job_that_creates(uow, "wfl_gone", "ges_gone", 204, "/wm/equipmentTypes/4471", "DELETE")
+    await _a_job_that_creates(
+        uow,
+        "wfl_gone",
+        "ges_gone",
+        204,
+        "/wm/equipmentTypes/4471",
+        "DELETE",
+        asks="Equipment Type",
+    )
     run = _run_that_made(made.id, {"equipmentTypeId": "4471"})
     await uow.workflow_runs.save(run)
 
@@ -1840,6 +1911,123 @@ async def test_a_run_that_made_records_says_what_takes_them_back(
     assert answered.status_code == 200, answered.text
     assert answered.json()["undo"] == "wfl_gone"
     assert answered.json()["steps"][0]["made"] == {"equipmentTypeId": "4471"}
+    # Under the name the UNDO asks for. The record is `equipmentTypeId` to the
+    # warehouse and `Equipment Type` to the job, and a press that sent the
+    # first would name a parameter the job does not have.
+    assert answered.json()["undoes_by"] == {"Equipment Type": "4471"}
+
+
+async def test_a_record_named_two_ways_is_addressed_by_the_field_the_delete_uses(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The deployment's own shape, and the reason the button was never offered.
+
+    A run's `made` carries the slots the read-back confirmed -- on QA that is
+    `customerType` AND `longDescription` -- and a record named two ways is a
+    record this cannot name. The delete says which of them it addresses: its
+    path ends in the record, and it carries that record as its body, so the
+    field is the one whose value is the segment. No part of that is
+    `customerType` being the singular of `customerTypes`.
+    """
+    made = await _a_job_that_creates(uow, "wfl_made", "ges_made", 201, "/wm/customerTypes")
+    await _a_job_that_creates(
+        uow,
+        "wfl_gone",
+        "ges_gone",
+        200,
+        "/wm/customerTypes/GDD",
+        "DELETE",
+        body='{"customerType": "GDD", "resourceId": "GDD", "longDescription": "a type"}',
+        asks="Customer Type",
+    )
+    run = _run_that_made(made.id, {"customerType": "GQX", "longDescription": "type 007"})
+    await uow.workflow_runs.save(run)
+
+    answered = await client.get(f"/v1/workflow-runs/{run.id}")
+
+    assert answered.json()["undo"] == "wfl_gone"
+    # `GDD` is addressed as both `customerType` and `resourceId` in the delete,
+    # and the run recorded only the first: one side narrows the other. The
+    # press goes out under the name the job asks for.
+    assert answered.json()["undoes_by"] == {"Customer Type": "GQX"}, answered.json()["undoes_by"]
+
+
+async def test_a_write_performed_on_the_page_is_still_something_to_take_back(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The deployment's own successful run, 2026-09-19. `run_b31b610d` typed
+    into the form, pressed Save, and held on `POST /data/WM/wm/customerTypes
+    returned 201` -- with `made = {}`, because the browser sees a call's status
+    and never what came back. So the card named the record it had just created
+    and could offer nothing to take it back.
+
+    What the run was asked for, then, under the name the undo asks by."""
+    made = await _a_job_that_creates(uow, "wfl_made", "ges_made", 201, "/wm/customerTypes")
+    await _a_job_that_creates(
+        uow,
+        "wfl_gone",
+        "ges_gone",
+        200,
+        "/wm/customerTypes/GDD",
+        "DELETE",
+        body='{"customerType": "GDD", "resourceId": "GDD"}',
+        asks="Customer Type",
+    )
+    run = _run_that_made(made.id, {})
+    # The marker a write carries, and no record: exactly what a page-performed
+    # create leaves behind.
+    run.steps[0].result = {"ok": True, "status": 201, "matched_by": "component", "wrote": True}
+    run.values = {"Customer Type": "GZ4", "Customer Type Description": "undo round four"}
+    await uow.workflow_runs.save(run)
+
+    answered = await client.get(f"/v1/workflow-runs/{run.id}")
+
+    assert answered.json()["undo"] == "wfl_gone"
+    assert answered.json()["undoes_by"] == {"Customer Type": "GZ4"}
+
+
+async def test_a_run_that_was_asked_for_nothing_the_undo_needs_offers_no_press(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The fallback is the run's own values, and only under the name the undo
+    asks by. A run carrying nothing by that name is a record this cannot
+    address, which is where it has always stopped."""
+    made = await _a_job_that_creates(uow, "wfl_made", "ges_made", 201, "/wm/customerTypes")
+    await _a_job_that_creates(
+        uow,
+        "wfl_gone",
+        "ges_gone",
+        200,
+        "/wm/customerTypes/GDD",
+        "DELETE",
+        body='{"customerType": "GDD"}',
+        asks="Customer Type",
+    )
+    run = _run_that_made(made.id, {})
+    run.steps[0].result = {"ok": True, "status": 201, "matched_by": "component", "wrote": True}
+    run.values = {"Something Else": "GZ4"}
+    await uow.workflow_runs.save(run)
+
+    answered = await client.get(f"/v1/workflow-runs/{run.id}")
+
+    assert answered.json()["undo"] is None
+
+
+async def test_a_delete_that_says_nothing_leaves_a_record_named_twice_unnamed(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The old rule, exactly. A platform whose delete carries no body tells
+    this nothing, and an undo that guessed between two fields would be the one
+    press that removes somebody else's record."""
+    made = await _a_job_that_creates(uow, "wfl_made", "ges_made", 201, "/wm/customerTypes")
+    await _a_job_that_creates(uow, "wfl_gone", "ges_gone", 204, "/wm/customerTypes/GDD", "DELETE")
+    run = _run_that_made(made.id, {"customerType": "GQX", "longDescription": "type 007"})
+    await uow.workflow_runs.save(run)
+
+    answered = await client.get(f"/v1/workflow-runs/{run.id}")
+
+    assert answered.json()["undo"] is None
+    assert answered.json()["undoes_by"] is None
 
 
 async def test_a_tenant_that_has_never_deleted_one_is_told_so_plainly(
@@ -1876,6 +2064,8 @@ async def _a_job_that_creates(
     status: int,
     path: str,
     method: str = "POST",
+    body: str | None = None,
+    asks: str = "",
 ) -> Workflow:
     await uow.gestures.add_gestures(
         (
@@ -1887,6 +2077,12 @@ async def _a_job_that_creates(
                         url=f"{WMS}{path}",
                         status=status,
                         started_at=1_739_314_800.0,
+                        # What a delete carries on this platform: the record it
+                        # is removing, which is how the field that addresses it
+                        # is read rather than guessed.
+                        request_body=None
+                        if body is None
+                        else Body(text=body, size_bytes=len(body)),
                     ),
                 ),
             ),
@@ -1899,6 +2095,10 @@ async def _a_job_that_creates(
         narrative="n",
         systems=[WMS],
         steps=[Step(order=0, says="s", system=WMS, cites=[gesture_id])],
+        # What the job calls the one thing it varies -- the screen's label, as
+        # every mined job names it. An undo with none cannot be filled from a
+        # created record at all.
+        parameters=[{"name": asks}] if asks else [],
     )
     await uow.workflows.save(job)
     return job

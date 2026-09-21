@@ -12,7 +12,10 @@
 //
 // Imported as well as re-exported: `export ... from` would not bind the names
 // here, and `apiUrl()` and `consoleUrl()` below read them.
-import { DEFAULT_API_URL, DEFAULT_CONSOLE_URL } from "./deployment.generated.js";
+import {
+  DEFAULT_API_URL,
+  DEFAULT_CONSOLE_URL,
+} from "./deployment.generated.js";
 
 export { DEFAULT_API_URL, DEFAULT_CONSOLE_URL };
 
@@ -30,28 +33,33 @@ const KEYS = {
   muted: "sro.muted",
   tails: "sro.tails",
   watched: "sro.watched",
+  alwaysWatch: "sro.alwaysWatch",
   paused: "sro.paused",
   serverPaused: "sro.serverPaused",
   lastBeat: "sro.lastBeat",
   lastError: "sro.lastError",
+  mailLooked: "sro.mailLooked",
+  awaitingMail: "sro.awaitingMail",
   queueEpoch: "sro.queueEpoch",
   pendingBatch: "sro.pendingBatch",
   shotTimes: "sro.shotTimes",
   treeTimes: "sro.treeTimes",
   teaching: "sro.teaching",
   finishedRun: "sro.finishedRun",
+  question: "sro.question",
   activeRun: "sro.activeRun",
   answer: "sro.answer",
   arrivals: "sro.arrivals",
   arrived: "sro.arrived",
   nearMisses: "sro.nearMisses",
+  said: "sro.said",
+  repaired: "sro.repaired",
 };
 
 // Whichever deployment this build belongs to. `make gen-deployment` writes it;
 // the default in the tree is a developer's own stack. It is a *default*, not a
 // lock: `sign-in` still takes whatever url was typed, so one build can be
 // pointed somewhere else without regenerating anything.
-
 
 /** Keys this extension used to write and no longer does.
  *
@@ -161,6 +169,19 @@ export const state = {
   nearMisses: () => read(KEYS.nearMisses, []),
   setNearMisses: (misses) => write(KEYS.nearMisses, misses),
 
+  // What this browser decided, waiting for the next beat to carry it up. In
+  // storage rather than in a variable, because the service worker is evicted
+  // between beats as a matter of course and the lines worth having are usually
+  // the ones written just before it went. See `said.js`.
+  said: () => read(KEYS.said, []),
+  setSaid: (lines) => write(KEYS.said, lines),
+
+  // Tabs this browser has already reloaded once to repair a half-installed
+  // recorder. In storage because the guard is "once per tab, EVER" and the
+  // worker holding it is evicted every few seconds. See `service-worker.js`.
+  repaired: () => read(KEYS.repaired, []),
+  setRepaired: (tabIds) => write(KEYS.repaired, tabIds),
+
   muted: () => read(KEYS.muted, {}),
   setMuted: (muted) => write(KEYS.muted, muted),
 
@@ -205,6 +226,19 @@ export const state = {
   watches: () => read(KEYS.watches, []),
   setWatches: (watches) => write(KEYS.watches, watches),
 
+  /** The systems this operator has said to watch wherever they open.
+   *
+   * Hosts, not tabs. A tab id lives for as long as one tab, so a watch keyed
+   * on one is a watch that ends when somebody closes a window, follows a link
+   * into a new tab, or lets a run open its own -- and every one of those is
+   * the same system doing the same work. Measured on the deployment,
+   * 2026-09-17: a run drove a Blue Yonder tab it had opened itself while the
+   * panel said "not watched", so nothing it did was evidence and the job
+   * learnt nothing from having been done.
+   */
+  alwaysWatch: () => read(KEYS.alwaysWatch, []),
+  setAlwaysWatch: (hosts) => write(KEYS.alwaysWatch, hosts),
+
   /** The mails this browser recognised and has not been answered about yet.
    *
    * This is the one thing here that came out of a mailbox, and this machine is
@@ -234,6 +268,24 @@ export const state = {
 
   lastError: () => read(KEYS.lastError, ""),
   setLastError: (message) => write(KEYS.lastError, message),
+
+  /** When the mailbox was last read for the jobs it asks for, and whether it
+   * could be reached. Held here rather than in the panel because the panel is
+   * one of several that may ask and is closed most of the day: the throttle
+   * belongs to the browser, not to a window of it. */
+  mailLooked: () => read(KEYS.mailLooked, null),
+  setMailLooked: (looked) => write(KEYS.mailLooked, looked),
+
+  /** The mail this browser has sent and is waiting on an answer to.
+   *
+   * In storage rather than in a variable for `said`'s reason -- the worker is
+   * evicted between beats as a matter of course, and a person who sent a mail
+   * five minutes ago is exactly who must still be told it is being watched
+   * for. One at a time: the panel asks one question at a time, so there is
+   * one outstanding request to wait on.
+   */
+  awaitingMail: () => read(KEYS.awaitingMail, null),
+  setAwaitingMail: (waiting) => write(KEYS.awaitingMail, waiting),
 
   /** Distinguishes one lifetime of the event queue from the next.
    *
@@ -298,6 +350,12 @@ export const state = {
    * while whatever is still left to do (starting a reversal) stays retryable
    * rather than the whole row being deleted the moment the record lands. */
   finishedRun: () => read(KEYS.finishedRun, null),
+
+  /** The question this operator has not answered, read off their own
+   * conversation on the beat. Stored rather than derived on every status: the
+   * panel polls twice a second and the thread is a network round trip. */
+  question: () => read(KEYS.question, null),
+  setQuestion: (question) => write(KEYS.question, question),
   setFinishedRun: (run) => write(KEYS.finishedRun, run),
 
   /** The run this browser is currently -- or was most recently -- being asked
@@ -329,7 +387,8 @@ export async function capturing() {
   if (!deviceId) return { on: false, because: "not registered" };
   if (paused) return { on: false, because: "paused here" };
   if (serverPaused) return { on: false, because: "paused by an administrator" };
-  if (!policy?.capture_enabled) return { on: false, because: "not enabled for this tenant" };
+  if (!policy?.capture_enabled)
+    return { on: false, because: "not enabled for this tenant" };
   return { on: true, because: "" };
 }
 

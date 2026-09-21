@@ -405,8 +405,12 @@ def test_everything_that_fits_is_packed_in_time_order() -> None:
 
 def test_a_budget_too_small_keeps_the_floor_and_reports_the_rest() -> None:
     """A quiet morning is still read, and what did not fit is named rather
-    than silently missing."""
-    gestures = _gestures() * 8
+    than silently missing.
+
+    `_many` rather than the fixture repeated: `pack` admits each id once, so a
+    list holding the same seven gestures eight times is seven gestures.
+    """
+    gestures = _many(56)
 
     window = pack(gestures, {}, [], [], "", budget=600)
 
@@ -569,10 +573,18 @@ def test_an_item_that_exactly_fills_the_room_is_packed() -> None:
     """
     from sro.domain.skill.umbrella import PROMPT_OVERHEAD_TOKENS
 
-    gestures = _many()
+    # No traffic on any of them, so nothing anchors a lead-up: this is about
+    # the arithmetic at the boundary, and a write that brings three minutes of
+    # clicks in with it fills the room in a different order than "the strongest
+    # N". `test_a_write_is_not_shown_without_the_work_that_led_to_it` is where
+    # that behaviour is pinned.
+    gestures = [replace(one, requests=[]) for one in _many()]
+    # `pack`'s own order, newest of equal strength first -- the room computed
+    # under any other order is the room for a different set of items, and the
+    # boundary this pins would never be reached.
     ranked = sorted(
         ((strength(g, None, set()), g.at, evidence_tokens(as_evidence(g, None))) for g in gestures),
-        key=lambda item: (-item[0], item[1]),
+        key=lambda item: (-item[0], -item[1]),
     )
     wanted = K_MIN_GESTURES + 5
     room = sum(item[2] for item in ranked[:wanted])
@@ -584,3 +596,124 @@ def test_an_item_that_exactly_fills_the_room_is_packed() -> None:
 
     assert window.spent == room, "it fits with nothing to spare"
     assert len(window.items) == wanted, "and the one that exactly fits is in"
+
+
+def test_the_newest_of_equal_strength_is_shown_first() -> None:
+    """The tie-break that decided, on its own, that the miner never sees today.
+
+    Measured on the deployment 2026-09-19 over the whole `greyorange` store,
+    732 gestures: 246 of them score 2.5 and the window held about 137, so the
+    packer never left that band -- and breaking the tie on `at` ascending it
+    worked through the band oldest-first and ran out of budget at 09-18 14:58.
+    The window spanned 09-15 to 09-18 and held not one gesture from 09-19. The
+    whole of that day was unreachable on merit, including a delete the operator
+    had demonstrated by hand twenty minutes earlier and was asking about.
+
+    The two directions are not symmetric. Oldest-first starves the present
+    permanently -- the set older than the cut only grows, and new evidence
+    arrives faster than the budget advances. Newest-first starves a finite
+    backlog, which `K_POOL_WAIT` already exists to drain.
+    """
+    plain = next(one for one in _gestures() if not one.requests and one.action.kind == "click")
+    old = [replace(plain, id=f"ges_backlog_{n:02d}", at=1_000.0 + n) for n in range(40)]
+    new = [replace(plain, id=f"ges_today_{n:02d}", at=9_000.0 + n) for n in range(40)]
+    assert {strength(one, None, set()) for one in old + new} == {strength(old[0], None, set())}, (
+        "the fixture must be one band, or the tie-break is not what is being tested"
+    )
+
+    window = pack(old + new, {}, [], [], "", budget=K_WINDOW_TOKENS // 20)
+
+    shown = {item.gesture_id for item in window.items}
+    assert shown, "the budget must admit something"
+    assert shown & {one.id for one in new}, "today's evidence is reachable"
+    assert not shown & {one.id for one in old}, (
+        "the backlog took the window and the present never got in"
+    )
+
+
+def test_a_write_is_not_shown_without_the_work_that_led_to_it() -> None:
+    """A demonstration is several quiet gestures and then a write, and ranking
+    them one at a time splits exactly that shape.
+
+    Measured on the deployment 2026-09-19: the operator deleted customer type
+    GZ4 by hand, `DELETE /wm/customerTypes/GZ4` answered 200, and all twelve
+    gestures were captured. With the tie-break above fixed the window admitted
+    exactly one of the twelve -- the confirm click carrying the DELETE, at 2.5,
+    while the eleven that show HOW to cause it scored 1.0 to 2.0 and stayed
+    out. A model shown one orphan click cannot propose the job it belongs to,
+    and `validate` refuses a one-step proposal anyway.
+    """
+    found = _gestures()
+    writing = next(one for one in found if any(r.method != "GET" for r in one.requests))
+    plain = next(one for one in found if not one.requests and one.action.kind == "click")
+    # A busy day of unrelated strong evidence, and one demonstration in it: four
+    # quiet clicks and then the write they lead to.
+    noise = [
+        replace(writing, id=f"ges_noise_{n:02d}", at=5_000.0 + n, requests=list(writing.requests))
+        for n in range(30)
+    ]
+    lead_up = [replace(plain, id=f"ges_lead_{n}", at=9_000.0 + n) for n in range(4)]
+    press = replace(writing, id="ges_the_write", at=9_010.0, requests=list(writing.requests))
+
+    window = pack(noise + lead_up + [press], {}, [], [], "", budget=K_WINDOW_TOKENS // 8)
+
+    shown = {item.gesture_id for item in window.items}
+    assert "ges_the_write" in shown, "the write is the strongest thing in the day"
+    assert {one.id for one in lead_up} <= shown, (
+        "the write came in without the gestures that show how to cause it"
+    )
+
+
+def test_only_a_write_brings_its_history_with_it() -> None:
+    """The narrow reading, on purpose. Every gesture dragging three minutes of
+    history in with it would let one scroll spend the window; the failure being
+    repaired is specifically an EFFECT shown without its cause."""
+    found = _gestures()
+    plain = next(one for one in found if not one.requests and one.action.kind == "click")
+    quiet = [replace(plain, id=f"ges_quiet_{n:02d}", at=9_000.0 + n) for n in range(40)]
+
+    window = pack(quiet, {}, [], [], "", budget=K_WINDOW_TOKENS // 40)
+
+    shown = {item.gesture_id for item in window.items}
+    assert shown != {one.id for one in quiet}, (
+        "a day of plain clicks was admitted whole, so nothing was contested"
+    )
+
+
+def test_a_write_reaches_back_through_its_own_browser_only() -> None:
+    """Two operators working at the same minute are two demonstrations, and a
+    write in one browser did not happen because of clicks in the other.
+
+    `worked_in_both` makes the same partition for the same reason: a tenant
+    with two streams really does hold two people's work, and stitching them is
+    a job nobody did.
+    """
+    found = _gestures()
+    writing = next(one for one in found if any(r.method != "GET" for r in one.requests))
+    plain = next(one for one in found if not one.requests and one.action.kind == "click")
+    mine = [
+        replace(plain, id=f"ges_mine_{n}", at=9_000.0 + n, stream_id="browser-a") for n in range(4)
+    ]
+    theirs = [
+        replace(plain, id=f"ges_theirs_{n}", at=9_000.0 + n, stream_id="browser-b")
+        for n in range(4)
+    ]
+    press = replace(
+        writing,
+        id="ges_the_write",
+        at=9_010.0,
+        stream_id="browser-a",
+        requests=list(writing.requests),
+    )
+    noise = [
+        replace(writing, id=f"ges_noise_{n:02d}", at=5_000.0 + n, requests=list(writing.requests))
+        for n in range(30)
+    ]
+
+    window = pack(noise + mine + theirs + [press], {}, [], [], "", budget=K_WINDOW_TOKENS // 8)
+
+    shown = {item.gesture_id for item in window.items}
+    assert {one.id for one in mine} <= shown, "its own browser's run came with it"
+    assert not {one.id for one in theirs} & shown, (
+        "the other browser's work was pulled in by a write that had nothing to do with it"
+    )

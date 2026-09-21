@@ -12,15 +12,27 @@
 // laptop was simply closed is how a working skill gets demoted for somebody
 // going to lunch.
 
+import { pointAt } from "./pointing.js";
 import {
   csrfTokenInPage,
   requestedWithInPage,
   performAtInPage,
+  screenSizeInPage,
   performInPage,
   sendInPage,
   viewportInPage,
 } from "./in-page.js";
 import { hideDriving, showDriving } from "./showing.js";
+import { SIGN_IN, fillTheLoginForm, whatTheSignInCameTo } from "./sign-in.js";
+import {
+  A_DIALOG,
+  A_LOGIN,
+  K_SAID,
+  STILL_COMING,
+  whatIsOnThisPage,
+} from "./whats-on-screen.js";
+import { samePage } from "./same-page.js";
+import { say } from "./said.js";
 import { state } from "./state.js";
 
 /** Runs whose abort has arrived. Their later commands are refused rather than
@@ -166,7 +178,10 @@ export function noteDriven(tabId, request) {
     // redacted by the recorder that produced it. A page's ordinary 200s are
     // not kept: their bodies are lists, screens and customer data, and
     // nothing here needs them.
-    body: request.status === 201 ? asText(request.response_body).slice(0, CREATED_BODY) : null,
+    body:
+      request.status === 201
+        ? asText(request.response_body).slice(0, CREATED_BODY)
+        : null,
   });
   driven.set(tabId, kept.slice(-CALLS_KEPT));
 }
@@ -208,7 +223,13 @@ const marks = new Map();
 /** Commands that make the page do something, so the calls after one are the
  * calls it made because of it. `calls.since` and `screenshot` are the run
  * looking, and must not move the mark they are about to read. */
-const ACTS = new Set(["ui.perform", "ui.perform_at", "http.send", "navigate", "tab.open"]);
+const ACTS = new Set([
+  "ui.perform",
+  "ui.perform_at",
+  "http.send",
+  "navigate",
+  "tab.open",
+]);
 
 /** The calls this run's tab made since its last acting command, newest last. */
 function callsSince(runId) {
@@ -220,7 +241,6 @@ function callsSince(runId) {
   );
   return { ok: true, result: { calls } };
 }
-
 
 export function isDriving(tabId) {
   const until = driving.get(tabId);
@@ -266,20 +286,29 @@ async function drivenTab(origin) {
   const usable = (tab) => tab?.url && /^https?:/.test(tab.url);
 
   if (origin) {
-    const onIt = (await chrome.tabs.query({ url: `${origin}/*` })).filter(usable);
+    const onIt = (await chrome.tabs.query({ url: `${origin}/*` })).filter(
+      usable,
+    );
     if (!onIt.length) return null;
     // The visible one first: a run drives what the operator can see going on,
     // and a background tab cannot be photographed for the rung that looks.
     return onIt.find((tab) => tab.active) || onIt[0];
   }
 
-  const inFront = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  const inFront = await chrome.tabs.query({
+    active: true,
+    lastFocusedWindow: true,
+  });
   if (usable(inFront[0])) return inFront[0];
 
   // Any ordinary tab rather than none at all: the operator may be looking at a
   // settings page while the system sits in the next tab.
   const all = await chrome.tabs.query({ windowType: "normal" });
-  return all.filter(usable).sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0] || null;
+  return (
+    all
+      .filter(usable)
+      .sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0] || null
+  );
 }
 
 /** A tab already on this origin, because the point of sending from the browser
@@ -319,10 +348,59 @@ async function inEveryFrame(tabId, func, args, world = "MAIN") {
     func,
     args,
   });
+  // A frame that threw is worth saying out loud even when another frame
+  // answers: a page where the injected code is broken is a page every later
+  // step will fail on, and the first sign of it was three hours of silence.
   for (const answer of answers) {
-    if (answer?.result !== null && answer?.result !== undefined) return answer.result;
+    if (answer?.error) {
+      console.warn("[sro] the injected command threw in a frame", answer.error);
+    }
+  }
+  for (const answer of answers) {
+    if (answer?.result !== null && answer?.result !== undefined)
+      return answer.result;
   }
   return null;
+}
+
+/** Every frame's answer, merged into one digest.
+ *
+ * `inEveryFrame` above takes the FIRST frame that answers, which for a look at
+ * the screen is always the top document -- and the top document of the
+ * warehouse portal is a nav bar with the application in a frame beneath it.
+ * Measured on the deployment 2026-09-19: `Delete a Customer Type` failed five
+ * times on "Opens the filter dropdown" and the digest each time was
+ * `Search: 858,20  Workstation: 664,20  SG: 606,20` -- the portal's own top
+ * bar, three frames away from anything the step had done.
+ *
+ * The top document's size is the answer's size, because that is the picture's
+ * space and what `ui.perform_at` acts in. The names come from every frame.
+ */
+async function lookAcrossFrames(tabId, func, args, world = "ISOLATED") {
+  const answers = await chrome.scripting.executeScript({
+    target: { tabId, allFrames: true },
+    world,
+    func,
+    args,
+  });
+  // A frame that threw answers `{result: undefined, error}` since Chrome 117,
+  // so refusing what is not an object is the whole of the guard: a page whose
+  // top document blocks injection is still described by the frame the
+  // application is actually in.
+  const said = answers
+    .map((one) => one?.result)
+    .filter((one) => one && typeof one === "object");
+  if (!said.length) return null;
+  // The top document, by frameId where Chrome gives one and by position
+  // otherwise -- `executeScript` answers the main frame first.
+  const at = answers.findIndex((one) => one?.frameId === 0);
+  const top = (at >= 0 ? answers[at]?.result : null) || said[0];
+  const digest = said
+    .map((one) => String(one.digest || "").trim())
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, 8000);
+  return { ...top, digest };
 }
 
 /** Run one of the page-realm functions and hand back what it answered. */
@@ -333,6 +411,29 @@ async function inPage(tabId, func, args, world = "MAIN") {
     func,
     args,
   });
+  return whatItSaid(answer);
+}
+
+/** One injection's answer, with a throw treated as a throw.
+ *
+ * Since Chrome 117 an injected function that throws does not reject the
+ * promise: it resolves with `{result: undefined, error}`. Reading only
+ * `.result` turns every error inside the page into no answer at all, and "the
+ * page did not answer" is what the run then says -- a sentence that reads like
+ * a page problem for what is a bug in the injected code.
+ *
+ * Measured on the deployment across 2026-09-16 and 17: every UI step ever
+ * attempted on the warehouse host failed that way, for three hours of looking
+ * at pages, tabs and content-security policies. The page was fine. The
+ * injected function was calling a helper that does not exist inside it.
+ */
+function whatItSaid(answer) {
+  const blew = answer?.error;
+  if (blew) {
+    throw new Error(
+      `the injected command threw in the page: ${blew.message || blew}`,
+    );
+  }
   return answer?.result;
 }
 
@@ -353,7 +454,7 @@ function bytesOf(dataUrl) {
 }
 
 async function uiPerform(payload, runId) {
-  const tab = await tabForRun(payload, runId);
+  const tab = await awake(await tabForRun(payload, runId));
   if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
   hold(tab.id);
   const frameId = await frameHolding(tab.id, payload);
@@ -363,7 +464,94 @@ async function uiPerform(payload, runId) {
       : await inFrame(tab.id, frameId, performInPage, [payload]);
   hold(tab.id);
   if (answer?.ok) await reacted(tab.id, payload.action);
-  return answer || failure("not_actionable", "the page did not answer");
+  // What "the page did not answer" actually means, said where it is known.
+  //
+  // It means the injection produced no result: the frame is gone, the tab was
+  // asleep, the page went somewhere else mid-command. It does NOT mean the
+  // control was missing -- `performInPage` answers that itself, by name. The
+  // two read identically on a run card, and on 2026-09-16 three runs failed
+  // this way while an operator and I read it as "the locator did not match"
+  // and went looking at the wrong thing. So the tab says who it was.
+  return answer || failure("not_actionable", await didNotAnswer(tab, frameId));
+}
+
+/** The page the command was performed against, for a failure that has to be
+ * read by somebody who cannot see it -- and whether anything can be run in it
+ * at all.
+ *
+ * "The page did not answer" has two causes that want two different people to
+ * do two different things, and they are indistinguishable from the run's side:
+ * the command ran and produced nothing, or nothing ran. A page whose own
+ * content-security policy refuses injected script gives the second, silently
+ * and with no error, and on this deployment every UI step ever attempted on
+ * the warehouse host has failed while the ones on the mailbox held.
+ *
+ * So the failure asks. One trivial function in each world -- the page's own
+ * (`MAIN`, where the application's `Ext` lives and where a locator by
+ * component has to run) and the extension's (`ISOLATED`, which a page's policy
+ * cannot touch) -- and the answer says which of them will run anything.
+ *
+ * Only on the failure path, so an ordinary step pays nothing for it.
+ */
+async function didNotAnswer(tab, frameId) {
+  const where = String(tab.url || "").slice(0, 120);
+  const frame = frameId === undefined ? "the page" : `frame ${frameId}`;
+  const [main, isolated] = await Promise.all([
+    canRun(tab.id, "MAIN"),
+    canRun(tab.id, "ISOLATED"),
+  ]);
+  const worlds =
+    main && isolated
+      ? "script runs in it"
+      : isolated
+        ? "nothing runs in the page's own world -- its content-security policy refuses injected script"
+        : main
+          ? "only the page's own world runs script"
+          : "no script runs in it at all";
+  return `${frame} at ${where} did not answer (status ${tab.status || "unknown"}; ${worlds})`;
+}
+
+/** Whether a trivial function runs in this tab, in that world. */
+async function canRun(tabId, world) {
+  try {
+    const [answer] = await chrome.scripting.executeScript({
+      target: { tabId },
+      world,
+      func: () => true,
+    });
+    return answer?.result === true;
+  } catch {
+    return false;
+  }
+}
+
+/** A tab that can be injected into, waking it first if Chrome has put it away.
+ *
+ * Chrome discards background tabs under memory pressure -- Memory Saver does
+ * it on a timer -- and a discarded tab is still in `chrome.tabs.query` with
+ * its url and title. Injecting into one returns NOTHING: no error, no result,
+ * which arrives at the run as "the page did not answer" and reads like a
+ * missing control. An operator whose warehouse tab has been sitting behind
+ * their mail for an hour has exactly this tab.
+ *
+ * Reloaded and waited for rather than skipped, because it is the right tab:
+ * the alternative is opening a second one at the same origin, which leaves the
+ * operator with two and loses whatever was on the screen in the first.
+ */
+async function awake(tab) {
+  if (!tab || !tab.discarded) return tab;
+  // Listening BEFORE the reload, not after it. A tab that comes back quickly
+  // reports itself complete while the reload call is still being awaited, and
+  // a watcher registered afterwards waits out its whole timeout for an event
+  // that has already happened -- twenty seconds added to a step for a tab that
+  // was ready in one.
+  const ready = settled(tab.id);
+  try {
+    await chrome.tabs.reload(tab.id);
+  } catch {
+    return tab;
+  }
+  return (await ready) || (await chrome.tabs.get(tab.id).catch(() => tab));
 }
 
 /** The tab this run acts in, opening the screen it was taught on if need be.
@@ -391,7 +579,8 @@ async function tabForRun(payload, runId) {
     // names. A job that crosses from one system to another names the second
     // origin on its later steps, and performing those in the first system's
     // tab is the cross-application hand-off failure the origin exists to stop.
-    if (known && (!payload.origin || originOf(known.url) === payload.origin)) return known;
+    if (known && (!payload.origin || originOf(known.url) === payload.origin))
+      return known;
   }
 
   let tab = await drivenTab(payload.origin);
@@ -401,8 +590,32 @@ async function tabForRun(payload, runId) {
     if (opened) tab = opened;
   }
 
-  if (tab && runId && latest?.runId === runId) latest = { ...latest, tabId: tab.id };
+  if (tab && runId && latest?.runId === runId) {
+    latest = { ...latest, tabId: tab.id };
+    // Written through, not only held: this is the one moment the pin is
+    // learned, and the next command may be answered by a different worker.
+    void state.setActiveRun({
+      runId,
+      at: Date.now(),
+      source: latest.source,
+      tabId: tab.id,
+    });
+  }
   return tab;
+}
+
+/** The page a navigate may open a tab at, or null.
+ *
+ * `opensFor` says the same thing for a perform, about `starts_on`. This one is
+ * about the url the navigate itself carries: http or https, and on the origin
+ * the command names. A navigate to a `chrome://` page or to another system is
+ * not this run's business.
+ */
+export function openFor(payload) {
+  const wanted = payload?.url;
+  if (!wanted || !/^https?:/.test(wanted)) return null;
+  if (payload.origin && originOf(wanted) !== payload.origin) return null;
+  return wanted;
 }
 
 /** The page this step may open a tab at, or null.
@@ -434,25 +647,6 @@ function originOf(url) {
   }
 }
 
-/** Two URLs that are the same screen.
- *
- * Compared without the query, because a session id or a site code in it is not
- * what makes this the Work Areas page -- and with the fragment, because in an
- * application that routes on the fragment it is the only thing that says which
- * screen this is at all.
- */
-export function samePage(a, b) {
-  const parse = (raw) => {
-    try {
-      const url = new URL(raw);
-      return `${url.origin}${url.pathname}${url.hash}`.replace(/\/+$/, "");
-    } catch {
-      return null;
-    }
-  };
-  const one = parse(a);
-  return one !== null && one === parse(b);
-}
 
 /** Open a tab on that screen and wait for it to finish loading.
  *
@@ -475,11 +669,15 @@ const OPENS_WITHIN_MS = 20_000;
 
 function settled(tabId) {
   return new Promise((resolve) => {
+    let settledAlready = false;
     const done = (tab) => {
+      if (settledAlready) return;
+      settledAlready = true;
       chrome.tabs.onUpdated.removeListener(watch);
       clearTimeout(timer);
       resolve(tab);
     };
+    const ignore = () => {};
     const watch = (id, change) => {
       if (id === tabId && change.status === "complete") {
         chrome.tabs.get(tabId).then(done, () => done(null));
@@ -490,6 +688,13 @@ function settled(tabId) {
     // that failed because a third-party script kept a request open.
     const timer = setTimeout(() => done(null), OPENS_WITHIN_MS);
     chrome.tabs.onUpdated.addListener(watch);
+    // And a tab that is ALREADY loaded answers now. Waiting for an `onUpdated`
+    // that has already fired is how a page served from cache costs a step its
+    // whole twenty seconds -- the listener above can only ever see what
+    // happens after it is attached. Last, so `done` and `ignore` both exist.
+    chrome.tabs.get(tabId).then((tab) => {
+      if (tab?.status === "complete") done(tab);
+    }, ignore);
   });
 }
 
@@ -615,23 +820,255 @@ async function inFrame(tabId, frameId, func, args, world = "MAIN") {
     func,
     args,
   });
-  return answer?.result;
+  return whatItSaid(answer);
 }
 
-async function uiPerformAt(payload) {
-  const tab = await drivenTab(payload.origin);
+async function uiPerformAt(payload, runId) {
+  const tab = await awake(await tabForRun(payload, runId));
   if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
   hold(tab.id);
-  const answer = await inPage(tab.id, performAtInPage, [payload]);
+  // The browser first. A point is a pixel in the top-level viewport, and only
+  // the browser knows which renderer owns a pixel -- `executeScript` has to be
+  // told which document to run in, which is a question the point does not
+  // answer and which the frame lookup below gets wrong the moment an
+  // application routes inside its own frame. `pointAt` dispatches the event
+  // where a real mouse would arrive and lets Chrome route it.
+  const driven = await pointAt(tab.id, payload);
+  if (driven.ok || driven.error?.kind !== "cannot_drive_tab") {
+    hold(tab.id);
+    if (driven.ok) await reacted(tab.id, payload.action);
+    return driven;
+  }
+  // Chrome allows one debugger per tab and somebody else has it -- DevTools,
+  // almost always. The synthetic path is worse -- untrusted events, and a
+  // frame lookup that is a guess -- and it is not nothing.
+  let answer = await inPage(tab.id, performAtInPage, [payload]);
+  // The point landed on a frame, so ask the frame.
+  //
+  // The picture the model was shown is the top document's viewport, and a
+  // warehouse application inside an iframe puts every control in another
+  // document: the point is right and the document is wrong. Rather than
+  // refusing -- which made the rung that looks at a picture useless on the one
+  // system it exists for -- the same question goes to that frame with the
+  // point moved into its coordinates.
+  //
+  // Once. A frame inside a frame is answered by the same reply from the inner
+  // one, and a loop that followed them would be a loop somebody has to bound
+  // anyway; one hop covers an application in a frame, which is what this is.
+  const frame = answer?.error?.frame;
+  if (frame) {
+    const inside = await frameShowing(tab.id, frame.src);
+    if (inside === undefined) {
+      return failure(
+        "control_not_found",
+        `that point is inside a frame this browser cannot reach (${frame.src || "no src"})`,
+      );
+    }
+    answer = await inFrame(tab.id, inside, performAtInPage, [
+      { ...payload, x: payload.x - frame.left, y: payload.y - frame.top },
+    ]);
+  }
   hold(tab.id);
   if (answer?.ok) await reacted(tab.id, payload.action);
-  return answer || failure("not_actionable", "the page did not answer");
+  return (
+    answer || failure("not_actionable", await didNotAnswer(tab, undefined))
+  );
 }
 
-async function uiUrl(payload) {
-  const tab = await drivenTab(payload.origin);
+/** The id of the frame the top document pointed at, or `undefined`.
+ *
+ * Three ways, weakest last, because a frame's `src` ATTRIBUTE is the url it
+ * was created with and not the url it is showing. Measured on the deployment,
+ * 2026-09-17: the point landed on the application's frame, whose `src` still
+ * named `#wm.config.warehouse.warehouse////` while the app had long since
+ * routed to the Customer Types screen inside it. The exact match found
+ * nothing, and a run that had reached the right page reported that it could
+ * not reach the frame in front of it.
+ *
+ *  1. The url as it stands, which is right whenever the frame has not routed.
+ *  2. The same document ignoring the query and the fragment -- a session
+ *     token and an in-app route are exactly what change under a frame that
+ *     has stayed where it is.
+ *  3. The only child frame there is. A page with one frame and a point inside
+ *     it has said which frame that is by arithmetic; a page with several gets
+ *     `undefined` rather than a guess.
+ */
+async function frameShowing(tabId, src) {
+  const frames =
+    (await chrome.webNavigation.getAllFrames({ tabId }).catch(() => [])) || [];
+  const children = frames.filter((one) => one.frameId !== 0);
+  if (src) {
+    const exact = children.find((one) => one.url === src);
+    if (exact) return exact.frameId;
+    const document_ = pageOf(src);
+    const same = children.filter(
+      (one) => document_ && pageOf(one.url) === document_,
+    );
+    if (same.length === 1) return same[0].frameId;
+  }
+  return children.length === 1 ? children[0].frameId : undefined;
+}
+
+/** A url without what identifies one visit to it: scheme, host and path. The
+ * query holds the session token and the fragment holds the in-app route, and
+ * both change under a frame that has not moved. */
+function pageOf(url) {
+  try {
+    const { origin, pathname } = new URL(url);
+    return `${origin}${pathname}`;
+  } catch {
+    return "";
+  }
+}
+
+async function uiUrl(payload, runId) {
+  const tab = await tabForRun(payload, runId);
+  if (tab)
+    return {
+      ok: true,
+      result: { url: tab.url, ...(await whatThePageSays(tab.id)) },
+    };
+
+  // The run is not where it thought it was -- so say where it IS.
+  //
+  // A sign-in page is on another origin by definition: the deployment's WMS
+  // bounces an expired session to `blueyonderalphaus.b2clogin.com`, and
+  // `tabForRun` will not answer with a tab that has left the step's origin,
+  // which is right for driving and blinding for reading. The run then got
+  // `no_tab_for_system`, built a look with no url at all, and reported "the
+  // browser is on None" -- measured on the deployment 2026-09-19, run
+  // `run_fdc7e7ff`, with the operator looking at the sign-in page the whole
+  // time.
+  //
+  // Reading is not driving. Nothing here performs anything in that tab; it
+  // answers with the page in front of the person, so `_said_what_is_there`
+  // can name a login, a dialog or a half-drawn page rather than a `None`. The
+  // step still fails -- it is not on the screen it was demonstrated on -- and
+  // it fails legibly.
+  //
+  // And WHICH of the two it is, because the answer decides different things.
+  // The run's own pinned tab is this run, wherever it has got to -- a page
+  // the job itself navigated to, and the page it is about to be driven in.
+  // The tab in front is a guess: the operator's other window, a mailbox, a
+  // search. Both are worth REPORTING; only the first is worth ACTING on, and
+  // the backend could not tell them apart -- so a password was asked for on
+  // whatever page happened to be visible.
+  const own = await theRunsOwnTab(runId);
+  const elsewhere = own || (await theTabInFront());
+  if (!elsewhere) return failure("no_tab_for_system", noPage(payload.origin));
+  return {
+    ok: true,
+    result: {
+      url: null,
+      elsewhere: elsewhere.url,
+      elsewhere_is_ours: Boolean(own),
+      ...(await whatThePageSays(elsewhere.id)),
+    },
+  };
+}
+
+/** The tab this run pinned, wherever it has since got to, or null.
+ *
+ * `tabForRun` keeps a run on one tab AND on one origin. This drops the second
+ * half and keeps the first, which is what the two commands that must follow a
+ * wandering tab need: a navigate bringing it home, and a sign-in on the host
+ * it was bounced to.
+ *
+ * Never the tab in front. Navigating the page an operator is reading, or
+ * typing a password into it, is what `openAt` and the focus rule exist to
+ * prevent -- and a run that has pinned no tab has not driven anything yet.
+ */
+async function theRunsOwnTab(runId) {
+  if (!runId || latest?.runId !== runId || latest.tabId === undefined) return null;
+  const known = await chrome.tabs.get(latest.tabId).catch(() => null);
+  return known?.url && /^https?:/.test(known.url) ? known : null;
+}
+
+/** The visible tab, when there is a usable one. Reading only. */
+async function theTabInFront() {
+  const usable = (tab) => tab?.url && /^https?:/.test(tab.url);
+  const [inFront] = await chrome.tabs.query({
+    active: true,
+    lastFocusedWindow: true,
+  });
+  return usable(inFront) ? inFront : null;
+}
+
+/** Fill this system's own login page and submit it.
+ *
+ * The driving lives in `sign-in.js`, which is where the reasoning is. This is
+ * the half that needs a tab: find the one this run is driving, run the fill
+ * inside it, and hold it while the page goes wherever a login goes.
+ */
+async function signIn(payload, runId) {
+  // The run's tab wherever it has got to, and this is the one command that
+  // MUST look past the origin: a sign-in page is on another host by design --
+  // `blueyonderalphaus.b2clogin.com` for this deployment's WMS -- so a
+  // sign-in that only accepted a tab still on the step's own origin could
+  // never fire on the page it exists for.
+  const tab = (await tabForRun(payload, runId)) || (await theRunsOwnTab(runId));
   if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
-  return { ok: true, result: { url: tab.url } };
+  if (!payload.password && !payload.username)
+    return failure("not_actionable", "a sign-in with nothing to sign in with");
+  try {
+    const [got] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      world: "MAIN",
+      args: [
+        {
+          username: String(payload.username || ""),
+          password: String(payload.password || ""),
+          where: SIGN_IN,
+        },
+      ],
+      // The module's own function, handed over as-is: `executeScript`
+      // serialises it to run in the page, so there is one copy of what a login
+      // looks like rather than one here and one there.
+      func: fillTheLoginForm,
+    });
+    const came = whatTheSignInCameTo(got?.result, failure);
+    if (came.ok) hold(tab.id, 8000);
+    return came;
+  } catch (error) {
+    return failure(
+      "not_actionable",
+      `the sign-in could not be driven: ${error}`,
+    );
+  }
+}
+
+/** What the page in that tab has to say about itself.
+ *
+ * The reading lives in `whats-on-screen.js`, which is where the reasoning is.
+ * This is the half that needs a tab.
+ *
+ * Empty for every failure. A page that cannot be asked is not a page that is
+ * asking for a password or showing a dialog, and neither must ever be a thing
+ * a run concluded because a probe threw.
+ */
+async function whatThePageSays(tabId) {
+  try {
+    const [got] = await chrome.scripting.executeScript({
+      target: { tabId },
+      world: "MAIN",
+      args: [
+        {
+          login: A_LOGIN,
+          dialog: A_DIALOG,
+          loading: STILL_COMING,
+          cap: K_SAID,
+        },
+      ],
+      func: whatIsOnThisPage,
+    });
+    return {
+      signed_out: Boolean(got?.result?.signed_out),
+      dialog: String(got?.result?.dialog || ""),
+      loading: Boolean(got?.result?.loading),
+    };
+  } catch {
+    return { signed_out: false, dialog: "", loading: false };
+  }
 }
 
 /**
@@ -644,8 +1081,32 @@ async function uiUrl(payload) {
  * stored form of this command -- a run keeps no screens, so there would be
  * nothing to read a stored one back with.
  */
-async function screenshot(payload) {
-  const tab = await drivenTab(payload.origin);
+/** How long the page is given to measure itself, and to be photographed.
+ *
+ * Both well inside the deadline the backend waits, because the point is that
+ * this command ANSWERS. Two budgets rather than one: a page that cannot be
+ * measured can still be photographed, and those are the two halves of a look.
+ */
+const K_MEASURE_MS = 4000;
+const K_CAPTURE_MS = 8000;
+
+/** What the promise gave, or `undefined` if it took too long.
+ *
+ * Deliberately not a rejection: every caller here treats "too slow" as "went
+ * without it", and an exception would have each of them writing the same catch.
+ */
+function within(ms, promise) {
+  let timer;
+  return Promise.race([
+    Promise.resolve(promise).catch(() => undefined),
+    new Promise((settle) => {
+      timer = setTimeout(() => settle(undefined), ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+async function screenshot(payload, runId) {
+  const tab = await tabForRun(payload, runId);
   if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
   // `captureVisibleTab` photographs whatever is active in the window, not the
   // tab it is handed. For a tab that is not the active one, the picture and
@@ -657,11 +1118,31 @@ async function screenshot(payload) {
   // for this and is watching. Without it the command is refused, because
   // taking somebody's screen while they are working in it is worse than a run
   // that did not finish.
-  const visible = tab.active ? tab : await bringForward(tab, payload.allow_focus);
+  //
+  // **Active in its window is not the same as on the operator's screen.** A
+  // window behind another application is occluded, and an occluded window's
+  // renderer stops producing frames -- so `captureVisibleTab` sits there
+  // waiting for one that is not coming. Measured on the deployment,
+  // 2026-09-17: `this browser did not answer with a picture within 8000ms` on
+  // a tab that was active, on the right page, with the control the step wanted
+  // plainly on it. The one look that worked all afternoon was the one taken
+  // while somebody was actually looking at the tab.
+  //
+  // So a run that may take the screen takes it every time, rather than only
+  // when the tab is not the active one -- `chrome.windows.update` with
+  // `focused` is what raises the window past whatever is in front of it, and
+  // being already active inside Chrome says nothing about that.
+  const forward = payload.allow_focus
+    ? await bringForward(tab, true)
+    : {
+        tab: tab.active ? tab : null,
+        why: "this run may not bring the page forward",
+      };
+  const visible = forward.tab;
   if (!visible) {
     return failure(
       "focus_not_permitted",
-      "the page to be driven is not the visible one, and this run may not bring it forward",
+      `the page to be driven is not the visible one: ${forward.why}`,
     );
   }
 
@@ -670,19 +1151,56 @@ async function screenshot(payload) {
   // before anything reaches a model can only reason about text. Read from the
   // tab that was photographed, so the picture and the coordinates beside it
   // are the same page.
-  const seen = (await inPage(visible.id, viewportInPage, [], "ISOLATED")) || {};
+  //
+  // Bounded, and with a cheap fallback. A command that does not answer is the
+  // worst answer this browser has: the run waits its whole deadline and is
+  // told "timeout", which names nothing. Measured on the deployment,
+  // 2026-09-17: `no screen to look at: timeout: the browser did not answer
+  // within 20s` on four runs, and a timeout is the one failure that cannot say
+  // which part of itself was slow.
+  //
+  // So the measuring gets a budget, and missing it costs the digest rather
+  // than the picture. `screenSizeInPage` is three property reads -- the
+  // viewport the model answers in, which is the part that is not optional.
+  let seen = await within(
+    K_MEASURE_MS,
+    lookAcrossFrames(visible.id, viewportInPage, []),
+  );
+  let slow = "";
+  if (!seen) {
+    slow = `the page took longer than ${K_MEASURE_MS}ms to measure`;
+    seen =
+      (await within(
+        K_MEASURE_MS,
+        inPage(visible.id, screenSizeInPage, [], "ISOLATED"),
+      )) || {};
+  }
 
   let dataUrl;
   try {
-    dataUrl = await chrome.tabs.captureVisibleTab(visible.windowId, { format: "png" });
+    dataUrl = await within(
+      K_CAPTURE_MS,
+      chrome.tabs.captureVisibleTab(visible.windowId, { format: "png" }),
+    );
+    if (!dataUrl)
+      return failure(
+        "no_tab_for_system",
+        `this browser did not answer with a picture within ${K_CAPTURE_MS}ms` +
+          " -- a window behind another application stops drawing, and there is" +
+          " no frame to photograph until it is in front",
+      );
   } catch (error) {
     // A tab that is not the visible one cannot be photographed, and Chrome
     // refuses on its own pages. Both mean there is no screen to look at.
-    return failure("no_tab_for_system", `this browser would not be photographed: ${error}`);
+    return failure(
+      "no_tab_for_system",
+      `this browser would not be photographed: ${error}`,
+    );
   }
 
   const bytes = bytesOf(dataUrl);
-  if (!isPng(bytes)) return failure("no_tab_for_system", "the capture was not an image");
+  if (!isPng(bytes))
+    return failure("no_tab_for_system", "the capture was not an image");
 
   return {
     ok: true,
@@ -693,7 +1211,11 @@ async function screenshot(payload) {
       // coordinates in this space and `ui.perform_at` acts in it.
       width: seen.width || 0,
       height: seen.height || 0,
+      // Empty where the page could not be measured in time. The run still gets
+      // its picture; what it loses is the list of names beside it.
       text_digest: seen.digest || "",
+      measured: !slow,
+      slow,
     },
   };
 }
@@ -716,13 +1238,20 @@ async function screenshot(payload) {
  * photograph whatever is in front of it.
  */
 async function bringForward(tab, allowFocus) {
-  if (!allowFocus) return null;
+  if (!allowFocus)
+    return { tab: null, why: "this run may not bring the page forward" };
   try {
     await chrome.windows.update(tab.windowId, { focused: true });
-    return await chrome.tabs.update(tab.id, { active: true });
-  } catch {
-    // The window closed while we were asking. There is no screen to take.
-    return null;
+    return { tab: await chrome.tabs.update(tab.id, { active: true }), why: "" };
+  } catch (error) {
+    // The window or the tab went away while we were asking. Which one, and
+    // what Chrome said about it: this used to return `null` for three
+    // different faults -- no permission, a closed window, a tab id that had
+    // gone stale -- and the run recorded the same six words for all of them.
+    return {
+      tab: null,
+      why: `the page could not be brought forward: ${error}`,
+    };
   }
 }
 
@@ -751,12 +1280,18 @@ async function openTab(payload) {
   try {
     origin = new URL(payload.url).origin;
   } catch {
-    return failure("not_actionable", `tab.open with an unreadable url: ${payload.url}`);
+    return failure(
+      "not_actionable",
+      `tab.open with an unreadable url: ${payload.url}`,
+    );
   }
   if (!/^https?:$/.test(new URL(payload.url).protocol)) {
     // A `chrome://` or `file://` url is not a system with a session, and
     // opening one is the extension reaching outside the job it has.
-    return failure("not_actionable", "tab.open only opens http and https pages");
+    return failure(
+      "not_actionable",
+      "tab.open only opens http and https pages",
+    );
   }
 
   const open = (await chrome.tabs.query({ url: `${origin}/*` })).filter(
@@ -776,12 +1311,44 @@ async function openTab(payload) {
   return { ok: true, result: { opened: true, tab_id: tab.id } };
 }
 
-async function navigate(payload) {
+async function navigate(payload, runId) {
   if (!payload?.url) return failure("not_actionable", "navigate with no url");
-  const tab = await drivenTab(payload.origin);
-  if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
+  // The run's own tab, wherever it has got to, before anything is opened.
+  //
+  // `tabForRun` will not answer with a tab that has left the step's origin,
+  // and a navigate is exactly the command for a tab that has: the system
+  // bounced it to a sign-in host and this is the instruction to come back.
+  // Without this the run opened a NEW tab on every attempt and left the old
+  // one sitting on the login -- measured on the deployment 2026-09-19, where
+  // an operator ended up with six tabs of `blueyonderalphaus.b2clogin.com`
+  // and nothing driving any of them.
+  let tab = (await tabForRun(payload, runId)) || (await theRunsOwnTab(runId));
+  if (!tab) {
+    // Nothing open on that system, and this command names the page it wants.
+    //
+    // Refusing here is refusing to do the one thing a navigate is: `ui.perform`
+    // opens a tab through `starts_on` when the operator's browser is elsewhere,
+    // and a navigate -- which carries a url by definition -- would not. So a
+    // run whose first warehouse step is "go to the Customer Types screen" died
+    // `no_tab_for_system` in front of an operator who had that system open in
+    // another window. Measured on the deployment, 2026-09-17.
+    //
+    // Only the page this command is for. `openFor` is the same rule `opensFor`
+    // holds for a perform: a url whose origin is not the command's is not this
+    // system's page, and opening it would be driving the browser somewhere
+    // nobody asked for.
+    const wanted = openFor(payload);
+    tab = wanted ? await openAt(wanted) : null;
+    if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
+    // Opened AT the page, which is the whole of what this command asked for.
+    hold(tab.id, 8000);
+    return { ok: true, result: { navigated: true, opened: true } };
+  }
 
-  const [inFront] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  const [inFront] = await chrome.tabs.query({
+    active: true,
+    lastFocusedWindow: true,
+  });
   if (!payload.allow_focus && inFront?.id === tab.id) {
     return failure(
       "focus_not_permitted",
@@ -791,7 +1358,42 @@ async function navigate(payload) {
 
   hold(tab.id, 8000);
   await chrome.tabs.update(tab.id, { url: payload.url });
+  // Answered when the tab has a page, not when the request was made.
+  //
+  // `chrome.tabs.update` resolves as soon as the navigation is STARTED. The
+  // very next command a run sends is `ui.url`, and a tab mid-navigation has no
+  // url to give -- so the run was told "the browser is on None" about a tab
+  // that was on its way to exactly the right place. Measured on the
+  // deployment, 2026-09-17 at 23:55: `run_ec91d2fe` step 2, which then spent
+  // $0.18 and three rungs failing to reach a screen it was already going to.
+  //
+  // It only surfaced once a run started driving one tab: `drivenTab` used to
+  // answer with any loaded tab on the host, so the race was hidden behind a
+  // url belonging to a different tab.
+  await arrived(tab.id);
   return { ok: true, result: { navigated: true } };
+}
+
+/** The tab once it has a page, or whatever it has when the wait runs out.
+ *
+ * Polled rather than watched: `settled` resolves at once for a tab that is
+ * already `complete`, which every tab is in the instant before it starts
+ * navigating -- so a watcher registered around an update answers about the
+ * page being left. What is wanted here is simpler than an event anyway: a url.
+ */
+async function arrived(tabId, ms = LOADS_WITHIN_MS) {
+  const until = Date.now() + ms;
+  let tab = null;
+  while (Date.now() < until) {
+    tab = await chrome.tabs.get(tabId).catch(() => null);
+    if (!tab) return null;
+    if (tab.status === "complete" && /^https?:/.test(tab.url || "")) return tab;
+    await new Promise((wait) => setTimeout(wait, 100));
+  }
+  // A page that never reports complete is still worth acting on, for the same
+  // reason `settled` says so: the locator is a better answer than a run that
+  // failed because a third-party script kept a request open.
+  return tab;
 }
 
 /** The extension's own menu of headers it knows how to read off a live page,
@@ -811,7 +1413,9 @@ async function httpSend(payload) {
   // so nothing before this has put a tab on the origin. `opensFor` still
   // refuses a `starts_on` that names a different system, so this can only ever
   // open the page the call is going to.
-  const wanted = tab ? null : opensFor({ ...payload, origin: originOf(payload?.url || "") });
+  const wanted = tab
+    ? null
+    : opensFor({ ...payload, origin: originOf(payload?.url || "") });
   if (wanted) tab = await openAt(wanted);
   if (!tab) {
     // No tab, and no page to open one at -- and for a call that needs nothing
@@ -839,9 +1443,15 @@ async function httpSend(payload) {
       // The same function the page runs, run here instead: same request, same
       // answer shape, and no page realm at all -- so it is no more visible to
       // the recorder's MAIN-world patch than the isolated-world send is.
-      return (await sendInPage(payload)) || failure("unreachable", "the call went nowhere");
+      return (
+        (await sendInPage(payload)) ||
+        failure("unreachable", "the call went nowhere")
+      );
     }
-    return failure("no_tab_for_origin", `no tab is open on ${payload?.url || "that origin"}`);
+    return failure(
+      "no_tab_for_origin",
+      `no tab is open on ${payload?.url || "that origin"}`,
+    );
   }
   const headers = { ...(payload.headers || {}) };
   for (const name of payload.live_headers || []) {
@@ -851,7 +1461,9 @@ async function httpSend(payload) {
     // value that is not a header source -- `hasOwn` is the only way to ask
     // "is this actually in the menu" instead of "does this exist somewhere
     // on the object", which a name like that would still pass.
-    const source = Object.hasOwn(LIVE_HEADER_SOURCES, key) ? LIVE_HEADER_SOURCES[key] : undefined;
+    const source = Object.hasOwn(LIVE_HEADER_SOURCES, key)
+      ? LIVE_HEADER_SOURCES[key]
+      : undefined;
     if (!source) {
       return failure("unreachable", `no live source for header ${name}`);
     }
@@ -859,13 +1471,21 @@ async function httpSend(payload) {
     // token lives in the application's iframe and the shell has none.
     const value = await inEveryFrame(tab.id, source, [], "MAIN");
     if (!value) {
-      return failure("unreachable", `${name} is not on this page or any frame of it`);
+      return failure(
+        "unreachable",
+        `${name} is not on this page or any frame of it`,
+      );
     }
     headers[name] = value;
   }
   // The isolated world: same origin and the same cookies, but not the page's
   // patched fetch, so a replayed call is not captured as the operator's own.
-  const answer = await inPage(tab.id, sendInPage, [{ ...payload, headers }], "ISOLATED");
+  const answer = await inPage(
+    tab.id,
+    sendInPage,
+    [{ ...payload, headers }],
+    "ISOLATED",
+  );
   return answer || failure("unreachable", "the page did not answer");
 }
 
@@ -885,8 +1505,37 @@ export async function perform(command, source = "backend") {
   if (command.run_id) {
     const now = Date.now();
     const isNewRun = latest?.runId !== command.run_id;
+    // A worker that was evicted mid-run does not know a new run from the one
+    // it was already driving, so the tab comes back from storage before
+    // anything decides there is no tab.
+    //
+    // Measured on the deployment 2026-09-19, runs `run_fd77a70d` and
+    // `run_4a57baf0`, two minutes apart and identical: step 0 held -- "the
+    // username RKUCHIYAGM has been successfully entered" -- and step 1 came
+    // back `no_tab_for_system` while the operator sat looking at that very
+    // page. The evidence has one tab, 148285749, on the sign-in host from
+    // 16:23:33 through both runs and past them; nothing moved, nothing
+    // closed. What moved was this worker, evicted between two commands, which
+    // the comment below already called the ordinary case.
+    //
+    // Step 0 survives it because a first step carries `starts_on` and can open
+    // the page again. Every step after the first carries none, so losing the
+    // pin is losing the run.
+    const carried = isNewRun ? await state.activeRun() : null;
+    const pinned =
+      carried?.runId === command.run_id && carried.tabId !== undefined
+        ? carried.tabId
+        : undefined;
     latest = isNewRun
-      ? { runId: command.run_id, kind: command.kind, source, since: now, at: now, ...told(command) }
+      ? {
+          runId: command.run_id,
+          kind: command.kind,
+          source,
+          since: now,
+          at: now,
+          ...(pinned === undefined ? {} : { tabId: pinned }),
+          ...told(command),
+        }
       : { ...latest, kind: command.kind, at: now, ...told(command) };
     // The page says so itself while it is being driven. The panel already
     // does, and the panel is not where somebody is looking: they are watching
@@ -899,13 +1548,17 @@ export async function perform(command, source = "backend") {
     // poll -- which only ever fires for an operator already staring at the
     // screen. `service-worker.js`'s `checkFinishing()` reads this instead,
     // off both the panel poll and the heartbeat alarm that fires whether the
-    // panel is open or not. Only `runId`, `at` and `source`: everything else
-    // `latest` carries -- `tabId`, the step count the band shows -- is for
-    // driving this run within this worker's own lifetime and is worthless to a
-    // worker that has since been evicted and restarted. `source` survives
-    // because the finish has to be asked of the process that started the run,
-    // and a restarted worker no longer has the channel to ask.
-    void state.setActiveRun({ runId: command.run_id, at: now, source });
+    // panel is open or not. `source` survives because the finish has to be
+    // asked of the process that started the run, and a restarted worker no
+    // longer has the channel to ask -- and `tabId` survives because the run
+    // has to go on driving the tab it pinned. What is left out is the step
+    // count the band shows, which is about drawing this worker's own band.
+    void state.setActiveRun({
+      runId: command.run_id,
+      at: now,
+      source,
+      ...(latest.tabId === undefined ? {} : { tabId: latest.tabId }),
+    });
     // A new run starting supersedes whatever the last one made. Left standing,
     // "Undo that" for the run before this one would sit under a card saying
     // this one is performing right now -- confusing even though neither fact
@@ -923,18 +1576,52 @@ export async function perform(command, source = "backend") {
   // command counts and none of the ones it had already made do.
   if (command.run_id && ACTS.has(command.kind)) marks.set(command.run_id, seq);
 
+  // Every command's answer, where the answer is a refusal or a fault. Around
+  // the switch rather than inside each case: there are eleven of them, each
+  // refusing for reasons of its own, and a record kept in one of them is a
+  // record missing from the other ten. See `said.js`.
   try {
+    const answered = await theCommand(command);
+    if (!answered.ok) {
+      void say("warn", "a command was refused", {
+        command: command.command_id,
+        kind: command.kind,
+        run: command.run_id,
+        error: answered.error?.kind,
+      });
+    }
+    return answered;
+  } catch (error) {
+    // Including a page that closed mid-command, which `executeScript` reports
+    // by rejecting. An answer saying so is worth more than none.
+    void say("error", `a command blew up in the browser: ${error}`, {
+      command: command.command_id,
+      kind: command.kind,
+      run: command.run_id,
+    });
+    return failure(
+      "not_actionable",
+      `the command failed in the browser: ${error}`,
+    );
+  }
+}
+
+/** The command itself, once `perform` has claimed the run and the marks. */
+async function theCommand(command) {
+  {
     switch (command.kind) {
       case "ui.perform":
         return await uiPerform(command.payload || {}, command.run_id);
       case "ui.perform_at":
-        return await uiPerformAt(command.payload || {});
+        return await uiPerformAt(command.payload || {}, command.run_id);
       case "ui.url":
-        return await uiUrl(command.payload || {});
+        return await uiUrl(command.payload || {}, command.run_id);
       case "screenshot":
-        return await screenshot(command.payload || {});
+        return await screenshot(command.payload || {}, command.run_id);
       case "navigate":
-        return await navigate(command.payload || {});
+        return await navigate(command.payload || {}, command.run_id);
+      case "sign_in":
+        return await signIn(command.payload || {}, command.run_id);
       case "tab.open":
         return await openTab(command.payload || {});
       case "calls.since":
@@ -945,11 +1632,10 @@ export async function perform(command, source = "backend") {
         if (command.payload?.run_id) aborted.add(command.payload.run_id);
         return { ok: true, result: { aborted: true } };
       default:
-        return failure("not_actionable", `this extension has no ${command.kind}`);
+        return failure(
+          "not_actionable",
+          `this extension has no ${command.kind}`,
+        );
     }
-  } catch (error) {
-    // Including a page that closed mid-command, which `executeScript` reports
-    // by rejecting. An answer saying so is worth more than none.
-    return failure("not_actionable", `the command failed in the browser: ${error}`);
   }
 }

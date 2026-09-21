@@ -95,6 +95,7 @@ def _grant_of(bearer: str) -> dict[str, str] | None:
     kept = json.loads(named.read_text())
     return kept if isinstance(kept, dict) else None
 
+
 REDIRECT = "http://localhost:8933/oauth/callback"
 """Where Google sends the operator back. Must be listed in the OAuth client's
 Authorized redirect URIs, exactly as written here."""
@@ -132,6 +133,19 @@ TOOLS = [
         },
     },
     {
+        "name": "get_thread",
+        "description": (
+            "Every mail in one conversation, oldest first. Use this when a mail"
+            " refers to something said earlier -- 'as discussed', 'the code"
+            " above' -- because what it refers to is in the same conversation."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {"id": {"type": "string", "description": "thread_id"}},
+            "required": ["id"],
+        },
+    },
+    {
         "name": "send_message",
         "description": "Send a mail. The least reversible thing this connector does.",
         "inputSchema": {
@@ -140,6 +154,21 @@ TOOLS = [
                 "to": {"type": "string"},
                 "subject": {"type": "string"},
                 "body": {"type": "string"},
+                "thread_id": {
+                    "type": "string",
+                    "description": (
+                        "Reply inside this conversation rather than starting a new one. "
+                        "A reply that lands on its own thread cannot be matched back to "
+                        "what it answers."
+                    ),
+                },
+                "in_reply_to": {
+                    "type": "string",
+                    "description": (
+                        "The RFC822 Message-Id being answered, for mail clients that "
+                        "thread on headers rather than on Gmail's own thread id."
+                    ),
+                },
             },
             "required": ["to", "body"],
         },
@@ -446,6 +475,21 @@ def _get(token: str, arguments: dict[str, Any]) -> str:
     return json.dumps(
         {
             "id": full.get("id", ""),
+            # Which conversation this belongs to.
+            #
+            # A request rarely carries what it is about -- "please create the
+            # customer type as discussed" -- and what it is about is in the
+            # mail before it, in the same thread. Without this the only way to
+            # reach that mail is to search the whole mailbox and hope, which on
+            # a mailbox holding seventeen near-identical threads finds the
+            # wrong one or none. Measured on the deployment, 2026-09-17 at
+            # 21:26: "gathered 0 of 2 ... the mailbox holds none of the values
+            # this job needs", about values sitting one mail away.
+            "thread_id": full.get("threadId", ""),
+            # The mail's own id, for the same reason `_thread` carries one: a
+            # reply names it in `In-Reply-To`, and Gmail's internal id is not
+            # one any other client can thread on.
+            "rfc822_message_id": head.get("message-id", ""),
             "from": head.get("from", ""),
             "subject": head.get("subject", ""),
             "body": _body_of(payload),
@@ -454,15 +498,72 @@ def _get(token: str, arguments: dict[str, Any]) -> str:
     )
 
 
+def _thread(token: str, arguments: dict[str, Any]) -> str:
+    """Every mail in one conversation, oldest first.
+
+    The conversation and not a search: a reply names no values and the mail it
+    replies to holds them, and which mail that is, is a fact Gmail already
+    knows. Searching for it is guessing at something nobody has to guess at.
+    """
+    whole = _answered(
+        httpx.get(
+            f"{GMAIL}/threads/{arguments.get('id', '')}",
+            params={"format": "full"},
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=20.0,
+        ),
+        "that conversation",
+    )
+    said = []
+    for one in whole.get("messages", []) or []:
+        payload = one.get("payload", {})
+        head = _headers_of(payload)
+        said.append(
+            {
+                "id": one.get("id", ""),
+                # The mail's OWN id, which is not Gmail's id for it.
+                #
+                # `In-Reply-To` must carry an RFC822 `Message-Id` -- the
+                # `<...@host>` the sending client minted -- and this was
+                # sending Gmail's internal `1a0b...` instead, because it was
+                # the only id here. Gmail itself threads on `threadId` and
+                # never noticed; every other client saw a header naming a
+                # message it has never heard of and drew an orphan.
+                #
+                # Measured on the deployment 2026-09-18: the mail this system
+                # sent arrived in the recipient's mailbox as a NEW
+                # conversation, not under the request it was answering.
+                "rfc822_message_id": head.get("message-id", ""),
+                "from": head.get("from", ""),
+                "date": head.get("date", ""),
+                "subject": head.get("subject", ""),
+                "body": _body_of(payload),
+            }
+        )
+    return json.dumps({"id": whole.get("id", ""), "messages": said}, indent=1)
+
+
 def _send(token: str, arguments: dict[str, Any]) -> str:
     mail = EmailMessage()
     mail["To"] = str(arguments.get("to", ""))
     mail["Subject"] = str(arguments.get("subject", ""))
     mail.set_content(str(arguments.get("body", "")))
+    # Threaded two ways, because two different things do the threading.
+    #
+    # `threadId` is what GMAIL uses, and it is what makes the reply findable:
+    # this system matches an arriving mail to the run waiting on it by thread
+    # id, so a reply that starts its own conversation answers nobody. The
+    # `In-Reply-To` header is what every OTHER mail client uses, and without it
+    # the person who receives this sees an orphan.
+    within = str(arguments.get("thread_id", "")).strip()
+    answering = str(arguments.get("in_reply_to", "")).strip()
+    if answering:
+        mail["In-Reply-To"] = answering
+        mail["References"] = answering
     raw = base64.urlsafe_b64encode(mail.as_bytes()).decode()
     answer = httpx.post(
         f"{GMAIL}/messages/send",
-        json={"raw": raw},
+        json={"raw": raw, **({"threadId": within} if within else {})},
         headers={"Authorization": f"Bearer {token}"},
         timeout=30.0,
     )
@@ -541,6 +642,8 @@ class Connector(BaseHTTPRequestHandler):
                     text = _search(token, arguments)
                 elif name == "get_message":
                     text = _get(token, arguments)
+                elif name == "get_thread":
+                    text = _thread(token, arguments)
                 elif name == "send_message":
                     text = _send(token, arguments)
                 else:
@@ -611,9 +714,7 @@ if __name__ == "__main__":
     port = int(next((one for one in sys.argv[1:] if one.isdigit()), "8932"))
     _client()  # fail now, with a sentence, rather than on the first call
     if not GRANTS.is_dir() or not any(GRANTS.glob("*.json")):
-        raise SystemExit(
-            f"no grant yet: run `{sys.argv[0]} --authorize <tenant> <operator>` first"
-        )
+        raise SystemExit(f"no grant yet: run `{sys.argv[0]} --authorize <tenant> <operator>` first")
 
     try:
         server = ThreadingHTTPServer((HOST, port), Connector)

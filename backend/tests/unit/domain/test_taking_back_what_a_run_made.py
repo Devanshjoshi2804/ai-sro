@@ -13,8 +13,10 @@ type in front of the recorder.
 
 from __future__ import annotations
 
-from sro.domain.observation.gesture import Action, Call, Gesture, Target
-from sro.domain.skill.reversals import undoes
+from dataclasses import replace
+
+from sro.domain.observation.gesture import Action, Body, Call, Gesture, Target
+from sro.domain.skill.reversals import addresses, asks_for, identifies, undoes
 from sro.domain.skill.workflow import Step, Workflow
 
 WMS = "https://wms.test"
@@ -108,3 +110,185 @@ def test_a_job_is_not_its_own_undo() -> None:
     creates = _job("wfl_make", "ges-made")
 
     assert undoes(creates, gestures, [creates, creates]) is None
+
+
+def test_an_id_with_no_digit_in_it_is_still_one_record() -> None:
+    """The case that kept this dark on the real deployment.
+
+    `path_shape` blanks a segment carrying a DIGIT, which is right for
+    `/equipmentTypes/4471` and silent for `/customerTypes/GDD` -- so the id
+    survived the blanking, the delete's shape carried the record it happened to
+    be demonstrated on, and it could never equal `collection/*`.
+
+    Measured 2026-09-19: this tenant had held `Create a Customer Type` and
+    `Delete a Customer Type` for weeks, and this answered None every time.
+    """
+    gestures = _store(
+        ("ges-made", "POST", TYPES, 201),
+        ("ges-gone", "DELETE", f"{TYPES}/GDD", 204),
+    )
+
+    assert undoes(_job("wfl-made", "ges-made"), gestures, [_job("wfl-gone", "ges-gone")]) == (
+        "wfl-gone"
+    )
+
+
+def test_a_delete_two_segments_deeper_is_not_this_undo() -> None:
+    """One more segment, which is what deleting a member of a collection is. A
+    delete of something inside a member is a different thing entirely."""
+    gestures = _store(
+        ("ges-made", "POST", TYPES, 201),
+        ("ges-gone", "DELETE", f"{TYPES}/GDD/subsites/SG", 204),
+    )
+
+    assert undoes(_job("wfl-made", "ges-made"), gestures, [_job("wfl-gone", "ges-gone")]) is None
+
+
+# -- which record an undo would address ----------------------------------------
+
+
+def test_one_record_named_one_way_is_what_an_undo_addresses() -> None:
+    """The mapping `undo` has said it lacked since it was written. The evidence
+    arrived with `made_by`: a step that created something records what the
+    warehouse called it."""
+    assert addresses([{"customerType": "GGD"}]) == ("customerType", "GGD")
+
+
+def test_a_run_that_made_two_records_is_offered_no_undo() -> None:
+    """It would need two deletes, and an undo that takes back half of what a
+    run did is worse than none -- somebody presses it, sees the card go quiet,
+    and believes the warehouse is back where it started."""
+    assert addresses([{"customerType": "GGD"}, {"customerType": "GKB"}]) is None
+
+
+def test_a_record_named_two_ways_is_a_record_this_cannot_name() -> None:
+    """`made_by` keeps `id`, `code`, `name`, `number` and `key`. A warehouse
+    that answered with two of them has not said which one addresses it, and a
+    wrong guess removes somebody else's record."""
+    assert addresses([{"id": "4471", "code": "GGD"}]) is None
+
+
+def test_a_run_that_made_nothing_addresses_nothing() -> None:
+    assert addresses([]) is None
+    assert addresses([{}]) is None
+
+
+def test_a_name_that_is_only_whitespace_is_not_a_name() -> None:
+    assert addresses([{"customerType": "   "}]) is None
+
+
+# -- which field the delete addresses a record by ------------------------------
+
+
+def _deleting(body: str | None, url: str = f"{TYPES}/GDD") -> tuple[Workflow, dict[str, Gesture]]:
+    """The undo job, as its evidence records it: one DELETE, with whatever it
+    carried."""
+    gesture = _gesture("ges-gone", "DELETE", url, 200)
+    said = None if body is None else Body(text=body, size_bytes=len(body))
+    gesture.requests = [replace(gesture.requests[0], request_body=said)]
+    return _job("wfl_delete", "ges-gone"), {"ges-gone": gesture}
+
+
+def test_the_fields_a_delete_addresses_a_record_by_are_read_off_the_delete() -> None:
+    """Not guessed from a name. `customerType` is the singular of
+    `customerTypes`, and that reasoning is what `write_plan` refuses at length
+    -- this needs none of it: the delete carries the record it is removing, so
+    the field is the one whose value is the segment in the path.
+
+    Measured on the deployment 2026-09-19: the pair was found and not one of
+    ninety-two runs could offer the button, because each run's `made` carries
+    `customerType` and `longDescription` both."""
+    job, gestures = _deleting('{"customerType": "GDD", "longDescription": "a type"}')
+
+    assert identifies(job, gestures) == {"customerType"}
+
+
+def test_a_delete_that_carried_nothing_says_nothing() -> None:
+    """Plenty of platforms answer a delete with an empty request. Then this
+    knows nothing, and the old rule -- one record named one way -- stands."""
+    job, gestures = _deleting(None)
+
+    assert identifies(job, gestures) == frozenset()
+
+
+def test_every_field_carrying_the_addressed_value_is_a_candidate() -> None:
+    """The deployment's own delete carries `GDD` twice, as `customerType` and
+    as `resourceId`, and either would address the record. What settles it is
+    the create side: `addresses` keeps whichever of them the run recorded
+    making."""
+    job, gestures = _deleting('{"customerType": "GDD", "resourceId": "GDD"}')
+
+    assert identifies(job, gestures) == {"customerType", "resourceId"}
+
+
+def test_a_job_that_deletes_nothing_identifies_nothing() -> None:
+    made = _job("wfl_make", "ges-made")
+    gestures = _store(("ges-made", "POST", TYPES, 201))
+
+    assert identifies(made, gestures) == frozenset()
+
+
+def test_the_named_field_is_taken_out_of_a_record_that_says_more() -> None:
+    """What the deployment's runs actually hold: the two slots the read-back
+    confirmed. One of them addresses the record and the other describes it."""
+    made = [{"customerType": "GQX", "longDescription": "leaning new SRO type 007"}]
+
+    assert addresses(made, frozenset({"customerType"})) == ("customerType", "GQX")
+
+
+def test_the_two_sides_narrow_each_other() -> None:
+    """The deployment, both halves: the delete addresses `GDD` as either
+    `customerType` or `resourceId`, and the create records only the first."""
+    made = [{"customerType": "GQX", "longDescription": "type 007"}]
+
+    assert addresses(made, frozenset({"customerType", "resourceId"})) == ("customerType", "GQX")
+
+
+def test_two_survivors_are_two_names_for_one_record_again() -> None:
+    """Refused for the reason this has always refused it: an undo that guesses
+    between two names is the one press that removes somebody else's record."""
+    made = [{"customerType": "GQX", "resourceId": "R-9"}]
+
+    assert addresses(made, frozenset({"customerType", "resourceId"})) is None
+
+
+def test_a_named_field_the_record_does_not_carry_addresses_nothing() -> None:
+    """The delete says it addresses by `customerType` and this run recorded no
+    such field. Nothing to press, rather than the first field that comes to
+    hand."""
+    assert addresses([{"longDescription": "a type"}], frozenset({"customerType"})) is None
+
+
+def test_without_a_named_field_the_old_rule_stands() -> None:
+    """One record named one way, or nothing. A delete whose evidence does not
+    say which field it addresses leaves this exactly as it was."""
+    assert addresses([{"customerType": "GQX", "longDescription": "x"}]) is None
+    assert addresses([{"customerType": "GQX"}]) == ("customerType", "GQX")
+
+
+def test_the_undo_is_pressed_in_its_own_vocabulary() -> None:
+    """`Delete a Customer Type` declares one parameter and it is called
+    `Customer Type` -- the screen's label, which is how every mined job names
+    what varies -- while the record it removes is keyed `customerType` in the
+    body. A press that sent the body key would name a parameter the job does
+    not have, and the run would refuse it as a value nobody supplied."""
+    job = replace(_job("wfl_delete", "ges-gone"), parameters=[{"name": "Customer Type"}])
+
+    assert asks_for(job) == "Customer Type"
+
+
+def test_an_undo_that_varies_two_things_cannot_be_filled_from_one_record() -> None:
+    """Which of them wants the id is the wrong kind of guess to make with a
+    DELETE."""
+    job = replace(
+        _job("wfl_delete", "ges-gone"),
+        parameters=[{"name": "Customer Type"}, {"name": "Site"}],
+    )
+
+    assert asks_for(job) is None
+
+
+def test_an_undo_that_varies_nothing_is_not_a_press_either() -> None:
+    """A delete with no parameter is a delete of whatever it was demonstrated
+    on, which is somebody else's record now."""
+    assert asks_for(_job("wfl_delete", "ges-gone")) is None

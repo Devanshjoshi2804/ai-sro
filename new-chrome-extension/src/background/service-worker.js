@@ -4,8 +4,19 @@
 // it is idle and every wake-up starts from storage.
 
 import { api, ApiError } from "./api.js";
+import { alsoWatch, alwaysWatched, hostOf, stopWatching } from "./always.js";
+import { questionIn } from "./asking.js";
+import { waitBeforeLooking } from "./looking.js";
 import * as channel from "./channel.js";
-import { abort, isDriving, noteDriven, performing, RUN_QUIET_MS } from "./commands.js";
+import {
+  abort,
+  isDriving,
+  noteDriven,
+  performing,
+  RUN_QUIET_MS,
+} from "./commands.js";
+import { MAX_SAID, narrate, said } from "./said.js";
+import { serially } from "./serially.js";
 import * as queue from "./queue.js";
 import { redactUrl } from "../content/sensitivity.module.js";
 import {
@@ -17,16 +28,37 @@ import {
   injectIntoWatched,
   unregister,
 } from "./scripts.js";
-import { LIFETIME_MS, fire, mute, onCall, page as pageOf, shouldFire, sweep } from "../panel/nudge.js";
+import {
+  LIFETIME_MS,
+  endOfDay,
+  fire,
+  mute,
+  onCall,
+  page as pageOf,
+  shouldFire,
+  sweep,
+} from "../panel/nudge.js";
 import { decideOffer } from "./offering.js";
 import { chosen, resting, tailWith } from "./recognise.js";
 import { tripleOf } from "./shape.generated.js";
 import { hideNudge, showNudge } from "./showing.js";
 import { capture } from "./shots.js";
 import { noteFinished } from "./finishing.js";
-import { activeRunAge, afterRunWrong, capturing, finishedRun, RETIRED_KEYS, state } from "./state.js";
+import {
+  activeRunAge,
+  afterRunWrong,
+  capturing,
+  finishedRun,
+  RETIRED_KEYS,
+  state,
+} from "./state.js";
 import * as teaching from "./teaching.js";
-import { release as releaseTree, releaseAll, takeTree, takeTreeSoon } from "./trees.js";
+import {
+  release as releaseTree,
+  releaseAll,
+  takeTree,
+  takeTreeSoon,
+} from "./trees.js";
 import { flush } from "./upload.js";
 
 const BEAT = "sro-heartbeat";
@@ -38,7 +70,9 @@ const VERSION = chrome.runtime.getManifest().version;
 // The toolbar button opens the panel rather than a popup: everything this
 // extension has to say is about the tab you are looking at, and a popup closes
 // the moment you look at it.
-void chrome.sidePanel?.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+void chrome.sidePanel
+  ?.setPanelBehavior({ openPanelOnActionClick: true })
+  .catch(() => {});
 
 /** Everything the rig settings wrote, taken off this browser -- one of the
  * three is the tenant's bearer, and a credential nothing can spend any more is
@@ -68,9 +102,72 @@ chrome.runtime.onStartup.addListener(() => {
   void settle();
 });
 
+/** A new version, held until there is a gap to land it in.
+ *
+ * An extension update is not free to whoever is mid-task when it lands. The
+ * worker is torn down and rebuilt, so a run this browser is driving stops
+ * between two steps -- a half-made record in a warehouse -- and a
+ * demonstration being recorded loses its `chrome.debugger` attachment, which
+ * means the banner goes, the events stop, and the recording is never sealed.
+ * Neither is recoverable afterwards, and neither is anything the operator did
+ * wrong.
+ *
+ * Registering this listener is what buys the choice: with one attached Chrome
+ * holds the update instead of installing it at the first opportunity, and
+ * `chrome.runtime.reload()` is how this worker says "now is a good moment".
+ *
+ * What is deliberately NOT gated on: a page with a half-filled form. An update
+ * does not reload anybody's tab -- the form is still there afterwards. What it
+ * does is leave every open tab recording half of what it sees, and the repair
+ * for THAT already asks the page whether it is holding anything before
+ * reloading it. Gating here as well would be the same question asked twice,
+ * and the second one would hold an update back for a form nothing is going to
+ * disturb.
+ *
+ * The version lives in a module variable, which MV3 evicts -- and that is the
+ * correct place for it. A worker that has been evicted is a browser with
+ * nothing in flight, which is exactly when Chrome installs a held update on
+ * its own. Losing this is the update landing in the gap by another route.
+ */
+let updateWaiting = null;
+
+chrome.runtime.onUpdateAvailable?.addListener((details) => {
+  updateWaiting = details?.version || "a new version";
+  void landTheUpdate();
+});
+
+/** Install it, if nothing would be lost by restarting right now.
+ *
+ * Returns whether it went. Nothing after `chrome.runtime.reload()` runs.
+ */
+async function landTheUpdate() {
+  if (!updateWaiting) return false;
+  // A run is a form being filled in a warehouse, a step at a time.
+  if ((await state.activeRun())?.runId) return false;
+  // And a demonstration is the one thing here that cannot be repeated: the
+  // operator did it once, in front of the browser.
+  if (await state.teaching()) return false;
+  // Said before the restart, not after: there is no after.
+  await narrate(
+    `version ${updateWaiting} was installed while nothing was in flight`,
+  );
+  // Asked for once. Nothing below this line runs in a browser that restarts,
+  // and a browser that somehow does not is one Chrome installs the held
+  // update in anyway the moment this worker next idles -- which is the
+  // fallback this whole arrangement is a refinement of, not a race with it.
+  updateWaiting = null;
+  chrome.runtime.reload();
+  return true;
+}
+
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === BEAT) {
     void beat();
+    // And a held update, once a minute, because the gap it is waiting for is
+    // the end of a run or the end of a demonstration -- and hooking both of
+    // those in every place they can end is a list that the next one to be
+    // added will not be on.
+    void landTheUpdate();
     // The one trigger that does not need the panel open. A run performed and
     // then left alone -- the ordinary case, not the exception -- goes quiet in
     // a worker that idles out long before an operator comes back to look, and
@@ -88,6 +185,24 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     // between events, and a `setTimeout` for ninety seconds is one the platform
     // is free to never run.
     void sweepNudges();
+    // And the conversation, for a question nobody has answered.
+    //
+    // A run that could not find a value writes one into this operator's own
+    // thread and ends. The panel used to walk them to it off the FINISHED RUN,
+    // which is one slot: on 2026-09-17 a later run took that slot ninety
+    // seconds after the question was written, and the question sat unanswered
+    // for the rest of the morning. The thread cannot be swept, and this is
+    // where it is read -- on the beat, so it is found while the panel is shut.
+    void lookForAQuestion();
+    // And the mailbox, for the jobs it is asking for.
+    //
+    // Here rather than on the panel's own tick, which is where it started: a
+    // request that arrived while the panel was closed is exactly the one
+    // somebody needs to find waiting when they open it, and a look that only
+    // runs while somebody is watching cannot produce one. The beat is a minute
+    // and so is the look's own throttle, so this asks about as often as it
+    // acts.
+    void lookInTheMail();
   }
   if (alarm.name === FLUSH) void flushQueue();
   // Every wake-up re-dials. Chrome evicts this worker while it is idle and the
@@ -105,6 +220,25 @@ chrome.webNavigation.onCommitted.addListener((d) => {
   // which is the only moment one can safely happen -- so whatever was wrong
   // with the last document is not wrong with this one.
   halfDeaf.delete(d.tabId);
+  // Except when this document IS the repair.
+  //
+  // `chrome.tabs.reload` commits like any other navigation, so the reload the
+  // worker performed arrived here and forgot the claim it had just made. The
+  // fresh page reported the same half-installed recorder to a worker that had
+  // never heard of it, which reloaded it, which committed, which forgot --
+  // the loop this guard exists to stop, driven by the guard itself. Measured
+  // on the deployment 2026-09-20: two tabs, twenty-three reloads, one minute.
+  //
+  // `reload` covers the operator pressing it too, which costs that tab its
+  // repair for a page it is already on. That is the conservative side: a
+  // repair not offered goes on the card and waits to be asked, and a repair
+  // offered forever is a browser nobody can use.
+  if (d.transitionType !== "reload") void forgetRepaired(d.tabId);
+  // A system the operator watches everywhere is watched here too, whoever
+  // opened this tab -- them, a link, or a run opening one for itself. On the
+  // deployment, 2026-09-17, a run drove a tab it had opened while the panel
+  // said "not watched", and nothing it did was evidence.
+  void watchIfAlways(d.tabId, d.url);
   void pageEvent("navigated", d.tabId, d.url, d.timeStamp);
   // `navigationId` is not in this event, so the visit is the tab and the moment
   // it committed. Same property either way: one nudge per navigation rather
@@ -121,7 +255,6 @@ chrome.webNavigation.onCompleted.addListener((d) => {
 chrome.webNavigation.onCreatedNavigationTarget.addListener((d) => {
   void popupEvent(d);
 });
-
 
 // -- offering to do the one they are about to do -----------------------------
 
@@ -154,7 +287,10 @@ async function candidatesFor(host) {
  */
 function rigArrivals(shapes, host) {
   return shapes
-    .filter((shape) => shape.starts_on && shape.starts_on.split("/")[0].split(":")[0] === host)
+    .filter(
+      (shape) =>
+        shape.starts_on && shape.starts_on.split("/")[0].split(":")[0] === host,
+    )
     .filter((shape) => !resting(shape))
     .map((shape) => {
       const names = (shape.parameters || []).map((p) => p.name);
@@ -168,6 +304,9 @@ function rigArrivals(shapes, host) {
         values: {},
         missing: names,
         parameters: names,
+        // What pressing it would write, so the card can say it before the
+        // press. Served with the shape, which is where the evidence is read.
+        writes: shape.writes || [],
       };
     });
 }
@@ -212,7 +351,9 @@ async function considerNudge(tabId, url, visit) {
         await state.setNudges(swept.slice(0, MAX_NUDGES));
         return null;
       }
-      await state.setNudges([fire(fired, now, { tabId, visit }), ...swept].slice(0, MAX_NUDGES));
+      await state.setNudges(
+        [fire(fired, now, { tabId, visit }), ...swept].slice(0, MAX_NUDGES),
+      );
       return fired;
     });
     if (candidate) await showNudge(tabId, candidate.title);
@@ -268,7 +409,9 @@ async function considerArrival(tabId, url, visit) {
       // Written before the call, not after. The call takes a round trip, and a
       // second navigation event for the same commit -- which Chrome does emit
       // -- would otherwise find nothing written and fire again.
-      await state.setArrived([visit, ...already].slice(0, MOST_ARRIVALS_REMEMBERED));
+      await state.setArrived(
+        [visit, ...already].slice(0, MOST_ARRIVALS_REMEMBERED),
+      );
       return rules[0];
     });
     if (!fired) return;
@@ -287,7 +430,11 @@ async function considerArrival(tabId, url, visit) {
     // card the operator should have seen is the confirmation, which
     // `waitingOnSomebody` already fetches.
     if (started?.run_id) {
-      await state.setActiveRun({ runId: started.run_id, at: Date.now(), source: "rig" });
+      await state.setActiveRun({
+        runId: started.run_id,
+        at: Date.now(),
+        source: "rig",
+      });
     }
   } catch (error) {
     // A tab that closed mid-navigation, a rule the backend has since disabled,
@@ -340,6 +487,9 @@ async function sweepNudges() {
     const swept = sweep(held, { url: null, now: Date.now() });
     await state.setNudges(swept);
     reportEndings(held, swept);
+    // A card that has just gone quiet is one more waiting, and the beat is the
+    // only thing that notices the day turning over.
+    await badge();
     for (const nudge of open) {
       if (swept.find((each) => each.id === nudge.id)?.state !== "open") {
         void hideNudge(nudge.tabId);
@@ -356,12 +506,19 @@ async function didItThemselves(message) {
   return serially(async () => {
     const held = await state.nudges();
     if (!held.some((nudge) => nudge.state === "open")) return;
-    const after = onCall(held, { url: message.url, method: message.method }, Date.now());
+    const after = onCall(
+      held,
+      { url: message.url, method: message.method },
+      Date.now(),
+    );
     if (after === held) return;
     await state.setNudges(after);
     reportEndings(held, after);
     for (const nudge of held) {
-      if (nudge.state === "open" && after.find((each) => each.id === nudge.id)?.state !== "open") {
+      if (
+        nudge.state === "open" &&
+        after.find((each) => each.id === nudge.id)?.state !== "open"
+      ) {
         void hideNudge(nudge.tabId);
       }
     }
@@ -388,8 +545,12 @@ async function shapesFor() {
   // outside its own try).
   // Named, so the rig can mark the jobs this browser has been refusing.
   const answered = await api.shapes(await state.deviceId());
-  const usable = Array.isArray(answered)
-    ? answered.filter((shape) => shape && Array.isArray(shape.shape) && shape.id)
+  // The older shape of this answer was a bare list. Both are read, so a worker
+  // that has not been restarted after a backend deploy keeps offering.
+  const served = Array.isArray(answered) ? answered : answered?.shapes;
+  canFind = Array.isArray(answered) ? canFind : Boolean(answered?.canFind);
+  const usable = Array.isArray(served)
+    ? served.filter((shape) => shape && Array.isArray(shape.shape) && shape.id)
     : [];
   const list = usable.map((shape) => ({
     ...shape,
@@ -406,6 +567,16 @@ async function shapesFor() {
   shapesHeld = { at: list.length ? Date.now() : 0, list };
   return list;
 }
+
+/** Whether a run can go and find a value nobody typed, as this deployment last
+ * said. Held beside the shapes because it arrives with them, and read by both
+ * card paths -- the one a sentence makes and the one a prefix match makes.
+ *
+ * False until the first answer, which is the safe way round: a card that asks
+ * for a value the run could have found costs a person ten seconds, and one
+ * that promises to find a value on a deployment with no mailbox costs them a
+ * run that stops at the first step. */
+let canFind = false;
 
 function originOf(url) {
   try {
@@ -450,10 +621,228 @@ function jobInTheReply(thread) {
   return null;
 }
 
+/** Whether that reply is a question the conversation is still waiting on.
+ *
+ * A sentence typed under a standing question has already been read -- against
+ * the question, which is the only reading of it that is about anything. When
+ * it was not the answer, the thread says so and asks again, and reading those
+ * same words a second time against the rig's jobs is a reading of a sentence
+ * that was never about a job.
+ *
+ * Measured on the deployment 2026-09-19, thread thr_163bf91b: the operator was
+ * asked "Create a Client. Address takes 40 characters. What should it be?",
+ * typed `testing for new purpose`, and got back both halves at once -- the
+ * conversation correctly saying "I am still waiting on this one", and an open
+ * offer to create a WAREHOUSE EQUIPMENT TYPE named after their sentence.
+ */
+function stillAsking(thread) {
+  for (const message of [...(thread?.messages || [])].reverse()) {
+    if (message.speaker !== "assistant") continue;
+    const decision = message.decision || {};
+    return decision.kind === "needs_values" && Boolean(decision.workflow_id);
+  }
+  return false;
+}
+
+/** Start a job that was already said yes to, as soon as the last answer lands.
+ *
+ * The run went looking for values nobody typed, came back short of one, and
+ * ended -- and what it could not find became a question in the operator's own
+ * thread. They answered it. The alternative to this function is drawing them
+ * another card with another "Yes, do it" on it, for the job they already
+ * pressed yes on and have just spent three answers finishing.
+ *
+ * `resume` is the door's word for that, and it is the door's to give: this
+ * browser must not decide that a press was implied. `watched` rides along
+ * because the two ways of doing the job are not interchangeable -- somebody
+ * sitting in the panel answering questions is somebody watching, and a run
+ * that replayed the call in front of them would finish with the page never
+ * having moved.
+ */
+async function resumeTheJob(placed) {
+  try {
+    const started = await api.rigStart({
+      workflow_id: placed.workflow_id,
+      values: placed.values || {},
+      items: Array.isArray(placed.items) ? placed.items : [],
+      device_id: await state.deviceId(),
+      live: true,
+      allow_focus: true,
+      matched: 0,
+      // Where the run that asked the question had got to.
+      //
+      // Without it this starts at step 0 and re-walks everything the first run
+      // performed: on `Create a Customer Type` it re-opens the mail,
+      // re-navigates, presses Add again and re-types both fields, to arrive
+      // back at the box it stopped in front of. `matched` stays 0 because that
+      // counts GESTURES a browser tail matched and this is a step, and sending
+      // one as the other is the defect that marked steps done nobody had done.
+      from_step: Number.isInteger(placed.from_step) ? placed.from_step : 0,
+      // Which outside conversation this run answers to, carried by the door
+      // through every question. Without it a run started by an ANSWER is
+      // findable by nobody while one started by a PRESS is findable by a
+      // reply -- and which of the two happened is not something the person who
+      // sent the request can see.
+      mail_thread: placed.mail_thread || "",
+      watched: placed.watched !== false,
+    });
+    await state.setActiveRun({
+      runId: started.id,
+      at: Date.now(),
+      source: "rig",
+    });
+    // And say so where the decision was made. The thread holds the request,
+    // the question and the answer; without this it stops one line short of
+    // what came of them, and the run is only visible on the other pane.
+    //
+    // After the run is claimed and never before: a message naming a run that
+    // failed to start is a thread saying something happened that did not.
+    // Failing to SAY it is not failing to run it, so this cannot take the run
+    // down with it.
+    try {
+      await api.runStarted({ run_id: started.id, title: placed.title || "" });
+    } catch (error) {
+      console.warn("[sro] the run started and the thread was not told", error);
+    }
+    void pollRigRun();
+    return started.id;
+  } catch (error) {
+    // Said in the console and nowhere else on purpose. The thread already
+    // says the job is running; a second card apologising for it is the panel
+    // narrating its own plumbing, and the run's own row is where a failure to
+    // start shows up.
+    console.warn("[sro] the answered job could not be started", error);
+    return null;
+  }
+}
+
+/** A card for a job a mail asked for.
+ *
+ * Held here and never said into the thread, which is the rule this surface
+ * already keeps: the thread is the record of what was DECIDED, and a prompt
+ * nobody answered decided nothing. A conversation that filled up with "a mail
+ * asks for X" would be the panel keeping history of questions instead of
+ * answers -- and history is what the console is for.
+ *
+ * It ends three ways: they press it, they do the job themselves (the first
+ * write on that host says so), or they dismiss it. What it does NOT end on is
+ * time or a page -- it was never about a page they were standing on, and a
+ * request nobody has answered has not stopped being a request. At the end of
+ * the day it goes quiet instead, counted among the ones they missed.
+ */
+async function offerFromMail(offer) {
+  // The answer came. Nothing is waiting on a mailbox any more, and a panel
+  // still saying so under the card that answered it is a panel arguing with
+  // itself. Cleared on the offer rather than on the reply being read, because
+  // the offer is the thing this browser can actually see arrive.
+  const awaiting = await state.awaitingMail();
+  if (
+    awaiting &&
+    (!awaiting.thread || awaiting.thread === (offer.thread || ""))
+  ) {
+    await state.setAwaitingMail(null);
+    await narrate(`no longer waiting on ${awaiting.to}: an offer arrived`);
+  }
+  // A run the answer already started. There is nothing here to offer.
+  //
+  // The operator pressed Yes on this request; that press is what sent the mail
+  // asking for what was missing, and the reply filled the one blank the press
+  // could not. A card beside the run that answer started is this panel
+  // offering to do what it is doing.
+  //
+  // AFTER the wait is let go, not before: the answer that started the run is
+  // exactly the answer that ends the waiting, and an early return above would
+  // leave the panel saying it was still waiting for a reply that had arrived
+  // and already been acted on.
+  if (offer.started) {
+    await narrate(
+      `${offer.title || offer.workflow_id} is running on the answer that came back`,
+    );
+    return;
+  }
+  const shape = (await shapesFor()).find((one) => one.id === offer.workflow_id);
+  const now = Date.now();
+  const made = fire(
+    {
+      // The message, so two looks that somehow saw the same mail are one card.
+      id: `mail_${offer.message}`,
+      title: offer.title || shape?.title || offer.workflow_id,
+      starts_on: shape?.starts_on || "",
+      source: "rig",
+      workflow_id: offer.workflow_id,
+      k: 0,
+      values: offer.values || {},
+      items: [],
+      missing: offer.missing || [],
+      thread: offer.thread || "",
+      subject: offer.subject || "",
+      too_long: offer.too_long || {},
+      // What the request asked for that this job cannot write. Carried so the
+      // card can say it before the press rather than the run saying it after
+      // -- after the press is after the record.
+      unasked: offer.unasked || [],
+      can_find: true,
+      parameters: (shape?.parameters || []).map((one) => one.name),
+      writes: shape?.writes || [],
+      expires_at: endOfDay(now),
+      keeps: true,
+    },
+    now,
+  );
+  const kept = await serially(async () => {
+    const held = await state.nudges();
+    if (held.some((one) => one.candidateId === made.candidateId))
+      return "already held";
+    // One request, one card, however many mails it arrives in.
+    //
+    // A request and its "Confirmed - please create the customer type in WMS as
+    // discussed" are two MESSAGES, and the claim that stops a mail being read
+    // twice is per message id -- so each was read, each understood as the same
+    // job, and each offered. Seen on the deployment 2026-09-18: two identical
+    // `Create a Customer Type — GV2` cards for one request, and pressing both
+    // would try to make the record twice.
+    //
+    // The conversation is what identifies a request, which is why this is the
+    // thread and not the values: a follow-up that corrects the code is still
+    // the same request, and two people asking for the same code on separate
+    // threads are two.
+    //
+    // Only against an OPEN one. An offer that was answered, dismissed or swept
+    // has had its say, and a genuinely new request on that thread a week later
+    // deserves its own card.
+    if (
+      made.mailThread &&
+      held.some(
+        (one) =>
+          one.state === "open" &&
+          one.workflowId === made.workflowId &&
+          one.mailThread === made.mailThread,
+      )
+    )
+      return "the same request is already on a card";
+    await state.setNudges([made, ...held].slice(0, MAX_NUDGES));
+    return "";
+  });
+  // Every way this can end, said out loud -- including the two that end it
+  // quietly. An offer the backend made and this browser did not keep is the
+  // failure nobody could see, and "already held" and "kept" were the same
+  // silence as each other and as a throw.
+  await narrate(
+    kept
+      ? `mail offer ${made.candidateId} not kept: ${kept}`
+      : `mail offer ${made.candidateId} kept for ${made.workflowId} (${Object.keys(made.values || {}).length} value(s), ${(made.missing || []).length} missing)`,
+  );
+  // The icon says how many are waiting where the operator is not looking at
+  // the panel, which is most of the day.
+  await badge();
+}
+
 /** The offer, from a reading somebody else already paid for. */
 async function offerFromJob(placed, tabId) {
   if (tabId === null) return;
-  const shape = (await shapesFor()).find((one) => one.id === placed.workflow_id);
+  const shape = (await shapesFor()).find(
+    (one) => one.id === placed.workflow_id,
+  );
   const made = fire(
     {
       id: placed.workflow_id,
@@ -465,7 +854,13 @@ async function offerFromJob(placed, tabId) {
       values: placed.values || {},
       items: Array.isArray(placed.items) ? placed.items : [],
       missing: placed.missing || [],
+      // What the door said, where it said anything; what the deployment last
+      // told this browser otherwise. The two agree -- both are the same
+      // container property -- and the fallback is for an older backend.
+      can_find:
+        placed.can_find === undefined ? canFind : Boolean(placed.can_find),
       parameters: (shape?.parameters || []).map((one) => one.name),
+      writes: shape?.writes || [],
     },
     Date.now(),
   );
@@ -473,7 +868,9 @@ async function offerFromJob(placed, tabId) {
     const held = await state.nudges();
     // One open offer at a time: a sentence supersedes whatever was offered.
     const rest = held.map((one) =>
-      one.state === "open" ? { ...one, state: "expired", endedAt: Date.now() } : one,
+      one.state === "open"
+        ? { ...one, state: "expired", endedAt: Date.now() }
+        : one,
     );
     await state.setNudges([{ ...made, tabId }, ...rest].slice(0, MAX_NUDGES));
   });
@@ -488,12 +885,19 @@ async function offerFromWords(text, tabId) {
     // the shortcut this was built to avoid -- so what is left is to put the
     // answer where the panel draws it.
     if (said?.kind === "lookup") {
-      await state.setAnswer({ said: text, tabId, askedAt: Date.now(), ...said.lookup });
+      await state.setAnswer({
+        said: text,
+        tabId,
+        askedAt: Date.now(),
+        ...said.lookup,
+      });
       return;
     }
     const read = said?.job;
     if (!read?.workflow_id) return;
-    const shape = (await shapesFor()).find((one) => one.id === read.workflow_id);
+    const shape = (await shapesFor()).find(
+      (one) => one.id === read.workflow_id,
+    );
     const made = fire(
       {
         id: read.workflow_id,
@@ -517,7 +921,9 @@ async function offerFromWords(text, tabId) {
       // One open offer at a time, which is the queue this design exists to not
       // be: a sentence supersedes whatever the browser was offering.
       const rest = held.map((one) =>
-        one.state === "open" ? { ...one, state: "expired", endedAt: Date.now() } : one,
+        one.state === "open"
+          ? { ...one, state: "expired", endedAt: Date.now() }
+          : one,
       );
       await state.setNudges([{ ...made, tabId }, ...rest].slice(0, MAX_NUDGES));
     });
@@ -535,11 +941,12 @@ async function offerFromWords(text, tabId) {
     // this needs no new surface: the operator sees that the door refused and
     // the log says which.
     if (error instanceof ApiError) {
-      await state.setLastError(`the panel could not ask about that: ${error.message}`);
+      await state.setLastError(
+        `the panel could not ask about that: ${error.message}`,
+      );
     }
   }
 }
-
 
 async function considerOffer(tabId, gesture) {
   try {
@@ -560,7 +967,11 @@ async function considerOffer(tabId, gesture) {
     if (!shapes.length) return;
     const tails = await state.tails();
     const tail = tailWith(tails[tabId] || [], {
-      triple: tripleOf({ system: origin, target: gesture.target, kind: gesture.kind }),
+      triple: tripleOf({
+        system: origin,
+        target: gesture.target,
+        kind: gesture.kind,
+      }),
       // A credential field contributes the fact that it was typed and nothing
       // else: the shape still matches, and the offer simply has one more
       // parameter it has to ask for.
@@ -587,8 +998,19 @@ async function considerOffer(tabId, gesture) {
     // told about one offer that no longer existed.
     await serially(async () => {
       const held = await state.nudges();
-      const open = held.find((n) => n.state === "open" && n.tabId === tabId) || null;
-      const { replace, end } = decideOffer({ tail, shapes, open, origin, now });
+      const open =
+        held.find((n) => n.state === "open" && n.tabId === tabId) || null;
+      // The screen the work is happening on, so a job that begins on another
+      // screen of the same application is not offered here. See
+      // `elsewhereInTheSameApp`.
+      const { replace, end } = decideOffer({
+        tail,
+        shapes,
+        open,
+        origin,
+        page: gesture.url || null,
+        now,
+      });
       if (end && open) return endOffer(open, end, held);
       if (!replace) return;
       const muted = await state.muted();
@@ -599,8 +1021,8 @@ async function considerOffer(tabId, gesture) {
       // dismissal every time the operator typed the next field.
       const made =
         open && open.source === "rig" && open.state === "open"
-          ? { ...open, ...replace, id: open.id, at: open.at, tabId }
-          : { ...replace, tabId };
+          ? { ...open, ...replace, id: open.id, at: open.at, tabId, canFind }
+          : { ...replace, tabId, canFind };
       // The one it supersedes stops being open: two open at once is the queue
       // this design exists to not be. On an upgrade that is the same record,
       // and `made` puts it straight back with what it has just learned. A
@@ -614,10 +1036,28 @@ async function considerOffer(tabId, gesture) {
         void hideNudge(n.tabId);
         return [{ ...n, state: "expired", endedAt: now }];
       });
-      await state.setNudges([made, ...rest].slice(0, MAX_NUDGES));
+      // Kept offers first, and outside the trim. A request read out of a mail
+      // is waiting on a person; the prefix offers this path makes are what
+      // somebody is doing right now, and twenty of those must not be able to
+      // push a request off the end of the list. Nothing is lost by a busy
+      // morning.
+      const waiting = [made, ...rest].filter(
+        (n) => n.keeps && n.state === "open",
+      );
+      const others = [made, ...rest].filter(
+        (n) => !(n.keeps && n.state === "open"),
+      );
+      await state.setNudges([...waiting, ...others.slice(0, MAX_NUDGES)]);
       // The title alone: `paintNudge` wraps whatever it is given in "do ...?",
       // so a sentence renders as a question about a question.
-      await showNudge(tabId, made.title);
+      //
+      // And only when the panel is not already up. The pill does one thing --
+      // open the panel -- so beside an open one it is a button that cannot do
+      // anything, which is what it looked like: pressed, and nothing happened.
+      // `watching` is the panel's own port, so this is a fact rather than a
+      // guess. One window is assumed: a panel open in another window still
+      // suppresses the pill here, which is the rarer wrong answer of the two.
+      if (!watching.size) await showNudge(tabId, made.title);
     });
   } catch {
     // A tab that closed, a rig that is down. Nothing offered is the quiet
@@ -638,7 +1078,9 @@ function forgetTail(tabId) {
 }
 
 async function endOffer(nudge, fate, held) {
-  await state.setNudges(held.map((n) => (n.id === nudge.id ? { ...n, state: fate } : n)));
+  await state.setNudges(
+    held.map((n) => (n.id === nudge.id ? { ...n, state: fate } : n)),
+  );
   void hideNudge(nudge.tabId);
   void report(nudge, fate);
 }
@@ -653,8 +1095,12 @@ async function report(nudge, fate, runId = null) {
   if (nudge.source !== "rig" || !nudge.workflowId) return;
   try {
     void api.reportOffer({
-      workflow_id: nudge.workflowId, k: nudge.k || 0, fate, run_id: runId,
-      device_id: await state.deviceId(), at: new Date().toISOString(),
+      workflow_id: nudge.workflowId,
+      k: nudge.k || 0,
+      fate,
+      run_id: runId,
+      device_id: await state.deviceId(),
+      at: new Date().toISOString(),
     });
   } catch {
     // Called with `void` from every ending. A rejection here is an unhandled
@@ -681,25 +1127,6 @@ function reportEndings(before, after) {
 // invent about which origins are "ours". A watched tab is watched entirely --
 // every frame, every call it makes, wherever it navigates.
 
-/** Every change to a list this worker keeps in storage, one at a time -- the
- * watched tabs, the nudges, the tails.
- *
- * Read-modify-write over `chrome.storage` has no transaction: a tab closing
- * while another is being watched read the old list and wrote it back, and the
- * new watch vanished. That failure is invisible -- capture simply produces
- * nothing -- so it is worth the four lines.
- */
-let changes = Promise.resolve();
-
-function serially(job) {
-  const next = changes.then(job, job);
-  changes = next.then(
-    () => {},
-    () => {},
-  );
-  return next;
-}
-
 async function watchedTabs() {
   const watched = await state.watched();
   // A tab id is only meaningful while the tab exists. Chrome hands the same
@@ -708,8 +1135,17 @@ async function watchedTabs() {
   const alive = await Promise.all(
     watched.map(async (entry) => {
       try {
-        await chrome.tabs.get(entry.tabId);
-        return entry;
+        const tab = await chrome.tabs.get(entry.tabId);
+        // Where it is NOW, beside the host the watch was granted for.
+        //
+        // `host` is written once, when the watch is made, and is what the
+        // grant was asked about -- so it has to stay that, or closing the tab
+        // would revoke a grant for a host it never left. It is not where the
+        // tab is: a watched tab is watched wherever it navigates, and the
+        // panel read `host` and told an operator standing on a Keycloak
+        // sign-in page that everything they did on `blueyonderalphaus.
+        // b2clogin.com` was evidence. Measured on the deployment 2026-09-20.
+        return { ...entry, on: hostOf(tab.url || "") };
       } catch {
         return null;
       }
@@ -719,7 +1155,14 @@ async function watchedTabs() {
   // Tidying is never allowed to fail a capture. Storage can reject -- a full
   // disk, a quota -- and a gesture lost because the housekeeping beside it
   // threw is the same bug as a gesture lost to a failed screenshot.
-  if (kept.length !== watched.length) await state.setWatched(kept).catch(() => {});
+  if (kept.length !== watched.length)
+    // Without the derived half: `on` is read off the live tab every time this
+    // is called, and a copy of it in storage is a second answer that goes
+    // stale the moment the tab moves -- which is the defect this adds `on` to
+    // fix.
+    await state
+      .setWatched(kept.map(({ on: _on, ...kept_ }) => kept_))
+      .catch(() => {});
   return kept;
 }
 
@@ -791,10 +1234,28 @@ function watch(tabId, url) {
   });
 }
 
+/** Watch this tab, if its system is one the operator watches everywhere.
+ *
+ * The same `watch` a press calls, and the same injection: a tab that is
+ * watched but never injected into is a panel saying "watching" over a page
+ * producing nothing. Silent when the host is not on the list -- that is the
+ * ordinary case and the panel still offers.
+ */
+async function watchIfAlways(tabId, url) {
+  if (!alwaysWatched(url, await state.alwaysWatch())) return false;
+  if (await isWatched(tabId)) return true;
+  await watch(tabId, url);
+  await injectHere(tabId, url);
+  await badge();
+  return true;
+}
+
 /** Whether the tenant's policy excludes this host by default. */
 async function isExcluded(host) {
   const policy = await state.policy();
-  return (policy?.exclude_hosts || []).some((pattern) => hostMatches(host, pattern));
+  return (policy?.exclude_hosts || []).some((pattern) =>
+    hostMatches(host, pattern),
+  );
 }
 
 /** Ask the server to watch this host too, and remember what it answered.
@@ -812,7 +1273,9 @@ async function grant(host) {
     // Said out loud rather than swallowed: the panel will claim to be watching
     // a tab whose evidence the backend is about to refuse, and the operator
     // has no other way to find that out.
-    await state.setLastError(error instanceof ApiError ? error.message : String(error));
+    await state.setLastError(
+      error instanceof ApiError ? error.message : String(error),
+    );
   }
 }
 
@@ -854,13 +1317,15 @@ function unwatch(tabId) {
       const { [tabId]: _gone, ...kept } = tails;
       await state.setTails(kept);
     }
-    if (leaving?.host && (await isExcluded(leaving.host))) await ungrant(leaving.host);
+    if (leaving?.host && (await isExcluded(leaving.host)))
+      await ungrant(leaving.host);
     return next;
   });
 }
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   halfDeaf.delete(tabId);
+  void forgetRepaired(tabId);
   void forgetTail(tabId);
   void releaseTree(tabId);
   void unwatch(tabId);
@@ -931,7 +1396,13 @@ function underPolicy(request, policy) {
 
   const allowed = (body, keep) => {
     if (!body) return body;
-    if (!keep) return { ...body, text: null, size_bytes: 0, redacted_fields: ["«not captured»"] };
+    if (!keep)
+      return {
+        ...body,
+        text: null,
+        size_bytes: 0,
+        redacted_fields: ["«not captured»"],
+      };
     if ((body.size_bytes ?? 0) > limit) {
       return {
         ...body,
@@ -946,7 +1417,10 @@ function underPolicy(request, policy) {
   return {
     ...request,
     request_body: allowed(request.request_body, true),
-    response_body: allowed(request.response_body, policy?.capture_response_bodies !== false),
+    response_body: allowed(
+      request.response_body,
+      policy?.capture_response_bodies !== false,
+    ),
   };
 }
 
@@ -958,9 +1432,96 @@ function underPolicy(request, policy) {
  */
 const halfDeaf = new Set();
 
+/** Tabs this worker has already reloaded to repair their recording.
+ *
+ * One attempt each. A reload that did not fix it will not fix it the second
+ * time either, and the page says nothing that distinguishes the two -- so a
+ * worker that kept trying would keep a tab reloading forever, which is what it
+ * did before this existed.
+ *
+ * Forgotten when the tab goes, beside `halfDeaf`, so a tab id Chrome reuses
+ * for something else is not refused a repair it has never had.
+ *
+ * **In storage, because "ever" is longer than this worker lives.** It was a
+ * module Set, and a module Set is emptied every time the worker is evicted --
+ * which is every few seconds. So the guard held for one eviction cycle and the
+ * loop it exists to stop ran anyway, just with a pause in it.
+ *
+ * Measured on the deployment 2026-09-20: the console's own page reloaded 68
+ * times in four minutes, once every three and a half seconds, each reload
+ * reporting the same half-installed recorder to a fresh worker that had never
+ * heard of it. The page was unusable and the extension was narrating the
+ * repair each time, truthfully.
+ *
+ * The in-memory Set stays in front of it: the common case is a tab asking
+ * twice in one worker's life, and that should not cost a storage read.
+ */
+const repaired = new Set();
+
+/** Claim this tab's one repair, or say somebody already has it.
+ *
+ * Asking and claiming in ONE turn, under the lock, and that is the whole
+ * point. It used to be `alreadyRepaired` then `markRepaired`, with an await
+ * between them -- so every report that arrived before the first one finished
+ * reading storage saw an unclaimed tab, and every one of them reloaded it.
+ *
+ * Which is not a rare race. One page is one tab id and many FRAMES: a page
+ * with a dozen iframes reports a half-installed recorder a dozen times in the
+ * same turn, from the same `sender.tab.id`. Measured on the deployment
+ * 2026-09-20: tab 148284819 reloaded fifteen times and tab 148284734 eight,
+ * inside one minute, each reload narrated truthfully by a guard that was
+ * doing exactly what it was written to do and could not see the other
+ * fourteen.
+ *
+ * The in-memory Set stays in front of the storage read for the common case --
+ * a tab asking twice in one worker's life should not cost one -- but it is
+ * now read and written on the same side of the lock as the list.
+ */
+async function claimRepair(tabId) {
+  return serially(async () => {
+    if (repaired.has(tabId)) return false;
+    const held = await state.repaired();
+    if (held.includes(tabId)) {
+      // Remembered here too, so the next report in this worker's life is
+      // answered without a storage read.
+      repaired.add(tabId);
+      return false;
+    }
+    repaired.add(tabId);
+    // Bounded: tab ids are reused by Chrome and a list that only grows is a
+    // list that refuses a repair to a tab that has never had one. The newest
+    // few are the ones a loop would be about.
+    await state.setRepaired([...held, tabId].slice(-K_REPAIRED));
+    return true;
+  });
+}
+
+/** Forget a tab that has gone, in both places.
+ *
+ * Chrome hands the same tab id out again, so a record that outlived the tab
+ * refuses a repair to a page that has never had one -- which is the failure
+ * the in-memory Set was already careful about, and which persisting it would
+ * have made permanent.
+ */
+async function forgetRepaired(tabId) {
+  repaired.delete(tabId);
+  await serially(async () => {
+    const held = await state.repaired();
+    if (held.includes(tabId)) {
+      await state.setRepaired(held.filter((one) => one !== tabId));
+    }
+  });
+}
+
+/** How many repaired tabs are remembered. A browser with thirty tabs open,
+ * each repaired once, is the most this ever has to hold. */
+const K_REPAIRED = 40;
+
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   // Returning true keeps the channel open for the async answer.
-  handle(message, sender).then(respond, (error) => respond({ error: String(error) }));
+  handle(message, sender).then(respond, (error) =>
+    respond({ error: String(error) }),
+  );
   return true;
 });
 
@@ -975,11 +1536,65 @@ async function handle(message, sender) {
       // where the handshake that made it trustworthy can only happen before any
       // page script exists.
       //
-      // Recorded rather than acted on. Reloading somebody's page out from under
-      // them is not this worker's call to make; saying that the tab records
-      // gestures and no calls is, because the alternative is a demonstration
-      // that quietly asserts nothing about the system it changes.
-      halfDeaf.add(sender?.tab?.id ?? -1);
+      // Reloading somebody's page out from under them is not this worker's
+      // call to make -- unless the page has nothing to lose, which is the one
+      // case where it is nobody's loss and everybody's gain.
+      //
+      // The rule stands where it matters. A page holding typed text, a ticked
+      // box, or its own beforeunload warning is a page somebody is working in,
+      // and the half-filled form is exactly the state this system spends its
+      // care protecting: it goes on the card and waits to be asked. A page
+      // holding none of those is repaired where it stands, because asking
+      // somebody to press a button to fix a fault they did not cause -- every
+      // time an extension update lands -- is a tax for no benefit.
+      //
+      // The page decides which it is, because only the page can see it.
+      //
+      // And nothing is reloaded at all while a run is in flight. Which tab a
+      // run is driving is held inside `commands.js` and not readable here, so
+      // the answer is the conservative one rather than the precise one: a run
+      // is a form being filled somewhere, and being wrong about where would
+      // reload the page out from under it mid-step.
+      const deafTab = sender?.tab?.id ?? -1;
+      const running = Boolean((await state.activeRun())?.runId);
+      // Once per tab, ever.
+      //
+      // The reload is a repair and a repair that did not work is not worth
+      // repeating: the fresh page reports the same fault a second later, and
+      // the worker reloads it again. Measured on the deployment 2026-09-18 --
+      // one tab reloaded fourteen times in a row, which is a browser nobody
+      // can use and a page nobody can read.
+      //
+      // Why the second one fails at all is not knowable from here: the patch
+      // installs at `document_start` and whether it won that race is exactly
+      // what the tab is reporting it cannot tell. So this does not try to be
+      // clever about the cause -- it tries once, and if the tab is still deaf
+      // it goes on the card and waits to be asked, which is where it was
+      // before any of this.
+      if (
+        message.holding === false &&
+        deafTab >= 0 &&
+        !running &&
+        (await claimRepair(deafTab))
+      ) {
+        try {
+          await chrome.tabs.reload(deafTab);
+          await narrate(
+            `tab ${deafTab} was recording half and was reloaded -- nothing typed in it`,
+          );
+          halfDeaf.delete(deafTab);
+          return { ok: true, reloaded: true };
+        } catch (error) {
+          // A tab that will not reload is a tab to say something about, which
+          // is what the card below is for.
+          console.warn("[sro] a half-deaf tab could not be reloaded", error);
+        }
+      }
+      // Recorded rather than acted on: saying that the tab records gestures
+      // and no calls is this worker's call to make, because the alternative is
+      // a demonstration that quietly asserts nothing about the system it
+      // changes.
+      halfDeaf.add(deafTab);
       return { ok: true };
     }
     case "gesture":
@@ -1002,7 +1617,8 @@ async function handle(message, sender) {
       // a watched tab is evidence and nothing outside one is -- no host list
       // decides it, which is why a console polling its own backend all day
       // never became 97% of a day's capture again.
-      if (!watching) return { ok: false, dropped: "this tab is not being watched" };
+      if (!watching)
+        return { ok: false, dropped: "this tab is not being watched" };
       if (!(await admits(frameUrl, policy))) {
         return { ok: false, dropped: "excluded host" };
       }
@@ -1016,7 +1632,8 @@ async function handle(message, sender) {
         // in a bounded map the run can ask about: a step that just posted a
         // form is verified by what the server answered rather than by
         // photographing the page and asking a model what it looks like.
-        if (message.kind === "request") noteDriven(sender?.tab?.id ?? null, message.request);
+        if (message.kind === "request")
+          noteDriven(sender?.tab?.id ?? null, message.request);
         return { ok: false, dropped: "this browser is performing a run" };
       }
       // Somebody is working in here. Said out loud on the channel so a command
@@ -1048,7 +1665,9 @@ async function handle(message, sender) {
       // happened in, and either can be the callback URL with the token in it.
       const demonstrating = await teaching.current();
       const recordingId =
-        demonstrating && demonstrating.tabId === tab_id ? demonstrating.recordingId : null;
+        demonstrating && demonstrating.tabId === tab_id
+          ? demonstrating.recordingId
+          : null;
 
       if (message.kind === "gesture") {
         // Taken before the row is written so the picture and the gesture are
@@ -1066,7 +1685,10 @@ async function handle(message, sender) {
         await queue.enqueue(
           {
             kind: "gesture",
-            gesture: { ...message.gesture, url: redactUrl(message.gesture?.url) },
+            gesture: {
+              ...message.gesture,
+              url: redactUrl(message.gesture?.url),
+            },
             tab_id,
             frame_url: redactUrl(frameUrl),
             page_url,
@@ -1167,6 +1789,48 @@ async function handle(message, sender) {
     case "set-paused":
       await state.setPaused(Boolean(message.paused));
       return settle();
+    case "send-draft": {
+      // The one press in this system that writes to somebody outside it.
+      //
+      // The worker holds the credential and nothing else: which words go out
+      // is the backend's to decide, from the draft it put in the thread. This
+      // carries the operator's yes and two ids.
+      try {
+        const answered = await api.sendTheDraft({
+          thread_id: message.threadId,
+          message_id: message.messageId,
+        });
+        await narrate(
+          answered.sent_to
+            ? `asked ${answered.sent_to} about ${message.messageId}`
+            : `nothing was sent for ${message.messageId}`,
+        );
+        // What the panel draws a live wait from. Only where a mail actually
+        // went: "waiting for a reply" under a mail that was never sent is the
+        // panel telling somebody a story about itself.
+        if (answered.sent_to) {
+          await state.setAwaitingMail({
+            to: answered.sent_to,
+            at: Date.now(),
+            thread: message.mailThread || "",
+          });
+          await narrate(`waiting on a reply from ${answered.sent_to}`);
+        }
+        return { ok: true, sent_to: answered.sent_to || "" };
+      } catch (error) {
+        return { ok: false, error: error.problem?.detail || error.message };
+      }
+    }
+    case "forget-run":
+      // The operator has read what the run made. The card is a result, not a
+      // record: the run itself is on the backend for as long as the tenant
+      // keeps it, and this clears only the copy this panel draws.
+      //
+      // Their press and nothing else. It used to go when the hour ran out or
+      // when the next run started, so a card somebody had not looked at yet
+      // could vanish, and one they had finished with sat there for an hour.
+      await state.setFinishedRun(null);
+      return status();
     case "clear-error":
       // The panel's dismiss. `lastError` is the last one, not a live one, so
       // it outlives whatever fixed it; without this the amber stays until the
@@ -1225,7 +1889,10 @@ async function handle(message, sender) {
       // and gets an empty recording learns nothing except not to trust this.
       await watch(tab.id, tab.url);
       await injectHere(tab.id, tab.url);
-      const started = await api.startRecording(deviceId, message.label || tab.title || null);
+      const started = await api.startRecording(
+        deviceId,
+        message.label || tab.title || null,
+      );
       try {
         // Chrome allows one debugger per tab, so passive trees let go before a
         // deliberate demonstration asks for it. That way round because the
@@ -1270,7 +1937,9 @@ async function handle(message, sender) {
       }
       const sent = await drain();
       if (sent.error) {
-        return { error: `not sealed, because the last of it did not upload: ${sent.error}` };
+        return {
+          error: `not sealed, because the last of it did not upload: ${sent.error}`,
+        };
       }
       const summary = await api.finishRecording(was.recordingId);
       return { ok: true, was, summary };
@@ -1287,7 +1956,9 @@ async function handle(message, sender) {
       // driven never learned the job's name or how far through it was. The
       // panel says which kind it is asking about; it is the only thing that
       // knows, because it is what the worker told it.
-      return message.source === "rig" ? api.rigRun(message.runId) : api.run(message.runId);
+      return message.source === "rig"
+        ? api.rigRun(message.runId)
+        : api.run(message.runId);
     case "skill":
       return api.skill(message.skillId);
     case "summary":
@@ -1306,7 +1977,12 @@ async function handle(message, sender) {
         await state.setNudges(
           held.map((nudge) =>
             nudge.id === message.id
-              ? { ...nudge, state: "answered", answer: message.answer, endedAt: Date.now() }
+              ? {
+                  ...nudge,
+                  state: "answered",
+                  answer: message.answer,
+                  endedAt: Date.now(),
+                }
               : nudge,
           ),
         );
@@ -1314,13 +1990,22 @@ async function handle(message, sender) {
       });
       if (was) void hideNudge(was.tabId);
       if (was && message.answer === "not-here") {
-        await state.setMuted(mute(await state.muted(), was.startsOn, Date.now()));
+        await state.setMuted(
+          mute(await state.muted(), was.startsOn, Date.now()),
+        );
         // Only if the answer is what ended it. A nudge already swept or
         // dropped has reported its fate, and an offer with two fates is one
         // the rig cannot count.
         if (was.state === "open") void report(was, "dismissed");
       }
       return { ok: true, nudge: was || null };
+    }
+    case "what-this-browser-said": {
+      // What is waiting to go up on the next beat, for the operator standing
+      // in front of the browser that refused. Read only: the heartbeat still
+      // takes them, and a panel that emptied the buffer to draw it would cost
+      // the deployment the same lines.
+      return await said();
     }
     case "keep-secret": {
       // Straight through to the backend and gone. Not held here even for the
@@ -1350,7 +2035,11 @@ async function handle(message, sender) {
         if (answered.run_id) {
           // So the panel draws the run it just started, rather than waiting
           // for the first command to arrive and tell it.
-          await state.setActiveRun({ runId: answered.run_id, at: Date.now(), source: "rig" });
+          await state.setActiveRun({
+            runId: answered.run_id,
+            at: Date.now(),
+            source: "rig",
+          });
         }
         return { ok: true, ...answered };
       } catch (error) {
@@ -1366,8 +2055,11 @@ async function handle(message, sender) {
       // docked beside. The offer is about a page the miner recorded the job
       // starting on, and a rule made about the tab somebody happened to have
       // in front of them is a rule about the wrong page that fires forever.
-      const nudge = (await state.nudges()).find((n) => n.id === message.nudgeId);
-      if (!nudge || !nudge.workflowId) return { ok: false, error: "no such offer" };
+      const nudge = (await state.nudges()).find(
+        (n) => n.id === message.nudgeId,
+      );
+      if (!nudge || !nudge.workflowId)
+        return { ok: false, error: "no such offer" };
       const page = rulePage(`https://${nudge.startsOn || ""}`);
       if (!page) return { ok: false, error: "that offer does not name a page" };
       try {
@@ -1381,6 +2073,141 @@ async function handle(message, sender) {
         // browser holds it, and the next navigation is what reads this list.
         await refreshArrivals();
         return { ok: true, trigger_id: made.id, page };
+      } catch (error) {
+        return { ok: false, error: error.problem?.detail || error.message };
+      }
+    }
+    case "ask-about-offer": {
+      // The same yes, for an offer that cannot simply run: something is
+      // missing, or something it holds will not fit the box it goes in. The
+      // question goes into the operator's own conversation and the existing
+      // answering path takes it from there -- one question, one answer, and
+      // when the last one lands the job starts on this press.
+      //
+      // The press ends the offer, and the first version of this was wrong to
+      // say otherwise.
+      //
+      // It reasoned that the offer had been "taken up" rather than accepted
+      // and that the RUN would end it -- and then nothing ever did. The card
+      // stayed open and pressable through the question, the answer and the
+      // 201, so each further press stacked another identical question in the
+      // thread: three of them on the deployment 2026-09-18, for one request.
+      //
+      // A press is a yes. What it buys is a question rather than a run, and
+      // from that moment the THREAD holds the state -- which is the rule this
+      // whole surface keeps, and the reason nothing is lost by ending the card:
+      // somebody who walks away mid-answer comes back to the question, in
+      // their conversation, with everything established still on it.
+      //
+      // Claimed under the same lock and before the call, for `start-rig-run`'s
+      // reasons: between a check outside it and the POST sits a network call,
+      // and anything reading the list meanwhile would find the offer open and
+      // end it a second time.
+      const claimed = await serially(async () => {
+        const held = await state.nudges();
+        const one = held.find((n) => n.id === message.nudgeId);
+        if (!one || one.source !== "rig") return { error: "no such offer" };
+        if (one.state !== "open")
+          return { error: "this offer has already ended" };
+        await state.setNudges(
+          held.map((n) =>
+            n.id === one.id
+              ? { ...n, state: "accepted", endedAt: Date.now() }
+              : n,
+          ),
+        );
+        return { nudge: one };
+      });
+      if (claimed.error) return { ok: false, error: claimed.error };
+      const found = claimed.nudge;
+      try {
+        const asked = await api.askAboutOffer({
+          workflow_id: found.workflowId,
+          title: found.title || "",
+          values: found.values || {},
+          missing: found.missing || [],
+          items: Array.isArray(found.items) ? found.items : [],
+          // What the offer was told each box holds. Sent back rather than
+          // looked up again: a run that learned a limit in between would
+          // change the question under somebody already reading it.
+          limits: found.tooLong || {},
+          // The mail this was read out of, so the run the ANSWER starts
+          // answers to it -- the same as one this press starts directly. The
+          // two doors disagreeing about that is invisible to a person and
+          // costs them the reply that would have finished the job.
+          mail_thread: found.mailThread || "",
+          about: found.mailSubject || "",
+          watched: true,
+        });
+        await narrate(
+          `asked about ${found.candidateId} in the conversation: ${asked.asked || "nothing to ask"}`,
+        );
+        return { ok: true, asked: asked.asked || "" };
+      } catch (error) {
+        // Nothing was asked, so nothing was decided: the offer goes back to
+        // being theirs to answer. The same rule `start-rig-run` keeps when a
+        // run refuses to start -- a failed press is not an ending.
+        await serially(async () => {
+          const now = await state.nudges();
+          await state.setNudges(
+            now.map((n) =>
+              n.id === found.id ? { ...n, state: "open", endedAt: null } : n,
+            ),
+          );
+        });
+        return { ok: false, error: error.problem?.detail || error.message };
+      }
+    }
+    case "retry-rig-run":
+    case "undo-rig-run": {
+      // Run a mined job with values the panel already holds: the job that
+      // takes back what a run made, or the job that stopped for a reason that
+      // had nothing to do with it and is worth one more press.
+      //
+      // One case for both, because they are the same act -- an ordinary rig
+      // run of an ordinary mined job -- and the only difference is which run
+      // it names.
+      //
+      // An ordinary rig run of an ordinary mined job, and deliberately not a
+      // special path: the delete goes through the same ladder, the same write
+      // gate and the same belts as anything else, and an undo that skipped
+      // them would be the one write in this system nobody checked.
+      //
+      // Its own case rather than `start-rig-run`, which finds and claims an
+      // OFFER -- there is no offer behind an undo, and passing a nudge id that
+      // does not exist would be refused for the wrong reason.
+      if (!message.workflowId || !message.values)
+        return { ok: false, error: "an undo with nothing to undo" };
+      try {
+        const run = await api.rigStart({
+          workflow_id: message.workflowId,
+          device_id: await state.deviceId(),
+          values: message.values,
+          // The things a repeating job was asked to do, where there were any.
+          // A retry of a job that was making three records has to make the
+          // same three.
+          items: Array.isArray(message.items) ? message.items : [],
+          live: true,
+          allow_focus: true,
+          watched: true,
+          // Which run this takes back. The backend refuses a second undo of
+          // the same run, which is what a double press in two panels is.
+          undoes_run: message.undoesRun || "",
+          // And the conversation the request came out of, so a retry that
+          // comes up short can still be answered by a reply to that mail.
+          mail_thread: message.mailThread || "",
+        });
+        await narrate(
+          message.undoesRun
+            ? `taking back what ${message.workflowId} made: run ${run.id}`
+            : `trying ${message.workflowId} again: run ${run.id}`,
+        );
+        await state.setActiveRun({
+          runId: run.id,
+          at: Date.now(),
+          source: "rig",
+        });
+        return { ok: true, run_id: run.id };
       } catch (error) {
         return { ok: false, error: error.problem?.detail || error.message };
       }
@@ -1403,12 +2230,17 @@ async function handle(message, sender) {
         const held = await state.nudges();
         const found = held.find((n) => n.id === message.nudgeId);
         if (!found || found.source !== "rig") return { error: "no such offer" };
-        if (found.state !== "open") return { error: "this offer has already ended" };
+        if (found.state !== "open")
+          return { error: "this offer has already ended" };
         // Claimed before the POST, not after. Between the two sits a network
         // call that can take a second, and anything else reading the list
         // meanwhile would find the offer still `open` and end it.
         await state.setNudges(
-          held.map((n) => (n.id === found.id ? { ...n, state: "accepted", endedAt: Date.now() } : n)),
+          held.map((n) =>
+            n.id === found.id
+              ? { ...n, state: "accepted", endedAt: Date.now() }
+              : n,
+          ),
         );
         return { nudge: found };
       });
@@ -1429,7 +2261,10 @@ async function handle(message, sender) {
         // credential it arrived on; a body field saying so is a signature
         // nobody checked, written into the row an audit reads first.
         started = await api.rigStart({
-          workflow_id: nudge.workflowId, values, items, device_id: await state.deviceId(),
+          workflow_id: nudge.workflowId,
+          values,
+          items,
+          device_id: await state.deviceId(),
           // `matched`, not `from_step`. `k` is how many SHAPE ENTRIES the tail
           // matched and an entry is one cited gesture, so a step of four
           // gestures is four of them -- 19 entries over 6 steps on the first
@@ -1437,7 +2272,24 @@ async function handle(message, sender) {
           // done that nobody had done, and above the step count the press came
           // back refused. The backend has the steps behind the shape and does
           // the conversion there.
-          live: true, allow_focus: true, matched: nudge.k || 0,
+          live: true,
+          allow_focus: true,
+          matched: nudge.k || 0,
+          // Somebody is looking at this. The press came from an open panel, so
+          // the run does the job ON THE SCREEN -- it types into the form and
+          // presses Save -- instead of replaying the call the demonstration
+          // made. Both end with one record; only one of them is something the
+          // person watching can see happen. A trigger firing at three in the
+          // morning never comes through here, and is left to replay.
+          watched: true,
+          // The mail this request came out of, where it came out of one.
+          //
+          // An id, never a word of anybody's mail. It buys the run an address:
+          // one that comes up short can be found again by a REPLY to that
+          // mail, because the person who knows the missing value is usually
+          // whoever sent the request -- and they do not have this panel open.
+          // Empty for every press that was not a mail offer.
+          mail_thread: nudge.mailThread || "",
         });
       } catch (error) {
         // No run was started, so nothing was accepted. The offer goes back to
@@ -1446,7 +2298,9 @@ async function handle(message, sender) {
         await serially(async () => {
           const now = await state.nudges();
           await state.setNudges(
-            now.map((n) => (n.id === nudge.id ? { ...n, state: "open", endedAt: null } : n)),
+            now.map((n) =>
+              n.id === nudge.id ? { ...n, state: "open", endedAt: null } : n,
+            ),
           );
         });
         return { ok: false, error: error.problem?.detail || error.message };
@@ -1455,7 +2309,11 @@ async function handle(message, sender) {
       // 201 with the whole `WorkflowRunModel`, where the rig answered 202 and
       // `{"run_id": ...}`. Read as `run_id` this is `undefined`, and the panel
       // draws a run with no id it can ever poll or approve.
-      await state.setActiveRun({ runId: started.id, at: Date.now(), source: "rig" });
+      await state.setActiveRun({
+        runId: started.id,
+        at: Date.now(),
+        source: "rig",
+      });
       // From here the panel draws the run itself, a row per step as it lands.
       // Beside the record that says a rig run is active, because that record is
       // the whole of what `pollRigRun` reads. Not awaited: the press answers as
@@ -1464,7 +2322,50 @@ async function handle(message, sender) {
       void pollRigRun();
       void hideNudge(nudge.tabId);
       void report(nudge, "accepted", started.id);
+      // One fewer waiting, on the icon as well as in the panel.
+      void badge();
       return { ok: true, run_id: started.id };
+    }
+    case "drop-nudges": {
+      // Many at once, in ONE pass over the list.
+      //
+      // A backlog can be a month deep -- the panel groups it by day for
+      // exactly that -- and clearing it one `drop-nudge` at a time would be
+      // thirty-four read-modify-writes of a single storage key. `serially`
+      // would order them, and each would still re-read, re-map and re-write
+      // the whole list; the lock is the thing that makes that correct rather
+      // than cheap. One pass is both.
+      //
+      // Reported one by one, because a fate is per offer: a job dismissed
+      // thirty times is a job not worth offering, and a single "34 dropped"
+      // says nothing about which.
+      const wanted = new Set(message.nudgeIds || []);
+      if (!wanted.size) return { ok: true, dropped: 0 };
+      return serially(async () => {
+        const held = await state.nudges();
+        // Only the ones still open. Answering and dropping are two paths to
+        // the same place, and the first one out of `open` is the one that
+        // ends it.
+        const going = held.filter(
+          (one) => wanted.has(one.id) && one.state === "open",
+        );
+        if (!going.length) return { ok: true, dropped: 0 };
+        const gone = new Set(going.map((one) => one.id));
+        const at = Date.now();
+        await state.setNudges(
+          held.map((one) =>
+            gone.has(one.id)
+              ? { ...one, state: "dismissed", endedAt: at }
+              : one,
+          ),
+        );
+        void badge();
+        for (const one of going) {
+          void hideNudge(one.tabId);
+          void report(one, "dismissed");
+        }
+        return { ok: true, dropped: going.length };
+      });
     }
     case "drop-nudge": {
       // "No thanks", from the panel. An offer taken off the screen unanswered
@@ -1479,9 +2380,12 @@ async function handle(message, sender) {
         if (!nudge || nudge.state !== "open") return { ok: true };
         await state.setNudges(
           held.map((n) =>
-            n.id === nudge.id ? { ...n, state: "dismissed", endedAt: Date.now() } : n,
+            n.id === nudge.id
+              ? { ...n, state: "dismissed", endedAt: Date.now() }
+              : n,
           ),
         );
+        void badge();
         void hideNudge(nudge.tabId);
         void report(nudge, "dismissed");
         return { ok: true };
@@ -1491,7 +2395,8 @@ async function handle(message, sender) {
       // From the pill in the page. Opening it is all it does: the offer is in
       // the panel with its two answers, and pressing one there is what
       // authorises anything.
-      if (sender?.tab?.id !== undefined) await chrome.sidePanel.open({ tabId: sender.tab.id });
+      if (sender?.tab?.id !== undefined)
+        await chrome.sidePanel.open({ tabId: sender.tab.id });
       return { ok: true };
     case "revise-run":
       return api.reviseRun(message.runId, message.values);
@@ -1506,6 +2411,25 @@ async function handle(message, sender) {
     // the backend for the console.
     case "thread":
       return api.currentThread();
+    case "new-thread":
+      // A conversation somebody deliberately started. `current` answers with
+      // the newest, so nothing else has to be told which one to draw.
+      return api.newThread();
+    case "recent-runs": {
+      // The rows, with each job's own title put back on them. The backend
+      // answers `workflow_id` and this browser is already holding the shapes
+      // -- a list reading "wfl_3f2a — done" tells nobody what was done.
+      const runs = await api.rigRuns(message.limit || 12);
+      const titles = new Map(
+        (await shapesFor()).map((shape) => [shape.id, shape.title]),
+      );
+      return runs.map((run) => ({
+        ...run,
+        title: titles.get(run.workflow_id) || run.workflow_id,
+      }));
+    }
+    case "look-in-the-mail":
+      return lookInTheMail();
     case "thread-say": {
       const said = await api.say(message.threadId, message.text);
       // The reply already read the sentence against this tenant's jobs, so the
@@ -1513,8 +2437,16 @@ async function handle(message, sender) {
       // of the same words. That second reading was a second model call per
       // sentence, and the two could disagree.
       const placed = jobInTheReply(said);
-      if (placed) void offerFromJob(placed, message.tabId ?? null);
-      else void offerFromWords(message.text, message.tabId ?? null);
+      // The last answer to a question this job asked starts it. They pressed
+      // yes before any of the questions; asking for the same permission a
+      // second time is how a panel teaches somebody to stop reading it.
+      if (placed?.resume) void resumeTheJob(placed);
+      else if (placed) void offerFromJob(placed, message.tabId ?? null);
+      // And a sentence the thread is still holding a question open for is not
+      // an unread sentence. `offerFromWords` is for the case where the door
+      // read it and placed no job at all.
+      else if (!stillAsking(said))
+        void offerFromWords(message.text, message.tabId ?? null);
       return said;
     }
     case "run-skill":
@@ -1538,7 +2470,10 @@ async function handle(message, sender) {
       // this browser frames cannot see the credential in its own tab, because
       // Chrome partitions storage for framed contexts, so the panel has to hand
       // it across. It goes to the configured origin and nowhere else.
-      return { consoleUrl: await state.consoleUrl(), token: await state.token() };
+      return {
+        consoleUrl: await state.consoleUrl(),
+        token: await state.token(),
+      };
     case "approve-rig-run": {
       // The press on the awaiting row. It comes here rather than going to the
       // rig from the panel for the same reason `start-rig-run` does: the rig's
@@ -1550,7 +2485,10 @@ async function handle(message, sender) {
       // run that has since been superseded -- could otherwise authorise a live
       // write in somebody's warehouse against a run nobody here is watching.
       if (message.runId !== (await state.activeRun())?.runId) {
-        return { ok: false, error: "that run is not the one this browser is driving" };
+        return {
+          ok: false,
+          error: "that run is not the one this browser is driving",
+        };
       }
       try {
         return await api.rigApprove(message.runId, await state.deviceId());
@@ -1653,6 +2591,34 @@ async function handle(message, sender) {
       await injectHere(tabId, url);
       return { watched };
     }
+    case "always-watch": {
+      // "Watch this site, wherever it opens." Said once about a system rather
+      // than once per tab, because a tab id lives for as long as one tab and
+      // the work does not.
+      const tabId = message.tabId ?? sender?.tab?.id ?? null;
+      let url = message.url || "";
+      if (!url && tabId !== null) {
+        url = (await chrome.tabs.get(tabId).catch(() => ({}))).url || "";
+      }
+      const host = hostOf(url);
+      if (!host) return { error: "that is not a page this can watch" };
+      await state.setAlwaysWatch(alsoWatch(host, await state.alwaysWatch()));
+      // And this tab now, not on its next navigation: an operator who says it
+      // while looking at the page means this page.
+      if (tabId !== null) await watchIfAlways(tabId, url);
+      // Every other tab already open on it, for the same reason -- saying it
+      // about a system and having four of its tabs stay blind is the defect
+      // this replaces, one layer along.
+      for (const tab of await chrome.tabs.query({ url: `*://${host}/*` })) {
+        if (tab.id !== tabId) await watchIfAlways(tab.id, tab.url || "");
+      }
+      return { always: await state.alwaysWatch() };
+    }
+    case "never-watch-site": {
+      const host = hostOf(message.url || "") || message.host || "";
+      await state.setAlwaysWatch(stopWatching(host, await state.alwaysWatch()));
+      return { always: await state.alwaysWatch() };
+    }
     case "unwatch-tab": {
       const tabId = message.tabId ?? sender?.tab?.id ?? null;
       if (tabId === null) return { error: "no tab to stop watching" };
@@ -1665,7 +2631,11 @@ async function handle(message, sender) {
       // in a content script.
       const host = hostOf(sender?.url || "");
       const held = await state.watches();
-      return { watches: host ? held.filter((watch) => hostMatches(host, watch.host)) : [] };
+      return {
+        watches: host
+          ? held.filter((watch) => hostMatches(host, watch.host))
+          : [],
+      };
     }
     case "watch-matched": {
       // The one place a value read out of somebody's mail leaves this
@@ -1675,14 +2645,17 @@ async function handle(message, sender) {
       // nothing else. A page that made this message up gets nowhere.
       const deviceId = await state.deviceId();
       const host = hostOf(sender?.url || "");
-      const watch = (await state.watches()).find((each) => each.id === message.triggerId);
+      const watch = (await state.watches()).find(
+        (each) => each.id === message.triggerId,
+      );
       if (!deviceId || !watch || !hostMatches(host, watch.host)) {
         return { error: "no such watch" };
       }
       const values = {};
       for (const declared of watch.values || []) {
         const given = message.values?.[declared.name];
-        if (typeof given === "string" && given) values[declared.name] = given.slice(0, MAX_VALUE);
+        if (typeof given === "string" && given)
+          values[declared.name] = given.slice(0, MAX_VALUE);
       }
       // One identity per match, found before it is minted. `watch.js` reports
       // per frame, so a mail sitting open reports itself repeatedly; the id is
@@ -1697,7 +2670,10 @@ async function handle(message, sender) {
         // offer to run something. Nothing is held: a question already answered
         // has nothing left to press.
         const question = values[QUESTION];
-        if (!question) return { error: "this mail has no question where the watch says one is" };
+        if (!question)
+          return {
+            error: "this mail has no question where the watch says one is",
+          };
         const answer = await api.lookup(question);
         await state.setAnswer({
           said: question,
@@ -1707,7 +2683,8 @@ async function handle(message, sender) {
         });
         return { ok: true, asked: true };
       }
-      const offerId = (await sameOfferAs(watch, values))?.id || crypto.randomUUID();
+      const offerId =
+        (await sameOfferAs(watch, values))?.id || crypto.randomUUID();
       const offer = await api.watchMatched(deviceId, watch.id, values, offerId);
       await hold(watch, values, offer, offerId);
       return { ok: true, offer };
@@ -1722,13 +2699,20 @@ async function handle(message, sender) {
       // nothing here starts anything -- but a page that made this message up
       // should still get nowhere.
       const host = hostOf(sender?.url || "");
-      const watch = (await state.watches()).find((each) => each.id === message.triggerId);
-      if (!watch || !hostMatches(host, watch.host)) return { error: "no such watch" };
+      const watch = (await state.watches()).find(
+        (each) => each.id === message.triggerId,
+      );
+      if (!watch || !hostMatches(host, watch.host))
+        return { error: "no such watch" };
       // The terms are the watch's own, read from the rule this worker holds
       // rather than from the message: a page that sent a different string
       // would otherwise put its own text on the panel.
-      const mine = new Set((watch.terms || []).map((term) => String(term.contains)));
-      const terms = (message.terms || []).map(String).filter((term) => mine.has(term));
+      const mine = new Set(
+        (watch.terms || []).map((term) => String(term.contains)),
+      );
+      const terms = (message.terms || [])
+        .map(String)
+        .filter((term) => mine.has(term));
       if (!terms.length) return { ok: true };
       await serially(async () => {
         const held = await state.nearMisses();
@@ -1760,7 +2744,8 @@ async function handle(message, sender) {
       // in a panel is not a way to reach a name the watch never declared.
       const chosen = { ...offer.read };
       for (const [name, value] of Object.entries(message.values || {})) {
-        if (name in chosen || (offer.missing || []).includes(name)) chosen[name] = String(value);
+        if (name in chosen || (offer.missing || []).includes(name))
+          chosen[name] = String(value);
       }
       const fired = await api.watchFire(deviceId, offer.triggerId, chosen);
       // Kept when nothing started, so the card can say why. A laptop that was
@@ -1768,7 +2753,9 @@ async function handle(message, sender) {
       await state.setOffers(
         fired.run_id
           ? offers.filter((each) => each.id !== offer.id)
-          : offers.map((each) => (each.id === offer.id ? { ...each, skipped: fired.skipped } : each)),
+          : offers.map((each) =>
+              each.id === offer.id ? { ...each, skipped: fired.skipped } : each,
+            ),
       );
       return fired;
     }
@@ -1781,7 +2768,9 @@ async function handle(message, sender) {
       // apart from a laptop that was asleep. A counter on the trigger and one
       // endpoint, the day somebody reviews watches.
       const offers = await state.offers();
-      await state.setOffers(offers.filter((each) => each.id !== message.offerId));
+      await state.setOffers(
+        offers.filter((each) => each.id !== message.offerId),
+      );
       return { ok: true };
     }
     case "status":
@@ -1804,6 +2793,37 @@ async function handle(message, sender) {
  * are looking at the same browser.
  */
 const watching = new Set();
+
+/** The last finished run, re-read from the backend once per worker life.
+ *
+ * The row is a SNAPSHOT: `finishing.js` stores what the run looked like the
+ * moment it ended, and the card is drawn from that for an hour. What the
+ * backend says about a finished run can change afterwards -- whether it can be
+ * taken back, whether it can be pressed again -- and twice on 2026-09-19 an
+ * operator sat in front of a card that offered neither, on a run the deployment
+ * would by then have offered both for.
+ *
+ * Once, and only for a row this worker did not write itself: a re-read on
+ * every status poll is a call a second, and a row written by the worker that
+ * is still running is as fresh as the backend was when it landed.
+ */
+let refreshed = null;
+
+async function freshlyFinished() {
+  const held = await finishedRun();
+  if (!held?.id || held.source !== "rig" || refreshed === held.id) return held;
+  refreshed = held.id;
+  try {
+    const now = await api.rigRun(held.id);
+    if (!now) return held;
+    await state.setFinishedRun({ ...held, ...now, at: held.at });
+    return await finishedRun();
+  } catch {
+    // A backend this browser cannot reach right now is not a reason to drop a
+    // card somebody is looking at.
+    return held;
+  }
+}
 
 /** How long to wait before pushing, so a burst of writes is one redraw.
  *
@@ -1860,6 +2880,106 @@ chrome.storage.onChanged?.addListener(() => {
 /** How many offers this browser holds: enough that the morning's mail is still
  * there after lunch, few enough that a watch somebody wrote badly cannot fill
  * the disk with what it read. */
+/* How often the mailbox is read, and how long a look that found nothing to
+   read waits, are `looking.js`'s -- the rule needed a test of its own after it
+   parked a browser for ten minutes over a two-second restart. */
+
+/** Read the operator's recent mail, at most this often.
+ *
+ * The throttle is here and not in the panel: the panel is closed most of the
+ * day and there may be more than one of them, so a window's own timer is not a
+ * statement about how often this browser reads a mailbox.
+ *
+ * Nothing is returned to the panel to draw. What a look produces is an offer in
+ * the operator's own thread, and the panel is already polling that -- so the
+ * card arrives the way every other message does, and this call has no second
+ * path to keep working.
+ */
+/** Whether the mailbox is being read RIGHT NOW, and when the last read ended.
+ *
+ * In memory and not in storage, unlike everything else about the look: this is
+ * true for the two seconds a fetch is out, and a flag that outlived the worker
+ * that set it would have the panel animating a call nobody is making.
+ */
+let readingTheMail = null;
+
+async function lookInTheMail() {
+  const last = await state.mailLooked();
+  const since = Date.now() - (last?.at || 0);
+  const wait = waitBeforeLooking(last);
+  if (last && since < wait) return { ok: true, skipped: "looked recently" };
+  // Written BEFORE the call, so a look that takes a while does not have four
+  // more started on top of it by the ticks that land while it is out.
+  await state.setMailLooked({ at: Date.now(), reached: true, answered: true });
+  readingTheMail = Date.now();
+  try {
+    const looked = await api.fromTheMail();
+    // `answered`, beside `reached`: the deployment replied, so whatever it
+    // said about the mailbox is a fact about the mailbox. That is what buys
+    // the long wait -- see `looking.js`.
+    await state.setMailLooked({
+      at: Date.now(),
+      reached: !String(looked?.why || "").includes("could not be reached"),
+      answered: true,
+    });
+    // Kept one at a time, and a failure to keep one is NOT a failure to reach
+    // the mailbox.
+    //
+    // This loop used to sit bare inside the try below, so a throw anywhere in
+    // `offerFromMail` was caught by a handler written for a connector that is
+    // not there: the look reported `ok`, marked the mailbox unreachable, and
+    // said nothing. The offer was gone for good -- the backend claims a
+    // message id BEFORE it reads it, so a mail whose offer is lost here is a
+    // mail nothing will ever read again -- and the operator saw an empty
+    // panel with no error in it.
+    //
+    // Measured on the deployment, 2026-09-17 at 19:38: the backend offered
+    // `Create a Customer Type` from a mail, and no card ever appeared.
+    let kept = 0;
+    if (looked?.offered?.length || looked?.read)
+      await narrate(
+        `looked in the mail -- ${looked?.read || 0} read, ${(looked?.offered || []).length} offered`,
+      );
+    for (const offer of looked?.offered || []) {
+      try {
+        await offerFromMail(offer);
+        kept += 1;
+      } catch (error) {
+        // Worth a red line, unlike a mailbox that could not be reached: the
+        // mail WAS read, the job WAS recognised, and the request has now been
+        // dropped by this browser and cannot arrive again.
+        await state.setLastError(
+          `a request read from your mail was lost before it could be offered: ${error}`,
+        );
+        await narrate(`mail offer lost: ${error}`);
+      }
+    }
+    readingTheMail = null;
+    return {
+      ok: true,
+      offered: kept,
+      read: looked?.read || 0,
+    };
+  } catch (error) {
+    readingTheMail = null;
+    // A door that is not there yet, a backend being restarted, a browser with
+    // no credential. None of them is worth a red line in the panel: the look is
+    // a background convenience and the operator can always type the request.
+    // Nothing was answered, so nothing is known about the mailbox: a backend
+    // restarting, a wifi hop, a lid shut mid-call. It waits the ordinary
+    // minute rather than the ten a deployment with no connector gets.
+    await state.setMailLooked({
+      at: Date.now(),
+      reached: false,
+      answered: false,
+    });
+    return {
+      ok: true,
+      skipped: error instanceof ApiError ? error.message : String(error),
+    };
+  }
+}
+
 const MAX_OFFERS = 20;
 
 /** Keep an offer where the panel can find it.
@@ -1883,14 +3003,22 @@ const MAX_OFFERS = 20;
 async function sameOfferAs(watch, read) {
   const held = await state.offers();
   return held.find(
-    (each) => each.triggerId === watch.id && JSON.stringify(each.read) === JSON.stringify(read),
+    (each) =>
+      each.triggerId === watch.id &&
+      JSON.stringify(each.read) === JSON.stringify(read),
   );
 }
 
 async function hold(watch, read, offer, offerId) {
   const held = await state.offers();
   if (await sameOfferAs(watch, read)) return;
-  const skill = await api.skill(offer.skill_id).catch(() => null);
+  // The name comes back with the offer now, because a watch may name a mined
+  // job and there is no `/v1/skills/{id}` for one. The fetch stays as the
+  // fallback for a backend that predates the field.
+  const named =
+    offer.title ||
+    (await api.skill(offer.skill_id).catch(() => null))?.name ||
+    "";
   await state.setOffers(
     [
       {
@@ -1898,7 +3026,8 @@ async function hold(watch, read, offer, offerId) {
         at: Date.now(),
         triggerId: watch.id,
         skillId: offer.skill_id,
-        skill: skill?.name || "",
+        workflowId: offer.workflow_id || null,
+        skill: named,
         host: watch.host,
         terms: watch.terms || [],
         // What this browser read out of the mail, and what the task would run
@@ -1907,6 +3036,11 @@ async function hold(watch, read, offer, offerId) {
         read,
         values: offer.values || {},
         missing: offer.missing || [],
+        // Whether what the mail did not say stops the press. The deployment's
+        // answer: a run that can read the operator's mailbox goes and looks
+        // for the rest, and a card that refused to start would be asking for
+        // what the run already knows how to find.
+        canFind: Boolean(offer.can_find),
       },
       ...held,
     ].slice(0, MAX_OFFERS),
@@ -1930,13 +3064,8 @@ const MOST_NEAR_MISSES = 5;
  * name is a mail body that arrived through a sloppy mark. */
 const QUESTION = "question";
 
-function hostOf(url) {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return "";
-  }
-}
+/* `hostOf` is `always.js`'s: the same question, and that one answers "" for a
+   url that is not a page rather than naming the host of a `chrome://` one. */
 
 /** The mail rules this browser holds, from the backend that keeps them.
  *
@@ -1967,7 +3096,9 @@ export async function refreshArrivals() {
         .map((trigger) => ({ id: trigger.id, page: trigger.arrival.page })),
     );
   } catch (error) {
-    await state.setLastError(error instanceof ApiError ? error.message : String(error));
+    await state.setLastError(
+      error instanceof ApiError ? error.message : String(error),
+    );
   }
 }
 
@@ -1984,10 +3115,16 @@ async function refreshWatches() {
         // where every other one becomes an offer to run something. The flag
         // rides on the watch rather than being looked up per match, so a
         // browser holding a stale list still knows which kind it holds.
-        .map((trigger) => ({ id: trigger.id, asks: Boolean(trigger.asks), ...trigger.watch })),
+        .map((trigger) => ({
+          id: trigger.id,
+          asks: Boolean(trigger.asks),
+          ...trigger.watch,
+        })),
     );
   } catch (error) {
-    await state.setLastError(error instanceof ApiError ? error.message : String(error));
+    await state.setLastError(
+      error instanceof ApiError ? error.message : String(error),
+    );
   }
 }
 
@@ -2035,11 +3172,13 @@ async function drain() {
 async function flushQueue() {
   const deviceId = await state.deviceId();
   const allowed = await capturing();
-  if (!deviceId || !allowed.on) return { uploaded: 0, because: allowed.because || "not registered" };
+  if (!deviceId || !allowed.on)
+    return { uploaded: 0, because: allowed.because || "not registered" };
   try {
     const result = await flush(deviceId);
     if (result.error) await state.setLastError(result.error);
-    else if (result.uploaded || result.screenshots) await state.setLastError("");
+    else if (result.uploaded || result.screenshots)
+      await state.setLastError("");
     return result;
   } catch (error) {
     // A 401 already dropped the token in api.js; settle() reflects that as
@@ -2071,6 +3210,27 @@ async function register(label) {
   return status();
 }
 
+/** Read this operator's conversation for a question waiting on them.
+ *
+ * Kept on the worker rather than computed in `status()`: the panel polls that
+ * twice a second and the thread is a network round trip. Failure is silence --
+ * a browser that cannot reach the backend has nothing to say about questions,
+ * and a banner drawn from a stale read would be worse than none.
+ */
+async function lookForAQuestion() {
+  try {
+    const waiting = questionIn(await api.currentThread());
+    const held = await state.question();
+    // Written only when it changes, because every write wakes the panel's
+    // storage listener and redraws the column.
+    if ((held?.id || null) !== (waiting?.id || null))
+      await state.setQuestion(waiting);
+  } catch {
+    // Offline, or a backend that has no threads. Leave whatever is held: a
+    // question does not stop waiting because a poll failed.
+  }
+}
+
 async function beat() {
   const deviceId = await state.deviceId();
   if (!deviceId) return;
@@ -2085,7 +3245,9 @@ async function beat() {
     try {
       await register();
     } catch (error) {
-      await state.setLastError(error instanceof ApiError ? error.message : String(error));
+      await state.setLastError(
+        error instanceof ApiError ? error.message : String(error),
+      );
       return;
     }
   }
@@ -2112,12 +3274,34 @@ async function beat() {
         );
       }
     }
-    const [queuedEvents, queuedBytes] = await Promise.all([queue.count(), queue.totalBytes()]);
-    const answer = await api.heartbeat(deviceId, {
-      queued_events: queuedEvents,
-      queued_bytes: queuedBytes,
-      policy_version: policy?.version ?? null,
+    const [queuedEvents, queuedBytes] = await Promise.all([
+      queue.count(),
+      queue.totalBytes(),
+    ]);
+    // Taken before the call and put back if it fails, so a beat that does not
+    // land does not eat the lines it was carrying.
+    const said = await serially(async () => {
+      const held = await state.said();
+      if (held.length) await state.setSaid([]);
+      return held;
     });
+    let answer;
+    try {
+      answer = await api.heartbeat(deviceId, {
+        queued_events: queuedEvents,
+        queued_bytes: queuedBytes,
+        policy_version: policy?.version ?? null,
+        said,
+      });
+    } catch (error) {
+      if (said.length) {
+        await serially(async () => {
+          const held = await state.said();
+          await state.setSaid([...said, ...held].slice(-MAX_SAID));
+        });
+      }
+      throw error;
+    }
     if (answer.policy) await state.setPolicy(answer.policy);
     await state.setServerPaused(Boolean(answer.pause));
     await state.setLastBeat(new Date().toISOString());
@@ -2125,7 +3309,9 @@ async function beat() {
   } catch (error) {
     // A heartbeat that cannot reach the backend is not a reason to stop
     // capturing -- the queue is what capture is for. It is a reason to say so.
-    await state.setLastError(error instanceof ApiError ? error.message : String(error));
+    await state.setLastError(
+      error instanceof ApiError ? error.message : String(error),
+    );
   }
   // A watch created in the console this morning reaches the browser here. The
   // heartbeat is already the tick that asks what changed, and a mail rule is
@@ -2165,12 +3351,45 @@ async function settle() {
   return status();
 }
 
+/** The icon, which has four characters to say the most important true thing.
+ *
+ * Two facts want it. Recording is one the operator cannot discover any other
+ * way and may want to stop this second; requests waiting is one they can find
+ * by opening the panel, and which loses nothing by being found a minute later.
+ * So recording wins the badge, always, and a count never takes it -- a badge
+ * that flipped between `REC` and `3` would be a badge that says neither
+ * reliably, which is the whole reason this rule is written down rather than
+ * decided twice.
+ *
+ * The count is never invisible, though: it goes in the title either way, which
+ * is what a hover and every screen reader read off an icon.
+ */
 async function badge() {
   const allowed = await capturing();
-  await chrome.action.setBadgeText({ text: allowed.on ? "REC" : "" });
-  await chrome.action.setBadgeBackgroundColor({ color: allowed.on ? "#b91c1c" : "#6b7280" });
+  // Every request still unanswered, not only the ones that have gone quiet.
+  // The icon is read by somebody who is NOT looking at the panel, so the
+  // question it answers is "is there work waiting for me" -- and a mail that
+  // arrived ten minutes ago is as much work as one from yesterday. Which of
+  // them is today's news and which is in the banner is the panel's business,
+  // not the icon's.
+  const waiting = (await state.nudges()).filter(
+    (nudge) => nudge.state === "open" && nudge.keeps,
+  ).length;
+  const counted = waiting
+    ? `${waiting} request${waiting === 1 ? "" : "s"} waiting`
+    : "";
+  await chrome.action.setBadgeText({
+    text: allowed.on ? "REC" : waiting ? String(Math.min(waiting, 99)) : "",
+  });
+  await chrome.action.setBadgeBackgroundColor({
+    // `--warn`, the state colour the waiting banner uses, and never the accent:
+    // `brand.css` says state colours are not the accent, and an icon is the
+    // one place in this product where that rule is hardest to come back from.
+    color: allowed.on ? "#b91c1c" : waiting ? "#b45309" : "#6b7280",
+  });
+  const how = allowed.on ? "observing" : `not observing (${allowed.because})`;
   await chrome.action.setTitle({
-    title: allowed.on ? "AI-SRO — observing" : `AI-SRO — not observing (${allowed.because})`,
+    title: `AI-SRO — ${how}${counted ? ` · ${counted}` : ""}`,
   });
 }
 
@@ -2193,18 +3412,17 @@ async function status(sender = null) {
     serverPaused,
     lastBeat,
     lastError,
-  ] =
-    await Promise.all([
-      capturing(),
-      state.deviceId(),
-      state.policy(),
-      state.apiUrl(),
-      state.consoleUrl(),
-      state.paused(),
-      state.serverPaused(),
-      state.lastBeat(),
-      state.lastError(),
-    ]);
+  ] = await Promise.all([
+    capturing(),
+    state.deviceId(),
+    state.policy(),
+    state.apiUrl(),
+    state.consoleUrl(),
+    state.paused(),
+    state.serverPaused(),
+    state.lastBeat(),
+    state.lastError(),
+  ]);
   // Not awaited: the panel polls this every two seconds and a card about a run
   // that already finished should not make every one of those polls wait on a
   // network round trip. See `checkFinishing()` -- also run off the heartbeat
@@ -2238,6 +3456,10 @@ async function status(sender = null) {
     // that is recording everything, and the operator finds out at the end.
     queued: await queue.count(),
     teaching: await state.teaching(),
+    // A question this operator has not answered, off their own conversation.
+    // Drawn in the column that cannot be swept, because that is the whole
+    // point: the run that asked it is long gone and the question is not.
+    question: await state.question(),
     // Which process is driving it, put beside what `commands.js` reports.
     // `latest` there holds the source but `performing()` does not carry it,
     // and this is the same mirrored record the `abort-run` case and
@@ -2252,12 +3474,17 @@ async function status(sender = null) {
       // steps come from its skill, and a picture left over from the previous
       // rig run would draw somebody else's writes under this one's title.
       run: rigRunShown?.id === shown.runId ? rigRunShown : undefined,
+      // What the run says it is doing when it has no step to show for it --
+      // reading the mailbox for the values nobody typed. Off the row rather
+      // than mirrored here: the browser cannot know it, and "Step 0" is what
+      // the card said instead for three and a half minutes.
+      doing: rigRunShown?.id === shown.runId ? rigRunShown?.doing || "" : "",
     },
     // What the last run this browser finished made, and how to take it back --
     // held long past this run itself, unlike `performing` above, because an
     // operator coming back to look is what this is measured against rather
     // than the run going quiet. See `state.js`'s `finishedRun` for why an hour.
-    finished: await finishedRun(),
+    finished: await freshlyFinished(),
     deviceId,
     policy,
     apiUrl,
@@ -2278,6 +3505,22 @@ async function status(sender = null) {
     // The mails this browser recognised and nobody has answered yet. Held
     // here and nowhere else -- the panel is the same browser that read them.
     offers: await state.offers(),
+    // What this browser is waiting on from a mailbox, and whether it is
+    // reading one at this instant.
+    //
+    // A mail went out over the operator's name and the answer arrives by a
+    // background poll they cannot see. What that looked like was a sentence --
+    // "I will carry on when they reply" -- and then, for as long as it took,
+    // a panel doing nothing. This is the same fact said continuously: who is
+    // being waited on, when the mailbox was last read, and whether it is
+    // being read now.
+    mail: fromPage
+      ? undefined
+      : {
+          awaiting: await state.awaitingMail(),
+          looking: readingTheMail !== null,
+          lookedAt: (await state.mailLooked())?.at || 0,
+        },
     // And the rules that almost fired. Only for the panel, like the answer
     // below: the page-side pill has no room for it, and a rule that misses in
     // silence is the failure an operator cannot see.
@@ -2328,7 +3571,9 @@ async function waitingOnSomebody() {
   // card grows a field the backend has to learn to send.
   const rules = await state.arrivals();
   const open = new Set(
-    (await chrome.tabs.query({})).map((tab) => rulePage(tab.url || "")).filter(Boolean),
+    (await chrome.tabs.query({}))
+      .map((tab) => rulePage(tab.url || ""))
+      .filter(Boolean),
   );
   return (cards || []).map((card) => {
     const page = rules.find((rule) => rule.id === card.trigger_id)?.page || "";
@@ -2413,7 +3658,11 @@ async function pollRigRun() {
     // is then structurally unable to draw the one control the run is waiting
     // on. Asking anyway costs one 404 for a run that is not a workflow run,
     // which the catch below already handles.
-    if (active.source && active.source !== "rig" && rigRunShown?.id !== active.runId) {
+    if (
+      active.source &&
+      active.source !== "rig" &&
+      rigRunShown?.id !== active.runId
+    ) {
       // Still worth asking once. What is not worth doing is asking every two
       // seconds forever about an id that is not a workflow run at all, so a
       // miss is remembered.
@@ -2437,7 +3686,10 @@ async function pollRigRun() {
       // Said out loud, where this used to swallow everything. A panel drawing
       // a run with no steps because the ask failed looks exactly like a run
       // that has no steps, and the operator has nothing to go on.
-      else await state.setLastError(`the run this browser is driving could not be read: ${error}`);
+      else
+        await state.setLastError(
+          `the run this browser is driving could not be read: ${error}`,
+        );
     }
     // Only a successful answer saying the run has ended stops the timer. A
     // failed ask does not: a rig that is briefly unreachable while a run is

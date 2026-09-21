@@ -43,7 +43,7 @@ KINDS = frozenset({"ui.perform", "http.send", "navigate"})
 """What a PLAN may name. The model chooses one of these three."""
 
 COMMAND_KINDS = KINDS | frozenset(
-    {"ui.perform_at", "ui.url", "screenshot", "abort", "tab.open", "calls.since"}
+    {"ui.perform_at", "ui.url", "screenshot", "abort", "tab.open", "calls.since", "sign_in"}
 )
 """Everything the runner may put on the wire, plan or not.
 
@@ -53,10 +53,14 @@ before and after a step (`ui.url`, `screenshot`), the one it asks for the
 calls the page made while it was being driven (`calls.since`, which is how a
 step performed in a browser can reach the verifier's first rung at all), the
 one it sends when a run
-is stopped (`abort`), and the one a LOOKUP sends when the system it has to
-read is one nobody has open (`tab.open`). Deliberately not in `KINDS`: opening
-a tab is never a step of a job, it is what has to be true before a read can
-happen at all.
+is stopped (`abort`), the one a LOOKUP sends when the system it has to
+read is one nobody has open (`tab.open`), and the one a run sends when the page
+in front of it turns out to be a login (`sign_in`). Deliberately not in
+`KINDS`: opening a tab is never a step of a job, it is what has to be true
+before a read can happen at all -- and signing in is never a step of a job
+either. A model that could CHOOSE to sign in would be a model that can decide
+to put a credential on a page, and what decides that here is a page with a
+password box on it and a vault with something in it.
 
 Named here because the other half of this list lives in another language, in
 another repository directory, as a `switch` in `commands.js` -- and a kind that
@@ -134,6 +138,103 @@ class Look:
     # acts in. Zero when the browser gave no picture.
     width: int = 0
     height: int = 0
+    refused: str = ""
+    """Why there is no picture, in the browser's own words.
+
+    A rung that cannot see says "no screen to look at", and until this that was
+    the whole of what a run recorded about it -- measured on the deployment,
+    2026-09-17 at 15:20, where two runs in a row gave up on the same step with
+    that sentence and nothing anywhere said whether the tab was refused, was
+    not the visible one, or answered with a picture of zero size. Three
+    different faults with three different fixes, told apart by nothing.
+
+    Empty where a picture arrived, and where there was never one asked for."""
+
+    elsewhere: str = ""
+    """Where the browser actually is, when it is not on the origin at all.
+
+    A step reads the tab on the system it names, which is right for driving
+    and blinding for reading: an interruption is on ANOTHER origin by
+    definition -- a sign-in bounced to the platform's login host, a consent
+    screen, an error page a proxy served. The browser then answered nothing,
+    the look had no url, and the run said *the browser is on None* while the
+    person watched a sign-in page. Measured on the deployment 2026-09-19, run
+    `run_fdc7e7ff`.
+
+    So the browser now answers with the page in front of the person when it
+    cannot answer with the one the step wanted. `url` stays empty -- the step
+    has NOT arrived and nothing may read it as arrived -- and this says where
+    it went instead, which is what every sentence below needs to be legible.
+
+    Empty when the browser is where the step expected it, and when there was
+    no tab at all to ask about."""
+
+    elsewhere_is_ours: bool = False
+    """Whether `elsewhere` is THIS RUN's own tab, or a guess.
+
+    The browser answers with the run's pinned tab where it has one -- the page
+    this job navigated to, and the page it is about to be driven in -- and
+    otherwise with whatever tab is in front, which is the operator's other
+    window, a mailbox, a search. Both are worth REPORTING and only the first
+    is worth ACTING on, and nothing could tell them apart.
+
+    What that cost, measured on the deployment 2026-09-20, run
+    `run_b949148d`: `Log in using Azure B2C SSO` is a job whose every gesture
+    is on `blueyonderalphaus.b2clogin.com`. The live sign-in bounced to
+    Keycloak instead, and the run -- unable to read where it was -- fell back
+    to the origin its RECORDING named, asked for the b2clogin password, and
+    typed it into the Keycloak form. The page said *Invalid username or
+    password*. A credential in the wrong system's box is worse than a step
+    that fails: it spends an account's lockout budget."""
+
+    signed_out: bool = False
+    """The page in front of the browser is asking somebody to sign in.
+
+    A dead session is the commonest reason a run cannot find anything, and it
+    arrived as `control_not_found` -- no control matched, which is true and
+    says nothing about why. Somebody reading that goes looking for a broken
+    selector. Measured on the deployment 2026-09-18: a session expired, the
+    operator spent minutes signing back in, and every run in between blamed a
+    missing tab item.
+
+    A password field on the page and nothing else, which is the rule
+    `check_session` keeps server-side and keeps for the reason that matters --
+    any heuristic on WORDS fires on a warehouse screen that mentions a
+    password, and a run that stopped saying "you are signed out" in front of a
+    working screen would be worse than one that says nothing.
+
+    False wherever nothing could be asked. This is a reason to stop and it must
+    never be a reason invented by a failure to look."""
+
+    dialog: str = ""
+    """What a dialog over the page says, where there is one.
+
+    The other half of the same question, and the case this deployment's own
+    ledger already names: `Existing Carriers duplicate check is SERVER-side:
+    the form accepts the click and only then shows an in-app 'Record already
+    exists' modal.` A step that clicked Save and then found nothing is a step
+    whose answer is on the screen, in a box, in words -- and the run reported a
+    missing control.
+
+    The dialog is found by STRUCTURE, like the login: a `<dialog open>`, a
+    `role="dialog"`, or the one class name the framework these systems are
+    built with uses. What is carried back is its TEXT, which is not a heuristic
+    -- it is the evidence, and it is the whole answer to why the step did
+    nothing."""
+
+    loading: bool = False
+    """The page has not finished arriving.
+
+    The one of these a run can do something about other than stop. What a
+    half-drawn screen needs is a moment, and every rung of the ladder spent on
+    one is a model call answering a question about a page that was not there
+    yet -- then a `sight` rung photographing a spinner, and a step reporting a
+    missing control that appeared a second after it gave up.
+
+    `document.readyState`, and a visible progress bar or panel mask for the
+    case it cannot answer: a single-page application finished its document
+    minutes ago and is now fetching the screen, and `readyState` has said
+    `complete` the whole time."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -258,10 +359,27 @@ SIGHT_SCHEMA: dict[str, object] = {
         # point, and an action the browser cannot take is a step that stops.
         "action": {"type": "string", "enum": ["click", "type", "press"]},
         "value": {"type": "string", "nullable": True},
+        # WHAT the point is, which is required and so cannot be skipped.
+        #
+        # This was an optional `open_first` object, and it was skipped every
+        # time: the model wrote "it is likely under the 'Partners' menu" in
+        # `why` and left the field null, twice in a row, with the Partners tab
+        # plainly on the screen it was looking at. A model fills what a schema
+        # demands and passes over what it offers.
+        #
+        # So there is one point and one question about it. `the_control` is
+        # the step itself; `what_reveals_it` is a menu to open first, clicked
+        # instead of the step, after which this rung is asked again with a new
+        # picture; `nothing` is nowhere to point, which is the honest refusal
+        # this rung must always be able to give.
+        "points_at": {
+            "type": "string",
+            "enum": ["the_control", "what_reveals_it", "what_is_in_the_way", "nothing"],
+        },
         "why": {"type": "string"},
     },
-    "required": ["found", "x", "y", "action", "why"],
-    "propertyOrdering": ["found", "x", "y", "action", "value", "why"],
+    "required": ["found", "x", "y", "action", "points_at", "why"],
+    "propertyOrdering": ["found", "x", "y", "action", "value", "points_at", "why"],
 }
 
 SIGHT_ACTIONS = frozenset({"click", "type", "press"})
@@ -275,6 +393,32 @@ was demonstrated, and the values this run was given.
 Find the control for THIS step on the screen. Answer its centre in CSS pixels
 of the viewport whose size you are given -- the picture is that viewport --
 and the action to take there. For type, give the value from this run's values.
-If the control is not on this screen, answer found: false and say why. Never
-guess a point: a click on the wrong control in a warehouse system is worse
-than a step that stops and asks."""
+
+Every answer carries one point and says what it points at.
+
+ - the_control: the control for this step. found: true, and the action to take.
+ - what_reveals_it: the control is not on this screen, and THIS is the thing
+   that would reveal it -- the closed menu it lives under, a collapsed section,
+   a tab that is not the open one. It will be clicked and you will be asked
+   again with a new picture. found: false.
+ - what_is_in_the_way: something is covering the screen and has to be dismissed
+   before anything under it can be used -- a dialog, an alert, a notice with an
+   OK or a Close. Point at the button that dismisses it. Warehouse systems put
+   one of these in front of a page for things that are not errors at all: a
+   dialog headed "Exception Occurred" whose text is "Processing completed
+   without exception" is one this system has met. found: false.
+ - nothing: the control is not here and nothing on this screen leads to it.
+   found: false, and the point is ignored.
+
+Dismissing a dialog is not doing the step, and neither is opening a menu: in
+both cases you will be asked again with a new picture, and the step is what you
+answer then.
+
+Saying "it is probably under the Partners menu" and pointing at nothing is an
+answer nobody can act on. If you can name the menu you can point at it, and
+pointing is what moves the job. Only point at what you can SEE: opening a menu
+is not doing the step, and a click on something else to find out what happens
+is exactly what this rung must not do.
+
+Never guess a point: a click on the wrong control in a warehouse system is
+worse than a step that stops and asks."""

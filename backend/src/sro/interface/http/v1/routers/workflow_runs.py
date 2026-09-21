@@ -37,6 +37,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
+from sro.application.chat.from_the_mail import SERVER
+from sro.domain.observation.attempts import DONE, NOTHING
 from sro.domain.shared.identifiers import DeviceId
 from sro.interface.http.asking import AskingDeviceDep
 from sro.interface.http.deps import ContainerDep, ContextDep
@@ -128,10 +130,27 @@ async def start_workflow_run(
         items=body.items,
         live=body.live,
         allow_focus=body.allow_focus,
+        watched=body.watched,
         from_step=body.from_step,
         matched=body.matched,
+        conversation=(SERVER, body.mail_thread),
+        undoes_run=body.undoes_run,
     )
     container.pursuits.spawn(starter.perform(ctx, claimed))
+    # The press itself, before anything the run does. What the run then makes
+    # of it is the run's own row; this is the record that somebody asked --
+    # and `undoes_run` is what makes an undo legible as the press it is rather
+    # than as another run of a delete.
+    await container.record_attempt().execute(
+        ctx,
+        asked_for="take back a run" if body.undoes_run else "press a job",
+        came_of=DONE,
+        about={
+            "run": claimed.id,
+            "workflow": body.workflow_id,
+            "device": body.device_id,
+        },
+    )
     return WorkflowRunModel.of(claimed)
 
 
@@ -226,7 +245,11 @@ async def abort_workflow_run(
     `CannotStop` already carries -- it subclasses `Conflict`, so `errors` maps
     it through the MRO walk without a table entry of its own.
     """
-    return WorkflowRunModel.of(await container.abort_workflow_run().execute(ctx, run_id=run_id))
+    stopped = await container.abort_workflow_run().execute(ctx, run_id=run_id)
+    await container.record_attempt().execute(
+        ctx, asked_for="stop a run", came_of=DONE, about={"run": run_id}
+    )
+    return WorkflowRunModel.of(stopped)
 
 
 @router.post("/workflow-runs/{run_id}/wrong", status_code=status.HTTP_202_ACCEPTED)
@@ -259,6 +282,15 @@ async def called_wrong(
     """
     run = await container.call_workflow_run_wrong().execute(
         ctx, run_id=run_id, because=body.because
+    )
+    # The operator's own verdict, in their own words. Not a refusal by this
+    # system: they asked to say it was wrong, and they said it.
+    await container.record_attempt().execute(
+        ctx,
+        asked_for="call a run's result wrong",
+        came_of=DONE,
+        why=body.because or "",
+        about={"run": run_id, "workflow": run.workflow_id},
     )
     return WorkflowRunModel.of(run)
 
@@ -313,5 +345,15 @@ async def approve_workflow_step(
     """
     order, first, resumed = await container.approve_workflow_step().execute(
         ctx, run_id=run_id, asking=asking
+    )
+    # `resumed` is whether the tap actually released anything. A second tap on
+    # a card that has already gone through answers 200 and moves nothing --
+    # which, from the person tapping it, is a button that did nothing.
+    await container.record_attempt().execute(
+        ctx,
+        asked_for="approve a step",
+        came_of=DONE if resumed else NOTHING,
+        why="" if resumed else "that step had already been let out",
+        about={"run": run_id, "device": asking.value if asking else ""},
     )
     return WorkflowStepApprovedModel(order=order, first=first, resumed=resumed)

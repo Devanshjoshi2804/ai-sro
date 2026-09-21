@@ -37,6 +37,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from sro.application.context import RequestContext
+from sro.application.execution.answer import Answer, read_answer
 from sro.application.ports.channel import Channel, Reply
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.lookup.address import Address, address_for
@@ -53,12 +54,44 @@ that would not answer, a header with no live source, a refused focus -- is a
 fact about the attempt, and retrying it would just cost the same time twice."""
 
 K_DEADLINE_S = 45.0
-"""How long one lookup may take.
+"""How long one lookup may take, when the lookup is what somebody is waiting on.
 
 Longer than a run's step, which has an operator watching it: a lookup is
 answered by whichever system is slowest, and a question that comes back
 incomplete because a warehouse took twelve seconds is a worse outcome than one
-that takes twelve seconds."""
+that takes twelve seconds.
+
+This is the budget for `/v1/lookups` and `/v1/ask`, where the answer IS the
+request and nothing else is held up behind it."""
+
+K_WHILE_TALKING = 10.0
+"""And how long one may take when a CONVERSATION is waiting on it.
+
+A reply in a panel is not a lookup somebody is watching a spinner for. It is a
+turn in a conversation, and a turn that takes a minute has stopped being one.
+
+Measured on the deployment 2026-09-21, request `req_10d3ff9b`:
+
+    19:23:23  the sentence arrives
+    19:23:38  device disconnected
+    19:23:39  device connected
+    19:24:19  device disconnected
+    19:24:30  reply -- 67459ms
+
+The browser's socket dropped twice inside one request. One command waited out
+the full 45 seconds, the model calls either side cost the rest, and the person
+who typed a question sat in front of a panel that said nothing for over a
+minute. Before the conversation asked the lookup door at all, the same door
+answered in 7691ms.
+
+Ten seconds, because that is roughly twice what the whole of `/v1/ask` costs
+end to end -- two model calls and a warehouse round trip measured at 5913ms on
+the same deployment -- so a browser that is answering at all answers inside
+it, and one that is not is not worth a conversation waiting on.
+
+A lookup that runs out says so, and the thread stays usable. That is the
+trade: a question answered late is worth less than a conversation that
+kept going."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +102,29 @@ class Looked:
     ok: bool
     url: str = ""
     answer: Mapping[str, object] = field(default_factory=dict)
+    read: Answer | None = None
+    """The records in it, READ, rather than the body they arrived in.
+
+    Every other read in this system goes through `read_answer`: the taught
+    skill's own calls, a derived read, the capability probe. The lookup plane
+    was the one that did not -- it handed the raw body on and left whoever
+    drew it to parse JSON, pick columns and count rows.
+
+    So each surface guessed, and the panel guessed badly. Measured on the
+    deployment 2026-09-21: asked "is there a customer type called KKYT", it
+    drew `URNFORMAT | ABSOLUTEGROUP | ALLOCATIONSEARCHPATH` -- the first six
+    KEYS of a payload that alphabetises -- as five columns of em dashes,
+    beside a warehouse screen showing `Customer Type` and `Description`.
+
+    `answer.py` had already solved every part of that, for the plane that uses
+    it: a column earns its place by carrying a value, the ranking puts code,
+    name and description first, `self_uri` is dropped as a link, two columns
+    holding the same value in every row are one, the count is the system's own
+    total rather than the page length, and `sentence()` says it in a line.
+
+    None where there are no records to speak of -- a page of HTML, one scalar,
+    a screen's photograph. Those keep `answer` and are drawn from it."""
+
     detail: str = ""
     """Why not, when not. Kept in the extension's own words -- `no_tab_for_origin`
     is a different problem from `unreachable`, and flattening them to "failed"
@@ -99,7 +155,12 @@ class RunLookups:
         plan: Plan,
         device_id: DeviceId | None = None,
         allow_focus: bool = False,
+        within: float = K_DEADLINE_S,
     ) -> Answers:
+        """`within` is the caller's budget, because the callers have different
+        ones: a lookup somebody asked for may take as long as the slowest
+        warehouse, and a lookup inside a conversation turn may not. See
+        `K_WHILE_TALKING`."""
         if not plan.lookups:
             return Answers(plan=plan)
 
@@ -133,7 +194,11 @@ class RunLookups:
                     )
                 )
                 continue
-            looked.append(await self._one(ctx, lookup, address, device, allow_focus=allow_focus))
+            looked.append(
+                await self._one(
+                    ctx, lookup, address, device, allow_focus=allow_focus, within=within
+                )
+            )
         return Answers(plan=plan, looked=tuple(looked))
 
     async def _one(
@@ -144,12 +209,13 @@ class RunLookups:
         device: DeviceId,
         *,
         allow_focus: bool,
+        within: float = K_DEADLINE_S,
     ) -> Looked:
         if lookup.how == "call":
-            reply = await self._send(ctx, device, "http.send", _call_payload(address))
+            reply = await self._send(ctx, device, "http.send", _call_payload(address), within)
             if _shut(reply):
                 reply = await self._reopened(
-                    ctx, device, address, "http.send", _call_payload(address)
+                    ctx, device, address, "http.send", _call_payload(address), within
                 )
             return _looked(lookup, address, reply)
 
@@ -162,17 +228,17 @@ class RunLookups:
         # deciding whether two urls are one SYSTEM, not for finding a tab.
         origin = system_of(address.url)
         going = {"url": address.url, "origin": origin, "allow_focus": allow_focus}
-        moved = await self._send(ctx, device, "navigate", going)
+        moved = await self._send(ctx, device, "navigate", going, within)
         if _shut(moved):
             # The tab `tab.open` makes is already ON the address, so the
             # navigate that follows is a no-op that confirms it -- cheaper than
             # a second code path, and it keeps the failure shape identical
             # whether the operator had the system open or not.
-            moved = await self._reopened(ctx, device, address, "navigate", going)
+            moved = await self._reopened(ctx, device, address, "navigate", going, within)
         if not moved.ok:
             return _looked(lookup, address, moved)
         shot = await self._send(
-            ctx, device, "screenshot", {"origin": origin, "allow_focus": allow_focus}
+            ctx, device, "screenshot", {"origin": origin, "allow_focus": allow_focus}, within
         )
         return _looked(lookup, address, shot)
 
@@ -183,22 +249,28 @@ class RunLookups:
         address: Address,
         kind: str,
         payload: Mapping[str, object],
+        within: float = K_DEADLINE_S,
     ) -> Reply:
         """Open the system this command could not find, and ask it once more.
 
         Once. A second failure is a system that is open and still would not
         answer, which is a different problem and not one another tab fixes.
         """
-        opened = await self._send(ctx, device, "tab.open", {"url": address.url})
+        opened = await self._send(ctx, device, "tab.open", {"url": address.url}, within)
         if not opened.ok:
             return opened
-        return await self._send(ctx, device, kind, payload)
+        return await self._send(ctx, device, kind, payload, within)
 
     async def _send(
-        self, ctx: RequestContext, device: DeviceId, kind: str, payload: Mapping[str, object]
+        self,
+        ctx: RequestContext,
+        device: DeviceId,
+        kind: str,
+        payload: Mapping[str, object],
+        within: float = K_DEADLINE_S,
     ) -> Reply:
         return await self._channel.send(
-            ctx.tenant_id, device, kind=kind, payload=payload, deadline_s=K_DEADLINE_S
+            ctx.tenant_id, device, kind=kind, payload=payload, deadline_s=within
         )
 
 
@@ -214,11 +286,17 @@ def _call_payload(address: Address) -> dict[str, object]:
 
 
 def _looked(lookup: Lookup, address: Address, reply: Reply) -> Looked:
+    result = reply.result if reply.ok else {}
+    body = result.get("body") if isinstance(result, Mapping) else None
     return Looked(
         lookup=lookup,
         ok=reply.ok,
         url=address.url,
-        answer=reply.result if reply.ok else {},
+        answer=result,
+        # `url` so the counting is honest: `limit=50` in the query and `50` in
+        # the envelope are the same fact about what we ASKED for, and a total
+        # that merely echoes our own paging is not a total.
+        read=read_answer(body, url=address.url) if isinstance(body, str) else None,
         detail="" if reply.ok else reply.detail,
     )
 

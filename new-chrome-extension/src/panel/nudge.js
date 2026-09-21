@@ -30,6 +30,25 @@
  */
 export const LIFETIME_MS = 90_000;
 
+/** When an offer that came from a mail stops asking QUIETLY: the end of their day.
+ *
+ * The ninety seconds above are the arrival rule, and they are right for it --
+ * it fires the moment somebody lands on the page, so the work is either
+ * happening now or it is not. A mail is the opposite: it arrives while they
+ * are on the floor, and a card that expired before they next looked at the
+ * panel would be a request nobody ever sees.
+ *
+ * A day rather than for ever in the sense that matters: after it the card stops
+ * being today's news and becomes one of the ones they missed -- counted,
+ * still there, still pressable. A request nobody has answered has not stopped
+ * being a request, and a panel that swept it would be one that loses work.
+ */
+export function endOfDay(now) {
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  return midnight.getTime();
+}
+
 /** Host and path, no query -- the same shape the miner records `starts_on` in.
  *
  * Without the query, because that is where a warehouse system puts session ids
@@ -78,6 +97,23 @@ export function shouldFire({ url, visit, candidates, nudges, muted, performing, 
 export function fire(candidate, now, { tabId = null, visit = "" } = {}) {
   return {
     id: `n_${now}_${candidate.id}`,
+    // When this one stops asking, where the ninety seconds are the wrong
+    // clock, and whether walking off the page ends it. Both are about an
+    // offer that did NOT come from an arrival: a mail arrives while the
+    // operator is on the floor, so it was never tied to a page they were
+    // standing on and there is no page for them to leave. Absent -- every
+    // arrival nudge -- and the rules below are exactly what they were.
+    expiresAt: candidate.expires_at || null,
+    // An offer that is KEPT rather than swept. A mail is not about where the
+    // operator is standing: it arrived while they were on the floor, so
+    // leaving a page says nothing about it, and running out of time does not
+    // mean the request went away -- it means nobody has looked yet. So it goes
+    // quiet instead of ending: still open, still pressable, and flagged as one
+    // they missed so the panel can say how many are waiting.
+    //
+    // Absent -- every arrival nudge -- and the two rules below are exactly
+    // what they were: ninety seconds, or they navigate away.
+    keeps: Boolean(candidate.keeps),
     at: new Date(now).toISOString(),
     candidateId: candidate.id,
     skillId: candidate.skill_id || null,
@@ -95,7 +131,27 @@ export function fire(candidate, now, { tabId = null, visit = "" } = {}) {
     k: candidate.k || 0,
     values: candidate.values || {},
     missing: candidate.missing || [],
+    // Whether a run can go and find what nobody typed. The deployment's
+    // answer, not this browser's: the connector is a deployment's and a panel
+    // cannot know whether this one has a mailbox it may read.
+    canFind: Boolean(candidate.can_find),
+    // What this job's own boxes will not hold, by name, and what they hold
+    // instead. Learnt by an earlier run that typed a value and watched the
+    // browser silently keep a prefix of it, so the card can say so BEFORE the
+    // press rather than the run saying so in the middle of a form.
+    // The mail conversation this offer was read out of, where it was read out
+    // of one. Sent back when the job starts, so a run that comes up short can
+    // be found again by a reply to that mail.
+    mailThread: candidate.thread || "",
+    // What the request was called, so a conversation about it can name which.
+    mailSubject: candidate.subject || "",
+    tooLong: candidate.too_long || {},
     parameters: candidate.parameters || [],
+    // What pressing this would WRITE, read off the job's own evidence: one
+    // entry per writing step, `{does, record, on}`. The card names the values
+    // it holds and what it cannot take; without this it never names the act,
+    // and "yes" is a press against something nobody described.
+    writes: candidate.writes || [],
   };
 }
 
@@ -126,11 +182,43 @@ export function onCall(nudges, { url, method }, now) {
  * walked away, which ended every open nudge on the next beat and reported the
  * lot as expired while they were still standing on the page.
  */
+export const KEPT_MS = 24 * 60 * 60 * 1000;
+/** How long a request nobody answered stays on the panel.
+
+ * A day, measured from when it arrived rather than from the end of that day:
+ * a mail at 23:50 would otherwise get ten minutes. Long enough that anything
+ * arriving while somebody was on the floor is still there when they come back,
+ * short enough that a Monday morning panel is about Monday.
+ */
+
 export function sweep(nudges, { url, now, tabId }) {
   const here = url === null || url === undefined ? null : page(url);
   return nudges.map((nudge) => {
     if (nudge.state !== "open") return nudge;
-    const old = now - Date.parse(nudge.at) >= LIFETIME_MS;
+    const old = nudge.expiresAt
+      ? now >= nudge.expiresAt
+      : now - Date.parse(nudge.at) >= LIFETIME_MS;
+    // Kept: it goes quiet and stays askable, for a day. The quiet is what lets
+    // the panel say "three arrived while you were away", which is the
+    // difference between a request nobody has answered and one nobody was ever
+    // shown.
+    //
+    // And then it goes. `keeps` was written to mean "a request nobody answered
+    // has not stopped being a request", which is true for an afternoon and not
+    // for a week: measured on the deployment 2026-09-18, thirteen cards stacked
+    // in one panel, six of them from the day before, and the only thing between
+    // an operator and an unbounded column was pressing No thanks on each.
+    //
+    // Nobody acts on Tuesday's card on Thursday. The request is still in the
+    // mail if it mattered, and the mail is where somebody would go looking --
+    // so what a stale card costs is the panel's credibility, and what letting
+    // it go costs is nothing.
+    if (nudge.keeps) {
+      if (!old) return nudge;
+      const dead = now - Date.parse(nudge.at) >= KEPT_MS;
+      if (dead) return { ...nudge, state: "expired", endedAt: now };
+      return nudge.missed ? nudge : { ...nudge, missed: true };
+    }
     // Leaving the page is a fact about one tab. A navigation in tab B says
     // nothing about the offer open in tab A, so when the caller names the tab
     // only that tab's nudges can have left; a caller without one (the older

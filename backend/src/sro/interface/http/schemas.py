@@ -7,7 +7,7 @@ behind them stay free to change.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict
 from datetime import datetime
 from typing import Annotated, Any
@@ -17,11 +17,14 @@ from pydantic import BaseModel, Field, StrictInt, StringConstraints
 from sro.application.analytics.audit import Audit, AuditedRun
 from sro.application.analytics.summary import Summary
 from sro.application.capture.devices import DeviceLine
+from sro.application.chat.from_the_mail import LookedInTheMail
 from sro.application.chat.understand import Understood
+from sro.application.execution.effects import can_try_again
 from sro.application.execution.pursuits import PursuitProgress
 from sro.application.execution.reversal import Reversal
 from sro.application.intent.match import Candidate
 from sro.application.intent.resolve import Resolution
+from sro.application.lookup.answer import as_seen
 from sro.application.lookup.plan_lookups import Planned
 from sro.application.lookup.run_lookups import Answers, Looked
 from sro.application.observation.mining_pass import MineResult
@@ -30,9 +33,11 @@ from sro.application.observation.read_shots import PlayableShot
 from sro.application.skill.read_workflows import CitedEvidence, KnownWorkflow
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread
+from sro.domain.execution.learned_step import Taught
 from sro.domain.execution.run import Medium, Run, StepOutcome
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.lookup.plan import Asked, Lookup
+from sro.domain.observation.attempts import Attempt
 from sro.domain.observation.batch import CaptureMode, RejectedEvent
 from sro.domain.observation.candidate import (
     Episode,
@@ -1550,11 +1555,40 @@ class RegisteredDeviceResponse(BaseModel):
     policy_version: int
 
 
+K_SAID_LINES = 50
+"""How many lines one beat may carry. A beat a minute and fifty lines is more
+than a busy browser produces; a browser that produces more is one whose loudest
+lines are the ones worth having."""
+
+K_SAID_CHARS = 300
+"""How long one of them may be."""
+
+
 class HeartbeatRequest(BaseModel):
     queued_events: int = 0
     queued_bytes: int = 0
     policy_version: int | None = None
     """What the device holds. The policy comes back only when this is behind."""
+
+    said: list[str] = Field(default_factory=list, max_length=K_SAID_LINES)
+    """What the browser decided since the last beat, in its own words.
+
+    The extension had no way to say anything. `run_workflow` narrates every
+    rung it climbs and the deployment's log reads like a transcript; the
+    browser half of the same run was a black box, and the only place its
+    reasoning existed was a service worker console nobody can reach remotely
+    -- not from a server, not from another machine, and not by the person
+    debugging at two in the morning who has already been asked twice.
+
+    Measured over 2026-09-17: four consecutive faults were found from the
+    backend log within one run each, and the one fault that lived in the
+    extension took four runs and was still not found.
+
+    Lines, not events: this is for reading, and a schema would make it a
+    protocol nobody can add a sentence to. Bounded hard on both counts because
+    a browser is not a trusted writer -- a loop in the extension must not be
+    able to fill a disk.
+    """
 
 
 class HeartbeatResponse(BaseModel):
@@ -1667,6 +1701,20 @@ class ShapesResponse(BaseModel):
     the same fields here is the copy that goes stale the first time the domain
     gains one.
     """
+
+    can_find: bool = False
+    """Whether a run of one of these can go and find a value nobody typed.
+
+    Here, on the response rather than on each shape, because it is a fact about
+    the DEPLOYMENT and not about a job: the same mailbox and the same model
+    serve every one of them.
+
+    The browser needs it to draw an offer honestly. A card built from a
+    sentence already says "I will look in your mail for the rest" -- that
+    answer came back from the chat door, which knows. A card built from a
+    PREFIX MATCH is built in the browser out of shapes, and without this it
+    demanded every missing value and left its own button disabled: the same
+    job, offered two ways, disagreeing about whether it needs you to type."""
 
 
 class RecordOfferRequest(BaseModel):
@@ -1876,6 +1924,34 @@ class AuditChatModel(BaseModel):
         )
 
 
+class AuditAttemptModel(BaseModel):
+    """Something somebody asked for, and what came of it.
+
+    The four models beside this one are state that already existed; this one is
+    the press that started nothing, which had no row anywhere until it did.
+    """
+
+    id: str
+    at: str
+    asked_for: str
+    came_of: str
+    principal: str
+    why: str
+    about: dict[str, str]
+
+    @classmethod
+    def of(cls, attempt: Attempt) -> AuditAttemptModel:
+        return cls(
+            id=attempt.id,
+            at=attempt.at,
+            asked_for=attempt.asked_for,
+            came_of=attempt.came_of,
+            principal=attempt.principal,
+            why=attempt.why,
+            about=dict(attempt.about),
+        )
+
+
 class AuditResponse(BaseModel):
     since: str
     """The bound the four reads actually used, normalised to UTC.
@@ -1890,6 +1966,9 @@ class AuditResponse(BaseModel):
     offers: list[AuditOfferModel]
     devices: list[AuditDeviceModel]
     chats: list[AuditChatModel]
+    attempts: list[AuditAttemptModel] = Field(default_factory=list)
+    """Newest first, and defaulted: a console written against the other four
+    goes on working."""
 
     @classmethod
     def of(cls, audit: Audit) -> AuditResponse:
@@ -1899,6 +1978,7 @@ class AuditResponse(BaseModel):
             offers=[AuditOfferModel.of(offer) for offer in audit.offers],
             devices=[AuditDeviceModel.of(device) for device in audit.devices],
             chats=[AuditChatModel.of(chat) for chat in audit.chats],
+            attempts=[AuditAttemptModel.of(one) for one in audit.attempts],
         )
 
 
@@ -2532,9 +2612,22 @@ class WatchMatchModel(BaseModel):
     """
 
     trigger_id: str
-    skill_id: str
+    skill_id: str | None = None
+    workflow_id: str | None = None
+    """One of the two, because a watch may name a skill or a mined job and the
+    press goes to a different door for each."""
+
+    title: str = ""
+    """What the thing is called, so a card can say what matched without a
+    second call to look the name up."""
+
     values: dict[str, str]
     missing: list[str]
+    can_find: bool = False
+    """Whether a missing value stops the press. A deployment that can read the
+    operator's mailbox answers one by going and looking, so the card offers the
+    run and says what it will look for; one that cannot keeps the old rule and
+    says what it needs."""
 
 
 class EpisodeModel(BaseModel):
@@ -2978,16 +3071,6 @@ class AskedModel(BaseModel):
         )
 
 
-K_ANSWER_CHARS = 64 * 1024
-"""How much of one system's answer comes back through this door.
-
-The extension already caps a response body at 1MB. This is smaller because
-four systems answering at that size is a four-megabyte response to a question
-somebody typed, and the part that answers "which suppliers are at SG" is at
-the front. `truncated` says when the rest was left behind, because an answer
-silently cut in half is a wrong answer with no sign on it."""
-
-
 class LookedModel(BaseModel):
     """What one lookup came back with, or why it did not."""
 
@@ -2999,6 +3082,16 @@ class LookedModel(BaseModel):
     detail: str
     status: int | None = None
     body: str | None = None
+    """The raw body, and only for an answer that is NOT records: a page of
+    HTML, one scalar, a screen. Records cross as `read`, because every surface
+    that was handed a body parsed it for itself and each of them guessed."""
+
+    read: dict[str, object] | None = None
+    """The records, READ -- see `application.lookup.answer.as_seen`. The count the
+    system itself stated, the columns that carry a value ranked with code,
+    name and description first, the records projected onto them, and the
+    sentence that says it in a line."""
+
     truncated: bool = False
     """The picture a screen lookup takes is deliberately NOT here. It is
     hundreds of kilobytes of base64 per screen, and nothing on this side of the
@@ -3009,11 +3102,21 @@ class LookedModel(BaseModel):
     seen: dict[str, object] = Field(default_factory=dict)
 
     @classmethod
-    def of(cls, looked: Looked) -> LookedModel:
+    def of(cls, looked: Looked, question: str = "") -> LookedModel:
+        """`question` so the answer can answer it. A lookup comes back with a
+        collection and the question was usually about one thing in it; which
+        records it NAMED is decided in `application.lookup.naming`, once, rather
+        than by each surface that draws one."""
+        seen = as_seen(
+            system=looked.lookup.system,
+            target=looked.lookup.target,
+            ok=looked.ok,
+            detail=looked.detail,
+            answer=looked.answer,
+            read=looked.read,
+            question=question,
+        )
         answer = dict(looked.answer)
-        body = answer.get("body")
-        text = body if isinstance(body, str) else None
-        status = answer.get("status")
         return cls(
             system=looked.lookup.system,
             how=looked.lookup.how,
@@ -3021,9 +3124,10 @@ class LookedModel(BaseModel):
             url=looked.url,
             ok=looked.ok,
             detail=looked.detail,
-            status=status if isinstance(status, int) else None,
-            body=text[:K_ANSWER_CHARS] if text is not None else None,
-            truncated=bool(text is not None and len(text) > K_ANSWER_CHARS),
+            status=seen["status"],
+            body=seen["body"],
+            read=seen["read"],
+            truncated=bool(seen["truncated"]),
             seen={
                 name: value
                 for name, value in answer.items()
@@ -3065,7 +3169,13 @@ class LookupResponse(BaseModel):
             refused=planned.refused,
             asks=AskedModel.of(planned.plan.asks) if planned.plan.asks else None,
             lookups=[LookupModel.of(one) for one in planned.plan.lookups],
-            answers=[LookedModel.of(one) for one in (answers.looked if answers else ())],
+            # The question travels with the answers, because an answer to a
+            # question that named something is that thing and not the
+            # collection it was in.
+            answers=[
+                LookedModel.of(one, planned.plan.question)
+                for one in (answers.looked if answers else ())
+            ],
             error=bill.error if bill else None,
             in_tokens=bill.in_tokens if bill else 0,
             out_tokens=bill.out_tokens if bill else 0,
@@ -3252,8 +3362,35 @@ class StartWorkflowRunRequest(BaseModel):
     one thing, which is most presses, and a job with no repeat is handed none
     of them whatever arrives here."""
 
+    undoes_run: str = ""
+    """The run this one takes back, where a press on a result card started it.
+
+    The first place two jobs in this system are one piece of work. What it buys
+    is that the two can be put side by side, and that a second press can be
+    refused: an undo pressed twice is a second delete addressed to a record the
+    first one removed. Empty for every press that is not an undo."""
+
+    mail_thread: str = ""
+    """The mail conversation this request came out of, where it came out of one.
+
+    An id and nothing anybody wrote. What it buys is an address: a run that
+    comes up short can be found again by a reply to that mail, because the
+    person who knows the missing value is usually whoever sent the request and
+    they are not the one with this panel open. Empty for every press that was
+    not a mail offer, which is most of them."""
+
     live: bool = False
     allow_focus: bool = True
+
+    watched: bool = False
+    """Whether somebody is standing in front of this run.
+
+    A press in an open panel sends `true` and gets the job done in front of
+    them -- the fields fill, the button is pressed. Anything that presses
+    without a person there leaves it false and the run replays the call, which
+    is faster, deterministic and invisible. Defaults to false because the
+    callers that do not say are the ones nobody is watching: a trigger, a
+    schedule, a script."""
     from_step: StrictInt = 0
     matched: StrictInt | None = Field(default=None, ge=0)
     """How many shape entries the browser's tail matched, when a browser is
@@ -3389,6 +3526,29 @@ class WorkflowRunModel(BaseModel):
     cost_usd: float
     unpriced: bool
 
+    watched: bool = False
+    """Whether this run is being done in front of somebody: the fields filling
+    and the button pressed, rather than the call replayed."""
+
+    doing: str = ""
+    """What this run is doing when it has no step to show for it -- reading a
+    mailbox for the values nobody typed. Empty the rest of the time, which is
+    almost always."""
+
+    gathered: dict[str, dict[str, str]] = {}
+    needs: list[str] = []
+    unasked: list[str] = []
+    """Names the request asked for that this job declares no parameter for.
+    Names and never values; see `WorkflowRun.unasked`."""
+    """What it could not find a value for. The panel takes the conversation
+    from here: the question is already in the operator's thread."""
+    """Parameter -> where its value was read, for values nobody typed.
+
+    On the wire because the card showing a write a person is asked to approve
+    has to say where its values came from: a value read out of a mailbox is
+    only as good as the message it came from. Empty for a run whose values a
+    person typed."""
+
     wrong_because: str | None = None
     """What the operator said was wrong with what this run made, where anybody
     has said anything.
@@ -3403,15 +3563,50 @@ class WorkflowRunModel(BaseModel):
     exists: a job whose own evidence shows somebody deleting the records this
     one creates.
 
-    An id and never a start. What a press would have to do -- address each
-    created record by whatever the warehouse called it -- is a mapping nothing
-    here has evidence for, and a wrong mapping deletes the wrong record. Null
-    on a run still going, on one that made nothing, and on a tenant that has
-    never deleted one of these in front of the recorder, which is every tenant
-    today."""
+    An id, still, and never a start: what presses it is a person. Null on a run
+    still going, on one that made nothing, on a tenant that has never deleted
+    one of these in front of the recorder, and on a run whose record this
+    cannot name -- see `undoes_by`."""
+
+    undoes_by: dict[str, str] | None = None
+    """Which record that job would address, as the warehouse named it.
+
+    The mapping `undo` said it lacked, and the evidence arrived with `made_by`:
+    a step that created something records what the warehouse called it. One
+    record named one way or nothing -- a run that made two would need two
+    deletes, and an undo that takes back half of what a run did is worse than
+    none, because somebody presses it, sees the card go quiet, and believes the
+    warehouse is back where it started."""
+
+    try_again: bool = False
+    """Whether this run can be started again with one press.
+
+    A run stops for reasons that have nothing to do with the job: the session
+    expired, a tab was closed, the browser could not be reached. Until now that
+    was a dead end -- the offer that started it is spent, so the request sat
+    there until somebody noticed and sent the mail again. Measured on the
+    deployment 2026-09-19: a run stopped on a sign-in page and the card offered
+    a person nothing but OK.
+
+    True only where **nothing this run did may have landed**. Every step that
+    wrote either never left the browser or was refused by the warehouse --
+    `effects.may_have_landed`, the same reading that decides whether a failed
+    write costs a job its autonomy. A second press after a write that might be
+    in the warehouse is how you get two records, and no button is better than
+    that.
+
+    False on a run that held: there is nothing to try again."""
+
+    undoes_run: str | None = None
+    """The run this one takes back, where it is an undo of one.
+
+    The other end of `undo`, and on the wire for the same reason it is in the
+    row: the delete and the thing it deletes are one piece of work, and a
+    failed undo has to be readable as *run_abc is still out there* rather than
+    as a job that failed on its own. Null on every run that is not an undo."""
 
     @classmethod
-    def of(cls, run: WorkflowRun, undo: str | None = None) -> WorkflowRunModel:
+    def of(cls, run: WorkflowRun, undo: tuple[str, str, str] | None = None) -> WorkflowRunModel:
         return cls(
             id=run.id,
             tenant=run.tenant,
@@ -3433,8 +3628,16 @@ class WorkflowRunModel(BaseModel):
             thought_tokens=run.thought_tokens,
             cost_usd=run.cost_usd,
             unpriced=run.unpriced,
+            watched=run.watched,
+            doing=run.doing,
+            gathered={k: dict(v) for k, v in run.gathered.items()},
+            needs=list(run.needs),
+            unasked=list(run.unasked),
             wrong_because=run.wrong_because,
-            undo=undo,
+            undo=undo[0] if undo else None,
+            undoes_by={undo[1]: undo[2]} if undo else None,
+            undoes_run=run.undoes_run,
+            try_again=can_try_again(run),
         )
 
 
@@ -3477,3 +3680,217 @@ class WorkflowStepApprovedModel(BaseModel):
     Not a refusal. The row naming who let the write out is committed either
     way, and answering 409 would be claiming the authorisation did not happen.
     What this says is narrower and truer: nobody was listening."""
+
+
+class LearnedChangeModel(BaseModel):
+    """One thing a job changed its mind about.
+
+    `was` empty is the job learning something it never knew, which is the row
+    somebody reads to find out where a locator nobody demonstrated came from.
+    """
+
+    ord: int
+    about: str
+    was: str
+    now: str
+    by_run: str
+    found_by: str
+
+
+class LearnedChangesResponse(BaseModel):
+    changes: list[TaughtModel]
+
+    @classmethod
+    def of(cls, changes: Sequence[Taught]) -> LearnedChangesResponse:
+        return cls(
+            changes=[
+                LearnedChangeModel(
+                    ord=one.ord,
+                    about=one.about,
+                    was=one.was,
+                    now=one.now,
+                    by_run=one.by_run,
+                    found_by=one.found_by,
+                )
+                for one in changes
+            ]
+        )
+
+
+class MailOfferModel(BaseModel):
+    """One mail, and the job it turned out to ask for.
+
+    The message id and never the words. A caller that wants to check the
+    reading opens the mail in their own mailbox, where it already is -- an
+    excerpt echoed back here would be mail content crossing a boundary to say
+    something the id already says.
+    """
+
+    message: str
+    workflow_id: str
+    title: str
+    values: dict[str, str]
+    missing: list[str]
+    subject: str = ""
+    """What the request was called, so a conversation about it can say which.
+
+    A deliberate exception to the rule above, and `Offered.subject` argues it:
+    with four requests for one job open at once, the subject is the only thing
+    that tells them apart in a thread that is no longer beside the card."""
+
+    thread: str = ""
+    """The mail conversation this request arrived in.
+
+    An id and not a word of anybody's mail, like `message` beside it. It is
+    sent back when the job is started, so a run that comes up short can be
+    found again by a reply -- the person who knows the missing value is usually
+    whoever sent the request, and they do not have this panel open."""
+
+    too_long: dict[str, int] = {}
+    """Values this job's own boxes will not hold, and what they hold instead.
+
+    Sent so the card can ask before the press rather than after it. The run
+    refuses a value that will not fit, and it can only refuse once it is
+    standing in front of the box -- by which time somebody has pressed and is
+    watching a form half-fill. The limit was learnt by an earlier run and is
+    known now, so the panel says it now.
+
+    Empty for every job no run has hit a limit on, which is most of them."""
+
+    unasked: list[str] = []
+    """What the request asked for that this job has no parameter for.
+
+    Sent so the card can say it BEFORE the press. A job's parameters are what
+    two doings proved vary and a form has far more fields than that, so `code
+    GV3, description X, Department Inbound` is a reasonable request answered by
+    a record with no Department in it. The run says so afterwards; after the
+    press is after the record."""
+
+    started: bool = False
+    """A run is already going for this one, so there is nothing to offer.
+
+    The operator pressed Yes on the request; that press is what sent the mail
+    asking for what was missing, and the reply filled the one blank the press
+    could not. A card beside the run that answer started is the panel offering
+    to do what it is doing.
+
+    Sent rather than inferred from an empty `missing`: plenty of offers arrive
+    with nothing missing and every one of them is a card. What makes this one
+    different is that somebody already said yes to it."""
+
+
+class AskAboutOfferRequest(BaseModel):
+    """An offer the operator pressed that cannot simply be started.
+
+    Sent by the panel instead of drawing boxes on the card. What comes of it is
+    a question in their own conversation, which is where every other question
+    this system asks already lives.
+    """
+
+    workflow_id: str
+    title: str = ""
+    values: dict[str, str] = Field(default_factory=dict)
+    missing: list[str] = Field(default_factory=list)
+    items: list[dict[str, str]] = Field(default_factory=list)
+    mail_thread: str = ""
+    """The mail conversation this offer was read out of.
+
+    Sent back so the run an answer starts answers to it, exactly as one the
+    press starts does. See `Pending.mail_thread`."""
+
+    about: str = ""
+    """What the request this offer came from was called.
+
+    So the conversation can name it. A question that says only "Customer Type
+    takes 4 characters" is a sentence with no subject, and there may be four
+    like it in the thread."""
+
+    limits: dict[str, int] = Field(default_factory=dict)
+    """What the box behind each name holds, where the offer was told.
+
+    Sent back rather than looked up again: the offer that reached the browser
+    carried these, and a second lookup could answer differently -- a run that
+    learned a limit in between would change the question under somebody who is
+    already reading it."""
+
+    watched: bool = True
+
+
+class AskAboutOfferResponse(BaseModel):
+    """What was asked, so the panel can say something happened.
+
+    Empty `asked` means the offer needed nothing after all and the caller
+    should start it -- a 200 with nothing to say, rather than an error on the
+    ordinary path.
+    """
+
+    asked: str
+
+
+class SendTheDraftRequest(BaseModel):
+    """A drafted mail the operator has read and is authorising.
+
+    An id and never the words. What goes out is re-read from the thread the
+    draft was shown in, so what is sent and what was read cannot be two
+    different things -- a body accepted here would put every guarantee about a
+    person having seen what they authorised on a browser being honest."""
+
+    thread_id: str
+    message_id: str
+
+
+class SentTheDraftResponse(BaseModel):
+    """Who it went to, or `""` where nothing was sent.
+
+    Empty is an ordinary answer and not an error: a draft already sent, one
+    nobody can find, a run since asked about another way. None of those is a
+    500, and none of them means try again."""
+
+    sent_to: str
+
+
+class RunStartedRequest(BaseModel):
+    """A run this browser has just started, said into the conversation.
+
+    Reported by the browser because the browser is what started it -- the
+    credential to drive a run lives in the worker, so the id exists there
+    first. What it buys is a thread that holds the whole piece of work rather
+    than everything up to the moment it began."""
+
+    run_id: str
+    title: str = ""
+
+
+class FromTheMailResponse(BaseModel):
+    """What one look through the mailbox came to.
+
+    `read` and `offered` are different numbers on purpose: a look that read six
+    mails and offered none is working correctly, and a caller told only
+    "offered: []" cannot tell that from a mailbox nothing was reached in.
+    """
+
+    offered: list[MailOfferModel]
+    read: int
+    why: str
+
+    @classmethod
+    def of(cls, looked: LookedInTheMail) -> FromTheMailResponse:
+        return cls(
+            offered=[
+                MailOfferModel(
+                    message=one.message,
+                    workflow_id=one.workflow_id,
+                    title=one.title,
+                    values=dict(one.values),
+                    missing=list(one.missing),
+                    subject=one.subject,
+                    thread=one.thread,
+                    too_long=dict(one.too_long),
+                    unasked=list(one.unasked),
+                    started=one.started,
+                )
+                for one in looked.offered
+            ],
+            read=looked.read,
+            why=looked.why,
+        )

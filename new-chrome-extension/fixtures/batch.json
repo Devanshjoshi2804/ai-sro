@@ -1,26 +1,26 @@
 {
-  "batch_id": "bat_browsertest_418908ee_1",
+  "batch_id": "bat_browsertest_3bb922f9_1",
   "device_id": "dev_browsertest",
-  "started_at": "2026-08-31T08:40:04.587Z",
-  "ended_at": "2026-08-31T08:40:04.787Z",
+  "started_at": "2026-09-20T14:50:22.193Z",
+  "ended_at": "2026-09-20T14:50:22.413Z",
   "mode": "passive",
   "recording_id": null,
   "events": [
     {
       "kind": "page",
-      "at": "2026-08-31T08:40:04.582Z",
+      "at": "2026-09-20T14:50:22.184Z",
       "page_kind": "navigated",
-      "url": "http://127.0.0.1:63319/",
+      "url": "http://127.0.0.1:51729/",
       "detail": null,
-      "tab_id": 1766715008
+      "tab_id": 247501454
     },
     {
       "kind": "page",
-      "at": "2026-08-31T08:40:04.584Z",
+      "at": "2026-09-20T14:50:22.186Z",
       "page_kind": "loaded",
-      "url": "http://127.0.0.1:63319/",
+      "url": "http://127.0.0.1:51729/",
       "detail": null,
-      "tab_id": 1766715008
+      "tab_id": 247501454
     },
     {
       "kind": "gesture",
@@ -28,7 +28,7 @@
         "kind": "type",
         "target": {
           "tag": "input",
-          "role": null,
+          "role": "textbox",
           "name": "Client Code",
           "secret": false,
           "text": null,
@@ -63,12 +63,12 @@
         "value": "ACME-4471",
         "secret": false,
         "modifiers": [],
-        "at": 1788165604.612,
-        "url": "http://127.0.0.1:63319/"
+        "at": 1789915822.216,
+        "url": "http://127.0.0.1:51729/"
       },
-      "tab_id": 1766715008,
-      "frame_url": "http://127.0.0.1:63319/",
-      "page_url": "http://127.0.0.1:63319/"
+      "tab_id": 247501454,
+      "frame_url": "http://127.0.0.1:51729/",
+      "page_url": "http://127.0.0.1:51729/"
     },
     {
       "kind": "gesture",
@@ -76,7 +76,7 @@
         "kind": "select",
         "target": {
           "tag": "select",
-          "role": null,
+          "role": "combobox",
           "name": "Dock",
           "secret": false,
           "text": "choose\nDock 3",
@@ -98,12 +98,12 @@
         "value": "D3",
         "secret": false,
         "modifiers": [],
-        "at": 1788165604.661,
-        "url": "http://127.0.0.1:63319/"
+        "at": 1789915822.259,
+        "url": "http://127.0.0.1:51729/"
       },
-      "tab_id": 1766715008,
-      "frame_url": "http://127.0.0.1:63319/",
-      "page_url": "http://127.0.0.1:63319/"
+      "tab_id": 247501454,
+      "frame_url": "http://127.0.0.1:51729/",
+      "page_url": "http://127.0.0.1:51729/"
     },
     {
       "kind": "gesture",
@@ -133,12 +133,12 @@
         },
         "value": "manifest.csv",
         "modifiers": [],
-        "at": 1788165604.676,
-        "url": "http://127.0.0.1:63319/"
+        "at": 1789915822.263,
+        "url": "http://127.0.0.1:51729/"
       },
-      "tab_id": 1766715008,
-      "frame_url": "http://127.0.0.1:63319/",
-      "page_url": "http://127.0.0.1:63319/"
+      "tab_id": 247501454,
+      "frame_url": "http://127.0.0.1:51729/",
+      "page_url": "http://127.0.0.1:51729/"
     },
     {
       "kind": "gesture",
@@ -146,7 +146,7 @@
         "kind": "type",
         "target": {
           "tag": "input",
-          "role": null,
+          "role": "textbox",
           "name": null,
           "secret": true,
           "text": null,
@@ -169,12 +169,12 @@
         "value": null,
         "secret": true,
         "modifiers": [],
-        "at": 1788165604.72,
-        "url": "http://127.0.0.1:63319/"
+        "at": 1789915822.309,
+        "url": "http://127.0.0.1:51729/"
       },
-      "tab_id": 1766715008,
-      "frame_url": "http://127.0.0.1:63319/",
-      "page_url": "http://127.0.0.1:63319/"
+      "tab_id": 247501454,
+      "frame_url": "http://127.0.0.1:51729/",
+      "page_url": "http://127.0.0.1:51729/"
     },
     {
       "kind": "gesture",
@@ -182,7 +182,7 @@
         "kind": "click",
         "target": {
           "tag": "input",
-          "role": null,
+          "role": "textbox",
           "name": "Client Code",
           "secret": false,
           "text": null,
@@ -215,12 +215,12 @@
           }
         },
         "modifiers": [],
-        "at": 1788165604.721,
-        "url": "http://127.0.0.1:63319/"
+        "at": 1789915822.309,
+        "url": "http://127.0.0.1:51729/"
       },
-      "tab_id": 1766715008,
-      "frame_url": "http://127.0.0.1:63319/",
-      "page_url": "http://127.0.0.1:63319/"
+      "tab_id": 247501454,
+      "frame_url": "http://127.0.0.1:51729/",
+      "page_url": "http://127.0.0.1:51729/"
     },
     {
       "kind": "gesture",
@@ -228,7 +228,7 @@
         "kind": "press",
         "target": {
           "tag": "input",
-          "role": null,
+          "role": "textbox",
           "name": "Client Code",
           "secret": false,
           "text": null,
@@ -262,12 +262,12 @@
         },
         "value": "Enter",
         "modifiers": [],
-        "at": 1788165604.731,
-        "url": "http://127.0.0.1:63319/"
+        "at": 1789915822.316,
+        "url": "http://127.0.0.1:51729/"
       },
-      "tab_id": 1766715008,
-      "frame_url": "http://127.0.0.1:63319/",
-      "page_url": "http://127.0.0.1:63319/"
+      "tab_id": 247501454,
+      "frame_url": "http://127.0.0.1:51729/",
+      "page_url": "http://127.0.0.1:51729/"
     },
     {
       "kind": "gesture",
@@ -275,7 +275,7 @@
         "kind": "click",
         "target": {
           "tag": "button",
-          "role": null,
+          "role": "button",
           "name": "Save",
           "secret": false,
           "text": "Save",
@@ -307,21 +307,21 @@
           }
         },
         "modifiers": [],
-        "at": 1788165604.765,
-        "url": "http://127.0.0.1:63319/"
+        "at": 1789915822.374,
+        "url": "http://127.0.0.1:51729/"
       },
-      "tab_id": 1766715008,
-      "frame_url": "http://127.0.0.1:63319/",
-      "page_url": "http://127.0.0.1:63319/"
+      "tab_id": 247501454,
+      "frame_url": "http://127.0.0.1:51729/",
+      "page_url": "http://127.0.0.1:51729/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_808d0ef3_0",
+        "request_id": "req_3e2f1151_0",
         "method": "GET",
-        "url": "http://127.0.0.1:63319/api/orders?facility=DC1",
+        "url": "http://127.0.0.1:51729/api/orders?facility=DC1",
         "resource_type": "fetch",
-        "started_at": "2026-08-31T08:40:04.765Z",
+        "started_at": "2026-09-20T14:50:22.374Z",
         "request_headers": {},
         "request_body": null,
         "status": 200,
@@ -331,7 +331,7 @@
           "access-control-allow-origin": "*",
           "content-length": "29",
           "content-type": "application/json",
-          "date": "Mon, 31 Aug 2026 08:40:04 GMT",
+          "date": "Sun, 20 Sep 2026 14:50:22 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": {
@@ -342,22 +342,22 @@
           "redacted_fields": []
         },
         "redirect_chain": [],
-        "duration_ms": 15,
+        "duration_ms": 32,
         "from_cache": false,
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 1766715008,
-      "frame_url": "http://127.0.0.1:63319/"
+      "tab_id": 247501454,
+      "frame_url": "http://127.0.0.1:51729/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_808d0ef3_1",
+        "request_id": "req_3e2f1151_1",
         "method": "POST",
-        "url": "http://127.0.0.1:63319/api/orders",
+        "url": "http://127.0.0.1:51729/api/orders",
         "resource_type": "fetch",
-        "started_at": "2026-08-31T08:40:04.781Z",
+        "started_at": "2026-09-20T14:50:22.406Z",
         "request_headers": {
           "content-type": "application/json"
         },
@@ -375,7 +375,7 @@
           "access-control-allow-origin": "*",
           "content-length": "12",
           "content-type": "application/json",
-          "date": "Mon, 31 Aug 2026 08:40:04 GMT",
+          "date": "Sun, 20 Sep 2026 14:50:22 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": {
@@ -386,22 +386,22 @@
           "redacted_fields": []
         },
         "redirect_chain": [],
-        "duration_ms": 1,
+        "duration_ms": 2,
         "from_cache": false,
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 1766715008,
-      "frame_url": "http://127.0.0.1:63319/"
+      "tab_id": 247501454,
+      "frame_url": "http://127.0.0.1:51729/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_808d0ef3_2",
+        "request_id": "req_3e2f1151_2",
         "method": "GET",
         "url": "http://127.0.0.1:1/never",
         "resource_type": "fetch",
-        "started_at": "2026-08-31T08:40:04.782Z",
+        "started_at": "2026-09-20T14:50:22.408Z",
         "request_headers": {},
         "request_body": null,
         "status": null,
@@ -414,17 +414,17 @@
         "failure_reason": "Failed to fetch",
         "blocked_reason": null
       },
-      "tab_id": 1766715008,
-      "frame_url": "http://127.0.0.1:63319/"
+      "tab_id": 247501454,
+      "frame_url": "http://127.0.0.1:51729/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_808d0ef3_3",
+        "request_id": "req_3e2f1151_3",
         "method": "POST",
-        "url": "http://127.0.0.1:63319/api/legacy",
+        "url": "http://127.0.0.1:51729/api/legacy",
         "resource_type": "xhr",
-        "started_at": "2026-08-31T08:40:04.783Z",
+        "started_at": "2026-09-20T14:50:22.409Z",
         "request_headers": {
           "content-type": "application/x-www-form-urlencoded"
         },
@@ -442,7 +442,7 @@
           "access-control-allow-origin": "*",
           "content-length": "12",
           "content-type": "application/json",
-          "date": "Mon, 31 Aug 2026 08:40:04 GMT",
+          "date": "Sun, 20 Sep 2026 14:50:22 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": {
@@ -458,24 +458,24 @@
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 1766715008,
-      "frame_url": "http://127.0.0.1:63319/"
+      "tab_id": 247501454,
+      "frame_url": "http://127.0.0.1:51729/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_808d0ef3_4",
+        "request_id": "req_3e2f1151_4",
         "method": "GET",
-        "url": "http://127.0.0.1:63319/api/stream",
+        "url": "http://127.0.0.1:51729/api/stream",
         "resource_type": "fetch",
-        "started_at": "2026-08-31T08:40:04.785Z",
+        "started_at": "2026-09-20T14:50:22.410Z",
         "request_headers": {},
         "request_body": null,
         "status": 200,
         "status_text": "OK",
         "response_headers": {
           "content-type": "text/event-stream",
-          "date": "Mon, 31 Aug 2026 08:40:04 GMT",
+          "date": "Sun, 20 Sep 2026 14:50:22 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": null,
@@ -485,8 +485,8 @@
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 1766715008,
-      "frame_url": "http://127.0.0.1:63319/"
+      "tab_id": 247501454,
+      "frame_url": "http://127.0.0.1:51729/"
     }
   ]
 }

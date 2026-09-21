@@ -14,7 +14,8 @@
 
 import assert from "node:assert";
 
-const { LIFETIME_MS, fire, mute, onCall, shouldFire, sweep } = await import("./nudge.js");
+const { KEPT_MS, LIFETIME_MS, endOfDay, fire, mute, onCall, shouldFire, sweep } =
+  await import("./nudge.js");
 
 const T0 = Date.parse("2026-09-03T12:00:00Z");
 const PAGE = "https://wms.example/ui/suppliers/new";
@@ -196,6 +197,80 @@ test("a navigation in another tab does not end an offer open in this one", () =>
   assert.equal(other[0].state, "open", "tab 9 left a page; tab 7's offer stands");
   const same = sweep([one], { url: "https://wms.example/ui/orders", now: T0 + 1000, tabId: 7 });
   assert.equal(same[0].state, "expired");
+});
+
+test("an offer that was never about a page goes quiet rather than ending", () => {
+  // A mail arrives while the operator is on the floor. Swept by the arrival
+  // rules it would end twice over -- ninety seconds, and the first moment they
+  // looked at anything but the job's own screen -- and a request nobody has
+  // answered has not stopped being a request.
+  const card = fire(
+    { id: "mail_m-7", title: "Create a Customer Type", starts_on: "wms.example/ui/customer-types",
+      source: "rig", workflow_id: "wfl_1", keeps: true, expires_at: endOfDay(T0) },
+    T0,
+  );
+
+  const later = sweep([card], { url: "https://mail.google.com/mail/u/0", now: T0 + LIFETIME_MS * 4 });
+
+  assert.strictEqual(later[0].state, "open", "a request was swept away unanswered");
+  assert.strictEqual(later[0].missed, undefined, "quiet before its day was over");
+
+  const tomorrow = sweep(later, { url: null, now: endOfDay(T0) + 1 });
+
+  assert.strictEqual(tomorrow[0].state, "open", "still askable");
+  assert.strictEqual(tomorrow[0].missed, true, "nothing said it had been missed");
+});
+
+test("a request nobody answered goes after a day, not for ever", () => {
+  // `keeps` was written to mean "a request nobody answered has not stopped
+  // being a request", which is true for an afternoon and not for a week.
+  // Measured on the deployment 2026-09-18: thirteen cards stacked in one
+  // panel, six of them from the day before, and the only thing between an
+  // operator and an unbounded column was pressing No thanks on each.
+  const card = fire(
+    { id: "mail_m-9", title: "Create a Customer Type", starts_on: "wms.example/ui/customer-types",
+      source: "rig", workflow_id: "wfl_1", keeps: true, expires_at: endOfDay(T0) },
+    T0,
+  );
+
+  // Quiet at the end of its day, and still there to be answered.
+  const tonight = sweep([card], { url: null, now: endOfDay(T0) + 1 });
+  assert.strictEqual(tonight[0].state, "open", "it ended the same day it arrived");
+  assert.strictEqual(tonight[0].missed, true);
+
+  // Gone a day after it ARRIVED, not a day after its day ended: a mail at
+  // 23:50 would otherwise get ten minutes.
+  const stillHere = sweep(tonight, { url: null, now: T0 + KEPT_MS - 1000 });
+  assert.strictEqual(stillHere[0].state, "open", "a card went before its day was up");
+
+  const gone = sweep(stillHere, { url: null, now: T0 + KEPT_MS + 1000 });
+  assert.strictEqual(gone[0].state, "expired", "yesterday's card is still on the panel");
+});
+
+test("an arrival offer is swept exactly as it always was", () => {
+  // The two rules above are a second shape, not a replacement. An offer that
+  // sets neither keeps ninety seconds and leaving the page.
+  const nudge = fire(TAUGHT, T0, { tabId: 1, visit: "v1" });
+
+  assert.strictEqual(sweep([nudge], { url: PAGE, now: T0 + LIFETIME_MS })[0].state, "expired");
+  assert.strictEqual(
+    sweep([nudge], { url: "https://wms.example/ui/home", now: T0 + 1000 })[0].state,
+    "expired",
+  );
+});
+
+test("the operator doing it themselves ends a kept offer like any other", () => {
+  // The rule that matters is not when it fires but when it stops. A request
+  // they went and did by hand is not one to keep asking about.
+  const card = fire(
+    { id: "mail_m-7", title: "Create a Customer Type", starts_on: "wms.example/ui/customer-types",
+      source: "rig", workflow_id: "wfl_1", keeps: true, expires_at: endOfDay(T0) },
+    T0,
+  );
+
+  const after = onCall([card], { url: "https://wms.example/ui/customer-types", method: "POST" }, T0 + 60);
+
+  assert.strictEqual(after[0].state, "by-hand");
 });
 
 for (const [name, fn] of tests) {

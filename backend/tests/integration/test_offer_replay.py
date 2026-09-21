@@ -60,6 +60,11 @@ SHAPE_KEYS = {
     "held_runs",
     "offer_after",
     "quiet_until",
+    # What one press would write, read off the job's own evidence. Neither the
+    # matcher nor the replay reads it -- the CARD does, which is what makes it
+    # worth listing here: an offer nobody can describe before pressing is the
+    # thing item 6 exists to stop.
+    "writes",
 }
 GESTURE_KEYS = {"triple", "value", "secret", "at"}
 

@@ -1,0 +1,152 @@
+// A run that is not where it thought it was says where it IS.
+//
+// Measured on the deployment 2026-09-19. The operator's WMS session had
+// expired, so the run's navigate landed on `blueyonderalphaus.b2clogin.com` --
+// the platform's sign-in host, which is not the step's origin. `tabForRun`
+// will not answer with a tab that has left the step's origin, which is right
+// for driving and blinding for reading: `ui.url` failed `no_tab_for_system`,
+// the run built a look with no url at all, and the step reported
+//
+//     the browser is on None, not https://…/portal#…customers.types////
+//
+// with the person looking at the sign-in page the whole time. Nothing said
+// "sign in and start it again", and `sign_in` could not have fired either --
+// it asked the same origin-scoped question, so the one command that exists for
+// a login page could never find one.
+//
+// Run with `node src/background/somewhere-else.test.mjs`.
+
+import assert from "node:assert/strict";
+import { test } from "node:test";
+
+const ORIGIN = "https://wms.example";
+const SIGN_IN_PAGE = "https://login.example/oauth2/authorize?client_id=abc";
+
+let tabs = [];
+let signedInAt = [];
+
+globalThis.chrome = {
+  tabs: {
+    query: async ({ url, active }) => {
+      if (url) return tabs.filter((one) => one.url.startsWith(url.replace("/*", "")));
+      if (active) return tabs.filter((one) => one.active);
+      return tabs;
+    },
+    get: async (id) => {
+      const found = tabs.find((one) => one.id === id);
+      if (!found) throw new Error(`No tab with id: ${id}.`);
+      return found;
+    },
+    update: async (id, what) => {
+      const found = tabs.find((one) => one.id === id);
+      if (what?.active) for (const one of tabs) one.active = one.id === id;
+      return found;
+    },
+    captureVisibleTab: async () => "data:image/png;base64,",
+    onUpdated: { addListener: () => {}, removeListener: () => {} },
+  },
+  windows: { update: async () => ({}) },
+  scripting: {
+    // Told apart by what each call is GIVEN rather than by the text of the
+    // function: `whatIsOnThisPage` is handed selectors, `fillTheLoginForm` is
+    // handed a username and a password, and the viewport probe neither.
+    executeScript: async ({ target, func, args }) => {
+      if (String(func).includes("innerWidth"))
+        return [{ result: { url: SIGN_IN_PAGE, width: 1200, height: 800, digest: "" } }];
+      if (args?.[0]?.login !== undefined)
+        return [{ result: { signed_out: true, dialog: "", loading: false } }];
+      // `fillTheLoginForm`, which is what this test wants to see reached.
+      // Its own answer shape: what it filled, and whether it submitted.
+      signedInAt.push(target.tabId);
+      return [{ result: { did: ["username", "password"], submitted: true } }];
+    },
+  },
+  webNavigation: { getAllFrames: async () => [] },
+  storage: { local: { get: async () => ({}), set: async () => {} } },
+};
+
+const { perform } = await import("./commands.js");
+
+/** The run's own tab, having followed a redirect off the step's origin. */
+const bouncedToSignIn = () => {
+  tabs = [
+    { id: 7, windowId: 1, active: true, status: "complete", url: SIGN_IN_PAGE },
+  ];
+  signedInAt = [];
+};
+
+/** The same, with the run having PINNED that tab first -- which is what every
+ * real run has done by the time it is bounced anywhere: the pin happens on the
+ * first command, while the tab is still on the system.
+ *
+ * It matters because the two commands that follow a wandering tab follow the
+ * run's OWN tab and never the one in front: navigating the page an operator is
+ * reading, or typing a password into it, is what the focus rule exists to
+ * prevent. */
+const drivingThenBounced = async () => {
+  tabs = [{ id: 7, windowId: 1, active: true, status: "complete", url: `${ORIGIN}/portal` }];
+  signedInAt = [];
+  await run("ui.url", { origin: ORIGIN });
+  tabs[0].url = SIGN_IN_PAGE;
+};
+
+const run = (kind, payload, runId = "run_1") =>
+  perform({ command_id: `cmd-${kind}`, kind, run_id: runId, payload });
+
+test("a look that finds no tab on the origin answers with the page in front of the person", async () => {
+  bouncedToSignIn();
+
+  const said = await run("ui.url", { origin: ORIGIN });
+
+  assert.equal(said.ok, true, "it refused to say anything at all");
+  // Still no url ON THE ORIGIN -- the step has not arrived and must not be
+  // read as having arrived.
+  assert.equal(said.result.url, null);
+  assert.equal(said.result.elsewhere, SIGN_IN_PAGE);
+  // And what that page is, which is the whole point: a run can now say "the
+  // session has gone" instead of "no control matched".
+  assert.equal(said.result.signed_out, true);
+});
+
+test("a sign-in is driven in the tab the login actually happened in", async () => {
+  // The one command that must look past the origin. A sign-in page is on
+  // another host by design, so an origin-scoped lookup could never find one.
+  await drivingThenBounced();
+
+  const said = await run("sign_in", { origin: ORIGIN, username: "u", password: "p" });
+
+  assert.equal(said.ok, true, said.error?.detail);
+  // Which TAB, which is the whole question: the run's own, not the one in
+  // front and not a new one. How many scripts the fill runs in it is the
+  // sign-in module's business.
+  assert.deepEqual([...new Set(signedInAt)], [7]);
+});
+
+test("a browser with no usable tab at all still says so plainly", async () => {
+  tabs = [{ id: 9, windowId: 1, active: true, status: "complete", url: "chrome://newtab" }];
+
+  const said = await run("ui.url", { origin: ORIGIN });
+
+  assert.equal(said.ok, false);
+  assert.equal(said.error.kind, "no_tab_for_system");
+});
+
+test("a navigate brings the run's own tab back rather than opening another", async () => {
+  // Measured on the deployment 2026-09-19: the system bounced the run to a
+  // sign-in host, every attempt opened a NEW tab at the page it wanted, and
+  // the operator ended up with six tabs of `blueyonderalphaus.b2clogin.com`
+  // with nothing driving any of them.
+  await drivingThenBounced();
+
+  // `allow_focus`, as a watched run carries: the operator pressed yes and is
+  // watching, so driving the tab in front of them is the point.
+  const said = await run("navigate", {
+    origin: ORIGIN,
+    url: `${ORIGIN}/portal`,
+    allow_focus: true,
+  });
+
+  assert.equal(said.ok, true, said.error?.detail);
+  assert.equal(tabs.length, 1, "it opened another tab instead of using the one it had");
+  assert.equal(tabs[0].id, 7);
+});

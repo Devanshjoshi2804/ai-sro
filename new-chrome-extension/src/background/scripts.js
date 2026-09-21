@@ -197,10 +197,28 @@ export function allowsHost(url, policy, granted = []) {
  * watching. Telling somebody to reload the page they are working in is not an
  * answer: they lose the form they had half filled in.
  *
- * Safe on a tab that already has them: the page-realm patch refuses a fetch it
- * has already patched, and Chrome does not run a file it has already put in a
- * frame -- pressing "watch" twice records one copy of a gesture, which
- * `test_watching_a_tab_that_was_already_open_needs_no_reload` holds to.
+ * Safe on a tab that already has them, and each file is what makes it so.
+ *
+ * `executeScript` RUNS THE FILE, every time it is called. This docstring used
+ * to say "Chrome does not run a file it has already put in a frame", which is
+ * true of a REGISTERED content script and false of this -- so every one of
+ * these files is re-executed on a policy refresh, on an extension reload, and
+ * on a second press of "watch", in every frame of the tab.
+ *
+ * Each of them therefore asks, first thing, whether a copy that can still
+ * reach the worker is already in residence: `network.js` and `observe.js` by
+ * name, the page-realm patch by refusing a fetch it has already patched. Not
+ * a plain "already installed" flag -- an orphaned copy left by an extension
+ * reload can forward nothing, and a flag it had set would keep the live
+ * replacement out.
+ *
+ * `observe.js` had no guard and did not need one BY ACCIDENT: its top-level
+ * `const` threw on the second execution, which is a SyntaxError doing the work
+ * of a condition, and which filled the extension's error list with forty of
+ * them. It asks the question properly now.
+ *
+ * `test_watching_a_tab_that_was_already_open_needs_no_reload` holds the
+ * outcome: pressing "watch" twice records one copy of a gesture.
  */
 export async function injectInto(tabId, url, policy, granted = []) {
   if (!allowsHost(url, policy, granted)) return false;

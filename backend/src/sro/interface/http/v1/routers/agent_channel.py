@@ -18,6 +18,7 @@ from sro.application.ports.auth import CredentialRejected, Unconfigured
 from sro.container import Container
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import DeviceId
+from sro.whose import attribute
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,13 @@ async def commands(websocket: WebSocket, device_id: str) -> None:
     await websocket.accept(subprotocol=_BEARER)
     sockets = container.agent_sockets
     channel = _Channel(websocket)
+    # The socket authenticates for itself -- no `ContextDep`, no
+    # `asking_device` -- so the attribution those two install never reached
+    # here, and the one door that stays open for a whole session was the one
+    # door whose lines said nothing about whose session it was. Set after the
+    # credential and the secret have both been checked, for `asking_device`'s
+    # reason: an id in a query string is a claim until something proves it.
+    attribute(tenant=ctx.tenant_id.value, principal=ctx.principal_id.value, device=device.id.value)
     sockets.attach(ctx.tenant_id, device.id, channel)
     logger.info("device %s connected", device.id)
 
@@ -76,7 +84,23 @@ async def commands(websocket: WebSocket, device_id: str) -> None:
     finally:
         sockets.detach(ctx.tenant_id, device.id, channel)
         logger.info("device %s disconnected", device.id)
-        with contextlib.suppress(RuntimeError):
+        # Closing a socket that has already gone is not a failure, and there
+        # is nothing left to do about it either way.
+        #
+        # `RuntimeError` alone was not enough. A browser that goes -- an
+        # extension reloaded, a laptop shut, a tunnel dropped -- leaves this
+        # `close()` writing a close frame to nobody, and uvicorn answers that
+        # with `ClientDisconnected`, which is neither a `RuntimeError` nor
+        # importable from here without reaching into a server's internals. It
+        # went uncaught, out of the endpoint, and printed thirty lines of
+        # `Exception in ASGI application` for the ordinary event this
+        # `finally` exists to handle. Measured on the deployment 2026-09-21:
+        # two of them against three reconnections.
+        #
+        # Broad on purpose and only here. The detach above has already
+        # happened, the disconnection is already said, and the one thing this
+        # line can still do is not shout about a socket nobody is holding.
+        with contextlib.suppress(Exception):
             await websocket.close()
 
 

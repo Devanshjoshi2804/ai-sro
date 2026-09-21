@@ -34,6 +34,7 @@ from sro.application.ports.http import (
 from sro.application.ports.intent import Extraction, Reading
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import (
+    AttemptRepository,
     BrowserSessionRepository,
     CandidateRepository,
     ChatRepository,
@@ -75,6 +76,7 @@ from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import MessageId, Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
 from sro.domain.execution.belts import RunProof, state_verified
+from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
@@ -84,6 +86,7 @@ from sro.domain.knowledge.entry import (
     KnowledgeEntry,
     KnowledgeId,
 )
+from sro.domain.observation.attempts import Attempt
 from sro.domain.observation.batch import ObservationBatch
 from sro.domain.observation.candidate import CandidateStatus, TaskCandidate
 from sro.domain.observation.device import AgentDevice
@@ -1231,6 +1234,11 @@ class FakeChannel:
                 "kind": kind,
                 "payload": dict(payload),
                 "run_id": run_id,
+                # How long the caller said it may take. Kept because it is a
+                # decision somebody makes and nothing could see: a lookup
+                # inside a conversation turn waits a different length of time
+                # from one somebody is watching a spinner for.
+                "deadline_s": deadline_s,
             }
         )
         queued = self.script.get(kind)
@@ -1444,12 +1452,20 @@ class FakeGestureRepository:
         self.rows.update(fresh)
 
     async def gestures_for(
-        self, tenant_id: TenantId, *, ids: tuple[str, ...] | None = None
+        self,
+        tenant_id: TenantId,
+        *,
+        ids: tuple[str, ...] | None = None,
+        after: float | None = None,
+        before: float | None = None,
     ) -> tuple[Gesture, ...]:
         found = [
             gesture
             for gesture in self.rows.values()
-            if gesture.tenant == tenant_id.value and (ids is None or gesture.id in ids)
+            if gesture.tenant == tenant_id.value
+            and (ids is None or gesture.id in ids)
+            and (after is None or gesture.at > after)
+            and (before is None or gesture.at <= before)
         ]
         # (at, id), as the store orders it: `at` is the browser's clock and
         # two gestures of one burst share it.
@@ -1705,6 +1721,18 @@ class FakeWorkflowRunRepository:
         found.sort(key=lambda run: (when(run.started_at), run.id), reverse=True)
         return tuple(deepcopy(run) for run in found[:limit])
 
+    async def taken_back_by(self, tenant_id: TenantId, run_id: str) -> str | None:
+        return next(
+            (
+                one.id
+                for one in self.rows.values()
+                if one.tenant == tenant_id.value
+                and one.undoes_run == run_id
+                and one.outcome == "held"
+            ),
+            None,
+        )
+
     async def failures(self, tenant_id: TenantId) -> Mapping[str, int]:
         # `failed` and `refused` only: a run that stopped to ask is the job
         # asking, and one a person aborted is a person changing their mind.
@@ -1750,6 +1778,21 @@ class FakeWorkflowRunRepository:
         ]
         driving.sort(key=lambda run: (when(run.started_at), run.id))
         return driving[0].id if driving else None
+
+    async def waiting_on(
+        self, tenant_id: TenantId, *, server: str, thread: str
+    ) -> WorkflowRun | None:
+        if not server.strip() or not thread.strip():
+            return None
+        asked = [
+            run
+            for run in self.rows.values()
+            if run.tenant == tenant_id.value
+            and (run.awaiting or {}).get("server") == server.strip()
+            and (run.awaiting or {}).get("thread") == thread.strip()
+        ]
+        asked.sort(key=lambda run: (when(run.started_at), run.id), reverse=True)
+        return asked[0] if asked else None
 
     async def awaiting(self, tenant_id: TenantId) -> tuple[tuple[str, int, str], ...]:
         parked = [
@@ -1832,6 +1875,11 @@ class FakeWorkflowRepository:
         a dead session somewhere else.
         """
         self.stale: dict[tuple[str, int], tuple[str | None, str]] = {}
+        # What runs have found out about steps whose recorded identity missed.
+        self.learned: dict[tuple[str, int], LearnedStep] = {}
+        # Append-only, like the store's: a history that can be edited is a
+        # history nobody can rely on.
+        self.taught: dict[str, list[Taught]] = {}
         self.effects: dict[tuple[str, str, int], tuple[str, str]] = {}
         self.runs = runs if runs is not None else FakeWorkflowRunRepository()
         self._saved = count()
@@ -1892,6 +1940,42 @@ class FakeWorkflowRepository:
     async def clear_stale(self, workflow_id: str, ord_: int) -> None:
         self.stale.pop((workflow_id, ord_), None)
 
+    async def remember_locator(
+        self, workflow_id: str, learned: LearnedStep, *, by_run: str = ""
+    ) -> None:
+        # The history BEFORE the overwrite, because the overwrite is what
+        # destroys the answer it is compared against -- the store's order, kept
+        # here so a test of the history is a test of what the store does.
+        self.taught.setdefault(workflow_id, []).extend(
+            changed_by(self.learned.get((workflow_id, learned.ord)), learned, by_run=by_run)
+        )
+        # One row per step, the last answer winning: the locator that worked
+        # most recently is the current answer about that step.
+        self.learned[(workflow_id, learned.ord)] = learned
+
+    async def remember_limit(
+        self, workflow_id: str, ord_: int, holds: int, *, by_run: str = ""
+    ) -> None:
+        # Its own columns, the store's rule: a truncation must not erase a
+        # locator and a locator must not erase a limit, so each keeps what the
+        # other learnt.
+        was = self.learned.get((workflow_id, ord_))
+        now = (
+            LearnedStep(ord_, was.strategy, was.query, was.found_by, holds)
+            if was is not None
+            else LearnedStep(ord_, "", "", "typed", holds)
+        )
+        self.taught.setdefault(workflow_id, []).extend(
+            changed_by(was, replace(now, found_by="typed"), by_run=by_run)
+        )
+        self.learned[(workflow_id, ord_)] = now
+
+    async def taught_itself(self, workflow_id: str, limit: int = 50) -> tuple[Taught, ...]:
+        return tuple(reversed(self.taught.get(workflow_id, [])))[:limit]
+
+    async def learned_for(self, workflow_id: str) -> tuple[LearnedStep, ...]:
+        return tuple(one for (workflow, _), one in self.learned.items() if workflow == workflow_id)
+
     async def stale_count(self, workflow_id: str) -> int:
         return sum(1 for workflow, _ in self.stale if workflow == workflow_id)
 
@@ -1930,6 +2014,38 @@ class FakeWorkflowRepository:
             )
             for run in held
         )
+
+
+class FakeAttemptRepository:
+    """Attempts, in a list.
+
+    Faithful about the one rule that matters: `record` never raises. A test
+    that wants to see a door survive a store that will not take its attempt
+    sets `refusing`.
+    """
+
+    def __init__(self) -> None:
+        self.rows: list[Attempt] = []
+        self.refusing = False
+
+    async def record(self, attempt: Attempt) -> None:
+        if self.refusing:
+            # Exactly what the real one does: the log keeps it, the caller is
+            # never told, and the door goes on answering the person in front
+            # of it.
+            return
+        self.rows.append(attempt)
+
+    async def since(
+        self, tenant_id: TenantId, *, since: datetime, limit: int
+    ) -> tuple[Attempt, ...]:
+        mine = [
+            one
+            for one in self.rows
+            if one.tenant == tenant_id.value and datetime.fromisoformat(one.at) >= since
+        ]
+        mine.sort(key=lambda one: one.at, reverse=True)
+        return tuple(mine[:limit])
 
 
 class FakeOfferRepository:
@@ -2093,6 +2209,7 @@ _REPOSITORIES = frozenset(
         "gestures",
         "workflow_runs",
         "workflows",
+        "attempts",
         "offers",
         "chats",
         "spend",
@@ -2127,6 +2244,7 @@ class FakeUnitOfWork:
     gestures: GestureRepository
     workflow_runs: WorkflowRunRepository
     workflows: WorkflowRepository
+    attempts: AttemptRepository
     offers: OfferRepository
     chats: ChatRepository
     spend: SpendRepository
@@ -2156,6 +2274,7 @@ class FakeUnitOfWork:
         # declared as the port -- a port has no such flag.
         self._workflows = FakeWorkflowRepository(self.workflow_runs)
         self.workflows = self._workflows
+        self.attempts = FakeAttemptRepository()
         self.offers = FakeOfferRepository()
         self.chats = FakeChatRepository()
         # One database in the store: the day's bill is summed over the same

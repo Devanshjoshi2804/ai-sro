@@ -36,6 +36,7 @@ from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
 from sro.application.execution.run_workflow import (
     K_SAME_WRITE_WINDOW,
     K_STEP_SLACK,
+    GatherValues,
     KnownFields,
     _bill,
     _fell_over,
@@ -45,6 +46,7 @@ from sro.application.execution.run_workflow import (
     _result,
     _saw_nothing,
     _target_origin,
+    _where,
     _withheld,
     fail_orphans,
     run_workflow,
@@ -55,7 +57,9 @@ from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Reply
 from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.belts import K_EARNED_RUNS, SCREEN_SCHEMA
-from sro.domain.execution.planning import PLAN_SCHEMA, Look, Planned
+from sro.domain.execution.gathering import Found, Gathered
+from sro.domain.execution.learned_step import LearnedStep
+from sro.domain.execution.planning import PLAN_SCHEMA, SIGHT_SCHEMA, Look, Planned
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Action, Body, Call, Gesture, Target
@@ -315,7 +319,16 @@ async def test_a_look_is_where_the_browser_is_and_what_is_on_the_screen() -> Non
 
     look = await _look(channel, TENANT, DEVICE, "run_1", "http://127.0.0.1:63319", True)
 
-    assert look == Look("http://127.0.0.1:63319/form", b"png-bytes", "Save")
+    # A picture with no viewport beside it is the third no-picture fault: the
+    # rung that looks answers in CSS pixels, so a photograph whose coordinate
+    # space is unknown is one nothing can act on. Said, rather than silently
+    # becoming the same four words as a refused screen.
+    assert look == Look(
+        "http://127.0.0.1:63319/form",
+        b"png-bytes",
+        "Save",
+        refused="the browser answered with no picture",
+    )
     assert channel.sent == [
         {
             "tenant_id": "acme",
@@ -323,6 +336,7 @@ async def test_a_look_is_where_the_browser_is_and_what_is_on_the_screen() -> Non
             "kind": "ui.url",
             "run_id": "run_1",
             "payload": {"origin": "http://127.0.0.1:63319"},
+            "deadline_s": None,
         },
         {
             "tenant_id": "acme",
@@ -336,6 +350,9 @@ async def test_a_look_is_where_the_browser_is_and_what_is_on_the_screen() -> Non
                 "origin": "http://127.0.0.1:63319",
                 "allow_focus": True,
             },
+            # A run's own steps carry no deadline: the executor has its own
+            # budget and the channel's default is what it wants.
+            "deadline_s": None,
         },
     ]
 
@@ -358,7 +375,9 @@ async def test_a_refused_screenshot_is_no_picture_rather_than_a_failure() -> Non
 
     look = await _look(channel, TENANT, DEVICE, "run_1", None, True)
 
-    assert look == Look("http://127.0.0.1:63319/form", None, "")
+    # The refusal itself is kept, so the step that gives up can say which of
+    # the three no-picture faults this was.
+    assert look == Look("http://127.0.0.1:63319/form", None, "", refused="focus_not_permitted: no")
 
 
 async def test_a_url_the_browser_did_not_actually_answer_is_not_where_it_is() -> None:
@@ -368,6 +387,140 @@ async def test_a_url_the_browser_did_not_actually_answer_is_not_where_it_is() ->
     ):
         channel = FakeChannel({"ui.url": [reply]})
         assert (await _look(channel, TENANT, DEVICE, "run_1", None, False)).url is None
+
+
+async def test_a_browser_at_a_login_page_says_so_in_both_readers() -> None:
+    """Both, or only a route step would ever notice a login page -- and a route
+    step is the one kind that already knows where it is.
+
+    Measured on the deployment 2026-09-18: a session expired, and every run in
+    between reported `control_not_found: no control matched`, which is true and
+    sends whoever reads it looking for a broken selector.
+    """
+    said = {"url": "https://wms.test/login", "signed_out": True}
+
+    where = await _where(
+        FakeChannel({"ui.url": [Reply(ok=True, result=said)]}), TENANT, DEVICE, "run_1", None
+    )
+    looked = await _look(
+        FakeChannel(
+            {
+                "ui.url": [Reply(ok=True, result=said)],
+                "screenshot": [Reply(ok=True, result={"text_digest": "Sign in"})],
+            }
+        ),
+        TENANT,
+        DEVICE,
+        "run_1",
+        None,
+        False,
+    )
+
+    assert where.signed_out is True
+    assert looked.signed_out is True
+
+
+async def test_a_browser_that_left_the_system_reaches_both_readers_too() -> None:
+    """The third of the same question, and the one the deployment stopped on.
+
+    A step reads the tab on the system it names; an interruption is on another
+    origin by definition. The browser answers with the page in front of the
+    person instead -- `url` empty because the step has NOT arrived, and
+    `elsewhere` saying where it went -- and both readers have to carry it or
+    the run goes on saying "the browser is on None".
+    """
+    said = {
+        "url": None,
+        "elsewhere": "https://login.example/oauth2/authorize",
+        "signed_out": True,
+    }
+
+    where = await _where(
+        FakeChannel({"ui.url": [Reply(ok=True, result=said)]}), TENANT, DEVICE, "run_1", None
+    )
+    looked = await _look(
+        FakeChannel(
+            {
+                "ui.url": [Reply(ok=True, result=said)],
+                "screenshot": [Reply(ok=True, result={"text_digest": "Sign in"})],
+            }
+        ),
+        TENANT,
+        DEVICE,
+        "run_1",
+        None,
+        False,
+    )
+
+    assert (where.url, where.elsewhere) == (None, "https://login.example/oauth2/authorize")
+    assert looked.elsewhere == "https://login.example/oauth2/authorize"
+    assert where.signed_out is True and looked.signed_out is True
+
+
+async def test_a_dialog_over_the_page_reaches_both_readers_too() -> None:
+    """The other half of the same question, and the case this deployment's own
+    ledger names: `the form accepts the click and only then shows an in-app
+    'Record already exists' modal`."""
+    said = {"url": "https://wms.test/x", "dialog": "Record already exists"}
+
+    where = await _where(
+        FakeChannel({"ui.url": [Reply(ok=True, result=said)]}), TENANT, DEVICE, "run_1", None
+    )
+    looked = await _look(
+        FakeChannel(
+            {
+                "ui.url": [Reply(ok=True, result=said)],
+                "screenshot": [Reply(ok=True, result={"text_digest": "d"})],
+            }
+        ),
+        TENANT,
+        DEVICE,
+        "run_1",
+        None,
+        False,
+    )
+
+    assert where.dialog == "Record already exists"
+    assert looked.dialog == "Record already exists"
+
+
+async def test_a_page_still_arriving_reaches_both_readers() -> None:
+    """The one answer a run can DO something about rather than only report: a
+    step that failed against a half-drawn screen otherwise spends the rest of
+    its ladder on it and reports a missing control that appeared a second after
+    it gave up."""
+    said = {"url": "https://wms.test/x", "loading": True}
+
+    where = await _where(
+        FakeChannel({"ui.url": [Reply(ok=True, result=said)]}), TENANT, DEVICE, "run_1", None
+    )
+    looked = await _look(
+        FakeChannel(
+            {
+                "ui.url": [Reply(ok=True, result=said)],
+                "screenshot": [Reply(ok=True, result={"text_digest": "d"})],
+            }
+        ),
+        TENANT,
+        DEVICE,
+        "run_1",
+        None,
+        False,
+    )
+
+    assert where.loading is True
+    assert looked.loading is True
+
+
+async def test_a_browser_that_answered_nothing_is_not_reported_signed_out() -> None:
+    """This is a reason to stop, and it must never be one invented by a failure
+    to look: a page that cannot be asked is not a page asking for a password."""
+    for reply in (
+        Reply(ok=False, error_kind="no_tab", error_detail="x"),
+        Reply(ok=True, result={}),
+    ):
+        got = await _where(FakeChannel({"ui.url": [reply]}), TENANT, DEVICE, "run_1", None)
+        assert got.signed_out is False, reply
 
 
 async def test_a_picture_that_will_not_decode_is_no_picture_either() -> None:
@@ -462,6 +615,9 @@ async def test_a_look_that_hangs_is_a_look_that_can_be_cancelled() -> None:
 
 
 ELSEWHERE = "a-different-tenant"
+LOGIN = "https://login.example"
+"""The sign-in host. Another origin than the job's, which is what every
+interruption is."""
 """The `tenant` on every workflow this suite builds, and a plant rather than a
 plausible value.
 
@@ -767,6 +923,7 @@ async def _ran(
     values: Mapping[str, str] | None = None,
     live: bool = True,
     allow_focus: bool = True,
+    watched: bool = False,
     started_by: str = "form",
     tenant_id: TenantId = TENANT,
     device_id: DeviceId = DEVICE,
@@ -781,6 +938,7 @@ async def _ran(
     cap_usd: float = -1.0,
     verified_writes: tuple[VerifiedWrite, ...] = (),
     known_fields: KnownFields | None = None,
+    gather_values: GatherValues | None = None,
 ) -> WorkflowRun:
     """One run, with the arguments no test varies spelled once.
 
@@ -805,6 +963,7 @@ async def _ran(
             rescue_model=rescue_model,
             live=live,
             allow_focus=allow_focus,
+            watched=watched,
             started_by=started_by,
             stops=stops or Stops(),
             approvals=approvals or Approvals(),
@@ -813,6 +972,7 @@ async def _ran(
             items=items,
             verified_writes=verified_writes,
             known_fields=known_fields,
+            gather_values=gather_values,
             # No cap unless a test is about the cap: `over_cap` answers a
             # negative one before it touches the repository, so every other
             # test here pays nothing and asserts nothing about money.
@@ -1271,6 +1431,85 @@ async def test_the_record_keeps_what_the_browser_answered_not_what_it_answered_w
     }, "the three facts and the write marker; not the body, not the cookie"
 
 
+async def test_a_step_that_uses_an_earlier_one_is_planned_with_what_it_made() -> None:
+    """3.1's other half, through the loop rather than beside it.
+
+    `uses_edges` finds the edge and `_what_earlier_steps_made` reads the
+    record, and both were proved on their own -- which left the one line
+    between them, in a loop nothing ran, deciding whether a value the warehouse
+    minted reaches the step that needs it. That line is what composition is:
+    a later step cannot take an earlier one's output any other way.
+
+    Read off a row this run did not write, which is the case the binding was
+    built for: a run that is resumed re-reads what it made from the store, and
+    a binding that only worked out of a local would be empty for exactly the
+    half of a job that comes back after a pause.
+    """
+    uow = await _fixture()
+    ids = _ids(uow)
+    workflow = Workflow(
+        id="wfl_chain",
+        tenant=ELSEWHERE,
+        title="make one, then name it",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(order=0, says="save it", system=None, cites=[ids[-1]]),
+            Step(
+                order=1,
+                says="type the code",
+                system=None,
+                cites=[ids[0]],
+                parameters=["clientCode"],
+                uses=[0],
+            ),
+        ],
+        parameters=[{"name": "clientCode", "seen_values": ["A", "B"]}],
+    )
+    await uow.workflows.save(workflow)
+    await uow.workflow_runs.save(
+        _bare_run(
+            id="run_chain",
+            workflow_id=workflow.id,
+            device_id=DEVICE.value,
+            live=True,
+            from_step=1,
+            values={"clientCode": "A"},
+            steps=[
+                _step_record(
+                    order=0,
+                    of_step=0,
+                    verdict="held",
+                    verdict_by="status",
+                    made={"id": "4471"},
+                )
+            ],
+        )
+    )
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed()]})
+    asker = FakeAsker(_plan("type", "4471"), Answer(data={"held": True, "why": ""}))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "A"},
+        run_id="run_chain",
+        from_step=1,
+        earned=True,
+    )
+
+    assert run.outcome == "held"
+    planned = asker.asked[0]["evidence"]
+    assert '"step0.id": "4471"' in str(planned), (
+        "the step that uses step 0 was planned without what step 0 made"
+    )
+    # Under the run's own values and never over them: what a person supplied is
+    # what they asked for.
+    assert '"clientCode": "A"' in str(planned)
+
+
 async def test_a_failed_reply_keeps_the_error_kind_as_its_own_field() -> None:
     uow = await _fixture()
     workflow = await _workflow(uow)
@@ -1294,6 +1533,512 @@ async def test_a_failed_reply_keeps_the_error_kind_as_its_own_field() -> None:
         "the detail is in the reason, not concatenated into a kind"
     )
     assert run.steps[0].matched_by is None, "a command that failed matched nothing"
+
+
+async def test_a_step_that_failed_somewhere_else_says_where_the_browser_is() -> None:
+    """3.14's wire, through the loop.
+
+    `_said_what_is_there` was proved beside the loop, and the loop's own call
+    passes it a fourth argument nothing exercised -- so a run that dropped
+    `route` would report `no control matched` while the operator sat looking at
+    a different screen, which is the sentence this exists to replace. Seen on
+    the deployment 2026-09-18, after a sign-in landed the browser somewhere
+    else.
+    """
+    uow = await _fixture()
+    # The job first, so the step AFTER this one still cites the evidence it was
+    # built from: `_ids` reads the repository, and a gesture added before the
+    # job is built lands on both steps -- which is one screen, not two, and no
+    # route at all.
+    workflow = await _workflow(uow)
+    original = _evidence(uow)[-1]
+    # A step that only moves the browser: one click, nothing typed, and the
+    # step after it recorded somewhere else. That is the only shape `route_for`
+    # answers for, and without it there is no screen to be wrong about.
+    moved = replace(
+        original,
+        id="ges_moved",
+        requests=[],
+        url="http://127.0.0.1:63319/list",
+        page_url="http://127.0.0.1:63319/list",
+        action=replace(original.action, kind="click", value=None),
+    )
+    await uow.gestures.add_gestures((moved,))
+    workflow.steps[0].cites = [moved.id]
+    workflow.steps[0].parameters = []
+    channel = FakeChannel(
+        {
+            **_looks(8),
+            "ui.url": [Reply(ok=True, result={"url": "http://127.0.0.1:63319/list"})] * 8,
+            "ui.perform": [Reply(ok=False, error_kind="timed_out", error_detail="gone")] * 3,
+        }
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=FakeAsker(_plan("click")), values={}, earned=True
+    )
+
+    said = run.steps[0].reason
+    assert "the browser is on http://127.0.0.1:63319/list" in said, (
+        "it never said where the browser actually was"
+    )
+    assert "demonstrated on http://127.0.0.1:63319/" in said, "it never said where the step belongs"
+    assert "gone" in said, "the original reason was replaced rather than kept beside it"
+
+
+async def test_a_session_that_went_is_signed_back_into_and_the_step_tried_again() -> None:
+    """A session expiring mid-flow is not an exception, it is a Tuesday.
+
+    The deployment's own stop, 2026-09-19: the WMS bounced an expired session
+    to `blueyonderalphaus.b2clogin.com`, the step failed, the run ended, and
+    the request sat there until somebody noticed. The way through that chooser
+    was already mined -- the operator has clicked it many times with the
+    recorder on -- so the run splices those steps in ahead of the one that met
+    the page and goes through the same ladder as everything else.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    # The way back in, entirely on the sign-in host, as the tenant's evidence
+    # holds it.
+    door = replace(
+        _evidence(uow)[0],
+        id="ges_door",
+        url=f"{LOGIN}/oauth2/v2.0/authorize",
+        page_url=f"{LOGIN}/oauth2/v2.0/authorize",
+        system=LOGIN,
+        requests=[],
+    )
+    await uow.gestures.add_gestures((door,))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_sso",
+            # The RUN's tenant, which is what `known` is asked for. The job
+            # under test is deliberately filed under another one -- see
+            # `_workflow` -- and a way back in nobody could find would prove
+            # nothing.
+            tenant=TENANT.value,
+            title="Log in using Azure B2C SSO",
+            narrative="n",
+            systems=[LOGIN],
+            steps=[Step(order=0, says="Click 'Local WMS users'", system=None, cites=[door.id])],
+        )
+    )
+    # The browser is at the sign-in page: no tab on the system, and the page in
+    # front of the person says so.
+    away = Reply(ok=True, result={"url": None, "elsewhere": f"{LOGIN}/oauth2", "signed_out": True})
+    channel = FakeChannel(
+        {
+            "ui.url": [away] * 8,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+            ]
+            * 8,
+            "ui.perform": [_performed()] * 4,
+        }
+    )
+    asker = FakeAsker(*[_plan("click")] * 6)
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+
+    said = [one.reason for one in run.steps]
+    assert any("signing back in" in one for one in said), said
+    # The sign-in step really ran, through the ordinary ladder.
+    assert any("Local WMS users" in one.says for one in run.steps), [s.says for s in run.steps]
+
+
+async def test_a_run_signs_back_in_once_and_not_forever() -> None:
+    """A second sign-in page after signing in is a system this run cannot get
+    into. A loop that kept trying would spend a budget it cannot see the end of
+    on somebody's credentials."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    door = replace(
+        _evidence(uow)[0],
+        id="ges_door",
+        url=f"{LOGIN}/oauth2/v2.0/authorize",
+        page_url=f"{LOGIN}/oauth2/v2.0/authorize",
+        system=LOGIN,
+        requests=[],
+    )
+    await uow.gestures.add_gestures((door,))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_sso",
+            # The RUN's tenant, which is what `known` is asked for. The job
+            # under test is deliberately filed under another one -- see
+            # `_workflow` -- and a way back in nobody could find would prove
+            # nothing.
+            tenant=TENANT.value,
+            title="Log in using Azure B2C SSO",
+            narrative="n",
+            systems=[LOGIN],
+            steps=[Step(order=0, says="Click 'Local WMS users'", system=None, cites=[door.id])],
+        )
+    )
+    away = Reply(ok=True, result={"url": None, "elsewhere": f"{LOGIN}/oauth2", "signed_out": True})
+    channel = FakeChannel(
+        {
+            "ui.url": [away] * 20,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+            ]
+            * 20,
+            "ui.perform": [_performed()] * 12,
+        }
+    )
+    asker = FakeAsker(*[_plan("click")] * 20)
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+
+    signed = [one for one in run.steps if "signing back in" in one.reason]
+    assert len(signed) == 1, [one.reason[:40] for one in run.steps]
+    # However it ends, it ends: a run still trying to sign in is the failure
+    # this guard exists for.
+    assert run.outcome != "held"
+    # And it says which of the two states it is in. Still being asked after
+    # signing in is not a session that went -- it is a system this run cannot
+    # get into, and that is a person's problem to look at.
+    assert any("a person has to sign in here" in one.reason for one in run.steps), [
+        one.reason[:60] for one in run.steps
+    ]
+
+
+async def test_a_step_that_failed_for_its_own_reasons_does_not_go_looking_for_a_login() -> None:
+    """A step that failed on the screen it was demonstrated on goes nowhere
+    near a sign-in: the browser is exactly where it should be, so there is no
+    interruption to get through. A run that went wandering into a sign-in job
+    every time a locator missed would be spending somebody's credentials on a
+    broken selector."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    door = replace(
+        _evidence(uow)[0],
+        id="ges_door",
+        url=f"{LOGIN}/oauth2/v2.0/authorize",
+        page_url=f"{LOGIN}/oauth2/v2.0/authorize",
+        system=LOGIN,
+        requests=[],
+    )
+    await uow.gestures.add_gestures((door,))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_sso",
+            tenant=TENANT.value,
+            title="Log in using Azure B2C SSO",
+            narrative="n",
+            systems=[LOGIN],
+            steps=[Step(order=0, says="Click 'Local WMS users'", system=None, cites=[door.id])],
+        )
+    )
+    # On the right screen, and the control simply is not there.
+    channel = FakeChannel(
+        {
+            **_looks(8),
+            "ui.perform": [Reply(ok=False, error_kind="control_not_found", error_detail="gone")]
+            * 3,
+        }
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=FakeAsker(*[_plan("type", "x")] * 6), values={}
+    )
+
+    assert not any("signing back in" in one.reason for one in run.steps), [
+        one.reason[:50] for one in run.steps
+    ]
+
+
+async def _a_way_back_in(uow: FakeUnitOfWork, how_many: int = 1) -> None:
+    """The tenant's sign-in job, `how_many` steps of it, every gesture on the
+    sign-in host -- which is the shape `signs_in_at` looks for."""
+    doors = [
+        replace(
+            _evidence(uow)[0],
+            id=f"ges_door_{n}",
+            url=f"{LOGIN}/oauth2/v2.0/authorize",
+            page_url=f"{LOGIN}/oauth2/v2.0/authorize",
+            system=LOGIN,
+            # SILENT, which is what a real click on that chooser is: the
+            # recorder heard no traffic from `Local WMS users (bf56-001-eus2)
+            # (SSO)`. To this loop a silent click is a possible write
+            # (`_saw_nothing`) -- which is exactly the rule a sign-in must not
+            # be judged by, and the fixture says so by being the same shape.
+            requests=[],
+        )
+        for n in range(how_many)
+    ]
+    await uow.gestures.add_gestures(tuple(doors))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_sso",
+            tenant=TENANT.value,
+            title="Log in using Azure B2C SSO",
+            narrative="n",
+            systems=[LOGIN],
+            steps=[
+                Step(order=n, says=f"Click the sign-in control {n}", system=None, cites=[one.id])
+                for n, one in enumerate(doors)
+            ],
+        )
+    )
+
+
+async def test_a_page_with_no_password_box_is_still_a_way_in_the_operator_knows() -> None:
+    """`A_LOGIN` is `input[type="password"]`, and the deployment's chooser has
+    none: two SSO buttons, `Local WMS users` and `Kenco Management Services`.
+    Measured 2026-09-19, run `run_db684040` -- it landed there, read
+    `signed_out: false`, and stopped.
+
+    What is not a guess is that the browser is off this step's system and the
+    tenant has a job whose every gesture is on that page. Nobody mines a job on
+    a host they were passing through."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    await _a_way_back_in(uow)
+    # Bounced to the sign-in host, and the page does not say it is asking --
+    # because it has no password box to say it with.
+    away = Reply(ok=True, result={"url": None, "elsewhere": f"{LOGIN}/oauth2", "signed_out": False})
+    channel = FakeChannel(
+        {
+            "ui.url": [away] * 10,
+            "screenshot": [Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "?"})]
+            * 10,
+            # The control is not there, because the page in front of the
+            # browser is not the page this step was demonstrated on.
+            "ui.perform": [Reply(ok=False, error_kind="control_not_found", error_detail="gone")]
+            * 4,
+        }
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=_PerSchemaAsker(
+            plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"})
+        ),
+        values={},
+        earned=True,
+    )
+
+    assert any("signing back in" in one.reason for one in run.steps), [
+        one.reason[:50] for one in run.steps
+    ]
+
+
+async def test_a_job_on_this_system_is_not_a_way_back_into_it() -> None:
+    """The guard that keeps the lookup honest. On the screen it was
+    demonstrated on, a step that failed has met no interruption -- and this
+    tenant has plenty of jobs entirely on its own warehouse host. Running one
+    of those as a "way back in" is a run doing somebody else's job because a
+    locator missed.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    # A job entirely on the system the run is already on.
+    here = replace(_evidence(uow)[0], id="ges_here", requests=[])
+    await uow.gestures.add_gestures((here,))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_elsewhere_here",
+            tenant=TENANT.value,
+            title="Navigate to Receiving",
+            narrative="n",
+            systems=["http://127.0.0.1:63319"],
+            steps=[Step(order=0, says="Open Receiving", system=None, cites=[here.id])],
+        )
+    )
+    channel = FakeChannel(
+        {
+            **_looks(8),
+            "ui.perform": [Reply(ok=False, error_kind="control_not_found", error_detail="gone")]
+            * 3,
+        }
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=_PerSchemaAsker(
+            plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": "ok"})
+        ),
+        values={},
+        earned=True,
+    )
+
+    assert not any("signing back in" in one.reason for one in run.steps), [
+        one.reason[:50] for one in run.steps
+    ]
+
+
+async def test_the_way_back_in_is_not_judged_by_the_other_jobs_rules() -> None:
+    """Measured on the deployment 2026-09-19, run `run_d6e7a78`. The rescue
+    spliced in correctly and then its FIRST click was recorded
+
+        not_needed — this step only opened the request, which was read before
+        the run began
+
+    because every per-step decision this run made up front is keyed on
+    `step.order`, the job being run has a mail-opening step 0, and another
+    job's steps start at 0 like everyone else's. The run then tried the SECOND
+    click on a page the first had never touched.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    await _a_way_back_in(uow, how_many=2)
+    away = Reply(ok=True, result={"url": None, "elsewhere": f"{LOGIN}/oauth2", "signed_out": True})
+    channel = FakeChannel(
+        {
+            "ui.url": [away] * 20,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+            ]
+            * 20,
+            # The control is not there: the page in front of the browser is
+            # the sign-in, not the screen the step was demonstrated on.
+            "ui.perform": [Reply(ok=False, error_kind="control_not_found", error_detail="gone")]
+            * 10,
+        }
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=_PerSchemaAsker(
+            plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"})
+        ),
+        values={"clientCode": "THIRD"},
+        earned=True,
+        # Two rules on `order 0` for this run, which is what the sign-in job's
+        # own step 0 was being judged by: the operator did the first step
+        # themselves, and the write is replayable so the steps that only put
+        # the form on the screen are collapsed into the call.
+        from_step=1,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+    )
+
+    signing_in = [one for one in run.steps if one.says.startswith("Click the sign-in control")]
+    assert signing_in, [one.says for one in run.steps]
+    # Attempted, whatever came of them. `not_needed` is "this run does not
+    # need this step" and `done_by_operator` is "somebody already did it" --
+    # and neither was ever decided about THIS job.
+    #
+    # Of the two exemptions this pins one: the `from_step` rule, which this
+    # fixture can put on `order 0`. The collapse rule shares the same guard on
+    # the same line and is not reachable here -- the fixture's write does not
+    # collapse its scaffolding -- so it is read rather than tested, and the
+    # live round is where it was found in the first place.
+    assert not any(one.verdict in ("not_needed", "done_by_operator") for one in signing_in), [
+        (one.says, one.verdict, one.reason[:60]) for one in signing_in
+    ]
+
+
+async def test_a_click_that_signs_back_in_is_not_a_write() -> None:
+    """Measured on the deployment 2026-09-19, run `run_d6e7a78`: the SSO
+    button click ended the run with *state unknown after a write; not
+    retried*, and the result card then offered no "Try it again" either --
+    because a run whose write may have landed must never be pressed twice.
+
+    `may_write` is deliberately wide: every silent click is a possible write,
+    since a click whose demonstration showed no traffic could be a Save. That
+    is a rule about the JOB's own steps. A spliced sign-in click is on the
+    login host and cannot create a warehouse record.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    await _a_way_back_in(uow, how_many=2)
+    away = Reply(ok=True, result={"url": None, "elsewhere": f"{LOGIN}/oauth2", "signed_out": True})
+    channel = FakeChannel(
+        {
+            "ui.url": [away] * 20,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+            ]
+            * 20,
+            # Performed, and nothing can confirm it on a page that still looks
+            # like a sign-in -- which is precisely where the write rules used
+            # to end the run.
+            "ui.perform": [_performed()] * 10,
+        }
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=_PerSchemaAsker(
+            plan=_plan("click"), verdict=Answer(data={"held": False, "why": "no"})
+        ),
+        values={},
+        earned=True,
+    )
+
+    signing_in = [one for one in run.steps if one.says.startswith("Click the sign-in control")]
+    assert signing_in, [one.says for one in run.steps]
+    assert not any("state unknown after a write" in one.reason for one in signing_in), [
+        one.reason[:60] for one in signing_in
+    ]
+    # And the marker that would stop the card offering another press.
+    assert not any((one.result or {}).get("wrote") for one in signing_in), [
+        one.result for one in signing_in
+    ]
+
+
+async def test_a_click_on_the_way_to_a_write_is_not_itself_the_write() -> None:
+    """Measured on the deployment 2026-09-19, run `run_74a9a812`. The operator
+    pressed Undo, the delete started, and its FIRST step -- "Opens the filter
+    dropdown" -- ended the run with *state unknown after a write; not
+    retried*. One dropdown click took the ladder away and suppressed the retry
+    button, on a job whose DELETE was four steps further on.
+
+    A click the recorder heard nothing from is a possible write, and that is
+    right for the step a job writes at. The demonstration says which step that
+    is: it recorded the call on a later one."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    # Step 0 is a silent click; the job's write is step 1, as `_workflow`
+    # records it.
+    silent = replace(_evidence(uow)[0], id="ges_open", requests=[])
+    await uow.gestures.add_gestures((silent,))
+    workflow.steps[0].cites = [silent.id]
+    workflow.steps[0].parameters = []
+    channel = FakeChannel(
+        {
+            **_looks(6),
+            "ui.perform": [Reply(ok=False, error_kind="control_not_found", error_detail="gone")]
+            * 4,
+        }
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=_PerSchemaAsker(
+            plan=_plan("click"), verdict=Answer(data={"held": False, "why": "no"})
+        ),
+        values={},
+    )
+
+    assert not any("state unknown after a write" in one.reason for one in run.steps), [
+        one.reason[:60] for one in run.steps
+    ]
+    assert not any((one.result or {}).get("wrote") for one in run.steps), [
+        one.result for one in run.steps
+    ]
+
+
+# The budget grows by the length of the way back in, and that line has no test.
+# One was written and deleted rather than left passing for the wrong reason: to
+# see it, four sign-in steps all have to HOLD, and each needs its own scripted
+# look, picture and verdict -- a fake elaborate enough that what it proves is
+# the fake. What is pinned instead is everything either side: that the rescue
+# is spliced at all, that it happens once, and that it needs a page which said
+# it was asking. A run whose budget ran out mid-login would show up as a
+# half-done sign-in on the next live round, which is where it would be read
+# anyway.
 
 
 def _only_run(uow: FakeUnitOfWork) -> WorkflowRun:
@@ -2358,15 +3103,25 @@ async def test_a_failed_step_is_retried_once_with_pro_then_the_run_stops_and_ask
             ],
         }
     )
+    # Pro proposing what Flash already had refused, which is what it did on
+    # the deployment: `run_e1ff6362` step 3, 2026-09-17, planned the identical
+    # two locators it had just been told did not match.
     asker = FakeAsker(_plan("type", "x"), _plan("type", "x"))
 
     run = await _ran(uow, workflow, channel=channel, asker=asker)
 
     assert run.outcome == "stopped"
-    assert run.steps[0].verdict == "failed" and run.steps[0].planned_by == "pro", (
-        "the second attempt was Pro's"
-    )
+    assert run.steps[0].verdict == "failed"
+    # Pro is ASKED -- a failed step gets its stronger second opinion, and that
+    # is what "retried with pro" has always meant here.
     assert [a["model"] for a in asker.asked] == ["flash", "pro"]
+    # And what Pro said is not SENT, because this page has answered that exact
+    # command already. The record names the command that actually went out,
+    # which is Flash's, rather than crediting Pro with a send that never was.
+    assert len([one for one in channel.sent if one["kind"] == "ui.perform"]) == 1, (
+        "it sent a command this page had already refused"
+    )
+    assert run.steps[0].planned_by == "flash", run.steps[0].planned_by
     assert len(run.steps) == 1, "it stopped rather than carrying on to save"
 
 
@@ -2431,7 +3186,11 @@ async def test_a_rescue_is_told_what_the_attempt_before_it_failed_with() -> None
     plans = [a for a in asker.asked if a["schema"] is PLAN_SCHEMA]
     assert _prompt(asker, 0)["previous_attempt_failed"] is None
     assert plans[1] is _seen(asker, 2)
-    assert _prompt(asker, 2)["previous_attempt_failed"] == "the field is still blank"
+    # And the screen's own words ride along with it, which is the rescue's best
+    # reason to plan something other than what was just refused.
+    told = _prompt(asker, 2)["previous_attempt_failed"]
+    assert told.startswith("the field is still blank"), told
+    assert "the screen said:" in told, told
 
 
 async def test_a_rung_that_reached_no_command_leaves_the_previous_rungs_plan_standing() -> None:
@@ -2511,8 +3270,16 @@ class _ByRungAsker(FakeAsker):
         assert isinstance(properties, dict)
         if "held" in properties:
             return self.verdict
+        # Named when it runs out, because "pop from empty list" says which
+        # LIST is empty and not which rung asked -- and a fixture that ran dry
+        # because the ladder changed shape is a different failure from a bug.
         if "found" in properties:
+            assert self.sights, "the rung that looks was asked more times than this fake answers"
             return self.sights.pop(0)
+        assert self.plans, (
+            "the planning rungs were asked more times than this fake answers; asked so far: "
+            + repr([sorted(a["schema"]["properties"])[:3] for a in self.asked])
+        )
         return self.plans.pop(0)
 
 
@@ -2543,10 +3310,16 @@ async def _run_by_sight(
     channel = FakeChannel(
         {
             **(looks or _looks_with_size(12)),
-            # Two misses on the first step; the save then matches by evidence.
+            # One miss on the first step; the save then matches by evidence.
+            #
+            # Two, until the runner stopped re-sending a command this page has
+            # just refused. The rescue rung is handed `previous_attempt_failed`
+            # and plans something ELSE, so a fake that answers both rungs with
+            # the same plan is a fake modelling a ladder that no longer exists:
+            # the second identical plan is not taken, and the second miss here
+            # was being spent by the step AFTER this one.
             "ui.perform": performs
             or [
-                Reply(ok=False, error_kind="control_not_found", error_detail="gone"),
                 Reply(ok=False, error_kind="control_not_found", error_detail="gone"),
                 _performed("role_and_name"),
             ],
@@ -2653,6 +3426,11 @@ async def test_without_a_picture_there_is_no_sight_rung() -> None:
     )
 
     assert run.outcome == "stopped" and "no screen to look at" in run.steps[0].reason
+    # And the browser's own words for WHY, carried through to the step. Two
+    # deployment runs on 2026-09-17 gave up on the same step with the bare
+    # sentence, and a refused focus, a tab that went away and a picture of no
+    # size were indistinguishable from it.
+    assert "focus_not_permitted: no" in run.steps[0].reason, run.steps[0].reason
     assert not _by_sight(asker), "the model was not asked to look at nothing"
     assert not [s for s in channel.sent if s["kind"] == "ui.perform_at"]
 
@@ -3018,6 +3796,51 @@ async def test_the_person_the_write_waits_on_is_given_five_minutes() -> None:
 
     assert approvals.waited == [300.0], "the loop's own deadline, not the register's default"
     assert "within 5 minutes" in run.steps[-1].reason
+
+
+async def test_a_step_the_job_would_skip_is_not_a_write_to_ask_about(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Measured on the deployment, 2026-09-17: three approval windows spent on
+    "Click the Add button", which opens a form.
+
+    `may_write` is deliberately wide -- a click whose demonstration showed no
+    traffic might be a write, so it asks. But a step in the reserve is one an
+    unwatched run of this very job does not perform at all: it is scaffolding
+    for a write that is in the ledger, and that write is the Save at the end of
+    it. Asking somebody to approve doing what the same job would otherwise skip
+    is incoherent, and it stopped every watched run three steps early.
+
+    The write still asks. `scaffolding_for` returns what comes BEFORE the write
+    step, so the step carrying the call is never in the reserve.
+    """
+    # The write at the end still parks, and this test is not about that wait.
+    monkeypatch.setattr(runner_module, "K_APPROVAL_WAIT_S", 0.05)
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    for step in workflow.steps:
+        step.order += 1
+    workflow.steps.insert(
+        0,
+        Step(order=0, says="click Add", system=None, cites=[_silent_click(uow)], parameters=[]),
+    )
+    await uow.workflows.save(workflow)
+    channel = FakeChannel({**_looks(8), "ui.perform": [_performed()] * 4})
+    asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        started_by="offer",
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+        watched=True,
+    )
+
+    assert run.steps[0].verdict != "awaiting", run.steps[0].reason
+    assert "approve" not in (run.steps[0].reason or ""), run.steps[0].reason
 
 
 async def test_a_write_nobody_approves_stops_the_run(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -3954,6 +4777,214 @@ async def test_a_step_that_wants_a_password_keeps_saying_so_after_the_rung_gives
     assert "value" not in step.sent["payload"]
 
 
+async def test_the_password_asked_for_is_the_one_for_the_page_in_front_of_them() -> None:
+    """A credential belongs to the system whose box it is typed into.
+
+    `after.url` is empty whenever the step's own origin is not where the tab
+    got to -- which is every sign-in that bounced -- and this used to fall
+    back to the origin the RECORDING names. Measured on the deployment
+    2026-09-20, run `run_b949148d`: `Log in using Azure B2C SSO` is mined
+    entirely on `blueyonderalphaus.b2clogin.com`, the live sign-in bounced to
+    Keycloak, the b2clogin password went into the Keycloak form, and the page
+    said *Invalid username or password*. That spends an account's lockout
+    budget, and it is the operator's account.
+    """
+    uow = await _fixture()
+    workflow = await _a_password_step(uow)
+    asked: list[str] = []
+
+    run = await asyncio.wait_for(
+        run_workflow(
+            uow,
+            workflow,
+            tenant_id=TENANT,
+            values={},
+            channel=FakeChannel(_bounced_to("https://keycloak.example/auth", ours=True)),
+            device_id=DEVICE,
+            asker=FakeAsker(_plan("type", "x")),
+            plan_model="flash",
+            rescue_model="pro",
+            live=True,
+            allow_focus=True,
+            started_by="form",
+            stops=Stops(),
+            approvals=Approvals(),
+            cap_usd=-1.0,
+            secret_for=lambda key: _noted(key, asked),
+        ),
+        timeout=5,
+    )
+
+    wants = run.steps[0].sent["payload"]["needs_secret"]
+    # `origin_of`'s spelling, which is what `secret_key_of` stores under on
+    # both sides: host and port, no scheme.
+    assert wants["system"] == "keycloak.example", wants
+    assert not any("127.0.0.1" in one for one in asked), (
+        f"it went looking for the recorded system's credential: {asked}"
+    )
+
+
+async def test_the_password_planned_for_is_never_keyed_to_somebody_else_s_window() -> None:
+    """The same rule as the test above, on the path that actually asks.
+
+    `plan_step` is where a sign-in step's `needs_secret` is built, and it made
+    the same choice `run_workflow`'s sign-in rung makes -- `elsewhere` only
+    when the browser says that tab is THIS RUN'S. Only one of the two was
+    tested: the check here passed with `ours=True` either way, so deleting the
+    condition reinstated the whole defect in silence.
+
+    The tab in front is a guess -- the operator's other window, a mailbox, a
+    search. "Your password for <whatever was open>" is a credential prompt for
+    a system nobody named.
+    """
+    uow = await _fixture()
+    workflow = await _a_password_step(uow)
+    asked: list[str] = []
+
+    run = await asyncio.wait_for(
+        run_workflow(
+            uow,
+            workflow,
+            tenant_id=TENANT,
+            values={},
+            channel=FakeChannel(_bounced_to("https://someone-elses-tab.example/x", ours=False)),
+            device_id=DEVICE,
+            asker=FakeAsker(_plan("type", "x")),
+            plan_model="flash",
+            rescue_model="pro",
+            live=True,
+            allow_focus=True,
+            started_by="form",
+            stops=Stops(),
+            approvals=Approvals(),
+            cap_usd=-1.0,
+            secret_for=lambda key: _noted(key, asked),
+        ),
+        timeout=5,
+    )
+
+    assert not any("someone-elses-tab" in one for one in asked), (
+        f"it went looking for a credential for a window nothing named: {asked}"
+    )
+    wants = run.steps[0].sent["payload"]["needs_secret"]
+    assert "someone-elses-tab" not in str(wants), wants
+    # The recorded system instead, which is the only one this run has named.
+    assert "127.0.0.1" in str(wants), wants
+
+
+async def test_no_credential_goes_out_for_a_page_this_run_never_opened() -> None:
+    """The browser answers with the tab IN FRONT when this run pinned none --
+    the operator's other window, a mailbox, a search. "Your password for
+    <whatever was open>" is a credential prompt for a system nobody named, and
+    sending one there types somebody's password into a page nothing looked at.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    # Signed out, and the browser is on a page this run never opened: the
+    # operator's other window. This is the rung that signs a run back in, and
+    # the vault has something for every key it is asked.
+    channel = FakeChannel(
+        {
+            "ui.url": [
+                Reply(
+                    ok=True,
+                    result={
+                        "url": None,
+                        "elsewhere": "https://someone-elses-tab.example/x",
+                        "elsewhere_is_ours": False,
+                        "signed_out": True,
+                    },
+                )
+            ]
+            * 12,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+            ]
+            * 12,
+            "ui.perform": [Reply(ok=False, error_kind="control_not_found", error_detail="gone")]
+            * 12,
+        }
+    )
+
+    await asyncio.wait_for(
+        run_workflow(
+            uow,
+            workflow,
+            tenant_id=TENANT,
+            values={},
+            channel=channel,
+            device_id=DEVICE,
+            asker=_PerSchemaAsker(
+                plan=_plan("click"), verdict=Answer(data={"held": False, "why": "not there"})
+            ),
+            plan_model="flash",
+            rescue_model="pro",
+            live=True,
+            allow_focus=True,
+            started_by="form",
+            stops=Stops(),
+            approvals=Approvals(),
+            cap_usd=-1.0,
+            secret_for=lambda _key: _a_password(),
+        ),
+        timeout=10,
+    )
+
+    assert not [one for one in channel.sent if one["kind"] == "sign_in"], (
+        "a password was sent to a page this run never opened"
+    )
+
+
+async def _a_password_step(uow: FakeUnitOfWork) -> Workflow:
+    """One step that types a password, on the evidence's own origin."""
+    typed = next(g for g in _evidence(uow) if g.action.kind == "type")
+    assert typed.action.target is not None
+    secret = replace(
+        typed,
+        id="ges_bounced",
+        action=replace(typed.action, target=replace(typed.action.target, secret=True), value=None),
+    )
+    await uow.gestures.add_gestures((secret,))
+    return Workflow(
+        id="wfl_bounced",
+        tenant=ELSEWHERE,
+        title="sign in",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[Step(order=0, says="Type the password.", system=None, cites=["ges_bounced"])],
+        parameters=[],
+    )
+
+
+def _bounced_to(url: str, *, ours: bool) -> dict[str, list[Reply]]:
+    """A browser that is not on the step's origin, and says where it is.
+
+    `ours` is the whole of what this test turns on: the run's own pinned tab,
+    which is the page this job navigated to, against the tab that happens to
+    be in front.
+    """
+    return {
+        "ui.url": [
+            Reply(ok=True, result={"url": None, "elsewhere": url, "elsewhere_is_ours": ours})
+        ]
+        * 8,
+        "screenshot": [
+            Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+        ]
+        * 8,
+    }
+
+
+async def _noted(key: str, into: list[str]) -> str | None:
+    """A vault that holds nothing and remembers what it was asked for."""
+    into.append(key)
+    return None
+
+
+async def _a_password() -> str | None:
+    return "not-the-real-one"
+
+
 async def _nothing_stored() -> str | None:
     """A vault that holds no password for the key it was asked about.
 
@@ -4397,8 +5428,23 @@ async def test_a_write_the_browser_never_sent_gives_its_claim_back() -> None:
         }
     )
     asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+    approvals = Approvals()
 
-    await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+    # `no_tab_for_system` now asks for a signed-in browser before it is a
+    # failure, so this run parks once on the way to the failure it is about.
+    task = asyncio.create_task(
+        _ran(
+            uow,
+            workflow,
+            channel=channel,
+            asker=asker,
+            values={},
+            earned=True,
+            approvals=approvals,
+        )
+    )
+    approvals.approve(await _parked(approvals))
+    await task
 
     assert isinstance(uow.tool_calls, FakeToolCallRepository)
     assert not uow.tool_calls.claimed, "the claim was held for a command that never went out"
@@ -4424,6 +5470,83 @@ async def test_a_write_that_timed_out_keeps_its_claim() -> None:
     assert uow.tool_calls.claimed, "a write that may have landed gave its claim back"
 
 
+async def test_a_run_with_no_value_for_a_parameter_goes_and_finds_one() -> None:
+    """The gap the live deployment named. A press carries what somebody typed;
+    a job fired by a rule, or one whose request arrived as a mail, has a
+    parameter and no value -- and that used to be the end of it."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = FakeAsker(
+        _plan("type", "FROMMAIL"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+    )
+    asked: list[tuple[str, ...]] = []
+
+    async def _gather(wanted: Sequence[str]) -> Gathered:
+        asked.append(tuple(wanted))
+        return Gathered(
+            values={
+                "clientCode": Found(
+                    value="FROMMAIL", from_message="m-9", quoting="the code is FROMMAIL"
+                )
+            }
+        )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=asker, values={}, earned=True, gather_values=_gather
+    )
+
+    assert asked == [("clientCode",)], "it asked for exactly what it was missing"
+    assert run.outcome == "held"
+    typed = _payload(next(s for s in channel.sent if s["kind"] == "ui.perform"))
+    assert typed["value"] == "FROMMAIL", "the gathered value never reached the page"
+    # Where it came from, on the row: a value nobody typed is only as good as
+    # the message it was read out of.
+    assert run.gathered["clientCode"]["from_message"] == "m-9"
+    # And the VALUE on the row, not only in the frame that found it: `perform`
+    # re-reads the row and hands its values back down, so a gather kept in a
+    # local is a gather every resume does again -- against a mailbox that may
+    # answer differently the second time.
+    assert run.values["clientCode"] == "FROMMAIL"
+
+
+async def test_a_value_the_person_typed_is_not_overruled_by_the_mailbox() -> None:
+    """The gather is asked only about what is missing, and what it finds is
+    merged UNDER what the run was given. Said twice on purpose: a person who
+    typed a value has said what they want."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = FakeAsker(
+        _plan("type", "TYPED"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+    )
+    asked: list[tuple[str, ...]] = []
+
+    async def _gather(wanted: Sequence[str]) -> Gathered:
+        asked.append(tuple(wanted))
+        return Gathered(values={"clientCode": Found(value="FROMMAIL", from_message="m-9")})
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "TYPED"},
+        earned=True,
+        gather_values=_gather,
+    )
+
+    assert asked == [], "the mailbox was read about a value the person had already given"
+    assert run.gathered == {}
+    assert run.outcome == "held"
+
+
 async def test_what_the_dictionary_knows_reaches_the_card_a_person_approves() -> None:
     """The one failure the ladder cannot see, answered before the write.
 
@@ -4442,9 +5565,15 @@ async def test_what_the_dictionary_knows_reaches_the_card_a_person_approves() ->
         }
     )
     asked: list[tuple[str, ...]] = []
+    screens: list[str] = []
 
-    async def _known(keys: tuple[str, ...]) -> Mapping[str, Mapping[str, object]]:
+    async def _known(keys: tuple[str, ...], screen: str) -> Mapping[str, Mapping[str, object]]:
         asked.append(keys)
+        # The screen as well as the keys: a body key does not name a form --
+        # `customerType` is posted by two of them on the real base -- so the
+        # lookup that reads a form's required set has to be told which screen
+        # this write is going to.
+        screens.append(screen)
         # The ledger's own gotcha for this endpoint, as a claim: `csttyp
         # truncates at 4 chars`, and this run asks for five.
         return {"customerType": {"labels": ["Customer Type"], "max_length": 4}}
@@ -4461,6 +5590,9 @@ async def test_what_the_dictionary_knows_reaches_the_card_a_person_approves() ->
     )
 
     assert asked == [("customerType", "longDescription")], "asked once, about what it fills"
+    # And told where the write is going, so the form for THAT screen is the one
+    # whose required fields apply.
+    assert screens and screens[0], "the lookup was given no screen to match a form against"
     # The whole chain: the plan says which body key each value went into, the
     # dictionary says how much that key holds, and the run says so on the row a
     # person reads. Without it the write goes out, the warehouse answers 201,
@@ -4468,6 +5600,224 @@ async def test_what_the_dictionary_knows_reaches_the_card_a_person_approves() ->
     assert run.steps[0].notes == ["Customer Type holds 4 characters and this run supplies 6"], (
         run.steps[0].notes
     )
+
+
+async def test_the_step_that_opens_the_mail_is_not_performed_once_the_mail_is_read() -> None:
+    """Measured on the deployment, 2026-09-16, on a run watching a screen.
+
+    `Create a Customer Type` begins in a mailbox, and what the recorder kept is
+    the operator finding THAT afternoon's message. So the plan clicks a link
+    whose text is that message -- "a customer type :- GGD, description :-
+    leaning new SRO type 01" -- and a job asked for by a new mail every time
+    has no such link on the screen. The run stopped at step 0 with
+    `not_actionable: the page did not answer`, holding a value it had read out
+    of the right mail, server-side, a second earlier.
+
+    It is skipped in EITHER mode, which is what separates it from the collapse:
+    that one is about a form whose write goes out as a call, and it is off for
+    a watched run on purpose. This step's whole content happened before the run
+    began. A person watching wants to see the form fill; nobody wants to watch
+    their own mailbox being clicked.
+    """
+    uow = await _fixture()
+    # The job first, then the mail gesture: `_workflow` cites whatever evidence
+    # the unit of work holds when it is called, so a gesture added before it
+    # becomes the Save step's own citation and makes that step a mail step too.
+    workflow = await _workflow(uow)
+    mail = _demonstrated("mail-1", {"threadId": "t1"})
+    mail.url = "https://mail.google.com/mail/u/0/#inbox/t1"
+    mail.system = "https://mail.google.com"
+    await uow.gestures.add_gestures((mail,))
+    # Numbered from zero, with the rest moved along: a step at order -1 is one
+    # the press says the operator already did, which is a different rule and
+    # not the one under test.
+    for step in workflow.steps:
+        step.order += 1
+    workflow.steps.insert(
+        0, Step(order=0, says="Open the email", system=None, cites=["mail-1"], parameters=[])
+    )
+    await uow.workflows.save(workflow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = FakeAsker(
+        _plan("type", "FROMMAIL"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+    )
+
+    async def _gather(wanted: Sequence[str]) -> Gathered:
+        return Gathered(
+            values={
+                "clientCode": Found(
+                    value="FROMMAIL", from_message="m-9", quoting="the code is FROMMAIL"
+                )
+            }
+        )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        earned=True,
+        watched=True,
+        gather_values=_gather,
+    )
+
+    assert run.steps[0].verdict == "not_needed", run.steps[0]
+    assert "only opened the request" in run.steps[0].reason
+    # And nothing was driven at the mailbox. The old failure was a click sent
+    # there naming a message from the recording.
+    assert not [
+        one for one in channel.sent if "mail.google.com" in json.dumps(one.get("payload") or {})
+    ], "it drove the operator's mailbox"
+    # The rest of the job is performed as normal: this rule is about one step,
+    # not about watched runs.
+    assert [one.verdict for one in run.steps[1:]] == ["held", "held"], run.steps
+
+
+async def test_a_step_that_sends_a_mail_is_not_a_step_that_reads_one() -> None:
+    """Measured on the deployment, 2026-09-17 at 03:59.
+
+    The job that answers a request by replying to it happens entirely in a
+    mailbox. The first version of the mail rule read "every gesture is in a
+    mailbox" as "this step only opened the request", skipped all five steps,
+    and reported the run `held` -- a job that sends a mail, having sent none
+    and saying it worked. Nobody goes looking after a success.
+
+    Sending is a WRITE. It happens where the request arrived, which is a fact
+    about mailboxes and not about what the step does.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    # A gesture in the mailbox that POSTs: Gmail's own send.
+    sending = _demonstrated("mail-send", {"threadId": "t1"})
+    sending.url = "https://mail.google.com/mail/u/0/#inbox/t1"
+    sending.system = "https://mail.google.com"
+    sending.requests = [
+        replace(sending.requests[0], url="https://mail.google.com/mail/u/0/sendmessage")
+    ]
+    await uow.gestures.add_gestures((sending,))
+    for step in workflow.steps:
+        step.order += 1
+    workflow.steps.insert(
+        0, Step(order=0, says="Send the reply", system=None, cites=["mail-send"], parameters=[])
+    )
+    await uow.workflows.save(workflow)
+    channel = FakeChannel({**_looks(6), "ui.perform": [_performed()] * 3})
+    asker = FakeAsker(
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("type", "TYPED"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "TYPED"},
+        earned=True,
+        watched=True,
+    )
+
+    assert run.steps[0].verdict == "held", run.steps[0]
+
+
+async def test_a_run_that_skipped_every_step_did_not_do_the_job() -> None:
+    """The belt under the rule above, because the rule will be wrong again.
+
+    A run whose every step is `not_needed` performed nothing, sent nothing and
+    made nothing. It said `held` -- on the deployment, for a real job -- and a
+    run that claims the job is done and did not do it is worse than one that
+    fails.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    mail = _demonstrated("mail-1", {"threadId": "t1"})
+    mail.url = "https://mail.google.com/mail/u/0/#inbox/t1"
+    mail.system = "https://mail.google.com"
+    mail.requests = []
+    await uow.gestures.add_gestures((mail,))
+    # Every step of this job is a reading of the mail, so every step is skipped.
+    workflow.steps = [
+        Step(order=0, says="Open the email", system=None, cites=["mail-1"], parameters=[]),
+        Step(order=1, says="Read the code", system=None, cites=["mail-1"], parameters=[]),
+    ]
+    await uow.workflows.save(workflow)
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=FakeChannel({**_looks(4)}),
+        asker=FakeAsker(),
+        values={},
+        earned=True,
+        watched=True,
+    )
+
+    assert [one.verdict for one in run.steps] == ["not_needed", "not_needed"]
+    assert run.outcome == "stopped", "a run that did nothing at all reported the job done"
+    assert "nothing was done" in run.steps[-1].reason
+
+
+async def test_the_mail_step_is_skipped_even_when_the_run_gathered_nothing() -> None:
+    """The version of this rule that asked whether the GATHER read the mail,
+    and the press that got past it.
+
+    Measured on the deployment, 2026-09-16 at 21:11: the panel's own look had
+    already pulled the code out of the message, so the press carried every
+    value and the run gathered nothing -- `gathered` empty, the rule silent,
+    and step 0 failed exactly as it had before the rule existed.
+
+    `gathered` says which of the two things read the mail. This step does not
+    care: by the time a run exists the request has been read, because a run
+    cannot start without its values. And opening that mail could never work
+    anyway -- the link the plan clicks names the message from the recording.
+    """
+    uow = await _fixture()
+    # The job first, then the mail gesture: `_workflow` cites whatever evidence
+    # the unit of work holds when it is called, so a gesture added before it
+    # becomes the Save step's own citation and makes that step a mail step too.
+    workflow = await _workflow(uow)
+    mail = _demonstrated("mail-1", {"threadId": "t1"})
+    mail.url = "https://mail.google.com/mail/u/0/#inbox/t1"
+    mail.system = "https://mail.google.com"
+    await uow.gestures.add_gestures((mail,))
+    for step in workflow.steps:
+        step.order += 1
+    workflow.steps.insert(
+        0, Step(order=0, says="Open the email", system=None, cites=["mail-1"], parameters=[])
+    )
+    await uow.workflows.save(workflow)
+    channel = FakeChannel({**_looks(6), "ui.perform": [_performed()] * 3})
+    asker = FakeAsker(
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("type", "TYPED"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "TYPED"},
+        earned=True,
+        watched=True,
+    )
+
+    assert run.steps[0].verdict == "not_needed", run.steps[0]
+    # And the rest of the job is performed, which is what keeps this rule about
+    # one step rather than about mail-shaped jobs.
+    assert [one.verdict for one in run.steps[1:]] == ["held", "held"], run.steps
 
 
 async def test_a_replay_names_its_own_screen_even_when_it_is_not_the_first_command() -> None:
@@ -4590,6 +5940,1008 @@ async def test_a_form_step_is_still_done_when_the_write_is_not_a_call() -> None:
 
     assert [one.verdict for one in run.steps] == ["held", "held"]
     assert len([one for one in channel.sent if one["kind"] == "ui.perform"]) == 2
+
+
+async def test_the_call_is_not_refused_for_a_budget_the_screen_spent() -> None:
+    """Measured on the deployment, 2026-09-17, on the first run with the screen
+    rung live.
+
+    The screen rung spent the run's nine attempts walking a menu and answered
+    honestly that the page had not moved. The run gave up on the screen,
+    collapsed the form-filling steps and reached for the call -- and the call
+    was refused for want of a budget the screen had eaten. The job was one
+    deterministic command from done and stopped holding it.
+
+    The budget bounds what a MODEL is asked to work out. A replay asks nobody
+    anything: the evidence says which call the step made, the ledger says that
+    call is verified, and the claim in `tool_calls` stops it going twice.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            # Every attempt on the page fails, so the whole budget goes.
+            "ui.perform": [
+                Reply(ok=False, error_kind="control_not_found", error_detail="nothing matched")
+            ]
+            * 8,
+            "http.send": [Reply(ok=True, result={"status": 201, "body": "{}"})] * 2,
+        }
+    )
+    asker = _PerSchemaAsker(
+        plan=_plan("click"), verdict=Answer(data={"held": False, "why": "nothing moved"})
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+        watched=True,
+    )
+
+    wrote = [
+        one
+        for one in channel.sent
+        if one["kind"] == "http.send" and _payload(one).get("method") == "POST"
+    ]
+    assert wrote, [(one.verdict, one.reason[:70]) for one in run.steps]
+
+
+async def test_a_step_that_only_arrives_goes_straight_there() -> None:
+    """The coin flip this ends.
+
+    Measured on the deployment across 2026-09-16 and 17: the same step, the
+    same rung, thirteen cents a run, and two different outcomes -- once the
+    screen rung walked the menu and reached Customer Types, once it never left
+    the Warehouse page. The evidence held the deterministic answer the whole
+    time, one step along: the next step was performed on the screen this one
+    arrives at.
+
+    No model, no picture, and judged by where the browser ended up rather than
+    by a model looking at it.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    warehouse = "http://127.0.0.1:63319/portal#wm.config/warehouse////"
+    customers = "http://127.0.0.1:63319/portal#wm.config/customers.types////"
+    # A click on one screen, and the next step performed on another.
+    opening = _demonstrated("nav-1", {"threadId": "t"})
+    opening.url, opening.page_url = warehouse, warehouse
+    opening.requests = []
+    opening.action = replace(opening.action, kind="click", value=None)
+    arrived = _demonstrated("nav-2", {"threadId": "t"})
+    arrived.url, arrived.page_url = customers, customers
+    arrived.requests = []
+    arrived.action = replace(arrived.action, kind="click", value=None)
+    await uow.gestures.add_gestures((opening, arrived))
+    # Two steps and no more: the job is "go there, then click something
+    # there". A third step on a third page would be a second route and this
+    # test is about the first.
+    workflow.steps = [
+        Step(order=0, says="Go to Customer Types", system=None, cites=["nav-1"]),
+        Step(order=1, says="Click Add", system=None, cites=["nav-2"]),
+    ]
+    await uow.workflows.save(workflow)
+    channel = FakeChannel(
+        {
+            "ui.url": [Reply(ok=True, result={"url": warehouse})]
+            + [Reply(ok=True, result={"url": customers})] * 8,
+            "screenshot": [Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "x"})]
+            * 8,
+            "navigate": [Reply(ok=True, result={"navigated": True})],
+            "ui.perform": [_performed()] * 3,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+
+    assert [one["kind"] for one in channel.sent].count("navigate") == 1, (
+        "it did not simply go to the page the evidence names"
+    )
+    assert run.steps[0].verdict == "held", run.steps[0].reason
+    assert run.steps[0].verdict_by == "read", "a navigation was judged by a model"
+    assert customers in run.steps[0].reason
+    # And nothing was asked about it: the first plan a model saw was the step
+    # after this one.
+    assert not [one for one in asker.asked if one["schema"] is SIGHT_SCHEMA]
+
+
+# --- a screen answered with as many clicks as it takes -----------------------
+
+
+async def test_a_control_under_a_menu_is_reached_by_opening_the_menu() -> None:
+    """The shape that failed for two days.
+
+    `Create a Customer Type` clicks a tab that lives under a menu the operator
+    had already open when they recorded it -- so the menu click is in no
+    evidence anywhere, and every recorded identity for the tab misses.
+
+    One opening per rung was always allowed, and that is worth being exact
+    about: open a menu, click the thing. What was not allowed is a screen that
+    takes more -- a menu, then a section inside it, then the control -- and a
+    warehouse configuration tree is full of those. This asserts the second
+    opening, because the first was never the missing half.
+
+    Bounded by `K_OPENINGS`, so a planner that only ever opens things runs out
+    rather than loops.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks_with_size(8),
+            # Nothing the demonstration recorded matches any more.
+            "ui.perform": [
+                Reply(ok=False, error_kind="control_not_found", error_detail="nothing matched")
+            ]
+            * 2,
+            # The menu opens, then the section inside it, then the control.
+            "ui.perform_at": [
+                Reply(ok=True, result={"opened": True}),
+                Reply(ok=True, result={"opened": True}),
+                Reply(
+                    ok=True,
+                    result={
+                        "performed": True,
+                        "candidates": 1,
+                        "control": {"tag": "span", "name": "Customer Types"},
+                    },
+                ),
+            ],
+        }
+    )
+    asker = _ByRung(
+        plan=_plan("click"),
+        # First it cannot see the control and points at what reveals it; then,
+        # with a new picture, it points at the control.
+        sight=[
+            Answer(
+                data={
+                    "found": False,
+                    "points_at": "what_reveals_it",
+                    "x": 120,
+                    "y": 44,
+                    "action": "click",
+                    "why": "it is under Partners",
+                }
+            ),
+            # A second thing to open, which is where one-per-rung stopped: a
+            # menu two deep could be named and never reached.
+            Answer(
+                data={
+                    "found": False,
+                    "points_at": "what_reveals_it",
+                    "x": 160,
+                    "y": 90,
+                    "action": "click",
+                    "why": "and under Customers within it",
+                }
+            ),
+            Answer(
+                data={
+                    "found": True,
+                    "points_at": "the_control",
+                    "x": 300,
+                    "y": 210,
+                    "action": "click",
+                    "why": "there it is now",
+                }
+            ),
+        ],
+        verdicts=[Answer(data={"held": True, "why": "the screen moved"})],
+    )
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+
+    at = [_payload(one) for one in channel.sent if one["kind"] == "ui.perform_at"]
+    assert [one["x"] for one in at] == [120, 160, 300], (
+        "a screen two menus deep was named and never reached"
+    )
+    assert run.steps[0].verdict == "held", run.steps[0].reason
+    # And what it cost to find out is kept, so the next run clicks it directly.
+    kept = await uow.workflows.learned_for(workflow.id)
+    assert [(one.strategy, one.query) for one in kept] == [("text", "Customer Types")]
+
+
+# --- what a run finds out, and what the next one does with it ----------------
+
+
+class _ByRung(FakeAsker):
+    """`FakeAsker` answered by which question was asked.
+
+    The sight rung has a schema of its own, and a positional queue has to be
+    rewritten every time a belt changes how many questions a step asks.
+    """
+
+    def __init__(
+        self, *, plan: Answer, sight: Answer | list[Answer], verdicts: list[Answer]
+    ) -> None:
+        super().__init__()
+        self.plan = plan
+        # A list where the rung is asked more than once: a screen answered with
+        # two clicks asks twice, with a fresh picture the second time.
+        self.sight = list(sight) if isinstance(sight, list) else [sight]
+        self.verdicts = list(verdicts)
+
+    async def ask(self, **asked: object) -> Answer:
+        await super().ask(**asked)
+        schema = asked["schema"]
+        assert isinstance(schema, dict)
+        fields = schema["properties"]
+        assert isinstance(fields, dict)
+        if "held" in fields:
+            return self.verdicts.pop(0) if self.verdicts else Answer(data={"held": True, "why": ""})
+        if "points_at" not in fields:
+            return self.plan
+        return self.sight.pop(0) if len(self.sight) > 1 else self.sight[0]
+
+
+def _last_run(uow: FakeUnitOfWork) -> WorkflowRun:
+    return sorted(uow.workflow_runs.rows.values(), key=lambda one: one.started_at)[-1]
+
+
+async def test_a_run_keeps_the_control_a_picture_found() -> None:
+    """The half that was missing, and the reason this system repeated itself.
+
+    A step whose recorded identity no longer matches is found by a rung further
+    down -- and until now that discovery lived for one command. Measured on the
+    deployment, 2026-09-17: the rung that looks at a picture worked out three
+    times in one afternoon that the control is called "Customer Types", and the
+    job knew no more at the end of it than at the start.
+
+    `mark_stale` already said the step was about to break. This says what
+    worked instead.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks_with_size(6),
+            # The recorded identity misses; the point a picture found does not.
+            "ui.perform": [
+                Reply(ok=False, error_kind="control_not_found", error_detail="nothing matched")
+            ]
+            * 2,
+            "ui.perform_at": [
+                Reply(
+                    ok=True,
+                    result={
+                        "performed": True,
+                        "candidates": 1,
+                        "control": {"tag": "span", "name": "Customer Types"},
+                    },
+                )
+            ],
+        }
+    )
+    # By schema rather than by call order: a run asks a different number of
+    # questions depending on which belt verifies each step, and the sight rung
+    # has a schema of its own.
+    asker = _ByRung(
+        plan=_plan("click"),
+        sight=Answer(
+            data={
+                "found": True,
+                "points_at": "the_control",
+                "x": 40,
+                "y": 50,
+                "action": "click",
+                "why": "there it is",
+            }
+        ),
+        # Only the one: a command the browser refused is never verified, so
+        # the two failed rungs ask nothing and the picture's own answer is the
+        # first verdict there is.
+        verdicts=[Answer(data={"held": True, "why": "it opened"})],
+    )
+
+    await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+
+    kept = await uow.workflows.learned_for(workflow.id)
+    assert kept, [(one.verdict, one.matched_by, one.reason[:60]) for one in _last_run(uow).steps]
+    assert (kept[0].strategy, kept[0].query) == ("text", "Customer Types")
+    assert kept[0].found_by == "sight"
+
+
+async def test_the_next_run_tries_what_the_last_one_found_first() -> None:
+    """And it is tried FIRST, above the recorded ladder -- which has already
+    failed at least once, because that is the only way anything gets written
+    there. The recorded identity stays underneath: a page repaired tomorrow
+    goes back to being found the strong way."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    await uow.workflows.remember_locator(
+        workflow.id,
+        LearnedStep(ord=0, strategy="text", query="Customer Types", found_by="sight"),
+    )
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed("text"), _performed()]})
+    asker = FakeAsker(
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+    )
+
+    await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+
+    sent = _payload(next(one for one in channel.sent if one["kind"] == "ui.perform"))
+    ladder = [(one["strategy"], one["query"]) for one in sent["locators"]]
+    assert ladder[0] == ("text", "Customer Types"), ladder
+    assert len(ladder) > 1, "the demonstration's own ladder was thrown away"
+
+
+async def test_a_step_the_operator_fixed_by_hand_is_what_the_next_run_tries() -> None:
+    """The lesson the ladder cannot learn.
+
+    A control that MOVED is healed by the run itself: a weaker rung finds it
+    and the next run tries that first. A step that fails the same way every
+    time, on a control that is exactly where the job says it is, is healed by
+    nobody -- measured on the deployment 2026-09-19, `Delete a Customer Type`
+    failed four times in twenty minutes and the operator opened that dropdown
+    by hand after every one of them, in a watched tab, with every gesture
+    captured.
+
+    So the rescue is the lesson. See `sro.domain.execution.rescued`.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    nothing_matched = Reply(
+        ok=False, error_kind="control_not_found", error_detail="nothing matched"
+    )
+    failed = await _ran(
+        uow,
+        workflow,
+        channel=FakeChannel(
+            {**_looks(8), "ui.perform": [nothing_matched] * 4, "ui.perform_at": [nothing_matched]}
+        ),
+        asker=_ByRung(
+            plan=_plan("type", "x"),
+            sight=Answer(
+                data={
+                    "found": True,
+                    "points_at": "the_control",
+                    "x": 4,
+                    "y": 5,
+                    "action": "type",
+                    "why": "there it is",
+                }
+            ),
+            verdicts=[Answer(data={"held": False, "why": "nothing happened"})] * 4,
+        ),
+        earned=True,
+    )
+    assert failed.outcome != "held" and failed.finished_at
+
+    # And then the operator does that step themselves, on the same screen, a
+    # moment later -- which the recorder captures like any other gesture.
+    assert isinstance(uow.gestures, FakeGestureRepository)
+    await uow.gestures.add_gestures(
+        (
+            Gesture(
+                id="g_by_hand",
+                tenant=TENANT.value,
+                stream_id="s",
+                batch_id="b",
+                at=datetime.fromisoformat(failed.finished_at).timestamp() + 4.0,
+                url="http://127.0.0.1:63319/form",
+                system="http://127.0.0.1:63319",
+                tab_id=1,
+                frame_url=None,
+                action=Action(
+                    kind="click",
+                    at=0.0,
+                    target=Target(role="textbox", name="Client code", css_path="form > input"),
+                ),
+            ),
+        )
+    )
+
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed("role_and_name"), _performed()]})
+    await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=FakeAsker(
+            _plan("type", "x"),
+            Answer(data={"held": True, "why": ""}),
+            _plan("click"),
+            Answer(data={"held": True, "why": ""}),
+        ),
+        earned=True,
+    )
+
+    sent = _payload(next(one for one in channel.sent if one["kind"] == "ui.perform"))
+    ladder = [(one["strategy"], one["query"]) for one in sent["locators"]]
+    assert ladder[0] == ("role_and_name", "textbox|Client code"), ladder
+    kept = await uow.workflows.learned_for(workflow.id)
+    assert [(one.ord, one.found_by) for one in kept] == [(0, "by_hand")]
+
+
+async def test_a_sign_in_whose_page_is_gone_because_it_worked_is_done() -> None:
+    """The other half, and the one a person sees as the system calling its own
+    success a failure.
+
+    Measured on the deployment 2026-09-20: step 0 typed the username, the
+    sign-in went through, and the browser was in the WMS portal saying
+    "Hello Rudy". Step 1 then failed `no_tab_for_system` on the Keycloak page
+    -- which no longer existed BECAUSE THE JOB HAD SUCCEEDED -- and the card
+    said "The run stopped".
+
+    Told apart from the run that had not signed in by where the browser is,
+    which is a thing this can go and ask: somewhere else, and not asking
+    anybody to sign in.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    gone = Reply(ok=False, error_kind="no_tab_for_system", error_detail="no tab")
+    channel = FakeChannel(
+        {
+            "ui.url": [
+                Reply(ok=True, result={"url": "http://127.0.0.1:63319/form"}),
+                Reply(ok=True, result={"url": "http://127.0.0.1:63319/form"}),
+                # And from here the run's own tab is in the warehouse, signed
+                # in. `signed_out` false is the whole of the difference.
+                *[
+                    Reply(
+                        ok=True,
+                        result={
+                            "url": None,
+                            "elsewhere": "https://wms.example/portal",
+                            "elsewhere_is_ours": True,
+                            "signed_out": False,
+                        },
+                    )
+                ]
+                * 10,
+            ],
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Save"})
+            ]
+            * 12,
+            "ui.perform": [_performed(), *[gone] * 8],
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": ""}))
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
+
+    assert run.outcome == "held", [(s.order, s.verdict, s.reason[:70]) for s in run.steps]
+    assert "signed in" in run.steps[-1].reason
+    assert "wms.example" in run.steps[-1].reason, "it did not say where the browser had got to"
+
+
+async def test_a_sign_in_whose_page_is_gone_asks_rather_than_calling_itself_done() -> None:
+    """The rule that used to live here read this as "already signed in", and
+    it was the wrong way round.
+
+    It said: a job that does nothing but sign in, a step that cannot find its
+    tab, and an EARLIER step that held -- so the page went away because the
+    sign-in completed. But on a job that IS the sign-in, an earlier step
+    holding means the LOGIN FORM was being filled. It is the strongest
+    evidence in the run that nobody is signed in yet.
+
+    Measured on the deployment 2026-09-20, run `run_28f14216`: step 0 typed
+    `RKUCHIYAGM` into the Keycloak username box and held, step 1 was skipped
+    as "already signed in", the run ended `held` -- and the operator was
+    sitting in front of that same form with the password box empty and
+    nothing on screen asking them for anything. A skipped step asks for
+    nothing, which is how this painted over the password card.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    # The run's own tab, and a page still asking somebody to sign in. That is
+    # the whole of the difference from the run above, where the browser was in
+    # the warehouse: same job, same failure, same step held before it.
+    channel = FakeChannel(
+        {
+            "ui.url": [
+                Reply(
+                    ok=True,
+                    result={
+                        "url": None,
+                        "elsewhere": "https://keycloak.example/auth",
+                        "elsewhere_is_ours": True,
+                        "signed_out": True,
+                    },
+                )
+            ]
+            * 12,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+            ]
+            * 12,
+            "ui.perform": [
+                _performed(),
+                *[Reply(ok=False, error_kind="no_tab_for_system", error_detail="no tab")] * 4,
+            ],
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": ""}))
+    approvals = Approvals()
+
+    task = asyncio.create_task(
+        _ran(
+            uow,
+            workflow,
+            channel=channel,
+            asker=asker,
+            values={},
+            earned=True,
+            approvals=approvals,
+        )
+    )
+    approvals.approve(await _parked(approvals))
+    run = await task
+
+    assert run.outcome != "held", [(s.order, s.verdict, s.reason[:60]) for s in run.steps]
+    assert not any("already signed in" in one.reason for one in run.steps)
+    assert not any(one.verdict == "skipped" for one in run.steps), (
+        "a step nobody could perform was recorded as one there was nothing to do"
+    )
+
+
+async def test_a_sign_in_that_never_found_its_page_still_asks() -> None:
+    """The same answer from the very beginning: a sign-in that could not reach
+    its page has signed nobody in, and the operator is the one who can see the
+    screen."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(8),
+            "ui.perform": [Reply(ok=False, error_kind="no_tab_for_system", error_detail="no tab")]
+            * 5,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": ""}))
+    approvals = Approvals()
+
+    task = asyncio.create_task(
+        _ran(
+            uow,
+            workflow,
+            channel=channel,
+            asker=asker,
+            values={},
+            earned=True,
+            approvals=approvals,
+        )
+    )
+    approvals.approve(await _parked(approvals))
+    run = await task
+
+    assert run.outcome != "held"
+    assert not any("already signed in" in one.reason for one in run.steps)
+
+
+# --- which of the two ways this run does the job -----------------------------
+
+
+async def test_a_watched_run_does_the_job_on_the_screen() -> None:
+    """The mode decision, one half.
+
+    A press in an open panel means *show me*. Somebody is sitting in front of
+    the screen, and a run that answers by posting a call leaves them looking at
+    a form that never moved -- the record appears, the page does not, and the
+    only honest thing they can conclude is that nothing happened. So a watched
+    run performs every step: the field is typed, Save is pressed, and what they
+    see is what was done.
+
+    The evidence here is exactly the evidence that collapses an unwatched run
+    -- a ledger row for `POST /api/orders`, earned standing -- and the run
+    still fills the form. Nothing about the JOB decides this. The person does.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = FakeAsker(
+        _plan("type", "WATCHED"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "WATCHED"},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+        watched=True,
+    )
+
+    assert [one.verdict for one in run.steps] == ["held", "held"], run.steps
+    assert len([one for one in channel.sent if one["kind"] == "ui.perform"]) == 2
+    # And the call is not ALSO made. Either the form is filled and Save is
+    # pressed, or the call is replayed and neither happens -- both is two
+    # records in a warehouse that wanted one.
+    assert not [
+        one
+        for one in channel.sent
+        if one["kind"] == "http.send" and _payload(one)["method"] != "GET"
+    ], "a watched run filled the form and posted the call as well"
+
+
+async def test_a_watched_run_that_cannot_fill_the_form_still_makes_the_write() -> None:
+    """The fallback the write step's own could not reach.
+
+    Measured on the deployment, 2026-09-17 at 10:40. The run stopped on
+    "Navigate to the Customer Types screen" -- a step with no call of its own,
+    two steps before the one that has one. A run stops at its first failed
+    step, so the write it was on its way to was never tried, though the call
+    was sitting there the whole time.
+
+    So a watched run gives up on the SCREEN rather than on the job: the steps
+    that were only scaffolding for the write collapse, exactly as an unwatched
+    run would have had them from the start.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(10),
+            # The form-filling step is where the page refuses.
+            "ui.perform": [
+                Reply(ok=False, error_kind="not_actionable", error_detail="the page did not answer")
+            ]
+            * 3,
+            "http.send": [Reply(ok=True, result={"status": 201, "body": "{}"})] * 2,
+        }
+    )
+    asker = FakeAsker(
+        _plan("type", "WATCHED"),
+        Answer(data={"held": False, "why": "nothing happened on the screen"}),
+        _plan("type", "WATCHED"),
+        Answer(data={"held": False, "why": "nothing happened on the screen"}),
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+        watched=True,
+    )
+
+    assert run.steps[0].verdict == "not_needed", run.steps[0]
+    assert "going out as a call" in run.steps[0].reason
+    wrote = [
+        one
+        for one in channel.sent
+        if one["kind"] == "http.send" and _payload(one).get("method") == "POST"
+    ]
+    assert wrote, [(one.verdict, one.reason[:60]) for one in run.steps]
+    # And it tried the screen first, which is what watching is for.
+    assert any(one["kind"] == "ui.perform" for one in channel.sent)
+
+
+async def test_a_watched_run_falls_back_to_the_call_when_the_screen_will_not_take_it() -> None:
+    """Watching must not mean "and if the page cannot be driven, do not do it".
+
+    Measured on the deployment, 2026-09-16 and into the 17th: every UI step
+    ever attempted on the warehouse host failed -- a loaded page that answered
+    nothing at all -- while the same write went through as a call on the first
+    try. The operator had pressed yes. A system that answers "I could not click
+    it" while holding a call it knows works is refusing for the wrong reason.
+
+    The screen is tried first and fully -- plan from the evidence, plan again,
+    look at a picture -- and the call is what happens instead of stopping.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(12),
+            # The form fills. Then the button the write is behind answers the
+            # way that host answers: nothing ran, so nothing can be said about
+            # a control.
+            "ui.perform": [
+                _performed(),
+                *[
+                    Reply(
+                        ok=False,
+                        error_kind="not_actionable",
+                        error_detail="the page did not answer",
+                    )
+                ]
+                * 3,
+            ],
+            "http.send": [Reply(ok=True, result={"status": 201, "body": "{}"})] * 3,
+        }
+    )
+    asker = FakeAsker(
+        _plan("type", "WATCHED"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": False, "why": "nothing happened on the screen"}),
+        _plan("click"),
+        Answer(data={"held": False, "why": "nothing happened on the screen"}),
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+        watched=True,
+    )
+
+    sent = [one["kind"] for one in channel.sent]
+    assert "ui.perform" in sent, "it went to the call without trying the screen"
+    assert "http.send" in sent, "the screen refused it and the run stopped anyway"
+    assert sent.index("ui.perform") < sent.index("http.send"), (
+        "the call came before the screen a person was watching"
+    )
+    # The write itself, not the read the runner does first to see whether the
+    # record is already there. Whether this fixture's read-back can then
+    # confirm the effect is `verify`'s business and has its own tests; what is
+    # under test here is that the run reached for the call at all instead of
+    # stopping on a page that would not answer.
+    wrote = [
+        one
+        for one in channel.sent
+        if one["kind"] == "http.send" and _payload(one).get("method") == "POST"
+    ]
+    assert wrote, ("|".join(sent), [(one.verdict, one.reason) for one in run.steps])
+
+
+async def test_a_step_the_page_took_is_not_collapsed_as_one_it_refused() -> None:
+    """The collapse has one premise and it has to be true.
+
+    run_7ebafa8f, the deployment, 2026-09-17 at 22:17. Step 3 typed `GS7` into
+    Customer Type and the browser answered `ok: true, matched_by: component`:
+    the value went in, and the screenshot beside it was the thing that failed.
+    The step came back unconfirmed, the reserve collapsed it as a refusal, and
+    the card said "the form was never filled for this run" over a form that
+    was sitting there holding GS7.
+
+    That is the worst of both outcomes: a half-filled form in front of somebody
+    who might press Save on it, and the same write going out as a call beside
+    it. A step the page TOOK stops the run with the form as it is.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(6),
+            # The page took every one of them. Only the confirming failed.
+            "ui.perform": [_performed()] * 4,
+            "http.send": [Reply(ok=True, result={"status": 201, "body": "{}"})] * 3,
+        }
+    )
+    asker = FakeAsker(
+        _plan("type", "GS7"),
+        Answer(data={"held": False, "why": "nothing could be confirmed"}),
+        _plan("click"),
+        Answer(data={"held": False, "why": "nothing could be confirmed"}),
+        _plan("click"),
+        Answer(data={"held": False, "why": "nothing could be confirmed"}),
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+        watched=True,
+    )
+
+    first = run.steps[0]
+    assert first.verdict != "not_needed", (first.verdict, first.reason)
+    assert "the form is not being filled" not in (first.reason or ""), first.reason
+    # And the run does not go on to tell the operator the form is empty.
+    assert not any("the form was never filled" in (one.reason or "") for one in run.steps), [
+        one.reason for one in run.steps
+    ]
+
+
+async def test_a_field_that_would_not_take_the_value_stops_the_run() -> None:
+    """The one failure every belt agrees is a success.
+
+    The browser truncates silently and BEFORE the request. On the deployment
+    `Warehouse.Description` stops at about 28 characters with no error and no
+    warning (`knowledge-base/KNOWLEDGE-BASE.md` §5), so 28 characters go into
+    the body, 28 come back from the read, and 28 are in the photograph. The
+    status is the server's own, the read-back is the record as stored, and a
+    picture of the row looks right to a model with no idea what was asked for.
+    Every check passes and the record is not the one the request asked for.
+
+    So the run stops here, before the Save -- the same rule the blank-value
+    gate is built on. A write with the wrong thing in it is a wrong record, and
+    a warehouse record cannot be un-created; somebody shortening a description
+    themselves is a minute.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [
+                Reply(
+                    ok=True,
+                    result={
+                        "performed": True,
+                        "matched_by": "component",
+                        "candidates": 1,
+                        # The box took a prefix and dropped the rest.
+                        "short": {"asked": 60, "kept": 28, "truncated": True},
+                    },
+                )
+            ],
+        }
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=FakeAsker(_plan("type", "x")), earned=True
+    )
+
+    assert run.outcome == "stopped", [(one.verdict, one.reason) for one in run.steps]
+    assert run.steps[0].verdict == "failed"
+    assert "28 of the 60" in run.steps[0].reason, run.steps[0].reason
+    # And nothing was pressed after it.
+    assert len([one for one in channel.sent if one["kind"] == "ui.perform"]) == 1
+
+
+async def test_a_limit_found_once_is_not_found_again_the_hard_way() -> None:
+    """The difference between learning and repeating.
+
+    `learned_step.py` says what repeating costs, about locators: three runs in
+    one afternoon working out the same control's name and writing it into a log
+    line, so that at the end of the afternoon the job knew exactly what it knew
+    at the start.
+
+    A field's limit is the same shape of fact and is learnt the same way. The
+    first run finds it the hard way -- types, has a prefix silently kept, and
+    stops. Every run after knows before it opens a form, so it stops without
+    half-filling one in front of somebody to reach a conclusion already
+    written down.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    truncating = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [
+                Reply(
+                    ok=True,
+                    result={
+                        "performed": True,
+                        "matched_by": "component",
+                        "candidates": 1,
+                        "short": {"asked": 9, "kept": 4, "truncated": True},
+                    },
+                )
+            ],
+        }
+    )
+
+    # The run's own value, not the demonstration's: `value_for` takes the
+    # demonstrated one when a run supplies none, so a plan that merely NAMES a
+    # long value does not send one.
+    first = await _ran(
+        uow,
+        workflow,
+        channel=truncating,
+        asker=FakeAsker(_plan("type", "TOOLONGXX")),
+        values={"clientCode": "TOOLONGXX"},
+        earned=True,
+    )
+    assert first.outcome == "stopped"
+
+    # What it found out, kept on the job rather than in a log line.
+    (learnt,) = await uow.workflows.learned_for(workflow.id)
+    assert learnt.holds == 4
+
+    # And the next run does not touch the form to find it out again.
+    quiet = FakeChannel({**_looks(4), "ui.perform": []})
+    again = await _ran(
+        uow,
+        workflow,
+        channel=quiet,
+        asker=FakeAsker(_plan("type", "TOOLONGXX")),
+        values={"clientCode": "TOOLONGXX"},
+        earned=True,
+    )
+
+    assert again.outcome == "stopped"
+    assert "holds 4 characters and was given 9" in again.steps[0].reason, again.steps[0].reason
+    # And it is asked about rather than merely refused: the name goes on the
+    # row, and the conversation turns it into a question somebody answers --
+    # the same road a value nobody could find already takes. A run that stops
+    # dead here is an operator who pressed once and got a dead card.
+    assert again.needs == ["clientCode"], again.needs
+    assert not [one for one in quiet.sent if one["kind"] == "ui.perform"], (
+        "it typed into a box it already knew was too small"
+    )
+
+
+async def test_a_field_that_merely_tidied_the_value_does_not_stop_the_run() -> None:
+    """A field that trimmed a space or fixed a case changed what it was given
+    and did not LOSE any of it. Stopping for that would stop correct runs on a
+    hundred ordinary forms -- only a truncation is data gone."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(6),
+            "ui.perform": [
+                Reply(
+                    ok=True,
+                    result={
+                        "performed": True,
+                        "matched_by": "component",
+                        "candidates": 1,
+                        "short": {"asked": 4, "kept": 4, "truncated": False},
+                    },
+                )
+            ]
+            * 3,
+        }
+    )
+    asker = FakeAsker(
+        _plan("type", "x"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+    )
+
+    run = await _ran(uow, workflow, channel=channel, asker=asker, earned=True)
+
+    assert run.steps[0].verdict != "failed", run.steps[0].reason
+
+
+async def test_an_unwatched_run_replays_the_call() -> None:
+    """The other half, and the same job.
+
+    At three in the morning nobody is looking, so the fastest correct thing is
+    the right thing: the call the demonstration already made goes back out and
+    the form-filling steps collapse to `not_needed`. This test exists beside
+    the one above to hold the pair together -- if a change makes both runs do
+    the same thing, one of these two fails.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(2),
+            "http.send": [Reply(ok=True, result={"status": 201, "body": "{}"})],
+        }
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=FakeAsker(),
+        # No value: the demonstrated body carries its own, and a run that
+        # supplies one the body never carried is refused a replay rather than
+        # sent with the wrong code in it -- which is `_assigned`'s doing and has
+        # its own tests.
+        values={},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+    )
+
+    assert run.steps[0].verdict == "not_needed", "the form step was filled anyway"
+    assert [one["kind"] for one in channel.sent].count("http.send") == 1
+    assert not [one for one in channel.sent if one["kind"] == "ui.perform"]
 
 
 # --- a write that would only make a second copy ------------------------------
@@ -5314,3 +7666,174 @@ async def test_even_a_job_that_has_earned_its_autonomy_is_asked_after_the_first(
     # Nobody answered, so the rest was not done -- and the first one was.
     assert len([step for step in run.steps if step.item == 0 and step.verdict == "held"]) == 2
     assert not any(step.item == 2 for step in run.steps)
+
+
+async def test_a_browser_that_is_not_on_the_system_is_asked_for_rather_than_failed() -> None:
+    """The failure this system can do something about by asking.
+
+    Measured live 2026-09-16: a run failed `no_tab_for_system` because the
+    operator's warehouse session had expired. The job was right, the plan was
+    right, the values were right, and the run died on a sentence about a tab --
+    while the person who could fix it in four seconds was watching the panel it
+    died in.
+    """
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1], parameters=[])
+    channel = FakeChannel(
+        {
+            **_looks(8),
+            "ui.perform": [
+                Reply(ok=False, error_kind="no_tab_for_origin", error_detail="somewhere else"),
+                _performed(),
+            ],
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+    approvals = Approvals()
+
+    task = asyncio.create_task(
+        _ran(
+            uow,
+            workflow,
+            channel=channel,
+            asker=asker,
+            values={},
+            earned=True,
+            approvals=approvals,
+        )
+    )
+    run_id = await _parked(approvals)
+
+    parked = await uow.workflow_runs.get(TENANT, run_id)
+    assert parked is not None and parked.steps[-1].verdict == "awaiting"
+    assert "sign in" in parked.steps[-1].reason, parked.steps[-1].reason
+
+    approvals.approve(run_id)
+    run = await task
+
+    assert run.outcome == "held"
+    # The same command, sent again. Not a different plan and not a rung up the
+    # ladder: nothing was wrong with the step.
+    assert [s["kind"] for s in channel.sent].count("ui.perform") == 2
+
+
+async def test_a_run_nobody_comes_back_to_says_nobody_signed_in() -> None:
+    """The half of the ask that is not the happy one. A run parked forever is
+    a row that says `running` on a browser nobody is sitting at, so the wait
+    has an end and the end says what was waited for."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1], parameters=[])
+    channel = FakeChannel(
+        {
+            **_looks(8),
+            "ui.perform": [Reply(ok=False, error_kind="no_tab_for_system", error_detail="none")]
+            * 4,
+        }
+    )
+    asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        earned=True,
+        approvals=_RecordsTheWait(),
+    )
+
+    assert run.outcome == "stopped"
+    assert "nobody signed in" in run.steps[-1].reason, run.steps[-1].reason
+    # And it was asked once, not once per rung of the ladder: a panel that
+    # asks the same question three times is a panel arguing with the person
+    # who just answered it.
+    assert [s["kind"] for s in channel.sent].count("ui.perform") == 1
+
+
+async def test_a_collapsed_write_that_will_not_go_does_not_press_the_button_instead() -> None:
+    """The two halves of the design, fitted together into nonsense.
+
+    Measured on the deployment 2026-09-16, and it is the reason this test
+    exists. A run whose write goes out as a CALL collapses the steps that only
+    put the form on the screen -- steps 0 to 4 recorded `not_needed`, "this run
+    sends as a call". The call then failed. The ladder's next rung is a model
+    planning from the evidence, and what the evidence says is "click Save", so
+    the run pressed Save on a form an operator had half filled an HOUR earlier.
+    The warehouse refused it for an empty required field, which is the only
+    reason that is a failed run rather than a wrong record.
+
+    Individually both decisions are right. Together they are a run that skipped
+    the typing because it was going to post, and then posted nothing and
+    pressed the button as if it had typed.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(8),
+            # The call goes out and the warehouse refuses it.
+            "http.send": [Reply(ok=True, result={"status": 422, "body": '{"errors":[]}'})] * 3,
+            "ui.perform": [_performed()] * 3,
+        }
+    )
+    asker = _PerSchemaAsker(
+        plan=_plan("click"), verdict=Answer(data={"held": False, "why": "not saved"})
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        earned=True,
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+    )
+
+    assert run.outcome == "stopped"
+    # The call was tried. The button was not.
+    assert [one["kind"] for one in channel.sent].count("http.send") == 1
+    assert not [one for one in channel.sent if one["kind"] == "ui.perform"], (
+        "it pressed Save on a form this run never filled"
+    )
+    assert "the form was never filled" in run.steps[-1].reason, run.steps[-1].reason
+
+
+async def test_a_gather_that_found_nothing_stops_the_run_rather_than_licensing_it() -> None:
+    """The door lets a run start with a parameter unanswered ONLY because
+    something can go and look for it. Until this, a look that came back with
+    nothing was read as permission to carry on.
+
+    Measured on the deployment 2026-09-16: the gather lost a round to a 5xx
+    from the model, came back empty, and the run went on to press Save on a
+    form somebody else had half filled an hour earlier.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed()] * 3})
+    asker = FakeAsker()
+
+    async def _found_nothing(wanted: Sequence[str]) -> Gathered:
+        return Gathered(missing=tuple(wanted), why="the mailbox holds none of the values")
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={},
+        earned=True,
+        gather_values=_found_nothing,
+    )
+
+    assert run.outcome == "stopped"
+    assert channel.sent == [], "it drove a browser for a job it had no values for"
+    assert "nobody gave a value for clientCode" in run.steps[-1].reason
+    # And what the looking said, so the sentence is about this mailbox rather
+    # than about the idea of one.
+    assert "the mailbox holds none of the values" in run.steps[-1].reason
+    # And the names, machine-readably, beside the sentence: the question the
+    # operator is about to be asked is built from these, one at a time, and a
+    # name parsed back out of an English sentence breaks the first time the
+    # sentence is reworded.
+    assert run.needs == ["clientCode"]

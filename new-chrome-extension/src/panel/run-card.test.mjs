@@ -53,6 +53,71 @@ const RIG = {
 const tests = [];
 const test = (name, fn) => tests.push([name, fn]);
 
+test("the step that is happening is marked as happening", () => {
+  // A run in flight and a run that stopped on a live step draw the identical
+  // dot. "Still going" is the question somebody watching actually has, so the
+  // live one is marked and the stylesheet makes it breathe -- and stops, for
+  // anybody who asked for less movement.
+  const running = runCard({
+    // A backend run, whose rows come from the skill it is performing. A rig
+    // run plans one step at a time, so its rows ARE its record and an
+    // unrecorded step has nothing to draw.
+    run: { id: "r1", status: "running", steps: [], items: [] },
+    skill: {
+      latest: { steps: [{ index: 0, intent: "type the code" }, { index: 1, intent: "save" }] },
+    },
+    message: null,
+  });
+  const stopped = runCard({
+    run: { id: "r2", status: "stopped", steps: [], items: [] },
+    skill: { latest: { steps: [{ index: 0, intent: "type the code" }] } },
+    message: null,
+  });
+
+  const lit = (card) =>
+    of(card, "span").filter((one) => one.dataset.live === "true").length;
+
+  assert.equal(lit(running), 1, "nothing said which step was happening");
+  assert.equal(lit(stopped), 0, "a stopped run had a step marked live");
+});
+
+test("a value nobody typed says where it was read", () => {
+  // Recorded since the gather existed and shown by nothing: the run carries
+  // the message id and the words a value was quoted from, and the person
+  // deciding whether it did the right thing could not see either.
+  const card = runCard({
+    run: {
+      id: "run-1", status: "running", source: "rig", steps: [], items: [],
+      gathered: {
+        "Customer Type": {
+          value: "GPP",
+          from_message: "1a0a987fc91c3203",
+          quoting: "a customer type :- GPP",
+        },
+      },
+    },
+    skill: null,
+    message: { text: "Create a Customer Type" },
+  });
+
+  assert.match(words(card), /Customer Type: GPP — read from your mail/);
+  // The span they check the reading against, not the mail: that is in their
+  // mailbox where it already was.
+  assert.match(words(card), /a customer type :- GPP/);
+});
+
+test("a run whose values were all typed says nothing about provenance", () => {
+  // "They typed it and they meant it" is not news, and a line per value is a
+  // card nobody reads.
+  const card = runCard({
+    run: { id: "run-2", status: "running", source: "rig", steps: [], items: [] },
+    skill: null,
+    message: { text: "Create a Customer Type" },
+  });
+
+  assert.doesNotMatch(words(card), /read from your mail/);
+});
+
 test("a step says what happened to it, and confirmed is not the same as done", () => {
   // The distinction the whole ladder rests on. A step that went out and came
   // back 200 has been performed; a step whose effect something read back has
@@ -521,7 +586,12 @@ test("a finished run says which records it made", () => {
 
   const card = runCard({ run });
 
-  assert.match(words(card), /made 2 records: 4471, 4472/);
+  assert.match(words(card), /Made 2 records/);
+  // In the warehouse's own field names, and whatever fields it sent. This was
+  // the values alone -- "made 2 records: 4471, 4472" -- which drops the half
+  // that says what each value is, one line before somebody reads it.
+  assert.match(words(card), /equipmentTypeId: 4471/);
+  assert.match(words(card), /equipmentTypeId: 4472/);
   assert.match(words(card), /Nothing here can take them back/, (
     "an operator who has just watched two records be made has to know the"
     + " taking-back is theirs to do"
@@ -635,13 +705,68 @@ test("a step the dictionary had nothing to say about draws no note", () => {
   assert.ok(!words(card).includes("holds"), "an empty notes list still drew something");
 });
 
-test("not_needed is a tick, because the step was not skipped -- it was not needed", () => {
-  // It fell through to `✓!` for a day, which means the opposite: "it went out
-  // and nothing could say whether it landed". Four rows of that on every run
-  // whose write goes out as a call.
-  assert.equal(glyphFor("not_needed"), "✓");
+test("not_needed is a dash: a tick would say it happened", () => {
+  // Measured on a real card, 2026-09-16: five ticks and one cross, above a
+  // line reading "the page never moved". The operator read five things done
+  // and one failed; nothing at all had been done on the page. A tick is this
+  // panel's mark for "that happened", and the whole meaning of `not_needed` is
+  // that it did not happen and did not need to.
+  //
+  // It fell through to `✓!` before that, which means a third thing again: "it
+  // went out and nothing could say whether it landed".
+  assert.equal(glyphFor("not_needed"), "–");
+  assert.notEqual(glyphFor("not_needed"), glyphFor("held"));
+  assert.notEqual(glyphFor("not_needed"), glyphFor("skipped"));
   assert.equal(glyphFor("held"), "✓");
   assert.equal(glyphFor("awaiting"), "⏸");
+});
+
+
+test("a record is drawn in whatever fields the system sent back", () => {
+  // Nothing here knows which fields a system will answer with: a customer type
+  // comes back named `customerType`, an order with an id and a status. The
+  // backend picks the fields that name the row out of the create's own answer;
+  // this draws what arrived rather than a shape it was taught.
+  const card = runCard({
+    run: {
+      id: "run_2",
+      source: "rig",
+      status: "held",
+      items: [],
+      steps: [
+        {
+          index: 0,
+          outcome: "held",
+          says: "Click Save.",
+          made: { customerType: "GQV", longDescription: "leaning new SRO type 006" },
+        },
+      ],
+    },
+  });
+
+  const said = words(card);
+  assert.match(said, /customerType: GQV/);
+  assert.match(said, /longDescription: leaning new SRO type 006/);
+});
+
+test("a run nobody watched says it replayed the call", () => {
+  // The run finishes, the record is in the warehouse, and the page in front of
+  // the person never moved. With nothing said, that is indistinguishable from
+  // a run that did nothing at all.
+  const replayed = runCard({
+    run: { id: "run-3", status: "done", source: "rig", steps: [], items: [], watched: false },
+    skill: null,
+    message: { text: "Create a Customer Type" },
+  });
+  assert.match(words(replayed), /replayed the call/);
+
+  // And the other way round it is noise: they watched it type into the form.
+  const watched = runCard({
+    run: { id: "run-4", status: "done", source: "rig", steps: [], items: [], watched: true },
+    skill: null,
+    message: { text: "Create a Customer Type" },
+  });
+  assert.doesNotMatch(words(watched), /replayed the call/);
 });
 
 let failed = 0;

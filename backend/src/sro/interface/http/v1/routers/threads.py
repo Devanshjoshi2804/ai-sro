@@ -13,9 +13,10 @@ from sro.application.execution.pursuits import PursuitProgress, PursuitState
 from sro.application.intent.pursue import compose
 from sro.domain.chat.thread import ThreadId
 from sro.domain.execution.run import Medium, RunId
+from sro.domain.observation.attempts import DONE, NOTHING
 from sro.domain.shared.errors import Conflict, InvariantViolation, NotFound
 from sro.domain.shared.identifiers import SkillId
-from sro.interface.http.deps import ContainerDep, ContextDep
+from sro.interface.http.deps import AboutThread, ContainerDep, ContextDep
 from sro.interface.http.schemas import (
     PursueRequest,
     PursuitProgressModel,
@@ -62,7 +63,11 @@ async def current_thread(container: ContainerDep, ctx: ContextDep) -> ThreadDeta
     return ThreadDetail.of_thread(thread)
 
 
-@router.post("/{thread_id}/runs", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{thread_id}/runs",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[AboutThread],
+)
 async def run_from_thread(
     thread_id: str, body: RunSkillRequest, container: ContainerDep, ctx: ContextDep
 ) -> ThreadDetail:
@@ -117,13 +122,17 @@ async def run_from_thread(
     return ThreadDetail.of_thread(thread)
 
 
-@router.get("/{thread_id}")
+@router.get("/{thread_id}", dependencies=[AboutThread])
 async def get_thread(thread_id: str, container: ContainerDep, ctx: ContextDep) -> ThreadDetail:
     thread = await container.read_threads().get(ctx, thread_id=ThreadId(thread_id))
     return ThreadDetail.of_thread(thread)
 
 
-@router.post("/{thread_id}/pursue", status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/{thread_id}/pursue",
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[AboutThread],
+)
 async def pursue(
     thread_id: str, body: PursueRequest, container: ContainerDep, ctx: ContextDep
 ) -> PursuitProgressModel:
@@ -187,7 +196,7 @@ async def pursue(
     return PursuitProgressModel.of(progress)
 
 
-@router.get("/{thread_id}/pursue/{pursuit_id}")
+@router.get("/{thread_id}/pursue/{pursuit_id}", dependencies=[AboutThread])
 async def pursuit_progress(
     thread_id: str, pursuit_id: str, container: ContainerDep, ctx: ContextDep
 ) -> PursuitProgressModel:
@@ -213,7 +222,7 @@ def _pursuit_note(progress: PursuitProgress) -> str:
     return "\n".join(lines)
 
 
-@router.post("/{thread_id}/messages")
+@router.post("/{thread_id}/messages", dependencies=[AboutThread])
 async def say(
     thread_id: str, body: SayRequest, container: ContainerDep, ctx: ContextDep
 ) -> ThreadDetail:
@@ -230,5 +239,22 @@ async def say(
         system=body.system,
         parameters=body.parameters,
         run_id=RunId(body.run_id) if body.run_id else None,
+    )
+    # What this system made of what they said, in the thread's own vocabulary.
+    #
+    # `nothing` where the answer carried no decision at all -- the words went
+    # in and the thread went on as it was. Measured on the deployment
+    # 2026-09-20: an operator was asked for an Address, typed one, and the
+    # thread read the sentence as a fresh request and offered a different job
+    # while the first card went on waiting. Nothing anywhere recorded that
+    # their answer had not been taken as one.
+    last = thread.messages[-1] if thread.messages else None
+    decided = str((last.decision or {}).get("kind") or "") if last else ""
+    await container.record_attempt().execute(
+        ctx,
+        asked_for="say something in a conversation",
+        came_of=DONE if decided else NOTHING,
+        why="" if decided else "nothing was made of what was said",
+        about={"thread": thread_id, "run": body.run_id or ""},
     )
     return ThreadDetail.of_thread(thread)

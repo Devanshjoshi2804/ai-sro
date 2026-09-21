@@ -180,7 +180,42 @@ class FireTrigger:
         One helper for both kinds. The card names whichever of the two the
         trigger names, and every other field is the same question -- a second
         copy of this, per kind, is two cards that drift.
+
+        **And one standing ask per question.** An arrival rule fires on every
+        navigation that COMMITS its page, and a sign-in flow commits its own
+        page several times -- the form, the POST, the redirect back. Each fire
+        wrote another card. Measured on the deployment 2026-09-20: one rule,
+        `trg_a925ce7d`, three identical "Log in to Keycloak -- an arrival
+        trigger fired. Shall I?" cards stacked in the panel, none of them
+        answered, and every further landing adding a fourth.
+
+        A queue of prompts is the thing this design exists to not be, and it
+        says so where the offers are made: *one at a time, anywhere*.
+
+        Identical, and not merely same-trigger: a mail watch names the order
+        number it read, and two different mails asking about two different
+        orders are two questions however much of the rule they share. Same
+        values and same sentence is the same question, whoever asks it.
         """
+        for standing in await uow.confirmations.waiting(trigger.tenant_id):
+            if (
+                standing.trigger_id == trigger.id
+                and standing.expires_at > now
+                and standing.values == values
+                and standing.because == _because(trigger, message)
+            ):
+                # Said out loud: a fire that produced no new card is a fire,
+                # and a rule that looks like it stopped firing is a rule
+                # somebody goes looking for a fault in.
+                logger.info(
+                    "trigger %s fired and %s is still waiting on somebody",
+                    trigger.id.value,
+                    standing.id.value,
+                )
+                trigger.fired(now, None)
+                await uow.triggers.save(trigger)
+                await uow.commit()
+                return standing
         asked = Confirmation(
             id=self._ids.new_confirmation_id(),
             tenant_id=trigger.tenant_id,

@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timedelta
+from typing import Any
 
-from sqlalchemy import delete, or_, select, text
+from sqlalchemy import case, delete, literal, or_, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -61,6 +62,7 @@ from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.skill import Skill
 from sro.domain.trigger.confirmation import Answer, Confirmation
 from sro.domain.trigger.trigger import Trigger
+from sro.infrastructure.db.attempts import SqlAttemptRepository
 from sro.infrastructure.db.codec import dump_policy, when
 from sro.infrastructure.db.evidence import SqlGestureRepository, SqlPoolRepository
 from sro.infrastructure.db.mappers import (
@@ -470,20 +472,40 @@ class SqlKnowledgeRepository(KnowledgeRepository):
                     [level.value for level in EvidenceLevel if level.rank >= min_evidence.rank]
                 )
             )
+        matched: Any = None
         if words := _terms(terms):
             # Any word, not the whole phrase. "add a carrier" ILIKE'd whole
             # matches nothing, and a sentence is how the question arrives.
-            query = query.where(
+            hits = [
                 or_(
-                    *[
-                        clause
-                        for word in words
-                        for clause in (
-                            KnowledgeRow.title.ilike(f"%{word}%"),
-                            KnowledgeRow.key.ilike(f"%{word}%"),
-                        )
-                    ]
+                    KnowledgeRow.title.ilike(f"%{word}%"),
+                    KnowledgeRow.key.ilike(f"%{word}%"),
                 )
+                for word in words
+            ]
+            query = query.where(or_(*hits))
+            # HOW MANY of them, kept for the ordering below.
+            #
+            # `or_` lets a row through on one word and the vector then decided
+            # everything, which on a store of near-synonyms is the wrong
+            # decision. Measured on the deployment 2026-09-20: asked "is there
+            # a customer type called KKYT", the forty entries shown to the
+            # lookup planner held eleven `...types////` SCREENS and twenty
+            # `rpux/filter/columns/WM*Types` endpoints -- every one of them
+            # matching on the single word `type` -- and NOT
+            # `/data/WM/wm/customerTypes`, which is the endpoint that answers
+            # the question and which this deployment has watched answer 200
+            # many times. The planner is told to prefer a call over a screen
+            # and it did what it was told: no endpoint it was shown could
+            # answer, so it planned a screen, and the screen was refused for
+            # wanting the operator's tab.
+            #
+            # An entry matching `customer` AND `type` is about customer types.
+            # One matching `type` alone is about types. That is a difference
+            # the query already knows and was throwing away.
+            matched = sum(
+                (case((hit, 1), else_=0) for hit in hits),
+                start=literal(0),
             )
         if embedding:
             # The index is over the vector column and nothing else -- pgvector
@@ -499,13 +521,23 @@ class SqlKnowledgeRepository(KnowledgeRepository):
             # read by a model choosing which claims to quote, not by anything
             # that cares whether the fourth and fifth swapped places.
             await self._session.execute(text("SET LOCAL hnsw.iterative_scan = relaxed_order"))
+            # Words first, then distance. Similarity is an ordering over things
+            # that already survived the filters, and it cannot tell
+            # `customerTypes` from `WMCountTypes` -- they are the same word
+            # twice over in embedding space. How much of the question an entry
+            # actually says is the cheaper and stronger signal, and distance
+            # settles the rest.
             query = query.where(KnowledgeRow.embedding.is_not(None)).order_by(
-                KnowledgeRow.embedding.cosine_distance(list(embedding))
+                *([] if matched is None else [matched.desc()]),
+                KnowledgeRow.embedding.cosine_distance(list(embedding)),
             )
         else:
             # Best evidence first when there is no distance to sort by: a
             # reproduced claim outranks a scraped one for the same question.
-            query = query.order_by(KnowledgeRow.observed_at.desc())
+            query = query.order_by(
+                *([] if matched is None else [matched.desc()]),
+                KnowledgeRow.observed_at.desc(),
+            )
         rows = (await self._session.execute(query.limit(limit))).scalars().all()
         return tuple(row_to_knowledge(row) for row in rows)
 
@@ -1107,6 +1139,7 @@ class SqlUnitOfWork(UnitOfWork):
         self.gestures = SqlGestureRepository(self._session)
         self.workflow_runs = SqlWorkflowRunRepository(self._session)
         self.workflows = SqlWorkflowRepository(self._session)
+        self.attempts = SqlAttemptRepository(self._session)
         self.offers = SqlOfferRepository(self._session)
         self.chats = SqlChatRepository(self._session)
         self.spend = SqlSpendRepository(self._session)

@@ -6,6 +6,7 @@ here, so every endpoint reports the same failure the same way.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import FastAPI, Request, status
@@ -175,6 +176,43 @@ def _status_for(exc: Exception) -> int:
     return status.HTTP_500_INTERNAL_SERVER_ERROR
 
 
+logger = logging.getLogger(__name__)
+
+
+def _refused(request: Request, code: int, why: str, kind: str) -> None:
+    """Say that a door refused, and what it refused with.
+
+    Every refusal this API makes passes through one of the three renderers
+    below, and until now none of them said anything: a 404 answered a problem
+    document and left no trace behind it. An operator whose button did nothing
+    has a refusal with a reason in it, and the only copy of that reason was in
+    their browser.
+
+    Attributed like everything else -- the tenant and the principal are on the
+    task by the time a handler runs, so a refusal names who was refused without
+    being told. `instance` is the path FastAPI matched, which carries ids and
+    no values.
+
+    A server fault is an error and a caller's mistake is a warning, which is
+    the ordinary split -- and a 404 on a poll is noise a deployment can filter
+    by level rather than something this has to decide for it.
+    """
+    logger.log(
+        logging.ERROR if code >= 500 else logging.WARNING,
+        "%s %s refused %s: %s",
+        request.method,
+        request.url.path,
+        code,
+        why.replace("\n", " ")[:K_WHY],
+        extra={"refusal": kind},
+    )
+
+
+K_WHY = 300
+"""How much of a refusal's reason is logged. A problem detail is a sentence for
+a person; anything longer is a stack trace somebody put in a detail field."""
+
+
 def _problem_type(exc: Exception) -> str:
     """The URI naming this KIND of problem, or `about:blank` when there is none."""
     code = getattr(exc, "code", "")
@@ -183,6 +221,7 @@ def _problem_type(exc: Exception) -> str:
 
 def _problem(request: Request, exc: Exception) -> JSONResponse:
     code = _status_for(exc)
+    _refused(request, code, str(exc), type(exc).__name__)
     return JSONResponse(
         status_code=code,
         media_type="application/problem+json",
@@ -223,6 +262,7 @@ def _validation_problem(request: Request, exc: Exception) -> JSONResponse:
         f"{error.get('msg', 'is not valid')}"
         for error in errors
     )
+    _refused(request, status.HTTP_422_UNPROCESSABLE_CONTENT, detail, "RequestValidationError")
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         media_type="application/problem+json",
@@ -245,6 +285,7 @@ def _http_problem(request: Request, exc: Exception) -> JSONResponse:
     -- got undefined for the one failure it sees most.
     """
     code = getattr(exc, "status_code", status.HTTP_500_INTERNAL_SERVER_ERROR)
+    _refused(request, code, str(getattr(exc, "detail", "") or ""), "HTTPException")
     return JSONResponse(
         status_code=code,
         media_type="application/problem+json",

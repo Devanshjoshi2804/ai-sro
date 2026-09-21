@@ -26,6 +26,7 @@ what counts as done, what counts as progress, and what a round may ask for next.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
@@ -39,6 +40,26 @@ query was wrong -- and small enough that a loop going nowhere costs a handful
 of calls rather than an afternoon.
 """
 
+K_PATIENCE_S = 45.0
+"""How long a gather may take in total, however many rounds that buys.
+
+`K_ROUNDS` bounds the number of looks and not the time they take, and those are
+different bounds: measured on the deployment 2026-09-16, a run sat at "Step 0"
+for three and a half minutes because Google answered one round with a 5xx and
+the asker did what it should -- three attempts, two-second backoff, a
+two-minute ceiling each. Six rounds of that is half an hour of a card saying
+nothing while a person watches it.
+
+So the loop has a clock as well as a counter. What it has found when the clock
+runs out is what it comes back with, which is the same answer it gives for a
+mailbox that holds nothing: the run then asks a person, and asking is what this
+was always going to do about a value it could not find.
+
+Forty-five seconds because a person watching a card is the measure here, not
+the model: past about a minute they go and do the job themselves, and a gather
+that finishes after they have is a gather that wasted its own answer.
+"""
+
 K_NOTE = 240
 """How much of what a search or a read answered is kept as history.
 
@@ -48,6 +69,31 @@ on accumulated history instead of re-reading the question -- and the mitigation
 every account of them agrees on is structured note-taking rather than raw
 accumulation. What the next round needs is "this search found three messages
 and here are their subjects", not four screens of somebody's mail.
+"""
+
+
+K_HIT = 160
+"""How much of ONE row of a search result is kept.
+
+A search answers with a list, and a list trimmed by length is one row. Measured
+on the deployment 2026-09-16: `search_threads` came back with five threads and
+`K_NOTE` cut the whole answer after the first, mid-snippet -- so four message
+ids the next round could have read were never shown to it, and it answered
+`done` with nothing. "The mailbox does not hold this" said about a prompt
+again, which is the exact failure the deterministic opening search was added to
+end.
+
+Per row, so every hit's id survives and no hit's body arrives whole.
+"""
+
+K_BODY = 1200
+"""How much of a message a read is allowed to show the next round.
+
+`K_NOTE` is the cap for an answer nothing is being read out of. A read is the
+opposite: it is the one call whose whole point is the text a value is quoted
+from, and 240 characters of it cannot hold a request that opens with a greeting
+and a line of context. Still bounded -- six rounds of this is the ceiling --
+but bounded at the size of a mail rather than of a snippet.
 """
 
 
@@ -77,6 +123,13 @@ class Gathered:
     came from somebody's mailbox rather than from a person typing it."""
 
     why: str = ""
+
+    unasked: tuple[str, ...] = ()
+    """Names the reading offered that this job declares no parameter for.
+
+    Carried rather than dropped in silence. See `dropped`: a mail asking for a
+    field the job cannot take is a request half-done, and the half that went
+    missing has to be nameable by whoever reads the run."""
 
     @property
     def complete(self) -> bool:
@@ -113,13 +166,76 @@ def keep(values: Mapping[str, Found], wanted: Sequence[str]) -> dict[str, Found]
     }
 
 
+def dropped(values: Mapping[str, Found], wanted: Sequence[str]) -> tuple[str, ...]:
+    """The names a reading offered that this job has no parameter for.
+
+    `keep` discards them, which is right -- a run that carried a field the job
+    never had would send a slot nothing demonstrated. Discarding them SILENTLY
+    is not right, and is the shape of every fault this system has had worth
+    having: a request that asked for three things, a record that holds two, and
+    nothing anywhere saying which one went missing.
+
+    A job's parameters are what two doings proved VARY. The form has far more
+    fields than that, and a mail naming one of them is a person asking for
+    something perfectly reasonable that this job simply cannot take yet. They
+    should be told, not ignored.
+
+    Names only, never values: this goes into a run record and a log line.
+    """
+    allowed = set(wanted)
+    return tuple(sorted(name for name in values if name not in allowed))
+
+
 def note(what: str, answered: str) -> str:
     """One line of history: what was asked, and a trimmed sight of the answer.
 
     Trimmed here rather than at the call site so every round is the same size
-    in the prompt, whatever the mailbox handed back.
+    in the prompt, whatever the mailbox handed back -- and trimmed by the SHAPE
+    of what came back, because the three shapes a mailbox answers in do not
+    survive the same cut. A list of hits is trimmed row by row so every id
+    reaches the round that could read it; a message is given room for its body,
+    which is the text the value gets quoted from; anything else is a snippet.
     """
-    said = " ".join(answered.split())
-    if len(said) > K_NOTE:
-        said = said[:K_NOTE] + "…"
-    return f"{what} -> {said}"
+    rows = _messages(answered)
+    if rows is not None:
+        return f"{what} -> " + (" | ".join(_row(row) for row in rows) if rows else "no messages")
+    return f"{what} -> {_trimmed(answered, K_BODY if _is_a_message(answered) else K_NOTE)}"
+
+
+def _messages(answered: str) -> list[dict[str, object]] | None:
+    """The hits in a search answer, or `None` if this was not one."""
+    try:
+        said = json.loads(answered)
+    except ValueError:
+        return None
+    if not isinstance(said, dict) or not isinstance(rows := said.get("messages"), list):
+        return None
+    return [row for row in rows if isinstance(row, dict)]
+
+
+def _is_a_message(answered: str) -> bool:
+    """One message, read whole. The answer a value is quoted out of."""
+    try:
+        said = json.loads(answered)
+    except ValueError:
+        return False
+    return isinstance(said, dict) and "body" in said
+
+
+def _row(row: Mapping[str, object]) -> str:
+    """One hit, short enough that five of them are still a note.
+
+    The id first and never trimmed away: it is the only part of a hit the next
+    round can act on, and a row whose id was cut is a message nobody can ask
+    for.
+    """
+    said = " ".join(
+        str(row.get(part) or "").strip() for part in ("id", "subject", "snippet", "body")
+    )
+    return _trimmed(said, K_HIT)
+
+
+def _trimmed(said: str, cap: int) -> str:
+    """One line, at most `cap` characters of it."""
+    said = " ".join(said.split())
+    return said if len(said) <= cap else said[:cap] + "…"

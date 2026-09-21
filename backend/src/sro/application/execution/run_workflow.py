@@ -37,17 +37,22 @@ because a release says only that the wait ended and a stop releases it too.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import json
+import logging
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
+from urllib.parse import urlparse
 
 from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
+from sro.application.execution.declared import declared_keys, names_of, screen_for
 from sro.application.execution.effects import earned, forget_effects, record_effect
+from sro.application.execution.learn_from_rescue import learn_from_the_rescue
 from sro.application.execution.plan_step import (
     SecretFor,
     plan_by_sight,
@@ -70,29 +75,39 @@ from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Channel, Reply
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
+from sro.domain.chat.asked_by import only_reads_the_mail
 from sro.domain.execution.belts import K_WEAK_LOCATORS, StepVerdict
 from sro.domain.execution.evidence import (
     allowlist,
     origin_of,
     primary_gesture,
     recorded_call,
+    route_for,
     stood_on,
     writes,
 )
 from sro.domain.execution.field_notes import notes_on
+from sro.domain.execution.gathering import Gathered
+from sro.domain.execution.learned_step import LearnedStep, learned_from
 from sro.domain.execution.planning import Look, Planned
-from sro.domain.execution.secrets import without_secrets
+from sro.domain.execution.secrets import secret_key_of, without_secrets
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
 from sro.domain.execution.write_plan import scaffolding_for, seen_values
 from sro.domain.observation.gesture import Gesture
-from sro.domain.shared.hosts import screen_of, system_of
+from sro.domain.observation.trim import path_shape
+from sro.domain.shared.hosts import (
+    origin_of as origin_of_url,
+)
+from sro.domain.shared.hosts import same_screen, screen_of, system_of
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
+from sro.domain.skill.signing_in import is_a_way_in, signs_in_at
 from sro.domain.skill.workflow import Step, Workflow
+from sro.whose import attribute
 
-KnownFields = Callable[[tuple[str, ...]], Awaitable[Mapping[str, Mapping[str, object]]]]
+KnownFields = Callable[[tuple[str, ...], str], Awaitable[Mapping[str, Mapping[str, object]]]]
 """What the knowledge base says about these body keys, by key.
 
 A callable rather than `Retrieve` itself, for `SecretFor`'s reason: this module
@@ -143,9 +158,50 @@ K_STEP_SLACK = 3
 """Attempts a run may make beyond its step count before it stops. A model
 looping on a form is money spent and a warehouse confused."""
 
-K_NEVER_SENT = frozenset(
-    {"no_tab_for_system", "no_tab_for_origin", "focus_not_permitted", "aborted"}
-)
+K_STILL_COMING_S = 2.0
+"""How long a step waits for a page that had not finished arriving.
+
+Long enough for a panel to draw, short enough that it costs less than the rung
+it replaces -- a model call about a half-drawn screen is seconds and money,
+and this is neither. One wait per step: a screen still coming after this is
+stuck, and waiting again turns a fault into a hang."""
+
+GatherValues = Callable[[Sequence[str]], Awaitable[Gathered]]
+"""Go and find the values this run was not given, or say which are missing.
+
+A callable rather than `GatherContext` itself, for `SecretFor`'s reason: this
+module drives a run and does not learn what a mailbox is. A deployment with no
+connector passes nothing, and a run with missing values refuses exactly as it
+always did."""
+
+K_OPENINGS = 3
+"""How many things one rung may open before it must answer the step.
+
+A screen is answered with as many clicks as it takes -- open the menu, see the
+item, click it -- and a rung that allowed exactly one was a rung that could not
+reach a control under a menu nobody demonstrated. Measured on the deployment
+across 2026-09-16 and 17: `Create a Customer Type` never once reached its form
+on the screen, and that was why.
+
+Three, because it is the depth a warehouse menu actually has and because a
+planner that only ever opens things has to run out rather than loop. Each
+costs a command and a picture; the step budget above bounds the rest.
+"""
+
+K_NOT_HERE = frozenset({"no_tab_for_system", "no_tab_for_origin"})
+"""The two refusals that mean the browser is not where the step needs it.
+
+Not a broken job and not a wrong plan: the tab was closed, or the system signed
+the operator out and took the page with it. The same run would work a second
+later with a person signed in, so the run asks for one rather than failing --
+see `_let_in`.
+
+Both are sent by the extension after looking: `no_tab_for_system` is nothing
+open on the system at all, `no_tab_for_origin` is a tab that has been taken
+somewhere else, which is what an identity provider does on the way to its login
+page."""
+
+K_NEVER_SENT = K_NOT_HERE | frozenset({"focus_not_permitted", "aborted"})
 """Refusals that mean the extension never reached the wire, so a write claimed
 for this step can be given back.
 
@@ -174,6 +230,22 @@ class _Leg:
     step: Step
     values: Mapping[str, str]
     item: int | None = None
+
+    rescue: bool = False
+    """Whether this step belongs to ANOTHER job, spliced in to get through an
+    interruption -- signing back in, today.
+
+    Every per-step decision this run made up front is keyed on `step.order`,
+    and another job's steps start at 0 like everyone else's. Measured on the
+    deployment 2026-09-19, run `run_d6e7a78`: the sign-in job's first click was
+    recorded `not_needed -- this step only opened the request, which was read
+    before the run began`, because the job being run has a mail-opening step 0
+    and the orders collided. The run then tried the SECOND click on a page the
+    first had never touched.
+
+    So a rescue leg is exempt from all of them: what was already read, what was
+    collapsed into a call, what the operator did before the offer. None of
+    those were decided about this job."""
 
 
 def _itinerary(
@@ -277,6 +349,84 @@ async def _gestures_for(
     return {gesture.id: gesture for gesture in found}
 
 
+async def _the_way_back_in(
+    uow: UnitOfWork,
+    tenant_id: TenantId,
+    workflow: Workflow,
+    look: Look | None,
+    values: Mapping[str, str],
+    by_id: dict[str, Gesture],
+) -> tuple[Workflow | None, list[_Leg]]:
+    """The job that signs this run back in and its steps, where the tenant has
+    shown them.
+
+    A session expiring mid-flow is not an exception, it is a Tuesday: an
+    operator works in a system all day and the system logs them out. Until this
+    the run stopped and the request went nowhere until somebody noticed, which
+    on a job started from a mailbox can be hours.
+
+    **The way back in is mined evidence like anything else.** On the deployment
+    the operator has clicked through `blueyonderalphaus.b2clogin.com` many
+    times with the recorder on, and that is `Log in using Azure B2C SSO` --
+    two clicks, both on that host. `signing_in.signs_in_at` is the lookup, by
+    the host the browser actually sits on and never by a title.
+
+    The steps come back as ordinary legs, spliced into the itinerary ahead of
+    the step that met the page. Nothing here performs anything: they go through
+    the same ladder, the same write gate and the same belts as any other step,
+    and a password still comes out of the vault under `needs_secret` -- which
+    means a tenant that has stored none gets the refusal that asks for one,
+    rather than a run that guesses.
+
+    **Not "this looks like a login" -- "the operator has been through this
+    page".** `A_LOGIN` is `input[type=password]`, and the deployment's chooser
+    has no password box at all: two SSO buttons, `Local WMS users` and
+    `Kenco Management Services`. Measured 2026-09-19, run `run_db684040`, which
+    landed there and read `signed_out: false`. A page recognised by its
+    controls will always miss the next platform's idea of a login.
+
+    What is not a guess is that the browser is somewhere this step's system is
+    not, and that the tenant has a job whose every gesture is on that page. An
+    operator does not mine a job on a host they were passing through; a job
+    entirely there is the way through it, whatever it looks like.
+
+    So: the step failed, the browser is off its own system -- or the page did
+    say it was asking -- and exactly one job of this tenant's is entirely
+    there. A step that failed on the right screen goes nowhere near this.
+    """
+    if look is None or not (look.signed_out or look.elsewhere):
+        return None, []
+    where = look.elsewhere or look.url or ""
+    known = await uow.workflows.known(tenant_id)
+    # Every job's evidence, in one read. The lookup is about WHERE the
+    # gestures happened, so it cannot be made without them -- and this run has
+    # loaded only its own job's cites. One query, and only ever on the failure
+    # that met a sign-in page.
+    cited = sorted({one for job in known for step in job.steps for one in step.cites})
+    seen = (
+        {one.id: one for one in await uow.gestures.gestures_for(tenant_id, ids=tuple(cited))}
+        if cited
+        else {}
+    )
+    back = signs_in_at(where, list(known), seen, not_this=workflow.id)
+    if back is None:
+        return None, []
+    job = next((one for one in known if one.id == back), None)
+    if job is None or not job.steps:
+        return None, []
+    # And into the run's own map, because everything downstream -- planning,
+    # the locator ladder, the belts -- reads a step's evidence from there.
+    by_id.update({one: seen[one] for step in job.steps for one in step.cites if one in seen})
+    if not all(any(one in by_id for one in step.cites) for step in job.steps):
+        return None, []
+    logger.info("%s signing back in at %s with %s", workflow.id, where, job.title)
+    legs = [
+        _Leg(step, dict(values), rescue=True)
+        for step in sorted(job.steps, key=lambda one: one.order)
+    ]
+    return job, legs
+
+
 def _target_origin(planned: Planned) -> str | None:
     """The origin a planned command would actually reach. For `http.send` and
     `navigate` that is the url's own host, not the step's: those two are the
@@ -319,6 +469,389 @@ def _refused_origin(
     return off not in (replayable if kind == "http.send" else standing)
 
 
+async def _let_in(
+    uow: UnitOfWork,
+    run: WorkflowRun,
+    record: RunStep,
+    *,
+    where: str,
+    approvals: Approvals,
+    stops: Stops,
+) -> bool:
+    """Ask for a browser that is signed in, and wait for somebody to say there
+    is one. True when the step may go again.
+
+    The one refusal this system can do something about by asking. A job whose
+    plan is wrong needs a demonstration and a value nobody typed needs a
+    mailbox, but a session that has aged out needs a person who is already
+    sitting in front of the panel -- and until now the run told them their job
+    had failed on a sentence about a tab.
+
+    The write gate's own machinery, because it is the same question asked in
+    the same place: the record says `awaiting`, the panel draws the button off
+    that, and the tap releases the wait. Nothing new to learn, on either side.
+
+    Not a remedy that signs anybody in. `Remedy.REFRESH_SESSION` exists for the
+    browsers this system owns; this is the operator's own Chrome, where the
+    only thing that may type a password is the person sitting at it.
+    """
+    record.verdict, record.verdict_by = "awaiting", "none"
+    record.reason = f"the browser is not on {where} — open it and sign in, then approve to carry on"
+    # Registered before the save, for the write gate's reason: the save is what
+    # puts this in front of a person, and a tap that lands before the wait
+    # starts must find an event to set rather than a 409.
+    approvals.register(run.id)
+    await _save(uow, run)
+    if not await approvals.wait_for(run.id, K_APPROVAL_WAIT_S):
+        record.verdict, record.verdict_by = "failed", "none"
+        record.reason = f"nobody signed in to {where} within {K_APPROVAL_WAIT_S / 60:.0f} minutes"
+        run.outcome = "stopped"
+        await _save(uow, run)
+        return False
+    if stops.asked(run.id):
+        record.verdict, record.verdict_by = "failed", "none"
+        record.reason = "stopped while waiting for a signed-in browser"
+        run.outcome = "aborted"
+        await _save(uow, run)
+        return False
+    # Back to what an in-flight step already says, for the reason the write
+    # gate gives: a row left `awaiting` through the send is a row that lies for
+    # as long as the step takes, and an operator who tapped Approve watches the
+    # same paused card redraw with the same button.
+    record.verdict, record.verdict_by = "skipped", "none"
+    record.reason = "signed in; sending again"
+    await _save(uow, run)
+    return True
+
+
+logger = logging.getLogger(__name__)
+"""What the ladder did, said out loud.
+
+The mining side has logged its reasoning since it was written -- "1 step(s)
+repointed at the control the operator pressed" -- and the execution side had
+2,251 lines and not one logger. What a run left behind was a truncated
+sentence on a step row, read back through the console, and that sentence is
+everything anybody has had to debug a run with.
+
+Measured over 2026-09-15 to 17: four separate faults in one job (a frame
+lookup that could not work, an unbounded viewport walk, an occluded window
+with no frame to photograph, a step recorded as refused that the page had
+taken) each arrived as the same few words. Every one of them took a
+deploy-and-rerun cycle to tell apart, and three were diagnosed wrongly first.
+
+So the ladder narrates: every rung it built, every rung it tried, what that
+rung planned, what the browser answered, and what it concluded. One line each,
+greppable by run and by step, and about the LADDER rather than about any job
+-- a rule that reads "Customer Type" anywhere is a rule that helps one
+workflow and lies about the rest.
+
+Nothing here carries a value, a body or a header. `_said` keeps a command to
+its kind and its shape, for the same reason `_result` keeps a reply to three
+facts: a log outlives the run and a warehouse's payload has no business in it.
+"""
+
+K_ACTS = {
+    "ui.perform": ("action", "value", "locators"),
+    "ui.perform_at": ("action", "value", "x", "y"),
+    "http.send": ("method", "url", "body"),
+    "navigate": ("url",),
+}
+"""What identifies a command by WHAT IT DOES, per kind.
+
+Not the whole payload. Two attempts at one step differ in fields that change
+nothing about the page -- `starts_on` is carried by the first command a run
+sends and by none after it -- so comparing payloads whole says two identical
+clicks are different commands.
+"""
+
+
+def _command_key(kind: str, payload: Mapping[str, object]) -> str:
+    """One command, as a string equal for two commands that do the same thing.
+
+    For comparison and never for a log: `value` is what an operator typed, and
+    on a sign-in step it is a password out of the vault. `_said` is the half
+    that is safe to print.
+    """
+    acts = K_ACTS.get(kind)
+    if acts is None:
+        return f"{kind} {json.dumps(payload, sort_keys=True, default=str)}"
+    return f"{kind} " + json.dumps(
+        {part: payload.get(part) for part in acts}, sort_keys=True, default=str
+    )
+
+
+K_SAID = 120
+"""How much of a plan's shape one line carries. A url and a method, not a body."""
+
+
+def _said(kind: str, payload: Mapping[str, object]) -> str:
+    """One command, in the few facts that identify it and none that reveal it.
+
+    A url's path and nothing after it: the query holds session tokens and the
+    fragment holds the screen, and neither belongs in a log that is kept.
+    """
+    if kind == "http.send":
+        method = str(payload.get("method") or "")
+        where = str(payload.get("url") or "")
+        try:
+            where = urlparse(where).path or where
+        except ValueError:
+            where = ""
+        return f"{method} {where}"[:K_SAID]
+    if kind in ("ui.perform", "ui.perform_at"):
+        action = str(payload.get("action") or "")
+        locators = payload.get("locators")
+        if isinstance(locators, list) and locators:
+            how = ",".join(str(one.get("strategy")) for one in locators if isinstance(one, dict))
+            return f"{action} by {how}"[:K_SAID]
+        at = (payload.get("x"), payload.get("y"))
+        return f"{action} at {at[0]},{at[1]}"[:K_SAID]
+    if kind == "navigate":
+        where = str(payload.get("url") or "")
+        try:
+            place = urlparse(where)
+            return f"{place.netloc}{place.path}"[:K_SAID]
+        except ValueError:
+            return ""
+    return ""
+
+
+async def _sign_in_here(
+    *,
+    channel: Channel,
+    tenant_id: TenantId,
+    device_id: DeviceId,
+    run_id: str,
+    origin: str | None,
+    where: str,
+    secret_for: SecretFor | None,
+    record: RunStep,
+) -> bool:
+    """Fill this system's login page with what the vault holds. True if it went.
+
+    The credential is read here and put in one command. It is not returned, not
+    logged, and not written to the record -- `record.sent` keeps what the
+    extension was asked to DO and never what it was given, which is the same
+    rule `without_secrets` keeps for every other step that types one.
+
+    False for every reason there is: no vault, nothing stored, a browser that
+    refused, a page that took neither box. Each of them leaves the step exactly
+    as it was -- failed, and about to ask for a password -- because a sign-in
+    that did not happen must not read as one that did.
+    """
+    system = origin_of_url(where) or where
+    if not system or secret_for is None:
+        return False
+    try:
+        password = await secret_for(secret_key_of(tenant_id.value, system, "password"))
+        username = await secret_for(secret_key_of(tenant_id.value, system, "username"))
+    except Exception:
+        logger.info("%s: the vault could not be asked to sign in", run_id)
+        return False
+    if not password:
+        return False
+    answered = await channel.send(
+        tenant_id,
+        device_id,
+        kind="sign_in",
+        run_id=run_id,
+        payload={"origin": origin, "username": username or "", "password": password},
+    )
+    # What it DID, which is the half worth keeping. A run record read by a
+    # person, by the panel and by the model asked to rescue the next step, and
+    # none of those has any business holding a credential.
+    steps = (answered.result or {}).get("did")
+    did = ", ".join(str(one) for one in steps) if isinstance(steps, list) else ""
+    logger.info(
+        "%s: signing in to %s -- %s",
+        run_id,
+        system,
+        did if answered.ok else f"refused: {answered.detail}",
+    )
+    if not answered.ok:
+        record.reason = f"{record.reason}; the sign-in was refused: {answered.detail}"
+        return False
+    record.reason = f"{record.reason}; signed in again ({did})"
+    return True
+
+
+async def _ask_for_the_password(
+    sent: Mapping[str, object] | None,
+    where: str,
+    tenant_id: TenantId,
+    secret_for: SecretFor | None,
+) -> dict[str, object] | None:
+    """The refusal, carrying the vault key this system's password belongs under.
+
+    Only where there is nothing stored yet: a run that stopped at a login page
+    with a credential already in the vault has a different problem -- the
+    password is wrong, or the system wants a second factor -- and asking for it
+    again would be this system's answer to everything.
+
+    Left exactly as it was on every other path, including when the vault cannot
+    be reached. A refusal that grew a password box because a vault timed out
+    would have somebody typing their credential to fix an outage.
+    """
+    system = origin_of_url(where) or where
+    if not system or secret_for is None:
+        return dict(sent) if sent else None
+    key = secret_key_of(tenant_id.value, system, "password")
+    try:
+        if await secret_for(key):
+            return dict(sent) if sent else None
+    except Exception:
+        logger.info("%s could not be looked up; not asking for it", key)
+        return dict(sent) if sent else None
+    kept: dict[str, object] = dict(sent) if sent else {"kind": "none"}
+    was = kept.get("payload")
+    payload: dict[str, object] = dict(was) if isinstance(was, Mapping) else {}
+    payload["needs_secret"] = {"system": system, "field": "password", "key": key}
+    kept["payload"] = payload
+    return kept
+
+
+def _what_earlier_steps_made(run: WorkflowRun, uses: Sequence[int]) -> dict[str, str]:
+    """What the named steps created, keyed `step<order>.<field>`.
+
+    Read off the run rather than held in a local, for `run.values`' reason: a
+    resume re-reads the row and hands it back down, and anything kept only in
+    this frame is a thing the second half of a run does not know.
+
+    The LAST attempt of a step that ran more than once, which a repeating job
+    does per item: the record this item is about is the one that step just
+    made, not the one it made for the item before.
+
+    Empty for a step that made nothing, which is most of them, and for one that
+    has not run yet -- which the workflow checks refuse, and this must not
+    depend on them having.
+    """
+    made: dict[str, str] = {}
+    for order in uses:
+        for record in run.steps:
+            if record.of_step != order or not record.made:
+                continue
+            made.update({f"step{order}.{name}": value for name, value in record.made.items()})
+    return made
+
+
+async def _refused_by_the_system(
+    *,
+    channel: Channel,
+    tenant_id: TenantId,
+    device_id: DeviceId,
+    run_id: str,
+    since: float,
+) -> str:
+    """What the system itself refused during this step, if it refused anything.
+
+    The last of the five, and the only one no amount of looking at a screen can
+    answer: an operator who can reach a screen and not the action on it sees a
+    page that looks exactly right and a control that does nothing. What says so
+    is the status, and the calls the driven tab made are already asked for --
+    `by_what_the_page_called` reads them to settle a step, but only for the
+    step's own demonstrated endpoint and only where the evidence recorded a
+    write. A 403 on anything else went unread.
+
+    `401` and `403` told apart, because they are two different problems with
+    two different fixes: nobody is signed in, and this account may not do this.
+
+    Empty for everything else, including a browser that would not answer. A
+    step that failed for an ordinary reason must not be told it was refused.
+    """
+    got = await channel.send(
+        tenant_id, device_id, kind="calls.since", run_id=run_id, payload={"since": since}
+    )
+    if not got.ok:
+        return ""
+    made = got.result.get("calls") if isinstance(got.result, dict) else None
+    for call in reversed(made if isinstance(made, list) else []):
+        if not isinstance(call, dict):
+            continue
+        status = call.get("status")
+        if status not in (401, 403):
+            continue
+        where = f"{str(call.get('method', '')).upper()} {path_shape(str(call.get('url', '')))}"
+        return (
+            f"this system refused the request: {where} returned 403. "
+            "The screen is reachable and the action is not -- which is a fact "
+            "about this account rather than about the job."
+            if status == 403
+            else f"this system answered {where} with 401 -- nobody is signed in."
+        )
+    return ""
+
+
+def _said_what_is_there(
+    verdict: StepVerdict,
+    look: Look,
+    screen: str | None = None,
+    refused: str = "",
+) -> StepVerdict:
+    """The same verdict, saying what was on the screen instead.
+
+    `control_not_found: no control matched` is true and says nothing about
+    why, and the two things that most often put it there are both visible: a
+    login page, and a dialog over the form. Neither renames the verdict -- a
+    run that decided WHY a step failed would be a run guessing, and what this
+    knows is only what is on the screen. The original reason is kept beside
+    it, because the selector may be broken as well.
+
+    Only for a failure. A step that held in front of a dialog is a step that
+    held: plenty of screens confirm a save in one.
+    """
+    if verdict.state != "failed":
+        return verdict
+    if look.signed_out:
+        return replace(
+            verdict,
+            reason=(
+                "the browser is at a sign-in page -- this system's session has gone. "
+                f"Sign in and start it again. ({verdict.reason})"
+            ),
+        )
+    # What the system itself said, before anything read off the screen: a 403
+    # is the whole answer, and the screen above it looks entirely normal.
+    if refused:
+        return replace(verdict, reason=f"{refused} ({verdict.reason})")
+    if look.dialog.strip():
+        # What it SAID, first and in full. A person reading this is looking for
+        # the sentence the warehouse put on the screen, and every word this
+        # wraps around it is a word between them and it.
+        return replace(
+            verdict,
+            reason=f"the screen is showing: {look.dialog.strip()} ({verdict.reason})",
+        )
+    # And the plainest of the three: the browser is somewhere else.
+    #
+    # Not a login, no dialog, and a control nothing matched -- because the
+    # screen this step was demonstrated on is not the screen in front of it.
+    # A redirect, a half-finished navigation, an operator who clicked away.
+    # Seen on the deployment 2026-09-18: a run reported a missing tab item
+    # while the browser sat on the Warehouse configuration screen, after the
+    # operator had signed back in and landed somewhere else.
+    #
+    # `same_screen` and not string equality, which is the comparison this
+    # already makes everywhere else: a query string and a fragment's
+    # particulars are not a different screen.
+    # `elsewhere` when the browser is not on this system at all, which is what
+    # every interruption looks like: the login host, a consent screen, an error
+    # page a proxy served. Reading only `url` left the run saying nothing about
+    # any of them.
+    where = look.url or look.elsewhere
+    if screen and where and not same_screen(where, screen):
+        return replace(
+            verdict,
+            # The urls themselves. `screen_of` answers what a set of VISITS
+            # agree on, which is not this question -- and a person reading a
+            # step record wants the address they can go and look at.
+            reason=(
+                f"the browser is on {where}, and this step was demonstrated "
+                f"on {screen} ({verdict.reason})"
+            ),
+        )
+    return verdict
+
+
 async def _where(
     channel: Channel,
     tenant_id: TenantId,
@@ -336,7 +869,16 @@ async def _where(
         tenant_id, device_id, kind="ui.url", run_id=run_id, payload={"origin": origin}
     )
     url = str(where.result.get("url")) if where.ok and where.result.get("url") else None
-    return Look(url=url, screenshot=None, digest="")
+    return Look(
+        url=url,
+        screenshot=None,
+        digest="",
+        elsewhere=str(where.result.get("elsewhere") or "") if where.ok else "",
+        elsewhere_is_ours=bool(where.ok and where.result.get("elsewhere_is_ours")),
+        signed_out=bool(where.ok and where.result.get("signed_out")),
+        dialog=str(where.result.get("dialog") or "") if where.ok else "",
+        loading=bool(where.ok and where.result.get("loading")),
+    )
 
 
 async def _look(
@@ -371,13 +913,47 @@ async def _look(
                 image = None
         digest = str(shot.result.get("text_digest") or "")
     width, height = shot.result.get("width"), shot.result.get("height")
+    width = width if isinstance(width, int) else 0
+    height = height if isinstance(height, int) else 0
+    # Why there is no picture, kept rather than dropped. A browser that refused
+    # the screen says so in its own words, and a picture that arrived with no
+    # viewport beside it is a different fault again -- both used to reach the
+    # step record as the same four words.
+    refused = shot.detail if not shot.ok else ""
+    if not refused and (image is None or not width or not height):
+        refused = "the browser answered with no picture"
     return Look(
         url=url,
         screenshot=image,
         digest=digest,
-        width=width if isinstance(width, int) else 0,
-        height=height if isinstance(height, int) else 0,
+        width=width,
+        height=height,
+        refused=refused,
+        # Read off the same answer the url came in. Both readers carry it or
+        # only route steps would ever notice a login page, and a route step is
+        # the one kind that already knows where it is.
+        elsewhere=str(where.result.get("elsewhere") or "") if where.ok else "",
+        elsewhere_is_ours=bool(where.ok and where.result.get("elsewhere_is_ours")),
+        signed_out=bool(where.ok and where.result.get("signed_out")),
+        dialog=str(where.result.get("dialog") or "") if where.ok else "",
+        loading=bool(where.ok and where.result.get("loading")),
     )
+
+
+def _too_long_for(step: Step, values: Mapping[str, str], holds: int) -> list[str]:
+    """Which of this step's parameters the box will not hold.
+
+    The step says which parameters it fills and the run says what they are, so
+    the name to ask about is arithmetic rather than a guess. Named rather than
+    described, for the reason `run.needs` exists at all: a name parsed back out
+    of an English sentence is a name that breaks the first time the sentence is
+    reworded.
+    """
+    return [
+        name
+        for name in step.parameters
+        if isinstance(values.get(name), str) and len(values[name]) > holds
+    ]
 
 
 def _result(reply: Reply, *, wrote: bool = False) -> dict[str, object]:
@@ -397,6 +973,20 @@ def _result(reply: Reply, *, wrote: bool = False) -> dict[str, object]:
         "status": status if isinstance(status, int) else None,
         "matched_by": matched if isinstance(matched, str) else None,
     }
+    # What the box would not take, where the browser said so.
+    #
+    # Lengths and a flag, never the value: this is a run record and a log. The
+    # browser truncates silently and BEFORE the request, so a field that stops
+    # at 28 characters puts 28 into the body, the read-back returns 28, and
+    # the photograph shows 28 -- every belt agreeing, because every one of them
+    # compares the record to itself. This is the only fact that disagrees.
+    short = reply.result.get("short")
+    if isinstance(short, dict):
+        shown["short"] = {
+            "asked": short.get("asked"),
+            "kept": short.get("kept"),
+            "truncated": bool(short.get("truncated")),
+        }
     if wrote:
         # The one fact the register of verified writes needs and cannot
         # recompute: SQL cannot ask `writes()`, and the evidence a later reader
@@ -436,6 +1026,24 @@ def _saw_nothing(step: Step, by_id: Mapping[str, Gesture]) -> bool:
             if request.status is not None and not request.failure_reason:
                 return False
     return True
+
+
+def _not_given(workflow: Workflow, values: Mapping[str, str]) -> tuple[str, ...]:
+    """The parameters this job declares that this run has no value for.
+
+    Read off the JOB rather than off the steps: `Step.parameters` is what one
+    step types, and a value typed by one step can be wanted by the body another
+    sends. The job's own declaration is the whole set, in its own order.
+
+    A blank counts as missing, for `typed_values`' reason: a parameter answered
+    with an empty string is a parameter nobody answered.
+    """
+    declared = [
+        str(name)
+        for parameter in workflow.parameters
+        if isinstance(name := parameter.get("name"), str) and name
+    ]
+    return tuple(name for name in declared if not values.get(name, "").strip())
 
 
 def _fell_over(run: WorkflowRun, in_flight: RunStep | None, reason: str) -> None:
@@ -512,6 +1120,7 @@ async def run_workflow(
     rescue_model: str,
     live: bool,
     allow_focus: bool,
+    watched: bool = False,
     started_by: str,
     stops: Stops,
     approvals: Approvals,
@@ -521,6 +1130,7 @@ async def run_workflow(
     verified_writes: tuple[VerifiedWrite, ...] = (),
     secret_for: SecretFor | None = None,
     known_fields: KnownFields | None = None,
+    gather_values: GatherValues | None = None,
     cap_usd: float,
 ) -> WorkflowRun:
     # A run the caller already claimed. `POST /v1/runs` writes the `running` row
@@ -565,6 +1175,16 @@ async def run_workflow(
             f" {saved.device_id} from step {saved.from_step}, not running for"
             f" {workflow.id} on {device_id.value} from step {from_step}"
         )
+    # Every line the rest of this run writes says which run it was, on whose
+    # tenant, in whose browser. `attribute` rather than a block because the
+    # work to attribute is the whole of what follows; see its own docstring for
+    # why that is sound inside a task.
+    attribute(
+        tenant=tenant_id.value,
+        device=device_id.value,
+        workflow=workflow.id,
+        run=run_id or "",
+    )
     run = saved or WorkflowRun(
         id=run_id or new_run_id(),
         tenant=tenant_id.value,
@@ -574,6 +1194,7 @@ async def run_workflow(
         started_by=started_by,
         live=live,
         allow_focus=allow_focus,
+        watched=watched,
         started_at=_now(),
         # On the row, not just in this frame: it is what the check above
         # compares a re-press against, and a row that does not carry it would
@@ -582,14 +1203,146 @@ async def run_workflow(
         items=[dict(item) for item in items],
     )
     values, live, allow_focus = run.values, run.live, run.allow_focus
+    # And which of the two ways this run does the job, off the ROW like the
+    # rest: a re-press that disagreed with the row about whether somebody is
+    # watching would be a run that fills the form for one caller and posts for
+    # the next.
+    watched = run.watched
     device_id = DeviceId(run.device_id)
     await _save(uow, run)
+    # The values nobody typed, found before anything is planned.
+    #
+    # A press carries what the person filled in. A job fired by a rule, or one
+    # whose request arrived as a mail, has a parameter and no value -- and
+    # until now that was the end of it. The live failure that named this was
+    # step 1 of `Create a Customer Type` refusing with "the open email is for
+    # customer type GPDP rather than the requested ZQ41": the mailbox held a
+    # request and the run had no way to read it.
+    #
+    # Before the loop and once, not per step: a value is a fact about the run,
+    # and a gather per step would read the same mailbox repeatedly and could
+    # answer differently each time.
+    #
+    # What it finds is merged UNDER what the run was given. A person who typed
+    # a value has said what they want and a mailbox does not overrule them --
+    # the gather is only asked about what is missing, and this ordering says
+    # the same thing a second time so the two cannot disagree.
+    if gather_values is not None and (short := _not_given(workflow, values)):
+        # Said on the row before it starts, because this is the one thing a run
+        # does with no step to show for it -- and a card reading "Step 0" for
+        # three and a half minutes while the mailbox is read is a run somebody
+        # reasonably believes has hung.
+        run.doing = "looking in your mail for " + ", ".join(short)
+        await _save(uow, run)
+        got = await gather_values(short)
+        run.doing = ""
+        values = {**{name: f.value for name, f in got.values.items()}, **values}
+        # On the ROW and not only in this frame. `perform` re-reads the row and
+        # hands its values back down, so a gather kept in a local is a gather
+        # every resume does again -- against a mailbox that may answer
+        # differently the second time -- and a console showing a run that typed
+        # GPP into a form would show it running with no values at all.
+        run.values = dict(values)
+        run.gathered = {
+            name: {"value": f.value, "from_message": f.from_message, "quoting": f.quoting}
+            for name, f in got.values.items()
+        }
+        # What the mail asked for that this job cannot take.
+        #
+        # A job's parameters are what two doings proved VARY; the form has far
+        # more fields than that. So a mail saying "code GV3, description X,
+        # Department Inbound" is a perfectly reasonable request, and the run
+        # makes a record with no Department in it -- silently, because `keep`
+        # drops a name the job has no parameter for and said nothing about it.
+        #
+        # The dropping is right. The silence is the shape of every fault worth
+        # having here: a request that asked for three things, a record that
+        # holds two, and nothing anywhere naming the one that went missing.
+        if got.unasked:
+            run.unasked = list(got.unasked)
+            logger.info(
+                "%s: the mail also asked for %s, which this job has no parameter for",
+                run.id,
+                ", ".join(got.unasked),
+            )
+        await _save(uow, run)
+
+        # A value nobody typed and nobody could find is not a value.
+        #
+        # The door lets a run start with a parameter unanswered ONLY because
+        # something can go and look for it, and until this a look that came
+        # back with nothing was read as permission to carry on. Measured on the
+        # deployment 2026-09-16: the gather lost a round to a 5xx, came back
+        # empty, and the run went on to press Save on a form somebody else had
+        # half filled an hour earlier.
+        #
+        # Here rather than at the door, because the door cannot know what the
+        # looking will find; and here rather than at the step, because the
+        # answer is the same for every step and a person reading the row should
+        # find one sentence rather than a verdict per step. Only on this path:
+        # a deployment with no gather was refused at the door, as it always
+        # was.
+        if still := _not_given(workflow, values):
+            run.outcome = "stopped"
+            # And WHICH ones, machine-readably, beside the sentence. The
+            # sentence is for the person reading the row; these are what the
+            # question in their conversation is built from, one at a time, and
+            # a name parsed back out of an English sentence is a name that
+            # breaks the first time the sentence is reworded.
+            run.needs = list(still)
+            run.steps.append(
+                RunStep(
+                    order=0,
+                    says=workflow.steps[0].says if workflow.steps else "",
+                    verdict="failed",
+                    verdict_by="none",
+                    reason=(
+                        "nobody gave a value for "
+                        + ", ".join(still)
+                        + ", and your mail does not say either — "
+                        + got.why
+                    ),
+                )
+            )
+            await _save(uow, run)
+            return run
+
     by_id = await _gestures_for(uow, tenant_id, workflow)
+    # What earlier runs found out about this job's steps, by step order. Read
+    # once: it is a handful of rows and every step of the loop would otherwise
+    # ask for the same table.
+    learned = {one.ord: one for one in await uow.workflows.learned_for(workflow.id)}
+    # And what the operator taught it by hand since the last run failed, which
+    # is a lesson nothing else in this system can learn: the ladder heals a
+    # control that moved, and a step that fails the same way every time on a
+    # control that never moved is repaired by the person who does it
+    # themselves. See `sro.domain.execution.rescued`.
+    taught = await learn_from_the_rescue(uow, tenant_id, workflow, by_id)
+    if taught is not None:
+        learned[taught.ord] = taught
     # Two sets, because they answer two questions. `standing` is where the
     # operator actually was and is where a plan may SEND the browser;
     # `replayable` adds the origins their page's own requests named, which is
     # what `http.send` replays a demonstrated call to.
     observed = seen_values(workflow)
+    # Which body key each value this run holds is posted as, where the job
+    # itself declares no parameter for it.
+    #
+    # A job's parameters are what two doings proved VARY, and the form posts
+    # far more than that -- so a request naming one more had nowhere to put it.
+    # `write_plan_for` fills the slot where the dictionary names it and the
+    # record can be made to prove it landed; this is where that join is read,
+    # once per run rather than once per step.
+    #
+    # Only the names the job does NOT declare. A parameter it does declare is
+    # bound from the evidence, which is stronger than a declaration and is
+    # `_assigned`'s own rule.
+    placeable = await declared_keys(
+        uow,
+        tenant_id,
+        [name for name in values if name not in set(names_of(workflow))],
+        await screen_for(uow, tenant_id, workflow),
+    )
     standing = stood_on(workflow, by_id)
     replayable = allowlist(workflow, by_id)
     ordered = sorted(workflow.steps, key=lambda s: s.order)
@@ -640,7 +1393,25 @@ async def run_workflow(
     # on the shape of the values, never on the values themselves (a slot is
     # claimed by comparing the DEMONSTRATED body against `seen_values`), so
     # every leg of a repeat answers this the same way.
+    # Nothing is collapsed for a run somebody is watching.
+    #
+    # The two ways to do a job are not interchangeable and the choice is the
+    # RUN's, not the step's: replaying the call is fast, deterministic and
+    # invisible, and performing it is the one a person can see happen. A run
+    # that skipped the typing because it was going to post, and then pressed
+    # Save as if it had typed, is what deciding per step looks like.
+    #
+    # So a watched run performs every step: the fields fill, the button is
+    # pressed, and somebody standing at the screen watches their job being
+    # done. It costs a reading per step and the determinism of the replay, and
+    # that is the trade being made on purpose rather than by accident.
     collapsed: set[int] = set()
+    # What an unwatched run would have collapsed, held in reserve for a watched
+    # one. See `_the_screen_gave_up` at the foot of the step loop: a run
+    # somebody is watching performs the form-filling steps, and when the page
+    # will not take one of them the job is not over -- the write those steps
+    # were filling in is still a call this run knows how to make.
+    in_reserve: set[int] = set()
     for leg in itinerary:
         if (
             replay_without_asking(
@@ -649,10 +1420,48 @@ async def run_workflow(
                 values=leg.values,
                 verified_writes=verified_writes,
                 seen=observed,
+                keys=placeable,
             )
             is not None
         ):
-            collapsed.update(scaffolding_for(workflow, by_id, write_step=leg.step.order))
+            marks = scaffolding_for(workflow, by_id, write_step=leg.step.order)
+            (in_reserve if run.watched else collapsed).update(marks)
+
+    # The step that opens the mail, once the mail has been read.
+    #
+    # A job that starts in somebody's mailbox cites the gestures of them
+    # finding that afternoon's message, so the plan clicks a link whose text is
+    # that message: "a customer type :- GGD, description :- leaning new SRO
+    # type 01". A job is asked for by a NEW mail every time. That link is not
+    # on the screen and will not be again, and on 2026-09-16 a watched run
+    # stopped at step 0 holding it -- `not_actionable: the page did not answer`
+    # -- for a job whose values this same run had already read out of the right
+    # mail, server-side, a second earlier.
+    #
+    # So it is not performed, in EITHER mode. This is not the collapse above:
+    # that one is about a form whose write is going out as a call, and it is
+    # off for a watched run on purpose. This is a step whose whole content was
+    # done before the run began, and performing it is impossible rather than
+    # merely unnecessary. A person watching wants to see the form fill; nobody
+    # wants to watch their own mailbox be clicked.
+    #
+    # Whatever read it, and this was got wrong once.
+    #
+    # The first version of this rule asked whether the GATHER had read the mail
+    # -- `run.gathered` -- and on 2026-09-16 at 21:11 a press failed anyway:
+    # the panel's own look had already pulled the code out of the message and
+    # the press carried it, so the run held every value it needed and had
+    # gathered nothing. `gathered` says which of the two things read the mail,
+    # and this step does not care. By the time a run exists the request has
+    # been read -- by the gather, by a look, or by the person who typed the
+    # values into the card -- because a run cannot start without its values.
+    #
+    # There is no state of this system in which opening that mail achieves
+    # anything: the link the plan clicks names the message from the recording,
+    # and that message will not be on the screen again.
+    already_read: set[int] = {
+        step.order for step in workflow.steps if only_reads_the_mail(step, by_id)
+    }
     # The steps the operator already did cost nothing and are not attempted, so
     # they buy no slack either: the budget is what is left to perform.
     # Which writes this run has claimed the right to make, so a rescue of a
@@ -724,6 +1533,11 @@ async def run_workflow(
     # the browser is never driven into the wrong system -- but the tab is then
     # never opened either, and a run whose operator has no warehouse tab open
     # fails instead of opening one.
+    def _next_after(steps: list[Step], step: Step) -> Step | None:
+        """The step the job does next, by its own order."""
+        later = [one for one in steps if one.order > step.order]
+        return min(later, key=lambda one: one.order) if later else None
+
     def _screen_of(step: Step | None) -> str | None:
         """The screen this step's own demonstrations agree on."""
         anchor = primary_gesture(step, by_id) if step is not None else None
@@ -740,17 +1554,53 @@ async def run_workflow(
             ]
         )
 
-    step_here = next((one for one in ordered[from_step:] if one.order not in collapsed), None)
+    # And `already_read` beside `collapsed`, for the same reason: the page this
+    # run opens at is taken from the first step it will actually perform. A run
+    # whose mail step is skipped would otherwise open the browser at the
+    # mailbox and then send its first command to the warehouse.
+    step_here = next(
+        (
+            one
+            for one in ordered[from_step:]
+            if one.order not in collapsed and one.order not in already_read
+        ),
+        None,
+    )
     starts_on = _screen_of(step_here)
 
     # The step being worked on, so a browser that goes away mid-step fails THAT
     # step -- with the tokens its plan already cost, and its own order -- rather
     # than a fabricated one whose order can collide on (run_id, ord).
     in_flight: RunStep | None = None
+    # A LIST walked by index rather than an iterator, because a run that meets
+    # a sign-in page splices the way back in ahead of the step that met it --
+    # see `_the_way_back_in`. Everything else about the walk is unchanged.
+    itinerary = list(itinerary)
+    signed_back_in = False
     try:
-        for position, leg in enumerate(itinerary):
+        position = -1
+        while position + 1 < len(itinerary):
+            position += 1
+            leg = itinerary[position]
             step, values = leg.step, leg.values
-            if step.order < from_step and leg.item in (None, 0):
+            # What the steps this one NAMES have made, under their own names.
+            #
+            # `Step.uses` is CrewAI's `Task.context` and its argument: a step
+            # that names the prior steps it depends on can be read, where an
+            # implicit shared map means reading the whole job and guessing. The
+            # binding is the other half of saying it.
+            #
+            # `step<order>.<field>`, never merged flat: a create answering
+            # `{"id": ...}` and a job with a parameter called `id` would
+            # otherwise silently be the same value.
+            #
+            # Under the run's own values, not over them: something a person
+            # supplied or a mail said is what they asked for, and a job whose
+            # wiring quietly replaced it would be doing something nobody could
+            # see in the request.
+            if step.uses:
+                values = {**_what_earlier_steps_made(run, step.uses), **values}
+            if not leg.rescue and step.order < from_step and leg.item in (None, 0):
                 # The operator did this one before the offer was made. Recorded
                 # so the run reads whole, cited so a reviewer can see what it
                 # was, and never sent: the job is being finished, not redone.
@@ -804,7 +1654,7 @@ async def run_workflow(
                 run.outcome = "stopped"
                 await _save(uow, run)
                 break
-            if step.order in collapsed:
+            if not leg.rescue and (step.order in collapsed or step.order in already_read):
                 # Recorded rather than dropped: the per-step audit trail is
                 # what a reviewer reads, and a job that silently performed four
                 # of its six steps would read as a job that lost two.
@@ -817,7 +1667,10 @@ async def run_workflow(
                         verdict="not_needed",
                         verdict_by="none",
                         reason=(
-                            "this step put the form on the screen for a write "
+                            "this step only opened the request, which was read "
+                            "before the run began; cites " + ", ".join(step.cites)
+                            if step.order in already_read
+                            else "this step put the form on the screen for a write "
                             "this run sends as a call; cites " + ", ".join(step.cites)
                         ),
                     )
@@ -837,6 +1690,24 @@ async def run_workflow(
             run.steps.append(record)
             origin = origin_of(primary) if primary is not None else None
             mutates = writes(step, by_id)
+            # Whether this job's own write is still ahead of this step.
+            #
+            # A click the recorder heard nothing from is a possible write --
+            # a Save whose call was missed would otherwise be retried into a
+            # second record. That is right for the step a job WRITES at, and
+            # wrong for every step before it: opening a dropdown, pressing Add,
+            # filling a field. The demonstration says which is which, because
+            # it recorded the call on a later step.
+            #
+            # Measured on the deployment 2026-09-19, run `run_74a9a812`: the
+            # operator pressed Undo, the delete started, and its first step --
+            # "Opens the filter dropdown" -- failed `state unknown after a
+            # write; not retried`. One dropdown click ended the run, took its
+            # ladder away and suppressed the retry button, on a job whose
+            # DELETE was four steps further on.
+            writes_ahead = any(
+                later.order > step.order and writes(later, by_id) for later in ordered
+            )
 
             # The first thing is the proof.
             #
@@ -923,6 +1794,7 @@ async def run_workflow(
                     values=values,
                     verified_writes=verified_writes,
                     seen=observed,
+                    keys=placeable,
                     # THIS step's own screen, not the run's, and not only for
                     # the run's first command.
                     #
@@ -948,15 +1820,126 @@ async def run_workflow(
                 if primary is not None
                 else None
             )
-            rungs = (
+            rungs: tuple[tuple[str, str], ...] = (
                 (("evidence", plan_model), ("evidence", rescue_model), ("sight", rescue_model))
                 if primary is not None
                 else ()
             )
-            if replay is not None:
-                rungs = (("replay", ""), *rungs)
+            # A step that is only arriving somewhere goes there, first and
+            # without asking anybody.
+            #
+            # The application wrote down how to reach its screens in its own
+            # urls, and the operator's visits recorded it: both demonstrations
+            # of `Navigate to the Customer Types screen` carry the same route.
+            # Measured across 2026-09-16 and 17, the alternative -- a model
+            # shown a picture, working out that the screen is under a menu --
+            # cost thirteen cents a run and landed about half the time.
+            #
+            # First, not instead: a route that no longer exists leaves the
+            # rungs behind it to find the screen the hard way, which is what
+            # they are for.
+            # The step after this one in the job, which is where the evidence
+            # says this one arrives: a gesture records the page it happened on,
+            # never the page it led to.
+            route = route_for(step, _next_after(ordered, step), by_id)
+            if route is not None:
+                rungs = (("route", ""), *rungs)
+            # The form this write would have been typed into was never filled.
+            #
+            # A run whose write goes out as a CALL collapses the steps that
+            # only put the form on the screen -- that is the whole point of
+            # replaying it. The ladder's next rung after a failed replay is a
+            # model planning from the evidence, and what the evidence says is
+            # "click Save": right when the five steps before it were performed,
+            # nonsense when this run skipped them on purpose.
+            #
+            # Measured on the deployment 2026-09-16: steps 0-4 `not_needed`
+            # "this run sends as a call", then step 5 sent `ui.perform` click
+            # on `toolbar button#saveButton`, against a form an operator had
+            # half filled an hour earlier. The warehouse refused it for an
+            # empty required field, which is the only reason it is not a wrong
+            # record instead of a failed one.
+            #
+            # So a collapsed write has one rung. If the call will not go, the
+            # step stops and says why -- and the job is still there to be run
+            # again with the form filled, which is a decision for a person
+            # rather than a fallback for a ladder.
+            # Whether this step has already been signed in for. Per STEP, so a
+            # run whose session dies twice can recover twice -- and once within
+            # a step, so a wrong password cannot be spent over and over against
+            # an account with a lockout policy.
+            signed_in_here = False
+            # And whether it has already been given a moment to finish drawing.
+            waited_here = False
+            never_filled = bool(
+                replay is not None
+                and collapsed
+                and set(scaffolding_for(workflow, by_id, write_step=step.order)) & collapsed
+            )
+            if replay is not None and not run.watched:
+                rungs = (("replay", ""),) if never_filled else (("replay", ""), *rungs)
+            elif replay is not None and never_filled:
+                # This run has already given up on the screen -- that is what
+                # put this step's scaffolding in `collapsed` -- so the form in
+                # front of the operator was never filled. Walking the screen
+                # again to press its button would be pressing Save on a form
+                # with nothing in it, and would spend the budget finding that
+                # out. One rung: the call.
+                rungs = (("replay", ""),)
+            elif replay is not None:
+                # Watched, and the screen would not take it.
+                #
+                # A watched run performs the job where somebody can see it, and
+                # that is the whole of what `watched` buys. It must not also
+                # mean "and if the page cannot be driven, do not do the job":
+                # measured on the deployment 2026-09-16, every UI step ever
+                # attempted on the warehouse host failed while the same write
+                # went through as a call on the first try. The operator pressed
+                # yes; a system that answers "I could not click it" while
+                # holding a call it knows works is refusing for the wrong
+                # reason.
+                #
+                # LAST, and that ordering is the decision. The screen is tried
+                # first and fully -- plan from the evidence, plan again, then
+                # look at a picture -- so a run somebody is watching is still a
+                # run they watch whenever watching is possible. The call is
+                # what happens instead of stopping.
+                #
+                # It cannot write twice. The step claims its write in
+                # `tool_calls` before it goes out, keyed on the job, the step
+                # and the values, so a click that actually landed leaves a
+                # claim the replay then finds taken -- and a click that failed
+                # left none. The safety here is the ledger's, not this
+                # ordering's, which is why the fallback can be unconditional.
+                rungs = (*rungs, ("replay", ""))
+            logger.info(
+                "%s step %d %r: rungs %s",
+                run.id,
+                step.order,
+                step.says[:80],
+                " then ".join(how for how, _ in rungs) or "none",
+            )
             verdict: StepVerdict | None = None
             after_failed: Look | None = None
+            # Commands this step has already sent and had refused.
+            #
+            # The rescue rung is handed `previous_attempt_failed` and exists to
+            # plan something ELSE. Measured on the deployment, 2026-09-17 at
+            # 17:32: `run_e1ff6362` step 3 planned `ui.perform click by
+            # component,css_path`, was told `control_not_found` naming both
+            # locators, and the rescue planned the same two locators again --
+            # $0.0125 then $0.0453 to be refused twice in the same words,
+            # before the ladder reached the rung that could have helped.
+            #
+            # A rule in the runner rather than a sentence in a prompt, because
+            # a prompt is a request and this is arithmetic: a command this page
+            # has just refused will be refused again, whatever model proposed
+            # it and whatever job it belongs to.
+            refused_already: set[str] = set()
+            # Once per step. A session that ages out again three steps later is
+            # a second question worth asking; the same step asking twice in a
+            # row is a panel arguing with the person who just answered it.
+            asked_for_a_browser = False
             for how, model in rungs:
                 # The sight rung is for a page that moved, not for a plan that
                 # was wrong: a control the browser could not find is the one
@@ -965,7 +1948,14 @@ async def run_workflow(
                     how == "sight"
                     and (record.result or {}).get("error_kind") != "control_not_found"
                 ):
-                    break
+                    # `continue`, not `break`. Skipping the picture is right --
+                    # it answers a control the browser could not find and
+                    # nothing else -- but it must not skip what is behind it:
+                    # on a watched run the rung after sight is the call, and a
+                    # page that refuses to be driven at all is exactly when
+                    # that call is the answer. With `break` the run stopped
+                    # holding a write it knew how to make.
+                    continue
                 # One rung of the ladder: plan, and plan again once if getting
                 # to the right page was all the model asked for. Getting there
                 # is not doing the step, so a navigate must not spend the one
@@ -976,10 +1966,21 @@ async def run_workflow(
                 navigated = False
                 # A dropdown is answered with two clicks: one to open the list
                 # and one to choose the row. The first is not the step, the
-                # same way a navigate is not the step -- and like a navigate it
-                # is allowed once, so a planner that only ever opens lists runs
-                # out of budget rather than looping.
-                opened = False
+                # same way a navigate is not the step.
+                #
+                # A screen is answered with as many as it takes, and that is
+                # the difference between this and a rung that gives up. The
+                # control for "click Customer Types" lives under a menu nobody
+                # demonstrated: one click opens the menu, a fresh picture shows
+                # it, the next click is the step. Measured on the deployment
+                # across two days -- that job never once reached its form on
+                # the screen, and the reason was a ladder that allowed exactly
+                # one thing to happen before the answer.
+                #
+                # Bounded, because a planner that only ever opens things must
+                # run out rather than loop: `K_OPENINGS` of them per rung, and
+                # the step budget above still bounds the whole step.
+                openings = 0
                 # What the record says was planned and sent, before this rung
                 # touches it. A rung that ends without producing a command has
                 # to give it back: the verdict on the record is still the
@@ -993,7 +1994,22 @@ async def run_workflow(
                         run.outcome = "refused"
                         break
                     attempts += 1
-                    if replay is not None and how == "replay":
+                    if how == "route" and route is not None:
+                        # No model, no picture: the evidence says where this
+                        # step ends up and the browser is told to be there.
+                        before = await _where(channel, tenant_id, device_id, run.id, origin)
+                        proposal = Planned(
+                            "navigate",
+                            {
+                                "url": route,
+                                "origin": origin,
+                                "allow_focus": allow_focus,
+                                "starts_on": route,
+                            },
+                            f"going to the page this step's doings agree on: {route}",
+                            Answer(),
+                        )
+                    elif replay is not None and how == "replay":
                         # No picture: nobody is being shown one. The url is
                         # still wanted -- `before_url` is on the record -- and
                         # that is a message rather than a camera.
@@ -1012,6 +2028,11 @@ async def run_workflow(
                             asker=asker,
                             model=model,
                             failure=verdict.reason if verdict else None,
+                            # The same guard the dropdown's two clicks use: one
+                            # opening is allowed per rung, so a planner that
+                            # only ever opens menus spends its budget instead
+                            # of looping.
+                            opened=openings > 0,
                         )
                     else:
                         before = await _look(
@@ -1019,6 +2040,10 @@ async def run_workflow(
                         )
                         proposal = await plan_step(
                             step=step,
+                            # What a previous run found when this step's own
+                            # recorded identity did not match. Tried first, and
+                            # the recorded ladder still underneath it.
+                            learned=learned.get(step.order),
                             cited=cited,
                             values=values,
                             look=before,
@@ -1055,9 +2080,10 @@ async def run_workflow(
                             # slot in a recorded body. Read off the stored job
                             # once, before the loop.
                             seen=observed,
+                            keys=placeable,
                             tenant_id=tenant_id.value,
                             secret_for=secret_for,
-                            opened=opened,
+                            opened=openings > 0,
                         )
                     # Who actually planned it. A replay asks nobody, and
                     # writing a model's name beside a step it never saw is a
@@ -1091,12 +2117,20 @@ async def run_workflow(
                         )
                         run.outcome = "refused"
                         break
-                    if proposal.opens and not opened:
+                    if proposal.opens and openings < K_OPENINGS and not mutates:
                         # Sent from here, ahead of the gate that withholds a
-                        # write and parks one on a person. `plan_step` only
-                        # marks a command `opens` for a step that changes
-                        # nothing, which is what makes this the same safe
-                        # position `navigate` sends from.
+                        # write and parks one on a person -- and only for a
+                        # step that changes nothing, which is what makes this
+                        # the same safe position `navigate` sends from.
+                        #
+                        # `not mutates` is said here as well as in the
+                        # planners. A step whose evidence shows a write may
+                        # need a menu opened to reach its button, and reaching
+                        # it is not the writing -- but an opening click is a
+                        # click the model chose, and the gate that parks those
+                        # on a person is BELOW this line. Until that ordering
+                        # is worth rearranging, a write step climbs the ladder
+                        # as it always did.
                         shown = await channel.send(
                             tenant_id,
                             device_id,
@@ -1109,8 +2143,26 @@ async def run_workflow(
                                 "failed", "none", f"could not open the list: {shown.detail}"
                             )
                             break
-                        opened = True
-                    elif proposal.kind != "navigate":
+                        openings += 1
+                    elif _command_key(proposal.kind, proposal.payload) in refused_already:
+                        # Already sent, already refused. `break`, not a fall
+                        # through: this is inside the loop that lets a rung
+                        # open a menu and ask again, and leaving `planned`
+                        # unset there re-asks THIS rung rather than moving to
+                        # the next one -- which buys the same answer
+                        # `K_OPENINGS` times instead of twice. The rung is
+                        # spent; the ladder has another.
+                        proposal = Planned(
+                            proposal.kind,
+                            proposal.payload,
+                            "the same command this step has already had refused",
+                            proposal.answer,
+                        )
+                        break
+                    elif proposal.kind != "navigate" or how == "route":
+                        # A navigate is normally the way to the step and not
+                        # the step -- except on this rung, where arriving IS
+                        # what the step says it does.
                         planned = proposal
                     elif navigated:
                         verdict = StepVerdict(
@@ -1134,6 +2186,28 @@ async def run_workflow(
                             break
                         navigated = True
 
+                if planned is not None:
+                    logger.info(
+                        "%s step %d rung %s planned %s %s",
+                        run.id,
+                        step.order,
+                        how,
+                        planned.kind,
+                        _said(planned.kind, planned.payload),
+                    )
+                elif proposal is not None:
+                    # A rung that answered and was not taken. This is the half
+                    # nothing recorded: the step's reason keeps the LAST rung's
+                    # words, so a rung that proposed something the runner would
+                    # not use left no trace at all.
+                    logger.info(
+                        "%s step %d rung %s proposed %s, not taken: %s",
+                        run.id,
+                        step.order,
+                        how,
+                        proposal.kind,
+                        (proposal.why or "")[:120],
+                    )
                 if planned is None and run.outcome == "running":
                     # A refusal that carries STRUCTURE is kept, because it is
                     # not "no command" -- it is the one thing a person can act
@@ -1183,11 +2257,40 @@ async def run_workflow(
                 # there now, on a page that has already moved under the job:
                 # what the demonstrated control's traffic showed says nothing
                 # about it. Every sight click is a possible write.
-                may_write = mutates or (
-                    planned.payload.get("action") in ("click", "press")
-                    and (
-                        planned.kind == "ui.perform_at"
-                        or (planned.kind == "ui.perform" and _saw_nothing(step, by_id))
+                # A step that signs back in is not a step that writes.
+                #
+                # `may_write` is deliberately wide -- every silent click is a
+                # possible write, because a click whose demonstration showed no
+                # traffic could be a Save. That rule is about the JOB's own
+                # steps. A spliced sign-in click is on the login host, cannot
+                # create a warehouse record, and paying the write rules for it
+                # costs the run twice: the approval gate parks on it, and a
+                # click that could not be confirmed ends the run with "state
+                # unknown after a write; not retried".
+                #
+                # Measured on the deployment 2026-09-19, run `run_d6e7a78`:
+                # the SSO button click ended the run that way, and the result
+                # card then offered no "Try it again" either -- because a run
+                # whose write may have landed must not be pressed twice.
+                pressing = planned.payload.get("action") in ("click", "press")
+                may_write = (not leg.rescue) and (
+                    mutates
+                    # A click at a point the MODEL chose is a click on whatever
+                    # is there now, on a page that has already moved under the
+                    # job: what the demonstrated control's traffic showed says
+                    # nothing about it. Every sight click is a possible write,
+                    # whatever the job does later.
+                    or (pressing and planned.kind == "ui.perform_at")
+                    # A click the recorder heard nothing from is a possible
+                    # write too -- unless this job's own write is still ahead
+                    # of it. Then the demonstration says what this step is:
+                    # scaffolding, opening a dropdown or a form, on the way to
+                    # a call it recorded somewhere later.
+                    or (
+                        pressing
+                        and planned.kind == "ui.perform"
+                        and _saw_nothing(step, by_id)
+                        and not writes_ahead
                     )
                 )
 
@@ -1302,8 +2405,18 @@ async def run_workflow(
                         for slot, name in planned.filled.items()
                         if name in values
                     }
+                    # The screen as well as the keys. A body key does not name
+                    # a form -- `customerType` is posted by both Customer Types
+                    # and Existing Customers on this deployment -- so a lookup
+                    # by key alone would lend one screen's required fields to
+                    # another screen's write.
                     record.notes = list(
-                        notes_on(writing, await known_fields(tuple(sorted(writing))))
+                        notes_on(
+                            writing,
+                            await known_fields(
+                                tuple(sorted(writing)), _screen_of(step) or origin or ""
+                            ),
+                        )
                     )
 
                 # A live write, on a job that has not yet earned the right to
@@ -1326,10 +2439,28 @@ async def run_workflow(
                 # a job proving itself over runs, and this is one person
                 # answering about one list they have in front of them.
                 approved_here = leg.item is not None and step.order in approved_for_the_list
+                # A step this same job would SKIP is not a write to ask about.
+                #
+                # `may_write` is deliberately wide: a click whose demonstration
+                # showed no traffic might be a write, so it asks. But a step in
+                # the reserve is one an unwatched run of this very job does not
+                # perform at all -- it is scaffolding for a write that is in
+                # the ledger, and the ledger's write is the Save at the end of
+                # it. Asking a person to approve doing what the same job would
+                # otherwise not do is incoherent, and it cost three approval
+                # windows on 2026-09-17: every watched run parked on "Click the
+                # Add button", which opens a form.
+                #
+                # The write itself still asks. `in_reserve` never holds the
+                # step that carries the call -- `scaffolding_for` returns what
+                # comes BEFORE it -- so this narrows the question to the one
+                # step that changes the warehouse.
+                opening_the_form = not leg.rescue and step.order in in_reserve
                 if (
                     live
                     and may_write
                     and not approved_here
+                    and not opening_the_form
                     and not await earned(uow.workflows, tenant_id, workflow.id)
                 ):
                     record.verdict, record.verdict_by = "awaiting", "none"
@@ -1435,6 +2566,41 @@ async def run_workflow(
                 # because of it can be told from the ones it was already
                 # making. Taken here and not after the reply: a form submit
                 # posts before the click's own answer comes back.
+                # A box already known not to take this does not get filled.
+                #
+                # The limit was learnt by a run that found it the hard way: it
+                # typed, the browser silently kept a prefix, and the run
+                # stopped. Knowing that and typing anyway would half-fill a
+                # form in front of somebody to reach the same conclusion --
+                # which is the difference between a system that learns and one
+                # that repeats, and the whole point of writing the limit down.
+                #
+                # Checked here rather than at the door, because the value for
+                # a step is not known until it is planned: a run may supply it,
+                # a mailbox may, and a body may carry it.
+                holds = (learned.get(step.order) or LearnedStep(step.order, "", "", "")).holds
+                asked_for = planned.payload.get("value")
+                if holds is not None and isinstance(asked_for, str) and len(asked_for) > holds:
+                    # Asked about, not merely refused. The same road a value
+                    # nobody could find takes: the names go on the row, and the
+                    # conversation turns them into a question somebody answers
+                    # -- and the run starts again on the yes they already gave.
+                    # A run that stops dead here is an operator who pressed
+                    # once and got a dead card, which is the thing
+                    # `_ask_for_values` was built to end.
+                    run.needs = _too_long_for(step, values, holds)
+                    verdict = StepVerdict(
+                        "failed",
+                        "read",
+                        f"this field holds {holds} characters and was given "
+                        f"{len(asked_for)}, so the record would not say what was "
+                        "asked for",
+                    )
+                    record.verdict, record.verdict_by = verdict.state, verdict.by
+                    record.reason = verdict.reason
+                    logger.info("%s step %d %s", run.id, step.order, verdict.reason)
+                    await _save(uow, run)
+                    break
                 sent_at = datetime.now(tz=UTC).timestamp()
                 reply = await channel.send(
                     tenant_id, device_id, kind=planned.kind, run_id=run.id, payload=planned.payload
@@ -1444,6 +2610,178 @@ async def run_workflow(
                 # next step is driven by its own origin.
                 sent_nothing_yet = False
                 record.result = _result(reply, wrote=may_write)
+                # A field that would not take what it was given stops the run,
+                # here, before the Save.
+                #
+                # The browser truncates silently and BEFORE the request. On
+                # this deployment `Warehouse.Description` stops at about 28
+                # characters with no error and no warning -- so 28 characters
+                # go into the body, 28 come back from the read, and 28 are in
+                # the photograph. Every belt this run has agrees, because every
+                # one of them compares the record to ITSELF, and the record it
+                # makes is not the record the request asked for.
+                #
+                # Stopped rather than noted, and this is the one place in the
+                # ladder that judges a step the page performed perfectly well.
+                # The rule is the same one the blank-value gate is built on: a
+                # write with the wrong thing in it is a wrong record, and a
+                # warehouse record cannot be un-created. Somebody shortening
+                # the description themselves is a minute; a wrong record in a
+                # warehouse is not.
+                #
+                # Only a truncation. A field that trimmed a space or fixed a
+                # case changed what was asked for and did not LOSE any of it,
+                # and stopping for that would stop correct runs on a hundred
+                # ordinary forms.
+                cut = record.result.get("short")
+                if isinstance(cut, dict) and cut.get("truncated"):
+                    # Learnt, not merely reported. A limit found once and
+                    # forgotten is this job discovering the same fact every
+                    # run -- which is what `learned_step.py` calls repeating
+                    # rather than learning, and it says what that cost when
+                    # the fact was a locator.
+                    kept = cut.get("kept")
+                    if isinstance(kept, int):
+                        await uow.workflows.remember_limit(
+                            workflow.id, step.order, kept, by_run=run.id
+                        )
+                        run.needs = _too_long_for(step, values, kept)
+                    verdict = StepVerdict(
+                        "failed",
+                        "read",
+                        f"the field kept {cut.get('kept')} of the "
+                        f"{cut.get('asked')} characters it was given, so the record "
+                        "would not say what was asked for",
+                    )
+                    record.verdict, record.verdict_by = verdict.state, verdict.by
+                    record.reason = verdict.reason
+                    logger.info("%s step %d %s", run.id, step.order, verdict.reason)
+                    await _save(uow, run)
+                    break
+                if not reply.ok:
+                    refused_already.add(_command_key(planned.kind, planned.payload))
+                logger.info(
+                    "%s step %d sent %s -> %s",
+                    run.id,
+                    step.order,
+                    planned.kind,
+                    f"ok matched_by={reply.result.get('matched_by')}"
+                    if reply.ok
+                    else f"FAILED {reply.detail[:120]}",
+                )
+                # The browser is not where this step needs it, and that is a
+                # question for a person rather than a verdict about the job.
+                #
+                # Measured on the live deployment 2026-09-16: a run failed
+                # `no_tab_for_system` because the operator's Blue Yonder
+                # session had expired. The job was right, the plan was right,
+                # the values were right, and the run died on a sentence naming
+                # a tab. The system signs people out on its own schedule and
+                # takes the tab to an identity provider when it does, which is
+                # `no_tab_for_origin` -- the same thing with the page still
+                # open.
+                #
+                # So the panel asks, in the one place the operator is already
+                # watching, and the same command goes again when they say they
+                # are back. Live only: an unattended dry run has nobody to ask,
+                # and parking one for half an hour is a hang rather than a
+                # question.
+                #
+                # The claim is not given back before the second send. The
+                # release below reads the FINAL reply, which is what decides
+                # whether anything left the browser.
+                # There WAS a rule here that read this as "already signed in",
+                # and it was wrong. It said: a job that does nothing but sign
+                # in, a step that cannot find its tab, and an earlier step that
+                # held -- so the page went away because the sign-in completed.
+                #
+                # On a job that IS the sign-in, an earlier step holding means
+                # the LOGIN FORM was being filled. It is the strongest evidence
+                # in the run that nobody is signed in yet, and it was read as
+                # the opposite. Measured on the deployment 2026-09-20, run
+                # `run_28f14216`: step 0 typed `RKUCHIYAGM` into the Keycloak
+                # username box and held, step 1 was skipped as "already signed
+                # in", the run ended `held` -- and the operator was sitting in
+                # front of that same form with the password box empty and
+                # nothing on screen asking them for anything.
+                #
+                # What it was built for -- `run_83efedf5` -- has the same shape
+                # and a different cause: the browser lost the tab it had pinned
+                # when this worker was evicted between two commands, which
+                # `commands.js` now carries through storage. A failure read as
+                # a success is how a fault gets a coat of paint instead of a
+                # fix, and this one painted over the password card: a skipped
+                # step asks for nothing.
+                #
+                # So the question is not what held. It is WHERE THE BROWSER
+                # IS, which is a thing this can go and ask.
+                #
+                # A sign-in page that is gone because the sign-in worked leaves
+                # the browser somewhere else and not asking anybody to sign in.
+                # A sign-in page that is gone because this run lost its tab
+                # leaves the browser on that page still, with the form in front
+                # of the operator. Those are two different answers to `ui.url`
+                # and they were one answer to this.
+                #
+                # Measured on the deployment 2026-09-20, both halves:
+                #
+                #   run_28f14216  step 0 typed the username and held; the
+                #                 operator was looking at the Keycloak form
+                #                 with the password box empty. `signed_out`.
+                #                 -> ask, which is what this now does.
+                #   run_1dd7e8..  step 0 typed the username, the sign-in went
+                #                 through, and the browser was in the WMS
+                #                 portal saying "Hello Rudy". Step 1 failed
+                #                 `no_tab_for_system` on a page that no longer
+                #                 exists because the job had SUCCEEDED, and the
+                #                 card said "The run stopped".
+                #                 -> nothing left to do, which is this.
+                #
+                # `elsewhere_is_ours`, so the page read is the tab this run
+                # pinned and not whatever window happened to be in front. And
+                # only for a job that does nothing BUT sign in: a bigger job
+                # whose sign-in completed has the rest of itself to do, and
+                # ending its run here would be this same mistake wearing the
+                # other coat.
+                if not reply.ok and reply.error_kind in K_NOT_HERE and is_a_way_in(workflow, by_id):
+                    went = await _where(channel, tenant_id, device_id, run.id, origin)
+                    if went.elsewhere_is_ours and not went.signed_out:
+                        record.verdict, record.verdict_by = "skipped", "none"
+                        record.reason = (
+                            f"the page this signs in at is gone and the browser is on"
+                            f" {went.elsewhere} -- signed in"
+                        )
+                        run.outcome = "held"
+                        await _save(uow, run)
+                        return run
+                # Otherwise a sign-in that cannot find its page asks. The
+                # operator can see the screen and this cannot.
+                if (
+                    live
+                    and not asked_for_a_browser
+                    and not reply.ok
+                    and reply.error_kind in K_NOT_HERE
+                ):
+                    asked_for_a_browser = True
+                    if not await _let_in(
+                        uow,
+                        run,
+                        record,
+                        where=origin or _screen_of(step) or "the system",
+                        approvals=approvals,
+                        stops=stops,
+                    ):
+                        verdict = StepVerdict("failed", "none", record.reason)
+                        break
+                    sent_at = datetime.now(tz=UTC).timestamp()
+                    reply = await channel.send(
+                        tenant_id,
+                        device_id,
+                        kind=planned.kind,
+                        run_id=run.id,
+                        payload=planned.payload,
+                    )
+                    record.result = _result(reply, wrote=may_write)
                 # A write whose command never left the browser gives its claim
                 # back. Kept for everything else, including a timeout: see
                 # `K_NEVER_SENT`.
@@ -1518,27 +2856,194 @@ async def run_workflow(
                 # rung is shown the page it left behind beside the page as it
                 # is when it plans.
                 after_failed = after
-                verdict = settled or await verify(
-                    step=step,
-                    sent_kind=planned.kind,
-                    rewrote=planned.rewrote,
-                    confirm=planned.confirm,
-                    answer=reply,
-                    cited=cited,
-                    values=values,
-                    look_before=before,
-                    look_after=after,
-                    channel=channel,
-                    tenant_id=tenant_id,
-                    device_id=device_id,
-                    run_id=run.id,
-                    origin=origin,
-                    asker=asker,
-                    model=plan_model,
+                # A step that was only arriving is judged by where the
+                # browser is, which is a fact this side can read: no status to
+                # weigh, no picture to interpret, and nothing for a model to be
+                # confident about. `page_of` drops the query and the fragment's
+                # particulars, so the same screen reached twice compares equal.
+                arrived = (
+                    StepVerdict(
+                        "held" if same_screen(after.url, route) else "failed",
+                        "read",
+                        (
+                            f"the browser is on {after.url}"
+                            if same_screen(after.url, route)
+                            # `elsewhere` where the browser is not on this
+                            # system at all: without it this said "the browser
+                            # is on None", which is the sentence a person read
+                            # on the deployment while looking at a sign-in
+                            # page.
+                            else f"the browser is on {after.url}, not {route}"
+                        ),
+                    )
+                    if how == "route" and route is not None
+                    else None
                 )
+                verdict = (
+                    arrived
+                    or settled
+                    or await verify(
+                        step=step,
+                        sent_kind=planned.kind,
+                        rewrote=planned.rewrote,
+                        confirm=planned.confirm,
+                        answer=reply,
+                        cited=cited,
+                        values=values,
+                        look_before=before,
+                        look_after=after,
+                        channel=channel,
+                        tenant_id=tenant_id,
+                        device_id=device_id,
+                        run_id=run.id,
+                        origin=origin,
+                        asker=asker,
+                        model=plan_model,
+                    )
+                )
+                # A step that failed in front of a login page failed for one
+                # reason, and it is not the one it was about to report.
+                #
+                # `control_not_found: no control matched` is true and says
+                # nothing: somebody reading it goes looking for a broken
+                # selector. Measured on the deployment 2026-09-18 -- a session
+                # expired, the operator spent minutes signing back in, and
+                # every run in between blamed a missing tab item. The page in
+                # front of it was a login form the whole time.
+                #
+                # The verdict stands; what changes is what it SAYS. A run that
+                # renamed the failure would be a run deciding it knows why the
+                # step failed, and what this knows is only what is on screen.
+                # Asked only of a step that failed, and only once: a round
+                # trip per failure is cheap, and one per step is not.
+                refused = (
+                    await _refused_by_the_system(
+                        channel=channel,
+                        tenant_id=tenant_id,
+                        device_id=device_id,
+                        run_id=run.id,
+                        since=sent_at,
+                    )
+                    if verdict.state == "failed"
+                    else ""
+                )
+                verdict = _said_what_is_there(verdict, after, route, refused)
+                # And where nothing is stored to sign in WITH, the refusal
+                # carries the key, so the panel can ask for it.
+                #
+                # The box already exists: a step that types a password and
+                # finds the vault empty refuses with `needs_secret`, and the
+                # run card draws "this job needs your password for <system>"
+                # and a field. What never reached it is this case -- a job
+                # mined from an already-signed-in session has no login step at
+                # all, so nothing ever asked, and the operator was left with a
+                # run that stopped and a sentence about a session.
+                #
+                # Same key either way. `secret_key_of` and `secret_key_for`
+                # normalise the field identically for exactly this reason: the
+                # side asking and the side storing have to spell it the same or
+                # the value is invisible to the one thing that needs it.
+                # A page that had not finished arriving gets a moment, and the
+                # same rung again.
+                #
+                # This is the one of the screen's answers a run can DO
+                # something about rather than only report. A step that failed
+                # against a half-drawn screen otherwise spends the rest of its
+                # ladder on it -- a model call about a page that was not there
+                # yet, then a sight rung photographing a spinner -- and reports
+                # a missing control that appeared a second after it gave up.
+                #
+                # Once per step, like the sign-in. A screen that is still
+                # coming after one wait is a screen that is stuck, and a run
+                # that waited again would turn a fault into a hang.
+                if verdict.state == "failed" and after.loading and not waited_here:
+                    waited_here = True
+                    logger.info(
+                        "%s step %d: the page had not finished; waiting %.1fs and trying again",
+                        run.id,
+                        step.order,
+                        K_STILL_COMING_S,
+                    )
+                    await asyncio.sleep(K_STILL_COMING_S)
+                    continue
+                if verdict.state == "failed" and after.signed_out:
+                    # Sign in and try the step again, where there IS something
+                    # to sign in with.
+                    #
+                    # `KeepSessionsOpen` has done this for years against a
+                    # hosted browser, and the runs that matter drive the
+                    # operator's own Chrome, which nothing could sign in. So a
+                    # session that died mid-shift left a stopped run and a
+                    # person whose only way on was to do the whole job by hand.
+                    #
+                    # Once per step and no more. A login that did not take is a
+                    # wrong password or a second factor, and a run that tried
+                    # again would spend an account's lockout budget on a
+                    # credential that is not going to start working.
+                    # The page the browser is ACTUALLY in front of, and only
+                    # then the one the recording named.
+                    #
+                    # A credential belongs to the system whose box it is typed
+                    # into. `after.url` is empty whenever the step's own origin
+                    # is not where the tab got to -- which is every sign-in
+                    # that bounced -- so this used to fall back to the
+                    # RECORDING's origin and ask for that system's password
+                    # while the operator looked at another system's form.
+                    #
+                    # Measured on the deployment 2026-09-20, run
+                    # `run_b949148d`: `Log in using Azure B2C SSO` is mined
+                    # entirely on `blueyonderalphaus.b2clogin.com`, the live
+                    # sign-in bounced to Keycloak, and the b2clogin password
+                    # went into the Keycloak form. The page said *Invalid
+                    # username or password*. A credential in the wrong
+                    # system's box is worse than a step that fails: it spends
+                    # an account's lockout budget, and it is the operator's
+                    # account.
+                    #
+                    # `elsewhere_is_ours` and not `elsewhere`: the browser
+                    # answers with the tab in front when this run pinned none,
+                    # and "your password for <whatever window was open>" is a
+                    # credential prompt for a system nobody named.
+                    here = after.url or (after.elsewhere if after.elsewhere_is_ours else "")
+                    # And a credential goes out only where this run can say
+                    # which page it is for. `sign_in` fills the run's own tab
+                    # WHEREVER it has got to -- it has to, a sign-in page is on
+                    # another host by design -- so the origin in the command is
+                    # not a guard on where the typing lands. This is: with no
+                    # reading of where the browser is, the honest answer is to
+                    # ask rather than to send somebody's password somewhere
+                    # nothing looked at.
+                    if (
+                        here
+                        and not signed_in_here
+                        and await _sign_in_here(
+                            channel=channel,
+                            tenant_id=tenant_id,
+                            device_id=device_id,
+                            run_id=run.id,
+                            origin=origin,
+                            where=here,
+                            secret_for=secret_for,
+                            record=record,
+                        )
+                    ):
+                        signed_in_here = True
+                        continue
+                    record.sent = await _ask_for_the_password(
+                        record.sent, here or origin or "", tenant_id, secret_for
+                    )
                 _bill(record, verdict.answer)
                 record.verdict, record.verdict_by = verdict.state, verdict.by
                 record.reason = verdict.reason
+                logger.info(
+                    "%s step %d %s by %s (%s): %s",
+                    run.id,
+                    step.order,
+                    verdict.state,
+                    verdict.by,
+                    f"${record.cost_usd:.4f}",
+                    (verdict.reason or "")[:160],
+                )
                 if verdict.made:
                     # What the warehouse called the record this step made. On
                     # the row because it is the only place it exists: the panel
@@ -1558,6 +3063,23 @@ async def run_workflow(
                             matched_by=record.matched_by,
                             noticed_at=_now(),
                         )
+                        # And WHAT it found, which is the half that was
+                        # missing. Marking the step stale says it is about to
+                        # break; this says what worked instead, so the next
+                        # run tries that first rather than climbing the same
+                        # ladder and paying for the same model call to reach
+                        # the same control.
+                        # The REPLY, not the record: `_result` keeps the three
+                        # facts a row needs and the control the browser named
+                        # is not one of them -- it is for the job, not for the
+                        # audit of this run.
+                        found = learned_from(
+                            step.order,
+                            "sight" if planned.kind == "ui.perform_at" else record.matched_by,
+                            reply.result,
+                        )
+                        if found is not None:
+                            await uow.workflows.remember_locator(workflow.id, found, by_run=run.id)
                     elif planned.kind == "ui.perform":
                         # The step was found the strong way again: a warning
                         # that never clears is a warning nobody reads.
@@ -1582,6 +3104,17 @@ async def run_workflow(
                     record.reason = f"state unknown after a write; not retried: {record.reason}"
                     break
 
+            # Said once the rungs are spent, because it explains what was NOT
+            # tried: the interface. A person reading "the call would not go"
+            # would otherwise reasonably ask why it did not just press the
+            # button, and the answer is that this run never filled the form.
+            if never_filled and record.verdict not in ("held", "withheld", "awaiting"):
+                record.reason = (
+                    record.reason
+                    + " — and the form was never filled for this run, so the button was not"
+                    " pressed either; run it again to have it typed in front of you"
+                ).strip()
+
             # A rung that never reached a command -- an unplannable step, a
             # navigate that would not go -- left its reason on the local verdict
             # and nothing on the record, which then read `skipped` and let the
@@ -1598,11 +3131,143 @@ async def run_workflow(
             # failed, unclear, refused, or a step with nothing actionable to
             # cite -- is a step nobody watched succeed, and the rest of the job
             # assumes it did. Nothing runs unattended past one.
+            # **A step the page TOOK is not a step the page refused.**
+            #
+            # The collapse below exists for one premise -- "the page would not
+            # take this step" -- and when the browser answered `ok` that
+            # premise is false. run_7ebafa8f, the deployment, 2026-09-17 at
+            # 22:17: step 3 typed `GS7` into Customer Type and the browser said
+            # `ok: true, matched_by: component`. It came back `unclear` only
+            # because there was no screen to confirm it against, the reserve
+            # collapsed it as a refusal, and the card told the operator "the
+            # form was never filled for this run" over a form holding GS7.
+            #
+            # That is the worst of both: a half-filled form left in front of
+            # somebody who might press Save on it, and the same write going out
+            # as a call beside it. So a step the page took stops the run
+            # instead, with the form as it is and a reason that matches it --
+            # which is a decision for a person, and the reserve is for the case
+            # where the page did nothing.
+            took_it = bool(isinstance(record.result, dict) and record.result.get("ok"))
+            in_the_reserve = (
+                not leg.rescue
+                and record.verdict not in ("held", "withheld")
+                and step.order in in_reserve
+            )
+            if in_the_reserve and not took_it:
+                # Only a step the BROWSER would not do reaches here, and that
+                # is by construction rather than by a check: a step in the
+                # reserve is never parked on a person (see the approval gate),
+                # and a wait nobody answers ends the run before this. A
+                # timeout read as "the page refused" would collapse the job
+                # and walk past the thing somebody was being asked about,
+                # which is what happened on 2026-09-17 while both were true.
+                # The screen would not take it, and the job is not over.
+                #
+                # A watched run performs the steps that put the form on the
+                # screen, and this is one of them. Measured on the deployment,
+                # 2026-09-17 at 10:40: the run stopped on "Navigate to the
+                # Customer Types screen" -- a step with no call of its own --
+                # while the write it was on its way to was a call this run knew
+                # how to make, three steps later and never reached. The
+                # fallback built for the write step could not help, because a
+                # run stops at its first failed step.
+                #
+                # So the run gives up on the SCREEN rather than on the job: the
+                # steps that were only ever scaffolding for the write are
+                # collapsed, exactly as an unwatched run would have had them
+                # from the start, and the write goes out as a call. Once --
+                # `in_reserve` is emptied -- so a job that fails again fails.
+                logger.info(
+                    "%s step %d collapsing the reserve %s: %s",
+                    run.id,
+                    step.order,
+                    sorted(in_reserve),
+                    record.reason[:120],
+                )
+                record.verdict, record.verdict_by = "not_needed", "none"
+                record.reason = (
+                    "the page would not take this step, so the form is not being "
+                    "filled and the write it was for is going out as a call: " + record.reason
+                )
+                collapsed |= in_reserve
+                in_reserve = set()
+                await _save(uow, run)
+                continue
             if record.verdict not in ("held", "withheld"):
+                # A session that went is not a job that failed.
+                #
+                # The browser is at a sign-in page, the tenant has shown how to
+                # get through it, and the steps for that go in ahead of the one
+                # that met it -- so the run signs itself back in and tries
+                # again, through the same ladder as everything else.
+                #
+                # Once per run, and never twice: a second sign-in page after
+                # signing in is a system this run cannot get into, and a loop
+                # that kept trying would spend a budget it cannot see the end
+                # of on somebody's credentials.
+                _signing_in, back = (
+                    (None, [])
+                    if signed_back_in
+                    else await _the_way_back_in(
+                        uow, tenant_id, workflow, after_failed, values, by_id
+                    )
+                )
+                if signed_back_in and after_failed is not None and after_failed.signed_out:
+                    # Signed in once and the system is still asking. That is
+                    # not a session that went, it is one this run cannot get
+                    # into -- wrong credential, a second factor, an account
+                    # locked -- and trying again would spend somebody's
+                    # attempts on it.
+                    record.reason = (
+                        record.reason
+                        + " — the run signed back in and this system is still asking, so a"
+                        " person has to sign in here"
+                    ).strip()
+                if back and _signing_in is not None:
+                    signed_back_in = True
+                    # Where those steps may act: the sign-in job's OWN
+                    # evidence, and nothing wider. The run's allowlist is built
+                    # from the job being run, so without this the spliced steps
+                    # are refused for reaching a host this job never stood on
+                    # -- which is the right rule for the job and the wrong one
+                    # for the page it has been bounced to.
+                    standing = standing | stood_on(_signing_in, by_id)
+                    replayable = replayable | allowlist(_signing_in, by_id)
+                    itinerary[position + 1 : position + 1] = [*back, leg]
+                    # The rescue's own steps, and the retry. Without this the
+                    # budget below ends the run part way through signing in.
+                    budget += len(back) + 1
+                    record.verdict, record.verdict_by = "not_needed", "none"
+                    record.reason = (
+                        "this system's session had gone, so the run is signing back in "
+                        "and trying this step again: " + record.reason
+                    )
+                    await _save(uow, run)
+                    continue
                 run.outcome = "stopped"
                 break
         else:
-            run.outcome = "held"
+            # Every step skipped is not a job done.
+            #
+            # A run whose steps were all `not_needed` performed nothing, sent
+            # nothing and made nothing, and until this it reported `held` --
+            # measured on the deployment 2026-09-17 at 03:59, where a job made
+            # entirely of steps in a mailbox had all five skipped and said it
+            # had worked. A run that claims the job is done and did not do it
+            # is worse than one that fails, because nobody goes looking.
+            #
+            # `not_needed` and not the rest: `withheld` is a dry run, which
+            # deliberately does nothing and says so in its own word, and a run
+            # with no steps at all never reaches here.
+            if run.steps and all(one.verdict == "not_needed" for one in run.steps):
+                run.outcome = "stopped"
+                run.steps[-1].reason = (
+                    "every step of this job was skipped, so nothing was done — "
+                    + run.steps[-1].reason
+                ).strip()
+            else:
+                run.outcome = "held"
     except DeviceUnreachable as gone:
         _fell_over(run, in_flight, str(gone))
     except Exception as broke:

@@ -425,10 +425,82 @@ async function whoIsAskedHowItEnded() {
   }
 }
 
+/** What the card reads about a run has to survive the mapping.
+ *
+ * `api.rigRun` is a whitelist: a field not named there does not reach the
+ * panel. `watched` and `needs` were added to the row and read by the card
+ * without ever being added in between, so every run drew "Nobody was watching,
+ * so it replayed the call" -- including the ones somebody pressed and watched
+ * -- and a run that stopped to ask carried no names for the panel to notice.
+ * Measured on the deployment, 2026-09-17 at 10:49: `watched=true` on the row,
+ * "nobody was watching" on the card.
+ */
+async function theCardGetsWhatItDraws() {
+  const row = {
+    id: "run_1",
+    outcome: "held",
+    watched: true,
+    needs: ["Customer Type Description"],
+    gathered: { "Customer Type": { value: "GQX" } },
+    doing: "looking in your mail",
+    steps: [],
+  };
+  answer = async () =>
+    new Response(JSON.stringify(row), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+
+  const mapped = await api.rigRun("run_1");
+
+  assert.equal(mapped.watched, true, "every run read as unwatched");
+  assert.deepEqual(mapped.needs, ["Customer Type Description"]);
+  assert.equal(mapped.gathered["Customer Type"].value, "GQX");
+  assert.equal(mapped.doing, "looking in your mail");
+}
+
+/** The card names the record a run wrote, and could not, because this
+ * projection is a SUBSET of the run and `values` was not in it.
+ *
+ * `WorkflowRunModel` carries them and `api.rigRun` maps them; nothing carried
+ * them this far. So a card built to name the record named nothing, and looked
+ * exactly like a card that had not been changed. */
+async function theStoredRunCarriesWhatItWrote() {
+  await state.setActiveRun({ runId: "run_w", at: Date.now(), source: "rig" });
+  answer = async () =>
+    new Response(
+      JSON.stringify({
+        id: "run_w",
+        outcome: "held",
+        values: {
+          "Customer Type": "NSSR",
+          "Customer Type Description": "Leaning new SRO type 050",
+        },
+        steps: [],
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+
+  await noteFinished({ runId: "run_w", source: "rig" });
+
+  const held = await state.finishedRun();
+  assert.ok(held, "nothing was stored for a finished run");
+  assert.deepEqual(
+    held.values,
+    {
+      "Customer Type": "NSSR",
+      "Customer Type Description": "Leaning new SRO type 050",
+    },
+    "the card cannot name what the run wrote",
+  );
+}
+
 await demo();
+await theStoredRunCarriesWhatItWrote();
 await whoIsAskedHowItEnded();
 ageBound();
 keyedOnThePress();
 await stoppingIsNotAnAlarm();
 await theRigsRunInThePanelsWords();
+await theCardGetsWhatItDraws();
 console.log("finishing.test.mjs: ok");

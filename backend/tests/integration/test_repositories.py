@@ -808,3 +808,80 @@ def _candidate(
             for hour in range(episodes)
         ),
     )
+
+
+class TestKnowledgeSearch:
+    """What the lookup planner is shown, ordered.
+
+    Against real Postgres because the ordering IS the behaviour: a fake that
+    returns a list in insertion order can say nothing about which forty of
+    eight thousand rows a question reaches.
+    """
+
+    async def test_an_entry_that_says_more_of_the_question_comes_first(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Measured on the deployment 2026-09-20. Asked "is there a customer
+        type called KKYT", the forty entries shown to the lookup planner held
+        eleven `...types////` screens and twenty `rpux/filter/columns/WM*Types`
+        endpoints -- every one of them matching on the single word `type` --
+        and NOT `/data/WM/wm/customerTypes`, the endpoint that answers the
+        question and that this deployment has watched answer 200 many times.
+
+        The planner is told to prefer a call over a screen. It did what it was
+        told: no endpoint it was shown could answer, so it planned a screen,
+        and the screen was refused for wanting the operator's tab.
+
+        The embeddings here are the wrong way round on purpose -- the noise is
+        nearer than the answer -- because that is the case the vector cannot
+        get out of on its own.
+        """
+        from sro.domain.knowledge.entry import (
+            EntryKind,
+            EvidenceLevel,
+            KnowledgeEntry,
+            KnowledgeId,
+        )
+        from sro.infrastructure.db.models import EMBEDDING_DIMENSIONS
+
+        near = tuple([1.0] + [0.0] * (EMBEDDING_DIMENSIONS - 1))
+        far = tuple([0.0, 1.0] + [0.0] * (EMBEDDING_DIMENSIONS - 2))
+
+        def _entry(key: str, title: str, vector: tuple[float, ...]) -> KnowledgeEntry:
+            return KnowledgeEntry(
+                id=KnowledgeId(f"kno-{key.replace('/', '-')}"),
+                tenant_id=f.TENANT,
+                system="blue_yonder",
+                kind=EntryKind.ENDPOINT,
+                key=key,
+                title=title,
+                body={},
+                source="test",
+                evidence=EvidenceLevel.REPRODUCED,
+                observed_at=datetime(2026, 9, 20, tzinfo=UTC),
+                embedding=vector,
+            )
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            # Says `type` and nothing else, and sits right next to the question.
+            await uow.knowledge.add(
+                _entry("/data/WM/rpux/filter/columns/WMCountTypes", "WMCountTypes", near)
+            )
+            # Says `customer` AND `type`, and sits further away.
+            await uow.knowledge.add(
+                _entry("/data/WM/wm/customerTypes", "customerTypes (collection)", far)
+            )
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            found = await uow.knowledge.search(
+                f.TENANT,
+                terms="is there a customer type called KKYT",
+                embedding=near,
+                limit=10,
+            )
+
+        ranked = [one.key for one in found]
+        assert ranked[:1] == ["/data/WM/wm/customerTypes"], (
+            f"the nearer noise outranked the endpoint that answers: {ranked}"
+        )

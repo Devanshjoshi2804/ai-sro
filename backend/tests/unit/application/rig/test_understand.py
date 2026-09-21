@@ -14,11 +14,13 @@ the door work, the job the model named, the order the form's fields come back
 in, and the row that carries the bill and never the sentence.
 """
 
-from dataclasses import asdict
+import json
+from dataclasses import asdict, replace
 from datetime import UTC, datetime
 
 from sro.application.chat.understand import read_utterance, understand
 from sro.domain.chat.reading import INSTRUCTIONS, UNDERSTAND_SCHEMA, ChatReading
+from sro.domain.observation.gesture import Action, Gesture, Target
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow
@@ -541,3 +543,212 @@ async def test_a_plain_reading_is_sure_and_says_nothing_else() -> None:
     )
 
     assert got.sure is True and got.also == []
+
+
+async def test_the_mails_a_job_was_asked_for_by_reach_the_model() -> None:
+    """The one signal this door was never shown.
+
+    A watch is a substring somebody typed once and will miss "please set up a
+    new client category" forever. What says what a REQUEST for a job looks like
+    is the mails the operator acted on before doing it -- already in the store,
+    cited by the job itself -- and the decision about which job a piece of text
+    means is made here.
+    """
+    asker = FakeAsker(_answer("wfl_1", []))
+
+    await understand(
+        "a customer type please",
+        WFS,
+        asker,
+        "m",
+        {"wfl_1": ["a customer type :- GKB description :- leaning new SRO type 002"]},
+    )
+
+    (job,) = json.loads(str(asker.asked[0]["evidence"]))["jobs"]
+    assert job["asked_by"] == ["a customer type :- GKB description :- leaning new SRO type 002"]
+    # And the prompt says what to do with them. A model that answered with a
+    # code out of an old request would create that record a second time.
+    assert "Never take a value out of one" in INSTRUCTIONS
+
+
+async def test_a_job_nobody_mailed_about_carries_no_empty_list_to_argue_with() -> None:
+    """An `asked_by: []` invites "this job is never asked for by mail", which
+    is a claim about the tenant's history rather than about the job."""
+    asker = FakeAsker(_answer("wfl_1", []))
+
+    await understand("a customer type please", WFS, asker, "m")
+
+    (job,) = json.loads(str(asker.asked[0]["evidence"]))["jobs"]
+    assert "asked_by" not in job
+
+
+async def test_the_examples_are_read_off_the_gestures_the_jobs_cite() -> None:
+    """End to end through the door an operator actually reaches: the mails are
+    not passed in by a caller, they are read out of the evidence."""
+    uow = FakeUnitOfWork()
+    await uow.workflows.save(WFS[0])
+    await uow.gestures.add_gestures(
+        (
+            Gesture(
+                id="g",
+                tenant=TENANT.value,
+                stream_id="str-1",
+                batch_id="bat-1",
+                at=10.0,
+                url="https://mail.google.com/mail/u/0/#inbox/abc",
+                system="https://mail.google.com",
+                tab_id=7,
+                frame_url=None,
+                action=Action(
+                    kind="click",
+                    at=10.0,
+                    url="https://mail.google.com",
+                    target=Target(name="please create a client for the Coventry dock"),
+                ),
+            ),
+        )
+    )
+    asker = FakeAsker(_answer("wfl_1", []))
+
+    await read_utterance(
+        uow,
+        tenant_id=TENANT,
+        utterance="new client for Coventry",
+        asker=asker,
+        model="m",
+        now=NOW,
+    )
+
+    (job,) = json.loads(str(asker.asked[0]["evidence"]))["jobs"]
+    assert job["asked_by"] == ["please create a client for the Coventry dock"]
+
+
+async def test_a_request_naming_a_field_this_job_has_no_parameter_for_says_which() -> None:
+    """The dropping is right and the silence was the fault.
+
+    A job's parameters are what two doings proved VARY, and the form has far
+    more fields than that -- so `code NEW9, and put it in Inbound` is a
+    perfectly reasonable request, answered here by a record with no Department
+    in it and nothing anywhere saying so. The run says it after the press, and
+    after the press is after the record.
+    """
+    got = await understand(
+        "create client NEW9 in Inbound",
+        WFS,
+        FakeAsker(
+            _answer(
+                "wfl_1",
+                [
+                    {"name": "clientCode", "value": "NEW9"},
+                    {"name": "Department", "value": "Inbound"},
+                ],
+            )
+        ),
+        "m",
+    )
+
+    # Still dropped from the values: a key the workflow never declared is a
+    # value nothing asked for, arriving in a sentence a stranger could write.
+    assert got.values == {"clientCode": "NEW9"}
+    assert got.unasked == ["Department"]
+    # And what it SAID, kept beside the name: a form posts far more fields than
+    # a job varies, so where the dictionary names the slot the write can fill
+    # it after all -- and it cannot fill a value this threw away.
+    assert got.aside == {"Department": "Inbound"}
+
+
+async def test_a_request_this_job_can_write_whole_names_nothing_extra() -> None:
+    got = await understand(
+        "create client NEW9",
+        WFS,
+        FakeAsker(_answer("wfl_1", [{"name": "clientCode", "value": "NEW9"}])),
+        "m",
+    )
+
+    assert got.unasked == []
+
+
+# --- and an alternative the sentence cannot fill ------------------------------
+
+
+async def test_a_job_this_sentence_could_not_fill_is_not_an_alternative() -> None:
+    """Measured on the deployment 2026-09-19. A mail saying `customer type :-
+    GZ2 / description :- undo round two` was read as `Create a Customer Type`
+    -- the only job of that name, eighty-seven runs behind it -- and the model
+    named `Forward an Email` as one it might have meant. `sure` went false, the
+    mail path said nothing at all, and the request sat unread in a mailbox
+    while the tenant held the job it asked for.
+
+    The sentence settles it: one job's parameters are all named and the
+    other's are not, which is a fact about the two rather than a confidence.
+    """
+    got = await understand(
+        "customer type :- GZ2, description :- undo round two",
+        [*WFS, SECOND],
+        FakeAsker(
+            Answer(
+                data={
+                    "workflow_id": "wfl_1",
+                    "values": [{"name": "clientCode", "value": "GZ2"}],
+                    "missing": [],
+                    "sure": False,
+                    "also": ["wfl_2"],
+                }
+            )
+        ),
+        "m",
+    )
+
+    assert got.workflow_id == "wfl_1"
+    assert got.also == [], "it kept an alternative this sentence names nothing for"
+    assert got.sure is True
+
+
+async def test_an_alternative_the_sentence_could_equally_fill_still_stands() -> None:
+    """Two jobs the sentence supplies is the ambiguity this refusal is for, and
+    it is left exactly as it was."""
+    both = replace(SECOND, parameters=[{"name": "clientCode", "seen_values": ["A"]}])
+
+    got = await understand(
+        "make one with clientCode A",
+        [*WFS, both],
+        FakeAsker(
+            Answer(
+                data={
+                    "workflow_id": "wfl_1",
+                    "values": [{"name": "clientCode", "value": "A"}],
+                    "missing": [],
+                    "sure": True,
+                    "also": ["wfl_2"],
+                }
+            )
+        ),
+        "m",
+    )
+
+    assert got.also == ["wfl_2"]
+    assert got.sure is False
+
+
+async def test_a_sentence_that_fills_neither_stays_unsure() -> None:
+    """Eliminating everything is not choosing. A sentence that names no values
+    at all leaves the alternatives exactly where the model left them."""
+    got = await understand(
+        "make one of those",
+        [*WFS, SECOND],
+        FakeAsker(
+            Answer(
+                data={
+                    "workflow_id": "wfl_1",
+                    "values": [],
+                    "missing": [],
+                    "sure": False,
+                    "also": ["wfl_2"],
+                }
+            )
+        ),
+        "m",
+    )
+
+    assert got.also == ["wfl_2"]
+    assert got.sure is False

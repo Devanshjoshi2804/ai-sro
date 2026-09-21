@@ -23,6 +23,8 @@ from typing import Protocol
 
 from sro.application.ports.agent import DeviceUnreachable
 from sro.domain.shared.identifiers import DeviceId, TenantId
+from sro.infrastructure.telemetry.otel import doing
+from sro.whose import about
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +32,36 @@ DEFAULT_TIMEOUT = 20.0
 
 _DEFAULT_BUSY = 5.0
 """What a `busy` with no window of its own asks for."""
+
+K_REDIAL = 8.0
+"""How long a command waits for a browser that is dialling back in.
+
+Chrome stops an extension's service worker after 30 seconds without an event
+and takes the socket with it; the extension dials again as soon as anything
+wakes it. Measured on the deployment, 2026-09-16, over half an hour of an
+operator's ordinary day:
+
+    20:28:27 disconnected  20:28:28 connected   (1s)
+    20:36:59 disconnected  20:37:00 connected   (1s)
+    20:39:43 disconnected  20:39:45 connected   (2s)
+    20:29:08 disconnected  20:33:48 connected   (4m40s -- nothing woke it
+                                                 until the minute alarm)
+
+So the ordinary gap is a second or two, and a command that landed in one of
+them failed its step for a browser that was about to be there. Eight seconds
+covers every short gap with room to spare and gives up long before a run could
+be said to have hung; the long gaps still fail, because waiting five minutes at
+a step is not waiting, it is hanging.
+
+This is a wait for a browser to COME BACK, not a wait for it to answer -- that
+is `DEFAULT_TIMEOUT`, and it starts once the command has gone out.
+"""
+
+K_LOOK_AGAIN = 0.25
+"""How often the wait above checks. ponytail: a poll, where an event per device
+would be exact -- at eight seconds and a quarter-second tick this is at most
+thirty-two wake-ups on the one path where a browser is missing, and the
+alternative is a dict of events to keep in step with `attach` and `drop`."""
 
 MAX_BUSY_WAIT = 0.5
 """How much of a command's own deadline may be spent waiting for the operator
@@ -71,8 +103,13 @@ class Answer:
 class DeviceSockets:
     """Which browsers are connected here, and what they owe an answer to."""
 
-    def __init__(self, *, timeout_s: float = DEFAULT_TIMEOUT) -> None:
+    def __init__(self, *, timeout_s: float = DEFAULT_TIMEOUT, redial_s: float = K_REDIAL) -> None:
         self._timeout = timeout_s
+        # How long to wait for a browser that is dialling back in. A knob for
+        # the same reason `timeout_s` is one: a suite proving what happens when
+        # a device is NOT there should not spend eight seconds per case finding
+        # out, and one test sets it deliberately to prove the wait itself.
+        self._redial = redial_s
         self._sockets: dict[tuple[str, str], Socket] = {}
         self._pending: dict[str, asyncio.Future[Answer]] = {}
         self._busy: dict[tuple[str, str], float] = {}
@@ -179,10 +216,10 @@ class DeviceSockets:
         default. Without this the panel can show Approve only for a run it
         started itself, never one a console or another caller began."""
         key = _key(tenant_id, device_id)
-        if key not in self._sockets:
-            # Keyed by tenant as well as device, so another tenant's id is not
-            # a device that exists and refuses -- it is a device that is not
-            # there, which is the same answer as one that never existed.
+        # Keyed by tenant as well as device, so another tenant's id is not a
+        # device that exists and refuses -- it is a device that is not there,
+        # which is the same answer as one that never existed.
+        if await self._dialling_back(key) is None:
             raise DeviceUnreachable(f"{device_id} has no channel open")
 
         command_id = f"cmd_{uuid.uuid4().hex}"
@@ -194,7 +231,7 @@ class DeviceSockets:
         # re-dial: `attach` replaces the registry entry, and a command sent
         # down the socket this call was holding fails as an unreachable device
         # against a browser that is in fact connected.
-        socket = self._sockets.get(key)
+        socket = await self._dialling_back(key)
         if socket is None:
             raise DeviceUnreachable(f"{device_id} has no channel open")
         waiting: asyncio.Future[Answer] = asyncio.get_running_loop().create_future()
@@ -218,7 +255,19 @@ class DeviceSockets:
             raise DeviceUnreachable(f"{device_id} stopped listening") from broken
 
         try:
-            return await asyncio.wait_for(waiting, timeout=deadline)
+            # Every line written while this command is in flight says which
+            # command it was -- and the browser's half of it says the same id
+            # back, so the two halves of a step join without guessing which of
+            # the three `ui.perform`s in that second is the one that failed.
+            #
+            # And a span around the wait, because this is where a run's time
+            # actually goes: a browser on a slow page, an operator who has been
+            # asked to approve, a tab that stopped answering. A trace that
+            # measured only the request could say a run took four minutes and
+            # nothing about which command it spent them in.
+            with about(command=command_id), doing("browser.command", command=command_id) as span:
+                span.set_attribute("kind", kind)
+                return await asyncio.wait_for(waiting, timeout=deadline)
         except TimeoutError:
             return Answer(
                 ok=False,
@@ -246,6 +295,33 @@ class DeviceSockets:
             self._busy.pop(key, None)
             return None
         return min(remaining, self._timeout * MAX_BUSY_WAIT)
+
+    async def _dialling_back(self, key: tuple[str, str]) -> Socket | None:
+        """This device's socket, waiting a few seconds for one that is coming.
+
+        A browser whose extension worker Chrome has just stopped has no socket
+        for a second or two and then has one again. Without this wait, a
+        command that landed in that second failed the step -- `not_actionable`,
+        `no_tab_for_origin` -- against a browser that was there before and
+        after it, and an operator read a run that stopped for no reason they
+        could see.
+
+        The device is not woken by this and cannot be: nothing this side can
+        reach a stopped service worker. What it does is stop treating "not this
+        instant" as "not at all".
+        """
+        socket = self._sockets.get(key)
+        if socket is not None or self._redial <= 0:
+            return socket
+        loop = asyncio.get_running_loop()
+        until = loop.time() + self._redial
+        while loop.time() < until:
+            await asyncio.sleep(K_LOOK_AGAIN)
+            socket = self._sockets.get(key)
+            if socket is not None:
+                logger.info("%s dialled back in; the command goes down the new socket", key[1])
+                return socket
+        return None
 
     async def _wait_out_the_operator(self, key: tuple[str, str], deadline: float) -> None:
         """Hold a command back while the operator is using their own browser.

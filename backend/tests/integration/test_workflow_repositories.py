@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.application.observation.mining_pass import mine
 from sro.domain.execution.belts import RunProof, earned_from
+from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
 from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.errors import Conflict, NotFound
@@ -620,3 +621,134 @@ class TestTheMiningPass:
         # Postgres discarded them when the statement failed. Nothing here can
         # keep them, and the bill is what must not go with them.
         assert kept == ()
+
+
+class TestAStepNamesWhatItUses:
+    async def test_the_edge_survives_a_round_trip(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A declaration nothing stores is a declaration nothing can act on."""
+        workflow = _workflow()
+        workflow.steps[1].uses = [workflow.steps[0].order]
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(workflow)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            back = await uow.workflows.get(TENANT, workflow.id)
+
+        assert [step.uses for step in back.steps] == [[], [workflow.steps[0].order]]
+
+    async def test_a_job_that_uses_nothing_reads_back_using_nothing(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Which is every job mined so far. An older row has no column at all,
+        and a job that predates it used nothing -- what an absent one honestly
+        means."""
+        workflow = _workflow()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(workflow)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            back = await uow.workflows.get(TENANT, workflow.id)
+
+        assert all(step.uses == [] for step in back.steps)
+
+
+class TestWhatAJobTaughtItself:
+    """The history behind the learning, against the store that overwrites it.
+
+    `workflow_learned` is one row per step and the last answer wins -- so this
+    is exactly the rule a fake would get right by accident and the store would
+    get wrong: the comparison has to happen BEFORE the upsert, because the
+    upsert is what destroys the answer being compared against.
+    """
+
+    async def test_a_locator_that_moved_is_kept_with_what_it_replaced(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(_workflow())
+            await uow.workflows.remember_locator(
+                "wfl_1", LearnedStep(2, "component", "tabItem", "evidence"), by_run="run_a"
+            )
+            await uow.workflows.remember_locator(
+                "wfl_1", LearnedStep(2, "css_path", "#a > b", "sight"), by_run="run_b"
+            )
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            changes = await uow.workflows.taught_itself("wfl_1")
+
+        # Newest first, and both: the first is a job learning something it
+        # never knew, and the second is a job changing its mind.
+        assert [(one.was, one.now) for one in changes] == [
+            ("component=tabItem", "css_path=#a > b"),
+            ("", "component=tabItem"),
+        ]
+        assert [one.by_run for one in changes] == ["run_b", "run_a"]
+        assert changes[0].found_by == "sight"
+
+    async def test_a_run_that_found_what_the_last_one_found_writes_nothing(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Four hundred rows saying "the same locator again" bury the four that
+        matter."""
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(_workflow())
+            for run in ("run_a", "run_b", "run_c"):
+                await uow.workflows.remember_locator(
+                    "wfl_1", LearnedStep(2, "component", "tabItem", "evidence"), by_run=run
+                )
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            changes = await uow.workflows.taught_itself("wfl_1")
+
+        assert len(changes) == 1
+
+    async def test_a_measured_limit_does_not_read_as_a_locator_being_erased(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A limit is learnt on a step whose locator matched perfectly well.
+        Comparing a bare limit against a step that has a locator would write a
+        change saying the locator had been thrown away."""
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(_workflow())
+            await uow.workflows.remember_locator(
+                "wfl_1", LearnedStep(2, "component", "tabItem", "evidence"), by_run="run_a"
+            )
+            await uow.workflows.remember_limit("wfl_1", 2, 4, by_run="run_b")
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            changes = await uow.workflows.taught_itself("wfl_1")
+            learned = await uow.workflows.learned_for("wfl_1")
+
+        assert [(one.about, one.was, one.now) for one in changes] == [
+            ("holds", "", "4"),
+            ("locator", "", "component=tabItem"),
+        ]
+        # And the locator is still there, which is the store's own rule: each
+        # writes only its own columns.
+        assert learned[0].query == "tabItem"
+        assert learned[0].holds == 4
+
+    async def test_another_job_history_is_not_this_one(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(_workflow())
+            await uow.workflows.remember_locator(
+                "wfl_1", LearnedStep(2, "component", "a", "evidence"), by_run="run_a"
+            )
+            await uow.workflows.remember_locator(
+                "wfl_2", LearnedStep(2, "component", "b", "evidence"), by_run="run_b"
+            )
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert len(await uow.workflows.taught_itself("wfl_1")) == 1

@@ -154,6 +154,49 @@ run that would start and be skipped a moment later.
 """
 
 
+_SHAPES: list[dict[str, object]] = [
+    {
+        "id": "wfl_lpn",
+        "title": "Adjust an LPN quantity",
+        # The page the job begins on, as a path -- the stub puts its own
+        # address in front. `/elsewhere` is a different page, so an offer that
+        # fired on the HOST rather than the page would be obvious.
+        "starts_on": "/",
+        "hosts": ["127.0.0.1"],
+        # Four rungs, because `recognise.match` scans k down from
+        # `shape.length - 1` and `offer_after` floors at 2: a shape of three or
+        # fewer can be served and never matched.
+        "shape": [
+            ["127.0.0.1", "input#client", "type"],
+            ["127.0.0.1", "input#qty", "type"],
+            ["127.0.0.1", "select#depot", "select"],
+            ["127.0.0.1", "button#save", "click"],
+        ],
+        # None, so a press is a press: a job with a parameter nobody has typed
+        # sends the card to the conversation to ask for it, which is a
+        # different test and one `panel.test.mjs` already holds. Two of this
+        # deployment's own jobs declare no parameters either.
+        "parameters": [],
+        "held_runs": 1,
+        "offer_after": 2,
+        "quiet_until": None,
+        "writes": [{"does": "create", "record": "orders", "on": "http://127.0.0.1", "step": "3"}],
+    }
+]
+"""One job the rig has proved, as `/v1/shapes` answers it.
+
+What the extension offers on arrival. It is named for the candidate below
+because the tests that read it were written when the offer came from the mining
+pipeline, and what they assert -- a pill on the page the job starts on, one
+card in the panel, nothing on another page -- is the same question about the
+surface that replaced it."""
+
+
+# Nothing in the extension asks for these any more. The panel dropped the
+# mining pipeline's offers (`candidatesFor`: "Dropped where it is read") and
+# the shape above is what arrives instead; the route below is kept because the
+# backend endpoint is still real and a future test of it should not have to
+# rebuild the stub. Every test that read it is gone or rewritten.
 _CANDIDATES: list[dict[str, object]] = [
     {
         "id": "cnd-here",
@@ -323,6 +366,9 @@ class _Stub(BaseHTTPRequestHandler):
     channels: ClassVar[queue.Queue[Channel]] = queue.Queue()
     purges: ClassVar[list[str]] = []
     candidate_queries: ClassVar[list[str]] = []
+    shape_queries: ClassVar[list[str]] = []
+    rig_presses: ClassVar[list[dict[str, Any]]] = []
+    rig_runs: ClassVar[dict[str, dict[str, Any]]] = {}
     answered_joins: ClassVar[list[dict[str, Any]]] = []
     merged: ClassVar[list[dict[str, Any]]] = []
     recordings: ClassVar[list[str]] = []
@@ -446,6 +492,44 @@ class _Stub(BaseHTTPRequestHandler):
                 return
             self._send(200, json.dumps(run).encode())
             return
+        if self.path.startswith("/v1/shapes"):
+            _Stub.shape_queries.append(self.path)
+            # The rig's jobs, as the extension asks for them on every page.
+            #
+            # This route did not exist here until 2026-09-19, and six browser
+            # tests had been failing since the worker stopped offering mining
+            # CANDIDATES and started offering the rig's own shapes
+            # (`candidatesFor`: "Dropped where it is read"). Nothing served
+            # shapes, so no offer could ever arrive in a real Chrome and the
+            # suite that exists to prove the pill and the card was red.
+            #
+            # `starts_on` gets this stub's address in front of it for
+            # `_CANDIDATES`' reason -- the port is minted per run and the
+            # extension compares host AND port -- and with the SCHEME, because
+            # the rig records the tab's whole url and `shapesFor` normalises it
+            # through `new URL(...)`. Served without one, every shape is
+            # dropped silently and nothing is ever offered.
+            here = self.headers.get("Host", "")
+            self._send(
+                200,
+                json.dumps(
+                    {
+                        "shapes": [
+                            {**shape, "starts_on": f"http://{here}{shape['starts_on']}"}
+                            for shape in _SHAPES
+                        ],
+                        "can_find": False,
+                    }
+                ).encode(),
+            )
+            return
+        if self.path.startswith("/v1/workflow-runs/"):
+            run = _Stub.rig_runs.get(self.path.rsplit("/", 1)[-1].split("?")[0])
+            if run is None:
+                self._send(404, json.dumps({"detail": "no such run"}).encode())
+                return
+            self._send(200, json.dumps(run).encode())
+            return
         if self.path.startswith("/v1/candidates"):
             _Stub.candidate_queries.append(self.path)
             # Filtered here the way the real endpoint filters: the panel's whole
@@ -555,6 +639,39 @@ class _Stub(BaseHTTPRequestHandler):
         # 404 to every call that carried one, which is a difference between the
         # double and the thing that has nothing to do with what is under test.
         route = urlsplit(self.path).path
+        if route == "/v1/workflow-runs":
+            # The press. `POST /v1/workflow-runs` answers 201 with the whole
+            # run row -- the extension reads `started.id` off it, and a stub
+            # answering `{"run_id": ...}` would leave the panel with a run it
+            # can never poll.
+            asked = json.loads(raw or b"{}")
+            _Stub.rig_presses.append(asked)
+            run = {
+                "id": "run_pressed",
+                "tenant": "acme",
+                "workflow_id": asked.get("workflow_id", ""),
+                "device_id": asked.get("device_id", ""),
+                "values": asked.get("values", {}),
+                "items": asked.get("items", []),
+                "started_by": "browser-test",
+                "live": bool(asked.get("live")),
+                "allow_focus": bool(asked.get("allow_focus")),
+                "started_at": "2026-09-19T10:00:00+00:00",
+                "finished_at": None,
+                "outcome": "running",
+                "from_step": 0,
+                "steps": [],
+                "withheld": [],
+                "in_tokens": 0,
+                "out_tokens": 0,
+                "thought_tokens": 0,
+                "cost_usd": 0.0,
+                "unpriced": False,
+                "watched": bool(asked.get("watched")),
+            }
+            _Stub.rig_runs["run_pressed"] = run
+            self._send(201, json.dumps(run).encode())
+            return
         if self.path == "/v1/agents/register":
             self._send(
                 200,
@@ -859,6 +976,9 @@ def stub() -> Iterator[tuple[str, list[dict[str, Any]]]]:
     _Stub.channels = queue.Queue()
     _Stub.purges = []
     _Stub.candidate_queries = []
+    _Stub.shape_queries = []
+    _Stub.rig_presses = []
+    _Stub.rig_runs = {}
     _Stub.answered_joins = []
     _Stub.merged = []
     _CANDIDATES[0]["joins"][0].update(answered=None, answered_by=None)
@@ -904,6 +1024,25 @@ def demonstrations(stub: tuple[str, list[dict[str, Any]]]) -> tuple[list[str], l
 def candidate_queries(stub: tuple[str, list[dict[str, Any]]]) -> list[str]:
     """The `/v1/candidates` requests the panel made, as sent."""
     return _Stub.candidate_queries
+
+
+@pytest.fixture
+def rig_presses(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """Every `POST /v1/workflow-runs` the extension made, as sent.
+
+    The one press this product is for: a person reads a card and a warehouse is
+    written to. Nothing in this suite watched it happen until 2026-09-19."""
+    return _Stub.rig_presses
+
+
+@pytest.fixture
+def shape_queries(stub: tuple[str, list[dict[str, Any]]]) -> list[str]:
+    """The `/v1/shapes` requests the extension made, as sent.
+
+    What `candidate_queries` was for, one pipeline later: the offer a browser
+    makes on arrival comes from the rig's proven jobs now, and the question
+    "did it ask at all" is the same question."""
+    return _Stub.shape_queries
 
 
 @pytest.fixture

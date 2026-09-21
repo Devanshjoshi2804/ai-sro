@@ -374,3 +374,81 @@ test("only a click, only a label, and never a struck-out one", () => {
   assert.equal(chosen({ kind: "click" }), null);
   assert.equal(chosen({ kind: "click", target: { text: "hunter2", secret: true } }), null);
 });
+
+
+// --- a job is not offered from another screen of the same application -------
+
+const WMS = "https://bf56-kms-wms-web-np2.jdadelivers.com";
+const CLIENTS = `${WMS}/portal?siteId=SG#wm.config/wm.config.partners.clients////`;
+const SUPPLIERS = `${WMS}/portal?siteId=SG#wm.config/wm.config.partners.suppliers////`;
+
+// The deployment's own row, 2026-09-20. Every control in its opening is an
+// ExtJS component id that every screen of this application shares.
+const addSupplier = {
+  id: "wfl_supplier",
+  title: "Initiate Add Supplier",
+  held_runs: 2,
+  starts_on: SUPPLIERS,
+  shape: [
+    [WMS, "tabItem", "click"],
+    [WMS, "ok", "click"],
+    [WMS, "addButton", "click"],
+    [WMS, "supplierform-selectitemsdrilldownbutton", "click"],
+    [WMS, "adrnam", "click"],
+  ],
+  parameters: [],
+};
+
+const addingSomething = [
+  { triple: [WMS, "tabItem", "click"], value: null },
+  { triple: [WMS, "ok", "click"], value: null },
+  { triple: [WMS, "addButton", "click"], value: null },
+];
+
+test("a job is offered on the screen it begins on", () => {
+  const found = match(addingSomething, [addSupplier], SUPPLIERS);
+
+  assert.equal(found?.workflowId, "wfl_supplier");
+});
+
+test("and not from another screen of the same application", () => {
+  // Measured on the deployment 2026-09-20: the operator created three clients
+  // -- Partners tab, Add, fill, Save -- and was offered `Initiate Add
+  // Supplier`, because `tabItem`, `ok` and `addButton` are what every screen
+  // of this application calls its tab, its confirm and its Add.
+  const found = match(addingSomething, [addSupplier], CLIENTS);
+
+  assert.equal(found, null, "the offer was right about the gestures, wrong about the job");
+});
+
+test("a job that begins in another system is not judged by this screen at all", () => {
+  // The cross-system job is this system's whole purpose: a request read in a
+  // mailbox and done in the warehouse begins on an origin it is never
+  // recognised on, and that is not a mismatch.
+  const fromMail = {
+    ...addSupplier,
+    id: "wfl_from_mail",
+    starts_on: "https://mail.google.com/mail/u/0/#inbox",
+  };
+
+  const found = match(addingSomething, [fromMail], CLIENTS);
+
+  assert.equal(found?.workflowId, "wfl_from_mail");
+});
+
+test("a shape with no screen recorded is offered as it always was", () => {
+  const { starts_on: _dropped, ...noScreen } = addSupplier;
+
+  const found = match(addingSomething, [{ ...noScreen, id: "wfl_no_screen" }], CLIENTS);
+
+  assert.equal(found?.workflowId, "wfl_no_screen");
+});
+
+test("the query is not what makes it a different screen", () => {
+  // The WMS carries a site code in the query and routes on the fragment.
+  const sameScreenOtherSite = `${WMS}/portal?siteId=NL&_dc=123#wm.config/wm.config.partners.suppliers////`;
+
+  const found = match(addingSomething, [addSupplier], sameScreenOtherSite);
+
+  assert.equal(found?.workflowId, "wfl_supplier");
+});

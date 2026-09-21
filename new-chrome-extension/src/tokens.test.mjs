@@ -34,3 +34,36 @@ assert.ok(
 );
 
 console.log("tokens.test.mjs ok");
+
+
+// Every token the panel paints with, against the ones that exist.
+//
+// A `var(--text)` nobody defines is not an error anywhere: CSS drops the
+// declaration and the element inherits whatever was above it, so the colour is
+// nearly right and nothing says otherwise. Written the day the panel's own
+// tabs, the waiting count and the result card all shipped with `--text` and
+// `--muted`, which this palette has never had -- it calls them `--ink` and
+// `--ink-mute`.
+//
+// A fallback is a decision rather than a mistake: `var(--font-body, system-ui)`
+// says what to do without one, so it is left alone.
+
+const panel = readFileSync(join(here, "panel", "panel.css"), "utf8");
+const defined = new Set([
+  ...panel.matchAll(/^\s*(--[a-z0-9-]+)\s*:/gm),
+  ...copy.matchAll(/^\s*(--[a-z0-9-]+)\s*:/gm),
+].map(([, name]) => name));
+const undefinedTokens = [
+  ...new Set(
+    [...panel.matchAll(/var\((--[a-z0-9-]+)\s*(,?)/g)]
+      .filter(([, , comma]) => !comma)
+      .map(([, name]) => name)
+      .filter((name) => !defined.has(name)),
+  ),
+].sort();
+
+assert.deepEqual(
+  undefinedTokens,
+  [],
+  `panel.css paints with tokens nothing defines: ${undefinedTokens.join(", ")}`,
+);

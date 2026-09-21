@@ -1,11 +1,11 @@
 {
   "kind": "request",
   "request": {
-    "request_id": "req_808d0ef3_2",
+    "request_id": "req_3e2f1151_2",
     "method": "GET",
     "url": "http://127.0.0.1:1/never",
     "resource_type": "fetch",
-    "started_at": "2026-08-31T08:40:04.782Z",
+    "started_at": "2026-09-20T14:50:22.408Z",
     "request_headers": {},
     "request_body": null,
     "status": null,
@@ -18,6 +18,6 @@
     "failure_reason": "Failed to fetch",
     "blocked_reason": null
   },
-  "tab_id": 1766715008,
-  "frame_url": "http://127.0.0.1:63319/"
+  "tab_id": 247501454,
+  "frame_url": "http://127.0.0.1:51729/"
 }

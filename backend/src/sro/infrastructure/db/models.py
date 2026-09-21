@@ -867,6 +867,41 @@ class WorkflowRunRow(Base):
     """A run that cost nothing and a run whose cost could not be established
     are the same row without this."""
 
+    watched: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    doing: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    gathered: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
+    needs: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+    """Where each value came from, for values nobody typed. Empty for a run
+    whose values came from a person."""
+    unasked: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+    """Names the request asked for that this job declares no parameter for.
+
+    Names and never values. A job's parameters are what two doings proved vary;
+    the form has more fields than that, and a mail naming one of them is an
+    ordinary request this job simply cannot take yet. Dropping it is right --
+    nothing demonstrated that slot -- and dropping it silently is the fault
+    this column exists to end."""
+    undoes_run: Mapped[str | None] = mapped_column(String(64))
+    """The run this one takes back. Null on every run that is not an undo."""
+
+    asked_the_asker: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    """Whether this run has already written to whoever sent the request. One
+    mail per run: a worker that restarted between two stops would otherwise buy
+    somebody a second mail about one request, and a mail cannot be unsent."""
+
+    awaiting: Mapped[Any] = mapped_column(JSONB, nullable=True)
+    """The outside conversation this run ended waiting to hear back on.
+
+    `{"server": "gmail", "thread": "...", "until": "<iso>"}`, or null for every
+    run nobody outside was asked about. The question itself stays in the
+    operator's thread, which is where the state lives; this is the address a
+    reply is matched against, and the instant after which there is nothing left
+    to match. See `domain/execution/waiting.py`."""
+
     wrong_because: Mapped[str | None] = mapped_column(Text)
     """What the operator said was wrong with what this run made.
 
@@ -878,6 +913,9 @@ class WorkflowRunRow(Base):
 
     __table_args__ = (
         Index("ix_workflow_runs_tenant_workflow", "tenant_id", "workflow_id", "started_at"),
+        # The one question `undoes_run` is asked: has this run been taken back
+        # already. Without it, answering it reads every run of the tenant.
+        Index("ix_workflow_runs_undoes", "undoes_run"),
         # The busy check: whether this browser already has a run in flight.
         # One browser, one hand -- two runs driving the same window interleave
         # their clicks into a form neither of them can then read back.
@@ -895,6 +933,24 @@ class WorkflowRunRow(Base):
             "device_id",
             unique=True,
             postgresql_where=text("outcome = 'running'"),
+        ),
+        # "Is any run of this tenant waiting to hear back on this thread", and
+        # that is the only question asked of it -- once per arriving mail, on
+        # every beat. Partial because almost no run names a conversation, and
+        # on the expressions rather than the column because a match is on two
+        # fields inside one document.
+        #
+        # Declared here as well as in migration 0062 for the reason the index
+        # above it is: the rest of the suite builds its schema from
+        # `Base.metadata`, so an index that lived only in the migration would
+        # keep every test green while the thing a deployment runs built
+        # something else. `test_the_migrations_run` compares the two.
+        Index(
+            "ix_workflow_runs_awaiting",
+            "tenant_id",
+            text("(awaiting ->> 'server')"),
+            text("(awaiting ->> 'thread')"),
+            postgresql_where=text("awaiting IS NOT NULL"),
         ),
     )
 
@@ -1046,6 +1102,11 @@ class WorkflowStepRow(Base):
     system: Mapped[str | None] = mapped_column(Text)
     cites: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
     parameters: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+    uses: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+    """The earlier steps whose output this one consumes, by `ord`.
+
+    Empty on every job mined so far and honestly so: nothing emits the edge
+    yet. See `Step.uses`, which carries the argument and the measurement."""
 
 
 class WorkflowStaleRow(Base):
@@ -1064,6 +1125,78 @@ class WorkflowStaleRow(Base):
     ord: Mapped[int] = mapped_column(Integer, primary_key=True)
     matched_by: Mapped[str | None] = mapped_column(Text)
     noticed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class WorkflowLearnedRow(Base):
+    """The locator that last worked for a step whose recorded identity did not.
+
+    `WorkflowStaleRow` above is the negative twin: it records that a step is
+    about to break. This records what the run FOUND when it did, so the next
+    run tries that first instead of climbing the same ladder and paying for the
+    same model call to reach the same control.
+
+    One row per step, the last answer winning, and kept apart from the workflow
+    for the stale row's reason: the workflow is what a mining pass writes and
+    this is what a run observed, and one rewriting the other would race a
+    re-mine.
+    """
+
+    __tablename__ = "workflow_learned"
+
+    workflow_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    ord: Mapped[int] = mapped_column(Integer, primary_key=True)
+    strategy: Mapped[str] = mapped_column(Text, nullable=False)
+    query: Mapped[str] = mapped_column(Text, nullable=False)
+    found_by: Mapped[str] = mapped_column(Text, nullable=False)
+    holds: Mapped[int | None] = mapped_column(Integer)
+    """How many characters this step's box will take, where a run has found
+    out. Null until one has, and on every step that is not a typing step."""
+    learned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class WorkflowLearnedHistoryRow(Base):
+    """What a job taught itself, kept rather than overwritten.
+
+    `WorkflowLearnedRow` above is one row per step and the last answer wins.
+    That is right for the question it answers -- what should the next run try
+    first -- and it means a job rewrites its own behaviour with nothing left
+    behind. A locator learned from a screenshot that quietly replaced one
+    learned from a component is a job that drifted, and the only record of it
+    was the difference between two runs nobody compared.
+
+    Append-only and never updated: a history that can be edited is a history
+    nobody can rely on. Read by nobody in the hot path, so a job that has
+    learned four hundred times costs a run nothing.
+    """
+
+    __tablename__ = "workflow_learned_history"
+    # The one query this table is for: what has this job taught itself, newest
+    # first. Declared here as well as in the migration, because the schema the
+    # code describes and the schema the migrations build are held equal by a
+    # test -- and an index in one and not the other is a query that is fast in
+    # development and a sequential scan in production.
+    __table_args__ = (Index("ix_workflow_learned_history_job", "workflow_id", "at"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    workflow_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    ord: Mapped[int] = mapped_column(Integer, nullable=False)
+    about: Mapped[str] = mapped_column(Text, nullable=False)
+    """`locator` or `holds`. One table rather than two: they are the same event
+    -- a job changed its mind about a step -- and a reader wants them in one
+    order."""
+
+    was: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    now: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    """What it was and what it became, both as text including the limit: the
+    reader is a person, and `4` beside `60` says what a nullable integer column
+    would say less clearly."""
+
+    by_run: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    found_by: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    """Which run taught it and which rung produced it, so somebody reading a
+    surprising locator can go and look at the run that found it."""
+
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class WorkflowEffectRow(Base):
@@ -1130,6 +1263,34 @@ class MiningPassRow(Base):
     An honest zero and a refused call are the same row without this."""
 
     __table_args__ = (Index("ix_mining_passes_tenant_started", "tenant_id", "started_at"),)
+
+
+class AttemptRow(Base):
+    """Something a person asked this system for, and what came of it.
+
+    Append-only, and nothing in this system's behaviour reads it: that is what
+    makes it safe to write from a door that is in the middle of refusing
+    something. See `sro.domain.observation.attempts` for what belongs here and
+    what does not.
+    """
+
+    __tablename__ = "attempts"
+    # The only question this table is asked: what happened to this tenant,
+    # since when. A plain index on the tenant would make Postgres sort a
+    # tenant's whole history to answer it.
+    __table_args__ = (Index("ix_attempts_tenant_at", "tenant_id", "at"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    # `offers`' tiebreak, for its reason: several attempts share a second and
+    # "newest" has to mean arrival order once `at` ties.
+    seq: Mapped[int] = mapped_column(BigInteger, Identity(), nullable=False)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    principal: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    asked_for: Mapped[str] = mapped_column(Text, nullable=False)
+    came_of: Mapped[str] = mapped_column(String(16), nullable=False)
+    why: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    about: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict)
 
 
 class OfferRow(Base):

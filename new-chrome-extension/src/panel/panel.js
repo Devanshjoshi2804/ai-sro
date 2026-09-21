@@ -12,10 +12,24 @@
 // while one is running the panel is about that and nothing else.
 
 import { hostMatches } from "../background/scripts.js";
-import { alreadyAnswered, composer, ledger } from "./ledger.js";
+import {
+  alreadyAnswered,
+  composer,
+  ledger,
+  nudging,
+  waitingOnYou,
+} from "./ledger.js";
+// The same rendering of "which page is this" the worker matches rules by.
+// One function, so a card drawn here and a rule evaluated there cannot
+// disagree about which page somebody is on.
+import { page } from "./nudge.js";
 import { runCard } from "./run-card.js";
+import { history } from "./history.js";
+import { panes } from "./panes.js";
+import { dayNamed, pending, when } from "./pending.js";
 import { needsAPress, strip } from "./strip.js";
 import { today } from "./today.js";
+import { waiting } from "./waiting.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -59,7 +73,10 @@ async function ask(message) {
  */
 async function beside() {
   const ordinary = (tab) => /^https?:/.test(tab?.url || "");
-  const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const [active] = await chrome.tabs.query({
+    active: true,
+    currentWindow: true,
+  });
   if (ordinary(active)) return active;
   const inThisWindow = await chrome.tabs.query({ currentWindow: true });
   return (
@@ -77,9 +94,28 @@ function hostOf(url) {
   }
 }
 
-function clock(since) {
-  const seconds = Math.max(0, Math.round((Date.now() - since) / 1000));
-  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+/** How long something has been going on, in units a person uses.
+ *
+ * Two units at most, and never the small one once the big one is large:
+ * this counted minutes forever, so a tab watched since Thursday said
+ * `since 4997m 24s` -- measured on the deployment 2026-09-21. Nobody divides
+ * that by 1440 while standing at a warehouse screen.
+ */
+function clock(since, now = Date.now()) {
+  // Either shape it is held in. `watchedTabs()` stamps `since` with an ISO
+  // STRING, and this subtracted it from a number: `Date.now() - "2026-09-18…"`
+  // is NaN, so the card read `since NaNd NaNh` for the one browser state it
+  // draws every time the panel opens. The backlog had the same defect for the
+  // same reason, which is why the reader of both is one function.
+  const at = when(since);
+  if (!at) return "a while";
+  const seconds = Math.max(0, Math.round((now - at) / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ${minutes % 60}m`;
+  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
 }
 
 // -- building a card ---------------------------------------------------------
@@ -90,7 +126,17 @@ function clock(since) {
  * reading, so a card that has an action carries it; one that does not says why
  * in a sentence somebody can act on elsewhere.
  */
-function card({ title, says, metrics, notes, stage, progress, tone, actions = [], toggle }) {
+function card({
+  title,
+  says,
+  metrics,
+  notes,
+  stage,
+  progress,
+  tone,
+  actions = [],
+  toggle,
+}) {
   const holder = document.createElement("section");
   holder.className = "card";
   if (tone) holder.dataset.tone = tone;
@@ -110,7 +156,27 @@ function card({ title, says, metrics, notes, stage, progress, tone, actions = []
   }
   if (says) {
     const line = document.createElement("p");
-    line.textContent = says;
+    // A run in flight says so the way every other surface says it: something
+    // turning, beside the words. A card that reads "looking in your mail for
+    // Customer Type…" and never moves is indistinguishable from one that hung
+    // -- and on 2026-09-16 that is exactly what an operator was looking at for
+    // three and a half minutes while the gather retried a 5xx. The ellipsis
+    // was doing this job and an ellipsis does not move.
+    //
+    // CSS only, and off under `prefers-reduced-motion`. A timer per card is a
+    // panel that keeps a phone's radio awake to draw a dot.
+    if (tone === "live") {
+      const turning = document.createElement("span");
+      turning.className = "spinner";
+      // It says nothing a screen reader needs: the line beside it already
+      // says what is happening, and the elapsed time says it is still going.
+      turning.setAttribute("aria-hidden", "true");
+      const words = document.createElement("span");
+      words.textContent = says;
+      line.append(turning, words);
+    } else {
+      line.textContent = says;
+    }
     holder.append(line);
   }
   if (metrics) {
@@ -169,7 +235,14 @@ function render(status) {
   // to it -- as one line. What used to be a card headed "Not watching this tab"
   // on every tab an operator switched to.
   $("strip").replaceChildren(
-    strip(status, tabHere, { onMenu: menu, onToggle: toggleExpanded }),
+    strip(status, tabHere, {
+      onMenu: menu,
+      onToggle: toggleExpanded,
+      // The panel's own element, handed over rather than rebuilt: this redraw
+      // runs every couple of seconds and the buttons in it must not be
+      // replaced under the cursor that is about to press one.
+      nav: theNav(),
+    }),
   );
   const why = needsAPress(status, tabHere);
   // Open when there is something only the operator can fix, or when they asked
@@ -181,10 +254,16 @@ function render(status) {
       card({
         title: "Not connected",
         says:
-          "This browser has no credential. Nothing is recorded and no task can be "
-          + "taught until it is connected to your deployment.",
+          "This browser has no credential. Nothing is recorded and no task can be " +
+          "taught until it is connected to your deployment.",
         tone: "attention",
-        actions: [{ label: "Connect", primary: true, act: () => chrome.runtime.openOptionsPage() }],
+        actions: [
+          {
+            label: "Connect",
+            primary: true,
+            act: () => chrome.runtime.openOptionsPage(),
+          },
+        ],
       }),
     );
   } else if (status.teaching) {
@@ -196,8 +275,89 @@ function render(status) {
   // Before the run and after the state card: it is the only thing here waiting
   // on the person. Not while teaching, because then the panel is about the
   // demonstration and nothing else -- the offer keeps.
-  if (!status.teaching) for (const offer of status.offers || []) cards.push(offering(offer));
+  if (!status.teaching)
+    for (const offer of status.offers || []) cards.push(offering(offer));
 
+  // The jobs this browser is offering to do, HERE rather than in the
+  // conversation.
+  //
+  // They were drawn in the thread, interleaved with what was said, which was
+  // right when the panel was one column and wrong the moment it became two:
+  // Home is what is true right now and an offer is the truest thing on it, so
+  // splitting the panel left Home empty and put the card a person was waiting
+  // to press behind the other tab. Seen on the deployment 2026-09-16 --
+  // "Create a Customer Type — GDY, so far" sitting in Chat with nothing at all
+  // on Home.
+  //
+  // Not the ones that are waiting: those are in the banner above, and a card
+  // drawn twice is a card somebody answers twice. Not another tab's, either --
+  // an offer about a page nobody is looking at is words without buttons.
+  //
+  // ONE of them, and the rest behind the tray.
+  //
+  // Home had eleven cards on it: two of them the same request twice, four from
+  // earlier in the day, and the one that had just arrived at the bottom. A
+  // panel that exists to say "here is the thing that needs you" was saying it
+  // eleven times, which is the same as not saying it. Measured on the
+  // deployment 2026-09-18.
+  //
+  // The newest, because that is the one anybody acts on -- nobody works
+  // Tuesday's request on Thursday, and the older ones are a list to go
+  // through rather than a thing in the way of the run happening now.
+  if (!status.teaching) {
+    const here = (lastStatus?.nudges || status.nudges || []).filter(
+      (nudge) =>
+        nudge.state === "open" &&
+        !nudge.missed &&
+        !(nudge.tabId != null && nudge.tabId !== tabHere.tabId),
+    );
+    const [newest, ...rest] = [...here].sort((a, b) => when(b.at) - when(a.at));
+    if (newest) {
+      const one = nudging(newest, answered);
+      if (justArrived(newest)) one.dataset.fresh = "1";
+      cards.push(one);
+    }
+    // And a way to the rest, which is a line rather than ten more cards.
+    if (rest.length) cards.push(theRest(rest));
+  }
+
+  // A standing rule that fired on THIS page and stopped to ask.
+  //
+  // `waitingOnYou`'s own docstring records the last time this card could not
+  // be seen: it was drawn in the console, another tab, which from where the
+  // operator was standing is indistinguishable from nothing having happened
+  // -- "I just logged in, nothing on panel". It moved into the panel and
+  // stopped one pane short. An arrival rule fires because of the page in
+  // front of somebody, and Home is the pane about the page in front of
+  // somebody; the conversation is where it was, behind the other tab.
+  //
+  // Measured on the deployment 2026-09-20: `trg_a925ce7d` fired on the
+  // Keycloak sign-in page at 17:25 and wrote two confirmations, both still
+  // `waiting`, while the operator looked at Home and saw a run card for a
+  // different job.
+  //
+  // Only the ones about the page they are on. `page` is the rule's own, put
+  // there by the worker, and a card about somewhere else belongs in the list
+  // rather than in the way of the page being worked.
+  if (!status.teaching) {
+    const here = page(tabHere.url || "").toLowerCase();
+    for (const card of status.waiting || [])
+      if (card.page && card.page === here && card.still_there !== false)
+        cards.push(waitingOnYou(card, answered));
+  }
+
+  // A mail that has gone out and not been answered.
+  //
+  // On Home as well as in the conversation, because the two panes answer two
+  // different questions and this is an answer to both: the conversation says
+  // what was said, and Home says what is true right now. What was true for as
+  // long as a reply took was a panel doing visibly nothing.
+  const waitingOnMail = mailCard(status);
+  if (waitingOnMail) cards.push(waitingOnMail);
+
+  // A question nobody has answered, before anything about what is happening
+  // now. It is the one thing on this panel that is waiting on THEM.
+  if (status.question) cards.push(theQuestion(status.question));
   if (status.performing) cards.push(performing(status));
   // Not while teaching, same rule as the offers above: a demonstration in
   // progress is the only thing the panel is about. Placed after the run that
@@ -235,7 +395,190 @@ function render(status) {
   $("here").hidden = Boolean(status.teaching) || !status.deviceId;
   $("thread").hidden = Boolean(status.teaching) || !status.deviceId;
   lastStatus = status;
+  drawnCardsOnce = true;
+  toTheQuestion(status.finished);
+  paintPanes();
+  // What arrived while nobody was looking, above everything. Painted from the
+  // worker's status rather than from the thread, because that is what it is
+  // about -- a request waiting is a fact about this browser, not a line in a
+  // conversation -- and after `lastStatus` is set, which is what it reads.
+  paintWaiting();
   return status;
+}
+
+const K_FRESH_MS = 20000;
+/** How long a card that has just arrived keeps its moving border. Long enough
+ * to be on screen when somebody is sent here to look at it, short enough that
+ * a panel left open does not have four cards asking for attention at once. */
+
+const seenCards = new Set();
+const freshUntil = new Map();
+let drawnCardsOnce = false;
+
+/** Whether this card is new since the last draw -- and, if it is, send the
+ * operator to it.
+ *
+ * An answer that arrives by mail lands on Home while the person who asked for
+ * it is reading the conversation, so the card they have been waiting for
+ * appears behind the other tab with nothing to say it did. The same reasoning
+ * as `goToTheConversation` when a run asks a question: the panel moves to
+ * where the thing that needs a person is, rather than leaving them to find it.
+ *
+ * Only after a first draw. Every card is new to a panel that has just opened,
+ * and a panel that jumped to Home and lit up four borders on open would be
+ * shouting about nothing that happened.
+ */
+function justArrived(nudge) {
+  const id = nudge.id;
+  if (!id) return false;
+  if (!seenCards.has(id)) {
+    seenCards.add(id);
+    if (drawnCardsOnce) {
+      freshUntil.set(id, Date.now() + K_FRESH_MS);
+      // The pane, not a redraw: this is called from inside the draw, and
+      // `paintPanes` runs at the end of it.
+      pane = "home";
+    }
+  }
+  return (freshUntil.get(id) || 0) > Date.now();
+}
+
+/** The requests Home is not showing, as one line that opens them.
+ *
+ * Not a card per request, which is what this replaces. A person looking at
+ * Home is looking for the next thing to do; how much else is queued is a
+ * number, and the queue itself is somewhere to go.
+ */
+function theRest(rest) {
+  const oldest = rest.reduce(
+    (was, one) => (when(one.at) < when(was.at) ? one : was),
+    rest[0],
+  );
+  return card({
+    title: `${rest.length} more waiting`,
+    says:
+      rest.length === 1
+        ? `One more request, from ${dayNamed(oldest.at).toLowerCase()}.`
+        : `The oldest is from ${dayNamed(oldest.at).toLowerCase()}.`,
+    // Home's way to the queue, which is now a place rather than a dialog.
+    actions: [{ label: "Go through them", primary: true, act: goToTheQueue }],
+  });
+}
+
+/** Waiting on somebody's mailbox, said on Home.
+ *
+ * `tone: "live"` for the turning indicator the gather card already uses: one
+ * animation in this panel for "something is happening and you are not waiting
+ * on it", rather than a second one that means the same thing differently.
+ *
+ * Nothing here is an estimate. Who was asked, when they were asked, when this
+ * browser last read the mailbox, and whether it is reading one this second --
+ * every number is something this browser did.
+ */
+function mailCard(status) {
+  const mail = status.mail;
+  if (!mail?.awaiting) return null;
+  const to = mail.awaiting.to || "whoever was asked";
+  return card({
+    title: "Waiting on a reply",
+    says: mail.looking
+      ? `Reading the mailbox for ${to}'s answer`
+      : `Asked ${to} ${ago(mail.awaiting.at)}. Last read the mailbox ${ago(mail.lookedAt)}`,
+    tone: "live",
+  });
+}
+
+/** How long ago, in the roundest words that are still true. */
+function ago(at) {
+  const was = Number(at) || 0;
+  if (!was) return "not yet";
+  const seconds = Math.max(0, Math.round((Date.now() - was) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.round(seconds / 60);
+  return minutes < 60 ? `${minutes}m ago` : `${Math.round(minutes / 60)}h ago`;
+}
+
+/** A question this operator has not answered.
+ *
+ * Drawn from the CONVERSATION by way of the worker, not from the run that
+ * asked it. The run is one slot: on 2026-09-17 a question was written at 03:57
+ * and a later run took that slot at 03:59, and the question sat unanswered in
+ * the thread for the rest of the morning with nothing on screen about it.
+ *
+ * A card rather than a line in the waiting banner, and it says the whole
+ * question rather than a count: "3 requests arrived" is a number somebody
+ * opens when they have a minute, and this is a job of theirs that has stopped
+ * a foot from the end.
+ */
+function theQuestion(question) {
+  return card({
+    title: question.title
+      ? `${question.title} — waiting on you`
+      : "Waiting on you",
+    says: question.text,
+    tone: "attention",
+    actions: [
+      {
+        label: "Answer it",
+        primary: true,
+        act: () => {
+          pane = "chat";
+          paintPanes();
+          void conversation();
+          toTheNewest(true);
+          // In the box, so the answer is one keystroke away rather than one
+          // press and then a hunt for where to type it.
+          $("ask-bar").querySelector?.("input")?.focus();
+        },
+      },
+    ],
+  });
+}
+
+/** The run that has already been taken to its question, so the panel moves
+ * somebody once and not on every poll. */
+let askedAbout = null;
+
+/** A run that came up short asks, and the asking is in the conversation.
+ *
+ * The run went looking for values nobody typed and could not find one. It
+ * ends -- it has to, a write with a blank in it is a wrong record -- and what
+ * it could not find is already a question in this operator's own thread,
+ * written by the backend as the run closed.
+ *
+ * What is left is putting them in front of it. A question waiting behind the
+ * other tab, under a card reading "The run stopped", is a question nobody
+ * answers: the panel showed the dead end and hid the way out of it.
+ *
+ * Once per run. The status lands every couple of seconds and a pane that
+ * re-asserted itself on each one is a panel somebody cannot leave -- they are
+ * allowed to go back to Home and look at something else.
+ */
+function toTheQuestion(run) {
+  if (!run || run.source !== "rig" || !(run.needs || []).length) return;
+  if (run.id === askedAbout) return;
+  askedAbout = run.id;
+  pane = "chat";
+  void conversation();
+  // At the end of it, which is where the question is.
+  toTheNewest(true);
+}
+
+/** Watch this system wherever it opens, from now on.
+ *
+ * The press says it about the HOST. Every tab already open on it is watched
+ * too -- saying it about a system and leaving four of its tabs blind is the
+ * same defect one layer along.
+ */
+async function alwaysWatch(button) {
+  button.disabled = true;
+  try {
+    await ask({ kind: "always-watch", tabId: tabHere.tabId, url: tabHere.url });
+    said(`watching ${tabHere.host} wherever it opens`);
+  } catch (error) {
+    said(error.message);
+  }
+  await refresh();
 }
 
 /** What the profile menu's items mean here.
@@ -264,7 +607,11 @@ async function menu(action) {
     case "purge":
       return purge();
     case "never":
-      await ask({ kind: "unwatch-tab", tabId: tabHere.tabId, url: tabHere.url });
+      await ask({
+        kind: "unwatch-tab",
+        tabId: tabHere.tabId,
+        url: tabHere.url,
+      });
       return refresh();
     case "settings":
       return chrome.runtime.openOptionsPage();
@@ -296,8 +643,15 @@ function recording(status) {
     metrics: `${clock(since)} · ${seen} thing${seen === 1 ? "" : "s"} seen`,
     tone: "live",
     actions: [
-      { label: "Stop and save", primary: true, act: (button) => stopTeaching(button) },
-      { label: "Discard", act: (button) => stopTeaching(button, { discard: true }) },
+      {
+        label: "Stop and save",
+        primary: true,
+        act: (button) => stopTeaching(button),
+      },
+      {
+        label: "Discard",
+        act: (button) => stopTeaching(button, { discard: true }),
+      },
     ],
   });
 }
@@ -343,7 +697,9 @@ function watching(status) {
     // consent nobody gave.
     const excluded = excludedByDefault(status);
     return watchCard(status, true, null, {
-      title: excluded ? `${tabHere.host} is not normally recorded` : "Not watching this tab",
+      title: excluded
+        ? `${tabHere.host} is not normally recorded`
+        : "Not watching this tab",
       says: excluded
         ? `${tabHere.host} is excluded for everyone in this tenant by default.` +
           " You can watch it anyway, for this tab: everything in it becomes evidence" +
@@ -367,6 +723,20 @@ function watching(status) {
           primary: true,
           disabled: !status.capturing || !tabHere.tabId,
           act: (button) => setWatch(button, true),
+        },
+        // Once, about the system, rather than once per tab.
+        //
+        // A tab id lives for as long as one tab and the work does not: a link
+        // opened in a new tab, a window reopened after lunch, and the tab a
+        // RUN opens for itself are all the same system doing the same job.
+        // Measured on the deployment, 2026-09-17 -- a run drove a Blue Yonder
+        // tab it had opened, with its own banner across the top of it, while
+        // this panel said "not watched" beside it. Nothing it did was
+        // evidence, so the job performed and the system learnt nothing.
+        {
+          label: `Always watch ${tabHere.host}`,
+          disabled: !status.capturing || !tabHere.host,
+          act: (button) => alwaysWatch(button),
         },
         pauseAction(status),
       ],
@@ -393,7 +763,11 @@ function watching(status) {
         " and teaching is refused here until it is fixed. Reloading the page" +
         " fixes it.",
       actions: [
-        { label: "Reload this page", primary: true, act: (button) => reloadWatched(button) },
+        {
+          label: "Reload this page",
+          primary: true,
+          act: (button) => reloadWatched(button),
+        },
         { label: "Stop watching", act: (button) => setWatch(button, false) },
       ],
     });
@@ -419,7 +793,9 @@ function watching(status) {
       // panel says.
       metrics:
         `since ${clock(mine.since)}` +
-        (status.policy?.capture_snapshots ? " · reading this page's structure too" : ""),
+        (status.policy?.capture_snapshots
+          ? " · reading this page's structure too"
+          : ""),
       actions: [
         {
           label: "Start teaching",
@@ -441,12 +817,20 @@ function watching(status) {
   return watchCard(status, false, mine, {
     title: "Watching this tab",
     says:
-      `Everything you do in ${mine.host || "this tab"} is evidence. What you repeat` +
+      // `on` and not `host`: a watched tab is watched wherever it navigates,
+      // and `host` is the one the watch was GRANTED for. The panel read the
+      // granted one and told an operator standing on a Keycloak sign-in page
+      // that everything they did on `blueyonderalphaus.b2clogin.com` was
+      // evidence -- naming a system that was not on their screen, about a
+      // page that was in fact being recorded.
+      `Everything you do in ${mine.on || mine.host || "this tab"} is evidence. What you repeat` +
       " becomes a task worth offering; teach one deliberately at any time." +
       elsewhere,
     metrics:
       `since ${clock(mine.since)}` +
-      (status.policy?.capture_snapshots ? " · reading this page's structure too" : ""),
+      (status.policy?.capture_snapshots
+        ? " · reading this page's structure too"
+        : ""),
     actions: [
       {
         label: "Start teaching",
@@ -530,7 +914,11 @@ async function reloadWatched(button) {
 async function setWatch(button, on) {
   button.disabled = true;
   try {
-    await ask({ kind: on ? "watch-tab" : "unwatch-tab", tabId: tabHere.tabId, url: tabHere.url });
+    await ask({
+      kind: on ? "watch-tab" : "unwatch-tab",
+      tabId: tabHere.tabId,
+      url: tabHere.url,
+    });
   } catch (error) {
     said(error.message);
   }
@@ -556,9 +944,21 @@ function performing(status) {
   const total = run.of && done !== null && done <= run.of ? run.of : null;
   const holder = card({
     title: run.skill ? `“${run.skill}” is running` : "A run is performing here",
-    says:
-      (run.because || "Started elsewhere") +
-      (done === null ? "." : total ? `. Step ${done} of ${total}.` : `. Step ${done}.`),
+    // What it is doing beats which step it is on, when it says anything.
+    //
+    // A run reading a mailbox for the values nobody typed has not reached its
+    // first step yet, so "Step 0" is true and useless -- and on the deployment
+    // 2026-09-16 it sat there for three and a half minutes while the model
+    // retried a 5xx, which reads exactly like a run that has hung. Everything
+    // a run does is a step except this one thing, so this one thing says so.
+    says: run.doing
+      ? `${run.doing}…`
+      : (run.because || "Started elsewhere") +
+        (done === null
+          ? "."
+          : total
+            ? `. Step ${done} of ${total}.`
+            : `. Step ${done}.`),
     metrics: `${run.kind} · ${clock(run.since)}`,
     stage: run.stage || null,
     progress: total ? { done, of: total } : null,
@@ -590,7 +990,11 @@ function performing(status) {
       {
         label: "Details in console",
         act: () =>
-          openConsole(run.source === "rig" ? `/jobs/runs/${run.runId}` : `/runs/${run.runId}`),
+          openConsole(
+            run.source === "rig"
+              ? `/jobs/runs/${run.runId}`
+              : `/runs/${run.runId}`,
+          ),
       },
     ],
   });
@@ -614,7 +1018,10 @@ function performing(status) {
               // The panel never holds the rig's bearer. The press goes to the
               // worker, which is where it lives -- the same path the offer's
               // "yes" takes.
-              const got = await ask({ kind: "approve-rig-run", runId: drawn.id });
+              const got = await ask({
+                kind: "approve-rig-run",
+                runId: drawn.id,
+              });
               if (got?.error) said(got.error);
               // Said, because the row cannot say it yet. The backend stops
               // marking the step `awaiting` as soon as the tap lands, but the
@@ -667,11 +1074,280 @@ async function keepSecret({ system, field, value }) {
  */
 const RIG_ENDINGS = {
   held: "The run finished — every step held.",
-  stopped: "The run stopped to ask.",
+  // "to ask" only when something is actually waiting on somebody; `howItEnded`
+  // below decides. A run that stopped because a step failed was announcing a
+  // question nobody had been asked, on a card whose own rows said a step had
+  // failed -- and the operator went looking for the thing to answer.
+  stopped: "The run stopped.",
   refused: "The run was refused.",
   aborted: "The run was stopped.",
   failed: "The run failed.",
 };
+
+/** How a rig run ended, in the words of the thing that ended it.
+ *
+ * `RIG_ENDINGS` names the outcome and nothing else, which is right for four of
+ * the five and useless for `stopped`: a run stops because a step is waiting on
+ * a person, or because a step failed twice, and those want two different
+ * people to do two different things. The step already knows which -- it was
+ * simply not being read, so every stop announced a question and half of them
+ * had asked nobody anything.
+ *
+ * The failure's own words, not ours: "unreachable: TypeError: Failed to fetch"
+ * says the browser could not reach the system, and "the run stopped" says a
+ * person should go and look at something.
+ */
+/** What a finished job made, as the thing it is.
+ *
+ * Big, because it is the answer. Bordered and moving, because a run finishing
+ * is the one moment on this surface worth catching an eye that was elsewhere
+ * -- and the movement stops the moment somebody has read it, which is what the
+ * press is for. A card that pulses forever is a card people learn to stop
+ * seeing.
+ *
+ * The steps stay, folded. Nobody reads them when the answer is what they
+ * expected, and everybody wants them the one time it is not.
+ */
+function madeCard(run, wrote, ending) {
+  const holder = document.createElement("div");
+  holder.className = "made";
+  holder.dataset.runId = run.id;
+
+  const what = document.createElement("p");
+  what.className = "made-what";
+  what.textContent = wrote;
+  holder.append(what);
+
+  const how = document.createElement("p");
+  how.className = "detail";
+  how.textContent = ending || "";
+  holder.append(how);
+
+  // The machinery, for the time it is wanted. `<details>` because it is the
+  // one disclosure the browser already gets right -- keyboard, screen reader
+  // and all -- and this panel has no business reimplementing it.
+  const steps = document.createElement("details");
+  steps.className = "made-steps";
+  const summary = document.createElement("summary");
+  summary.textContent = `How it went — ${(run.steps || []).length} steps`;
+  steps.append(summary);
+  steps.append(
+    runCard(
+      { run, skill: null, message: { text: "" } },
+      { onSecret: keepSecret },
+    ),
+  );
+  holder.append(steps);
+
+  // What takes it back, where this tenant has been seen doing it.
+  //
+  // The rig's result card has never offered one. The reason was written into
+  // this file -- "a run the rig drove has neither a reversal nor anywhere to
+  // send It's wrong" -- and it was true: the backend answered an id and could
+  // not say which record a press would address, so a button here would have
+  // been a button that deletes something nobody named.
+  //
+  // It can say now. `undoes_by` is the record as the warehouse named it, and
+  // `undo` is the mined job whose own evidence shows somebody deleting records
+  // of this kind. Both, or neither: a press that cannot name what it removes
+  // is not a press anybody consented to.
+  const back =
+    run.undo && run.undoes_by ? Object.entries(run.undoes_by)[0] : null;
+  if (back) {
+    const says = document.createElement("p");
+    says.className = "detail";
+    says.dataset.kind = "undo";
+    // Named before the press and not after it, which is ADR 014's rule for the
+    // skill reversal beside this one: the operator reads what it will do.
+    says.textContent = `“Undo it” runs a job that deletes ${back[0]} ${back[1]}.`;
+    holder.append(says);
+  }
+
+  const row = document.createElement("div");
+  row.className = "row";
+  if (back) {
+    const undo = document.createElement("button");
+    undo.type = "button";
+    undo.className = "quiet";
+    undo.textContent = "Undo it";
+    undo.addEventListener("click", () => {
+      undo.disabled = true;
+      void undoTheRun(run, back, undo);
+    });
+    row.append(undo);
+  }
+  const ok = document.createElement("button");
+  ok.type = "button";
+  ok.textContent = "OK";
+  ok.addEventListener("click", () => {
+    // The sweep stops on the press, not when the refresh lands. A border still
+    // travelling under a button somebody has just pressed reads as a press
+    // that did not register.
+    holder.dataset.read = "true";
+    void forgetRun(ok);
+  });
+  row.append(ok);
+  holder.append(row);
+  return holder;
+}
+
+/** What this run took back, where it was an undo of another. */
+function tookBack(run) {
+  if (!run.undoes_run) return "";
+  return run.status === "held"
+    ? `This took back what run ${run.undoes_run} made.`
+    : `This was taking back what run ${run.undoes_run} made, and did not finish` +
+        ` — that record is still there.`;
+}
+
+/** One press that runs the same job again, with the values it already had. */
+function tryAgainRow(run) {
+  const row = document.createElement("div");
+  row.className = "row";
+  const again = document.createElement("button");
+  again.type = "button";
+  again.textContent = "Try it again";
+  again.addEventListener("click", async () => {
+    again.disabled = true;
+    try {
+      const started = await ask({
+        kind: "retry-rig-run",
+        workflowId: run.workflow_id,
+        values: run.values || {},
+        items: run.items || [],
+      });
+      if (started?.ok === false) {
+        again.disabled = false;
+        said(started.error || "that job could not be started");
+        return;
+      }
+      said("trying it again");
+      goToTheRun();
+    } catch (error) {
+      again.disabled = false;
+      said(`that job could not be started: ${error.message}`);
+    }
+  });
+  row.append(again);
+  return row;
+}
+
+/** Start the job that takes back what this run made.
+ *
+ * An ordinary rig run of an ordinary mined job, started with the one value that
+ * names the record -- not a special path, and deliberately so: the delete goes
+ * through the same ladder, the same write gate and the same belts as any other
+ * job, and an undo that skipped them would be the one write in this system
+ * nobody checked.
+ */
+async function undoTheRun(run, [field, names], button) {
+  try {
+    const started = await ask({
+      kind: "undo-rig-run",
+      workflowId: run.undo,
+      values: { [field]: names },
+      // Which run this takes back. Two panels showing one card would otherwise
+      // press two deletes at one record; the backend refuses the second.
+      undoesRun: run.id,
+    });
+    if (started?.ok === false) {
+      button.disabled = false;
+      said(started.error || "that job could not be started");
+      return;
+    }
+    said(`taking back ${field} ${names}`);
+    goToTheRun();
+  } catch (error) {
+    button.disabled = false;
+    said(error.message);
+  }
+}
+
+/** The operator has read it. Clears only the copy this panel draws -- the run
+ * itself is on the backend for as long as the tenant keeps it. */
+async function forgetRun(button) {
+  button.disabled = true;
+  try {
+    await ask({ kind: "forget-run" });
+  } catch (error) {
+    said(error.message);
+  }
+  await refresh();
+}
+
+/** What a run that held actually wrote, named.
+ *
+ * Only for a run that HELD: a run that stopped wrote nothing, or wrote
+ * something nobody has confirmed, and a card claiming otherwise is the one
+ * lie this surface must never tell.
+ *
+ * Values and not step records, for the reason `finished` gives. Trimmed,
+ * because a description may hold two thousand characters and this is a
+ * headline.
+ */
+function whatItWrote(run) {
+  if (run.status !== "held") return "";
+  const said = Object.values(run.values || {})
+    .map((one) => String(one || "").trim())
+    .filter(Boolean)
+    .map((one) => (one.length > K_WROTE ? `${one.slice(0, K_WROTE)}…` : one));
+  return said.length ? said.join(", ") : "";
+}
+
+/** How much of one written value the card repeats back. Enough to recognise
+ * the record by, not enough to push the steps off the screen. */
+const K_WROTE = 60;
+
+/** A sentence that now follows something else. `The run finished…` reads badly
+ * after a dash; `the run finished…` does not. Only the first letter, and only
+ * where it is a letter: a value that starts with a digit is left alone. */
+function lowerFirst(said) {
+  return /^[A-Z][a-z]/.test(said)
+    ? said[0].toLowerCase() + said.slice(1)
+    : said;
+}
+
+function howItEnded(run) {
+  const steps = run.steps || [];
+  if (steps.some((step) => step.outcome === "awaiting"))
+    return "The run stopped to ask.";
+  const failed = [...steps].reverse().find((step) => step.outcome === "failed");
+  const why = String(failed?.reason || "").trim();
+  if (why)
+    return `The run stopped — ${why.slice(0, K_WHY)}${why.length > K_WHY ? "…" : ""}`;
+  // A run that held having skipped steps did not do what its rows say it did.
+  // Measured on the deployment, 2026-09-17 at 14:20: four of six steps came
+  // back `not_needed` -- the page would not take the click, so the form was
+  // never filled and the write went out as a call -- and the card said "every
+  // step held" above four dashes. The record was made and the sentence was
+  // still false, which is the worse half: an operator reads the sentence.
+  // ...and a run that skipped a step did not necessarily send its write as a
+  // call either. That is the sentence this became, and it was wrong the other
+  // way round: measured on the deployment, 2026-09-18 at 02:20, a run that
+  // pressed every button on the page and made the record by clicking Save --
+  // five ticks, every one `component`, $0.0224 -- was announced as "the write
+  // went out as a call, 1 step on the page skipped". The skipped step was
+  // "Open an email", which is skipped on every single run of this job because
+  // the mail was read before the run began.
+  //
+  // So the two facts are said separately, because they are separate: a step
+  // the run did not do, and a write that did not go through the form. A write
+  // done on the page carries the locator that found its button, which is what
+  // `matched_by` is; a replayed call has none.
+  const skipped = steps.filter((step) => step.outcome === "not_needed").length;
+  if (run.status !== "held" || !skipped)
+    return RIG_ENDINGS[run.status] || "The run ended.";
+  const wrote = [...steps].reverse().find((step) => step.outcome === "held");
+  const many = `${skipped} ${skipped === 1 ? "step" : "steps"}`;
+  return wrote?.matched_by
+    ? `The run finished — ${many} skipped, and the rest done on the page.`
+    : `The run finished — the write went out as a call, ${many} on the page skipped.`;
+}
+
+/** How much of a failure's own words the card carries. Long enough for
+ * "unreachable: TypeError: Failed to fetch", short enough that a stack trace
+ * cannot become the card. */
+const K_WHY = 120;
 
 /** One item's values, in a sentence: `name: value, name: value`.
  *
@@ -712,17 +1388,92 @@ function finished(status) {
   // card a backend run is drawn in; what changes is which list it draws and
   // which buttons it puts under it.
   if (run.source === "rig") {
-    return runCard(
-      { run, skill: null, message: { text: RIG_ENDINGS[run.status] || "The run ended." } },
+    // A run that stopped for want of a value says what it is waiting on, not
+    // that it stopped. "The run stopped" is true and useless: the operator
+    // pressed yes, something went looking on their behalf and came back one
+    // word short, and the question about that word is in the conversation this
+    // panel has just moved them to.
+    const short = [
+      (run.needs || []).length
+        ? `I could not find ${run.needs.join(", ")} — I have asked in the conversation.`
+        : howItEnded(run),
+      // And where this run is itself an undo, which run it took back.
+      //
+      // The two are one piece of work and nothing said so. A delete that
+      // worked is quietly right either way; a delete that did NOT is what this
+      // is for -- an undo that fails writes nothing, so it has no result card
+      // of its own to read, and the card that offered the press has been
+      // answered and gone. Without this the failure reads as a job that failed
+      // on its own rather than as a record still sitting in the warehouse.
+      tookBack(run),
+    ]
+      .filter(Boolean)
+      .join(" ");
+    // And WHAT it made, first, because that is the thing somebody came to the
+    // card to read.
+    //
+    // The card said "the run finished — 1 step skipped, and the rest done on
+    // the page" and stopped: true, and it never named the record. An operator
+    // who authorised a write is owed the write, not a report on the mechanism
+    // that performed it.
+    //
+    // From the run's own values rather than from the warehouse's answer. The
+    // step that created it records `made` from the response body, and for a
+    // write performed on the PAGE there is no body to read -- the browser sees
+    // the call and its status, not what came back, and it stays that way
+    // deliberately: a create's answer is a row of somebody's data. What this
+    // says is therefore what the run WROTE, which the 201 and the screen belt
+    // between them confirm landed.
+    const wrote = whatItWrote(run);
+    // A job that finished is a RESULT, and a result is not a report.
+    //
+    // The card drew six rows of machinery -- which rung matched, what each
+    // step cost -- above the one thing somebody came to read, which is what
+    // now exists in the warehouse that did not exist a minute ago. That is the
+    // right card while a run is going and the wrong one once it has gone: the
+    // steps are how, and how is a thing you go and look for when the answer
+    // surprises you.
+    //
+    // So the values are the card, the steps fold away behind them, and it ends
+    // when the operator says they have read it rather than when an hour is up.
+    if (wrote) return madeCard(run, wrote, short);
+    const card = runCard(
+      {
+        run,
+        skill: null,
+        message: {
+          text: wrote
+            ? `${wrote} — ${lowerFirst(short || "done")}`
+            : short || RIG_ENDINGS[run.status] || "The run ended.",
+        },
+      },
       { onSecret: keepSecret },
     );
+    // And one press to try it again, where trying again is safe.
+    //
+    // A run stops for reasons that have nothing to do with the job -- a
+    // session that expired, a tab closed, a browser that could not be reached
+    // -- and the offer that started it is spent, so the request sat there
+    // until somebody noticed and sent the mail again. Measured on the
+    // deployment 2026-09-19: a run stopped on a sign-in page and this card
+    // offered a person nothing at all.
+    //
+    // `try_again` is the backend's answer, not this card's guess: it is true
+    // only where nothing the run did may have landed. A second press after a
+    // write nobody could confirm is two records.
+    if (run.try_again && run.workflow_id) card.append(tryAgainRow(run));
+    return card;
   }
   const ok = run.status === "succeeded";
   const made = ok ? Object.entries(run.derived || {}) : [];
   const actions = [];
   const notes = [];
   if (ok && run.reversal) {
-    actions.push({ label: "Undo that", primary: true, act: (button) => undoRun(button, run) });
+    actions.push({
+      label: "Undo that",
+      primary: true,
+      act: (button) => undoRun(button, run),
+    });
     // What the press is about to delete, named before it is pressed.
     //
     // One press is the design and stays one press. But the reversal is a
@@ -745,7 +1496,10 @@ function finished(status) {
   // wrong only once), so a card that has already recorded one must not go on
   // offering a press guaranteed to fail.
   if (ok && !run.wrongBecause) {
-    actions.push({ label: "It's wrong — I'll fix it", act: (button) => wasWrong(button, run) });
+    actions.push({
+      label: "It's wrong — I'll fix it",
+      act: (button) => wasWrong(button, run),
+    });
   }
   return card({
     title: ok
@@ -818,7 +1572,11 @@ async function undoRun(button, run) {
 async function wasWrong(button, run) {
   button.disabled = true;
   try {
-    await ask({ kind: "run-wrong", runId: run.id, because: "the operator said this was wrong" });
+    await ask({
+      kind: "run-wrong",
+      runId: run.id,
+      because: "the operator said this was wrong",
+    });
     said("Fix it the way you meant. I'm watching, and I'll learn from that.");
   } catch (error) {
     said(error.message);
@@ -866,15 +1624,17 @@ function offering(offer) {
     // Said before the press rather than after it. The same names the fire
     // itself would skip on, so a card that cannot run says so instead of
     // starting a run that stops a moment later where nobody is looking.
-    stage: missing.length
-      ? `Nothing said ${missing.join(", ")}, so this one cannot run.`
-      : offer.skipped || null,
-    tone: missing.length ? "attention" : null,
+    stage: !missing.length
+      ? offer.skipped || null
+      : offer.canFind
+        ? `Nothing said ${missing.join(", ")} — I read those out of the mail when it runs.`
+        : `Nothing said ${missing.join(", ")}, so this one cannot run.`,
+    tone: missing.length && !offer.canFind ? "attention" : null,
     actions: [
       {
         label: "Run it",
         primary: true,
-        disabled: Boolean(missing.length),
+        disabled: Boolean(missing.length) && !offer.canFind,
         act: async (button) => {
           button.disabled = true;
           try {
@@ -910,8 +1670,19 @@ function offering(offer) {
  */
 function troubles(status) {
   const cards = [];
-  if (status.deviceId && !status.capturing && !status.paused && !status.serverPaused) {
-    cards.push(card({ title: "Not observing", says: `${status.because}.`, tone: "attention" }));
+  if (
+    status.deviceId &&
+    !status.capturing &&
+    !status.paused &&
+    !status.serverPaused
+  ) {
+    cards.push(
+      card({
+        title: "Not observing",
+        says: `${status.because}.`,
+        tone: "attention",
+      }),
+    );
   }
   if (status.deviceId && status.channel !== "open") {
     cards.push(
@@ -920,9 +1691,9 @@ function troubles(status) {
         says:
           (status.channelWhy
             ? `Not dialling: ${status.channelWhy}. `
-            : `The command channel is ${status.channel}. `)
-          + "A run started from the console or a schedule cannot act here until it "
-          + "opens; nothing already captured is lost.",
+            : `The command channel is ${status.channel}. `) +
+          "A run started from the console or a schedule cannot act here until it " +
+          "opens; nothing already captured is lost.",
         tone: "attention",
         // It redials on the minute alarm by itself. This is for the operator
         // watching the card right now, who otherwise has nothing to press and
@@ -972,7 +1743,8 @@ async function startTeaching(button) {
   button.disabled = true;
   try {
     const tab = await beside();
-    if (!tab) throw new Error("open the system you want to teach in this tab first");
+    if (!tab)
+      throw new Error("open the system you want to teach in this tab first");
     // Named, not guessed: this panel is docked beside the tab being taught,
     // which is the one thing the options page could never say.
     await ask({ kind: "teach-start", tabId: tab.id, label: tab.title });
@@ -990,7 +1762,9 @@ async function stopTeaching(button, { discard = false } = {}) {
       said("discarded — nothing was kept");
     } else {
       const steps = stopped.summary?.frame_count ?? 0;
-      said(`saved — ${steps} step${steps === 1 ? "" : "s"}. Teach it once more to prove what varies.`);
+      said(
+        `saved — ${steps} step${steps === 1 ? "" : "s"}. Teach it once more to prove what varies.`,
+      );
     }
   } catch (error) {
     said(error.message);
@@ -1027,18 +1801,41 @@ async function refresh() {
         runId: status.performing.runId,
         source: status.performing.source,
       });
-      status.performing = rig
-        ? {
-            ...status.performing,
-            // The rig plans one step at a time, so there is no total to count
-            // towards and the card says "step 3" rather than "step 3 of 7".
-            // `rigRun` maps the row; `steps` is what it has done so far.
-            skill: null,
-            step: Array.isArray(run.steps) ? run.steps.length : null,
-            of: null,
-            because: null,
-          }
-        : await _aboutTheSkill(status.performing, run);
+      // A run that has ENDED is not performing, whatever the worker still
+      // believes.
+      //
+      // The worker's own answer is `latest`, a module variable that says "a
+      // run is happening" until it goes quiet -- and a worker evicted in the
+      // middle of a run comes back with no memory of it at all, so the two
+      // ways that answer can be wrong point in opposite directions. The run's
+      // own row is the authority and the panel has just fetched it.
+      //
+      // Measured on the deployment 2026-09-20: `run_83efedf5` stopped at
+      // 13:35:55 and the panel was still drawing "A run is performing here"
+      // at 13:38, counting the seconds since a command that had already been
+      // refused. The operator was told something was happening for three
+      // minutes after it had stopped.
+      // Cleared, and nothing put in its place: what a finished run looks like
+      // on this panel is `finishedRun`, which the worker writes when it
+      // confirms one. A card invented here would be a second answer to that
+      // question, in a shape nobody else writes.
+      if (run?.outcome && run.outcome !== "running") {
+        status.performing = null;
+      } else {
+        status.performing = rig
+          ? {
+              ...status.performing,
+              // The rig plans one step at a time, so there is no total to
+              // count towards and the card says "step 3" rather than
+              // "step 3 of 7". `rigRun` maps the row; `steps` is what it has
+              // done so far.
+              skill: null,
+              step: Array.isArray(run.steps) ? run.steps.length : null,
+              of: null,
+              because: null,
+            }
+          : await _aboutTheSkill(status.performing, run);
+      }
     } catch {
       // A run the panel cannot read is still a run the panel can stop.
     }
@@ -1056,7 +1853,9 @@ async function refresh() {
  */
 async function _aboutTheSkill(performing, run) {
   const skill = await ask({ kind: "skill", skillId: run.skill_id });
-  const version = (skill.versions || []).find((each) => each.version === run.skill_version);
+  const version = (skill.versions || []).find(
+    (each) => each.version === run.skill_version,
+  );
   return {
     ...performing,
     skill: skill.name || null,
@@ -1080,7 +1879,10 @@ async function sayTheDay(status) {
   try {
     const midnight = new Date();
     midnight.setHours(0, 0, 0, 0);
-    const summary = await ask({ kind: "summary", since: midnight.toISOString() });
+    const summary = await ask({
+      kind: "summary",
+      since: midnight.toISOString(),
+    });
     const line = today(summary, openOffers);
     $("today").replaceChildren(...(line ? [line] : []));
   } catch {
@@ -1110,7 +1912,11 @@ let openOffers = 0;
 async function whereWeAre() {
   const tab = await beside();
   const was = tabHere;
-  tabHere = { tabId: tab?.id ?? null, host: hostOf(tab?.url || ""), url: tab?.url || "" };
+  tabHere = {
+    tabId: tab?.id ?? null,
+    host: hostOf(tab?.url || ""),
+    url: tab?.url || "",
+  };
   // The tab's id and not its host alone. Whether this tab is being watched is
   // answered by looking for `tabHere.tabId` in the watch list, so two tabs on
   // one warehouse are two different answers -- and a host comparison left the
@@ -1133,7 +1939,6 @@ function openConsole(path = "/console") {
     chrome.runtime.openOptionsPage();
   });
 }
-
 
 /** Deleting the operator's own last hour.
  *
@@ -1170,6 +1975,19 @@ let drawn = null;
 
 /** Fetch the thread and draw it. */
 async function conversation() {
+  // The first one only. A conversation nobody has drawn yet is a blank
+  // column for as long as the fetch takes, which on a panel that opens
+  // instantly is the difference between "loading" and "broken". Never on a
+  // later pass: the thread is already on screen and replacing it with grey
+  // bars every two seconds is the opposite of what this is for.
+  // Into `#said`, which is the thread's own list and the one thing `show()`
+  // replaces. NOT `#scroll`: that is the outer scroller, and every pane in
+  // this panel is inside it -- `#cards`, `#thread`, `#backlog`, `#tasks`.
+  // Replacing its children detached all of them, so the next `$("cards")`
+  // was null, `render` threw on it, and the navigation was never painted: a
+  // panel with no tabs and four grey bars where everything used to be.
+  // Measured on the deployment 2026-09-21, ten minutes after it shipped.
+  if (!lastThread) $("said").replaceChildren(_comingUp(4));
   let thread;
   try {
     thread = await ask({ kind: "thread" });
@@ -1179,8 +1997,13 @@ async function conversation() {
   }
   $("thread-note").textContent = "";
   threadId = thread.id;
+  lastThread = thread;
   show(thread);
 }
+
+/** The last thread the server handed over, so a draw that is not from the
+ * server has something true to build on. */
+let lastThread = null;
 
 /** Draw a thread, if it says anything the one on screen does not.
  *
@@ -1196,6 +2019,393 @@ async function conversation() {
  * on somebody mid-sentence is what the guard is for; their own press is not
  * that.
  */
+/** Which half of the panel is showing, in THIS window of it.
+ *
+ * Home, because somebody opening this panel is looking for what the system is
+ * doing or wants from them, which is a glance. A conversation is something you
+ * go to. Not stored, for the waiting banner's reason: it is a fact about a
+ * person looking at a panel right now.
+ */
+let pane = "home";
+
+/** What the cluster was last drawn from, so an unchanged one is left alone. */
+let panesDrawn = null;
+
+/** The element the navigation lives in, made once.
+ *
+ * The strip is rebuilt from the worker's status every couple of seconds. The
+ * navigation is not: it is handed to the strip as this element, so redrawing
+ * the line around it cannot replace the button somebody is reaching for.
+ */
+let navSlot = null;
+function theNav() {
+  if (!navSlot) navSlot = document.createElement("div");
+  return navSlot;
+}
+
+/** Draw the two tabs and hide whichever half is not showing.
+ *
+ * Its own painter, called from `render` and from the tabs themselves, because
+ * switching pane changes nothing `show()`'s signature can see.
+ */
+function paintPanes() {
+  // Everything open, not only what was MISSED.
+  //
+  // The count used to mean "arrived while you were not looking", which was the
+  // right number when everything waiting was on Home and the badge only said
+  // you had not been there. Home keeps one now, so what the badge is for is
+  // the size of the queue behind the tray -- and a queue that counted only the
+  // ones you had never seen would say six, then four, then nothing, while six
+  // requests sat there unanswered.
+  const missed = (lastStatus?.nudges || []).filter(
+    (one) => one.state === "open",
+  ).length;
+  // Only when it would say something different. This runs on every push from
+  // the worker -- a status lands every couple of seconds -- and rebuilding two
+  // buttons that often is how a control comes to flicker under the cursor
+  // that is about to press it.
+  const now = `${pane}:${missed}`;
+  if (now === panesDrawn) {
+    // The tabs are what is unchanged. Which half is on screen is asserted
+    // every time: it is one property write per element, and an early return
+    // that skipped it would leave a pane hidden after anything else touched it.
+    showPane();
+    return;
+  }
+  panesDrawn = now;
+  theNav().replaceChildren(
+    panes(pane, {
+      waiting: missed,
+      onPick: (picked) => {
+        // Four places and one action. Starting a conversation is the action,
+        // and it leaves you in Chat.
+        if (picked === "new") return void freshThread();
+        if (picked === pane) return;
+        if (picked === "chat") return void goToTheConversation();
+        pane = picked;
+        paintPanes();
+        // Tasks is the one that has to go and ask. Everything else is drawn
+        // from what this panel is already holding.
+        if (picked === "tasks") void drawTasks();
+        // Arriving at the queue redraws it whatever it last held: `showPane`
+        // leaves an unchanged backlog alone so the controls in it survive a
+        // poll, and somebody who walked away mid-confirmation and came back
+        // should find the pane as it is rather than as they left it.
+        if (picked === "waiting") paintBacklog(true);
+      },
+    }),
+  );
+  showPane();
+}
+
+/** What this browser has done lately, at the full width of the panel.
+ *
+ * Fetched when somebody comes here rather than kept fresh in the background:
+ * it is a list of what already happened, and a request every two seconds for
+ * a screen nobody is on is a request nobody asked for.
+ *
+ * A failure is said in the pane itself. The alternative -- drawing an empty
+ * one -- reports "nothing has happened" when what is true is "this browser
+ * could not ask", and those are different facts.
+ */
+async function drawTasks() {
+  const into = $("tasks");
+  // Shown while it is happening. The fetch is two round trips and this pane
+  // opens instantly, so without this it opens blank and looks broken -- and a
+  // word on its own is a blank pane with a word on it.
+  into.replaceChildren(_comingUp());
+  let runs = [];
+  let said = [];
+  try {
+    runs = (await ask({ kind: "recent-runs", limit: K_HISTORY })) || [];
+    // Asked separately, and never allowed to cost the runs: this browser's own
+    // lines are the smaller half of the pane, and a worker that cannot answer
+    // for them is not a reason to show nothing at all.
+    said =
+      (await ask({ kind: "what-this-browser-said" }).catch(() => [])) || [];
+  } catch (error) {
+    into.replaceChildren(_note(error.message));
+    return;
+  }
+  // Somebody who left while it was loading gets what they went to, not this.
+  if (pane !== "tasks") return;
+  into.replaceChildren(
+    history(runs, {
+      said,
+      // Opened where it is, rather than somewhere else.
+      //
+      // The run is already here in full -- the list door answers whole rows --
+      // so there is nothing to fetch and nowhere to navigate to. A line that
+      // sent somebody to another pane would lose the list they came to read.
+      onOpen: (run, line) => {
+        const already = line.querySelector?.(".record-of-a-run");
+        if (already) {
+          already.remove();
+          line.dataset.open = "";
+          return;
+        }
+        // One at a time. Twelve open cards is the scrolling column this pane
+        // exists to not be.
+        for (const other of into.querySelectorAll?.(".record-of-a-run") || []) {
+          other.remove();
+        }
+        for (const other of into.querySelectorAll?.("[data-open='1']") || []) {
+          other.dataset.open = "";
+        }
+        const card = runCard({ run }, { stop: false });
+        card.classList?.add?.("record-of-a-run");
+        line.append(card);
+        line.dataset.open = "1";
+      },
+    }),
+  );
+}
+
+/** One line of prose in a pane that has nothing else to show yet. */
+/** The shape of what is coming, while it is coming.
+ *
+ * A word is not a loading state. `Looking…` on its own is a pane that looks
+ * broken for as long as two round trips take, and then jumps: nothing on
+ * screen tells anybody what is about to be there or how much of it. These are
+ * the lines themselves, greyed -- so the pane has its own layout before the
+ * data lands and nothing moves when it does.
+ *
+ * Labelled for a screen reader, which cannot see grey bars at all.
+ */
+function _comingUp(lines = 5) {
+  const box = document.createElement("div");
+  box.className = "loading";
+  box.setAttribute("role", "status");
+  box.setAttribute("aria-label", "Loading");
+  for (let n = 0; n < lines; n++) {
+    const bar = document.createElement("span");
+    bar.className = "loading-line";
+    // Uneven, because a stack of identical bars reads as a graphic and a
+    // ragged one reads as text that has not arrived.
+    bar.dataset.of = String((n % 3) + 1);
+    box.append(bar);
+  }
+  return box;
+}
+
+function _note(text) {
+  const said = document.createElement("p");
+  said.className = "detail";
+  said.textContent = text;
+  return said;
+}
+
+/** What nobody has answered, at the full width of the panel.
+ *
+ * Drawn from the status this panel already has rather than fetched: these are
+ * this browser's own offers, held in `chrome.storage`, and the panel is the
+ * same browser. Nothing to wait for, so it is painted on every pass -- which
+ * is what makes a request answered on Home disappear from here without
+ * anybody leaving the pane.
+ */
+let backlogDrawn = null;
+
+function paintBacklog(again = false) {
+  const into = $("backlog");
+  const open = (lastStatus?.nudges || []).filter((one) => one.state === "open");
+  // Only when it would say something different -- the guard the banner and the
+  // ledger both keep, for the reason they keep it. This pane is repainted on
+  // every push from the worker, and replacing its children each time takes
+  // whatever state the controls in it are holding: the second press of a
+  // "Dismiss all 34" lands on a button the poll rebuilt half a second ago, so
+  // the confirmation could never be reached and the only way to clear a
+  // backlog was still one card at a time.
+  const now = open.map((one) => `${one.id}:${one.at}`).join(",");
+  if (!again && now === backlogDrawn) return;
+  backlogDrawn = now;
+  const drawn = pending(open, { onPress: answered, onClear: clearBacklog });
+  // Nothing waiting is a sentence, not an empty pane. A place somebody
+  // navigated to has to say what it is even when it holds nothing -- an empty
+  // one reads as a surface that failed to load.
+  into.replaceChildren(drawn || _note("Nothing is waiting on you."));
+}
+
+/** A day of requests, or all of them, dismissed together.
+ *
+ * One message and not one per id: the worker holds the whole queue under a
+ * single storage key, so thirty-four `drop-nudge` calls are thirty-four
+ * read-modify-writes of it. Each reports its own fate on the other side, which
+ * is the part that has to stay per request.
+ */
+async function clearBacklog(ids) {
+  try {
+    const got = await ask({ kind: "drop-nudges", nudgeIds: ids });
+    said(
+      got?.dropped
+        ? `dismissed ${got.dropped} \u2014 nothing ran`
+        : "nothing to dismiss",
+    );
+  } catch (error) {
+    said(error.message);
+  }
+  await refresh();
+  paintBacklog(true);
+}
+
+/** How many runs the Tasks pane asks for. The console is where a log is read. */
+const K_HISTORY = 12;
+
+/** A conversation somebody deliberately started.
+ *
+ * The thread is otherwise one continuous conversation per operator, which is
+ * the right default -- a question about a run this morning belongs with the
+ * run. This is for when they have finished with that and are starting
+ * something else, and it puts them on it: a new thread drawn behind the pane
+ * they are not looking at is a press that appears to do nothing.
+ */
+async function freshThread() {
+  try {
+    const made = await ask({ kind: "new-thread" });
+    if (made?.id) threadId = made.id;
+  } catch (error) {
+    $("thread-note").textContent = error.message;
+  }
+  pane = "chat";
+  paintPanes();
+  drawn = null;
+  await conversation();
+}
+
+/** How close to the bottom still counts as reading the newest.
+ *
+ * A few pixels of slack rather than zero: a thread that has just grown by a
+ * line is a thread somebody is still at the bottom of, and an exact comparison
+ * makes every redraw a coin toss between sticking and not. */
+const K_AT_THE_BOTTOM = 48;
+
+/** Keep the newest thing in sight, the way a conversation is read.
+ *
+ * Nothing in this panel has ever scrolled, so arriving on Chat showed the
+ * OLDEST message with the newest below the fold, and every redraw left it
+ * there. That is most of what "it is not smooth" means: the thing you came to
+ * read is the one place the panel does not put you.
+ *
+ * It sticks rather than jumps. Somebody who has scrolled up is reading
+ * something, and a view that yanks itself down while they read is worse than
+ * one that never moved -- so this only acts when they were already at the
+ * bottom, or when `force` says the moment is theirs: they switched to this
+ * pane, or they just sent something.
+ */
+function toTheNewest(force = false) {
+  if (pane !== "chat") return;
+  const scroll = $("scroll");
+  const height = Number(scroll.scrollHeight) || 0;
+  const seen = Number(scroll.clientHeight) || 0;
+  const at = Number(scroll.scrollTop) || 0;
+  if (force || height - at - seen < K_AT_THE_BOTTOM) scroll.scrollTop = height;
+}
+
+/** Show the conversation, redrawn, at the end of it.
+ *
+ * One way to get there, because there are now two ways to be sent: picking the
+ * tab, and pressing a card whose answer is a question rather than a run.
+ *
+ * The second is what this was extracted for. A press on the Home pane wrote
+ * `Customer Type takes 4 characters. What should it be?` into the thread and
+ * left the operator looking at Home, where no part of it is visible -- the
+ * question was asked, correctly, into a pane nobody had been taken to. Seen on
+ * the deployment 2026-09-18, twice, and it reads exactly like nothing
+ * happened.
+ *
+ * `drawn = null` because the guard that stops a redraw replacing a composer
+ * somebody is typing in also stops the first draw after arriving here.
+ *
+ * Reading the thread now rather than up to five seconds from now: the poll
+ * runs only while Chat is showing, so arriving is exactly when it is most
+ * likely to be stale. And the scroll is forced -- arriving at a conversation
+ * means arriving at the end of it, which is where the question is.
+ */
+function goToTheConversation() {
+  pane = "chat";
+  paintPanes();
+  drawn = null;
+  // Twice, and both are needed. Now, so the switch lands at the end of what is
+  // already drawn rather than at the top of it -- a fetch away is long enough
+  // to read as a jump. And again when the thread comes back, because the
+  // message somebody is being sent here to read is one that was not on screen
+  // when the first scroll ran.
+  toTheNewest(true);
+  void conversation().then(() => toTheNewest(true));
+}
+
+/** Which half is on screen. Separate from drawing the tabs, because the tabs
+ * change when the count does and the panes change when the pane does. */
+function showPane() {
+  // One place showing, the rest put away. Every pane is asserted on every
+  // call rather than only the one that changed: a property write per element
+  // costs nothing, and an early return that skipped it would leave a pane
+  // hidden after anything else touched it.
+  for (const id of ["today", "cards"]) $(id).hidden = pane !== "home";
+  // The banner is Home's, and only when it has something in it.
+  $("waiting").hidden = pane !== "home" || !$("waiting").childElementCount;
+  for (const id of ["thread", "here"]) $(id).hidden = pane !== "chat";
+  $("backlog").hidden = pane !== "waiting";
+  $("tasks").hidden = pane !== "tasks";
+  // The composer is in none of these lists. One box, always there: an operator
+  // who thinks of something while looking at their cards should not have to
+  // find another tab before they can say it -- and a question from a run
+  // arrives in the conversation, so the box they answer in belongs under their
+  // hand wherever they are standing.
+  //
+  // `paintBacklog` here and not only on the press: the queue is live. A
+  // request answered on Home, or one that arrives while somebody is reading
+  // this pane, has to change what the pane says without them leaving it.
+  if (pane === "waiting") paintBacklog();
+}
+
+/** Whether the waiting banner is open, in THIS window of the panel.
+ *
+ * Not stored: it is a fact about a person looking at a panel right now, not
+ * about the browser. A second window of the panel is a second pair of eyes and
+ * gets its own answer, and both are folded again next time it opens -- which is
+ * the state somebody coming back to the panel should find.
+ */
+let waitingOpen = false;
+
+/** What the banner was last drawn from, so an unchanged one is left alone --
+ * with whatever somebody has typed into it, and without a live region
+ * repeating itself every two seconds. */
+let waitingDrawn = null;
+
+/** Redraw the banner, and nothing else.
+ *
+ * Its own painter rather than part of `show()` because opening it changes
+ * nothing `show()`'s signature can see: the thread is the same, the cards are
+ * the same, and the guard there would return before drawing a thing. The
+ * toggle calls this directly.
+ */
+function paintWaiting() {
+  const missed = (lastStatus?.nudges || []).filter(
+    (nudge) => nudge.state === "open" && nudge.missed,
+  );
+  // Only when it would say something different. The panel repaints on every
+  // push from the worker, and rebuilding these cards each time would take the
+  // half-typed value in one of them with it -- the defect the ledger's own
+  // redraw guard exists for, in a place that has boxes to type into.
+  //
+  // It is also what keeps the live region quiet: `#waiting` announces what
+  // changes inside it, and replacing identical children every two seconds is a
+  // screen reader saying "3 requests arrived" all afternoon.
+  const now = `${waitingOpen}|${missed.map((one) => `${one.id}:${one.state}`).join(",")}`;
+  if (now === waitingDrawn) return;
+  waitingDrawn = now;
+  const banner = waiting(missed, {
+    open: waitingOpen,
+    onToggle: (open) => {
+      waitingOpen = open;
+      paintWaiting();
+    },
+    card: (one) => nudging(one, answered),
+  });
+  $("waiting").replaceChildren(...(banner ? [banner] : []));
+  $("waiting").hidden = !banner || pane !== "home";
+}
+
 function show(thread, { asked = false } = {}) {
   // The local half belongs in the signature, not only in the draw below it.
   // It was built from the thread alone, and a rig offer writes nothing to the
@@ -1205,7 +2415,10 @@ function show(thread, { asked = false } = {}) {
   // something unrelated changed the thread. Found on 2026-09-14 by a browser
   // that made an offer the panel never showed.
   const mine = (lastStatus?.nudges || [])
-    .map((nudge) => `${nudge.id}:${nudge.state}:${nudge.k ?? ""}`)
+    .map(
+      (nudge) =>
+        `${nudge.id}:${nudge.state}:${nudge.missed ? "m" : ""}:${nudge.k ?? ""}`,
+    )
     .join(",");
   // An answer to a question is drawn from the same local half, and changes
   // without the thread changing -- the same defect the nudges above were found
@@ -1219,12 +2432,25 @@ function show(thread, { asked = false } = {}) {
   // `said` is taken too -- it is how this panel writes a line back to the
   // operator -- so this name belongs to neither.
   const answerSeen = `${lastStatus?.answer?.askedAt || ""}:${(lastStatus?.answer?.answers || []).length}`;
-  const missed = (lastStatus?.nearMisses || []).map((one) => `${one.triggerId}:${one.at}`).join(",");
+  const missed = (lastStatus?.nearMisses || [])
+    .map((one) => `${one.triggerId}:${one.at}`)
+    .join(",");
   const asking = (lastStatus?.waiting || []).map((one) => one.id).join(",");
-  const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}|${mine}|${answerSeen}|${missed}|${asking}|${hostOf(tabHere.url || "")}`;
+  // And the wait on a mailbox, which changes with the CLOCK rather than with
+  // anything said. Everything else in this signature is a thing that happened;
+  // this one is a thing that is still happening, and a line reading "last read
+  // 40s ago" that only redraws when somebody speaks is a line that lies for as
+  // long as the conversation is quiet -- which is the whole of the time it is
+  // on screen. The look's own timestamp is what moves it: once per look, not
+  // once per poll.
+  const waitingOn = `${lastStatus?.mail?.awaiting?.at || ""}:${lastStatus?.mail?.lookedAt || ""}:${lastStatus?.mail?.looking ? "r" : ""}`;
+  const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}|${mine}|${answerSeen}|${missed}|${asking}|${waitingOn}|${hostOf(tabHere.url || "")}`;
   if (now === drawn) return;
-  if (!asked && drawn !== null && document.activeElement?.tagName === "INPUT") return;
+  if (!asked && drawn !== null && document.activeElement?.tagName === "INPUT")
+    return;
   drawn = now;
+  if (thread !== lastThread && (thread.messages || []).length)
+    lastThread = thread;
   // What only this browser knows, beside what the server holds: the mails it
   // recognised and the prompts it made on the page in front of somebody.
   // Neither is written down, and both belong in the order things happened.
@@ -1242,10 +2468,19 @@ function show(thread, { asked = false } = {}) {
     // The brief tail is deliberate rather than zero: an offer that vanishes
     // the instant it expires looks, to somebody who just watched it appear,
     // like the panel losing it. Four seconds is long enough to see it go.
-    nudges: (lastStatus?.nudges || []).filter((nudge) =>
-      nudge.state === "open"
-        ? nudge.tabId === tabHere.tabId
-        : Date.now() - (nudge.endedAt || 0) < JUST_ENDED_MS,
+    // A card with no tab behind it is not about a tab. A mail arrived while
+    // the operator was somewhere else entirely -- filtered to the tab in front
+    // of them it would never be drawn at all, which is how the first version
+    // of this lost every request it recognised.
+    // Only the ones that have just ENDED. An open offer is a thing to press
+    // and belongs on Home with everything else that is true right now; what
+    // the conversation keeps is the brief tail of one that closed, so somebody
+    // who just watched it go can see that it went rather than wonder where the
+    // panel put it.
+    nudges: (lastStatus?.nudges || []).filter(
+      (nudge) =>
+        nudge.state !== "open" &&
+        Date.now() - (nudge.endedAt || 0) < JUST_ENDED_MS,
     ),
     answer: lastStatus?.answer || null,
     nearMisses: lastStatus?.nearMisses || [],
@@ -1253,12 +2488,47 @@ function show(thread, { asked = false } = {}) {
     // Which system the operator is actually looking at, so an offer about
     // another one keeps its words and loses its buttons.
     here: hostOf(tabHere.url || ""),
+    // The sentence that has been sent and not yet answered, so the panel shows
+    // it the instant it leaves rather than when the reply lands. Named apart
+    // from `waiting`, which is the list of fires waiting on somebody.
+    sending: sendingNow,
+    // The mail this browser sent and is waiting on, and whether it is reading
+    // a mailbox at this instant. The conversation is where the draft was read
+    // and approved, so the conversation is where the waiting belongs.
+    mail: lastStatus?.mail || null,
   };
   openOffers = (thread.messages || []).filter(
-    (message) => ["offer", "mail_match"].includes(message.decision?.kind || "")
-      && !alreadyAnswered(thread.messages).has(message.decision.candidate_id),
+    (message) =>
+      ["offer", "mail_match"].includes(message.decision?.kind || "") &&
+      !alreadyAnswered(thread.messages).has(message.decision.candidate_id),
   ).length;
-  $("said").replaceChildren(ledger(thread, local, { onPress: answered }));
+  // The runs the conversation can draw under a message that names one.
+  //
+  // The ledger has had this branch since the skills path existed and it has
+  // never fired, because nothing ever passed a map: `runs.get?.(run_id)` on
+  // `undefined` is silently nothing. So a thread that said "Running X…" said
+  // only that, and what came of it was on the other pane.
+  //
+  // Built from the two runs this browser actually holds -- the one performing
+  // and the one that just finished -- rather than fetched: those are the two a
+  // conversation can be about, and a map of every run this tenant ever did
+  // would be a page load to draw one card.
+  const runs = new Map();
+  for (const one of [lastStatus?.performing, lastStatus?.finished]) {
+    const id = one?.run?.id || one?.runId || one?.id;
+    if (!id) continue;
+    runs.set(
+      id,
+      one === lastStatus?.finished
+        ? finished({ finished: one })
+        : performing({ performing: one }),
+    );
+  }
+  $("said").replaceChildren(ledger(thread, local, { onPress: answered, runs }));
+  // After the words are in, because the height it scrolls to is the height
+  // they made. `asked` is the operator's own send, which is always theirs to
+  // move the view for.
+  toTheNewest(asked);
   // Drawn once and left alone: rebuilding it on every poll would take the
   // cursor out of a half-typed sentence.
   if (!$("ask-bar").childElementCount) $("ask-bar").append(composer(say));
@@ -1266,21 +2536,122 @@ function show(thread, { asked = false } = {}) {
 
 /** What the operator typed, said into the thread.
  *
- * The post answers with the whole thread, so this re-renders from the answer
- * rather than appending locally: what is on screen is what the server recorded,
- * not a guess at it that would show the message twice when the guess was right.
+ * The post answers with the whole thread, so the SETTLED state re-renders from
+ * the answer rather than being appended locally: what stays on screen is what
+ * the server recorded, not a guess at it. What is drawn in the meantime is
+ * marked as not-yet-answered and replaced wholesale when the answer lands, so
+ * the two can never disagree.
  */
 async function say(text) {
   if (!threadId) return conversation();
+  // Said from Home, read in the conversation. The box is under their hand on
+  // both panes; the answer to what they said is only in one of them, and a
+  // reply nobody is shown is a reply nobody reads.
+  if (pane !== "chat") {
+    pane = "chat";
+    paintPanes();
+  }
+  // Their words, on screen, now.
+  //
+  // What a sentence costs varies from nothing to several seconds -- an answer
+  // to a standing question is decided without a model call, and a sentence the
+  // resolver has to place is two calls and a retrieval. For that whole stretch
+  // the box emptied and the panel showed exactly what it showed before, so the
+  // one thing the operator knows for certain -- that they pressed send -- was
+  // the one thing nothing on screen agreed with.
+  //
+  // Drawn from what is already held rather than fetched: this is the thread
+  // the reply will arrive in, plus the line they just wrote, plus a mark that
+  // something is being worked out. The server's answer replaces all of it a
+  // moment later, so nothing here is a claim about what was decided.
+  thinking(text);
+  let answered;
   try {
     // `tabId` so an offer the sentence turns into is drawn beside the tab the
     // operator is working in -- `show` only draws an OPEN nudge for this tab.
-    show(await ask({ kind: "thread-say", threadId, text, tabId: tabHere.tabId }), {
-      asked: true,
+    answered = await ask({
+      kind: "thread-say",
+      threadId,
+      text,
+      tabId: tabHere.tabId,
     });
   } catch (error) {
     $("thread-note").textContent = error.message;
   }
+  // Cleared BEFORE the draw, not after it.
+  //
+  // With this in a `finally` the server's answer was drawn while the echo was
+  // still set, so the sentence appeared twice -- once as the thing that landed
+  // and once as the thing still in flight -- until some later poll happened to
+  // redraw. And a spinner left turning after a failure is the panel lying
+  // about what it is doing, so this runs on that path too.
+  sendingNow = null;
+  if (answered) show(answered, { asked: true });
+  // And if that answer was the last one, go and watch it.
+  //
+  // The run starts in the worker the moment the reply lands, and the card that
+  // says what it is doing is drawn on Home -- so answering the last question
+  // left the operator sitting in the conversation while the job they had just
+  // finished authorising ran somewhere they were not looking. The outbound
+  // half of this walk was built and the return half was not.
+  if (startedByTheAnswer(answered)) goToTheRun();
+}
+
+/** Whether the reply to that sentence set a job running.
+ *
+ * `resume` is the door's word, and it is the door's to give -- the same field
+ * the worker starts the run on. Read here rather than inferred from the text,
+ * for the reason the worker reads it: this browser must not decide that a
+ * press was implied.
+ */
+function startedByTheAnswer(thread) {
+  for (const message of [...(thread?.messages || [])].reverse()) {
+    if (message.speaker !== "assistant") continue;
+    const decision = message.decision || {};
+    return Boolean(decision.kind === "job" && decision.resume);
+  }
+  return false;
+}
+
+/** Go to the queue, which is a place.
+ *
+ * The mirror of `goToTheConversation`, and it exists for its reason: a
+ * transition with only an outbound half leaves somebody somewhere they cannot
+ * see what they just did.
+ */
+function goToTheQueue() {
+  pane = "waiting";
+  paintPanes();
+}
+
+/** Show the half of the panel a run is drawn in.
+ *
+ * The mirror of `goToTheConversation`, and it exists for the same reason: a
+ * transition with only an outbound half leaves somebody somewhere they cannot
+ * see what they just did.
+ */
+function goToTheRun() {
+  pane = "home";
+  paintPanes();
+  drawn = null;
+  void refresh();
+}
+
+/** The sentence just sent, and the fact that an answer is being worked out.
+ *
+ * Held here rather than pushed into the thread: the thread is the server's
+ * record of what was decided, and this is neither decided nor the server's.
+ * `show` folds it in and the next draw from the server drops it.
+ */
+let sendingNow = null;
+
+function thinking(text) {
+  sendingNow = { text, at: new Date().toISOString() };
+  // Past the signature guard, which is computed from what the SERVER holds --
+  // and nothing the server holds has changed yet, which is precisely the case
+  // this exists for.
+  drawn = null;
+  show(lastThread || { id: threadId, messages: [] }, { asked: true });
 }
 
 /** Something in the thread, answered.
@@ -1302,6 +2673,16 @@ async function answered(answer, message, where, button, values) {
   if (answer === "start-rig-run" || answer === "drop-nudge") {
     return answeredOffer(answer, message, button, values);
   }
+  // The same yes, for an offer that cannot simply run. Nothing starts: the
+  // question lands in this conversation, the operator answers it in words, and
+  // the answer that completes the set starts the job on the press they have
+  // just given. The card draws no boxes for exactly this reason.
+  if (answer === "ask-about-offer") return askAboutOffer(message, button);
+  // The mail to whoever asked, sent or let go. Nothing leaves the mailbox
+  // without this press, and this press sends nothing but the words already on
+  // screen: the backend re-reads them from the thread.
+  if (answer === "send-draft") return sendTheDraft(message, button);
+  if (answer === "drop-draft") return dropTheDraft(button);
   // "Always, here." A rule rather than a run: nothing starts now, and the next
   // time this operator lands on the page this offer is about, their own
   // browser starts the job. Kept out of `answeredOffer` because that function
@@ -1324,7 +2705,8 @@ async function answered(answer, message, where, button, values) {
   // A matched mail: the values are the browser's, and the ones the operator
   // typed into the card are what the run must use -- so they go up on the press
   // rather than the ones the mail happened to fill.
-  if (decision.kind === "mail_match") return firedFromMail(decision, answer, button, values);
+  if (decision.kind === "mail_match")
+    return firedFromMail(decision, answer, button, values);
 }
 
 /** The rig's offer, answered.
@@ -1352,7 +2734,11 @@ async function answeredOffer(answer, nudge, button, values) {
         nudgeId: nudge.id,
         values: values?.values || {},
       });
-      said(got.ok ? "started \u2014 watching it below" : got.error || "nothing started");
+      said(
+        got.ok
+          ? "started \u2014 watching it below"
+          : got.error || "nothing started",
+      );
     }
   } catch (error) {
     said(error.message);
@@ -1362,6 +2748,67 @@ async function answeredOffer(answer, nudge, button, values) {
   await conversation();
 }
 
+/** Send the drafted mail, having read it.
+ *
+ * The id and not the words. What goes out is what the backend put in front of
+ * the operator, read back from their own thread -- so the mail that leaves and
+ * the mail that was read are the same by construction rather than by this
+ * panel being careful.
+ */
+async function sendTheDraft(message, button) {
+  button.disabled = true;
+  try {
+    const got = await ask({
+      kind: "send-draft",
+      threadId,
+      messageId: message.id,
+    });
+    said(
+      got.ok
+        ? got.sent_to
+          ? `asked ${got.sent_to}`
+          : "nothing was sent"
+        : got.error || "nothing was sent",
+    );
+  } catch (error) {
+    said(error.message);
+  }
+  drawn = null;
+  await conversation();
+}
+
+/** "No, I'll ask them myself."
+ *
+ * Nothing is reported and nothing is stored: the draft was an offer to write,
+ * and declining to write a mail is not an event worth a row. The words stay in
+ * the thread, because they were said.
+ */
+async function dropTheDraft(button) {
+  button.disabled = true;
+  said("left it with you");
+}
+
+/** An offer that needs something decided, handed to the conversation.
+ *
+ * The offer stays open in the worker rather than being reported answered: it
+ * has not been accepted or dismissed, it has been taken up, and the thing that
+ * ends it is the run that starts when the last question is answered. Reporting
+ * a fate here would close it under somebody mid-sentence.
+ */
+async function askAboutOffer(nudge, button) {
+  button.disabled = true;
+  try {
+    const got = await ask({ kind: "ask-about-offer", nudgeId: nudge.id });
+    said(got.ok ? got.asked || "asked below" : got.error || "nothing to ask");
+  } catch (error) {
+    said(error.message);
+  }
+  await refresh();
+  // And take them to it. The question is asked in the conversation, the card
+  // they pressed is on Home, and writing the one without going to the other is
+  // indistinguishable from nothing happening.
+  goToTheConversation();
+}
 
 /** A fire waiting on somebody, answered from the panel.
  *
@@ -1381,7 +2828,11 @@ async function answeredWaiting(answer, card, button) {
       said(got.error || "nothing happened");
       return;
     }
-    said(got.run_id ? "started \u2014 watching it below" : "declined \u2014 nothing ran");
+    said(
+      got.run_id
+        ? "started \u2014 watching it below"
+        : "declined \u2014 nothing ran",
+    );
   } catch (error) {
     button.disabled = false;
     said(error.message);
@@ -1390,7 +2841,6 @@ async function answeredWaiting(answer, card, button) {
   drawn = null;
   await conversation();
 }
-
 
 /** "Do this here", answered from the ledger.
  *
@@ -1408,15 +2858,14 @@ async function madeARule(nudge, button) {
     // The card said "every time you land here" on the press. It is not true,
     // so it is taken back rather than left standing.
     button.disabled = false;
-    button.textContent = "Always, here";
+    button.textContent = "Always on this page";
     said(got.error || "no rule was made");
   } catch (error) {
     button.disabled = false;
-    button.textContent = "Always, here";
+    button.textContent = "Always on this page";
     said(error.message);
   }
 }
-
 
 /** A matched mail, answered from the ledger.
  *
@@ -1432,7 +2881,11 @@ async function firedFromMail(decision, answer, button, values) {
     return refresh();
   }
   try {
-    const fired = await ask({ kind: "watch-fire", offerId: decision.offer_id, values });
+    const fired = await ask({
+      kind: "watch-fire",
+      offerId: decision.offer_id,
+      values,
+    });
     said(fired.run_id ? "started" : `nothing started: ${fired.skipped}`);
   } catch (error) {
     said(error.message);
@@ -1465,7 +2918,14 @@ async function runIt(skillId, parameters, intent, version) {
   // not before, because a device id fixed earlier in the flow is one more
   // thing that could go stale while the operator was still typing.
   const { deviceId } = await ask({ kind: "status" });
-  return ask({ kind: "run-skill", skillId, parameters, deviceId, intent, version });
+  return ask({
+    kind: "run-skill",
+    skillId,
+    parameters,
+    deviceId,
+    intent,
+    version,
+  });
 }
 
 // -- the console -------------------------------------------------------------
@@ -1490,10 +2950,14 @@ async function frameTheConsole() {
     if (event.data?.kind === "sro.ready") {
       // Addressed to the console's own origin, never "*": a wildcard hands the
       // credential to whatever the frame has navigated to.
-      frame.contentWindow?.postMessage({ kind: "sro.credential", token }, origin);
+      frame.contentWindow?.postMessage(
+        { kind: "sro.credential", token },
+        origin,
+      );
       return;
     }
-    if (event.data?.kind === "sro.credential.ok") $("console-note").textContent = "";
+    if (event.data?.kind === "sro.credential.ok")
+      $("console-note").textContent = "";
   });
 
   $("console-note").textContent = "opening the console…";
@@ -1537,7 +3001,8 @@ function refused(consoleUrl) {
 
   const where = document.createElement("p");
   where.className = "note";
-  where.textContent = "Put that in the console's environment (frontend/.env.local) and restart it.";
+  where.textContent =
+    "Put that in the console's environment (frontend/.env.local) and restart it.";
 
   const copy = document.createElement("button");
   copy.type = "button";
@@ -1592,7 +3057,8 @@ function listen() {
     toWorker = null;
   });
   toWorker.onMessage.addListener((message) => {
-    if (message?.kind !== "status" || document.visibilityState !== "visible") return;
+    if (message?.kind !== "status" || document.visibilityState !== "visible")
+      return;
     void drawPushed(message.status);
   });
 }
@@ -1639,8 +3105,55 @@ chrome.tabs.onUpdated?.addListener((_tabId, changeInfo) => {
 // thing that says the panel is now beside something else.
 chrome.windows?.onFocusChanged?.addListener(() => void whereWeAre());
 
+/** Whether this document still belongs to the extension that is running.
+ *
+ * An extension that reloads -- a developer pressing the button, or Chrome
+ * applying an update -- orphans every page the old one had open. This panel
+ * keeps running the old code and `chrome.runtime.id` goes undefined: the port
+ * cannot be reopened, no message reaches the new worker, and every call fails
+ * with "Extension context invalidated". The panel does not look broken. It
+ * looks like a panel where nothing is happening.
+ *
+ * Measured on 2026-09-17 and 18: four mail offers were made, kept, and
+ * badged, and the operator watched a panel showing two questions from eight
+ * hours earlier. The offers appeared the instant the panel was reopened by
+ * hand. Everything under it worked; the window onto it had been dead since
+ * the first reload.
+ */
+const stillOurs = () => Boolean(chrome.runtime?.id);
+
+/** Say so, and offer the one thing that fixes it.
+ *
+ * Reloaded outright when nobody is mid-sentence, because a panel that cannot
+ * hear the worker has nothing to lose by starting again -- and left to a press
+ * when they are, because what they typed is theirs and a reload eats it.
+ */
+function orphaned() {
+  const typed = $("ask-bar")?.querySelector("textarea, input");
+  if (!typed || !typed.value.trim()) {
+    location.reload();
+    return;
+  }
+  // Its own line, in the place the panel already keeps for "this browser and
+  // this deployment cannot talk to each other".
+  const holder = $("console-refused");
+  if (!holder || !holder.hidden) return;
+  holder.hidden = false;
+  holder.replaceChildren();
+  const note = document.createElement("p");
+  note.className = "note";
+  note.textContent =
+    "AI-SRO was updated and this panel is the old one — nothing here is live any more.";
+  const again = document.createElement("button");
+  again.type = "button";
+  again.textContent = "Reopen it";
+  again.addEventListener("click", () => location.reload());
+  holder.append(note, again);
+}
+
 setInterval(() => {
   if (document.visibilityState !== "visible") return;
+  if (!stillOurs()) return orphaned();
   listen();
   void whereWeAre();
   // The safety net, at a tenth of the old rate: a push that never arrived, a
@@ -1652,8 +3165,21 @@ setInterval(() => {
 // the API rather than a read of the worker's own state, and nothing in a
 // conversation arrives fast enough to be worth the two-second one. Make it a
 // push from the worker if an offer ever needs to land sooner than this.
+// The conversation, polled only while somebody is reading it.
+//
+// It was polled every five seconds whatever was on screen, which on a panel
+// that is now two halves is a call about a pane nobody is looking at. Home
+// draws no thread at all, and what Home DOES draw -- the cards, the run, what
+// is waiting -- arrives on the worker's own port the moment it changes.
+//
+// ponytail: a push would make even this one unnecessary, and the plan asks for
+// one -- a `thread.changed` command relayed to the panel. It is not built,
+// because the thing that needed to land sooner than five seconds was the mail
+// offer, and that is a card now rather than a line in the conversation: it
+// comes over the port already. Build the push the day a SENTENCE has to land
+// faster than a person can read the one above it.
 setInterval(() => {
-  if (document.visibilityState !== "visible") return;
+  if (document.visibilityState !== "visible" || pane !== "chat") return;
   void conversation();
 }, 5000);
 

@@ -48,6 +48,7 @@ from typing import get_args
 
 from sro.application.capture.rig_wire import headers_without_markers
 from sro.application.ports.model import Asker
+from sro.domain.execution.cascade import writes_of
 from sro.domain.execution.evidence import (
     Locator,
     locators_for,
@@ -55,6 +56,7 @@ from sro.domain.execution.evidence import (
     recorded_call,
     writes,
 )
+from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.planning import (
     KINDS,
     LIVE_FETCHABLE_HEADERS,
@@ -68,10 +70,10 @@ from sro.domain.execution.planning import (
     unreplayable,
     value_for,
 )
-from sro.domain.execution.secrets import field_of, needs_a_secret, secret_key_for
+from sro.domain.execution.secrets import field_of, needs_a_secret, secret_key_of
 from sro.domain.execution.verified_writes import VerifiedWrite, verified_write_for
-from sro.domain.execution.write_plan import WritePlan, write_plan_for
-from sro.domain.observation.gesture import Gesture, Kind
+from sro.domain.execution.write_plan import WritePlan, wanted_by, write_plan_for
+from sro.domain.observation.gesture import Call, Gesture, Kind
 from sro.domain.observation.trim import trim
 from sro.domain.shared.hosts import REDACTED, origin_of
 from sro.domain.shared.prices import Answer, Effort
@@ -102,6 +104,7 @@ def _replay_of(
     values: Mapping[str, str],
     verified_writes: tuple[VerifiedWrite, ...],
     seen: Mapping[str, frozenset[str]],
+    keys: Mapping[str, str] = MappingProxyType({}),
 ) -> tuple[dict[str, object], WritePlan | None] | None:
     """The recorded call as a payload, re-aimed at this run's values, and the
     plan that aimed it. `None` where it must not go out as it stands.
@@ -131,8 +134,24 @@ def _replay_of(
     if call is None or unreplayable(call):
         return None
     verified = verified_write_for(call, verified_writes) is not None
-    aimed = write_plan_for(step, by_id, values, verified_writes, seen)
+    aimed = write_plan_for(step, by_id, values, verified_writes, seen, keys)
     if aimed is None and values and verified:
+        return None
+    # And the same refusal for a run that was given NOTHING.
+    #
+    # The guard above asks "were we handed values we could not place", which a
+    # run holding none can never fail -- so the one case where replaying the
+    # recording is most certainly wrong was the one case it let through.
+    # Measured on the deployment 2026-09-16: an operator pressed a card, the
+    # gather came back empty because the model answered one round with a 5xx,
+    # and the run replayed the demonstration's own body -- the code somebody
+    # typed days ago, into a warehouse, as if it had been asked for today.
+    #
+    # `wanted_by` asks the question without the values: which parameters does
+    # THIS call's body carry. A call that carries none still replays exactly as
+    # it was demonstrated, which is what most calls are and what they have
+    # always done.
+    if verified and any(not values.get(name, "").strip() for name in wanted_by(step, by_id, seen)):
         return None
     # `aimed` where there is one, and the recorded bytes where there is nothing
     # to aim -- a job with no parameters replays exactly as it was
@@ -171,6 +190,7 @@ def replay_without_asking(
     values: Mapping[str, str],
     verified_writes: tuple[VerifiedWrite, ...],
     seen: Mapping[str, frozenset[str]] = MappingProxyType({}),
+    keys: Mapping[str, str] = MappingProxyType({}),
     starts_on: str | None = None,
 ) -> Planned | None:
     """The one command a step can be planned without asking anybody.
@@ -199,7 +219,9 @@ def replay_without_asking(
     call = recorded_call(step, by_id)
     if call is None or verified_write_for(call, verified_writes) is None:
         return None
-    sending = _replay_of(step, by_id, values, verified_writes, seen)
+    if _a_cascade(call, cited, verified_writes):
+        return None
+    sending = _replay_of(step, by_id, values, verified_writes, seen, keys)
     if sending is None:
         return None
     payload, aimed = sending
@@ -227,6 +249,45 @@ def replay_without_asking(
     )
 
 
+def _a_cascade(call: Call, cited: list[Gesture], ledger: tuple[VerifiedWrite, ...]) -> bool:
+    """Whether the doing this call came from wrote more than once.
+
+    **One logical create is often several physical resources.** Creating a
+    client on the real platform fires four POSTs behind one Save -- addresses,
+    clients, clientWarehouse, packingConfigurations -- each carrying an id the
+    one before it returned (`knowledge-base/KNOWLEDGE-BASE.md` 3b, watched on
+    the live host). A replay sends ONE call. The record it makes is the first
+    of four, the status says 201, the belts agree, and the run reports `held`
+    over half a client.
+
+    Measured on this machine's store, 2026-09-19, over every mined job of three
+    tenants: four steps stand on a doing that wrote twice. `new`'s `Create a
+    Supplier` step 13 is the cascade proper -- `PUT /wm/addresses/{id}` then
+    `POST /wm/suppliers` -- and acme's `Create a Carrier Cross Reference` and
+    `Create a Work Operation` each POST twice into one collection, which is two
+    records from one press.
+
+    So the replay refuses and the ladder behind it clicks Save, which is what
+    the page is for: the page fires the whole cascade, in order, with the ids
+    it just received. Nothing is lost -- the deterministic path is an
+    optimisation over a step that already worked through the interface.
+
+    Counted per DOING and never across the step's cites. A step cites one
+    gesture per demonstration, so counting every cited call reads two doings of
+    one write as a cascade -- which on this store would have refused eight
+    steps instead of four, including the one this deployment runs live.
+
+    Only writes the LEDGER recognises. A page also fires keepalives, telemetry
+    and performance beacons from the same click -- `sessionKeepAlive` and
+    `webPerformanceEntries/batch` are in this evidence -- and a rule that
+    counted those would refuse every real write on the platform.
+    """
+    doing = next((one for one in cited if call in one.requests), None)
+    if doing is None:
+        return False
+    return len(writes_of(doing, ledger)) > 1
+
+
 def _primary(step: Step, cited: list[Gesture]) -> Gesture | None:
     """The gesture this step is planned from.
 
@@ -236,6 +297,21 @@ def _primary(step: Step, cited: list[Gesture]) -> Gesture | None:
     """
     found = primary_gesture(step, {gesture.id: gesture for gesture in cited})
     return found or (cited[0] if cited else None)
+
+
+def _ladder(primary: Gesture, learned: LearnedStep | None) -> list[Locator]:
+    """The demonstration's ladder, with what a run learned on top.
+
+    Never instead: the recorded identity stays underneath, because a page that
+    is repaired tomorrow should go back to being found the strong way, and a
+    learned locator that has itself gone stale is one rung that misses rather
+    than a step with nothing to try.
+    """
+    rungs = locators_for(primary)
+    if learned is None or not learned.usable:
+        return rungs
+    first = Locator(learned.strategy, learned.query, visible_only=True)
+    return [first, *[rung for rung in rungs if rung.as_payload() != first.as_payload()]]
 
 
 def _clicking(
@@ -258,6 +334,7 @@ def _clicking(
 async def plan_step(
     *,
     step: Step,
+    learned: LearnedStep | None = None,
     cited: list[Gesture],
     values: Mapping[str, str],
     look: Look,
@@ -272,6 +349,7 @@ async def plan_step(
     failed_look: Look | None = None,
     verified_writes: tuple[VerifiedWrite, ...] = (),
     seen: Mapping[str, frozenset[str]] = MappingProxyType({}),
+    keys: Mapping[str, str] = MappingProxyType({}),
     tenant_id: str = "",
     secret_for: SecretFor | None = None,
 ) -> Planned:
@@ -342,7 +420,7 @@ async def plan_step(
             return Planned(
                 "none", {}, "http.send planned for a step whose evidence carries no call", answer
             )
-        sending = _replay_of(step, by_id, values, verified_writes, seen)
+        sending = _replay_of(step, by_id, values, verified_writes, seen, keys)
         if sending is not None:
             payload, aimed = sending
             if starts_on:
@@ -484,7 +562,31 @@ async def plan_step(
                 f"step {step.order} types a password and this run has no vault to ask",
                 answer,
             )
-        wanted = secret_key_for(tenant_id or "", primary)
+        # For the page the browser is ACTUALLY in front of, and only then the
+        # one the recording names.
+        #
+        # `secret_key_for` reads the origin off the recorded gesture, which is
+        # right while the browser is on the page that was recorded. A sign-in
+        # that bounced somewhere else is the case it is wrong for, and it is
+        # also the case a sign-in step is most often in.
+        #
+        # Measured on the deployment 2026-09-20, run `run_b949148d`: `Log in
+        # using Azure B2C SSO` is mined entirely on
+        # `blueyonderalphaus.b2clogin.com`, the live sign-in bounced to
+        # Keycloak, and this asked for -- and typed -- the b2clogin password
+        # on the Keycloak form. The page said *Invalid username or password*.
+        # A credential in the wrong system's box is worse than a step that
+        # fails: it spends an account's lockout budget, and it is the
+        # operator's account.
+        #
+        # `elsewhere_is_ours` and not `elsewhere`: the browser answers with the
+        # tab in front when this run pinned none, and a password for whatever
+        # window happened to be open is a credential prompt for a system
+        # nobody named.
+        here = look.url or (look.elsewhere if look.elsewhere_is_ours else "")
+        recorded = origin_of(primary.url or "") or (primary.system or "")
+        on = origin_of(here) or recorded
+        wanted = secret_key_of(tenant_id or "", on, field_of(primary))
         secret = await secret_for(wanted)
         if not secret:
             # The refusal carries what it wanted as STRUCTURE and not only as
@@ -497,7 +599,7 @@ async def plan_step(
                 "none",
                 {
                     "needs_secret": {
-                        "system": origin_of(primary.url or "") or (primary.system or ""),
+                        "system": on,
                         "field": field_of(primary),
                         "key": wanted,
                     }
@@ -517,7 +619,15 @@ async def plan_step(
         else None,
         # The evidence's ladder, never the model's: the model chooses which
         # control the step means, the demonstration says where that control is.
-        "locators": [rung.as_payload() for rung in locators_for(primary)],
+        #
+        # With what a previous run FOUND at the top of it, where one did. The
+        # demonstration's own identity for this control has already failed at
+        # least once by then -- that is the only way anything gets written
+        # there -- and the locator that worked instead costs a DOM query to
+        # try. Measured on the deployment, 2026-09-17: three runs in one
+        # afternoon each spent two model calls and a screenshot re-deriving
+        # that the control is called "Customer Types".
+        "locators": [rung.as_payload() for rung in _ladder(primary, learned)],
         "origin": origin,
     }
     if allow_focus:
@@ -525,6 +635,20 @@ async def plan_step(
     if starts_on:
         payload["starts_on"] = starts_on
     return Planned("ui.perform", payload, why, answer)
+
+
+def _point_on(said: object, look: Look) -> tuple[int, int] | None:
+    """A point the model gave, if it is inside the picture it was shown.
+
+    Off the viewport is a guess, and this rung's whole rule is that it does not
+    guess: the picture IS the viewport, so a point outside it was not seen.
+    """
+    if not isinstance(said, dict) or not look.width or not look.height:
+        return None
+    x, y = said.get("x"), said.get("y")
+    if not (isinstance(x, int) and isinstance(y, int)):
+        return None
+    return (x, y) if 0 <= x < look.width and 0 <= y < look.height else None
 
 
 async def plan_by_sight(
@@ -537,6 +661,7 @@ async def plan_by_sight(
     asker: Asker,
     model: str,
     failure: str | None,
+    opened: bool = False,
 ) -> Planned:
     """The rung below the locator ladder: find the control by looking.
 
@@ -547,7 +672,12 @@ async def plan_by_sight(
     `role_and_name` missed -- one rung lower down."""
     primary = _primary(step, cited)
     if look.screenshot is None or not look.width or not look.height:
-        return Planned("none", {}, "no screen to look at", Answer())
+        # With the browser's own reason, where it gave one. "no screen to look
+        # at" alone is the same sentence for a refused focus, a tab that went
+        # away and a picture of zero size, and a step that fails for a reason
+        # nobody can read is a step nobody can fix.
+        why = f"no screen to look at: {look.refused}" if look.refused else "no screen to look at"
+        return Planned("none", {}, why, Answer())
     if primary is None:
         return Planned("none", {}, "no evidence to act on", Answer())
     evidence = json.dumps(
@@ -573,8 +703,60 @@ async def plan_by_sight(
     if data is None:
         return Planned("none", {}, answer.error or "no answer", answer)
     why = str(data.get("why") or "")
-    if not data.get("found"):
-        return Planned("none", {}, why or "the control is not on this screen", answer)
+    points_at = str(data.get("points_at") or "")
+    # The enum decides, where the model answered one. `found` is the older
+    # question and still the fallback: a deployment pinned to an earlier model
+    # answers without `points_at` at all, and its answers still mean what they
+    # always did.
+    found = points_at == "the_control" if points_at else bool(data.get("found"))
+    if not found:
+        # Not on the screen, and something on the screen would reveal it.
+        #
+        # Measured on the deployment, 2026-09-17: the step clicks the "Customer
+        # Types" tab, and this rung answered "not currently visible ... it is
+        # likely under the 'Partners' menu which needs to be opened first" --
+        # the right answer, as prose, with no way to act on it. The job then
+        # ran by its call, which is the fallback and not the point: a job whose
+        # write has no call would have stopped there holding the fix.
+        #
+        # The same two-click shape a dropdown already uses: this one opens, the
+        # runner plans again with a fresh picture, and the second answers the
+        # step. `opened` is the runner's guard, so a planner that only ever
+        # opens things spends its budget rather than looping.
+        # The point it just gave, when it says that point opens the way.
+        # `opened` no longer means "already opened once, so stop". The runner
+        # bounds how many things one rung may open (`K_OPENINGS`) and refuses
+        # the rest; what this rung must not do is keep pointing at the same
+        # thing, which the fresh picture it is shown each time is what settles.
+        # Two ways a screen is not ready for the step, and one answer to both:
+        # click it and look again. A menu to open is the control being
+        # somewhere else; a dialog to dismiss is something on top of it.
+        clearing = points_at in ("what_reveals_it", "what_is_in_the_way")
+        reveal = _point_on({"x": data.get("x"), "y": data.get("y")}, look) if clearing else None
+        if reveal is not None:
+            return Planned(
+                "ui.perform_at",
+                {"origin": origin, "x": reveal[0], "y": reveal[1], "action": "click"},
+                (
+                    f"clearing what is in the way: {why}"
+                    if points_at == "what_is_in_the_way"
+                    else f"opening what the control is under: {why}"
+                )
+                if why
+                else "clearing the way to the control",
+                answer,
+                opens=True,
+            )
+        # And whether it pointed at something this rung could not use. The
+        # alternative is reading the same prose twice and not knowing whether
+        # the model would not point or pointed off the picture.
+        offered = {"x": data.get("x"), "y": data.get("y")} if clearing else None
+        refusal = why or "the control is not on this screen"
+        if offered is not None and reveal is None:
+            refusal = (
+                f"{refusal} (it named {offered!r} to open, which is not on the screen it was shown)"
+            )
+        return Planned("none", {}, refusal, answer)
     x, y = data.get("x"), data.get("y")
     # Inside the picture, or nowhere: a point off the viewport is a guess.
     if not (

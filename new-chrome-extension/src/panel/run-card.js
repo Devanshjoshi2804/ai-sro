@@ -50,28 +50,36 @@ export function glyphFor(outcome) {
   // they went and did it themselves while the rig waited, and that step is as
   // over as one the rig performed.
   //
-  // `not_needed` is a tick too, and that is the whole of what it says: the
-  // step existed to put a form on the screen, the write that form was for went
-  // out as a call, and there was nothing left to do. It was drawn `✓!` for a
-  // day -- the fallback below -- which means the opposite: "it went out and
-  // nothing could say whether it landed". Four rows of that on a run that did
-  // exactly what it meant to.
+  // `not_needed` is a DASH, and this is the second time it has been argued.
+  // It was `✓!` for a day (the fallback below), which reads as "it went out
+  // and nothing could say whether it landed" -- the opposite of the truth. It
+  // was then a tick, on the argument that the step was over and the job whole.
+  //
+  // Measured against a real card, 2026-09-16: five ticks, one cross, above a
+  // line reading "Nobody was watching, so it replayed the call it learned --
+  // the page never moved". An operator read five things done and one failed;
+  // nothing at all had been done on the page. A tick is the mark this panel
+  // uses for "that happened", and the whole meaning of `not_needed` is that it
+  // did not happen and did not need to. The dash says so and nothing else.
   if (typeof outcome === "string") {
-    return {
-      held: "✓",
-      done_by_operator: "✓",
-      withheld: "⏸",
-      awaiting: "⏸",
-      not_needed: "✓",
-      failed: "✗",
-      refused: "✗",
-      skipped: "○",
-    }[outcome] || "✓!";
+    return (
+      {
+        held: "✓",
+        done_by_operator: "✓",
+        withheld: "⏸",
+        awaiting: "⏸",
+        not_needed: "–",
+        failed: "✗",
+        refused: "✗",
+        skipped: "○",
+      }[outcome] || "✓!"
+    );
   }
   if (outcome.disposition === "failed") return "✗";
   if (outcome.disposition === "withheld") return "⏸";
   if (outcome.disposition === "performed") {
-    const checked = outcome.confirmed && !(outcome.assertion_failures || []).length;
+    const checked =
+      outcome.confirmed && !(outcome.assertion_failures || []).length;
     return checked ? "✓" : "✓!";
   }
   return "●";
@@ -99,11 +107,53 @@ export function runCard(
   title.textContent = message?.text || `Running ${skill?.name || ""}`.trim();
   card.append(title);
 
+  // What nobody typed.
+  //
+  // A value an operator filled in needs no provenance: they were standing
+  // there and they meant it. A value read out of their mailbox is only as good
+  // as the message it came from, and the run has recorded which one since the
+  // gather existed -- the id and the few words it was quoted from -- while no
+  // surface has ever shown it. Recorded and invisible is the same as not
+  // recorded to the person deciding whether the run did the right thing.
+  //
+  // The span, not the whole mail. It is what somebody checks the reading
+  // against without opening anything, and the mail itself is in their mailbox
+  // where it already was.
+  for (const [name, found] of Object.entries(run.gathered || {})) {
+    const said = document.createElement("p");
+    said.className = "detail";
+    const quoting = String(found?.quoting || "").trim();
+    said.textContent =
+      `${name}: ${found?.value ?? ""} — read from your mail` +
+      (quoting ? ` (“${quoting}”)` : "");
+    card.append(said);
+  }
+
   // Who drove it, and so what there is to draw and to press. A record with no
   // `source` is a backend run -- older rows have none, and reading a missing
   // field as "rig" would send a backend run's Stop somewhere it has never been
   // heard of.
   const rig = run.source === "rig";
+
+  // Why a run can finish having touched nothing on the page.
+  //
+  // A run nobody was watching -- a trigger at three in the morning -- replays
+  // the call the demonstration made instead of filling the form: the record
+  // appears in the warehouse and no screen ever moves. Read afterwards with no
+  // explanation that is indistinguishable from a run that did nothing, so the
+  // card says which of the two ways it did the job.
+  //
+  // Only in that direction. A watched run types into the form and presses Save
+  // in front of the person, and telling them what they are looking at is
+  // noise. `=== false` because a row from before this distinction existed has
+  // no field, and those runs replayed.
+  if (rig && run.watched === false) {
+    const how = document.createElement("p");
+    how.className = "detail";
+    how.textContent =
+      "Nobody was watching, so it replayed the call it learned — the page never moved.";
+    card.append(how);
+  }
   const done = new Map((run.steps || []).map((step) => [step.index, step]));
   const live = run.status === "running";
   // The next position nothing has recorded. Positions rather than a count: a
@@ -159,11 +209,12 @@ export function runCard(
   // the first thing before doing the rest -- stop wrong records being made and
   // do nothing about one that was. So a run that made records says which, in
   // the words the warehouse used, and a person can go and look at them.
-  const made = (run.steps || []).map((step) => step.made || {}).filter((one) => Object.keys(one).length);
+  const made = (run.steps || [])
+    .map((step) => step.made || {})
+    .filter((one) => Object.keys(one).length);
   if (rig && !live && made.length) {
     const line = document.createElement("p");
     line.className = "note";
-    const named = made.map((one) => Object.values(one).join(" ")).join(", ");
     // And whether anything can take them back. Said in words and not drawn as
     // a button: what an undo would have to do is address each record by
     // whatever the warehouse called it, and a wrong mapping deletes the wrong
@@ -171,11 +222,31 @@ export function runCard(
     // who has just watched three records be made needs to know that the
     // taking-back is theirs to do.
     line.textContent =
-      `made ${made.length} record${made.length === 1 ? "" : "s"}: ${named}. ` +
+      `Made ${made.length} record${made.length === 1 ? "" : "s"}. ` +
       (run.undo
         ? "A job you have done before takes these back — open it in the console."
         : "Nothing here can take them back.");
     card.append(line);
+
+    // The record itself, in the warehouse's own field names.
+    //
+    // This was `Object.values(...).join(" ")` -- "made 1 record: GQV leaning
+    // new SRO type 006" -- which drops the half that says what each value IS.
+    // The backend already picks the fields that name the row out of whatever
+    // the system answered (`made_by`), so the names are there and were being
+    // thrown away one line before a person read them.
+    //
+    // Nothing here knows which fields a system will send: a customer type
+    // comes back with `customerType`, an order with an id and a status, and
+    // this draws whatever arrived rather than a shape it was taught.
+    for (const record of made) {
+      const said = document.createElement("p");
+      said.className = "detail";
+      said.textContent = Object.entries(record)
+        .map(([name, value]) => `${name}: ${value}`)
+        .join(" \u00b7 ");
+      card.append(said);
+    }
   }
 
   // What a dry run held back. There is no other screen it could be said on --
@@ -186,8 +257,7 @@ export function runCard(
   if (withheld) {
     const line = document.createElement("p");
     line.className = "note";
-    line.textContent =
-      `dry run — ${withheld} write${withheld === 1 ? "" : "s"} shown here, not sent`;
+    line.textContent = `dry run — ${withheld} write${withheld === 1 ? "" : "s"} shown here, not sent`;
     card.append(line);
   }
 
@@ -210,7 +280,9 @@ export function runCard(
       button.type = "button";
       button.className = "quiet";
       button.textContent = label;
-      button.addEventListener("click", () => onPress?.(answer, run, card, button));
+      button.addEventListener("click", () =>
+        onPress?.(answer, run, card, button),
+      );
       row.append(button);
     }
     card.append(row);
@@ -229,14 +301,30 @@ function wordsFor(sent) {
   return `${p.action || "act"}${p.value ? ` "${p.value}"` : ""} ${where}`.trim();
 }
 
-function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onSecret, onChange }) {
+function stepRow({
+  step,
+  outcome,
+  live,
+  inFlight,
+  run,
+  notes,
+  onPress,
+  onSecret,
+  onChange,
+}) {
   const row = document.createElement("div");
   row.className = "step";
   row.dataset.index = String(step.index);
 
   const glyph = document.createElement("span");
   glyph.className = "glyph";
-  glyph.textContent = outcome ? glyphFor(outcome) : live && step.index === inFlight ? "●" : "○";
+  const now = !outcome && live && step.index === inFlight;
+  glyph.textContent = outcome ? glyphFor(outcome) : now ? "●" : "○";
+  // The one thing on this panel that should move. A run in flight and a run
+  // that stopped on a live step draw the identical dot otherwise, and "still
+  // going" is the question somebody watching actually has. The stylesheet
+  // decides what moving means, and stops it for anybody who asked for less.
+  if (now) glyph.dataset.live = "true";
   const intent = document.createElement("span");
   intent.className = "intent";
   intent.textContent = step.intent || "";
@@ -253,7 +341,11 @@ function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onSecret,
   const meta = [
     step.matched_by === "sight" ? "found by sight" : step.matched_by || null,
     step.stale ? "page moved" : null,
-    step.unpriced ? "unpriced" : step.cost_usd > 0 ? `$${step.cost_usd.toFixed(4)}` : null,
+    step.unpriced
+      ? "unpriced"
+      : step.cost_usd > 0
+        ? `$${step.cost_usd.toFixed(4)}`
+        : null,
   ].filter(Boolean);
   if (meta.length) {
     const said = document.createElement("span");
@@ -300,7 +392,9 @@ function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onSecret,
     const approve = document.createElement("button");
     approve.type = "button";
     approve.textContent = "Approve";
-    approve.addEventListener("click", () => onPress?.("approve", run, row, approve));
+    approve.addEventListener("click", () =>
+      onPress?.("approve", run, row, approve),
+    );
     const stop = document.createElement("button");
     stop.type = "button";
     stop.className = "quiet";
@@ -343,7 +437,10 @@ function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onSecret,
       field.value = "";
       if (!value) return;
       save.disabled = true;
-      const kept = await onSecret({ system: wants.system, field: wants.field, value }, save);
+      const kept = await onSecret(
+        { system: wants.system, field: wants.field, value },
+        save,
+      );
       save.disabled = false;
       asking.textContent = kept?.ok
         ? "Kept. Run this job again and it will sign in."
@@ -369,7 +466,9 @@ function stepRow({ step, outcome, live, inFlight, run, notes, onPress, onSecret,
         field.type = "text";
         field.placeholder = name;
         field.value = run.parameters?.[name] ?? "";
-        field.addEventListener("change", () => onChange?.(run.id, name, field.value));
+        field.addEventListener("change", () =>
+          onChange?.(run.id, name, field.value),
+        );
         row.append(field);
       }
     });

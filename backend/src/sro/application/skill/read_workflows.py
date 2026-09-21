@@ -115,6 +115,17 @@ class ReadWorkflows:
     def __init__(self, uow: UnitOfWork) -> None:
         self._uow = uow
 
+    async def one(self, ctx: RequestContext, *, workflow_id: str) -> Workflow:
+        """One job, by id, with nothing counted.
+
+        `execute` above reads tallies, a stale count and the earned verdict for
+        every job the tenant holds, which is right for a board and wrong for
+        the question "what is this one called and what does it declare" -- asked
+        by a browser once per frame it sees a matching mail in.
+        """
+        async with self._uow as uow:
+            return await uow.workflows.get(ctx.tenant_id, workflow_id)
+
     async def execute(self, ctx: RequestContext) -> tuple[KnownWorkflow, ...]:
         async with self._uow as uow:
             # One grouped read for the tenant, before the loop, and never one

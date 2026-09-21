@@ -33,8 +33,16 @@ from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.workflow_run import WorkflowRun
+from sro.domain.observation.attempts import Attempt
 from sro.domain.observation.device import AgentDevice
 from sro.domain.skill.offers import Offer
+
+K_ATTEMPTS = 500
+"""How many attempts one audit carries.
+
+Five hundred is a heavy day for one tenant and a page a person can scroll.
+The other four reads are bounded by what the system itself produced; this one
+is bounded by how much somebody pressed, which has no ceiling."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +72,19 @@ class Audit:
     devices: tuple[AgentDevice, ...]
     chats: tuple[ChatReading, ...]
 
+    attempts: tuple[Attempt, ...] = ()
+    """What somebody asked for, including the times nothing came of it.
+
+    The other four are STATE: a run because a run was created, an offer
+    because an offer was made. They are a good account of everything that
+    worked, and they are silent about the press that started nothing -- which
+    is the half a person opens an audit to find. See
+    `sro.domain.observation.attempts`.
+
+    Last, and defaulted, because it is the newest of the five and a reader
+    written against the other four still reads.
+    """
+
 
 class ReadAudit:
     def __init__(self, uow: UnitOfWork) -> None:
@@ -84,12 +105,18 @@ class ReadAudit:
             offers = await uow.offers.since(ctx.tenant_id, since=bound)
             devices = await uow.devices.since(ctx.tenant_id, since=bound)
             chats = await uow.chats.since(ctx.tenant_id, since=bound)
+            # Capped where the others are not, because this one grows with
+            # what people DO rather than with what the system made: a busy day
+            # of somebody pressing things is thousands of rows, and an audit
+            # is read by a person.
+            attempts = await uow.attempts.since(ctx.tenant_id, since=since, limit=K_ATTEMPTS)
         return Audit(
             since=bound,
             runs=tuple(audited),
             offers=offers,
             devices=devices,
             chats=chats,
+            attempts=attempts,
         )
 
 

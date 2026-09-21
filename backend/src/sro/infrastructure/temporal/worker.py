@@ -17,6 +17,7 @@ from temporalio.client import Client
 from temporalio.worker import Worker
 
 from sro.application.context import RequestContext
+from sro.application.observation.mining_pass import rekey_workflows
 from sro.config import Settings, get_settings
 from sro.container import Container, build_container
 from sro.domain.shared.identifiers import PrincipalId, TenantId
@@ -197,9 +198,43 @@ async def retain_lately(container: Container, every_seconds: float) -> None:
                 )
 
 
+async def rekey_everything(container: Container) -> int:
+    """Recompute every stored workflow's shape key, once, at startup.
+
+    `rekey_workflows` has said "run once at startup" since it was written and
+    nothing ran it. The rule that makes a shape key changed on 2026-09-15 --
+    an accessible name that is a paragraph is page copy, not an identifier --
+    and the keys mined before that change were never rewritten, so they still
+    carry the words of one mail:
+
+        name|a customer type :- GGD\ndescription :- leaning new SRO type 01
+
+    A key like that matches nothing, ever. Measured on the deployment,
+    2026-09-18: `Create a Customer Type` held nineteen shape entries, most of
+    them one mail's text, so a fresh demonstration shared ONE entry with it --
+    under `K_MIN_SHARED_STEPS` -- and was mined as a second job with the same
+    name. The mail path then went silent for both, because a request that
+    names a job this tenant holds twice is a request nothing can act on: it
+    was deleted by hand at 21:20 and mined again by 01:13.
+
+    A fix that ships without its migration is a fix for new rows only.
+    """
+    async with container.unit_of_work() as uow:
+        tenants = await uow.gestures.tenants_since(datetime(1970, 1, 1, tzinfo=UTC))
+    changed = 0
+    for tenant in tenants:
+        async with container.unit_of_work() as uow:
+            changed += await rekey_workflows(uow, tenant_id=tenant)
+    return changed
+
+
 async def run() -> None:
     settings = get_settings()
-    configure_logging()
+    _settings = get_settings()
+    configure_logging(
+        as_json=_settings.environment != "local",
+        louder_for=frozenset(one.strip() for one in _settings.louder_for.split(",") if one.strip()),
+    )
     logger.info("worker starting on revision %s", settings.revision)
     container = build_container(settings)
     activities = Activities(container)
@@ -226,6 +261,15 @@ async def run() -> None:
         workflows=[RecordingSessionWorkflow],
         activities=[activities.abandon_stale_recording, activities.close_browser_session],
     )
+
+    # Before anything mines, because a pass that runs against stale keys is a
+    # pass that proposes a duplicate of a job the rig already holds.
+    try:
+        rekeyed = await rekey_everything(container)
+        if rekeyed:
+            logger.info("%s workflow(s) had their shape key recomputed", rekeyed)
+    except Exception:
+        logger.exception("the shape keys could not be recomputed")
 
     keeper = asyncio.create_task(keep_sessions_open(container, settings.session_sweep_seconds))
     miner = asyncio.create_task(

@@ -16,6 +16,7 @@ from sro.domain.observation.grant import LONGEST
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId
+from sro.whose import attribute
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +65,16 @@ def refuse_unless_itself(device: AgentDevice, secret: str, asked_for: DeviceId) 
     """
     if device.revoked or not device.proves_itself(secret):
         raise NotFound(f"device {asked_for} was not found")
+    # And from here every line this request writes says which browser it was.
+    #
+    # After it has proved itself, never before -- `asking_device`'s rule, for
+    # its reason: a line attributing work to a browser that FAILED to prove it
+    # is worse than one attributing it to nobody. Here rather than at the seven
+    # callers, because this is already the one place that decides, and a
+    # `/v1/agents/{device_id}/...` route carries the device in its PATH and so
+    # never went near `asking_device` at all -- six routes whose whole subject
+    # is one browser, and not one of their lines said which.
+    attribute(device=device.id.value)
 
 
 def _mint() -> str:

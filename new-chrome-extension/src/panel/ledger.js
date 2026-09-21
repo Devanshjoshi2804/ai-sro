@@ -62,9 +62,21 @@ const KINDS = {
     { answer: "do", label: "Do it", quiet: false },
     { answer: "not-here", label: "Not for this page", quiet: true },
   ],
+  mail_draft: [
+    { answer: "send-draft", label: "Send it", quiet: false },
+    {
+      answer: "drop-draft",
+      label: "No, I\u2019ll ask them myself",
+      quiet: true,
+    },
+  ],
   result: [
     { answer: "undo", label: "Undo that", quiet: false },
-    { answer: "wrong", label: "It\u2019s wrong \u2014 I\u2019ll fix it", quiet: true },
+    {
+      answer: "wrong",
+      label: "It\u2019s wrong \u2014 I\u2019ll fix it",
+      quiet: true,
+    },
   ],
 };
 
@@ -79,6 +91,13 @@ const NEXT = {
   ask: "Ask me",
   open: "Open the page",
 };
+
+// The one thing this file reaches for. It has been import-free -- everything
+// it needs is either handed to it or built here -- and a lookup's answer is
+// the exception worth making: five states with a table in one of them is its
+// own module, and inlining it here would put a row-shape heuristic in the
+// middle of a thread renderer.
+import { result } from "./result.js";
 
 /** A thread as DOM: what was said, oldest first, and the box to say more in.
  *
@@ -97,7 +116,9 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
   // listener nobody was watching: the panel drew cards, the operator pressed
   // them, and nothing happened, for thirteen minutes, twice.
   if (onPress !== undefined && typeof onPress !== "function") {
-    throw new TypeError("ledger was given something to press with that cannot be called");
+    throw new TypeError(
+      "ledger was given something to press with that cannot be called",
+    );
   }
   const root = document.createElement("div");
   root.className = "thread";
@@ -128,22 +149,43 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
       .filter((message) => message.decision?.kind !== "offer")
       .map((message) => ({ at: message.said_at, message })),
     ...(local?.nudges || []).map((nudge) => ({ at: nudge.at, nudge })),
-    ...(local?.answer ? [{ at: at(local.answer.askedAt), answer: local.answer }] : []),
+    ...(local?.answer
+      ? [{ at: at(local.answer.askedAt), answer: local.answer }]
+      : []),
     ...(local?.nearMisses || []).map((miss) => ({ at: at(miss.at), miss })),
-    ...(local?.waiting || []).map((card) => ({ at: card.asked_at, waiting: card })),
+    ...(local?.waiting || []).map((card) => ({
+      at: card.asked_at,
+      waiting: card,
+    })),
+    // The sentence that has been sent and not yet answered. Last, whatever the
+    // clock says: it is the most recent thing that happened by definition, and
+    // a locally-stamped time can lose a race with the server's own.
+    ...(local?.sending ? [{ at: "\uffff", sending: local.sending }] : []),
+    // And the mail that has gone out and not been answered. After everything
+    // said, for the sending entry's reason: it is true right now, and it goes
+    // on being true across however many polls it takes.
+    ...(local?.mail?.awaiting ? [{ at: "\ufffe", awaiting: local.mail }] : []),
   ].sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
 
   let lastMinute = "";
   for (const entry of entries) {
     const item = entry.message
-      ? saying(entry.message, onPress, spent, { offers, runs, here: local?.here || "" })
+      ? saying(entry.message, onPress, spent, {
+          offers,
+          runs,
+          here: local?.here || "",
+        })
       : entry.answer
         ? answering(entry.answer)
         : entry.miss
           ? nearlyFired(entry.miss)
           : entry.waiting
             ? waitingOnYou(entry.waiting, onPress)
-            : nudging(entry.nudge, onPress);
+            : entry.sending
+              ? sending(entry.sending)
+              : entry.awaiting
+                ? waitingOnAMailbox(entry.awaiting)
+                : nudging(entry.nudge, onPress);
     const minute = hhmm(entry.at);
     // One cell per entry, filled only when the minute changes. Repeating 12:04
     // against three things said in the same minute is noise exactly where the
@@ -158,6 +200,99 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
   root.append(said);
 
   return root;
+}
+
+/** What was just said, and the fact that an answer is being worked out.
+ *
+ * Two elements rather than one, because they are two different claims: the
+ * operator's own words, which are certain, and a mark that something is
+ * happening, which is all this browser can honestly say about the reply.
+ *
+ * Both are replaced the moment the server answers -- nothing here is kept, and
+ * nothing here is a statement about what was decided.
+ */
+function sending({ text }) {
+  const item = document.createElement("li");
+  item.className = "message";
+  item.dataset.speaker = "operator";
+  item.dataset.state = "sending";
+  const what = document.createElement("p");
+  what.className = "what";
+  what.textContent = text;
+  item.append(what);
+
+  const thinking = document.createElement("p");
+  thinking.className = "detail thinking";
+  thinking.dataset.kind = "thinking";
+  // Three dots the stylesheet animates, and the word beside them for anybody
+  // whose browser is not animating anything -- a bare "..." that never moves
+  // is indistinguishable from a message somebody actually sent.
+  thinking.textContent = "thinking";
+  const dots = document.createElement("span");
+  dots.className = "dots";
+  dots.textContent = "\u2026";
+  thinking.append(dots);
+  item.append(thinking);
+  return item;
+}
+
+/** The mail that has gone and the answer that has not come.
+ *
+ * A mail leaves over the operator's name and the reply arrives by a poll they
+ * cannot see. What that looked like was one sentence -- "I will carry on when
+ * they reply" -- and then, for as long as it took, a panel doing nothing at
+ * all. Somebody watching it has no way to tell a system that is checking every
+ * two minutes from one that forgot.
+ *
+ * So the wait is drawn as what it is, continuously: who is being waited on,
+ * when the mailbox was last read, and -- while a read is actually out -- that
+ * one is happening this second. Nothing here is an estimate: every number is
+ * something this browser did.
+ */
+export function waitingOnAMailbox(mail, now = Date.now()) {
+  const item = document.createElement("li");
+  item.className = "message";
+  item.dataset.speaker = "system";
+  item.dataset.kind = "awaiting-mail";
+  if (mail.looking) item.dataset.state = "looking";
+
+  const what = document.createElement("p");
+  what.className = "what";
+  what.textContent = `Waiting for ${mail.awaiting?.to || "a reply"}.`;
+  item.append(what);
+
+  const how = document.createElement("p");
+  how.className = "detail thinking";
+  how.dataset.kind = "looking";
+  // The words say which of the two states this is, because the animation is
+  // the part a stylesheet can decline to run -- and a line that reads the same
+  // whether or not anything is happening is the line this replaces.
+  how.textContent = mail.looking
+    ? "reading the mailbox"
+    : `asked ${_ago(mail.awaiting?.at, now)} \u00b7 last read ${_ago(mail.lookedAt, now)}`;
+  if (mail.looking) {
+    const dots = document.createElement("span");
+    dots.className = "dots";
+    dots.textContent = "\u2026";
+    how.append(dots);
+  }
+  item.append(how);
+  return item;
+}
+
+/** How long ago, in the roundest words that are still true.
+ *
+ * Never "0 seconds ago" and never a date: what this is for is a person judging
+ * whether a thing is still happening, and past an hour the answer is the same
+ * whatever the number says.
+ */
+function _ago(at, now = Date.now()) {
+  const was = Number(at) || 0;
+  if (!was) return "not yet";
+  const seconds = Math.max(0, Math.round((now - was) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.round(seconds / 60);
+  return minutes < 60 ? `${minutes}m ago` : `${Math.round(minutes / 60)}h ago`;
 }
 
 /** A rule that almost fired, said out loud.
@@ -236,17 +371,11 @@ function answering(answer) {
   for (const one of answer.answers || []) {
     const line = document.createElement("li");
     line.dataset.ok = String(Boolean(one.ok));
-    const where = document.createElement("span");
-    where.className = "where";
-    where.textContent = `${one.system} · ${one.target}`;
-    const said = document.createElement("span");
-    said.className = "said";
-    // The body as it came back, cut to a line: the panel is a column beside a
-    // warehouse screen, and a thousand rows of JSON in it is a card nobody can
-    // read past. What was read in full is one request away -- `target` above
-    // names it.
-    said.textContent = one.ok ? preview(one) : one.detail;
-    line.append(where, said);
+    // What came back, read rather than previewed. This was 240 characters of
+    // raw JSON per system -- `{"data":[{"supplierNumber":"100012","supplier`
+    // -- which answers "how many suppliers are at SG" with a person counting
+    // nothing. `result.js` has the five ends a lookup has and the count first.
+    line.append(result(one));
     found.append(line);
   }
   item.append(found);
@@ -254,13 +383,6 @@ function answering(answer) {
 }
 
 /** One lookup's answer, short enough to read in a column. */
-function preview(one) {
-  if (one.body) return one.body.replace(/\s+/g, " ").slice(0, 240);
-  const seen = one.seen || {};
-  if (seen.text_digest) return String(seen.text_digest).slice(0, 240);
-  return one.status ? `answered ${one.status}` : "answered";
-}
-
 /** A rule that fired and stopped to ask.
  *
  * The card an operator could not see. A page rule went off on the page in
@@ -273,7 +395,7 @@ function preview(one) {
  * backend settles which was first, so the two cannot disagree about what was
  * decided -- only about how quickly they notice.
  */
-function waitingOnYou(card, onPress) {
+export function waitingOnYou(card, onPress) {
   const item = document.createElement("li");
   item.className = "message";
   item.dataset.speaker = "system";
@@ -287,12 +409,27 @@ function waitingOnYou(card, onPress) {
 
   const typed = Object.entries(card.values || {});
   if (typed.length) {
-    const said = document.createElement("p");
-    said.className = "detail";
     // What it would run with, before it runs: the one moment somebody can read
     // a write's values and still stop it.
-    said.textContent = typed.map(([name, value]) => `${name}: ${value}`).join(" \u00b7 ");
-    item.append(said);
+    //
+    // Behind a disclosure rather than in front of the buttons. Twelve values
+    // in a 360-pixel column push the two controls this card exists for below
+    // the fold, and a person who cannot see the buttons cannot answer -- but a
+    // write whose values are unreadable is one nobody should be answering
+    // either. `<details>` is the platform's answer to exactly that and costs
+    // no script: shut by default, one press to read, and the browser handles
+    // the keyboard and the screen reader.
+    const shown = document.createElement("details");
+    shown.className = "request";
+    const summary = document.createElement("summary");
+    summary.textContent = `what it would use (${typed.length})`;
+    const said = document.createElement("p");
+    said.className = "detail";
+    said.textContent = typed
+      .map(([name, value]) => `${name}: ${value}`)
+      .join(" \u00b7 ");
+    shown.append(summary, said);
+    item.append(shown);
   }
 
   // The page this card is about is not open any more.
@@ -323,24 +460,61 @@ function waitingOnYou(card, onPress) {
     yes.disabled = ended;
     no.disabled = ended;
   };
-  yes.addEventListener("click", () => {
+  // One answer, however it arrives -- the press and the key are the same
+  // decision and must not be two paths that can both be taken.
+  const answer = (which, button) => {
     if (ended) return;
     ended = true;
     settle();
-    onPress?.("waiting-approve", card, item, yes);
-  });
-  no.addEventListener("click", () => {
-    if (ended) return;
-    ended = true;
-    settle();
-    onPress?.("waiting-decline", card, item, no);
-  });
+    onPress?.(which, card, item, button);
+  };
+  yes.addEventListener("click", () => answer("waiting-approve", yes));
+  no.addEventListener("click", () => answer("waiting-decline", no));
 
-  const row = document.createElement("div");
-  row.className = "row";
-  row.append(yes, no);
-  item.append(row);
+  item.append(actions(yes, no));
+  // The keys, while this card has the focus.
+  //
+  // Not on the document. A panel that took Esc globally would throw away what
+  // somebody was typing in the composer, and one that took Cmd-Enter globally
+  // would approve a write while they were reading something else -- the
+  // shortcut for a decision has to belong to the thing being decided.
+  item.addEventListener("keydown", (event) => {
+    if (ended) return;
+    if (event.key === "Escape") answer("waiting-decline", no);
+    else if (event.key === "Enter" && (event.metaKey || event.ctrlKey))
+      answer("waiting-approve", yes);
+  });
   return item;
+}
+
+/** The band under a card that is asking for a decision.
+ *
+ * The primary press last, on the right, which is where every platform this
+ * panel sits beside puts it -- and the way out first, because a person who has
+ * decided against something should not have to read past the button that does
+ * it. The keys are named ON the buttons rather than in a line of prose nobody
+ * reads twice.
+ */
+function actions(yes, no) {
+  const row = document.createElement("div");
+  row.className = "row actions";
+  hint(no, "Esc");
+  // `typeof` because this file is built and tested without a browser around
+  // it, and a panel that threw here would draw no card rather than the wrong
+  // symbol on one.
+  const mac =
+    typeof navigator !== "undefined" &&
+    /mac/i.test(navigator.platform || navigator.userAgent || "");
+  hint(yes, mac ? "\u2318\u23ce" : "Ctrl \u23ce");
+  row.append(no, yes);
+  return row;
+}
+
+/** Name the key on the button it presses. */
+function hint(button, keys) {
+  const said = document.createElement("kbd");
+  said.textContent = keys;
+  button.append(said);
 }
 
 /** Whether this offer is about somewhere the operator is not.
@@ -387,12 +561,35 @@ export function alreadyAnswered(messages) {
     if (decision?.kind === "answered" && decision.candidate_id) {
       done.set(decision.candidate_id, decision.answer || "answered");
     }
+    // A mail that went. By the run where there is one -- what must not be
+    // offered twice is asking one person about one request -- and by the draft
+    // itself where there is not. A card asks before any run exists, so keyed
+    // only on the run this claimed nothing, and `Send it` stayed live under a
+    // mail already sitting in somebody's inbox.
+    if (decision?.kind === "mail_sent") {
+      if (decision.run_id) done.set(decision.run_id, "sent");
+      if (decision.draft_id) done.set(decision.draft_id, "sent");
+    }
   }
   return done;
 }
 
-function nudging(nudge, onPress) {
-  if (nudge.source === "rig" && nudge.state === "open") return offeringToFinish(nudge, onPress);
+/** The names whose value this job's own box will not hold, with the limit.
+ *
+ * Pairs rather than the raw map, and only where there is actually a value too
+ * long for one: a limit is known for plenty of fields nobody has overfilled,
+ * and a card that recited every one of them would be reading out the manual.
+ */
+function _tooLong(nudge) {
+  return Object.entries(nudge.tooLong || {}).filter(([name, limit]) => {
+    const was = String(nudge.values?.[name] ?? "");
+    return was && was.length > limit;
+  });
+}
+
+export function nudging(nudge, onPress) {
+  if (nudge.source === "rig" && nudge.state === "open")
+    return offeringToFinish(nudge, onPress);
   const item = document.createElement("li");
   item.className = "message";
   item.dataset.speaker = "system";
@@ -454,11 +651,28 @@ function offeringToFinish(nudge, onPress) {
   const what = document.createElement("p");
   what.className = "what";
   what.textContent =
-    nudge.k > 0
+    // A job already under way, and what has gone into it so far -- where
+    // anything has. `k` counts the steps the operator has done, and a run can
+    // have reached its second step without a value being typed into either:
+    // that read "Forward an Email \u2014 , so far. Want me to finish it?" on
+    // the deployment, 2026-09-18, a dangling comma where the values were.
+    nudge.k > 0 && typed
       ? `${nudge.title} \u2014 ${typed}, so far. Want me to finish it?`
-      : things > 1
-        ? `${nudge.title}, for ${things} things \u2014 want me to do them?`
-        : `${nudge.title} \u2014 want me to do it?`;
+      : nudge.k > 0
+        ? `${nudge.title} \u2014 already started. Want me to finish it?`
+        : things > 1
+          ? `${nudge.title}, for ${things} things \u2014 want me to do them?`
+          : // What this press would create, where it is known.
+            //
+            // An offer read out of a mail carries the values now -- the look
+            // gathers them before offering, because nobody can consent to a
+            // write they cannot see. Four of these stacked up on the deployment,
+            // 2026-09-18, every one of them "Create a Customer Type -- want me
+            // to do it?", and there was nothing on any of them to tell one
+            // request from another or to check a reading against.
+            typed
+            ? `${nudge.title} \u2014 ${typed}. Want me to do it?`
+            : `${nudge.title} \u2014 want me to do it?`;
   item.append(what);
 
   // And which things, in the order they would be done. What a person is being
@@ -472,13 +686,89 @@ function offeringToFinish(nudge, onPress) {
     item.append(listed);
   }
 
-  const fields = new Map();
-  for (const name of nudge.missing || []) {
-    const field = document.createElement("input");
-    field.type = "text";
-    field.placeholder = name;
-    fields.set(name, field);
-    item.append(field);
+  // No boxes. Not for what is missing, not for what will not fit.
+  //
+  // The card used to grow one text input per name it still wanted, and then a
+  // second kind for a value the box would not hold, pre-filled with the number
+  // beside it. `asking.py` has the long version of what is wrong with the
+  // first: it asks everybody for what the run usually finds by itself, and on
+  // `Create a Customer Type` it drew FOUR boxes for two values, because that
+  // job declares each field twice -- the label a person reads and the body key
+  // a form posts. Seen on the deployment, 2026-09-18.
+  //
+  // The second kind was better and still the same shape: a form, inside a
+  // card, inside a panel that is already a conversation.
+  //
+  // So a press that cannot start the job asks in the conversation instead, one
+  // question at a time, in words -- and the answer that lands last starts the
+  // run on the press already given. That loop is
+  // `converse._answer_the_question` and it was built for the run path long
+  // before the card could reach it.
+  const overlong = _tooLong(nudge);
+  const sortItOut = (nudge.missing || []).length > 0 || overlong.length > 0;
+
+  // What this job's boxes are known not to hold, said before the press.
+  //
+  // The limit was learnt by an earlier run or read off the form the operator
+  // actually uses, so it is known NOW -- and somebody deciding is owed it
+  // while they are deciding, not in the middle of a form. Said rather than
+  // enforced with an input: the press hands it to the conversation, which asks
+  // for a shorter one and will not take an answer that is still too long.
+  for (const [name, limit] of overlong) {
+    const asking = document.createElement("p");
+    asking.className = "detail";
+    asking.dataset.kind = "too-long";
+    const now = String(nudge.values?.[name] ?? "").length;
+    asking.textContent =
+      `${name} takes ${limit} characters and this is ${now}. ` +
+      `Press yes and I will ask you for a shorter one.`;
+    item.append(asking);
+  }
+
+  // What the request asked for that this job cannot write, before the press.
+  //
+  // A job's parameters are what two demonstrations proved VARY, and the form
+  // has far more fields than that -- so "code GV3, description X, Department
+  // Inbound" is a perfectly reasonable request, and this made a record with no
+  // Department in it and said nothing. The run says so afterwards, and after
+  // the press is after the record.
+  //
+  // Said and not enforced, like the limit above it: the job is still worth
+  // doing for the two fields it does hold, and what somebody needs is to know
+  // before they press that the third is not coming.
+  if ((nudge.unasked || []).length) {
+    const cannot = document.createElement("p");
+    cannot.className = "detail";
+    cannot.dataset.kind = "unasked";
+    cannot.textContent =
+      `This job cannot set ${nudge.unasked.join(", ")}. ` +
+      `It will write the rest.`;
+    item.append(cannot);
+  }
+
+  // What the press would WRITE, before it is pressed.
+  //
+  // The two lines above say what this job cannot set and what will not fit;
+  // neither says the act. A person pressing yes is agreeing to a record being
+  // made in a warehouse, and until this the card named the values and left the
+  // thing itself unsaid. Read off the job's own evidence -- one line per
+  // writing step, so a job with two writes in it reads as two.
+  for (const write of nudge.writes || []) {
+    if (!write?.does || !write?.record) continue;
+    const doing = document.createElement("p");
+    doing.className = "detail";
+    doing.dataset.kind = "writes";
+    // The host and not the whole origin: `https://` in the middle of a
+    // sentence is noise a person has to read past.
+    const where = write.on
+      ? ` on ${String(write.on).replace(/^https?:\/\//, "")}`
+      : "";
+    // "a addresses record" is what the store's own names do to a sentence:
+    // the record is called whatever the endpoint is called, and four of this
+    // tenant's eight begin with a vowel.
+    const a = /^[aeiou]/i.test(write.record) ? "an" : "a";
+    doing.textContent = `It will ${write.does} ${a} ${write.record} record${where}.`;
+    item.append(doing);
   }
 
   const yes = document.createElement("button");
@@ -489,9 +779,9 @@ function offeringToFinish(nudge, onPress) {
   no.className = "quiet";
   no.textContent = "No thanks";
 
-  // Blank is blank after trimming: a field of spaces is not an answer to a
-  // question the run is going to ask the system on the other side.
-  const ready = () => [...fields.values()].every((field) => String(field.value || "").trim());
+  // Always pressable. The press means "deal with this", and what it costs is
+  // either a run or a question -- never a disabled button with nothing in the
+  // card that tells somebody how to get past it.
   // One press ends the card. The ledger does not redraw when an offer is
   // answered, so without this the buttons of a refused offer are still live
   // under the operator's cursor -- and "No thanks" then "Yes" is a run started
@@ -500,19 +790,27 @@ function offeringToFinish(nudge, onPress) {
   // ever asking.
   let ended = false;
   const settle = () => {
-    yes.disabled = ended || !ready();
+    yes.disabled = ended;
     no.disabled = ended;
   };
   settle();
-  for (const field of fields.values()) field.addEventListener("input", settle);
   yes.addEventListener("click", () => {
     if (ended) return;
-    const values = Object.fromEntries(
-      [...fields].map(([name, field]) => [name, String(field.value || "").trim()]),
-    );
     ended = true;
     settle();
-    onPress?.("start-rig-run", nudge, item, yes, { values });
+    // Two ends to one press, and the card decides which by what it already
+    // knows: a job holding everything it needs runs, and one short of a value
+    // -- or carrying one its own box will not take -- becomes a question in
+    // the conversation. Both are the same yes.
+    onPress?.(
+      sortItOut ? "ask-about-offer" : "start-rig-run",
+      nudge,
+      item,
+      yes,
+      {
+        values: {},
+      },
+    );
   });
   no.addEventListener("click", () => {
     if (ended) return;
@@ -522,16 +820,33 @@ function offeringToFinish(nudge, onPress) {
   });
 
   // The third answer, and a different kind of answer: yes to THIS one, no to
-  // this one, and "always, here". It writes a rule rather than starting a run
-  // -- nothing happens now -- so it does not end the card: somebody can make
-  // the rule and still press Yes for the doing in front of them.
+  // this one, and a standing rule. It writes the rule rather than starting a
+  // run -- nothing happens now -- so it does not end the card: somebody can
+  // make the rule and still press Yes for the doing in front of them.
   //
-  // Only where the offer names the page it is about. A rule made from an offer
-  // that named none would be a rule about nowhere.
+  // **Only where landing on a page is what the offer is about.**
+  //
+  // The gate was "does this offer name a page", and every offer does: a mined
+  // job carries the screen it was recorded starting on. So a request that
+  // arrived by MAIL -- one customer type, one code, asked for once -- was
+  // offering to run itself every time somebody opened the Customer Types
+  // screen, for ever. Asked about it on 2026-09-18, and the honest answer was
+  // that the button should not have been there.
+  //
+  // A mail-driven offer carries the conversation it came from. That is the
+  // difference between "this is what I do when I get here" and "somebody asked
+  // for this one thing".
   const always = document.createElement("button");
   always.type = "button";
   always.className = "quiet";
-  always.textContent = "Always, here";
+  // What it will do, in the words of the thing it does. "Always, here" reads
+  // as a place and says nothing about a rule being written, which is what it
+  // writes -- and a person who has to press a button to find out what it means
+  // has been given a button that means nothing.
+  always.textContent = "Always on this page";
+  always.title = nudge.startsOn
+    ? `Make a rule: whenever you open ${nudge.startsOn}, offer this job without waiting to be asked.`
+    : "Make a rule: whenever you open this page, offer this job without waiting to be asked.";
   always.addEventListener("click", () => {
     if (ended) return;
     always.disabled = true;
@@ -542,12 +857,17 @@ function offeringToFinish(nudge, onPress) {
   const row = document.createElement("div");
   row.className = "row";
   row.append(yes, no);
-  if (nudge.startsOn) row.append(always);
+  if (nudge.startsOn && !nudge.thread) row.append(always);
   item.append(row);
   return item;
 }
 
-function saying(message, onPress, spent = new Map(), { offers = [], runs, here = "" } = {}) {
+function saying(
+  message,
+  onPress,
+  spent = new Map(),
+  { offers = [], runs, here = "" } = {},
+) {
   const item = document.createElement("li");
   item.className = "message";
   item.dataset.speaker = message.speaker || "system";
@@ -566,6 +886,29 @@ function saying(message, onPress, spent = new Map(), { offers = [], runs, here =
   // could not add one without every browser in the field going dark first.
   const kind = message.decision?.kind;
   if (kind) item.dataset.kind = kind;
+
+  // What a lookup came back with, drawn the way the answer card draws it.
+  //
+  // The conversation used to carry the SCREEN WALK for a question -- "Nobody
+  // has demonstrated reading that, so I will work it out on the screen" --
+  // while the answer itself arrived through `/v1/ask` into a card beside it.
+  // Now the door that owns a question answers into the thread, and `result()`
+  // is what makes fifty records readable: a count and the first few in a
+  // table, rather than 240 characters of raw JSON that never reach the row
+  // somebody asked about.
+  if (kind === "looked") {
+    const found = document.createElement("ul");
+    found.className = "answers";
+    for (const one of message.decision.answers || []) {
+      const line = document.createElement("li");
+      line.dataset.ok = String(Boolean(one.ok));
+      const drawn = result(one);
+      if (drawn) line.append(drawn);
+      found.append(line);
+    }
+    item.append(found);
+    return item;
+  }
 
   if (kind === "offer") {
     const already = spent.get(message.decision.candidate_id);
@@ -602,7 +945,9 @@ function saying(message, onPress, spent = new Map(), { offers = [], runs, here =
       const one = document.createElement("button");
       one.type = "button";
       one.textContent = title;
-      one.addEventListener("click", () => onPress?.("which-job", message, item, one, { title }));
+      one.addEventListener("click", () =>
+        onPress?.("which-job", message, item, one, { title }),
+      );
       choosing.append(one);
     }
     item.append(choosing);
@@ -612,9 +957,51 @@ function saying(message, onPress, spent = new Map(), { offers = [], runs, here =
     const label = NEXT[message.decision.next];
     if (label) {
       item.append(
-        pressing([{ answer: message.decision.next, label, quiet: false }], message, item, onPress),
+        pressing(
+          [{ answer: message.decision.next, label, quiet: false }],
+          message,
+          item,
+          onPress,
+        ),
       );
     }
+  } else if (kind === "mail_draft") {
+    // The mail, whole, before anything can send it.
+    //
+    // This is the one thing this system writes that leaves the company, over
+    // the operator's name, to somebody outside every system here -- and it
+    // cannot be unsent. The press is the authorisation and an authorisation
+    // given without reading is not one, so the words are on the card rather
+    // than behind a disclosure: nobody expands a `<details>` before pressing a
+    // button they have already decided about.
+    //
+    // Already sent is not a thing to offer again. `mail_sent` further down the
+    // thread is the answer to this one.
+    if (
+      spent.get(message.decision.run_id) !== "sent" &&
+      spent.get(message.id) !== "sent"
+    ) {
+      // Who and what, on their own lines. A mail is read as a mail -- the
+      // recipient, then the subject, then the words -- and one run-on line is
+      // the shape of a log entry, not of something somebody is authorising.
+      const to = document.createElement("p");
+      to.className = "detail";
+      to.textContent = `To ${message.decision.to}`;
+      item.append(to);
+
+      const subject = document.createElement("p");
+      subject.className = "detail subject";
+      subject.textContent = message.decision.subject || "";
+      item.append(subject);
+
+      const body = document.createElement("pre");
+      body.className = "draft";
+      // `textContent` on a `<pre>`: the mail is plain text, its line breaks
+      // are the shape somebody reads it in, and nothing in it is markup.
+      body.textContent = String(message.decision.body || "");
+      item.append(body);
+      item.append(pressing(KINDS.mail_draft, message, item, onPress));
+    } else item.dataset.answered = "sent";
   } else if (kind === "result") {
     item.append(pressing(KINDS.result, message, item, onPress));
   } else if (kind === "run" && runs) {
@@ -703,7 +1090,9 @@ function matched(item, message, offers, onPress) {
 
   item.append(
     pressing(KINDS.mail_match, message, item, onPress, () =>
-      Object.fromEntries([...fields].map(([name, field]) => [name, field.value])),
+      Object.fromEntries(
+        [...fields].map(([name, field]) => [name, field.value]),
+      ),
     ),
   );
 }
@@ -722,7 +1111,9 @@ function asking(item, message, onPress) {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = choice;
-    button.addEventListener("click", () => onPress?.(`choice:${choice}`, message, item, button));
+    button.addEventListener("click", () =>
+      onPress?.(`choice:${choice}`, message, item, button),
+    );
     row.append(button);
   }
   item.append(row);
@@ -732,7 +1123,8 @@ function asking(item, message, onPress) {
   typed.placeholder = "or type an answer";
   typed.addEventListener("keydown", (event) => {
     const value = String(typed.value || "").trim();
-    if (event.key === "Enter" && value) onPress?.(`choice:${value}`, message, item, typed);
+    if (event.key === "Enter" && value)
+      onPress?.(`choice:${value}`, message, item, typed);
   });
   item.append(typed);
 }
@@ -752,16 +1144,37 @@ function asking(item, message, onPress) {
  * push the one control that must always be reachable off the bottom.
  */
 export function composer(onSay) {
+  // The box is the control, and the control lives inside it.
+  //
+  // It was an input with a Send button beside it, which spends a third of a
+  // 360-pixel row on a word for something the Enter key already does -- and
+  // reads as a form rather than as somewhere to say something. So the border
+  // moves to the box, the field inside it is bare, and the one press that is
+  // not the Enter key sits in the corner of it as an arrow.
+  //
+  // One composer, and it is always there. It used to be hidden on Home, so an
+  // operator who thought of something while looking at their cards had to find
+  // the other tab before they could say it -- and now that questions from a
+  // run arrive in the conversation, the box they answer in must be under their
+  // hand wherever they are standing.
   const row = document.createElement("div");
-  row.className = "row composer";
+  row.className = "composer";
 
   const input = document.createElement("input");
   input.type = "text";
   input.placeholder = ASKING;
 
+  const tools = document.createElement("div");
+  tools.className = "tools";
+
   const send = document.createElement("button");
   send.type = "button";
-  send.textContent = "Send";
+  send.className = "send";
+  // An arrow, and a name for anything that cannot see it. The word "Send" was
+  // the button; now the shape is, and a screen reader must still be told what
+  // it does.
+  send.textContent = "\u2191";
+  send.setAttribute("aria-label", "Send");
 
   const say = () => {
     const text = String(input.value || "").trim();
@@ -775,6 +1188,7 @@ export function composer(onSay) {
     if (event.key === "Enter") say();
   });
 
-  row.append(input, send);
+  tools.append(send);
+  row.append(input, tools);
   return row;
 }

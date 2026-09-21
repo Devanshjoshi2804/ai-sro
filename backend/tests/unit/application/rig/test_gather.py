@@ -9,6 +9,7 @@ EARLIER message -- so that is the first test here, not the last.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Mapping
 from typing import Any
@@ -124,7 +125,10 @@ async def test_a_value_the_triggering_message_does_not_carry_is_still_found() ->
     # The provenance, and it is the point: the value came from the earlier
     # message, not the one that triggered the job.
     assert got.values[CODE].from_message == "m-1"
+    # The opening search on the job's own name comes first and finds nothing;
+    # everything after it is the model's.
     assert got.looked == (
+        "search 'Create a Customer Type'",
         "search 'customer type request'",
         "read m-2",
         "search 'customer type Monday'",
@@ -169,6 +173,38 @@ async def test_a_value_with_no_message_behind_it_is_dropped_not_carried() -> Non
     assert not got.values
 
 
+async def test_a_value_this_job_cannot_take_is_named_rather_than_dropped_in_silence() -> None:
+    """A job's parameters are what two doings proved VARY.
+
+    `Create a Customer Type` declares two, because its two demonstrations
+    differed in two fields and nothing else -- and the form has a dozen more.
+    So a mail saying "code GV3, description X, Department Inbound" is an
+    ordinary request, and the run makes a record with no Department in it.
+
+    Dropping it is right: nothing demonstrated that slot, and a run that wrote
+    into it would be guessing at a warehouse. Dropping it SILENTLY is the shape
+    of every fault here worth having -- three things asked for, two in the
+    record, and nothing anywhere naming the third.
+    """
+    asker = _Steps(
+        {
+            "action": "done",
+            "values": [
+                {"name": CODE, "value": "GV3", "from_message": "m-1"},
+                {"name": "Department", "value": "Inbound", "from_message": "m-1"},
+            ],
+            "why": "the mail says both",
+        }
+    )
+
+    got = await _gather(_Mailbox({}), asker).execute(
+        CTX, job="Create a Customer Type", wanted=[CODE]
+    )
+
+    assert got.values.keys() == {CODE}, "it carried a field the job never had"
+    assert got.unasked == ("Department",)
+
+
 async def test_the_mailbox_is_asked_as_the_operator_and_no_one_else() -> None:
     """Each reads their own mail. The port takes the principal and this passes
     it down; a gather that reached another operator's mailbox would be the
@@ -181,7 +217,8 @@ async def test_the_mailbox_is_asked_as_the_operator_and_no_one_else() -> None:
 
     await _gather(mailbox, asker).execute(CTX, job="a job", wanted=[CODE])
 
-    assert [who for who, _, _ in mailbox.asked] == ["devansh"]
+    assert {who for who, _, _ in mailbox.asked} == {"devansh"}
+    assert len(mailbox.asked) == 2, "the opening search and the one the model chose"
 
 
 async def test_it_stops_looking_rather_than_spending_the_whole_budget() -> None:
@@ -248,5 +285,91 @@ async def test_the_history_shown_to_the_model_is_notes_rather_than_mail() -> Non
     await _gather(mailbox, asker).execute(CTX, job="a job", wanted=[CODE])
 
     second = json.loads(asker.saw[1])
-    assert len(second["already_looked_at"]) == 1
-    assert len(second["already_looked_at"][0]) < 400, "the whole mail went into the prompt"
+    assert len(second["already_looked_at"]) == 2, "the opening search, then the model's"
+    assert all(len(one) < 400 for one in second["already_looked_at"]), (
+        "the whole mail went into the prompt"
+    )
+
+
+async def test_the_mailbox_is_always_looked_in_before_anything_is_concluded() -> None:
+    """A `done` on round one is a refusal to look, not a conclusion.
+
+    Measured on the deployment 2026-09-16: a run with no values asked the model
+    first, the model answered `done` with nothing, and the connector logged no
+    request at all. "The mailbox does not hold this" has to be a statement
+    about the mailbox.
+
+    So the job's own name is the opening query, and the model's first decision
+    is made with results in front of it.
+    """
+    mailbox = _Mailbox({"Create a Customer Type": json.dumps({"messages": []})})
+    asker = _Steps({"action": "done", "values": [], "why": "I have nothing to go on"})
+
+    got = await _gather(mailbox, asker).execute(CTX, job="Create a Customer Type", wanted=[CODE])
+
+    assert [tool for _, tool, _ in mailbox.asked] == ["search_threads"]
+    assert got.looked == ("search 'Create a Customer Type'",)
+    assert got.missing == (CODE,)
+    # And the model was asked with that search already in its history.
+    assert "Create a Customer Type" in json.loads(asker.saw[0])["already_looked_at"][0]
+
+
+async def test_the_reason_the_run_was_started_beats_the_job_name_as_an_opening() -> None:
+    """Where something said why the run exists -- a mail that fired it, a
+    sentence somebody typed -- that is a better query than the job's title,
+    which every run of the job would share."""
+    mailbox = _Mailbox({"ZQ50 please": json.dumps({"messages": []})})
+    asker = _Steps({"action": "done", "values": [], "why": "nothing"})
+
+    got = await _gather(mailbox, asker).execute(
+        CTX, job="Create a Customer Type", wanted=[CODE], because="ZQ50 please"
+    )
+
+    assert got.looked[0] == "search 'ZQ50 please'"
+
+
+async def test_a_look_that_outlasts_a_person_watching_stops_and_says_so() -> None:
+    """Measured on the deployment 2026-09-16: a run sat at "Step 0" for three
+    and a half minutes because Google answered one round with a 5xx and the
+    asker did what it should -- three attempts, a two-second backoff, a
+    two-minute ceiling each. `K_ROUNDS` bounds how many times this looks and
+    not how long looking takes, and six rounds of that is half an hour of a
+    card saying nothing while somebody watches it.
+    """
+
+    class _Slow:
+        """A model that takes one look and then stops answering."""
+
+        def __init__(self) -> None:
+            self.asked = 0
+
+        async def ask(self, **_: object) -> Answer:
+            self.asked += 1
+            if self.asked > 1:
+                await asyncio.sleep(30)
+            return Answer(data={"action": "search", "query": "customer type", "why": "look"})
+
+    mailbox = _Mailbox({"customer type": json.dumps({"messages": []})})
+    asker = _Slow()
+
+    began = asyncio.get_running_loop().time()
+    got = await _gather(mailbox, asker).execute(CTX, job="a job", wanted=[CODE], patience=0.2)
+    took = asyncio.get_running_loop().time() - began
+
+    assert took < 5, "the gather waited on a model that was never going to answer"
+    assert asker.asked == 2, "it gave up before the round that actually hung"
+    assert got.missing == (CODE,)
+    assert "ran out of time" in got.why
+    # And what it DID look at is still the record of where it got to.
+    assert got.looked == ("search 'a job'", "search 'customer type'")
+
+
+async def test_a_gather_with_no_time_left_asks_nothing_at_all() -> None:
+    """The budget is checked before the call, not after it: a round begun with
+    nothing left is a model call nobody is waiting for any more."""
+    asker = _Steps({"action": "search", "query": "x", "why": "look"})
+
+    got = await _gather(_Mailbox({}), asker).execute(CTX, job="a job", wanted=[CODE], patience=-1.0)
+
+    assert asker.saw == [], "it asked a model after its own deadline"
+    assert got.missing == (CODE,)

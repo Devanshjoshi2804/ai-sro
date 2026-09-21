@@ -17,14 +17,17 @@ What is left here is the arithmetic: given the pairs and the counsel, the shape.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from dataclasses import asdict, dataclass
+from collections.abc import Mapping, Sequence
+from dataclasses import asdict, dataclass, field
+from urllib.parse import urlsplit
 
+from sro.domain.chat.asked_by import K_MAILBOXES
 from sro.domain.execution.evidence import primary_gesture, stood_on
+from sro.domain.execution.what_it_writes import what_it_writes
 from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.identity import shape_key, target_identity
 from sro.domain.shared.hosts import page_of, system_of
-from sro.domain.skill.learned import control_name
+from sro.domain.skill.learned import control_names
 from sro.domain.skill.offers import K_OFFER_AFTER, Counsel
 from sro.domain.skill.workflow import Step, Workflow, ordered_cites
 
@@ -37,6 +40,12 @@ class Shape:
     hosts: list[str]
     shape: list[list[str]]
     parameters: list[dict[str, object]]
+    writes: list[dict[str, str]] = field(default_factory=list)
+    """What pressing this job would write, in step order. Empty where the
+    evidence shows no mutation -- and empty is said as nothing rather than as
+    "it writes nothing", because a job whose gestures have aged out and a job
+    that only reads look the same from here."""
+
     held_runs: int = 0
     offer_after: int = K_OFFER_AFTER
     quiet_until: str | None = None
@@ -47,6 +56,21 @@ class Shape:
 
     def as_json(self) -> dict[str, object]:
         return asdict(self)
+
+
+def _all_in_a_mailbox(gestures: Sequence[Gesture]) -> bool:
+    """Whether every gesture of this job happened in a mailbox.
+
+    Every one, not any: a job that reads a request and then does it in the
+    warehouse is the shape this whole system is for, and it cites gestures on
+    both. `K_MAILBOXES` is the same named list `asked_by` reads requests out
+    of, for its own reason -- "any host that is not the warehouse" would call a
+    second warehouse system a mailbox.
+    """
+    return bool(gestures) and all(
+        urlsplit(one.url or one.system or "").netloc.split(":")[0] in K_MAILBOXES
+        for one in gestures
+    )
 
 
 def in_time_order(workflow: Workflow, by_id: Mapping[str, Gesture]) -> list[Gesture]:
@@ -155,7 +179,7 @@ def typed_at(cited: list[tuple[Gesture, Step]], parameter: dict[str, object]) ->
     # `workArea` -- and without it every learned parameter had no index and
     # no offer could lift its value from a tail.
     for index, (gesture, _) in enumerate(cited):
-        if control_name(gesture) == name and seen & put_by(gesture):
+        if name in control_names(gesture) and seen & put_by(gesture):
             return index
     return None
 
@@ -211,6 +235,27 @@ def shape_of(
     if not cited:
         return None
     gestures = [gesture for gesture, _ in cited]
+    if _all_in_a_mailbox(gestures):
+        # A mailbox is where work is ASKED FOR, not work to repeat.
+        #
+        # An operator lives in their mail all day, so the miner mines what they
+        # do there: this deployment holds four `Compose Email`, two `Reply to
+        # Email` and two `Forward an Email`, none of them ever run but one. The
+        # matcher then offers one whenever the last two gestures look like its
+        # first two -- which, in a mailbox, is most of the time. Measured
+        # 2026-09-19: an operator working through six requests was offered
+        # `Forward an Email` on nearly every screen, and the one card that
+        # mattered sat under it.
+        #
+        # Worse than noise: the mail reader hesitated between `Create a
+        # Customer Type` and `Forward an Email` for a mail that plainly asked
+        # for the first, and said nothing at all rather than choose.
+        #
+        # This does not unmine them or hide them from the console -- they are
+        # still evidence, still readable, and `signing_in` still finds a mail
+        # sign-in job by the host it stands on. It stops them being OFFERED,
+        # which is the only place they cost anybody anything.
+        return None
     by_id = {g.id: g for g in gestures}
     first_step = min(workflow.steps, key=lambda s: s.order)
     first = primary_gesture(first_step, by_id) or gestures[0]
@@ -278,6 +323,7 @@ def shape_of(
             for p in workflow.parameters
             if isinstance(p, dict) and p.get("name")
         ],
+        writes=what_it_writes(workflow, by_id),
         held_runs=held,
         # What this job's own offers say: resting on this browser, or offered
         # later. Capped at the last gesture but one, which is as late as

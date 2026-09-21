@@ -64,6 +64,31 @@ text before and after, and the screen after. Answer whether the step HELD --
 whether the thing it was meant to do is now true on the screen -- and say why
 in one sentence. Do not assume success from the absence of an error."""
 
+WAY_THROUGH_INSTRUCTIONS = """
+You are checking one step of a warehouse job that changes nothing by itself.
+Its own recording sent no request and put no value anywhere: it opened a menu,
+focused a field, moved to a tab. The sentence describing it was written by
+another model from the recording, and it may be a guess about what the click
+was FOR -- so do not check it. Check only whether the job can go on: answer
+held=false if the screen is now showing something that stops it -- an error, a
+dialog waiting to be dismissed, a sign-in page, a blank or half-drawn screen
+-- and held=true otherwise, including when the screen looks exactly as it did
+before. Say why in one sentence."""
+"""The proposition a step that changes nothing can actually settle.
+
+Measured on the deployment 2026-09-19. `Delete a Customer Type` stopped six
+times running on its first step, *"Opens the filter dropdown."* -- a sentence a
+mining model wrote about a click on a combobox field that sent no request and
+typed nothing. The click landed every time (`matched_by = component`), the
+field was focused, and the screen belt was asked whether a dropdown had opened.
+It had not, and the job stopped, and it could never have done anything else:
+five of that job's six steps send no traffic at all, so five of six were being
+judged against a guess.
+
+A picture cannot settle what a click was FOR. It can settle whether the screen
+is now somewhere the job can continue from, which is the only thing the step
+after this one needs to be true."""
+
 
 @dataclass(frozen=True, slots=True)
 class StepVerdict:
@@ -308,6 +333,42 @@ def _carried(
         return quantifier(bool(value) and value in body for value in values.values())
     leaves = set(_leaves(parsed))
     return quantifier(bool(value) and value in leaves for value in values.values())
+
+
+def unreturned(body: str, values: Mapping[str, str]) -> tuple[str, ...]:
+    """The names this run supplied that the read did not come back carrying.
+
+    `mentions` asks whether ANY of them came back, and holds on one -- which is
+    right, and is why this exists beside it rather than instead of it. A record
+    read after a write is being asked "are you there", and one value answering
+    is the record answering. Requiring ALL of them was tried and measured
+    wrong: of 94 recorded creates, 16 send a value that appears nowhere in the
+    answer -- every one a `...Description` key holding the label its code
+    resolved to -- so `carries_every` failed roughly one correct create in six
+    and un-earned a job for being right.
+
+    But a warehouse that silently shortens a field answers the same way. Send a
+    code and a sixty-character description, have the description truncated on
+    save, and the code comes back, `mentions` is satisfied, and the step holds
+    by `read`. Every belt in the chain then agrees, because every one of them
+    compares the record to ITSELF: the status is the server's, the read-back is
+    the record as stored, and a picture of the grid row looks right to a model
+    with no idea what was asked for.
+
+    So the step still holds -- one value back is the record back -- and what
+    did NOT come back is named. A truncation stops being invisible without a
+    correct write being failed for it.
+
+    Names, never values: this is read by a panel and a log.
+    """
+    if not values:
+        return ()
+    try:
+        parsed = json.loads(body)
+    except ValueError:
+        return tuple(sorted(name for name, value in values.items() if value and value not in body))
+    leaves = set(_leaves(parsed))
+    return tuple(sorted(name for name, value in values.items() if value and value not in leaves))
 
 
 @dataclass(frozen=True, slots=True)

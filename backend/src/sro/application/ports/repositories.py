@@ -15,10 +15,12 @@ from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.execution.belts import RunProof
+from sro.domain.execution.learned_step import LearnedStep, Taught
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel, KnowledgeEntry
+from sro.domain.observation.attempts import Attempt
 from sro.domain.observation.batch import ObservationBatch
 from sro.domain.observation.candidate import CandidateStatus, TaskCandidate
 from sro.domain.observation.device import AgentDevice
@@ -592,9 +594,20 @@ class GestureRepository(Protocol):
     async def add_gestures(self, gestures: tuple[Gesture, ...]) -> None: ...
 
     async def gestures_for(
-        self, tenant_id: TenantId, *, ids: tuple[str, ...] | None = None
+        self,
+        tenant_id: TenantId,
+        *,
+        ids: tuple[str, ...] | None = None,
+        after: float | None = None,
+        before: float | None = None,
     ) -> tuple[Gesture, ...]:
-        """Ordered by ``at``. ``ids`` narrows to a citation set."""
+        """Ordered by ``at``. ``ids`` narrows to a citation set.
+
+        ``after`` and ``before`` narrow to a window of the browser's own clock,
+        exclusive and inclusive -- what happened in the minutes after something
+        else, which is how a run asks what the operator did once it had
+        stopped.
+        """
         ...
 
     async def unread(self, tenant_id: TenantId, *, limit: int) -> tuple[Gesture, ...]:
@@ -788,6 +801,21 @@ class WorkflowRunRepository(Protocol):
         """
         ...
 
+    async def taken_back_by(self, tenant_id: TenantId, run_id: str) -> str | None:
+        """The run that took this one back, where one already has.
+
+        An undo pressed twice is a second delete addressed to a record the
+        first one removed, and what a warehouse answers to that is nobody's
+        idea of a good surprise. Asked of the store rather than remembered on
+        the card, because the card is one browser's copy and a second window
+        holds another.
+
+        Only a run that HELD counts as having taken it back. One that failed
+        left the record where it was, and refusing a second attempt because the
+        first did not work is refusing the one attempt that might.
+        """
+        ...
+
     async def failures(self, tenant_id: TenantId) -> Mapping[str, int]:
         """How many runs of each job ended in the job's OWN failure.
 
@@ -847,6 +875,20 @@ class WorkflowRunRepository(Protocol):
         /v1/workflow-runs`` serves the same rule from the other end: it
         answers with whole rows, so every parked step is on the wire and no
         reader has to ask a second time which of them are waiting.
+        """
+        ...
+
+    async def waiting_on(
+        self, tenant_id: TenantId, *, server: str, thread: str
+    ) -> WorkflowRun | None:
+        """The run that ended waiting to hear back on this outside conversation.
+
+        Newest first, because a thread somebody asks about twice has two runs
+        against it and the live question is the last one asked. Whether the
+        wait is still open is the caller's to decide -- `still_waiting` reads
+        the deadline -- because "nobody is holding this open any more" is a
+        different sentence from "nobody ever asked about this", and a caller
+        told `None` for both cannot say either.
         """
         ...
 
@@ -934,6 +976,44 @@ class WorkflowRepository(Protocol):
         """
         ...
 
+    async def remember_locator(
+        self, workflow_id: str, learned: LearnedStep, *, by_run: str = ""
+    ) -> None:
+        """What a run found when the job's own identity for a control did not.
+
+        `mark_stale` above says a step is about to break; this says what the
+        run FOUND, so the next one tries it first rather than climbing the same
+        ladder and paying for the same model call. One row per step, the last
+        answer winning.
+        """
+        ...
+
+    async def learned_for(self, workflow_id: str) -> tuple[LearnedStep, ...]:
+        """Every step of this job that a run has found a working locator for."""
+        ...
+
+    async def taught_itself(self, workflow_id: str, limit: int = 50) -> tuple[Taught, ...]:
+        """What this job has changed its mind about, newest first.
+
+        The reviewable half of learning. `remember_locator` and
+        `remember_limit` store the CURRENT answer and overwrite what was there,
+        which is right for the run asking what to try first and leaves a job
+        rewriting its own behaviour with nothing behind it.
+
+        Bounded, and small: a history nobody can read in one page is a log.
+        """
+        ...
+
+    async def remember_limit(
+        self, workflow_id: str, ord_: int, holds: int, *, by_run: str = ""
+    ) -> None:
+        """How many characters this step's box turned out to take.
+
+        Learnt on a step whose locator matched perfectly well, which is why it
+        is not part of `remember_locator`: writing the two together would have
+        a truncation erase a locator, or a locator erase a limit."""
+        ...
+
     async def clear_stale(self, workflow_id: str, ord_: int) -> None:
         """The step matched properly again. A warning that never clears is a
         warning nobody reads. Idempotent: clearing a step that was never weak
@@ -966,6 +1046,35 @@ class WorkflowRepository(Protocol):
         the runner set at send time: SQL cannot ask ``writes()``, and the
         evidence a later reader would have to ask it about may have been
         re-mined by then.
+        """
+        ...
+
+
+class AttemptRepository(Protocol):
+    """Something a person asked for, and what came of it.
+
+    One write and one read, and the write never raises: see `record`.
+    """
+
+    async def record(self, attempt: Attempt) -> None:
+        """One attempt, one row -- and nothing this raises reaches the caller.
+
+        The callers are doors in the middle of answering somebody, most of them
+        in the middle of REFUSING somebody, and a refusal that turns into a 500
+        because the recording of it failed is strictly worse than the silence
+        this replaces. An implementation that cannot write says so in the log
+        and returns.
+        """
+        ...
+
+    async def since(
+        self, tenant_id: TenantId, *, since: datetime, limit: int
+    ) -> tuple[Attempt, ...]:
+        """This tenant's attempts, newest first, capped.
+
+        Newest first because a day is read from the end: the question is what
+        just happened, and an audit that starts at breakfast makes somebody
+        scroll to reach it.
         """
         ...
 
@@ -1067,6 +1176,7 @@ class UnitOfWork(Protocol):
     gestures: GestureRepository
     workflow_runs: WorkflowRunRepository
     workflows: WorkflowRepository
+    attempts: AttemptRepository
     offers: OfferRepository
     chats: ChatRepository
     spend: SpendRepository

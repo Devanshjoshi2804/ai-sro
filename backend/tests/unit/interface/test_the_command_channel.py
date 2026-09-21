@@ -84,6 +84,48 @@ def test_a_connected_browser_is_reachable_and_a_closed_one_is_not(
     assert _eventually(lambda: container.agent_sockets.online(f.TENANT) == ())
 
 
+def test_a_browser_that_went_does_not_become_an_unhandled_exception(
+    wired: tuple[TestClient, _FakeContainer],
+) -> None:
+    """Closing a socket that has already gone is not a failure, and there is
+    nothing left to do about it either way.
+
+    `RuntimeError` alone was not enough. A browser that goes -- an extension
+    reloaded, a laptop shut, a tunnel dropped -- leaves the `close()` in the
+    endpoint's `finally` writing a close frame to nobody, and uvicorn answers
+    that with `ClientDisconnected`, which is neither a `RuntimeError` nor
+    importable from here without reaching into a server's internals. It went
+    uncaught, out of the endpoint, and printed thirty lines of `Exception in
+    ASGI application` for the ordinary event that `finally` exists to handle.
+    Measured on the deployment 2026-09-21: two of them against three
+    reconnections.
+
+    Raised from the CLOSE, which is the frame the traceback named, and with a
+    type that is not a `RuntimeError` -- the two facts that made this escape.
+    """
+    from starlette.websockets import WebSocket
+
+    client, container = wired
+    _register(container)
+
+    # What uvicorn does when the peer has gone: a type that is NOT a
+    # `RuntimeError`, raised from the close itself.
+    async def gone(self: WebSocket, *args: object, **kwargs: object) -> None:
+        raise ConnectionResetError("the browser went")
+
+    was = WebSocket.close
+    WebSocket.close = gone  # type: ignore[method-assign, assignment]
+    try:
+        with client.websocket_connect(
+            f"/v1/agents/{LAPTOP}/commands", subprotocols=["bearer", token_for(), SECRET]
+        ):
+            assert _eventually(lambda: container.agent_sockets.online(f.TENANT) == (LAPTOP,))
+        # Detached, said, and nothing thrown past the endpoint.
+        assert _eventually(lambda: container.agent_sockets.online(f.TENANT) == ())
+    finally:
+        WebSocket.close = was  # type: ignore[method-assign]
+
+
 def test_a_socket_without_a_credential_is_closed_rather_than_served(
     wired: tuple[TestClient, _FakeContainer],
 ) -> None:

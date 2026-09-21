@@ -72,6 +72,75 @@ async def record_effect(
     )
 
 
+def may_have_landed(step: RunStep) -> bool:
+    """Whether a write this step made might actually be in the warehouse.
+
+    The question `forget_effects` has always meant to ask and could not: its
+    own docstring says *a write that went out and did not hold*, and the marker
+    it had says only *this step was going to write*. The two are different for
+    most of the ways a step fails, and the difference is the whole of item 7's
+    approval fatigue.
+
+    Measured on the deployment 2026-09-19. `Create a Customer Type` had
+    **twenty live runs whose write held by a state belt** and exactly **one**
+    row in its effects register, because seventeen other runs failed a write
+    and each one wiped the register whole. Of those seventeen, ten never wrote
+    anything at all: five `TypeError: Failed to fetch`, one with no CSRF token
+    on the page, one with no tab open on the system, one whose control was
+    never found, and two where nobody approved the write inside five minutes.
+    The job could therefore never reach `K_EARNED_RUNS`, and every run this
+    system has ever done asked a person to tap approve.
+
+    Two readings, and each is one the rescue gate two lines away already makes:
+
+    **The browser answered `ok: false`** -- it never performed the command:
+    unreachable, no tab on the system, no control found, the approval that
+    timed out. Nothing left the machine, so nothing can be in the warehouse.
+
+    **The server itself refused it** -- a `4xx`. A warehouse that answered 422
+    did not write the record, and the deployment's own register was emptied by
+    one of those.
+
+    A `5xx` is NOT that case and must go on un-earning: a server that broke
+    half way may have written and then failed, and "the state is unknown after
+    a write" is exactly what the register is for. Everything else is a write
+    that went out and could not be shown to have held, which is likewise what
+    must cost a job its autonomy.
+
+    A step with no result at all never reaches here: `wrote` reads the marker
+    off the result, and the step `_fell_over` stamps has neither. That is the
+    rule this file has always had, and `test_effects.py` says so by name.
+    """
+    result = step.result or {}
+    if result.get("ok") is False:
+        return False
+    status = result.get("status")
+    return not (isinstance(status, int) and 400 <= status < 500)
+
+
+def can_try_again(run: WorkflowRun) -> bool:
+    """Whether this run can be started again with one press.
+
+    A run stops for reasons that have nothing to do with the job -- a session
+    that expired, a tab closed, a browser that could not be reached -- and the
+    offer that started it is spent, so the request sits there until somebody
+    notices. On a job started from a mailbox that can be hours.
+
+    **Only where nothing it did may have landed.** Every step that wrote either
+    never left the browser or was refused by the warehouse: `may_have_landed`,
+    the same reading that decides whether a failed write costs a job its
+    autonomy, asked here about the other half of the same danger. A second
+    press after a write that might be in the warehouse is how a customer gets
+    two of something, and no button is better than that.
+
+    Nothing to try again on a run that held, and nothing to press on one still
+    going.
+    """
+    if run.outcome in ("running", "held"):
+        return False
+    return not any(wrote(step) and may_have_landed(step) for step in run.steps)
+
+
 async def forget_effects(workflows: WorkflowRepository, run: WorkflowRun) -> int:
     """A write that went out and did not hold un-earns the whole job.
 
@@ -83,10 +152,21 @@ async def forget_effects(workflows: WorkflowRepository, run: WorkflowRun) -> int
     wrote, was never shown to have held, and would otherwise have kept its
     autonomy.
 
+    And only where the write MAY have landed. A step whose command the browser
+    never performed changed nothing, and punishing a job for it is how a job
+    with twenty verified writes ends up with one row in its register and a
+    person tapping approve on every run. See `may_have_landed`.
+
     Returns how many effects were forgotten, and zero when this run un-earned
     nothing.
     """
-    if not (run.live and any(step.verdict in K_UNEARNING and wrote(step) for step in run.steps)):
+    if not (
+        run.live
+        and any(
+            step.verdict in K_UNEARNING and wrote(step) and may_have_landed(step)
+            for step in run.steps
+        )
+    ):
         return 0
     return await workflows.forget_effects(run.workflow_id)
 

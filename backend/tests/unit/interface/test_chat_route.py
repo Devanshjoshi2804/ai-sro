@@ -503,3 +503,38 @@ async def test_no_credential_is_refused_before_anything_is_read(
     )
 
     assert answered.status_code == 401
+
+
+async def test_the_request_name_survives_the_trip_to_the_question(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """`POST /v1/chat/about-an-offer`: the whole point of `about` is that the
+    conversation can say WHICH request it is asking about, and there may be
+    four alike in the thread.
+
+    It was dropped at this one line for an afternoon. Every layer either side
+    carried it -- the mail read it, the offer shipped it, the browser sent it,
+    the domain rendered it -- and the route called the door without it, so the
+    question said "Create a Customer Type." and named nothing. Nothing failed,
+    because nothing between the two ends was ever asked to agree.
+    """
+    answered = await client.post(
+        "/v1/chat/about-an-offer",
+        json={
+            "workflow_id": "wfl_1",
+            "title": "Create a Customer Type",
+            "values": {"Customer Type": "NEWSROTEST"},
+            "missing": [],
+            "limits": {"Customer Type": 4},
+            "about": "Customer type for the SRO pilot, round twenty-nine",
+        },
+    )
+
+    assert answered.status_code == 200, answered.text
+    asked = answered.json()["asked"]
+    assert asked.startswith(
+        "Create a Customer Type — Customer type for the SRO pilot, round twenty-nine."
+    ), asked
+    # And it reached the thread, not just the response.
+    threads = await uow.threads.list_for_tenant(TENANT, limit=1)
+    assert threads and threads[0].messages[-1].text == asked

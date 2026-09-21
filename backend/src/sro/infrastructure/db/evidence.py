@@ -194,11 +194,20 @@ class SqlGestureRepository(GestureRepository):
             raise Conflict("one of these gestures is already stored") from clash
 
     async def gestures_for(
-        self, tenant_id: TenantId, *, ids: tuple[str, ...] | None = None
+        self,
+        tenant_id: TenantId,
+        *,
+        ids: tuple[str, ...] | None = None,
+        after: float | None = None,
+        before: float | None = None,
     ) -> tuple[Gesture, ...]:
         query = select(GestureRow).where(GestureRow.tenant_id == tenant_id.value)
         if ids is not None:
             query = query.where(GestureRow.id.in_(ids))
+        if after is not None:
+            query = query.where(GestureRow.at > after)
+        if before is not None:
+            query = query.where(GestureRow.at <= before)
         # The id breaks a tie the rig left open: `at` is the browser's clock in
         # milliseconds and two gestures of one burst share it, so `at` alone is
         # not a total order -- and in `unread` below, where the order decides

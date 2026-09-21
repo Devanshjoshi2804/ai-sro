@@ -30,6 +30,12 @@ export function node(tag) {
     disabled: false,
     hidden: false,
     textContent: "",
+    // What a scroller has. Numbers rather than absent, so the code that keeps
+    // a conversation at its newest line can be read by a test rather than
+    // guarded against a fake that does not have them.
+    scrollTop: 0,
+    scrollHeight: 0,
+    clientHeight: 0,
     kids: [],
     listeners: {},
     set innerHTML(value) {
@@ -38,17 +44,48 @@ export function node(tag) {
     get innerHTML() {
       return "";
     },
+    /** What a list redraws with: every child detached, these in their place. */
+    replaceChildren(...added) {
+      for (const kid of this.kids) kid.parent = null;
+      this.kids = [];
+      this.append(...added);
+    },
     append(...added) {
+      for (const kid of added) kid.parent = this;
       this.kids.push(...added);
     },
     prepend(...added) {
+      for (const kid of added) kid.parent = this;
       this.kids.unshift(...added);
     },
+    /** Detached, not merely flagged.
+     *
+     * This used to set `removed` and leave the node in its parent's `kids`,
+     * so a test asking "is the button still there" was answered yes for a
+     * button the real DOM had taken away. A fake that lies about removal
+     * hides exactly the bugs a panel has: a control that outlives the state
+     * it belonged to. `removed` is kept for the tests that read it.
+     */
     remove() {
       this.removed = true;
+      const parent = this.parent;
+      if (!parent) return;
+      parent.kids = parent.kids.filter((kid) => kid !== this);
+      this.parent = null;
     },
     addEventListener(kind, fn) {
       (this.listeners[kind] ??= []).push(fn);
+    },
+    // Attributes the platform has and a plain object does not. Only what a
+    // panel module actually sets -- `aria-expanded` on a control that folds --
+    // rather than a general attribute bag: this fake exists to be simple
+    // enough that it cannot itself be the thing that is wrong.
+    attributes: {},
+    setAttribute(name, value) {
+      this.attributes[name] = String(value);
+    },
+    getAttribute(name) {
+      return Object.hasOwn(this.attributes, name) ? this.attributes[name] : null;
     },
     querySelectorAll(selector) {
       const all = [];

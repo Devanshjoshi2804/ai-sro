@@ -72,8 +72,18 @@ async def _armed(uow: FakeUnitOfWork, *, requires_confirmation: bool = True) -> 
     return trigger
 
 
-def _fire(uow: FakeUnitOfWork, durable: FakeDurableExecution, *, at: datetime = AT) -> FireTrigger:
-    return FireTrigger(uow, FakeClock(at), durable, ids=FakeIdFactory())
+def _fire(
+    uow: FakeUnitOfWork,
+    durable: FakeDurableExecution,
+    *,
+    at: datetime = AT,
+    ids: FakeIdFactory | None = None,
+) -> FireTrigger:
+    """`ids` for a test that fires TWICE. A fresh factory per fire mints
+    `cnf-1` both times, so the second card lands on the first's id and the
+    store keeps one -- which reads exactly like the collapsing this is here to
+    check, and would have passed a test of it that was wrong."""
+    return FireTrigger(uow, FakeClock(at), durable, ids=ids or FakeIdFactory())
 
 
 def _answer(
@@ -95,6 +105,67 @@ async def test_a_write_that_fires_with_nobody_there_becomes_a_card() -> None:
     assert len(waiting) == 1
     # The one sentence somebody reads before deciding.
     assert waiting[0].because == "Short ship"
+
+
+async def test_the_same_question_asked_twice_is_one_card() -> None:
+    """An arrival rule fires on every navigation that COMMITS its page, and a
+    sign-in flow commits its own page several times -- the form, the POST, the
+    redirect back. Each fire wrote another card.
+
+    Measured on the deployment 2026-09-20: one rule, `trg_a925ce7d`, three
+    identical "Log in to Keycloak -- an arrival trigger fired. Shall I?" cards
+    stacked in the panel, none answered, and every further landing adding a
+    fourth. A queue of prompts is the thing this design exists to not be.
+    """
+    uow, durable = FakeUnitOfWork(), FakeDurableExecution()
+    await _armed(uow)
+
+    ids = FakeIdFactory()
+    first = await _fire(uow, durable, ids=ids).execute(TriggerId("trg-1"))
+    again = await _fire(uow, durable, ids=ids).execute(TriggerId("trg-1"))
+
+    assert first.confirmation_id == again.confirmation_id
+    assert len(await ReadConfirmations(uow).execute(CTX)) == 1
+
+    # And it still fired: a rule that looks like it stopped is a rule somebody
+    # goes looking for a fault in.
+    trigger = await uow.triggers.get(f.TENANT, TriggerId("trg-1"))
+    assert trigger.last_fired_at == AT
+
+
+async def test_two_different_questions_are_two_cards() -> None:
+    """Same-trigger is not the same question. A mail watch names the order
+    number it read, and two mails about two orders are two things to decide
+    however much of the rule they share."""
+    uow, durable = FakeUnitOfWork(), FakeDurableExecution()
+    await _armed(uow)
+
+    ids = FakeIdFactory()
+    await _fire(uow, durable, ids=ids).execute(
+        TriggerId("trg-1"), message={"subject": "Short ship SH-1"}
+    )
+    await _fire(uow, durable, ids=ids).execute(
+        TriggerId("trg-1"), message={"subject": "Short ship SH-2"}
+    )
+
+    waiting = await ReadConfirmations(uow).execute(CTX)
+    assert [one.because for one in waiting] == ["Short ship SH-1", "Short ship SH-2"]
+
+
+async def test_a_card_that_has_run_out_does_not_swallow_the_next_ask() -> None:
+    """`waiting` deliberately includes the ones that have run out -- a card
+    that vanished is not the same as one somebody can see was never answered.
+    An expired card is not an ask anybody can still answer, so a fire after it
+    is a new question."""
+    uow, durable = FakeUnitOfWork(), FakeDurableExecution()
+    await _armed(uow)
+
+    ids = FakeIdFactory()
+    first = await _fire(uow, durable, ids=ids).execute(TriggerId("trg-1"))
+    later = AT + ANSWER_WITHIN + timedelta(minutes=1)
+    again = await _fire(uow, durable, at=later, ids=ids).execute(TriggerId("trg-1"))
+
+    assert first.confirmation_id != again.confirmation_id
 
 
 async def test_the_trigger_still_says_it_fired() -> None:

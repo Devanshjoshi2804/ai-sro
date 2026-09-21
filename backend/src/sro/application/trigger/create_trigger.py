@@ -72,11 +72,23 @@ class NewTrigger:
 
 
 class CreateTrigger:
-    def __init__(self, uow: UnitOfWork, clock: Clock, ids: IdFactory, scheduler: Scheduler) -> None:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        clock: Clock,
+        ids: IdFactory,
+        scheduler: Scheduler,
+        can_gather: bool = False,
+    ) -> None:
         self._uow = uow
         self._clock = clock
         self._ids = ids
         self._scheduler = scheduler
+        # Whether a run can go and find a value nobody supplied. The same pair
+        # `start_workflow_run` builds its gather out of, asked here so this
+        # door and the run door make the same judgement: a deployment with no
+        # mailbox still refuses a trigger whose job would fail at 3am.
+        self._can_gather = can_gather
 
     async def execute(self, ctx: RequestContext, request: NewTrigger) -> Trigger:
         parameters = dict(request.parameters or {})
@@ -256,13 +268,6 @@ class CreateTrigger:
                 # and no page would be refused by `Trigger` as a 500 out of a
                 # route; here it is a sentence the caller can act on.
                 raise TriggerRefused("an arrival trigger needs the page it fires on")
-            if request.kind is TriggerKind.WATCH:
-                # The browser evaluates a watch and offers what it matched, and
-                # that path (`/v1/agents/{id}/watches/{trigger}/matched`) reads
-                # a skill's inputs to say what the mail did not name. Refused
-                # rather than half-built: a watch that fired into a job nothing
-                # could describe would be a card with no sentence on it.
-                raise TriggerRefused("a job cannot be watched for yet: schedule it instead")
             if request.device_id is None:
                 raise TriggerRefused("a job runs in a browser: name a device")
             if not request.authorized_by:
@@ -279,13 +284,23 @@ class CreateTrigger:
                 raise TriggerRefused(
                     f"this job has no {', '.join(unknown)} for a message to supply"
                 )
-            if missing := sorted(
-                name for name in declared if name not in parameters and name not in supplied
-            ):
+            if (
+                missing := sorted(
+                    name for name in declared if name not in parameters and name not in supplied
+                )
+            ) and not self._can_gather:
                 # Every declared parameter is required: `StartWorkflowRun`
                 # refuses a press that leaves one blank, because the planner
                 # would otherwise fall back to the value the RECORDING happened
                 # to contain and do the job with somebody else's client code.
+                #
+                # Unless something can go and find it. The same relaxation the
+                # run door makes and for the same reason: a deployment that can
+                # read the operator's mailbox has a second answer, and refusing
+                # here would mean a watch on "create a customer type" could only
+                # be made by somebody willing to map `customertype-longDescription`
+                # onto a line of the mail by hand. What it cannot find, it
+                # refuses at the step, with the names on the card.
                 raise TriggerRefused(
                     f"this job needs {', '.join(missing)}: supply a value, "
                     "or say that a message will"
@@ -301,6 +316,10 @@ class CreateTrigger:
                 parameters=parameters,
                 from_message=request.from_message,
                 arrival=request.arrival,
+                # The rule a mail is recognised by. Carried here since a watch
+                # may name a job: without it the row would be a watch that
+                # matches nothing, which is a trigger that silently never fires.
+                watch=request.watch,
                 cron=request.cron,
                 timezone=request.timezone,
                 device_id=request.device_id,

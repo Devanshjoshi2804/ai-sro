@@ -19,6 +19,7 @@ module's security claim is about -- left the whole suite green.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from dataclasses import replace
 from datetime import timedelta
 
 import httpx
@@ -195,6 +196,31 @@ async def test_the_list_comes_back_under_the_shapes_key(
     assert body["shapes"][0]["parameters"] == [{"name": "clientCode", "at": 0}]
 
 
+async def test_a_shape_says_what_pressing_the_job_would_write(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, evidence: dict[str, Gesture], proven: Workflow
+) -> None:
+    """Item 6's other half, on the wire it reaches the card by. The offer card
+    named the values it holds and never the act, so "yes" was a press against
+    something nobody had described -- and this is where the description is
+    read: off the job's own evidence, served with its shape.
+
+    The save is re-stamped `201` because the local test server answers `200
+    {"ok": true}` and the real platform answers `201` with the record it made.
+    `what_it_writes` refuses to call an answer like the first one a write --
+    which is what keeps a hundred of Gmail's own POSTs off the card -- so the
+    fixture has to be the shape a warehouse really answers."""
+    saver = _saver(evidence)
+    post = next(one for one in saver.requests if one.method == "POST")
+    saver.requests[saver.requests.index(post)] = replace(post, status=201)
+    await uow.gestures.add_gestures(())  # the store holds the same object
+
+    body = (await client.get("/v1/shapes")).json()
+
+    assert body["shapes"][0]["writes"] == [
+        {"does": "create", "record": "orders", "on": HOST, "step": "2"}
+    ]
+
+
 async def test_every_proven_job_comes_back_and_in_the_order_it_was_served(
     client: httpx.AsyncClient,
     uow: FakeUnitOfWork,
@@ -241,7 +267,10 @@ async def test_every_proven_job_comes_back_and_in_the_order_it_was_served(
 async def test_a_tenant_with_nothing_proven_is_answered_with_an_empty_list(
     client: httpx.AsyncClient,
 ) -> None:
-    assert (await client.get("/v1/shapes")).json() == {"shapes": []}
+    # `can_find` rides along on every answer: it is a fact about the
+    # deployment rather than about a job, and the browser needs it to draw an
+    # offer it builds itself. False here -- this container has no connector.
+    assert (await client.get("/v1/shapes")).json() == {"shapes": [], "can_find": False}
 
 
 async def test_no_credential_is_refused_before_anything_is_read(
@@ -411,4 +440,6 @@ async def test_another_tenants_credential_is_served_its_own_nothing(
         answered = await rival.get("/v1/shapes")
 
     assert answered.status_code == 200
-    assert answered.json() == {"shapes": []}, "another tenant's proven job was served"
+    assert answered.json() == {"shapes": [], "can_find": False}, (
+        "another tenant's proven job was served"
+    )

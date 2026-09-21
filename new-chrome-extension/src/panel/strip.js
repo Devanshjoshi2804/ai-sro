@@ -21,6 +21,11 @@
  * caller wiring it up is not reading a label to decide what happened.
  */
 const MENU = [
+  // The console in a tab of its own. It was a button in the strip until the
+  // navigation cluster took that space, and it belongs here: opening the
+  // console is a thing done occasionally and deliberately, which is what this
+  // menu is for.
+  { action: "console", label: "Console ↗" },
   // The console, framed here rather than opened in a tab. Its own entry because
   // it is a thing done occasionally and deliberately: it used to be a button
   // under the composer saying "Ask for a task", which was a second copy of the
@@ -57,20 +62,30 @@ export function needsAPress(status, here) {
 /** What is happening to the tab beside the panel, as a word and a sentence. */
 function stateOf(status, here) {
   if (status.teaching) {
-    const elapsed = status.teaching.elapsed ? ` ${status.teaching.elapsed}` : "";
+    const elapsed = status.teaching.elapsed
+      ? ` ${status.teaching.elapsed}`
+      : "";
     return ["recording", `recording a demonstration${elapsed}`];
   }
   if (status.paused || status.serverPaused) return ["paused", "paused"];
-  const watchedHere = (status.watched || []).some((tab) => tab.tabId === here.tabId);
+  const watchedHere = (status.watched || []).some(
+    (tab) => tab.tabId === here.tabId,
+  );
   if (status.capturing && watchedHere) {
-    return ["observing", `watching${status.since ? ` ${forHowLong(status.since)}` : ""}`];
+    return [
+      "observing",
+      `watching${status.since ? ` ${forHowLong(status.since)}` : ""}`,
+    ];
   }
   return ["idle", "not watched"];
 }
 
 /** Minutes until an hour and a half, then hours. Nobody reads "127 min". */
 function forHowLong(since) {
-  const minutes = Math.max(0, Math.round((Date.now() - new Date(since).getTime()) / 60000));
+  const minutes = Math.max(
+    0,
+    Math.round((Date.now() - new Date(since).getTime()) / 60000),
+  );
   if (Number.isNaN(minutes)) return "";
   return minutes >= 90 ? `${Math.round(minutes / 60)} h` : `${minutes} min`;
 }
@@ -83,7 +98,7 @@ function forHowLong(since) {
  * opens or closes the chip themselves -- what that reveals is the caller's, so
  * the expanded card stays where its state machine already lives.
  */
-export function strip(status, here, { onMenu, onToggle } = {}) {
+export function strip(status, here, { onMenu, onToggle, nav } = {}) {
   const root = document.createElement("header");
   root.className = "strip";
 
@@ -95,24 +110,33 @@ export function strip(status, here, { onMenu, onToggle } = {}) {
   const name = document.createElement("span");
   name.className = "name";
   name.textContent = "AI-SRO";
-  const link = document.createElement("button");
-  link.type = "button";
-  link.className = "link";
-  link.textContent = "Console ↗";
-  link.addEventListener("click", () => onMenu?.("console"));
 
   const disc = document.createElement("button");
   disc.type = "button";
   disc.className = "disc";
   disc.textContent = (status.principal || "?").slice(0, 1).toUpperCase();
-  brand.append(mark, name, link, disc);
+  // The navigation, in the row that was already here.
+  //
+  // It used to be two word-tabs on a row of their own, under this one: a
+  // 360-pixel panel beside a warehouse screen has about six rows of usable
+  // height and two of them were spent saying where you are. The cluster is an
+  // element this file is GIVEN rather than one it builds -- the panel owns it,
+  // so the strip redrawing every couple of seconds does not rebuild the
+  // buttons under somebody's cursor.
+  //
+  // "Console" left with it, into the menu behind the disc, where the rest of
+  // the once-a-week things already are.
+  brand.append(mark, name, ...(nav ? [nav] : []), disc);
 
   const menu = document.createElement("div");
   menu.className = "menu";
   menu.hidden = true;
   const paused = Boolean(status.paused);
   const items = [
-    { action: paused ? "resume" : "pause", label: paused ? "Resume watching" : "Pause watching" },
+    {
+      action: paused ? "resume" : "pause",
+      label: paused ? "Resume watching" : "Pause watching",
+    },
     ...MENU,
   ];
   for (const { action, label } of items) {

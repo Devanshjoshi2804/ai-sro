@@ -52,6 +52,7 @@ from sro.application.ports.model import Asker
 from sro.domain.execution.belts import (
     SCREEN_INSTRUCTIONS,
     SCREEN_SCHEMA,
+    WAY_THROUGH_INSTRUCTIONS,
     StepVerdict,
     carries_every,
     confirming_read,
@@ -59,9 +60,11 @@ from sro.domain.execution.belts import (
     mentions,
     record_carrying,
     status_of,
+    unreturned,
 )
 from sro.domain.execution.evidence import recorded_call, writes
 from sro.domain.execution.planning import Look
+from sro.domain.execution.records import made_by
 from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.observation.trim import path_shape
 from sro.domain.shared.hosts import REDACTED
@@ -223,6 +226,16 @@ def _has(document: JsonValue, pointer: str) -> bool:
     except (KeyError, IndexError, TypeError, ValueError):
         return False
     return True
+
+
+K_SCREEN_SAID = 600
+"""How much of the screen's own text a failed step keeps.
+
+Enough for a dialog and the controls around it; short enough that a run record
+cannot become a copy of the page. The digest is names and positions, which is
+what `viewportInPage` collects -- no values, because a form's contents are the
+operator's and a record outlives the run.
+"""
 
 
 async def already_done(
@@ -410,68 +423,6 @@ async def by_what_the_page_called(
     return None
 
 
-K_IDENTIFIES = ("id", "code", "name", "number", "key")
-"""Which fields of a create's answer say WHICH record it made.
-
-Read by suffix and case-insensitively, because a warehouse names them its own
-way: `equipmentTypeId`, `workAreaCode`, `supplierNumber`. Nothing else of the
-body is kept -- a created record's answer is a row of somebody's data, and what
-a person needs in order to go and look at it is what it is called."""
-
-K_NAMED = 6
-"""How many of those fields are kept. A record is identified by one or two of
-them; a body with a dozen matching names is a list, not a record."""
-
-
-def made_by(call: Mapping[str, object]) -> dict[str, str]:
-    """What the warehouse called the record this create made.
-
-    A run that made three records has to be able to say which three, or nobody
-    can go and look at them -- and an undo, the day the evidence for one
-    exists, has to address them by whatever the system called them.
-
-    Never the whole body. A create's answer is a row of a customer's data, and
-    this is stored on the run for as long as the tenant keeps it: what is kept
-    is the handful of fields that NAME the row, and only where their values are
-    short enough to be an identifier rather than a paragraph.
-    """
-    text = call.get("body")
-    if not isinstance(text, str) or not text.strip():
-        return {}
-    try:
-        parsed = json.loads(text)
-    except ValueError:
-        return {}
-    if not isinstance(parsed, dict):
-        return {}
-    # The envelope, before the record. Blue Yonder answers a create with
-    # `{"@type": "ResponseBodyWrapper", "data": {…}}` -- 112 of the 114
-    # successful writes in `knowledge-base/http/exchanges/*.jsonl`, and the live
-    # deployment's own create of `GGD` is one of them. Read at the top level
-    # that is `@type`, which names nothing, and `data`, which is a dict and
-    # skipped: every real create would have said it made nothing at all.
-    #
-    # A `data` holding a LIST is left alone. That is `waves.jsonl`, the two
-    # exceptions, and a list is not a record for the same reason `K_NAMED`
-    # stops at a handful -- a body with a dozen identifying names is a
-    # collection, and naming it as one row would be a lie on the run.
-    inner = parsed.get("data")
-    if isinstance(inner, dict):
-        parsed = inner
-    named: dict[str, str] = {}
-    for key, value in parsed.items():
-        if not isinstance(key, str) or not isinstance(value, str | int):
-            continue
-        if not key.lower().endswith(K_IDENTIFIES):
-            continue
-        said = str(value).strip()
-        if said and len(said) <= 64:
-            named[key] = said
-        if len(named) == K_NAMED:
-            break
-    return named
-
-
 def _named(record: Mapping[str, object] | None, wanted: Mapping[str, str]) -> dict[str, str]:
     """The slots this run filled, as the warehouse now holds them.
 
@@ -588,10 +539,20 @@ async def verify(
             found = record_carrying(body, confirm) if rewrote else None
             shown = found is not None if rewrote else mentions(body, values)
             if shown:
+                # Held on ANY value coming back, and specific about the ones
+                # that did not. See `unreturned`: a warehouse that silently
+                # shortens a field answers exactly like one that stored it, and
+                # every belt in this chain compares the record to itself.
+                missing_back = unreturned(body, values)
                 return StepVerdict(
                     "held",
                     "read",
-                    f"a read of {probe.url} shows the value this run supplied",
+                    f"a read of {probe.url} shows the value this run supplied"
+                    + (
+                        f" — and does not show what was sent for {', '.join(missing_back)}"
+                        if missing_back
+                        else ""
+                    ),
                     # What the warehouse called the record this step made, off
                     # the read-back rather than off the create's own answer.
                     #
@@ -629,6 +590,13 @@ async def verify(
             )
 
     # 3. Visible state: last, and least.
+    #
+    # A step that changes nothing by itself -- no write in its own evidence, no
+    # value put anywhere. What a picture can settle about such a step is not
+    # what it was FOR; see `WAY_THROUGH_INSTRUCTIONS`.
+    changes_nothing = not writes(step, by_id) and not any(
+        gesture.action.kind in _PUTS_A_VALUE for gesture in cited
+    )
     if look_after.screenshot is None:
         # Nothing to see, and for some steps nothing to have seen. A step whose
         # own evidence carries no write and no typing changed nothing: it
@@ -656,20 +624,24 @@ async def verify(
         # it, or a re-mine took the evidence with it -- is the second, and it
         # stays `unclear`. What this rung asserts is that the traffic WAS
         # watched and none of it on the page's own origin mutated anything.
-        if (
-            not writes(step, by_id)
-            and any(_was_watched(gesture) for gesture in cited)
-            and not any(gesture.action.kind in _PUTS_A_VALUE for gesture in cited)
-        ):
+        if changes_nothing and any(_was_watched(gesture) for gesture in cited):
             return StepVerdict(
                 "held",
                 "performed",
                 "this step changes nothing, and the browser performed it",
             )
+        # With the browser's own words for why there was no screen, where it
+        # gave any. A step that types a value has no status and nothing to read
+        # back -- the screen is its only belt -- so "no screen to look at" is
+        # the whole difference between a step that worked and a step recorded
+        # as `unclear`. Measured on the deployment, 2026-09-17 at 17:05: the
+        # value WAS typed (`ok: true, matched_by: component`) and the run
+        # collapsed the form anyway, saying four words about it.
         return StepVerdict(
             "unclear",
             "none",
-            "nothing returned a status, nothing to read, and no screen to look at",
+            "nothing returned a status, nothing to read, and no screen to look at"
+            + (f": {look_after.refused}" if look_after.refused else ""),
         )
     evidence = json.dumps(
         {
@@ -690,7 +662,7 @@ async def verify(
     )
     judged = await asker.ask(
         model=model,
-        instructions=SCREEN_INSTRUCTIONS,
+        instructions=WAY_THROUGH_INSTRUCTIONS if changes_nothing else SCREEN_INSTRUCTIONS,
         evidence=evidence,
         schema=SCREEN_SCHEMA,
         image=look_after.screenshot,
@@ -700,6 +672,26 @@ async def verify(
             "unclear", "screen", judged.error or "the model returned nothing", judged
         )
     held = bool(judged.data.get("held"))
+    why = str(judged.data.get("why") or "")
+    if held:
+        return StepVerdict("held", "screen", why, judged)
+    # The screen's OWN words beside the model's account of them.
+    #
+    # Measured on the deployment, 2026-09-17 at 23:05: `run_21b92747` filled
+    # the form on the page -- four steps held by the recorded locator -- and
+    # the Save was refused with "An exception dialog appeared and the record
+    # has not been created". True, and a paraphrase: the model had the picture
+    # and the screen text in front of it and the run kept one sentence of
+    # prose. Whether that dialog said a field was too long, a session had
+    # expired, or a code was already taken is the whole question, and it was
+    # thrown away.
+    #
+    # Only on a failure. A step that held needs no evidence beyond holding, and
+    # a digest on every step would be a run record made mostly of screens.
+    said = " ".join(look_after.digest.split())[:K_SCREEN_SAID]
     return StepVerdict(
-        "held" if held else "failed", "screen", str(judged.data.get("why") or ""), judged
+        "failed",
+        "screen",
+        f"{why} — the screen said: {said}" if said else why,
+        judged,
     )

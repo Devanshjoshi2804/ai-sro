@@ -4,6 +4,7 @@ from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.observation.identity import (
     K_MIN_SHARED_STEPS,
     K_SAME_JOB,
+    named_alike,
     resolve,
     screen_of,
     shape_key,
@@ -486,3 +487,72 @@ def test_a_page_with_no_route_in_it_is_still_a_screen() -> None:
     plain = _on("https://mail.google.com/mail/u/0/?tab=rm&ogbl#sent")
 
     assert screen_of(plain) == "https://mail.google.com/mail/u/0"
+
+
+# -- two jobs on one screen, told apart by nothing but their names ------------
+#
+# Measured on the deployment 2026-09-21, one pass:
+#
+#     Send Email:    recognised as a job already stored -- wfl_207e… at 1.00
+#     Forward Email: recognised as a job already stored -- wfl_207e… at 1.00
+#
+# `wfl_207e…` is `Reply to Email`. No threshold could have saved this: the
+# shapes really were indistinguishable, they happen on one screen so the
+# screen rule cannot help, and `anon` must keep aliasing or one job recorded
+# twice splits in two. The name is what was left.
+
+
+MAILBOX = "https://mail.google.com/mail/u/0"
+SEND = [MAILBOX, "button|Send ‪(⌘Enter)‬", "click"]
+
+
+def test_forwarding_is_not_replying_however_alike_the_clicks_are() -> None:
+    reply = _workflow(
+        ["g1", "g2"],
+        [[MAILBOX, "textbox|Describe your message", "click"], SEND],
+        id="wfl_reply",
+        title="Reply to Email",
+    )
+    forward = _workflow(
+        ["g3", "g4"],
+        [[MAILBOX, "anon|click", "click"], SEND],
+        id="wfl_forward",
+        title="Forward Email",
+    )
+
+    assert resolve(forward, [reply]).kind == "new"
+
+
+def test_one_job_the_model_phrased_twice_is_still_one_job() -> None:
+    """The other direction, and the reason this is a veto rather than a rule
+    of its own: a model does not phrase things identically twice, and a name
+    that had to match exactly would split every job it renamed."""
+    stored = _workflow(["g1", "g2"], SHAPE, id="wfl_a", title="Create a Customer Type")
+    again = _workflow(["g3", "g4"], SHAPE, id="wfl_b", title="Create Customer Type")
+
+    assert resolve(again, [stored]).kind == "same_job"
+
+
+def test_a_job_with_no_name_is_not_kept_apart_by_one() -> None:
+    """A name this cannot read is not evidence of difference. The shape still
+    decides; this only ever blocks."""
+    stored = _workflow(["g1", "g2"], SHAPE, id="wfl_a", title="Create a Customer Type")
+    nameless = _workflow(["g3", "g4"], SHAPE, id="wfl_b", title="")
+
+    assert resolve(nameless, [stored]).kind == "same_job"
+
+
+def test_the_same_evidence_read_twice_is_the_same_evidence_whatever_it_is_called() -> None:
+    """The occurrence question is about ids, not about names, and a pass that
+    re-read one window must not be made to pay for it twice because a model
+    worded the title differently."""
+    stored = _workflow(["g1", "g2"], SHAPE, id="wfl_a", title="Reply to Email")
+    same = _workflow(["g1", "g2"], SHAPE, id="wfl_b", title="Forward Email")
+
+    assert resolve(same, [stored]).kind == "same_occurrence"
+
+
+def test_the_words_that_say_nothing_are_not_what_makes_two_names_alike() -> None:
+    assert named_alike("Reply to Email", "Forward Email") is False
+    assert named_alike("Create a Customer Type", "Create Customer Type") is True
+    assert named_alike("Send Email", "Reply to Email") is False

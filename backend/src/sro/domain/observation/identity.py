@@ -125,6 +125,69 @@ def shape_key(gestures: list[Gesture]) -> ShapeKey:
     )
 
 
+K_SAME_NAME = 0.5
+"""How alike two jobs' names must be before a shape may call them one job.
+
+**A veto, never a join.** The shape decides what is the same; this can only
+keep two things apart. The model's own `same_as` decides nothing here and
+still does not -- nothing is asked to re-judge anything. What is compared is
+the names it already gave two pieces of work, and only to stop a merge.
+
+Why it has to exist. Measured on the deployment 2026-09-21, one pass:
+
+    Send Email:    recognised as a job already stored -- wfl_207e… at 1.00
+    Forward Email: recognised as a job already stored -- wfl_207e… at 1.00
+
+`wfl_207e…` is `Reply to Email`. Three different tasks, one stored job, full
+confidence -- and no threshold could have saved it, because the shapes really
+were indistinguishable:
+
+    Reply to Email    [textbox|Describe your message, click]
+                      [button|Send ⌘Enter,            click]
+    Forward Email     [anon|click,                    click]
+                      [button|Send ⌘Enter,            click]
+
+They happen on one screen, so the screen rule cannot separate them. `anon`
+aliases onto any named click of the same kind, which it must -- whether a
+recording could name a control is a property of that recording and not of the
+job, and without the alias one job recorded twice splits in two (2026-09-19,
+the same mailbox). So the anon click matches the textbox, `Send` matches
+`Send`, and a two-entry shape is 2/2 contained by another. There is nothing
+left in the evidence that says `Forward` rather than `Reply`.
+
+Except the name. `reply to email` against `forward email` shares one word in
+four; `create a customer type` against `create customer type` shares three in
+four, which is the same job named twice by a model that does not phrase things
+identically. Half is between them, and comfortably.
+"""
+
+NOT_A_NAME = frozenset({"a", "an", "the", "to", "for", "of", "in", "on", "and"})
+"""Words that say nothing about which job this is."""
+
+
+def _as_words(title: str) -> frozenset[str]:
+    return frozenset(
+        word
+        for word in "".join(
+            char if char.isalnum() or char.isspace() else " " for char in title.lower()
+        ).split()
+        if word not in NOT_A_NAME
+    )
+
+
+def named_alike(mine: str, theirs: str) -> bool:
+    """Whether these two names could be the same job's.
+
+    Generous on purpose, because it is a veto: a name this cannot read -- an
+    empty one, a job proposed with no title -- is not evidence of difference,
+    so it does not block anything.
+    """
+    ours, others = _as_words(mine), _as_words(theirs)
+    if not ours or not others:
+        return True
+    return len(ours & others) / len(ours | others) >= K_SAME_NAME
+
+
 def containment(a: AbstractSet[object], b: AbstractSet[object]) -> float:
     """|a ∩ b| / min(|a|, |b|).
 
@@ -323,7 +386,16 @@ def resolve(proposal: Workflow, known: list[Workflow]) -> Resolution:
         # every distinct step this proposal has already exists in that job, so
         # it is a fragment of it rather than a new job.
         whole = matched >= K_MIN_SHARED_STEPS or matched == len(shape)
-        if score >= K_SAME_JOB and whole and score > best_score:
+        # And the name, which can only keep them apart. Two jobs on one screen
+        # whose shapes are equally generic -- a mailbox's `Reply`, `Forward`
+        # and `Send` -- have nothing else left to be told apart by. See
+        # `K_SAME_NAME`.
+        if (
+            score >= K_SAME_JOB
+            and whole
+            and score > best_score
+            and named_alike(proposal.title, other.title)
+        ):
             best, best_score, best_contains = other, score, len(shape) > len(theirs)
     if best is not None:
         return Resolution("same_job", best.id, best_score, contains=best_contains)

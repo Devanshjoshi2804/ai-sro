@@ -2432,6 +2432,17 @@ async function handle(message, sender) {
       return lookInTheMail();
     case "thread-say": {
       const said = await api.say(message.threadId, message.text);
+      // What the thread is waiting on NOW, off the reply that just changed it.
+      //
+      // `lookForAQuestion` is the only other writer and it runs on the minute
+      // beat, so until this line the panel drew the old question for up to a
+      // minute after it stopped standing. Measured on the deployment
+      // 2026-09-22 at 01:24: the operator typed `no`, the door answered
+      // "Dropped Create a Customer Type", and the question they had just
+      // dropped was still sitting under it -- a job that no longer existed
+      // asking for a value. The reply already carries the whole thread, so
+      // this costs no request.
+      await holdTheQuestion(said);
       // The reply already read the sentence against this tenant's jobs, so the
       // offer is built from what came back rather than from a second reading
       // of the same words. That second reading was a second model call per
@@ -3217,14 +3228,21 @@ async function register(label) {
  * a browser that cannot reach the backend has nothing to say about questions,
  * and a banner drawn from a stale read would be worse than none.
  */
+/** Hold what this thread is waiting on, or nothing.
+ *
+ * Written only when it changes, because every write wakes the panel's storage
+ * listener and redraws the column.
+ */
+async function holdTheQuestion(thread) {
+  const waiting = questionIn(thread);
+  const held = await state.question();
+  if ((held?.id || null) !== (waiting?.id || null)) await state.setQuestion(waiting);
+  return waiting;
+}
+
 async function lookForAQuestion() {
   try {
-    const waiting = questionIn(await api.currentThread());
-    const held = await state.question();
-    // Written only when it changes, because every write wakes the panel's
-    // storage listener and redraws the column.
-    if ((held?.id || null) !== (waiting?.id || null))
-      await state.setQuestion(waiting);
+    await holdTheQuestion(await api.currentThread());
   } catch {
     // Offline, or a backend that has no threads. Leave whatever is held: a
     // question does not stop waiting because a poll failed.

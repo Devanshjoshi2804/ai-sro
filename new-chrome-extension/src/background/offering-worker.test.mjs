@@ -2893,3 +2893,77 @@ test("what this browser does while performing a run is not evidence of anybody w
   assert.equal(await queued(), 0, "a run recorded its own driving as evidence");
   abort("run-driving");
 });
+
+test("a question that has stopped standing is put down as soon as the reply says so", async () => {
+  // Measured on the deployment 2026-09-22 at 01:24. The operator was four
+  // answers into `Create a Customer Type`, could not supply Manufacturer, and
+  // typed `no`. The door dropped the job and said so -- and the question they
+  // had just dropped went on sitting under that sentence, a job that no longer
+  // existed asking for a value.
+  //
+  // `lookForAQuestion` is the only other writer of this key and it runs on the
+  // minute beat, so the stale card had up to a minute to be read as live. The
+  // reply to the sentence already carries the whole thread.
+  ready();
+  held.set("sro.question", {
+    id: "m_asked",
+    text: "Manufacturer takes 10 characters. What should it be?",
+    title: "Create a Customer Type",
+    workflowId: "wfl_ct",
+    missing: ["Manufacturer"],
+    at: "2026-09-22T01:23:00Z",
+  });
+  chatRead = null;
+  threadSaid = {
+    id: "thr-1",
+    messages: [
+      {
+        id: "m_asked",
+        speaker: "assistant",
+        text: "Manufacturer takes 10 characters. What should it be?",
+        said_at: "2026-09-22T01:23:00Z",
+        decision: { kind: "needs_values", workflow_id: "wfl_ct", missing: ["Manufacturer"] },
+      },
+      { id: "m_no", speaker: "operator", text: "no", said_at: "2026-09-22T01:24:00Z" },
+      {
+        id: "m_dropped",
+        speaker: "assistant",
+        text: "Dropped Create a Customer Type.",
+        said_at: "2026-09-22T01:24:01Z",
+        decision: { kind: "note" },
+      },
+    ],
+  };
+
+  await send({ kind: "thread-say", threadId: "thr-1", text: "no", tabId: TAB });
+
+  assert.equal(
+    held.get("sro.question") ?? null,
+    null,
+    "the panel went on drawing a question for a job that had been dropped",
+  );
+  threadSaid = null;
+});
+
+test("a question the reply still holds is put where the panel draws it", async () => {
+  // The half that keeps this a hold rather than a clear: it must not put the
+  // question down every time somebody types. An answer that did not settle it
+  // leaves it standing, and the reply is where that is known -- a minute
+  // before the beat would otherwise find out.
+  ready();
+  chatRead = null;
+  const asking = {
+    id: "m_again",
+    speaker: "assistant",
+    text: "I am still waiting on this one. Manufacturer takes 10 characters.",
+    said_at: "2026-09-22T01:24:00Z",
+    decision: { kind: "needs_values", workflow_id: "wfl_ct", missing: ["Manufacturer"] },
+  };
+  threadSaid = { id: "thr-1", messages: [asking] };
+
+  await send({ kind: "thread-say", threadId: "thr-1", text: "i dont have one", tabId: TAB });
+
+  assert.equal(held.get("sro.question")?.workflowId, "wfl_ct");
+  assert.deepEqual(held.get("sro.question")?.missing, ["Manufacturer"]);
+  threadSaid = null;
+});

@@ -78,7 +78,7 @@ async def test_the_demonstrated_endpoint_answering_as_it_did_holds_the_step() ->
 async def test_an_id_in_the_path_is_not_a_mismatch() -> None:
     """Matched by path SHAPE. This run's call carries a different id from the
     one the demonstration made, and a matcher comparing urls would send every
-    such step to the screen. An id is a segment of digits -- `_looks_like_an_id`
+    such step to the screen. An id is a segment of digits -- `looks_like_an_id`
     deliberately does not star `order-status`, which is a route word."""
     verdict = await _asked(
         _answered([{"method": "POST", "url": f"{ENDPOINT}/9001", "status": 201}]),

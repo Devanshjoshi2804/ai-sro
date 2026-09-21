@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sro.application.observation.mining_pass import mine
 from sro.domain.execution.belts import RunProof, earned_from
 from sro.domain.execution.learned_step import LearnedStep
+from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
 from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.errors import Conflict, NotFound
@@ -375,6 +376,62 @@ class TestEffects:
         async with SqlUnitOfWork(session_factory) as uow:
             assert await uow.workflows.forget_effects(workflow.id) == 0
             await uow.commit()
+
+    async def test_a_deployment_learns_the_endpoint_it_watched_succeed(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The other ledger, and the one a tenant can add to.
+
+        `knowledge-base/index/write-endpoints.json` is a research project's
+        file edited by hand between sessions, so a deployment that had watched
+        its own write succeed could not say so -- and `plan_step` went on
+        refusing to replay it. Against real Postgres because the gate and the
+        idempotence both live in the statement.
+        """
+        async with SqlUnitOfWork(session_factory) as uow:
+            for run in ("run_1", "run_2"):
+                await uow.workflows.remember_write(
+                    TenantId("acme"),
+                    method="delete",
+                    path_pattern="/data/WM/wm/customerTypes/{id}",
+                    origin="https://wms.example",
+                    run_id=run,
+                    workflow_id="wfl_1",
+                    verified_by="status",
+                    at="2026-09-21T10:00:00+00:00",
+                )
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            learnt = await uow.workflows.learned_writes(TenantId("acme"))
+            # Upper-cased on the way in, because the ledger matches that way.
+            assert learnt == (
+                VerifiedWrite(method="DELETE", path_pattern="/data/WM/wm/customerTypes/{id}"),
+            ), "one endpoint proved twice is one row"
+            assert await uow.workflows.learned_writes(TenantId("someone-else")) == ()
+
+    async def test_a_picture_never_earns_an_endpoint_in_the_store(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The gate is kept by the statement, not by the caller -- and this is
+        the half a fake cannot prove, because the fake keeps its own copy of
+        it. Removing the gate from the repository left every unit test green.
+        """
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.remember_write(
+                TenantId("acme"),
+                method="POST",
+                path_pattern="/data/WM/wm/customerTypes",
+                origin="https://wms.example",
+                run_id="run_1",
+                workflow_id="wfl_1",
+                verified_by="screen",
+                at="2026-09-21T10:00:00+00:00",
+            )
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.workflows.learned_writes(TenantId("acme")) == ()
 
     async def test_a_failed_write_forgets_every_effect_the_workflow_had(
         self, session_factory: async_sessionmaker[AsyncSession]

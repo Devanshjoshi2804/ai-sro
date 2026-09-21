@@ -538,6 +538,14 @@ class StartWorkflowRun:
             async with self._uow as uow:
                 workflow = await uow.workflows.get(ctx.tenant_id, run.workflow_id)
                 title = workflow.title
+                # The hand-kept ledger, and what this deployment has watched
+                # for itself. Two sources for one gate: the file is a research
+                # project's and a tenant cannot add to it, so without the
+                # second a job whose write this system had confirmed eight
+                # times still clicked Save the ninth. Read per run rather than
+                # cached with the file: it grows while the process is up, and
+                # the run that grows it is usually the one before this.
+                learned = await uow.workflows.learned_writes(ctx.tenant_id)
                 done = await run_workflow(
                     uow,
                     workflow,
@@ -561,7 +569,7 @@ class StartWorkflowRun:
                     run_id=run.id,
                     from_step=run.from_step,
                     items=run.items,
-                    verified_writes=self._verified_writes,
+                    verified_writes=self._verified_writes + learned,
                     secret_for=self._secret_for,
                     known_fields=None if self._retrieve is None else self._known_fields(ctx),
                     gather_values=(

@@ -37,6 +37,7 @@ from sro.application.execution.effects import (
     forget_effects,
     record_effect,
 )
+from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.shared.identifiers import TenantId
 from tests.unit.fakes import FakeWorkflowRepository, FakeWorkflowRunRepository
@@ -101,13 +102,14 @@ def _run(
     outcome: str = "held",
     tenant: str = "acme",
     workflow_id: str = _WORKFLOW,
+    values: dict[str, str] | None = None,
 ) -> WorkflowRun:
     return WorkflowRun(
         id=run_id,
         tenant=tenant,
         workflow_id=workflow_id,
         device_id="dev_test",
-        values={},
+        values=dict(values or {}),
         started_by="offer",
         live=live,
         allow_focus=True,
@@ -555,3 +557,75 @@ def test_a_run_that_held_has_nothing_to_try_again() -> None:
 
 def test_a_run_still_going_is_not_pressable_either() -> None:
     assert can_try_again(_run("run_5", [_wrote()], outcome="running")) is False
+
+
+# -- and that the ENDPOINT can be sent, which is a different fact -------------
+#
+# An effect is about one write of one run of one job. Whether the next run may
+# SEND the call instead of clicking Save is about the `(method, path)` itself,
+# and the only ledger for that was a research project's hand-kept JSON. So a
+# deployment that had watched its own write succeed could not say so:
+# `Delete a Customer Type` ran eight times here, each confirmed by a
+# read-back, and the ninth run still clicked. Measured 2026-09-21.
+
+
+def _sent_a_call(
+    order: int = 1, *, verdict: str = "held", by: str = "status", url: str = ""
+) -> RunStep:
+    """A step whose send WAS the call, which is what can be learnt from."""
+    step = _wrote(order, verdict=verdict, by=by)
+    step.sent = {
+        "kind": "http.send",
+        "payload": {
+            "method": "DELETE",
+            "url": url or "https://wms.example/data/WM/wm/customerTypes/GZ5",
+        },
+    }
+    return step
+
+
+async def test_a_write_this_deployment_watched_may_be_replayed_next_time() -> None:
+    workflows, runs = _store()
+
+    await _ran(workflows, runs, _run("run_1", [_sent_a_call()], values={"Customer Type": "GZ5"}))
+
+    assert await workflows.learned_writes(_TENANT) == (
+        VerifiedWrite(method="DELETE", path_pattern="/data/WM/wm/customerTypes/{id}"),
+    )
+
+
+async def test_a_picture_never_earns_an_endpoint() -> None:
+    """The same gate the effect keeps, and the reason it is kept in the store
+    rather than at the caller: a model reading a screenshot is not evidence
+    that an endpoint works, and this one licenses sending without a click."""
+    workflows, runs = _store()
+
+    await _ran(
+        workflows,
+        runs,
+        _run("run_1", [_sent_a_call(by="screen")], values={"Customer Type": "GZ5"}),
+    )
+
+    assert await workflows.learned_writes(_TENANT) == ()
+
+
+async def test_a_dry_run_earns_no_endpoint_because_it_sent_nothing() -> None:
+    workflows, runs = _store()
+
+    await _ran(
+        workflows,
+        runs,
+        _run("run_1", [_sent_a_call()], live=False, values={"Customer Type": "GZ5"}),
+    )
+
+    assert await workflows.learned_writes(_TENANT) == ()
+
+
+async def test_one_tenant_does_not_earn_an_endpoint_for_another() -> None:
+    """A write verified against one customer's system is not verified against
+    another's, whatever the path looks like."""
+    workflows, runs = _store()
+
+    await _ran(workflows, runs, _run("run_1", [_sent_a_call()], values={"Customer Type": "GZ5"}))
+
+    assert await workflows.learned_writes(TenantId("someone-else")) == ()

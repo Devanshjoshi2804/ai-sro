@@ -1199,6 +1199,38 @@ class WorkflowLearnedHistoryRow(Base):
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class LearnedWriteRow(Base):
+    """A write this deployment has watched succeed, and may now replay.
+
+    `knowledge-base/index/write-endpoints.json` is the other ledger, and it is
+    a research project's hand-kept file: a deployment could not add to it, so
+    a job whose write it had confirmed eight times still clicked Save the
+    ninth. This is what the deployment learnt for itself, under the same bar
+    the file claims -- the call went out live, the step held, and the verdict
+    came from a state belt rather than from a model reading a picture.
+
+    Keyed by tenant, because a write verified against one customer's system is
+    not verified against another's. `origin` is kept beside the pattern rather
+    than in the key: the ledger's match is on `(method, path)` and a second
+    system serving the same path is the case a tenant scope already answers.
+    """
+
+    __tablename__ = "learned_writes"
+
+    tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    method: Mapped[str] = mapped_column(String(16), primary_key=True)
+    path_pattern: Mapped[str] = mapped_column(Text, primary_key=True)
+
+    origin: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    proved_by_run: Mapped[str] = mapped_column(String(64), nullable=False)
+    workflow_id: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    verified_by: Mapped[str] = mapped_column(String(16), nullable=False)
+    """`status` or `read` -- which state belt saw it. A picture is not an
+    effect and never reaches here; see `state_verified`."""
+
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class WorkflowEffectRow(Base):
     """One write a live run made and the verifier then saw hold by STATE -- a
     status the server answered, or a read that showed the record.

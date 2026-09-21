@@ -1,6 +1,10 @@
 """`verified_write_for` -- membership in the ledger, not resemblance to it."""
 
-from sro.domain.execution.verified_writes import VerifiedWrite, verified_write_for
+from sro.domain.execution.verified_writes import (
+    VerifiedWrite,
+    learned_pattern,
+    verified_write_for,
+)
 from sro.domain.observation.gesture import Call
 
 LEDGER = (
@@ -110,3 +114,72 @@ def test_a_templated_segment_matches_the_one_segment_it_stands_for() -> None:
     call = _call("PUT", "https://wms.example/data/WM/wm/addresses/17")
 
     assert verified_write_for(call, LEDGER) is LEDGER[1]
+
+
+# -- what a deployment learns for itself --------------------------------------
+#
+# `knowledge-base/index/write-endpoints.json` is a research project's file,
+# edited by hand between sessions, and a deployment could not add to it. So a
+# job whose write this system had watched succeed eight times -- each one
+# confirmed by a read-back -- still clicked Save the ninth time. Measured on
+# the deployment 2026-09-21: 26 steps planned from evidence against 162
+# planned by a model.
+
+
+def test_the_segment_this_run_typed_is_the_identifier() -> None:
+    """Known, not guessed. The run typed GZ5 into Customer Type and the path
+    ends `/customerTypes/GZ5`, so that segment is the id -- and `GZ5` is three
+    characters with no digits, which no shape heuristic would ever star."""
+    pattern = learned_pattern(
+        "https://wms.example/data/WM/wm/customerTypes/GZ5?siteId=SG",
+        {"Customer Type": "GZ5", "Description": "leaning new type"},
+    )
+
+    assert pattern == "/data/WM/wm/customerTypes/{id}"
+
+
+def test_a_row_id_nobody_typed_is_still_an_identifier() -> None:
+    """The second source, for ids no value names."""
+    assert (
+        learned_pattern("https://wms.example/data/WM/wm/addresses/1183", {})
+        == "/data/WM/wm/addresses/{id}"
+    )
+
+
+def test_everything_else_stays_literal() -> None:
+    """The ledger's own rule: never by assuming a documented-looking path
+    behaves like a tested one. A pattern wider than the evidence is a licence
+    to send a call nobody watched."""
+    # A short value collides with route words. With `Department: wm` this
+    # produced `/data/{id}/{id}/customerTypes`, which matches paths nobody has
+    # ever watched. Only the last segment may be named by a value.
+    assert (
+        learned_pattern("https://wms.example/data/WM/wm/customerTypes", {"x": "wm"})
+        == "/data/WM/wm/customerTypes"
+    )
+    assert (
+        learned_pattern("https://wms.example/data/WM/wm/customerTypes/wm", {"x": "wm"})
+        == "/data/WM/wm/customerTypes/{id}"
+    ), "the identifier really is the last segment"
+    assert (
+        learned_pattern("https://wms.example/data/WM/wm/customerTypes", {})
+        == "/data/WM/wm/customerTypes"
+    )
+
+
+def test_what_a_deployment_learnt_is_matched_the_same_way_the_file_is() -> None:
+    """One vocabulary. The learned pattern goes through `verified_write_for`
+    beside the file's entries, so a pattern that did not match the matcher
+    would be a ledger entry that never fires."""
+    learnt = VerifiedWrite(
+        method="DELETE",
+        path_pattern=learned_pattern(
+            "https://wms.example/data/WM/wm/customerTypes/GZ5", {"Customer Type": "GZ5"}
+        ),
+    )
+
+    found = verified_write_for(
+        _call("DELETE", "https://wms.example/data/WM/wm/customerTypes/WDSL"), (learnt,)
+    )
+
+    assert found is learnt, "the next value was not covered by what was learnt"

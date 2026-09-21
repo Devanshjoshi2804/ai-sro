@@ -48,10 +48,10 @@ def thin(target: Target | None) -> bool:
 def path_shape(url: str) -> str:
     """/data/WM/wm/addresses/1183 -> /data/WM/wm/addresses/*"""
     parts = urlparse(url).path.split("/")
-    return "/".join("*" if _looks_like_an_id(part) else part for part in parts)
+    return "/".join("*" if looks_like_an_id(part) else part for part in parts)
 
 
-def _looks_like_an_id(part: str) -> bool:
+def looks_like_an_id(part: str) -> bool:
     """Digits are what make a segment an id, not hyphens and length.
 
     The rule this replaced starred any long hyphenated segment, which erased

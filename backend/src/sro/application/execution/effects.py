@@ -26,7 +26,9 @@ from __future__ import annotations
 
 from sro.application.ports.repositories import WorkflowRepository
 from sro.domain.execution.belts import earned_from
+from sro.domain.execution.verified_writes import learned_pattern
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.shared.hosts import origin_of
 from sro.domain.shared.identifiers import TenantId
 
 K_UNEARNING = ("failed", "unclear")
@@ -67,6 +69,52 @@ async def record_effect(
         run.workflow_id,
         run_id=run.id,
         ord_=step.order,
+        verified_by=step.verdict_by,
+        at=at,
+    )
+    await _remember_the_write(workflows, run, step, at=at)
+
+
+async def _remember_the_write(
+    workflows: WorkflowRepository, run: WorkflowRun, step: RunStep, *, at: str
+) -> None:
+    """And that this ENDPOINT can be sent, which is a different fact.
+
+    An effect is about one write of one run of one job. This is about the
+    `(method, path)` itself, and it is what decides whether the next run of
+    any job may send the call instead of clicking Save -- `plan_step` refuses
+    unless the endpoint is in a ledger, and the only ledger was
+    `knowledge-base/index/write-endpoints.json`, a research project's file
+    edited by hand between sessions. So a deployment that had watched its own
+    write succeed could not say so: `Delete a Customer Type` ran eight times
+    here, each confirmed by a read-back, and the ninth run still clicked.
+
+    Measured 2026-09-21 on this deployment: 26 steps planned from evidence
+    against 162 planned by a model, and a run whose write replays as a call
+    performs 0.7 clicks against 1.5 while skipping 4.1 steps of scaffolding.
+    The gate was not the mechanism. It was that nothing could widen it.
+
+    The same four gates as the effect above, because this is the same moment
+    -- and the bar is the one the file itself claims: somebody watched this
+    endpoint succeed and confirmed it on the state, not in a picture.
+    """
+    call = (step.sent or {}).get("payload")
+    url = str(call.get("url", "")) if isinstance(call, dict) else ""
+    method = str(call.get("method", "")) if isinstance(call, dict) else ""
+    if not url or not method:
+        # A step whose send carried no call is a click, and what the click
+        # made is knowable only through `calls.since` -- which the verifier
+        # asks and does not keep. Left for that seam rather than guessed at
+        # here: a pattern learnt from the wrong call is a licence to send one
+        # nobody watched.
+        return
+    await workflows.remember_write(
+        TenantId(run.tenant),
+        method=method,
+        path_pattern=learned_pattern(url, run.values),
+        origin=origin_of(url),
+        run_id=run.id,
+        workflow_id=run.workflow_id,
         verified_by=step.verdict_by,
         at=at,
     )

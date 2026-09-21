@@ -18,6 +18,7 @@ from sro.domain.execution.belts import RunProof
 from sro.domain.execution.learned_step import LearnedStep, Taught
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
+from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel, KnowledgeEntry
 from sro.domain.observation.attempts import Attempt
@@ -1053,6 +1054,31 @@ class WorkflowRepository(Protocol):
 
     async def stale_count(self, workflow_id: str) -> int:
         """How many of this job's steps are about to break."""
+        ...
+
+    async def remember_write(
+        self,
+        tenant_id: TenantId,
+        *,
+        method: str,
+        path_pattern: str,
+        origin: str,
+        run_id: str,
+        workflow_id: str,
+        verified_by: str,
+        at: str,
+    ) -> None:
+        """This deployment watched this write succeed; it may now be replayed.
+
+        The same bar `record_effect` keeps, because it is called from the same
+        moment: live, held, wrote, and verified by a state belt. Idempotent --
+        a job that proves the same endpoint every week is one ledger entry.
+        """
+        ...
+
+    async def learned_writes(self, tenant_id: TenantId) -> tuple[VerifiedWrite, ...]:
+        """What this tenant has watched succeed, for the gate that decides
+        whether a step is replayed as a call or clicked."""
         ...
 
     async def record_effect(

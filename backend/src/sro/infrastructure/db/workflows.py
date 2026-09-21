@@ -42,6 +42,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sro.application.ports.repositories import WorkflowRepository
 from sro.domain.execution.belts import RunProof, state_verified
 from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
+from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.observation.identity import ShapeKey
 from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.errors import Conflict, NotFound
@@ -50,6 +51,7 @@ from sro.domain.skill.repeats import Repeat
 from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.db.codec import when
 from sro.infrastructure.db.models import (
+    LearnedWriteRow,
     MiningPassRow,
     WorkflowEffectRow,
     WorkflowLearnedHistoryRow,
@@ -477,6 +479,49 @@ class SqlWorkflowRepository(WorkflowRepository):
             .where(WorkflowStaleRow.workflow_id == workflow_id)
         )
         return int(found or 0)
+
+    async def remember_write(
+        self,
+        tenant_id: TenantId,
+        *,
+        method: str,
+        path_pattern: str,
+        origin: str,
+        run_id: str,
+        workflow_id: str,
+        verified_by: str,
+        at: str,
+    ) -> None:
+        # The same gate `record_effect` keeps, kept here for the same reason:
+        # once, by the repository, so no caller can forget it. A model reading
+        # a picture is not evidence that an endpoint works, and this is the
+        # fact that licenses sending one without a click.
+        if not state_verified(verified_by):
+            return
+        statement = pg_insert(LearnedWriteRow).values(
+            tenant_id=tenant_id.value,
+            method=method.upper(),
+            path_pattern=path_pattern,
+            origin=origin,
+            proved_by_run=run_id,
+            workflow_id=workflow_id,
+            verified_by=verified_by,
+            at=when(at),
+        )
+        # First proof wins and later ones change nothing. The row says which
+        # run first earned the endpoint, which is what somebody asking "why is
+        # this being sent without a click" needs in order to go and read it.
+        await self._session.execute(
+            statement.on_conflict_do_nothing(index_elements=["tenant_id", "method", "path_pattern"])
+        )
+
+    async def learned_writes(self, tenant_id: TenantId) -> tuple[VerifiedWrite, ...]:
+        rows = await self._session.execute(
+            select(LearnedWriteRow.method, LearnedWriteRow.path_pattern).where(
+                LearnedWriteRow.tenant_id == tenant_id.value
+            )
+        )
+        return tuple(VerifiedWrite(method=method, path_pattern=pattern) for method, pattern in rows)
 
     async def record_effect(
         self, workflow_id: str, *, run_id: str, ord_: int, verified_by: str, at: str

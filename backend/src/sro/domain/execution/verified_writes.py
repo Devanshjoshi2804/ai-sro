@@ -19,10 +19,12 @@ be clever about near misses.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from urllib.parse import unquote, urlsplit
 
 from sro.domain.observation.gesture import Call
+from sro.domain.observation.trim import looks_like_an_id
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +66,45 @@ def _matches_path(path: str, pattern: str) -> bool:
         (pattern_segment.startswith("{") and pattern_segment.endswith("}"))
         or pattern_segment == path_segment
         for path_segment, pattern_segment in zip(path_segments, pattern_segments, strict=True)
+    )
+
+
+def learned_pattern(url: str, values: Mapping[str, str]) -> str:
+    """The pattern to remember a write under, from a path this run just made.
+
+    A deployment that has watched its own write succeed knows something the
+    hand-kept ledger cannot: `Delete a Customer Type` had run eight times here
+    and the ninth run still clicked Save, because the only ledger is a JSON
+    file a human edits between sessions. What it watched is strictly better
+    evidence than what the file asserts -- the call went out, the server
+    answered, and a read-back confirmed the record.
+
+    **Which segment is the identifier is known, not guessed.** A run typed
+    `GZ5` into Customer Type and the path ends `/customerTypes/GZ5`, so that
+    segment is the id and the pattern is `/customerTypes/{id}` -- learnt from
+    what this run supplied rather than from what a segment looks like. The
+    shape heuristic (`path_shape`'s digits rule) is kept as the second source
+    for ids no value names: a numeric row id nobody typed is still an id.
+
+    Everything else stays literal. The ledger's own note is the rule here:
+    "never by assuming a documented-looking path behaves like a tested one".
+    A pattern wider than the evidence is a licence to send a call nobody
+    watched.
+    """
+    said = {value.strip().lower() for value in values.values() if value.strip()}
+    segments = _segments(urlsplit(url).path)
+    last = len(segments) - 1
+    return "/" + "/".join(
+        "{id}"
+        # The LAST segment only, for the value rule. A run value is any string
+        # somebody typed, and a short one collides with route words: with
+        # `Department: wm` a create became `/data/{id}/{id}/customerTypes`,
+        # which matches paths nobody has ever watched -- the exact licence
+        # this module's opening note refuses. A REST identifier is the last
+        # segment; the resource is not.
+        if (nth == last and segment.lower() in said) or looks_like_an_id(segment)
+        else segment
+        for nth, segment in enumerate(segments)
     )
 
 

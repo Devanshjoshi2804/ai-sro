@@ -79,6 +79,7 @@ from sro.domain.execution.belts import RunProof, state_verified
 from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
+from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
 from sro.domain.knowledge.entry import (
     EntryKind,
@@ -1939,6 +1940,9 @@ class FakeWorkflowRepository:
         # history nobody can rely on.
         self.taught: dict[str, list[Taught]] = {}
         self.effects: dict[tuple[str, str, int], tuple[str, str]] = {}
+        self.learned_write_rows: dict[tuple[str, str, str], dict[str, str]] = {}
+        """What this deployment has watched succeed and may now replay,
+        keyed as the store keys it: (tenant, method, path pattern)."""
         self.runs = runs if runs is not None else FakeWorkflowRunRepository()
         self._saved = count()
         self._created: dict[str, int] = {}
@@ -2036,6 +2040,35 @@ class FakeWorkflowRepository:
 
     async def stale_count(self, workflow_id: str) -> int:
         return sum(1 for workflow, _ in self.stale if workflow == workflow_id)
+
+    async def remember_write(
+        self,
+        tenant_id: TenantId,
+        *,
+        method: str,
+        path_pattern: str,
+        origin: str,
+        run_id: str,
+        workflow_id: str,
+        verified_by: str,
+        at: str,
+    ) -> None:
+        """The store's own gate, kept here too: a picture is not a proof that
+        an endpoint works, and a fake that let one through would make a test
+        pass on evidence the real one refuses."""
+        if not state_verified(verified_by):
+            return
+        self.learned_write_rows.setdefault(
+            (tenant_id.value, method.upper(), path_pattern),
+            {"run": run_id, "workflow": workflow_id, "by": verified_by, "at": at, "origin": origin},
+        )
+
+    async def learned_writes(self, tenant_id: TenantId) -> tuple[VerifiedWrite, ...]:
+        return tuple(
+            VerifiedWrite(method=method, path_pattern=pattern)
+            for (tenant, method, pattern) in self.learned_write_rows
+            if tenant == tenant_id.value
+        )
 
     async def record_effect(
         self, workflow_id: str, *, run_id: str, ord_: int, verified_by: str, at: str

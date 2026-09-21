@@ -470,6 +470,27 @@ class Settings(BaseSettings):
     exactly as it does today -- deliberately, for deployments that may not send
     a customer's screen or a customer's words to a hosted model."""
 
+    gemini_mine_timeout_ms: int = 600_000
+    """How long a MINING pass's model call may hang before it is abandoned.
+
+    Its own number, because `gemini_timeout_ms` below is not one call's
+    timeout -- it is every call's, and the two ends of this system differ by
+    four orders of magnitude. That one was chosen against "a slowest measured
+    call of ~11s", which was one gesture being READ. A mining pass sends
+    162,000 tokens and answers in minutes.
+
+    Measured on the deployed store, 2026-09-21: `gemini-3.1-pro-preview` took
+    107s, 135s and 217s over one corpus against a 120s limit, so it straddled
+    the cutoff and **two of five passes died on a coin flip**. The
+    deployment's own ledger carries 30 `ReadTimeout` rows, each recorded as $0
+    and 0 tokens -- the worst shape a failure can have: the request was
+    abandoned on this side rather than cancelled at Google, so it was very
+    probably billed and is certainly not in the total.
+
+    Ten minutes. Far past the slowest pass measured, and still short enough
+    that a dead socket costs one sweep rather than a night -- which is what
+    the paragraph below is about and why a timeout exists at all."""
+
     gemini_timeout_ms: int = 120_000
     """How long one model call may hang before it is abandoned.
 
@@ -631,18 +652,41 @@ class Settings(BaseSettings):
     what an operator will see for the life of the skill -- so this is the
     reasoning model. It cannot enable computer use, and does not need to."""
 
-    gemini_mine_model: str = "gemini-3.1-pro-preview"
+    gemini_mine_model: str = "gemini-3.8-flash"
     """The model one mining pass asks. The rig's `mine_model`
-    (`new_agent_arch/src/rig/config.py:20`), and the same string as
-    `gemini_interpreter_model` above by coincidence rather than by design --
-    they answer different questions and each is re-tunable without the other.
+    (`new_agent_arch/src/rig/config.py:20`) was `gemini-3.1-pro-preview`, and
+    this is the one of the three model names that is deliberately no longer
+    the rig's.
 
-    This model at `K_EFFORT="high"` is what spent $2.00 over a day of real
-    gestures and kept nothing. The run and all of its numbers are written down
-    once, beside the effort knob that fixed it, at `domain/skill/umbrella.py:23`
-    -- cited and not copied, because a measurement kept in two places is a
-    measurement that drifts, and only one of the two would be corrected. This
-    setting is the name; that constant is the reason it was affordable."""
+    **Measured, 2026-09-21, against pro on identical copies of the deployed
+    store** -- 904 gestures, the same 22 known workflows, the same
+    `K_EFFORT="medium"`, the same window budget:
+
+        pro    8 passes, 2 of 5 finished inside the shipped timeout,
+               107s / 135s / 217s, mean $0.493, 3-10 proposals
+        flash  5 passes, 5 of 5 finished, ~115s, mean $0.235, 9-12 proposals
+
+    and, on the number that decides it, **0 new jobs each**. Every proposal
+    from both resolved as a job already stored or the same evidence read
+    twice, because the store had converged.
+
+    So this is not "flash mines better"; nothing here shows that, and a
+    converged store cannot show it. It is the rule `gemini_rescue_model` below
+    already states -- the expensive model earns its price where depth per call
+    is the product -- applied to the call that is its opposite. A mining pass
+    is 162,000 input tokens, one shallow judgement, and then the nine rules in
+    `validate` that do the actual discrimination. The miner's job is recall;
+    recall is the cheaper thing to buy, and `validate` is what refuses. Pro
+    earns its price at the rescue rung, once per failure, and stays there.
+
+    Worth re-running the moment somebody demonstrates a task this store has
+    never seen: that is the one condition that can separate the two, and it
+    costs about $0.50 to settle.
+
+    Both models at `K_EFFORT="high"` spend their whole output budget thinking
+    and are truncated with nothing kept. The run and all of its numbers are at
+    `domain/skill/umbrella.py:23` -- cited and not copied, because a
+    measurement kept in two places is one that drifts."""
 
     gemini_plan_model: str = "gemini-3.8-flash"
     """What plans each step of a workflow run.

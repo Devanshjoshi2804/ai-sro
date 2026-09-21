@@ -220,6 +220,15 @@ class Container:
     """Whether the schema line has been written this process. See
     `_announce_once`: the fact is worth saying, and worth saying once."""
 
+    _mining_asker: Asker | None = field(default=None, init=False, repr=False)
+    """The mining pass's own client, built on the first pass that needs one.
+    See `_patient_asker`: same model, its own patience."""
+
+    _mining_asker_from: Asker | None = field(default=None, init=False, repr=False)
+    """Which `asker` the one above was built from, so replacing the asker
+    replaces it too. A cache keyed on nothing is a cache that answers with the
+    thing it was built from after somebody changed it."""
+
     settings: Settings
     clock: Clock
     ids: IdFactory
@@ -492,6 +501,16 @@ class Container:
     def mine_observations(self) -> MineObservations:
         return MineObservations(self.unit_of_work(), self.blobs, self.ids)
 
+    def _patient_asker(self) -> Asker | None:
+        """Built on the first pass that needs it -- a second SDK client is a
+        socket pool, and a deployment that never mines should not open one --
+        and rebuilt whenever `asker` is replaced, which is how a suite drives
+        two different answers through one container."""
+        if self._mining_asker is None or self._mining_asker_from is not self.asker:
+            self._mining_asker_from = self.asker
+            self._mining_asker = _patient_asker_for(self.settings, self.asker)
+        return self._mining_asker
+
     def mine_pass(self) -> MinePass:
         """The model-first rig's pass, which until now had no caller in `src/`.
 
@@ -506,7 +525,7 @@ class Container:
         """
         return MinePass(
             self.unit_of_work(),
-            asker=self.asker,
+            asker=self._patient_asker(),
             model=self.settings.gemini_mine_model,
             clock=self.clock,
             cap_usd=self.settings.daily_usd_cap,
@@ -1283,6 +1302,24 @@ def _build_interpreter(settings: Settings) -> WorkflowInterpreter:
     if settings.interpretation_enabled and settings.gemini_api_key:
         return GeminiInterpreter(settings.gemini_api_key, settings.gemini_interpreter_model)
     return NoInterpreter()
+
+
+def _patient_asker_for(settings: Settings, asker: Asker | None) -> Asker | None:
+    """The same asker, given the mining call's own patience.
+
+    A second instance rather than a per-call argument: the timeout belongs to
+    the SDK client, the port's `ask` says nothing about time, and widening it
+    to carry one would put a transport detail in every caller's signature to
+    serve one of them.
+
+    `isinstance` in the composition root, which is the one place that is
+    allowed to know a concrete adapter. Anything else -- a fake in a test, an
+    asker a future deployment injects -- is handed back untouched, because
+    only this one has a timeout to set.
+    """
+    if not isinstance(asker, GeminiAsker):
+        return asker
+    return GeminiAsker(settings.gemini_api_key, timeout_ms=settings.gemini_mine_timeout_ms)
 
 
 def _build_asker(settings: Settings) -> Asker | None:

@@ -386,3 +386,49 @@ async def test_a_container_with_no_model_still_builds_every_factory(
     assert container.mine_pass() is not None
     assert container.read_chat() is not None
     assert container.read_gestures() is not None
+
+
+def test_the_mining_pass_is_given_its_own_patience() -> None:
+    """`gemini_timeout_ms` is every call's, and the two ends of this system
+    differ by four orders of magnitude: it was chosen against a ~11s reading of
+    ONE gesture, and a mining pass sends 162,000 tokens and answers in minutes.
+
+    Measured on the deployed store 2026-09-21: `gemini-3.1-pro-preview` took
+    107s, 135s and 217s against that 120s limit, so two of five passes died on
+    a coin flip -- and each was recorded as $0 and 0 tokens while very probably
+    being billed, which is the worst shape a failure can have.
+
+    Asserted on the CLIENT the pass is handed, because that is where a timeout
+    lives and there is nothing else to look at: the port's `ask` says nothing
+    about time.
+    """
+    from sro.config import Settings
+    from sro.container import _patient_asker_for
+    from sro.infrastructure.gemini.asker import GeminiAsker
+
+    # The shipped default, not a number this test made up: what is being
+    # asserted is what a deployment gets.
+    settings = Settings(_env_file=None, gemini_api_key="k")
+    assert settings.gemini_mine_timeout_ms >= 300_000, (
+        "a mining pass is minutes long and this is the timeout it runs under"
+    )
+    ordinary = GeminiAsker("k", client=object())
+
+    patient = _patient_asker_for(settings, ordinary)
+
+    assert isinstance(patient, GeminiAsker)
+    assert patient is not ordinary, "the mining pass shares the reader's two minutes"
+    assert settings.gemini_mine_timeout_ms > settings.gemini_timeout_ms
+
+
+def test_an_asker_that_is_not_the_sdk_is_handed_back_untouched() -> None:
+    """A fake in a test, or an asker a future deployment injects. Only the one
+    with a timeout to set is rebuilt, and `isinstance` in the composition root
+    is the one place allowed to know a concrete adapter."""
+    from sro.config import Settings
+    from sro.container import _patient_asker_for
+
+    fake = FakeAsker()
+
+    assert _patient_asker_for(Settings(_env_file=None), fake) is fake
+    assert _patient_asker_for(Settings(_env_file=None), None) is None

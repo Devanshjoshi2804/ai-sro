@@ -30,8 +30,8 @@ from fastapi import Depends, HTTPException, Query, status
 
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import DeviceId
-from sro.infrastructure.telemetry.whose import attribute
 from sro.interface.http.deps import ContainerDep, ContextDep, DeviceSecretDep
+from sro.whose import attribute
 
 
 async def asking_device(

@@ -16,7 +16,7 @@ from fastapi import Depends, Header, HTTPException, Request, status
 from sro.application.context import RequestContext
 from sro.application.ports.auth import CredentialRejected, Unconfigured
 from sro.container import Container
-from sro.infrastructure.telemetry.whose import attribute
+from sro.whose import attribute
 
 
 def get_container(request: Request) -> Container:

@@ -17,6 +17,14 @@ than the page length, and `sentence()` says it in a line. This carries that
 across the wire and adds the one thing the reader cannot know -- what the
 records are OF, which is in the address they came from.
 
+**In `application`, beside the door that runs the lookup, rather than in the
+domain.** It was in `domain.lookup` and imported `application.execution.answer`
+from there, which is the layering check going red for a reason that was true:
+the domain imports nothing else in this codebase, and it cannot borrow a
+reader by reaching up a layer. Reading a warehouse's JSON is not a rule about
+lookups either -- the rules are in `plan.py` and `address.py`, which stayed
+where they are. This is what the application does with what came back.
+
 The raw body still travels for an answer that is not records: a page of HTML,
 one scalar, a screen whose picture stays on the other side. Those have nothing
 structural to preserve and are trimmed by character, the way they always were.
@@ -28,7 +36,7 @@ import re
 from collections.abc import Mapping, Sequence
 
 from sro.application.execution.answer import Answer
-from sro.domain.lookup.naming import named
+from sro.application.lookup.naming import named
 
 K_ANSWER_CHARS = 64 * 1024
 """How much of a body that is NOT records travels.
@@ -137,7 +145,7 @@ def as_seen(
     subject = subject_of(target) or "record"
     every = [dict(one) for one in read.sample]
     # Which of them the question NAMED, where it named any. See
-    # `domain.lookup.naming`: the panel worked this out in JavaScript, the
+    # `application.lookup.naming`: the panel worked this out in JavaScript, the
     # console would have worked it out again, and a rule with a copy per
     # surface drifts on all of them.
     matched = [dict(one) for one in named(question, every, subject)] if question else []

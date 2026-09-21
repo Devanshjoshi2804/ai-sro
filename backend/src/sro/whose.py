@@ -16,6 +16,18 @@ So every line carries who it belongs to, and no call site has to remember.
 record the logging module builds, whichever of this system's fifty-three
 loggers wrote it; `sro.observability` renders them.
 
+**At the top of `sro`, beside `observability`, rather than in
+`infrastructure`.** Everything writes log lines -- a domain rule, a use case,
+a router, an adapter -- so a module every layer must import cannot live in the
+one layer the other three are forbidden to touch. It was in
+`infrastructure.telemetry` and seven modules across `application` and
+`interface` imported it by name, which is the architecture check going red for
+a reason that was true: the rule is right and the address was wrong.
+
+Nothing in here is an adapter. It is `contextvars` and the stdlib's own
+logging types, which is what makes this address honest as well as convenient:
+importing it binds a caller to nothing.
+
 **Context variables rather than an argument.** The alternative is a `ctx` on
 every logging call in the codebase, which is fifty-three modules of churn that
 the fifty-fourth will forget. A `ContextVar` follows the task through every

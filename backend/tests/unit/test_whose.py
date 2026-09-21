@@ -15,7 +15,7 @@ import sys
 
 import pytest
 
-from sro.infrastructure.telemetry.whose import (
+from sro.whose import (
     AsJson,
     Attribution,
     Louder,

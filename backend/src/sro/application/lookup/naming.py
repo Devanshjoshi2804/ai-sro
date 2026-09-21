@@ -12,9 +12,12 @@ words that match too much of the result, which is the right rule and was still
 the wrong place: the console draws the same answers, a model reading one has
 the same problem, and a rule with a copy per surface drifts on all of them.
 
-So it is here, beside the reader. What it decides is narrow and says so: which
-records a question NAMED. Not what the answer is -- that is the records -- and
-not whether the operator meant something else, which nothing can know.
+So it is here, beside the reader -- which is in `application` for the reason
+that file's own docstring gives, and this followed it rather than being left
+in `domain` naming things out of a payload on its own. What it decides is
+narrow and says so: which records a question NAMED. Not what the answer is --
+that is the records -- and not whether the operator meant something else,
+which nothing can know.
 
 **Values, never field names.** `customer` and `type` are in every column name
 on this endpoint and in none of the records. Matching names would pick every

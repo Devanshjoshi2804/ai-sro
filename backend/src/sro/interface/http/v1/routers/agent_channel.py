@@ -18,7 +18,7 @@ from sro.application.ports.auth import CredentialRejected, Unconfigured
 from sro.container import Container
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import DeviceId
-from sro.infrastructure.telemetry.whose import attribute
+from sro.whose import attribute
 
 logger = logging.getLogger(__name__)
 

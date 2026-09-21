@@ -24,6 +24,7 @@ from sro.application.execution.pursuits import PursuitProgress
 from sro.application.execution.reversal import Reversal
 from sro.application.intent.match import Candidate
 from sro.application.intent.resolve import Resolution
+from sro.application.lookup.answer import as_seen
 from sro.application.lookup.plan_lookups import Planned
 from sro.application.lookup.run_lookups import Answers, Looked
 from sro.application.observation.mining_pass import MineResult
@@ -35,7 +36,6 @@ from sro.domain.chat.thread import Thread
 from sro.domain.execution.learned_step import Taught
 from sro.domain.execution.run import Medium, Run, StepOutcome
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
-from sro.domain.lookup.answer import as_seen
 from sro.domain.lookup.plan import Asked, Lookup
 from sro.domain.observation.attempts import Attempt
 from sro.domain.observation.batch import CaptureMode, RejectedEvent
@@ -3087,7 +3087,7 @@ class LookedModel(BaseModel):
     that was handed a body parsed it for itself and each of them guessed."""
 
     read: dict[str, object] | None = None
-    """The records, READ -- see `domain.lookup.answer.as_seen`. The count the
+    """The records, READ -- see `application.lookup.answer.as_seen`. The count the
     system itself stated, the columns that carry a value ranked with code,
     name and description first, the records projected onto them, and the
     sentence that says it in a line."""
@@ -3105,7 +3105,7 @@ class LookedModel(BaseModel):
     def of(cls, looked: Looked, question: str = "") -> LookedModel:
         """`question` so the answer can answer it. A lookup comes back with a
         collection and the question was usually about one thing in it; which
-        records it NAMED is decided in `domain.lookup.naming`, once, rather
+        records it NAMED is decided in `application.lookup.naming`, once, rather
         than by each surface that draws one."""
         seen = as_seen(
             system=looked.lookup.system,

@@ -28,6 +28,7 @@ from sro.application.intent.narrow import NarrowARead, NeedToAsk, value_key
 from sro.application.intent.next_steps import SuggestNext
 from sro.application.intent.resolve import Resolution, ResolveIntent
 from sro.application.knowledge.open_questions import Ambiguity, AskAbout
+from sro.application.lookup.answer import as_seen, subject_of
 from sro.application.lookup.plan_lookups import PlanLookups
 from sro.application.lookup.run_lookups import (
     K_WHILE_TALKING,
@@ -52,7 +53,6 @@ from sro.domain.chat.asking import (
 from sro.domain.chat.is_it_an_answer import said_as_the_value
 from sro.domain.chat.thread import Message, Said, Speaker, Thread, ThreadId
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
-from sro.domain.lookup.answer import as_seen, subject_of
 from sro.domain.lookup.asking import is_a_question
 from sro.domain.shared.errors import DomainError
 from sro.domain.skill.skill import Skill
@@ -1409,7 +1409,7 @@ def _ran_out(detail: str) -> bool:
 
 def _seen(looked: Looked, question: str = "") -> dict[str, object]:
     """One answer, in the shape every surface draws it from. See
-    `domain.lookup.answer.as_seen` -- the trimming is there so the card, the
+    `application.lookup.answer.as_seen` -- the trimming is there so the card, the
     conversation and a model asked to read it all get the same answer."""
     return as_seen(
         system=looked.lookup.system,

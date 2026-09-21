@@ -26,7 +26,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import Span
 
-from sro.infrastructure.telemetry.whose import KNOWN, whose
+from sro.whose import KNOWN, whose
 
 
 def configure_tracing(*, service_name: str, endpoint: str | None, environment: str) -> None:

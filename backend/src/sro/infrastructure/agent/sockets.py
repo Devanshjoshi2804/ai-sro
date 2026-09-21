@@ -24,7 +24,7 @@ from typing import Protocol
 from sro.application.ports.agent import DeviceUnreachable
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.infrastructure.telemetry.otel import doing
-from sro.infrastructure.telemetry.whose import about
+from sro.whose import about
 
 logger = logging.getLogger(__name__)
 

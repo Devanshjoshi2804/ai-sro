@@ -81,7 +81,7 @@ class Settings(BaseSettings):
     Comma separated, and normally empty. A deployment asked to work out what
     happened to one customer had two choices and both were bad: turn the whole
     process to DEBUG -- every tenant, every sweep, every query, for as long as
-    it takes to reproduce -- or see nothing. See `telemetry.whose.Louder`."""
+    it takes to reproduce -- or see nothing. See `whose.Louder`."""
 
     revision: str = Field(default_factory=_git_head)
     """The commit this process is running, resolved once at startup.

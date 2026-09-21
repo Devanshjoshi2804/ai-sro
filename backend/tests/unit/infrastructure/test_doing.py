@@ -16,7 +16,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from sro.infrastructure.telemetry.otel import doing
-from sro.infrastructure.telemetry.whose import about
+from sro.whose import about
 
 # Once for the module, because `set_tracer_provider` refuses to replace a
 # provider that is already installed -- a second call warns and is ignored, so

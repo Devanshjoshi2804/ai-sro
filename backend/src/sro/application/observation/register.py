@@ -16,7 +16,7 @@ from sro.domain.observation.grant import LONGEST
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId
-from sro.infrastructure.telemetry.whose import attribute
+from sro.whose import attribute
 
 
 @dataclass(frozen=True, slots=True)

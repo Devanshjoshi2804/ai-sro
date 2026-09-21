@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 
 from sro.application.execution.answer import read_answer
-from sro.domain.lookup.answer import K_ANSWER_CHARS, K_SAMPLE, as_seen, subject_of, trimmed
+from sro.application.lookup.answer import K_ANSWER_CHARS, K_SAMPLE, as_seen, subject_of, trimmed
 
 WMS = "https://wms.example/data/WM/wm/customerTypes"
 

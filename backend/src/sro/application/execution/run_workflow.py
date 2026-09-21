@@ -105,7 +105,7 @@ from sro.domain.shared.prices import Answer
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
 from sro.domain.skill.signing_in import is_a_way_in, signs_in_at
 from sro.domain.skill.workflow import Step, Workflow
-from sro.infrastructure.telemetry.whose import attribute
+from sro.whose import attribute
 
 KnownFields = Callable[[tuple[str, ...], str], Awaitable[Mapping[str, Mapping[str, object]]]]
 """What the knowledge base says about these body keys, by key.

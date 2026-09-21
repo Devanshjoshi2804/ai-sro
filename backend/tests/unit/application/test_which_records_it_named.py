@@ -10,7 +10,7 @@ problem.
 
 from __future__ import annotations
 
-from sro.domain.lookup.naming import asked_for, named, names, telling
+from sro.application.lookup.naming import asked_for, named, names, telling
 
 TYPES = [
     {"longDescription": f"leaning new SRO type {at}", "resourceId": f"CT{at}"} for at in range(40)

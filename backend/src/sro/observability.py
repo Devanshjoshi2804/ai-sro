@@ -6,7 +6,7 @@ are only diagnosable while they happen -- by review time the only evidence left
 is whatever survived -- so this is not optional decoration.
 
 Every line also says whose work it was about. See
-`sro.infrastructure.telemetry.whose`: the ids ride on the task rather than
+`sro.whose`: the ids ride on the task rather than
 through fifty-three modules of call sites, and this is where they are rendered.
 """
 
@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 
-from sro.infrastructure.telemetry.whose import AsJson, Attribution, Louder, Plainly
+from sro.whose import AsJson, Attribution, Louder, Plainly
 
 _FORMAT = "%(asctime)s %(levelname)-8s %(name)s %(message)s"
 _HANDLER = "sro"

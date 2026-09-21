@@ -68,7 +68,7 @@ from sro.domain.skill.umbrella import (
     workflow_from,
 )
 from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
-from sro.infrastructure.telemetry.whose import attribute
+from sro.whose import attribute
 
 __all__ = [
     "MineResult",

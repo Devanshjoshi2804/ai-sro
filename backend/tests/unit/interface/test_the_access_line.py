@@ -14,8 +14,8 @@ import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
-from sro.infrastructure.telemetry.whose import Attribution, attribute, whose
 from sro.interface.http.app import Attributing
+from sro.whose import Attribution, attribute, whose
 
 
 def _served() -> FastAPI:

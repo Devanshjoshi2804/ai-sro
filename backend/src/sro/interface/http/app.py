@@ -16,7 +16,6 @@ from sro.application.execution.run_workflow import fail_orphans
 from sro.config import Settings, get_settings
 from sro.container import Container, build_container, instrument
 from sro.domain.shared.prices import PRICES
-from sro.infrastructure.telemetry.whose import about
 from sro.interface.http.errors import install_error_handlers
 from sro.interface.http.schemas import PROBLEMS
 from sro.interface.http.v1.routers import (
@@ -54,6 +53,7 @@ from sro.interface.http.v1.routers import (
     workflows,
 )
 from sro.observability import configure_logging
+from sro.whose import about
 
 logger = logging.getLogger("sro.http")
 """The access log. Named for what it is rather than for this module: somebody

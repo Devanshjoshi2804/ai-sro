@@ -594,6 +594,34 @@ async def test_a_write_this_deployment_watched_may_be_replayed_next_time() -> No
     )
 
 
+async def test_a_click_teaches_the_ledger_too() -> None:
+    """The bootstrap, and without it there isn't one.
+
+    A clicked step's `sent` is the click and carries no url, so a ledger fed
+    only by what the step SENT could only ever learn endpoints that already
+    replayed as calls. That is why `Delete a Customer Type` clicked Save on
+    its ninth run: the file did not name its endpoint, so it was always
+    clicked, so it could never be proven. The status belt watches the page's
+    own traffic, and what it watched is what teaches.
+    """
+    workflows, runs = _store()
+    clicked = _wrote()
+    clicked.sent = {"kind": "ui.perform", "payload": {"action": "click"}}
+    clicked.result = {
+        **(clicked.result or {}),
+        "called": {
+            "method": "POST",
+            "url": "https://wms.example/data/WM/wm/customerTypes",
+        },
+    }
+
+    await _ran(workflows, runs, _run("run_1", [clicked]))
+
+    assert await workflows.learned_writes(_TENANT) == (
+        VerifiedWrite(method="POST", path_pattern="/data/WM/wm/customerTypes"),
+    )
+
+
 async def test_a_picture_never_earns_an_endpoint() -> None:
     """The same gate the effect keeps, and the reason it is kept in the store
     rather than at the caller: a model reading a screenshot is not evidence

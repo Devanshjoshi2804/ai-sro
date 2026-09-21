@@ -98,15 +98,22 @@ async def _remember_the_write(
     -- and the bar is the one the file itself claims: somebody watched this
     endpoint succeed and confirmed it on the state, not in a picture.
     """
-    call = (step.sent or {}).get("payload")
+    # What the STATUS BELT watched go out, and only then what this step sent.
+    #
+    # The belt first because it is the one that covers a click: the send is a
+    # click and carries no url, so a ledger fed only by `sent` could only ever
+    # learn endpoints that already replayed as calls -- a bootstrap that never
+    # starts, and the whole reason `Delete a Customer Type` clicked Save on
+    # its ninth run.
+    watched = (step.result or {}).get("called")
+    sent = (step.sent or {}).get("payload")
+    call = watched if isinstance(watched, dict) else sent
     url = str(call.get("url", "")) if isinstance(call, dict) else ""
     method = str(call.get("method", "")) if isinstance(call, dict) else ""
     if not url or not method:
-        # A step whose send carried no call is a click, and what the click
-        # made is knowable only through `calls.since` -- which the verifier
-        # asks and does not keep. Left for that seam rather than guessed at
-        # here: a pattern learnt from the wrong call is a licence to send one
-        # nobody watched.
+        # Nothing watched and nothing sent: a step verified some other way.
+        # A pattern learnt from a call nobody identified is a licence to send
+        # one nobody watched.
         return
     await workflows.remember_write(
         TenantId(run.tenant),

@@ -5066,6 +5066,41 @@ def _called(status: int, url: str = "http://127.0.0.1:63319/api/orders") -> Repl
     )
 
 
+async def test_a_clicked_write_teaches_the_endpoint_it_was_watched_making() -> None:
+    """The bootstrap for replaying calls instead of clicking, end to end.
+
+    `plan_step` will only replay an endpoint the deployment has watched
+    succeed, and until now the only ledger was a research project's file that
+    a deployment could not add to -- so an endpoint the file did not name was
+    always clicked, and being always clicked it could never be proven. A
+    ledger fed by what a step SENT cannot break that: a click's send is a
+    click.
+
+    The status belt is what breaks it. It asks the page what it called while
+    being driven, and what it watched is what teaches.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [_performed(), _performed()],
+            "calls.since": [_called(200), _called(200)],
+        }
+    )
+    asker = FakeAsker(
+        _plan("type", "THIRD"), Answer(data={"held": True, "why": ""}), _plan("click")
+    )
+
+    await _ran(
+        uow, workflow, channel=channel, asker=asker, values={"clientCode": "THIRD"}, earned=True
+    )
+
+    assert await uow.workflows.learned_writes(TENANT) == (
+        VerifiedWrite(method="POST", path_pattern="/api/orders"),
+    ), "a write this deployment watched a click make taught it nothing"
+
+
 async def test_a_write_the_server_answered_is_held_by_its_status_and_never_photographed() -> None:
     """The lever this exists for.
 

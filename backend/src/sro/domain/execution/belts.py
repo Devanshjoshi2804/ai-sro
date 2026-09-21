@@ -102,6 +102,17 @@ class StepVerdict:
     answer: Answer | None = None
 
     made: Mapping[str, str] = field(default_factory=dict)
+
+    called: Mapping[str, str] = field(default_factory=dict)
+    """The `{method, url}` this belt WATCHED go out, where it watched one.
+
+    `made` is what the record was called; this is what was called to make it,
+    and only the status belt can ever fill it -- it is the one that reads the
+    page's own traffic. It is how a CLICK teaches the write ledger: the send
+    was a click and carries no url, so without this only a step that already
+    replayed as a call could ever prove an endpoint, which is a bootstrap that
+    never starts. See `effects._remember_the_write`.
+    """
     """What the warehouse called the record this step created, where it made
     one and said so. Empty for every step that created nothing, which is most
     of them -- and for a create whose answer named nothing this can read.

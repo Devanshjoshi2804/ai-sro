@@ -415,6 +415,12 @@ async def by_what_the_page_called(
                 "status",
                 f"{method} {shape} returned {status}",
                 made=made_by(call),
+                # What went out, for the ledger of endpoints that may be sent
+                # without a click. The raw url and not `shape`: which segment
+                # is the identifier is decided from this run's own values, and
+                # `shape` has already starred by a digits heuristic that never
+                # fires on a code like `GZ5`.
+                called={"method": method, "url": str(call.get("url", ""))},
             )
         # The endpoint answered something the demonstration never saw. Not a
         # failure and not a hold: exactly the case the rest of the ladder is

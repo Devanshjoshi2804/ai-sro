@@ -3058,6 +3058,14 @@ async def run_workflow(
                     # says which records a run created, and an undo -- the day
                     # the evidence for one exists -- addresses them by it.
                     record.made = dict(verdict.made)
+                if verdict.called:
+                    # On the RESULT, where `_remember_the_write` looks, and on
+                    # its OWN condition: `made` is the fields that name the
+                    # record and a create whose answer carries none leaves it
+                    # empty, which has nothing to do with whether a call was
+                    # watched. Nested under `made`, this stored nothing for
+                    # exactly the writes it exists to learn from.
+                    record.result = {**(record.result or {}), "called": dict(verdict.called)}
                 if verdict.state == "held":
                     # Found by sight, or by the last locator: the page moved
                     # under the job, and the job is flagged before it breaks.

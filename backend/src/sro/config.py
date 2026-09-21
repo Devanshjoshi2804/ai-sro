@@ -679,9 +679,27 @@ class Settings(BaseSettings):
     recall is the cheaper thing to buy, and `validate` is what refuses. Pro
     earns its price at the rescue rung, once per failure, and stays there.
 
-    Worth re-running the moment somebody demonstrates a task this store has
-    never seen: that is the one condition that can separate the two, and it
-    costs about $0.50 to settle.
+    **And then it was re-run, on exactly that.** An operator demonstrated
+    `Create a Transport Equipment Type` three times -- a screen this store had
+    never held a job for -- and both models were given the same 159,929-token
+    prompt over identical copies with that job rolled back:
+
+        flash  learned it,  10 proposed (1 new, 3 same_job, 6 same_occurrence),
+               nothing wrongly refused,   91s,  $0.2396
+        pro    learned it,   8 proposed (1 new, 2 same_job, 4 same_occurrence),
+               nothing wrongly refused,  338s,  $0.5032
+
+    The same answer, 2.1x the price and 3.7x the wall clock. Flash gets there
+    by thinking four times as hard -- 21,278 thought tokens against 4,821 --
+    and still costs less, because thinking is billed at its own output rate.
+    Note pro's 338 seconds: under the 120s that shipped before
+    `gemini_mine_timeout_ms`, that pass would have died.
+
+    So the choice is measured on novel evidence now and not only on a
+    converged store. It is still n=1 on a job of this shape, on this
+    application: a subtler one -- more steps, more interleaving, two systems --
+    is the moment to run it again rather than assume, which costs $0.75 and
+    ten minutes and has these numbers to beat.
 
     Both models at `K_EFFORT="high"` spend their whole output budget thinking
     and are truncated with nothing kept. The run and all of its numbers are at

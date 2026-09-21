@@ -1033,6 +1033,54 @@ test("and it is gone the moment the answer is", async () => {
   assert.deepEqual(stillLoading, [], "the placeholder outlived the answer");
 });
 
+test("the queue is live: what is answered elsewhere leaves the pane somebody is standing on", async () => {
+  // Standing on Waiting is not a snapshot. A request answered on Home, in
+  // another window of this panel, or by the operator doing the thing
+  // themselves, has to leave this list without anybody navigating away -- and
+  // one that arrives has to appear.
+  //
+  // This is the property the redraw guard has to keep while it stops the poll
+  // replacing the pane: skip the redraw when nothing changed, never when
+  // something did.
+  const waiting = (id) => ({
+    id,
+    source: "rig",
+    state: "open",
+    tabId: null,
+    title: "Create a Customer Type",
+    workflowId: "wfl_1",
+    k: 0,
+    values: {},
+    missing: [],
+    parameters: [],
+    at: new Date().toISOString(),
+  });
+  const { ids, render } = panel({
+    deviceId: "dev-1",
+    nudges: [waiting("n_1"), waiting("n_2")],
+  });
+
+  navTab(ids, "waiting").listeners[0]();
+  assert.match(words(ids["backlog"]), /2 requests waiting/);
+
+  // Answered somewhere else, and the worker says so on its next push.
+  render({ deviceId: "dev-1", nudges: [waiting("n_1")] });
+
+  assert.match(
+    words(ids["backlog"]),
+    /1 request waiting/,
+    "the pane went on showing a request that had already been answered",
+  );
+
+  // And one that arrives while they are reading.
+  render({
+    deviceId: "dev-1",
+    nudges: [waiting("n_1"), waiting("n_2"), waiting("n_3")],
+  });
+
+  assert.match(words(ids["backlog"]), /3 requests waiting/);
+});
+
 test("a month of requests is cleared from the pane it is read in, once it has asked", async () => {
   // The requirement, in the operator's words: a queue holds things a week old
   // and older, a month is not unusual, and it has to be clearable in bulk.

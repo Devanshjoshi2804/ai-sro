@@ -29,6 +29,8 @@ const test = (name, fn) => tests.push([name, fn]);
 /** A world a content script can be run in, twice. */
 function aWorld({ runtimeId = "ext-1" } = {}) {
   const sent = [];
+  /** Every call the script MADE, whether or not it got through. */
+  const tried = [];
   const listeners = {};
   const sandbox = {
     window: {
@@ -47,6 +49,7 @@ function aWorld({ runtimeId = "ext-1" } = {}) {
         },
         _id: runtimeId,
         sendMessage: (message) => {
+          tried.push(message);
           if (!sandbox.chrome.runtime._id) {
             // Chrome throws this SYNCHRONOUSLY, which is why a `.catch()` on
             // the promise never sees it.
@@ -58,6 +61,7 @@ function aWorld({ runtimeId = "ext-1" } = {}) {
       },
     },
     sent,
+    tried,
     listeners,
   };
   sandbox.globalThis = sandbox;
@@ -128,8 +132,15 @@ test("an orphan that is asked to relay says nothing and does not throw", () => {
   const world = aWorld();
   run(world);
   world.chrome.runtime._id = null;
+  const before = world.tried.length;
 
   gesture(world, JSON.stringify({ kind: "click" }));
+
+  // Not called AT ALL, which is the half a `try` cannot give. Chrome logs an
+  // unchecked `runtime.lastError` for the call itself, in the page's own
+  // console, on a page an operator is working in -- and a content script that
+  // has nobody to talk to should be silent rather than caught.
+  assert.equal(world.tried.length, before, "an orphan went on calling out");
 });
 
 test("it announces itself on arrival", () => {

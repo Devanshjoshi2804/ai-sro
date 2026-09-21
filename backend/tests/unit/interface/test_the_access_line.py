@@ -69,6 +69,28 @@ def test_the_line_carries_whoever_the_route_turned_out_to_be(
     }
 
 
+def test_the_real_app_is_the_one_wearing_the_attribution() -> None:
+    """Everything above builds its own app and adds the middleware itself.
+
+    That is the right way to test what the middleware DOES, and it says
+    nothing at all about the app this deployment serves: deleting
+    `app.add_middleware(Attributing)` from `create_app` left all of it green,
+    and every line in production would have gone back to saying what happened
+    and not who it happened to.
+
+    Outermost as well as present. Starlette inserts each addition at the front
+    and wraps in reverse, so the LAST one added is the outer one -- and an
+    attribution inside CORS writes an unattributed line for every preflight it
+    refuses, and times the handler rather than the request.
+    """
+    from sro.interface.http.app import create_app
+
+    kinds = [one.cls for one in create_app().user_middleware]
+
+    assert Attributing in kinds, "the app this deployment serves attributes nothing"
+    assert kinds[0] is Attributing, f"something wraps the attribution: {kinds}"
+
+
 def test_the_request_id_the_client_sent_is_the_one_on_the_line(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

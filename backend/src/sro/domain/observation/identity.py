@@ -12,6 +12,7 @@ is restyled, and a key built on them is the brittleness this replaces.
 
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 from sro.domain.observation.gesture import Gesture
 from sro.domain.skill.workflow import Workflow, cited_ids
@@ -76,11 +77,51 @@ def target_identity(gesture: Gesture) -> str:
     return f"anon|{gesture.action.kind}"
 
 
+def screen_of(gesture: Gesture) -> str:
+    """Which SCREEN this happened on, not merely which system.
+
+    `system` is an origin, and an origin is not a screen in a single-page
+    application: every configuration screen in this deployment's WMS is
+    `bf56-kms-wms-web-np2.jdadelivers.com`, and which one you are looking at
+    lives in the fragment. Measured 2026-09-21, on an operator's own
+    demonstration:
+
+        demonstrated  …/portal?siteId=SG#wm.config/wm.config.equipment.
+                      equipment.transportequipmenttype////
+        folded into   …/portal?siteId=SG#wm.config/wm.config.equipment.
+                      equipment.warehouseequipmenttype////   at 0.50
+
+    Two different screens, one origin, and the same widget choreography every
+    config screen in the product has -- click a tab, click Add, type, type,
+    click Save. With only the origin in the key there was nothing left to tell
+    them apart, so three clean demonstrations of a new job were recognised as
+    an old one, and a parameter learnt from one screen was written onto the
+    other. This store holds 13 screens across 2 origins; the key could see the
+    2.
+
+    **The query is dropped and the fragment's value tail with it.** `siteId`
+    is which warehouse somebody is signed in to and the trailing `////` are
+    empty positional segments -- both change between two doings of one job,
+    and a screen that changed per doing would make every doing a new job,
+    which is the same bug pointing the other way. What is kept is the dotted
+    route, which is what the application calls the screen.
+
+    `page_url` and not `url`: the tab's address, because a gesture inside an
+    iframe reports the frame's src, and the frame is not the screen.
+    """
+    said = gesture.page_url or gesture.url or gesture.system or ""
+    if not said:
+        return ""
+    parsed = urlsplit(said)
+    where = f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/").lower()
+    route = "/".join(part for part in parsed.fragment.split("/") if part and "." in part).lower()
+    return f"{where}#{route}" if route else where
+
+
 def shape_key(gestures: list[Gesture]) -> ShapeKey:
-    """The job's shape: which control, on which system, touched how -- in order."""
+    """The job's shape: which control, on which screen, touched how -- in order."""
     return tuple(
-        (gesture.system or "", target_identity(gesture), gesture.action.kind)
-        for gesture in gestures
+        (screen_of(gesture), target_identity(gesture), gesture.action.kind) for gesture in gestures
     )
 
 

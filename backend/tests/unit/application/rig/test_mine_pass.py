@@ -227,6 +227,47 @@ async def test_a_replay_of_our_own_is_not_evidence_this_pass_can_mine() -> None:
     assert [one.id for one in await uow.workflows.known(TENANT)] == []
 
 
+async def test_a_job_stored_under_an_older_shape_rule_is_not_mined_again() -> None:
+    """A stored shape is a cache of a rule, and the rule can change.
+
+    `shape_key` gained the screen on 2026-09-21. Every job mined before that
+    carries a shape computed without one, and compared as they stood a
+    proposal's screen-aware shape would match none of them: every known job
+    would come back `new` and one pass would save a second copy of all 22.
+
+    So the known set is re-shaped from its own cited evidence before anything
+    is compared, by the same function the proposal uses. Here the stored job
+    carries deliberate nonsense -- a shape from no rule this system has ever
+    had -- and is still recognised, which is only possible if it was re-shaped.
+    """
+    uow, ids = await _day()
+    asker = FakeAsker(Answer(data={"workflows": [_proposal(ids[:2])]}, cost_usd=0.01))
+    kept = (await _pass(uow, asker=asker).execute(_ctx())).kept
+    assert kept == 1, "the fixture did not mine a job to store"
+    [stored] = await uow.workflows.known(TENANT)
+    stored.shape_key = [["a shape", "from a rule", "nobody has"]]
+    await uow.workflows.save(stored)
+
+    # A SECOND doing of the same job: the same screens and the same controls,
+    # on evidence of its own. Cited ids are per-occurrence, so this cannot be
+    # waved away as "read before" -- the only thing that can recognise it is
+    # the shape, which is the thing under test.
+    first = {one.id: one for one in await uow.gestures.gestures_for(TENANT)}
+    again_ids = []
+    for nth, was in enumerate(first[one] for one in ids[:2]):
+        copy = replace(was, id=f"{was.id}_again", at=was.at + 600 + nth)
+        await uow.gestures.add_gestures((copy,))
+        again_ids.append(copy.id)
+
+    again = await _pass(
+        uow,
+        asker=FakeAsker(Answer(data={"workflows": [_proposal(again_ids)]}, cost_usd=0.01)),
+    ).execute(_ctx())
+
+    assert again.kept == 0, "one job was stored twice under two shape rules"
+    assert len(await uow.workflows.known(TENANT)) == 1
+
+
 async def test_a_negative_cap_is_no_cap_and_the_pass_runs() -> None:
     """The switch a deliberate one-off measurement wants. Planted far over the
     shipped cap, so a door that judged against a literal refuses."""

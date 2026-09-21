@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 import secrets
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 
 from sro.application.intent.spend import over_cap
@@ -654,6 +654,24 @@ async def _one_pass(
     fresh = [gesture for gesture in gestures if gesture.id not in in_pool]
 
     known = list(await uow.workflows.known(tenant_id))
+    # A stored shape is a CACHE of a rule, and the rule can change.
+    #
+    # `shape_key` gained the screen on 2026-09-21, and every job mined before
+    # that carries a shape computed without one. Compared as they stood, a
+    # proposal's screen-aware shape would match none of them, every known job
+    # would come back `new`, and one pass would save a second copy of all 22.
+    # So the known set is re-shaped here, from its own cited evidence, by the
+    # same function the proposal below uses -- which makes the comparison
+    # like-with-like today and on whatever the rule becomes next.
+    #
+    # Free in practice: these gestures are already loaded, and a tenant has
+    # tens of jobs against hundreds of thousands of gestures.
+    known = [
+        replace(one, shape_key=[list(entry) for entry in shape_key(in_time_order(one, by_id))])
+        if cited_ids(one) & by_id.keys()
+        else one
+        for one in known
+    ]
     summary: list[dict[str, object]] = [
         {"id": w.id, "title": w.title, "systems": w.systems, "shape_key": w.shape_key}
         for w in known

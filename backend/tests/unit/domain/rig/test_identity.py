@@ -1,6 +1,13 @@
 import pytest
 
-from sro.domain.observation.identity import K_MIN_SHARED_STEPS, K_SAME_JOB, resolve
+from sro.domain.observation.gesture import Action, Gesture
+from sro.domain.observation.identity import (
+    K_MIN_SHARED_STEPS,
+    K_SAME_JOB,
+    resolve,
+    screen_of,
+    shape_key,
+)
 from sro.domain.skill.workflow import Step, Workflow
 
 
@@ -400,3 +407,82 @@ def test_the_score_counts_the_same_shared_steps_the_bar_does() -> None:
 
     assert resolution.kind == "same_job"
     assert resolution.score == 1.0, "every step of it is in that job"
+
+
+# -- the screen is part of what a job IS --------------------------------------
+#
+# Measured on the deployment 2026-09-21, on an operator's own demonstration.
+# They did `Create a Transport Equipment Type` three times, cleanly. The miner
+# read it correctly -- "steps 1-6 are done once per thing" -- and then:
+#
+#     Create a Transport Equipment Type: recognised as a job already stored
+#     -- wfl_4869… at 0.50
+#
+# `wfl_4869…` is `Create a Warehouse Equipment Type`. A different screen of
+# the same application. Nothing was learnt from three good demonstrations, and
+# a parameter was widened on the wrong job.
+#
+# The shape held `gesture.system`, which is an ORIGIN, and an origin is not a
+# screen in a single-page application: every config screen in this WMS is
+# `bf56-kms-wms-web-np2.jdadelivers.com` and the screen is in the fragment.
+# What was left to tell two jobs apart was the widget choreography, and every
+# config screen in the product has the same one -- click a tab, click Add,
+# type, type, click Save. The store held 13 screens across 2 origins; the key
+# could see the 2.
+
+
+PORTAL = "https://bf56-kms-wms-web-np2.jdadelivers.com/portal"
+TRANSPORT = f"{PORTAL}?siteId=SG#wm.config/wm.config.equipment.equipment.transportequipmenttype////"
+WAREHOUSE = f"{PORTAL}?siteId=SG#wm.config/wm.config.equipment.equipment.warehouseequipmenttype////"
+
+
+def _on(page: str, kind: str = "click") -> Gesture:
+    return Gesture(
+        id=f"ges_{abs(hash((page, kind)))}",
+        tenant="acme",
+        stream_id="str_1",
+        batch_id="bat_1",
+        at=1.0,
+        url=f"{PORTAL}/page?libraryContext=abc&siteId=SG",
+        system="https://bf56-kms-wms-web-np2.jdadelivers.com",
+        tab_id=1,
+        frame_url=None,
+        page_url=page,
+        action=Action(kind=kind, at=1.0),
+    )
+
+
+def test_two_screens_of_one_application_are_two_jobs() -> None:
+    assert screen_of(_on(TRANSPORT)) != screen_of(_on(WAREHOUSE))
+    # And the shapes that follow from them share nothing, where before they
+    # shared everything: same origin, same control, same action.
+    mine = set(shape_key([_on(TRANSPORT), _on(TRANSPORT, "type")]))
+    theirs = set(shape_key([_on(WAREHOUSE), _on(WAREHOUSE, "type")]))
+    assert not (mine & theirs)
+
+
+def test_the_same_screen_in_two_sessions_is_one_job() -> None:
+    """The other direction, and the worse failure if it were wrong. `siteId` is
+    which warehouse somebody signed in to and the trailing `////` are empty
+    positional segments; both move between two doings of one job, and a screen
+    that changed per doing would make every doing a new job."""
+    monday = _on(TRANSPORT)
+    tuesday = _on(TRANSPORT.replace("siteId=SG", "siteId=BLR1").replace("////", "//"))
+
+    assert screen_of(monday) == screen_of(tuesday)
+
+
+def test_a_gesture_in_a_frame_is_placed_by_the_tab_it_is_in() -> None:
+    """`page_url` and not `url`: a gesture inside an iframe reports the frame's
+    src, and the frame is not the screen. The fixture's `url` is the portal's
+    inner page, which is the same string on every screen there is."""
+    inside = _on(TRANSPORT)
+
+    assert "transportequipmenttype" in screen_of(inside)
+
+
+def test_a_page_with_no_route_in_it_is_still_a_screen() -> None:
+    """Most of the web. The path is the screen, and a query is not part of it."""
+    plain = _on("https://mail.google.com/mail/u/0/?tab=rm&ogbl#sent")
+
+    assert screen_of(plain) == "https://mail.google.com/mail/u/0"

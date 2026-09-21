@@ -1980,7 +1980,14 @@ async function conversation() {
   // instantly is the difference between "loading" and "broken". Never on a
   // later pass: the thread is already on screen and replacing it with grey
   // bars every two seconds is the opposite of what this is for.
-  if (!lastThread) $("scroll").replaceChildren(_comingUp(4));
+  // Into `#said`, which is the thread's own list and the one thing `show()`
+  // replaces. NOT `#scroll`: that is the outer scroller, and every pane in
+  // this panel is inside it -- `#cards`, `#thread`, `#backlog`, `#tasks`.
+  // Replacing its children detached all of them, so the next `$("cards")`
+  // was null, `render` threw on it, and the navigation was never painted: a
+  // panel with no tabs and four grey bars where everything used to be.
+  // Measured on the deployment 2026-09-21, ten minutes after it shipped.
+  if (!lastThread) $("said").replaceChildren(_comingUp(4));
   let thread;
   try {
     thread = await ask({ kind: "thread" });

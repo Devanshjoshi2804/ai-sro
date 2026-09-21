@@ -961,6 +961,26 @@ test("an unchanged banner is left alone, with whatever was typed into it", async
   );
 });
 
+test("the placeholder goes in the thread, not over every pane in the panel", async () => {
+  // `#scroll` is the outer scroller and every pane lives inside it -- cards,
+  // thread, backlog, tasks. Replacing ITS children detached all of them, so
+  // the next `$("cards")` was null, `render` threw on it, and the navigation
+  // was never painted: a panel with no tabs and four grey bars where
+  // everything used to be. Measured on the deployment 2026-09-21.
+  //
+  // The fake document here hands out an isolated node per id, so it cannot
+  // see that nesting: what it CAN see is which container was written to.
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] }, null, {
+    thread: new Promise(() => {}),
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const loading = (el) =>
+    (el?.kids || []).some((kid) => kid.className === "loading");
+  assert.ok(loading(ids["said"]), "the conversation drew no placeholder");
+  assert.equal(loading(ids["scroll"]), false, "it wrote over every pane");
+});
+
 test("a pane that is fetching shows the shape of what is coming, not a blank", async () => {
   // `Looking…` on its own is a pane that looks broken for as long as two round
   // trips take, and then jumps. These are the lines themselves, greyed, so the

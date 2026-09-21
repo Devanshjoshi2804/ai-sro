@@ -1344,6 +1344,13 @@ a:focus-visible {
  * for on a day, and "Tuesday" is how anybody talks about it -- a list of clock
  * times with no days in it cannot tell an hour ago from a week ago. */
 .pending-day {
+  /* The day, and the way to clear that day, on one line. The heading is what
+     somebody scans a month-deep queue by, and the control belongs to the day
+     it names rather than floating between two of them. */
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
   margin: 14px 0 6px;
   font-size: 11px;
   font-weight: 600;

@@ -443,7 +443,8 @@ function theRest(rest) {
       rest.length === 1
         ? `One more request, from ${dayNamed(oldest.at).toLowerCase()}.`
         : `The oldest is from ${dayNamed(oldest.at).toLowerCase()}.`,
-    actions: [{ label: "Go through them", primary: true, act: theBacklog }],
+    // Home's way to the queue, which is now a place rather than a dialog.
+    actions: [{ label: "Go through them", primary: true, act: goToTheQueue }],
   });
 }
 
@@ -2046,67 +2047,65 @@ function paintPanes() {
     panes(pane, {
       waiting: missed,
       onPick: (picked) => {
-        // Two of the four are places and two are things to do. History is an
-        // overlay you close and come back from -- a third pane is somewhere a
-        // person can be left, and coming back tomorrow to find the panel
-        // showing last week is how a surface stops being about now.
-        if (picked === "history") return void openHistory();
-        if (picked === "pending") return void theBacklog();
+        // Four places and one action. Starting a conversation is the action,
+        // and it leaves you in Chat.
         if (picked === "new") return void freshThread();
         if (picked === pane) return;
         if (picked === "chat") return void goToTheConversation();
         pane = picked;
         paintPanes();
+        // Tasks is the one that has to go and ask. Everything else is drawn
+        // from what this panel is already holding.
+        if (picked === "tasks") void drawTasks();
+        // Arriving at the queue redraws it whatever it last held: `showPane`
+        // leaves an unchanged backlog alone so the controls in it survive a
+        // poll, and somebody who walked away mid-confirmation and came back
+        // should find the pane as it is rather than as they left it.
+        if (picked === "waiting") paintBacklog(true);
       },
     }),
   );
   showPane();
 }
 
-/** What this browser has done lately, over the top of what you were doing.
+/** What this browser has done lately, at the full width of the panel.
  *
- * Fetched on the press rather than kept fresh in the background: it is a
- * glance, and a panel that polled a list nobody has open would be spending a
- * request every two seconds on a screen that is not on screen.
+ * Fetched when somebody comes here rather than kept fresh in the background:
+ * it is a list of what already happened, and a request every two seconds for
+ * a screen nobody is on is a request nobody asked for.
  *
- * A failure is said in the overlay itself. The alternative -- opening an empty
+ * A failure is said in the pane itself. The alternative -- drawing an empty
  * one -- reports "nothing has happened" when what is true is "this browser
  * could not ask", and those are different facts.
  */
-async function openHistory() {
-  const over = $("history");
-  over.hidden = false;
-  over.replaceChildren();
+async function drawTasks() {
+  const into = $("tasks");
+  // Said while it is happening. The fetch is two round trips and this pane
+  // opens instantly, so without a word here it opens blank and looks broken.
+  into.replaceChildren(_note("Looking…"));
   let runs = [];
   let said = [];
   try {
     runs = (await ask({ kind: "recent-runs", limit: K_HISTORY })) || [];
     // Asked separately, and never allowed to cost the runs: this browser's own
-    // lines are the smaller half of the overlay, and a worker that cannot
-    // answer for them is not a reason to show nothing at all.
+    // lines are the smaller half of the pane, and a worker that cannot answer
+    // for them is not a reason to show nothing at all.
     said =
       (await ask({ kind: "what-this-browser-said" }).catch(() => [])) || [];
   } catch (error) {
-    const said = document.createElement("p");
-    said.className = "detail";
-    said.textContent = error.message;
-    over.append(said);
+    into.replaceChildren(_note(error.message));
     return;
   }
-  over.dataset.kind = "history";
-  over.replaceChildren(
+  // Somebody who left while it was loading gets what they went to, not this.
+  if (pane !== "tasks") return;
+  into.replaceChildren(
     history(runs, {
       said,
-      onClose: () => {
-        over.hidden = true;
-        over.replaceChildren();
-      },
       // Opened where it is, rather than somewhere else.
       //
       // The run is already here in full -- the list door answers whole rows --
       // so there is nothing to fetch and nowhere to navigate to. A line that
-      // sent somebody to another pane would lose the list they were reading,
-      // which is the thing they opened this to read.
+      // sent somebody to another pane would lose the list they came to read.
       onOpen: (run, line) => {
         const already = line.querySelector?.(".record-of-a-run");
         if (already) {
@@ -2114,12 +2113,12 @@ async function openHistory() {
           line.dataset.open = "";
           return;
         }
-        // One at a time. Twelve open cards is the scrolling column this
-        // overlay exists to not be.
-        for (const other of over.querySelectorAll?.(".record-of-a-run") || []) {
+        // One at a time. Twelve open cards is the scrolling column this pane
+        // exists to not be.
+        for (const other of into.querySelectorAll?.(".record-of-a-run") || []) {
           other.remove();
         }
-        for (const other of over.querySelectorAll?.("[data-open='1']") || []) {
+        for (const other of into.querySelectorAll?.("[data-open='1']") || []) {
           other.dataset.open = "";
         }
         const card = runCard({ run }, { stop: false });
@@ -2131,36 +2130,64 @@ async function openHistory() {
   );
 }
 
-/** The backlog, over whatever you were doing.
+/** One line of prose in a pane that has nothing else to show yet. */
+function _note(text) {
+  const said = document.createElement("p");
+  said.className = "detail";
+  said.textContent = text;
+  return said;
+}
+
+/** What nobody has answered, at the full width of the panel.
  *
  * Drawn from the status this panel already has rather than fetched: these are
  * this browser's own offers, held in `chrome.storage`, and the panel is the
- * same browser. Nothing to wait for, so it opens instantly -- which is what
- * makes it somewhere to glance rather than somewhere to go.
+ * same browser. Nothing to wait for, so it is painted on every pass -- which
+ * is what makes a request answered on Home disappear from here without
+ * anybody leaving the pane.
  */
-function theBacklog() {
-  // The same slot history uses. One overlay at a time is the whole point of an
-  // overlay, and a second container would be a second thing to remember to
-  // hide.
-  const over = $("history");
+let backlogDrawn = null;
+
+function paintBacklog(again = false) {
+  const into = $("backlog");
   const open = (lastStatus?.nudges || []).filter((one) => one.state === "open");
-  const drawn = pending(open, {
-    onPress: answered,
-    onClose: () => {
-      over.hidden = true;
-      over.replaceChildren();
-    },
-  });
-  if (!drawn) return;
-  // Which overlay this is, so the stylesheet can give a queue the height it
-  // needs without giving history the same.
-  over.dataset.kind = "pending";
-  over.hidden = false;
-  over.replaceChildren(drawn);
-  // The focus goes with it, or the escape key this listens for lands on
-  // whatever was focused behind the overlay.
-  drawn.tabIndex = -1;
-  drawn.focus?.();
+  // Only when it would say something different -- the guard the banner and the
+  // ledger both keep, for the reason they keep it. This pane is repainted on
+  // every push from the worker, and replacing its children each time takes
+  // whatever state the controls in it are holding: the second press of a
+  // "Dismiss all 34" lands on a button the poll rebuilt half a second ago, so
+  // the confirmation could never be reached and the only way to clear a
+  // backlog was still one card at a time.
+  const now = open.map((one) => `${one.id}:${one.at}`).join(",");
+  if (!again && now === backlogDrawn) return;
+  backlogDrawn = now;
+  const drawn = pending(open, { onPress: answered, onClear: clearBacklog });
+  // Nothing waiting is a sentence, not an empty pane. A place somebody
+  // navigated to has to say what it is even when it holds nothing -- an empty
+  // one reads as a surface that failed to load.
+  into.replaceChildren(drawn || _note("Nothing is waiting on you."));
+}
+
+/** A day of requests, or all of them, dismissed together.
+ *
+ * One message and not one per id: the worker holds the whole queue under a
+ * single storage key, so thirty-four `drop-nudge` calls are thirty-four
+ * read-modify-writes of it. Each reports its own fate on the other side, which
+ * is the part that has to stay per request.
+ */
+async function clearBacklog(ids) {
+  try {
+    const got = await ask({ kind: "drop-nudges", nudgeIds: ids });
+    said(
+      got?.dropped
+        ? `dismissed ${got.dropped} \u2014 nothing ran`
+        : "nothing to dismiss",
+    );
+  } catch (error) {
+    said(error.message);
+  }
+  await refresh();
+  paintBacklog(true);
 }
 
 /** How many runs the overlay asks for. The console is where a log is read. */
@@ -2252,19 +2279,26 @@ function goToTheConversation() {
 /** Which half is on screen. Separate from drawing the tabs, because the tabs
  * change when the count does and the panes change when the pane does. */
 function showPane() {
-  // The composer belongs to the conversation, which is the half of this split
-  // worth arguing with: a box you type into, pinned under a column of cards
-  // about what is happening now, is what made the old panel one long thing.
-  for (const id of ["today", "waiting", "cards"]) {
-    if (id !== "waiting") $(id).hidden = pane !== "home";
-  }
+  // One place showing, the rest put away. Every pane is asserted on every
+  // call rather than only the one that changed: a property write per element
+  // costs nothing, and an early return that skipped it would leave a pane
+  // hidden after anything else touched it.
+  for (const id of ["today", "cards"]) $(id).hidden = pane !== "home";
+  // The banner is Home's, and only when it has something in it.
   $("waiting").hidden = pane !== "home" || !$("waiting").childElementCount;
-  // The composer is not in this list. One box, always there: an operator who
-  // thinks of something while looking at their cards should not have to find
-  // the other tab before they can say it -- and a question from a run arrives
-  // in the conversation, so the box they answer in belongs under their hand
-  // wherever they are standing.
   for (const id of ["thread", "here"]) $(id).hidden = pane !== "chat";
+  $("backlog").hidden = pane !== "waiting";
+  $("tasks").hidden = pane !== "tasks";
+  // The composer is in none of these lists. One box, always there: an operator
+  // who thinks of something while looking at their cards should not have to
+  // find another tab before they can say it -- and a question from a run
+  // arrives in the conversation, so the box they answer in belongs under their
+  // hand wherever they are standing.
+  //
+  // `paintBacklog` here and not only on the press: the queue is live. A
+  // request answered on Home, or one that arrives while somebody is reading
+  // this pane, has to change what the pane says without them leaving it.
+  if (pane === "waiting") paintBacklog();
 }
 
 /** Whether the waiting banner is open, in THIS window of the panel.
@@ -2520,6 +2554,17 @@ function startedByTheAnswer(thread) {
     return Boolean(decision.kind === "job" && decision.resume);
   }
   return false;
+}
+
+/** Go to the queue, which is a place.
+ *
+ * The mirror of `goToTheConversation`, and it exists for its reason: a
+ * transition with only an outbound half leaves somebody somewhere they cannot
+ * see what they just did.
+ */
+function goToTheQueue() {
+  pane = "waiting";
+  paintPanes();
 }
 
 /** Show the half of the panel a run is drawn in.

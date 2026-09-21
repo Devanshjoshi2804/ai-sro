@@ -2263,6 +2263,47 @@ async function handle(message, sender) {
       void badge();
       return { ok: true, run_id: started.id };
     }
+    case "drop-nudges": {
+      // Many at once, in ONE pass over the list.
+      //
+      // A backlog can be a month deep -- the panel groups it by day for
+      // exactly that -- and clearing it one `drop-nudge` at a time would be
+      // thirty-four read-modify-writes of a single storage key. `serially`
+      // would order them, and each would still re-read, re-map and re-write
+      // the whole list; the lock is the thing that makes that correct rather
+      // than cheap. One pass is both.
+      //
+      // Reported one by one, because a fate is per offer: a job dismissed
+      // thirty times is a job not worth offering, and a single "34 dropped"
+      // says nothing about which.
+      const wanted = new Set(message.nudgeIds || []);
+      if (!wanted.size) return { ok: true, dropped: 0 };
+      return serially(async () => {
+        const held = await state.nudges();
+        // Only the ones still open. Answering and dropping are two paths to
+        // the same place, and the first one out of `open` is the one that
+        // ends it.
+        const going = held.filter(
+          (one) => wanted.has(one.id) && one.state === "open",
+        );
+        if (!going.length) return { ok: true, dropped: 0 };
+        const gone = new Set(going.map((one) => one.id));
+        const at = Date.now();
+        await state.setNudges(
+          held.map((one) =>
+            gone.has(one.id)
+              ? { ...one, state: "dismissed", endedAt: at }
+              : one,
+          ),
+        );
+        void badge();
+        for (const one of going) {
+          void hideNudge(one.tabId);
+          void report(one, "dismissed");
+        }
+        return { ok: true, dropped: going.length };
+      });
+    }
     case "drop-nudge": {
       // "No thanks", from the panel. An offer taken off the screen unanswered
       // is one that was refused, and saying so is the whole point of reporting

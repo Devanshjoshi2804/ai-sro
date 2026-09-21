@@ -103,8 +103,8 @@ test("and it is a button, so a keyboard reaches it", () => {
 });
 
 test("a list nobody gave an opener to still draws", () => {
-  // `onOpen` is optional, like `onClose`: the overlay is drawn by more than
-  // one caller and a missing handler must not be a missing list.
+  // `onOpen` is optional: the pane is drawn by more than one caller and a
+  // missing handler must not be a missing list.
   const over = history([run()], { now: NOW });
   const [button] = of(over, "button").filter(
     (one) => one.className === "history-line",
@@ -113,16 +113,21 @@ test("a list nobody gave an opener to still draws", () => {
   press(button);
 });
 
-test("the way out is a press and the escape key", () => {
-  // An overlay somebody can only dismiss by finding one small button is a trap
-  // on a 360-pixel panel.
-  const shut = [];
-  const over = history([run()], { onClose: () => shut.push(true), now: NOW });
+test("there is no way out, because it is a place", () => {
+  // It was an overlay with a ✕ and an Escape handler. A pane is left by going
+  // somewhere else, which is what the navigation is for -- a second way out,
+  // on the surface itself, is a control that has to be found and then
+  // explained. And `role="dialog"` told a screen reader it had been
+  // interrupted and must get out; this is somewhere somebody walked to.
+  const over = history([run()], { now: NOW });
 
-  of(over, "button")[0].listeners.click[0]();
-  over.listeners.keydown[0]({ key: "Escape" });
-
-  assert.equal(shut.length, 2);
+  assert.equal(over.getAttribute("role"), "region");
+  assert.equal(
+    of(over, "button").filter((one) => one.textContent === "✕").length,
+    0,
+    "a pane grew a dismiss control",
+  );
+  assert.equal(over.listeners.keydown, undefined, "a pane listened for Escape");
 });
 
 test("how long ago, in the words somebody would use", () => {

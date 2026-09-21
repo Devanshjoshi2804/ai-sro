@@ -877,7 +877,7 @@ test("a request waiting is not drawn while the conversation is showing", async (
 
   assert.equal(ids["waiting"].hidden, true);
   assert.match(
-    words(navTab(ids, "pending")),
+    words(navTab(ids, "waiting")),
     /1/,
     "nothing on Chat said a request was waiting",
   );
@@ -953,6 +953,69 @@ test("an unchanged banner is left alone, with whatever was typed into it", async
     ids["waiting"].kids[0],
     drawn,
     "the banner was rebuilt for nothing",
+  );
+});
+
+test("a month of requests is cleared from the pane it is read in, once it has asked", async () => {
+  // The requirement, in the operator's words: a queue holds things a week old
+  // and older, a month is not unusual, and it has to be clearable in bulk.
+  // One message for the lot -- the worker keeps them under a single storage
+  // key -- and it asks before it sends, because a dismissal is a fate and a
+  // fate is counted.
+  const waiting = (id, daysAgo) => ({
+    id,
+    source: "rig",
+    state: "open",
+    tabId: null,
+    title: "Create a Customer Type",
+    workflowId: "wfl_1",
+    k: 0,
+    values: {},
+    missing: [],
+    parameters: [],
+    at: new Date(Date.now() - daysAgo * 86400000).toISOString(),
+  });
+  const status = {
+    deviceId: "dev-1",
+    nudges: [waiting("n_1", 30), waiting("n_2", 2), waiting("n_3", 0)],
+  };
+  const { ids, sent, render } = panel(status);
+
+  navTab(ids, "waiting").listeners[0]();
+  const button = (matches) => {
+    const found = [];
+    const walk = (el) => {
+      if (el?.tag === "button" && matches(el.textContent || "")) found.push(el);
+      for (const kid of el?.kids || []) walk(kid);
+    };
+    walk(ids["backlog"]);
+    return found[0];
+  };
+
+  const all = button((said) => said === "Dismiss all 3");
+  assert.ok(all, "a month-deep queue with no way to put it down");
+  all.listeners[0]();
+  assert.deepEqual(sentOf(sent, "drop-nudges"), [], "cleared on one press");
+
+  // And now the panel's own poll lands, saying exactly what it said before.
+  // This pane used to be replaced on every one of those -- every two seconds
+  // -- so the second press of a confirmation could never be reached and a
+  // backlog could still only be cleared one card at a time.
+  render(status);
+  assert.ok(
+    button((said) => /^sure\?/.test(said)),
+    "a poll rebuilt the pane out from under the confirmation",
+  );
+
+  all.listeners[0]();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(sentOf(sent, "drop-nudges"), [
+    { kind: "drop-nudges", nudgeIds: ["n_1", "n_2", "n_3"] },
+  ]);
+  assert.deepEqual(
+    sentOf(sent, "drop-nudge"),
+    [],
+    "a batch went as one message per card after all",
   );
 });
 

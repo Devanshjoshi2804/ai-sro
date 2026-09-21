@@ -877,6 +877,73 @@ test("dropping an offer ends it and says so once", async () => {
   assert.equal(offersSent().length, 1, "one offer reported two fates");
 });
 
+test("a month of offers is dropped in one pass, and each still reports its own fate", async () => {
+  // A queue goes a month deep because clearing it was one message per card,
+  // and this list lives under ONE storage key: thirty-four `drop-nudge` calls
+  // are thirty-four read-modify-writes of it, ordered by the lock and every
+  // one of them re-reading and re-writing the whole list. One pass is both
+  // correct and cheap.
+  //
+  // What may NOT be batched is the reporting. A fate is per offer -- "this job
+  // is always refused" is how the mining side learns to stop offering it --
+  // and one line saying "3 dropped" names none of them.
+  ready();
+  const was = (id, k) => ({
+    id,
+    at: new Date(Date.now() - k * 86400000).toISOString(),
+    title: "Create Work Area",
+    startsOn: PAGE,
+    tabId: TAB,
+    state: "open",
+    source: "rig",
+    workflowId: "wfl_1",
+    k: 0,
+    values: {},
+    missing: [],
+    parameters: [],
+  });
+  held.set("sro.nudges", [
+    was("n_1", 30),
+    was("n_2", 8),
+    { ...was("n_3", 1), state: "accepted" },
+    was("n_4", 0),
+  ]);
+
+  assert.deepEqual(
+    await send({ kind: "drop-nudges", nudgeIds: ["n_1", "n_2", "n_3"] }),
+    { ok: true, dropped: 2 },
+    "an offer already answered was dismissed a second time",
+  );
+
+  assert.deepEqual(
+    nudges().map((one) => [one.id, one.state]),
+    [
+      ["n_1", "dismissed"],
+      ["n_2", "dismissed"],
+      ["n_3", "accepted"],
+      ["n_4", "open"],
+    ],
+    "the wrong offers ended",
+  );
+  await until(
+    () => offersSent().length === 2,
+    "the rig was never told which offers were refused",
+  );
+  assert.deepEqual(
+    offersSent().map((each) => each.fate),
+    ["dismissed", "dismissed"],
+  );
+
+  // And again over the same ids: an offer with two fates is one the rig
+  // cannot count.
+  assert.deepEqual(await send({ kind: "drop-nudges", nudgeIds: ["n_1"] }), {
+    ok: true,
+    dropped: 0,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(offersSent().length, 2, "an offer reported two fates");
+});
+
 test("an offer that was dropped cannot then be started", async () => {
   // The other half of the panel disabling its card on the first press. A stale
   // panel, a second window, or a card the ledger never redrew would otherwise

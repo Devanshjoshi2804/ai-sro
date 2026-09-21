@@ -30,22 +30,34 @@
 // Pure over what it is given. Which pane is showing lives in the panel, which
 // is where a fact about one window of it belongs.
 
-/** The two halves, in the order they are read. */
-export const PANES = ["home", "chat"];
+/** The four places, in the order they are read. */
+export const PANES = ["home", "chat", "waiting", "tasks"];
 
 /** Every control in the cluster, in order.
  *
- * `pane` is set on the two that switch halves, so the tablist semantics stay
- * on exactly those two; the other two are ordinary buttons that do a thing.
- * History and New are buttons and not panes on purpose -- history is an
- * overlay you close and come back from, and a new conversation is an action,
- * not a place.
+ * `pane` is set on the four that are PLACES. New is the only one that is not:
+ * starting a conversation is something you do, and it leaves you in Chat.
+ *
+ * **Waiting and Tasks were overlays, and that was wrong.** The argument for it
+ * was that both are things you glance at and leave, and a pane is somewhere a
+ * person can be left -- come back tomorrow and find the panel showing last
+ * week. What it produced was a dialog over the pane behind it, with a ✕ to
+ * find, at whatever size the stylesheet gave it: a queue of one drew a card
+ * and two thirds of empty black, and Recent tasks drew its lines straight
+ * through the conversation underneath.
+ *
+ * Being left somewhere is a real risk and it is the cheaper one. The panel
+ * opens on Home every time it is opened -- `pane` is not stored -- so the
+ * worst case is a person who walked away from Tasks and comes back to it in
+ * the same sitting, one press from everything else. Against that: two
+ * surfaces that are the full width of the panel, reachable by the same
+ * control as the other two, with nothing to dismiss.
  */
 const CONTROLS = [
   { key: "home", pane: true, glyph: "⌂", says: "Home" },
   { key: "chat", pane: true, glyph: "☷", says: "Chat" },
-  { key: "pending", glyph: "▤", says: "Waiting for you" },
-  { key: "history", glyph: "⏱", says: "Recent tasks" },
+  { key: "waiting", pane: true, glyph: "▤", says: "Waiting for you" },
+  { key: "tasks", pane: true, glyph: "⏱", says: "Recent tasks" },
   { key: "new", glyph: "＋", says: "New conversation" },
 ];
 
@@ -82,14 +94,18 @@ export function panes(showing, { waiting = 0, onPick } = {}) {
       tab.setAttribute("role", "tab");
       tab.setAttribute("aria-selected", String(key === showing));
     }
-    // The count rides on the tray, and on the tray only.
+    // The count rides on Waiting, and on Waiting only.
     //
     // It was on Home, and drawn only while you were on Chat -- which was right
     // when everything waiting WAS on Home. It is not any more: Home keeps the
     // newest one and the rest are in here, so a number on Home would be
-    // counting things that are not on it. Shown on whichever pane you are
-    // standing on, because the backlog is behind a door either way.
-    if (key === "pending" && waiting > 0) {
+    // counting things that are not on it.
+    //
+    // Not while you are standing on it. A badge on the pane you are reading is
+    // a number describing the screen to itself, and one that stays lit while
+    // somebody works through the queue in front of it is a number they learn
+    // to stop believing.
+    if (key === "waiting" && waiting > 0 && showing !== "waiting") {
       const count = document.createElement("span");
       count.className = "pane-count";
       count.textContent = String(waiting);

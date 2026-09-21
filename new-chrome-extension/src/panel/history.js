@@ -1,10 +1,15 @@
 // What this browser has done lately, over the top of whatever you were doing.
 //
-// An overlay and not a third pane, which is the whole argument: history is
-// something you glance at and leave. A pane is somewhere you can be left --
-// come back to the panel tomorrow and find it showing last week, with the run
-// happening right now behind it. This slides over, says its piece, and closes
-// with the press that opened it.
+// A pane and not an overlay. It was one, and as an overlay it drew its lines
+// straight through whatever was behind it -- measured on the deployment
+// 2026-09-21, `Create a Customer Type` superimposed on `Log in to Keycloak —
+// an arrival trigger fired. Shall I?`, both legible and neither readable.
+//
+// The argument for an overlay was that this is something you glance at and
+// leave, and a pane is somewhere you can be left: come back tomorrow and find
+// the panel showing last week. The panel opens on Home every time it opens --
+// which pane you are on is not stored -- so that costs one press, and buys a
+// surface the width of the panel for a run record that wants it.
 //
 // **A line each, and the line is what happened.** Not a card: a card is for
 // something that wants a decision, and every one of these is over. The title,
@@ -54,32 +59,22 @@ export const ENDINGS = {
  * the way out, which is also the escape key: an overlay a person cannot
  * dismiss without finding the one small button is a trap on a 360-pixel panel.
  */
-export function history(
-  runs,
-  { onClose, onOpen, said = [], now = Date.now() } = {},
-) {
+export function history(runs, { onOpen, said = [], now = Date.now() } = {}) {
   const box = document.createElement("section");
   box.className = "history";
-  box.setAttribute("role", "dialog");
+  // A region and not a dialog. `role="dialog"` tells a screen reader it has
+  // been interrupted and must get out; this is a place somebody walked to.
+  box.setAttribute("role", "region");
   box.setAttribute("aria-label", "Recent tasks");
 
   const head = document.createElement("div");
   head.className = "history-head";
   const title = document.createElement("h3");
   title.textContent = "Recent tasks";
-  const shut = document.createElement("button");
-  shut.type = "button";
-  shut.className = "quiet";
-  shut.textContent = "✕";
-  shut.title = "Close";
-  shut.setAttribute("aria-label", "Close");
-  shut.addEventListener("click", () => onClose?.());
-  head.append(title, shut);
+  // No ✕, and nothing listening for Escape. A pane is left by going somewhere
+  // else, which is what the navigation is for.
+  head.append(title);
   box.append(head);
-
-  box.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") onClose?.();
-  });
 
   if (!runs.length && !said.length) {
     const none = document.createElement("p");

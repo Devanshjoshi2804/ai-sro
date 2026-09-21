@@ -164,6 +164,92 @@ test("the newest is at the top, because that is the one anybody acts on", () => 
   assert.deepEqual(rows, ["new", "old"]);
 });
 
+test("a month of requests goes in one press, and its confirmation", () => {
+  // Why this exists: the queue is deep because clearing it was one press per
+  // card, so nobody cleared it and this morning's request sat under a
+  // fortnight of dead ones. Why it asks twice: a dismissal reports a fate, a
+  // fate is counted, and thirty of them written by a misplaced thumb is a lie
+  // told to whatever decides what to offer next.
+  const cleared = [];
+  const box = pending(
+    [
+      one({ id: "a" }),
+      one({ id: "b", at: new Date(NOW - 26 * HOUR).toISOString() }),
+      one({ id: "c", at: new Date(NOW - 30 * 24 * HOUR).toISOString() }),
+    ],
+    { now: NOW, onClear: (ids) => cleared.push(ids) },
+  );
+
+  const all = find(box, (el) => /^Dismiss all 3$/.test(el.textContent || ""));
+  assert.ok(all, "a backlog with no way to put it down");
+  all.listeners.click[0]();
+  assert.deepEqual(cleared, [], "a pile was cleared on one press");
+  assert.match(all.textContent, /sure\?/);
+  all.listeners.click[0]();
+  assert.deepEqual(cleared, [["a", "b", "c"]]);
+  assert.equal(all.disabled, true, "a spent control stayed live");
+});
+
+test("a day at a time, so clearing a month does not clear this morning", () => {
+  const cleared = [];
+  const box = pending(
+    [
+      one({ id: "today" }),
+      one({ id: "old-1", at: new Date(NOW - 30 * 24 * HOUR).toISOString() }),
+      one({ id: "old-2", at: new Date(NOW - 30 * 24 * HOUR).toISOString() }),
+    ],
+    { now: NOW, onClear: (ids) => cleared.push(ids) },
+  );
+
+  const day = find(box, (el) => /^Dismiss 2$/.test(el.textContent || ""));
+  assert.ok(day, "the days are grouped for reading and not for acting on");
+  day.listeners.click[0]();
+  day.listeners.click[0]();
+  assert.deepEqual(cleared, [["old-1", "old-2"]], "the wrong day was cleared");
+});
+
+test("one request, and one day, are not offered a way to clear in bulk", () => {
+  // A second control that does what the card under it already does, and a
+  // "Dismiss 3" beside the only heading that is the same as "Dismiss all 3".
+  const onClear = () => assert.fail("nothing should have been cleared");
+  const alone = pending([one()], { now: NOW, onClear });
+  assert.equal(
+    find(alone, (el) => /Dismiss/.test(el.textContent || "")),
+    null,
+  );
+  const oneDay = pending([one({ id: "a" }), one({ id: "b" })], {
+    now: NOW,
+    onClear,
+  });
+  assert.ok(find(oneDay, (el) => /^Dismiss all 2$/.test(el.textContent || "")));
+  assert.equal(
+    find(oneDay, (el) => /^Dismiss 2$/.test(el.textContent || "")),
+    null,
+  );
+});
+
+test("a day's control is in that day's heading, and the day still says its name", () => {
+  // Where it is IS what it means: "Dismiss 1" adrift between two days clears
+  // whichever one the reader guesses. And the heading is what makes the queue
+  // readable in the first place, so it still has to read as a day.
+  const box = pending(
+    [
+      one({ id: "a" }),
+      one({ id: "b", at: new Date(NOW - 26 * HOUR).toISOString() }),
+    ],
+    { now: NOW, onClear: () => {} },
+  );
+
+  const days = [];
+  walk(box, (el) => {
+    if (el.className === "pending-day") days.push(el);
+  });
+  assert.deepEqual(
+    days.map((el) => words(el)),
+    ["Today · 1 Dismiss 1", "Yesterday · 1 Dismiss 1"],
+  );
+});
+
 function walk(el, visit) {
   visit(el);
   for (const kid of el?.kids || []) walk(kid, visit);

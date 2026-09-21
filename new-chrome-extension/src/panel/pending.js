@@ -10,10 +10,14 @@
 // what just finished. Everything else lives here, and here is behind a count
 // -- a person glances at the number, and opens it when the number is wrong.
 //
-// **An overlay, not a pane**, for `history.js`'s reason: this is somewhere you
-// glance and leave. A pane is somewhere you can be left, and a panel found
-// tomorrow still showing yesterday's backlog while a run happens behind it is
-// the failure this is meant to fix rather than move.
+// **A pane, not an overlay.** It was one: a dialog over whatever was behind
+// it, with a ✕ to find and a height the stylesheet chose, so a queue of one
+// drew a card and two thirds of empty black. The argument for an overlay was
+// that this is somewhere you glance and leave, and a pane is somewhere you can
+// be left -- but the panel opens on Home every time it opens, so being left
+// here lasts until the next time somebody opens it, and costs one press.
+// Against that: the full width of the panel, reached by the same control as
+// Home and Chat, with nothing to dismiss.
 //
 // **Grouped by the day they arrived**, newest first. A request is a thing
 // somebody asked for on a day, and "Tuesday" is how anybody talks about it --
@@ -66,20 +70,61 @@ function carries(nudge) {
   return said.join(" · ");
 }
 
+/** Somewhere to put a backlog down.
+ *
+ * A queue is a month deep because nobody cleared it, and nobody cleared it
+ * because clearing it was thirty-four presses of "No thanks" -- so the pane
+ * that exists to be acted on becomes a pane that is scrolled past, and the one
+ * request that arrived this morning is underneath a fortnight of dead ones.
+ *
+ * Two presses, because it is not undoable: an offer dismissed reports its
+ * fate, and a fate is counted -- "this job is always refused" is how the
+ * mining side learns to stop offering it, and thirty of those written by a
+ * misplaced thumb is a lie told to the thing that decides what to offer. The
+ * second press is the whole confirmation: a browser `confirm()` blocks the
+ * extension's own message pump, and a dialog to dismiss a dialog-shaped pile
+ * is the thing this pane was just rewritten out of.
+ */
+function clearer(label, ids, onClear) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "quiet";
+  button.dataset.clear = String(ids.length);
+  button.textContent = label;
+  let asked = false;
+  button.addEventListener("click", () => {
+    if (!asked) {
+      asked = true;
+      // And it looks like what it now is. `danger` is already what this panel
+      // marks a control that destroys something with, at rest rather than
+      // only under a pointer -- a touchscreen never has a pointer.
+      button.className = "quiet danger";
+      button.textContent = `sure? ${label.toLowerCase()}`;
+      return;
+    }
+    button.disabled = true;
+    onClear(ids);
+  });
+  return button;
+}
+
 /**
- * The overlay, or `null` when nothing is waiting.
+ * The pane, or `null` when nothing is waiting.
  *
  * `cards` are the open nudges, in any order. `onPress` is the same handler the
  * cards on Home are built with, so a press here is the press there -- one path
- * into the backend for an answer, whichever screen it was given on.
+ * into the backend for an answer, whichever screen it was given on. `onClear`
+ * takes a list of ids: a day of them, or all of them.
  */
-export function pending(cards, { onClose, onPress, now = Date.now() } = {}) {
+export function pending(cards, { onPress, onClear, now = Date.now() } = {}) {
   const waiting = (cards || []).filter((one) => one.state === "open");
   if (!waiting.length) return null;
 
   const box = document.createElement("section");
   box.className = "history pending";
-  box.setAttribute("role", "dialog");
+  // A region and not a dialog. `role="dialog"` tells a screen reader it has
+  // been interrupted and must get out; this is a place somebody walked to.
+  box.setAttribute("role", "region");
   box.setAttribute("aria-label", "Waiting for you");
 
   const head = document.createElement("div");
@@ -95,19 +140,23 @@ export function pending(cards, { onClose, onPress, now = Date.now() } = {}) {
     waiting.length === 1
       ? "1 request waiting"
       : `${waiting.length} requests waiting${today && today < waiting.length ? ` · ${today} today` : ""}`;
-  const shut = document.createElement("button");
-  shut.type = "button";
-  shut.className = "quiet";
-  shut.textContent = "✕";
-  shut.title = "Close";
-  shut.setAttribute("aria-label", "Close");
-  shut.addEventListener("click", () => onClose?.());
-  head.append(title, shut);
+  // No ✕, and nothing listening for Escape. A pane is left by going somewhere
+  // else, which is what the navigation is for -- a second way out, on the
+  // surface itself, is a control that has to be found and then explained.
+  head.append(title);
+  // The whole pile, in one press-and-confirm. Only where there is a pile:
+  // "Dismiss all 1" beside a single request is a second way to do what the
+  // card under it already does.
+  if (onClear && waiting.length > 1) {
+    head.append(
+      clearer(
+        `Dismiss all ${waiting.length}`,
+        waiting.map((one) => one.id),
+        onClear,
+      ),
+    );
+  }
   box.append(head);
-
-  box.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") onClose?.();
-  });
 
   // Newest first, and the days in the order the newest ones fall in.
   const byDay = new Map();
@@ -120,7 +169,21 @@ export function pending(cards, { onClose, onPress, now = Date.now() } = {}) {
   for (const [day, ones] of byDay) {
     const when = document.createElement("h4");
     when.className = "pending-day";
-    when.textContent = `${day} · ${ones.length}`;
+    const named = document.createElement("span");
+    named.textContent = `${day} · ${ones.length}`;
+    when.append(named);
+    // And a day at a time, which is what makes a month-deep queue clearable
+    // without also clearing this morning. The grouping was already here for
+    // reading; this is the same grouping being acted on.
+    if (onClear && byDay.size > 1) {
+      when.append(
+        clearer(
+          `Dismiss ${ones.length}`,
+          ones.map((one) => one.id),
+          onClear,
+        ),
+      );
+    }
     box.append(when);
 
     const list = document.createElement("ul");

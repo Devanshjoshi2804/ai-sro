@@ -2564,6 +2564,16 @@ async function say(text) {
   // the reply will arrive in, plus the line they just wrote, plus a mark that
   // something is being worked out. The server's answer replaces all of it a
   // moment later, so nothing here is a claim about what was decided.
+  //
+  // And the status line goes with it. `said()` writes one line about what just
+  // happened and nothing has ever cleared it, so it outlived whatever it was
+  // about: on the deployment 2026-09-22 at 01:35 the line under a running job
+  // still read "Create a Customer Type. Customer Type takes 4 characters. What
+  // should it be?" -- a question answered four sentences earlier, sitting
+  // directly above the box, indistinguishable from the one being asked now.
+  // A new sentence is the moment the old report stopped being what just
+  // happened.
+  said("");
   thinking(text);
   let answered;
   try {

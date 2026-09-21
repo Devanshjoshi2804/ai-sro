@@ -2521,6 +2521,36 @@ test("sending with Enter paints the answer, with the cursor still in the box", a
   );
 });
 
+test("a new sentence clears the line about what just happened", async () => {
+  // `said()` writes one line about what just happened, and nothing ever
+  // cleared it. Measured on the deployment 2026-09-22 at 01:35: the line under
+  // a running job still read "Create a Customer Type. Customer Type takes 4
+  // characters. What should it be?" -- a question answered four sentences
+  // earlier, sitting directly above the box and indistinguishable from the one
+  // being asked now. A new sentence is the moment the old report stopped being
+  // what just happened.
+  const spoke = { id: "thr-1", messages: [] };
+  const { ids, say } = panel({ deviceId: "dev-1" }, null, {
+    thread: spoke,
+    "thread-say": { id: "thr-1", messages: [{ id: "m1", speaker: "operator", text: "SMKY" }] },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  // Seeded the way `getElementById` would have: the harness mints an element
+  // on first access, and the line under test is one the panel has not touched
+  // yet in this fixture.
+  ids["candidates-note"] = node("p");
+  ids["candidates-note"].textContent =
+    "Create a Customer Type. Customer Type takes 4 characters. What should it be?";
+
+  await say("SMKY");
+
+  assert.equal(
+    words(ids["candidates-note"]).trim(),
+    "",
+    "a line about something four sentences ago was still above the box",
+  );
+});
+
 test("yes on a rig offer sends the run with the values typed on the card", async () => {
   // The offer card is the panel's only path to starting a rig run, and this is
   // the message it must send: `start-rig-run`, never `nudge-answer`. The worker

@@ -349,11 +349,19 @@ class SendTheDraft:
         claim released on failure would retry it into a second mail -- the same
         rule the connector ledger keeps everywhere else, and for the strongest
         reason it has: a duplicate mail cannot be deleted afterwards.
+
+        **Keyed by the draft alone, not by the draft and whoever pressed.** A
+        draft belongs to one thread and a thread to one operator, so the
+        principal added nothing to the identity -- what it added was a second
+        claim for the same words. `threads.get` is scoped to the tenant and
+        not to the person, so a colleague holding the id could press it again
+        and the guard would let them, which is the one thing this claim
+        exists to stop. The draft id is unique in the tenant on its own.
         """
         async with self._uow as uow:
             mine = await uow.tool_calls.remember(
                 ctx.tenant_id,
-                f"draft:{ctx.principal_id.value}:{message_id}",
+                f"draft:{message_id}",
                 tool="a mail drafted for whoever asked, sent once",
                 at=self._clock.now(),
             )

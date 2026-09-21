@@ -4824,6 +4824,54 @@ async def test_the_password_asked_for_is_the_one_for_the_page_in_front_of_them()
     )
 
 
+async def test_the_password_planned_for_is_never_keyed_to_somebody_else_s_window() -> None:
+    """The same rule as the test above, on the path that actually asks.
+
+    `plan_step` is where a sign-in step's `needs_secret` is built, and it made
+    the same choice `run_workflow`'s sign-in rung makes -- `elsewhere` only
+    when the browser says that tab is THIS RUN'S. Only one of the two was
+    tested: the check here passed with `ours=True` either way, so deleting the
+    condition reinstated the whole defect in silence.
+
+    The tab in front is a guess -- the operator's other window, a mailbox, a
+    search. "Your password for <whatever was open>" is a credential prompt for
+    a system nobody named.
+    """
+    uow = await _fixture()
+    workflow = await _a_password_step(uow)
+    asked: list[str] = []
+
+    run = await asyncio.wait_for(
+        run_workflow(
+            uow,
+            workflow,
+            tenant_id=TENANT,
+            values={},
+            channel=FakeChannel(_bounced_to("https://someone-elses-tab.example/x", ours=False)),
+            device_id=DEVICE,
+            asker=FakeAsker(_plan("type", "x")),
+            plan_model="flash",
+            rescue_model="pro",
+            live=True,
+            allow_focus=True,
+            started_by="form",
+            stops=Stops(),
+            approvals=Approvals(),
+            cap_usd=-1.0,
+            secret_for=lambda key: _noted(key, asked),
+        ),
+        timeout=5,
+    )
+
+    assert not any("someone-elses-tab" in one for one in asked), (
+        f"it went looking for a credential for a window nothing named: {asked}"
+    )
+    wants = run.steps[0].sent["payload"]["needs_secret"]
+    assert "someone-elses-tab" not in str(wants), wants
+    # The recorded system instead, which is the only one this run has named.
+    assert "127.0.0.1" in str(wants), wants
+
+
 async def test_no_credential_goes_out_for_a_page_this_run_never_opened() -> None:
     """The browser answers with the tab IN FRONT when this run pinned none --
     the operator's other window, a mailbox, a search. "Your password for

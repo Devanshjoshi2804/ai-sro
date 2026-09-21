@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -341,6 +342,28 @@ async def test_one_mail_per_draft_when_no_run_stands_behind_it() -> None:
     assert await sender.execute(CTX, threads[0].id, drafted.id) == ""
 
     assert len(mailbox.sent) == 1, "one card, two mails"
+
+
+async def test_one_mail_per_draft_whoever_presses_it() -> None:
+    """The claim is about the words, not about who is holding the panel.
+
+    `threads.get` is scoped to the tenant and not to the person, so a
+    colleague with the thread id reaches the same draft -- and a claim keyed
+    by principal gives each of them their own, which is a second mail to
+    somebody about one request. The run column does not cover this half: a
+    card asks before any run exists.
+    """
+    uow, mailbox = FakeUnitOfWork(), _Mailbox()
+    await _drafter(uow, mailbox).execute(CTX, _pending(), thread=THREAD)
+    threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
+    drafted = threads[0].messages[-1]
+    sender = SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory())
+    colleague = replace(CTX, principal_id=PrincipalId("someone-else"))
+
+    assert await sender.execute(CTX, threads[0].id, drafted.id) == "tanisha@example.com"
+    assert await sender.execute(colleague, threads[0].id, drafted.id) == ""
+
+    assert len(mailbox.sent) == 1, "one draft, two mails, two operators"
 
 
 async def test_an_offer_naming_no_mail_asks_nobody() -> None:

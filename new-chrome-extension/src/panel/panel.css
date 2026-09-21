@@ -1090,6 +1090,22 @@ button.danger:hover:not(:disabled) {
   background: var(--tint, rgb(255 255 255 / 6%));
 }
 
+/* How it ended, in the one place colour earns its keep: finding the run that
+   went wrong in a list where every line reads the same words. Three states,
+   not one per outcome -- a palette with a shade per ending is a legend to
+   learn. On the OUTCOME word only, so the title stays the title. */
+.history-list li[data-ended="bad"] .detail {
+  color: var(--brand-danger);
+}
+
+.history-list li[data-ended="asking"] .detail {
+  color: var(--warn);
+}
+
+.history-list li[data-ended="live"] .detail {
+  color: var(--accent);
+}
+
 /* The record under the line it belongs to, indented so the list still reads
    as a list with one of its lines opened. */
 .record-of-a-run {
@@ -1723,4 +1739,67 @@ a:focus-visible {
    the mail was read. */
 .message[data-kind="mail_draft"] .row {
   margin-top: 4px;
+}
+
+/* -- what is coming, while it is coming ------------------------------------- */
+
+/* A word is not a loading state.
+ *
+ * `Looking…` on its own is a pane that looks broken for as long as two round
+ * trips take and then jumps. These are the lines themselves, greyed: the pane
+ * has its layout before the data lands, and nothing moves when it does.
+ */
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 4px;
+}
+
+.loading-line {
+  height: 11px;
+  border-radius: 5px;
+  /* Its own colour rather than a card's: this is the absence of content, and
+     a bar the colour of a surface reads as a surface. */
+  background: linear-gradient(
+    90deg,
+    var(--line) 0%,
+    var(--line-soft) 40%,
+    var(--line) 80%
+  );
+  background-size: 300% 100%;
+  animation: loading-sweep 1.4s ease-in-out infinite;
+}
+
+/* Ragged, because a stack of identical bars reads as a graphic and a ragged
+   one reads as text that has not arrived. */
+.loading-line[data-of="1"] {
+  width: 92%;
+}
+
+.loading-line[data-of="2"] {
+  width: 64%;
+}
+
+.loading-line[data-of="3"] {
+  width: 78%;
+}
+
+@keyframes loading-sweep {
+  from {
+    background-position: 120% 0;
+  }
+
+  to {
+    background-position: -20% 0;
+  }
+}
+
+/* Somebody who has asked for less movement gets a still placeholder. It says
+   the same thing; the sweep is what says it is still going. */
+@media (prefers-reduced-motion: reduce) {
+  .loading-line {
+    animation: none;
+    background: var(--line);
+  }
 }

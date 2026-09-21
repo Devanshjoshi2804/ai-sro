@@ -131,6 +131,14 @@ export function asPanelRun(run) {
     // deliberately not carried -- a retry that comes up short asks in the
     // panel, where the person who pressed it is.
     workflow_id: run.workflow_id || "",
+    // WHEN it ran. The fourth thing this whitelist was missing, found the way
+    // the paragraph above says they are found: `Recent tasks` drew twelve
+    // lines reading `Log in to Keycloak` and nothing else -- no outcome, no
+    // time -- because the list reads `started_at` and `status` off a row that
+    // carried neither. Measured on the deployment 2026-09-21. The backend has
+    // both on every row and always has.
+    started_at: run.started_at || "",
+    finished_at: run.finished_at || null,
     // What it read out of the mail, so the card can say where a value it
     // was never given came from.
     gathered: run.gathered || {},

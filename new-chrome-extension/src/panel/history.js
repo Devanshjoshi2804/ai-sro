@@ -21,6 +21,8 @@
 // Pure over what it is given: the runs, and what to do when somebody closes
 // it. Nothing here fetches, and nothing here keeps state.
 
+import { dayNamed } from "./pending.js";
+
 /** How many lines. Beyond this it is a log, and the console is where a log is
  * read -- a panel beside a warehouse screen is not where somebody scrolls
  * through two hundred runs. */
@@ -87,9 +89,38 @@ export function history(runs, { onOpen, said = [], now = Date.now() } = {}) {
     return box;
   }
 
+  // Grouped by the day it ran, newest first -- the backlog's grouping, and
+  // the same function, because "when was this" is one question and a panel
+  // that answered it two ways would be two panels.
+  //
+  // Twelve lines reading `Log in to Keycloak` is what this pane looked like
+  // without it: a list where every entry is the same words, so the only thing
+  // that tells one from another is when it happened and how it ended.
+  // Measured on the deployment 2026-09-21.
+  const byDay = new Map();
+  for (const run of (runs || []).slice(0, K_LINES)) {
+    const day = dayNamed(run.started_at, now);
+    if (!byDay.has(day)) byDay.set(day, []);
+    byDay.get(day).push(run);
+  }
+
+  for (const [day, ofThatDay] of byDay) {
+    const heading = document.createElement("h4");
+    heading.className = "pending-day";
+    const named = document.createElement("span");
+    named.textContent = `${day} · ${ofThatDay.length}`;
+    heading.append(named);
+    box.append(heading);
+    box.append(_linesOf(ofThatDay, onOpen, now));
+  }
+  box.append(...whatThisBrowserSaid(said));
+  return box;
+}
+
+function _linesOf(runs, onOpen, now) {
   const list = document.createElement("ul");
   list.className = "history-list";
-  for (const run of (runs || []).slice(0, K_LINES)) {
+  for (const run of runs) {
     const line = document.createElement("li");
     // A line you can open.
     //
@@ -109,9 +140,17 @@ export function history(runs, { onOpen, said = [], now = Date.now() } = {}) {
     const what = document.createElement("span");
     what.className = "what";
     what.textContent = run.title || run.workflow_id || "a job";
+    // `status` is what a run carries in this panel -- `asPanelRun` maps the
+    // backend's `outcome` onto it, and the run card has drawn it by that name
+    // since there were two kinds of run. `outcome` as well, because a row
+    // that never went through that map is still a row somebody is reading.
+    const ended = run.status || run.outcome || "";
     const how = document.createElement("span");
     how.className = "detail";
-    how.textContent = ENDINGS[run.outcome] || run.outcome || "";
+    how.textContent = ENDINGS[ended] || ended || "";
+    // And what KIND of ending, for the one thing colour is good for: finding
+    // the run that went wrong in a list where every line says the same words.
+    line.dataset.ended = TONES[ended] || "";
     const when = document.createElement("span");
     when.className = "when";
     when.textContent = ago(run.started_at, now);
@@ -120,10 +159,23 @@ export function history(runs, { onOpen, said = [], now = Date.now() } = {}) {
     line.append(open);
     list.append(line);
   }
-  box.append(list);
-  box.append(...whatThisBrowserSaid(said));
-  return box;
+  return list;
 }
+
+/** Which endings are worth a colour, and which way.
+ *
+ * Three, not six: a palette with a shade per outcome is a legend to learn.
+ * The question this pane is opened with is "did it work", so it answers in
+ * the two ways that are not "it worked" -- and `running` is neither, it is
+ * the one still going.
+ */
+export const TONES = {
+  failed: "bad",
+  refused: "bad",
+  stopped: "asking",
+  aborted: "asking",
+  running: "live",
+};
 
 /** This browser's own last few refusals, under the runs.
  *

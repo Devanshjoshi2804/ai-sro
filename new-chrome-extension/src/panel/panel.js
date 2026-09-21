@@ -94,11 +94,28 @@ function hostOf(url) {
   }
 }
 
-function clock(since) {
-  const seconds = Math.max(0, Math.round((Date.now() - since) / 1000));
-  return seconds < 60
-    ? `${seconds}s`
-    : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+/** How long something has been going on, in units a person uses.
+ *
+ * Two units at most, and never the small one once the big one is large:
+ * this counted minutes forever, so a tab watched since Thursday said
+ * `since 4997m 24s` -- measured on the deployment 2026-09-21. Nobody divides
+ * that by 1440 while standing at a warehouse screen.
+ */
+function clock(since, now = Date.now()) {
+  // Either shape it is held in. `watchedTabs()` stamps `since` with an ISO
+  // STRING, and this subtracted it from a number: `Date.now() - "2026-09-18…"`
+  // is NaN, so the card read `since NaNd NaNh` for the one browser state it
+  // draws every time the panel opens. The backlog had the same defect for the
+  // same reason, which is why the reader of both is one function.
+  const at = when(since);
+  if (!at) return "a while";
+  const seconds = Math.max(0, Math.round((now - at) / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ${minutes % 60}m`;
+  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
 }
 
 // -- building a card ---------------------------------------------------------
@@ -1958,6 +1975,12 @@ let drawn = null;
 
 /** Fetch the thread and draw it. */
 async function conversation() {
+  // The first one only. A conversation nobody has drawn yet is a blank
+  // column for as long as the fetch takes, which on a panel that opens
+  // instantly is the difference between "loading" and "broken". Never on a
+  // later pass: the thread is already on screen and replacing it with grey
+  // bars every two seconds is the opposite of what this is for.
+  if (!lastThread) $("scroll").replaceChildren(_comingUp(4));
   let thread;
   try {
     thread = await ask({ kind: "thread" });
@@ -2080,9 +2103,10 @@ function paintPanes() {
  */
 async function drawTasks() {
   const into = $("tasks");
-  // Said while it is happening. The fetch is two round trips and this pane
-  // opens instantly, so without a word here it opens blank and looks broken.
-  into.replaceChildren(_note("Looking…"));
+  // Shown while it is happening. The fetch is two round trips and this pane
+  // opens instantly, so without this it opens blank and looks broken -- and a
+  // word on its own is a blank pane with a word on it.
+  into.replaceChildren(_comingUp());
   let runs = [];
   let said = [];
   try {
@@ -2131,6 +2155,32 @@ async function drawTasks() {
 }
 
 /** One line of prose in a pane that has nothing else to show yet. */
+/** The shape of what is coming, while it is coming.
+ *
+ * A word is not a loading state. `Looking…` on its own is a pane that looks
+ * broken for as long as two round trips take, and then jumps: nothing on
+ * screen tells anybody what is about to be there or how much of it. These are
+ * the lines themselves, greyed -- so the pane has its own layout before the
+ * data lands and nothing moves when it does.
+ *
+ * Labelled for a screen reader, which cannot see grey bars at all.
+ */
+function _comingUp(lines = 5) {
+  const box = document.createElement("div");
+  box.className = "loading";
+  box.setAttribute("role", "status");
+  box.setAttribute("aria-label", "Loading");
+  for (let n = 0; n < lines; n++) {
+    const bar = document.createElement("span");
+    bar.className = "loading-line";
+    // Uneven, because a stack of identical bars reads as a graphic and a
+    // ragged one reads as text that has not arrived.
+    bar.dataset.of = String((n % 3) + 1);
+    box.append(bar);
+  }
+  return box;
+}
+
 function _note(text) {
   const said = document.createElement("p");
   said.className = "detail";

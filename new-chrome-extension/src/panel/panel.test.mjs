@@ -55,6 +55,11 @@ const SOURCE = [
   readFileSync(path.join(here, "waiting.js"), "utf-8"),
   readFileSync(path.join(here, "panes.js"), "utf-8"),
   readFileSync(path.join(here, "pending.js"), "utf-8"),
+  // After `pending.js`, which it reads the day names out of, and before
+  // `panel.js`, which draws it. Missing until now -- so nothing here had ever
+  // pressed the Recent tasks tab, and the first test that did got
+  // `ReferenceError: history is not defined`.
+  readFileSync(path.join(here, "history.js"), "utf-8"),
   readFileSync(path.join(here, "panel.js"), "utf-8"),
 ]
   .join("\n")
@@ -956,6 +961,58 @@ test("an unchanged banner is left alone, with whatever was typed into it", async
   );
 });
 
+test("a pane that is fetching shows the shape of what is coming, not a blank", async () => {
+  // `Looking…` on its own is a pane that looks broken for as long as two round
+  // trips take, and then jumps. These are the lines themselves, greyed, so the
+  // pane has its layout before the data lands.
+  const { ids } = panel(
+    { deviceId: "dev-1", nudges: [] },
+    null,
+    // A worker that has not answered yet, which is the state being drawn.
+    { "recent-runs": new Promise(() => {}) },
+  );
+
+  navTab(ids, "tasks").listeners[0]();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const held = [];
+  const walk = (el) => {
+    if (el?.className === "loading") held.push(el);
+    for (const kid of el?.kids || []) walk(kid);
+  };
+  walk(ids["tasks"]);
+  assert.equal(held.length, 1, "the pane was blank while it fetched");
+  // A screen reader cannot see grey bars at all.
+  assert.equal(held[0].role, "status");
+  assert.ok(held[0].kids.length >= 3, "one bar is a progress indicator");
+});
+
+test("and it is gone the moment the answer is", async () => {
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] }, null, {
+    "recent-runs": [
+      {
+        id: "run_1",
+        workflow_id: "wfl_1",
+        status: "held",
+        started_at: new Date().toISOString(),
+      },
+    ],
+  });
+
+  navTab(ids, "tasks").listeners[0]();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const said = words(ids["tasks"]);
+  assert.match(said, /Recent tasks/);
+  const stillLoading = [];
+  const walk = (el) => {
+    if (el?.className === "loading") stillLoading.push(el);
+    for (const kid of el?.kids || []) walk(kid);
+  };
+  walk(ids["tasks"]);
+  assert.deepEqual(stillLoading, [], "the placeholder outlived the answer");
+});
+
 test("a month of requests is cleared from the pane it is read in, once it has asked", async () => {
   // The requirement, in the operator's words: a queue holds things a week old
   // and older, a month is not unusual, and it has to be clearable in bulk.
@@ -1208,6 +1265,32 @@ test("a steady watching state is one line", async () => {
     true,
     "a steady watching state showed its actions before being asked to",
   );
+});
+
+test("a tab watched since Thursday is not 4997 minutes", async () => {
+  // What it said on the deployment 2026-09-21: `since 4997m 24s`. Minutes
+  // forever, for a watch three and a half days old, on a panel beside a
+  // warehouse screen where nobody is going to divide by 1440.
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [
+        {
+          tabId: 7,
+          host: "wms.example",
+          since: new Date(
+            Date.now() - (3 * 86400 + 11 * 3600) * 1000,
+          ).toISOString(),
+        },
+      ],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const said = cards.map(words).join(" ");
+  assert.match(said, /since 3d 11h/);
+  assert.doesNotMatch(said, /\d{3,}m/, "it counted minutes into the thousands");
 });
 
 test("the collapsed row has a chevron, and pressing it reveals the actions", async () => {

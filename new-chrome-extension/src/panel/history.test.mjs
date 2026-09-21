@@ -9,6 +9,9 @@ import { install, of, words } from "./test-support/fake-document.mjs";
 install();
 
 const { ENDINGS, K_LINES, K_SAID, ago, history } = await import("./history.js");
+// The other side of the seam, and the reason this import is here: the list is
+// never given a backend row. It is given whatever `asPanelRun` kept.
+const { asPanelRun } = await import("../background/api.js");
 
 const tests = [];
 let failed = 0;
@@ -16,6 +19,8 @@ const test = (name, fn) => tests.push([name, fn]);
 const press = (el) => el.listeners.click[0]();
 
 const NOW = Date.parse("2026-09-17T10:00:00Z");
+const HOUR = 3600000;
+const iso = (at) => new Date(at).toISOString();
 const run = (over = {}) => ({
   id: "run_1",
   workflow_id: "wfl_1",
@@ -181,7 +186,81 @@ test("nothing said draws no heading", () => {
   const box = history([run()], { now: NOW });
 
   assert.equal(saidList(box), undefined);
-  assert.equal(of(box, "h4").length, 0);
+  // The heading this is about, and not every heading: the list is grouped by
+  // the day a run happened, and those are headings too.
+  assert.equal(
+    of(box, "h4").filter((one) => one.className === "history-said-head").length,
+    0,
+  );
+});
+
+test("the list is drawn from what the worker actually keeps, not from the backend row", () => {
+  // How this broke: `asPanelRun` is a whitelist -- what is not named in it
+  // does not reach the panel -- and it named neither `started_at` nor a time
+  // of any kind. So `Recent tasks` drew twelve lines reading `Log in to
+  // Keycloak`, no outcome and no time on any of them, while the backend was
+  // answering all three on every row. Measured on the deployment 2026-09-21.
+  //
+  // The mapping's own comment records that this has happened three times
+  // before, to three other fields. A test across the seam is cheaper than a
+  // fourth paragraph.
+  const fromTheBackend = {
+    id: "run_9",
+    workflow_id: "wfl_1",
+    outcome: "failed",
+    started_at: iso(NOW - 3 * HOUR),
+    finished_at: iso(NOW - 3 * HOUR + 60000),
+    steps: [],
+  };
+
+  const box = history([{ ...asPanelRun(fromTheBackend), title: "Log in" }], {
+    now: NOW,
+  });
+
+  const said = words(box);
+  assert.match(said, /Log in/);
+  assert.match(said, /failed/, "the line said nothing of how it ended");
+  assert.match(said, /3h ago/, "the line said nothing of when it happened");
+});
+
+test("the days are named, so twelve lines of the same job are twelve distinguishable lines", () => {
+  // What this pane looked like without it, measured on the deployment
+  // 2026-09-21: twelve entries reading `Log in to Keycloak`, no outcome and
+  // no time on any of them, because the row the list is given carried
+  // neither `status` nor `started_at`.
+  const box = history(
+    [
+      run({ id: "r1", status: "held", started_at: iso(NOW - 2 * HOUR) }),
+      run({ id: "r2", status: "failed", started_at: iso(NOW - 26 * HOUR) }),
+    ],
+    { now: NOW },
+  );
+
+  const days = of(box, "h4").map((one) => words(one));
+  assert.deepEqual(days, ["Today · 1", "Yesterday · 1"]);
+  assert.match(words(box), /done/);
+  assert.match(words(box), /failed/);
+  assert.match(words(box), /2h ago/);
+});
+
+test("the one that went wrong is findable in a list where every line reads the same", () => {
+  const box = history(
+    [
+      run({ id: "r1", status: "held" }),
+      run({ id: "r2", status: "failed" }),
+      run({ id: "r3", status: "stopped" }),
+    ],
+    { now: NOW },
+  );
+
+  const toned = [];
+  const walk = (el) => {
+    if (el?.dataset?.ended !== undefined && el.tag === "li")
+      toned.push(el.dataset.ended);
+    for (const kid of el?.kids || []) walk(kid);
+  };
+  walk(box);
+  assert.deepEqual(toned, ["", "bad", "asking"]);
 });
 
 test("a browser with no runs but something to say still says it", () => {

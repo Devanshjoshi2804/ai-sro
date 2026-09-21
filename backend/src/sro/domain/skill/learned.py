@@ -18,7 +18,7 @@ corpus, thirteen of fourteen second-pass matches came through shape rather than
 citation overlap, so the pairs are the common case rather than the rare one.
 """
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
 from sro.domain.observation.gesture import Gesture, Intent
@@ -42,6 +42,52 @@ target carries `field_label` and no `aria-required`. Widening that is a
 never edited by hand -- and until it happens, a page that marks required
 fields by colour alone tells this system nothing, which reads as optional.
 """
+
+
+def demanded(parameter: Mapping[str, object]) -> bool:
+    """Whether the page said this stored parameter must be filled.
+
+    The same rule as `LearnedParameter.required`, read off a parameter as a
+    job stores it. Two callers -- the runner, deciding what stops a run, and
+    the question, deciding what to offer instead of demand -- and a rule kept
+    in two places is a rule that drifts.
+
+    Read off the flag where a pass has written one, and off the names
+    otherwise: every parameter stored before 2026-09-22 predates the flag, and
+    a migration to add it would be a migration to recompute what the names
+    already carry. The flag wins where both speak, because a later pass may
+    have learnt from a refusal what no label ever said.
+    """
+    said = parameter.get("required")
+    if isinstance(said, bool):
+        return said
+    names = parameter.get("names")
+    listed = names if isinstance(names, list | tuple) else ()
+    return any(str(one).rstrip().endswith(K_REQUIRED_MARK) for one in listed)
+
+
+def offerable(
+    parameters: Sequence[Mapping[str, object]], values: Mapping[str, str]
+) -> tuple[tuple[str, str], ...]:
+    """The fields a job can fill that nobody has to, with what each was last
+    time, for the ones this run has no value for.
+
+    The last value and not every value: this is an offer somebody reads in one
+    line, and "Department was IN, new, IN, OUTSIDE" is a history rather than a
+    suggestion. Most recent, because `seen` is in the order the occurrences
+    were seen and the newest is the likeliest to still be right.
+    """
+    offered: list[tuple[str, str]] = []
+    for parameter in parameters:
+        name = parameter.get("name")
+        if not isinstance(name, str) or not name or demanded(parameter):
+            continue
+        if values.get(name, "").strip():
+            continue
+        seen = parameter.get("seen_values")
+        was = [str(one) for one in seen] if isinstance(seen, list | tuple) else []
+        offered.append((name, was[-1] if was else ""))
+    return tuple(offered)
 
 
 @dataclass(frozen=True, slots=True)

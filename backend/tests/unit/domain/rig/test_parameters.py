@@ -12,7 +12,12 @@ from dataclasses import replace
 import pytest
 
 from sro.domain.observation.gesture import Component, Gesture, Intent, ValueSeen
-from sro.domain.skill.learned import LearnedParameter, parameters_across
+from sro.domain.skill.learned import (
+    LearnedParameter,
+    demanded,
+    offerable,
+    parameters_across,
+)
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.domain.rig.conftest import gestures as _gestures
 
@@ -524,3 +529,49 @@ def test_a_mark_survives_the_space_a_page_leaves_after_it() -> None:
     spaced = LearnedParameter(name="Customer Type", seen=("A", "B"), names=("Customer Type* ",))
 
     assert spaced.required is True
+
+
+def test_what_a_job_can_also_fill_is_what_nobody_has_to_and_nobody_gave() -> None:
+    """The offer is the fields the page does not ask for, minus the ones this
+    run already has a value for. Offering a field somebody has answered is
+    asking them the same thing twice."""
+    stored = [
+        {"name": "Customer Type", "names": ["Customer Type*"], "seen_values": ["GGD"]},
+        {"name": "Department", "names": ["Department"], "seen_values": ["IN", "new"]},
+        {"name": "Manufacturer", "names": ["Manufacturer"], "seen_values": ["OUTSIDE", "testing"]},
+    ]
+
+    assert offerable(stored, {"Customer Type": "NRT2"}) == (
+        ("Department", "new"),
+        ("Manufacturer", "testing"),
+    )
+    assert offerable(stored, {"Department": "IN"}) == (("Manufacturer", "testing"),)
+
+
+def test_the_value_offered_is_the_most_recent_and_not_the_whole_history() -> None:
+    """`seen` is in the order the occurrences were seen. An offer somebody
+    reads in one line is a suggestion; "Department was IN, new, IN, OUTSIDE"
+    is a history."""
+    stored = [{"name": "Department", "names": ["Department"], "seen_values": ["IN", "new", "last"]}]
+
+    assert offerable(stored, {}) == (("Department", "last"),)
+
+
+def test_a_field_the_job_has_never_filled_is_still_offered() -> None:
+    """It is still a field this job can fill. The offer simply has nothing to
+    suggest."""
+    stored = [{"name": "Pallet Building", "names": ["Pallet Building"], "seen_values": []}]
+
+    assert offerable(stored, {}) == (("Pallet Building", ""),)
+
+
+def test_the_rule_the_runner_and_the_question_share_is_one_rule() -> None:
+    """`demanded` is read by the runner, deciding what stops a run, and by the
+    question, deciding what to offer instead of demand. A rule kept in two
+    places is a rule that drifts."""
+    assert demanded({"name": "x", "names": ["Customer Type*"]}) is True
+    assert demanded({"name": "x", "names": ["Department"]}) is False
+    # The flag wins where both speak: a later pass may have learnt from a
+    # refusal what no label ever said.
+    assert demanded({"name": "x", "names": ["Department"], "required": True}) is True
+    assert demanded({"name": "x", "names": ["Customer Type*"], "required": False}) is False

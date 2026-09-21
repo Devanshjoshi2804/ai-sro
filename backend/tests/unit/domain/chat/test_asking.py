@@ -10,6 +10,7 @@ from sro.domain.chat.asking import (
     _step,
     answered,
     let_go,
+    opening,
     pending_job,
     question,
     unusable,
@@ -179,3 +180,107 @@ def test_a_step_a_row_cannot_be_read_as_is_the_start_of_the_job() -> None:
     for said in (None, "4", True, False, -1, {}):
         assert _step(said) == 0, said
     assert _step(4) == 4
+
+
+# --- what the job could ALSO set ---------------------------------------------
+
+
+def _short_job(**over: object) -> Pending:
+    return Pending(
+        workflow_id="wfl_1",
+        title="Create a Customer Type",
+        values={"Customer Type": "NRT2"},
+        missing=("Customer Type Description",),
+        limits={"Customer Type Description": 2000},
+        **over,  # type: ignore[arg-type]
+    )
+
+
+def test_a_field_nobody_has_to_fill_is_offered_once_with_what_it_was() -> None:
+    """Since 2026-09-22 an optional field no longer stops a run, and the step
+    that fills it is skipped where nothing was given. Skipping it silently is
+    the other half of the old mistake: a field the operator DID want goes
+    unfilled and nothing says it was ever possible.
+
+    Once, in the opening, and never as a question of its own -- four questions
+    nobody has to answer is how a person learns to type "no" without reading.
+    """
+    said = opening(_short_job(offered=(("Department", "NOTHING"), ("Manufacturer", "NIGHTCO"))))
+
+    assert "I can also set Department and Manufacturer" in said
+    assert "last time Department: NOTHING; Manufacturer: NIGHTCO" in said
+    assert "or I will run without" in said
+
+
+def test_the_offer_comes_before_the_question_it_must_not_swallow() -> None:
+    """The question is what the next sentence answers. A question buried above
+    an offer gets the offer's answer."""
+    said = opening(_short_job(offered=(("Department", "IN"),)))
+
+    assert said.index("I can also set") < said.index("What should it be?")
+
+
+def test_a_job_with_nothing_optional_says_nothing_about_it() -> None:
+    said = opening(_short_job())
+
+    assert "I can also set" not in said
+
+
+def test_an_offer_nobody_has_a_last_value_for_is_still_made() -> None:
+    """A field this job has never filled is still one it can fill. The offer
+    simply has nothing to suggest."""
+    said = opening(_short_job(offered=(("Pallet Building", ""),)))
+
+    assert "I can also set Pallet Building" in said
+    assert "last time" not in said
+
+
+def test_three_offered_fields_read_as_a_list_and_not_as_two() -> None:
+    """A comma before the last is how a list of two reads as a list of three."""
+    said = opening(_short_job(offered=(("A", ""), ("B", ""), ("C", ""))))
+
+    assert "I can also set A, B and C" in said
+
+
+def test_the_offer_survives_the_thread_it_was_written_into() -> None:
+    """The state is the thread. A second browser reading it offers the same
+    fields, and an answer arriving minutes later is still an answer to this."""
+    asked = Message(
+        id=MessageId("m1"),
+        speaker=Speaker.ASSISTANT,
+        text="...",
+        said_at=datetime(2026, 9, 22, 3, 0, tzinfo=UTC),
+        decision={
+            "kind": NEEDS,
+            "workflow_id": "wfl_1",
+            "missing": ["Customer Type Description"],
+            "offered": [["Department", "NOTHING"], ["Manufacturer", "NIGHTCO"]],
+        },
+    )
+
+    waiting = pending_job([asked])
+
+    assert waiting is not None
+    assert waiting.offered == (("Department", "NOTHING"), ("Manufacturer", "NIGHTCO"))
+
+
+def test_an_offer_stored_in_a_shape_nobody_wrote_is_no_offer() -> None:
+    """An offer read out of the wrong shape is an offer to fill a field that
+    may not exist."""
+    for bad in ("Department", [["Department"]], [{"name": "Department"}], None, 7):
+        asked = Message(
+            id=MessageId("m1"),
+            speaker=Speaker.ASSISTANT,
+            text="...",
+            said_at=datetime(2026, 9, 22, 3, 0, tzinfo=UTC),
+            decision={
+                "kind": NEEDS,
+                "workflow_id": "wfl_1",
+                "missing": ["Customer Type"],
+                "offered": bad,
+            },
+        )
+
+        waiting = pending_job([asked])
+
+        assert waiting is not None and waiting.offered == (), f"{bad!r} became an offer"

@@ -147,6 +147,27 @@ class Pending:
     precisely so the person who knows the missing value, who is usually
     whoever sent the request, can say it where they are."""
 
+    offered: tuple[tuple[str, str], ...] = ()
+    """Fields this job can fill that the page does not ask for, and what each
+    held last time.
+
+    Since 2026-09-22 an optional field no longer stops a run -- see
+    `LearnedParameter.required` -- and the step that fills it is skipped where
+    nothing was given for it. Skipping it silently is the other half of the
+    old mistake: the operator is never told the job could have set Department,
+    so a field they DID want goes unfilled and nothing on the screen says it
+    was ever possible.
+
+    Said once, in the opening, with what it was last time so the offer is
+    answerable without going to look. Not asked for one at a time: they are
+    optional, and four questions nobody has to answer is how a person learns
+    to type "no" without reading.
+
+    An answer arrives through the door that already exists -- "Department: IN"
+    is taken by the same path that takes any named value -- so nothing here
+    needs a new kind of reply.
+    """
+
     from_step: int = 0
     """Which step of the job the run that asked this had reached.
 
@@ -271,8 +292,52 @@ def opening(pending: Pending, about: str = "") -> str:
         holds, was = pending.limits.get(name), pending.values.get(name, "")
         if holds is not None and was.strip():
             said.append(f"The request said {name} {_short(was)}, which is {len(was)} characters.")
+    # What it could also set, once, before the question it must have answered.
+    #
+    # Before rather than after, because the question is what the next sentence
+    # answers and a question buried above an offer gets the offer's answer.
+    if also := also_set(pending):
+        said.append(also)
     said.append(question(pending))
     return " ".join(said)
+
+
+def also_set(pending: Pending) -> str:
+    """What this job could ALSO fill, which nothing has to answer.
+
+    Public because two doors ask the same question in different words and both
+    have to make the same offer: `opening` for a job taken up from an offer,
+    and `_ask_for_values` for a run that got half way and came up short. A
+    sentence written twice is a sentence that drifts, and the drift here would
+    be one door telling an operator about Department and the other not.
+
+    Empty where there is nothing to offer, so a caller can append it without
+    asking.
+    """
+    if not pending.offered:
+        return ""
+    return (
+        "I can also set "
+        + _listed([name for name, _ in pending.offered])
+        + _last_time(pending.offered)
+        + " — say so if you want any, or I will run without."
+    )
+
+
+def _listed(names: Sequence[str]) -> str:
+    """`a`, `a and b`, `a, b and c`. A comma before the last is how a list of
+    two reads as a list of three."""
+    if len(names) <= 1:
+        return "".join(names)
+    return ", ".join(names[:-1]) + " and " + names[-1]
+
+
+def _last_time(offered: Sequence[tuple[str, str]]) -> str:
+    """What each was last time, where anything was. An offer a person cannot
+    answer without going to look at the last record is an offer they decline.
+    """
+    seen = [f"{name}: {_short(value)}" for name, value in offered if value.strip()]
+    return f" — last time {'; '.join(seen)}" if seen else ""
 
 
 def shortened(value: str) -> str:
@@ -327,6 +392,7 @@ def pending_job(messages: Sequence[Message]) -> Pending | None:
             title=str(decision.get("title") or ""),
             values=_strings(decision.get("values")),
             missing=missing,
+            offered=_pairs(decision.get("offered")),
             items=tuple(_strings(one) for one in items) if isinstance(items, list | tuple) else (),
             watched=bool(decision.get("watched", True)),
             limits=_numbers(decision.get("limits")),
@@ -334,6 +400,20 @@ def pending_job(messages: Sequence[Message]) -> Pending | None:
             mail_thread=str(decision.get("mail_thread") or ""),
         )
     return None
+
+
+def _pairs(said: object) -> tuple[tuple[str, str], ...]:
+    """The offered fields as the decision stores them: a list of two-item
+    lists, because JSON has no tuples. Anything else is nothing -- an offer
+    read out of a shape nobody wrote is an offer to fill a field that may not
+    exist."""
+    if not isinstance(said, list | tuple):
+        return ()
+    return tuple(
+        (str(one[0]), str(one[1]))
+        for one in said
+        if isinstance(one, list | tuple) and len(one) == 2
+    )
 
 
 def _step(said: object) -> int:

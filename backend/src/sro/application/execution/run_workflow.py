@@ -102,7 +102,7 @@ from sro.domain.shared.hosts import (
 from sro.domain.shared.hosts import same_screen, screen_of, system_of
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
-from sro.domain.skill.learned import K_REQUIRED_MARK
+from sro.domain.skill.learned import demanded
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
 from sro.domain.skill.signing_in import is_a_way_in, signs_in_at
 from sro.domain.skill.workflow import Step, Workflow
@@ -1100,7 +1100,7 @@ def _not_given(workflow: Workflow, values: Mapping[str, str]) -> tuple[str, ...]
         if isinstance(name := parameter.get("name"), str)
         and name
         and parameter.get("in_all", True)
-        and _demanded(parameter)
+        and demanded(parameter)
     ]
     return tuple(name for name in declared if not values.get(name, "").strip())
 
@@ -1115,7 +1115,7 @@ def _optional_of(step: Step, workflow: Workflow) -> tuple[str, ...]:
     return tuple(
         name
         for name in step.parameters
-        if (declared := by_name.get(str(name))) is not None and not _demanded(declared)
+        if (declared := by_name.get(str(name))) is not None and not demanded(declared)
     )
 
 
@@ -1136,24 +1136,6 @@ def _skippable(step: Step, workflow: Workflow, values: Mapping[str, str]) -> boo
         return False
     optional = set(_optional_of(step, workflow))
     return all(name in optional and not values.get(name, "").strip() for name in wanted)
-
-
-def _demanded(parameter: Mapping[str, object]) -> bool:
-    """Whether the page said this one must be filled.
-
-    Read off the stored flag where a pass has written one, and off the names
-    otherwise: every parameter on this deployment predates the flag, and a
-    migration to add it would be a migration to recompute something the names
-    already carry. The two agree by construction -- `LearnedParameter.required`
-    is this rule -- and the flag wins because a later pass may have learnt from
-    a refusal what no label ever said.
-    """
-    said = parameter.get("required")
-    if isinstance(said, bool):
-        return said
-    names = parameter.get("names")
-    listed = names if isinstance(names, list | tuple) else ()
-    return any(str(one).rstrip().endswith(K_REQUIRED_MARK) for one in listed)
 
 
 def _fell_over(run: WorkflowRun, in_flight: RunStep | None, reason: str) -> None:

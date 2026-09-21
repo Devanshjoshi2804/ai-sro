@@ -1022,6 +1022,61 @@ async def test_the_question_says_which_step_the_run_had_reached() -> None:
     assert decision["from_run"] == run.id
 
 
+async def test_the_question_offers_the_fields_the_page_does_not_ask_for() -> None:
+    """From mutating the call site. `offered=()` here passed all 3830 tests --
+    the offer's wording, its ordering and its reading back off the thread are
+    each covered, and nothing checked that a real question ever carries one.
+
+    Since 2026-09-22 an optional field no longer stops a run, and the step that
+    fills it is skipped where nothing was given. Saying nothing about it is the
+    other half of the old mistake: a field the operator DID want goes unfilled
+    and nothing on the screen says it was ever possible.
+    """
+    uow = await _held()
+    run = await _press(_starter(uow))
+    workflow = await uow.workflows.get(TENANT, run.workflow_id)
+    workflow.parameters = [
+        {"name": "Customer Type", "names": ["Customer Type*"], "seen_values": ["GGD"]},
+        {"name": "Department", "names": ["Department"], "seen_values": ["IN", "new"]},
+        {"name": "Manufacturer", "names": ["Manufacturer"], "seen_values": ["OUTSIDE", "testing"]},
+    ]
+    await uow.workflows.save(workflow)
+    run.steps = [RunStep(order=0, says="type the code", verdict="failed", verdict_by="read")]
+    run.needs = ["Customer Type"]
+    run.values = {}
+    await uow.workflow_runs.save(run)
+
+    starter = StartWorkflowRun(
+        uow,
+        channel=_Browsers(),
+        asker=_A_MODEL,
+        plan_model=PLAN,
+        rescue_model=RESCUE,
+        clock=FakeClock(NOW),
+        cap_usd=CAP,
+        stops=Stops(),
+        approvals=Approvals(),
+        ids=FakeIdFactory(),
+    )
+    await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
+
+    threads = await uow.threads.list_for_tenant(
+        TENANT, opened_by=PrincipalId(run.started_by), limit=1
+    )
+    asked = threads[0].messages[-1]
+    decision = asked.decision
+    assert decision is not None
+    assert decision["offered"] == [["Department", "new"], ["Manufacturer", "testing"]], (
+        "a field the page never asked for was neither demanded nor offered"
+    )
+    # And said, not merely carried: a decision nobody renders is a decision
+    # nobody can answer.
+    assert "I can also set Department and Manufacturer" in asked.text
+    assert "Customer Type" not in asked.text.split("I can also set")[1].split(" — ")[0], (
+        "the field the page DOES ask for was offered as optional"
+    )
+
+
 # --- the undo and the run it takes back --------------------------------------
 
 

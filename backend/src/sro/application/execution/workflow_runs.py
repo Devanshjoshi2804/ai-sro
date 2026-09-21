@@ -91,7 +91,7 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.vault import CredentialVault, VaultUnavailable
 from sro.application.shared.refusals import OverCap
-from sro.domain.chat.asking import NEEDS, Pending, question
+from sro.domain.chat.asking import NEEDS, Pending, also_set, question
 from sro.domain.chat.thread import Speaker
 from sro.domain.execution.evidence import unperformable
 from sro.domain.execution.gathering import Gathered
@@ -108,6 +108,7 @@ from sro.domain.execution.write_plan import begins_again_at, seen_values
 from sro.domain.knowledge.entry import EntryKind
 from sro.domain.shared.errors import Conflict, DomainError, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId
+from sro.domain.skill.learned import offerable
 from sro.domain.skill.reversals import addresses, asks_for, identifies, undoes
 from sro.domain.skill.shape import resumes_at
 from sro.domain.skill.workflow import cited_ids
@@ -690,6 +691,15 @@ class StartWorkflowRun:
             items=tuple(dict(one) for one in run.items),
             watched=run.watched,
             limits=limits,
+            # And what it could ALSO set, which nothing has to answer.
+            #
+            # Since 2026-09-22 a field the page does not ask for no longer
+            # stops a run, and the step that fills it is skipped where nothing
+            # was given. Skipping it silently is the other half of the old
+            # mistake: a field the operator did want goes unfilled and nothing
+            # says it was ever possible. So it is offered, once, in the
+            # opening, beside what it was last time.
+            offered=offerable(workflow.parameters, run.values) if workflow else (),
             # Where the run the answer starts has to begin.
             #
             # Not the step that stopped, which is where this started: that one
@@ -713,7 +723,12 @@ class StartWorkflowRun:
             # The person this run was for, not whoever is at the door: a
             # question in the wrong conversation is worse than none.
             for_operator=PrincipalId(run.started_by) if run.started_by else ctx.principal_id,
-            text=_asking(run.needs, title, limits) + question(pending),
+            # The offer between the two, for `opening`'s reason: the question
+            # is what the next sentence answers, and a question buried above an
+            # offer gets the offer's answer.
+            text=_asking(run.needs, title, limits)
+            + (f"{also} " if (also := also_set(pending)) else "")
+            + question(pending),
             # A question, not an announcement: `pending_job` reads back what the
             # ASSISTANT last decided, so this is what makes the answer findable.
             speaker=Speaker.ASSISTANT,
@@ -730,6 +745,10 @@ class StartWorkflowRun:
                 # trigger that asked and was answered hours later is not.
                 "watched": pending.watched,
                 "limits": dict(limits),
+                # Carried so a second browser reading the thread offers the
+                # same fields, and so an answer arriving minutes later is
+                # still an answer to this. The state is the thread.
+                "offered": [list(one) for one in pending.offered],
                 "from_step": pending.from_step,
                 "from_run": run.id,
             },

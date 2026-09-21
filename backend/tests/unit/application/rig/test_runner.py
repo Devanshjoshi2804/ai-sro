@@ -33,6 +33,7 @@ import pytest
 
 from sro.application.execution import run_workflow as runner_module
 from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
+from sro.application.execution.effects import can_try_again
 from sro.application.execution.run_workflow import (
     K_SAME_WRITE_WINDOW,
     K_STEP_SLACK,
@@ -2967,6 +2968,68 @@ def _wrote(uow: FakeUnitOfWork, gesture_id: str, path: str, status: int) -> Gest
             ),
         ],
     )
+
+
+async def test_a_read_that_refuted_the_write_says_so_on_the_step() -> None:
+    """The middle of a chain whose two ends were tested and whose middle was
+    not. `verify` sets `refuted` on the one verdict that earns it, and
+    `can_try_again` reads it off the step -- and between them the runner has to
+    write it down, because the verdict object is gone by the time anybody asks.
+
+    Setting this persist to `if False:` passed the whole suite before this test
+    existed, which is the shape of a feature that ships green and does nothing.
+
+    Measured on the deployment 2026-09-22 at 01:37: `Create a Customer Type`
+    clicked Save, the read-back answered, the record was not in it, and the
+    panel offered the operator no button at all.
+    """
+    uow = await _fixture()
+    await uow.gestures.add_gestures((_wrote(uow, "ges_w", "alpha", 303),))
+    workflow = Workflow(
+        id="wfl_refuted",
+        tenant=ELSEWHERE,
+        title="save it",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[Step(order=0, says="save the record", system=None, cites=["ges_w"])],
+        parameters=[{"name": "clientCode", "seen_values": ["A", "B"]}],
+    )
+    await uow.workflows.save(workflow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "http.send": [
+                # The precondition read: nothing there yet.
+                Reply(ok=True, result={"status": 404, "body": "{}"}),
+                # The write, answering a status this step's evidence never
+                # showed, so the artifact belt passes it on.
+                Reply(ok=True, result={"status": 302, "body": "{}"}),
+                # And the read-back, which ANSWERS -- and does not carry what
+                # this run sent. That is the whole difference from every other
+                # way a write fails: something looked.
+                Reply(ok=True, result={"status": 200, "body": '{"clientCode": "SOMEBODY-ELSE"}'}),
+            ],
+        }
+    )
+    asker = _PerSchemaAsker(plan=_replay(), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "ACME-4471"},
+        started_by="offer",
+        earned=True,
+    )
+
+    [step] = run.steps
+    assert (step.verdict, step.verdict_by) == ("failed", "read")
+    assert (step.result or {}).get("refuted") is True, (
+        "a read went and looked, and the step does not say so -- so nothing"
+        " downstream can tell this from a write whose state is unknown"
+    )
+    assert can_try_again(run) is True, "the operator is owed the button"
 
 
 async def test_the_verifier_is_asked_about_the_step_being_performed() -> None:

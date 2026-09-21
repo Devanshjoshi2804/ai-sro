@@ -578,7 +578,14 @@ async def verify(
                     made=_named(found, confirm),
                 )
             return StepVerdict(
-                "failed", "read", f"a read of {probe.url} does not show the value this run supplied"
+                "failed",
+                "read",
+                f"a read of {probe.url} does not show the value this run supplied",
+                # The read answered, and the record is not there. `can_try_again`
+                # reads this: everything else about a write that did not hold
+                # leaves the state unknown, and this is the one case that does
+                # not.
+                refuted=True,
             )
     if rewrote:
         # Belt AVAILABILITY, and this is where it is decided rather than

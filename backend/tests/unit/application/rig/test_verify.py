@@ -404,6 +404,35 @@ async def test_a_read_that_did_not_show_the_value_says_which_read_it_was() -> No
     )
     assert (verdict.state, verdict.by) == ("failed", "read")
     assert _STREAM in verdict.reason
+    # And that something LOOKED. Every other way a write fails leaves the state
+    # unknown, which is what stops the job being offered a second press --
+    # rightly, because a second press after a write that might be in the
+    # warehouse is two records. This is the one case that is not unknown, and
+    # `can_try_again` is what reads it.
+    assert verdict.refuted is True
+
+
+async def test_a_read_that_could_not_be_performed_refutes_nothing() -> None:
+    """The safe direction. A read-back that never answered says nothing about
+    whether the write landed, and offering a second press on the strength of a
+    read that did not happen is how somebody gets two of something."""
+    verdict = await _verify(
+        _saver(), channel=_read('{"workArea":"THIRD"}', status=500), values={"workArea": "THIRD"}
+    )
+
+    assert verdict.refuted is False
+
+
+async def test_a_read_that_showed_the_value_refutes_nothing() -> None:
+    """It held. There is nothing to try again, and `can_try_again` refuses a
+    held run before it looks at a step -- but a flag that were set here would
+    be a flag meaning two different things."""
+    verdict = await _verify(
+        _saver(), channel=_read('{"workArea":"THIRD"}'), values={"workArea": "THIRD"}
+    )
+
+    assert (verdict.state, verdict.by) == ("held", "read")
+    assert verdict.refuted is False
 
 
 async def test_a_read_that_came_back_300_is_not_a_read_that_came_back() -> None:

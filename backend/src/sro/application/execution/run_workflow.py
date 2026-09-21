@@ -3104,6 +3104,12 @@ async def run_workflow(
                     # watched. Nested under `made`, this stored nothing for
                     # exactly the writes it exists to learn from.
                     record.result = {**(record.result or {}), "called": dict(verdict.called)}
+                if verdict.refuted:
+                    # A read went and looked, and the write is not there. On the
+                    # result because `can_try_again` reads the step, and the
+                    # step is what a later reader has -- the verdict object is
+                    # gone by then.
+                    record.result = {**(record.result or {}), "refuted": True}
                 if verdict.state == "held":
                     # Found by sight, or by the last locator: the page moved
                     # under the job, and the job is flagged before it breaks.

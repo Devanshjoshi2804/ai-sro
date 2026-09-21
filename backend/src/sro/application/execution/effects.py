@@ -169,6 +169,21 @@ def may_have_landed(step: RunStep) -> bool:
     result = step.result or {}
     if result.get("ok") is False:
         return False
+    # A read that went and looked, and did not find it.
+    #
+    # Measured on the deployment 2026-09-22 at 01:37. `Create a Customer Type`
+    # clicked Save, the read-back answered, and the record was not in it --
+    # "a read of .../customerTypes does not show the value this run supplied".
+    # The run stopped, and because the step had written, this said the state
+    # was unknown and the panel offered nothing at all. The operator was left
+    # with a half-filled form and a sentence.
+    #
+    # It was not unknown. Something looked. `refuted` is set by exactly one
+    # verdict -- `verify`'s read-back, and only where the read itself answered
+    # -- so it cannot be confused with the several other ways a write ends up
+    # `failed` by the read belt with the state genuinely open.
+    if result.get("refuted") is True:
+        return False
     status = result.get("status")
     return not (isinstance(status, int) and 400 <= status < 500)
 

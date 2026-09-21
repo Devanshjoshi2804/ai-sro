@@ -535,6 +535,38 @@ def test_a_run_that_stopped_without_writing_can_be_tried_again() -> None:
     assert can_try_again(stopped) is True
 
 
+def test_a_write_a_read_went_and_looked_for_and_did_not_find_is_offered_again() -> None:
+    """The one way a failed write is NOT unknown.
+
+    Measured on the deployment 2026-09-22 at 01:37. `Create a Customer Type`
+    clicked Save, the read-back answered, and the record was not in it -- "a
+    read of .../customerTypes does not show the value this run supplied". The
+    run stopped, and because the step had written, `can_try_again` said the
+    state was unknown and the panel offered nothing at all. The operator was
+    left in front of a half-filled form with a sentence and no button.
+
+    Something looked. A write that is provably not there can be pressed again.
+    """
+    looked = _wrote(verdict="failed", by="read")
+    looked.result = {**(looked.result or {}), "refuted": True}
+    refuted = _run("run_3", [looked], outcome="stopped")
+
+    assert can_try_again(refuted) is True
+
+
+def test_a_read_belt_failure_that_refuted_nothing_is_still_unknown() -> None:
+    """`failed` by `read` is not enough on its own, and this is why the flag
+    exists rather than a test on the two names. The runner writes that same
+    pair for a browser that did not arrive where the step expected -- which can
+    follow a write that landed perfectly well -- and for a field the warehouse
+    truncated. Only `verify`'s read-back, and only where the read itself
+    answered, sets `refuted`.
+    """
+    arrived_nowhere = _run("run_4", [_wrote(verdict="failed", by="read")], outcome="stopped")
+
+    assert can_try_again(arrived_nowhere) is False
+
+
 def test_a_run_whose_write_may_be_in_the_warehouse_is_not_offered_again() -> None:
     """A second press after a write nobody could confirm is how a customer
     gets two of something. No button is better than that."""

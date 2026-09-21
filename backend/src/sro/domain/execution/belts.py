@@ -126,6 +126,24 @@ class StepVerdict:
 
     made: Mapping[str, str] = field(default_factory=dict)
 
+    refuted: bool = False
+    """Whether a read went and looked, and the write is NOT in the warehouse.
+
+    Not the same as a write that failed. Most ways a write fails leave the
+    state unknown -- the browser went away, a 5xx came back, a screen said
+    something nobody could parse -- and "unknown after a write" is what stops a
+    job being offered a second press, because a second press after a write that
+    might be in the warehouse is how somebody gets two of something.
+
+    This is the one case that is not unknown. `verify` read the record back,
+    the read ANSWERED, and what came back does not carry what this run sent. A
+    write that is provably not there can be tried again, and the operator is
+    owed the button.
+
+    Only from a read that succeeded. A read-back that could not be performed
+    leaves this false, which is the safe direction.
+    """
+
     called: Mapping[str, str] = field(default_factory=dict)
     """The `{method, url}` this belt WATCHED go out, where it watched one.
 

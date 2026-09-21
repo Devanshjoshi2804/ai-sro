@@ -2776,6 +2776,50 @@ async def test_a_step_is_planned_from_the_page_the_browser_is_on_and_verified_ag
     ), "and the record says both"
 
 
+async def test_the_verifier_is_told_what_the_next_step_has_to_do() -> None:
+    """From mutating the call site, like every test in this section. The rung
+    that judges a step which changes nothing asks whether the job can go on --
+    and "go on" means the NEXT step, which the runner has and the verifier does
+    not unless it is handed over. Setting `next_says=None` here passed the
+    whole suite before this test existed.
+
+    Measured on the deployment 2026-09-21: *"Presses Enter to apply the
+    filter"* was held on "the screen remains functional and unchanged" while
+    the field's suggestion list sat over an unfiltered grid, and the step after
+    it refused hunting a row that was never there.
+    """
+    uow = await _fixture()
+    silent = _silent_click(uow)
+    workflow = Workflow(
+        id="wfl_next",
+        tenant=ELSEWHERE,
+        title="delete a customer type",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(order=0, says="Presses Enter to apply the filter.", system=None, cites=[silent]),
+            Step(
+                order=1,
+                says="Selects the matching customer type from the grid.",
+                system=None,
+                cites=[silent],
+            ),
+        ],
+    )
+    await uow.workflows.save(workflow)
+    channel = FakeChannel({**_looks(20), "ui.perform": [_performed()] * 6})
+    asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": "ok"}))
+
+    await _ran(uow, workflow, channel=channel, asker=asker, earned=True)
+
+    judged = next(
+        _prompt(asker, i)
+        for i, one in enumerate(asker.asked)
+        if "next_step" in str(one["evidence"])
+    )
+    assert judged["next_step"] == "Selects the matching customer type from the grid."
+
+
 async def test_the_planned_command_carries_the_origin_and_the_page_the_run_starts_on() -> None:
     """The origin is this step's own, off its own evidence -- a job spanning two
     systems types into the window it was demonstrated in and not the one that

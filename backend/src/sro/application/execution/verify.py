@@ -469,6 +469,7 @@ async def verify(
     model: str,
     rewrote: bool = False,
     confirm: Mapping[str, str] = MappingProxyType({}),
+    next_says: str | None = None,
 ) -> StepVerdict:
     """Did this step actually happen: state first, and a picture only last."""
     if not answer.ok:
@@ -660,6 +661,14 @@ async def verify(
             "screen_before": look_before.digest,
             "screen_after": look_after.digest,
             "values": dict(values),
+            # What this screen has to be good enough FOR.
+            #
+            # Only for the rung that judges a step which changes nothing:
+            # that rung's whole proposition is "the job can go on from here",
+            # and it cannot be judged without knowing what going on means.
+            # `SCREEN_INSTRUCTIONS` checks the step's own sentence and has no
+            # use for it.
+            **({"next_step": next_says} if changes_nothing and next_says else {}),
         },
         indent=2,
         # The redaction marker is «redacted»; the default ensure_ascii would

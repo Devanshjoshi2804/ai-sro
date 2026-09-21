@@ -2937,6 +2937,14 @@ async def run_workflow(
                         origin=origin,
                         asker=asker,
                         model=plan_model,
+                        # What this screen has to be good enough for. A step
+                        # that changes nothing is judged on whether the job can
+                        # go on, and the next leg is what going on means.
+                        next_says=(
+                            itinerary[position + 1].step.says
+                            if position + 1 < len(itinerary)
+                            else None
+                        ),
                     )
                 )
                 # A step that failed in front of a login page failed for one

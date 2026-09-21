@@ -102,6 +102,7 @@ async def _verify(
     model: str = "m",
     rewrote: bool = False,
     confirm: Mapping[str, str] | None = None,
+    next_says: str | None = None,
 ) -> StepVerdict:
     """One step verified. The helper is the rig's own `_verified`, widened so
     the tests that varied a look, an asker or a model do not have to spell the
@@ -127,6 +128,7 @@ async def _verify(
         origin=origin,
         asker=asker or FakeAsker(),
         model=model,
+        next_says=next_says,
     )
 
 
@@ -669,6 +671,79 @@ async def test_a_step_that_changes_nothing_is_asked_whether_the_job_can_go_on() 
     assert asker.asked[0]["instructions"] == WAY_THROUGH_INSTRUCTIONS
     assert asker.asked[0]["image"] == b"after", "the picture is still looked at"
     assert verdict.state == "held" and verdict.by == "screen"
+
+
+async def test_the_screen_a_step_left_is_judged_against_what_the_next_step_has_to_do() -> None:
+    """Measured on the deployment 2026-09-21, on this same job.
+
+    *"Presses Enter to apply the filter"* was held with the reason *"the screen
+    remains functional and unchanged, with no blocking errors"*. True, and the
+    filter had not applied: Enter had opened the field's own suggestion list --
+    `KKYT in Customer Type`, `KKYT in Description` -- sitting over an unfiltered
+    grid. The next step, *"Selects the matching customer type from the grid"*,
+    then spent nine attempts and a trip to the vision rung hunting a row that
+    was not there.
+
+    A suggestion list over a grid is not something "looking broken". It is a
+    problem for exactly one thing -- the step that comes next -- so the step
+    that comes next has to be in the question.
+    """
+    clicker = _saver()
+    clicker.requests = []
+    asker = FakeAsker(Answer(data={"held": True, "why": "the grid is reachable"}))
+
+    await _verify(
+        clicker,
+        channel=FakeChannel(),
+        values={},
+        asker=asker,
+        look_after=Look("u", b"after", "KKYT in Customer Type"),
+        next_says="Selects the matching customer type from the grid.",
+    )
+
+    assert "next_step" in asker.asked[0]["evidence"]
+    assert "Selects the matching customer type from the grid." in asker.asked[0]["evidence"]
+
+
+async def test_the_last_step_of_a_job_is_asked_without_a_next_one() -> None:
+    """Nothing comes after it, and inventing something for the model to check
+    the screen against would be checking it against a guess -- the fault this
+    whole rung exists to have stopped."""
+    clicker = _saver()
+    clicker.requests = []
+    asker = FakeAsker(Answer(data={"held": True, "why": "nothing went wrong"}))
+
+    await _verify(
+        clicker,
+        channel=FakeChannel(),
+        values={},
+        asker=asker,
+        look_after=Look("u", b"after", "Customer Types"),
+        next_says=None,
+    )
+
+    assert "next_step" not in asker.asked[0]["evidence"]
+
+
+async def test_a_step_judged_on_its_own_words_is_not_told_the_next_ones() -> None:
+    """`SCREEN_INSTRUCTIONS` asks whether the step's own sentence came true, and
+    it has no use for what follows. Handing it the next step would invite the
+    model to hold a step because the screen looks ready for something else."""
+    saver = _saver()
+    asker = FakeAsker(Answer(data={"held": True, "why": "saved"}))
+
+    await _verify(
+        saver,
+        channel=FakeChannel(),
+        values={},
+        asker=asker,
+        answer=Reply(ok=True, result={"performed": True}),
+        look_after=Look("u", b"after", "Saved"),
+        next_says="Selects the matching customer type from the grid.",
+    )
+
+    assert asker.asked[0]["instructions"] == SCREEN_INSTRUCTIONS
+    assert "next_step" not in asker.asked[0]["evidence"]
 
 
 async def test_a_step_that_changes_nothing_still_fails_on_a_screen_it_cannot_go_on_from() -> None:

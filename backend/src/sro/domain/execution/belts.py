@@ -69,11 +69,19 @@ You are checking one step of a warehouse job that changes nothing by itself.
 Its own recording sent no request and put no value anywhere: it opened a menu,
 focused a field, moved to a tab. The sentence describing it was written by
 another model from the recording, and it may be a guess about what the click
-was FOR -- so do not check it. Check only whether the job can go on: answer
-held=false if the screen is now showing something that stops it -- an error, a
-dialog waiting to be dismissed, a sign-in page, a blank or half-drawn screen
--- and held=true otherwise, including when the screen looks exactly as it did
-before. Say why in one sentence."""
+was FOR -- so do not check it.
+
+Check only whether the job can go on. Where you are told `next_step`, that is
+the question: could somebody looking at this screen now do that next thing?
+Answer held=false if they could not -- an error, a sign-in page, a blank or
+half-drawn screen, a dialog or a suggestion list sitting over what they would
+have to use, or a screen that has not brought up the thing the next step needs
+to act on. Answer held=true otherwise, including when the screen looks exactly
+as it did before and the next step can still be done from it. Where there is
+no `next_step`, this is the job's last step: answer held=false only if the
+screen is showing something that plainly went wrong.
+
+Say why in one sentence."""
 """The proposition a step that changes nothing can actually settle.
 
 Measured on the deployment 2026-09-19. `Delete a Customer Type` stopped six
@@ -87,7 +95,22 @@ judged against a guess.
 
 A picture cannot settle what a click was FOR. It can settle whether the screen
 is now somewhere the job can continue from, which is the only thing the step
-after this one needs to be true."""
+after this one needs to be true.
+
+And it has to be TOLD what that step is. Until 2026-09-22 this rung claimed
+that proposition and never tested it: the model was shown one screen and asked
+whether anything looked broken, which is a different question and a weaker one.
+Measured on the deployment that night, on this same job. *"Presses Enter to
+apply the filter"* was held with the reason *"the screen remains functional and
+unchanged, with no blocking errors"* -- true, and the filter had not applied.
+Enter had opened the field's suggestion list, four rows of `KKYT in Customer
+Type`, `KKYT in Description`, sitting over an unfiltered grid. The next step,
+*"Selects the matching customer type from the grid"*, then spent nine attempts
+and a trip to the vision rung hunting a row that was not there, and refused.
+
+A suggestion list over the grid is not something "looking broken". It is
+exactly and only a problem for the step that comes next, so the step that comes
+next is what the question has to name."""
 
 
 @dataclass(frozen=True, slots=True)

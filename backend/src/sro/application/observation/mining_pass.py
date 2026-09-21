@@ -352,6 +352,12 @@ async def learn_parameters(
                     # reached belongs to a route, and a run taking the other
                     # route must not stop for want of it.
                     "in_all": parameter.in_all,
+                    # Whether the PAGE says it must be filled -- the star on
+                    # its own label, which the recording carried and nothing
+                    # read until 2026-09-22. See `LearnedParameter.required`:
+                    # not `in_all`, which measures what the operator happened
+                    # to do rather than what the form demands.
+                    "required": parameter.required,
                 }
             )
             continue

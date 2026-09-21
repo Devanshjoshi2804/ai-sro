@@ -33,6 +33,17 @@ doings before trusting a parameter, say -- changes a number rather than an
 argument."""
 
 
+K_REQUIRED_MARK = "*"
+"""What a form puts on the label of a field that must be filled.
+
+One character, and the only signal the recorder captures today: a gesture's
+target carries `field_label` and no `aria-required`. Widening that is a
+`make gen-recorder` change -- the recorder is generated from this side and is
+never edited by hand -- and until it happens, a page that marks required
+fields by colour alone tells this system nothing, which reads as optional.
+"""
+
+
 @dataclass(frozen=True, slots=True)
 class LearnedParameter:
     """One thing a job takes as input, and what it has been given so far.
@@ -65,6 +76,45 @@ class LearnedParameter:
     that does not need it, and a run taking that route must not be stopped for
     want of a value. See `_not_given`, which is where the difference is felt.
     """
+
+    @property
+    def required(self) -> bool:
+        """Whether the PAGE says this field must be filled.
+
+        Not `in_all`, which is the question this used to be answered by and is
+        a different one. `in_all` says every doing compared reached the
+        control, which measures what the operator happened to do -- two
+        demonstrations that both filled Manufacturer made it mandatory forever,
+        and a third that skipped it would flip the answer back. Requiredness
+        that moves with the sample is not a fact about the warehouse.
+
+        The marker does not move. `names` carries every name the control
+        answers to, exactly as the page gave them, and a form that marks its
+        mandatory fields with a star gave one of them with the star on:
+
+            Customer Type              ["Customer Type", …, "Customer Type*"]
+            Customer Type Description  ["Customer Type Description", …, "…*"]
+            Department                 ["Department", "customertype-departmentNumber"]
+            Manufacturer               ["Manufacturer", "customertype-manufacturerId"]
+
+        Read off the deployment 2026-09-22. The page had been saying which two
+        of the four are mandatory since the day it was demonstrated, and
+        nothing read it.
+
+        **Unknown reads as optional**, which inverts the old default, and the
+        failure modes are why. A required field treated as optional reaches
+        Save, the form refuses, and the screen belt says so -- one failed run,
+        and the warehouse has told us something we can keep. An optional field
+        treated as required cannot run at all without a value the operator may
+        not have: measured 2026-09-22 at 01:24, an operator with no Manufacturer
+        to give had to drop the whole job.
+
+        A star is a convention and not a contract, which is why this is one of
+        two ways to be required and not the only one. The other is a warehouse
+        that refused a create for the want of a field, which is evidence
+        nothing can argue with -- and which this cannot learn until it happens.
+        """
+        return any(str(one).rstrip().endswith(K_REQUIRED_MARK) for one in self.names)
 
     names: tuple[str, ...] = ()
     """Every name this one control answers to, `name` included.

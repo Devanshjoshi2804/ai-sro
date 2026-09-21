@@ -12,7 +12,7 @@ from dataclasses import replace
 import pytest
 
 from sro.domain.observation.gesture import Component, Gesture, Intent, ValueSeen
-from sro.domain.skill.learned import parameters_across
+from sro.domain.skill.learned import LearnedParameter, parameters_across
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.domain.rig.conftest import gestures as _gestures
 
@@ -460,3 +460,67 @@ def test_one_appearance_is_still_not_a_parameter() -> None:
     )
 
     assert "Inbound Dock" not in {one.name for one in found}
+
+
+# --- what the PAGE said about a control, as opposed to what the operator did --
+
+
+def test_a_field_the_form_starred_is_required() -> None:
+    """The form marks its mandatory fields, the recorder captured the mark in
+    the label, and it has been sitting in `names` since the day the job was
+    demonstrated. Read off the deployment 2026-09-22:
+
+        Customer Type  ["Customer Type", "customertype-customerType", "Customer Type*"]
+    """
+    starred = LearnedParameter(
+        name="Customer Type",
+        seen=("GGD", "GKB"),
+        names=("Customer Type", "customertype-customerType", "Customer Type*"),
+    )
+
+    assert starred.required is True
+
+
+def test_a_field_the_form_did_not_mark_is_not_required() -> None:
+    """Measured the same night, on the same job. Nothing on the form asks for
+    Manufacturer, and the job refused to run without it because two
+    demonstrations happened to fill it."""
+    plain = LearnedParameter(
+        name="Manufacturer",
+        seen=("OUTSIDE", "testing"),
+        names=("Manufacturer", "customertype-manufacturerId"),
+        # The state that used to make it mandatory. It says what the operator
+        # did, not what the form demands.
+        in_all=True,
+    )
+
+    assert plain.required is False
+    assert plain.in_all is True, "the two are different questions and both are kept"
+
+
+def test_a_control_nobody_named_is_not_required() -> None:
+    """Unknown reads as optional, and the failure modes are why. A required
+    field treated as optional reaches Save, the form refuses, and the screen
+    belt says so -- one failed run, and something learnt. An optional field
+    treated as required cannot run at all without a value the operator may not
+    have."""
+    unnamed = LearnedParameter(name="something", seen=("a", "b"))
+
+    assert unnamed.required is False
+
+
+def test_the_mark_is_read_off_the_end_of_a_name_and_not_from_anywhere_in_it() -> None:
+    """A label that merely CONTAINS a star is not a label that ends with one.
+    `Rate (per kg) * quantity` is a field name, not a demand."""
+    multiplied = LearnedParameter(name="Rate", seen=("1", "2"), names=("Rate (per kg) * quantity",))
+
+    assert multiplied.required is False
+
+
+def test_a_mark_survives_the_space_a_page_leaves_after_it() -> None:
+    """Labels come off the page as the page wrote them, trailing whitespace
+    and all, and a rule that missed `"Customer Type* "` would be a rule that
+    worked on one form and not the next."""
+    spaced = LearnedParameter(name="Customer Type", seen=("A", "B"), names=("Customer Type* ",))
+
+    assert spaced.required is True

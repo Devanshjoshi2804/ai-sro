@@ -744,7 +744,12 @@ async def _workflow(uow: FakeUnitOfWork) -> Workflow:
             ),
             Step(order=1, says="save", system=None, cites=[ids[-1]]),
         ],
-        parameters=[{"name": "clientCode", "seen_values": ["A", "B"]}],
+        # Required, because the tests below are about a field the FORM demands
+        # -- "a run that carried on without it pressed Save on a form somebody
+        # else had half filled". Since 2026-09-22 a parameter is demanded only
+        # where the page said so, and a fixture that omits the marker is a
+        # fixture about an optional field, which is a different test.
+        parameters=[{"name": "clientCode", "seen_values": ["A", "B"], "required": True}],
     )
     await uow.workflows.save(workflow)
     return workflow
@@ -5020,13 +5025,176 @@ async def test_a_parameter_not_every_doing_reached_does_not_stop_a_run() -> None
     assert "nobody gave a value" not in (run.steps[0].reason or "")
 
 
+async def test_a_step_with_nothing_to_fill_is_skipped_rather_than_emptied() -> None:
+    """Letting the run START is half the answer. The step is still in the job,
+    and performing it types an empty string into the control -- or worse, the
+    literal word somebody offered instead of a value. Measured on the
+    deployment 2026-09-22: an operator with no Department answered "nothing",
+    and the form came back holding NOTHING.
+    """
+    uow = await _fixture()
+    ids = _ids(uow)
+    workflow = Workflow(
+        id="wfl_optional",
+        tenant=ELSEWHERE,
+        title="create a client",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(order=0, says="type the code", system=None, cites=[ids[0]], parameters=["code"]),
+            Step(order=1, says="type the note", system=None, cites=[ids[0]], parameters=["note"]),
+            Step(order=2, says="save", system=None, cites=[ids[-1]]),
+        ],
+        parameters=[
+            {"name": "code", "seen_values": ["A", "B"], "required": True},
+            {"name": "note", "seen_values": ["x", "y"], "names": ["note"]},
+        ],
+    )
+    await uow.workflows.save(workflow)
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=FakeChannel({**_looks(8), "ui.perform": [_performed()] * 4}),
+        asker=_PerSchemaAsker(plan=_plan("type", "A"), verdict=Answer(data={"held": True})),
+        values={"code": "A"},
+        earned=True,
+    )
+
+    kinds = [(one.of_step, one.verdict) for one in run.steps]
+    assert (1, "not_needed") in kinds, "an unanswered optional field was typed anyway"
+    assert (0, "not_needed") not in kinds, "the answered field was skipped"
+    assert (2, "not_needed") not in kinds, "the save was skipped"
+    skipped = next(one for one in run.steps if one.of_step == 1)
+    assert "does not ask for" in skipped.reason
+
+
+async def test_a_step_that_names_no_parameter_is_never_skipped() -> None:
+    """It clicks, navigates or saves. Skipping it would take the job apart."""
+    uow = await _fixture()
+    workflow = await _one_step(uow, _ids(uow)[-1], says="save", parameters=[])
+    workflow.parameters = [{"name": "note", "seen_values": ["x", "y"], "names": ["note"]}]
+    await uow.workflows.save(workflow)
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=FakeChannel({**_looks(4), "ui.perform": [_performed()]}),
+        asker=_PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True})),
+        values={},
+        earned=True,
+    )
+
+    assert [one.verdict for one in run.steps] != ["not_needed"], "the save was skipped"
+
+
+async def test_a_step_half_answered_still_does_its_work() -> None:
+    """ALL and not ANY. A step that types two fields, one answered and one not,
+    still has work to do -- and skipping it would lose the answer somebody
+    gave."""
+    uow = await _fixture()
+    ids = _ids(uow)
+    workflow = Workflow(
+        id="wfl_half",
+        tenant=ELSEWHERE,
+        title="create a client",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(
+                order=0,
+                says="type both",
+                system=None,
+                cites=[ids[0]],
+                parameters=["note", "aside"],
+            ),
+        ],
+        parameters=[
+            {"name": "note", "seen_values": ["x", "y"], "names": ["note"]},
+            {"name": "aside", "seen_values": ["p", "q"], "names": ["aside"]},
+        ],
+    )
+    await uow.workflows.save(workflow)
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=FakeChannel({**_looks(4), "ui.perform": [_performed()]}),
+        asker=_PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True})),
+        values={"note": "x"},
+        earned=True,
+    )
+
+    assert [one.verdict for one in run.steps] != ["not_needed"], (
+        "a step with an answer to give was skipped, and the answer lost"
+    )
+
+
+async def test_a_field_the_page_never_marked_does_not_stop_a_run() -> None:
+    """The half that had to move, measured on the deployment 2026-09-22 at
+    01:24.
+
+    `Create a Customer Type` had learnt Manufacturer as a parameter because two
+    demonstrations varied it. Nothing on the form asks for it -- the star is on
+    Customer Type and Customer Type Description and on neither of the other two
+    -- and the job still refused to run without it. An operator who had no
+    manufacturer to give answered "i dont have manufature just run whatever we
+    have", was asked again, said "no", and dropped the whole job.
+
+    A field nobody has to fill is offered, not demanded.
+    """
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.parameters = [
+        {
+            "name": "Manufacturer",
+            "seen_values": ["OUTSIDE", "testing"],
+            # Every doing compared reached it -- which is exactly the state
+            # that used to make it mandatory, and is a fact about the operator
+            # rather than about the form.
+            "in_all": True,
+            "names": ["Manufacturer", "customertype-manufacturerId"],
+        }
+    ]
+    await uow.workflows.save(workflow)
+    asked: list[tuple[str, ...]] = []
+
+    async def _gather(wanted: Sequence[str]) -> Gathered:
+        asked.append(tuple(wanted))
+        return Gathered(missing=tuple(wanted), why="nothing")
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=FakeChannel({**_looks(8), "ui.perform": [_performed()] * 4}),
+        asker=_PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": ""})),
+        values={},
+        earned=True,
+        gather_values=_gather,
+    )
+
+    assert run.needs == [], "a field the page never asked for was demanded"
+    assert asked == [], "the mailbox was searched for a value nobody has to give"
+    assert run.outcome != "stopped"
+
+
 async def test_a_parameter_every_doing_reached_still_stops_a_run() -> None:
     """The half that must not move. A value nobody typed and nobody could find
     is not a value, and a run that carried on without it pressed Save on a form
     somebody else had half filled -- measured on the deployment 2026-09-16."""
     uow = await _fixture()
     workflow = await _workflow(uow)
-    workflow.parameters = [{"name": "Customer Type", "seen_values": ["GZ1", "GZ2"], "in_all": True}]
+    # Marked required, as the real form marks it: `Customer Type*`. This test
+    # is about a mandatory field, and since 2026-09-22 only a mandatory field
+    # stops a run.
+    workflow.parameters = [
+        {
+            "name": "Customer Type",
+            "seen_values": ["GZ1", "GZ2"],
+            "in_all": True,
+            "names": ["Customer Type", "Customer Type*"],
+        }
+    ]
     await uow.workflows.save(workflow)
 
     async def _found_nothing(wanted: Sequence[str]) -> Gathered:

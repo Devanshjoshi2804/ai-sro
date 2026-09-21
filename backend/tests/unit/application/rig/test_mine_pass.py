@@ -97,6 +97,23 @@ def _proposal(cites: list[str], **over: object) -> dict[str, object]:
     return {**base, **over}
 
 
+async def _did_it_again(uow: FakeUnitOfWork, ids: list[str]) -> list[str]:
+    """The same controls touched again, on evidence of their own.
+
+    Cited ids are per-occurrence: two independent doings of one job cite
+    disjoint sets, and that is what lets the resolver tell "the same job again"
+    from "this window read twice". A copy with a new id and a later clock is
+    the smallest honest version of that.
+    """
+    rows = _rows(uow)
+    made = []
+    for nth, one in enumerate(ids):
+        copy = replace(rows[one], id=f"{one}_again", at=rows[one].at + 3600 + nth)
+        await uow.gestures.add_gestures((copy,))
+        made.append(copy.id)
+    return made
+
+
 async def _billed(uow: FakeUnitOfWork, *, cost_usd: float, at: datetime) -> None:
     """A day with a model call on it. The chat door is one of the four billable
     tables and the cheapest to write; the cap reads the sum, not the table."""
@@ -266,6 +283,83 @@ async def test_a_job_stored_under_an_older_shape_rule_is_not_mined_again() -> No
 
     assert again.kept == 0, "one job was stored twice under two shape rules"
     assert len(await uow.workflows.known(TENANT)) == 1
+
+
+async def test_a_doing_that_contains_the_job_grows_it() -> None:
+    """The half that could not be finished without this.
+
+    Measured on the deployment 2026-09-21: an operator did `Create a Customer
+    Type` twice, filling `Department` and `Manufacturer` both times with
+    different values -- two doings varying a control, which is this system's
+    whole bar for a parameter. The job learnt neither, and could not ever:
+    `learn_parameters` compares the stored job against the proposal, and the
+    stored job was a doing that had never reached those controls. Stored steps
+    never grew.
+
+    `Resolution.contains` has been computed since identity was written and
+    read by nothing, and its own note names this caller: *"Mine contains
+    theirs" is the case for replacing*.
+    """
+    uow, ids = await _day()
+    first = FakeAsker(Answer(data={"workflows": [_proposal(ids[:2])]}, cost_usd=0.01))
+    assert (await _pass(uow, asker=first).execute(_ctx())).kept == 1
+    [stored] = await uow.workflows.known(TENANT)
+    assert len(stored.steps) == 2
+
+    # A SECOND doing: its own evidence, doing everything the first did and one
+    # thing more. Its own, because cited ids are per-occurrence -- a proposal
+    # citing the first doing's gestures is the same evidence read twice, which
+    # the resolver settles before it ever asks whether one contains the other.
+    again = await _did_it_again(uow, ids[:3])
+    wider = _proposal(again[:2])
+    wider["steps"] = [
+        *wider["steps"],  # type: ignore[misc]
+        {
+            "order": 2,
+            "cites": [again[2]],
+            "says": "and the extra field",
+            "system": HOST,
+            "parameters": [],
+        },
+    ]
+    await _pass(uow, asker=FakeAsker(Answer(data={"workflows": [wider]}, cost_usd=0.01))).execute(
+        _ctx()
+    )
+
+    [grown] = await uow.workflows.known(TENANT)
+    assert grown.id == stored.id, "it stored a second copy instead of growing the first"
+    assert len(grown.steps) == 3, "the job did not take the step it had just watched"
+
+
+async def test_a_doing_the_job_contains_does_not_shrink_it() -> None:
+    """Only ever the other way. A shorter doing is the operator taking a route
+    that skipped something, and a job that dropped a step every time somebody
+    took a shortcut would forget itself one doing at a time."""
+    uow, ids = await _day()
+    wide = _proposal(ids[:2])
+    wide["steps"] = [
+        *wide["steps"],  # type: ignore[misc]
+        {
+            "order": 2,
+            "cites": [ids[2]],
+            "says": "and the extra field",
+            "system": HOST,
+            "parameters": [],
+        },
+    ]
+    narrower = await _did_it_again(uow, ids[:2])
+    assert (
+        await _pass(
+            uow, asker=FakeAsker(Answer(data={"workflows": [wide]}, cost_usd=0.01))
+        ).execute(_ctx())
+    ).kept == 1
+
+    await _pass(
+        uow, asker=FakeAsker(Answer(data={"workflows": [_proposal(narrower)]}, cost_usd=0.01))
+    ).execute(_ctx())
+
+    [held] = await uow.workflows.known(TENANT)
+    assert len(held.steps) == 3, "a shorter doing took a step away from the job"
 
 
 async def test_a_negative_cap_is_no_cap_and_the_pass_runs() -> None:

@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
@@ -479,6 +480,39 @@ class SqlWorkflowRepository(WorkflowRepository):
             .where(WorkflowStaleRow.workflow_id == workflow_id)
         )
         return int(found or 0)
+
+    async def grew(self, workflow: Workflow, *, moved: Mapping[int, int]) -> None:
+        # Read, delete, reinsert -- rather than an UPDATE per row. The key is
+        # `(workflow_id, ord)` and a growth renumbers several at once, so an
+        # update that moved 3 to 5 while 5 was still there would collide on a
+        # primary key for no reason but the order the rows came back in.
+        keyed_by_ord: tuple[type[Any], ...] = (
+            WorkflowLearnedRow,
+            WorkflowStaleRow,
+            WorkflowLearnedHistoryRow,
+        )
+        for table in keyed_by_ord:
+            rows = (
+                (await self._session.execute(select(table).where(table.workflow_id == workflow.id)))
+                .scalars()
+                .all()
+            )
+            kept = [
+                {
+                    **{
+                        column.name: getattr(row, column.name) for column in table.__table__.columns
+                    },
+                    "ord": moved[row.ord],
+                }
+                for row in rows
+                if row.ord in moved
+            ]
+            await self._session.execute(delete(table).where(table.workflow_id == workflow.id))
+            # A step the new shape does not have is a step nobody performs,
+            # and a locator for it is one nobody can check. Dropped with it.
+            if kept:
+                await self._session.execute(pg_insert(table).values(kept))
+        await self.save(workflow)
 
     async def remember_write(
         self,

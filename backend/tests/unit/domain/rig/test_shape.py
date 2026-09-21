@@ -9,6 +9,8 @@ from sro.application.capture.rig_wire import Gesture as WireGesture
 from sro.application.observation.correlate import as_action
 from sro.domain.observation.gesture import Gesture, Target
 from sro.domain.observation.identity import containment, jaccard, shape_key, target_identity
+from sro.domain.skill.shape import where_steps_moved
+from sro.domain.skill.workflow import Step
 from tests.unit.domain.rig.conftest import gestures as _gestures
 
 
@@ -206,3 +208,65 @@ def test_the_python_identity_agrees_with_the_shared_fixture() -> None:
             action=as_action(wire),
         )
         assert target_identity(gesture) == case["identity"], case["name"]
+
+
+# -- a job that grows keeps its learning ---------------------------------------
+#
+# A stored job's steps never grew, and that is half of why a field two doings
+# varied could not become a parameter: `parameters_across` compares the stored
+# job with the proposal, and the stored job is one doing that never reached the
+# control. Measured on the deployment 2026-09-21 -- an operator filled
+# `Department` and `Manufacturer` in two doings, with different values both
+# times, and the job went on holding two parameters.
+
+
+def _step(order: int, cites: list[str]) -> Step:
+    return Step(order=order, says=f"step {order}", system=None, cites=cites)
+
+
+def test_a_step_that_moves_takes_its_number_with_it() -> None:
+    """What the growth is for: the locator a run last found, the mark that a
+    step is about to break and what the job taught itself are all keyed on the
+    step's number, and a step that becomes step 3 takes them along or they now
+    describe somebody else's step."""
+    day = {one.id: one for one in _gestures()}
+    ids = [one.id for one in sorted(day.values(), key=lambda g: g.at)]
+    was = [_step(0, [ids[0]]), _step(1, [ids[2]])]
+    # The same two things done, with one more done in between them.
+    now = [_step(0, [ids[0]]), _step(1, [ids[1]]), _step(2, [ids[2]])]
+
+    assert where_steps_moved(was, now, day) == {0: 0, 1: 2}
+
+
+def test_a_step_the_new_doing_does_not_have_is_left_behind() -> None:
+    """Its learning goes with it. A locator for a step nobody performs is a
+    locator nobody can check."""
+    day = {one.id: one for one in _gestures()}
+    ids = [one.id for one in sorted(day.values(), key=lambda g: g.at)]
+
+    moved = where_steps_moved([_step(0, [ids[0]]), _step(1, [ids[1]])], [_step(0, [ids[0]])], day)
+
+    assert moved == {0: 0}
+
+
+def test_a_job_that_does_one_thing_twice_keeps_both() -> None:
+    """Matched first-unclaimed rather than by value, so two steps that did the
+    same thing do not fold onto one."""
+    day = {one.id: one for one in _gestures()}
+    ids = [one.id for one in sorted(day.values(), key=lambda g: g.at)]
+    twice = [_step(0, [ids[0]]), _step(1, [ids[0]])]
+    now = [_step(0, [ids[0]]), _step(1, [ids[1]]), _step(2, [ids[0]])]
+
+    assert where_steps_moved(twice, now, day) == {0: 0, 1: 2}
+
+
+def test_steps_are_matched_by_what_they_did_and_not_by_what_they_are_called() -> None:
+    """The prose is written freshly every mining and a step index is the
+    model's opinion. Two steps are the same step when their cited gestures
+    have the same shape."""
+    day = {one.id: one for one in _gestures()}
+    ids = [one.id for one in sorted(day.values(), key=lambda g: g.at)]
+    was = [Step(order=0, says="type the client code", system=None, cites=[ids[0]])]
+    now = [Step(order=0, says="enter a code for the client", system=None, cites=[ids[0]])]
+
+    assert where_steps_moved(was, now, day) == {0: 0}

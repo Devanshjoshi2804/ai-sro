@@ -2041,6 +2041,30 @@ class FakeWorkflowRepository:
     async def stale_count(self, workflow_id: str) -> int:
         return sum(1 for workflow, _ in self.stale if workflow == workflow_id)
 
+    async def grew(self, workflow: Workflow, *, moved: Mapping[int, int]) -> None:
+        """The store's own order: the learning moves, and then the steps.
+
+        Keyed by ord here as it is there, so a test can see a locator follow
+        its step -- and see one whose step is gone go with it."""
+        # A step the new shape does not have is a step nobody performs, and
+        # its learning goes with it.
+        self.learned = {
+            ((one, moved[ord_]) if one == workflow.id else (one, ord_)): found
+            for (one, ord_), found in self.learned.items()
+            if one != workflow.id or ord_ in moved
+        }
+        self.stale = {
+            ((one, moved[ord_]) if one == workflow.id else (one, ord_)): mark
+            for (one, ord_), mark in self.stale.items()
+            if one != workflow.id or ord_ in moved
+        }
+        history = self.taught.get(workflow.id)
+        if history is not None:
+            self.taught[workflow.id] = [
+                replace(one, ord=moved[one.ord]) for one in history if one.ord in moved
+            ]
+        await self.save(workflow)
+
     async def remember_write(
         self,
         tenant_id: TenantId,

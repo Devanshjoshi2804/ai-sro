@@ -332,3 +332,59 @@ def shape_of(
         offer_after=max(K_OFFER_AFTER, min(advice.offer_after, len(walk) - 1)),
         quiet_until=advice.quiet_until,
     )
+
+
+def where_steps_moved(
+    was: Sequence[Step], now: Sequence[Step], by_id: Mapping[str, Gesture]
+) -> dict[int, int]:
+    """Which `ord` each of a job's steps has after the job grew.
+
+    A stored job's steps never grew, and that is half of why a field two
+    doings varied could not become a parameter: `parameters_across` compares
+    the stored job against the proposal, and the stored job is one doing that
+    never reached the control. Measured on the deployment 2026-09-21 --
+    `Department` and `Manufacturer` typed in two doings, varied in both, and
+    the job went on holding two parameters.
+
+    So a doing that WHOLLY CONTAINS the stored job replaces its steps. This is
+    what `Resolution.contains` was computed for and never read, and its own
+    note names this caller: *"Mine contains theirs" is the case for replacing*.
+
+    **What is keyed to a step's number has to move with it.** The locator a
+    run last found (`workflow_learned`), the mark that a step is about to
+    break (`workflow_stale`) and what a job taught itself
+    (`workflow_learned_history`) are all keyed `(workflow_id, ord)`, and a
+    step that becomes step 5 takes its learning with it or the learning now
+    describes somebody else's step. What is NOT moved is a past run's own
+    record: `workflow_run_steps` and `workflow_effects` are a log of what
+    happened when the job had the shape it had then, and `proofs` compares
+    those two with each other and never with the job -- which is why growing a
+    job cannot cost it the autonomy it earned.
+
+    Matched on what the steps DID, not on what the model called them: the
+    prose is written freshly every mining and a step index is its opinion. Two
+    steps are the same step when their cited gestures have the same shape, in
+    time order, which is the same identity `shape_key` is built from.
+
+    A step of the old job that the new one does not have is absent from the
+    mapping, and its learning is dropped: the step is gone, and a locator for
+    a step nobody performs is a locator nobody can check.
+    """
+    places: dict[tuple[tuple[str, ...], ...], list[int]] = {}
+    for step in now:
+        places.setdefault(_did(step, by_id), []).append(step.order)
+    moved: dict[int, int] = {}
+    for step in was:
+        same = places.get(_did(step, by_id))
+        if same:
+            # First unclaimed, so a job that does one thing twice keeps both
+            # rather than folding two steps onto one.
+            moved[step.order] = same.pop(0)
+    return moved
+
+
+def _did(step: Step, by_id: Mapping[str, Gesture]) -> tuple[tuple[str, ...], ...]:
+    """What one step did, as the shape key says it: which control, on which
+    screen, touched how -- in the order it happened."""
+    gestures = sorted((by_id[one] for one in step.cites if one in by_id), key=_when)
+    return tuple(shape_key(gestures))

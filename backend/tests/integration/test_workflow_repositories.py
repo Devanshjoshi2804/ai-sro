@@ -377,6 +377,84 @@ class TestEffects:
             assert await uow.workflows.forget_effects(workflow.id) == 0
             await uow.commit()
 
+    async def test_a_job_that_grows_takes_its_learning_with_it(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Against real Postgres because the primary key is the point.
+
+        `workflow_learned`, `workflow_stale` and `workflow_learned_history`
+        are keyed `(workflow_id, ord)`, so a growth that renumbered step 1 to
+        step 2 while step 2 still existed would collide on the key -- which is
+        why the rows are read, deleted and reinserted rather than updated.
+
+        A past run's own record is deliberately NOT moved: `run_steps` and
+        `effects` are a log of what happened when the job had the shape it had
+        then, and `proofs` compares those two with each other and never with
+        the job. That is what keeps a growth from costing a job the autonomy
+        it earned.
+        """
+        workflow = _workflow()
+        workflow.steps = [
+            Step(order=0, says="first", system=None, cites=["g0"]),
+            Step(order=1, says="second", system=None, cites=["g1"]),
+        ]
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(workflow)
+            await uow.workflows.remember_locator(
+                workflow.id,
+                LearnedStep(ord=1, strategy="css", query="#save", found_by="sight"),
+                by_run="run_1",
+            )
+            await uow.workflows.mark_stale(
+                workflow.id, 1, matched_by="text", noticed_at="2026-09-21T10:00:00+00:00"
+            )
+            await uow.commit()
+
+        # It grows: what was step 1 is now step 2, with a new step between.
+        async with SqlUnitOfWork(session_factory) as uow:
+            grown = await uow.workflows.get(TenantId("acme"), workflow.id)
+            grown.steps = [
+                Step(order=0, says="first", system=None, cites=["g0"]),
+                Step(order=1, says="the one in between", system=None, cites=["g2"]),
+                Step(order=2, says="second", system=None, cites=["g1"]),
+            ]
+            await uow.workflows.grew(grown, moved={0: 0, 1: 2})
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            learnt = await uow.workflows.learned_for(workflow.id)
+            assert [one.ord for one in learnt] == [2], (
+                "the locator stayed on a step that is now somebody else's"
+            )
+            assert learnt[0].query == "#save"
+            assert await uow.workflows.stale_count(workflow.id) == 1
+
+    async def test_a_step_left_behind_takes_its_learning_with_it(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A locator for a step nobody performs is one nobody can check."""
+        workflow = _workflow()
+        workflow.steps = [Step(order=0, says="first", system=None, cites=["g0"])]
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(workflow)
+            await uow.workflows.remember_locator(
+                workflow.id,
+                LearnedStep(ord=0, strategy="css", query="#gone", found_by="sight"),
+                by_run="run_1",
+            )
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            grown = await uow.workflows.get(TenantId("acme"), workflow.id)
+            grown.steps = [Step(order=0, says="something else", system=None, cites=["g9"])]
+            await uow.workflows.grew(grown, moved={})
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.workflows.learned_for(workflow.id) == ()
+
     async def test_a_deployment_learns_the_endpoint_it_watched_succeed(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:

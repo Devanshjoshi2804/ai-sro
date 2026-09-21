@@ -1056,6 +1056,17 @@ class WorkflowRepository(Protocol):
         """How many of this job's steps are about to break."""
         ...
 
+    async def grew(self, workflow: Workflow, *, moved: Mapping[int, int]) -> None:
+        """Save a job whose steps have grown, taking its learning with them.
+
+        `save` already replaces a workflow's steps. What it cannot do is move
+        what is keyed to their numbers: the locator a run last found, the mark
+        that a step is about to break, and what the job taught itself. See
+        `skill.shape.where_steps_moved`, which computes `moved` and says why a
+        past run's own record is deliberately left where it is.
+        """
+        ...
+
     async def remember_write(
         self,
         tenant_id: TenantId,

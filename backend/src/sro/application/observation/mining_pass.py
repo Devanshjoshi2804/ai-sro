@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import secrets
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 
@@ -61,7 +62,7 @@ from sro.domain.skill.learned import LearnedParameter, parameters_across, same_c
 from sro.domain.skill.passwords import with_passwords
 from sro.domain.skill.presses import with_the_press
 from sro.domain.skill.repeats import detect as repeated_block
-from sro.domain.skill.shape import in_time_order
+from sro.domain.skill.shape import in_time_order, where_steps_moved
 from sro.domain.skill.umbrella import (
     K_EFFORT,
     WORKFLOW_SCHEMA,
@@ -533,6 +534,53 @@ def _same_control(
     return None
 
 
+async def _grow(
+    uow: UnitOfWork,
+    *,
+    tenant_id: TenantId,
+    known_id: str,
+    proposal: Workflow,
+    by_id: Mapping[str, Gesture],
+) -> None:
+    """Take this doing's steps, where it does everything the stored job does.
+
+    A stored job's steps never grew. `Resolution.contains` has been computed
+    since identity was written and read by nothing, and its own note names
+    this caller: *"Mine contains theirs" is the case for replacing*.
+
+    What it cost to be missing, measured on the deployment 2026-09-21: an
+    operator did `Create a Customer Type` twice, filling `Department` and
+    `Manufacturer` both times with different values -- two doings varying a
+    control, which is this system's whole bar for a parameter. The job learnt
+    nothing, because `learn_parameters` compares the stored job with the
+    proposal and the stored job was a doing that had never reached those
+    controls. It could not, ever, however many times they were used.
+
+    **The steps are taken whole, not merged.** A proposal is one coherent
+    reading of one doing; a synthesis of two readings is a job nobody
+    performed, and this one drives a browser in a warehouse. Containment is
+    what makes taking them safe: every step the stored job has, this doing has
+    too.
+
+    The title, the parameters and everything else the job has learnt stay as
+    they are -- only what it DOES is replaced -- and what is keyed to a step's
+    number moves with it. See `where_steps_moved`.
+    """
+    try:
+        stored = await uow.workflows.get(tenant_id, known_id)
+    except NotFound:
+        return
+    moved = where_steps_moved(stored.steps, proposal.steps, by_id)
+    stored.steps = list(proposal.steps)
+    stored.shape_key = [list(entry) for entry in shape_key(in_time_order(stored, by_id))]
+    await uow.workflows.grew(stored, moved=moved)
+    logger.info(
+        "%s: grew to %d step(s) from a doing that contained it",
+        stored.title,
+        len(stored.steps),
+    )
+
+
 def _packed(gesture: Gesture, intent: Intent | None, linked: set[str]) -> Packed:
     """A pooled gesture as `pack` would have built it. `pack` takes the pool
     already packed -- it is the one input that does not arrive as a Gesture --
@@ -900,6 +948,21 @@ async def _one_pass(
                     by_id=by_id,
                     intents=intents,
                 )
+                # And the job itself grows, where this doing wholly contains
+                # it. AFTER the parameters, and the order is the whole of why
+                # it works: `learn_parameters` compares the stored job against
+                # this proposal, and a job that had already taken the
+                # proposal's steps would be comparing a doing with itself --
+                # every control reached by both, no value different from
+                # itself, and nothing learnable ever again.
+                if resolution.contains:
+                    await _grow(
+                        uow,
+                        tenant_id=tenant_id,
+                        known_id=resolution.workflow_id,
+                        proposal=proposal,
+                        by_id=by_id,
+                    )
 
         result.kept = len(kept)
         result.coverage = coverage(placed, window)

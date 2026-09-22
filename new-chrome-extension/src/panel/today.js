@@ -26,8 +26,15 @@ export function today(summary, openOffers = 0) {
   const line = document.createElement("div");
   line.className = "today";
   for (const text of [counted(done, "done"), counted(openOffers, "offer"), saved(minutes)]) {
+    // The number large and in mono, the word under it: a count that changes
+    // while somebody watches has to read as a count.
+    const [number, ...word] = text.split(" ");
     const cell = document.createElement("span");
-    cell.textContent = text;
+    const big = document.createElement("b");
+    big.textContent = number;
+    const label = document.createElement("span");
+    label.textContent = word.join(" ");
+    cell.append(big, label);
     line.append(cell);
   }
   return line;

@@ -320,6 +320,9 @@ function stepRow({
   glyph.className = "glyph";
   const now = !outcome && live && step.index === inFlight;
   glyph.textContent = outcome ? glyphFor(outcome) : now ? "●" : "○";
+  // What the stylesheet colours the circle by. The character is the meaning
+  // and stays the text; this only lets the tone follow it.
+  glyph.dataset.glyph = glyph.textContent;
   // The one thing on this panel that should move. A run in flight and a run
   // that stopped on a live step draw the identical dot otherwise, and "still
   // going" is the question somebody watching actually has. The stylesheet

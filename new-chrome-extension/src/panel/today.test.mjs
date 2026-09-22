@@ -29,7 +29,7 @@ test("a day with nothing in it says nothing", () => {
 test("the three numbers, in the order somebody reads them", () => {
   const line = today({ doing: { runs: 3, minutes_saved: 4.2 } }, 2);
   assert.deepEqual(
-    line.kids.map((cell) => cell.textContent),
+    line.kids.map(words),
     ["3 done", "2 offers", "4 min saved"],
   );
 });
@@ -44,7 +44,7 @@ test("under a minute and a half is said in seconds", () => {
 test("one of anything is singular", () => {
   const line = today({ doing: { runs: 1, minutes_saved: 2 } }, 1);
   assert.deepEqual(
-    line.kids.map((cell) => cell.textContent),
+    line.kids.map(words),
     ["1 done", "1 offer", "2 min saved"],
   );
 });

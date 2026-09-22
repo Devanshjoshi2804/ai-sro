@@ -1,138 +1,299 @@
-/* The panel is a tall narrow column beside a dense 2009 web application. It
-   competes with none of it: one ground, white cards, one accent, and numbers in
-   a monospace so a count that changes while you watch is legible as a count. */
+/* Ember & Glass (designof-panel/, concept 03).
+ *
+ * A quiet smoked-glass instrument beside a dense, colourful WMS, with exactly
+ * one warm element at a time: ember appears only when something was noticed or
+ * a run is going, amber and red only when something needs the operator. Every
+ * card is a double bezel -- a thin outer tray holding an inner plate -- which is
+ * what lets so few colours carry meaning without competing with the page.
+ *
+ * The bezel is drawn with box-shadow rings rather than a wrapper element, so
+ * the modules that build these cards keep the DOM their tests read. Tones are
+ * `data-tone`, never an extra class, for the same reason. */
+
+@font-face {
+  font-family: "Geist";
+  src: url("../fonts/geist-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("../fonts/space-grotesk-latin.woff2") format("woff2");
+  font-weight: 300 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("../fonts/jetbrains-mono-latin.woff2") format("woff2");
+  font-weight: 100 800;
+  font-display: swap;
+}
 
 :root {
-  /* The palette comes from `brand.generated.css`, linked ahead of this file.
-   * These names stay because the whole stylesheet is written in them; what
-   * changed is that they are no longer a second, slightly-wrong copy of the
-   * console's colours. */
   color-scheme: dark;
-  font-family:
-    var(--font-body, system-ui),
-    -apple-system,
-    "Segoe UI",
-    sans-serif;
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Geist", system-ui, -apple-system, sans-serif;
+  --font-mono-face: "JetBrains Mono";
+  font-family: var(--font-body);
   font-size: 13px;
 
-  --ground: var(--brand-ground);
-  --card: var(--brand-surface);
+  /* The names the rest of this file is written in, onto the brand's. */
+  --ground: var(--brand-surface);
+  --card: var(--brand-raised);
   --line: var(--brand-line);
   --line-soft: var(--brand-line-soft);
+  --line-strong: var(--brand-line-strong);
   --ink: var(--brand-heading);
+  --ink-strong: var(--brand-bright);
   --ink-soft: var(--brand-body);
-  --ink-mute: var(--brand-muted);
+  /* The brand's muted grey is 3.7:1 on a card, which fails AA for the 10.5 to
+   * 11.5 px notes this panel is full of. This one is 5.8:1. */
+  --ink-mute: #8a93a0;
+  --ink-faint: var(--brand-muted);
   --accent: var(--brand-accent);
+  --accent-hi: var(--brand-accent-bright);
+  --accent-lo: var(--brand-accent-dark);
+  --wash: var(--brand-accent-tint);
+  --aborder: var(--brand-accent-line);
   --good: var(--brand-good);
+  --good-wash: var(--brand-good-tint);
+  --good-line: var(--brand-good-line);
   --warn: var(--brand-warn);
   --warn-wash: var(--brand-warn-tint);
   --warn-line: var(--brand-warn-line);
-  --mono: var(--font-mono-face, ui-monospace), SFMono-Regular, Menlo, monospace;
+  --bad: var(--brand-danger);
+  --bad-wash: var(--brand-danger-tint);
+  --bad-line: var(--brand-danger-line);
+  --mono: var(--font-mono-face), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+  /* The plate every card is, and the tray around it. */
+  --plate: linear-gradient(180deg, #171a21 0%, #111418 100%);
+  --tray: rgba(255, 255, 255, 0.035);
+  --tray-line: var(--brand-line-soft);
+  --lift: 0 26px 50px -32px rgba(0, 0, 0, 0.7);
+  --bezel:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 0 0 4px var(--tray),
+    0 0 0 5px var(--tray-line),
+    var(--lift);
 }
 
 /* Every surface here is toggled by the `hidden` attribute rather than by a
    class, and a bare `.menu { display: flex }` outranks the user-agent's
-   `[hidden] { display: none }`. Without this the profile menu and the console
-   frame are open from the moment the panel draws. */
+   `[hidden] { display: none }`. */
 [hidden] {
   display: none !important;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
   display: flex;
   flex-direction: column;
-  /* What the history overlay is positioned against. Without it the overlay
-     anchors to the viewport, which is the same rectangle today and is not the
-     thing it is meant to sit over. */
   position: relative;
-  /* Exactly the viewport, not at least it: the panel is a fixed frame, and the
-     composer is pinned to its bottom rather than to the end of the page. */
+  /* Exactly the viewport: the composer is pinned to the panel's bottom. */
   height: 100vh;
-  background: var(--ground);
-  color: var(--ink);
+  overflow: hidden;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  background:
+    radial-gradient(90% 38% at 100% 0%, rgba(220, 88, 42, 0.11), transparent 70%),
+    radial-gradient(70% 30% at 0% 100%, rgba(90, 110, 160, 0.06), transparent 70%),
+    var(--ground);
 }
 
-/* Everything above the composer. This is what scrolls when a conversation gets
-   long -- the strip above and the ask bar below stay where they are. */
+/* Grain, so the dark reads as glass and not as a flat fill. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
 #scroll {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
 }
 
-#ask-bar {
-  flex: 0 0 auto;
-  padding: 8px 14px;
-  border-top: 1px solid var(--line);
-  background: var(--ground);
+.mono,
+.metrics,
+.fix,
+.host {
+  font-family: var(--mono);
+  font-feature-settings: "zero" 1;
 }
 
-/* -- the strip ------------------------------------------------------------ */
+/* -- the strip: a floating island ------------------------------------------ */
 
 #strip {
-  padding: 12px 14px 10px;
-  border-bottom: 1px solid var(--line);
-  background: var(--card);
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 4;
+  padding: 15px 15px 6px;
+}
+
+.strip {
+  position: relative;
+  border-radius: 16px;
+  padding: 6px 6px 0;
+  background: rgba(18, 20, 26, 0.78);
+  backdrop-filter: blur(18px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 4px rgba(255, 255, 255, 0.04),
+    0 0 0 5px var(--line),
+    0 20px 40px -26px rgba(0, 0, 0, 0.7);
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .mark {
   display: grid;
   place-items: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  background: var(--accent);
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  margin-left: 2px;
+  border-radius: 8px;
+  background: linear-gradient(145deg, var(--accent-hi), var(--accent-lo));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 6px 12px -4px rgba(220, 88, 42, 0.55);
   color: #fff;
-  font-size: 11px;
-  font-weight: 700;
+  font: 700 13px/1 var(--font-display);
 }
 
 .name {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.link {
-  margin-left: auto;
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--ink-mute);
-  font: inherit;
-  font-size: 11.5px;
-  cursor: pointer;
-}
-
-.link:hover {
+  font: 600 13.5px var(--font-display);
+  letter-spacing: -0.01em;
   color: var(--ink);
+  white-space: nowrap;
 }
 
-/* The chip: the host, a dot that says what is happening to it, and the press
-   that opens the card. A panel that does not name the tab it is docked beside
-   leaves the operator to assume, and the tab they are looking at is not always
-   the one this is beside. */
+@media (max-width: 372px) {
+  .name {
+    display: none;
+  }
+}
+
+/* The avatar, and the menu under it. */
+.disc {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 25%, #ff9a6e, #b8401a);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 0 0 1px rgba(220, 88, 42, 0.4),
+    0 8px 16px -8px rgba(220, 88, 42, 0.6);
+  color: #ffe8de;
+  font: 600 12px var(--font-display);
+}
+
+.disc:hover {
+  background: radial-gradient(circle at 30% 25%, #ffa77f, #c2451d);
+}
+
+.menu {
+  position: absolute;
+  z-index: 6;
+  right: 0;
+  top: 44px;
+  width: min(272px, calc(100vw - 30px));
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border-radius: 16px;
+  background: rgba(16, 18, 23, 0.94);
+  backdrop-filter: blur(20px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 4px rgba(255, 255, 255, 0.04),
+    0 0 0 5px var(--line),
+    0 30px 60px -20px rgba(0, 0, 0, 0.75);
+  transform-origin: top right;
+  animation: menu-in 0.5s var(--ease) both;
+}
+
+.menu button {
+  width: 100%;
+  min-height: 0;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 11px;
+  background: none;
+  box-shadow: none;
+  color: var(--ink-strong);
+  font-size: 12.5px;
+  font-weight: 400;
+  text-align: left;
+  justify-content: flex-start;
+}
+
+.menu button:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+}
+
+/* Row two: the dot, the host, what is happening to it. The whole row is the
+   press that opens the state card. */
 .chip {
   display: flex;
   align-items: center;
   gap: 7px;
-  width: 100%;
-  margin: 8px 0 0;
-  padding: 0;
+  width: calc(100% + 12px);
+  min-height: 0;
+  margin: 6px -6px 0;
+  padding: 8px 12px 9px 14px;
   border: 0;
+  border-top: 1px solid var(--line-soft);
+  border-radius: 0 0 16px 16px;
   background: none;
-  font-family: var(--mono);
+  box-shadow: none;
+  color: var(--ink-strong);
   font-size: 11.5px;
-  color: var(--ink-soft);
+  font-weight: 400;
   text-align: left;
-  cursor: pointer;
-  overflow-wrap: anywhere;
+}
+
+.chip:hover {
+  background: rgba(255, 255, 255, 0.025);
 }
 
 .chip::before {
@@ -141,23 +302,26 @@ body {
   width: 7px;
   height: 7px;
   border-radius: 999px;
-  background: var(--ink-mute);
+  background: var(--ink-faint);
 }
 
-/* The chevron, and which way it points. Last so it stays at the right edge
-   however long the host is. */
 .chip::after {
-  content: "\203a";
+  content: "";
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
   margin-left: auto;
-  color: var(--ink-mute);
-  transform: rotate(90deg);
+  background: var(--ink-mute);
+  -webkit-mask: var(--i-chev) center / contain no-repeat;
+  transition: transform 0.5s var(--ease);
 }
 
 .chip[data-open="true"]::after {
-  transform: rotate(-90deg);
+  transform: rotate(180deg);
 }
 
 .chip .host {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -165,416 +329,211 @@ body {
 
 .chip .says {
   flex: 0 0 auto;
-  color: var(--ink-mute);
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.chip .says::before {
+  content: "·";
+  margin-right: 7px;
+  color: var(--ink-faint);
 }
 
 .chip[data-state="observing"]::before {
   background: var(--good);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.14);
 }
 
 .chip[data-state="recording"]::before {
-  background: var(--accent);
-  animation: beat 1.4s ease-in-out infinite;
+  background: var(--accent-hi);
+  box-shadow: 0 0 0 3px rgba(255, 132, 82, 0.18);
+  animation: pulse 1.6s var(--ease) infinite;
 }
 
 .chip[data-state="paused"]::before {
   background: var(--warn);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.14);
 }
 
-/* The profile, and what is under it: pause, purge, settings, disconnect. Rare
-   and deliberate things, out of the eye line of the composer. */
-.disc {
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: none;
-  color: var(--ink-soft);
-  font-size: 10.5px;
-  font-weight: 600;
-  cursor: pointer;
-}
+/* -- pane nav --------------------------------------------------------------- */
 
-.menu {
-  display: flex;
-  flex-direction: column;
-  margin-top: 8px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-card, 10px);
-  background: var(--card);
-  overflow: hidden;
-}
-
-.menu button {
-  padding: 8px 12px;
-  border: 0;
-  border-radius: 0;
-  background: none;
-  color: var(--ink-soft);
-  font: inherit;
-  font-size: 12px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.menu button:hover {
-  background: var(--brand-raised);
-  color: var(--ink);
-}
-
-/* The day, over the ledger. Numbers in the mono face, because they change while
-   somebody is looking at them. */
-.today {
-  display: flex;
-  gap: 14px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--line-soft);
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--ink-mute);
-}
-
-@keyframes beat {
-  50% {
-    opacity: 0.35;
-  }
-}
-
-/* The dot still says recording; it just stops moving. Everything here that
-   animates is one thing -- a state that is true right now -- so honouring the
-   preference costs no information. */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation: none !important;
-    transition: none !important;
-  }
-}
-
-/* -- cards ---------------------------------------------------------------- */
-
-#cards:not(:empty) {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px 14px;
-}
-
-.card {
-  padding: 13px 14px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--card);
-}
-
-.card[data-tone="attention"] {
-  border-color: var(--warn-line);
-  border-left: 3px solid var(--warn);
-  background: var(--warn-wash);
-}
-
-/* A step that is happening, rather than one that has.
- *
- * The glyph is a character and says the right thing at a glance -- ○ waiting,
- * ● now, ✓ held -- but a run in flight and a run that stopped on a live step
- * draw the identical dot. A slow pulse is the difference, and it is the one
- * thing on this panel that should move: it means "still going", which is the
- * question somebody watching actually has.
- */
-.run[data-status="running"] .step .glyph[data-live="true"] {
-  animation: pulse 1.6s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
-}
-
-/* Somebody who has asked for less movement gets less movement. The dot still
-   says which step is live; it simply stops breathing. */
-@media (prefers-reduced-motion: reduce) {
-  .run[data-status="running"] .step .glyph[data-live="true"] {
-    animation: none;
-  }
-}
-
-/* What a lookup came back with.
- *
- * The count is the answer and is sized as one; the table under it is what
- * somebody checks it against. Its own sideways scroller, so a wide record
- * cannot make the whole panel scroll and take the composer with it.
- */
-.result .count {
-  margin: 2px 0 6px;
-  font: 700 15px/1.2 inherit;
-  color: var(--ink);
-}
-
-/* The eyebrow: what this is about, above what it says. 10.5/700/.08em,
-   uppercase, muted -- the label idiom the console's cards use, so a person
-   moving between the two surfaces is reading the same shape. */
-.result .where {
-  font: 700 10.5px/1.4 inherit;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-mute);
-}
-
-.result[data-ok="false"] .detail {
-  color: var(--warn);
-}
-
-/* A warehouse record, read downwards.
- *
- * This was a table. Ten fields across 360 pixels is a horizontal scroller, and
- * what falls off the right is whichever columns the system serialised last --
- * measured on the deployment 2026-09-21, a reader had to drag sideways past
- * `INVENTORYSTATUSPROGRESSION` to reach anything they had asked about. A card
- * reads in the direction this panel has room in.
- */
-.records {
-  margin-top: 8px;
-}
-
-.record-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.record {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 10px;
-  background: var(--sunk, rgb(255 255 255 / 2%));
-}
-
-/* The record the question named. It is first, and eight cards look alike. */
-.record[data-asked="1"] {
-  border-color: var(--brand, #dc582a);
-  background: var(--tint, rgb(220 88 42 / 8%));
-}
-
-.record-name {
-  margin: 0 0 4px;
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.record-field {
-  margin: 0;
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
-  /* The value wraps; the label does not. A field name broken across two lines
-   * is a column header pretending to be prose. */
-  flex-wrap: wrap;
-}
-
-.record-label {
-  color: var(--ink-mute);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  /* Enough that the values line up at a glance, and not so much that a long
-   * field name pushes every value off the card. */
-  min-width: 9ch;
-}
-
-.record-value {
-  /* The whole reason this is not a table: a value that does not fit wraps
-   * rather than disappearing to the right. */
-  overflow-wrap: anywhere;
-}
-
-.paging {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 6px;
-}
-
-.paging .note {
-  margin: 0;
-}
-
-.paging button[disabled] {
-  opacity: 0.4;
-  cursor: default;
-}
-
-/* Which half of the panel you are on.
- *
- * ONE control, not two buttons standing near each other: a segmented switch in
- * a single rounded well, which is the idiom the rest of this product's chrome
- * uses and the thing the first version got wrong -- `display:flex` on each tab
- * made every tab a block, and they stacked one above the other like two stray
- * boxes.
- *
- * Above the scroll and never moving, because the control that says where you
- * are must not itself be somewhere you have to look for.
- */
-#panes {
-  flex: 0 0 auto;
-  padding: 10px 14px 2px;
-}
-
-/* In the strip, pushed to its right: the name is on the left and this is the
-   other end of the same line. `margin-left: auto` rather than a spacer, so the
-   profile disc after it stays where it has always been. */
 .panes {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
-  /* Room between them. At 2px five glyphs read as one smudged control, and the
-     thing a person is aiming at on a panel beside a warehouse screen is a
-     shape they can hit without looking twice. */
-  gap: 6px;
-  padding: 3px 5px;
-  border: 1px solid var(--line-soft);
+  gap: 2px;
+  padding: 2px;
   border-radius: 999px;
-  background: var(--brand-surface-2);
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
 }
 
-/* A square for a glyph, not a pill for a word. Four of these and the profile
-   disc fit in the strip beside the name, which is the row this cluster moved
-   into so the panel stopped spending one of its six on navigation. */
+/* The glyph is the tab's text, kept for anything reading it; what is drawn is
+   an icon in its place. */
 .pane-tab {
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   width: 32px;
-  height: 30px;
-  gap: 6px;
+  height: 28px;
+  min-height: 0;
   padding: 0;
   border: 0;
   border-radius: 999px;
   background: none;
-  color: var(--ink-mute);
-  /* The shorthand LAST, and carrying the size. A `font-size` above a `font`
-     shorthand is a line that does nothing -- the shorthand resets it -- and
-     this cluster was drawing 12px glyphs while the file said 13.
-     Sixteen because these are shapes rather than letters: a glyph at body size
-     is a smudge on a panel somebody glances at from a warehouse aisle. */
-  font: 600 18px/1 inherit;
-  cursor: pointer;
-  /* The one transition on this control. A segment that snaps is a segment
-     somebody presses twice to see whether it worked. */
+  box-shadow: none;
+  color: var(--ink-faint);
+  font-size: 0;
   transition:
-    background-color 140ms ease,
-    color 140ms ease;
+    color 0.4s var(--ease),
+    background 0.4s var(--ease);
+}
+
+.pane-tab::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  -webkit-mask: var(--icon, none) center / contain no-repeat;
+}
+
+.pane-tab[data-pane="home"] {
+  --icon: var(--i-home);
+}
+
+.pane-tab[data-pane="chat"] {
+  --icon: var(--i-chat);
+}
+
+.pane-tab[data-pane="waiting"] {
+  --icon: var(--i-tray);
+}
+
+.pane-tab[data-pane="tasks"] {
+  --icon: var(--i-clock);
+}
+
+.pane-tab[data-pane="new"] {
+  --icon: var(--i-plus);
+  margin-left: 4px;
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+  width: 28px;
 }
 
 .pane-tab:hover {
-  color: var(--ink-soft);
+  color: var(--ink-strong);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .pane-tab[aria-selected="true"] {
-  background: var(--brand-raised);
+  color: var(--ink);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 6px 14px -6px rgba(0, 0, 0, 0.6);
+}
+
+.pane-count {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px #14161b;
+  color: #fff;
+  font: 600 9.5px/15px var(--mono);
+  text-align: center;
+  animation: pop 0.5s var(--spring) both;
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0.4);
+  }
+}
+
+/* -- Today ------------------------------------------------------------------ */
+
+#today:not(:empty) {
+  flex: 0 0 auto;
+  padding: 6px 10px 4px;
+}
+
+.today {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  border-radius: 16px;
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+  font-size: 10.5px;
+  color: var(--ink-mute);
+}
+
+.today > * {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 9px 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.today > * + * {
+  border-left: 1px solid var(--line-soft);
+}
+
+.today b,
+.today strong {
+  display: block;
+  font: 500 17px var(--mono);
+  letter-spacing: -0.02em;
   color: var(--ink);
 }
 
-/* Somebody who asked for less movement gets none of this one either. */
-@media (prefers-reduced-motion: reduce) {
-  .pane-tab {
-    transition: none;
-  }
-}
+/* -- what arrived while nobody was looking ---------------------------------- */
 
-/* Arriving on a pane, rather than appearing on it.
- *
- * `hidden` snaps: the cards are gone and the conversation is simply there, and
- * on a 400-pixel column that reads as a flicker rather than as a move. A short
- * fade is the whole difference between a switch and a jump -- and it runs on
- * showing only, so nothing is ever waiting on an animation to leave.
- */
-#cards:not([hidden]),
-#thread:not([hidden]) {
-  animation: pane-in 140ms ease-out;
-}
-
-@keyframes pane-in {
-  from {
-    opacity: 0;
-    transform: translateY(2px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  #cards:not([hidden]),
-  #thread:not([hidden]) {
-    animation: none;
-  }
-}
-
-/* The one number a person on the wrong pane needs. Toned, never accented:
- * `brand.css` says state colours are not the accent, and this is a state. */
-/* On the corner of its own icon, not in the row beside it.
- *
- * Inline, it was a third item inside a 32-pixel square: the square grew, the
- * cluster spread, and an eleven-request badge shunted the clock along the
- * strip. A count is a mark ON a thing, and the thing it is on is the tray. */
-.pane-count {
-  position: absolute;
-  top: -3px;
-  right: -4px;
-  min-width: 16px;
-  padding: 0 4px;
-  border-radius: 999px;
-  /* Against the strip behind it, so a badge over a glyph still reads as two
-     things rather than one busy one. */
-  border: 1.5px solid var(--brand-surface-2);
-  background: var(--warn);
-  color: var(--card);
-  font: 700 10.5px/1.6 inherit;
-  text-align: center;
-}
-
-/* What arrived while nobody was looking.
- *
- * Pinned above the scroll, so a request nobody has answered is never something
- * to find by scrolling. Folded it is one line; opened it drops the cards down
- * and scrolls within itself rather than pushing the panel's own column around
- * -- five waiting requests must not bury the card for the run happening now.
- */
 #waiting:not([hidden]) {
   flex: 0 0 auto;
-  padding: 10px 14px 0;
+  margin: 10px 15px 6px;
+  padding: 12px 13px;
+  border-radius: 18px;
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgba(245, 158, 11, 0.1), transparent 55%),
+    #131418;
+  --tray: rgba(245, 158, 11, 0.08);
+  --tray-line: var(--warn-line);
+  box-shadow: var(--bezel);
 }
 
 .waiting-head {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
   width: 100%;
+  min-height: 0;
   padding: 0;
   border: 0;
   background: none;
-  color: inherit;
-  font: inherit;
+  box-shadow: none;
+  color: var(--ink-strong);
+  font-size: 12.5px;
+  font-weight: 500;
   text-align: left;
-  cursor: pointer;
+}
+
+.waiting-head:hover {
+  background: none;
 }
 
 .waiting-head .what {
   flex: 1 1 auto;
+  margin: 0;
 }
 
 .waiting-head .note {
@@ -583,50 +542,66 @@ body {
 
 .waiting-list {
   list-style: none;
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 20px;
   max-height: 46vh;
   overflow-y: auto;
 }
 
+/* -- cards ------------------------------------------------------------------ */
+
+#expanded:not([hidden]) {
+  flex: 0 0 auto;
+  padding: 10px 15px 4px;
+}
+
+#cards:not(:empty) {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 10px 15px 18px;
+}
+
+.card,
+.made {
+  position: relative;
+  min-width: 0;
+  padding: 15px 15px 14px;
+  border-radius: 18px;
+  background: var(--plate);
+  box-shadow: var(--bezel);
+  animation: rise 0.8s var(--ease) both;
+}
+
+/* Ember: the one loud card -- a run in flight, something offered. */
 .card[data-tone="live"] {
-  border-left: 3px solid var(--accent);
+  --tray: rgba(220, 88, 42, 0.14);
+  --tray-line: var(--aborder);
+  --lift: 0 26px 50px -30px rgba(220, 88, 42, 0.35);
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgba(220, 88, 42, 0.18), transparent 55%),
+    linear-gradient(180deg, #1b1714, #121317);
 }
 
-/* Something turning, while something is happening.
-
-   The live card already said what it was doing and how long it had been doing
-   it, and both of those are text that sits still. A person glancing at a panel
-   reads movement before they read words: no movement is a run that has hung,
-   whatever the words say. */
-.spinner {
-  display: inline-block;
-  width: 9px;
-  height: 9px;
-  margin-right: 7px;
-  vertical-align: -1px;
-  border: 1.5px solid var(--accent);
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 0.9s linear infinite;
+/* Amber: something needs the operator and is not an error. */
+.card[data-tone="attention"] {
+  --tray: rgba(245, 158, 11, 0.09);
+  --tray-line: var(--warn-line);
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgba(245, 158, 11, 0.1), transparent 55%),
+    #131418;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Somebody who has asked their browser to stop moving things has asked this
-   too. The ring stays -- it is the marker that this card is the live one --
-   and only the turning goes. */
-@media (prefers-reduced-motion: reduce) {
-  .spinner {
-    animation: none;
-  }
+/* Green: done and read back. */
+.made {
+  --tray: rgba(34, 197, 94, 0.07);
+  --tray-line: var(--good-line);
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgba(34, 197, 94, 0.08), transparent 55%),
+    #121418;
 }
 
 .card h3 {
@@ -634,79 +609,129 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin: 0 0 6px;
-  font-size: 13.5px;
-  font-weight: 600;
-}
-
-/* The one control on every watching card: flips it open or shut, never
-   disabled -- a state that needs an answer simply outvotes a press here. */
-.chevron {
-  flex: 0 0 auto;
-  padding: 2px 6px;
-  border: none;
-  background: none;
-  color: var(--ink-mute);
-  font-size: 11px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.chevron:hover {
+  margin: 0 0 4px;
+  font: 600 16.5px/1.25 var(--font-display);
+  letter-spacing: -0.015em;
   color: var(--ink);
+  overflow-wrap: anywhere;
 }
 
 .card p {
-  margin: 0 0 8px;
-  font-size: 12.5px;
+  margin: 0 0 6px;
+  font-size: 12.75px;
   line-height: 1.55;
   color: var(--ink-soft);
+  overflow-wrap: anywhere;
 }
 
 .card p:last-child {
   margin-bottom: 0;
 }
 
-/* Elapsed, actions, requests: the proof that a recording is recording. */
+.card p b {
+  color: var(--ink-strong);
+  font-weight: 500;
+}
+
+/* The eyebrow: what this is about, above what it says. */
+.result .where {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  height: 22px;
+  margin: 0 0 10px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+  font: 500 9.5px var(--font-body);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A card's standing: sometimes one word (a run's rung), sometimes a sentence
+   (what an offer is still short of). An inset note that wraps, toned with the
+   card it is on. */
+.stage {
+  margin: 10px 0 0;
+  padding: 8px 11px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-strong);
+  overflow-wrap: anywhere;
+}
+
+.card[data-tone="live"] .stage {
+  color: #ffc4ab;
+  background: var(--wash);
+  box-shadow: inset 0 0 0 1px var(--aborder);
+}
+
+.card[data-tone="attention"] .stage {
+  color: #fcd79b;
+  background: var(--warn-wash);
+  box-shadow: inset 0 0 0 1px var(--warn-line);
+}
+
+.chevron {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+  color: var(--ink-mute);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.chevron:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .metrics {
-  font-family: var(--mono);
   font-size: 11.5px;
   color: var(--ink-mute);
 }
 
-.stage {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-mute);
-}
-
-/* Steps done, steps left. Only ever drawn for a run that says how many. */
 .progress {
   display: flex;
   gap: 3px;
-  margin: 2px 0 10px;
+  margin: 10px 0 12px;
 }
 
 .progress span {
   flex: 1;
-  height: 3px;
+  height: 6px;
   border-radius: 999px;
-  background: var(--line);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
 }
 
 .progress span[data-done="true"] {
-  background: var(--accent);
+  background: linear-gradient(180deg, var(--accent-hi), var(--accent));
+  box-shadow: none;
 }
 
-/* The watching card, once nothing about it needs a press: a dot and a line,
-   not a card's worth of padding for one sentence. */
+/* The watching card once nothing about it needs a press: one slim line. */
 .card.line {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 14px;
+  gap: 10px;
+  padding: 10px 10px 10px 13px;
 }
 
 .card.line .dot {
@@ -715,129 +740,47 @@ body {
   height: 7px;
   border-radius: 999px;
   background: var(--good);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.14);
 }
 
 .card.line p {
   flex: 1;
+  min-width: 0;
   margin: 0;
-  color: var(--ink-soft);
-}
-
-/* -- buttons -------------------------------------------------------------- */
-
-.row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-button {
-  padding: 7px 13px;
-  border: 1px solid var(--accent);
-  border-radius: 7px;
-  background: var(--accent);
-  color: #fff;
-  font: inherit;
+  color: var(--ink-strong);
   font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-button:disabled {
-  border-color: var(--line);
-  background: var(--line-soft);
-  color: var(--ink-mute);
-  cursor: not-allowed;
+.card.line .row {
+  margin: 0;
 }
 
-button.quiet {
-  border-color: var(--line);
-  background: var(--card);
-  color: var(--ink);
-  font-weight: 500;
-}
-
-button.quiet:hover:not(:disabled) {
-  border-color: var(--ink-mute);
-}
-
-/* Destructive at rest, not only under the pointer.
- *
- * "Delete the last hour" was the same grey as "Ask for a task" until you
- * hovered it, so the one control here that destroys evidence looked exactly
- * like the one that asks a question. Somebody reaching for it on a touchscreen
- * never sees a hover state at all. */
-button.danger {
-  border-color: var(--brand-danger-line);
-  color: var(--brand-danger);
-}
-
-button.danger:hover:not(:disabled) {
-  border-color: var(--brand-danger);
-  background: var(--brand-danger-tint);
-}
-
-/* The panel had no focus indication of any kind, and it is a column of
-   buttons. Same ring as the console, from the same token. */
-:focus-visible {
-  outline: 2px solid var(--brand-accent);
-  outline-offset: 2px;
-  border-radius: 4px;
+.spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 8px;
+  vertical-align: -2px;
+  border: 1.5px solid rgba(220, 88, 42, 0.25);
+  border-top-color: var(--accent-hi);
+  border-radius: 50%;
+  animation: spin 0.9s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
 }
 
 .fix {
   display: block;
-  margin: 8px 0;
-  padding: 8px 10px;
-  border-radius: 6px;
-  background: var(--brand-surface-2);
-  font-family: var(--mono);
+  margin: 10px 0;
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: #0c0e12;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5), inset 0 0 0 1px var(--line-soft);
+  color: var(--ink-strong);
   font-size: 11.5px;
   word-break: break-all;
   user-select: all;
-}
-
-/* -- what was noticed here ------------------------------------------------ */
-
-#here {
-  padding: 4px 14px 14px;
-}
-
-#here h2 {
-  margin: 8px 0;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-mute);
-}
-
-#candidates {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-#candidates li {
-  padding: 13px 14px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--card);
-}
-
-.title {
-  margin: 0 0 4px;
-  font-size: 13.5px;
-  font-weight: 600;
-}
-
-.by-model {
-  font-weight: 400;
-  color: var(--ink-mute);
 }
 
 .note {
@@ -847,56 +790,270 @@ button.danger:hover:not(:disabled) {
   color: var(--ink-mute);
 }
 
-/* A suggestion about this candidate and another, and the two words a person can
-   answer it with. */
+.title {
+  margin: 0 0 4px;
+  font: 600 14px var(--font-display);
+  color: var(--ink);
+}
+
+.by-model {
+  font-weight: 400;
+  color: var(--ink-mute);
+}
+
 .joined {
-  margin-top: 10px;
-  padding-top: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid var(--line-soft);
 }
 
-/* -- the console, when it is asked for ------------------------------------ */
+/* -- buttons: island pills --------------------------------------------------- */
 
-#console {
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+/* One primary action per card. It sits on the accent's dark end, because white
+ * on the brand accent itself is 3.8:1 and fails AA at this size; this is 5.2. */
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--accent-lo) 0%, #b83c0f 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.15),
+    0 10px 22px -10px rgba(220, 88, 42, 0.7);
+  color: #fff;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform 0.45s var(--ease),
+    background 0.45s var(--ease),
+    box-shadow 0.45s var(--ease),
+    color 0.45s var(--ease);
+}
+
+button:hover {
+  background: linear-gradient(180deg, #d0480f 0%, #c2410c 100%);
+}
+
+button:active {
+  transform: scale(0.97);
+}
+
+button:disabled {
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+  color: var(--ink-faint);
+  cursor: not-allowed;
+  transform: none;
+}
+
+button.quiet {
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  color: var(--ink-strong);
+}
+
+button.quiet:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 0 0 1px var(--line-strong),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Destructive at rest, not only under the pointer. */
+button.danger {
+  background: rgba(248, 113, 113, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.28);
+  color: #fecaca;
+}
+
+button.danger:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.15);
+  box-shadow: inset 0 0 0 1px var(--bad);
+}
+
+.link {
+  min-height: 0;
+  margin-left: auto;
+  padding: 0 6px;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+}
+
+.link:hover {
+  background: none;
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-hi);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+button:focus-visible,
+input:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent-hi);
+  outline-offset: 2px;
+}
+
+input,
+textarea {
+  font: inherit;
+}
+
+/* A field: an inset well inside a thin tray. */
+.card input:not([type="checkbox"]):not([type="radio"]),
+.message input:not([type="checkbox"]):not([type="radio"]),
+.run input {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 11px;
+  background: #0c0e12;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.5),
+    0 0 0 3px rgba(255, 255, 255, 0.03),
+    0 0 0 4px var(--line);
+  color: var(--ink);
+  font: 12.5px var(--mono);
+  outline: none;
+  transition: box-shadow 0.4s var(--ease);
+}
+
+.card input:focus,
+.message input:focus,
+.run input:focus {
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.5),
+    0 0 0 3px rgba(220, 88, 42, 0.1),
+    0 0 0 4px var(--aborder);
+}
+
+input::placeholder {
+  color: #4b525c;
+}
+
+/* -- what a lookup came back with -------------------------------------------- */
+
+.result .count {
+  margin: 2px 0 6px;
+  font: 600 16.5px/1.25 var(--font-display);
+  color: var(--ink);
+}
+
+.result[data-ok="false"] .detail {
+  color: #fcd79b;
+}
+
+.records {
+  margin-top: 10px;
+}
+
+.record-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-height: 320px;
-  border-top: 1px solid var(--line);
-  background: var(--card);
+  gap: 5px;
 }
 
-#console-note {
-  margin: 10px 14px;
+.record {
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+  transition: background 0.4s var(--ease);
 }
 
-#console-refused {
-  margin: 12px 14px;
-  border-left: 3px solid var(--warn);
+.record:hover {
+  background: rgba(255, 255, 255, 0.05);
 }
 
-#frame {
-  flex: 1;
-  width: 100%;
-  border: 0;
+.record[data-asked="1"] {
+  background: var(--wash);
+  box-shadow: inset 0 0 0 1px var(--aborder);
 }
 
-/* No footer. What sat here -- ask, purge, settings -- was either a second copy
-   of the box you type in or something done once a month, all of it in the eye
-   line of the one control reached hourly. Only what a purge has to say is left,
-   and it says it where the operator was looking. */
-#purged {
-  padding: 0 14px 8px;
+.record-name {
+  margin: 0 0 4px;
+  font: 500 12.5px var(--mono);
+  color: var(--ink);
 }
 
-/* -- the conversation ------------------------------------------------------ */
+.record-field {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 12px;
+}
+
+.record-label {
+  min-width: 9ch;
+  color: var(--ink-mute);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.record-value {
+  color: var(--ink-strong);
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.paging {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.paging .note {
+  margin: 0;
+  font-family: var(--mono);
+}
+
+.paging button[disabled] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* -- the conversation ---------------------------------------------------------- */
 
 #thread {
-  padding: 4px 14px 6px;
+  padding: 8px 15px 10px;
 }
-
-/* No heading over the conversation. It is the whole of this surface now, and a
-   label over the only thing on a screen names nothing. */
 
 .thread .said {
   margin: 0;
@@ -904,140 +1061,183 @@ button.danger:hover:not(:disabled) {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px;
 }
 
 .thread .said:not(:empty) {
   margin-bottom: 10px;
 }
 
-/* Three speakers, three shapes. What the operator said sits to the right in
-   the accent, the way their own words do in every chat they have ever used;
-   what the system said sits left on a card. A thing that happened -- an offer,
-   a run that finished -- is neither, and is marked as the system's own note
-   rather than dressed up as a reply somebody wrote. */
-.message {
-  max-width: 92%;
-  padding: 9px 11px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--card);
-}
-
-.message[data-speaker="operator"] {
-  align-self: flex-end;
-  border-color: var(--accent);
-  background: var(--brand-accent-tint, var(--card));
-}
-
-.message[data-speaker="system"] {
-  border-left: 2px solid var(--accent);
-}
-
-.message .what {
-  margin: 0;
-  font-size: 12.5px;
-  line-height: 1.5;
-  /* Model- and operator-written text, shown as the text it is: a long token
-     wraps rather than pushing the column sideways, and the newlines somebody
-     typed are the newlines they see. */
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-/* The box is the control. The border belongs to it rather than to the field
-   inside it, so the one press that is not the Enter key can sit in its corner
-   instead of spending a third of a 360-pixel row on the word "Send". */
-.composer {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 4px 4px 10px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--card);
-}
-
-/* The field, bare: the box around it is already drawing the border, and two
-   borders one inside the other is what a form looks like. */
-.composer input {
-  flex: 1;
-  min-width: 0;
-  padding: 6px 0;
-  border: 0;
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  font-size: 12.5px;
-}
-
-.composer input:focus-visible {
-  outline: none;
-}
-
-/* The focus ring moves to the box, because the box is what somebody sees. A
-   field with no ring and no border is a field nobody can tell is focused. */
-.composer:focus-within {
-  border-color: var(--accent);
-}
-
-.composer .tools {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.composer .send {
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 13px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.composer input::placeholder {
-  color: var(--ink-mute);
-}
-
-/* -- the time rail ---------------------------------------------------------- */
-
-/* A day of work read down one edge. The minute is said once and then not again
-   until it changes: repeating 12:04 against three things said in the same
-   minute is noise exactly where the eye is looking for structure. */
-.message .when {
-  flex: 0 0 40px;
-  font-family: var(--mono);
-  font-size: 10.5px;
-  line-height: 1.7;
-  color: var(--ink-mute);
-  text-align: right;
-}
-
-/* The rail changes the shape of a message: a fixed cell for the time, then
-   everything the message is. */
+/* A time column, then everything the message is. */
 .message {
   display: flex;
   gap: 10px;
   align-items: flex-start;
+  max-width: 100%;
+  min-width: 0;
+  color: var(--ink-strong);
+  font-size: 13px;
+  animation: rise 0.8s var(--ease) both;
 }
 
 .message > :not(.when) {
   min-width: 0;
 }
 
-/* An answer is read down the column, not across it.
- *
- * `.message` is a row: the time, then everything else beside it. For a
- * `looked` message that put the QUESTION in a narrow left column and the
- * records in what was left, which is the sideways reading this whole card was
- * changed to avoid. The question is a heading here and the answer is under
- * it, at the full width of the panel.
- */
+.message .when {
+  flex: 0 0 40px;
+  font: 10.5px/1.9 var(--mono);
+  color: var(--ink-faint);
+  text-align: right;
+}
+
+.message .what {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.message .detail {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  color: var(--ink-mute);
+  overflow-wrap: anywhere;
+}
+
+/* What the operator said: a bubble to the right, the way their own words sit
+   in every chat they have used. */
+.message[data-speaker="operator"] {
+  align-self: flex-end;
+  max-width: 88%;
+  padding: 9px 13px;
+  border-radius: 18px 18px 6px 18px;
+  background: linear-gradient(180deg, #2a2d35, #22252c);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  color: var(--ink);
+}
+
+.message[data-speaker="operator"] .when {
+  display: none;
+}
+
+/* A thing the system is asking about -- an offer, a nudge, a draft, a wait --
+   is a card in the thread, on the same plate as the cards on Home. */
+.message[data-kind="nudge"],
+.message[data-kind="mail_draft"],
+.message[data-kind="mail_match"],
+.message[data-kind="offer"],
+.message[data-kind="waiting"],
+.message[data-kind="awaiting-mail"],
+.message[data-kind="near-miss"],
+.message[data-kind="result"],
+.message[data-fresh] {
+  padding: 13px 14px;
+  border-radius: 18px;
+  background: var(--plate);
+  box-shadow: var(--bezel);
+  margin: 5px;
+}
+
+.message[data-kind="nudge"][data-state="open"],
+.message[data-kind="mail_draft"],
+.message[data-kind="mail_match"],
+.message[data-kind="offer"] {
+  --tray: rgba(220, 88, 42, 0.14);
+  --tray-line: var(--aborder);
+  --lift: 0 26px 50px -30px rgba(220, 88, 42, 0.35);
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgba(220, 88, 42, 0.16), transparent 55%),
+    linear-gradient(180deg, #1b1714, #121317);
+}
+
+.message[data-kind="waiting"],
+.message[data-kind="awaiting-mail"] {
+  --tray: rgba(245, 158, 11, 0.08);
+  --tray-line: var(--warn-line);
+}
+
+.message[data-kind="awaiting-mail"] {
+  --tray-line: rgba(245, 158, 11, 0.2);
+}
+
+.message[data-kind="awaiting-mail"][data-state="looking"] {
+  --tray-line: var(--warn-line);
+}
+
+.message[data-kind="awaiting-mail"][data-state="looking"] .what {
+  animation: awaiting-breath 2s var(--ease) infinite;
+}
+
+.message[data-kind="nudge"]:not([data-state="open"]) .what {
+  color: var(--ink-mute);
+}
+
+.message[data-state="sending"] .what {
+  opacity: 0.62;
+}
+
+.message .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+}
+
+/* On a card in the thread, the presses go under what it says, never beside
+   it: beside, a 360-pixel row squeezed the sentence into two words a line. */
+.message[data-kind="nudge"],
+.message[data-kind="waiting"],
+.message[data-kind="near-miss"],
+.message[data-fresh] {
+  flex-wrap: wrap;
+}
+
+.message[data-kind="nudge"] > .what,
+.message[data-kind="waiting"] > .what,
+.message[data-kind="near-miss"] > .what {
+  flex: 1 1 0;
+}
+
+.message > .actions,
+.message > .row {
+  flex-basis: 100%;
+  margin-top: 10px;
+}
+
+.message .actions kbd {
+  margin-left: 2px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  font: 10px/16px var(--mono);
+  opacity: 0.8;
+}
+
+.message .request summary {
+  margin-top: 8px;
+  cursor: pointer;
+  font-size: 11.5px;
+  color: var(--ink-mute);
+}
+
+.message .request[open] summary {
+  margin-bottom: 6px;
+}
+
+.message .fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 4px;
+}
+
+.message .detail[data-kind="unasked"] {
+  color: #fcd79b;
+}
+
 .message[data-kind="looked"] {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -1050,7 +1250,7 @@ button.danger:hover:not(:disabled) {
 
 .message[data-kind="looked"] > .what {
   grid-column: 2;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--ink);
 }
 
@@ -1058,395 +1258,42 @@ button.danger:hover:not(:disabled) {
   grid-column: 1 / -1;
 }
 
-/* A recent task is a line you can open.
- *
- * It was three spans and nothing to press, over a run the browser was already
- * holding whole. A button rather than a clickable row: a row that does
- * something is a control, and a control that is not a button is one a keyboard
- * cannot reach and a screen reader does not announce.
- */
-.history-line {
+/* A drafted mail stacks: the sentence, who it goes to, the mail, the press. */
+.message[data-kind="mail_draft"] {
   display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 8px;
-  align-items: baseline;
-  width: 100%;
-  padding: 6px 4px;
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+  grid-template-columns: 40px minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 2px;
+  align-items: start;
 }
 
-.history-line:hover,
-.history-line:focus-visible {
-  background: var(--tint, rgb(255 255 255 / 6%));
+.message[data-kind="mail_draft"] > :not(.when) {
+  grid-column: 2;
 }
 
-.history-list li[data-open="1"] .history-line {
-  background: var(--tint, rgb(255 255 255 / 6%));
-}
-
-/* How it ended, in the one place colour earns its keep: finding the run that
-   went wrong in a list where every line reads the same words. Three states,
-   not one per outcome -- a palette with a shade per ending is a legend to
-   learn. On the OUTCOME word only, so the title stays the title. */
-.history-list li[data-ended="bad"] .detail {
-  color: var(--brand-danger);
-}
-
-.history-list li[data-ended="asking"] .detail {
-  color: var(--warn);
-}
-
-.history-list li[data-ended="live"] .detail {
-  color: var(--accent);
-}
-
-/* The record under the line it belongs to, indented so the list still reads
-   as a list with one of its lines opened. */
-.record-of-a-run {
-  margin: 4px 0 8px 8px;
-  padding-left: 8px;
-  border-left: 2px solid var(--line);
-}
-
-/* -- a nudge ---------------------------------------------------------------- */
-
-/* The one entry that carries the accent, because it is the one asking to be
-   answered right now. It lives about ninety seconds. */
-.message[data-kind="nudge"][data-state="open"] {
-  border-left: 2px solid var(--accent);
-  padding-left: 10px;
-}
-
-/* The band under a card that is asking for a decision, and the keys named on
-   its buttons. The way out first and the primary press last, which is the
-   order of every dialog this panel sits beside. */
-.message .actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.message .actions kbd {
-  margin-left: 6px;
-  padding: 1px 4px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  font: inherit;
-  font-size: 10.5px;
-  color: var(--ink-mute);
-  opacity: 0.85;
-}
-
-/* What a write would use, shut by default. Twelve values in a 360-pixel column
-   push the two controls the card exists for below the fold. */
-.message .request summary {
-  cursor: pointer;
-  font-size: 11.5px;
-  color: var(--ink-mute);
-}
-
-.message .request[open] summary {
-  margin-bottom: 4px;
-}
-
-/* The boxes, when somebody asks for them. A message is a flex ROW, so four
-   inputs appended straight into it share one 360-pixel line and hold three
-   characters each -- which is what the offer card looked like on 2026-09-16.
-   One per line, and only from the press that reveals them. */
-.message .fields {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-/* Once it has ended it is a line about something that happened, like the rest.
-   A prompt still coloured after it stopped asking is one that teaches somebody
-   to stop reading the colour. */
-.message[data-kind="nudge"]:not([data-state="open"]) .what {
-  color: var(--ink-mute);
-}
-
-/* -- a run, while it happens ------------------------------------------------ */
-
-.run {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-/* Which thing on the list the rows under it are for. Set apart from the steps
-   rather than styled like one: it is not something the run did, it is what the
-   next few rows are about -- and somebody watching three records being made
-   reads this line and not the six steps under it. */
-.run .thing {
-  margin: 8px 0 2px;
-  font-family: var(--mono);
-  font-size: 11.5px;
+.message[data-kind="mail_draft"] .subject {
   color: var(--ink);
-  border-top: 1px solid var(--line);
-  padding-top: 6px;
+  font-weight: 500;
 }
 
-.run .step {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
-  font-size: 12px;
-  color: var(--ink-soft);
+.message[data-kind="mail_draft"] .row {
+  margin-top: 6px;
 }
 
-.run .glyph {
-  flex: 0 0 12px;
-  font-family: var(--mono);
-  color: var(--ink-mute);
-  /* The one thing on this surface that animates: a step turning from happening
-     into done, while somebody is watching it happen. */
-  transition: color 180ms ease;
-}
-
-.run .step .intent {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-/* The command a step would send, on the row the rig has stopped to ask about.
-   Monospaced and in the strong ink because it is the one thing on this surface
-   somebody is being asked to read before it happens. */
-.run .step .planned {
-  flex-basis: 100%;
-  font-family: var(--mono);
-  color: var(--ink);
-}
-
-/* What the step was matched to, and what it cost. Beside the intent and out of
-   the way of it: an operator watching a run is reading the words, not the
-   ledger. */
-.run .step .meta {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--ink-mute);
-}
-
-/* A step that has been checked, and one that only came back 200. The second is
-   most of them today, and saying so is the point. */
-.run .step:has(.glyph) .glyph {
-  color: var(--ink-mute);
-}
-
-/* The box a refused step asks for a password in. Full width and beside the
-   sentence that says which system it is for -- this is the one control on this
-   surface an operator types a credential into, and one squeezed between an
-   intent and a cost figure would be one they mistake for a parameter. */
-.run .step input[type="password"] {
-  flex: 1 1 160px;
-  margin-left: 20px;
-  font-family: var(--mono);
-  font-size: 12px;
-}
-
-.run .note {
-  flex-basis: 100%;
-  margin: 2px 0 0 20px;
-  font-size: 11.5px;
-  color: var(--ink-mute);
-}
-
-/* -- what everything focusable looks like when a keyboard reaches it -------- */
-
-button:focus-visible,
-input:focus-visible,
-a:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .run .glyph {
-    transition: none;
-  }
-}
-
-/* -- what happened lately, over the top of it ------------------------------- */
-
-/* An overlay and not a pane. History is something you glance at and leave; a
-   pane is somewhere a person can be left, and coming back tomorrow to find the
-   panel showing last week is how a surface stops being about now.
-
-   Over the scroll rather than over the whole panel: the strip stays readable,
-   so somebody can see which tab they are docked beside while they read what
-   was done to it. */
-#history {
-  position: absolute;
-  z-index: 3;
-  left: 8px;
-  right: 8px;
-  top: 52px;
-  max-height: 62vh;
+.draft {
+  margin: 10px 0;
+  padding: 12px 13px;
+  border-radius: 14px;
+  background: #0b0d10;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.5),
+    inset 0 0 0 1px var(--line);
+  font: 12px/1.6 var(--mono);
+  color: var(--ink-strong);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 260px;
   overflow-y: auto;
-  /* An overlay occludes. That is the whole of what makes it one.
-   *
-   * Only the backlog had a background, so "Recent tasks" drew its lines over
-   * whatever pane was behind -- the conversation showed straight through it
-   * and the two sets of words sat on top of each other. Measured on the
-   * deployment 2026-09-21: `Create a Customer Type` superimposed on
-   * `Log in to Keycloak — an arrival trigger fired. Shall I?`, both legible,
-   * neither readable.
-   *
-   * Here rather than on each kind, because it is true of both and a rule that
-   * has to be remembered per kind is one the third kind will be missing.
-   */
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--card);
-  box-shadow: 0 10px 30px rgb(0 0 0 / 35%);
-}
-
-/* The backlog uses the height it has.
- *
- * `history` is twelve lines of what happened and 62vh is generous for it. A
- * queue of eleven decisions in the same box is a third of a screen of list
- * with two thirds of empty panel under it, scrolling inside itself while the
- * space it needs sits there unused. Seen on the deployment 2026-09-18.
- *
- * To the bottom, less the composer: the box under it is where somebody answers
- * a question, and an overlay that covered it would make the panel feel stuck
- * rather than busy.
- */
-#history[data-kind="pending"] {
-  /* The height it NEEDS, up to the height there is.
-   *
-   * `bottom` stretched the box to the composer whatever was in it, so one
-   * waiting request drew a card and then two thirds of a panel of empty
-   * black with a ✕ in the corner. The note above is about eleven decisions
-   * not fitting in 62vh, and the answer to that is a bigger ceiling, not a
-   * floor -- a queue should be as tall as its queue.
-   */
-  max-height: calc(100% - 52px - 62px);
-}
-
-/* The backlog, in the slot history uses. Same overlay, same furniture -- what
- * differs is that every line here wants a decision, so the rows carry buttons
- * and the days carry a heading. */
-.pending .history-list li {
-  display: block;
-  /* Tighter than a history line, because there are more of them and each one
-     carries a decision: eleven rows at card spacing is a scroll nobody reaches
-     the end of. */
-  padding: 8px 0;
-}
-
-/* The presses, sized for a list rather than for a card. The card on Home is
-   the one being decided now and its buttons are the size of that; these are a
-   queue being gone through. */
-.pending .row {
-  margin-top: 6px;
-}
-
-.pending .row button {
-  padding: 5px 11px;
-  font-size: 12px;
-}
-
-/* The day a group of requests arrived on. A request is a thing somebody asked
- * for on a day, and "Tuesday" is how anybody talks about it -- a list of clock
- * times with no days in it cannot tell an hour ago from a week ago. */
-.pending-day {
-  /* The day, and the way to clear that day, on one line. The heading is what
-     somebody scans a month-deep queue by, and the control belongs to the day
-     it names rather than floating between two of them. */
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  margin: 14px 0 6px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink-mute);
-}
-
-.pending-day:first-of-type {
-  margin-top: 6px;
-}
-
-/* What it is still short of, marked as the different decision it is: pressing
-   yes on this opens a question rather than starting a job. */
-.pending .detail[data-kind="short"] {
-  color: var(--accent);
-}
-
-/* Answered here, and then plainly done with. The row stays -- the list does
-   not redraw on a press, and a line that vanished under the finger would leave
-   somebody unsure which one they just answered. */
-.pending li[data-answered] {
-  opacity: 0.45;
-}
-
-.history-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.history-head h3 {
-  margin: 0;
-  font-size: 12.5px;
-  font-weight: 600;
-}
-
-.history-list {
-  margin: 8px 0 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.history-list li {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 12px;
-}
-
-/* The title takes the room and the two facts after it keep theirs: a long job
-   name must push neither the outcome nor the time off the line. */
-.history-list .what {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.history-list .detail,
-.history-list .when {
-  flex: 0 0 auto;
-  color: var(--ink-mute);
-  font-size: 11px;
-}
-
-/* A sentence that has left and not been answered.
- *
- * Dimmed rather than greyed out: it is not disabled, it is not yet confirmed,
- * and the difference matters to somebody watching for whether their words went
- * anywhere. The server's copy replaces it a moment later at full strength,
- * which is the only signal needed that it landed.
- */
-.message[data-state="sending"] .what {
-  opacity: 0.62;
 }
 
 .thinking {
@@ -1458,156 +1305,277 @@ a:focus-visible {
   letter-spacing: 0.04em;
 }
 
-/* The dots, moving. Opacity rather than anything that changes layout: this
- * sits in a column of text and a pulse that reflowed it would push the whole
- * conversation about once a second. */
 .thinking .dots {
-  animation: thinking 1.1s ease-in-out infinite;
+  animation: thinking 1.1s var(--ease) infinite;
 }
 
-@keyframes thinking {
-  0%,
-  100% {
-    opacity: 0.25;
-  }
-  50% {
-    opacity: 1;
-  }
+/* -- the composer: a pinned glass tray --------------------------------------- */
+
+#ask-bar {
+  flex: 0 0 auto;
+  padding: 8px 15px 15px;
 }
 
-/* Somebody who has asked for less movement gets the word and no pulse. The
- * word is the part that carries the meaning; the animation is decoration on
- * top of it, which is the right thing to drop. */
-@media (prefers-reduced-motion: reduce) {
-  .thinking .dots {
-    animation: none;
-    opacity: 0.8;
-  }
+.composer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 14px;
+  border-radius: 18px;
+  background: #0c0e12;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.5),
+    0 0 0 4px rgba(255, 255, 255, 0.04),
+    0 0 0 5px var(--line);
+  transition: box-shadow 0.4s var(--ease);
 }
 
-/* A field the request named and this job cannot write.
- *
- * Toned like the limit beside it rather than accented: it is a fact about what
- * the press will and will not do, and a person still presses. An alarm here
- * would be an alarm on every request that named one extra field.
- */
-.message .detail[data-kind="unasked"] {
-  color: var(--warn);
+.composer:focus-within {
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.5),
+    0 0 0 4px rgba(220, 88, 42, 0.08),
+    0 0 0 5px var(--aborder);
 }
 
-/* A mail that has gone and an answer that has not come.
- *
- * Set apart from what was SAID, because it is not a thing anybody said: it is
- * a state, redrawn every few seconds for as long as it lasts, and a bubble
- * that looked like a sentence would have the conversation appearing to repeat
- * itself. A dotted edge says "this is the panel's own note", the same way the
- * time column says "this is when".
- */
-.message[data-kind="awaiting-mail"] {
-  border-style: dashed;
+.composer input,
+.composer textarea {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0;
+  border: 0;
   background: transparent;
+  box-shadow: none;
+  color: var(--ink);
+  font: 13px var(--font-body);
+  outline: none;
 }
 
-/* And while a mailbox is actually being read, the accent -- for the two or
- * three seconds that is true. What is being animated is a fact: a request is
- * out. Nothing here moves on its own when nothing is happening. */
-.message[data-kind="awaiting-mail"][data-state="looking"] {
-  border-color: var(--accent);
-  border-style: solid;
+.composer input:focus-visible {
+  outline: none;
 }
 
-.message[data-kind="awaiting-mail"][data-state="looking"] .what {
-  animation: awaiting-breath 2s ease-in-out infinite;
+.composer input::placeholder {
+  color: #555c66;
 }
 
-@keyframes awaiting-breath {
-  0%,
-  100% {
-    opacity: 0.66;
-  }
-  50% {
-    opacity: 1;
-  }
+.composer .tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .message[data-kind="awaiting-mail"][data-state="looking"] .what {
-    animation: none;
-  }
+.composer .send {
+  width: 34px;
+  height: 34px;
+  min-height: 0;
+  padding: 0;
+  font-size: 14px;
 }
 
-/* A job that finished, as the thing it is rather than a report on itself.
- *
- * The values are the card. What ran, what it cost and which rung matched are
- * how it happened, and how is what you go and look for when the answer
- * surprises you -- so they fold away underneath.
- */
-.made {
+/* -- a run, while it happens ------------------------------------------------- */
+
+.run {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.run > .what {
+  margin: 0 0 4px;
+  font: 600 16.5px/1.25 var(--font-display);
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+.run > .what:empty {
+  display: none;
+}
+
+/* Inside a card the card's own heading already names the run; this line is
+   its status, said small. */
+.card .run > .what {
+  margin: 12px 0 0;
+  font: 500 9.5px var(--font-body);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.run .thing {
+  margin: 12px 0 2px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
+  font: 11.5px var(--mono);
+  color: var(--ink-strong);
+}
+
+/* A row per step, on a timeline: a circle for what happened, a thread down
+   to the next one. */
+.run .step {
   position: relative;
-  padding: 16px 14px 12px;
-  border-radius: 12px;
-  background: var(--card);
-  /* Room for the border to travel in without the text moving when it does. */
-  isolation: isolate;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 4px 11px;
+  padding: 6px 0;
+  font-size: 12.75px;
+  line-height: 1.4;
+  color: var(--ink-soft);
 }
 
-/* The border, moving.
- *
- * A pseudo-element rather than a border: an animated `border-color` cannot
- * travel around an edge, and animating the element's own background would put
- * the movement behind the words. This paints a conic sweep one pixel outside
- * the card and lets the card sit on top of it.
- */
-.made::before {
+.run .step:first-of-type {
+  margin-top: 8px;
+}
+
+.run .step:not(:last-child)::before {
   content: "";
   position: absolute;
-  inset: -1.5px;
-  border-radius: 13.5px;
-  z-index: -1;
-  background: conic-gradient(
-    from var(--sweep, 0deg),
-    var(--accent) 0deg,
-    var(--accent) 40deg,
-    var(--line) 120deg,
-    var(--line) 360deg
-  );
-  animation: made-sweep 2.4s linear infinite;
+  left: 10px;
+  top: 28px;
+  bottom: -6px;
+  width: 1px;
+  background: var(--line-soft);
 }
 
-/* `@property` so the angle can be animated at all: a plain custom property is
- * a string to the engine and jumps from one keyframe to the next. Where it is
- * unsupported the sweep simply does not move, and the border is still there. */
-@property --sweep {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
+.run .glyph {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 21px;
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: #0f1115;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--ink-faint);
+  font: 600 10px var(--mono);
+  letter-spacing: -0.06em;
+  transition: all 0.6s var(--ease);
 }
 
-@keyframes made-sweep {
-  to {
-    --sweep: 360deg;
-  }
+.run .glyph[data-glyph="✓"] {
+  background: var(--good-wash);
+  box-shadow: inset 0 0 0 1px var(--good-line);
+  color: var(--good);
 }
 
-/* Read, so it stops. A card that pulses forever is one people learn not to
- * see, and the press is what says somebody has read it. */
-.made[data-read="true"]::before {
-  animation: none;
+.run .glyph[data-glyph="✓!"] {
+  background: var(--warn-wash);
+  box-shadow: inset 0 0 0 1px var(--warn-line);
+  color: var(--warn);
+  font-size: 9px;
 }
+
+.run .glyph[data-glyph="⏸"] {
+  background: var(--warn-wash);
+  box-shadow: inset 0 0 0 1px var(--warn);
+  color: var(--warn);
+  animation: glow 1.8s var(--ease) infinite;
+}
+
+.run .glyph[data-glyph="✗"] {
+  background: var(--bad-wash);
+  box-shadow: inset 0 0 0 1px var(--bad-line);
+  color: var(--bad);
+}
+
+.run .glyph[data-glyph="–"] {
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-soft);
+}
+
+.run .glyph[data-live="true"] {
+  box-shadow: inset 0 0 0 1px rgba(220, 88, 42, 0.25);
+  color: transparent;
+}
+
+.run .glyph[data-live="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  border-top-color: var(--accent-hi);
+  animation: spin 0.9s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+}
+
+.run .step .intent {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-top: 1px;
+  overflow-wrap: anywhere;
+}
+
+.run .step:has(.glyph[data-live="true"]) .intent,
+.run .step:has(.glyph[data-glyph="⏸"]) .intent {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.run .step:has(.glyph[data-glyph="✓"]) .intent,
+.run .step:has(.glyph[data-glyph="✓!"]) .intent {
+  color: var(--ink-strong);
+}
+
+.run .step:has(.glyph[data-glyph="○"]:not([data-live="true"])) .intent {
+  color: var(--ink-mute);
+}
+
+.run .step .planned {
+  flex-basis: 100%;
+  margin-left: 32px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+  font: 10.5px var(--mono);
+  color: var(--ink-strong);
+  overflow-wrap: anywhere;
+}
+
+.run .step .meta {
+  font: 10.5px var(--mono);
+  color: var(--ink-mute);
+  padding-top: 3px;
+}
+
+.run .step input[type="password"] {
+  flex: 1 1 160px;
+  margin: 6px 0 0 32px;
+}
+
+.run .note {
+  flex-basis: 100%;
+  margin: 2px 0 0 32px;
+  font-size: 11px;
+  color: var(--ink-mute);
+}
+
+.run .row,
+.run .actions {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+
+/* -- a job that finished ------------------------------------------------------ */
 
 .made-what {
   margin: 0 0 6px;
-  font-size: 19px;
-  line-height: 1.25;
-  font-weight: 600;
+  font: 600 18px/1.25 var(--font-display);
+  letter-spacing: -0.015em;
   color: var(--ink);
-  /* A description can be long. Breaking inside a word is uglier than a line
-   * that runs on, but a value that overflows the panel is unreadable. */
   overflow-wrap: anywhere;
 }
 
 .made-steps {
-  margin-top: 10px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.25);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
 }
 
 .made-steps summary {
@@ -1629,126 +1597,221 @@ a:focus-visible {
   content: "▾ ";
 }
 
-/* Folded away, the run card inside carries no heading of its own: the card
- * above it already said what happened. */
 .made-steps .run > .what:empty {
   display: none;
 }
 
-/* Somebody who has asked for less movement gets the border and no sweep. The
- * border is the part that carries the meaning. */
-@media (prefers-reduced-motion: reduce) {
-  .made::before {
-    animation: none;
-  }
+/* Inside a card the card's own heading already names the run; this line is
+   its status, said small. */
+.card .run > .what {
+  margin: 12px 0 0;
+  font: 500 9.5px var(--font-body);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
 }
 
-/* A card that has just arrived, for the twenty seconds after it does.
- *
- * The same moving border the result card uses, for the same reason: it is the
- * one thing on the panel that was not there a moment ago. An answer that comes
- * back by mail puts a card on Home while the operator is reading the
- * conversation -- the panel switches to Home for it, and this is what says
- * which of the cards there is the one they were sent to see.
- */
+/* Just arrived: a slow ember sweep round the plate, for as long as it is new. */
 .message[data-fresh] {
   position: relative;
   isolation: isolate;
 }
 
+/* Masked to a ring, so the sweep travels round the edge and never over the
+   words: unmasked, it painted a wedge of ember across the card's face. */
 .message[data-fresh]::before {
   content: "";
   position: absolute;
-  inset: -1.5px;
-  border-radius: 11.5px;
+  inset: -5px;
+  padding: 1.5px;
+  border-radius: 23px;
   z-index: -1;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
   background: conic-gradient(
     from var(--sweep, 0deg),
     var(--accent) 0deg,
     var(--accent) 40deg,
-    var(--line) 120deg,
-    var(--line) 360deg
+    transparent 120deg,
+    transparent 360deg
   );
+  opacity: 0.6;
   animation: made-sweep 2.4s linear infinite;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .message[data-fresh]::before {
-    animation: none;
-  }
+@property --sweep {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
 }
 
-/* The mail this system would send, before anybody has agreed to it.
- *
- * Set apart from the sentence above it and readable as what it is: a person is
- * being asked to authorise these exact words leaving the company over their
- * name, and words they have to squint at are words they will press past.
- */
-.draft {
-  margin: 8px 0 10px;
-  padding: 10px 12px;
-  border-left: 3px solid var(--line);
-  background: var(--ground);
-  border-radius: 0 8px 8px 0;
-  font-family: inherit;
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: var(--ink-soft);
-  /* A mail is plain text and its line breaks are the shape it is read in --
-   * but a long line must wrap rather than scroll a 360px panel sideways. */
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  max-height: 260px;
-  overflow-y: auto;
+/* -- the Waiting and Recent panes -------------------------------------------- */
+
+#backlog:not([hidden]),
+#tasks:not([hidden]) {
+  display: block;
+  padding: 6px 15px 18px;
 }
 
-/* A drafted mail stacks; it does not sit in columns.
- *
- * `.message` is a flex ROW -- a fixed cell for the time, then everything the
- * message is -- and that is right for a card whose content is one paragraph
- * with a row of buttons beside it. A draft is four things: the sentence, who
- * it goes to, the mail itself, and the press. As flex items those became four
- * columns in a 360-pixel panel, each about eighty pixels wide, and the mail
- * somebody is being asked to authorise was a ribbon of single words.
- *
- * A grid rather than `flex-direction: column`, so the time keeps its own cell
- * and stays out of the text -- the same shape the row gives, turned upright.
- */
-.message[data-kind="mail_draft"] {
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
-  column-gap: 10px;
-  row-gap: 2px;
-  align-items: start;
+.history {
+  animation: rise 0.6s var(--ease) both;
 }
 
-/* Everything but the time lives in the second column, one under the next. */
-.message[data-kind="mail_draft"] > :not(.when) {
-  grid-column: 2;
+.history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 4px 2px;
 }
 
-/* The subject reads as the subject: it is the line somebody recognises the
-   request by, and at detail weight it disappears into the address above it. */
-.message[data-kind="mail_draft"] .subject {
+.history-head h3 {
+  margin: 0;
+  font: 600 18px var(--font-display);
+  letter-spacing: -0.02em;
   color: var(--ink);
-  font-weight: 600;
 }
 
-/* The press sits under the mail rather than beside it: a button level with the
-   first line of a mail somebody has not read yet is a button pressed before
-   the mail was read. */
-.message[data-kind="mail_draft"] .row {
-  margin-top: 4px;
+.history-list {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-/* -- what is coming, while it is coming ------------------------------------- */
+.history-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12.75px;
+  color: var(--ink-strong);
+}
 
-/* A word is not a loading state.
- *
- * `Looking…` on its own is a pane that looks broken for as long as two round
- * trips take and then jumps. These are the lines themselves, greyed: the pane
- * has its layout before the data lands, and nothing moves when it does.
- */
+.history-list .what {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-list .detail,
+.history-list .when {
+  flex: 0 0 auto;
+  color: var(--ink-mute);
+  font-size: 11px;
+}
+
+.history-list .when {
+  font-family: var(--mono);
+}
+
+.history-line {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: baseline;
+  width: 100%;
+  min-height: 0;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 13px;
+  background: none;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 400;
+  text-align: left;
+}
+
+.history-line:hover,
+.history-line:focus-visible,
+.history-list li[data-open="1"] .history-line {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.history-list li[data-ended="bad"] .detail {
+  color: var(--bad);
+}
+
+.history-list li[data-ended="asking"] .detail {
+  color: var(--warn);
+}
+
+.history-list li[data-ended="live"] .detail {
+  color: var(--accent-hi);
+}
+
+.record-of-a-run {
+  margin: 4px 0 10px 10px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+}
+
+/* The backlog: every line wants a decision, so each is a small card. */
+.pending .history-list {
+  gap: 20px;
+  padding: 5px;
+}
+
+.pending .history-list li {
+  display: block;
+  padding: 12px 13px;
+  border-radius: 18px;
+  background: var(--plate);
+  box-shadow: var(--bezel);
+}
+
+.pending .row {
+  margin-top: 10px;
+}
+
+.pending .row button {
+  min-height: 30px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.pending-day {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 16px 4px 4px;
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.pending-day:first-of-type {
+  margin-top: 8px;
+}
+
+.pending .detail[data-kind="short"] {
+  color: var(--accent-hi);
+}
+
+.pending li[data-answered] {
+  opacity: 0.45;
+}
+
+#here {
+  padding: 0 15px 8px;
+}
+
+#purged {
+  padding: 0 15px 8px;
+}
+
+/* -- what is coming, while it is coming ---------------------------------------- */
+
 .loading {
   display: flex;
   flex-direction: column;
@@ -1758,21 +1821,12 @@ a:focus-visible {
 
 .loading-line {
   height: 11px;
-  border-radius: 5px;
-  /* Its own colour rather than a card's: this is the absence of content, and
-     a bar the colour of a surface reads as a surface. */
-  background: linear-gradient(
-    90deg,
-    var(--line) 0%,
-    var(--line-soft) 40%,
-    var(--line) 80%
-  );
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--line) 0%, var(--line-soft) 40%, var(--line) 80%);
   background-size: 300% 100%;
   animation: loading-sweep 1.4s ease-in-out infinite;
 }
 
-/* Ragged, because a stack of identical bars reads as a graphic and a ragged
-   one reads as text that has not arrived. */
 .loading-line[data-of="1"] {
   width: 92%;
 }
@@ -1785,6 +1839,77 @@ a:focus-visible {
   width: 78%;
 }
 
+/* -- icons ------------------------------------------------------------------- */
+
+:root {
+  --i-home: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z'/></svg>");
+  --i-chat: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M20 12a7.5 7.5 0 0 1-11 6.6L4 20l1.4-4.6A7.5 7.5 0 1 1 20 12z'/></svg>");
+  --i-tray: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M4 13.5 6.5 5h11L20 13.5V19H4z'/><path d='M4 13.5h4.5l1 2.5h5l1-2.5H20'/></svg>");
+  --i-clock: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='8'/><path d='M12 7.5V12l3 2'/></svg>");
+  --i-plus: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'><path d='M12 5v14M5 12h14'/></svg>");
+  --i-chev: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+}
+
+/* -- motion ------------------------------------------------------------------ */
+
+/* A card rises once, the first time it is drawn. The panel redraws every
+   couple of seconds, so the rise is only allowed on a card that says it is
+   new; everything already on screen is marked risen and stays still. */
+[data-risen] {
+  animation: none !important;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+    filter: blur(6px);
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes glow {
+  50% {
+    box-shadow:
+      inset 0 0 0 1px var(--warn),
+      0 0 0 4px rgba(245, 158, 11, 0.12);
+  }
+}
+
+@keyframes awaiting-breath {
+  50% {
+    opacity: 0.66;
+  }
+}
+
+@keyframes thinking {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes made-sweep {
+  to {
+    --sweep: 360deg;
+  }
+}
+
 @keyframes loading-sweep {
   from {
     background-position: 120% 0;
@@ -1795,11 +1920,14 @@ a:focus-visible {
   }
 }
 
-/* Somebody who has asked for less movement gets a still placeholder. It says
-   the same thing; the sweep is what says it is still going. */
+/* Somebody who asked for less movement gets none. Every animated state here
+   also says itself in words, so nothing is lost. */
 @media (prefers-reduced-motion: reduce) {
-  .loading-line {
-    animation: none;
-    background: var(--line);
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

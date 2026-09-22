@@ -2828,7 +2828,18 @@ async function askAboutOffer(nudge, button) {
   button.disabled = true;
   try {
     const got = await ask({ kind: "ask-about-offer", nudgeId: nudge.id });
-    said(got.ok ? got.asked || "asked below" : got.error || "nothing to ask");
+    // "Asked below", and never the question itself.
+    //
+    // `got.asked` is the whole question, and the question is already a message
+    // in the thread this press walks them to -- so echoing it here drew it
+    // twice, once as the thing that was said and once as a grey line under it.
+    // Measured on the deployment 2026-09-22 at 15:00: two copies of "I can
+    // also set Department and Manufacturer ... What should it be?", one of
+    // them unanswerable.
+    //
+    // The line's job is what just happened, and what just happened is that a
+    // question was asked where they are about to be taken.
+    said(got.ok ? "asked below" : got.error || "nothing to ask");
   } catch (error) {
     said(error.message);
   }

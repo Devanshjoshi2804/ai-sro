@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
+import { Space_Grotesk, Geist, JetBrains_Mono } from "next/font/google";
 import { QueryProvider } from "@/lib/query";
 import { SignInGate } from "@/features/console/sign-in-gate";
 import { Toaster } from "@/components/ui/sonner";
@@ -9,9 +9,10 @@ import "./globals.css";
 // The brand's three. Manrope was named in the top bar and JetBrains Mono in the
 // console's palette, and neither was ever loaded -- both fell back silently.
 // Mono is not decoration here: it carries every number that changes while
-// somebody watches it, and every id, host and call.
+// somebody watches it, and every id, host and call. The body face is Geist, as
+// the extension's panel is (Ember & Glass), so the two surfaces read as one.
 const display = Space_Grotesk({ variable: "--font-display", subsets: ["latin"] });
-const body = Inter({ variable: "--font-body", subsets: ["latin"] });
+const body = Geist({ variable: "--font-body", subsets: ["latin"] });
 const mono = JetBrains_Mono({ variable: "--font-mono-face", subsets: ["latin"] });
 
 export const metadata: Metadata = {

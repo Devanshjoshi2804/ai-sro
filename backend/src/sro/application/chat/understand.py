@@ -28,6 +28,7 @@ from sro.domain.chat.asked_by import mails_behind, texts
 from sro.domain.chat.reading import INSTRUCTIONS, UNDERSTAND_SCHEMA, ChatReading, new_chat_id
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
+from sro.domain.skill.learned import demanded
 from sro.domain.skill.workflow import Workflow
 
 
@@ -232,10 +233,31 @@ async def understand(
     # what was asked -- so the parameters that thing did not name are missing,
     # the form asks for them, and nothing starts on a guess.
     items = [item for item in items if item]
+    # And only the ones the PAGE asks for.
+    #
+    # `declared` is every parameter the job has learnt, and a job learns a
+    # parameter from two doings that varied a field -- which says the operator
+    # filled it twice, not that the form demands it. Measured on the
+    # deployment 2026-09-22 at 11:35: `Create a Customer Type` asked for
+    # Department after the same run's own question had said "I can also set
+    # Department and Manufacturer ... or I will run without". Two doors, two
+    # answers, and the one the operator met first was the wrong one.
+    #
+    # `demanded` is the rule the runner and the run's question already read.
+    # This is the third reader and the last: `1f136432` changed what stops a
+    # run and `581b0941` what its question says, and neither reached the door
+    # that places a sentence against the jobs.
+    wanted = {
+        name
+        for parameter in chosen.parameters
+        if isinstance(parameter, dict)
+        and isinstance(name := parameter.get("name"), str)
+        and demanded(parameter)
+    }
     missing = sorted(
         name
         for name in declared
-        if isinstance(name, str) and any(name not in one for one in supplied)
+        if isinstance(name, str) and name in wanted and any(name not in one for one in supplied)
     )
     return Understood(
         chosen.id, answer, values, missing, sure, also, items, aside=aside, unasked=unasked

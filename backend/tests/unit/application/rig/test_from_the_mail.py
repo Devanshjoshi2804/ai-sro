@@ -139,8 +139,12 @@ async def _held() -> FakeUnitOfWork:
             narrative="open the screen, type the code, save",
             steps=[Step(order=0, says="type the code", system=None, cites=["g"])],
             parameters=[
-                {"name": "Customer Type", "seen_values": ["GGD"]},
-                {"name": "Customer Type Description", "seen_values": ["leaning new SRO type 01"]},
+                {"name": "Customer Type", "seen_values": ["GGD"], "required": True},
+                {
+                    "name": "Customer Type Description",
+                    "seen_values": ["leaning new SRO type 01"],
+                    "required": True,
+                },
             ],
         )
     )
@@ -434,8 +438,12 @@ async def test_an_offer_says_which_of_its_values_the_job_s_own_boxes_will_not_ho
                 )
             ],
             parameters=[
-                {"name": "Customer Type", "seen_values": ["GGD"]},
-                {"name": "Customer Type Description", "seen_values": ["leaning new SRO type 01"]},
+                {"name": "Customer Type", "seen_values": ["GGD"], "required": True},
+                {
+                    "name": "Customer Type Description",
+                    "seen_values": ["leaning new SRO type 01"],
+                    "required": True,
+                },
             ],
         )
     )

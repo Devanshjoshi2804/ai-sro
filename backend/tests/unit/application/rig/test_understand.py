@@ -26,6 +26,11 @@ from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.fakes import FakeAsker, FakeChatRepository, FakeUnitOfWork
 
+# Every parameter in this file is marked `required`, because these tests are
+# about what a sentence failed to supply for a job that needs it. Since
+# 2026-09-22 a parameter is demanded only where the page said so -- see
+# `sro.domain.skill.learned.demanded` -- and an unmarked fixture is a fixture
+# about an optional field, which is a different test.
 TENANT = TenantId("acme")
 
 NOW = datetime(2025, 2, 11, 23, tzinfo=UTC)
@@ -40,7 +45,7 @@ WFS = [
         title="create a client",
         narrative="n",
         steps=[Step(order=0, says="s", system=None, cites=["g"])],
-        parameters=[{"name": "clientCode", "seen_values": ["A"]}],
+        parameters=[{"name": "clientCode", "seen_values": ["A"], "required": True}],
     )
 ]
 
@@ -50,7 +55,7 @@ SECOND = Workflow(
     title="create a work area",
     narrative="n",
     steps=[Step(order=0, says="s", system=None, cites=["g"])],
-    parameters=[{"name": "areaName", "seen_values": ["NEWTESTS"]}],
+    parameters=[{"name": "areaName", "seen_values": ["NEWTESTS"], "required": True}],
 )
 
 
@@ -226,14 +231,14 @@ async def test_what_is_missing_comes_back_in_one_order() -> None:
         # `missing` that kept declaration order is not satisfied by this plant
         # either.
         parameters=[
-            {"name": "zone"},
-            {"name": "clientCode"},
-            {"name": "statusCombo"},
-            {"name": "areaName"},
-            {"name": "ownerCode"},
-            {"name": "dockId"},
-            {"name": "siteCode"},
-            {"name": "lane"},
+            {"name": "zone", "required": True},
+            {"name": "clientCode", "required": True},
+            {"name": "statusCombo", "required": True},
+            {"name": "areaName", "required": True},
+            {"name": "ownerCode", "required": True},
+            {"name": "dockId", "required": True},
+            {"name": "siteCode", "required": True},
+            {"name": "lane", "required": True},
         ],
     )
     got = await understand("make one", [eight], FakeAsker(_answer("wfl_3", [])), "m")
@@ -707,7 +712,9 @@ async def test_a_job_this_sentence_could_not_fill_is_not_an_alternative() -> Non
 async def test_an_alternative_the_sentence_could_equally_fill_still_stands() -> None:
     """Two jobs the sentence supplies is the ambiguity this refusal is for, and
     it is left exactly as it was."""
-    both = replace(SECOND, parameters=[{"name": "clientCode", "seen_values": ["A"]}])
+    both = replace(
+        SECOND, parameters=[{"name": "clientCode", "seen_values": ["A"], "required": True}]
+    )
 
     got = await understand(
         "make one with clientCode A",
@@ -752,3 +759,33 @@ async def test_a_sentence_that_fills_neither_stays_unsure() -> None:
 
     assert got.also == ["wfl_2"]
     assert got.sure is False
+
+
+async def test_a_field_the_page_never_asked_for_is_not_missing() -> None:
+    """The third door, and the one the operator met first.
+
+    Measured on the deployment 2026-09-22 at 11:35. The run's own question had
+    just said "I can also set Department and Manufacturer ... or I will run
+    without", and this door then asked "Department takes 10 characters. What
+    should it be?" -- because `missing` here is `declared` minus what arrived,
+    and `declared` is every parameter the job has learnt.
+
+    A job learns a parameter from two doings that varied a field. That says
+    the operator filled it twice, not that the form demands it.
+    """
+    job = replace(
+        WFS[0],
+        parameters=[
+            {"name": "Customer Type", "names": ["Customer Type*"], "seen_values": ["GGD"]},
+            {"name": "Department", "names": ["Department"], "seen_values": ["IN"]},
+        ],
+    )
+
+    got = await understand(
+        "create a customer type",
+        [job],
+        FakeAsker(Answer(data={"workflow_id": job.id, "values": [], "missing": []})),
+        "m",
+    )
+
+    assert got.missing == ["Customer Type"], "a field the page never asked for was demanded"

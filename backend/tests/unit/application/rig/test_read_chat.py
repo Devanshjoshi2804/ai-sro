@@ -69,7 +69,7 @@ def _workflow(tenant: TenantId = TENANT) -> Workflow:
         title="create a work area",
         narrative="the operator created a work area",
         steps=[Step(order=0, says="s", system=None, cites=["ges_1"])],
-        parameters=[{"name": "areaName", "seen_values": ["NEWTESTS"]}],
+        parameters=[{"name": "areaName", "seen_values": ["NEWTESTS"], "required": True}],
     )
 
 
@@ -392,7 +392,7 @@ held = Workflow(
     tenant="acme",
     title="t",
     narrative="n",
-    parameters=[{"name": name} for name in NAMES],
+    parameters=[{"name": name, "required": True} for name in NAMES],
 )
 print(",".join(asyncio.run(understand("x", [held], _Asker(), "m")).missing))
 """

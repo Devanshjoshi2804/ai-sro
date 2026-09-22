@@ -89,8 +89,8 @@ async def held(uow: FakeUnitOfWork) -> Workflow:
         narrative="the operator created a work area",
         steps=[Step(order=0, says="s", system=None, cites=["ges_1"])],
         parameters=[
-            {"name": "areaName", "seen_values": ["NEWTESTS"]},
-            {"name": "zone", "seen_values": ["3"]},
+            {"name": "areaName", "seen_values": ["NEWTESTS"], "required": True},
+            {"name": "zone", "seen_values": ["3"], "required": True},
         ],
     )
     await uow.workflows.save(workflow)
@@ -340,14 +340,14 @@ async def test_what_is_missing_comes_back_in_the_order_the_reader_sorted_it(
             title="t",
             narrative="n",
             parameters=[
-                {"name": "zone"},
-                {"name": "clientCode"},
-                {"name": "statusCombo"},
-                {"name": "areaName"},
-                {"name": "ownerCode"},
-                {"name": "dockId"},
-                {"name": "siteCode"},
-                {"name": "lane"},
+                {"name": "zone", "required": True},
+                {"name": "clientCode", "required": True},
+                {"name": "statusCombo", "required": True},
+                {"name": "areaName", "required": True},
+                {"name": "ownerCode", "required": True},
+                {"name": "dockId", "required": True},
+                {"name": "siteCode", "required": True},
+                {"name": "lane", "required": True},
             ],
         )
     )

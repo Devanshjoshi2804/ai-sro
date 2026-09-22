@@ -131,6 +131,52 @@ def test_a_job_that_is_not_a_sign_in_grows_nothing() -> None:
     assert len(workflow.steps) == 2
 
 
+def test_a_credential_cited_by_another_step_still_gets_one_of_its_own() -> None:
+    """Cited is not aimed at.
+
+    A step cites what the operator did while performing it, and on a login
+    that is both boxes. Measured on the deployment, `wfl_7fa53354`: `Enter
+    username or email` cited the username's type AND the password's, so this
+    rule read the credential as covered and skipped it -- leaving the step the
+    model had named `Type the password.` citing a CLICK on the box. Every run
+    of that job planned a click at a password field, typed nothing, and
+    pressed Sign In. Nine runs, no password ever typed.
+    """
+    typed = _gesture("ges-user", 100.0)
+    secret = _gesture("ges-pass", 101.0, secret=True, name="password")
+    into = _gesture("ges-into", 100.5, kind="click", secret=True, name=None)
+    gestures = {one.id: one for one in (typed, secret, into)}
+    workflow = Workflow(
+        id="wfl_1",
+        tenant="new",
+        title="Log In",
+        narrative="the operator signed in",
+        steps=[
+            # Both boxes, as the model cited them.
+            Step(
+                order=0,
+                says="Enter username or email",
+                system=SIGN_IN,
+                cites=["ges-user", "ges-pass"],
+            ),
+            # And the step that names the password, aimed at a click.
+            Step(order=1, says="Type the password.", system=SIGN_IN, cites=["ges-into"]),
+        ],
+        parameters=[],
+    )
+
+    assert with_passwords(workflow, gestures) > 0, "the credential was read as covered"
+
+    types_it = [
+        step for step in workflow.steps if "ges-pass" in step.cites and len(step.cites) == 1
+    ]
+    assert types_it, "no step is aimed at the credential"
+    assert types_it[0].says == "Type the password."
+    # And the step that only clicked into the box is gone: it is a second
+    # attempt at the same field, which is what `spare` is for.
+    assert not any("ges-into" in step.cites for step in workflow.steps)
+
+
 def test_a_credential_typed_outside_this_doing_belongs_to_somebody_else_s_job() -> None:
     """`one_occurrence` has already struck every citation but one doing's by
     the time this runs, so the span is that doing. A password typed an hour

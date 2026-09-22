@@ -37,6 +37,7 @@ module never sees one.
 
 from __future__ import annotations
 
+from sro.domain.execution.evidence import PUTS_A_VALUE, primary_gesture
 from sro.domain.execution.secrets import field_of
 from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.trim import is_secret
@@ -77,7 +78,12 @@ def with_passwords(workflow: Workflow, gestures: dict[str, Gesture]) -> int:
     # read by, so a job cannot end up with two steps asking for one secret.
     once: dict[tuple[str, str], Gesture] = {}
     for gesture in sorted(gestures.values(), key=lambda one: one.at):
-        if not is_secret(gesture):
+        # A credential step TYPES one. A click on a password box is a person
+        # putting the cursor in it, and on this deployment it happened first --
+        # so the earliest-wins rule below chose the click, built the whole
+        # reading around it, and the job ended up with a step that pressed
+        # Sign In having typed nothing (`wfl_7fa53354`, 2026-09-22).
+        if not is_secret(gesture) or gesture.action.kind not in PUTS_A_VALUE:
             continue
         # The doing this workflow kept, and the systems it was done on. A
         # credential typed an hour later, or on a host this job never touched,
@@ -104,9 +110,29 @@ def with_passwords(workflow: Workflow, gestures: dict[str, Gesture]) -> int:
     for step in spare:
         workflow.steps.remove(step)
 
+    # A credential is covered when a step is AIMED at it, not when anything
+    # happens to mention it.
+    #
+    # A step cites what the operator did while performing it, and on a login
+    # that is both boxes: `Enter username or email` on this deployment cited
+    # the username's type and the password's. The credential was therefore
+    # "cited", this rule skipped it, and the step the model had named `Type
+    # the password.` was left citing a CLICK on the box -- so every run of
+    # that job planned a click at a password field, typed nothing, and pressed
+    # Sign In. Measured 2026-09-22, `wfl_7fa53354`: nine runs, no password
+    # ever typed by the two that reached it.
+    #
+    # `primary_gesture` is the same reading the planner makes of a step, which
+    # is what makes this the right question: if the planner would not aim at
+    # the credential, no step types it, whoever cites it.
+    aimed = set()
+    for step in workflow.steps:
+        at = primary_gesture(step, gestures)
+        if at is not None and is_secret(at):
+            aimed.add(at.id)
     added = 0
     for gesture in sorted(once.values(), key=lambda one: one.at):
-        if gesture.id in cited:
+        if gesture.id in aimed:
             continue
         workflow.steps.append(
             Step(

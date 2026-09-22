@@ -173,7 +173,7 @@ def origin_of(gesture: Gesture) -> str | None:
     return next((s for s in named if s), None)
 
 
-_PUTS_A_VALUE = frozenset({"type", "select", "upload"})
+PUTS_A_VALUE = frozenset({"type", "select", "upload"})
 """The gesture kinds that put something somewhere. A step the job says carries
 a value was demonstrated by one of these, whatever else was cited beside it."""
 
@@ -227,7 +227,7 @@ def primary_gesture(
         for one in step.cites
         if (gesture := by_id.get(one)) is not None and gesture.action.kind not in _UNTARGETED
     ]
-    put = [one for one in cited if one.action.kind in _PUTS_A_VALUE]
+    put = [one for one in cited if one.action.kind in PUTS_A_VALUE]
     held = next((one for one in put if control_names(one) & set(holds)), None)
     if held is not None:
         return held

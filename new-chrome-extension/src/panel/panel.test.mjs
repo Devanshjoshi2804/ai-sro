@@ -1885,6 +1885,36 @@ test("with no way to reverse it, it says so rather than offering a dead button",
   assert.ok(/I'll fix it/i.test(said), "no way to say it was wrong at all");
 });
 
+test("a panel with nothing on it says so", () => {
+  // Home is empty most of a good day, and on a wide panel that is a large
+  // black rectangle under a strip -- indistinguishable from a panel that
+  // failed to draw.
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      channel: "open",
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+  const said = cards.map(words).join(" ");
+  assert.match(said, /Nothing needs you/);
+  assert.match(said, /learned/);
+  // And never beside something that does need them.
+  const busy = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      channel: "open",
+      offers: [OFFER],
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+  assert.doesNotMatch(busy.cards.map(words).join(" "), /Nothing needs you/);
+});
+
 test("the run happening now leads, and what is offered follows it", () => {
   // Several true at once: the card somebody must watch or stop is the run,
   // not the offer that arrived beside it.

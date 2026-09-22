@@ -601,6 +601,8 @@ body::after {
 #cards > :first-child {
   grid-column: 1 / -1;
   max-width: min(100%, 760px);
+  margin-inline: auto;
+  width: 100%;
 }
 
 .card,
@@ -981,6 +983,26 @@ body::after {
 .clean i[data-on="true"] {
   background: linear-gradient(180deg, #34d67a, #1fa352);
   box-shadow: none;
+}
+
+/* Nothing needs anybody: a quiet plate, not a card competing for attention. */
+.card.empty {
+  grid-column: 1 / -1;
+  padding: 26px 16px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.015);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+
+.card.empty .what {
+  margin: 0 auto 4px;
+  font: 600 15px var(--font-display);
+  color: var(--ink-strong);
+}
+
+.card.empty .note {
+  max-width: 46ch;
+  margin-inline: auto;
 }
 
 /* -- buttons: island pills --------------------------------------------------- */

@@ -398,6 +398,14 @@ function render(status) {
     if (here) standing.push(here);
   }
   cards.push(...troubles(status), ...now, ...asks, ...offers, ...standing);
+  // A panel with nothing on it says so.
+  //
+  // Home is empty whenever nothing needs anybody, which is most of a good
+  // day -- and on a wide panel that is a large black rectangle under a strip,
+  // indistinguishable from a panel that has failed to draw. Measured beside
+  // a b2clogin tab on 2026-09-22: watching, connected, working, and blank.
+  if (cards.length <= 1 && status.deviceId && !status.teaching)
+    cards.push(nothingNeedsYou(status));
 
   // The first card is the state of this tab, which is what the strip's chevron
   // opens onto. The rest -- a run, what it made, what is wrong -- stay where
@@ -857,6 +865,30 @@ function watching(status) {
       pauseAction(status),
     ],
   });
+}
+
+/** The quiet line Home shows when nothing needs anybody.
+ *
+ * It says the two things somebody standing in front of a blank panel wants
+ * to know -- that it is working, and what it is doing while it waits -- and
+ * nothing else. No press: there is nothing here to do.
+ */
+function nothingNeedsYou(status) {
+  const watching = (status.watched || []).some(
+    (entry) => entry.tabId === tabHere.tabId,
+  );
+  const holder = document.createElement("section");
+  holder.className = "card empty";
+  const said = document.createElement("p");
+  said.className = "what";
+  said.textContent = "Nothing needs you";
+  const under = document.createElement("p");
+  under.className = "note";
+  under.textContent = watching
+    ? "Work as usual. What you repeat here is learned, and anything that arrives by mail shows up here."
+    : "This tab is not being watched. Anything that arrives by mail still shows up here.";
+  holder.append(said, under);
+  return holder;
 }
 
 /** The chevron that flips `watchOpen` and redraws from the same status.

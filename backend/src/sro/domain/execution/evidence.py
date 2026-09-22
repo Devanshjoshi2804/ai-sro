@@ -137,13 +137,48 @@ def origin_of(gesture: Gesture) -> str | None:
     return next((s for s in named if s), None)
 
 
+_PUTS_A_VALUE = frozenset({"type", "select", "upload"})
+"""The gesture kinds that put something somewhere. A step the job says carries
+a value was demonstrated by one of these, whatever else was cited beside it."""
+
+
 def primary_gesture(step: Step, by_id: Mapping[str, Gesture]) -> Gesture | None:
-    """The first cited gesture that exists and can be acted on."""
-    for cited in step.cites:
-        gesture = by_id.get(cited)
-        if gesture is not None and gesture.action.kind not in _UNTARGETED:
-            return gesture
-    return None
+    """The cited gesture this step is aimed at.
+
+    **The one that puts a value, where the step declares it takes one.** A step
+    cites everything the operator did while performing it, in the order mining
+    listed them, and that order is not a statement about which control the step
+    is FOR.
+
+    Measured on the deployment 2026-09-22 at 16:09. `Delete a Customer Type`
+    step 1 -- "Enter filter criteria to locate the target customer type" --
+    cited twenty-four gestures across three demonstrations, and the first was
+    a click on `removeCriterionButton`: the small cross that clears a filter
+    somebody had left behind. So the locator ladder was built for the cross.
+    It exists only when a criterion is already present, so on a clean grid the
+    ladder found nothing, the run fell to the vision rung, clicked a
+    coordinate near the top of the page and typed into nothing. The step is
+    named for typing a filter and was aimed at the button that clears one.
+
+    `step.parameters` is the job's own word that this step carries a value, so
+    a gesture that put one is what it was demonstrated by. Where the step
+    declares none -- a click, a navigation, a Save -- the first citation is
+    still the answer, which is what this has always returned.
+
+    Order is otherwise untouched: among the value-putting citations the first
+    still wins, so a step that types into two boxes is aimed exactly where it
+    was.
+    """
+    cited = [
+        gesture
+        for one in step.cites
+        if (gesture := by_id.get(one)) is not None and gesture.action.kind not in _UNTARGETED
+    ]
+    if step.parameters:
+        put = next((one for one in cited if one.action.kind in _PUTS_A_VALUE), None)
+        if put is not None:
+            return put
+    return cited[0] if cited else None
 
 
 def unperformable(

@@ -496,3 +496,82 @@ def test_a_call_at_no_time_at_all_is_not_shown_to_be_uncaused() -> None:
     step = Step(order=0, says="save", system=None, cites=[gesture.id])
 
     assert writes(step, {gesture.id: gesture})
+
+
+# --- which citation a step is aimed at ---------------------------------------
+
+
+def _clicked(one: object, control: str) -> object:
+    """One cited click, on a named control."""
+    from sro.domain.observation.gesture import Component
+
+    fresh = copy.deepcopy(one)
+    fresh.id = f"ges_{control}"
+    target = fresh.action.target
+    assert target is not None
+    fresh.action = replace(
+        fresh.action,
+        kind="click",
+        value=None,
+        target=replace(target, component=Component(query=control, xtype="button")),
+    )
+    return fresh
+
+
+def test_a_step_that_carries_a_value_is_aimed_at_the_gesture_that_put_one() -> None:
+    """Measured on the deployment 2026-09-22 at 16:09.
+
+    `Delete a Customer Type` step 1 -- "Enter filter criteria to locate the
+    target customer type" -- cited twenty-four gestures across three
+    demonstrations, and the FIRST was a click on `removeCriterionButton`: the
+    cross that clears a filter somebody left behind. The locator ladder was
+    built for the cross, which exists only when a criterion is already there,
+    so on a clean grid the ladder found nothing, the run fell to the vision
+    rung and typed into nothing.
+
+    The step is named for typing a filter and was aimed at the button that
+    clears one.
+    """
+    typed = next(g for g in _gestures() if g.action.kind == "type" and not g.action.secret)
+    cross = _clicked(typed, "removeCriterionButton")
+    by_id = {cross.id: cross, typed.id: typed}
+    step = Step(
+        order=0,
+        says="Enter filter criteria",
+        system=None,
+        # The cleanup click first, exactly as mining listed them.
+        cites=[cross.id, typed.id],
+        parameters=["Customer Type"],
+    )
+
+    assert primary_gesture(step, by_id) is typed
+
+
+def test_a_step_that_carries_nothing_is_aimed_at_its_first_citation() -> None:
+    """A click, a navigation, a Save. `step.parameters` is the job's own word
+    that a step takes a value, and where it says nothing the first citation is
+    the answer -- which is what this has always returned."""
+    typed = next(g for g in _gestures() if g.action.kind == "type" and not g.action.secret)
+    cross = _clicked(typed, "removeCriterionButton")
+    by_id = {cross.id: cross, typed.id: typed}
+    step = Step(order=0, says="clear the filter", system=None, cites=[cross.id, typed.id])
+
+    assert primary_gesture(step, by_id) is cross
+
+
+def test_among_the_value_putting_citations_the_first_still_wins() -> None:
+    """Order is otherwise untouched: a step that types into two boxes is aimed
+    exactly where it was."""
+    every = [g for g in _gestures() if g.action.kind == "type" and not g.action.secret]
+    first, second = every[0], copy.deepcopy(every[0])
+    second.id = "ges_second_box"
+    by_id = {first.id: first, second.id: second}
+    step = Step(
+        order=0,
+        says="type both",
+        system=None,
+        cites=[first.id, second.id],
+        parameters=["a", "b"],
+    )
+
+    assert primary_gesture(step, by_id) is first

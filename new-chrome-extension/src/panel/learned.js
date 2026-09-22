@@ -66,11 +66,22 @@ export function learnedHere(jobs, host) {
   return [...byName.values()];
 }
 
-/** Whether `job` is the one to offer over `than`: run more, then proved more,
- * then earned. Never the newest -- a job mined this morning and never run is
- * not the one a press should start. */
+/** Whether `job` is the one to offer over `than`.
+ *
+ * A step that types a credential first, then run more, then proved more, then
+ * earned. Never the newest -- a job mined this morning and never run is not
+ * the one a press should start.
+ *
+ * The credential comes first because the alternative is a sign-in that cannot
+ * sign in. Two readings of one login differ by whether the operator typed
+ * their password or the browser filled it: the one where nobody typed has no
+ * step for it, and on a machine that does not fill it in, it presses Sign In
+ * with the field empty. The one that has run MORE is often that one, because
+ * it is the one that runs on a browser where autofill does the work.
+ */
 function furtherOn(job, than) {
-  const rank = ({ runs = {} }) => [
+  const rank = ({ runs = {}, types_a_credential: credential = false }) => [
+    credential ? 1 : 0,
     runs.total || 0,
     runs.proven || 0,
     runs.earned ? 1 : 0,

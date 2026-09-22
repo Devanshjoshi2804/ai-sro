@@ -461,11 +461,23 @@ export const api = {
   workflows: async (deviceId) => {
     const query = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : "";
     const answered = await call(`/v1/workflows${query}`);
-    return (answered.workflows || []).map(({ id, title, systems, runs }) => ({
+    return (answered.workflows || []).map(({ id, title, systems, runs, steps }) => ({
       id,
       title,
       systems,
       runs,
+      // Whether any step types a credential.
+      //
+      // Read from the words, because that is all the wire carries: a step
+      // says what it does and nothing on it marks a credential. It decides
+      // which of two jobs of one name the card offers, and it is the one
+      // thing that tells a sign-in that can sign in from one that clicks the
+      // button with the field empty -- so a job whose password was typed by
+      // the browser rather than the operator reads as the weaker of the two,
+      // which is what it is on a machine that does not fill it in.
+      types_a_credential: (steps || []).some((step) =>
+        /\b(password|passcode|credential)/i.test(String(step?.says || "")),
+      ),
     }));
   },
 

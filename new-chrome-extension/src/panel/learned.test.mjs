@@ -65,6 +65,27 @@ test("jobs mined more than once show as one, the one that has run", () => {
   assert.deepEqual(shown.map((one) => one.id), ["worked"]);
 });
 
+test("of two readings of one login, the one that types a password is offered", () => {
+  // Two readings of the same sign-in differ by whether the operator typed
+  // their password or the browser filled it in. The one where nobody typed
+  // has no step for it, and on a machine that does not fill it in it presses
+  // Sign In with the field empty. The deployment holds exactly this pair:
+  // wfl_55df5840 (2 steps, 3 runs, no credential) against wfl_5873ec01
+  // (5 steps, never run, types the password).
+  const jobs = [
+    { ...job("autofilled", { total: 3, held: 3 }), title: "Log in using Azure B2C SSO" },
+    {
+      ...job("types-it", { total: 0 }),
+      title: "Log in using Azure B2C SSO",
+      types_a_credential: true,
+    },
+  ];
+  assert.deepEqual(
+    learnedHere(jobs, "wms.example").map((one) => one.id),
+    ["types-it"],
+  );
+});
+
 test("nothing learned here draws nothing", () => {
   assert.equal(learned([]), null);
 });

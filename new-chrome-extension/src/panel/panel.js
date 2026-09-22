@@ -1531,6 +1531,39 @@ function finished(status) {
       },
       { onSecret: keepSecret },
     );
+    // What the run was working on, when it did not get to say what it made.
+    //
+    // `whatItWrote` names the values only for a run that HELD, which is the
+    // right rule for a card that claims something exists. But a run that
+    // stopped mid-write is exactly when somebody needs to know WHICH record
+    // is in doubt -- and this card named none of them. Measured against
+    // run_f1e9a3e8 on the deployment: "Save the customer type" failed with
+    // the state unknown, and the card said so without once saying SMKY.
+    //
+    // Only where a write actually went out and could not be read back. A run
+    // that stopped because the session expired wrote nothing, and naming the
+    // values there is noise at best -- the card next to this one has said
+    // since it was written that a stopped run claims to have written nothing,
+    // and that rule stands.
+    //
+    // Said as what it was working on, never as what it wrote: nothing here
+    // confirms anything landed.
+    const unconfirmed = (run.steps || []).some((step) =>
+      /^state unknown after a write/i.test(String(step.reason || "")),
+    );
+    const working = Object.entries(run.values || {}).filter(([, value]) =>
+      String(value ?? "").trim(),
+    );
+    if (!wrote && unconfirmed && working.length) {
+      const named = document.createElement("p");
+      named.className = "detail";
+      named.textContent =
+        "It was working on " +
+        working
+          .map(([name, value]) => `${name} ${String(value).trim()}`)
+          .join(" \u00b7 ");
+      card.append(named);
+    }
     // And one press to try it again, where trying again is safe.
     //
     // A run stops for reasons that have nothing to do with the job -- a

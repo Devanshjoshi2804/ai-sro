@@ -1998,6 +1998,9 @@ test("a write nobody could confirm says that, not the url it read", () => {
   const said = cards.map(words).join(" ");
   assert.match(said, /a write went out and nothing could confirm it landed/);
   assert.doesNotMatch(said, /https:/, "a url reached the heading");
+  // And which record is in doubt. A run that held names what it wrote; this
+  // one stopped mid-write, which is when somebody most needs the name.
+  assert.match(said, /It was working on Customer Type SMKY/);
 });
 
 test("a panel with nothing on it says so", () => {

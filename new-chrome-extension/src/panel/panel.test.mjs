@@ -2034,6 +2034,48 @@ test("a request that has run out is not offered as a press", () => {
   assert.equal(asking[0].dataset.id, "live");
 });
 
+test("what was learned here is not offered while a run is going", () => {
+  // One browser, one hand: the backend refuses a second run for this device.
+  // The card an operator had just pressed sat beside the run it started,
+  // offering to start it again -- and the press could only come back refused.
+  const jobs = [
+    {
+      id: "wfl_1",
+      title: "Log in to Keycloak",
+      systems: ["https://wms.example"],
+      runs: { total: 9, held: 4, stale: 0, earned: false, proven: 0, needed: 3 },
+    },
+  ];
+  const status = {
+    deviceId: "dev-1",
+    capturing: true,
+    channel: "open",
+    watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+  };
+  const here = { id: 7, host: "wms.example", url: "https://wms.example/portal" };
+
+  const quiet = panel(status, here, { status, "learned-jobs": { jobs } });
+  return quiet.refresh().then(async () => {
+    await settled();
+    assert.match(
+      [...quiet.ids["cards"].kids].map(words).join(" "),
+      /Learned from what you do here/,
+      "nothing was learned to hide",
+    );
+
+    const running = {
+      ...status,
+      performing: { runId: "run-9", kind: "rig", since: new Date().toISOString(), step: 0 },
+    };
+    quiet.render(running);
+    assert.doesNotMatch(
+      [...quiet.ids["cards"].kids].map(words).join(" "),
+      /Learned from what you do here/,
+      "it offered to start a job while a run was going",
+    );
+  });
+});
+
 test("a card rises once, not on every poll", async () => {
   // The stylesheet turns the entrance animation off for a card marked risen,
   // and nothing marked one -- so every card replayed its 800ms fade on every

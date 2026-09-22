@@ -422,14 +422,17 @@ function render(status) {
   // What was learned on this system, and how far each job is toward writing
   // on its own. Below everything that is happening now: it is standing
   // information, and the loud cards above are the ones waiting on somebody.
-  if (!status.teaching && status.deviceId) {
+  // Not while a run is going.
+  //
+  // One browser, one hand: the backend refuses a second run for this device,
+  // so every press on this card would come back refused -- and the card an
+  // operator just pressed sat there beside the run it started, offering to
+  // start it again. An offer taken stops being an offer, which is the rule
+  // the nudges have always followed; this card is the same kind of thing.
+  if (!status.teaching && status.deviceId && !status.performing) {
     const here = learned(learnedHere(learnedJobs, tabHere.host), {
       onRun: runHere,
       onReview: (job) => openConsole(`/jobs/${encodeURIComponent(job.id)}`),
-      // One browser, one hand: the backend refuses a second run for this
-      // device, so a press offered while one is going is a press that can
-      // only come back refused.
-      busy: Boolean(status.performing),
     });
     if (here) standing.push(here);
   }

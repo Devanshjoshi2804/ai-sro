@@ -152,11 +152,12 @@ function checked(runs) {
  * The card, or `null` when nothing was learned for this host.
  *
  * `onRun(job, button)` when they ask for one; `onReview(job)` for the console.
- * `busy` is a run already driving this browser: the backend refuses a second
- * one -- "one browser, one hand" -- so the press is offered as something that
- * cannot be taken rather than as something that fails when taken.
+ *
+ * Nothing here knows about a run in progress: while one drives this browser
+ * the panel does not draw this card at all, the way an offer taken stops
+ * being an offer. See `render` in `panel.js`.
  */
-export function learned(jobs, { onRun, onReview, busy = false } = {}) {
+export function learned(jobs, { onRun, onReview } = {}) {
   if (!jobs?.length) return null;
   const card = document.createElement("section");
   card.className = "card learned";
@@ -188,10 +189,6 @@ export function learned(jobs, { onRun, onReview, busy = false } = {}) {
     const run = document.createElement("button");
     run.type = "button";
     run.textContent = "Run it here";
-    if (busy) {
-      run.disabled = true;
-      run.title = "a run is already going in this browser";
-    }
     // One primary press per card: the first job's. The rest are quiet.
     if (index > 0) run.className = "quiet";
     run.addEventListener("click", () => onRun?.(job, run));
@@ -204,14 +201,6 @@ export function learned(jobs, { onRun, onReview, busy = false } = {}) {
     one.append(row);
     card.append(one);
   });
-
-  if (busy) {
-    const why = document.createElement("p");
-    why.className = "note";
-    why.textContent =
-      "A run is going in this browser. One at a time — stop it, or wait for it to finish.";
-    card.append(why);
-  }
 
   if (jobs.length > K_SHOWN) {
     const more = document.createElement("p");

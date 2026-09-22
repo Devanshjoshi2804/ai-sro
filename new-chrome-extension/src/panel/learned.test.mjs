@@ -86,20 +86,6 @@ test("of two readings of one login, the one that types a password is offered", (
   );
 });
 
-test("while a run is going, the press is not offered", () => {
-  // The backend refuses a second run for one browser -- "one browser, one
-  // hand" -- so a press offered while one is going is a press that can only
-  // come back refused. The card sat there offering it beside a run card.
-  const card = learned([job("a")], { busy: true });
-  const run = card.kids
-    .find((kid) => kid.className === "job")
-    .kids.find((kid) => kid.className === "row").kids[0];
-
-  assert.equal(run.textContent, "Run it here");
-  assert.equal(run.disabled, true, "it offered a run while one was going");
-  assert.match(words(card), /One at a time/);
-});
-
 test("nothing learned here draws nothing", () => {
   assert.equal(learned([]), null);
 });

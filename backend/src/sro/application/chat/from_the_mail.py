@@ -74,6 +74,7 @@ from sro.domain.execution.learned_step import limits_for, too_long
 from sro.domain.execution.waiting import read_wait, still_waiting
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.shared.prices import Answer
+from sro.domain.skill.learned import offerable
 from sro.domain.skill.workflow import Workflow
 
 SERVER = "gmail"
@@ -171,6 +172,18 @@ class Offered:
     title: str
     values: Mapping[str, str] = field(default_factory=dict)
     missing: Sequence[str] = ()
+
+    offers: Sequence[tuple[str, str]] = ()
+    """Fields this job can fill that the page does not ask for, and what each
+    was last time.
+
+    On the CARD, because for a mail that supplied everything required there is
+    no question and therefore nowhere else to say it. `_ask_for_values` offers
+    these when a run comes up short, and a request that came up short of
+    nothing never reaches it -- so on the path an operator who works from
+    their mailbox actually uses, the optional fields could never be set at
+    all. Measured as a gap on 2026-09-22, before it could bite.
+    """
 
     unasked: Sequence[str] = ()
     """What the request asked for that this job has no parameter for.
@@ -484,6 +497,14 @@ class FromTheMail:
                     # said on the card rather than after the press. `again` is
                     # the second reading -- the whole conversation -- and it
                     # names fields the first sentence did not.
+                    # What it could ALSO set, which nothing has to answer.
+                    offers=offerable(
+                        next(
+                            (w.parameters for w in workflows if w.id == got.workflow_id),
+                            (),
+                        ),
+                        values,
+                    ),
                     unasked=sorted({*got.unasked, *asked_for_too}),
                     # What those fields were given. The names alone let the
                     # card say what this job cannot set; the values are what

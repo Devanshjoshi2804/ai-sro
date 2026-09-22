@@ -746,6 +746,33 @@ function offeringToFinish(nudge, onPress) {
     item.append(cannot);
   }
 
+  // And what it could ALSO set, which nobody has to answer.
+  //
+  // The line above says what this job CANNOT set. This one says what it can
+  // set and was not asked to -- a field the page does not mark required, so
+  // the run no longer stops for it and no longer types an empty value into
+  // it. Said here because a request that supplied everything required never
+  // produces a question, and the question is the only other place these are
+  // offered: on the path an operator who works from their mailbox actually
+  // uses, this is the one chance to say so.
+  //
+  // Said and not asked. The boxes the job's own parameters draw are where a
+  // value goes; this only tells somebody the boxes are worth filling.
+  if ((nudge.offers || []).length) {
+    const also = document.createElement("p");
+    also.className = "detail";
+    also.dataset.kind = "offers";
+    const named = nudge.offers.map(([name]) => name);
+    const seen = nudge.offers
+      .filter(([, was]) => (was || "").trim())
+      .map(([name, was]) => `${name}: ${was}`);
+    also.textContent =
+      `It can also set ${named.join(", ")}` +
+      (seen.length ? ` — last time ${seen.join("; ")}` : "") +
+      `. Leave them blank and it will run without.`;
+    item.append(also);
+  }
+
   // What the press would WRITE, before it is pressed.
   //
   // The two lines above say what this job cannot set and what will not fit;

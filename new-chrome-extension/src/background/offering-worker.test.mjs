@@ -2894,6 +2894,47 @@ test("what this browser does while performing a run is not evidence of anybody w
   abort("run-driving");
 });
 
+test("what a mail's job could also set reaches the card", async () => {
+  // From mutating the call site. The question path offers optional fields when
+  // a run comes up short, and a mail that supplied everything required never
+  // reaches it -- so on the path an operator who works from their mailbox
+  // actually uses, this is the only place they can be told at all.
+  ready();
+  mailLooked = {
+    offered: [
+      {
+        message: "m-9",
+        workflow_id: "wfl_1",
+        title: "Create a Customer Type",
+        values: { "Customer Type": "GPX", "Customer Type Description": "x" },
+        missing: [],
+        offers: [
+          ["Department", "IN"],
+          ["Manufacturer", "NIGHTCO"],
+        ],
+        unasked: ["Region"],
+      },
+    ],
+    read: 1,
+    why: "offered Create a Customer Type",
+  };
+
+  await send({ kind: "look-in-the-mail" });
+
+  const [card] = held.get("sro.nudges") || [];
+  assert.ok(card, "a mail that asked for a job produced no card");
+  assert.deepEqual(card.offers, [
+    ["Department", "IN"],
+    ["Manufacturer", "NIGHTCO"],
+  ]);
+  // And the line beside it, which has never once reached a mail card: the
+  // worker has passed `unasked` for as long as the renderer has drawn it, and
+  // `fire` dropped it in between. The renderer's own test passed throughout,
+  // because it builds its nudge by hand rather than through the path an offer
+  // takes.
+  assert.deepEqual(card.unasked, ["Region"], "what this job cannot set never reached the card");
+});
+
 test("a question that has stopped standing is put down as soon as the reply says so", async () => {
   // Measured on the deployment 2026-09-22 at 01:24. The operator was four
   // answers into `Create a Customer Type`, could not supply Manufacturer, and

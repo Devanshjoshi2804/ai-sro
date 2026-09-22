@@ -146,6 +146,19 @@ export function fire(candidate, now, { tabId = null, visit = "" } = {}) {
     // What the request was called, so a conversation about it can name which.
     mailSubject: candidate.subject || "",
     tooLong: candidate.too_long || {},
+    // What the request asked for that this job has no parameter for.
+    //
+    // Mapped here since 2026-09-22 and not before: the worker has passed it
+    // for as long as the card has drawn it, and this function -- which is what
+    // turns an offer into the card -- dropped it in between. So "This job
+    // cannot set Department" has been rendering for every offer except the
+    // one kind that can carry it, and the renderer's own test passed because
+    // it builds its nudge by hand.
+    unasked: candidate.unasked || [],
+    // And what it could ALSO set, which nothing has to answer. On the card
+    // because a mail supplying everything required produces no question, and
+    // the question is the only other place these are offered.
+    offers: candidate.offers || [],
     parameters: candidate.parameters || [],
     // What pressing this would WRITE, read off the job's own evidence: one
     // entry per writing step, `{does, record, on}`. The card names the values

@@ -3757,6 +3757,19 @@ class MailOfferModel(BaseModel):
 
     Empty for every job no run has hit a limit on, which is most of them."""
 
+    offers: list[list[str]] = []
+    """Fields this job can also fill that the page does not ask for, each with
+    what it was last time.
+
+    On the card, because a mail that supplied everything required produces no
+    question and there is nowhere else to say it. The question path offers
+    these when a run comes up short; a request short of nothing never reaches
+    it, so on the path an operator who works from their mailbox actually uses,
+    an optional field could never be set at all.
+
+    Pairs as two-item lists, because JSON has no tuples and the panel reads
+    them positionally."""
+
     unasked: list[str] = []
     """What the request asked for that this job has no parameter for.
 
@@ -3886,6 +3899,7 @@ class FromTheMailResponse(BaseModel):
                     subject=one.subject,
                     thread=one.thread,
                     too_long=dict(one.too_long),
+                    offers=[[name, was] for name, was in one.offers],
                     unasked=list(one.unasked),
                     started=one.started,
                 )

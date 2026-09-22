@@ -781,6 +781,13 @@ async function offerFromMail(offer) {
       // card can say it before the press rather than the run saying it after
       // -- after the press is after the record.
       unasked: offer.unasked || [],
+      // What it could ALSO set, which nothing has to answer.
+      //
+      // On the card because a mail that supplied everything required produces
+      // no question, and the question is where these are otherwise offered --
+      // so for somebody who works out of their mailbox, an optional field
+      // could never be set at all.
+      offers: offer.offers || [],
       can_find: true,
       parameters: (shape?.parameters || []).map((one) => one.name),
       writes: shape?.writes || [],

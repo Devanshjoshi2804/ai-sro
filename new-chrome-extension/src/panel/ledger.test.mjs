@@ -1764,6 +1764,74 @@ test("nothing is waited on when no mail has gone", () => {
   assert.equal(drawn.length, 0, "it invented a wait");
 });
 
+test("the card says what the job could also set, and that it is optional", () => {
+  // The line above says what this job CANNOT set. This says what it CAN set
+  // and was not asked to -- a field the page does not mark required, so since
+  // 2026-09-22 the run no longer stops for it and no longer types an empty
+  // value into it.
+  //
+  // Said here because a request that supplied everything required never
+  // produces a question, and the question is the only other place these are
+  // offered. For somebody who works out of their mailbox, this is the one
+  // chance to say so.
+  const item = renderNudge({
+    id: "n_14",
+    state: "open",
+    source: "rig",
+    title: "Create a Customer Type",
+    startsOn: "wms.test/portal",
+    workflowId: "wfl_1",
+    k: 0,
+    values: { "Customer Type": "GV3", "Customer Type Description": "x" },
+    missing: [],
+    offers: [
+      ["Department", "IN"],
+      ["Manufacturer", "NIGHTCO"],
+    ],
+  });
+
+  assert.match(words(item), /can also set Department, Manufacturer/);
+  assert.match(words(item), /last time Department: IN; Manufacturer: NIGHTCO/);
+  assert.match(words(item), /run without/);
+  // Said and not asked: the press is not blocked on an optional field.
+  assert.equal(labelled(item, /Yes, do it/).disabled, false);
+});
+
+test("a field the job has never filled is offered with nothing to suggest", () => {
+  const item = renderNudge({
+    id: "n_15",
+    state: "open",
+    source: "rig",
+    title: "Create a Customer Type",
+    startsOn: "wms.test/portal",
+    workflowId: "wfl_1",
+    k: 0,
+    values: {},
+    missing: [],
+    offers: [["Pallet Building", ""]],
+  });
+
+  assert.match(words(item), /can also set Pallet Building/);
+  assert.doesNotMatch(words(item), /last time/);
+});
+
+test("a job with nothing optional says nothing about it", () => {
+  const item = renderNudge({
+    id: "n_16",
+    state: "open",
+    source: "rig",
+    title: "Create a Customer Type",
+    startsOn: "wms.test/portal",
+    workflowId: "wfl_1",
+    k: 0,
+    values: {},
+    missing: [],
+    offers: [],
+  });
+
+  assert.doesNotMatch(words(item), /can also set/);
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

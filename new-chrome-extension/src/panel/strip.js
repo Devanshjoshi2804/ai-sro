@@ -143,6 +143,8 @@ export function strip(status, here, { onMenu, onToggle, nav } = {}) {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = label;
+    // The one entry that destroys evidence is red at rest, not only on hover.
+    if (action === "purge") button.dataset.danger = "true";
     button.addEventListener("click", () => {
       // Closed before the caller hears about it. A menu still open behind a
       // dialog, or behind a panel that just redrew, is the one somebody

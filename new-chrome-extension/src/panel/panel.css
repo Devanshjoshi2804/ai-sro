@@ -264,6 +264,10 @@ body::after {
   background: rgba(255, 255, 255, 0.05);
 }
 
+.menu button[data-danger] {
+  color: #fecaca;
+}
+
 @keyframes menu-in {
   from {
     opacity: 0;

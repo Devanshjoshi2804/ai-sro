@@ -105,8 +105,11 @@ async def _hold(container: _RealSessionContainer) -> None:
                 narrative="the operator created a work area",
                 steps=[Step(order=0, says="s", system=None, cites=["ges_1"])],
                 parameters=[
-                    {"name": "areaName", "seen_values": ["NEWTESTS"]},
-                    {"name": "zone", "seen_values": ["3"]},
+                    # Both marked as the form marks them. This test is about a
+                    # sentence that supplied one field and not the other, and
+                    # since 2026-09-22 only a field the page demands is missing.
+                    {"name": "areaName", "seen_values": ["NEWTESTS"], "required": True},
+                    {"name": "zone", "seen_values": ["3"], "required": True},
                 ],
             )
         )

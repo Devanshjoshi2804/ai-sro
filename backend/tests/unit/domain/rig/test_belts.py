@@ -8,6 +8,7 @@ from sro.domain.execution.belts import (
     earned_from,
     expected_statuses,
     mentions,
+    proven_runs,
     state_verified,
     status_of,
     unreturned,
@@ -170,6 +171,8 @@ def test_three_live_runs_whose_writes_all_verified_by_state_earn_autonomy() -> N
     for i in range(K_EARNED_RUNS):
         proofs.append(_proof(f"run_{i}", wrote={1}, verified={1}))
         assert earned_from(proofs) is (i == K_EARNED_RUNS - 1)
+        # The count the panel draws as "N of 3" is the one the verdict reads.
+        assert proven_runs(proofs) == i + 1
 
 
 def test_a_screen_only_verification_is_not_an_effect() -> None:
@@ -186,6 +189,7 @@ def test_a_screen_only_verification_is_not_an_effect() -> None:
 def test_a_run_with_one_unverified_write_does_not_count() -> None:
     proofs = [_proof(f"run_{i}", wrote={1, 3}, verified={1}) for i in range(K_EARNED_RUNS)]
     assert earned_from(proofs) is False
+    assert proven_runs(proofs) == 0
 
 
 def test_a_failed_write_starts_the_earning_again() -> None:

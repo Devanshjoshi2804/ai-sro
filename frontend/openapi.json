@@ -35195,6 +35195,17 @@
             "title": "Too Long",
             "default": {}
           },
+          "offers": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Offers",
+            "default": []
+          },
           "unasked": {
             "items": {
               "type": "string"
@@ -39451,6 +39462,14 @@
           "earned": {
             "type": "boolean",
             "title": "Earned"
+          },
+          "proven": {
+            "type": "integer",
+            "title": "Proven"
+          },
+          "needed": {
+            "type": "integer",
+            "title": "Needed"
           }
         },
         "type": "object",
@@ -39458,7 +39477,9 @@
           "total",
           "held",
           "stale",
-          "earned"
+          "earned",
+          "proven",
+          "needed"
         ],
         "title": "WorkflowHistoryModel",
         "description": "What has become of one job: how often it ran, how often it held, whether\nits page is moving under it, and whether its writes go unasked now.\n\nFour fields where the rig answered seven. `last`, the offer fates and the\ncounsel derived from them are served already -- by `/v1/audit` and\n`/v1/shapes` -- and a second door onto a field is a second place it is\ncomputed. `sro.application.skill.read_workflows` carries the whole of that\nreasoning."

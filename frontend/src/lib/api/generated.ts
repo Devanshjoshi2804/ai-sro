@@ -3778,6 +3778,10 @@ export interface components {
             status?: number | null;
             /** Body */
             body?: string | null;
+            /** Read */
+            read?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Truncated
              * @default false
@@ -3926,6 +3930,11 @@ export interface components {
             too_long: {
                 [key: string]: number;
             };
+            /**
+             * Offers
+             * @default []
+             */
+            offers: string[][];
             /**
              * Unasked
              * @default []
@@ -5714,6 +5723,10 @@ export interface components {
             stale: number;
             /** Earned */
             earned: boolean;
+            /** Proven */
+            proven: number;
+            /** Needed */
+            needed: number;
         };
         /** WorkflowModel */
         WorkflowModel: {

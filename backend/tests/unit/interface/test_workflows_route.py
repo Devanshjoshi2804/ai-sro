@@ -449,7 +449,7 @@ async def test_a_mined_job_reaches_the_wire_whole(
                 "parameters": [],
             },
         ],
-        "runs": {"total": 0, "held": 0, "stale": 0, "earned": False},
+        "runs": {"total": 0, "held": 0, "stale": 0, "earned": False, "proven": 0, "needed": 3},
     }
 
 
@@ -862,7 +862,14 @@ async def test_every_read_behind_the_listing_asks_for_the_caller_and_not_a_name(
     listed = (await _listed(rival)).json()["workflows"]
 
     assert [row["id"] for row in listed] == [RIVAL_JOB]
-    assert listed[0]["runs"] == {"total": 3, "held": 3, "stale": 1, "earned": True}
+    assert listed[0]["runs"] == {
+        "total": 3,
+        "held": 3,
+        "stale": 1,
+        "earned": True,
+        "proven": 3,
+        "needed": 3,
+    }
 
 
 async def test_the_citation_lookup_asks_for_the_caller_too(

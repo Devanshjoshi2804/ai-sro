@@ -52,8 +52,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from sro.application.context import RequestContext
-from sro.application.execution.effects import earned
 from sro.application.ports.repositories import UnitOfWork
+from sro.domain.execution.belts import earned_from, proven_runs
 from sro.domain.observation.gesture import Gesture
 from sro.domain.skill.workflow import Workflow, ordered_cites
 
@@ -76,6 +76,10 @@ class KnownWorkflow:
     held: int
     stale: int
     earned: bool
+    proven: int
+    """Runs toward `earned`: live, held, every write verified by state. The
+    same proofs the verdict is read from, so the count and the yes cannot
+    disagree."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,13 +140,16 @@ class ReadWorkflows:
                 # Absent means never run, which the store's GROUP BY gives no
                 # row for at all.
                 total, held = tallied.get(workflow.id, (0, 0))
+                # Read once for both: `earned` is this count against a floor.
+                proofs = await uow.workflows.proofs(ctx.tenant_id, workflow.id)
                 known.append(
                     KnownWorkflow(
                         workflow=workflow,
                         total=total,
                         held=held,
                         stale=await uow.workflows.stale_count(workflow.id),
-                        earned=await earned(uow.workflows, ctx.tenant_id, workflow.id),
+                        earned=earned_from(proofs),
+                        proven=proven_runs(proofs),
                     )
                 )
             return tuple(known)

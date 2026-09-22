@@ -461,11 +461,18 @@ class RunProof:
         return bool(self.wrote) and self.wrote <= self.verified
 
 
+def proven_runs(proofs: Sequence[RunProof]) -> int:
+    """How many live held runs had every write verified by state -- the count
+    `earned_from` compares, served so a surface can say "2 of 3" and not only
+    yes or no."""
+    return sum(1 for proof in proofs if proof.proves)
+
+
 def earned_from(proofs: Sequence[RunProof]) -> bool:
     """Whether a job may write unasked: `K_EARNED_RUNS` live held runs, each
     with every write verified by state (`STATE_BELTS`). Effects decided by
     screen are never recorded, so `verified` here is state by construction."""
-    return sum(1 for proof in proofs if proof.proves) >= K_EARNED_RUNS
+    return proven_runs(proofs) >= K_EARNED_RUNS
 
 
 def state_verified(verified_by: str) -> bool:

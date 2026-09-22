@@ -33,6 +33,7 @@ from sro.application.observation.read_shots import PlayableShot
 from sro.application.skill.read_workflows import CitedEvidence, KnownWorkflow
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread
+from sro.domain.execution.belts import K_EARNED_RUNS
 from sro.domain.execution.learned_step import Taught
 from sro.domain.execution.run import Medium, Run, StepOutcome
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
@@ -2105,6 +2106,12 @@ class WorkflowHistoryModel(BaseModel):
     from `held` beside it: a hundred held runs with nothing in the register
     have earned nothing."""
 
+    proven: int
+    """Runs counted toward `earned`, out of `needed`: the side panel draws the
+    job's way to writing on its own as "2 of 3"."""
+
+    needed: int
+
 
 class WorkflowStepModel(BaseModel):
     """One mined step: what it says, and the evidence that proves it.
@@ -2163,7 +2170,12 @@ class WorkflowModel(BaseModel):
                 for step in sorted(workflow.steps, key=lambda step: step.order)
             ],
             runs=WorkflowHistoryModel(
-                total=known.total, held=known.held, stale=known.stale, earned=known.earned
+                total=known.total,
+                held=known.held,
+                stale=known.stale,
+                earned=known.earned,
+                proven=known.proven,
+                needed=K_EARNED_RUNS,
             ),
         )
 

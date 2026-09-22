@@ -100,6 +100,9 @@ class Component(BaseModel):
     name: str | None = None
     fieldLabel: str | None = None
     text: str | None = None
+    required: bool | None = None
+    """Ext's own `allowBlank: false`, where the component said."""
+
     query: str | None = None
     chain: list[str] = Field(default_factory=list)
 
@@ -130,6 +133,12 @@ class Target(BaseModel):
     testId: str | None = None
     cssPath: str | None = None
     xpath: str | None = None
+    required: bool | None = None
+    """Whether the PAGE says this field must be filled -- `aria-required`, the
+    HTML5 attribute, or a star on its label. Three states kept as three: None
+    is a page that said nothing, and coercing it to False would be this system
+    claiming a form said something it never said."""
+
     bounds: dict[str, float] = Field(default_factory=dict)
     attributes: dict[str, Any] = Field(default_factory=dict)
     component: Component | None = None  # null on plain HTML; only ExtJS has one

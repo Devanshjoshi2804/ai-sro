@@ -170,6 +170,15 @@ def as_action(wire: WireGesture) -> Action:
             test_id=target.testId,
             css_path=target.cssPath,
             xpath=target.xpath,
+            # What the page said about whether this field must be filled.
+            #
+            # Mapped here and not only in `decode`, which is the other ingest
+            # path: an extension's gestures arrive through this one, and a
+            # field this function does not name is a field that never reaches
+            # the store however faithfully the recorder captured it. Measured
+            # 2026-09-22 at 07:17 -- the recorder had been reading
+            # `aria-required` for an hour and every stored gesture had none.
+            required=target.required,
             component=None
             if component is None
             else Component(
@@ -178,6 +187,7 @@ def as_action(wire: WireGesture) -> Action:
                 field_label=component.fieldLabel,
                 name=component.name,
                 xtype=component.xtype,
+                required=component.required,
             ),
         ),
     )

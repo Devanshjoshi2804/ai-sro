@@ -245,3 +245,40 @@ def test_the_calls_a_gesture_caused_are_kept_in_the_order_they_were_made() -> No
         f"{REQUEST_POST['request']['url']}?seq=r_second",
         f"{REQUEST_POST['request']['url']}?seq=r_third",
     ]
+
+
+def test_what_the_page_said_about_a_required_field_survives_the_wire() -> None:
+    """The recorder had been reading `aria-required` for an hour and every
+    stored gesture had none.
+
+    Measured on the deployment 2026-09-22 at 07:17. `decode` -- the other
+    ingest path -- carried it from the day it was added; this one, which is
+    the path an extension's gestures actually take, did not name the field, so
+    it was dropped between a faithful capture and the store. The same shape as
+    `fire` dropping `unasked` on the panel side: two ends agreeing and nothing
+    carrying it between them.
+    """
+    batch = copy.deepcopy(BATCH)
+    events = cast("list[dict[str, Any]]", batch["events"])
+    said = next(one for one in events if one.get("kind") == "gesture")["gesture"]["target"]
+    said["required"] = True
+    said["component"]["required"] = True
+
+    gestures, _, _, _ = correlate(Batch.model_validate(batch), "acme")
+
+    target = gestures[0].action.target
+    assert target is not None
+    assert target.required is True, "the page said the field was required and the store has none"
+    assert target.component is not None
+    assert target.component.required is True
+
+
+def test_a_page_that_said_nothing_about_a_field_stores_nothing() -> None:
+    """Three states kept as three. `None` is a page that said nothing and
+    `False` is a page saying the field is optional, and coercing the first to
+    the second would be this system claiming a form said something it never
+    said."""
+    gestures, _, _, _ = correlate(Batch.model_validate(copy.deepcopy(BATCH)), "acme")
+
+    target = gestures[0].action.target
+    assert target is not None and target.required is None

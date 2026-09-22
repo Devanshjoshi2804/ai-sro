@@ -2440,16 +2440,19 @@ async function handle(message, sender) {
           allow_focus: true,
           watched: true,
         });
+        // The same record `start-rig-run` writes, field for field: `at` is
+        // what `parkedRigRun` reads back as the run's `since`, and a record
+        // written with a different name for it is a run card with no elapsed
+        // time on it.
         await state.setActiveRun({
           runId: run.id,
-          workflowId: message.workflowId,
+          at: Date.now(),
           source: "rig",
-          startedAt: Date.now(),
         });
         void pollRigRun();
-        return { ok: true, runId: run.id };
+        return { ok: true, run_id: run.id, runId: run.id };
       } catch (error) {
-        return { ok: false, error: error.message };
+        return { ok: false, error: error.problem?.detail || error.message };
       }
     }
     case "learned-jobs":

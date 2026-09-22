@@ -32,9 +32,23 @@ const rungs = (card) =>
     .kids.find((kid) => kid.className === "ladder")
     .kids.map((rung) => rung.dataset.state);
 
-test("only the jobs on this host are shown", () => {
-  const jobs = [job("a"), job("b", {}, ["mail.example"]), job("c", {}, ["WMS.example"])];
-  assert.deepEqual(learnedHere(jobs, "wms.example").map((one) => one.id), ["a", "c"]);
+test("only the jobs on this host are shown, whole origin or bare host", () => {
+  // What the miner actually writes is an origin. Compared as-is against the
+  // tab's hostname nothing ever matched, and this card appeared nowhere.
+  const jobs = [
+    job("a"),
+    job("b", {}, ["mail.example"]),
+    job("c", {}, ["WMS.example"]),
+    job("d", {}, ["https://wms.example"]),
+    job("e", {}, ["https://mail.google.com", "https://WMS.example/portal"]),
+    job("f", {}, ["https://other.example"]),
+  ];
+  assert.deepEqual(learnedHere(jobs, "wms.example").map((one) => one.id), [
+    "a",
+    "c",
+    "d",
+    "e",
+  ]);
   assert.deepEqual(learnedHere(jobs, ""), []);
 });
 

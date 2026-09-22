@@ -1948,13 +1948,14 @@ test("what was learned on this system is on Home, and only here", async () => {
     {
       id: "wfl_1",
       title: "Delete a Customer Type",
-      systems: ["wms.example"],
+      // As the miner writes them: whole origins, not bare hosts.
+      systems: ["https://wms.example"],
       runs: { total: 2, held: 2, stale: 0, earned: false, proven: 1, needed: 3 },
     },
     {
       id: "wfl_2",
       title: "Reply to Email",
-      systems: ["mail.example"],
+      systems: ["https://mail.example"],
       runs: { total: 0, held: 0, stale: 0, earned: false, proven: 0, needed: 3 },
     },
   ];

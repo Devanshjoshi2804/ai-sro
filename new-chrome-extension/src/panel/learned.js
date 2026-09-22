@@ -25,12 +25,29 @@ const RUNGS = [
 /** How many learned jobs one card lists. The rest are in the console. */
 export const K_SHOWN = 3;
 
+/** The host a mined job's `systems` entry names.
+ *
+ * They are stored as whole origins -- `https://bf56-kms-wms-web-np2.jdadelivers.com`
+ * -- and the tab beside the panel is a bare hostname. Compared as they are,
+ * nothing ever matched and this card never appeared on any system the tenant
+ * has. Older rows hold a bare host, so both shapes are read.
+ */
+export function hostOf(system) {
+  const said = String(system || "").trim();
+  if (!said) return "";
+  try {
+    return new URL(said.includes("://") ? said : `https://${said}`).hostname.toLowerCase();
+  } catch {
+    return said.toLowerCase();
+  }
+}
+
 /** The jobs whose systems include this host. */
 export function learnedHere(jobs, host) {
   if (!host) return [];
   const here = host.toLowerCase();
   return (jobs || []).filter((job) =>
-    (job.systems || []).some((system) => String(system).toLowerCase() === here),
+    (job.systems || []).some((system) => hostOf(system) === here),
   );
 }
 

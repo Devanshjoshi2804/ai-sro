@@ -2484,14 +2484,10 @@ async function handle(message, sender) {
         message.version,
       );
     case "panel-console":
-      // The one place the token deliberately leaves the worker: the console
-      // this browser frames cannot see the credential in its own tab, because
-      // Chrome partitions storage for framed contexts, so the panel has to hand
-      // it across. It goes to the configured origin and nowhere else.
-      return {
-        consoleUrl: await state.consoleUrl(),
-        token: await state.token(),
-      };
+      // Where the console is, and nothing else. The token used to go with it,
+      // for a console framed inside the panel; that frame is gone, and the
+      // token no longer leaves this worker for the panel at all.
+      return { consoleUrl: await state.consoleUrl() };
     case "approve-rig-run": {
       // The press on the awaiting row. It comes here rather than going to the
       // rig from the panel for the same reason `start-rig-run` does: the rig's

@@ -71,11 +71,9 @@
          nobody asked for. Built in history.js. -->
     <section id="tasks" hidden></section>
 
-    <section id="console" hidden>
-      <p class="note" id="console-note"></p>
-      <div id="console-refused" class="card" hidden></div>
-      <iframe id="frame" title="AI-SRO console" hidden></iframe>
-    </section>
+    <!-- Said when this panel outlived the extension that drew it: an update
+         or a reload left it talking to nothing. Built in panel.js. -->
+    <div id="stale" class="card" data-tone="attention" hidden></div>
     </div>
 
     <!-- Pinned. Built in ledger.js, placed here rather than after the

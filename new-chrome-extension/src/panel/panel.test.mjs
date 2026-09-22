@@ -258,6 +258,9 @@ function panel(status, here = null, replies = {}) {
         query: async () => (here ? [here] : []),
         reload: async () => {},
         create: async ({ url }) => opened.push(url),
+        // Navigating the tab beside the panel, told apart from a new tab by
+        // naming the tab it went into.
+        update: async (tabId, { url }) => opened.push(`tab ${tabId}: ${url}`),
         onActivated: { addListener: (fn) => watchers.activated.push(fn) },
         onUpdated: { addListener: (fn) => watchers.updated.push(fn) },
       },
@@ -318,6 +321,8 @@ function panel(status, here = null, replies = {}) {
     // rather than off a card: what a tab switch has to change is this, and
     // every card is drawn from it.
     where: () => vm.runInContext("JSON.stringify(tabHere)", sandbox),
+    // A press in the profile menu, the way the strip hands it over.
+    menu: (action) => sandbox.menu(action),
     // Standing in the conversation, which is where an operator who has just
     // answered a question is. What arrives on Home while they are here is the
     // case `justArrived` exists for.
@@ -1872,6 +1877,25 @@ test("with no way to reverse it, it says so rather than offering a dead button",
     "an undo was offered with nothing behind it",
   );
   assert.ok(/I'll fix it/i.test(said), "no way to say it was wrong at all");
+});
+
+test("Open the console here puts the console in this tab, and Console ↗ in a new one", async () => {
+  // The console was framed inside the panel, behind a credential handshake.
+  // It is a full-width application; "here" now means the tab beside the
+  // panel, and only that press may trade the operator's page for it.
+  const drawn = panel(
+    { deviceId: "dev-1", capturing: true },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+    { "panel-console": { consoleUrl: "https://console.test" } },
+  );
+  await drawn.menu("console-here");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await drawn.menu("console");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(drawn.opened, [
+    "tab 7: https://console.test/console",
+    "https://console.test/console",
+  ]);
 });
 
 test("each kind of run is linked into the console route that can read its id", async () => {

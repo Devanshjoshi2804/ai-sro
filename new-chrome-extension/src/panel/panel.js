@@ -605,15 +605,8 @@ async function menu(action) {
   switch (action) {
     case "console":
       return openConsole();
-    case "frame-console": {
-      // The console inside the panel, which is where a supervisor's screens are
-      // reachable without leaving the tab the work is in. Toggled, because the
-      // way back is the same press.
-      const framed = $("console");
-      framed.hidden = !framed.hidden;
-      if (!framed.hidden && !$("frame").src) void frameTheConsole();
-      return undefined;
-    }
+    case "console-here":
+      return openConsole("/console", { here: true });
     case "pause":
     case "resume":
       await ask({ kind: "set-paused", paused: action === "pause" });
@@ -1944,10 +1937,16 @@ async function whereWeAre() {
   if (tabHere.host !== was.host || tabHere.tabId !== was.tabId) await refresh();
 }
 
-function openConsole(path = "/console") {
+function openConsole(path = "/console", { here = false } = {}) {
   ask({ kind: "panel-console" }).then(({ consoleUrl }) => {
     if (consoleUrl) {
-      void chrome.tabs.create({ url: `${consoleUrl}${path}` });
+      const url = `${consoleUrl}${path}`;
+      // In the tab beside the panel when asked for there, and a new tab
+      // otherwise: the work in that tab is the operator's, and only they get
+      // to trade it for the console.
+      if (here && tabHere.tabId != null)
+        void chrome.tabs.update(tabHere.tabId, { url });
+      else void chrome.tabs.create({ url });
       return;
     }
     // `consoleUrl` is empty until somebody sets it, and this used to be a
@@ -2968,108 +2967,6 @@ async function runIt(skillId, parameters, intent, version) {
   });
 }
 
-// -- the console -------------------------------------------------------------
-
-async function frameTheConsole() {
-  const { consoleUrl, token } = await ask({ kind: "panel-console" });
-  if (!token || !consoleUrl) {
-    // Already said once, at the top, with the button that fixes it. Saying it
-    // again down here would be a second complaint about one thing.
-    $("console").hidden = true;
-    return;
-  }
-
-  const origin = new URL(consoleUrl).origin;
-  const frame = $("frame");
-
-  // The console announces itself once its listener exists. Posting on `load`
-  // instead would race its hydration and lose the credential intermittently,
-  // which is the worst way for a handshake to fail.
-  window.addEventListener("message", (event) => {
-    if (event.origin !== origin) return;
-    if (event.data?.kind === "sro.ready") {
-      // Addressed to the console's own origin, never "*": a wildcard hands the
-      // credential to whatever the frame has navigated to.
-      frame.contentWindow?.postMessage(
-        { kind: "sro.credential", token },
-        origin,
-      );
-      return;
-    }
-    if (event.data?.kind === "sro.credential.ok")
-      $("console-note").textContent = "";
-  });
-
-  $("console-note").textContent = "opening the console…";
-  frame.src = `${consoleUrl}/console?embedded=1`;
-  frame.hidden = false;
-
-  // A cross-origin frame does not report its own failures, so the reply is the
-  // only health check there is -- and until it arrives the frame is a grey
-  // rectangle that looks like a broken page. Show what to do instead of it, and
-  // keep showing it: a setup step nobody is told about twice is a setup step
-  // nobody does.
-  setTimeout(() => {
-    if ($("console-note").textContent === "opening the console…") {
-      frame.hidden = true;
-      refused(consoleUrl);
-    }
-  }, 5000);
-}
-
-/** What to do when the console will not accept this browser.
- *
- * The console decides which extension may frame it and hand it a credential --
- * a deployment that accepted any extension would accept one somebody else
- * installed. So this is a line of configuration, and the panel is where
- * somebody finds out it is missing. It says which line, where, and hands it
- * over ready to paste.
- */
-function refused(consoleUrl) {
-  const holder = $("console-refused");
-  holder.hidden = false;
-  holder.replaceChildren();
-
-  const origin = `chrome-extension://${chrome.runtime.id}`;
-  const said_ = document.createElement("p");
-  said_.className = "note";
-  said_.textContent = `${consoleUrl} did not accept this browser. It only frames extensions it has been told about.`;
-
-  const what = document.createElement("code");
-  what.className = "fix";
-  what.textContent = `NEXT_PUBLIC_EXTENSION_ORIGINS=${origin}`;
-
-  const where = document.createElement("p");
-  where.className = "note";
-  where.textContent =
-    "Put that in the console's environment (frontend/.env.local) and restart it.";
-
-  const copy = document.createElement("button");
-  copy.type = "button";
-  copy.textContent = "Copy the line";
-  copy.addEventListener("click", async () => {
-    await navigator.clipboard.writeText(what.textContent);
-    copy.textContent = "copied";
-    setTimeout(() => (copy.textContent = "Copy the line"), 2000);
-  });
-
-  const again = document.createElement("button");
-  again.type = "button";
-  again.className = "quiet";
-  again.textContent = "Try again";
-  again.addEventListener("click", () => {
-    holder.hidden = true;
-    $("console-note").textContent = "";
-    void frameTheConsole();
-  });
-
-  const row_ = document.createElement("div");
-  row_.className = "row";
-  row_.append(copy, again);
-  holder.append(said_, what, where, row_);
-  $("console-note").textContent = "";
-}
-
 // The worker pushes the state; this only asks when it has not heard.
 //
 // It used to poll every two seconds, which is two redraws a second of work
@@ -3174,9 +3071,8 @@ function orphaned() {
     location.reload();
     return;
   }
-  // Its own line, in the place the panel already keeps for "this browser and
-  // this deployment cannot talk to each other".
-  const holder = $("console-refused");
+  // Its own card, above the cards that are no longer live.
+  const holder = $("stale");
   if (!holder || !holder.hidden) return;
   holder.hidden = false;
   holder.replaceChildren();

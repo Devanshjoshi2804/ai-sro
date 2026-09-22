@@ -55,6 +55,7 @@ from sro.domain.chat.thread import Message, Said, Speaker, Thread, ThreadId
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
 from sro.domain.lookup.asking import is_a_question
 from sro.domain.shared.errors import DomainError
+from sro.domain.skill.learned import demanded
 from sro.domain.skill.skill import Skill
 
 logger = logging.getLogger(__name__)
@@ -191,7 +192,7 @@ class Converse:
         # when the job was placed.
         async with self._uow as uow:
             said_before = (await uow.threads.get(ctx.tenant_id, thread_id)).messages
-        waiting = pending_job(said_before)
+        waiting = await self._still_wanted(ctx, pending_job(said_before))
         if waiting is not None:
             # And only if it IS one. A question standing here used to take
             # whatever was typed next, which is right for `GU9` and wrong for
@@ -448,6 +449,59 @@ class Converse:
             await uow.threads.save(thread)
             await uow.commit()
         return thread
+
+    async def _still_wanted(self, ctx: RequestContext, waiting: Pending | None) -> Pending | None:
+        """The standing question, minus anything the job no longer asks for.
+
+        A question stands until it is answered or the job is dropped, and that
+        is right -- it is what stops an ordinary reply burying it. What it
+        missed is that the JOB can change underneath it. A field the job
+        demanded on Monday may be one the page never asked for, learnt as a
+        parameter only because two demonstrations happened to vary it, and
+        since 2026-09-22 no longer demanded at all.
+
+        Measured on the deployment that day. `Department takes 10 characters.
+        What should it be?` was asked at 11:35 and was still being re-asked at
+        13:50 -- two hours and four unrelated sentences later, under every one
+        of them, for a field the job had stopped requiring in between. The
+        operator asked for a new customer type, was offered one, and got the
+        old question back under the offer. There is no answer that ends it
+        except naming a value nobody needs, and no reason to.
+
+        So the job's own declaration is read again here rather than trusted
+        from when the question was written. It can only ever REMOVE names: a
+        question is still a question about the job it named, and a field that
+        has since become required is one the run will ask for itself.
+
+        One read, and only where a question is standing. A thread with nothing
+        waiting pays nothing.
+        """
+        if waiting is None or not waiting.workflow_id:
+            return waiting
+        async with self._uow as uow:
+            job = await uow.workflows.get(ctx.tenant_id, waiting.workflow_id)
+        # A job that declares nothing has said nothing, which is not the same
+        # as saying nothing is required. A parameter is learnt from two doings
+        # that varied a field, so a job done once declares none at all -- and
+        # dropping its questions on that basis would silence every question a
+        # young job ever asks.
+        if job is None or not job.parameters:
+            return waiting
+        wanted = {
+            str(name)
+            for one in job.parameters
+            if isinstance(one, dict)
+            and isinstance(name := one.get("name"), str)
+            and name
+            and demanded(one)
+        }
+        still = tuple(name for name in waiting.missing if name in wanted)
+        if still == waiting.missing:
+            return waiting
+        # Nothing left to ask. The question is over, and the sentence under it
+        # is an ordinary sentence rather than an answer to something nobody
+        # needs.
+        return replace(waiting, missing=still) if still else None
 
     async def _question_stands(self, ctx: RequestContext, thread_id: ThreadId) -> bool:
         """Whether a question is standing NOW, rather than when this request

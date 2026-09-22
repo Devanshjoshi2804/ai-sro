@@ -553,6 +553,84 @@ async def test_asking_for_a_different_job_is_still_heard() -> None:
     assert pending_job(said.messages) is not None
 
 
+async def test_a_question_for_a_field_the_job_no_longer_asks_for_stops_standing() -> None:
+    """Measured on the deployment 2026-09-22.
+
+    "Department takes 10 characters. What should it be?" was asked at 11:35
+    and was still being re-asked at 13:50 -- two hours and four unrelated
+    sentences later, under every one of them. The job had stopped requiring
+    Department in between: it was learnt as a parameter only because two
+    demonstrations varied it, and the form never asked for it.
+
+    The operator asked for a new customer type, was offered one, and got the
+    old question back under the offer. There is no answer that ends it except
+    naming a value nobody needs.
+    """
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked(uow, ["Department"])
+    # Not an answer -- otherwise the question is consumed and this passes
+    # whatever the door does with a field the job no longer asks for.
+    converse._answers = _Reads(answers=False, about="about_the_waiting")  # type: ignore[assignment]
+    job = await uow.workflows.get(CTX.tenant_id, "wfl_1")
+    job.parameters = [
+        {"name": "Customer Type", "names": ["Customer Type*"], "seen_values": ["GGD"]},
+        # Learnt because two doings varied it; the page never asked for it.
+        {"name": "Department", "names": ["Department"], "seen_values": ["IN", "new"]},
+    ]
+    await uow.workflows.save(job)
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="create a customer type for me")
+
+    assert pending_job(said.messages) is None, (
+        "a question for a field the form does not ask for was still standing"
+    )
+    assert not any("still waiting" in (m.text or "") for m in said.messages), (
+        "and it was asked again"
+    )
+
+
+async def test_a_question_keeps_the_names_the_job_still_asks_for() -> None:
+    """It can only ever REMOVE names. A question is still a question about the
+    job it named, and a field that has since become required is one the run
+    will ask for itself."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked(uow, ["Customer Type", "Department"])
+    # Not an answer, so the question is left standing rather than consumed.
+    converse._answers = _Reads(answers=False, about="about_the_waiting")  # type: ignore[assignment]
+    job = await uow.workflows.get(CTX.tenant_id, "wfl_1")
+    job.parameters = [
+        {"name": "Customer Type", "names": ["Customer Type*"], "seen_values": ["GGD"]},
+        {"name": "Department", "names": ["Department"], "seen_values": ["IN"]},
+    ]
+    await uow.workflows.save(job)
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="something else entirely")
+
+    waiting = pending_job(said.messages)
+    assert waiting is not None, "the question the form DOES ask for was dropped too"
+    assert waiting.missing == ("Customer Type",)
+
+
+async def test_a_job_that_declares_nothing_keeps_its_questions() -> None:
+    """A parameter is learnt from two doings that varied a field, so a job done
+    once declares none at all. Absence of a declaration is not a statement that
+    nothing is required, and dropping questions on that basis would silence
+    every question a young job ever asks."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked(uow, ["Customer Type"])
+    # Not an answer, so the question is left standing rather than consumed.
+    converse._answers = _Reads(answers=False, about="about_the_waiting")  # type: ignore[assignment]
+    job = await uow.workflows.get(CTX.tenant_id, "wfl_1")
+    assert not job.parameters, "the fixture's job declares nothing"
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="something else entirely")
+
+    assert pending_job(said.messages) is not None, "a young job lost the question it had asked"
+
+
 async def test_a_plan_made_on_the_screen_does_not_take_the_question_away() -> None:
     """Measured on the deployment 2026-09-21 at 17:10, in an operator's own
     conversation. Asked *"longDescription takes 2000 characters. What should

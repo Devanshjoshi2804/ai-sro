@@ -666,7 +666,7 @@ function recording(status) {
 /** Whether the operator has opened the watching card past what its own state
  * calls for. Remembered here, across redraws, rather than reset by the
  * panel's own two-second poll -- a poll that closed a card the moment
- * somebody opened it to press "Start teaching" would make the press
+ * somebody opened it to press "Stop watching" would make the press
  * impossible. It decides nothing on its own: a state that needs an answer
  * (see `watchCard` below) opens regardless of it, and can only ever be
  * opened further by it, never closed.
@@ -766,9 +766,8 @@ function watching(status) {
       says:
         "The extension was reloaded while this page was open, so what it does" +
         " is being recorded and what it asks the system for is not. A task" +
-        " recorded that way becomes a skill that cannot check its own work," +
-        " and teaching is refused here until it is fixed. Reloading the page" +
-        " fixes it.",
+        " learned that way becomes a job that cannot check its own work." +
+        " Reloading the page fixes it.",
       actions: [
         {
           label: "Reload this page",
@@ -804,12 +803,6 @@ function watching(status) {
           ? " · reading this page's structure too"
           : ""),
       actions: [
-        {
-          label: "Start teaching",
-          primary: true,
-          disabled: !status.capturing,
-          act: (button) => startTeaching(button),
-        },
         { label: "Stop watching", act: (button) => setWatch(button, false) },
         pauseAction(status),
       ],
@@ -830,8 +823,10 @@ function watching(status) {
       // that everything they did on `blueyonderalphaus.b2clogin.com` was
       // evidence -- naming a system that was not on their screen, about a
       // page that was in fact being recorded.
-      `Everything you do in ${mine.on || mine.host || "this tab"} is evidence. What you repeat` +
-      " becomes a task worth offering; teach one deliberately at any time." +
+      // Nothing to start: learning is passive. What the operator repeats is
+      // mined into a job and offered back, and there is no demonstration to
+      // begin or end.
+      `Work as usual in ${mine.on || mine.host || "this tab"}. It learns from what you repeat.` +
       elsewhere,
     metrics:
       `since ${clock(mine.since)}` +
@@ -839,12 +834,6 @@ function watching(status) {
         ? " · reading this page's structure too"
         : ""),
     actions: [
-      {
-        label: "Start teaching",
-        primary: true,
-        disabled: !status.capturing,
-        act: (button) => startTeaching(button),
-      },
       { label: "Stop watching", act: (button) => setWatch(button, false) },
       pauseAction(status),
     ],
@@ -1740,21 +1729,6 @@ async function dismissError(button) {
   button.disabled = true;
   try {
     await ask({ kind: "clear-error" });
-  } catch (error) {
-    said(error.message);
-  }
-  await refresh();
-}
-
-async function startTeaching(button) {
-  button.disabled = true;
-  try {
-    const tab = await beside();
-    if (!tab)
-      throw new Error("open the system you want to teach in this tab first");
-    // Named, not guessed: this panel is docked beside the tab being taught,
-    // which is the one thing the options page could never say.
-    await ask({ kind: "teach-start", tabId: tab.id, label: tab.title });
   } catch (error) {
     said(error.message);
   }

@@ -1408,8 +1408,13 @@ test("the collapsed row has a chevron, and pressing it reveals the actions", asy
     "pressing the chip did not redraw the watching card at all",
   );
   assert.ok(
-    buttons(opened).some((b) => b.textContent === "Start teaching"),
+    buttons(opened).some((b) => b.textContent === "Stop watching"),
     "pressing the chip did not reveal the actions",
+  );
+  // Learning is passive: nothing on this card starts a demonstration.
+  assert.ok(
+    !buttons(opened).some((b) => /teach/i.test(b.textContent)),
+    "the watching card still offers to start teaching",
   );
 });
 
@@ -1605,7 +1610,7 @@ test("a manual expansion survives a redraw", async () => {
     "the next redraw drew no card in the band it had just opened",
   );
   assert.ok(
-    buttons(opened).some((b) => b.textContent === "Start teaching"),
+    buttons(opened).some((b) => b.textContent === "Stop watching"),
     "the redraw kept the card open but lost its actions",
   );
 });

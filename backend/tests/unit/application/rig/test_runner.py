@@ -25,6 +25,7 @@ import asyncio
 import base64
 import copy
 import json
+import logging
 from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from dataclasses import replace
@@ -8543,3 +8544,197 @@ async def test_a_delete_the_operator_demonstrated_goes_out_as_one_call() -> None
         "http://127.0.0.1:63319/api/customerTypes/MRN1?siteId=SG"
     ], "the demonstrated delete never went out as a call, or went to the wrong record"
     assert run.outcome == "held"
+
+
+# --- working a step out on the screen ------------------------------------------
+
+
+class _ScreenSays(_ByRungAsker):
+    """`_ByRungAsker`, with the SCREEN's verdicts queued: what the verifier says
+    after each move, then `held` once the queue is spent."""
+
+    def __init__(self, sights: list[Answer], verdicts: list[Answer]) -> None:
+        super().__init__([_plan("type", "x")] * 4, sights, Answer(data={"held": True}))
+        self.verdicts = list(verdicts)
+
+    async def ask(self, **asked: object) -> Answer:
+        schema = asked["schema"]
+        assert isinstance(schema, dict)
+        properties = schema["properties"]
+        if isinstance(properties, dict) and "held" in properties and self.verdicts:
+            await FakeAsker.ask(self, **asked)
+            return self.verdicts.pop(0)
+        return await super().ask(**asked)
+
+
+_EMPTY = Answer(data={"held": False, "why": "the code box is still empty"})
+
+
+async def _worked_out(
+    *, sights: list[Answer], verdicts: list[Answer], calls: list[Reply] | None = None
+) -> tuple[WorkflowRun, FakeChannel, _ScreenSays]:
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel(
+        {
+            **_looks_with_size(30),
+            # Found and performed every time: the failure is the EFFECT, which
+            # is what the sight rung never looked at.
+            "ui.perform": [_performed()] * 4,
+            "ui.perform_at": [Reply(ok=True, result={"performed": True})] * 8,
+            "calls.since": calls
+            if calls is not None
+            else [Reply(ok=True, result={"calls": []})] * 8,
+        }
+    )
+    asker = _ScreenSays(sights, verdicts)
+    run = await _ran(uow, workflow, channel=channel, asker=asker, earned=True)
+    return run, channel, asker
+
+
+async def test_a_step_the_screen_failed_is_worked_out_with_the_verifiers_own_words() -> None:
+    """Measured on the deployment 2026-09-22: "the Delete button is disabled
+    because no customer type row has been selected" -- right, and never acted
+    on, because the only rung that plans from a picture ran for a control the
+    browser could not FIND. This one was found and clicked without the effect.
+    """
+    run, channel, asker = await _worked_out(sights=[_sight()], verdicts=[_EMPTY, _EMPTY])
+
+    first = run.steps[0]
+    assert first.verdict == "held", first.reason
+    assert first.matched_by == "sight"
+    assert len([s for s in channel.sent if s["kind"] == "ui.perform_at"]) == 1
+    asked = json.loads(str(_by_sight(asker)[0]["evidence"]))
+    assert "still empty" in str(asked["previous_attempt_failed"]), (
+        "the look was not told what the screen said was wrong"
+    )
+
+
+async def test_working_a_step_out_is_bounded() -> None:
+    run, channel, _ = await _worked_out(
+        sights=[_sight()] * (runner_module.K_LOOKS + 2), verdicts=[_EMPTY] * 20
+    )
+
+    assert run.steps[0].verdict == "failed"
+    assert len([s for s in channel.sent if s["kind"] == "ui.perform_at"]) == runner_module.K_LOOKS
+
+
+async def test_a_move_that_sent_a_write_stops_the_run_where_it_is() -> None:
+    """A click at a point is on whatever is there now. What it landed on is
+    known by what the tab sent, and a write is a write whose state is unknown."""
+    run, channel, _ = await _worked_out(
+        sights=[_sight(action="click", value=None)] * 3,
+        verdicts=[_EMPTY] * 6,
+        calls=[
+            Reply(
+                ok=True,
+                result={
+                    "calls": [
+                        {
+                            "method": "POST",
+                            "url": "http://127.0.0.1:63319/api/orders",
+                            "status": 201,
+                        }
+                    ]
+                },
+            )
+        ]
+        * 8,
+    )
+
+    first = run.steps[0]
+    assert run.outcome != "held"
+    assert "sent POST" in (first.reason or "") and "not retried" in (first.reason or "")
+    assert (first.result or {}).get("wrote") is True
+    assert len([s for s in channel.sent if s["kind"] == "ui.perform_at"]) == 1, (
+        "it went on moving after a move that wrote"
+    )
+
+
+async def test_a_browser_that_cannot_say_what_a_move_sent_is_not_trusted() -> None:
+    run, channel, _ = await _worked_out(
+        sights=[_sight()] * 3,
+        verdicts=[_EMPTY] * 6,
+        calls=[Reply(ok=False, error_kind="not_actionable", error_detail="gone")] * 8,
+    )
+
+    assert run.outcome != "held"
+    assert "could not report" in (run.steps[0].reason or "")
+    assert len([s for s in channel.sent if s["kind"] == "ui.perform_at"]) == 1
+
+
+async def test_a_step_whose_evidence_writes_is_never_worked_out(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Save, Delete and OK are done the demonstrated way or not at all. A look
+    is a click at a point a model chose, and on a step that writes that is a
+    write nobody demonstrated."""
+    caplog.set_level(logging.INFO, logger="sro.application.execution.run_workflow")
+    await _worked_out(sights=[_sight()], verdicts=[_EMPTY, _EMPTY])
+
+    plans = {
+        record.args[1]: record.args[3]
+        for record in caplog.records
+        if record.msg == "%s step %d %r: rungs %s" and isinstance(record.args, tuple)
+    }
+    assert "look" in plans[0], "the typing step was not given the chance"
+    assert "look" not in plans[1], "the save was given moves of its own"
+
+
+async def test_moves_spent_working_a_step_out_leave_the_rest_of_the_run_its_attempts() -> None:
+    """The run's budget is one attempt a step and a few retries. Charging the
+    moves to it would leave the save with none after a step that took three."""
+    run, _, _ = await _worked_out(sights=[_sight()] * 3, verdicts=[_EMPTY] * 4)
+
+    assert run.steps[0].verdict == "held"
+    assert run.outcome == "held", run.steps[-1].reason
+
+
+async def test_a_move_that_opens_something_is_still_a_move_checked_for_what_it_sent() -> None:
+    """An opening goes out from inside the planning loop, ahead of the check.
+    A look's opening is a click at a point like any other, so it is the move."""
+    opening = Answer(
+        data={
+            "found": False,
+            "points_at": "what_reveals_it",
+            "x": 40,
+            "y": 30,
+            "action": "click",
+            "why": "the row is under a menu",
+        }
+    )
+    run, channel, _ = await _worked_out(
+        sights=[opening, _sight(action="click", value=None)] * 3,
+        verdicts=[_EMPTY] * 6,
+        calls=[
+            Reply(
+                ok=True,
+                result={
+                    "calls": [
+                        {
+                            "method": "POST",
+                            "url": "http://127.0.0.1:63319/api/orders",
+                            "status": 201,
+                        }
+                    ]
+                },
+            )
+        ]
+        * 8,
+    )
+
+    assert run.outcome != "held"
+    assert len([s for s in channel.sent if s["kind"] == "ui.perform_at"]) == 1
+
+
+async def test_a_click_that_sent_nothing_leaves_the_next_move_free() -> None:
+    """Selecting a row is a click, and a click at a point was a possible write
+    by rule -- so the first wrong one ended the step as "state unknown after a
+    write; not retried", and the loop never made a second move. What the tab
+    sent answers it: nothing went out, so nothing was written."""
+    run, channel, _ = await _worked_out(
+        sights=[_sight(action="click", value=None)] * 3, verdicts=[_EMPTY] * 3
+    )
+
+    assert len([s for s in channel.sent if s["kind"] == "ui.perform_at"]) == 2
+    assert run.steps[0].verdict == "held", run.steps[0].reason

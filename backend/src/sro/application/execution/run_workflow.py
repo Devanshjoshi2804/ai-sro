@@ -78,6 +78,7 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.domain.chat.asked_by import only_reads_the_mail
 from sro.domain.execution.belts import K_WEAK_LOCATORS, StepVerdict
 from sro.domain.execution.evidence import (
+    READ_METHODS,
     allowlist,
     origin_of,
     primary_gesture,
@@ -187,6 +188,35 @@ on the screen, and that was why.
 Three, because it is the depth a warehouse menu actually has and because a
 planner that only ever opens things has to run out rather than loop. Each
 costs a command and a picture; the step budget above bounds the rest.
+"""
+
+K_LOOKS = 4
+"""Moves a step that changes nothing may make on its own, looking each time.
+
+The verifier has always known what went wrong. Measured on the deployment
+2026-09-22, in its own words: "the search filter was applied to 'Create
+Shipment By' instead of 'Customer Type'", then "the Delete button is disabled
+because no customer type row has been selected". Both right, and neither
+acted on: the only rung that plans from a picture ran for a control the
+browser could not FIND, and each of these was a control found and clicked
+without the effect. So the run clicked the same wrong thing again, stopped,
+and a person rewrote a locator.
+
+A `look` rung is that picture, asked again with the verifier's own sentence,
+and allowed to act on the answer -- `pursue_goal`'s rules, applied to one
+step of a demonstrated job:
+
+- **A budget.** This many moves, then the step fails as it would have.
+- **Only where the step changes nothing.** A filter, a row, a tab. A step
+  whose evidence shows a write never gets one: Save, Delete and OK are done
+  the demonstrated way or not at all.
+- **What it did is read, not assumed.** A click at a point is on whatever is
+  there now, so after every move the browser is asked what the tab sent. A
+  mutating call stops the run where it is, as a write whose state is unknown.
+- **The model never decides it worked.** The verifier does, after each move.
+
+Not charged to the run's step budget, which is sized for one attempt per
+step and a few retries; this bounds itself.
 """
 
 K_NOT_HERE = frozenset({"no_tab_for_system", "no_tab_for_origin"})
@@ -733,6 +763,38 @@ def _what_earlier_steps_made(run: WorkflowRun, uses: Sequence[int]) -> dict[str,
                 continue
             made.update({f"step{order}.{name}": value for name, value in record.made.items()})
     return made
+
+
+async def _a_write_went_out(
+    *,
+    channel: Channel,
+    tenant_id: TenantId,
+    device_id: DeviceId,
+    run_id: str,
+    origin: str | None,
+) -> str:
+    """The mutating call the last command made on this system, or "".
+
+    Asked after a `look` move, which is a click at a point a model chose on a
+    page that may have moved: what it landed on is known only by what the tab
+    sent. A browser that cannot say is answered as if it had written -- the
+    move stops the run rather than being trusted.
+    """
+    got = await channel.send(
+        tenant_id, device_id, kind="calls.since", run_id=run_id, payload={"since": 0}
+    )
+    if not got.ok:
+        return "a move whose traffic the browser could not report"
+    made = got.result.get("calls") if isinstance(got.result, dict) else None
+    for call in made if isinstance(made, list) else []:
+        if not isinstance(call, dict):
+            continue
+        method = str(call.get("method", "")).upper()
+        url = str(call.get("url", ""))
+        if method in READ_METHODS or (origin is not None and system_of(url) != origin):
+            continue
+        return f"{method} {path_shape(url)}"
+    return ""
 
 
 async def _refused_by_the_system(
@@ -2154,6 +2216,8 @@ async def run_workflow(
                 # left none. The safety here is the ledger's, not this
                 # ordering's, which is why the fallback can be unconditional.
                 rungs = (*rungs, ("replay", ""))
+            if primary is not None and not mutates:
+                rungs = (*rungs, *((("look", rescue_model),) * K_LOOKS))
             logger.info(
                 "%s step %d %r: rungs %s",
                 run.id,
@@ -2183,6 +2247,15 @@ async def run_workflow(
             # row is a panel arguing with the person who just answered it.
             asked_for_a_browser = False
             for how, model in rungs:
+                # Only after the SCREEN failed a move, because that is the one
+                # verdict that says what is wrong in a sentence a picture can
+                # act on. A navigate that would not go, a point off the screen,
+                # a control nobody could find -- each has its own answer
+                # already, and a look is not it.
+                if how == "look" and (
+                    verdict is None or verdict.state != "failed" or verdict.by != "screen"
+                ):
+                    continue
                 # The sight rung is for a page that moved, not for a plan that
                 # was wrong: a control the browser could not find is the one
                 # failure a picture can answer. Anything else stops here.
@@ -2230,12 +2303,13 @@ async def run_workflow(
                 # verdict beside it is a lie about who failed.
                 previously = (record.planned_by, record.sent, record.result)
                 while planned is None:
-                    if attempts >= budget:
+                    if how != "look" and attempts >= budget:
                         record.verdict = "refused"
                         record.reason = f"the step budget of {budget} attempts is spent"
                         run.outcome = "refused"
                         break
-                    attempts += 1
+                    if how != "look":
+                        attempts += 1
                     if how == "route" and route is not None:
                         # No model, no picture: the evidence says where this
                         # step ends up and the browser is told to be there.
@@ -2257,7 +2331,7 @@ async def run_workflow(
                         # that is a message rather than a camera.
                         before = await _where(channel, tenant_id, device_id, run.id, origin)
                         proposal = replay
-                    elif how == "sight":
+                    elif how in ("sight", "look"):
                         before = await _look(
                             channel, tenant_id, device_id, run.id, origin, allow_focus
                         )
@@ -2359,7 +2433,7 @@ async def run_workflow(
                         )
                         run.outcome = "refused"
                         break
-                    if proposal.opens and openings < K_OPENINGS and not mutates:
+                    if proposal.opens and openings < K_OPENINGS and not mutates and how != "look":
                         # Sent from here, ahead of the gate that withholds a
                         # write and parks one on a person -- and only for a
                         # step that changes nothing, which is what makes this
@@ -2522,7 +2596,9 @@ async def run_workflow(
                     # job: what the demonstrated control's traffic showed says
                     # nothing about it. Every sight click is a possible write,
                     # whatever the job does later.
-                    or (pressing and planned.kind == "ui.perform_at")
+                    # Except a `look` move, which is judged by what it sent
+                    # rather than by what it might have: see `K_LOOKS`.
+                    or (pressing and planned.kind == "ui.perform_at" and how != "look")
                     # A click the recorder heard nothing from is a possible
                     # write too -- unless this job's own write is still ahead
                     # of it. Then the demonstration says what this step is:
@@ -2852,6 +2928,27 @@ async def run_workflow(
                 # next step is driven by its own origin.
                 sent_nothing_yet = False
                 record.result = _result(reply, wrote=may_write)
+                # What a move made to work the step out actually sent, read
+                # before any belt looks -- a read-back is itself a command, and
+                # the browser answers `calls.since` from the last one.
+                if how == "look" and reply.ok:
+                    wrote_by_looking = await _a_write_went_out(
+                        channel=channel,
+                        tenant_id=tenant_id,
+                        device_id=device_id,
+                        run_id=run.id,
+                        origin=origin,
+                    )
+                    if wrote_by_looking:
+                        record.result = {**record.result, "wrote": True}
+                        record.verdict, record.verdict_by = "failed", "none"
+                        record.reason = (
+                            f"working this step out on the screen sent {wrote_by_looking}; "
+                            "state unknown after a write; not retried"
+                        )
+                        verdict = StepVerdict("failed", "none", record.reason)
+                        logger.info("%s step %d %s", run.id, step.order, record.reason)
+                        break
                 # A field that would not take what it was given stops the run,
                 # here, before the Save.
                 #

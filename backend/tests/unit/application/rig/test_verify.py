@@ -547,6 +547,50 @@ async def test_a_masked_field_is_never_held_by_a_picture() -> None:
     assert "the sign-in form is displayed properly" in verdict.reason
 
 
+async def test_the_username_step_is_still_judged_when_it_cites_the_password_too() -> None:
+    """A step cites what the operator did while performing it.
+
+    On a login that is both boxes: `Enter username or email` on the deployment
+    cites the username's type AND the password's. Asking whether any citation
+    is a credential made the username step unjudgeable, and the run stopped at
+    step 0 saying a masked field cannot be read -- about a field that is not
+    masked. Runs `run_2f59552b` and `run_60a7020e`, 2026-09-22, twenty minutes
+    after the guard shipped.
+    """
+    typed = next(
+        g
+        for g in _gestures()
+        if g.action.kind == "type" and not (g.action.target and g.action.target.secret)
+    )
+    secret = next(g for g in _gestures() if g.action.target and g.action.target.secret)
+    verdict = await verify(
+        step=Step(
+            order=0,
+            says="Enter username or email",
+            system=None,
+            cites=[typed.id, secret.id],
+        ),
+        sent_kind="ui.perform",
+        answer=Reply(ok=True, result={"performed": True}),
+        cited=[typed, secret],
+        values={},
+        look_before=Look("u", b"before", "Sign in"),
+        look_after=Look("u", b"after", "RKUCHIYAGM"),
+        channel=FakeChannel(),
+        tenant_id=_TENANT,
+        device_id=_DEVICE,
+        run_id="run_1",
+        origin=None,
+        asker=FakeAsker(
+            Answer(data={"held": True, "why": "the username field now shows RKUCHIYAGM"})
+        ),
+        model="m",
+    )
+
+    assert (verdict.state, verdict.by) == ("held", "screen")
+    assert verdict.reason == "the username field now shows RKUCHIYAGM"
+
+
 async def test_the_screen_verdict_is_the_models_own_word_and_its_own_reason() -> None:
     saver = _saver()
     saver.requests = []

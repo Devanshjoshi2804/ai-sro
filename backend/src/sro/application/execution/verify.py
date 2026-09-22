@@ -62,7 +62,7 @@ from sro.domain.execution.belts import (
     status_of,
     unreturned,
 )
-from sro.domain.execution.evidence import recorded_call, writes
+from sro.domain.execution.evidence import primary_gesture, recorded_call, writes
 from sro.domain.execution.planning import Look
 from sro.domain.execution.records import made_by
 from sro.domain.execution.secrets import needs_a_secret
@@ -722,7 +722,17 @@ async def verify(
     # ✓! is the mark this panel already has for it. Nothing is lost by
     # refusing: `screen` is not a state belt, so a credential step could never
     # earn a job its writes either way.
-    if held and any(needs_a_secret(gesture) for gesture in cited):
+    # The gesture this step is AIMED at, not everything it cites.
+    #
+    # A step cites what the operator did while performing it, which on a login
+    # is both boxes: `Enter username or email` on this deployment cites the
+    # username's type and the password's. Asking whether ANY citation is a
+    # credential made the username step unjudgeable too, and the run stopped at
+    # step 0 saying a masked field cannot be read -- about a field that is not
+    # masked. Measured 2026-09-22, runs `run_2f59552b` and `run_60a7020e`,
+    # twenty minutes after the guard shipped.
+    aimed = primary_gesture(step, {gesture.id: gesture for gesture in cited})
+    if held and aimed is not None and needs_a_secret(aimed):
         return StepVerdict(
             "unclear",
             "screen",

@@ -480,7 +480,21 @@ async def plan_step(
     # Both the plan the model asked for and the one it gets when its http.send
     # cannot be replayed. One path, so the downgrade cannot drift from the plan
     # it is downgrading to.
-    action = data.get("action") if data.get("action") in ACTIONS else primary.action.kind
+    asked = data.get("action") if data.get("action") in ACTIONS else primary.action.kind
+    # A step that types a credential types it, whatever the model says.
+    #
+    # The model's answer wins over the evidence above, and `click` is a legal
+    # answer -- so a step whose evidence is a redacted `type` came back as a
+    # click at the password box, which left `VALUED` and took the credential
+    # branch below with it: no vault lookup, no refusal naming what it wanted,
+    # no value. Measured on the deployment 2026-09-22, run `run_2a9d4c7d`:
+    # `{"action": "click", "value": null}` at `input#password`, the field left
+    # empty, and the screen rung held it anyway.
+    #
+    # The evidence is the authority here and nowhere else in this function: a
+    # credential step exists to put a credential in a box, and an action that
+    # cannot carry a value is not a way of doing that.
+    action = primary.action.kind if needs_a_secret(primary) and asked not in VALUED else asked
     said = data.get("value")
     # A step that was asked for a value and is about to be performed by an
     # action that cannot carry one. `VALUED` says a click types nothing, so the

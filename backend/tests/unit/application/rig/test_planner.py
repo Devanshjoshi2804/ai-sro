@@ -81,6 +81,56 @@ def test_the_actions_offered_are_the_actions_accepted() -> None:
     assert frozenset(action["enum"]) == ACTIONS
 
 
+async def test_a_credential_step_types_whatever_the_model_answers() -> None:
+    """The model's action wins over the evidence everywhere but here.
+
+    `click` is a legal answer, and on a step whose evidence is a redacted
+    `type` it left `VALUED` and took the credential branch with it: no vault
+    lookup, no refusal naming the key, no value. Measured on the deployment
+    2026-09-22, `run_2a9d4c7d`: `{"action": "click", "value": null}` at
+    `input#password`, the box left empty, nobody signed in -- and the same
+    step had typed the vault's password on the eight runs before it.
+    """
+    secret = next(g for g in _gestures() if g.action.target and g.action.target.secret)
+    asker = FakeAsker(
+        Answer(
+            data={
+                "kind": "ui.perform",
+                "action": "click",
+                "value": None,
+                "url": None,
+                "locators": [{"strategy": "css_path", "query": "input#password"}],
+                "why": "clicking the password field",
+            },
+            cost_usd=0.0002,
+        )
+    )
+    asked: list[str] = []
+
+    async def _vault(key: str) -> str | None:
+        asked.append(key)
+        return "from-the-vault"
+
+    planned = await plan_step(
+        step=Step(order=1, says="Type the password.", system=None, cites=[secret.id]),
+        cited=[secret],
+        values={},
+        look=Look(url=secret.url, screenshot=None, digest=""),
+        origin=None,
+        starts_on=None,
+        allow_focus=True,
+        asker=asker,
+        model="gemini-3.8-flash",
+        secret_for=_vault,
+        tenant_id="acme",
+    )
+
+    assert planned.kind == "ui.perform"
+    assert planned.payload["action"] == "type", "a credential step was planned as a click"
+    assert planned.payload["value"] == "from-the-vault"
+    assert asked, "the vault was never asked for the password"
+
+
 async def test_a_ui_plan_carries_the_evidence_locators_not_the_models() -> None:
     gesture = _typed()
     asker = FakeAsker(

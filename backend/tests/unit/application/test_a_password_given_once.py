@@ -69,14 +69,14 @@ async def test_the_runner_takes_it_before_the_vault_and_only_once() -> None:
     await vault.store("acme/wms.test/password", "the-stored-one")
     runs = StartWorkflowRun(
         FakeUnitOfWork(),
-        channel=None,  # type: ignore[arg-type]
+        channel=None,
         asker=None,
         plan_model="m",
         rescue_model="m",
-        clock=lambda: 0.0,  # type: ignore[arg-type,return-value]
+        clock=lambda: 0.0,
         cap_usd=1.0,
-        stops=None,  # type: ignore[arg-type]
-        approvals=None,  # type: ignore[arg-type]
+        stops=None,
+        approvals=None,
         vault=vault,
     )
 
@@ -94,14 +94,14 @@ async def test_with_no_vault_at_all_a_password_given_once_still_signs_in() -> No
 
     runs = StartWorkflowRun(
         FakeUnitOfWork(),
-        channel=None,  # type: ignore[arg-type]
+        channel=None,
         asker=None,
         plan_model="m",
         rescue_model="m",
-        clock=lambda: 0.0,  # type: ignore[arg-type,return-value]
+        clock=lambda: 0.0,
         cap_usd=1.0,
-        stops=None,  # type: ignore[arg-type]
-        approvals=None,  # type: ignore[arg-type]
+        stops=None,
+        approvals=None,
     )
 
     hold("acme/wms.test/password", "typed-just-now")

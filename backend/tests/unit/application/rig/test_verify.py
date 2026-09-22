@@ -510,6 +510,43 @@ async def test_a_model_that_answered_nothing_leaves_the_step_unclear_with_its_er
     assert asker.asked[0]["instructions"], "a model told nothing judges nothing"
 
 
+async def test_a_masked_field_is_never_held_by_a_picture() -> None:
+    """A password box shows dots whether it holds a password or nothing.
+
+    `SCREEN_INSTRUCTIONS` already tells the model not to read success from a
+    page with no errors on it. On 2026-09-22 it did exactly that: step 1 of
+    `run_2a9d4c7d` was held on "the sign-in form is displayed properly without
+    any errors", with the box empty and nobody signed in. A rule the prompt
+    states and the model ignores is not a rule, and this one cannot be fixed
+    by asking better -- the screen does not carry the answer.
+    """
+    secret = next(g for g in _gestures() if g.action.target and g.action.target.secret)
+    verdict = await verify(
+        step=Step(order=1, says="Type the password.", system=None, cites=[secret.id]),
+        sent_kind="ui.perform",
+        answer=Reply(ok=True, result={"performed": True}),
+        cited=[secret],
+        values={},
+        look_before=Look("u", b"before", "Sign in"),
+        look_after=Look("u", b"after", "Sign in"),
+        channel=FakeChannel(),
+        tenant_id=_TENANT,
+        device_id=_DEVICE,
+        run_id="run_1",
+        origin=None,
+        asker=FakeAsker(
+            Answer(data={"held": True, "why": "the sign-in form is displayed properly"})
+        ),
+        model="m",
+    )
+
+    assert (verdict.state, verdict.by) == ("unclear", "screen")
+    assert "masked" in verdict.reason
+    # And what the model said, kept beside it: the reading is still the record
+    # of what was looked at, it is only not a verdict.
+    assert "the sign-in form is displayed properly" in verdict.reason
+
+
 async def test_the_screen_verdict_is_the_models_own_word_and_its_own_reason() -> None:
     saver = _saver()
     saver.requests = []

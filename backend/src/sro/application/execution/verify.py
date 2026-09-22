@@ -65,6 +65,7 @@ from sro.domain.execution.belts import (
 from sro.domain.execution.evidence import recorded_call, writes
 from sro.domain.execution.planning import Look
 from sro.domain.execution.records import made_by
+from sro.domain.execution.secrets import needs_a_secret
 from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.observation.trim import path_shape
 from sro.domain.shared.hosts import REDACTED
@@ -707,6 +708,28 @@ async def verify(
         )
     held = bool(judged.data.get("held"))
     why = str(judged.data.get("why") or "")
+    # A password is masked, so no picture can say it was typed.
+    #
+    # `SCREEN_INSTRUCTIONS` already tells the model not to read success from a
+    # page with no errors on it, and on 2026-09-22 it did exactly that: step 1
+    # of `run_2a9d4c7d` was held on "the sign-in form is displayed properly
+    # without any errors", with the box empty and nobody signed in. A rule the
+    # prompt states and the model ignores is not a rule.
+    #
+    # It is also unfixable by prompting, which is why this is code: the field
+    # shows dots whether it holds a password or nothing, so the strongest
+    # honest reading of that screen is "I cannot tell". That is `unclear`, and
+    # ✓! is the mark this panel already has for it. Nothing is lost by
+    # refusing: `screen` is not a state belt, so a credential step could never
+    # earn a job its writes either way.
+    if held and any(needs_a_secret(gesture) for gesture in cited):
+        return StepVerdict(
+            "unclear",
+            "screen",
+            "a credential field is masked, so the screen cannot say it was typed"
+            + (f" — the model read: {why}" if why else ""),
+            judged,
+        )
     if held:
         return StepVerdict("held", "screen", why, judged)
     # The screen's OWN words beside the model's account of them.

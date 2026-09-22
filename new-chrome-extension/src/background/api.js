@@ -569,6 +569,21 @@ export const api = {
       asDevice: false,
     }),
 
+  /** The same password, for the next run and nothing after it.
+   *
+   * "Just this once": held in the deployment's memory, handed to the step
+   * that types it, and forgotten -- never in the vault, so there is nothing
+   * to rotate and nothing to delete. The operator signing into a system whose
+   * credential does not belong in this deployment gives it this way.
+   *
+   * Nothing keeps it on this side either, exactly as above. */
+  holdSecretOnce: ({ system, field, value }) =>
+    call("/v1/secrets/once", {
+      method: "POST",
+      body: { system, field, value },
+      asDevice: false,
+    }),
+
   /** Fires waiting on a person: a rule went off and asked before it ran.
    *
    * Read by the panel as well as the console, because the panel is where the

@@ -156,3 +156,37 @@ async def test_a_value_with_nothing_in_it_is_refused_before_the_vault_is_touched
 
     assert refused.status_code == 422
     assert await container.vault.get(f"{f.TENANT.value}/{WMS}/password") is None
+
+
+async def test_a_password_given_for_one_run_never_reaches_the_vault(
+    client: httpx.AsyncClient, container: _FakeContainer
+) -> None:
+    """ "Just this once" is the other answer to the question this door asks.
+    It is held for the next step that types it and written nowhere -- so a
+    deployment keeps no copy, and there is nothing to rotate or delete."""
+    from sro.application.execution.one_time_secrets import forget_everything, take
+
+    forget_everything()
+    held = await client.post("/v1/secrets/once", json=_body())
+
+    assert held.status_code == 202, held.text
+    key = f"{f.TENANT.value}/{WMS}/password"
+    assert held.json()["key"] == key
+    assert held.json()["until"] > 0
+    # The value, nowhere in the answer and nowhere in the vault.
+    assert KEPT not in held.text
+    assert await container.vault.get(key) is None
+    # And it is there for the run that asks next, once.
+    assert take(key) == KEPT
+    assert take(key) is None
+
+
+async def test_a_one_run_password_lands_in_the_caller_s_own_key(
+    client: httpx.AsyncClient,
+) -> None:
+    from sro.application.execution.one_time_secrets import forget_everything
+
+    forget_everything()
+    held = await client.post("/v1/secrets/once", json=_body(tenant_id="somebody-else"))
+
+    assert held.json()["key"].startswith(f"{f.TENANT.value}/")

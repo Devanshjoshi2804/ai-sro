@@ -624,6 +624,35 @@ test("Run it here starts that job by id, and leaves a record the panel can read"
   assert.ok(Number.isFinite(active.at), "the record has no `at` to draw `since` from");
 });
 
+test("just this once sends a password to the door that keeps nothing", async () => {
+  // Two doors, because there are two answers. `PUT /v1/secrets` is the
+  // deployment keeping a credential; `POST /v1/secrets/once` is an operator
+  // lending one for the job in front of them, held for the step that types it
+  // and forgotten. A password lent must never reach the vault.
+  ready();
+  held.set("sro.deviceId", "dev-start-a17f");
+  held.set("sro.deviceSecret", "secret-start-33c9");
+  held.set("sro.token", "tok-start-6d20");
+
+  await send({
+    kind: "hold-secret-once",
+    system: "keycloak.test",
+    field: "password",
+    value: "lent-33f1",
+  });
+
+  const kept = calls.find((call) => call.path === "/v1/secrets");
+  assert.equal(kept, undefined, "a password lent for one run reached the vault");
+  const lent = calls.find((call) => call.path === "/v1/secrets/once");
+  assert.ok(lent, "the press never reached `POST /v1/secrets/once`");
+  assert.equal(lent.method, "POST");
+  assert.deepEqual(JSON.parse(lent.body), {
+    system: "keycloak.test",
+    field: "password",
+    value: "lent-33f1",
+  });
+});
+
 test("an ordinary press takes nothing back", async () => {
   ready();
   held.set("sro.deviceId", "dev-start-a17f");

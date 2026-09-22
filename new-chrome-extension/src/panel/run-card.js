@@ -432,24 +432,42 @@ function stepRow({
     // system being signed into.
     field.autocomplete = "off";
     field.placeholder = wants.field || "password";
-    const save = document.createElement("button");
-    save.type = "button";
-    save.textContent = "Save for this job";
-    save.addEventListener("click", async () => {
-      const value = field.value;
-      field.value = "";
-      if (!value) return;
-      save.disabled = true;
-      const kept = await onSecret(
-        { system: wants.system, field: wants.field, value },
-        save,
-      );
-      save.disabled = false;
-      asking.textContent = kept?.ok
-        ? "Kept. Run this job again and it will sign in."
-        : `That could not be kept: ${kept?.error || "the vault did not answer"}`;
-    });
-    row.append(asking, field, save);
+    // Two answers, because there are two. A credential the deployment should
+    // keep is stored and reused by every run that signs into this system; one
+    // the operator is lending for the job in front of them is held for the
+    // next step that types it and forgotten. Offering only the first made
+    // every password a permanent one, which is a decision nobody was asked
+    // about -- and on a system whose credential is not this deployment's to
+    // hold, the only way through was to store it anyway.
+    const press = (label, quiet, once) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      if (quiet) button.className = "quiet";
+      button.addEventListener("click", async () => {
+        const value = field.value;
+        field.value = "";
+        if (!value) return;
+        button.disabled = true;
+        const kept = await onSecret(
+          { system: wants.system, field: wants.field, value, once },
+          button,
+        );
+        button.disabled = false;
+        asking.textContent = kept?.ok
+          ? once
+            ? "Held for the next run only. Run this job again and it will sign in."
+            : "Kept. Run this job again and it will sign in."
+          : `That could not be kept: ${kept?.error || "the vault did not answer"}`;
+      });
+      return button;
+    };
+    row.append(
+      asking,
+      field,
+      press("Save for this job", false, false),
+      press("Just this once", true, true),
+    );
   }
 
   // Only a step that is still to come, and only one that has values of its own.

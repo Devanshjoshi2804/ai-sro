@@ -29,11 +29,16 @@ from __future__ import annotations
 
 from fastapi import APIRouter, status
 
+from sro.application.execution.one_time_secrets import hold as hold_once
 from sro.application.ports.vault import VaultUnavailable
 from sro.domain.execution.secrets import secret_key_of
 from sro.interface.http.asking import TenantOnly
 from sro.interface.http.deps import ContainerDep, ContextDep
-from sro.interface.http.schemas import NewSecretRequest, SecretStoredModel
+from sro.interface.http.schemas import (
+    NewSecretRequest,
+    SecretHeldModel,
+    SecretStoredModel,
+)
 
 router = APIRouter(tags=["secrets"], dependencies=[TenantOnly])
 
@@ -61,3 +66,24 @@ async def store_secret(
         # it refused rather than that something broke.
         raise unusable
     return SecretStoredModel(key=key)
+
+
+@router.post("/secrets/once", status_code=status.HTTP_202_ACCEPTED)
+async def hold_secret_for_one_run(body: NewSecretRequest, ctx: ContextDep) -> SecretHeldModel:
+    """Keep one password for the next run that types it, and nowhere else.
+
+    The other answer to the question `PUT /v1/secrets` asks. An operator
+    signing into a system whose credential does not belong in this
+    deployment's vault gives it for the run in front of them: it is held in
+    memory, handed out once, and forgotten -- there is nothing to rotate and
+    nothing to delete afterwards.
+
+    `POST` and not `PUT`: this stores nothing. It is a value handed to the
+    next step that asks, which is an action rather than a resource.
+
+    No vault, so a deployment with none configured can still sign in by hand.
+    What comes back is the key and when the value is forgotten -- never the
+    value, for the reason the door above has no GET.
+    """
+    key = secret_key_of(ctx.tenant_id.value, body.system, body.field)
+    return SecretHeldModel(key=key, until=hold_once(key, body.value))

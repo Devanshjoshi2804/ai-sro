@@ -2029,6 +2029,21 @@ async function handle(message, sender) {
         return { ok: false, error: error.problem?.detail || error.message };
       }
     }
+    case "hold-secret-once": {
+      // The same one-way trip as `keep-secret`, to the door that keeps
+      // nothing: the deployment holds it for the next step that types it and
+      // forgets it after.
+      try {
+        const held = await api.holdSecretOnce({
+          system: message.system,
+          field: message.field,
+          value: message.value,
+        });
+        return { ok: true, key: held.key, until: held.until };
+      } catch (error) {
+        return { ok: false, error: error.problem?.detail || error.message };
+      }
+    }
     case "answer-waiting": {
       // The press on a card a rule left waiting. Here rather than in the panel
       // because the credential lives in this worker, and the backend takes the

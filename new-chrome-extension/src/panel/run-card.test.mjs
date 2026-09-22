@@ -470,10 +470,38 @@ test("a step refused for want of a password asks the person watching for it", as
   await save.listeners.click[0]();
 
   assert.deepEqual(kept, [
-    { system: "keycloak.test", field: "password", value: "not-in-any-fixture-9c41" },
+    {
+      system: "keycloak.test",
+      field: "password",
+      value: "not-in-any-fixture-9c41",
+      once: false,
+    },
   ]);
   assert.equal(field.value, "", "the password was left sitting in the panel");
   assert.match(words(row), /Kept\./, "saving a password said nothing back");
+  assert.deepEqual(asMarkup, [], "a password reached the page as markup");
+
+  // And the other answer: lent for the next run rather than kept.
+  //
+  // Offering only "Save for this job" made every password a permanent one,
+  // which is a decision nobody was asked about -- and on a system whose
+  // credential is not this deployment's to hold, storing it was the only way
+  // through.
+  field.value = "lent-9c41";
+  const once = of(row, "button").find(
+    (button) => button.textContent === "Just this once",
+  );
+  assert.ok(once, "the card offered no way to lend a password for one run");
+  await once.listeners.click[0]();
+
+  assert.deepEqual(kept[1], {
+    system: "keycloak.test",
+    field: "password",
+    value: "lent-9c41",
+    once: true,
+  });
+  assert.equal(field.value, "", "the password was left sitting in the panel");
+  assert.match(words(row), /next run only/, "it did not say what it did with it");
   assert.deepEqual(asMarkup, [], "a password reached the page as markup");
 });
 

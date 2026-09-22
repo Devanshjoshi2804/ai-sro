@@ -2421,6 +2421,19 @@ class WatchModel(BaseModel):
         )
 
 
+class SecretHeldModel(BaseModel):
+    """What was held for one run, and when it is forgotten.
+
+    The key and never the value, exactly as `SecretStoredModel` beside it: a
+    door that answered with a password would be one a proxy log keeps.
+    """
+
+    key: str
+    until: float
+    """Epoch seconds. After this the value is gone and the step refuses with
+    the key it wanted, which is what an operator who never gave one sees."""
+
+
 class NewSecretRequest(BaseModel):
     """One value to keep for a run to type, and where it belongs.
 

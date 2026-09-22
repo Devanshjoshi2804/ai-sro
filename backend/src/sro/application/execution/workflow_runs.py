@@ -80,6 +80,7 @@ from sro.application.execution.approvals import Approvals
 from sro.application.execution.declared import declared_limits, names_of, screen_for
 from sro.application.execution.effects import wrote
 from sro.application.execution.gather import GatherContext
+from sro.application.execution.one_time_secrets import take as take_once
 from sro.application.execution.read_runs import NOT_IN_A_BROWSER_HERE, CannotStop
 from sro.application.execution.run_workflow import GatherValues, KnownFields, run_workflow
 from sro.application.execution.stops import Stops
@@ -477,6 +478,11 @@ class StartWorkflowRun:
     async def _secret_for(self, key: str) -> str | None:
         """One password, at the moment a step types it.
 
+        A value the operator gave for one run only comes first, and is taken
+        rather than read: "just this once" means the next step that asks gets
+        it and nothing after that does. It is never in the vault, so a
+        deployment with no vault at all can still be signed into by hand.
+
         A method rather than the vault handed down, so `run_workflow` and
         `plan_step` never learn what a vault is: what they take is "given a
         key, give me a value or nothing".
@@ -487,6 +493,9 @@ class StartWorkflowRun:
         where they are standing. Raising here would fail the whole run on a
         step that could have said what was missing.
         """
+        once = take_once(key)
+        if once is not None:
+            return once
         if self._vault is None:
             return None
         try:

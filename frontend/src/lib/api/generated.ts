@@ -852,6 +852,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/secrets/once": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hold Secret For One Run
+         * @description Keep one password for the next run that types it, and nowhere else.
+         *
+         *     The other answer to the question `PUT /v1/secrets` asks. An operator
+         *     signing into a system whose credential does not belong in this
+         *     deployment's vault gives it for the run in front of them: it is held in
+         *     memory, handed out once, and forgotten -- there is nothing to rotate and
+         *     nothing to delete afterwards.
+         *
+         *     `POST` and not `PUT`: this stores nothing. It is a value handed to the
+         *     next step that asks, which is an action rather than a resource.
+         *
+         *     No vault, so a deployment with none configured can still sign in by hand.
+         *     What comes back is the key and when the value is forgotten -- never the
+         *     value, for the reason the door above has no GET.
+         */
+        post: operations["hold_secret_for_one_run_v1_secrets_once_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/lookups": {
         parameters: {
             query?: never;
@@ -4871,6 +4904,19 @@ export interface components {
             };
             /** Run Id */
             run_id?: string | null;
+        };
+        /**
+         * SecretHeldModel
+         * @description What was held for one run, and when it is forgotten.
+         *
+         *     The key and never the value, exactly as `SecretStoredModel` beside it: a
+         *     door that answered with a password would be one a proxy log keeps.
+         */
+        SecretHeldModel: {
+            /** Key */
+            key: string;
+            /** Until */
+            until: number;
         };
         /**
          * SecretStoredModel
@@ -9860,6 +9906,135 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SecretStoredModel"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    hold_secret_for_one_run_v1_secrets_once_post: {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: {
+                "X-Device-Secret"?: string;
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewSecretRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecretHeldModel"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

@@ -1114,17 +1114,27 @@ function performing(status) {
  * the worker, and returns what the worker said. Nothing is stored on this
  * side -- not in `chrome.storage`, not in a variable that outlives the call.
  */
-async function keepSecret({ system, field, value }) {
+async function keepSecret({ system, field, value, once = false }) {
   // Caught rather than thrown on: `ask` turns a worker's `error` into an
   // exception, and an exception inside the Save listener would leave the
   // person who just typed their password looking at a row that said nothing.
   try {
-    const kept = await ask({ kind: "keep-secret", system, field, value });
+    const kept = await ask({
+      kind: once ? "hold-secret-once" : "keep-secret",
+      system,
+      field,
+      value,
+    });
     // Said under the cards as well as on the row. The row's own line is drawn
     // inside a card the next poll rebuilds -- the guard above only holds it
     // while the box has the cursor -- so an operator who presses Save and
     // looks away would otherwise have nothing left saying it worked.
-    if (kept?.ok) said("password kept — press Yes again and it will sign in");
+    if (kept?.ok)
+      said(
+        once
+          ? "password held for the next run — press Yes again and it will sign in"
+          : "password kept — press Yes again and it will sign in",
+      );
     return kept;
   } catch (error) {
     return { ok: false, error: error.message };

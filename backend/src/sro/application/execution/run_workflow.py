@@ -94,7 +94,12 @@ from sro.domain.execution.planning import Look, Planned
 from sro.domain.execution.secrets import secret_key_of, without_secrets
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
-from sro.domain.execution.write_plan import demonstrated_writes, scaffolding_for, seen_values
+from sro.domain.execution.write_plan import (
+    demonstrated_writes,
+    scaffolding_for,
+    seen_values,
+    write_plan_for,
+)
 from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.trim import path_shape
 from sro.domain.shared.hosts import (
@@ -3167,6 +3172,20 @@ async def run_workflow(
                         tenant_id=tenant_id,
                         device_id=device_id,
                         run_id=run.id,
+                        # Where this run's values put the write -- a delete's
+                        # record is in its path, and the demonstration's url
+                        # names a record this run was not asked about.
+                        aimed_url=(
+                            aimed.url
+                            if mutates
+                            and (
+                                aimed := write_plan_for(
+                                    step, by_id, values, verified_writes, observed, placeable
+                                )
+                            )
+                            is not None
+                            else None
+                        ),
                     )
                     if reply.ok and planned.kind != "http.send"
                     else None

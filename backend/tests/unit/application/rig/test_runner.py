@@ -8738,3 +8738,82 @@ async def test_a_click_that_sent_nothing_leaves_the_next_move_free() -> None:
 
     assert len([s for s in channel.sent if s["kind"] == "ui.perform_at"]) == 2
     assert run.steps[0].verdict == "held", run.steps[0].reason
+
+
+async def test_a_delete_done_on_screen_earns_the_job_by_its_status() -> None:
+    """Measured on the deployment 2026-09-22 at 15:28: the first `Delete a
+    Customer Type` ever to complete clicked OK, the page sent `DELETE
+    .../customerTypes/MRN1`, and the step was held by the SCREEN -- the status
+    belt compared that url's shape with the demonstration's `.../MRN5` and saw
+    two endpoints. No effect was recorded, so the job could not earn the right
+    to write unasked, and the ledger learnt nothing."""
+    uow = await _fixture()
+    base = next(g for g in _evidence(uow) if g.requests)
+    doings = []
+    for n, code in enumerate(("MRN5", "DDLS")):
+        one = copy.deepcopy(base)
+        one.id = f"ges_ok_{n}"
+        one.requests = [
+            replace(
+                one.requests[0],
+                method="DELETE",
+                url=f"http://127.0.0.1:63319/api/customerTypes/{code}?siteId=SG",
+                request_body=None,
+                status=200,
+                failure_reason=None,
+                started_at=one.at,
+            )
+        ]
+        doings.append(one)
+    await uow.gestures.add_gestures(tuple(doings))
+    workflow = Workflow(
+        id="wfl_delete_on_screen",
+        tenant=ELSEWHERE,
+        title="delete a customer type",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[Step(order=0, says="click OK", system=None, cites=[one.id for one in doings])],
+        parameters=[{"name": "Customer Type", "seen_values": ["MRN5", "DDLS"]}],
+    )
+    await uow.workflows.save(workflow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "ui.perform": [_performed()],
+            "calls.since": [
+                Reply(
+                    ok=True,
+                    result={
+                        "calls": [
+                            {
+                                "method": "DELETE",
+                                "url": "http://127.0.0.1:63319/api/customerTypes/MRN1?siteId=SG",
+                                "status": 200,
+                            }
+                        ]
+                    },
+                )
+            ]
+            * 4,
+        }
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=_PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True})),
+        values={"Customer Type": "MRN1"},
+        # Somebody is watching, so the step is performed on the screen and the
+        # call is only the fallback -- which is how the panel runs every job.
+        watched=True,
+        earned=True,
+    )
+
+    assert run.outcome == "held"
+    assert run.steps[0].verdict_by == "status", run.steps[0].reason
+    assert (workflow.id, run.id, 0) in _effects(uow), "the held delete earned the job nothing"
+    assert isinstance(uow.workflows, FakeWorkflowRepository)
+    assert (run.tenant, "DELETE", "/api/customerTypes/{id}") in uow.workflows.learned_write_rows, (
+        "the ledger never learnt the endpoint this run watched succeed"
+    )

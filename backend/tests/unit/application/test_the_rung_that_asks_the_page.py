@@ -334,3 +334,47 @@ async def test_the_status_that_settles_a_step_also_names_what_it_created() -> No
 
     assert verdict is not None and verdict.state == "held"
     assert dict(verdict.made) == {"equipmentTypeId": "ZV-1"}
+
+
+# -- a write whose record is named in its path ----------------------------------
+
+TYPES = "https://wms.acme.test/data/WM/wm/customerTypes"
+
+
+async def _deleting(calls: object, *, aimed: str | None) -> object:
+    return await by_what_the_page_called(
+        step=Step(order=3, says="confirm the deletion", system=None, cites=["ges-1"]),
+        cited=[_gesture(method="DELETE", url=f"{TYPES}/MRN5?siteId=SG", status=200)],
+        since=1.0,
+        channel=_answered(calls),
+        tenant_id=TENANT,
+        device_id=DEVICE,
+        run_id=RUN,
+        aimed_url=aimed,
+    )
+
+
+async def test_a_delete_of_the_record_this_run_named_is_held_by_its_status() -> None:
+    """Measured on the deployment 2026-09-22 at 15:28. `path_shape` keeps a code
+    like `MRN5` literal, so the demonstration's shape and this run's were two
+    shapes, and the first `Delete a Customer Type` ever to complete was held
+    by the screen -- no effect recorded, the ledger taught nothing."""
+    verdict = await _deleting(
+        [{"method": "DELETE", "url": f"{TYPES}/MRN1?siteId=SG", "status": 200}],
+        aimed=f"{TYPES}/MRN1?siteId=SG",
+    )
+
+    assert verdict is not None
+    assert (verdict.state, verdict.by) == ("held", "status")
+    assert verdict.called == {"method": "DELETE", "url": f"{TYPES}/MRN1?siteId=SG"}
+
+
+async def test_a_delete_of_some_other_record_holds_nothing() -> None:
+    """Stronger than a wildcard, which is the point of matching the aimed url:
+    a 200 for a record this run was not asked about is not this run's delete."""
+    verdict = await _deleting(
+        [{"method": "DELETE", "url": f"{TYPES}/MRN7?siteId=SG", "status": 200}],
+        aimed=f"{TYPES}/MRN1?siteId=SG",
+    )
+
+    assert verdict is None

@@ -347,6 +347,7 @@ async def by_what_the_page_called(
     tenant_id: TenantId,
     device_id: DeviceId,
     run_id: str,
+    aimed_url: str | None = None,
 ) -> StepVerdict | None:
     """The status the warehouse answered this step with, or None to look.
 
@@ -375,6 +376,17 @@ async def by_what_the_page_called(
     **None means look.** No call, no status, or an endpoint nobody recognises
     is not evidence the step failed -- it is the absence of evidence, and the
     ladder goes on to the read and the screen.
+
+    **The run's own url, where the run aimed one.** `path_shape` stars only a
+    segment that looks like an id by its digits, so a record named by a code
+    keeps its name: the demonstration's `DELETE .../customerTypes/MRN5` and
+    this run's `.../customerTypes/MRN1` are two shapes, and no delete of any
+    other record could ever be held by its status. Measured on the deployment
+    2026-09-22 at 15:28: the first `Delete a Customer Type` to complete was
+    held by the screen, so it recorded no effect and taught the ledger
+    nothing. `aimed_url` is `write_plan_for`'s url, and matching it is
+    stronger than a wildcard would be -- it proves the call went to THIS run's
+    record.
     """
     by_id = {gesture.id: gesture for gesture in cited}
     replayed = recorded_call(step, by_id)
@@ -395,7 +407,7 @@ async def by_what_the_page_called(
         return None
 
     wanted = expected_statuses(step, by_id)
-    method, shape = replayed.method.upper(), path_shape(replayed.url)
+    method, shape = replayed.method.upper(), path_shape(aimed_url or replayed.url)
     made = got.result.get("calls") if isinstance(got.result, dict) else None
     for call in reversed(made if isinstance(made, list) else []):
         if not isinstance(call, dict):

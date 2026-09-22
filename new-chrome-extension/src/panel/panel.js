@@ -426,6 +426,10 @@ function render(status) {
     const here = learned(learnedHere(learnedJobs, tabHere.host), {
       onRun: runHere,
       onReview: (job) => openConsole(`/jobs/${encodeURIComponent(job.id)}`),
+      // One browser, one hand: the backend refuses a second run for this
+      // device, so a press offered while one is going is a press that can
+      // only come back refused.
+      busy: Boolean(status.performing),
     });
     if (here) standing.push(here);
   }

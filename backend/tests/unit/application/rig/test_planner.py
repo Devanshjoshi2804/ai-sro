@@ -32,7 +32,7 @@ from sro.domain.execution.planning import (
 )
 from sro.domain.execution.secrets import secret_key_for
 from sro.domain.execution.verified_writes import VerifiedWrite
-from sro.domain.observation.gesture import Body, Call, Gesture
+from sro.domain.observation.gesture import Body, Call, Component, Gesture
 from sro.domain.observation.trim import trim
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.shared.prices import Answer, Effort
@@ -1467,3 +1467,103 @@ async def test_a_step_that_needs_a_password_says_which_one_as_structure() -> Non
     assert needs["field"] and needs["system"], "a card cannot ask for a password it cannot name"
     # And still no value anywhere near it.
     assert "value" not in planned.payload
+
+
+def _chose_from_a_list() -> Gesture:
+    """The click that answers a filter box: a row in the list it opened.
+
+    Ext's own xtype for that list is `boundlist`; an application that
+    subclasses it keeps the word, and this deployment's is `rpBoundList`.
+    """
+    one = copy.deepcopy(_typed())
+    one.id = "ges_boundlist"
+    target = one.action.target
+    assert target is not None
+    one.action = replace(
+        one.action,
+        kind="click",
+        value=None,
+        target=replace(target, component=Component(query="rpBoundList", xtype="rpBoundList")),
+    )
+    return one
+
+
+async def _filtering(*, opened: bool = False) -> Planned:
+    """A step whose demonstration TYPED into a box and then chose from the list
+    it opened -- which is what a filter box is."""
+    typed, chosen = _typed(), _chose_from_a_list()
+    return await plan_step(
+        step=Step(
+            order=0,
+            says="Enter filter criteria to search for the customer type",
+            system=None,
+            cites=[typed.id, chosen.id],
+            parameters=["clientCode"],
+        ),
+        cited=[typed, chosen],
+        values={"clientCode": "MRN5"},
+        look=Look(None, None, ""),
+        origin="http://127.0.0.1:63319",
+        starts_on="",
+        allow_focus=False,
+        asker=FakeAsker(_answer(action="type", value="MRN5")),
+        model="m",
+        opened=opened,
+    )
+
+
+async def test_a_box_that_answers_with_a_list_is_typed_into_and_then_chosen_from() -> None:
+    """Measured on the deployment 2026-09-22 at 09:51. `Delete a Customer
+    Type` typed MRN5 into the filter box, the suggestion list offered "MRN5 in
+    Customer Type", nothing clicked it, and the next step failed with "the
+    customer type row is not selected".
+
+    The two-click compound beside this one handles a step whose demonstration
+    CLICKED a combobox. A step whose demonstration TYPED into one got here
+    instead, because a type carries a value and that compound only ever ran
+    for actions that do not.
+    """
+    planned = await _filtering()
+
+    assert planned.kind == "ui.perform"
+    assert planned.payload["action"] == "type"
+    assert planned.payload["value"] == "MRN5"
+    assert planned.opens is True, "the runner would have moved on with the list still open"
+
+
+async def test_the_second_half_clicks_the_row_the_value_names() -> None:
+    planned = await _filtering(opened=True)
+
+    assert planned.opens is False
+    assert planned.payload["action"] == "click"
+    assert planned.payload["value"] is None
+    assert planned.payload["locators"] == [
+        {"strategy": "text", "query": "MRN5", "within": None, "visible_only": True}
+    ]
+
+
+async def test_a_box_that_takes_a_value_and_closes_is_typed_into_once() -> None:
+    """Read off the step's own evidence and never assumed. A form field whose
+    demonstration shows no list is untouched -- and there are far more of those
+    than there are filter boxes."""
+    typed = _typed()
+    planned = await plan_step(
+        step=Step(
+            order=0,
+            says="type the code",
+            system=None,
+            cites=[typed.id],
+            parameters=["clientCode"],
+        ),
+        cited=[typed],
+        values={"clientCode": "MRN5"},
+        look=Look(None, None, ""),
+        origin="http://127.0.0.1:63319",
+        starts_on="",
+        allow_focus=False,
+        asker=FakeAsker(_answer(action="type", value="MRN5")),
+        model="m",
+    )
+
+    assert planned.payload["action"] == "type"
+    assert planned.opens is False, "a plain field was treated as a list"

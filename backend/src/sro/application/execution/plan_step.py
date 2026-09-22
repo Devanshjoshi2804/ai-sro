@@ -634,7 +634,60 @@ async def plan_step(
         payload["allow_focus"] = True
     if starts_on:
         payload["starts_on"] = starts_on
+    # A value typed into a box that answers with a list is not yet an answer.
+    #
+    # The two-click compound above handles a step whose demonstration CLICKED
+    # a combobox: open the list, then click the row whose text is the value.
+    # A step whose demonstration TYPED into one gets here instead, because a
+    # type carries a value and the compound only ever ran for actions that do
+    # not -- so it typed the filter and stopped, with the list open and the
+    # grid untouched.
+    #
+    # Measured on the deployment 2026-09-22 at 09:51. `Delete a Customer Type`
+    # typed MRN5 into the filter box, the suggestion list offered "MRN5 in
+    # Customer Type", nothing clicked it, and the next step failed with "the
+    # customer type row is not selected". The demonstration shows the click --
+    # three of them, on `rpBoundList`, cited by this very step -- and the job
+    # records one step, so the runner performed one act.
+    #
+    # Read off the step's own evidence and never assumed: only where a cited
+    # click landed on a bound list. A form whose box takes a value and closes
+    # is untouched.
+    if action in VALUED and _answers_with_a_list(cited) and payload.get("value"):
+        if not opened:
+            return Planned(
+                "ui.perform", payload, f"{why}, and its list is open", answer, opens=True
+            )
+        return Planned(
+            "ui.perform",
+            _clicking(
+                [Locator("text", str(payload["value"]), visible_only=True)],
+                origin,
+                allow_focus,
+                starts_on,
+            ),
+            f"choosing {payload['value']} from the list the box opened",
+            answer,
+        )
     return Planned("ui.perform", payload, why, answer)
+
+
+def _answers_with_a_list(cited: list[Gesture]) -> bool:
+    """Whether this step's demonstration chose from a list the box opened.
+
+    Ext's own xtype for the dropdown a combobox opens is `boundlist`, and an
+    application that subclasses it keeps the word: this deployment's is
+    `rpBoundList`. Matched on the ending so both answer, and on the component
+    rather than the DOM because a bound list is rendered as anonymous divs
+    with generated ids.
+    """
+    return any(
+        gesture.action.kind == "click"
+        and (component := gesture.action.target.component if gesture.action.target else None)
+        is not None
+        and str(component.xtype or "").lower().endswith("boundlist")
+        for gesture in cited
+    )
 
 
 def _point_on(said: object, look: Look) -> tuple[int, int] | None:

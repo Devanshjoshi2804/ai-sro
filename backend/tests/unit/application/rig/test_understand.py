@@ -789,3 +789,55 @@ async def test_a_field_the_page_never_asked_for_is_not_missing() -> None:
     )
 
     assert got.missing == ["Customer Type"], "a field the page never asked for was demanded"
+
+
+async def test_a_job_is_still_recognised_after_it_learns_an_optional_field() -> None:
+    """Measured on the deployment 2026-09-22 at 07:06.
+
+    `Create a Customer Type` grew from two parameters to four the night
+    before, as Department and Manufacturer became parameters. A mail giving
+    customer type and description -- everything the form demands -- then
+    failed to FILL the job, so the reading's alternative was never eliminated,
+    `sure` stayed false, and the request was dropped with "asked for a job
+    this tenant holds more than one of".
+
+    Learning two fields cost the job the ability to be recognised at all. An
+    optional slot nobody named says nothing about whether the sentence was
+    about this job: the form does not ask for it, so a request that does not
+    mention it is a complete request.
+    """
+    grown = replace(
+        WFS[0],
+        parameters=[
+            {"name": "Customer Type", "names": ["Customer Type*"], "seen_values": ["GGD"]},
+            {"name": "Customer Type Description", "names": ["Desc*"], "seen_values": ["x"]},
+            {"name": "Department", "names": ["Department"], "seen_values": ["IN"]},
+            {"name": "Manufacturer", "names": ["Manufacturer"], "seen_values": ["OUTSIDE"]},
+        ],
+    )
+    other = replace(SECOND, id="wfl_other", title="Reply to Email")
+
+    got = await understand(
+        "customer type :- MRN1 description :- morning run",
+        [grown, other],
+        FakeAsker(
+            Answer(
+                data={
+                    "workflow_id": grown.id,
+                    "values": [
+                        {"name": "Customer Type", "value": "MRN1"},
+                        {"name": "Customer Type Description", "value": "morning run"},
+                    ],
+                    "missing": [],
+                    # The reading hedged, exactly as it did on the deployment.
+                    "also": [other.id],
+                    "sure": False,
+                }
+            )
+        ),
+        "m",
+    )
+
+    assert got.sure is True, "a job whose every demanded field was given was still ambiguous"
+    assert got.workflow_id == grown.id
+    assert got.missing == []

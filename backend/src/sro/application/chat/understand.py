@@ -271,9 +271,23 @@ def _fills(job: Workflow, said: set[str]) -> bool:
     slots it recognised, and a job asking for a slot nobody named cannot be
     what the sentence was about. A job that declares nothing is filled by
     anything, which is honest -- there is nothing in it to tell apart.
+
+    **Only the slots the page demands.** An optional one nobody named says
+    nothing about whether the sentence was about this job: the form does not
+    ask for it, so a request that does not mention it is a complete request.
+
+    Measured on the deployment 2026-09-22 at 07:06. `Create a Customer Type`
+    grew from two parameters to four the night before, as Department and
+    Manufacturer became parameters. A mail giving customer type and
+    description -- everything the form demands -- then failed to fill it, the
+    reading's alternative (`Reply to Email`) was never eliminated, and the
+    request was dropped with "asked for a job this tenant holds more than one
+    of". Learning two fields cost the job the ability to be recognised at all.
     """
     declared = {
-        str(one.get("name")) for one in job.parameters if isinstance(one, dict) and one.get("name")
+        str(name)
+        for one in job.parameters
+        if isinstance(one, dict) and (name := one.get("name")) and demanded(one)
     }
     return declared <= said
 

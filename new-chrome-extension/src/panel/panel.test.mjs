@@ -2013,6 +2013,27 @@ test("what was learned on this system is on Home, and only here", async () => {
     drawn.sent.some((message) => message.kind === "learned-jobs"),
     "the panel never asked what was learned",
   );
+
+  // And the press starts THAT job, by id.
+  //
+  // It typed the title into the composer at first, which reads well until the
+  // tenant holds three jobs called "Log in to Keycloak": the press came back
+  // as "did you mean this one, this one, or that one" about the card they had
+  // just pressed.
+  const card = [...drawn.ids["cards"].kids].find((one) =>
+    words(one).includes("Learned from what you do here"),
+  );
+  const run = buttons(card).find((b) => /Run it here/.test(b.textContent));
+  run.listeners[0]();
+  await settled();
+  assert.deepEqual(sentOf(drawn.sent, "run-workflow"), [
+    { kind: "run-workflow", workflowId: "wfl_1" },
+  ]);
+  assert.deepEqual(
+    sentOf(drawn.sent, "say"),
+    [],
+    "the press went through the conversation as a sentence",
+  );
 });
 
 test("Open the console here puts the console in this tab, and Console ↗ in a new one", async () => {

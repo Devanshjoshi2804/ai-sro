@@ -52,6 +52,19 @@ test("only the jobs on this host are shown, whole origin or bare host", () => {
   assert.deepEqual(learnedHere(jobs, ""), []);
 });
 
+test("jobs mined more than once show as one, the one that has run", () => {
+  // The deployment holds three jobs called "Log in to Keycloak". Three cards
+  // with the same name and no visible difference is not a choice anybody can
+  // make.
+  const jobs = [
+    job("fresh", { total: 0 }),
+    job("worked", { total: 10, held: 9, proven: 2 }),
+    job("nine", { total: 9, held: 9, proven: 2 }),
+  ].map((one) => ({ ...one, title: "Log in to Keycloak" }));
+  const shown = learnedHere(jobs, "wms.example");
+  assert.deepEqual(shown.map((one) => one.id), ["worked"]);
+});
+
 test("nothing learned here draws nothing", () => {
   assert.equal(learned([]), null);
 });

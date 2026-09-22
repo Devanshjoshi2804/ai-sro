@@ -42,13 +42,47 @@ export function hostOf(system) {
   }
 }
 
-/** The jobs whose systems include this host. */
+/** The jobs whose systems include this host, one per job.
+ *
+ * Mining produces more than one workflow for the same work -- the deployment
+ * holds three called "Log in to Keycloak" and three called "Reply to Email" --
+ * and a card listing each of them asks the operator to choose between things
+ * that have the same name and no visible difference. The one that has run
+ * most, and among equals the one furthest along, is the one a press should
+ * start; the rest are in the console where their ids are readable.
+ */
 export function learnedHere(jobs, host) {
   if (!host) return [];
   const here = host.toLowerCase();
-  return (jobs || []).filter((job) =>
+  const mine = (jobs || []).filter((job) =>
     (job.systems || []).some((system) => hostOf(system) === here),
   );
+  const byName = new Map();
+  for (const job of mine) {
+    const name = String(job.title || "").trim().toLowerCase();
+    const seen = byName.get(name);
+    if (!seen || furtherOn(job, seen)) byName.set(name, job);
+  }
+  return [...byName.values()];
+}
+
+/** Whether `job` is the one to offer over `than`: run more, then proved more,
+ * then earned. Never the newest -- a job mined this morning and never run is
+ * not the one a press should start. */
+function furtherOn(job, than) {
+  const rank = ({ runs = {} }) => [
+    runs.total || 0,
+    runs.proven || 0,
+    runs.earned ? 1 : 0,
+  ];
+  const mine = rank(job);
+  const theirs = rank(than);
+  // Compared as numbers, place by place. Joined into a string, "10,0,0" sorts
+  // below "9,0,0" and the job with ten runs loses to the one with nine.
+  for (let i = 0; i < mine.length; i += 1) {
+    if (mine[i] !== theirs[i]) return mine[i] > theirs[i];
+  }
+  return false;
 }
 
 /** One sentence for where a job stands, from counted facts only.

@@ -408,7 +408,7 @@ function render(status) {
   // information, and the loud cards above are the ones waiting on somebody.
   if (!status.teaching && status.deviceId) {
     const here = learned(learnedHere(learnedJobs, tabHere.host), {
-      onRun: runFromChat,
+      onRun: runHere,
       onReview: (job) => openConsole(`/jobs/${encodeURIComponent(job.id)}`),
     });
     if (here) standing.push(here);
@@ -1852,19 +1852,32 @@ async function fetchLearned() {
   }
 }
 
-/** "Run it here", off a learned job: the request goes through the
- * conversation, which is what reads the values off the page or asks for the
- * required ones it cannot find. The box is filled and focused, not sent --
- * what gets run is still the operator's sentence. */
-function runFromChat(job) {
-  pane = "chat";
-  paintPanes();
-  void conversation();
-  const box = $("ask-bar").querySelector?.("input, textarea");
-  if (box) {
-    box.value = job.title;
-    box.focus();
+/** "Run it here", off a learned job.
+ *
+ * By id, through the worker, and not as a sentence in the conversation. The
+ * title was typed into the composer at first, which reads well until the
+ * tenant holds three jobs called "Log in to Keycloak" -- then the press comes
+ * back as "did you mean this one, this one, or that one", about a card the
+ * operator had just pressed. The card knows which job it is.
+ *
+ * A job short of a required value parks and asks in the conversation, which
+ * is where that question belongs; writes still wait for approval.
+ */
+async function runHere(job, button) {
+  if (button) button.disabled = true;
+  try {
+    const started = await ask({ kind: "run-workflow", workflowId: job.id });
+    if (!started?.ok) {
+      if (button) button.disabled = false;
+      said(started?.error || "nothing happened");
+      return;
+    }
+    said(`started ${job.title} — watching it below`);
+  } catch (error) {
+    if (button) button.disabled = false;
+    said(error.message);
   }
+  await refresh();
 }
 
 async function refresh() {

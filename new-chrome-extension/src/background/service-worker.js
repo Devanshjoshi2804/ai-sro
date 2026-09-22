@@ -2422,6 +2422,36 @@ async function handle(message, sender) {
       // A conversation somebody deliberately started. `current` answers with
       // the newest, so nothing else has to be told which one to draw.
       return api.newThread();
+    case "run-workflow": {
+      // "Run it here", off the learned-job card. By id, never by title: the
+      // tenant holds three jobs called "Log in to Keycloak", and a sentence
+      // naming one of them comes back as a question about which was meant.
+      // A job short of a required value parks and asks in the conversation,
+      // which is where that question belongs.
+      if (!message.workflowId)
+        return { ok: false, error: "no job to run" };
+      try {
+        const run = await api.rigStart({
+          workflow_id: message.workflowId,
+          device_id: await state.deviceId(),
+          values: message.values || {},
+          items: [],
+          live: true,
+          allow_focus: true,
+          watched: true,
+        });
+        await state.setActiveRun({
+          runId: run.id,
+          workflowId: message.workflowId,
+          source: "rig",
+          startedAt: Date.now(),
+        });
+        void pollRigRun();
+        return { ok: true, runId: run.id };
+      } catch (error) {
+        return { ok: false, error: error.message };
+      }
+    }
     case "learned-jobs":
       // The jobs mined for this tenant, for the card that says what was
       // learned on the page beside the panel. The panel filters by host.

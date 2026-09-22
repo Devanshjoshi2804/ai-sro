@@ -1920,6 +1920,86 @@ test("a rule that fired twice is one card, and one answer settles both", async (
   ]);
 });
 
+test("a run that stopped for a password says so, and never shows the vault key", () => {
+  // The backend's reason for that stop names the key it looked under --
+  // "greyorange/keycloak-.../password" -- because the refusal carries
+  // structure for the box this panel draws. Printed as a heading it was a
+  // vault path across four lines of a card. Taken from a real run row,
+  // run_040e8ed0 on the deployment.
+  const needs = {
+    kind: "none",
+    payload: {
+      needs_secret: {
+        key: "greyorange/keycloak-service-exec-wms-keycloak-prod.us.live.external.byp.ai/password",
+        field: "password",
+        system: "keycloak-service-exec-wms-keycloak-prod.us.live.external.byp.ai",
+      },
+    },
+  };
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      channel: "open",
+      finished: {
+        id: "run_1",
+        source: "rig",
+        status: "failed",
+        steps: [
+          { index: 0, says: "Enter username or email", outcome: "held" },
+          {
+            index: 1,
+            says: "Type the password.",
+            outcome: "failed",
+            reason:
+              "step 1 types a password and nothing is stored under 'greyorange/keycloak-service-exec-wms-keycloak-prod.us.live.external.byp.ai/password'",
+            sent: needs,
+          },
+        ],
+      },
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+  const said = cards.map(words).join(" ");
+  assert.match(said, /it needs your password for keycloak-service-exec/);
+  assert.doesNotMatch(said, /nothing is stored under/, "the vault key reached the card");
+  assert.doesNotMatch(said, /greyorange\/keycloak/, "the vault key reached the card");
+});
+
+test("a write nobody could confirm says that, not the url it read", () => {
+  // From run_f1e9a3e8 on the deployment: step 7 "Save the customer type"
+  // failed by read, "state unknown after a write; not retried: a read of
+  // https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/customerTypes…".
+  // As a heading that was a line of url clipped at the edge of the card.
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      channel: "open",
+      finished: {
+        id: "run_1",
+        source: "rig",
+        status: "stopped",
+        values: { "Customer Type": "SMKY" },
+        steps: [
+          { index: 1, says: "Click the Add button", outcome: "held" },
+          {
+            index: 7,
+            says: "Save the customer type",
+            outcome: "failed",
+            reason:
+              "state unknown after a write; not retried: a read of https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/customerTypes came back 500",
+          },
+        ],
+      },
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+  const said = cards.map(words).join(" ");
+  assert.match(said, /a write went out and nothing could confirm it landed/);
+  assert.doesNotMatch(said, /https:/, "a url reached the heading");
+});
+
 test("a panel with nothing on it says so", () => {
   // Home is empty most of a good day, and on a wide panel that is a large
   // black rectangle under a strip -- indistinguishable from a panel that

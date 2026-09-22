@@ -1614,6 +1614,8 @@ input::placeholder {
   font: 600 16.5px/1.25 var(--font-display);
   letter-spacing: -0.015em;
   color: var(--ink);
+  /* A url in a heading ran off the edge of the plate. */
+  overflow-wrap: anywhere;
 }
 
 .run > .what:empty {
@@ -1763,10 +1765,14 @@ input::placeholder {
   overflow-wrap: anywhere;
 }
 
+/* What a step was matched by and what it cost, under the step rather than
+   beside it: at panel width it took half the row and broke "Enter username or
+   email" across three lines. */
 .run .step .meta {
+  flex-basis: 100%;
+  margin-left: 32px;
   font: 10.5px var(--mono);
   color: var(--ink-mute);
-  padding-top: 3px;
 }
 
 .run .step input[type="password"] {

@@ -1375,7 +1375,26 @@ function howItEnded(run) {
   if (steps.some((step) => step.outcome === "awaiting"))
     return "The run stopped to ask.";
   const failed = [...steps].reverse().find((step) => step.outcome === "failed");
+  // A step that stopped for want of a password says so in the operator's
+  // words. The backend's own reason names the vault key it looked under --
+  // `greyorange/keycloak-…/password` -- which is structure meant for the box
+  // this panel draws, not a sentence to head a card with. Its docstring says
+  // as much: the person reading this is in a warehouse with a panel, and has
+  // no reason to know what a vault key is.
+  const wants = failed?.sent?.payload?.needs_secret;
+  if (wants)
+    return `The run stopped — it needs your ${(wants.field || "password").replace("-", " ")} for ${wants.system || "this system"}.`;
+  // A write that went out and could not be read back. The backend says it
+  // with the url it read and the codes it got, which is the right record and
+  // the wrong heading: on a real run it was a line of URL clipped at the edge
+  // of the card. The fact the operator needs is that something was written
+  // and nobody can say what it did.
   const why = String(failed?.reason || "").trim();
+  if (/^state unknown after a write/i.test(why))
+    return (
+      "The run stopped — a write went out and nothing could confirm it landed." +
+      " Check the record before running it again."
+    );
   if (why)
     return `The run stopped — ${why.slice(0, K_WHY)}${why.length > K_WHY ? "…" : ""}`;
   // A run that held having skipped steps did not do what its rows say it did.

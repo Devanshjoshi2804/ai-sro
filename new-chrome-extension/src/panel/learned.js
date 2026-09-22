@@ -34,16 +34,26 @@ export function learnedHere(jobs, host) {
   );
 }
 
-/** One sentence for where a job stands, from counted facts only. */
+/** One sentence for where a job stands, from counted facts only.
+ *
+ * A deployment that does not serve the count is not one to guess at: an older
+ * backend has no `proven`, and "0 of 3" would be this panel inventing a number
+ * about somebody's warehouse. It says what it knows instead. */
 export function standing(runs) {
   if (runs.earned) return "Writes on its own now. Every write is still read back.";
-  const needed = runs.needed || 3;
-  const proven = Math.min(runs.proven || 0, needed);
   if (!runs.total) return "Not run yet. Its writes ask you first.";
+  if (!counts(runs)) return "Its writes ask you first.";
+  const needed = runs.needed;
+  const proven = Math.min(runs.proven, needed);
   return (
     `${proven} of ${needed} runs checked against the warehouse.` +
     " Its writes ask you first until then."
   );
+}
+
+/** Whether this deployment says how far along a job is. */
+export function counts(runs) {
+  return Number.isFinite(runs?.proven) && Number.isFinite(runs?.needed) && runs.needed > 0;
 }
 
 function ladder(runs) {
@@ -63,8 +73,8 @@ function ladder(runs) {
 }
 
 function checked(runs) {
-  const needed = runs.needed || 3;
-  const proven = Math.min(runs.proven || 0, needed);
+  const needed = runs.needed;
+  const proven = Math.min(runs.proven, needed);
   const bar = document.createElement("div");
   bar.className = "clean";
   bar.setAttribute("aria-label", `${proven} of ${needed} checked runs`);
@@ -95,7 +105,7 @@ export function learned(jobs, { onRun, onReview } = {}) {
   card.append(eyebrow);
 
   jobs.slice(0, K_SHOWN).forEach((job, index) => {
-    const runs = { total: 0, held: 0, earned: false, proven: 0, needed: 3, ...job.runs };
+    const runs = { total: 0, held: 0, earned: false, ...job.runs };
     const one = document.createElement("div");
     one.className = "job";
     one.dataset.workflowId = job.id;
@@ -105,7 +115,7 @@ export function learned(jobs, { onRun, onReview } = {}) {
     const says = document.createElement("p");
     says.textContent = standing(runs);
     one.append(title, says, ladder(runs));
-    if (!runs.earned) one.append(checked(runs));
+    if (!runs.earned && counts(runs)) one.append(checked(runs));
 
     const row = document.createElement("div");
     row.className = "row";

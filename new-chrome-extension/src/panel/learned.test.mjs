@@ -78,6 +78,21 @@ test("one primary press per card, and the press names the job", () => {
   assert.deepEqual(pressed, ["b"]);
 });
 
+test("a backend that does not say how far along it is gets no invented number", () => {
+  // An older deployment serves runs without `proven`. "0 of 3" there would be
+  // this panel making up a fact about somebody's warehouse.
+  const card = learned([
+    { id: "a", title: "Job a", systems: ["wms.example"], runs: { total: 4, held: 4 } },
+  ]);
+  assert.match(words(card), /Its writes ask you first/);
+  assert.doesNotMatch(words(card), /of 3/);
+  assert.equal(
+    card.kids.find((kid) => kid.className === "job").kids.some((kid) => kid.className === "clean"),
+    false,
+    "it drew a progress bar out of nothing",
+  );
+});
+
 test("more than three is a line, not more cards", () => {
   const card = learned(["a", "b", "c", "d", "e"].map((id) => job(id)));
   assert.equal(card.kids.filter((kid) => kid.className === "job").length, 3);

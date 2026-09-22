@@ -8424,3 +8424,63 @@ async def test_a_gather_that_found_nothing_stops_the_run_rather_than_licensing_i
     # name parsed back out of an English sentence breaks the first time the
     # sentence is reworded.
     assert run.needs == ["clientCode"]
+
+
+async def test_the_planner_is_given_the_value_under_the_name_the_page_uses() -> None:
+    """A control is written two ways and neither end is wrong.
+
+    The gesture says `filterComboBox`, the page's own itemId. The run says
+    `Customer Type`, which is what the job named the parameter and therefore
+    what the person was asked for. `value_for` asks the gesture what its
+    control is called and looks that up among the run's values, so the lookup
+    misses and the plan falls through to the value the DEMONSTRATION typed.
+
+    Measured on the deployment 2026-09-22 at 11:07. `Delete a Customer Type`
+    ran with `{"Customer Type": "NEX"}` and the screen belt failed step 0:
+    "The filter input field remains completely empty and the customer types
+    grid has not been filtered." Sixteen runs of that job, and not one had
+    ever put the operator's value in the box.
+    """
+    uow = await _fixture()
+    ids = _ids(uow)
+    workflow = Workflow(
+        id="wfl_two_names",
+        tenant=ELSEWHERE,
+        title="delete a customer type",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            # And the step names nothing, which is how the deployment's job was
+            # mined: the bridge has to come off the JOB's parameter.
+            Step(order=0, says="Enter filter criteria", system=None, cites=[ids[0]]),
+            Step(order=1, says="click delete", system=None, cites=[ids[-1]]),
+        ],
+        parameters=[
+            {
+                "name": "Customer Type",
+                "key": "filterComboBox",
+                "names": ["Customer Type", "filterComboBox"],
+                "seen_values": ["GDD", "KKYT"],
+            }
+        ],
+    )
+    await uow.workflows.save(workflow)
+
+    asker = _PerSchemaAsker(plan=_plan("type", "NEX"), verdict=Answer(data={"held": True}))
+    await _ran(
+        uow,
+        workflow,
+        channel=FakeChannel({**_looks(6), "ui.perform": [_performed()] * 3}),
+        asker=asker,
+        values={"Customer Type": "NEX"},
+        earned=True,
+    )
+
+    planned = str(asker.asked[0]["evidence"])
+    assert '"filterComboBox": "NEX"' in planned, (
+        "the planner was never told the value under the name its own evidence uses"
+    )
+    # Under the name the person was asked for as well: the row and the question
+    # are written in that one, and a value that stopped answering to it would
+    # break every reader that goes by the job's own declaration.
+    assert '"Customer Type": "NEX"' in planned

@@ -1126,6 +1126,23 @@ def _optional_of(step: Step, workflow: Workflow) -> tuple[str, ...]:
     `departmentNumber` is what the step calls it, and two parameters ending
     the same way are two this cannot tell apart.
     """
+    return tuple(
+        name
+        for name in step.parameters
+        if (declared := _by_alias(workflow).get(str(name))) is not None and not demanded(declared)
+    )
+
+
+def _by_alias(workflow: Workflow) -> dict[str, dict[str, object]]:
+    """Every name each of this job's parameters answers to, to the parameter.
+
+    One control is written four ways across this system -- the label a person
+    reads, the body key the form posts, the page's own itemId, and that
+    itemId's last segment -- and every place that has to recognise one from
+    another needs the same map. It was inline in `_optional_of`; it is named
+    because `_under_every_name` is the second reader and a map built twice is
+    a map that drifts.
+    """
     by_alias: dict[str, dict[str, object]] = {}
     seen_tail: dict[str, int] = {}
     for one in workflow.parameters:
@@ -1149,11 +1166,42 @@ def _optional_of(step: Step, workflow: Workflow) -> tuple[str, ...]:
     for tail, count in seen_tail.items():
         if count > 1:
             by_alias.pop(tail, None)
-    return tuple(
-        name
-        for name in step.parameters
-        if (declared := by_alias.get(str(name))) is not None and not demanded(declared)
-    )
+    return by_alias
+
+
+def _under_every_name(workflow: Workflow, values: Mapping[str, str]) -> dict[str, str]:
+    """This run's values, filed again under every name their controls answer to.
+
+    `value_for` asks a gesture what its control is called and looks the answer
+    up among the run's values. The gesture says `filterComboBox`, which is the
+    page's itemId; the run says `Customer Type`, which is what the job named
+    the parameter and therefore what the person was asked for. Neither end is
+    wrong and they never meet, so the lookup misses and the plan falls through
+    to the value the DEMONSTRATION typed.
+
+    Measured on the deployment 2026-09-22 at 11:07. `Delete a Customer Type`
+    ran with `{"Customer Type": "NEX"}`, planned a type at the filter box, and
+    the screen belt failed it: "The filter input field remains completely
+    empty and the customer types grid has not been filtered." Sixteen runs of
+    that job, and not one of them had ever put the operator's value in the box.
+
+    The bridge already existed -- the job's parameter carries `names`, every
+    name the control answered to when it was demonstrated -- and nothing on
+    the planning path had ever been shown it. So it is applied once, to the
+    run's values, before any step is planned: every reader downstream then
+    finds the value under whichever name it happens to hold.
+
+    The run's own row keeps the names the person was asked for. This is what
+    the planner is handed, not what the run IS.
+    """
+    known = dict(values)
+    for alias, parameter in _by_alias(workflow).items():
+        name = parameter.get("name")
+        if alias in known or not isinstance(name, str):
+            continue
+        if (value := values.get(name, "")).strip():
+            known[alias] = value
+    return known
 
 
 def _skippable(step: Step, workflow: Workflow, values: Mapping[str, str]) -> bool:
@@ -1462,6 +1510,7 @@ async def run_workflow(
             await _save(uow, run)
             return run
 
+    values = _under_every_name(workflow, values)
     by_id = await _gestures_for(uow, tenant_id, workflow)
     # What earlier runs found out about this job's steps, by step order. Read
     # once: it is a handful of rows and every step of the loop would otherwise

@@ -141,6 +141,10 @@ function card({
   const holder = document.createElement("section");
   holder.className = "card";
   if (tone) holder.dataset.tone = tone;
+  // What says this is the same card as the one drawn a moment ago. The panel
+  // rebuilds every card on every poll, so without it nothing can tell a card
+  // that has just arrived from one that has been there all along.
+  holder.dataset.key = String(title || says || "").slice(0, 60);
 
   if (title) {
     const heading = document.createElement("h3");
@@ -364,8 +368,20 @@ function render(status) {
   // rather than in the way of the page being worked.
   if (!status.teaching) {
     const here = page(tabHere.url || "").toLowerCase();
+    // Not one that has already run out.
+    //
+    // A confirmation expires, and the card stayed on screen offering a press
+    // that could not work: "Yes, do it" came back 422 "this expired without
+    // an answer; nothing was run and nothing can be now". Measured on the
+    // deployment 2026-09-22 at 19:17, on cnf_4f2ca91d. The backend serves
+    // `expires_at` and this never read it.
+    const gone = (card) => {
+      const at = Date.parse(card.expires_at || "");
+      return Number.isFinite(at) && at <= Date.now();
+    };
     const mine = (status.waiting || []).filter(
-      (card) => card.page && card.page === here && card.still_there !== false,
+      (card) =>
+        card.page && card.page === here && card.still_there !== false && !gone(card),
     );
     // One card per rule, however many times it fired.
     //
@@ -427,6 +443,14 @@ function render(status) {
   // opens onto. The rest -- a run, what it made, what is wrong -- stay where
   // they are, above the day.
   const [state, ...rest] = cards;
+  // A card rises once, when it arrives.
+  //
+  // The stylesheet has always said so -- `[data-risen]` turns the animation
+  // off -- and nothing set it, so every card replayed its 800ms fade on every
+  // two-second poll. On a panel somebody is reading that is the whole column
+  // dimming and coming back, twice a minute, for as long as they look at it.
+  // Seen on the deployment 2026-09-23.
+  markRisen(cards);
   // Never while somebody is typing a password into one of these cards.
   //
   // This redraw runs on the two-second poll and replaces every card with a
@@ -905,6 +929,35 @@ function nothingNeedsYou(status) {
     : "This tab is not being watched. Anything that arrives by mail still shows up here.";
   holder.append(said, under);
   return holder;
+}
+
+/** Which cards were on screen the last time this drew.
+ *
+ * Keys and not elements: every card here is a fresh element on every poll, so
+ * identity has to come from what the card is about rather than from the
+ * object. `card()` sets `data-key` from its title; the rest carry an id or a
+ * run of their own.
+ */
+let cardsShown = new Set();
+
+function keyOf(one) {
+  return (
+    one?.dataset?.key ||
+    one?.dataset?.id ||
+    one?.dataset?.runId ||
+    one?.className ||
+    ""
+  );
+}
+
+function markRisen(cards) {
+  const now = new Set();
+  for (const one of cards) {
+    const key = keyOf(one);
+    now.add(key);
+    if (cardsShown.has(key)) one.dataset.risen = "1";
+  }
+  cardsShown = now;
 }
 
 /** The chevron that flips `watchOpen` and redraws from the same status.
@@ -3040,8 +3093,17 @@ async function answeredWaiting(answer, card, button) {
       }
     }
     if (!got.ok) {
-      button.disabled = false;
-      said(got.error || "nothing happened");
+      // One refusal is not a fault to retry: a confirmation that ran out has
+      // ended, and the button that offered it is offering nothing. Said in
+      // those words, and the card goes on the next draw.
+      const why = String(got.error || "");
+      said(
+        /expired/i.test(why)
+          ? "that request had already run out — nothing ran, and nothing can now"
+          : why || "nothing happened",
+      );
+      if (!/expired/i.test(why)) button.disabled = false;
+      await refresh();
       return;
     }
     said(

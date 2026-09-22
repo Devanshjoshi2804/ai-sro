@@ -2003,6 +2003,68 @@ test("a write nobody could confirm says that, not the url it read", () => {
   assert.match(said, /It was working on Customer Type SMKY/);
 });
 
+test("a request that has run out is not offered as a press", () => {
+  // The card stayed on screen after its confirmation expired, and the press
+  // came back 422 "this expired without an answer; nothing was run and
+  // nothing can be now" -- cnf_4f2ca91d on the deployment, 2026-09-22 19:17.
+  const fired = (id, expires) => ({
+    id,
+    trigger_id: `trg_${id}`,
+    skill_name: "Log in to Keycloak",
+    because: "an arrival trigger fired",
+    page: "keycloak.example/auth",
+    expires_at: expires,
+    values: {},
+  });
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      channel: "open",
+      waiting: [
+        fired("old", new Date(Date.now() - 60_000).toISOString()),
+        fired("live", new Date(Date.now() + 600_000).toISOString()),
+      ],
+      watched: [{ tabId: 7, host: "keycloak.example", since: new Date().toISOString() }],
+    },
+    { id: 7, host: "keycloak.example", url: "https://keycloak.example/auth?x=1" },
+  );
+  const asking = cards.filter((one) => words(one).includes("Shall I?"));
+  assert.equal(asking.length, 1, "an expired request was still offering a press");
+  assert.equal(asking[0].dataset.id, "live");
+});
+
+test("a card rises once, not on every poll", async () => {
+  // The stylesheet turns the entrance animation off for a card marked risen,
+  // and nothing marked one -- so every card replayed its 800ms fade on every
+  // two-second poll: the whole column dimming and coming back, twice a
+  // minute, while somebody was reading it.
+  const status = {
+    deviceId: "dev-1",
+    capturing: true,
+    channel: "open",
+    watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+  };
+  const drawn = panel(status, {
+    id: 7,
+    host: "wms.example",
+    url: "https://wms.example/portal",
+  });
+  const first = [...drawn.ids["cards"].kids];
+  assert.ok(first.length, "nothing was drawn to check");
+  assert.ok(
+    first.every((one) => one.dataset.risen === undefined),
+    "a card that had just arrived was told it was already there",
+  );
+
+  drawn.render(status);
+  const again = [...drawn.ids["cards"].kids];
+  assert.ok(
+    again.every((one) => one.dataset.risen === "1"),
+    "the same cards animated again on the next poll",
+  );
+});
+
 test("a panel with nothing on it says so", () => {
   // Home is empty most of a good day, and on a wide panel that is a large
   // black rectangle under a strip -- indistinguishable from a panel that

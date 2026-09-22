@@ -146,6 +146,7 @@ export function learned(jobs, { onRun, onReview } = {}) {
   if (!jobs?.length) return null;
   const card = document.createElement("section");
   card.className = "card learned";
+  card.dataset.key = "learned";
   // Ember while something here has not earned its writes yet, because that is
   // the thing worth the operator's attention; quiet once all of it has.
   if (jobs.some((job) => !job.runs?.earned)) card.dataset.tone = "live";

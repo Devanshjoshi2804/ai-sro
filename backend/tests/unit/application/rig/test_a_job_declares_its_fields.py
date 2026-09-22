@@ -321,3 +321,74 @@ async def test_a_job_that_types_nowhere_names_no_screen() -> None:
     )
 
     assert await screen_for(uow, f.TENANT, job) == ""
+
+
+async def test_pressing_a_card_is_told_what_else_the_job_can_set() -> None:
+    """The fourth door to make this offer and the last.
+
+    The run's own question, the mail card, the chat door's job offer and this
+    one all describe the same job to the same person, and an operator who
+    presses a card should be told what the one who typed a sentence is told.
+
+    Measured on the deployment 2026-09-22 at 14:44: pressed "Yes, do it", was
+    asked for Customer Type, and never learnt the job could set Department or
+    Manufacturer at all.
+    """
+    uow = FakeUnitOfWork()
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_1",
+            tenant=f.TENANT.value,
+            title="Create a Customer Type",
+            narrative="open the screen, type the code, save",
+            steps=[Step(order=0, says="type the code", system=None, cites=["g"])],
+            parameters=[
+                {"name": "Customer Type", "names": ["Customer Type*"], "seen_values": ["GGD"]},
+                {"name": "Department", "names": ["Department"], "seen_values": ["IN", "new"]},
+                {
+                    "name": "Manufacturer",
+                    "names": ["Manufacturer"],
+                    "seen_values": ["OUTSIDE", "NIGHTCO"],
+                },
+            ],
+        )
+    )
+
+    asked = await AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()).execute(
+        CTX,
+        Pending(
+            workflow_id="wfl_1",
+            title="Create a Customer Type",
+            values={},
+            missing=("Customer Type",),
+            limits={},
+        ),
+    )
+
+    assert "I can also set Department and Manufacturer" in asked
+    assert "last time Department: new; Manufacturer: NIGHTCO" in asked
+    assert "run without" in asked
+    # And carried on the decision, so a second browser reading the thread
+    # offers the same fields.
+    threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=CTX.principal_id, limit=1)
+    decision = threads[0].messages[-1].decision
+    assert decision is not None
+    assert decision["offered"] == [["Department", "new"], ["Manufacturer", "NIGHTCO"]]
+
+
+async def test_a_job_this_door_cannot_read_still_asks_its_question() -> None:
+    """Silent about every failure, exactly as the limits beside it are. An
+    offer is worth making and never worth a 404."""
+    asked = await AskAboutTheOffer(FakeUnitOfWork(), FakeClock(), FakeIdFactory()).execute(
+        CTX,
+        Pending(
+            workflow_id="wfl_nobody_has",
+            title="Create a Customer Type",
+            values={},
+            missing=("Customer Type",),
+            limits={},
+        ),
+    )
+
+    assert "What should Customer Type be?" in asked
+    assert "I can also set" not in asked

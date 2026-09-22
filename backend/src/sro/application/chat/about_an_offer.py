@@ -43,6 +43,7 @@ from sro.application.ports.system import Clock, IdFactory
 from sro.domain.chat.asking import NEEDS, Pending, opening, unusable
 from sro.domain.chat.thread import Said, Speaker
 from sro.domain.shared.identifiers import PrincipalId
+from sro.domain.skill.learned import offerable
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +69,24 @@ class AskAboutTheOffer:
         # Optional throughout: a deployment with no mailbox asks the operator
         # and nobody else, exactly as it did.
         self._drafts: DraftsForTheAsker | None = drafts
+
+    async def _also_settable(
+        self, ctx: RequestContext, pending: Pending
+    ) -> tuple[tuple[str, str], ...]:
+        """Fields this job can fill that the page does not ask for, and what
+        each was last time. Empty where the job is unknown or declares none."""
+        if not pending.workflow_id:
+            return ()
+        # Silent about every failure, exactly as the limits beside it are: a
+        # job this door cannot read is one whose question is asked as it was
+        # asked before. An offer is worth making and never worth a 404.
+        try:
+            async with self._uow as uow:
+                job = await uow.workflows.get(ctx.tenant_id, pending.workflow_id)
+        except Exception:
+            logger.exception("what else %s can set could not be read", pending.workflow_id)
+            return ()
+        return offerable(job.parameters, pending.values) if job else ()
 
     async def _what_the_boxes_hold(self, ctx: RequestContext, pending: Pending) -> dict[str, int]:
         """Every limit known for the names this question is about.
@@ -146,6 +165,16 @@ class AskAboutTheOffer:
             missing=tuple(
                 dict.fromkeys((*pending.missing, *unusable(pending.values, pending.limits)))
             ),
+            # And what the job could ALSO fill, which nothing has to answer.
+            #
+            # The fourth door to make this offer and the last: the run's own
+            # question, the mail card, the chat door's job offer and this one
+            # all describe the same job to the same person, and an operator who
+            # presses a card is told what the one who typed a sentence is told.
+            # Measured on the deployment 2026-09-22 at 14:44 -- pressed "Yes,
+            # do it", was asked for Customer Type, and never learnt the job
+            # could set Department or Manufacturer at all.
+            offered=await self._also_settable(ctx, pending),
         )
         if pending.ready:
             return ""
@@ -168,6 +197,10 @@ class AskAboutTheOffer:
                 "title": pending.title,
                 "values": dict(pending.values),
                 "missing": list(pending.missing),
+                # What the job could ALSO fill, so a second browser reading
+                # the thread offers the same fields and an answer arriving
+                # minutes later is still an answer to this.
+                "offered": [list(one) for one in pending.offered],
                 "items": [dict(one) for one in pending.items],
                 # What the boxes hold, so the next question can say why it is
                 # being asked -- and so an answer that still will not fit is

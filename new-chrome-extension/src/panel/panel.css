@@ -1591,6 +1591,18 @@ input::placeholder {
 
 /* -- a run, while it happens ------------------------------------------------- */
 
+/* A run card that IS the card. A rig run that ended having written nothing is
+   drawn as its own steps rather than inside a result card, and on a panel
+   where everything else is a plate it was a list of rows floating on the
+   background. Seen on the deployment 2026-09-22. */
+#cards > .run,
+.waiting-list > .run {
+  padding: 15px 15px 14px;
+  border-radius: 18px;
+  background: var(--plate);
+  box-shadow: var(--bezel);
+}
+
 .run {
   display: flex;
   flex-direction: column;

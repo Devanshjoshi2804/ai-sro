@@ -364,9 +364,25 @@ function render(status) {
   // rather than in the way of the page being worked.
   if (!status.teaching) {
     const here = page(tabHere.url || "").toLowerCase();
-    for (const card of status.waiting || [])
-      if (card.page && card.page === here && card.still_there !== false)
-        asks.push(waitingOnYou(card, answered));
+    const mine = (status.waiting || []).filter(
+      (card) => card.page && card.page === here && card.still_there !== false,
+    );
+    // One card per rule, however many times it fired.
+    //
+    // A rule that fires twice writes two confirmations, and the panel drew a
+    // card for each: the same sentence, the same two buttons, one under the
+    // other, with no way to tell them apart. Seen on the Keycloak sign-in page
+    // on 2026-09-22 -- "Log in to Keycloak, an arrival trigger fired. Shall
+    // I?" twice. They are one decision to the person reading them, so one
+    // answer settles all of them (`answeredWaiting` carries the rest).
+    const byRule = new Map();
+    for (const card of mine) {
+      const rule = card.trigger_id || card.id;
+      const first = byRule.get(rule);
+      if (first) first.twins.push(card.id);
+      else byRule.set(rule, { ...card, twins: [] });
+    }
+    for (const card of byRule.values()) asks.push(waitingOnYou(card, answered));
   }
 
   // A mail that has gone out and not been answered.
@@ -2925,12 +2941,29 @@ async function askAboutOffer(nudge, button) {
  * pressing this is the somebody.
  */
 async function answeredWaiting(answer, card, button) {
+  const decided = answer === "waiting-approve" ? "approve" : "decline";
   try {
     const got = await ask({
       kind: "answer-waiting",
       confirmationId: card.id,
-      answer: answer === "waiting-approve" ? "approve" : "decline",
+      answer: decided,
     });
+    // The other times the same rule fired, settled the same way. Left alone
+    // they come back as their own cards on the next poll, asking a question
+    // the operator has already answered -- and a second "yes" is a second run.
+    // Declined whatever this answer was: one press authorises one run.
+    for (const twin of card.twins || []) {
+      try {
+        await ask({
+          kind: "answer-waiting",
+          confirmationId: twin,
+          answer: "decline",
+        });
+      } catch {
+        // It may already have been answered in another window. The one the
+        // operator pressed is what matters here.
+      }
+    }
     if (!got.ok) {
       button.disabled = false;
       said(got.error || "nothing happened");

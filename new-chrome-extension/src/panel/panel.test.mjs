@@ -1885,6 +1885,41 @@ test("with no way to reverse it, it says so rather than offering a dead button",
   assert.ok(/I'll fix it/i.test(said), "no way to say it was wrong at all");
 });
 
+test("a rule that fired twice is one card, and one answer settles both", async () => {
+  // Two confirmations from one rule drew two identical cards, one under the
+  // other, with nothing to tell them apart -- and answering the first left
+  // the second asking. A second yes is a second run.
+  const fired = (id) => ({
+    id,
+    trigger_id: "trg_1",
+    skill_name: "Log in to Keycloak",
+    because: "an arrival trigger fired",
+    page: "keycloak.example/auth",
+    values: {},
+  });
+  const drawn = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      channel: "open",
+      waiting: [fired("cnf_1"), fired("cnf_2")],
+      watched: [{ tabId: 7, host: "keycloak.example", since: new Date().toISOString() }],
+    },
+    { id: 7, host: "keycloak.example", url: "https://keycloak.example/auth?x=1" },
+    { "answer-waiting": { ok: true, run_id: "run_1" } },
+  );
+  const asking = drawn.cards.filter((one) => words(one).includes("Shall I?"));
+  assert.equal(asking.length, 1, "the same rule was drawn twice");
+
+  const yes = buttons(asking[0]).find((b) => /Yes/.test(b.textContent));
+  yes.listeners[0]();
+  await settled();
+  assert.deepEqual(sentOf(drawn.sent, "answer-waiting"), [
+    { kind: "answer-waiting", confirmationId: "cnf_1", answer: "approve" },
+    { kind: "answer-waiting", confirmationId: "cnf_2", answer: "decline" },
+  ]);
+});
+
 test("a panel with nothing on it says so", () => {
   // Home is empty most of a good day, and on a wide panel that is a large
   // black rectangle under a strip -- indistinguishable from a panel that

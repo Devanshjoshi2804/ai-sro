@@ -623,3 +623,76 @@ def test_among_the_value_putting_citations_the_first_still_wins() -> None:
     )
 
     assert primary_gesture(step, by_id) is first
+
+
+def _row_checker() -> object:
+    """A click on a grid row's checkbox, exactly as the deployment recorded it."""
+    from sro.domain.observation.gesture import Component
+
+    base = next(g for g in _gestures() if g.action.kind == "type" and not g.action.secret)
+    fresh = copy.deepcopy(base)
+    fresh.id = "ges_row_checker"
+    target = fresh.action.target
+    assert target is not None
+    fresh.action = replace(
+        fresh.action,
+        kind="click",
+        value=None,
+        target=replace(
+            target,
+            name=None,
+            role="presentation",
+            text=None,
+            test_id=None,
+            css_path=(
+                "td#ext-gen5745 > div.x-grid-cell-inner > div.x-grid-row-checker:nth-of-type(2)"
+            ),
+            component=Component(
+                query="rpFilterableGrid#masterdata-customer-existingcustomertypes-grid gridview",
+                xtype="gridview",
+            ),
+        ),
+    )
+    return fresh
+
+
+def test_a_click_inside_a_view_is_aimed_at_the_row_not_the_view() -> None:
+    """Measured on the deployment 2026-09-22 at 13:54. `Delete a Customer Type`
+    step 2 selected the row by clicking its checkbox, whose component is the
+    grid's `gridview`. The component rung matched the whole view, the click
+    landed on it, nothing was selected and Delete stayed disabled -- twice.
+
+    The recorded leaf, with its render-order id and position struck, scoped to
+    the view, goes first."""
+    ladder = locators_for(_row_checker())
+
+    assert ladder[0].as_payload() == {
+        "strategy": "css_path",
+        "query": "div.x-grid-row-checker",
+        "within": "rpFilterableGrid#masterdata-customer-existingcustomertypes-grid gridview",
+        "visible_only": True,
+    }
+    assert ladder[1].strategy == "component", "the view itself is still a rung below it"
+
+
+def test_a_control_that_is_not_a_view_keeps_its_ladder() -> None:
+    """A button, a text box, a combobox: the component IS the control, and the
+    first rung is what it always was -- even where its recorded leaf carries a
+    class that would survive a render."""
+    from sro.domain.observation.gesture import Component
+
+    button = _row_checker()
+    target = button.action.target
+    assert target is not None
+    button.action = replace(
+        button.action,
+        target=replace(
+            target,
+            css_path="a#button-1624 > span.x-btn-inner",
+            component=Component(
+                query="rpCriterionView button#removeCriterionButton", xtype="button"
+            ),
+        ),
+    )
+
+    assert locators_for(button)[0].strategy == "component"

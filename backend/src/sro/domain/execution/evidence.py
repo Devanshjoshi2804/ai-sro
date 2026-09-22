@@ -12,6 +12,7 @@ stops it.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 
@@ -99,6 +100,26 @@ def locators_for(gesture: Gesture) -> list[Locator]:
     if component is not None:
         query = component.query or (f"#{component.item_id}" if component.item_id else None)
         if query:
+            # A view is a container of rows, and the row is what was clicked.
+            #
+            # Measured on the deployment 2026-09-22 at 13:54. `Delete a Customer
+            # Type` step 2 was demonstrated as a click on a row's checkbox --
+            # `div.x-grid-row-checker` -- whose component is the grid's
+            # `gridview`. The component rung matched the whole view, the click
+            # landed on it, nothing was selected, and Delete stayed disabled.
+            # The css path that named the checkbox is keyed on `td#ext-gen5745`,
+            # an id assigned in render order that never exists twice.
+            #
+            # So the recorded leaf, with its id and position struck, scoped to
+            # the view: the checkbox of the first row the view shows.
+            #
+            # ponytail: the FIRST row. Right after a step that filtered on a
+            # key, which is how every job here reaches a row; a view showing
+            # several would get its first. Name the row by its cell text when a
+            # job selects among many.
+            leaf = _stable_leaf(target.css_path)
+            if leaf and str(component.xtype or "").lower().endswith("view"):
+                ladder.append(Locator("css_path", leaf, within=query))
             ladder.append(_locator("component", query))
     if target.role and target.name:
         ladder.append(_locator("role_and_name", f"{target.role}|{target.name}"))
@@ -109,6 +130,21 @@ def locators_for(gesture: Gesture) -> list[Locator]:
     if target.css_path:
         ladder.append(_locator("css_path", target.css_path))
     return ladder
+
+
+def _stable_leaf(css_path: str | None) -> str:
+    """The last element of a css path, with what render order assigned struck.
+
+    `td#ext-gen5745 > div.x-grid-cell-inner > div.x-grid-row-checker:nth-of-type(2)`
+    is `div.x-grid-row-checker`: the tag and the classes the application gave
+    it, which are the same on every render. Empty where nothing stable is left
+    -- a bare tag names every element of that kind.
+    """
+    if not css_path:
+        return ""
+    last = css_path.split(">")[-1].split()[-1] if css_path.strip() else ""
+    kept = re.sub(r"#[^.#:\[]+|:nth-[a-z-]+\([^)]*\)", "", last)
+    return kept if "." in kept else ""
 
 
 def origin_of(gesture: Gesture) -> str | None:

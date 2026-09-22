@@ -32,10 +32,17 @@ export function performInPage(payload) {
     return style.visibility !== "hidden" && style.display !== "none";
   };
 
-  const within = (el) => {
-    if (!payload.within) return true;
+  // The rung's own scope first, then the command's.
+  //
+  // Every locator the backend sends carries `within`, and until 2026-09-22
+  // this read only the payload's -- so a rung scoped to a grid view matched
+  // the first such element anywhere on the page, and the docstring on
+  // `Locator` promising the scope was read "at the wire" was describing a
+  // field nothing read.
+  const within = (el, scope = payload.within) => {
+    if (!scope) return true;
     try {
-      const holders = window.Ext?.ComponentQuery?.query(payload.within) || [];
+      const holders = window.Ext?.ComponentQuery?.query(scope) || [];
       return holders.some((c) => c.el?.dom?.contains(el));
     } catch {
       return true;
@@ -145,7 +152,7 @@ export function performInPage(payload) {
       default:
         found = [];
     }
-    found = found.filter(within);
+    found = found.filter((el) => within(el, locator.within || payload.within));
     if (locator.visible_only) found = found.filter(visible);
     return found;
   };

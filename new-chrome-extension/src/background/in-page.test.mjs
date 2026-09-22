@@ -416,3 +416,31 @@ test("typing still goes to the text box, never to the trigger", () => {
   assert.equal(input.value, "NRT2");
   assert.ok(!arrow.events.includes("click"), "the arrow was typed into");
 });
+
+test("a rung scoped to a view clicks inside that view, not the first match on the page", () => {
+  // Measured on the deployment 2026-09-22 at 13:54: selecting a grid row is a
+  // click on `div.x-grid-row-checker`, and a page can hold more than one grid.
+  // Every locator carries `within`, and until now only the command's own was
+  // read -- so a rung's scope was a field nothing looked at.
+  const elsewhere = element({ tagName: "DIV" });
+  const inside = element({ tagName: "DIV" });
+  for (const one of [elsewhere, inside]) one.scrollIntoView = () => {};
+  onScreen = [elsewhere, inside];
+  const view = { el: { dom: { contains: (el) => el === inside } } };
+  withExt([view]);
+
+  const answer = performInPage({
+    action: "click",
+    locators: [
+      {
+        strategy: "css_path",
+        query: "div.x-grid-row-checker",
+        within: "rpFilterableGrid#customer-types gridview",
+      },
+    ],
+  });
+
+  assert.equal(answer.ok, true);
+  assert.ok(inside.events.includes("click"), "the row inside the view was never clicked");
+  assert.ok(!elsewhere.events.includes("click"), "a match outside the view was clicked");
+});

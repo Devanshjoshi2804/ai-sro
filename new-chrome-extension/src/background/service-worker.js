@@ -1963,9 +1963,25 @@ async function handle(message, sender) {
       // driven never learned the job's name or how far through it was. The
       // panel says which kind it is asking about; it is the only thing that
       // knows, because it is what the worker told it.
-      return message.source === "rig"
-        ? api.rigRun(message.runId)
-        : api.run(message.runId);
+      //
+      // A rig run is already being polled once a second by `pollRigRun`, and
+      // the panel asked for it again on every one of its own refreshes -- two
+      // fetchers on one row, about two `GET /v1/workflow-runs/{id}` a second
+      // for the length of a run. The picture the worker is already holding is
+      // the same answer, so it is handed over when it is fresh enough to be
+      // the one the poll would have returned.
+      if (
+        message.source === "rig" &&
+        rigRunShown?.id === message.runId &&
+        Date.now() - rigShownAt < K_RUN_POLL_MS
+      )
+        return rigRunShown;
+      if (message.source !== "rig") return api.run(message.runId);
+      // And what it fetches becomes the held picture, so the poll a moment
+      // later has nothing to ask for either. One row, one reader.
+      rigRunShown = await api.rigRun(message.runId);
+      rigShownAt = Date.now();
+      return rigRunShown;
     case "skill":
       return api.skill(message.skillId);
     case "summary":
@@ -3682,6 +3698,11 @@ let checkingFinish = false;
  */
 const K_RUN_POLL_MS = 1000;
 
+/** When `rigRunShown` was last read from the backend. What tells a kick from
+ * a poll: everything that wants the picture gets the one already held if it
+ * is younger than the cadence above. */
+let rigShownAt = 0;
+
 /** The rig's own record of the run happening now, as the panel's card wants
  * it. Module scope, so it dies with the worker -- which is correct: a fresh
  * worker has no picture yet and asks for one. */
@@ -3748,8 +3769,18 @@ async function pollRigRun() {
     // writes under another's title, and `status()` would hand the panel a card
     // for a run that is not the one happening.
     if (rigRunShown && rigRunShown.id !== active.runId) rigRunShown = null;
+    // Not oftener than the poll's own cadence, however many things kick it.
+    // `status()` kicks on every panel read and `commands.js` on every step,
+    // and each of those was a fetch of its own on top of the timer below.
+    if (rigRunShown?.id === active.runId && Date.now() - rigShownAt < K_RUN_POLL_MS) {
+      clearTimeout(rigPoll);
+      rigPoll = setTimeout(() => void pollRigRun(), K_RUN_POLL_MS);
+      rigPoll?.unref?.();
+      return;
+    }
     try {
       rigRunShown = await api.rigRun(active.runId);
+      rigShownAt = Date.now();
       notWorkflowRuns.delete(active.runId);
     } catch (error) {
       // Keep the last picture; the next tick asks again. A 404 is different in

@@ -653,6 +653,31 @@ test("just this once sends a password to the door that keeps nothing", async () 
   });
 });
 
+test("one row has one reader: the run is not fetched twice in a second", async () => {
+  // The worker polls a running job once a second and the panel asked for the
+  // same row on every one of its own refreshes -- about two
+  // `GET /v1/workflow-runs/{id}` a second for the length of a run, measured
+  // on the deployment 2026-09-22. The picture already held is the same
+  // answer.
+  ready();
+  held.set("sro.deviceId", "dev-start-a17f");
+  held.set("sro.deviceSecret", "secret-start-33c9");
+  held.set("sro.token", "tok-start-6d20");
+
+  const asked = () =>
+    calls.filter((call) => call.path === "/v1/workflow-runs/run-9").length;
+
+  const before = asked();
+  await send({ kind: "run", runId: "run-9", source: "rig" });
+  await send({ kind: "run", runId: "run-9", source: "rig" });
+  await send({ kind: "run", runId: "run-9", source: "rig" });
+
+  assert.ok(
+    asked() - before <= 1,
+    `three asks in one second fetched the row ${asked() - before} times`,
+  );
+});
+
 test("an ordinary press takes nothing back", async () => {
   ready();
   held.set("sro.deviceId", "dev-start-a17f");

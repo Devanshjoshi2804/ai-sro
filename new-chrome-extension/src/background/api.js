@@ -454,6 +454,21 @@ export const api = {
       asPanelRun,
     ),
 
+  /** Every job this tenant has mined, with how far each is toward writing on
+   * its own (`runs.proven` of `runs.needed`). For the panel's learned-job
+   * card; `?device_id=` because the route refuses a browser named without its
+   * secret, the same pair `shapes` sends. */
+  workflows: async (deviceId) => {
+    const query = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : "";
+    const answered = await call(`/v1/workflows${query}`);
+    return (answered.workflows || []).map(({ id, title, systems, runs }) => ({
+      id,
+      title,
+      systems,
+      runs,
+    }));
+  },
+
   /** A fresh conversation, when somebody asks for one. */
   newThread: () => call("/v1/threads", { method: "POST" }),
 

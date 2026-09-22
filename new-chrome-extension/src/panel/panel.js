@@ -25,6 +25,7 @@ import {
 import { page } from "./nudge.js";
 import { runCard } from "./run-card.js";
 import { history } from "./history.js";
+import { learned, learnedHere } from "./learned.js";
 import { panes } from "./panes.js";
 import { dayNamed, pending, when } from "./pending.js";
 import { needsAPress, strip } from "./strip.js";
@@ -254,8 +255,8 @@ function render(status) {
       card({
         title: "Not connected",
         says:
-          "This browser has no credential. Nothing is recorded and no task can be " +
-          "taught until it is connected to your deployment.",
+          "This browser has no credential. Nothing is recorded or learned " +
+          "until it is connected to your deployment.",
         tone: "attention",
         actions: [
           {
@@ -275,8 +276,16 @@ function render(status) {
   // Before the run and after the state card: it is the only thing here waiting
   // on the person. Not while teaching, because then the panel is about the
   // demonstration and nothing else -- the offer keeps.
+  // Everything after the state card is gathered by kind and laid down in one
+  // order at the end -- the design's: what is wrong, the run, what it made,
+  // what is asked, and only then what is offered and what was learned. The
+  // order these are BUILT in is the order they are reasoned about below.
+  const offers = [];
+  const asks = [];
+  const now = [];
+  const standing = [];
   if (!status.teaching)
-    for (const offer of status.offers || []) cards.push(offering(offer));
+    for (const offer of status.offers || []) offers.push(offering(offer));
 
   // The jobs this browser is offering to do, HERE rather than in the
   // conversation.
@@ -329,10 +338,10 @@ function render(status) {
     if (newest) {
       const one = nudging(newest, answered);
       if (justArrived(newest)) one.dataset.fresh = "1";
-      cards.push(one);
+      offers.push(one);
     }
     // And a way to the rest, which is a line rather than ten more cards.
-    if (rest.length) cards.push(theRest(rest));
+    if (rest.length) offers.push(theRest(rest));
   }
 
   // A standing rule that fired on THIS page and stopped to ask.
@@ -357,7 +366,7 @@ function render(status) {
     const here = page(tabHere.url || "").toLowerCase();
     for (const card of status.waiting || [])
       if (card.page && card.page === here && card.still_there !== false)
-        cards.push(waitingOnYou(card, answered));
+        asks.push(waitingOnYou(card, answered));
   }
 
   // A mail that has gone out and not been answered.
@@ -367,18 +376,28 @@ function render(status) {
   // what was said, and Home says what is true right now. What was true for as
   // long as a reply took was a panel doing visibly nothing.
   const waitingOnMail = mailCard(status);
-  if (waitingOnMail) cards.push(waitingOnMail);
+  if (waitingOnMail) asks.push(waitingOnMail);
 
   // A question nobody has answered, before anything about what is happening
   // now. It is the one thing on this panel that is waiting on THEM.
-  if (status.question) cards.push(theQuestion(status.question));
-  if (status.performing) cards.push(performing(status));
+  if (status.question) asks.unshift(theQuestion(status.question));
+  if (status.performing) now.push(performing(status));
   // Not while teaching, same rule as the offers above: a demonstration in
   // progress is the only thing the panel is about. Placed after the run that
   // is happening now and before what is wrong, because it outranks neither --
   // it is a look back at the last thing this browser did, not a fault.
-  if (!status.teaching && status.finished) cards.push(finished(status));
-  for (const trouble of troubles(status)) cards.push(trouble);
+  if (!status.teaching && status.finished) now.push(finished(status));
+  // What was learned on this system, and how far each job is toward writing
+  // on its own. Below everything that is happening now: it is standing
+  // information, and the loud cards above are the ones waiting on somebody.
+  if (!status.teaching && status.deviceId) {
+    const here = learned(learnedHere(learnedJobs, tabHere.host), {
+      onRun: runFromChat,
+      onReview: (job) => openConsole(`/jobs/${encodeURIComponent(job.id)}`),
+    });
+    if (here) standing.push(here);
+  }
+  cards.push(...troubles(status), ...now, ...asks, ...offers, ...standing);
 
   // The first card is the state of this tab, which is what the strip's chevron
   // opens onto. The rest -- a run, what it made, what is wrong -- stay where
@@ -1764,7 +1783,44 @@ function said(words) {
   $("candidates-note").textContent = words;
 }
 
+/** The jobs mined for this tenant, as the worker last fetched them. */
+let learnedJobs = null;
+let learnedAt = 0;
+
+/** How often the learned jobs are fetched. A job is mined, or earns its
+ * writes, a few times a day; the two-second status poll is not the clock. */
+const K_LEARNED_EVERY_MS = 60_000;
+
+async function fetchLearned() {
+  if (Date.now() - learnedAt < K_LEARNED_EVERY_MS) return;
+  learnedAt = Date.now();
+  try {
+    const { jobs } = await ask({ kind: "learned-jobs" });
+    learnedJobs = jobs || [];
+    if (lastStatus) render(lastStatus);
+  } catch {
+    // Offline, or an older backend: the card is simply absent, and the next
+    // minute tries again.
+  }
+}
+
+/** "Run it here", off a learned job: the request goes through the
+ * conversation, which is what reads the values off the page or asks for the
+ * required ones it cannot find. The box is filled and focused, not sent --
+ * what gets run is still the operator's sentence. */
+function runFromChat(job) {
+  pane = "chat";
+  paintPanes();
+  void conversation();
+  const box = $("ask-bar").querySelector?.("input, textarea");
+  if (box) {
+    box.value = job.title;
+    box.focus();
+  }
+}
+
 async function refresh() {
+  void fetchLearned();
   const status = await ask({ kind: "status" });
   // What a run driving this browser actually is: the worker knows its id and
   // that it is happening, and the run's own record knows what it is called, how

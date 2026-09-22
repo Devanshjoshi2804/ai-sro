@@ -807,6 +807,142 @@ body::after {
   border-top: 1px solid var(--line-soft);
 }
 
+/* -- what was learned here, and the way to writing alone -------------------- */
+
+.card .eyebrow,
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  height: 22px;
+  margin: 0 0 10px;
+  padding: 0 10px 0 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+  font: 500 9.5px var(--font-body);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.eyebrow::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.card[data-tone="live"] .eyebrow {
+  color: #ffc4ab;
+  background: var(--wash);
+  box-shadow: inset 0 0 0 1px var(--aborder);
+}
+
+.learned .job + .job {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.learned .job h3 {
+  margin-top: 2px;
+}
+
+.ladder {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 14px 0 2px;
+  padding: 0;
+  list-style: none;
+}
+
+.ladder::before {
+  content: "";
+  position: absolute;
+  left: 12.5%;
+  right: 12.5%;
+  top: 9px;
+  height: 1px;
+  background: var(--line);
+}
+
+.rung {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 9.5px;
+  line-height: 1.2;
+  color: var(--ink-mute);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.rung::before {
+  content: "";
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: #0f1115;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  transition: all 0.6s var(--ease);
+}
+
+.rung[data-state="done"] {
+  color: var(--ink-soft);
+}
+
+.rung[data-state="done"]::before {
+  background:
+    var(--i-check) center / 11px no-repeat,
+    var(--good-wash);
+  box-shadow: inset 0 0 0 1px var(--good-line);
+}
+
+.rung[data-state="now"] {
+  color: #ffc4ab;
+  font-weight: 500;
+}
+
+.rung[data-state="now"]::before {
+  background:
+    radial-gradient(circle, var(--accent-hi) 0 2.5px, transparent 3px),
+    var(--wash);
+  box-shadow:
+    inset 0 0 0 1px var(--accent),
+    0 0 0 4px rgba(220, 88, 42, 0.14),
+    0 0 16px rgba(220, 88, 42, 0.45);
+}
+
+/* The runs checked so far, out of those needed. */
+.clean {
+  display: flex;
+  gap: 3px;
+  margin-top: 12px;
+}
+
+.clean i {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+
+.clean i[data-on="true"] {
+  background: linear-gradient(180deg, #34d67a, #1fa352);
+  box-shadow: none;
+}
+
 /* -- buttons: island pills --------------------------------------------------- */
 
 .row {
@@ -1847,6 +1983,7 @@ input::placeholder {
   --i-tray: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M4 13.5 6.5 5h11L20 13.5V19H4z'/><path d='M4 13.5h4.5l1 2.5h5l1-2.5H20'/></svg>");
   --i-clock: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='8'/><path d='M12 7.5V12l3 2'/></svg>");
   --i-plus: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'><path d='M12 5v14M5 12h14'/></svg>");
+  --i-check: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2322c55e' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><path d='m5 12.5 4.5 4.5L19 7.5'/></svg>");
   --i-chev: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
 }
 

@@ -60,6 +60,7 @@ const SOURCE = [
   // pressed the Recent tasks tab, and the first test that did got
   // `ReferenceError: history is not defined`.
   readFileSync(path.join(here, "history.js"), "utf-8"),
+  readFileSync(path.join(here, "learned.js"), "utf-8"),
   readFileSync(path.join(here, "panel.js"), "utf-8"),
 ]
   .join("\n")
@@ -1884,6 +1885,70 @@ test("with no way to reverse it, it says so rather than offering a dead button",
   assert.ok(/I'll fix it/i.test(said), "no way to say it was wrong at all");
 });
 
+test("the run happening now leads, and what is offered follows it", () => {
+  // Several true at once: the card somebody must watch or stop is the run,
+  // not the offer that arrived beside it.
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      channel: "open",
+      offers: [OFFER],
+      performing: { runId: "run-9", kind: "rig", since: new Date().toISOString(), step: 1 },
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+  const said = cards.map(words);
+  const run = said.findIndex((one) => /is performing here/.test(one));
+  const offer = said.findIndex((one) => /Resolve a short ship/.test(one));
+  assert.ok(run >= 0 && offer >= 0, "one of the two cards was not drawn");
+  assert.ok(run < offer, "the offer was drawn above the run in progress");
+});
+
+test("what was learned on this system is on Home, and only here", async () => {
+  // Learning is passive, so this card is the only place an operator sees
+  // that it happened: the jobs mined for the page beside the panel, and how
+  // far each is toward writing on its own.
+  const status = {
+    deviceId: "dev-1",
+    capturing: true,
+    watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+  };
+  const jobs = [
+    {
+      id: "wfl_1",
+      title: "Delete a Customer Type",
+      systems: ["wms.example"],
+      runs: { total: 2, held: 2, stale: 0, earned: false, proven: 1, needed: 3 },
+    },
+    {
+      id: "wfl_2",
+      title: "Reply to Email",
+      systems: ["mail.example"],
+      runs: { total: 0, held: 0, stale: 0, earned: false, proven: 0, needed: 3 },
+    },
+  ];
+  const drawn = panel(
+    status,
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+    { status, "learned-jobs": { jobs } },
+  );
+  const cards = await drawn.refresh();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const said = [...(drawn.ids["expanded"]?.kids || []), ...drawn.ids["cards"].kids]
+    .map(words)
+    .join(" ");
+  void cards;
+  assert.match(said, /Learned from what you do here/);
+  assert.match(said, /Delete a Customer Type/);
+  assert.match(said, /1 of 3 runs checked/);
+  assert.doesNotMatch(said, /Reply to Email/, "another system's job was drawn here");
+  assert.ok(
+    drawn.sent.some((message) => message.kind === "learned-jobs"),
+    "the panel never asked what was learned",
+  );
+});
+
 test("Open the console here puts the console in this tab, and Console ↗ in a new one", async () => {
   // The console was framed inside the panel, behind a credential handshake.
   // It is a full-width application; "here" now means the tab beside the
@@ -2890,7 +2955,11 @@ test("a card that arrives while the operator is reading the conversation fetches
     true,
     "the card arrived and nobody was sent to it",
   );
-  const [card] = [...(ids["cards"].kids || [])];
+  // By what it says, not where it is: what is wrong and what is running are
+  // laid down above what is offered.
+  const card = (ids["cards"].kids || []).find((one) =>
+    words(one).includes("Create a Customer Type"),
+  );
   assert.equal(
     card?.dataset?.fresh,
     "1",

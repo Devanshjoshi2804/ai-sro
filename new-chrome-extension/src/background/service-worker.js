@@ -2422,6 +2422,10 @@ async function handle(message, sender) {
       // A conversation somebody deliberately started. `current` answers with
       // the newest, so nothing else has to be told which one to draw.
       return api.newThread();
+    case "learned-jobs":
+      // The jobs mined for this tenant, for the card that says what was
+      // learned on the page beside the panel. The panel filters by host.
+      return { jobs: await api.workflows(await state.deviceId()) };
     case "recent-runs": {
       // The rows, with each job's own title put back on them. The backend
       // answers `workflow_id` and this browser is already holding the shapes

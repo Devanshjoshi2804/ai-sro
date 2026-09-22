@@ -374,8 +374,15 @@ body::after {
 
 /* -- pane nav --------------------------------------------------------------- */
 
-.panes {
+/* The nav and the avatar sit at the far end of the strip's first row,
+   however wide the panel is. */
+.nav-slot {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+.panes {
   display: inline-flex;
   align-items: center;
   gap: 2px;

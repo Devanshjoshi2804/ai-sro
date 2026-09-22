@@ -2119,7 +2119,14 @@ let panesDrawn = null;
  */
 let navSlot = null;
 function theNav() {
-  if (!navSlot) navSlot = document.createElement("div");
+  if (!navSlot) {
+    navSlot = document.createElement("div");
+    // Named, because the strip's row is a flex line and this is the element
+    // that has to take the free space in it: the auto margin was on the tab
+    // pill inside, which is not a flex item of that row, so the whole cluster
+    // stayed bunched against the brand with the rest of a wide panel empty.
+    navSlot.className = "nav-slot";
+  }
   return navSlot;
 }
 

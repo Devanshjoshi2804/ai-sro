@@ -5069,6 +5069,115 @@ async def test_a_step_with_nothing_to_fill_is_skipped_rather_than_emptied() -> N
     assert "does not ask for" in skipped.reason
 
 
+async def test_a_step_naming_the_body_key_still_finds_its_parameter() -> None:
+    """The two ends write it differently. A step names the body key the form
+    posts -- `departmentNumber` -- and the job's parameter is named for the
+    label a person reads, `Department`, with the page's own itemId
+    `customertype-departmentNumber` beside it in `names`.
+
+    Measured on the deployment 2026-09-22 at 09:32, stepping through a run
+    together. The run was given the two values the form demands and reached
+    "Focus and enter the Department code" anyway, because this lookup asked
+    for `departmentNumber` among names holding `Department` and
+    `customertype-departmentNumber`. The step ran, typed nothing, and the
+    screen belt failed it for an empty field -- correctly, about a field
+    nobody had to fill.
+    """
+    uow = await _fixture()
+    ids = _ids(uow)
+    workflow = Workflow(
+        id="wfl_alias",
+        tenant=ELSEWHERE,
+        title="create a client",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(
+                order=0,
+                says="type the code",
+                system=None,
+                cites=[ids[0]],
+                parameters=["customerType"],
+            ),
+            Step(
+                order=1,
+                says="Focus and enter the Department code.",
+                system=None,
+                cites=[ids[0]],
+                parameters=["departmentNumber"],
+            ),
+            Step(order=2, says="save", system=None, cites=[ids[-1]]),
+        ],
+        parameters=[
+            {
+                "name": "Customer Type",
+                "key": "customertype-customerType",
+                "names": ["Customer Type", "customertype-customerType", "Customer Type*"],
+                "seen_values": ["A", "B"],
+            },
+            {
+                "name": "Department",
+                "key": "customertype-departmentNumber",
+                "names": ["Department", "customertype-departmentNumber"],
+                "seen_values": ["IN", "new"],
+            },
+        ],
+    )
+    await uow.workflows.save(workflow)
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=FakeChannel({**_looks(8), "ui.perform": [_performed()] * 4}),
+        asker=_PerSchemaAsker(plan=_plan("type", "A"), verdict=Answer(data={"held": True})),
+        values={"Customer Type": "A"},
+        earned=True,
+    )
+
+    kinds = [(one.of_step, one.verdict) for one in run.steps]
+    assert (1, "not_needed") in kinds, (
+        "the step naming the body key never found the parameter the page does not ask for"
+    )
+    assert (2, "not_needed") not in kinds, "the save was skipped"
+
+
+async def test_a_tail_two_parameters_share_names_neither_of_them() -> None:
+    """`customertype-departmentNumber` is what the page calls the control and
+    `departmentNumber` is what the step calls it. Two parameters ending the
+    same way are two this cannot tell apart, and guessing between them is how
+    a step skips the wrong field."""
+    uow = await _fixture()
+    ids = _ids(uow)
+    workflow = Workflow(
+        id="wfl_tails",
+        tenant=ELSEWHERE,
+        title="create a client",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(order=0, says="type it", system=None, cites=[ids[0]], parameters=["code"]),
+        ],
+        parameters=[
+            {"name": "One", "names": ["One", "alpha-code"], "seen_values": ["a", "b"]},
+            {"name": "Two", "names": ["Two", "beta-code"], "seen_values": ["c", "d"]},
+        ],
+    )
+    await uow.workflows.save(workflow)
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=FakeChannel({**_looks(4), "ui.perform": [_performed()]}),
+        asker=_PerSchemaAsker(plan=_plan("type", "a"), verdict=Answer(data={"held": True})),
+        values={},
+        earned=True,
+    )
+
+    assert [one.verdict for one in run.steps] != ["not_needed"], (
+        "a shared tail was treated as naming one of them"
+    )
+
+
 async def test_a_step_that_names_no_parameter_is_never_skipped() -> None:
     """It clicks, navigates or saves. Skipping it would take the job apart."""
     uow = await _fixture()

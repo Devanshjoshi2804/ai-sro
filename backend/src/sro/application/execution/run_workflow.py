@@ -1106,16 +1106,53 @@ def _not_given(workflow: Workflow, values: Mapping[str, str]) -> tuple[str, ...]
 
 
 def _optional_of(step: Step, workflow: Workflow) -> tuple[str, ...]:
-    """This step's parameters that the page does not ask for."""
-    by_name = {
-        str(name): one
-        for one in workflow.parameters
-        if isinstance(name := one.get("name"), str) and name
-    }
+    """This step's parameters that the page does not ask for.
+
+    Matched on every name the control answers to, because the two ends write
+    it differently. A step names the body key the form posts --
+    `departmentNumber` -- and the job's parameter is named for the label a
+    person reads, `Department`, with the page's own itemId
+    `customertype-departmentNumber` beside it in `names`.
+
+    Measured on the deployment 2026-09-22 at 09:32. The run was given the two
+    values the form demands and reached "Focus and enter the Department code"
+    anyway, because this lookup asked for `departmentNumber` among names that
+    held `Department` and `customertype-departmentNumber` and found nothing.
+    The step ran, typed nothing, and the screen belt failed it for an empty
+    field -- correctly, about a field nobody had to fill.
+
+    The itemId's last segment is an alias too, and only where it is unique:
+    `customertype-departmentNumber` is what the page calls the control and
+    `departmentNumber` is what the step calls it, and two parameters ending
+    the same way are two this cannot tell apart.
+    """
+    by_alias: dict[str, dict[str, object]] = {}
+    seen_tail: dict[str, int] = {}
+    for one in workflow.parameters:
+        names = one.get("names")
+        aliases = {
+            str(alias)
+            for alias in (
+                one.get("name"),
+                one.get("key"),
+                *(names if isinstance(names, list | tuple) else ()),
+            )
+            if isinstance(alias, str) and alias
+        }
+        for alias in aliases:
+            by_alias.setdefault(alias, one)
+            tail = alias.rsplit("-", 1)[-1]
+            if tail != alias:
+                seen_tail[tail] = seen_tail.get(tail, 0) + 1
+                by_alias.setdefault(tail, one)
+    # A tail two parameters share names neither of them.
+    for tail, count in seen_tail.items():
+        if count > 1:
+            by_alias.pop(tail, None)
     return tuple(
         name
         for name in step.parameters
-        if (declared := by_name.get(str(name))) is not None and not demanded(declared)
+        if (declared := by_alias.get(str(name))) is not None and not demanded(declared)
     )
 
 

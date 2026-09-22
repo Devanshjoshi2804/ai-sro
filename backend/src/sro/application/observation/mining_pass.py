@@ -329,6 +329,7 @@ async def learn_parameters(
     fresh: list[dict[str, object]] = []
     widened = 0
     named = False
+    told = False
     for parameter in found:
         existing = (
             by_name.get(parameter.name)
@@ -357,7 +358,13 @@ async def learn_parameters(
                     # read until 2026-09-22. See `LearnedParameter.required`:
                     # not `in_all`, which measures what the operator happened
                     # to do rather than what the form demands.
-                    "required": parameter.required,
+                    #
+                    # Only where the page SPOKE. `demanded` falls back to the
+                    # star in the names when this key is absent, so writing a
+                    # silence down as `False` would turn "nobody said" into
+                    # "the form says optional" -- and a later recording that
+                    # does carry the star would lose to it.
+                    **({"required": parameter.required} if parameter.said is not None else {}),
                 }
             )
             continue
@@ -373,13 +380,31 @@ async def learn_parameters(
         # the page's own name for the same control are one -- a job stored
         # before any of this has nothing else to recognise itself by.
         named = named or existing["names"] != known
+        # And what the PAGE said about it, where a recording has now carried
+        # it. A parameter that already exists took this branch and only this
+        # branch, and this branch wrote names, key and values -- so a job
+        # could never learn that a field is mandatory after the first time it
+        # was seen, however many recordings said so.
+        #
+        # Measured on the deployment 2026-09-22. The recorder was reading
+        # `aria-required` and `allowBlank`, the gestures carried it, the pass
+        # at 07:49 widened two parameters of this very job, and all four
+        # entries still held nothing about what the form demands.
+        #
+        # Only where the page actually SPOKE. `required` falls back to the
+        # star in the names when this is absent, so a silence written down as
+        # `False` would turn "nobody said" into "the form says optional" --
+        # and that is a claim about a warehouse nobody made.
+        if parameter.said is not None and existing.get("required") != parameter.required:
+            existing["required"] = parameter.required
+            told = True
         was = existing.get("seen_values")
         seen = [str(value) for value in was] if isinstance(was, list) else []
         added = [value for value in parameter.seen if value not in seen]
         if added:
             existing["seen_values"] = [*seen, *added]
             widened += 1
-    if not fresh and not widened and not repaired and not named:
+    if not fresh and not widened and not repaired and not named and not told:
         return 0
     stored.parameters = _folded([*stored.parameters, *fresh])
     # And the name stops describing the first doing. A title is minted from one

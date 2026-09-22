@@ -1040,6 +1040,70 @@ async def test_a_third_doing_widens_a_parameter_it_does_not_discard_it() -> None
     assert len(stored.parameters) == 1, "one control, not one parameter per doing"
 
 
+async def test_a_later_doing_teaches_a_stored_parameter_what_the_page_demands() -> None:
+    """A parameter that already exists takes the widening branch, and that
+    branch wrote names, key and values. So a job could never learn that a
+    field is mandatory after the first time it was seen, however many
+    recordings said so.
+
+    Measured on the deployment 2026-09-22. The recorder had been reading
+    `aria-required` and Ext's `allowBlank` for an hour, the gestures carried
+    it, a pass at 07:49 widened two parameters of that very job -- and all
+    four entries still held nothing about what the form demands.
+    """
+    uow, ids = await _day()
+    original = [_rows(uow)[gesture_id] for gesture_id in ids]
+    await _mine(uow, FakeAsker(_found(_proposal(ids))))
+
+    # Two doings, so the parameter EXISTS -- one doing cannot tell a parameter
+    # from a constant. Neither carries the marker, so the stored entry holds
+    # nothing about what the form demands, which is where every parameter on
+    # the deployment was.
+    second = _redone(original, "SOMETHING-ELSE", "again", 10_000.0)
+    await uow.gestures.add_gestures(tuple(second))
+    await _mine(uow, FakeAsker(_found(_proposal([g.id for g in second]))))
+    stored = (await uow.workflows.known(TENANT))[0]
+    assert stored.parameters, "two doings should have named a parameter"
+    assert all("required" not in one for one in stored.parameters), "nothing has said yet"
+
+    # A THIRD doing, on a page that says the control is mandatory -- and
+    # repeating a value the job has already seen, so nothing widens and the
+    # only thing this pass has to write down is what the page said.
+    third = []
+    for row in _redone(original, "SOMETHING-ELSE", "thrice", 20_000.0):
+        target = row.action.target
+        if target is not None and row.action.kind == "type":
+            row = replace(row, action=replace(row.action, target=replace(target, required=True)))
+        third.append(row)
+    await uow.gestures.add_gestures(tuple(third))
+
+    pass_ = await _mine(uow, FakeAsker(_found(_proposal([g.id for g in third]))))
+
+    stored = (await uow.workflows.known(TENANT))[0]
+    told = [one for one in stored.parameters if one.get("required") is True]
+    assert told, "a page that said the field is mandatory taught the job nothing"
+    assert pass_.kept == 0, "it is still the same job"
+
+
+async def test_a_page_that_said_nothing_does_not_write_a_silence_down() -> None:
+    """`required` falls back to the star in the names when it is absent, so a
+    silence written down as `False` turns "nobody said" into "the form says
+    optional" -- a claim about a warehouse nobody made."""
+    uow, ids = await _day()
+    original = [_rows(uow)[gesture_id] for gesture_id in ids]
+
+    await _mine(uow, FakeAsker(_found(_proposal(ids))))
+    rows = _redone(original, "SOMETHING-ELSE", "again", 10_000.0)
+    await uow.gestures.add_gestures(tuple(rows))
+
+    await _mine(uow, FakeAsker(_found(_proposal([g.id for g in rows]))))
+
+    stored = (await uow.workflows.known(TENANT))[0]
+    assert all("required" not in one for one in stored.parameters), (
+        "a page that said nothing was written down as saying optional"
+    )
+
+
 async def test_a_control_the_model_already_named_does_not_gain_a_second_parameter() -> None:
     """The model names a control by the label the operator reads; `_by_control`
     names the same control by its `item_id`. Neither is wrong and they never

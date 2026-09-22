@@ -1479,11 +1479,18 @@ def _chose_from_a_list() -> Gesture:
     one.id = "ges_boundlist"
     target = one.action.target
     assert target is not None
+    # The whole sentence the page puts on the row, as the recorder captured
+    # it: `<what was typed> in <Column>`. `_typed()` types ACME-4471.
     one.action = replace(
         one.action,
         kind="click",
         value=None,
-        target=replace(target, component=Component(query="rpBoundList", xtype="rpBoundList")),
+        target=replace(
+            target,
+            name="ACME-4471 in Customer Type",
+            text="ACME-4471 in Customer Type",
+            component=Component(query="rpBoundList", xtype="rpBoundList"),
+        ),
     )
     return one
 
@@ -1537,8 +1544,15 @@ async def test_the_second_half_clicks_the_row_the_value_names() -> None:
     assert planned.opens is False
     assert planned.payload["action"] == "click"
     assert planned.payload["value"] is None
+    # The page's own wording with this run's value in it -- never the value
+    # alone, which finds the GRID's cell and opens the record.
     assert planned.payload["locators"] == [
-        {"strategy": "text", "query": "MRN5", "within": None, "visible_only": True}
+        {
+            "strategy": "role_and_name",
+            "query": "option|MRN5 in Customer Type",
+            "within": None,
+            "visible_only": True,
+        }
     ]
 
 
@@ -1567,3 +1581,81 @@ async def test_a_box_that_takes_a_value_and_closes_is_typed_into_once() -> None:
 
     assert planned.payload["action"] == "type"
     assert planned.opens is False, "a plain field was treated as a list"
+
+
+async def test_a_list_whose_wording_the_demonstration_does_not_carry_is_left_alone() -> None:
+    """A guessed name clicks something nobody demonstrated.
+
+    Where the recorded option does not contain what was recorded as typed,
+    there is no template to substitute into -- so the step is typed once and
+    the compound stays out of it.
+    """
+    typed, chosen = _typed(), _chose_from_a_list()
+    target = chosen.action.target
+    assert target is not None
+    chosen.action = replace(
+        chosen.action, target=replace(target, name="something else entirely", text="")
+    )
+
+    planned = await plan_step(
+        step=Step(
+            order=0,
+            says="filter",
+            system=None,
+            cites=[typed.id, chosen.id],
+            parameters=["clientCode"],
+        ),
+        cited=[typed, chosen],
+        values={"clientCode": "MRN5"},
+        look=Look(None, None, ""),
+        origin="http://127.0.0.1:63319",
+        starts_on="",
+        allow_focus=False,
+        asker=FakeAsker(_answer(action="type", value="MRN5")),
+        model="m",
+    )
+
+    assert planned.payload["action"] == "type"
+    assert planned.opens is False
+
+
+async def test_a_click_on_something_other_than_a_list_is_not_a_list() -> None:
+    """Typed, then clicked Save is the commonest shape there is. Reading any
+    click as a list would turn every one of those into two commands, the
+    second hunting an option that does not exist."""
+    typed = _typed()
+    after = copy.deepcopy(typed)
+    after.id = "ges_a_button"
+    target = after.action.target
+    assert target is not None
+    after.action = replace(
+        after.action,
+        kind="click",
+        value=None,
+        target=replace(
+            target,
+            name="ACME-4471 in Customer Type",
+            component=Component(query="toolbar button#saveButton", xtype="button"),
+        ),
+    )
+
+    planned = await plan_step(
+        step=Step(
+            order=0,
+            says="type it and save",
+            system=None,
+            cites=[typed.id, after.id],
+            parameters=["clientCode"],
+        ),
+        cited=[typed, after],
+        values={"clientCode": "MRN5"},
+        look=Look(None, None, ""),
+        origin="http://127.0.0.1:63319",
+        starts_on="",
+        allow_focus=False,
+        asker=FakeAsker(_answer(action="type", value="MRN5")),
+        model="m",
+    )
+
+    assert planned.payload["action"] == "type"
+    assert planned.opens is False, "a Save button was taken for a dropdown list"

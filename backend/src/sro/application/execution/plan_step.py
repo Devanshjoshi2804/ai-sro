@@ -653,41 +653,70 @@ async def plan_step(
     # Read off the step's own evidence and never assumed: only where a cited
     # click landed on a bound list. A form whose box takes a value and closes
     # is untouched.
-    if action in VALUED and _answers_with_a_list(cited) and payload.get("value"):
-        if not opened:
+    if action in VALUED and payload.get("value"):
+        option = _option_named(cited, str(payload["value"]))
+        if option:
+            if not opened:
+                return Planned(
+                    "ui.perform", payload, f"{why}, and its list is open", answer, opens=True
+                )
             return Planned(
-                "ui.perform", payload, f"{why}, and its list is open", answer, opens=True
+                "ui.perform",
+                _clicking(
+                    [Locator("role_and_name", f"option|{option}", visible_only=True)],
+                    origin,
+                    allow_focus,
+                    starts_on,
+                ),
+                f"choosing {option!r} from the list the box opened",
+                answer,
             )
-        return Planned(
-            "ui.perform",
-            _clicking(
-                [Locator("text", str(payload["value"]), visible_only=True)],
-                origin,
-                allow_focus,
-                starts_on,
-            ),
-            f"choosing {payload['value']} from the list the box opened",
-            answer,
-        )
     return Planned("ui.perform", payload, why, answer)
 
 
-def _answers_with_a_list(cited: list[Gesture]) -> bool:
-    """Whether this step's demonstration chose from a list the box opened.
+def _option_named(cited: list[Gesture], wanted: str) -> str:
+    """The row this step's demonstration chose, said for THIS run's value.
 
-    Ext's own xtype for the dropdown a combobox opens is `boundlist`, and an
-    application that subclasses it keeps the word: this deployment's is
-    `rpBoundList`. Matched on the ending so both answer, and on the component
-    rather than the DOM because a bound list is rendered as anonymous divs
-    with generated ids.
+    A filter box does not offer its options by the value alone. Measured on
+    the deployment 2026-09-22: typing `NWTS` offered `NWTS in Customer Type`,
+    `NWTS in Description` and two more, and the demonstration clicked the
+    first -- an `li` with `role=option` whose whole text is that sentence.
+
+    So the row cannot be found by the value: a text match on `NEX` finds the
+    GRID's own cell instead, clicks it, and opens the record rather than
+    filtering to it. That is what happened at 15:57, on the first run after
+    this compound shipped.
+
+    The demonstration carries the template. Its option said
+    `<what was typed> in Customer Type`, so the recorded value is replaced
+    with the one this run was given and the rest is the page's own wording,
+    never invented here. Empty where the step shows no list, or where the
+    recorded option does not contain what was recorded as typed -- both are
+    cases this cannot write a name for, and a guessed name clicks something
+    nobody demonstrated.
+
+    Ext's own xtype for the list is `boundlist`; an application subclassing it
+    keeps the word, and this deployment's is `rpBoundList`. Matched on the
+    ending so both answer, and on the component rather than the DOM, because a
+    bound list renders as anonymous divs with generated ids.
     """
-    return any(
-        gesture.action.kind == "click"
-        and (component := gesture.action.target.component if gesture.action.target else None)
-        is not None
-        and str(component.xtype or "").lower().endswith("boundlist")
-        for gesture in cited
+    typed = next(
+        (str(one.action.value) for one in cited if one.action.kind in VALUED and one.action.value),
+        "",
     )
+    if not typed:
+        return ""
+    for gesture in cited:
+        target = gesture.action.target
+        component = target.component if target else None
+        if gesture.action.kind != "click" or component is None:
+            continue
+        if not str(component.xtype or "").lower().endswith("boundlist"):
+            continue
+        said = (target.name if target else "") or (target.text if target else "") or ""
+        if typed in said:
+            return said.replace(typed, wanted)
+    return ""
 
 
 def _point_on(said: object, look: Look) -> tuple[int, int] | None:

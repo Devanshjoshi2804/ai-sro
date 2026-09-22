@@ -1171,6 +1171,32 @@ def _skippable(step: Step, workflow: Workflow, values: Mapping[str, str]) -> boo
     wanted = tuple(str(name) for name in step.parameters)
     if not wanted:
         return False
+    # Never where the run has nothing at all to go on.
+    #
+    # The rule this skipping rests on is "the page does not ask for this
+    # field", and the page is talking about its own form. A filter box is not
+    # a form field: nothing marks it required, and on `Delete a Customer Type`
+    # it is the only parameter the job has and the only thing that says WHICH
+    # record is deleted. Skipping it leaves the run to delete whatever row
+    # happens to be selected.
+    #
+    # Written down 2026-09-22, before it could happen: a card pressed with no
+    # value would have skipped the step that picks the record and gone on to
+    # Delete and OK.
+    #
+    # So: a run holding a value for NONE of the job's parameters is not
+    # performing a parameterised job, it is replaying a recording against
+    # whatever is in front of it, and nothing may be skipped on the strength
+    # of a form's own markings. A run holding some -- the create, with its two
+    # required fields given and its two optional ones not -- skips exactly as
+    # it did.
+    declared = [
+        str(name)
+        for one in workflow.parameters
+        if isinstance(name := one.get("name"), str) and name
+    ]
+    if declared and not any(values.get(name, "").strip() for name in declared):
+        return False
     optional = set(_optional_of(step, workflow))
     return all(name in optional and not values.get(name, "").strip() for name in wanted)
 

@@ -5069,6 +5069,59 @@ async def test_a_step_with_nothing_to_fill_is_skipped_rather_than_emptied() -> N
     assert "does not ask for" in skipped.reason
 
 
+async def test_a_run_holding_no_value_at_all_skips_nothing() -> None:
+    """The rule skipping rests on is "the page does not ask for this field",
+    and the page is talking about its own form. A filter box is not a form
+    field: nothing marks it required, and on `Delete a Customer Type` it is
+    the only parameter the job has and the only thing that says WHICH record
+    is deleted.
+
+    Written down 2026-09-22, before it could happen: a card pressed with no
+    value would have skipped the step that picks the record and gone on to
+    Delete and OK. A run holding a value for none of the job's parameters is
+    not performing a parameterised job -- it is replaying a recording against
+    whatever is in front of it.
+    """
+    uow = await _fixture()
+    ids = _ids(uow)
+    workflow = Workflow(
+        id="wfl_delete_like",
+        tenant=ELSEWHERE,
+        title="delete a customer type",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[
+            Step(
+                order=0,
+                says="Enter filter criteria",
+                system=None,
+                cites=[ids[0]],
+                parameters=["Customer Type"],
+            ),
+            Step(order=1, says="click delete", system=None, cites=[ids[-1]]),
+        ],
+        # One parameter, and the page never marked it -- a search box is not a
+        # form field.
+        parameters=[
+            {"name": "Customer Type", "names": ["Customer Type"], "seen_values": ["GDD", "KKYT"]}
+        ],
+    )
+    await uow.workflows.save(workflow)
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=FakeChannel({**_looks(6), "ui.perform": [_performed()] * 3}),
+        asker=_PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True})),
+        values={},
+        earned=True,
+    )
+
+    assert (0, "not_needed") not in [(one.of_step, one.verdict) for one in run.steps], (
+        "the step that picks the record was skipped, leaving the delete to take whatever was there"
+    )
+
+
 async def test_a_step_naming_the_body_key_still_finds_its_parameter() -> None:
     """The two ends write it differently. A step names the body key the form
     posts -- `departmentNumber` -- and the job's parameter is named for the

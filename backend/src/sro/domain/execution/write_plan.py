@@ -65,8 +65,9 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from types import MappingProxyType
+from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
 from sro.domain.execution.evidence import READ_METHODS, recorded_call
 from sro.domain.execution.planning import unreplayable
@@ -153,8 +154,6 @@ def _same_endpoint(call: Call, other: Call) -> bool:
     reason: a write does not become a different endpoint because one recording
     carried `?siteId=SG` and the next did not.
     """
-    from urllib.parse import urlsplit
-
     return (
         call.method.upper() == other.method.upper()
         and system_of(call.url) == system_of(other.url)
@@ -329,10 +328,14 @@ def wanted_by(
     call = recorded_call(step, by_id)
     if call is None or call.method.upper() in READ_METHODS or unreplayable(call):
         return frozenset()
+    # And the one its PATH carries. A delete names its record in the url and
+    # sends no body at all, so a guard that only read bodies let a run holding
+    # no value replay the demonstration's own `DELETE .../customerTypes/MRN5`.
+    owner = _path_owner(step, by_id, call, seen)
     bodies = _bodies_of(step, by_id, call)
     if not bodies:
-        return frozenset()
-    owners: set[str] = set()
+        return frozenset({owner}) if owner else frozenset()
+    owners: set[str] = {owner} if owner else set()
     for slot in sorted(_slots(bodies)):
         taken = {body[slot] for body in bodies if isinstance(body.get(slot), str)}
         if not taken:
@@ -462,8 +465,9 @@ def write_plan_for(
     if not bodies:
         # No JSON body to aim. A form-encoded write is replayable byte for byte
         # and this module has nothing to add to it, so it declines and the
-        # existing path sends it as it was recorded.
-        return None
+        # existing path sends it as it was recorded -- unless the value this
+        # run was given lives in the path, which is what a delete is.
+        return _path_plan(step, by_id, call, values, seen, entry)
 
     slots = _slots(bodies)
     echoed = _echoed(step, by_id, call)
@@ -539,6 +543,109 @@ def write_plan_for(
         },
         entry=entry,
     )
+
+
+def _path_owner(
+    step: Step, by_id: Mapping[str, Gesture], like: Call, seen: Mapping[str, frozenset[str]]
+) -> str | None:
+    """The parameter this write's last path segment IS, where the doings prove it.
+
+    `DELETE /data/WM/wm/customerTypes/MRN5`, then `.../DDLS`, then `.../ZQ46`:
+    six demonstrations of `Delete a Customer Type` on the deployment, every one
+    answered 200, and every last segment a value the operator typed into the
+    job's one parameter. That is the binding, read off the evidence the same way
+    `_assigned` reads a body slot -- a parameter owns the segment when every
+    value the segment was seen taking is one it was seen taking.
+
+    Two doings at least, with different segments: one proves nothing about
+    what varies. Only answered calls that succeeded, because a demonstration
+    that got a 404 demonstrated the wrong record. Every other segment must be
+    the same across them, so this can only ever name the LAST one.
+    """
+    head = urlsplit(like.url).path.rsplit("/", 1)[0]
+    taken: set[str] = set()
+    for cited in step.cites:
+        gesture = by_id.get(cited)
+        if gesture is None:
+            continue
+        for call in gesture.requests:
+            if call.method.upper() != like.method.upper():
+                continue
+            if system_of(call.url) != system_of(like.url) or call.failure_reason:
+                continue
+            if call.status is None or not 200 <= call.status < 300:
+                continue
+            path = urlsplit(call.url).path
+            if path.rsplit("/", 1)[0] == head:
+                taken.add(unquote(path.rsplit("/", 1)[-1]))
+    if len(taken) < 2:
+        return None
+    claiming = [name for name, observed in seen.items() if taken <= observed]
+    return claiming[0] if len(claiming) == 1 else None
+
+
+def _path_plan(
+    step: Step,
+    by_id: Mapping[str, Gesture],
+    call: Call,
+    values: Mapping[str, str],
+    seen: Mapping[str, frozenset[str]],
+    entry: VerifiedWrite,
+) -> WritePlan | None:
+    """The recorded call with this run's value where the demonstration's was.
+
+    Nothing to read back afterwards, deliberately: `confirm` is empty, so
+    `verify` holds it on the status -- and for a url that NAMES the record, a
+    2xx is the server saying which record it acted on.
+    """
+    owner = _path_owner(step, by_id, call, seen)
+    wanted = values.get(owner, "").strip() if owner else ""
+    if not wanted:
+        return None
+    parts = urlsplit(call.url)
+    head = parts.path.rsplit("/", 1)[0]
+    url = urlunsplit(parts._replace(path=f"{head}/{quote(wanted, safe='')}"))
+    # Matched against the same ledger entry again: a value that decodes to a
+    # traversal is refused by `verified_write_for`, never sent.
+    if verified_write_for(replace(call, url=url), (entry,)) is None:
+        return None
+    return WritePlan(
+        method=call.method.upper(),
+        url=url,
+        body=call.request_body.text if call.request_body else None,
+        filled={"path": owner} if owner else {},
+        confirm={},
+        entry=entry,
+    )
+
+
+def demonstrated_writes(
+    workflow: Workflow, by_id: Mapping[str, Gesture]
+) -> tuple[VerifiedWrite, ...]:
+    """The endpoints this job's OWN demonstrations proved, for this job alone.
+
+    The ledger admits an endpoint once a run of ours watched it succeed, which
+    no run of a job can do while the job cannot finish by the interface --
+    `Delete a Customer Type` failed at its filter box for a day with six
+    recorded, answered `DELETE`s in its evidence and nothing in the ledger.
+
+    Narrow on purpose, and only the one shape the evidence makes airtight: a
+    write whose last path segment `_path_owner` proves IS the job's parameter.
+    The pattern is the literal path with that one segment as `{id}`. Nothing
+    is stored; the tuple is added to this run's ledger and gone with it, so
+    one job's demonstrations never license another job's call.
+    """
+    seen = seen_values(workflow)
+    found: list[VerifiedWrite] = []
+    for step in workflow.steps:
+        call = recorded_call(step, by_id)
+        if call is None or call.method.upper() in READ_METHODS or unreplayable(call):
+            continue
+        if _path_owner(step, by_id, call, seen) is None:
+            continue
+        head = urlsplit(call.url).path.rsplit("/", 1)[0]
+        found.append(VerifiedWrite(call.method, f"{head}/{{id}}"))
+    return tuple(found)
 
 
 def _undemonstrated(

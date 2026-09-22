@@ -23,6 +23,7 @@ tasks that found them could not pin them at their own layer:
 
 import asyncio
 import base64
+import copy
 import json
 from collections.abc import Mapping, Sequence
 from contextlib import suppress
@@ -8484,3 +8485,61 @@ async def test_the_planner_is_given_the_value_under_the_name_the_page_uses() -> 
     # are written in that one, and a value that stopped answering to it would
     # break every reader that goes by the job's own declaration.
     assert '"Customer Type": "NEX"' in planned
+
+
+async def test_a_delete_the_operator_demonstrated_goes_out_as_one_call() -> None:
+    """The ledger admits an endpoint once a run of ours watched it succeed,
+    which no run of this job could do while it failed at the filter box -- a
+    day of that on the deployment, with six recorded, answered `DELETE`s in the
+    job's own evidence. `demonstrated_writes` adds them for this run: nothing
+    in the ledger passed in, and the call still goes, to the record asked for."""
+    uow = await _fixture()
+    base = next(g for g in _evidence(uow) if g.requests)
+    doings = []
+    for n, code in enumerate(("MRN5", "DDLS")):
+        one = copy.deepcopy(base)
+        one.id = f"ges_delete_{n}"
+        one.requests = [
+            replace(
+                one.requests[0],
+                method="DELETE",
+                url=f"http://127.0.0.1:63319/api/customerTypes/{code}?siteId=SG",
+                request_body=None,
+                status=200,
+                failure_reason=None,
+                started_at=one.at,
+            )
+        ]
+        doings.append(one)
+    await uow.gestures.add_gestures(tuple(doings))
+    workflow = Workflow(
+        id="wfl_delete_demo",
+        tenant=ELSEWHERE,
+        title="delete a customer type",
+        narrative="n",
+        systems=["http://127.0.0.1:63319"],
+        steps=[Step(order=0, says="confirm", system=None, cites=[one.id for one in doings])],
+        parameters=[{"name": "Customer Type", "seen_values": ["MRN5", "DDLS"]}],
+    )
+    await uow.workflows.save(workflow)
+    channel = FakeChannel(
+        {
+            **_looks(4),
+            "http.send": [Reply(ok=True, result={"status": 200, "body": "", "headers": {}})],
+        }
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=_PerSchemaAsker(plan=_replay(), verdict=Answer(data={"held": True})),
+        values={"Customer Type": "MRN1"},
+        earned=True,
+    )
+
+    sent = [one["payload"] for one in channel.sent if one["kind"] == "http.send"]
+    assert [one["url"] for one in sent] == [
+        "http://127.0.0.1:63319/api/customerTypes/MRN1?siteId=SG"
+    ], "the demonstrated delete never went out as a call, or went to the wrong record"
+    assert run.outcome == "held"

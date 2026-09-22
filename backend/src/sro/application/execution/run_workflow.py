@@ -93,7 +93,7 @@ from sro.domain.execution.planning import Look, Planned
 from sro.domain.execution.secrets import secret_key_of, without_secrets
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
-from sro.domain.execution.write_plan import scaffolding_for, seen_values
+from sro.domain.execution.write_plan import demonstrated_writes, scaffolding_for, seen_values
 from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.trim import path_shape
 from sro.domain.shared.hosts import (
@@ -1512,6 +1512,11 @@ async def run_workflow(
 
     values = _under_every_name(workflow, values)
     by_id = await _gestures_for(uow, tenant_id, workflow)
+    # And what this job's own demonstrations proved, for this run alone. See
+    # `demonstrated_writes`: a job that cannot yet finish by the interface can
+    # never have a run of ours watch its write succeed, however many times the
+    # operator's own recording shows the server answering it.
+    verified_writes = (*verified_writes, *demonstrated_writes(workflow, by_id))
     # What earlier runs found out about this job's steps, by step order. Read
     # once: it is a handful of rows and every step of the loop would otherwise
     # ask for the same table.

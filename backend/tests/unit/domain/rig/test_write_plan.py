@@ -22,6 +22,7 @@ from sro.domain.execution.field_notes import keys_named
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.write_plan import (
     begins_again_at,
+    demonstrated_writes,
     scaffolding_for,
     seen_values,
     wanted_by,
@@ -1092,3 +1093,98 @@ def test_one_doing_that_returned_a_key_is_not_enough() -> None:
 
     assert plan is not None
     assert json.loads(plan.body or "{}")["departmentNumber"] == ""
+
+
+# --- a write whose value is in its path ---------------------------------------
+
+DELETED = VerifiedWrite(method="DELETE", path_pattern=f"{PATH}/{{id}}")
+
+
+def _deleting(gesture_id: str, code: str, *, status: int = 200) -> Gesture:
+    """One doing of the delete, as the deployment recorded six of them: the OK
+    click, and `DELETE .../customerTypes/<code>?siteId=SG` answered 200."""
+    gesture = _saving(gesture_id, None, method="DELETE", url=f"{HOST}{PATH}/{code}?siteId=SG")
+    gesture.requests[0] = replace(gesture.requests[0], status=status)
+    return gesture
+
+
+def _deletes(*codes: str) -> dict[str, Gesture]:
+    return {f"d{n}": _deleting(f"d{n}", code) for n, code in enumerate(codes)}
+
+
+SEEN_CODES = {"Customer Type": frozenset({"MRN5", "DDLS", "ZQ46", "GPP"})}
+
+
+def test_a_delete_is_aimed_at_the_record_this_run_names() -> None:
+    """Measured on the deployment 2026-09-22: six recorded `DELETE`s, every one
+    answered 200, and every last segment a code the operator typed into the
+    job's one parameter. The recording's url names the demonstration's record;
+    replayed as it stands it deletes MRN5 when the run asked for MRN1."""
+    by_id = _deletes("MRN5", "DDLS")
+    plan = write_plan_for(
+        Step(order=4, says="Confirm the deletion", system=HOST, cites=list(by_id)),
+        by_id,
+        {"Customer Type": "MRN1"},
+        (DELETED,),
+        SEEN_CODES,
+    )
+
+    assert plan is not None
+    assert plan.url == f"{HOST}{PATH}/MRN1?siteId=SG"
+    assert plan.method == "DELETE" and plan.body is None
+    # Nothing a read could settle: the status of a url that names the record is
+    # the answer, and `verify` holds on it.
+    assert plan.confirm == {}
+
+
+def test_one_doing_proves_nothing_about_which_segment_varies() -> None:
+    by_id = _deletes("MRN5")
+    step = Step(order=4, says="Confirm the deletion", system=HOST, cites=list(by_id))
+
+    assert write_plan_for(step, by_id, {"Customer Type": "MRN1"}, (DELETED,), SEEN_CODES) is None
+
+
+def test_a_demonstration_the_server_refused_proves_nothing() -> None:
+    """A 404 demonstrated the wrong record, not the endpoint."""
+    by_id = {"d0": _deleting("d0", "MRN5"), "d1": _deleting("d1", "DDLS", status=404)}
+    step = Step(order=4, says="Confirm the deletion", system=HOST, cites=list(by_id))
+
+    assert write_plan_for(step, by_id, {"Customer Type": "MRN1"}, (DELETED,), SEEN_CODES) is None
+
+
+def test_a_value_that_decodes_to_a_traversal_is_never_sent() -> None:
+    by_id = _deletes("MRN5", "DDLS")
+    step = Step(order=4, says="Confirm the deletion", system=HOST, cites=list(by_id))
+
+    assert write_plan_for(step, by_id, {"Customer Type": "../x"}, (DELETED,), SEEN_CODES) is None
+
+
+def test_the_value_a_delete_path_carries_is_one_the_run_must_have() -> None:
+    """`wanted_by` is what refuses a run holding nothing, and it read bodies
+    only -- so a run pressed with no value would replay `DELETE .../MRN5`."""
+    by_id = _deletes("MRN5", "DDLS")
+    step = Step(order=4, says="Confirm the deletion", system=HOST, cites=list(by_id))
+
+    assert wanted_by(step, by_id, SEEN_CODES) == {"Customer Type"}
+
+
+def test_a_job_proves_the_delete_its_own_doings_show() -> None:
+    by_id = _deletes("MRN5", "DDLS", "ZQ46")
+    job = replace(
+        _job(Step(order=4, says="Confirm the deletion", system=HOST, cites=list(by_id))),
+        parameters=[{"name": "Customer Type", "seen_values": ["MRN5", "DDLS", "ZQ46"]}],
+    )
+
+    assert demonstrated_writes(job, by_id) == (DELETED,)
+
+
+def test_a_create_is_not_admitted_by_its_demonstrations() -> None:
+    """Only the one shape the evidence makes airtight. A body-carrying write
+    still earns its place in the ledger by a run of ours watching it."""
+    by_id = _twice()
+    job = replace(
+        _job(_step("g1", "g2")),
+        parameters=[{"name": "Customer Type", "seen_values": ["GGD", "GKB"]}],
+    )
+
+    assert demonstrated_writes(job, by_id) == ()

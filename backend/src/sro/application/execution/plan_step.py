@@ -161,7 +161,9 @@ def _replay_of(
     recorded = call.request_body.text if call.request_body else None
     payload: dict[str, object] = {
         "method": call.method.upper(),
-        "url": call.url,
+        # The plan's url where there is a plan: a delete's value is in its
+        # path, and the recording's url names the demonstration's record.
+        "url": aimed.url if aimed is not None else call.url,
         "headers": headers_without_markers(call.request_headers),
         "body": aimed.body if aimed is not None else (recorded or None),
     }

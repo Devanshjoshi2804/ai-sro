@@ -1727,3 +1727,38 @@ async def test_a_click_on_something_other_than_a_list_is_not_a_list() -> None:
 
     assert planned.payload["action"] == "type"
     assert planned.opens is False, "a Save button was taken for a dropdown list"
+
+
+async def test_a_replayed_delete_goes_to_the_record_this_run_named() -> None:
+    """The plan knew the url and the payload sent the recording's: a delete's
+    value is in its path, so the recording's url names the demonstration's
+    record -- MRN5, already gone -- and not the one this run was asked for."""
+    from sro.application.execution.plan_step import replay_without_asking
+
+    doings = []
+    for n, code in enumerate(("MRN5", "DDLS")):
+        one = copy.deepcopy(_saver())
+        one.id = f"ges_delete_{n}"
+        one.requests = [
+            replace(
+                one.requests[0],
+                method="DELETE",
+                url=f"http://127.0.0.1:63319/api/customerTypes/{code}?siteId=SG",
+                request_body=None,
+                status=200,
+                failure_reason=None,
+                started_at=one.at,
+            )
+        ]
+        doings.append(one)
+
+    planned = replay_without_asking(
+        step=Step(order=4, says="confirm", system=None, cites=[one.id for one in doings]),
+        cited=doings,
+        values={"Customer Type": "MRN1"},
+        verified_writes=(VerifiedWrite("DELETE", "/api/customerTypes/{id}"),),
+        seen={"Customer Type": frozenset({"MRN5", "DDLS"})},
+    )
+
+    assert planned is not None
+    assert planned.payload["url"] == "http://127.0.0.1:63319/api/customerTypes/MRN1?siteId=SG"

@@ -51,6 +51,7 @@ from sro.application.ports.model import Asker
 from sro.domain.execution.cascade import writes_of
 from sro.domain.execution.evidence import (
     Locator,
+    control_names,
     locators_for,
     primary_gesture,
     recorded_call,
@@ -658,8 +659,28 @@ async def plan_step(
     # Read off the step's own evidence and never assumed: only where a cited
     # click landed on a bound list. A form whose box takes a value and closes
     # is untouched.
-    if action in VALUED and payload.get("value"):
-        option = _option_named(cited, str(payload["value"]))
+    #
+    # And the second half is decided by the list being open, not by the model
+    # saying "type" a second time. Re-asked with the list in front of it, the
+    # model answers "click" -- which is the right act -- and a click fell
+    # through to the plain payload: a click on the box itself, which let Ext
+    # pick whatever row it liked. Measured on the deployment 2026-09-22 at
+    # 13:12: MRN1 typed, the list offered it under four columns, and the run
+    # applied "Create Shipment By = MRN1". The row this step's demonstration
+    # chose is known either way; the value is the run's own, under whatever
+    # name the box answers to.
+    chosen = str(payload["value"]) if action in VALUED and payload.get("value") else ""
+    if not chosen and opened:
+        chosen = next(
+            (
+                values[name]
+                for name in sorted(control_names(primary))
+                if values.get(name, "").strip()
+            ),
+            "",
+        )
+    if chosen:
+        option = _option_named(cited, chosen)
         if option:
             if not opened:
                 return Planned(

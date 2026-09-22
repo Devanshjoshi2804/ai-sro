@@ -1540,7 +1540,9 @@ def _chose_from_a_list() -> Gesture:
     return one
 
 
-async def _filtering(*, opened: bool = False) -> Planned:
+async def _filtering(
+    *, opened: bool = False, says: str = "type", parameters: tuple[str, ...] = ("clientCode",)
+) -> Planned:
     """A step whose demonstration TYPED into a box and then chose from the list
     it opened -- which is what a filter box is."""
     typed, chosen = _typed(), _chose_from_a_list()
@@ -1550,7 +1552,7 @@ async def _filtering(*, opened: bool = False) -> Planned:
             says="Enter filter criteria to search for the customer type",
             system=None,
             cites=[typed.id, chosen.id],
-            parameters=["clientCode"],
+            parameters=list(parameters),
         ),
         cited=[typed, chosen],
         values={"clientCode": "MRN5"},
@@ -1558,7 +1560,7 @@ async def _filtering(*, opened: bool = False) -> Planned:
         origin="http://127.0.0.1:63319",
         starts_on="",
         allow_focus=False,
-        asker=FakeAsker(_answer(action="type", value="MRN5")),
+        asker=FakeAsker(_answer(action=says, value="MRN5" if says == "type" else None)),
         model="m",
         opened=opened,
     )
@@ -1599,6 +1601,27 @@ async def test_the_second_half_clicks_the_row_the_value_names() -> None:
             "visible_only": True,
         }
     ]
+
+
+async def test_the_row_is_chosen_even_when_the_model_says_click_with_the_list_open() -> None:
+    """Measured on the deployment 2026-09-22 at 13:12.
+
+    The first half typed MRN1 and the list opened. Re-asked with the list in
+    front of it the model answered "click" -- the right act -- and the second
+    half only ran for a `type`, so the plan fell through to a click on the box
+    itself. Ext picked a row on its own, and the run filtered "Create Shipment
+    By = MRN1". The step declared no parameters, as mining leaves it.
+    """
+    planned = await _filtering(opened=True, says="click", parameters=())
+
+    assert planned.payload["locators"] == [
+        {
+            "strategy": "role_and_name",
+            "query": "option|MRN5 in Customer Type",
+            "within": None,
+            "visible_only": True,
+        }
+    ], "the list was open and the plan clicked something other than the demonstrated row"
 
 
 async def test_a_box_that_takes_a_value_and_closes_is_typed_into_once() -> None:

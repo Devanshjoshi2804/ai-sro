@@ -192,7 +192,7 @@ def primary_gesture(
         if (gesture := by_id.get(one)) is not None and gesture.action.kind not in _UNTARGETED
     ]
     put = [one for one in cited if one.action.kind in _PUTS_A_VALUE]
-    held = next((one for one in put if _names_of(one) & set(holds)), None)
+    held = next((one for one in put if control_names(one) & set(holds)), None)
     if held is not None:
         return held
     if step.parameters and put:
@@ -200,7 +200,7 @@ def primary_gesture(
     return cited[0] if cited else None
 
 
-def _names_of(gesture: Gesture) -> set[str]:
+def control_names(gesture: Gesture) -> set[str]:
     """What this gesture's control is called -- the names `value_for` looks
     a run's value up by, in the same three places."""
     target = gesture.action.target

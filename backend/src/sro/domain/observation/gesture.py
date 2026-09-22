@@ -30,6 +30,9 @@ class Component:
     field_label: str | None = None
     name: str | None = None
     xtype: str | None = None
+    required: bool | None = None
+    """Ext's own word for it: `allowBlank: false`. None where the component
+    said nothing, which reads as optional."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +45,13 @@ class Target:
     test_id: str | None = None
     css_path: str | None = None
     xpath: str | None = None
+    required: bool | None = None
+    """Whether the PAGE says this field must be filled -- `aria-required`, the
+    HTML5 attribute, or a star on its label, whichever the form used. None
+    where nothing said, which reads as optional: a page marking required
+    fields by colour alone tells this system nothing, and guessing from a
+    colour is how a run stops for a field nobody has to fill."""
+
     component: Component | None = None
 
 

@@ -34,6 +34,9 @@ class ComponentIdentity:
     name: str | None = None
     field_label: str | None = None
     text: str | None = None
+    required: bool | None = None
+    """Ext's own `allowBlank: false`. None where the component said nothing."""
+
     chain: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
@@ -64,6 +67,10 @@ class ElementFingerprint:
     test_id: str | None = None
     css_path: str | None = None
     xpath: str | None = None
+    required: bool | None = None
+    """Whether the PAGE says this field must be filled -- `aria-required`, the
+    HTML5 attribute, or a star on its label. None where nothing said."""
+
     tag: str | None = None
 
     states: frozenset[str] = frozenset()

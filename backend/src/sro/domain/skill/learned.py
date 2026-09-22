@@ -123,6 +123,13 @@ class LearnedParameter:
     want of a value. See `_not_given`, which is where the difference is felt.
     """
 
+    said: bool | None = None
+    """What the PAGE itself said, where a recording of this control carried
+    it: `aria-required`, the HTML5 attribute, a star on the label, or Ext's
+    own `allowBlank: false`. None on every parameter learnt before the
+    recorder captured it, which is why `required` still falls back to reading
+    the star out of `names`."""
+
     @property
     def required(self) -> bool:
         """Whether the PAGE says this field must be filled.
@@ -160,6 +167,8 @@ class LearnedParameter:
         that refused a create for the want of a field, which is evidence
         nothing can argue with -- and which this cannot learn until it happens.
         """
+        if self.said is not None:
+            return self.said
         return any(str(one).rstrip().endswith(K_REQUIRED_MARK) for one in self.names)
 
     names: tuple[str, ...] = ()
@@ -256,6 +265,9 @@ class _Put:
     names: tuple[str, ...]
     key: str
     value: str
+    required: bool | None = None
+    """What the page said about this control in THIS recording, or None where
+    it said nothing."""
 
 
 def _by_control(
@@ -309,7 +321,12 @@ def _by_control(
         # `values_seen` is populated on 110 of 387 intents, so the mechanism is
         # armed.
         typed = str(gesture.action.value).strip() if gesture.action.value else ""
-        put = _Put(names=names, key=key, value=typed if typed in values else min(values))
+        put = _Put(
+            names=names,
+            key=key,
+            value=typed if typed in values else min(values),
+            required=_page_said(gesture),
+        )
         # Last wins, as it did when this was a dict: a control typed twice in
         # one doing keeps the latest value.
         found = [
@@ -317,6 +334,28 @@ def _by_control(
         ]
         found.append(put)
     return found
+
+
+def _page_said(gesture: Gesture) -> bool | None:
+    """Whether the page said this control must be filled, in this recording.
+
+    The control's own statement first and the component's second, because the
+    DOM is where `aria-required` and the HTML5 attribute live and the star on
+    a label is read there too. Ext's `allowBlank: false` is the fallback, and
+    it is the one that speaks for a field rendered with neither -- which this
+    application does, on the two fields it demands.
+
+    None where neither said anything. A recording made before 2026-09-22
+    carries neither, which is why `LearnedParameter.required` still falls back
+    to the star in the names: the evidence already in the store has to go on
+    answering.
+    """
+    target = gesture.action.target
+    if target is None:
+        return None
+    if target.required is not None:
+        return target.required
+    return target.component.required if target.component is not None else None
 
 
 def parameters_across(
@@ -363,6 +402,7 @@ def parameters_across(
             names = list(put.names)
             key = put.key
             values = [put.value]
+            said = [put.required]
             reached = 1
             for other, elsewhere in enumerate(doings):
                 if other == nth:
@@ -381,6 +421,7 @@ def parameters_across(
                 names += [one for one in also.names if one not in names]
                 key = key or also.key
                 values.append(also.value)
+                said.append(also.required)
             if reached >= K_MIN_OCCURRENCES and len(set(values)) > 1:
                 found.append(
                     LearnedParameter(
@@ -392,6 +433,14 @@ def parameters_across(
                         names=tuple(names),
                         key=key,
                         in_all=reached == len(doings),
+                        # What the page said about it, across the recordings
+                        # that reached it. ANY, because a form that marks a
+                        # field required marks it on every screen that renders
+                        # it, and a recording that missed the mark -- an older
+                        # capture, a screen where the label was truncated --
+                        # is a silence rather than a denial. One recording
+                        # that saw the mark is a page that has it.
+                        said=next((one for one in said if one is not None), None),
                     )
                 )
     return _told_apart(found)

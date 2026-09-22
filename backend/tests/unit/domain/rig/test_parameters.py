@@ -575,3 +575,24 @@ def test_the_rule_the_runner_and_the_question_share_is_one_rule() -> None:
     # refusal what no label ever said.
     assert demanded({"name": "x", "names": ["Department"], "required": True}) is True
     assert demanded({"name": "x", "names": ["Customer Type*"], "required": False}) is False
+
+
+def test_what_the_page_said_beats_what_the_label_looked_like() -> None:
+    """Three signals, and the star is the weakest of them: screen readers skip
+    it as punctuation, which is why `aria-required` and the HTML5 attribute
+    exist at all. Where a recording carried one of those, it is the answer.
+    """
+    said_no = LearnedParameter(name="x", seen=("a", "b"), names=("Looks Required*",), said=False)
+    said_yes = LearnedParameter(name="y", seen=("a", "b"), names=("Looks Optional",), said=True)
+
+    assert said_no.required is False, "a star is not a page saying required"
+    assert said_yes.required is True, "a page said so and no star was needed"
+
+
+def test_a_recording_that_said_nothing_falls_back_to_the_label() -> None:
+    """Every parameter learnt before the recorder captured this has `said`
+    None, and the evidence already in the store has to go on answering."""
+    older = LearnedParameter(name="x", seen=("a", "b"), names=("Customer Type*",))
+
+    assert older.said is None
+    assert older.required is True

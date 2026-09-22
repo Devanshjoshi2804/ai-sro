@@ -331,6 +331,7 @@ def _to_dom_fingerprint(raw: CdpPayload) -> ElementFingerprint:
         test_id=str(raw["testId"]) if raw.get("testId") else None,
         css_path=str(raw["cssPath"]) if raw.get("cssPath") else None,
         xpath=str(raw["xpath"]) if raw.get("xpath") else None,
+        required=_said(raw.get("required")),
         tag=str(raw["tag"]) if raw.get("tag") else None,
         bounds=(
             Bounds(
@@ -358,12 +359,25 @@ def _to_component(raw: object) -> ComponentIdentity | None:
         name=_text(raw.get("name")),
         field_label=_text(raw.get("fieldLabel")),
         text=_text(raw.get("text")),
+        required=_said(raw.get("required")),
         chain=tuple(str(part) for part in (raw.get("chain") or [])),
     )
 
 
 def _text(value: object) -> str | None:
     return str(value) if value else None
+
+
+def _said(value: object) -> bool | None:
+    """A three-state answer kept as three states.
+
+    The recorder says `true`, `false` or `null`, and the difference between
+    "the page said this is optional" and "the page said nothing" is the whole
+    point of capturing it: `false` is a statement and `null` is a silence, and
+    coercing the second to the first would be this system claiming a form said
+    something it never said.
+    """
+    return value if isinstance(value, bool) else None
 
 
 _REQUEST = TypeAdapter(CapturedRequest)

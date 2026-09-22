@@ -86,6 +86,20 @@
     return isSecretName(named);
   };
 
+  // What the page says about whether this field is mandatory, or null where
+  // it says nothing. Read off the control and off the label that names it: a
+  // form marks the star on the label, not on the input.
+  const requiredOf = (el) => {
+    const said = el.getAttribute && el.getAttribute('aria-required');
+    if (said === 'true') return true;
+    if (said === 'false') return false;
+    if (el.required === true) return true;
+    if (el.hasAttribute && el.hasAttribute('required')) return true;
+    const named = label(el);
+    if (named && /\*\s*$/.test(named)) return true;
+    return null;
+  };
+
   const cssPath = (el) => {
     const parts = [];
     let node = el;
@@ -226,6 +240,12 @@
       itemId: cmp.itemId && !/^ext-/.test(cmp.itemId) ? cmp.itemId : null,
       name: cmp.name || null,
       fieldLabel: cmp.fieldLabel || null,
+      // Ext's own word for it. `allowBlank: false` is how an Ext form declares
+      // a field mandatory, and it is the only one of the three signals that is
+      // true of a control the page renders with no star and no aria attribute
+      // -- which this application does, on the two fields it does demand.
+      required:
+        cmp.allowBlank === false ? true : cmp.allowBlank === true ? false : null,
       text: typeof cmp.text === 'string' ? cmp.text.slice(0, MAX_TEXT) : null,
       query,
       chain,
@@ -257,6 +277,26 @@
         el.getAttribute('data-test-id') ||
         el.getAttribute('data-test') ||
         null,
+      // Whether the PAGE says this field must be filled.
+      //
+      // Three ways a form says it and this reads all three, because a page
+      // that uses only one is the common case: `aria-required`, which
+      // accessibility guidance asks for; the HTML5 attribute, which the
+      // browser itself enforces; and the star on the label, which is what a
+      // person sees and often the only one present.
+      //
+      // Until 2026-09-22 only the star was captured, in the label text, and
+      // nothing read it -- so a job demanded every field two demonstrations
+      // happened to vary, and an operator with no Manufacturer to give could
+      // not run the job at all. The star is the weakest of the three: screen
+      // readers skip it as punctuation, which is exactly why the other two
+      // exist.
+      //
+      // `null` where nothing said, which reads downstream as optional. A page
+      // marking required fields by colour alone tells this system nothing,
+      // and guessing from a colour is how a run stops for a field nobody has
+      // to fill.
+      required: requiredOf(el),
       cssPath: cssPath(el),
       xpath: xpath(el),
       bounds: { x: box.x, y: box.y, width: box.width, height: box.height },

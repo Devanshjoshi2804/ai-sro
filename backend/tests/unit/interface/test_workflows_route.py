@@ -626,12 +626,17 @@ async def test_a_cited_gesture_reaches_the_bridge_whole(
                 "test_id": "client-code",
                 "css_path": "form > input.code",
                 "xpath": "//input[@id='code']",
+                # Whether the page says the field must be filled. Additive, and
+                # served: the bridge is the other driver, and a field this one
+                # reasons about is one that one will.
+                "required": None,
                 "component": {
                     "item_id": "clientCode",
                     "query": "textfield[itemId=clientCode]",
                     "field_label": "Client code",
                     "name": "clientCode",
                     "xtype": "textfield",
+                    "required": None,
                 },
             },
         },

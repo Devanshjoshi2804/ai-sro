@@ -91,27 +91,47 @@ function paint(id, run) {
     const shadow = host.attachShadow({ mode: "open" });
     shadow.innerHTML = `
       <style>
+        /* Ember & Glass: smoked glass over the page, an ember rail down its
+           left edge, and the one thing it lets you do -- stop -- in the red
+           that means only you can do this. */
         .band {
-          font: 500 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+          position: relative;
+          font: 500 12.5px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
           display: flex; align-items: center; gap: 12px;
-          padding: 8px 14px; color: #fff; background: #b45309;
-          box-shadow: 0 1px 6px rgba(0,0,0,.28);
+          padding: 10px 14px 10px 17px; color: #e1e4e9;
+          background: rgba(12, 13, 17, .86);
+          -webkit-backdrop-filter: blur(14px) saturate(140%);
+          backdrop-filter: blur(14px) saturate(140%);
+          border-bottom: 1px solid rgba(220, 88, 42, .35);
+          box-shadow: 0 18px 40px -20px rgba(0, 0, 0, .6);
           pointer-events: auto;
         }
+        .band::before {
+          content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+          background: linear-gradient(#ff8452, #c2410c);
+        }
         .dot {
-          width: 8px; height: 8px; border-radius: 50%; background: #fff;
-          animation: pulse 1.4s ease-in-out infinite;
+          width: 16px; height: 16px; border-radius: 50%; flex: none;
+          border: 1.5px solid rgba(220, 88, 42, .25); border-top-color: #ff8452;
+          animation: spin 1s cubic-bezier(.5, .1, .5, .9) infinite;
         }
         /* Movement, because a band that could be a screenshot is a band
            somebody stops believing. Reduced-motion turns it off: the colour
            and the words carry the message on their own. */
-        @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
+        @keyframes spin { to { transform: rotate(360deg) } }
         @media (prefers-reduced-motion: reduce) { .dot { animation: none } }
-        .said { flex: 1 }
-        button {
-          font: inherit; color: #b45309; background: #fff; border: 0;
-          border-radius: 4px; padding: 4px 10px; cursor: pointer;
+        .said {
+          flex: 1; min-width: 0; color: #f4f5f7;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
+        button {
+          flex: none; font: inherit; height: 30px; padding: 0 14px;
+          border-radius: 999px; cursor: pointer; color: #fecaca;
+          background: rgba(248, 113, 113, .12);
+          border: 1px solid rgba(248, 113, 113, .35);
+        }
+        button:hover { background: rgba(248, 113, 113, .2) }
+        button:disabled { opacity: .6; cursor: default }
       </style>
       <div class="band">
         <span class="dot"></span>
@@ -200,8 +220,11 @@ function paintNudge(id, title, lifetimeMs) {
   pill.style.cssText =
     "font:500 12px/1.3 system-ui,-apple-system,'Segoe UI',sans-serif;" +
     "pointer-events:auto;cursor:pointer;border:0;border-radius:999px;" +
-    "padding:7px 13px;color:#fff;background:#dc582a;" +
-    "box-shadow:0 6px 20px -6px rgba(0,0,0,.5)";
+    // The accent's dark end: white on the brand accent itself is 3.8:1 and
+    // fails AA at this size; this is 5.2:1, as the panel's own buttons are.
+    "padding:8px 14px;color:#fff;background:linear-gradient(180deg,#c2410c,#b83c0f);" +
+    "box-shadow:inset 0 1px 0 rgba(255,255,255,.24),0 0 0 4px rgba(220,88,42,.14)," +
+    "0 10px 24px -8px rgba(0,0,0,.55)";
   // `textContent`, never markup: the title is a task name derived from calls
   // the operator's own browser made, which is to say from the open internet.
   pill.textContent = title ? `AI-SRO · do \u201c${title}\u201d?` : "AI-SRO · do this one?";

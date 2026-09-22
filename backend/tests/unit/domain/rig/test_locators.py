@@ -559,6 +559,54 @@ def test_a_step_that_carries_nothing_is_aimed_at_its_first_citation() -> None:
     assert primary_gesture(step, by_id) is cross
 
 
+def _typed_into(one: object, item_id: str) -> object:
+    """One cited typing, into a control the page calls `item_id`."""
+    from sro.domain.observation.gesture import Component
+
+    fresh = copy.deepcopy(one)
+    fresh.id = f"ges_typed_{item_id}"
+    target = fresh.action.target
+    assert target is not None
+    fresh.action = replace(
+        fresh.action, target=replace(target, name="", component=Component(item_id=item_id))
+    )
+    return fresh
+
+
+def test_a_step_is_aimed_at_the_typing_into_a_control_the_run_holds_a_value_for() -> None:
+    """Measured on the deployment 2026-09-22 at 12:03.
+
+    `Delete a Customer Type`, demonstrated again from a clean grid and mined
+    fresh, came back with `parameters: []` on its filter step -- the second
+    time -- and thirty-eight citations whose first targeted one was a click on
+    no component at all. `step.parameters` is a model's answer and mining
+    leaves it empty, so a rule gated on it never fired.
+
+    The run knows better: it holds `filterComboBox` (the page's itemId, filed
+    beside `Customer Type` by `_under_every_name`), and the step cites a typing
+    into exactly that control.
+    """
+    base = next(g for g in _gestures() if g.action.kind == "type" and not g.action.secret)
+    typed = _typed_into(base, "filterComboBox")
+    stray = _clicked(base, "searchField")
+    by_id = {stray.id: stray, typed.id: typed}
+    step = Step(order=0, says="Enter search criteria", system=None, cites=[stray.id, typed.id])
+
+    assert primary_gesture(step, by_id, {"Customer Type", "filterComboBox"}) is typed
+
+
+def test_a_typing_into_a_control_the_run_holds_nothing_for_changes_no_aim() -> None:
+    """Holding a value is about THIS control. A step that declares nothing and
+    types into a box the run has no value for is aimed where it always was."""
+    base = next(g for g in _gestures() if g.action.kind == "type" and not g.action.secret)
+    typed = _typed_into(base, "filterComboBox")
+    stray = _clicked(base, "searchField")
+    by_id = {stray.id: stray, typed.id: typed}
+    step = Step(order=0, says="Enter search criteria", system=None, cites=[stray.id, typed.id])
+
+    assert primary_gesture(step, by_id, {"Department"}) is stray
+
+
 def test_among_the_value_putting_citations_the_first_still_wins() -> None:
     """Order is otherwise untouched: a step that types into two boxes is aimed
     exactly where it was."""

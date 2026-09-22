@@ -12,7 +12,7 @@ stops it.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 
 from sro.domain.observation.gesture import Call, Gesture
@@ -142,7 +142,9 @@ _PUTS_A_VALUE = frozenset({"type", "select", "upload"})
 a value was demonstrated by one of these, whatever else was cited beside it."""
 
 
-def primary_gesture(step: Step, by_id: Mapping[str, Gesture]) -> Gesture | None:
+def primary_gesture(
+    step: Step, by_id: Mapping[str, Gesture], holds: Collection[str] = frozenset()
+) -> Gesture | None:
     """The cited gesture this step is aimed at.
 
     **The one that puts a value, where the step declares it takes one.** A step
@@ -168,17 +170,50 @@ def primary_gesture(step: Step, by_id: Mapping[str, Gesture]) -> Gesture | None:
     Order is otherwise untouched: among the value-putting citations the first
     still wins, so a step that types into two boxes is aimed exactly where it
     was.
+
+    **And the one putting a value into a control this run holds a value for**,
+    whatever the step declares -- `holds` is every name the run's values are
+    filed under, which since `_under_every_name` includes the page's own
+    itemId. `step.parameters` is a model's answer and mining leaves it empty:
+    the re-mined `Delete a Customer Type` of 2026-09-22 at 12:03 came back with
+    `parameters: []` on its filter step again, citing thirty-eight gestures
+    whose first targeted one was a click on no component at all. The run held
+    `filterComboBox` and the step cited eight typings into it.
+
+    Measured before it was written, across every job on the deployment: the
+    steps this re-aims are twelve, and all twelve are "Enter X" -- not one
+    Save, not one Delete. Two of them were aimed at the wrong control until
+    now, that filter step and `Create a Customer Type`'s "Enter the Customer
+    Type Description" at a grid row.
     """
     cited = [
         gesture
         for one in step.cites
         if (gesture := by_id.get(one)) is not None and gesture.action.kind not in _UNTARGETED
     ]
-    if step.parameters:
-        put = next((one for one in cited if one.action.kind in _PUTS_A_VALUE), None)
-        if put is not None:
-            return put
+    put = [one for one in cited if one.action.kind in _PUTS_A_VALUE]
+    held = next((one for one in put if _names_of(one) & set(holds)), None)
+    if held is not None:
+        return held
+    if step.parameters and put:
+        return put[0]
     return cited[0] if cited else None
+
+
+def _names_of(gesture: Gesture) -> set[str]:
+    """What this gesture's control is called -- the names `value_for` looks
+    a run's value up by, in the same three places."""
+    target = gesture.action.target
+    component = target.component if target else None
+    return {
+        name
+        for name in (
+            component.item_id if component else None,
+            component.field_label if component else None,
+            target.name if target else None,
+        )
+        if name
+    }
 
 
 def unperformable(

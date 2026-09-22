@@ -131,6 +131,51 @@ async def test_a_ui_plan_carries_the_evidence_locators_not_the_models() -> None:
     assert planned.answer.cost_usd == 0.0003
 
 
+async def test_a_step_declaring_nothing_is_aimed_at_the_box_the_run_has_a_value_for() -> None:
+    """The planner hands `primary_gesture` the names the run holds values under.
+
+    Without that the rule has nothing to go on and aims where mining listed
+    first -- on the deployment's `Delete a Customer Type`, a click on no
+    component at all, cited before eight typings into the filter box.
+    """
+    typed = _typed()
+    stray = copy.deepcopy(typed)
+    stray.id = "ges_stray_click"
+    target = stray.action.target
+    assert target is not None
+    stray.action = replace(
+        stray.action,
+        kind="click",
+        value=None,
+        target=replace(
+            target, component=Component(item_id="searchField", query="panel#grid button#search")
+        ),
+    )
+    asker = FakeAsker(
+        Answer(data={"kind": "ui.perform", "action": "type", "value": "WRONG", "url": None})
+    )
+
+    planned = await plan_step(
+        # No parameters, the way mining leaves them.
+        step=Step(order=0, says="enter search criteria", system=None, cites=[stray.id, typed.id]),
+        cited=[stray, typed],
+        values={"clientCode": "THIRD"},
+        look=Look(url="http://127.0.0.1:63319/", screenshot=None, digest=""),
+        origin="http://127.0.0.1:63319",
+        starts_on=None,
+        allow_focus=True,
+        asker=asker,
+        model="gemini-3.8-flash",
+    )
+
+    locators = planned.payload["locators"]
+    assert isinstance(locators, list)
+    assert locators[0]["query"] == "panel#clients textfield#clientCode", (
+        "aimed at the stray click rather than the box this run has a value for"
+    )
+    assert planned.payload["value"] == "THIRD"
+
+
 async def test_the_values_the_run_was_given_are_what_the_model_sees_not_the_recorded_ones() -> None:
     gesture = _typed()
     asker = FakeAsker(

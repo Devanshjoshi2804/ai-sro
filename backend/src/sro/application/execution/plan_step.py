@@ -288,14 +288,19 @@ def _a_cascade(call: Call, cited: list[Gesture], ledger: tuple[VerifiedWrite, ..
     return len(writes_of(doing, ledger)) > 1
 
 
-def _primary(step: Step, cited: list[Gesture]) -> Gesture | None:
+def _primary(step: Step, cited: list[Gesture], values: Mapping[str, str]) -> Gesture | None:
     """The gesture this step is planned from.
 
     `primary_gesture` prefers one the extension can act on and so skips a
     scroll -- but a step citing nothing else is not a step to give up on, and
     falls back to the first cited gesture rather than planning nothing.
+
+    Told which names the run holds a value under, so a step that types into a
+    control this run has a value for is aimed at that typing. A blank is not a
+    value, for `typed_values`' reason.
     """
-    found = primary_gesture(step, {gesture.id: gesture for gesture in cited})
+    holds = {name for name, value in values.items() if value.strip()}
+    found = primary_gesture(step, {gesture.id: gesture for gesture in cited}, holds)
     return found or (cited[0] if cited else None)
 
 
@@ -353,7 +358,7 @@ async def plan_step(
     tenant_id: str = "",
     secret_for: SecretFor | None = None,
 ) -> Planned:
-    primary = _primary(step, cited)
+    primary = _primary(step, cited, values)
     evidence = json.dumps(
         {
             "step": {"order": step.order, "says": step.says, "parameters": step.parameters},
@@ -752,7 +757,7 @@ async def plan_by_sight(
     `ui.perform_at`; the runner records the step matched by sight and marks the
     job stale, the same instinct as `css_path` catching what `component` and
     `role_and_name` missed -- one rung lower down."""
-    primary = _primary(step, cited)
+    primary = _primary(step, cited, values)
     if look.screenshot is None or not look.width or not look.height:
         # With the browser's own reason, where it gave one. "no screen to look
         # at" alone is the same sentence for a refused focus, a tab that went

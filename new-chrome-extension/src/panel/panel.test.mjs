@@ -3345,6 +3345,68 @@ test("and one about a page they are not on stays out of the way", async () => {
   );
 });
 
+test("the job that is running is not also offered", () => {
+  // A card offering to do what is already being done is a card whose Yes
+  // starts it a second time -- and on `Delete a Customer Type` that is two
+  // deletes of one record.
+  //
+  // Measured on the deployment 2026-09-22 at 15:57: "Delete a Customer Type —
+  // NEX. Want me to do it?" with a live Yes, directly above "A run is
+  // performing here" for that same job. The mail path has had this guard
+  // since it was written; the rig's own offers never consulted anything.
+  const offer = {
+    id: "n_same",
+    source: "rig",
+    state: "open",
+    k: 0,
+    at: "2026-09-22T15:57:00Z",
+    title: "Delete a Customer Type",
+    workflowId: "wfl_delete",
+    values: { "Customer Type": "NEX" },
+    items: [],
+    missing: [],
+  };
+  const { ids, render } = panel({ deviceId: "dev-1", nudges: [offer] });
+
+  render({
+    deviceId: "dev-1",
+    nudges: [offer],
+    performing: { runId: "run_1", source: "rig", workflowId: "wfl_delete" },
+  });
+
+  assert.doesNotMatch(
+    words(ids["cards"]),
+    /Want me to do it/,
+    "a Yes was drawn for the job already running",
+  );
+});
+
+test("a different job is still offered while one runs", () => {
+  // The guard is about THIS job, not about running at all. An operator
+  // watching one run is still someone who can be asked about another.
+  const offer = {
+    id: "n_other",
+    source: "rig",
+    state: "open",
+    k: 0,
+    at: "2026-09-22T15:57:00Z",
+    title: "Create a Customer Type",
+    workflowId: "wfl_create",
+    values: {},
+    items: [],
+    missing: [],
+  };
+  const { ids, render } = panel({ deviceId: "dev-1", nudges: [offer] });
+
+  render({
+    deviceId: "dev-1",
+    nudges: [offer],
+    performing: { runId: "run_1", source: "rig", workflowId: "wfl_delete" },
+  });
+
+  assert.match(words(ids["cards"]), /Create a Customer Type/);
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

@@ -305,10 +305,24 @@ function render(status) {
   // Tuesday's request on Thursday, and the older ones are a list to go
   // through rather than a thing in the way of the run happening now.
   if (!status.teaching) {
+    // Not the job that is running right now.
+    //
+    // A card offering to do what is already being done is a card whose Yes
+    // starts it a second time -- and on `Delete a Customer Type` that is two
+    // deletes of one record. Measured on the deployment 2026-09-22 at 15:57:
+    // "Delete a Customer Type — NEX. Want me to do it?" with a live Yes,
+    // directly above "A run is performing here" for that same job.
+    //
+    // The mail path has had this since it was written -- `offer.started`,
+    // "a run is already going for this one, so there is nothing to offer" --
+    // and the rig's own offers never consulted anything. They are drawn from
+    // the same list, so the guard belongs here, where the list is filtered.
+    const running = status.performing?.workflowId || null;
     const here = (lastStatus?.nudges || status.nudges || []).filter(
       (nudge) =>
         nudge.state === "open" &&
         !nudge.missed &&
+        !(running && nudge.workflowId === running) &&
         !(nudge.tabId != null && nudge.tabId !== tabHere.tabId),
     );
     const [newest, ...rest] = [...here].sort((a, b) => when(b.at) - when(a.at));
@@ -1825,6 +1839,11 @@ async function refresh() {
         status.performing = rig
           ? {
               ...status.performing,
+              // Which job it is, off the row rather than the worker: the
+              // worker knows a run id and nothing about what that run is for,
+              // and the offers list has to be able to ask "is this the job
+              // that is already happening?" before it draws a Yes beside it.
+              workflowId: run.workflow_id || null,
               // The rig plans one step at a time, so there is no total to
               // count towards and the card says "step 3" rather than
               // "step 3 of 7". `rigRun` maps the row; `steps` is what it has

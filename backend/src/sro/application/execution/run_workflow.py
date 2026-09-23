@@ -237,6 +237,18 @@ open on the system at all, `no_tab_for_origin` is a tab that has been taken
 somewhere else, which is what an identity provider does on the way to its login
 page."""
 
+K_MIGHT_BE_BEHIND = K_NOT_HERE | frozenset({"control_not_found"})
+"""The refusals that can mean "the operator has already been through here".
+
+The two tab-level ones, and the control-level one: on the deployment
+2026-09-23 every failed `Log in using Azure B2C SSO` run said
+`control_not_found` about a dialog and an SSO link somebody had already
+clicked. It stays a question rather than an answer -- a control can also be
+missing because the page moved under the job -- which is why `_ahead_of_here`
+decides it by reading where the browser actually is, and refuses to step over
+a write.
+"""
+
 K_NEVER_SENT = K_NOT_HERE | frozenset({"focus_not_permitted", "aborted"})
 """Refusals that mean the extension never reached the wire, so a write claimed
 for this step can be given back.
@@ -918,6 +930,51 @@ def _said_what_is_there(
             ),
         )
     return verdict
+
+
+async def _ahead_of_here(
+    channel: Channel,
+    tenant_id: TenantId,
+    device_id: DeviceId,
+    run_id: str,
+    origin: str | None,
+    *,
+    ordered: list[Step],
+    after: Step,
+    by_id: Mapping[str, Gesture],
+    screen_of_step: Callable[[Step | None], str | None],
+) -> int | None:
+    """The later step the browser is already standing on, or `None`.
+
+    A step that cannot find what it wanted is asking one of two questions, and
+    they have different answers: "nobody is signed in" is a thing to ask a
+    person about, and "you did this part yourself" is a thing to step over.
+    This answers the second by reading where the browser is and matching it
+    against the screen each later step's own demonstrations agree on.
+
+    `None` where nothing later matches, where the page cannot be read, or
+    where getting there would step over a write -- a write stepped over is a
+    record never made, in a run that reports it held.
+    """
+    look = await _where(channel, tenant_id, device_id, run_id, origin)
+    on = look.url or look.elsewhere or ""
+    if not on:
+        return None
+    for one in ordered:
+        if one.order <= after.order:
+            continue
+        screen = screen_of_step(one)
+        # `same_screen` and not `page_of`: a warehouse portal keeps its route
+        # in the fragment, so `page_of` calls the Warehouse screen and the
+        # Customer Types screen the same page -- and this would step over the
+        # navigation between them.
+        if not screen or not same_screen(screen, on):
+            continue
+        passed = [before for before in ordered if after.order <= before.order < one.order]
+        if any(writes(before, by_id) for before in passed):
+            return None
+        return one.order
+    return None
 
 
 async def _where(
@@ -1853,12 +1910,40 @@ async def run_workflow(
     # see `_the_way_back_in`. Everything else about the walk is unchanged.
     itinerary = list(itinerary)
     signed_back_in = False
+    # The step this run joined the job at, where a step found its page gone
+    # because the operator had already been through it. See `_ahead_of_here`.
+    joined_at: int | None = None
     try:
         position = -1
         while position + 1 < len(itinerary):
             position += 1
             leg = itinerary[position]
             step, values = leg.step, leg.values
+            # Behind the page the browser is on. Recorded and never sent: the
+            # job is being joined where it stands rather than replayed into a
+            # browser that has left those pages.
+            if (
+                joined_at is not None
+                and step.order < joined_at
+                and leg.item in (None, 0)
+                and not leg.rescue
+            ):
+                run.steps.append(
+                    RunStep(
+                        order=position,
+                        of_step=step.order,
+                        item=leg.item,
+                        says=step.says,
+                        verdict="not_needed",
+                        verdict_by="none",
+                        reason=(
+                            "the browser is already past this: it is on the screen"
+                            f" step {joined_at} starts from"
+                        ),
+                    )
+                )
+                await _save(uow, run)
+                continue
             # What the steps this one NAMES have made, under their own names.
             #
             # `Step.uses` is CrewAI's `Task.context` and its argument: a step
@@ -2251,6 +2336,10 @@ async def run_workflow(
             # a second question worth asking; the same step asking twice in a
             # row is a panel arguing with the person who just answered it.
             asked_for_a_browser = False
+            # Set when a step turns out to be behind the browser rather than
+            # broken: the run joins the job further on, and none of the
+            # failure handling below applies to a step nobody needed.
+            stepped_over = False
             for how, model in rungs:
                 # Only after the SCREEN failed a move, because that is the one
                 # verdict that says what is wrong in a sentence a picture can
@@ -3098,6 +3187,45 @@ async def run_workflow(
                         run.outcome = "held"
                         await _save(uow, run)
                         return run
+                # Or this run is simply behind the browser.
+                #
+                # A run starts at step 0 whatever is on screen, so a job joined
+                # halfway replays its first pages into a browser that has left
+                # them. Measured on the deployment 2026-09-23: four runs of
+                # `Log in using Azure B2C SSO` failed on a dialog and an SSO
+                # link the operator had already clicked -- `control_not_found`,
+                # "the browser is currently not on the step page".
+                #
+                # Asked only when a step has actually failed to find what it
+                # wanted, so a run that is where it should be sends nothing
+                # extra and its first command is still its own.
+                if live and not reply.ok and reply.error_kind in K_MIGHT_BE_BEHIND:
+                    ahead = await _ahead_of_here(
+                        channel,
+                        tenant_id,
+                        device_id,
+                        run.id,
+                        origin,
+                        ordered=ordered,
+                        after=step,
+                        by_id=by_id,
+                        screen_of_step=_screen_of,
+                    )
+                    if ahead is not None:
+                        joined_at = ahead
+                        stepped_over = True
+                        never_filled = False
+                        record.verdict, record.verdict_by = "not_needed", "none"
+                        record.reason = (
+                            "the browser is already past this: it is on the screen"
+                            f" step {ahead} starts from"
+                        )
+                        logger.info(
+                            "%s: joining the job at step %s, where the browser is",
+                            run.id,
+                            ahead,
+                        )
+                        break
                 # Otherwise a sign-in that cannot find its page asks. The
                 # operator can see the screen and this cannot.
                 if (
@@ -3488,6 +3616,10 @@ async def run_workflow(
             # tried: the interface. A person reading "the call would not go"
             # would otherwise reasonably ask why it did not just press the
             # button, and the answer is that this run never filled the form.
+            if stepped_over:
+                in_flight = None
+                await _save(uow, run)
+                continue
             if never_filled and record.verdict not in ("held", "withheld", "awaiting"):
                 record.reason = (
                     record.reason

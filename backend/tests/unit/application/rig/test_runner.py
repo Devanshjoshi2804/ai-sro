@@ -8740,6 +8740,74 @@ async def test_a_click_that_sent_nothing_leaves_the_next_move_free() -> None:
     assert run.steps[0].verdict == "held", run.steps[0].reason
 
 
+
+async def test_a_run_joins_the_job_where_the_browser_already_is() -> None:
+    """A step whose page the operator has already been through is stepped over.
+
+    Measured on the deployment 2026-09-23: four runs of `Log in using Azure
+    B2C SSO` failed on pages that were behind the browser --
+    `control_not_found` on a dialog and an SSO link somebody had clicked
+    themselves, "the browser is currently not on the step page". A run starts
+    at step 0 whatever is on screen, so a job joined halfway replays its first
+    pages into a browser that has left them.
+    """
+    uow = await _fixture()
+    door = replace(
+        _evidence(uow)[0],
+        id="ges_door",
+        url=f"{LOGIN}/oauth2/v2.0/authorize",
+        page_url=f"{LOGIN}/oauth2/v2.0/authorize",
+        system=LOGIN,
+        requests=[],
+    )
+    form = replace(
+        _evidence(uow)[0],
+        id="ges_form",
+        url="https://keycloak.test/auth/realms/x/protocol/openid-connect/auth",
+        page_url="https://keycloak.test/auth/realms/x/protocol/openid-connect/auth",
+        system="https://keycloak.test",
+        requests=[],
+    )
+    await uow.gestures.add_gestures((door, form))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_join",
+            tenant=TENANT.value,
+            title="Log in using Azure B2C SSO",
+            narrative="n",
+            systems=[LOGIN, "https://keycloak.test"],
+            steps=[
+                Step(order=0, says="Click 'Local WMS users'", system=None, cites=[door.id]),
+                Step(order=1, says="Enter username or email", system=None, cites=[form.id]),
+            ],
+        )
+    )
+    workflow = await uow.workflows.get(TENANT, "wfl_join")
+    # The SSO link is not there, because the operator already clicked it: the
+    # browser is on the form step 1 was demonstrated on.
+    missing = Reply(ok=False, error_kind="control_not_found", error_detail="no visible match")
+    here = Reply(ok=True, result={"url": form.url, "elsewhere_is_ours": True})
+    channel = FakeChannel(
+        {
+            "ui.perform": [missing, _performed(), _performed(), _performed()],
+            "ui.url": [here] * 8,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+            ]
+            * 8,
+        }
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=FakeAsker(*[_plan("click")] * 8), earned=True
+    )
+
+    behind = next((one for one in run.steps if one.of_step == 0), None)
+    assert behind is not None, "step 0 was never recorded"
+    assert behind.verdict == "not_needed", f"{behind.verdict}: {behind.reason}"
+    assert "already past this" in behind.reason
+    assert any(one.of_step == 1 for one in run.steps), "the run never reached the step it was on"
+
 async def test_a_delete_done_on_screen_earns_the_job_by_its_status() -> None:
     """Measured on the deployment 2026-09-22 at 15:28: the first `Delete a
     Customer Type` ever to complete clicked OK, the page sent `DELETE

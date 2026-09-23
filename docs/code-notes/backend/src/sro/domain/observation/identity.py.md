@@ -332,17 +332,20 @@ Code: `return Resolution("same_occurrence", seen.id, seen_score)`
 
 Code: `here = lands.get(proposal.id) if proposal.signs_in else None`
 
-> Two jobs that both sign in (`Workflow.signs_in`) to the same system are one
-> job, whatever path each took to the password box -- an identity chooser
-> first, a refused attempt, a different login screen of the same provider.
-> Their shapes share almost nothing and their names were made up separately
-> (`Log in to Keycloak`, `Log in using Azure B2C SSO`), so neither the shape
-> nor the name can say so. `signs_in_to` is where the credential was typed
-> (`checks.signs_in_to`), computed by the caller because it needs the
-> gestures and this module holds none -- and a job with no single such system
-> is in no map and is resolved by its shape as before.
+> Two jobs that both sign in (`Workflow.signs_in`) to the same application
+> through the same identity provider are one job, whatever path each took to
+> the password box -- an identity chooser first, a refused attempt, another
+> login screen of the same provider. Their shapes share almost nothing and
+> their names were made up separately, so neither can say so. The key is
+> `checks.signs_in_to`, (credential host, the host the operator went on to),
+> computed by the caller because it needs the gestures.
+>
+> Of several stored copies of one sign-in, the one the doing most resembles
+> wins, not the oldest. And two sign-ins whose keys are both known and differ
+> are never folded by their shape either: identical password pages in front
+> of two applications look the same and are not.
 
-## `resolve`, [line 180](../../../../../../../backend/src/sro/domain/observation/identity.py#L180): Comment
+## `resolve`, [line 181](../../../../../../../backend/src/sro/domain/observation/identity.py#L181): Comment
 
 Code: `matched = _shared(shape, theirs)`
 
@@ -352,32 +355,28 @@ Code: `matched = _shared(shape, theirs)`
 > step aliases a named one scored as though it had not, and `Reply to
 > Email` cleared K_SAME_JOB at exactly 0.5 by arithmetic coincidence.
 
-## `resolve`, [line 182](../../../../../../../backend/src/sro/domain/observation/identity.py#L182): Comment
+## `resolve`, [line 183](../../../../../../../backend/src/sro/domain/observation/identity.py#L183): Comment
 
-Code: `whole = matched >= K_MIN_SHARED_STEPS or matched in (len(shape), len(theirs))`
+Code: `whole = matched >= K_MIN_SHARED_STEPS or matched == len(shape)`
 
 > Both bars first, then the best of whatever clears them -- not the best
-> overall and then the bars. Two shared steps, OR every step one of the two
+> overall and then the bars. Two shared steps, OR every step this proposal
 > has. See K_MIN_SHARED_STEPS: the bar cannot ask a one-entry shape for two.
+> Wholly-contained is the honest reading: every distinct step this proposal
+> has already exists in that job, so it is a fragment of it.
 >
-> Every step the PROPOSAL has already in that job: it is a fragment of it.
-> Every step the STORED job has already in this doing (2026-09-23): a small
-> stored job wholly present in a bigger doing is that job, done with more
-> around it -- the one-entry `Log in to Keycloak` against a later doing that
-> also typed the password and pressed Sign In. Without that half the bigger
-> doing was stored as a new job every time.
+> Not the other way round. "Every step the STORED job has" was tried
+> (2026-09-23) and folded -- and then grew -- any bigger doing into a
+> one-entry job whose one entry was present in it: an unnamed click on the
+> warehouse is present in every doing that clicks the warehouse, and the
+> 2026-09-19 `Navigate to Receiving` trap came back held shut by nothing
+> but the names. A stored job wholly inside a bigger doing still folds when
+> it has two distinct steps, through the absolute bar; one of one does not.
 >
-> The case this half re-opens was measured on 2026-09-19: a two-step
-> `Navigate to Warehouse Sub-menu` sharing one generic `tabItem` click with
-> the one-entry `Navigate to Receiving`. The shape alone can no longer keep
-> those apart; the name does (one word in five), exactly as it keeps `Reply`
-> and `Forward` apart on one screen.
->
-> Ranked by how many steps are shared, then by containment: a one-entry stub
-> is 1.0-contained by anything beginning where it does, and ranking on the
-> ratio alone let it beat the real match standing behind it.
+> Ranked by how many steps are shared, then by containment, so a one-entry
+> stub 1.0-contained by the proposal cannot beat the real match behind it.
 
-## `resolve`, [line 183](../../../../../../../backend/src/sro/domain/observation/identity.py#L183): Comment
+## `resolve`, [line 184](../../../../../../../backend/src/sro/domain/observation/identity.py#L184): Comment
 
 Code: `if (`
 

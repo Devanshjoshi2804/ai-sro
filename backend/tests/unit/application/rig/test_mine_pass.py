@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 
@@ -25,7 +26,7 @@ from sro.application.shared.refusals import OverCap
 from sro.application.skill.serve_shapes import shapes_for
 from sro.domain.chat.reading import ChatReading
 from sro.domain.observation.driving import WAS_OUR_OWN_DRIVING
-from sro.domain.observation.gesture import Gesture, Intent
+from sro.domain.observation.gesture import Gesture, Intent, PageMark
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.infrastructure.db.codec import when
@@ -36,6 +37,7 @@ TENANT = TenantId("acme")
 RIVAL = TenantId("rival")
 MODEL = "gemini-3.1-pro-preview"
 HOST = "http://127.0.0.1:63319"
+APP = "https://app.example"
 
 NOW = datetime(2025, 2, 11, 23, 0, tzinfo=UTC)
 """23:00, one hour before a midnight. `over_cap` sums the day from the midnight
@@ -362,12 +364,7 @@ async def test_a_doing_that_adds_a_password_does_not_grow_the_job() -> None:
     assert len(held.steps) == 2, "the job grew a credential step it never had"
 
 
-async def test_a_second_way_of_signing_in_to_one_system_is_the_same_job() -> None:
-    """Two doings that both sign in to one system, one through a chooser and
-    one straight to the password box, share almost no shape and were given
-    different names. They are one job: the deployment held three `Log in
-    using Azure B2C SSO` for want of this."""
-    uow = FakeUnitOfWork()
+def _sign_in_kit() -> tuple[Any, Any, Any, Any]:
     base = replace(_gestures(TENANT.value)[0], requests=[], page_events=[])
 
     def typed(gesture_id: str, at: float, *, secret: bool = False) -> Gesture:
@@ -387,7 +384,13 @@ async def test_a_second_way_of_signing_in_to_one_system_is_the_same_job() -> Non
     def clicked(gesture_id: str, at: float) -> Gesture:
         return replace(base, id=gesture_id, at=at, action=replace(base.action, kind="click", at=at))
 
-    await uow.gestures.add_gestures((typed("user", 10.0), typed("pw", 11.0, secret=True)))
+    def left_for(gesture_id: str, at: float, app: str) -> Gesture:
+        """The submit, uncited: the model summarises a sign-in as the typing,
+        and the leave is read off the doing after it."""
+        return replace(
+            clicked(gesture_id, at),
+            page_events=[PageMark(at=at, page_kind="navigated", url=f"{app}/home")],
+        )
 
     def login(title: str, *cites: str) -> dict[str, object]:
         return {
@@ -400,12 +403,31 @@ async def test_a_second_way_of_signing_in_to_one_system_is_the_same_job() -> Non
             ],
         }
 
+    return typed, clicked, left_for, login
+
+
+async def test_a_second_way_of_signing_in_to_one_system_is_the_same_job() -> None:
+    """Two doings that both sign in to one application through one identity
+    provider, one through a chooser and one straight to the password box,
+    share almost no shape and were given different names. They are one job:
+    the deployment held three `Log in using Azure B2C SSO` for want of this."""
+    uow = FakeUnitOfWork()
+    typed, clicked, left_for, login = _sign_in_kit()
+    await uow.gestures.add_gestures(
+        (typed("user", 10.0), typed("pw", 11.0, secret=True), left_for("go", 12.0, APP))
+    )
     first = FakeAsker(Answer(data={"workflows": [login("Log in", "user", "pw")]}, cost_usd=0.01))
     assert (await _pass(uow, asker=first).execute(_ctx())).kept == 1
     [stored] = await uow.workflows.known(TENANT)
     assert stored.signs_in
 
-    await uow.gestures.add_gestures((clicked("choose", 5000.0), typed("pw2", 5001.0, secret=True)))
+    await uow.gestures.add_gestures(
+        (
+            clicked("choose", 5000.0),
+            typed("pw2", 5001.0, secret=True),
+            left_for("go2", 5002.0, APP),
+        )
+    )
     other = login("Sign in through the chooser", "choose", "pw2")
     result = await _pass(
         uow, asker=FakeAsker(Answer(data={"workflows": [other]}, cost_usd=0.01))
@@ -413,6 +435,86 @@ async def test_a_second_way_of_signing_in_to_one_system_is_the_same_job() -> Non
 
     assert [(one.kind, one.workflow_id) for one in result.resolutions] == [("same_job", stored.id)]
     assert len(await uow.workflows.known(TENANT)) == 1
+
+
+async def test_two_applications_behind_one_identity_provider_are_two_sign_ins() -> None:
+    """One identity provider in front of two applications is two sign-ins:
+    folding them would leave the second application with no way back in."""
+    uow = FakeUnitOfWork()
+    typed, clicked, left_for, login = _sign_in_kit()
+    await uow.gestures.add_gestures(
+        (typed("user", 10.0), typed("pw", 11.0, secret=True), left_for("go", 12.0, APP))
+    )
+    first = FakeAsker(Answer(data={"workflows": [login("Log in", "user", "pw")]}, cost_usd=0.01))
+    assert (await _pass(uow, asker=first).execute(_ctx())).kept == 1
+
+    await uow.gestures.add_gestures(
+        (
+            clicked("choose", 5000.0),
+            typed("pw2", 5001.0, secret=True),
+            left_for("go2", 5002.0, "https://other-app.example"),
+        )
+    )
+    other = login("Sign in to the other app", "choose", "pw2")
+    result = await _pass(
+        uow, asker=FakeAsker(Answer(data={"workflows": [other]}, cost_usd=0.01))
+    ).execute(_ctx())
+
+    assert [one.kind for one in result.resolutions] == ["new"]
+    assert len(await uow.workflows.known(TENANT)) == 2
+
+
+async def test_a_doing_that_types_a_second_credential_does_not_grow_the_job() -> None:
+    """Per credential, not per job: a job that already types one password
+    must not take a doing's steps that type a different one as well."""
+    uow = FakeUnitOfWork()
+    typed, clicked, _, _ = _sign_in_kit()
+    mfa = "https://second-factor.example"
+    await uow.gestures.add_gestures(
+        (typed("pw", 10.0, secret=True), clicked("save", 11.0), clicked("done", 12.0))
+    )
+    job = _proposal(["pw", "save"])
+    job["steps"] = [
+        {"order": 0, "cites": ["pw"], "says": "password", "system": HOST},
+        {"order": 1, "cites": ["save"], "says": "save", "system": HOST},
+        {"order": 2, "cites": ["done"], "says": "done", "system": HOST},
+    ]
+    assert (
+        await _pass(uow, asker=FakeAsker(Answer(data={"workflows": [job]}, cost_usd=0.01))).execute(
+            _ctx()
+        )
+    ).kept == 1
+    [stored] = await uow.workflows.known(TENANT)
+
+    second = replace(
+        typed("pw-b", 5001.5, secret=True), page_url=f"{mfa}/", url=f"{mfa}/", system=mfa
+    )
+    await uow.gestures.add_gestures(
+        (
+            typed("pw2", 5000.0, secret=True),
+            clicked("save2", 5001.0),
+            second,
+            clicked("done2", 5002.0),
+        )
+    )
+    wider = {
+        **job,
+        "systems": [HOST, mfa],
+        "steps": [
+            {"order": 0, "cites": ["pw2"], "says": "password", "system": HOST},
+            {"order": 1, "cites": ["save2"], "says": "save", "system": HOST},
+            {"order": 2, "cites": ["pw-b"], "says": "second password", "system": mfa},
+            {"order": 3, "cites": ["done2"], "says": "done", "system": HOST},
+        ],
+    }
+    result = await _pass(
+        uow, asker=FakeAsker(Answer(data={"workflows": [wider]}, cost_usd=0.01))
+    ).execute(_ctx())
+
+    assert [(one.kind, one.contains) for one in result.resolutions] == [("same_job", True)]
+    [held] = await uow.workflows.known(TENANT)
+    assert held.id == stored.id
+    assert len(held.steps) == 3, "the job grew a second credential it never typed"
 
 
 async def test_a_doing_the_job_contains_does_not_shrink_it() -> None:
@@ -702,6 +804,25 @@ async def test_a_new_doing_of_a_stored_job_still_teaches_it_without_the_old_one(
     assert not any(f'"{one}"' in _shown(asker) for one in ids), "the first doing was sent again"
     assert (again.kept, again.window_size) == (0, len(again_rows))
     assert again.learned_parameters >= 1
+
+
+async def test_a_doing_folded_into_a_job_is_not_read_again() -> None:
+    """A second doing recognised as a stored job is not saved as a job of its
+    own, so nothing in the job's steps cites it -- and the pass after that used
+    to send all of it again, every pass, for good."""
+    uow, ids = await _day()
+    original = [_rows(uow)[gesture_id] for gesture_id in ids]
+    assert (await _pass(uow, asker=FakeAsker(_answer(ids))).execute(_ctx())).kept == 1
+    again = [replace(row, id=f"{row.id}_again", at=row.at + 10_000.0) for row in original]
+    await uow.gestures.add_gestures(tuple(again))
+    folded = await _pass(uow, asker=FakeAsker(_answer([row.id for row in again]))).execute(_ctx())
+    assert [one.kind for one in folded.resolutions] == ["same_job"]
+
+    third = FakeAsker(Answer(data={"workflows": []}, cost_usd=0.01))
+    result = await _pass(uow, asker=third).execute(_ctx())
+
+    assert result.window_size == 0
+    assert not any(f'"{row.id}"' in _shown(third) for row in again)
 
 
 async def test_a_retired_job_is_not_mined_back_and_not_offered() -> None:

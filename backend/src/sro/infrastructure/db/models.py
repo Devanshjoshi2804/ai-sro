@@ -701,6 +701,14 @@ class WorkflowRow(Base):
     __table_args__ = (Index("ix_workflows_tenant_created", "tenant_id", "created_at"),)
 
 
+class WorkflowPlacementRow(Base):
+    __tablename__ = "workflow_placements"
+
+    tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    gesture_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    workflow_id: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
 class WorkflowStepRow(Base):
     __tablename__ = "workflow_steps"
 

@@ -39,10 +39,10 @@ from sro.domain.skill.checks import (
     Coverage,
     Rejection,
     coverage,
+    credentials_typed,
     one_occurrence,
     signs_in,
     signs_in_to,
-    types_a_credential,
     undeliverable,
     validate,
     work_only,
@@ -310,9 +310,10 @@ async def _grow(
         stored = await uow.workflows.get(tenant_id, known_id)
     except NotFound:
         return
-    if types_a_credential(proposal, by_id) and not types_a_credential(stored, by_id):
+    if credentials_typed(proposal, by_id) - credentials_typed(stored, by_id):
         logger.info("%s: not grown -- the doing types a credential the job never did", stored.title)
         return
+    await uow.workflows.place(tenant_id, stored.id, tuple(ordered_cites(stored)))
     moved = where_steps_moved(stored.steps, proposal.steps, by_id)
     stored.steps = list(proposal.steps)
     stored.signs_in = proposal.signs_in
@@ -513,7 +514,11 @@ async def _one_pass(
                 proposal.pass_id = pass_id
                 await uow.workflows.save(proposal)
                 kept.append(proposal)
-            elif resolution.kind == "same_job" and resolution.workflow_id:
+            elif resolution.workflow_id:
+                await uow.workflows.place(
+                    tenant_id, resolution.workflow_id, tuple(ordered_cites(proposal))
+                )
+            if resolution.kind == "same_job" and resolution.workflow_id:
                 result.learned_parameters += await learn_parameters(
                     uow,
                     tenant_id=tenant_id,

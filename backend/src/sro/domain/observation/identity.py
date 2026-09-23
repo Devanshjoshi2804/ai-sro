@@ -146,7 +146,7 @@ def resolve(
     proposal: Workflow,
     known: list[Workflow],
     *,
-    signs_in_to: Mapping[str, str] | None = None,
+    signs_in_to: Mapping[str, tuple[str, str]] | None = None,
 ) -> Resolution:
     peers = [other for other in known if other.tenant == proposal.tenant]
     lands = signs_in_to or {}
@@ -162,24 +162,25 @@ def resolve(
         return Resolution("same_occurrence", seen.id, seen_score)
 
     here = lands.get(proposal.id) if proposal.signs_in else None
+    shape = _shape_set(proposal)
     if here:
-        twin = next(
-            (other for other in peers if other.signs_in and lands.get(other.id) == here), None
-        )
-        if twin is not None:
+        twins = [other for other in peers if other.signs_in and lands.get(other.id) == here]
+        if twins:
+            twin = max(twins, key=lambda other: _shared(shape, _shape_set(other)))
             return Resolution(
                 "same_job", twin.id, 1.0, contains=_in_order(twin.shape_key, proposal.shape_key)
             )
 
-    shape = _shape_set(proposal)
     best: Workflow | None = None
     best_score = 0.0
     best_matched = 0
     for other in peers:
+        if here and other.signs_in and lands.get(other.id, here) != here:
+            continue
         theirs = _shape_set(other)
         matched = _shared(shape, theirs)
         score = matched / min(len(shape), len(theirs)) if shape and theirs else 0.0
-        whole = matched >= K_MIN_SHARED_STEPS or matched in (len(shape), len(theirs))
+        whole = matched >= K_MIN_SHARED_STEPS or matched == len(shape)
         if (
             score >= K_SAME_JOB
             and whole

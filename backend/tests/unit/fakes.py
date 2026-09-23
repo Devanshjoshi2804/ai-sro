@@ -1959,6 +1959,8 @@ class FakeWorkflowRepository:
         keyed as the store keys it: (tenant, method, path pattern)."""
         self.runs = runs if runs is not None else FakeWorkflowRunRepository()
         self.retired: dict[str, datetime] = {}
+        self.placements: dict[tuple[str, str], str] = {}
+        """(tenant, gesture) -> the job a folded doing was placed against."""
         """Retired jobs by id, as the store's ``retired_at``: the row stays,
         and a re-save does not bring it back."""
         self._saved = count()
@@ -1999,6 +2001,12 @@ class FakeWorkflowRepository:
         await self.get(tenant_id, workflow_id)
         self.retired[workflow_id] = at
 
+    async def place(
+        self, tenant_id: TenantId, workflow_id: str, gesture_ids: tuple[str, ...]
+    ) -> None:
+        for one in gesture_ids:
+            self.placements.setdefault((tenant_id.value, one), workflow_id)
+
     async def placed(self, tenant_id: TenantId) -> frozenset[str]:
         return frozenset(
             cited
@@ -2006,7 +2014,7 @@ class FakeWorkflowRepository:
             if row.tenant == tenant_id.value
             for step in row.steps
             for cited in step.cites
-        )
+        ) | frozenset(one for tenant, one in self.placements if tenant == tenant_id.value)
 
     async def rekey(self, tenant_id: TenantId, workflow_id: str, key: ShapeKey) -> None:
         row = self.rows.get(workflow_id)

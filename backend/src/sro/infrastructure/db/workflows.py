@@ -28,6 +28,7 @@ from sro.infrastructure.db.models import (
     WorkflowEffectRow,
     WorkflowLearnedHistoryRow,
     WorkflowLearnedRow,
+    WorkflowPlacementRow,
     WorkflowRow,
     WorkflowRunRow,
     WorkflowRunStepRow,
@@ -203,13 +204,36 @@ class SqlWorkflowRepository(WorkflowRepository):
         if done.first() is None:
             raise NotFound(f"workflow {workflow_id} was not found")
 
+    async def place(
+        self, tenant_id: TenantId, workflow_id: str, gesture_ids: tuple[str, ...]
+    ) -> None:
+        if not gesture_ids:
+            return
+        await self._session.execute(
+            pg_insert(WorkflowPlacementRow)
+            .values(
+                [
+                    {"tenant_id": tenant_id.value, "gesture_id": one, "workflow_id": workflow_id}
+                    for one in dict.fromkeys(gesture_ids)
+                ]
+            )
+            .on_conflict_do_nothing(index_elements=["tenant_id", "gesture_id"])
+        )
+
     async def placed(self, tenant_id: TenantId) -> frozenset[str]:
         rows = await self._session.execute(
             select(WorkflowStepRow.cites)
             .join(WorkflowRow, WorkflowRow.id == WorkflowStepRow.workflow_id)
             .where(WorkflowRow.tenant_id == tenant_id.value)
         )
-        return frozenset(str(one) for (cites,) in rows for one in cites or ())
+        folded = await self._session.execute(
+            select(WorkflowPlacementRow.gesture_id).where(
+                WorkflowPlacementRow.tenant_id == tenant_id.value
+            )
+        )
+        return frozenset(str(one) for (cites,) in rows for one in cites or ()) | frozenset(
+            folded.scalars()
+        )
 
     async def rekey(self, tenant_id: TenantId, workflow_id: str, key: ShapeKey) -> None:
         await self._session.execute(

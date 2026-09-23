@@ -186,6 +186,31 @@ class TestWorkflows:
         async with SqlUnitOfWork(session_factory) as uow:
             assert [one.id for one in await uow.workflows.known(TENANT)] == [kept.id]
 
+    async def test_a_doing_folded_into_a_job_stays_placed(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A second doing recognised as a stored job is not a row of its own,
+        and a growth replaces the steps that cited the first. Both doings stay
+        placed, once each, for the tenant that did them and no other."""
+        workflow = _workflow()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(workflow)
+            await uow.workflows.place(TENANT, workflow.id, ("ges_7", "ges_8"))
+            await uow.workflows.place(TENANT, workflow.id, ("ges_8", "ges_9"))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.workflows.placed(TENANT) == {
+                "ges_1",
+                "ges_2",
+                "ges_3",
+                "ges_7",
+                "ges_8",
+                "ges_9",
+            }
+            assert await uow.workflows.placed(OTHER_TENANT) == frozenset()
+
     async def test_only_the_tenants_own_job_can_be_retired(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:

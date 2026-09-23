@@ -318,32 +318,41 @@ def test_an_unnamed_step_matches_one_named_step_and_not_two() -> None:
 
 
 def test_a_job_is_not_folded_into_one_that_shares_a_single_generic_click() -> None:
-    """The trap the absolute bar existed for, and it is not hypothetical.
+    """The trap the absolute bar exists for, and it is not hypothetical.
 
     `Navigate to Receiving` on the deployment is one `tabItem` click repeated
     three times -- one distinct entry, and `tabItem` is the component id of
     every tab on that system. Scaling the bar down to the smaller shape folded
     a two-step `Navigate to Warehouse Sub-menu` into it on the strength of that
-    one click.
-
-    A stored job wholly present in a bigger doing is now that job (see
-    `test_a_small_stored_job_wholly_inside_a_bigger_doing_is_that_job`), so
-    the shape alone no longer keeps these apart -- the names do, as they keep
-    `Reply` and `Forward` apart on one screen.
+    one click. The shape keeps them apart, whatever they are called.
     """
     generic = _workflow(
         ["ges_a", "ges_b", "ges_c"],
         [[WMS, "tabItem", "click"], [WMS, "tabItem", "click"], [WMS, "tabItem", "click"]],
         id="wfl_generic",
-        title="Navigate to Receiving",
     )
     other = _workflow(
         ["ges_d", "ges_e"],
         [[WMS, "toolbar button", "click"], [WMS, "tabItem", "click"]],
-        title="Navigate to Warehouse Sub-menu",
     )
 
     assert resolve(other, [generic]).kind == "new"
+
+
+def test_a_one_step_stored_job_does_not_swallow_a_bigger_doing() -> None:
+    """A stored job one entry wide -- and that entry an unnamed click -- is
+    present in every doing that clicks anything on its screen. Folding and
+    growing on that would replace the job with whatever came next."""
+    stub = _workflow(
+        ["ges_a"], [[WMS, "anon|button", "click"]], id="wfl_stub", title="Open Receiving"
+    )
+    bigger = _workflow(
+        ["ges_b", "ges_c", "ges_d"],
+        [[WMS, "dateField", "type"], [WMS, "exportButton", "click"], [WMS, "asnNumber", "type"]],
+        title="Open Receiving and Export ASN",
+    )
+
+    assert resolve(bigger, [stub]).kind == "new"
 
 
 def test_a_lookup_two_jobs_begin_with_still_does_not_join_them() -> None:
@@ -598,12 +607,11 @@ def test_a_bigger_doing_that_does_the_steps_in_another_order_does_not_contain_it
 
 
 def test_a_small_stored_job_wholly_inside_a_bigger_doing_is_that_job() -> None:
-    """The stored `Log in to Keycloak` is one entry wide (the same box typed
-    twice). A later doing that also types the password and presses Sign In
-    holds every stored entry, and is the same job grown -- not a new one."""
+    """A later doing that also presses Sign In holds every stored entry, in
+    order, and is the same job grown -- not a new one."""
     stored = _workflow(
         ["ges_a", "ges_b"],
-        [[KEYCLOAK, "name|Username or email", "type"]] * 2,
+        [[KEYCLOAK, "name|Username or email", "type"], [KEYCLOAK, "anon|type", "type"]],
         id="wfl_stored",
         title="Log in to Keycloak",
     )
@@ -667,7 +675,7 @@ def test_two_sign_ins_to_one_system_are_one_job_whatever_way_they_came() -> None
         title="Log in using Azure B2C SSO",
         signs_in=True,
     )
-    lands = {"wfl_direct": KEYCLOAK, chooser.id: KEYCLOAK}
+    lands = {"wfl_direct": (KEYCLOAK, WMS), chooser.id: (KEYCLOAK, WMS)}
 
     resolution = resolve(chooser, [direct], signs_in_to=lands)
 
@@ -681,7 +689,7 @@ def test_two_sign_ins_to_two_systems_stay_two_jobs() -> None:
         ["ges_c", "ges_d"], [[MAIL, "x", "type"], [MAIL, "y", "click"]], signs_in=True
     )
 
-    lands = {"wfl_one": KEYCLOAK, other.id: MAIL}
+    lands = {"wfl_one": (KEYCLOAK, WMS), other.id: (MAIL, WMS)}
 
     assert resolve(other, [one], signs_in_to=lands).kind == "new"
 
@@ -690,6 +698,32 @@ def test_a_job_that_does_not_sign_in_is_not_folded_into_one_that_does() -> None:
     signing = _workflow(["ges_a", "ges_b"], SHAPE, id="wfl_one", signs_in=True)
     other = _workflow(["ges_c", "ges_d"], [[MAIL, "x", "type"], [MAIL, "y", "click"]])
 
-    lands = {"wfl_one": KEYCLOAK, other.id: KEYCLOAK}
+    lands = {"wfl_one": (KEYCLOAK, WMS), other.id: (KEYCLOAK, WMS)}
 
     assert resolve(other, [signing], signs_in_to=lands).kind == "new"
+
+
+def test_two_applications_behind_one_identity_provider_stay_two_sign_ins() -> None:
+    one = _workflow(["ges_a", "ges_b"], SHAPE, id="wfl_one", title="Log in", signs_in=True)
+    other = _workflow(["ges_c", "ges_d"], SHAPE, title="Log in", signs_in=True)
+
+    lands = {"wfl_one": (KEYCLOAK, WMS), other.id: (KEYCLOAK, MAIL)}
+
+    assert resolve(other, [one], signs_in_to=lands).kind == "new"
+
+
+def test_the_sign_in_twin_whose_shape_is_closest_wins() -> None:
+    """Two stored copies of one sign-in (the deployment holds them today): a
+    new doing goes to the one it most resembles, not to whichever is older."""
+    older = _workflow(
+        ["ges_a", "ges_b"],
+        [[MAIL, "x", "type"], [MAIL, "y", "click"]],
+        id="wfl_older",
+        signs_in=True,
+    )
+    closer = _workflow(["ges_c", "ges_d"], SHAPE, id="wfl_closer", signs_in=True)
+    doing = _workflow(["ges_e", "ges_f"], SHAPE, signs_in=True)
+    key = (KEYCLOAK, WMS)
+    lands = {"wfl_older": key, "wfl_closer": key, doing.id: key}
+
+    assert resolve(doing, [older, closer], signs_in_to=lands).workflow_id == "wfl_closer"

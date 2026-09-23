@@ -1,9 +1,10 @@
+from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass
 
 from sro.domain.execution.evidence import writes
 from sro.domain.observation.gesture import Gesture, passed_through
-from sro.domain.observation.identity import K_MIN_SHARED_STEPS
+from sro.domain.observation.identity import K_MIN_SHARED_STEPS, screen_of, target_identity
 from sro.domain.observation.window import Window
 from sro.domain.shared.hosts import origin_of
 from sro.domain.skill.workflow import Step, Workflow, cited_ids, ordered_cites
@@ -181,19 +182,53 @@ def signs_in(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
     )
 
 
-def signs_in_to(workflow: Workflow, gestures: Mapping[str, Gesture]) -> str | None:
-    where = {
-        origin_of(gesture.system or "")
-        for gesture in _during(workflow, gestures)
-        if _typed_the_credential(gesture)
-    }
-    where.discard("")
-    return where.pop() if len(where) == 1 else None
+def signs_in_to(workflow: Workflow, gestures: Mapping[str, Gesture]) -> tuple[str, str] | None:
+    typed = [gesture for gesture in _during(workflow, gestures) if _typed_the_credential(gesture)]
+    where = {origin_of(gesture.system or "") for gesture in typed} - {""}
+    if len(where) != 1:
+        return None
+    credential = where.pop()
+    last = max(gesture.at for gesture in typed)
+    ends = max(gestures[one].at for one in ordered_cites(workflow) if one in gestures)
+    streams = {gesture.stream_id for gesture in typed}
+    after = sorted(
+        (
+            gesture
+            for gesture in gestures.values()
+            if gesture.stream_id in streams and last <= gesture.at <= ends + K_SITTING_GAP_S
+        ),
+        key=lambda gesture: gesture.at,
+    )
+    leave = next((index for index, one in enumerate(after) if passed_through(one)), None)
+    if leave is None:
+        return None
+    worked = next(
+        (
+            origin_of(one.system or "")
+            for one in after[leave + 1 :]
+            if origin_of(one.system or "") not in ("", credential)
+        ),
+        None,
+    )
+    if worked is not None:
+        return credential, worked
+    marks = [
+        origin_of(mark.url or "")
+        for mark in after[leave].page_events
+        if mark.url and origin_of(mark.url) not in ("", credential)
+    ]
+    return (credential, marks[-1]) if marks else None
 
 
-def types_a_credential(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
-    return any(
-        _typed_the_credential(gestures[one]) for one in ordered_cites(workflow) if one in gestures
+def credentials_typed(workflow: Workflow, gestures: Mapping[str, Gesture]) -> Counter[str]:
+    return Counter(
+        field
+        for step in workflow.steps
+        for field in {
+            f"{screen_of(gestures[one])}|{target_identity(gestures[one])}"
+            for one in step.cites
+            if one in gestures and _typed_the_credential(gestures[one])
+        }
     )
 
 
@@ -203,20 +238,28 @@ def _in_time(workflow: Workflow, gestures: Mapping[str, Gesture]) -> list[Gestur
 
 
 def _chain(workflow: Workflow, gestures: Mapping[str, Gesture]) -> tuple[list[Gesture], bool]:
+    chain, left, _ = _split(workflow, gestures)
+    return chain, left
+
+
+def _split(
+    workflow: Workflow, gestures: Mapping[str, Gesture]
+) -> tuple[list[Gesture], bool, list[Gesture]]:
     cited = _in_time(workflow, gestures)
     first = next((index for index, one in enumerate(cited) if _signed_in_here(one)), None)
     if first is None:
-        return [], False
-    chain: list[Gesture] = []
-    for gesture in cited[first:]:
-        chain.append(gesture)
-        if passed_through(gesture):
-            return chain, True
-    return chain, False
+        return [], False, []
+    for index in range(first, len(cited)):
+        if passed_through(cited[index]):
+            return cited[first : index + 1], True, cited[index + 1 :]
+    return cited[first:], False, []
 
 
 def _only_signs_in(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
-    chain, left = _chain(workflow, gestures)
+    chain, left, after = _split(workflow, gestures)
+    typed_on = {origin_of(gesture.system or "") for gesture in chain if _signed_in_here(gesture)}
+    if any(_acts(one) and origin_of(one.system or "") in typed_on for one in after):
+        return False
     before = chain[:-1] if left else chain
     for index, gesture in enumerate(before):
         if not _acts(gesture) or (left and _on_the_credential(gesture)):

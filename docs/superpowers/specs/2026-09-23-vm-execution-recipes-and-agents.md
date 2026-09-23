@@ -13,7 +13,7 @@ Status: agreed direction, 2026-09-23. Nothing below is built yet unless marked *
 | D5 | Allowlists belong to the extension (which hosts it watches) and the panel. There is no mail-sender allowlist; the VM is one unified executor. Mail and page text are **untrusted data** to every agent, and that is enforced in the prompts. | Operator lead |
 | D6 | Jobs are compiled into **recipes** and run **without a model or a screenshot**. A model is called only when a recipe step fails, and the fix is written back so the same failure is not repeated. | Operator lead |
 | D7 | Agents and their prompts are first-class: each prompt is versioned, and is measured on real cases before it ships. | Operator lead |
-| D8 | **Runs go in parallel**, as many as the Steel pool can hold; a request beyond capacity queues rather than being refused. Several runs on one account share or serialise that account's session through the session broker, because Blue Yonder allows one session per account. | Operator lead |
+| D8 | **Runs go in parallel**, as many as the Steel pool can hold; a request beyond capacity queues rather than being refused. Runs for the same account run as **tabs of one Steel browser session** that holds that account's login, so they share cookies and CSRF token and never sign each other out (Blue Yonder allows one session per account). Steps that change session-wide context (for example the current facility) take a per-account lock; each browser has a tab cap, and runs beyond it queue. Steps on a system with a connector (Gmail today) are **tool calls, not tabs**: the runner's order is connector tool, proven API call, then UI. | Operator lead |
 
 ## 2. Why: measured latency
 

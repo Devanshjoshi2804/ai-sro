@@ -16,13 +16,21 @@ let failed = 0;
 /** One element, as much of one as these selectors read. */
 function el(
   kind,
-  { text = "", hidden = false, className = "", role = "", open = true } = {},
+  {
+    text = "",
+    hidden = false,
+    className = "",
+    role = "",
+    open = true,
+    value = "",
+  } = {},
 ) {
   return {
     kind,
     role,
     className,
     open,
+    value,
     innerText: text,
     textContent: text,
     offsetParent: hidden ? null : {},
@@ -65,6 +73,25 @@ test("a password box is a login and nothing else has to be", () => {
   page(el("password"));
 
   assert.equal(whatIsOnThisPage(ASK).signed_out, true);
+});
+
+test("an empty password box says so, and never what is in a filled one", () => {
+  // The run engine's evidence that credentials were refused: the form came
+  // back EMPTY after they were submitted. A form still holding what was typed
+  // is a submit in flight. Only the fact of emptiness leaves the page.
+  page(el("password"));
+  assert.equal(whatIsOnThisPage(ASK).credential_empty, true);
+
+  page(el("password", { value: "hunter2" }));
+  const said = whatIsOnThisPage(ASK);
+  assert.equal(said.credential_empty, false);
+  assert.ok(!JSON.stringify(said).includes("hunter2"));
+});
+
+test("a hidden empty password box is not an empty login", () => {
+  page(el("password", { hidden: true }));
+
+  assert.equal(whatIsOnThisPage(ASK).credential_empty, false);
 });
 
 test("a page that only talks about passwords is not a login", () => {
@@ -117,6 +144,7 @@ test("a page with none of them says none of them", () => {
 
   assert.deepEqual(whatIsOnThisPage(ASK), {
     signed_out: false,
+    credential_empty: false,
     dialog: "",
     loading: false,
   });

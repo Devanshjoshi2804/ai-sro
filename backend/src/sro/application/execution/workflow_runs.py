@@ -19,7 +19,7 @@ from sro.application.execution.mail_job import (
 )
 from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.read_runs import NOT_IN_A_BROWSER_HERE, CannotStop
-from sro.application.execution.run_secrets import RunSecrets
+from sro.application.execution.run_secrets import RunSecrets, WatchingChannel
 from sro.application.execution.run_workflow import GatherValues, KnownFields, run_workflow
 from sro.application.execution.stops import Stops
 from sro.application.intent.spend import over_cap
@@ -260,7 +260,7 @@ class StartWorkflowRun:
                     cap_usd=self._cap_usd,
                     tenant_id=ctx.tenant_id,
                     values=run.values,
-                    channel=self._channel,
+                    channel=WatchingChannel(self._channel, secrets),
                     device_id=DeviceId(run.device_id),
                     asker=asker,
                     plan_model=self._plan_model,
@@ -276,7 +276,6 @@ class StartWorkflowRun:
                     items=run.items,
                     verified_writes=self._verified_writes + learned,
                     secret_for=secrets,
-                    typed=secrets.typed,
                     known_fields=None if self._retrieve is None else self._known_fields(ctx),
                     gather_values=(
                         None

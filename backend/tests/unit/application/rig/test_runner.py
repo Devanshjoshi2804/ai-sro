@@ -5563,40 +5563,6 @@ async def test_no_credential_goes_out_for_a_page_this_run_never_opened() -> None
     )
 
 
-async def test_a_password_the_browser_typed_is_reported_so_a_retry_cannot_type_it_again() -> None:
-    """The run engine's half of the lockout guard: a password that reached the
-    field is reported to the run's secret lookup, which refuses to hand the
-    same stored value out a second time in that run."""
-    uow = await _fixture()
-    workflow = await _a_password_step(uow)
-    typed: list[str] = []
-
-    await asyncio.wait_for(
-        run_workflow(
-            uow,
-            workflow,
-            tenant_id=TENANT,
-            values={},
-            channel=FakeChannel({**_looks(8), "ui.perform": [_performed()] * 4}),
-            device_id=DEVICE,
-            asker=FakeAsker(_plan("type", "x")),
-            plan_model="flash",
-            rescue_model="pro",
-            live=True,
-            allow_focus=True,
-            started_by="form",
-            stops=Stops(),
-            approvals=Approvals(),
-            cap_usd=-1.0,
-            secret_for=lambda _key: _a_password(),
-            typed=typed.append,
-        ),
-        timeout=5,
-    )
-
-    assert "not-the-real-one" in typed
-
-
 async def _a_password_step(uow: FakeUnitOfWork) -> Workflow:
     """One step that types a password, on the evidence's own origin."""
     typed = next(g for g in _evidence(uow) if g.action.kind == "type")

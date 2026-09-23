@@ -224,6 +224,7 @@ class FakeSignInDriver:
         self.refuses = refuses
         self.calls = 0
         self.chose: tuple[str, ...] = ()
+        self.given: tuple[str, str] | None = None
 
     async def sign_in(
         self,
@@ -237,6 +238,7 @@ class FakeSignInDriver:
     ) -> SignInResult:
         self.calls += 1
         self.chose = choose
+        self.given = (username, password)
         if self.refuses:
             raise CredentialsRefused(self.refuses)
         if self.fails:

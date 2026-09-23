@@ -11,10 +11,16 @@ password while the refusal stands. It is lifted by the one thing that can fix
 it: that vault key being written again, through whichever door. A password
 held for one run is the operator answering for that run, so it is typed for
 that run regardless.
+
+Inside a run, "refused" is decided by evidence, the rule the driver uses: the
+password was typed, and the same host then shows its sign-in form again with the
+password box empty. A fresh form after the browser had landed in the system is
+the session ending, and the password is typed again.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 
 import pytest
@@ -32,9 +38,11 @@ from sro.application.connection.sign_in import (
 )
 from sro.application.context import RequestContext
 from sro.application.execution.one_time_secrets import OneTimeSecrets
-from sro.application.execution.run_secrets import RunSecrets
+from sro.application.execution.run_secrets import RunSecrets, WatchingChannel
+from sro.application.ports.channel import Reply
 from sro.application.ports.sign_in import CredentialsRefused
 from sro.domain.connection.connection import Connection, ConnectionId
+from sro.domain.shared.identifiers import DeviceId, TenantId
 from tests import factories as f
 from tests.unit.fakes import (
     FakeBrowserProvider,
@@ -178,43 +186,83 @@ async def test_a_password_held_for_one_run_is_typed_for_that_run_only() -> None:
     assert await world.refusals.standing(LOGIN_KEY) is not None
 
 
-async def test_a_password_a_run_already_typed_is_not_typed_again_and_is_latched() -> None:
-    """The production lockout path: the password step typed the stored value,
-    the sign-in form came back, and a rescue rung planned the step again."""
+FORM = "https://login.example.com/auth"
+SYSTEM = "https://wms.example.com/portal"
+
+
+async def test_the_form_coming_back_empty_after_the_submit_is_a_refusal() -> None:
+    """The evidence the driver uses, seen by the run engine: the password went
+    in, and the same host shows its sign-in form again with the box empty."""
     world = _World()
     await world.vault.store(LOGIN_KEY, WRONG)
     run = world.run()
 
+    await run.saw(FORM, signed_out=True, credential_empty=True)
     assert await run(LOGIN_KEY) == WRONG
     run.typed(WRONG)
+    await run.saw(FORM, signed_out=True, credential_empty=True)
 
-    assert await run(LOGIN_KEY) is None
     standing = await world.refusals.standing(LOGIN_KEY)
     assert standing is not None
     assert WRONG not in standing.reason
+    assert await run(LOGIN_KEY) is None
     assert await world.run("run-2")(LOGIN_KEY) is None
 
 
-async def test_a_password_handed_out_but_never_typed_can_be_asked_for_again() -> None:
-    """A rung whose command missed the field typed nothing; the next rung
-    planning the same step is not a second attempt at signing in."""
+async def test_a_re_login_after_the_session_expired_types_it_again() -> None:
+    """The browser landed in the system in between: a fresh form later is the
+    session ending, not the password being refused."""
     world = _World()
     await world.vault.store(LOGIN_KEY, WRONG)
     run = world.run()
 
+    await run.saw(FORM, signed_out=True, credential_empty=True)
     assert await run(LOGIN_KEY) == WRONG
-    assert await run(LOGIN_KEY) == WRONG
+    run.typed(WRONG)
+    await run.saw(SYSTEM, signed_out=False, credential_empty=False)
+    await run.saw(FORM, signed_out=True, credential_empty=True)
+
     assert await world.refusals.standing(LOGIN_KEY) is None
+    assert await run(LOGIN_KEY) == WRONG
+
+
+async def test_a_form_still_holding_the_password_is_a_submit_in_flight() -> None:
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+    run = world.run()
+
+    await run.saw(FORM, signed_out=True, credential_empty=True)
+    assert await run(LOGIN_KEY) == WRONG
+    run.typed(WRONG)
+    await run.saw(FORM, signed_out=True, credential_empty=False)
+
+    assert await world.refusals.standing(LOGIN_KEY) is None
+    assert await run(LOGIN_KEY) == WRONG
+
+
+async def test_a_password_handed_out_but_never_typed_is_not_refused() -> None:
+    """A rung whose command missed the field typed nothing, so an empty form
+    after it says nothing about the password."""
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+    run = world.run()
+
+    await run.saw(FORM, signed_out=True, credential_empty=True)
+    assert await run(LOGIN_KEY) == WRONG
+    await run.saw(FORM, signed_out=True, credential_empty=True)
+
+    assert await world.refusals.standing(LOGIN_KEY) is None
+    assert await run(LOGIN_KEY) == WRONG
 
 
 async def test_a_new_password_stored_during_the_run_is_typed() -> None:
-    """The operator answered the ask by storing a new one. It is a different
-    password, so typing it is not a retry."""
     world = _World()
     await world.vault.store(LOGIN_KEY, WRONG)
     run = world.run()
+    await run.saw(FORM, signed_out=True, credential_empty=True)
     assert await run(LOGIN_KEY) == WRONG
     run.typed(WRONG)
+    await run.saw(FORM, signed_out=True, credential_empty=True)
     assert await run(LOGIN_KEY) is None
 
     await world.vault.store(LOGIN_KEY, "the right one")
@@ -222,15 +270,114 @@ async def test_a_new_password_stored_during_the_run_is_typed() -> None:
     assert await run(LOGIN_KEY) == "the right one"
 
 
-async def test_a_held_password_that_was_typed_is_not_latched_on_the_vault_key() -> None:
+async def test_a_refused_held_password_is_not_latched_on_the_vault_key() -> None:
     """Held for one run and refused says nothing about what the vault keeps."""
     world = _World()
     held = OneTimeSecrets()
     held.hold(LOGIN_KEY, "typed just now", run_id="run-1")
     run = world.run("run-1", held)
 
+    await run.saw(FORM, signed_out=True, credential_empty=True)
     assert await run(LOGIN_KEY) == "typed just now"
     run.typed("typed just now")
+    await run.saw(FORM, signed_out=True, credential_empty=True)
 
-    assert await run(LOGIN_KEY) is None
     assert await world.refusals.standing(LOGIN_KEY) is None
+
+
+class _Browser:
+    """Answers each command kind with one scripted reply."""
+
+    def __init__(self, replies: dict[str, Reply]) -> None:
+        self.replies = replies
+
+    async def send(
+        self,
+        tenant_id: TenantId,
+        device_id: DeviceId,
+        *,
+        kind: str,
+        payload: Mapping[str, object],
+        run_id: str | None = None,
+        deadline_s: float | None = None,
+    ) -> Reply:
+        return self.replies[kind]
+
+    def online(self, tenant_id: TenantId) -> tuple[DeviceId, ...]:
+        return ()
+
+    def drop(self, tenant_id: TenantId, device_id: DeviceId) -> bool:
+        return False
+
+
+async def test_the_run_learns_both_facts_from_the_browser_conversation() -> None:
+    """What was typed and what the page then showed, read off the commands the
+    run engine already sends -- so the engine itself needs no new hook."""
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+    run = world.run()
+    browser = _Browser(
+        {
+            "ui.url": Reply(
+                ok=True, result={"url": FORM, "signed_out": True, "credential_empty": True}
+            ),
+            "ui.perform": Reply(ok=True, result={"performed": True}),
+        }
+    )
+    watched = WatchingChannel(browser, run)
+    device = DeviceId("dev-1")
+
+    await watched.send(f.TENANT, device, kind="ui.url", payload={})
+    value = await run(LOGIN_KEY)
+    await watched.send(f.TENANT, device, kind="ui.perform", payload={"value": value})
+    await watched.send(f.TENANT, device, kind="ui.url", payload={})
+
+    assert await world.refusals.standing(LOGIN_KEY) is not None
+
+
+async def test_a_command_the_browser_did_not_perform_typed_nothing() -> None:
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+    run = world.run()
+    browser = _Browser(
+        {
+            "ui.url": Reply(
+                ok=True, result={"url": FORM, "signed_out": True, "credential_empty": True}
+            ),
+            "ui.perform": Reply(ok=False, error_kind="control_not_found"),
+        }
+    )
+    watched = WatchingChannel(browser, run)
+    device = DeviceId("dev-1")
+
+    await watched.send(f.TENANT, device, kind="ui.url", payload={})
+    value = await run(LOGIN_KEY)
+    await watched.send(f.TENANT, device, kind="ui.perform", payload={"value": value})
+    await watched.send(f.TENANT, device, kind="ui.url", payload={})
+
+    assert await world.refusals.standing(LOGIN_KEY) is None
+
+
+async def test_the_browsers_own_sign_in_counts_as_typing_the_password() -> None:
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+    run = world.run()
+    browser = _Browser(
+        {
+            "ui.url": Reply(
+                ok=True, result={"url": FORM, "signed_out": True, "credential_empty": True}
+            ),
+            "sign_in": Reply(ok=True, result={"did": ["submitted"]}),
+        }
+    )
+    watched = WatchingChannel(browser, run)
+    device = DeviceId("dev-1")
+
+    await watched.send(f.TENANT, device, kind="ui.url", payload={})
+    value = await run(LOGIN_KEY)
+    await watched.send(
+        f.TENANT, device, kind="sign_in", payload={"username": "u", "password": value}
+    )
+    await watched.send(f.TENANT, device, kind="ui.url", payload={})
+
+    assert await world.refusals.standing(LOGIN_KEY) is not None

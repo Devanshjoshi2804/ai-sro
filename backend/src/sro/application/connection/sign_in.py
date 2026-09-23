@@ -15,8 +15,11 @@ from sro.application.ports.sign_in import CredentialsRefused, SignInDriver, Sign
 from sro.application.ports.system import Clock
 from sro.application.ports.vault import CredentialVault
 from sro.domain.connection.connection import Connection, ConnectionId
+from sro.domain.execution.secrets import secret_key_of
 from sro.domain.shared.errors import DomainError
+from sro.domain.skill.signing_in import RecordedLogin, recorded_login
 from sro.domain.skill.skill import Skill
+from sro.domain.skill.workflow import ordered_cites
 
 USERNAME = "username"
 PASSWORD = "password"  # noqa: S105 -- a vault key's name, not a value
@@ -73,7 +76,8 @@ class SignIn:
             connection = await uow.connections.find_by_system(ctx.tenant_id, target_system)
         if connection is None:
             raise NoCredentials(f"{target_system} is not connected")
-        key = connection.credential_key(PASSWORD)
+
+        username, password, key = await self._credentials(ctx, connection)
         refusals = RefusedCredentials(self._vault)
         if (standing := await refusals.standing(key)) is not None:
             raise CredentialsRefused(
@@ -82,7 +86,6 @@ class SignIn:
                 "tried again. Store a new one and it will be used."
             )
 
-        username, password = await self._credentials(connection)
         session = await self._browser.open()
         try:
             result = await self._driver.sign_in(
@@ -130,15 +133,42 @@ class SignIn:
                         wanted.append(str(locator.query).split("|")[-1])
         return tuple(dict.fromkeys(wanted))[:6]
 
-    async def _credentials(self, connection: Connection) -> tuple[str, str]:
+    async def _credentials(
+        self, ctx: RequestContext, connection: Connection
+    ) -> tuple[str, str, str]:
+        recorded = await self._recorded(ctx, connection)
+        if recorded is not None:
+            key = secret_key_of(ctx.tenant_id.value, recorded.origin, PASSWORD)
+            password = await self._vault.get(key)
+            if recorded.username and password:
+                return recorded.username, password, key
+            if recorded.username:
+                raise NoCredentials(
+                    f"{connection.target_system} signs in at {recorded.origin}, and no password "
+                    f"is stored under {key!r}. Store it once and it will be used."
+                )
+            if password:
+                raise NoCredentials(
+                    f"{connection.target_system} signs in at {recorded.origin}, and the job that "
+                    "signs in there recorded no username. Connect it by hand once."
+                )
+        key = connection.credential_key(PASSWORD)
         username = await self._vault.get(connection.credential_key(USERNAME))
-        password = await self._vault.get(connection.credential_key(PASSWORD))
+        password = await self._vault.get(key)
         if not username or not password:
             raise NoCredentials(
                 f"no credentials are stored for {connection.target_system}, so it cannot sign "
                 "itself back in. Add them once on the connection."
             )
-        return username, password
+        return username, password, key
+
+    async def _recorded(self, ctx: RequestContext, connection: Connection) -> RecordedLogin | None:
+        async with self._uow as uow:
+            known = await uow.workflows.known(ctx.tenant_id)
+            tagged = [job for job in known if job.signs_in]
+            cited = tuple(sorted({one for job in tagged for one in ordered_cites(job)}))
+            seen = await uow.gestures.gestures_for(ctx.tenant_id, ids=cited) if cited else ()
+        return recorded_login(connection.base_url, tagged, {one.id: one for one in seen})
 
 
 class EnsureSignedIn:

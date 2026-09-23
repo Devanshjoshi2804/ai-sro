@@ -53,7 +53,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/signing_in.p
 > the jobs whose `Workflow.signs_in` the mining pass set -- `checks.signs_in`
 > -- and the host then picks among them.
 
-## module, [line 25](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L25): Note on the line above
+## module, [line 26](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L26): Note on the line above
 
 Code: `_SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-actions/", "/saml2/")`
 
@@ -61,7 +61,7 @@ Code: `_SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-action
 > chooser (`…/oauth2/v2.0/authorize`), Keycloak's form (`…/protocol/openid-connect/
 > auth`, and `…/login-actions/authenticate` once it has been posted once), SAML.
 
-## `signs_in_at`, [line 11](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L11): Docstring
+## `signs_in_at`, [line 12](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L12): Docstring
 
 > The job that signs in at this page, or None where nothing does.
 >
@@ -71,7 +71,7 @@ Code: `_SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-action
 >
 > `not_this` is the job being run, which can never be its own way back in.
 
-## `is_sign_in_page`, [line 28](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L28): Docstring
+## `is_sign_in_page`, [line 29](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L29): Docstring
 
 > Whether this page belongs to an identity provider's sign-in.
 >
@@ -82,7 +82,24 @@ Code: `_SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-action
 > moved yet the run ended "state unknown after a write; not retried" on a
 > sign-in link.
 
-## `_starts_at`, [line 33](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L33): Docstring
+## `_starts_at`, [line 34](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L34): Docstring
 
 > The origin of the first gesture this job cites, in time; the job's own step
 > order breaks a tie.
+
+## `RecordedLogin`, [line 43](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L43): Class
+
+> What a recorded sign-in says about credentials: the origin the password was
+> typed on, which names its vault key, and the username typed before it.
+
+## `recorded_login`, [line 49](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L49): Docstring
+
+> The job that starts on the system's own page, when there is one
+> (`signs_in_at`); otherwise the only tagged sign-in job that carries a
+> credential at all. On the deployed tenant the credential-carrying job starts
+> on the identity provider's host, not the system's, so the second rule is the
+> one that finds it. Two candidates with nothing to tell them apart is None:
+> guessing whose account to sign in with is not a choice to make.
+>
+> The username is the last non-secret value typed at or before the
+> credential -- the identifier box, by position, not by label.

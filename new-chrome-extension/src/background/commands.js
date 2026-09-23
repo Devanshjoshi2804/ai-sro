@@ -1100,11 +1100,17 @@ async function whatThePageSays(tabId) {
       )) || [];
     return {
       signed_out: Boolean(got?.result?.signed_out),
+      credential_empty: Boolean(got?.result?.credential_empty),
       dialog: String(got?.result?.dialog || ""),
       loading: Boolean(got?.result?.loading),
     };
   } catch {
-    return { signed_out: false, dialog: "", loading: false };
+    return {
+      signed_out: false,
+      credential_empty: false,
+      dialog: "",
+      loading: false,
+    };
   }
 }
 

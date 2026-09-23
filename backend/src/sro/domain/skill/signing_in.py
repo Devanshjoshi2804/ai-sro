@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from sro.domain.observation.gesture import Gesture
@@ -38,4 +39,52 @@ def _starts_at(job: Workflow, by_id: Mapping[str, Gesture]) -> str | None:
     return origin_of(cited[first].url or cited[first].system or "")
 
 
-__all__ = ["is_sign_in_page", "signs_in_at"]
+@dataclass(frozen=True, slots=True)
+class RecordedLogin:
+    job_id: str
+    origin: str
+    username: str | None
+
+
+def recorded_login(
+    where: str, among: Sequence[Workflow], by_id: Mapping[str, Gesture]
+) -> RecordedLogin | None:
+    carrying = [job for job in among if job.signs_in and _credential(job, by_id) is not None]
+    chosen = signs_in_at(where, carrying, by_id)
+    job = next((one for one in carrying if one.id == chosen), None)
+    if job is None and len(carrying) == 1:
+        job = carrying[0]
+    credential = _credential(job, by_id) if job is not None else None
+    if job is None or credential is None:
+        return None
+    origin = origin_of(credential.url or credential.system or "")
+    if not origin:
+        return None
+    before = [
+        gesture
+        for gesture in _in_order(job, by_id)
+        if gesture.at <= credential.at
+        and gesture.action.kind == "type"
+        and not _secret(gesture)
+        and gesture.action.value
+    ]
+    return RecordedLogin(
+        job_id=job.id, origin=origin, username=before[-1].action.value if before else None
+    )
+
+
+def _credential(job: Workflow, by_id: Mapping[str, Gesture]) -> Gesture | None:
+    return next((gesture for gesture in _in_order(job, by_id) if _secret(gesture)), None)
+
+
+def _in_order(job: Workflow, by_id: Mapping[str, Gesture]) -> list[Gesture]:
+    cited = [by_id[one] for one in ordered_cites(job) if one in by_id]
+    return sorted(cited, key=lambda gesture: gesture.at)
+
+
+def _secret(gesture: Gesture) -> bool:
+    target = gesture.action.target
+    return bool(gesture.action.secret or (target is not None and target.secret))
+
+
+__all__ = ["RecordedLogin", "is_sign_in_page", "recorded_login", "signs_in_at"]

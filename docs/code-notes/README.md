@@ -12,8 +12,6 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | --- | --- |
 | [`backend/gmail-connector/server.py`](backend/gmail-connector/server.py.md) | 25 |
 | [`backend/mock-connector/server.py`](backend/mock-connector/server.py.md) | 3 |
-| [`backend/scripts/backfill_gestures.py`](backend/scripts/backfill_gestures.py.md) | 2 |
-| [`backend/scripts/create_by_api.py`](backend/scripts/create_by_api.py.md) | 3 |
 | [`backend/scripts/dev_browser.py`](backend/scripts/dev_browser.py.md) | 5 |
 | [`backend/scripts/dry_run.py`](backend/scripts/dry_run.py.md) | 9 |
 | [`backend/scripts/look_up.py`](backend/scripts/look_up.py.md) | 1 |
@@ -21,12 +19,9 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/scripts/mutation_floor.py`](backend/scripts/mutation_floor.py.md) | 9 |
 | [`backend/scripts/one_whole_run.py`](backend/scripts/one_whole_run.py.md) | 35 |
 | [`backend/scripts/panel_shot.py`](backend/scripts/panel_shot.py.md) | 5 |
-| [`backend/scripts/probe_mine_route.py`](backend/scripts/probe_mine_route.py.md) | 6 |
-| [`backend/scripts/redact_stored_evidence.py`](backend/scripts/redact_stored_evidence.py.md) | 8 |
 | [`backend/scripts/route_shots.py`](backend/scripts/route_shots.py.md) | 5 |
 | [`backend/scripts/smoke.py`](backend/scripts/smoke.py.md) | 11 |
 | [`backend/scripts/status.py`](backend/scripts/status.py.md) | 9 |
-| [`backend/scripts/stub_device.py`](backend/scripts/stub_device.py.md) | 11 |
 | [`backend/scripts/two_tabs.py`](backend/scripts/two_tabs.py.md) | 5 |
 | [`backend/scripts/verify_held.py`](backend/scripts/verify_held.py.md) | 9 |
 | [`backend/scripts/what_one_press_writes.py`](backend/scripts/what_one_press_writes.py.md) | 14 |

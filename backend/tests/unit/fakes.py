@@ -774,6 +774,18 @@ class FakeCredentialVault:
         self.secrets.pop(key, None)
 
 
+class FakeTokenSource:
+    def __init__(self) -> None:
+        self.established: list[tuple[str, str, str, str]] = []
+
+    async def establish(self, *, tenant: str, system: str, username: str, password: str) -> str:
+        self.established.append((tenant, system, username, password))
+        return f"token-for-{system}"
+
+    async def access_token(self, *, tenant: str, system: str) -> str | None:
+        return f"token-for-{system}" if any(e[1] == system for e in self.established) else None
+
+
 def _terms(text: str) -> list[str]:
     """Mirrors SqlKnowledgeRepository: any word, not the whole phrase."""
     skip = {"a", "an", "the", "at", "in", "on", "of", "to", "for", "and"}

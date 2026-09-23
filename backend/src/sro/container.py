@@ -56,6 +56,7 @@ from sro.application.execution.pursuits import Pursuits
 from sro.application.execution.read_runs import GetRun, ListRuns, StopRun
 from sro.application.execution.revise_run import ReviseRun
 from sro.application.execution.run_from_preview import RunFromPreview
+from sro.application.execution.run_workflow import fail_orphans
 from sro.application.execution.self_heal import SelfHeal
 from sro.application.execution.stops import Stops
 from sro.application.execution.vision_step import PerformWithVision
@@ -267,6 +268,10 @@ class Container:
             return False
         self.driving_runs = connection
         return True
+
+    async def sweep_orphaned_runs(self, reason: str) -> int:
+        async with self.unit_of_work() as uow:
+            return await fail_orphans(uow, reason)
 
     async def readiness(self) -> dict[str, bool]:
         try:

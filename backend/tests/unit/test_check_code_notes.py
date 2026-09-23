@@ -142,20 +142,16 @@ def test_check_then_fix_over_a_tiny_tree(tmp_path: Path) -> None:
     )
     # Rule 3: no "source file has no note file" finding exists any more.
     assert not hasattr(report, "missing_notes")
-
-    # Rule 2, verified: `Greeter.hello`'s two Comment notes resolve out of
-    # order, so it is reported -- `Greeter.farewell`'s do not, so its two
-    # identical `pass` notes are resolved structurally instead of guessed at.
-    assert any(
-        "`Greeter.hello` are not in source order" in entry and "mod.py.md" in entry
-        for entry in report.unordered
-    )
-    assert not any("Greeter.farewell" in entry for entry in report.unordered)
+    # Round 2: an out-of-order symbol is reported only through the anchor it
+    # blocks (above, folded into `dead`) -- there is no separate category for
+    # a symbol whose notes are out of order but happen to block nothing, e.g.
+    # `Greeter.farewell`'s two identical `pass` notes, which resolved fine.
+    assert not hasattr(report, "unordered")
+    assert not any("Greeter.farewell" in entry for entry in report.dead)
 
     fixed = check_code_notes.run(repo, fix=True)
     assert fixed.stale == report.stale  # --fix reports exactly what check found
     assert fixed.dead == report.dead
-    assert fixed.unordered == report.unordered
 
     note_text = (repo / "docs/code-notes/backend/src/sro/pkg/mod.py.md").read_text(encoding="utf-8")
     assert "Was line 4, drifted to line 6." in note_text  # note text is never touched
@@ -173,8 +169,7 @@ def test_check_then_fix_over_a_tiny_tree(tmp_path: Path) -> None:
 
     settled = check_code_notes.run(repo, fix=False)
     assert settled.stale == []  # nothing left to fix
-    assert len(settled.dead) == len(report.dead)  # the truly dead ones are still dead
-    assert settled.unordered == report.unordered  # fixing line numbers doesn't reorder the notes
+    assert settled.dead == report.dead  # the truly dead ones are still dead, unrenumbered
 
 
 if __name__ == "__main__":

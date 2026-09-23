@@ -172,25 +172,18 @@ def evaluate_anchor(anchor: Anchor, source: SourceInfo) -> AnchorEval:
     return AnchorEval(anchor, anchor.name, "ambiguous", None, hits, floor_default)
 
 
-def order_violations(evals: list[AnchorEval]) -> tuple[set[str | None], list[str]]:
+def order_violations(evals: list[AnchorEval]) -> set[str | None]:
     broken: set[str | None] = set()
-    messages: list[str] = []
-    last: dict[str | None, tuple[int, int]] = {}
+    last: dict[str | None, int] = {}
     for ev in evals:
         if ev.kind != "certain":
             continue
         line = cast(int, ev.line)
         previous = last.get(ev.symbol_key)
-        if previous is not None and line < previous[0] and ev.symbol_key not in broken:
+        if previous is not None and line < previous:
             broken.add(ev.symbol_key)
-            where = ev.symbol_key or "module"
-            messages.append(
-                f"{ev.anchor.note_path}: notes for `{where}` are not in source order -- "
-                f"the one at heading line {ev.anchor.heading_index + 1} resolves to source line "
-                f"{line}, before an earlier note's {previous[0]}"
-            )
-        last[ev.symbol_key] = (line, ev.anchor.heading_index)
-    return broken, messages
+        last[ev.symbol_key] = line
+    return broken
 
 
 def _dead(anchor: Anchor, reason: str) -> str:
@@ -200,10 +193,10 @@ def _dead(anchor: Anchor, reason: str) -> str:
 
 def resolve_note_file(
     note_path: Path, note_lines: list[str], source: SourceInfo
-) -> tuple[list[tuple[Anchor, int]], list[str], list[str]]:
+) -> tuple[list[tuple[Anchor, int]], list[str]]:
     anchors, malformed = parse_anchors(note_path, note_lines)
     evals = [evaluate_anchor(anchor, source) for anchor in anchors]
-    broken, order_messages = order_violations(evals)
+    broken = order_violations(evals)
 
     resolved: list[tuple[Anchor, int]] = []
     dead_messages: list[str] = list(malformed)
@@ -241,7 +234,7 @@ def resolve_note_file(
             resolved.append((anchor, line))
             last_resolved[ev.symbol_key] = line
 
-    return resolved, dead_messages, order_messages
+    return resolved, dead_messages
 
 
 def rewrite_heading(heading_line: str, new_line: int) -> str:
@@ -255,15 +248,14 @@ def rewrite_heading(heading_line: str, new_line: int) -> str:
 class Report:
     stale: list[str]
     dead: list[str]
-    unordered: list[str]
 
     @property
     def findings(self) -> int:
-        return len(self.stale) + len(self.dead) + len(self.unordered)
+        return len(self.stale) + len(self.dead)
 
 
 def run(repo_root: Path, *, fix: bool) -> Report:
-    report = Report(stale=[], dead=[], unordered=[])
+    report = Report(stale=[], dead=[])
     source_cache: dict[Path, SourceInfo] = {}
 
     root = notes_root(repo_root)
@@ -277,9 +269,8 @@ def run(repo_root: Path, *, fix: bool) -> Report:
 
         note_lines = note_path.read_text(encoding="utf-8").splitlines()
         source = load_source(source_path, source_cache)
-        resolved, dead_messages, order_messages = resolve_note_file(note_path, note_lines, source)
+        resolved, dead_messages = resolve_note_file(note_path, note_lines, source)
         report.dead.extend(dead_messages)
-        report.unordered.extend(order_messages)
 
         rewrites: list[tuple[int, int]] = []
         for anchor, target_line in resolved:
@@ -307,12 +298,9 @@ def main(argv: list[str] | None = None) -> int:
     repo_root = Path(__file__).resolve().parents[2]
     report = run(repo_root, fix=args.fix)
 
-    for line in [*report.stale, *report.dead, *report.unordered]:
+    for line in [*report.stale, *report.dead]:
         print(line)
-    print(
-        f"{len(report.stale)} stale anchor(s), {len(report.dead)} dead/unresolvable note(s), "
-        f"{len(report.unordered)} symbol(s) whose notes are out of source order."
-    )
+    print(f"{len(report.stale)} stale anchor(s), {len(report.dead)} dead/unresolvable note(s).")
     return 1 if report.findings else 0
 
 

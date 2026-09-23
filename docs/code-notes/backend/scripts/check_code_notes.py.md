@@ -82,30 +82,32 @@ Comments and docstrings moved out of [`backend/scripts/check_code_notes.py`](../
 > never depended on position to resolve, so they can't beg the question they
 > are being used to answer.
 >
-> A symbol found out of order here is not guessed through anywhere in this
-> file again -- every `"ambiguous"` note under it is reported instead
-> (`resolve_note_file` below). Measured on this repository: most of the
-> symbols this flags never actually had an ambiguous note under them, so
-> flagging them costs nothing; the ones that did (e.g. `FromTheMail.execute`,
-> whose six identical `logger.info(` lines cannot be told apart once its
-> notes are known to be out of order) are exactly the reports this rule
-> exists to produce instead of a wrong guess.
+> Returns which symbols were found out of order, nothing more -- being out
+> of order is not itself reported. It matters only where it changes an
+> answer: an `"ambiguous"` note under a broken symbol (`resolve_note_file`
+> below) is reported as unresolvable *because* of it. A symbol whose notes
+> are out of order but happen to have no ambiguous note under them produces
+> no finding at all, which is most of them, measured on this repository --
+> a fact worth nothing to `check` until it actually blocks something.
 
-## `resolve_note_file`, [line 201](../../../../backend/scripts/check_code_notes.py#L201): Function
+## `resolve_note_file`, [line 194](../../../../backend/scripts/check_code_notes.py#L194): Function
 
 > One note file, anchor by anchor, in heading order. `"certain"` results
 > feed `last_resolved` outright; an `"ambiguous"` one is resolved the same
 > way *if* its symbol is not in `broken` -- the first hit strictly after
 > `last_resolved`'s line for that symbol (or the symbol's own start line, for
 > its first note) -- and left as a dead report otherwise: no hit past that
-> floor, or the symbol's own notes already proven out of order.
+> floor, or the symbol's own notes already proven out of order. Either dead
+> reason lands in the same list; nothing here distinguishes "unresolvable
+> because of order" from any other kind of unresolvable, because `check`'s
+> exit code doesn't either.
 >
 > `last_resolved` is updated by every resolution, `"certain"` or
 > structurally resolved alike, because the rule it enforces --
 > next-note-after-previous-note -- does not care which way a line was
 > confirmed, only that it was.
 
-## `run`, [line 265](../../../../backend/scripts/check_code_notes.py#L265): Function
+## `run`, [line 257](../../../../backend/scripts/check_code_notes.py#L257): Function
 
 > One pass over every note file. A note file is rewritten once, in place,
 > only if at least one of its anchors resolved to a line different from the

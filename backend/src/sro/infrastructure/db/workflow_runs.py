@@ -272,6 +272,19 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
         ).scalars()
         return await self._with_steps(rows.all())
 
+    async def outcomes_since(
+        self, tenant_id: TenantId, *, since: str
+    ) -> tuple[tuple[str, bool, int], ...]:
+        rows = await self._session.execute(
+            select(WorkflowRunRow.outcome, WorkflowRunRow.live, func.count())
+            .where(
+                WorkflowRunRow.tenant_id == tenant_id.value,
+                WorkflowRunRow.started_at >= when(since),
+            )
+            .group_by(WorkflowRunRow.outcome, WorkflowRunRow.live)
+        )
+        return tuple((outcome, live, count) for outcome, live, count in rows.all())
+
     async def driving_windows(self, tenant_id: TenantId) -> tuple[Driving, ...]:
         rows = await self._session.execute(
             select(

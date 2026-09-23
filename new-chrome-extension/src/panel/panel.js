@@ -2099,19 +2099,14 @@ async function _aboutTheSkill(performing, run) {
   };
 }
 
-/** The three numbers over the ledger, fetched beside the redraw rather than in
+/** The numbers over the ledger, fetched beside the redraw rather than in
  * it: a slow analytics answer must not hold up the state of the tab, which is
  * the part somebody is waiting on.
  */
 async function sayTheDay(status) {
   if (!status.deviceId) return $("today").replaceChildren();
   try {
-    const midnight = new Date();
-    midnight.setHours(0, 0, 0, 0);
-    const summary = await ask({
-      kind: "summary",
-      since: midnight.toISOString(),
-    });
+    const summary = await ask({ kind: "summary", days: 1 });
     const line = today(summary, openOffers);
     $("today").replaceChildren(...(line ? [line] : []));
   } catch {

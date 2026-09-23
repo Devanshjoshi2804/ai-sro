@@ -24,21 +24,16 @@ from sro.interface.http.v1.routers import (
     analytics,
     ask,
     audit,
-    candidates,
     chat,
     confirmations,
     connections,
     devices,
     health,
     inbound,
-    intent,
     knowledge,
     lookups,
-    mine,
     observations,
     offers,
-    pool,
-    read_gestures,
     recordings,
     runs,
     secrets,
@@ -262,23 +257,18 @@ def create_app() -> FastAPI:
     app.include_router(agent_channel.router, prefix="/v1")
     app.include_router(analytics.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(audit.router, prefix="/v1", responses=PROBLEMS)
-    app.include_router(candidates.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(ask.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(chat.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(secrets.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(lookups.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(connections.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(devices.router, prefix="/v1", responses=PROBLEMS)
-    app.include_router(mine.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(observations.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(offers.router, prefix="/v1", responses=PROBLEMS)
-    app.include_router(pool.router, prefix="/v1", responses=PROBLEMS)
-    app.include_router(read_gestures.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(recordings.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(skills.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(shapes.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(spend.router, prefix="/v1", responses=PROBLEMS)
-    app.include_router(intent.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(stream.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(knowledge.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(threads.router, prefix="/v1", responses=PROBLEMS)

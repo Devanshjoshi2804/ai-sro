@@ -125,8 +125,6 @@ class Settings(BaseSettings):
 
     transcription_enabled: bool = False
 
-    mining_sweep_seconds: float = 0.0
-
     rig_sweep_seconds: float = 60.0
 
     mining_window_hours: int = 24

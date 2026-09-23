@@ -10,13 +10,6 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 > directly would replay differently after a restart and lose the durability that
 > is the only reason Temporal is here.
 
-## `InductionWorkflow`, [line 31](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L31): Docstring
-
-> Two sealed recordings to a skill version.
->
-> Durable so a failed induction never costs the demonstrations: the recordings
-> are already sealed, and a retry starts from them rather than from a session.
-
 ## `RecordingSessionWorkflow`, [line 44](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L44): Docstring
 
 > Watches one demonstration and reaps it if the operator walks away.
@@ -47,13 +40,6 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 
 > Returns the run id. What happened is on the run itself, which is the
 > record everything else reads.
-
-## module, [line 26](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L26): Comment
-
-Code: `non_retryable_error_types=["InductionFailed"],`
-
-> A malformed pair fails the same way every time; retrying it wastes the
-> supervisor's attention rather than fixing anything.
 
 ## module, [line 76](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L76): Comment
 

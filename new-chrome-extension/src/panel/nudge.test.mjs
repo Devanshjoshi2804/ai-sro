@@ -14,7 +14,7 @@
 
 import assert from "node:assert";
 
-const { KEPT_MS, LIFETIME_MS, endOfDay, fire, mute, onCall, shouldFire, sweep } =
+const { KEPT_MS, LIFETIME_MS, endOfDay, fire, onCall, shouldFire, sweep } =
   await import("./nudge.js");
 
 const T0 = Date.parse("2026-09-03T12:00:00Z");
@@ -179,13 +179,11 @@ test("a job the rig has proved is offerable without a count behind it", () => {
   assert.equal(shouldFire(asking({ candidates: [proved] })), proved);
 });
 
-test("not for this page holds until the end of the day", () => {
-  const muted = mute({}, TAUGHT.starts_on, T0);
+test("a muted page holds until its mute ends", () => {
+  const muted = { [TAUGHT.starts_on]: T0 + 60_000 };
   assert.equal(shouldFire(asking({ muted })), null);
-  assert.ok(muted[TAUGHT.starts_on] > T0);
 
-  // Tomorrow it is a fair question again: the page may matter to them next week
-  // even if it did not this afternoon.
+  // After it, it is a fair question again.
   const tomorrow = muted[TAUGHT.starts_on] + 1;
   assert.equal(shouldFire(asking({ muted, now: tomorrow })), TAUGHT);
 });

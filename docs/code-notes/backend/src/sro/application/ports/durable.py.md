@@ -15,10 +15,6 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/durable
 >   notice that an operator walked away, so if this is not durable the recording
 >   stays open forever.
 
-## `DurableExecution.induce_skill`, [line 12](../../../../../../../backend/src/sro/application/ports/durable.py#L12): Docstring
-
-> Run induction durably and wait for its result.
-
 ## `DurableExecution.execute_skill`, [line 21](../../../../../../../backend/src/sro/application/ports/durable.py#L21): Docstring
 
 > Perform a skill durably and wait for it to finish.

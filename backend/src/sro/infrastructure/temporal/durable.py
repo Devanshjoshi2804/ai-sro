@@ -10,19 +10,15 @@ from temporalio.service import RPCError
 
 from sro.application.context import RequestContext
 from sro.application.execution.execute_skill import NotRunnable
-from sro.application.induction.errors import InductionFailed
-from sro.application.induction.induce_skill import InducedSkill
 from sro.domain.execution.run import RunId
 from sro.domain.shared.identifiers import BrowserSessionId, RecordingId, SkillId
 from sro.infrastructure.temporal.activities import (
-    InductionRequest,
     ReapRequest,
     StartRunRequest,
 )
 from sro.infrastructure.temporal.queues import BROWSER_QUEUE, DEFAULT_QUEUE
 from sro.infrastructure.temporal.workflows import (
     ExecutionWorkflow,
-    InductionWorkflow,
     RecordingSessionWorkflow,
 )
 
@@ -50,41 +46,6 @@ class TemporalDurableExecution:
             if self._client is None:
                 self._client = await Client.connect(self._address, namespace=self._namespace)
             return self._client
-
-    async def induce_skill(
-        self,
-        ctx: RequestContext,
-        *,
-        first: RecordingId,
-        second: RecordingId | None = None,
-        name: str | None = None,
-    ) -> InducedSkill:
-        client = await self._connect()
-        request = InductionRequest(
-            tenant_id=ctx.tenant_id.value,
-            principal_id=ctx.principal_id.value,
-            first_recording_id=first.value,
-            second_recording_id=second.value if second else "",
-            name=name,
-        )
-
-        try:
-            result = await client.execute_workflow(
-                InductionWorkflow.run,
-                request,
-                id=f"induct-{first}-{second or 'alone'}-{uuid.uuid4().hex[:8]}",
-                task_queue=self._default_queue,
-            )
-        except WorkflowFailureError as exc:
-            raise InductionFailed(_root_message(exc)) from exc
-
-        return InducedSkill(
-            skill_id=SkillId(result.skill_id),
-            version=result.version,
-            step_count=result.step_count,
-            input_parameter_count=result.input_parameter_count,
-            derived_parameter_count=result.derived_parameter_count,
-        )
 
     async def execute_skill(
         self,

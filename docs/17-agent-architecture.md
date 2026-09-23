@@ -202,7 +202,7 @@ without it is the system, degraded, not the system, broken.
 | Why they are separate | one extra page changes the signature, and identity is exact equality | **an episode is one host's** — segmentation partitions by host, so a two-system job is two candidates and always will be |
 | Pre-filter | signature overlap ≥ 0.6, same host | different host, adjacent within 5 min, ≥ 2 times |
 | Example | "create supplier" with and without the address lookup | "check the WMS, **then** record it in the ERP" |
-| Taught by | `TaughtTogether` — one skill, both candidates spent | `TeachWorkflow` |
+| Taught by | `TaughtTogether` — one skill, both candidates spent | `TeachWorkflow` (removed 2026-09-24) |
 | Diffed how | the two candidates' doings, against each other | **never against each other** — that would compare the WMS half with the ERP half. Each *occurrence of both halves together* is one demonstration of the whole job |
 
 That last row is the subtle one. For a workflow, the pair is not the evidence —

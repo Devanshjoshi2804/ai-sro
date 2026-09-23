@@ -41,7 +41,7 @@ from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.shared.prices import DaySpend, ModelSpend
 from sro.domain.skill.offers import Offer, OfferRow
 from sro.domain.skill.skill import Skill
-from sro.domain.skill.workflow import Workflow
+from sro.domain.skill.workflow import Noticed, Workflow
 from sro.domain.trigger.confirmation import Confirmation
 from sro.domain.trigger.trigger import Trigger
 
@@ -287,6 +287,8 @@ class ConfirmationRepository(Protocol):
 
     async def waiting(self, tenant_id: TenantId) -> tuple[Confirmation, ...]: ...
 
+    async def tenants_waiting(self) -> tuple[TenantId, ...]: ...
+
 
 class ToolCallRepository(Protocol):
     async def remember(
@@ -392,6 +394,10 @@ class WorkflowRunRepository(Protocol):
 
     async def since(self, tenant_id: TenantId, *, since: str) -> tuple[WorkflowRun, ...]: ...
 
+    async def outcomes_since(
+        self, tenant_id: TenantId, *, since: str
+    ) -> tuple[tuple[str, bool, int], ...]: ...
+
     async def driving_windows(self, tenant_id: TenantId) -> tuple[Driving, ...]: ...
 
     async def in_flight(self, tenant_id: TenantId, device_id: DeviceId) -> str | None: ...
@@ -413,6 +419,10 @@ class WorkflowRepository(Protocol):
     async def save(self, workflow: Workflow) -> None: ...
 
     async def known(self, tenant_id: TenantId) -> tuple[Workflow, ...]: ...
+
+    async def noticed_since(
+        self, tenant_id: TenantId, *, since: datetime
+    ) -> tuple[Noticed, ...]: ...
 
     async def get(self, tenant_id: TenantId, workflow_id: str) -> Workflow: ...
 

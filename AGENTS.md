@@ -39,7 +39,7 @@ make up            # local stack: postgres, redis, minio, temporal, steel, otel
 make install
 make migrate
 make api           # :8000
-make worker        # Temporal worker — induction runs HERE, not in the API
+make worker        # Temporal worker — skill runs, triggers and the sweeps run HERE, not in the API
 make web           # :3000
 make lint          # ruff + ruff format + mypy --strict + import-linter + eslint
 make test          # unit + integration
@@ -55,7 +55,7 @@ Narrower loops:
 cd backend
 uv run pytest tests/unit -q                                  # fast, no Docker
 uv run pytest tests/unit/domain/test_skill.py -q             # one file
-uv run pytest -k "promotion" -q                              # one behaviour
+uv run pytest -k "summary" -q                                # one behaviour
 uv run lint-imports                                          # the architecture guard alone
 SRO_INTEGRATION_DATABASE_URL="postgresql+asyncpg://sro:sro@localhost:5432/sro_test" \
   uv run pytest tests/integration -q                         # against an existing Postgres
@@ -65,9 +65,10 @@ npm test                                                     # vitest
 npx vitest run src/features/skill/components/skill-detail.test.tsx
 ```
 
-**A code change is not live until the worker restarts.** Induction executes as a
-Temporal activity in the worker process, so an API-only restart silently keeps
-running the old induction. This has already cost debugging time twice.
+**A code change is not live until the worker restarts.** Skill runs and trigger
+fires execute as Temporal activities in the worker process, and the miner, the
+session keeper and the retention sweep loop there too, so an API-only restart
+silently keeps running the old code. This has already cost debugging time twice.
 
 **A double must not implement the thing under test.** The extension's panel
 hands the console a credential and waits for the console to announce itself.
@@ -79,8 +80,7 @@ somewhere too: `frontend/src/features/console/embedded-credential.test.tsx`
 exists for exactly that reason.
 
 **A step's credentials come from the system it is calling.** Not from the
-skill's objective key. A skill whose steps call two systems -- taught by
-`TeachWorkflow` from two candidates a person joined -- would otherwise resolve
+skill's objective key. A skill whose steps call two systems would otherwise resolve
 the first system's cookie, bearer, minted token and referer for every step, and
 post one customer system's live session to another. `session_scope` is derived
 per call in `execute_skill._perform`, and `resolve_headers` ignores a credential

@@ -3,21 +3,11 @@ from __future__ import annotations
 from typing import Protocol
 
 from sro.application.context import RequestContext
-from sro.application.induction.induce_skill import InducedSkill
 from sro.domain.execution.run import RunId
 from sro.domain.shared.identifiers import BrowserSessionId, RecordingId, SkillId
 
 
 class DurableExecution(Protocol):
-    async def induce_skill(
-        self,
-        ctx: RequestContext,
-        *,
-        first: RecordingId,
-        second: RecordingId | None = None,
-        name: str | None = None,
-    ) -> InducedSkill: ...
-
     async def execute_skill(
         self,
         ctx: RequestContext,

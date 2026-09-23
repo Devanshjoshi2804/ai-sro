@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import re
 import sys
+from collections import Counter
 from collections.abc import AsyncIterator, Callable, Mapping
 from copy import deepcopy
 from dataclasses import replace
@@ -18,7 +19,6 @@ from types import MappingProxyType
 
 from sro.application.context import RequestContext
 from sro.application.execution.execute_skill import ExecuteSkill, ExecutionRequest
-from sro.application.induction.induce_skill import InducedSkill, InduceSkill
 from sro.application.ports.agent import AgentDrivers
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.browser import BrowserProvider, BrowserSession, BrowserUnavailable
@@ -131,7 +131,7 @@ from sro.domain.shared.prices import DaySpend, Effort, ModelSpend
 from sro.domain.skill.locator import LocatorStrategy
 from sro.domain.skill.offers import Offer, OfferRow
 from sro.domain.skill.skill import Skill
-from sro.domain.skill.workflow import Workflow
+from sro.domain.skill.workflow import Noticed, Workflow
 from sro.domain.trigger.confirmation import Answer, Confirmation
 from sro.domain.trigger.trigger import Trigger
 from sro.infrastructure.db.codec import when
@@ -375,20 +375,17 @@ class FakeTranscriber:
 
 
 class FakeDurableExecution:
-    """Runs induction inline and records the deadlines it was asked for.
+    """Runs execution inline and records the deadlines it was asked for.
 
-    Keeping the real use case behind it means the HTTP tests still exercise
-    induction; what they skip is the scheduler, not the behaviour.
+    What the HTTP tests skip is the scheduler, not the behaviour.
     """
 
     def __init__(
         self,
-        induce: InduceSkill | None = None,
         *,
         execute: ExecuteSkill | None = None,
         available: bool = True,
     ) -> None:
-        self._induce = induce
         self._execute = execute
         self.available = available
         self.watching: list[str] = []
@@ -408,18 +405,6 @@ class FakeDurableExecution:
         """One entry per call, whose name is on the write. A trigger's author
         and the person who approved one of its fires are different people, and
         which of them a run carries is the point of the confirmation queue."""
-
-    async def induce_skill(
-        self,
-        ctx: RequestContext,
-        *,
-        first: RecordingId,
-        second: RecordingId | None = None,
-        name: str | None = None,
-    ) -> InducedSkill:
-        if self._induce is None:
-            raise NotImplementedError("this fake was not given induction")
-        return await self._induce.execute(ctx, first=first, second=second, name=name)
 
     async def execute_skill(
         self,
@@ -1394,6 +1379,13 @@ class FakeConfirmationRepository:
             )
         )
 
+    async def tenants_waiting(self) -> tuple[TenantId, ...]:
+        return tuple(
+            dict.fromkeys(
+                row.tenant_id for row in self.rows.values() if row.answer is Answer.WAITING
+            )
+        )
+
 
 class FakeToolCallRepository:
     """A set, which is what the real one is: a key is claimed or it is not."""
@@ -1827,6 +1819,17 @@ class FakeWorkflowRunRepository:
             for run in sorted(found, key=lambda run: (when(run.started_at), run.id), reverse=True)
         )
 
+    async def outcomes_since(
+        self, tenant_id: TenantId, *, since: str
+    ) -> tuple[tuple[str, bool, int], ...]:
+        at = when(since)
+        counted = Counter(
+            (run.outcome, run.live)
+            for run in self.rows.values()
+            if run.tenant == tenant_id.value and when(run.started_at) >= at
+        )
+        return tuple((outcome, live, n) for (outcome, live), n in counted.items())
+
     async def driving_windows(self, tenant_id: TenantId) -> tuple[Driving, ...]:
         """Off the same rows `in_flight` reads, with the clock parsed.
 
@@ -1922,8 +1925,8 @@ class FakeWorkflowRepository:
 
     Faithful rather than convenient, because the mining and runner suites will
     be built on it. Workflows are stored and returned as copies, so "steps are
-    replaced, not appended" is real here. ``known`` is oldest first and a
-    re-save moves a workflow to the end, which is what the store's ``created_at``
+    replaced, not appended" is real here. ``known`` is oldest first by
+    creation, and a re-save keeps its place, as the store's ``created_at``
     does. ``record_effect`` keeps the state-belt gate -- a picture is not an
     effect -- and asks the domain rather than holding a second copy of the belt
     list. ``proofs`` reads the runs from the run repository, because in the
@@ -1967,6 +1970,7 @@ class FakeWorkflowRepository:
         and a re-save does not bring it back."""
         self._saved = count()
         self._created: dict[str, int] = {}
+        self.created_at: dict[str, datetime] = {}
 
     def _alive(self) -> None:
         if self.poisoned:
@@ -1975,9 +1979,25 @@ class FakeWorkflowRepository:
     async def save(self, workflow: Workflow) -> None:
         self._alive()
         self.rows[workflow.id] = deepcopy(workflow)
-        # The store rewrites ``created_at`` on a re-save, as INSERT OR REPLACE
-        # did, so a re-saved workflow moves to the end of ``known``.
-        self._created[workflow.id] = next(self._saved)
+        # A re-save keeps the creation time, as the store's upsert does.
+        if workflow.id not in self._created:
+            self._created[workflow.id] = next(self._saved)
+            self.created_at[workflow.id] = datetime.now(tz=UTC)
+
+    async def noticed_since(self, tenant_id: TenantId, *, since: datetime) -> tuple[Noticed, ...]:
+        found = [
+            Noticed(
+                id=row.id,
+                title=row.title,
+                systems=tuple(row.systems),
+                steps=len(row.steps),
+            )
+            for row in self.rows.values()
+            if row.tenant == tenant_id.value
+            and row.id not in self.retired
+            and self.created_at[row.id] >= since
+        ]
+        return tuple(sorted(found, key=lambda one: (self.created_at[one.id], one.id), reverse=True))
 
     async def known(self, tenant_id: TenantId) -> tuple[Workflow, ...]:
         found = [
@@ -2440,11 +2460,9 @@ class FakeUnitOfWork:
     same 500 by another route.
 
     Do not close it by resetting `_entered` in `__aexit__`. That is the
-    obvious move and it is a trap: `InduceSkill.execute` runs `AskAbout`'s
-    whole block from inside its own on this shared instance, and the
-    stickiness is what lets it. Adding the reset fails five
-    `test_the_whole_way_through` journey tests on `'skills' before
-    __aenter__`. Closing it properly means handing each use case its own
+    obvious move and it is a trap: a use case that runs another's whole block
+    from inside its own on this shared instance relies on the stickiness.
+    Closing it properly means handing each use case its own
     instance over one shared store, which is more change than the gap is
     worth."""
 

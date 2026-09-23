@@ -69,7 +69,7 @@ services:
       "
 
   # ---------------------------------------------------------------------------
-  # Temporal. Durable execution for recording sessions and skill induction.
+  # Temporal. Durable execution for recording sessions, skill runs and triggers.
   # ---------------------------------------------------------------------------
   temporal:
     image: temporalio/auto-setup:1.25.2

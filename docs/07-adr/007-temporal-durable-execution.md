@@ -1,6 +1,8 @@
 # ADR 007 — Temporal for anything that outlives a request
 
-**Status:** accepted · v0
+**Status:** accepted · v0 · amended 2026-09-24: `InductionWorkflow` and the
+`induce_skill` activity were removed (no production caller). The worker now
+registers `ExecutionWorkflow`, `TriggerWorkflow` and `RecordingSessionWorkflow`.
 
 ## Context
 

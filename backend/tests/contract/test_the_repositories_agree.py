@@ -77,11 +77,19 @@ from sro.domain.observation.gesture import Action, Gesture, GestureBatch, Intent
 from sro.domain.observation.mining import MiningPass
 from sro.domain.observation.pool import K_POOL_AGE, RETIRED_PASSES
 from sro.domain.shared.errors import Conflict
-from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId, TenantId
+from sro.domain.shared.identifiers import (
+    ConfirmationId,
+    DeviceId,
+    PrincipalId,
+    SkillId,
+    TenantId,
+    TriggerId,
+)
 from sro.domain.shared.prices import ModelSpend
 from sro.domain.skill import PromotionStage
 from sro.domain.skill.offers import Offer
 from sro.domain.skill.workflow import Step, Workflow
+from sro.domain.trigger.confirmation import Answer, Confirmation
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 
 # The SQL half runs against the same Postgres the integration suite uses.
@@ -258,33 +266,64 @@ def _skill_run(run_id: str, **overrides: Any) -> Run:
 
 
 class TestWorkflows:
-    async def test_known_is_oldest_first_and_a_resave_moves_a_workflow_to_the_end(
+    async def test_known_is_oldest_first_and_a_resave_keeps_its_place(
         self, store: UnitOfWork
     ) -> None:
         """Load-bearing, not cosmetic: ``resolve`` breaks a tie at the top
         score with a strict ``>``, so the first workflow in this list wins a
-        proposal that matches two of them equally well. The store rewrites
-        ``created_at`` on a re-save, which is what moves one to the end."""
+        proposal that matches two of them equally well. A re-save is not a
+        new job, so it does not move one: ``created_at`` is when it was made."""
         async with store as work:
             for name in ("wfl_1", "wfl_2", "wfl_3"):
                 await work.workflows.save(_workflow(name))
             await work.commit()
 
         async with store as work:
-            assert [one.id for one in await work.workflows.known(TENANT)] == [
-                "wfl_1",
-                "wfl_2",
-                "wfl_3",
-            ]
             await work.workflows.save(_workflow("wfl_1", title="renamed by a merge"))
             await work.commit()
 
         async with store as work:
             assert [one.id for one in await work.workflows.known(TENANT)] == [
+                "wfl_1",
                 "wfl_2",
                 "wfl_3",
-                "wfl_1",
             ]
+
+    async def test_a_re_saved_job_is_not_noticed_again(self, store: UnitOfWork) -> None:
+        async with store as work:
+            await work.workflows.save(_workflow("wfl_1"))
+            await work.commit()
+        after_it_was_made = datetime.now(tz=UTC)
+
+        async with store as work:
+            await work.workflows.save(_workflow("wfl_1", title="a parameter learnt"))
+            await work.commit()
+
+        async with store as work:
+            assert await work.workflows.noticed_since(TENANT, since=after_it_was_made) == ()
+
+    async def test_noticed_since_is_newest_first_and_leaves_out_the_retired_and_the_old(
+        self, store: UnitOfWork
+    ) -> None:
+        before = datetime.now(tz=UTC) - timedelta(seconds=1)
+        async with store as work:
+            for name in ("wfl_1", "wfl_2", "wfl_3"):
+                await work.workflows.save(
+                    _workflow(name, steps=[Step(order=0, says="open", system=None)])
+                )
+            await work.workflows.save(_workflow("wfl_other", tenant=OTHER_TENANT))
+            await work.commit()
+        async with store as work:
+            await work.workflows.retire(TENANT, "wfl_2", at=_when(12))
+            await work.commit()
+
+        async with store as work:
+            noticed = await work.workflows.noticed_since(TENANT, since=before)
+            assert [(one.id, one.steps) for one in noticed] == [("wfl_3", 1), ("wfl_1", 1)]
+            assert noticed[0].title == "put away a pallet"
+            assert noticed[0].systems == ("https://wms.example",)
+            later = datetime.now(tz=UTC) + timedelta(minutes=1)
+            assert await work.workflows.noticed_since(TENANT, since=later) == ()
 
     async def test_a_step_the_merge_dropped_leaves_the_store(self, store: UnitOfWork) -> None:
         async with store as work:
@@ -657,6 +696,26 @@ class TestWorkflowRuns:
             found = await work.workflow_runs.since(TENANT, since=_at(9))
         assert [one.id for one in found] == ["run_c", "run_b", "run_a", "run_early"]
         assert found[-1].started_at == "2026-09-06T10:00:00+00:00"
+
+    async def test_outcomes_since_counts_by_outcome_and_live_in_the_window(
+        self, store: UnitOfWork
+    ) -> None:
+        async with store as work:
+            await work.workflow_runs.save(_run("run_a", started_at=_at(10), live=True))
+            await work.workflow_runs.save(_run("run_b", started_at=_at(11), live=True))
+            await work.workflow_runs.save(_run("run_dry", started_at=_at(11)))
+            await work.workflow_runs.save(
+                _run("run_stopped", started_at=_at(12, offset="+02:00"), outcome="stopped")
+            )
+            await work.workflow_runs.save(_run("run_before", started_at=_at(8), live=True))
+            await work.workflow_runs.save(
+                _run("run_theirs", tenant=OTHER_TENANT, started_at=_at(11), live=True)
+            )
+            await work.commit()
+
+        async with store as work:
+            found = await work.workflow_runs.outcomes_since(TENANT, since=_at(9))
+        assert sorted(found) == [("held", False, 1), ("held", True, 2), ("stopped", False, 1)]
 
     async def test_save_replaces_a_runs_steps_rather_than_appending(
         self, store: UnitOfWork
@@ -1553,3 +1612,43 @@ class TestSkillRunsInFlight:
 
         async with store as work:
             assert await work.runs.in_flight(TENANT, DEVICE) is None
+
+
+def _confirmation(
+    confirmation_id: str, *, tenant: TenantId = TENANT, answer: Answer = Answer.WAITING
+) -> Confirmation:
+    return Confirmation(
+        id=ConfirmationId(confirmation_id),
+        tenant_id=tenant,
+        trigger_id=TriggerId("trg_1"),
+        asked_at=_when(9),
+        expires_at=_when(10),
+        workflow_id="wfl_1",
+        answer=answer,
+    )
+
+
+class TestTenantsWaiting:
+    async def test_each_tenant_with_a_card_still_waiting_once(self, store: UnitOfWork) -> None:
+        async with store as work:
+            await work.confirmations.add(_confirmation("cnf_1"))
+            await work.confirmations.add(_confirmation("cnf_2"))
+            await work.confirmations.add(_confirmation("cnf_3", tenant=OTHER_TENANT))
+            await work.commit()
+
+        async with store as work:
+            assert sorted(t.value for t in await work.confirmations.tenants_waiting()) == [
+                "acme",
+                "other-corp",
+            ]
+
+    async def test_a_tenant_whose_cards_were_all_answered_is_not_waiting(
+        self, store: UnitOfWork
+    ) -> None:
+        async with store as work:
+            await work.confirmations.add(_confirmation("cnf_1", answer=Answer.APPROVED))
+            await work.confirmations.add(_confirmation("cnf_2", answer=Answer.EXPIRED))
+            await work.commit()
+
+        async with store as work:
+            assert await work.confirmations.tenants_waiting() == ()

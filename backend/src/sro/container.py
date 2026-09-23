@@ -38,7 +38,6 @@ from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
 from sro.application.execution.batch import RunBatch
 from sro.application.execution.call_run_wrong import CallRunWrong
-from sro.application.execution.call_workflow_run_wrong import CallWorkflowRunWrong
 from sro.application.execution.choices import ListChoices
 from sro.application.execution.derived_read import AskTheSystem
 from sro.application.execution.execute_skill import (
@@ -57,7 +56,6 @@ from sro.application.execution.run_from_preview import RunFromPreview
 from sro.application.execution.self_heal import SelfHeal
 from sro.application.execution.stops import Stops
 from sro.application.execution.vision_step import PerformWithVision
-from sro.application.execution.what_a_job_taught import ReadWhatAJobTaught
 from sro.application.execution.workflow_runs import (
     AbortWorkflowRun,
     ApproveWorkflowStep,
@@ -65,8 +63,6 @@ from sro.application.execution.workflow_runs import (
     ListWorkflowRuns,
     StartWorkflowRun,
 )
-from sro.application.induction.induce_skill import InduceSkill
-from sro.application.induction.seed_from_flow import SeedSkillFromFlow
 from sro.application.induction.understand import UnderstandRecording
 from sro.application.intent.narrow import NarrowARead
 from sro.application.intent.next_steps import SuggestNext
@@ -85,14 +81,10 @@ from sro.application.observation.artifacts import StoreObservationArtifact
 from sro.application.observation.demonstrate import AssembleDemonstration
 from sro.application.observation.forget import ForgetObservations
 from sro.application.observation.ingest import IngestObservation
-from sro.application.observation.learn import LearnWhatRepeats
-from sro.application.observation.mine import MineEverything, MineObservations
 from sro.application.observation.mine_lately import MineLately
 from sro.application.observation.mine_pass import MinePass
 from sro.application.observation.policy import ReadObservationPolicy, SetObservationPolicy
-from sro.application.observation.propose import AnswerJoin, ProposeAboutCandidates
 from sro.application.observation.read_gesture import ReadGestures
-from sro.application.observation.read_pool import ReadPool
 from sro.application.observation.read_shots import ReadShots
 from sro.application.observation.record_attempt import RecordAttempt
 from sro.application.observation.register import (
@@ -103,12 +95,6 @@ from sro.application.observation.register import (
     RevokeHost,
 )
 from sro.application.observation.retain import SweepRetention
-from sro.application.observation.teach import (
-    DismissCandidate,
-    ReadCandidates,
-    TeachCandidate,
-    TeachWorkflow,
-)
 from sro.application.ports.agent import AgentDrivers
 from sro.application.ports.auth import Credentials
 from sro.application.ports.blob import BlobStore
@@ -139,12 +125,7 @@ from sro.application.recording.list_recordings import ListRecordings
 from sro.application.recording.live_view import GetLiveView
 from sro.application.recording.media import GetRecordingMedia
 from sro.application.recording.start_recording import StartRecording
-from sro.application.skill.add_assertion import AddAssertion
-from sro.application.skill.adopt_rig_workflow import AdoptRigWorkflow
 from sro.application.skill.describe_skill import DescribeSkill
-from sro.application.skill.map_step_to_tool import MapStepToTool
-from sro.application.skill.promote_skill import PromoteSkill
-from sro.application.skill.read_doings import ReadDoings
 from sro.application.skill.read_skills import GetSkill, ListSkills
 from sro.application.skill.read_workflows import ReadEvidence, ReadWorkflows
 from sro.application.skill.record_offer import RecordOffer
@@ -312,21 +293,12 @@ class Container:
     def read_shots(self) -> ReadShots:
         return ReadShots(self.unit_of_work(), self.blobs)
 
-    def read_pool(self) -> ReadPool:
-        return ReadPool(self.unit_of_work())
-
     async def read_spend(self, ctx: RequestContext) -> DaySpend:
         async with self.unit_of_work() as uow:
             return await spent_today(uow, ctx.tenant_id, now=self.clock.now())
 
     def record_offer(self) -> RecordOffer:
         return RecordOffer(self.unit_of_work(), self.clock)
-
-    def adopt_rig_workflow(self) -> AdoptRigWorkflow:
-        return AdoptRigWorkflow(self.unit_of_work(), self.clock, self.ids)
-
-    def mine_observations(self) -> MineObservations:
-        return MineObservations(self.unit_of_work(), self.blobs, self.ids)
 
     def _patient_asker(self) -> Asker | None:
         if self._mining_asker is None or self._mining_asker_from is not self.asker:
@@ -385,46 +357,6 @@ class Container:
 
     def run_lookups(self) -> RunLookups:
         return RunLookups(self.unit_of_work(), SocketChannel(self.agent_sockets))
-
-    def mine_everything(self) -> MineEverything:
-        return MineEverything(
-            self.unit_of_work(), self.mine_observations(), self.propose_about_candidates()
-        )
-
-    def answer_join(self) -> AnswerJoin:
-        return AnswerJoin(self.unit_of_work())
-
-    def propose_about_candidates(self) -> ProposeAboutCandidates:
-        return ProposeAboutCandidates(self.unit_of_work(), self.interpreter, self.clock, self.ids)
-
-    def read_candidates(self) -> ReadCandidates:
-        return ReadCandidates(self.unit_of_work())
-
-    def teach_candidate(self) -> TeachCandidate:
-        return TeachCandidate(
-            self.unit_of_work(),
-            self.blobs,
-            self.clock,
-            self.ids,
-            self.understand_recording(),
-            self.induce_skill(),
-        )
-
-    def learn_what_repeats(self) -> LearnWhatRepeats:
-        return LearnWhatRepeats(self.unit_of_work(), self.teach_candidate())
-
-    def teach_workflow(self) -> TeachWorkflow:
-        return TeachWorkflow(
-            self.unit_of_work(),
-            self.blobs,
-            self.clock,
-            self.ids,
-            self.induce_skill(),
-            self.interpreter,
-        )
-
-    def dismiss_candidate(self) -> DismissCandidate:
-        return DismissCandidate(self.unit_of_work(), self.clock, self.ids)
 
     def create_trigger(self) -> CreateTrigger:
         return CreateTrigger(
@@ -616,15 +548,6 @@ class Container:
     def get_skill(self) -> GetSkill:
         return GetSkill(self.unit_of_work())
 
-    def read_doings(self) -> ReadDoings:
-        return ReadDoings(self.unit_of_work())
-
-    def map_step_to_tool(self) -> MapStepToTool:
-        return MapStepToTool(self.unit_of_work(), self.clock, self.tools)
-
-    def add_assertion(self) -> AddAssertion:
-        return AddAssertion(self.unit_of_work(), self.clock)
-
     def grant_host(self) -> GrantHost:
         return GrantHost(self.unit_of_work(), self.clock)
 
@@ -640,21 +563,8 @@ class Container:
     def finish_recording(self) -> FinishRecording:
         return FinishRecording(self.unit_of_work(), self.browser, self.clock)
 
-    def induce_skill(self) -> InduceSkill:
-        return InduceSkill(
-            self.unit_of_work(), self.clock, self.ids, self.ask_about(), self.interpreter
-        )
-
     def understand_recording(self) -> UnderstandRecording:
         return UnderstandRecording(self.unit_of_work(), self.interpreter, self.clock, self.ids)
-
-    def seed_skill_from_flow(self) -> SeedSkillFromFlow:
-        return SeedSkillFromFlow(
-            self.unit_of_work(), self.clock, self.ids, self.understand_recording()
-        )
-
-    def promote_skill(self) -> PromoteSkill:
-        return PromoteSkill(self.unit_of_work(), self.clock)
 
     def describe_skill(self) -> DescribeSkill:
         return DescribeSkill(self.unit_of_work())
@@ -781,9 +691,6 @@ class Container:
             answers=IsItAnAnswer(self.asker, model=self.settings.gemini_plan_model),
         )
 
-    def read_what_a_job_taught(self) -> ReadWhatAJobTaught:
-        return ReadWhatAJobTaught(self.unit_of_work())
-
     def ask_about_the_offer(self) -> AskAboutTheOffer:
         return AskAboutTheOffer(self.unit_of_work(), self.clock, self.ids, self._drafting_for)
 
@@ -892,9 +799,6 @@ class Container:
 
     def call_run_wrong(self) -> CallRunWrong:
         return CallRunWrong(self.unit_of_work(), self.clock)
-
-    def call_workflow_run_wrong(self) -> CallWorkflowRunWrong:
-        return CallWorkflowRunWrong(self.unit_of_work())
 
     def revise_run(self) -> ReviseRun:
         return ReviseRun(self.unit_of_work(), self.clock)

@@ -76,15 +76,6 @@ class TestErrorsThatSaidNothing:
 
         assert _status_for(SchedulerUnavailable("no scheduler at localhost:7233")) == 503
 
-    def test_an_unknown_enum_value_is_a_bad_request_not_a_crash(self) -> None:
-        """`promote to "wizard"` raised ValueError inside the handler."""
-        from pydantic import ValidationError
-
-        from sro.interface.http.schemas import PromoteRequest
-
-        with pytest.raises(ValidationError):
-            PromoteRequest(version=1, to="wizard")
-
     def test_an_unknown_trigger_kind_is_a_bad_request_not_a_crash(self) -> None:
         """`kind: "hourly"` built `TriggerKind(body.kind)` by hand inside the
         route, raising a bare ValueError with no registered handler."""

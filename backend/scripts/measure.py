@@ -246,7 +246,6 @@ async def mining(db: AsyncConnection, tenant: str | None) -> Section:
             "candidates carrying a join",
             open_joins,
             standing="recorded",
-            note="`make open-joins` shows the ones still asking a person",
         )
     )
     return into

@@ -266,8 +266,9 @@ feeds.
 
 ## 8. Operational notes that cost time to learn
 
-- **Induction runs in the Temporal worker.** An API-only restart silently keeps
-  running the old code. Restart the worker on every deploy.
+- **Skill runs, trigger fires and the sweeps run in the Temporal worker.** An
+  API-only restart silently keeps running the old code. Restart the worker on
+  every deploy.
 - **Integration fixtures truncate every table** and refuse a database whose name
   does not mark it disposable — after pointing them at the development database
   destroyed demo data once.
@@ -309,7 +310,7 @@ make up        # postgres, redis, minio, temporal, steel, otel
 make install
 make migrate
 make api       # :8000  — http://localhost:8000/docs
-make worker    # Temporal worker — induction runs here
+make worker    # Temporal worker — skill runs, triggers and sweeps run here
 make web       # :3000
 make check     # every gate: lint, types, architecture, tests
 ```

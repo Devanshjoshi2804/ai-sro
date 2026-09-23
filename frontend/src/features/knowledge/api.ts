@@ -2,7 +2,6 @@ import { api, type Schemas } from "@/lib/api/client";
 
 export type KnowledgeSummary = Schemas["KnowledgeSummaryModel"];
 export type KnowledgeEntry = Schemas["KnowledgeEntryModel"];
-export type TaughtSkill = Schemas["TaughtSkillModel"];
 
 export type OpenQuestion = Schemas["OpenQuestionModel"];
 

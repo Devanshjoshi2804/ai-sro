@@ -588,7 +588,7 @@ async def test_the_fields_this_listing_leaves_out_have_doors_of_their_own(
 async def test_a_cited_gesture_reaches_the_bridge_whole(
     client: httpx.AsyncClient, mined: list[Gesture]
 ) -> None:
-    """The shape `application.skill.from_rig` reads a replayable plan out of.
+    """The shape a runner's bridge reads a replayable plan out of.
 
     Every field of the planted gesture, down to the component query that is
     the strongest locator rung there is: a bridge handed a gesture with its
@@ -787,7 +787,7 @@ async def test_a_citation_the_store_no_longer_holds_is_reported(
 ) -> None:
     """The rig served `missing` and this port dropped it.
 
-    `from_rig.plans_for_step` skips a citation with no gesture, so the bridge
+    A bridge skips a citation with no gesture, so it
     builds a plan quietly short a step. A caller is entitled to know that
     before it runs one, and `gestures` alone cannot tell it: a job citing six
     and served three looks exactly like a job citing three.

@@ -20,7 +20,7 @@ from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.skill.repeats import Repeat
-from sro.domain.skill.workflow import Step, Workflow
+from sro.domain.skill.workflow import Noticed, Step, Workflow
 from sro.infrastructure.db.codec import when
 from sro.infrastructure.db.models import (
     LearnedWriteRow,
@@ -147,7 +147,7 @@ class SqlWorkflowRepository(WorkflowRepository):
                 set_={
                     column.name: statement.excluded[column.name]
                     for column in WorkflowRow.__table__.columns
-                    if column.name not in ("id", "retired_at")
+                    if column.name not in ("id", "retired_at", "created_at")
                 },
             )
         )
@@ -173,6 +173,37 @@ class SqlWorkflowRepository(WorkflowRepository):
             return ()
         steps = await self._steps_of([row.id for row in rows])
         return tuple(_row_to_workflow(row, steps[row.id]) for row in rows)
+
+    async def noticed_since(self, tenant_id: TenantId, *, since: datetime) -> tuple[Noticed, ...]:
+        steps = (
+            select(func.count())
+            .select_from(WorkflowStepRow)
+            .where(WorkflowStepRow.workflow_id == WorkflowRow.id)
+            .scalar_subquery()
+        )
+        query = (
+            select(
+                WorkflowRow.id,
+                WorkflowRow.title,
+                WorkflowRow.systems,
+                steps,
+            )
+            .where(
+                WorkflowRow.tenant_id == tenant_id.value,
+                WorkflowRow.retired_at.is_(None),
+                WorkflowRow.created_at >= since,
+            )
+            .order_by(WorkflowRow.created_at.desc(), WorkflowRow.id.desc())
+        )
+        return tuple(
+            Noticed(
+                id=row[0],
+                title=row[1],
+                systems=tuple(str(one) for one in row[2] or ()),
+                steps=int(row[3]),
+            )
+            for row in (await self._session.execute(query)).all()
+        )
 
     async def get(self, tenant_id: TenantId, workflow_id: str) -> Workflow:
         query = (

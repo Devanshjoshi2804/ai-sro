@@ -1,7 +1,7 @@
 // Accessibility trees taken while nobody is teaching.
 //
 // The tree is the one view that says what a control *is* rather than where it
-// happens to sit today. Induction builds a locator from it, so a skill induced
+// happens to sit today. The backend builds a locator from it, so a step learned
 // without one has only what the DOM offers -- a css path full of ExtJS ids that
 // are assigned in render order and differ on the next page load.
 //
@@ -57,7 +57,7 @@ const refused = new Set();
  * The assembler attaches a snapshot to the frame of the gesture before it, and
  * that frame's locator is built from the tree -- so the tree has to be the
  * screen the operator was looking at when they decided to act. Taken after the
- * click, a step that navigates would carry the destination page, and induction
+ * click, a step that navigates would carry the destination page, and the backend
  * would build that step's locator from a page where the control it clicked does
  * not exist. */
 const waiting = new Map();

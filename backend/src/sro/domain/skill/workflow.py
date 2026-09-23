@@ -68,6 +68,14 @@ class Workflow:
             self.title = tidied
 
 
+@dataclass(frozen=True, slots=True)
+class Noticed:
+    id: str
+    title: str
+    systems: tuple[str, ...]
+    steps: int
+
+
 def cited_ids(workflow: Workflow) -> set[str]:
     return {gesture_id for step in workflow.steps for gesture_id in step.cites}
 

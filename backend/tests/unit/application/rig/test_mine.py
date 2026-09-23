@@ -1386,7 +1386,7 @@ def _redone_both(rows: list[Gesture], value: str, suffix: str, offset: float) ->
 
 
 async def test_a_pass_that_widens_two_parameters_says_two_and_not_one() -> None:
-    """The sentence `MinePassResponse.learned_parameters` ships with, as a test:
+    """The sentence `MineResult.learned_parameters` stands for, as a test:
     "a pass that recognises nothing new and widens TWO parameters did real
     work".
 

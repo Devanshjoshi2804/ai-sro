@@ -25,7 +25,7 @@ from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, ClassVar
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -179,126 +179,9 @@ _SHAPES: list[dict[str, object]] = [
 ]
 """One job the rig has proved, as `/v1/shapes` answers it.
 
-What the extension offers on arrival. It is named for the candidate below
-because the tests that read it were written when the offer came from the mining
-pipeline, and what they assert -- a pill on the page the job starts on, one
-card in the panel, nothing on another page -- is the same question about the
-surface that replaced it."""
+What the extension offers on arrival: a pill on the page the job starts on,
+one card in the panel, nothing on another page."""
 
-
-# Nothing in the extension asks for these any more. The panel dropped the
-# mining pipeline's offers (`candidatesFor`: "Dropped where it is read") and
-# the shape above is what arrives instead; the route below is kept because the
-# backend endpoint is still real and a future test of it should not have to
-# rebuild the stub. Every test that read it is gone or rewritten.
-_CANDIDATES: list[dict[str, object]] = [
-    {
-        "id": "cnd-here",
-        "title": "Adjust an LPN quantity",
-        "host": "127.0.0.1",
-        # The page this task begins on, as a path. The stub puts its own
-        # address in front when it serves this, because the port is minted per
-        # run and the extension compares host *and* port -- the miner records
-        # the netloc, so two applications on one machine are two applications.
-        #
-        # The root, where the stub serves its ordinary page. `/elsewhere` is a
-        # different one, so a nudge that fired on the host rather than the page
-        # would be obvious.
-        "starts_on": "/",
-        "signature": "PUT wm/inventory/adjust",
-        "status": "new",
-        "times_seen": 4,
-        "median_duration_ms": 32000,
-        "minutes_so_far": 2.1,
-        "first_seen": None,
-        "last_seen": None,
-        "skill_id": None,
-        "dismissed_reason": None,
-        "named_by_model": True,
-        "joins": [
-            {
-                "other_id": "cnd-elsewhere",
-                "kind": "variant",
-                "because": "the second checks the count first",
-                "by_model": True,
-                "answered": None,
-                "answered_by": None,
-            },
-            {
-                # Already answered, and by a person: the one state anything is
-                # allowed to act on.
-                "other_id": "cnd-elsewhere",
-                "kind": "workflow",
-                "because": "the receipt is always written straight after",
-                "by_model": True,
-                "answered": "same",
-                "answered_by": "you",
-            },
-        ],
-        "episodes": [],
-    },
-    {
-        "id": "cnd-dismissed",
-        "title": "Something already said no to",
-        "host": "127.0.0.1",
-        "signature": "GET wm/labels/*",
-        "status": "dismissed",
-        "times_seen": 7,
-        "median_duration_ms": 9000,
-        "minutes_so_far": 1.0,
-        "first_seen": None,
-        "last_seen": None,
-        "skill_id": None,
-        "dismissed_reason": "not worth automating",
-        "named_by_model": False,
-        "joins": [],
-        "episodes": [],
-    },
-    {
-        "id": "cnd-elsewhere",
-        "title": "Something on another system",
-        "host": "erp.example",
-        "signature": "POST erp/receipts",
-        "status": "new",
-        "times_seen": 9,
-        "median_duration_ms": 12000,
-        "minutes_so_far": 1.8,
-        "first_seen": None,
-        "last_seen": None,
-        "skill_id": None,
-        "dismissed_reason": None,
-        "named_by_model": False,
-        "joins": [],
-        "episodes": [],
-    },
-    {
-        "id": "cnd-lpn-here",
-        # No model title: this candidate is offered on the noun `plainly()`
-        # reads off its own signature, the other of the two sentences that
-        # function says, so the end-to-end test exercises both halves of the
-        # panel between them rather than only the one `cnd-here` already
-        # covers.
-        "title": None,
-        # `localhost`, not `127.0.0.1` -- a second host aliasing the same
-        # stub (see `MAIL_WITH_NO_REFERENCE`'s sibling tests for the same
-        # trick), so a "new" candidate here is never counted by
-        # `test_the_panel_shows_only_the_tasks_of_the_system_in_front_of_it`,
-        # which asserts there is exactly one on `127.0.0.1`.
-        "host": "localhost",
-        "signature": "PUT wm/inventory/adjust",
-        "status": "new",
-        "times_seen": 3,
-        "median_duration_ms": 20000,
-        "minutes_so_far": 1.0,
-        "first_seen": None,
-        "last_seen": None,
-        "skill_id": None,
-        "dismissed_reason": None,
-        "named_by_model": False,
-        "joins": [],
-        "episodes": [],
-    },
-]
 
 _SKILL_LPN_ADJUST = {
     "id": "skl-lpn-adjust",
@@ -359,12 +242,9 @@ class _Stub(BaseHTTPRequestHandler):
     fumble_artifacts: ClassVar[int] = 0
     channels: ClassVar[queue.Queue[Channel]] = queue.Queue()
     purges: ClassVar[list[str]] = []
-    candidate_queries: ClassVar[list[str]] = []
     shape_queries: ClassVar[list[str]] = []
     rig_presses: ClassVar[list[dict[str, Any]]] = []
     rig_runs: ClassVar[dict[str, dict[str, Any]]] = {}
-    answered_joins: ClassVar[list[dict[str, Any]]] = []
-    merged: ClassVar[list[dict[str, Any]]] = []
     recordings: ClassVar[list[str]] = []
     sealed: ClassVar[list[str]] = []
     watches: ClassVar[list[dict[str, Any]]] = []
@@ -385,7 +265,6 @@ class _Stub(BaseHTTPRequestHandler):
     """Answer this many artifact uploads with a 503 before taking any. A lost
     reply from the blob store is the ordinary way one of these fails."""
 
-    resolutions_asked: ClassVar[list[str]] = []
     """Every sentence handed to intent resolution, in the operator's own
     words -- what the box in `beginOffer` actually sent, not what it was
     prefilled with."""
@@ -497,8 +376,8 @@ class _Stub(BaseHTTPRequestHandler):
             # shapes, so no offer could ever arrive in a real Chrome and the
             # suite that exists to prove the pill and the card was red.
             #
-            # `starts_on` gets this stub's address in front of it for
-            # `_CANDIDATES`' reason -- the port is minted per run and the
+            # `starts_on` gets this stub's address in front of it because
+            # the port is minted per run and the
             # extension compares host AND port -- and with the SCHEME, because
             # the rig records the tab's whole url and `shapesFor` normalises it
             # through `new URL(...)`. Served without one, every shape is
@@ -523,25 +402,6 @@ class _Stub(BaseHTTPRequestHandler):
                 self._send(404, json.dumps({"detail": "no such run"}).encode())
                 return
             self._send(200, json.dumps(run).encode())
-            return
-        if self.path.startswith("/v1/candidates"):
-            _Stub.candidate_queries.append(self.path)
-            # Filtered here the way the real endpoint filters: the panel's whole
-            # question is "on this system", and a test that filtered client-side
-            # would prove the wrong half.
-            wanted = parse_qs(urlsplit(self.path).query).get("host", [""])[0]
-            # `starts_on` is stored as a path and answered as an address: this
-            # stub's port is minted per run, and what the panel compares against
-            # is host-with-port. Everything else is served as written.
-            here = self.headers.get("Host", "")
-            mine = [
-                {**c, "starts_on": f"{here}{c['starts_on']}".rstrip("/")}
-                if c.get("starts_on")
-                else c
-                for c in _CANDIDATES
-                if c["host"] == wanted
-            ]
-            self._send(200, json.dumps(mine).encode())
             return
         if self.path.startswith("/elsewhere"):
             # A different page, with a control the first one does not have, so a
@@ -781,85 +641,6 @@ class _Stub(BaseHTTPRequestHandler):
                 ).encode(),
             )
             return
-        if self.path.endswith("/teach-together"):
-            asked = json.loads(raw)
-            _Stub.merged.append({"path": self.path, **asked})
-            self._send(
-                202,
-                json.dumps(
-                    {
-                        "first_id": self.path.split("/")[3],
-                        "second_id": asked["other_id"],
-                        "recording_ids": ["rec-1", "rec-2"],
-                        "skill_id": "skl-merged",
-                        "needs_demonstration": False,
-                        "because": None,
-                    }
-                ).encode(),
-            )
-            return
-        if self.path.endswith("/joins"):
-            asked = json.loads(raw)
-            _Stub.answered_joins.append({"path": self.path, **asked})
-            # Kept, the way the real endpoint keeps it: the panel re-reads the
-            # list after answering, and a suggestion that came back still asking
-            # would be a screen that never stops asking.
-            _CANDIDATES[0]["joins"][0].update(answered=asked["answer"], answered_by="you")
-            self._send(200, json.dumps(_CANDIDATES[0]).encode())
-            return
-        if self.path.endswith("/teach"):
-            # Silent, the way `beginOffer` asks for it: nothing here needs
-            # evidence to disagree about, so the induction the real endpoint
-            # would attempt always succeeds on the first ask.
-            self._send(
-                202,
-                json.dumps(
-                    {
-                        "candidate_id": self.path.split("/")[3],
-                        "recording_id": None,
-                        "skill_id": _SKILL_LPN_ADJUST["id"],
-                        "needs_demonstration": False,
-                        "because": None,
-                    }
-                ).encode(),
-            )
-            return
-        if self.path == "/v1/intent/resolve":
-            asked = json.loads(raw)
-            _Stub.resolutions_asked.append(asked.get("utterance", ""))
-            # A fixed match regardless of what was typed: reading a sentence
-            # is `resolve_intent`'s job and is proven at the unit and contract
-            # level already (`tests/unit/application/test_resolve_intent.py`).
-            # What a browser has to prove is that the sentence really leaves
-            # the panel and a real preview comes back for it -- not that the
-            # parser is any good, which no stub could prove anyway.
-            self._send(
-                200,
-                json.dumps(
-                    {
-                        "utterance": asked.get("utterance", ""),
-                        "matched": {
-                            "skill_id": _SKILL_LPN_ADJUST["id"],
-                            "name": _SKILL_LPN_ADJUST["name"],
-                            "version": 1,
-                            "stage": "practice",
-                            "summary": "Types the LPN and saves the new quantity.",
-                            "score": 100,
-                            "why": [],
-                            "unexplained": [],
-                        },
-                        "choices": [],
-                        "missing_parameters": [],
-                        "runnable": True,
-                        "confident": True,
-                        "question": None,
-                        "why": [],
-                        "proposal": None,
-                        "items": [{"lpn": "LPN-4471"}],
-                    }
-                ).encode(),
-            )
-            return
         if self.path.endswith("/runs/from-preview"):
             body = json.loads(raw)
             skill_id = self.path.split("/")[3]
@@ -969,19 +750,14 @@ def stub() -> Iterator[tuple[str, list[dict[str, Any]]]]:
     _Stub.fumble_artifacts = 0
     _Stub.channels = queue.Queue()
     _Stub.purges = []
-    _Stub.candidate_queries = []
     _Stub.shape_queries = []
     _Stub.rig_presses = []
     _Stub.rig_runs = {}
-    _Stub.answered_joins = []
-    _Stub.merged = []
-    _CANDIDATES[0]["joins"][0].update(answered=None, answered_by=None)
     _Stub.recordings = []
     _Stub.sealed = []
     _Stub.watches = []
     _Stub.matched = []
     _Stub.fired = []
-    _Stub.resolutions_asked = []
     _Stub.run_previews = []
     _Stub.run_wrongs = []
     _Stub.runs = {}
@@ -1015,12 +791,6 @@ def demonstrations(stub: tuple[str, list[dict[str, Any]]]) -> tuple[list[str], l
 
 
 @pytest.fixture
-def candidate_queries(stub: tuple[str, list[dict[str, Any]]]) -> list[str]:
-    """The `/v1/candidates` requests the panel made, as sent."""
-    return _Stub.candidate_queries
-
-
-@pytest.fixture
 def rig_presses(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
     """Every `POST /v1/workflow-runs` the extension made, as sent.
 
@@ -1033,22 +803,8 @@ def rig_presses(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
 def shape_queries(stub: tuple[str, list[dict[str, Any]]]) -> list[str]:
     """The `/v1/shapes` requests the extension made, as sent.
 
-    What `candidate_queries` was for, one pipeline later: the offer a browser
-    makes on arrival comes from the rig's proven jobs now, and the question
-    "did it ask at all" is the same question."""
+    The offer a browser makes on arrival comes from the rig's proven jobs."""
     return _Stub.shape_queries
-
-
-@pytest.fixture
-def merged(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
-    """The pairs the panel asked to have taught as one skill."""
-    return _Stub.merged
-
-
-@pytest.fixture
-def answered_joins(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
-    """What the panel said two candidates are to each other."""
-    return _Stub.answered_joins
 
 
 @pytest.fixture
@@ -1084,12 +840,6 @@ def fired(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
 def purges(stub: tuple[str, list[dict[str, Any]]]) -> list[str]:
     """The `DELETE /v1/observations` calls the extension made, as sent."""
     return _Stub.purges
-
-
-@pytest.fixture
-def resolutions_asked(stub: tuple[str, list[dict[str, Any]]]) -> list[str]:
-    """Every sentence the panel asked `/v1/intent/resolve` about, in order."""
-    return _Stub.resolutions_asked
 
 
 @pytest.fixture

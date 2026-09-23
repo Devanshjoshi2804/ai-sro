@@ -43,8 +43,8 @@ COPY alembic.ini ./
 # The operational scripts travel with the image that runs them. `smoke.py`
 # has to execute where the app's own adapters are, and a deployment that
 # cannot run its own post-deploy check because the check lives in a checkout
-# somebody forgot to pull is a check that does not exist. `measure.py` and
-# `open_joins.py` are here for the same reason.
+# somebody forgot to pull is a check that does not exist. `measure.py` is
+# here for the same reason.
 COPY scripts ./scripts
 COPY gmail-connector ./gmail-connector
 RUN --mount=type=cache,target=/root/.cache/uv \

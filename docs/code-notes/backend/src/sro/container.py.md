@@ -400,19 +400,6 @@ Code: `driving_runs: AsyncConnection | None = None`
 
 > Going and looking, through the operator's own browser.
 
-## `Container.propose_about_candidates`, [line 391](../../../../../backend/src/sro/container.py#L391): Docstring
-
-> The three model slots over what the miner found, and the offer said
-> out loud. The model slots do nothing at all when no interpreter is
-> configured; the offer is written either way, because which tasks are
-> worth offering was never a model's decision.
-
-## `Container.teach_workflow`, [line 410](../../../../../backend/src/sro/container.py#L410): Docstring
-
-> Two candidates as one skill. The pair diffed is two occurrences of
-> the whole job, so this goes through the two-run induction rather than
-> the single-demonstration reading a lone candidate gets.
-
 ## `Container.record_attempt`, [line 441](../../../../../backend/src/sro/container.py#L441): Docstring
 
 > What somebody asked for, and what came of it. See
@@ -435,10 +422,6 @@ Code: `driving_runs: AsyncConnection | None = None`
 >
 > Everything that used to take ``self.browser`` takes this instead, so
 > an unowned session cannot be produced by anything this system runs.
-
-## `Container.read_what_a_job_taught`, [line 778](../../../../../backend/src/sro/container.py#L778): Docstring
-
-> What a job has changed its mind about, for somebody to read.
 
 ## `Container.ask_about_the_offer`, [line 781](../../../../../backend/src/sro/container.py#L781): Docstring
 

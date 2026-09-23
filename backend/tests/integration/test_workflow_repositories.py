@@ -281,15 +281,15 @@ class TestWorkflows:
         assert len(back) == 1
         assert len(back[0].steps) == 2
 
-    async def test_known_is_oldest_first_and_a_re_saved_workflow_is_the_newest(
+    async def test_known_is_oldest_first_and_a_re_saved_workflow_keeps_its_place(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
         """The order is load-bearing, not cosmetic: ``resolve`` breaks a tie
         with a strict ``>``, so the first workflow at the top score wins and
         this order decides which job a proposal is resolved into.
 
-        Re-saving rewrites ``created_at``, which is what INSERT OR REPLACE did
-        in the rig and is why a merged workflow moves to the end.
+        A re-save keeps ``created_at``: a job's creation time never changes,
+        so a merge or a learnt parameter does not move it.
         """
         first, second = _workflow(), _workflow()
 
@@ -301,7 +301,7 @@ class TestWorkflows:
         async with SqlUnitOfWork(session_factory) as uow:
             back = await uow.workflows.known(TENANT)
 
-        assert [row.id for row in back] == [second.id, first.id]
+        assert [row.id for row in back] == [first.id, second.id]
 
     async def test_a_workflow_that_lost_a_step_loses_it_in_the_store_too(
         self, session_factory: async_sessionmaker[AsyncSession]

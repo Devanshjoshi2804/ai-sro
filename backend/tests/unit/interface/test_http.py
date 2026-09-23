@@ -125,7 +125,7 @@ class _FakeContainer(Container):
         self.dispatcher = FakeRunDispatcher()
         # Last: the executor it wraps reaches for the http caller and the
         # driver above, so the fakes have to exist before it is built.
-        self.durable = FakeDurableExecution(self.induce_skill(), execute=self.execute_skill())
+        self.durable = FakeDurableExecution(execute=self.execute_skill())
 
     def unit_of_work(self) -> UnitOfWork:
         # `hand_out`, not the bare instance: the real container returns a
@@ -338,36 +338,6 @@ class TestLiveView:
 
         assert response.status_code == 200
         assert response.json()["live_view_url"] is None
-
-
-class TestSkills:
-    async def test_promoting_past_the_permitted_stage_is_refused(
-        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
-    ) -> None:
-        skill = f.skill()
-        await uow.skills.add(skill)
-
-        response = await client.post(
-            f"/v1/skills/{skill.id}/promote",
-            json={"version": 1, "to": "autonomous"},
-        )
-
-        assert response.status_code == 422
-        assert "autonomous" in response.json()["detail"]
-
-    async def test_promotion_to_shadow_is_allowed(
-        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
-    ) -> None:
-        skill = f.skill()
-        await uow.skills.add(skill)
-
-        response = await client.post(
-            f"/v1/skills/{skill.id}/promote",
-            json={"version": 1, "to": "shadow"},
-        )
-
-        assert response.status_code == 200
-        assert response.json()["stage"] == "shadow"
 
 
 class TestProblemDocuments:

@@ -627,9 +627,8 @@ export function nudging(nudge, onPress) {
  * in it, because a run that stops at the first empty box is worse than never
  * having offered.
  *
- * Its Yes is `start-rig-run` and its No is `drop-nudge`, both distinct from the
- * `nudge-answer` a backend nudge sends. The worker reports one fate per path,
- * and an offer that reported two is one the rig cannot count.
+ * Its Yes is `start-rig-run` and its No is `drop-nudge`. The worker reports one
+ * fate per path, and an offer that reported two is one the rig cannot count.
  */
 function offeringToFinish(nudge, onPress) {
   const item = document.createElement("li");

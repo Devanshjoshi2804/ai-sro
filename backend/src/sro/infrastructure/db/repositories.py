@@ -828,6 +828,14 @@ class SqlConfirmationRepository(ConfirmationRepository):
         ).scalars()
         return tuple(row_to_confirmation(row) for row in rows)
 
+    async def tenants_waiting(self) -> tuple[TenantId, ...]:
+        rows = await self._session.execute(
+            select(ConfirmationRow.tenant_id)
+            .where(ConfirmationRow.answer == Answer.WAITING.value)
+            .distinct()
+        )
+        return tuple(TenantId(tenant) for tenant in rows.scalars())
+
     async def _row(self, tenant_id: TenantId, confirmation_id: ConfirmationId) -> ConfirmationRow:
         row = (
             await self._session.execute(

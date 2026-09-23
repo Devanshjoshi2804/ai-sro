@@ -47,8 +47,3 @@ export function alsoWatch(host, hosts) {
   const kept = (hosts || []).filter((one) => one && one !== host);
   return host ? [host, ...kept] : kept;
 }
-
-/** The list without it. */
-export function stopWatching(host, hosts) {
-  return (hosts || []).filter((one) => one && one !== host);
-}

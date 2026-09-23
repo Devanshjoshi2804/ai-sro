@@ -1186,7 +1186,7 @@ async def test_with_no_blob_store_a_thin_gesture_is_asked_about_without_a_pictur
     assert all(asked["image"] is None for asked in asker.asked)
 
 
-# --- the door: ReadGestures, POST /v1/gestures/read -------------------------
+# --- the use case: ReadGestures ---------------------------------------------
 
 
 def _ctx(tenant: TenantId = TENANT) -> RequestContext:

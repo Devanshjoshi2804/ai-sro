@@ -79,12 +79,11 @@ Code: `uses=list(row.uses or []),`
 
 Code: `set_={`
 
-> Every column but the key, ``created_at`` included -- which is
-> what INSERT OR REPLACE did, and it is kept rather than
-> quietly improved: a workflow identity resolution re-saves
-> moves to the end of ``known``, and the miner resolving in a
-> different order here than in the rig is exactly the drift
-> this port exists to avoid.
+> Every column but the key and ``created_at`` (changed 2026-09-24). A job's
+> creation time never changes: a re-save by identity resolution, a learnt
+> parameter or a healing pass is not a new job, so it keeps its place in
+> ``known`` and is not "noticed" again by the summary. The rig this once
+> matched (INSERT OR REPLACE moved a re-saved job to the end) is gone.
 >
 > Except ``retired_at``: the domain workflow does not carry it, so the
 > insert's value is always NULL, and copying it over would bring a

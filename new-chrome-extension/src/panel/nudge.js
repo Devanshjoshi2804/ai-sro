@@ -241,16 +241,3 @@ export function sweep(nudges, { url, now, tabId }) {
     return old || left ? { ...nudge, state: "expired", endedAt: now } : nudge;
   });
 }
-
-/**
- * "Not for this page", until the end of the day.
- *
- * A day rather than for ever: the page may matter to them next week even if it
- * did not this afternoon, and a permanent no taken from one press is a decision
- * nobody knew they were making.
- */
-export function mute(muted, startsOn, now) {
-  const midnight = new Date(now);
-  midnight.setHours(24, 0, 0, 0);
-  return { ...muted, [startsOn]: midnight.getTime() };
-}

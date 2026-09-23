@@ -83,22 +83,25 @@ def sign_in_chain(job: Workflow, by_id: Mapping[str, Gesture]) -> list[Step]:
         return gesture.at <= cut.at and not refused(gesture)
 
     chain = [replace(step, cites=[one for one in step.cites if replayed(one)]) for step in steps]
-    ordered = sorted(
-        (step for step in chain if step.cites),
-        key=lambda step: (
+
+    def late(step: Step) -> tuple[bool, float, int]:
+        return (
             cut.id in step.cites,
             max((by_id[one].at for one in step.cites if one in by_id), default=float("-inf")),
             step.order,
-        ),
-    )
-    seen: set[str] = set()
+        )
+
+    holder = max((step for step in chain if cut.id in step.cites), key=lambda step: step.order)
+    seen = {cut.id}
     once = []
-    for step in ordered:
+    for step in sorted(chain, key=late):
         fresh = [one for one in step.cites if one not in seen]
         seen.update(fresh)
+        if step is holder:
+            fresh.append(cut.id)
         if fresh:
             once.append(replace(step, cites=fresh))
-    return once
+    return sorted(once, key=late)
 
 
 def _submits(gesture: Gesture, typed: Sequence[Gesture]) -> bool:

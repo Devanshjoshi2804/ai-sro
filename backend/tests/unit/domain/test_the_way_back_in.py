@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+import pytest
+
 from sro.domain.observation.gesture import Action, Gesture, PageMark, Target
 from sro.domain.skill.signing_in import sign_in_chain, signs_in_at
 from sro.domain.skill.workflow import Step, Workflow
@@ -368,3 +370,20 @@ def test_a_gesture_cited_by_two_steps_is_replayed_once() -> None:
     replayed = [one for step in chain for one in step.cites]
     assert replayed.count("password") == 1
     assert replayed[-1] == "submit"
+
+
+@pytest.mark.parametrize("cites", [["pw-box", "submit"], ["submit", "pw-box"]])
+def test_a_submit_cited_by_two_steps_is_still_replayed_last(cites: list[str]) -> None:
+    """Whichever steps cite the submit that left, it is the last thing
+    replayed, and every other gesture those steps cite replays once before it."""
+    job, gestures = _azure()
+    gestures["pw-box"] = _did("pw-box", KEYCLOAK, 3.5, field="input#password")
+    job.steps.append(Step(order=4, says="Focus and sign in", system=KEYCLOAK, cites=cites))
+
+    chain = sign_in_chain(job, gestures)
+
+    replayed = [one for step in chain for one in step.cites]
+    assert replayed[-1] == "submit"
+    assert sorted(replayed) == sorted(
+        ["chooser", "user-box", "user", "password", "pw-box", "submit"]
+    )

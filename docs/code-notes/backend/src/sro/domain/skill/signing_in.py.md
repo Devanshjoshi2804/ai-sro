@@ -146,12 +146,20 @@ Code: `_SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-action
 >   export the chain now types the username and password and submits once,
 >   with the Keycloak Sign In that left last. A Next before the password
 >   (identifier first) is before the credential and is kept.
-## `RecordedLogin`, [line 121](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L121): Class
+>
+> Fix round 4 (2026-09-24): the order is taken after duplicates are removed.
+> When two steps cite the leaving submit, only the last of them (by step
+> order) keeps it, and the submit is moved to the end of that step's cites.
+> The others keep the rest of their gestures and are then ordered by what
+> they still hold. Before, the order was fixed first, so a step that lost the
+> submit to dedupe still sorted last and replayed its other gestures (a focus
+> on the password box) on the landed page.
+## `RecordedLogin`, [line 124](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L124): Class
 
 > What a recorded sign-in says about credentials: the origin the password was
 > typed on, which names its vault key, and the username typed before it.
 
-## `recorded_login`, [line 127](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L127): Docstring
+## `recorded_login`, [line 130](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L130): Docstring
 
 > The job that starts on the system's own page, when there is one
 > (`signs_in_at`); otherwise the only tagged sign-in job that carries a

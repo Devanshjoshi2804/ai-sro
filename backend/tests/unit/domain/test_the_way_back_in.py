@@ -120,3 +120,13 @@ def test_a_job_that_does_not_sign_in_is_never_the_way_back_in() -> None:
 
     assert signs_in_at(f"{B2C}/oauth2", [ordinary], _store()) is None
     assert signs_in_at(f"{B2C}/oauth2", [ordinary, SSO], _store()) == "wfl_sso"
+
+
+def test_a_sign_in_that_crosses_hosts_is_the_way_in_where_it_starts() -> None:
+    """The real chain: the chooser on one host, then the form on another. A
+    job is the way through the page it STARTS on; entirely-on-one-host would
+    reject every sign-in that crosses from a chooser into a form."""
+    chain = _job("wfl_chain", "Log in", "b2c-1", "kc-1", "kc-2")
+
+    assert signs_in_at(f"{B2C}/oauth2", [chain], _store()) == "wfl_chain"
+    assert signs_in_at(f"{KEYCLOAK}/auth", [chain], _store()) is None

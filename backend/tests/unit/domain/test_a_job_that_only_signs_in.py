@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from sro.domain.observation.gesture import Action, Call, Gesture
-from sro.domain.skill.checks import signs_in
+from sro.domain.observation.gesture import Action, Call, Gesture, PageMark
+from sro.domain.skill.checks import is_sign_in_step, signs_in
 from sro.domain.skill.workflow import Step, Workflow
 
 KEYCLOAK = "https://keycloak.example"
@@ -37,10 +37,18 @@ def _secret(gesture_id: str, url: str, at: float) -> Gesture:
     return replace(_at(gesture_id, url, at), action=Action(kind="type", at=at, secret=True))
 
 
-def _wrote(gesture_id: str, url: str, at: float, status: int = 201) -> Gesture:
+def _wrote(
+    gesture_id: str, url: str, at: float, status: int | None = 201, landed: str | None = None
+) -> Gesture:
+    """A press that posted to its own host. `landed` is another host the
+    browser was sent to afterwards -- what a sign-in's submit does."""
     return replace(
         _at(gesture_id, url, at),
+        action=Action(kind="press", at=at),
         requests=[Call(method="POST", url=f"{url}/api/things", status=status)],
+        page_events=[PageMark(at=at, page_kind="navigated", url=f"{landed}/home")]
+        if landed
+        else [],
     )
 
 
@@ -79,12 +87,47 @@ def test_a_credential_typed_on_the_way_to_a_write_is_not_a_sign_in() -> None:
     assert signs_in(_job("a", "b"), store) is False
 
 
-def test_a_credential_post_that_redirects_is_not_business() -> None:
-    """A sign-in posts the credential and is sent somewhere else; the post is
-    not written back to the page it came from."""
-    store = {"a": _secret("a", KEYCLOAK, 1), "b": _wrote("b", KEYCLOAK, 2, status=302)}
+def test_a_credential_post_that_hands_the_browser_on_signs_in() -> None:
+    """A sign-in posts the credential and is sent somewhere else."""
+    store = {"a": _secret("a", KEYCLOAK, 1), "b": _wrote("b", KEYCLOAK, 2, 302, landed=WMS)}
 
     assert signs_in(_job("a", "b"), store) is True
+
+
+def test_a_credential_post_that_stays_on_its_page_is_a_write() -> None:
+    """A supervisor PIN, an e-signature: a secret typed, then a post answered
+    with a redirect back to the same system -- or with no status recorded at
+    all. Nothing proves that is a sign-in, and a write must fail safe."""
+    for status in (302, None):
+        store = {"a": _secret("a", WMS, 1), "b": _wrote("b", WMS, 2, status)}
+        job = _job("a", "b")
+
+        assert is_sign_in_step(job, job.steps[1], store) is False
+        assert signs_in(job, store) is False
+
+
+def test_the_step_that_types_the_credential_is_a_sign_in_step() -> None:
+    store = {"a": _secret("a", KEYCLOAK, 1), "b": _wrote("b", KEYCLOAK, 2, 302, landed=WMS)}
+    job = _job("a", "b")
+
+    assert is_sign_in_step(job, job.steps[0], store) is True
+    assert is_sign_in_step(job, job.steps[1], store) is True
+
+
+def test_a_press_that_follows_no_credential_is_not_a_sign_in_step() -> None:
+    """Even one that sends the browser elsewhere: without the credential in
+    front of it, a hand-off is not a sign-in."""
+    store = {"a": _at("a", KEYCLOAK, 1), "b": _wrote("b", KEYCLOAK, 2, 302, landed=WMS)}
+    job = _job("a", "b")
+
+    assert is_sign_in_step(job, job.steps[1], store) is False
+
+
+def test_a_step_that_wrote_back_is_never_a_sign_in_step() -> None:
+    store = {"a": _secret("a", WMS, 1), "b": _wrote("b", WMS, 2, 201, landed=KEYCLOAK)}
+    job = _job("a", "b")
+
+    assert is_sign_in_step(job, job.steps[1], store) is False
 
 
 def test_a_job_citing_nothing_anybody_kept_does_not_sign_in() -> None:

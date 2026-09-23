@@ -72,7 +72,7 @@ from sro.domain.shared.hosts import (
 from sro.domain.shared.hosts import same_screen, screen_of, system_of
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
-from sro.domain.skill.checks import does_business
+from sro.domain.skill.checks import is_sign_in_step
 from sro.domain.skill.learned import demanded
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
 from sro.domain.skill.signing_in import is_sign_in_page, signs_in_at
@@ -117,6 +117,7 @@ class _Leg:
     item: int | None = None
 
     rescue: bool = False
+    of: Workflow | None = None
 
 
 def _itinerary(
@@ -200,14 +201,14 @@ async def _the_way_back_in(
     if look is None or not (look.signed_out or look.elsewhere):
         return None, []
     where = look.elsewhere or look.url or ""
-    known = [job for job in await uow.workflows.known(tenant_id) if job.signs_in]
+    known = await uow.workflows.known(tenant_id)
     cited = sorted({one for job in known for step in job.steps for one in step.cites})
     seen = (
         {one.id: one for one in await uow.gestures.gestures_for(tenant_id, ids=tuple(cited))}
         if cited
         else {}
     )
-    back = signs_in_at(where, known, seen, not_this=workflow.id)
+    back = signs_in_at(where, list(known), seen, not_this=workflow.id)
     if back is None:
         return None, []
     job = next((one for one in known if one.id == back), None)
@@ -218,7 +219,7 @@ async def _the_way_back_in(
         return None, []
     logger.info("%s signing back in at %s with %s", workflow.id, where, job.title)
     legs = [
-        _Leg(step, dict(values), rescue=True)
+        _Leg(step, dict(values), rescue=True, of=job)
         for step in sorted(job.steps, key=lambda one: one.order)
     ]
     return job, legs
@@ -1193,10 +1194,11 @@ async def run_workflow(
             in_flight = record
             run.steps.append(record)
             origin = origin_of(primary) if primary is not None else None
-            sign_in_step = (leg.rescue or workflow.signs_in) and not does_business(step, by_id)
+            of_job = leg.of or workflow
+            sign_in_step = of_job.signs_in and is_sign_in_step(of_job, step, by_id)
             mutates = not sign_in_step and writes(step, by_id)
             writes_ahead = any(
-                later.order > step.order and writes(later, by_id) for later in ordered
+                later.order > step.order and writes(later, by_id) for later in of_job.steps
             )
 
             if live and leg.item == 1 and not proved_the_first:

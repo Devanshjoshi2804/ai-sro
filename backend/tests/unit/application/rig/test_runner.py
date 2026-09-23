@@ -69,6 +69,7 @@ from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Action, Body, Call, Gesture, Target
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
+from sro.domain.skill.checks import signs_in
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.domain.rig.conftest import gestures as _gestures
@@ -1672,7 +1673,7 @@ async def test_a_session_that_went_is_signed_back_into_and_the_step_tried_again(
         system=LOGIN,
         requests=[],
     )
-    await uow.gestures.add_gestures((door,))
+    await uow.gestures.add_gestures((door, _password_beside(door)))
     await uow.workflows.save(
         Workflow(
             id="wfl_sso",
@@ -1685,9 +1686,9 @@ async def test_a_session_that_went_is_signed_back_into_and_the_step_tried_again(
             narrative="n",
             systems=[LOGIN],
             steps=[Step(order=0, says="Click 'Local WMS users'", system=None, cites=[door.id])],
-            signs_in=True,
         )
     )
+    await _classify(uow, "wfl_sso")
     # The browser is at the sign-in page: no tab on the system, and the page in
     # front of the person says so.
     away = Reply(ok=True, result={"url": None, "elsewhere": f"{LOGIN}/oauth2", "signed_out": True})
@@ -1725,7 +1726,7 @@ async def test_a_run_signs_back_in_once_and_not_forever() -> None:
         system=LOGIN,
         requests=[],
     )
-    await uow.gestures.add_gestures((door,))
+    await uow.gestures.add_gestures((door, _password_beside(door)))
     await uow.workflows.save(
         Workflow(
             id="wfl_sso",
@@ -1738,9 +1739,9 @@ async def test_a_run_signs_back_in_once_and_not_forever() -> None:
             narrative="n",
             systems=[LOGIN],
             steps=[Step(order=0, says="Click 'Local WMS users'", system=None, cites=[door.id])],
-            signs_in=True,
         )
     )
+    await _classify(uow, "wfl_sso")
     away = Reply(ok=True, result={"url": None, "elsewhere": f"{LOGIN}/oauth2", "signed_out": True})
     channel = FakeChannel(
         {
@@ -1785,7 +1786,7 @@ async def test_a_step_that_failed_for_its_own_reasons_does_not_go_looking_for_a_
         system=LOGIN,
         requests=[],
     )
-    await uow.gestures.add_gestures((door,))
+    await uow.gestures.add_gestures((door, _password_beside(door)))
     await uow.workflows.save(
         Workflow(
             id="wfl_sso",
@@ -1794,9 +1795,9 @@ async def test_a_step_that_failed_for_its_own_reasons_does_not_go_looking_for_a_
             narrative="n",
             systems=[LOGIN],
             steps=[Step(order=0, says="Click 'Local WMS users'", system=None, cites=[door.id])],
-            signs_in=True,
         )
     )
+    await _classify(uow, "wfl_sso")
     # On the right screen, and the control simply is not there.
     channel = FakeChannel(
         {
@@ -1815,8 +1816,29 @@ async def test_a_step_that_failed_for_its_own_reasons_does_not_go_looking_for_a_
     ]
 
 
+def _password_beside(door: Gesture) -> Gesture:
+    """The credential typed on the sign-in page, in the same moment as the
+    door and uncited -- which is how a real sign-in job is stored: redaction
+    leaves a password gesture nothing a model would point at."""
+    return replace(
+        door,
+        id=f"{door.id}_password",
+        action=Action(kind="type", at=door.action.at, secret=True),
+        requests=[],
+    )
+
+
+async def _classify(uow: FakeUnitOfWork, workflow_id: str) -> None:
+    """Whether the job signs in, by the classifier the mining pass uses,
+    rather than set by hand to a value its evidence could never produce."""
+    job = await uow.workflows.get(TENANT, workflow_id)
+    job.signs_in = signs_in(job, {one.id: one for one in await uow.gestures.gestures_for(TENANT)})
+    assert job.signs_in, "the fixture's evidence is not a sign-in"
+    await uow.workflows.save(job)
+
+
 async def _a_way_back_in(
-    uow: FakeUnitOfWork, how_many: int = 1, requests: Sequence[Call] = ()
+    uow: FakeUnitOfWork, how_many: int = 1, path: str = "/oauth2/v2.0/authorize"
 ) -> None:
     """The tenant's sign-in job, `how_many` steps of it, every gesture on the
     sign-in host and the job found to sign in -- which is what `signs_in_at`
@@ -1825,19 +1847,19 @@ async def _a_way_back_in(
         replace(
             _evidence(uow)[0],
             id=f"ges_door_{n}",
-            url=f"{LOGIN}/oauth2/v2.0/authorize",
-            page_url=f"{LOGIN}/oauth2/v2.0/authorize",
+            url=f"{LOGIN}{path}",
+            page_url=f"{LOGIN}{path}",
             system=LOGIN,
             # SILENT, which is what a real click on that chooser is: the
             # recorder heard no traffic from `Local WMS users (bf56-001-eus2)
             # (SSO)`. To this loop a silent click is a possible write
             # (`_saw_nothing`) -- which is exactly the rule a sign-in must not
             # be judged by, and the fixture says so by being the same shape.
-            requests=list(requests),
+            requests=[],
         )
         for n in range(how_many)
     ]
-    await uow.gestures.add_gestures(tuple(doors))
+    await uow.gestures.add_gestures((*doors, _password_beside(doors[0])))
     await uow.workflows.save(
         Workflow(
             id="wfl_sso",
@@ -1849,9 +1871,9 @@ async def _a_way_back_in(
                 Step(order=n, says=f"Click the sign-in control {n}", system=None, cites=[one.id])
                 for n, one in enumerate(doors)
             ],
-            signs_in=True,
         )
     )
+    await _classify(uow, "wfl_sso")
 
 
 async def test_a_page_with_no_password_box_is_still_a_way_in_the_operator_knows() -> None:
@@ -2057,17 +2079,18 @@ async def test_a_click_that_signs_back_in_is_not_a_write() -> None:
     ]
 
 
-async def test_a_spliced_step_that_writes_is_judged_as_a_write() -> None:
+async def test_a_spliced_step_that_may_write_is_judged_as_a_write() -> None:
     """A leg spliced in to sign back in obeys the same write rules as any
-    other. What makes a sign-in click not a write is its own evidence -- a job
-    found to sign in, and a step that wrote nothing back to its page -- and a
-    spliced step whose demonstration came back 201 on its own host is a write
-    whatever job it came from."""
+    other. The job signs in -- the classifier says so from its evidence -- and
+    that exempts no step of it: a step is spared the write rules only when its
+    own evidence proves it is the credential or the submit that followed it.
+
+    This one is a silent press on a page of the sign-in host that is no
+    identity provider's form -- a consent page, say. A silent press is a
+    possible write, whichever job it belongs to."""
     uow = await _fixture()
     workflow = await _workflow(uow)
-    await _a_way_back_in(
-        uow, requests=(Call(method="POST", url=f"{LOGIN}/api/accounts", status=201),)
-    )
+    await _a_way_back_in(uow, path="/consent")
     away = Reply(ok=True, result={"url": None, "elsewhere": f"{LOGIN}/oauth2", "signed_out": True})
     channel = FakeChannel(
         {

@@ -1,6 +1,7 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 
+from sro.domain.execution.evidence import writes
 from sro.domain.observation.gesture import Gesture, passed_through
 from sro.domain.observation.identity import K_MIN_SHARED_STEPS
 from sro.domain.observation.window import Window
@@ -168,13 +169,40 @@ def _during(workflow: Workflow, gestures: Mapping[str, Gesture]) -> list[Gesture
 
 def signs_in(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
     during = _during(workflow, gestures)
-    return any(_signed_in_here(gesture) for gesture in during) and not any(
-        _did_business(gesture) for gesture in during
+    return (
+        any(_signed_in_here(gesture) for gesture in during)
+        and not any(_did_business(gesture) for gesture in during)
+        and all(
+            is_sign_in_step(workflow, step, gestures)
+            for step in workflow.steps
+            if writes(step, gestures)
+        )
     )
 
 
-def does_business(step: Step, gestures: Mapping[str, Gesture]) -> bool:
-    return any(_did_business(gestures[one]) for one in step.cites if one in gestures)
+def is_sign_in_step(workflow: Workflow, step: Step, gestures: Mapping[str, Gesture]) -> bool:
+    cited = [gestures[one] for one in step.cites if one in gestures]
+    if not cited or any(_did_business(gesture) for gesture in cited):
+        return False
+    carries = any(_signed_in_here(gesture) for gesture in cited)
+    if carries and not writes(step, gestures):
+        return True
+    return (carries or _after_the_credential(workflow, step, gestures)) and any(
+        passed_through(gesture) for gesture in cited
+    )
+
+
+def _after_the_credential(workflow: Workflow, step: Step, gestures: Mapping[str, Gesture]) -> bool:
+    before = [one for one in workflow.steps if one.order < step.order]
+    if not before:
+        return False
+    previous = max(before, key=lambda one: one.order)
+    here = {origin_of(gestures[one].system or "") for one in step.cites if one in gestures}
+    return any(
+        _signed_in_here(gestures[one]) and origin_of(gestures[one].system or "") in here
+        for one in previous.cites
+        if one in gestures
+    )
 
 
 def work_only(

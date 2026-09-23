@@ -32,21 +32,26 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/signing_in.p
 > name match would also pick `Log in to Google Account` for a warehouse that
 > bounced to Google, which is a run signing into the wrong system.
 >
-> **Every cited gesture on that host, not merely one.** `Log in to Keycloak`
-> cites one b2clogin gesture -- the operator crossed from the chooser into
-> Keycloak in the middle of it -- so a job that merely touches the host is not
-> the job for it. The one that is entirely there is the one that does exactly
-> this page and nothing else.
+> **The host it starts on, not merely one it touches.** A job is the way
+> through the page its first gesture (in time) was made on: replayed from
+> there it does what the operator did from there. A job that only passes
+> through the host in the middle would start half way through somebody
+> else's page.
 >
-> **One job or none.** Two jobs entirely on one sign-in host is two ways in, and
-> picking between them is guessing with somebody's credentials.
+> This was "every cited gesture on that host" until 2026-09-23, and that
+> rule rejected every real sign-in: the deployment's chain is the chooser on
+> `b2clogin.com` and then the form on the Keycloak host, two origins, so no
+> job was ever entirely on either and a run bounced to the chooser found no
+> way back in.
 >
-> **Only a job found to sign in.** "Entirely on that host" alone is also
-> every ordinary job done on one host, so a run bounced to a page the tenant
-> had worked on would have spliced that work in. The candidates are the jobs
-> whose `Workflow.signs_in` the mining pass set -- a credential typed and
-> nothing written back, `checks.signs_in` -- and the host then picks among
-> them.
+> **One job or none.** Two jobs starting on one sign-in host is two ways in,
+> and picking between them is guessing with somebody's credentials.
+>
+> **Only a job found to sign in.** The host a job starts on is also where
+> every ordinary job on one host starts, so a run bounced to a page the
+> tenant had worked on would have spliced that work in. The candidates are
+> the jobs whose `Workflow.signs_in` the mining pass set -- `checks.signs_in`
+> -- and the host then picks among them.
 
 ## module, [line 25](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L25): Note on the line above
 
@@ -77,6 +82,7 @@ Code: `_SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-action
 > moved yet the run ended "state unknown after a write; not retried" on a
 > sign-in link.
 
-## `_entirely_at`, [line 33](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L33): Docstring
+## `_starts_at`, [line 33](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L33): Docstring
 
-> Whether every gesture this job cites happened on that origin.
+> The origin of the first gesture this job cites, in time; the job's own step
+> order breaks a tie.

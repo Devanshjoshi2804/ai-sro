@@ -6,6 +6,7 @@ import logging
 from dataclasses import replace
 from typing import Any
 
+from sro.application.shared.refusals import OverCap
 from sro.domain.shared.prices import Answer, Effort, is_priced, price
 from sro.infrastructure.telemetry.otel import doing
 
@@ -41,8 +42,6 @@ K_TRIES = 3
 
 K_BACKOFF_S = 2.0
 
-K_TIMEOUT_MS = 120_000
-
 
 def _worth_retrying(problem: Exception) -> bool:
     code = getattr(problem, "code", None)
@@ -50,18 +49,8 @@ def _worth_retrying(problem: Exception) -> bool:
 
 
 class GeminiAsker:
-    def __init__(
-        self, api_key: str, client: Any | None = None, *, timeout_ms: int = K_TIMEOUT_MS
-    ) -> None:
-        if client is not None:
-            self._client = client
-            return
-        from google import genai
-        from google.genai import types
-
-        self._client = genai.Client(
-            api_key=api_key, http_options=types.HttpOptions(timeout=timeout_ms)
-        )
+    def __init__(self, *, client: Any) -> None:
+        self._client = client
 
     async def ask(
         self,
@@ -122,6 +111,8 @@ class GeminiAsker:
                     )
                     problem = None
                     break
+                except OverCap:
+                    raise
                 except Exception as raised:
                     problem = raised
                     if attempt + 1 >= K_TRIES or not _worth_retrying(raised):
@@ -140,7 +131,7 @@ class GeminiAsker:
         raw_in = getattr(usage, "prompt_token_count", None)
         raw_out = getattr(usage, "candidates_token_count", None)
         thought_tokens = getattr(usage, "thoughts_token_count", None) or 0
-        usage_missing = raw_in is None or raw_out is None
+        usage_missing = raw_in is None
         in_tokens = raw_in or 0
         out_tokens = (raw_out or 0) + thought_tokens
         unpriced = usage_missing or not is_priced(model)

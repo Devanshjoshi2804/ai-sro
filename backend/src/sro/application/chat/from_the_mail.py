@@ -151,114 +151,130 @@ class FromTheMail:
             if not await self._first_time(ctx, message, now=now):
                 continue
             try:
-                said, thread, subject = await self._body(ctx, message)
-            except ToolsUnavailable as gone:
-                return LookedInTheMail(
-                    offered=tuple(offered), read=read, why=str(gone), spent=spent
-                )
-            if not said:
-                continue
-            read += 1
-            back = await self._answering(ctx, thread)
-            if back is not None:
-                offered.append(
-                    await self._carrying_on(ctx, message, back, said, thread, subject, titles, held)
-                )
-                continue
-            asked = await self._was_asked(ctx, thread)
-            if asked is not None:
-                offered.append(
-                    await self._answered_by_mail(ctx, message, asked, said, thread, subject, held)
-                )
-                continue
-            got = await understand(said, workflows, asker, self._model, asked_by)
-            spent = _also(spent, got.answer)
-            if got.workflow_id is None:
-                logger.info("%s: read a mail that asks for no job this tenant holds", tenant)
-                continue
-            if not got.sure:
-                unsure += 1
-                logger.info(
-                    "%s: read a mail asking for %s but could not tell it from %s",
-                    tenant,
-                    titles.get(got.workflow_id, got.workflow_id),
-                    ", ".join(titles.get(one, one) for one in got.also) or "another job",
-                )
-                continue
-            values, missing = dict(got.values), list(got.missing)
-            asked_for_too: set[str] = set()
-            said_besides: dict[str, str] = {}
-            if missing:
-                job_ = titles.get(got.workflow_id, got.workflow_id)
-                if not thread:
-                    logger.info("%s: %s -- the mail names no conversation", tenant, job_)
-                else:
-                    whole = await self._conversation(ctx, thread)
-                    if not whole:
-                        logger.info("%s: %s -- the conversation read back empty", tenant, job_)
-                    elif whole == said:
-                        logger.info("%s: %s -- the conversation is only this mail", tenant, job_)
+                try:
+                    said, thread, subject = await self._body(ctx, message)
+                except ToolsUnavailable as gone:
+                    return LookedInTheMail(
+                        offered=tuple(offered), read=read, why=str(gone), spent=spent
+                    )
+                if not said:
+                    continue
+                read += 1
+                back = await self._answering(ctx, thread)
+                if back is not None:
+                    offered.append(
+                        await self._carrying_on(
+                            ctx, message, back, said, thread, subject, titles, held
+                        )
+                    )
+                    continue
+                asked = await self._was_asked(ctx, thread)
+                if asked is not None:
+                    offered.append(
+                        await self._answered_by_mail(
+                            ctx, message, asked, said, thread, subject, held
+                        )
+                    )
+                    continue
+                got = await understand(said, workflows, asker, self._model, asked_by)
+                spent = _also(spent, got.answer)
+                if got.workflow_id is None:
+                    logger.info("%s: read a mail that asks for no job this tenant holds", tenant)
+                    continue
+                if not got.sure:
+                    unsure += 1
+                    logger.info(
+                        "%s: read a mail asking for %s but could not tell it from %s",
+                        tenant,
+                        titles.get(got.workflow_id, got.workflow_id),
+                        ", ".join(titles.get(one, one) for one in got.also) or "another job",
+                    )
+                    continue
+                values, missing = dict(got.values), list(got.missing)
+                asked_for_too: set[str] = set()
+                said_besides: dict[str, str] = {}
+                if missing:
+                    job_ = titles.get(got.workflow_id, got.workflow_id)
+                    if not thread:
+                        logger.info("%s: %s -- the mail names no conversation", tenant, job_)
                     else:
-                        again = await understand(whole, workflows, asker, self._model, asked_by)
-                        spent = _also(spent, again.answer)
-                        if again.workflow_id != got.workflow_id:
+                        whole = await self._conversation(ctx, thread)
+                        if not whole:
+                            logger.info("%s: %s -- the conversation read back empty", tenant, job_)
+                        elif whole == said:
                             logger.info(
-                                "%s: %s -- the conversation read as %s instead",
-                                tenant,
-                                job_,
-                                titles.get(again.workflow_id or "", again.workflow_id)
-                                or "no job at all",
+                                "%s: %s -- the conversation is only this mail", tenant, job_
                             )
                         else:
-                            values |= dict(again.values)
-                            asked_for_too.update(again.unasked)
-                            said_besides.update(again.aside)
-                            missing = [name for name in missing if name not in values]
-                            logger.info(
-                                "%s: %s -- the conversation gave %d of %d",
-                                tenant,
-                                job_,
-                                len(values),
-                                len(values) + len(missing),
-                            )
-            if missing and self._gather is not None:
-                found = await self._gather.execute(
-                    ctx,
-                    job=titles.get(got.workflow_id, got.workflow_id),
-                    wanted=missing,
-                    because=said[:K_BECAUSE],
-                    rounds=K_OFFER_ROUNDS,
-                )
-                values |= {name: one.value for name, one in found.values.items()}
-                missing = [name for name in missing if name not in values]
-                logger.info(
-                    "%s: gathered %d of %d for %s (%s)",
-                    tenant,
-                    len(found.values),
-                    len(found.values) + len(missing),
-                    titles.get(got.workflow_id, got.workflow_id),
-                    found.why or "no reason given",
-                )
-            offered.append(
-                Offered(
-                    message=message,
-                    workflow_id=got.workflow_id,
-                    title=titles.get(got.workflow_id, got.workflow_id),
-                    values=values,
-                    missing=missing,
-                    thread=thread,
-                    subject=subject,
-                    offers=offerable(
-                        next(
-                            (w.parameters for w in workflows if w.id == got.workflow_id),
-                            (),
+                            again = await understand(whole, workflows, asker, self._model, asked_by)
+                            spent = _also(spent, again.answer)
+                            if again.workflow_id != got.workflow_id:
+                                logger.info(
+                                    "%s: %s -- the conversation read as %s instead",
+                                    tenant,
+                                    job_,
+                                    titles.get(again.workflow_id or "", again.workflow_id)
+                                    or "no job at all",
+                                )
+                            else:
+                                values |= dict(again.values)
+                                asked_for_too.update(again.unasked)
+                                said_besides.update(again.aside)
+                                missing = [name for name in missing if name not in values]
+                                logger.info(
+                                    "%s: %s -- the conversation gave %d of %d",
+                                    tenant,
+                                    job_,
+                                    len(values),
+                                    len(values) + len(missing),
+                                )
+                if missing and self._gather is not None:
+                    found = await self._gather.execute(
+                        ctx,
+                        job=titles.get(got.workflow_id, got.workflow_id),
+                        wanted=missing,
+                        because=said[:K_BECAUSE],
+                        rounds=K_OFFER_ROUNDS,
+                    )
+                    values |= {name: one.value for name, one in found.values.items()}
+                    missing = [name for name in missing if name not in values]
+                    logger.info(
+                        "%s: gathered %d of %d for %s (%s)",
+                        tenant,
+                        len(found.values),
+                        len(found.values) + len(missing),
+                        titles.get(got.workflow_id, got.workflow_id),
+                        found.why or "no reason given",
+                    )
+                offered.append(
+                    Offered(
+                        message=message,
+                        workflow_id=got.workflow_id,
+                        title=titles.get(got.workflow_id, got.workflow_id),
+                        values=values,
+                        missing=missing,
+                        thread=thread,
+                        subject=subject,
+                        offers=offerable(
+                            next(
+                                (w.parameters for w in workflows if w.id == got.workflow_id),
+                                (),
+                            ),
+                            values,
                         ),
-                        values,
-                    ),
-                    unasked=sorted({*got.unasked, *asked_for_too}),
-                    aside={**got.aside, **said_besides},
+                        unasked=sorted({*got.unasked, *asked_for_too}),
+                        aside={**got.aside, **said_besides},
+                    )
                 )
-            )
+            except OverCap as reached:
+                await self._forget(ctx, message)
+                logger.info("%s: the look stopped at the cap -- %s", tenant, reached)
+                return LookedInTheMail(
+                    offered=await self._what_will_not_fit(ctx, offered, workflows),
+                    read=read,
+                    why=str(reached),
+                    spent=spent,
+                )
         looked = LookedInTheMail(
             offered=await self._what_will_not_fit(ctx, offered, workflows),
             read=read,
@@ -570,17 +586,26 @@ class FromTheMail:
         )
         return " ".join(whole.split())[:K_THREAD]
 
+    async def _forget(self, ctx: RequestContext, message: str) -> None:
+        async with self._uow as uow:
+            await uow.tool_calls.forget(ctx.tenant_id, _mail_key(ctx, message))
+            await uow.commit()
+
     async def _first_time(self, ctx: RequestContext, message: str, *, now: datetime) -> bool:
         async with self._uow as uow:
             first = await uow.tool_calls.remember(
                 ctx.tenant_id,
-                f"mail:{ctx.principal_id.value}:{message}",
+                _mail_key(ctx, message),
                 tool="read a mail for what it asks",
                 at=now,
                 stale_after=K_REMEMBER,
             )
             await uow.commit()
         return first
+
+
+def _mail_key(ctx: RequestContext, message: str) -> str:
+    return f"mail:{ctx.principal_id.value}:{message}"
 
 
 def _sentence(offered: Sequence[Offered], read: int, unsure: int = 0) -> str:

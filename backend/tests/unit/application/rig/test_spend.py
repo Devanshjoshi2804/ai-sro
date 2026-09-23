@@ -238,9 +238,9 @@ class TestTheSettingEveryPaidLoopReadsTheCapFrom:
         assert await over_cap(await _billed(), TENANT, now=NOW, cap_usd=cap) is not None
 
 
-async def test_the_tenant_whose_cap_was_asked_is_the_one_the_next_call_bills() -> None:
-    """Asking the cap is where model work for a tenant starts, so it is also
-    where the work is attributed: the metered client bills whoever is named."""
+async def test_asking_the_cap_names_nobody_to_bill() -> None:
+    """A query, not a switch: whoever asked the cap last is not billed for
+    what runs next. The entry point names the tenant; this only answers."""
     with about():
-        await over_cap(FakeUnitOfWork(), TENANT, now=NOW, cap_usd=-1.0)
-        assert whose()["tenant"] == TENANT.value
+        await over_cap(FakeUnitOfWork(), TENANT, now=NOW, cap_usd=5.0)
+        assert "tenant" not in whose()

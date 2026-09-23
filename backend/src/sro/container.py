@@ -231,6 +231,7 @@ class Container:
     scheduler: Scheduler
     dispatcher: RunDispatcher
     session_factory: async_sessionmaker[AsyncSession]
+    meter: Meter
 
     engine: AsyncEngine | None = None
 
@@ -247,8 +248,6 @@ class Container:
     capture: CaptureController = field(init=False)
 
     driving_runs: AsyncConnection | None = None
-
-    meter: Meter | None = None
 
     def unit_of_work(self) -> UnitOfWork:
         return SqlUnitOfWork(self.session_factory)
@@ -916,7 +915,6 @@ class Container:
 def _build_transcriber(settings: Settings, meter: Meter) -> Transcriber:
     if settings.transcription_enabled and settings.gemini_api_key:
         return GeminiTranscriber(
-            settings.gemini_api_key,
             settings.gemini_transcription_model,
             client=metered_client(settings.gemini_api_key, meter),
         )
@@ -926,7 +924,6 @@ def _build_transcriber(settings: Settings, meter: Meter) -> Transcriber:
 def _build_intent_parser(settings: Settings, meter: Meter) -> IntentParser:
     if settings.interpretation_enabled and settings.gemini_api_key:
         return GeminiIntentParser(
-            settings.gemini_api_key,
             settings.gemini_intent_model,
             client=metered_client(settings.gemini_api_key, meter),
         )
@@ -939,21 +936,14 @@ def _build_interpreter(settings: Settings) -> WorkflowInterpreter:
     return NoInterpreter()
 
 
-def _patient_asker_for(
-    settings: Settings, asker: Asker | None, meter: Meter | None
-) -> Asker | None:
+def _patient_asker_for(settings: Settings, asker: Asker | None, meter: Meter) -> Asker | None:
     if not isinstance(asker, GeminiAsker):
         return asker
     return _gemini_asker(settings, meter, timeout_ms=settings.gemini_mine_timeout_ms)
 
 
-def _gemini_asker(settings: Settings, meter: Meter | None, *, timeout_ms: int) -> GeminiAsker:
-    if meter is None:
-        return GeminiAsker(settings.gemini_api_key, timeout_ms=timeout_ms)
-    return GeminiAsker(
-        settings.gemini_api_key,
-        client=metered_client(settings.gemini_api_key, meter, timeout_ms=timeout_ms),
-    )
+def _gemini_asker(settings: Settings, meter: Meter, *, timeout_ms: int) -> GeminiAsker:
+    return GeminiAsker(client=metered_client(settings.gemini_api_key, meter, timeout_ms=timeout_ms))
 
 
 def _build_asker(settings: Settings, meter: Meter) -> Asker | None:
@@ -965,7 +955,6 @@ def _build_asker(settings: Settings, meter: Meter) -> Asker | None:
 def _build_vision(settings: Settings, meter: Meter) -> VisionDriver | None:
     if settings.vision_enabled and settings.gemini_api_key:
         return GeminiVisionDriver(
-            settings.gemini_api_key,
             settings.gemini_vision_model,
             client=metered_client(settings.gemini_api_key, meter),
         )
@@ -975,7 +964,6 @@ def _build_vision(settings: Settings, meter: Meter) -> VisionDriver | None:
 def _build_embedder(settings: Settings, meter: Meter) -> Embedder:
     if settings.knowledge_embeddings_enabled and settings.gemini_api_key:
         return GeminiEmbedder(
-            settings.gemini_api_key,
             settings.gemini_embedding_model,
             client=metered_client(settings.gemini_api_key, meter),
         )
@@ -1022,13 +1010,12 @@ def build_container(settings: Settings | None = None) -> Container:
         watch_queries(engine)
     credentials = SignedTokens(settings.auth_secret)
     sessions = create_session_factory(engine)
-    meter = Meter(
-        lambda: SqlUnitOfWork(sessions), clock=SystemClock(), cap_usd=settings.daily_usd_cap
-    )
+    clock = SystemClock()
+    meter = Meter(lambda: SqlUnitOfWork(sessions), clock=clock, cap_usd=settings.daily_usd_cap)
 
     container = Container(
         settings=settings,
-        clock=SystemClock(),
+        clock=clock,
         ids=UuidFactory(),
         blobs=MinioBlobStore(
             endpoint_url=settings.s3_endpoint_url,

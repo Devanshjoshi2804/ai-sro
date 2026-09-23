@@ -5,7 +5,6 @@ from datetime import datetime
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import DaySpend
-from sro.whose import attribute
 
 
 async def spent_today(uow: UnitOfWork, tenant_id: TenantId, *, now: datetime) -> DaySpend:
@@ -15,7 +14,6 @@ async def spent_today(uow: UnitOfWork, tenant_id: TenantId, *, now: datetime) ->
 async def over_cap(
     uow: UnitOfWork, tenant_id: TenantId, *, now: datetime, cap_usd: float
 ) -> str | None:
-    attribute(tenant=tenant_id.value)
     if cap_usd < 0:
         return None
     day = await spent_today(uow, tenant_id, now=now)

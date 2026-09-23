@@ -239,6 +239,41 @@ async def test_an_over_cap_tenant_s_look_never_reaches_the_model_or_the_mailbox(
     assert mailbox.asked == []
 
 
+async def test_a_cap_crossed_partway_through_a_look_stops_it_and_keeps_the_rest_unread() -> None:
+    """The first mail's reading spends the last of the day; the second is
+    refused by the meter. That is a refusal, not a mail that asks for nothing:
+    the look stops, says why, keeps the offer it already made, and leaves the
+    refused mail to be read by the next look instead of remembering it as seen
+    for a month."""
+    uow = await _held()
+    mailbox = _Mailbox(
+        search=_found("m-1", "m-2", "m-3"),
+        **{
+            "m-1": _mail("please add customer type GPX"),
+            "m-2": _mail("please add customer type GPY"),
+            "m-3": _mail("please add customer type GPZ"),
+        },
+    )
+
+    class _SpendsTheLast(_Reads):
+        async def ask(self, *, evidence: str, **rest: object) -> Answer:
+            if len(self.saw) >= 1:
+                self.saw.append(evidence)
+                raise OverCap("daily cap reached: $5.0100 of $5.00 spent today")
+            return await super().ask(evidence=evidence, **rest)
+
+    looked = await _look(uow, mailbox, _SpendsTheLast(_reading(JOB))).execute(CTX)
+
+    assert [one.message for one in looked.offered] == ["m-1"]
+    assert "daily cap reached" in looked.why
+    fetched = [args.get("id") for _, tool, args in mailbox.asked if tool == "get_message"]
+    assert "m-3" not in fetched, "the look went on reading after the cap stopped it"
+
+    again = _Reads(_reading(JOB), _reading(JOB))
+    later = await _look(uow, mailbox, again).execute(CTX)
+    assert sorted(one.message for one in later.offered) == ["m-2", "m-3"]
+
+
 async def test_a_mail_is_offered_once_however_often_the_mailbox_is_read() -> None:
     """A look every few minutes over the same inbox would otherwise offer the
     same mail forty times."""

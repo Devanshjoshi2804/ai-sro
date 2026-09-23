@@ -301,6 +301,15 @@ Code: `why = await over_cap(`
 > client would refuse each call anyway; asking here gives the operator the 429
 > and the reason instead of a look that quietly read nothing.
 
+## `FromTheMail.execute`: Comment
+
+Code: `except OverCap as reached:`
+
+> The cap crossed partway through a look is a refusal, not a mail that asks
+> for nothing. The look stops, keeps the offers it already made, says why, and
+> forgets the claim on the mail it was reading, so the next look reads it;
+> the mails after it were never claimed.
+
 ## `FromTheMail._answering`, [line 265](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L265): Docstring
 
 > The run still waiting to hear back on this conversation, if any.

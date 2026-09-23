@@ -75,15 +75,6 @@ Code: `K_BACKOFF_S = 2.0`
 > Waited before a retry, multiplied by the attempt number. A server that just
 > gave up on a large request is a server that wants a moment.
 
-## module, [line 44](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L44): Note on the line above
-
-Code: `K_TIMEOUT_MS = 120_000`
-
-> The default ceiling on one call, in milliseconds -- see
-> `Settings.gemini_timeout_ms`, which is where a deployment changes it. Stated
-> here as well so a caller that builds this adapter directly (a script, a
-> bake-off) is bounded too rather than inheriting the SDK's no-timeout.
-
 ## `truncated`, [line 20](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L20): Docstring
 
 > Whether the model stopped because it hit the output ceiling. The SDK
@@ -110,12 +101,12 @@ Code: `K_TIMEOUT_MS = 120_000`
 
 ## `GeminiAsker.__init__`, [line 53](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L53): Docstring
 
-> `client` is for tests; production passes an api_key and nothing else.
->
-> `timeout_ms` is passed on to the SDK because its own default is no
-> timeout, and a call with no timeout is not slow -- it is indefinite.
-> One hung socket held a reading pass for 19 hours here, having read
-> nothing and said nothing.
+> Only a client: production hands it the metered one `container.py` builds
+> with `metered_client(..., timeout_ms=...)`, so no asker can reach the model
+> unbilled. The timeout lives on that client because the SDK's own default is
+> none, and a call with no timeout is not slow -- it is indefinite. One hung
+> socket held a reading pass for 19 hours here, having read nothing and said
+> nothing.
 
 ## `build_config`, [line 33](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L33): Comment
 
@@ -172,7 +163,10 @@ Code: `with doing("model.ask") as span:`
 
 Code: `except Exception as raised:`
 
-> Broad on purpose: a rig keeps going, and the row records why.
+> Broad on purpose: a rig keeps going, and the row records why. `OverCap` is
+> re-raised just above: the meter refusing the call is the tenant's day being
+> spent, not the model failing, and it has to reach the door's 429 (and stop a
+> mail look) rather than read as an answer that said nothing.
 
 ## `GeminiAsker._asked_once`, [line 137](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L137): Comment
 

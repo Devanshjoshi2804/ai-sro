@@ -51,17 +51,6 @@ Comments and docstrings moved out of [`backend/src/sro/application/intent/spend.
 > so whoever reads it knows whether to raise the cap or to go and find the
 > unpriced call.
 
-## `over_cap`, [line 18](../../../../../../../backend/src/sro/application/intent/spend.py#L18): Comment
-
-Code: `attribute(tenant=tenant_id.value)`
-
-> Asking the cap is where model work for a tenant starts, so it is where the
-> work is attributed: the metered client bills, and checks the cap of,
-> whichever tenant `sro.whose` names. A loop over tenants -- the miner's --
-> re-attributes on every tenant's first check rather than billing the next
-> tenant's reading to the last one. Before the negative-cap return, so an
-> uncapped deployment is attributed too.
-
 ## `over_cap`, [line 22](../../../../../../../backend/src/sro/application/intent/spend.py#L22): Comment
 
 Code: `if day.cost_usd >= cap_usd or day.blind:`

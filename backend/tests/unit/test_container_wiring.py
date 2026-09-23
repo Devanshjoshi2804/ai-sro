@@ -417,7 +417,7 @@ def test_the_mining_pass_is_given_its_own_patience() -> None:
     assert settings.gemini_mine_timeout_ms >= 300_000, (
         "a mining pass is minutes long and this is the timeout it runs under"
     )
-    ordinary = GeminiAsker("k", client=object())
+    ordinary = GeminiAsker(client=object())
 
     patient = _patient_asker_for(settings, ordinary, _meter())
 
@@ -494,3 +494,14 @@ def test_every_model_adapter_a_deployment_builds_is_metered() -> None:
     assert [type(getattr(one, "_client", None)).__name__ for one in built] == [
         Metered.__name__
     ] * len(built)
+
+
+def test_the_meter_judges_the_day_on_the_containers_own_clock() -> None:
+    """A second clock is a second "today": a pinned container clock would put
+    the ledger's rows and the cap's midnight on different days."""
+    from sro.config import Settings
+    from sro.container import build_container
+
+    built = build_container(Settings(_env_file=None))
+
+    assert built.meter._clock is built.clock

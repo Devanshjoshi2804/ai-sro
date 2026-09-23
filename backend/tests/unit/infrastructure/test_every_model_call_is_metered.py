@@ -24,7 +24,7 @@ from sro.domain.shared.prices import ModelSpend, price
 from sro.infrastructure.gemini.asker import GeminiAsker
 from sro.infrastructure.gemini.computer_use import GeminiVisionDriver
 from sro.infrastructure.gemini.intent import GeminiIntentParser
-from sro.infrastructure.gemini.metered import Meter, Metered
+from sro.infrastructure.gemini.metered import Meter, Metered, Unattributed
 from sro.infrastructure.knowledge.embedding import GeminiEmbedder
 from sro.infrastructure.transcription.gemini import GeminiTranscriber
 from sro.whose import about
@@ -78,7 +78,7 @@ def _rows(uow: FakeUnitOfWork) -> list[ModelSpend]:
 
 async def test_an_asked_question_is_billed_to_the_tenant_it_was_asked_for() -> None:
     client, uow = _metered(_Models('{"ok": true}'))
-    asker = GeminiAsker(api_key="", client=client)
+    asker = GeminiAsker(client=client)
 
     with about(tenant="acme"):
         await asker.ask(model=MODEL, instructions="i", evidence="e", schema={"type": "object"})
@@ -97,7 +97,7 @@ async def test_an_asked_question_is_billed_to_the_tenant_it_was_asked_for() -> N
 
 async def test_the_intent_parser_is_billed() -> None:
     client, uow = _metered(_Models('{"wants": "ask", "verb": "list", "confidence": 1}'))
-    parser = GeminiIntentParser("", MODEL, client=client)
+    parser = GeminiIntentParser(MODEL, client=client)
 
     with about(tenant="acme"):
         await parser.read("show the waves")
@@ -108,7 +108,7 @@ async def test_the_intent_parser_is_billed() -> None:
 
 async def test_the_vision_driver_is_billed() -> None:
     client, uow = _metered(_Models())
-    driver = GeminiVisionDriver("", MODEL, client=client)
+    driver = GeminiVisionDriver(MODEL, client=client)
 
     with about(tenant="acme"):
         await driver.propose(
@@ -125,9 +125,7 @@ async def test_the_transcriber_is_billed() -> None:
     client, uow = _metered(_Models('{"segments": []}'))
 
     with about(tenant="acme"):
-        await GeminiTranscriber("", MODEL, client=client).transcribe(
-            b"ogg", content_type="audio/ogg"
-        )
+        await GeminiTranscriber(MODEL, client=client).transcribe(b"ogg", content_type="audio/ogg")
 
     [row] = _rows(uow)
     assert row.in_tokens == 100
@@ -139,7 +137,7 @@ async def test_an_embedding_is_billed_by_what_it_was_sent() -> None:
     client, uow = _metered(_Models())
 
     with about(tenant="acme"):
-        await GeminiEmbedder("", "gemini-embedding-001", client=client).embed(("a" * 400, "b"))
+        await GeminiEmbedder("gemini-embedding-001", client=client).embed(("a" * 400, "b"))
 
     [row] = _rows(uow)
     assert row.in_tokens == 101
@@ -151,7 +149,7 @@ async def test_a_model_the_price_table_does_not_know_is_recorded_as_unpriced() -
     client, uow = _metered(_Models("{}"))
 
     with about(tenant="acme"):
-        await GeminiAsker(api_key="", client=client).ask(
+        await GeminiAsker(client=client).ask(
             model="gemini-9-unheard-of", instructions="i", evidence="e", schema={}
         )
 
@@ -164,9 +162,7 @@ async def test_an_answer_with_no_usage_is_unpriced() -> None:
     client, uow = _metered(_Models("{}", usage=_usage(prompt=None)))
 
     with about(tenant="acme"):
-        await GeminiAsker(api_key="", client=client).ask(
-            model=MODEL, instructions="i", evidence="e", schema={}
-        )
+        await GeminiAsker(client=client).ask(model=MODEL, instructions="i", evidence="e", schema={})
 
     [row] = _rows(uow)
     assert row.unpriced
@@ -176,9 +172,7 @@ async def test_the_days_spend_counts_what_the_meter_wrote() -> None:
     client, uow = _metered(_Models("{}"))
 
     with about(tenant="acme"):
-        await GeminiAsker(api_key="", client=client).ask(
-            model=MODEL, instructions="i", evidence="e", schema={}
-        )
+        await GeminiAsker(client=client).ask(model=MODEL, instructions="i", evidence="e", schema={})
 
     day = await uow.spend.today(TenantId("acme"), now=NOW)
     assert day.cost_usd == pytest.approx(price(MODEL, 100, 25))
@@ -192,14 +186,14 @@ async def test_an_over_cap_tenant_never_reaches_the_model() -> None:
     client, _ = _metered(models, cap_usd=5.0, uow=uow)
 
     with about(tenant="acme"):
-        answer = await GeminiAsker(api_key="", client=client).ask(
-            model=MODEL, instructions="i", evidence="e", schema={}
-        )
+        with pytest.raises(OverCap, match="daily cap reached"):
+            await GeminiAsker(client=client).ask(
+                model=MODEL, instructions="i", evidence="e", schema={}
+            )
         with pytest.raises(OverCap):
-            await GeminiEmbedder("", "gemini-embedding-001", client=client).embed(("x",))
+            await GeminiEmbedder("gemini-embedding-001", client=client).embed(("x",))
 
     assert models.called == 0
-    assert answer.error is not None and "daily cap reached" in answer.error
     assert len(_rows(uow)) == 1
 
 
@@ -210,9 +204,7 @@ async def test_a_neighbour_over_the_cap_does_not_stop_this_tenant() -> None:
     client, _ = _metered(models, cap_usd=5.0, uow=uow)
 
     with about(tenant="acme"):
-        await GeminiAsker(api_key="", client=client).ask(
-            model=MODEL, instructions="i", evidence="e", schema={}
-        )
+        await GeminiAsker(client=client).ask(model=MODEL, instructions="i", evidence="e", schema={})
 
     assert models.called == 1
 
@@ -225,7 +217,7 @@ async def test_a_call_that_never_answered_is_not_billed() -> None:
     client, uow = _metered(_Down())
 
     with about(tenant="acme"):
-        answer = await GeminiAsker(api_key="", client=client).ask(
+        answer = await GeminiAsker(client=client).ask(
             model=MODEL, instructions="i", evidence="e", schema={}
         )
 
@@ -242,6 +234,7 @@ async def test_a_look_in_the_mail_and_its_gather_are_billed() -> None:
     not carry with it too; both used to return their spend and drop it."""
     from sro.application.chat.from_the_mail import FromTheMail
     from sro.application.context import RequestContext
+    from sro.application.execution.gather import INSTRUCTIONS as GATHERING
     from sro.application.execution.gather import GatherContext
     from sro.domain.shared.identifiers import PrincipalId
     from tests.unit.application.rig.test_from_the_mail import (
@@ -258,15 +251,19 @@ async def test_a_look_in_the_mail_and_its_gather_are_billed() -> None:
         def __init__(self) -> None:
             super().__init__()
             self._said = [json.dumps(_reading(JOB, bare=True))]
+            self.gathered = 0
 
-        async def generate_content(self, **_: Any) -> Any:
+        async def generate_content(self, **kw: Any) -> Any:
+            contents = kw["contents"]
             self.called += 1
+            self.gathered += GATHERING in contents
             text = self._said.pop(0) if self._said else "{}"
             return SimpleNamespace(text=text, usage_metadata=_usage(), candidates=[])
 
     uow = await _held()
-    client, _ = _metered(_ThenGathers(), uow=uow)
-    asker = GeminiAsker(api_key="", client=client)
+    models = _ThenGathers()
+    client, _ = _metered(models, uow=uow)
+    asker = GeminiAsker(client=client)
     mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("please add a customer type")})
     ctx = RequestContext(tenant_id=TenantId("acme"), principal_id=PrincipalId("devansh"))
     look = FromTheMail(
@@ -283,5 +280,64 @@ async def test_a_look_in_the_mail_and_its_gather_are_billed() -> None:
         await look.execute(ctx)
 
     rows = _rows(uow)
-    assert len(rows) >= 2, "the reading and the gather were not both billed"
+    assert models.gathered >= 1, "the look never gathered, so this proves nothing"
+    assert len(rows) == models.called, "a call the model answered was not billed"
     assert {row.tenant for row in rows} == {"acme"}
+
+
+async def test_a_response_with_no_output_count_is_priced_not_blind() -> None:
+    """Proto3 drops a zero `candidatesTokenCount`, so the SDK hands back None
+    for a response that wrote nothing. The prompt count is there, so the usage
+    is known: zero out, priced -- not a blind row that stops the day."""
+    client, uow = _metered(_Models("{}", usage=_usage(out=None, thoughts=0)))
+
+    with about(tenant="acme"):
+        await GeminiAsker(client=client).ask(model=MODEL, instructions="i", evidence="e", schema={})
+
+    [row] = _rows(uow)
+    assert (row.in_tokens, row.out_tokens, row.unpriced) == (100, 0, False)
+    assert row.cost_usd == pytest.approx(price(MODEL, 100, 0))
+
+
+async def test_a_call_nobody_is_named_for_is_refused_and_not_billed() -> None:
+    """A model call with no tenant is a wiring bug: nobody's cap can be asked
+    and nobody's bill can show it, so the meter refuses rather than spend."""
+    models = _Models("{}")
+    client, uow = _metered(models, cap_usd=5.0)
+
+    with about():
+        with pytest.raises(Unattributed):
+            await GeminiEmbedder("gemini-embedding-001", client=client).embed(("x",))
+        answer = await GeminiAsker(client=client).ask(
+            model=MODEL, instructions="i", evidence="e", schema={}
+        )
+
+    assert models.called == 0
+    assert answer.error is not None and "no tenant" in answer.error
+    assert _rows(uow) == []
+
+
+async def test_a_worker_activity_names_its_tenant_so_its_calls_are_capped_and_billed() -> None:
+    """The Temporal worker is its own process with nobody attributed; every
+    activity builds its context through `_context`, and that is where the
+    tenant is named."""
+    from sro.infrastructure.temporal.activities import _context
+
+    models = _Models()
+    uow = FakeUnitOfWork()
+    client, _ = _metered(models, cap_usd=5.0, uow=uow)
+    embedder = GeminiEmbedder("gemini-embedding-001", client=client)
+
+    async def _activity(tenant: str) -> None:
+        _context(tenant, "worker")
+        await embedder.embed(("x",))
+
+    with about():
+        await _activity("acme")
+    [row] = _rows(uow)
+    assert row.tenant == "acme"
+
+    await uow.spend.record(_spent("acme", 6.0))
+    with about(), pytest.raises(OverCap):
+        await _activity("acme")
+    assert models.called == 1

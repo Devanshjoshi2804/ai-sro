@@ -191,7 +191,6 @@ async def test_the_cap_is_read_off_the_same_store_the_meter_bills_into(
         lambda: SqlUnitOfWork(container._session_factory), clock=FakeClock(NOW), cap_usd=-1.0
     )
     container.asker = GeminiAsker(
-        api_key="",
         client=Metered(SimpleNamespace(aio=SimpleNamespace(models=_Models())), meter),
     )
     cost = price(model, 100_000, 100_000)

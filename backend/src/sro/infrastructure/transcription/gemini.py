@@ -35,14 +35,9 @@ _SCHEMA: dict[str, object] = {
 
 
 class GeminiTranscriber:
-    def __init__(self, api_key: str, model: str, *, client: Any | None = None) -> None:
+    def __init__(self, model: str, *, client: Any) -> None:
         self._model = model
-        if client is not None:
-            self._client = client
-            return
-        from google import genai
-
-        self._client = genai.Client(api_key=api_key)
+        self._client = client
 
     @property
     def available(self) -> bool:

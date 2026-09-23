@@ -30,31 +30,28 @@ Comments and docstrings for [`backend/src/sro/infrastructure/gemini/metered.py`]
 > an error, the intent parser falls back to what can be decided without it,
 > and the others raise to their callers as a network failure would.
 >
-> A negative cap -- the shipped default -- is answered without a query. No
-> tenant named means no cap can be judged; the call goes ahead and `record`
-> says so in the log.
+> No tenant named raises `Unattributed`: nobody's cap can be asked and nobody's
+> bill can show the call, so it is a wiring bug surfaced at the call rather
+> than an unreadable row. Entry points name the tenant: HTTP in `deps.py`,
+> Temporal activities in `activities._context`, runs in `run_workflow`, the
+> miner's sweep and `read_cron` per tenant, triggers in `FireTrigger`, and the
+> knowledge CLIs. A negative cap -- the shipped default -- is then answered
+> without a query.
 
 ## `Meter.record`, [line 40](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L40): Docstring
 
 > One `model_spend` row per answered call, in its own unit of work: the money
 > was spent whether or not the caller's transaction commits.
 >
-> Priced exactly as `GeminiAsker` prices its own answers -- thinking tokens are
-> billed as output -- and `unpriced` when the model reported no usage or the
-> price table does not know the model, which the cap reads as blind.
+> Priced as `GeminiAsker` prices its own answers -- thinking tokens are billed
+> as output -- and `unpriced` only when there was no prompt count or the price
+> table does not know the model, which the cap reads as blind. A missing output
+> or thinking count is zero: proto3 drops a zero `candidatesTokenCount`, and
+> reading that as unknown made one empty answer block a capped tenant for the
+> day, the asker's own lower-effort retry included.
 >
 > A write that fails is logged and swallowed: the caller already has an answer
 > that was paid for, and losing it as well would be the worse outcome.
-
-## `Meter.record`, [line 50](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L50): Comment
-
-Code: `logger.warning("a %s call was made for no tenant; billed to nobody", model)`
-
-> A call with no tenant attributed is still written, under an empty tenant, so
-> the spend is visible in the ledger even though no cap sees it. HTTP requests
-> attribute the tenant in `deps.py`, runs in `run_workflow`, and every door
-> that checks the cap attributes it in `over_cap`; the knowledge CLIs attribute
-> their own.
 
 ## `Metered`, [line 75](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L75): Docstring
 
@@ -72,11 +69,11 @@ Code: `tools = getattr(usage, "tool_use_prompt_token_count", None) or 0`
 
 ## `Metered.embed_content`, [line 99](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L99): Comment (debt)
 
-Code: `sent = billed if billed is not None else sum(len(str(one)) for one in contents)`
+Code: `sent = sum(len(str(one)) for one in contents)`
 
-> ponytail: the Gemini API returns no token count for embeddings (Vertex
-> reports billable characters, and that is used when present), so the tokens
-> are estimated at `K_CHARS_PER_TOKEN` characters each. Recording the call as
+> ponytail: the Gemini Developer API returns no token count for embeddings
+> (only Vertex does), so the tokens are estimated at `K_CHARS_PER_TOKEN`
+> characters each. Recording the call as
 > unpriced instead would make every embedding blind and stop a capped tenant
 > after its first retrieval. Replace with `count_tokens` if the estimate is
 > ever the number somebody disputes.

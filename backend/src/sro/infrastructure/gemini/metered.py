@@ -20,6 +20,10 @@ logger = logging.getLogger(__name__)
 K_CHARS_PER_TOKEN = 4
 
 
+class Unattributed(Exception):
+    pass
+
+
 class Meter:
     def __init__(self, uow: Callable[[], UnitOfWork], *, clock: Clock, cap_usd: float) -> None:
         self._uow = uow
@@ -28,7 +32,10 @@ class Meter:
 
     async def check(self) -> None:
         tenant = _tenant()
-        if self._cap_usd < 0 or not tenant:
+        if not tenant:
+            logger.error("a model call was made for no tenant; refused")
+            raise Unattributed("a model call was made for no tenant, so no cap or bill sees it")
+        if self._cap_usd < 0:
             return
         async with self._uow() as uow:
             why = await over_cap(
@@ -42,14 +49,12 @@ class Meter:
         *,
         model: str,
         in_tokens: int | None,
-        out_tokens: int | None,
+        out_tokens: int = 0,
         thought_tokens: int = 0,
     ) -> None:
         tenant = _tenant()
-        if not tenant:
-            logger.warning("a %s call was made for no tenant; billed to nobody", model)
-        known = in_tokens is not None and out_tokens is not None
-        spent_in, spent_out = in_tokens or 0, (out_tokens or 0) + thought_tokens
+        known = in_tokens is not None
+        spent_in, spent_out = in_tokens or 0, out_tokens + thought_tokens
         try:
             async with self._uow() as uow:
                 await uow.spend.record(
@@ -87,7 +92,7 @@ class Metered:
         await self._meter.record(
             model=model,
             in_tokens=None if prompt is None else prompt + tools,
-            out_tokens=getattr(usage, "candidates_token_count", None),
+            out_tokens=getattr(usage, "candidates_token_count", None) or 0,
             thought_tokens=getattr(usage, "thoughts_token_count", None) or 0,
         )
         return response
@@ -95,8 +100,7 @@ class Metered:
     async def embed_content(self, *, model: str, contents: Any, **rest: Any) -> Any:
         await self._meter.check()
         response = await self._models.embed_content(model=model, contents=contents, **rest)
-        billed = getattr(getattr(response, "metadata", None), "billable_character_count", None)
-        sent = billed if billed is not None else sum(len(str(one)) for one in contents)
+        sent = sum(len(str(one)) for one in contents)
         await self._meter.record(
             model=model, in_tokens=math.ceil(sent / K_CHARS_PER_TOKEN), out_tokens=0
         )

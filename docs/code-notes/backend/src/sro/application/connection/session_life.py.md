@@ -7,9 +7,15 @@ Comments and docstrings moved out of [`backend/src/sro/application/connection/se
 > How long this system's sessions actually last, learned rather than guessed.
 >
 > The obvious plan is to sign in every two hours, or every four. Both are
-> guesses, and a guess here is expensive in both directions: too often and the
-> system signs the operator's own browser out of a WMS that permits one session;
-> too rarely and the first thing anybody notices is a batch failing at 3am.
+> guesses, and a guess here is expensive in both directions: too often and every
+> refresh spends a login and a browser from a finite pool; too rarely and the
+> first thing anybody notices is a batch failing at 3am.
+>
+> This used to say that refreshing too often would sign the operator's own
+> browser out of a WMS that permits one session. Measured on QA on 2026-09-23,
+> two logins for the same account in separate browser contexts both stayed
+> valid, so that cost is not real there. Nothing in this file depended on it:
+> the half-life schedule and the short default stand on the costs above.
 >
 > Nothing in the credential says. The session is three opaque cookies with no
 > expiry to read -- so the number has to be measured, the way anything else here

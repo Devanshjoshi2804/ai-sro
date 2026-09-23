@@ -1,9 +1,13 @@
 """Keeping systems open without taking them away from anybody.
 
 The keeper exists so the first batch of the morning is not what discovers the
-weekend expired the session. What it must never do is sign in while somebody is
-demonstrating: this WMS permits one session, and taking it mid-task signs the
-operator out of the screen they are teaching from.
+weekend expired the session. It used to stand aside whenever somebody was
+demonstrating, on the belief that the WMS permits one session per account and a
+server login would sign the operator out. Measured on QA on 2026-09-23, two
+logins for the same account in separate browser contexts both stayed valid, so
+a demonstration no longer stops a sign-in. What still stops one is having no
+browser to sign in with, and what still waits for a demonstration is reaping
+browsers.
 """
 
 from __future__ import annotations
@@ -14,6 +18,7 @@ import pytest
 
 from sro.application.connection.keep_open import KEEPER, KeepSessionsOpen
 from sro.application.context import RequestContext
+from sro.application.ports.browser import BrowserUnavailable
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
 from sro.domain.shared.identifiers import TenantId
 from tests import factories as f
@@ -61,19 +66,39 @@ async def test_a_connected_system_is_kept_open(uow: FakeUnitOfWork) -> None:
     assert ensure.asked == [("acme", KEEPER.value)]
 
 
-async def test_nothing_is_touched_while_somebody_is_demonstrating(
-    uow: FakeUnitOfWork,
-) -> None:
-    """Their browser holds the session this would replace."""
+async def test_a_demonstration_does_not_stop_a_sign_in(uow: FakeUnitOfWork) -> None:
+    """A second session for the same account leaves the operator's working."""
     await uow.connections.add(_connected())
     await uow.recordings.add(f.recording())
     ensure = _Ensure(asked=[])
 
     swept = await KeepSessionsOpen(uow, ensure).sweep()
 
+    assert swept.open_now == ("blue_yonder",)
+    assert swept.left_alone == ()
+    assert ensure.asked == [("acme", KEEPER.value)]
+
+
+async def test_a_system_with_no_browser_free_is_left_alone_and_the_rest_still_swept(
+    uow: FakeUnitOfWork,
+) -> None:
+    """The pool is finite. Having no browser to sign in with is not an outage,
+    and one tenant waiting for a browser must not stop the next one's refresh."""
+    await uow.connections.add(_connected(tenant="acme"))
+    await uow.connections.add(_connected(tenant="rival", system="other_wms"))
+
+    @dataclass
+    class _Busy(_Ensure):
+        async def execute(self, ctx: RequestContext, *, target_system: str) -> bool:
+            if ctx.tenant_id.value == "acme":
+                raise BrowserUnavailable("every browser is in use")
+            return await super().execute(ctx, target_system=target_system)
+
+    swept = await KeepSessionsOpen(uow, _Busy()).sweep()
+
     assert swept.left_alone == ("blue_yonder",)
-    assert swept.open_now == ()
-    assert ensure.asked == []
+    assert swept.open_now == ("other_wms",)
+    assert swept.unreachable == ()
 
 
 async def test_a_system_that_cannot_be_opened_is_reported_not_retried(

@@ -38,8 +38,12 @@ Comments and docstrings moved out of [`backend/src/sro/application/connection/si
 >
 > Called before anything that needs the system open. If the stored session
 > still works it does nothing at all, because signing in again would throw
-> away a working session and, on a system that permits one at a time, would
-> sign the operator's own browser out.
+> away a working session and spend a login and a browser for nothing.
+>
+> This also used to cite a system that permits one session at a time, where a
+> second login would sign the operator's own browser out. Measured on QA on
+> 2026-09-23, two logins for the same account in separate browser contexts
+> both stayed valid; the behaviour stands on the reasons above without it.
 
 ## `_is_a_login`, [line 177](../../../../../../../backend/src/sro/application/connection/sign_in.py#L177): Docstring
 

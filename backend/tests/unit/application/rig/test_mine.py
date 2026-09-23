@@ -1973,7 +1973,9 @@ async def test_a_pass_marks_a_job_that_types_a_credential_and_writes_nothing() -
     so a run never has to guess it from where the gestures happened."""
     uow, ids = await _day()
 
-    result = await _mine(uow, FakeAsker(_found(_proposal([ids[3], ids[4]], title="Sign in"))))
+    # The credential alone: the measured day's only press after it stays on
+    # its host, which is the shape of a PIN approval and not a sign-in.
+    result = await _mine(uow, FakeAsker(_found(_proposal([ids[3]], title="Sign in"))))
 
     assert result.kept == 1, result.rejections
     (kept,) = await uow.workflows.known(TENANT)
@@ -2002,8 +2004,8 @@ async def test_a_job_already_stored_is_marked_as_signing_in_by_the_healing_pass(
             narrative="n",
             systems=[HOST],
             steps=[
-                Step(order=0, says="type the code", system=HOST, cites=[ids[3]]),
-                Step(order=1, says="sign in", system=HOST, cites=[ids[4]]),
+                Step(order=0, says="upload the badge", system=HOST, cites=[ids[2]]),
+                Step(order=1, says="type the password", system=HOST, cites=[ids[3]]),
             ],
         )
     )

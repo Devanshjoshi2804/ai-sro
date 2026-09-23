@@ -132,3 +132,63 @@ def test_a_step_that_wrote_back_is_never_a_sign_in_step() -> None:
 
 def test_a_job_citing_nothing_anybody_kept_does_not_sign_in() -> None:
     assert signs_in(_job("gone"), {}) is False
+
+
+def test_a_credential_and_a_press_that_stays_on_its_host_are_not_a_sign_in() -> None:
+    """One step, as the miner writes them: a PIN typed and Approve pressed, the
+    page moving within the same system and no traffic recorded. No recorded
+    write is not evidence of no write -- a top-level form post is never
+    captured -- so the press is a possible write, and the job is not a
+    sign-in."""
+    store = {
+        "a": _secret("a", WMS, 1),
+        "b": replace(
+            _at("b", WMS, 2),
+            action=Action(kind="press", at=2),
+            page_events=[PageMark(at=2, page_kind="navigated", url=f"{WMS}/approved")],
+        ),
+    }
+    job = Workflow(
+        id="wfl_pin",
+        tenant="acme",
+        title="t",
+        narrative="n",
+        steps=[Step(order=0, says="approve with the PIN", system=None, cites=["a", "b"])],
+    )
+
+    assert is_sign_in_step(job, job.steps[0], store) is False
+    assert signs_in(job, store) is False
+
+
+def test_a_credential_and_a_press_that_leaves_the_host_are_a_sign_in() -> None:
+    """The same step on a real sign-in: the press sent the browser elsewhere."""
+    store = {
+        "a": _secret("a", KEYCLOAK, 1),
+        "b": replace(
+            _at("b", KEYCLOAK, 2),
+            action=Action(kind="press", at=2),
+            page_events=[PageMark(at=2, page_kind="navigated", url=f"{WMS}/home")],
+        ),
+    }
+    job = Workflow(
+        id="wfl_login",
+        tenant="acme",
+        title="t",
+        narrative="n",
+        steps=[Step(order=0, says="sign in", system=None, cites=["a", "b"])],
+    )
+
+    assert is_sign_in_step(job, job.steps[0], store) is True
+    assert signs_in(job, store) is True
+
+
+def test_a_credential_then_a_press_that_stays_on_its_host_is_not_a_sign_in() -> None:
+    """The same shape split across two steps. The press right after the
+    credential is what a sign-in's submit would be, so the job is only a
+    sign-in if that press proves it."""
+    store = {
+        "a": _secret("a", WMS, 1),
+        "b": replace(_at("b", WMS, 2), action=Action(kind="press", at=2)),
+    }
+
+    assert signs_in(_job("a", "b"), store) is False

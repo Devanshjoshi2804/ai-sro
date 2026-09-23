@@ -30,7 +30,7 @@ Code: `_DEFAULT_PORTS = {"http": "80", "https": "443"}`
 > `config._origins_of` keeps the same map for the same reason and cannot be
 > imported here: the domain reads settings through arguments or not at all.
 
-## module, [line 245](../../../../../../../backend/src/sro/domain/skill/checks.py#L245): Note on the line above
+## module, [line 258](../../../../../../../backend/src/sro/domain/skill/checks.py#L258): Note on the line above
 
 Code: `K_SITTING_GAP_S = 600.0`
 
@@ -158,9 +158,16 @@ Code: `K_SITTING_GAP_S = 600.0`
 > Two of `work_only`'s three halves, and no hostnames: the recorder's secret
 > mark (`_signed_in_here`) and `_did_business`. And one more, so the mark agrees
 > with the run engine's idea of a write: every step `writes` counts as a write
-> -- any mutating method at any status -- must be a step `is_sign_in_step`
-> proves is part of the sign-in. A job whose steps write anything else is never
-> marked. The third half -- the browser
+> -- any mutating method at any status -- and every step that carries the
+> credential or comes right after it must be a step `is_sign_in_step` proves is
+> part of the sign-in. A job whose steps write anything else, or whose press
+> after the credential stays on its host, is never marked: that is a PIN
+> approval or an e-signature as much as a sign-in.
+>
+> `work_only` keeps its own reading of the same halves and does not call this:
+> its refusal is "a credential typed, the browser moved, nothing written", and
+> tying it to this stricter mark would let a sign-in with a same-host press
+> through the miner as a job. The third half -- the browser
 > moved the operator -- is what makes a sign-in not a job worth mining, and
 > is not what makes it a sign-in.
 >
@@ -182,13 +189,18 @@ Code: `K_SITTING_GAP_S = 600.0`
 > hold none -- including a Warehouse Equipment Type job whose span is 52
 > gestures wide.
 
-## `is_sign_in_step`, [line 183](../../../../../../../backend/src/sro/domain/skill/checks.py#L183): Docstring
+## `is_sign_in_step`, [line 188](../../../../../../../backend/src/sro/domain/skill/checks.py#L188): Docstring
 
 > Whether this step's own evidence proves it is part of signing in, and so
 > not a write. Two shapes, and nothing else:
 >
-> - the step carries the credential (the recorder's secret mark) and records
->   no mutation -- typing the password;
+> - the step carries the credential (the recorder's secret mark), records no
+>   mutation, and every press or click it cites sent the browser to another
+>   host -- typing the password, alone or with the submit. "Records no
+>   mutation" is absence of evidence: a top-level form post is never captured
+>   (no Keycloak POST exists anywhere in the stored data), and the miner puts
+>   a credential and a press in one step. A PIN typed and Approve pressed on
+>   the same host is one such step, and it is a possible write;
 > - the step carries the credential, or presses right after the step that
 >   typed it on the same host, and the browser was sent to another host --
 >   the submit.
@@ -198,12 +210,16 @@ Code: `K_SITTING_GAP_S = 600.0`
 > 302 back to the same system or with no status recorded -- proves nothing,
 > and a write must fail safe: it is judged as a write.
 
-## `_after_the_credential`, [line 195](../../../../../../../backend/src/sro/domain/skill/checks.py#L195): Docstring
+## `_carries_the_credential`, [line 201](../../../../../../../backend/src/sro/domain/skill/checks.py#L201): Docstring
+
+> Whether any gesture this step cites bears the recorder's secret mark.
+
+## `_after_the_credential`, [line 205](../../../../../../../backend/src/sro/domain/skill/checks.py#L205): Docstring
 
 > Whether the step just before this one, in the job's order, typed the
 > credential on the same host this step is on.
 
-## `work_only`, [line 208](../../../../../../../backend/src/sro/domain/skill/checks.py#L208): Docstring
+## `work_only`, [line 218](../../../../../../../backend/src/sro/domain/skill/checks.py#L218): Docstring
 
 > Strike the systems that were never the work, and refuse a job with none
 > left. None when it may be kept, as `validate` answers.
@@ -249,11 +265,11 @@ Code: `K_SITTING_GAP_S = 600.0`
 > somebody has to keep, wrong for every customer running an SSO nobody here
 > has heard of.
 
-## `_sittings`, [line 248](../../../../../../../backend/src/sro/domain/skill/checks.py#L248): Docstring
+## `_sittings`, [line 261](../../../../../../../backend/src/sro/domain/skill/checks.py#L261): Docstring
 
 > Consecutive runs of `times`, split wherever the pause is long enough.
 
-## `one_occurrence`, [line 258](../../../../../../../backend/src/sro/domain/skill/checks.py#L258): Docstring
+## `one_occurrence`, [line 271](../../../../../../../backend/src/sro/domain/skill/checks.py#L271): Docstring
 
 > Strike every citation but one doing's, in place.
 >
@@ -393,16 +409,16 @@ Code: `coverage=sum(1 for d in deciles if d > 0) / min(10, n),`
 > four parts and can only ever land in four deciles, so dividing by ten
 > reported a FULLY cited short window at 0.4 -- under K_MIN_COVERAGE.
 
-## `work_only`, [line 213](../../../../../../../backend/src/sro/domain/skill/checks.py#L213): Comment
+## `work_only`, [line 223](../../../../../../../backend/src/sro/domain/skill/checks.py#L223): Comment
 
 Code: `last = {system: index for index, system in enumerate(order)}`
 
 > Last occurrence per system: what matters is whether the job carried on
 > after this system the LAST time it was on it, not the first.
 
-## `work_only`, [line 221](../../../../../../../backend/src/sro/domain/skill/checks.py#L221): Comment
+## `work_only`, [line 231](../../../../../../../backend/src/sro/domain/skill/checks.py#L231): Comment
 
-Code: `if signs_in(workflow, gestures) and any(`
+Code: `during = _during(workflow, gestures)`
 
 > A job that is only signing in. The transit rule above cannot reach this
 > one: it strikes a system the job carried on FROM, and a job that is only
@@ -431,7 +447,7 @@ Code: `if signs_in(workflow, gestures) and any(`
 > list of identity hostnames -- which this function declined to keep, on
 > the grounds that every customer runs an SSO nobody here has heard of.
 
-## `work_only`, [line 235](../../../../../../../backend/src/sro/domain/skill/checks.py#L235): Comment
+## `work_only`, [line 248](../../../../../../../backend/src/sro/domain/skill/checks.py#L248): Comment
 
 Code: `if workflow.systems and not kept:`
 

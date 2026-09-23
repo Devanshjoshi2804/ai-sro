@@ -176,20 +176,30 @@ def signs_in(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
             is_sign_in_step(workflow, step, gestures)
             for step in workflow.steps
             if writes(step, gestures)
+            or _carries_the_credential(step, gestures)
+            or _after_the_credential(workflow, step, gestures)
         )
     )
+
+
+_PRESSES = frozenset({"click", "press"})
 
 
 def is_sign_in_step(workflow: Workflow, step: Step, gestures: Mapping[str, Gesture]) -> bool:
     cited = [gestures[one] for one in step.cites if one in gestures]
     if not cited or any(_did_business(gesture) for gesture in cited):
         return False
-    carries = any(_signed_in_here(gesture) for gesture in cited)
-    if carries and not writes(step, gestures):
+    carries = _carries_the_credential(step, gestures)
+    presses = [gesture for gesture in cited if gesture.action.kind in _PRESSES]
+    if carries and not writes(step, gestures) and all(map(passed_through, presses)):
         return True
     return (carries or _after_the_credential(workflow, step, gestures)) and any(
         passed_through(gesture) for gesture in cited
     )
+
+
+def _carries_the_credential(step: Step, gestures: Mapping[str, Gesture]) -> bool:
+    return any(_signed_in_here(gestures[one]) for one in step.cites if one in gestures)
 
 
 def _after_the_credential(workflow: Workflow, step: Step, gestures: Mapping[str, Gesture]) -> bool:
@@ -218,8 +228,11 @@ def work_only(
         if system and index < len(order) - 1 and system in bounced
     }
 
-    if signs_in(workflow, gestures) and any(
-        passed_through(gesture) for gesture in _during(workflow, gestures)
+    during = _during(workflow, gestures)
+    if (
+        any(_signed_in_here(gesture) for gesture in during)
+        and any(passed_through(gesture) for gesture in during)
+        and not any(_did_business(gesture) for gesture in during)
     ):
         return Rejection(
             workflow.title,

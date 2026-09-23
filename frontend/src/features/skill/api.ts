@@ -6,7 +6,6 @@ export type SkillVersionModel = Schemas["SkillVersionModel"];
 export type TrackRecordModel = Schemas["TrackRecordModel"];
 export type StepModel = Schemas["StepModel"];
 export type ParameterModel = Schemas["ParameterModel"];
-export type InductionResponse = Schemas["InductionResponse"];
 
 export type Choice = Schemas["ChoiceModel"];
 export type Demonstration = Schemas["DemonstrationModel"];
@@ -37,24 +36,6 @@ export const getSkill = (id: string) => api.get<SkillDetail>(`/v1/skills/${id}`)
  */
 export const getDoings = (id: string, version: number) =>
   api.get<Demonstration[]>(`/v1/skills/${id}/doings?version=${version}`);
-
-/**
- * Two demonstrations, or one.
- *
- * Without a second recording there is nothing to diff, so the skill keeps every
- * value exactly as it was demonstrated and takes no parameters. That is the
- * trade the operator is making, not a degraded mode to hide.
- */
-export const induceSkill = (
-  firstRecordingId: string,
-  secondRecordingId?: string | null,
-  name?: string,
-) =>
-  api.post<InductionResponse>("/v1/skills/induct", {
-    first_recording_id: firstRecordingId,
-    second_recording_id: secondRecordingId ?? null,
-    name: name ?? null,
-  });
 
 export const promoteSkill = (
   skillId: string,

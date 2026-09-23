@@ -29,22 +29,6 @@ Code: `self._address = address`
 > queue must be looking at the same data; a worker pointed at another
 > database will happily accept the work and fail to find the recording.
 
-## `TemporalDurableExecution.induce_skill`, [line 75](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L75): Comment
-
-Code: `id=f"induct-{first}-{second or 'alone'}-{uuid.uuid4().hex[:8]}",`
-
-> Unique per attempt: re-inducing the same pair is a legitimate
-> request that produces a new version, not a duplicate to fold
-> into the previous run's history.
-
-## `TemporalDurableExecution.induce_skill`, [line 79](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L79): Comment
-
-Code: `raise InductionFailed(_root_message(exc)) from exc`
-
-> The workflow marks a bad pair non-retryable. Unwrap it so the
-> caller sees why induction was refused rather than the scheduler's
-> own wrapper, which says only "Activity task failed".
-
 ## `TemporalDurableExecution.execute_skill`, [line 115](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L115): Comment
 
 Code: `id=f"run-{skill_id}-{uuid.uuid4().hex[:8]}",`

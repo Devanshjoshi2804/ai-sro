@@ -424,15 +424,6 @@ class UnderstoodResponse(BaseModel):
     understand step 4" is the most useful thing it can say."""
 
 
-class InduceSkillRequest(BaseModel):
-    first_recording_id: str
-    second_recording_id: str | None = None
-    """Absent when the operator asked for a skill from one demonstration. What
-    that costs is on the skill itself: with nothing to diff against, every value
-    stays exactly as it was demonstrated and the skill takes no parameters."""
-    name: str | None = None
-
-
 class SkillSummary(BaseModel):
     id: str
     name: str
@@ -957,14 +948,6 @@ class DescribeRequest(BaseModel):
     version: int
     summary: str
     when_to_use: str = ""
-
-
-class InductionResponse(BaseModel):
-    skill_id: str
-    version: int
-    step_count: int
-    input_parameter_count: int
-    derived_parameter_count: int
 
 
 class BatchRequest(BaseModel):

@@ -123,7 +123,7 @@ class _FakeContainer(Container):
         self.dispatcher = FakeRunDispatcher()
         # Last: the executor it wraps reaches for the http caller and the
         # driver above, so the fakes have to exist before it is built.
-        self.durable = FakeDurableExecution(self.induce_skill(), execute=self.execute_skill())
+        self.durable = FakeDurableExecution(execute=self.execute_skill())
 
     def unit_of_work(self) -> UnitOfWork:
         # `hand_out`, not the bare instance: the real container returns a

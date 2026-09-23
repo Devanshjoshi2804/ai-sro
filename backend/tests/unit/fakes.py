@@ -18,7 +18,6 @@ from types import MappingProxyType
 
 from sro.application.context import RequestContext
 from sro.application.execution.execute_skill import ExecuteSkill, ExecutionRequest
-from sro.application.induction.induce_skill import InducedSkill, InduceSkill
 from sro.application.ports.agent import AgentDrivers
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.browser import BrowserProvider, BrowserSession, BrowserUnavailable
@@ -375,20 +374,17 @@ class FakeTranscriber:
 
 
 class FakeDurableExecution:
-    """Runs induction inline and records the deadlines it was asked for.
+    """Runs execution inline and records the deadlines it was asked for.
 
-    Keeping the real use case behind it means the HTTP tests still exercise
-    induction; what they skip is the scheduler, not the behaviour.
+    What the HTTP tests skip is the scheduler, not the behaviour.
     """
 
     def __init__(
         self,
-        induce: InduceSkill | None = None,
         *,
         execute: ExecuteSkill | None = None,
         available: bool = True,
     ) -> None:
-        self._induce = induce
         self._execute = execute
         self.available = available
         self.watching: list[str] = []
@@ -408,18 +404,6 @@ class FakeDurableExecution:
         """One entry per call, whose name is on the write. A trigger's author
         and the person who approved one of its fires are different people, and
         which of them a run carries is the point of the confirmation queue."""
-
-    async def induce_skill(
-        self,
-        ctx: RequestContext,
-        *,
-        first: RecordingId,
-        second: RecordingId | None = None,
-        name: str | None = None,
-    ) -> InducedSkill:
-        if self._induce is None:
-            raise NotImplementedError("this fake was not given induction")
-        return await self._induce.execute(ctx, first=first, second=second, name=name)
 
     async def execute_skill(
         self,
@@ -2478,11 +2462,9 @@ class FakeUnitOfWork:
     same 500 by another route.
 
     Do not close it by resetting `_entered` in `__aexit__`. That is the
-    obvious move and it is a trap: `InduceSkill.execute` runs `AskAbout`'s
-    whole block from inside its own on this shared instance, and the
-    stickiness is what lets it. Adding the reset fails five
-    `test_the_whole_way_through` journey tests on `'skills' before
-    __aenter__`. Closing it properly means handing each use case its own
+    obvious move and it is a trap: a use case that runs another's whole block
+    from inside its own on this shared instance relies on the stickiness.
+    Closing it properly means handing each use case its own
     instance over one shared store, which is more change than the gap is
     worth."""
 

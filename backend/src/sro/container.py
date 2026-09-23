@@ -65,8 +65,6 @@ from sro.application.execution.workflow_runs import (
     ListWorkflowRuns,
     StartWorkflowRun,
 )
-from sro.application.induction.induce_skill import InduceSkill
-from sro.application.induction.seed_from_flow import SeedSkillFromFlow
 from sro.application.induction.understand import UnderstandRecording
 from sro.application.intent.narrow import NarrowARead
 from sro.application.intent.next_steps import SuggestNext
@@ -586,18 +584,8 @@ class Container:
     def finish_recording(self) -> FinishRecording:
         return FinishRecording(self.unit_of_work(), self.browser, self.clock)
 
-    def induce_skill(self) -> InduceSkill:
-        return InduceSkill(
-            self.unit_of_work(), self.clock, self.ids, self.ask_about(), self.interpreter
-        )
-
     def understand_recording(self) -> UnderstandRecording:
         return UnderstandRecording(self.unit_of_work(), self.interpreter, self.clock, self.ids)
-
-    def seed_skill_from_flow(self) -> SeedSkillFromFlow:
-        return SeedSkillFromFlow(
-            self.unit_of_work(), self.clock, self.ids, self.understand_recording()
-        )
 
     def promote_skill(self) -> PromoteSkill:
         return PromoteSkill(self.unit_of_work(), self.clock)

@@ -22,24 +22,6 @@ from sro.domain.shared.identifiers import (
 
 
 @dataclass
-class InductionRequest:
-    tenant_id: str
-    principal_id: str
-    first_recording_id: str
-    second_recording_id: str = ""
-    name: str | None = None
-
-
-@dataclass
-class InductionResult:
-    skill_id: str
-    version: int
-    step_count: int
-    input_parameter_count: int
-    derived_parameter_count: int
-
-
-@dataclass
 class StartRunRequest:
     tenant_id: str
     principal_id: str
@@ -97,28 +79,6 @@ class TriggerResult:
 class Activities:
     def __init__(self, container: Container) -> None:
         self._container = container
-
-    @activity.defn(name="induce_skill")
-    async def induce_skill(self, request: InductionRequest) -> InductionResult:
-        ctx = RequestContext(
-            tenant_id=TenantId(request.tenant_id),
-            principal_id=PrincipalId(request.principal_id),
-        )
-        induced = await self._container.induce_skill().execute(
-            ctx,
-            first=RecordingId(request.first_recording_id),
-            second=(
-                RecordingId(request.second_recording_id) if request.second_recording_id else None
-            ),
-            name=request.name,
-        )
-        return InductionResult(
-            skill_id=induced.skill_id.value,
-            version=induced.version,
-            step_count=induced.step_count,
-            input_parameter_count=induced.input_parameter_count,
-            derived_parameter_count=induced.derived_parameter_count,
-        )
 
     @activity.defn(name="abandon_stale_recording")
     async def abandon_stale_recording(self, request: ReapRequest) -> bool:

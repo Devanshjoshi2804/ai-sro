@@ -15,7 +15,7 @@ FRONTEND := cd frontend &&
 .DEFAULT_GOAL := help
 .PHONY: help up down ps logs reset install migrate revision api worker status web vault-key one-whole-run \
         lint lint-backend lint-frontend format test test-unit test-integration \
-        test-contract test-browser types check ingest-kb seed-skills gen-recorder \
+        test-contract test-browser types check ingest-kb gen-recorder \
         mutants-backend images smoke gen-deployment
 
 help: ## Show this help
@@ -80,9 +80,6 @@ web: ## Run the Next.js dev server on :3000
 
 ingest-kb: ## Load the recorded Blue Yonder knowledge base: make ingest-kb [tenant=acme]
 	$(BACKEND) uv run python -m sro.infrastructure.knowledge.ingest $(or $(tenant),acme)
-
-seed-skills: ## Turn recorded flows into skills, no teaching required: make seed-skills [tenant=acme]
-	$(BACKEND) uv run python -m sro.infrastructure.knowledge.seed_skills $(or $(tenant),acme)
 
 auth-secret: ## Generate a signing key for this deployment's own credentials
 	@python3 -c "import secrets; print('SRO_AUTH_SECRET=' + secrets.token_urlsafe(48))"

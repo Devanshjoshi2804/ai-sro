@@ -9,8 +9,6 @@ from temporalio.common import RetryPolicy
 
 with workflow.unsafe.imports_passed_through():
     from sro.infrastructure.temporal.activities import (
-        InductionRequest,
-        InductionResult,
         ReapRequest,
         StartedRun,
         StartRunRequest,
@@ -19,25 +17,6 @@ with workflow.unsafe.imports_passed_through():
         TriggerRequest,
         TriggerResult,
     )
-
-_INDUCTION_RETRY = RetryPolicy(
-    initial_interval=timedelta(seconds=2),
-    maximum_attempts=3,
-    non_retryable_error_types=["InductionFailed"],
-)
-
-
-@workflow.defn
-class InductionWorkflow:
-    @workflow.run
-    async def run(self, request: InductionRequest) -> InductionResult:
-        result: InductionResult = await workflow.execute_activity(
-            "induce_skill",
-            request,
-            start_to_close_timeout=timedelta(minutes=5),
-            retry_policy=_INDUCTION_RETRY,
-        )
-        return result
 
 
 @workflow.defn

@@ -18,8 +18,6 @@ from temporalio.client import Client
 from temporalio.worker import Worker
 
 from sro.application.context import RequestContext
-from sro.application.induction.errors import InductionFailed
-from sro.application.ports.repositories import UnitOfWork
 from sro.config import Settings
 from sro.container import Container, build_container
 from sro.domain.recording.recording import RecordingStatus
@@ -27,7 +25,7 @@ from sro.domain.shared.identifiers import BrowserSessionId, RecordingId
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from sro.infrastructure.temporal.activities import Activities
 from sro.infrastructure.temporal.durable import TemporalDurableExecution
-from sro.infrastructure.temporal.workflows import InductionWorkflow, RecordingSessionWorkflow
+from sro.infrastructure.temporal.workflows import RecordingSessionWorkflow
 from sro.infrastructure.transcription.null import NullTranscriber
 from tests import factories as f
 from tests.unit.fakes import FakeBrowserProvider, FakeCredentialVault
@@ -78,70 +76,14 @@ def container(session_factory: async_sessionmaker[AsyncSession]) -> Container:
 @pytest.fixture
 async def worker(temporal_client: Client, container: Container) -> AsyncIterator[None]:
     activities = Activities(container)
-    default = Worker(
-        temporal_client,
-        task_queue=TEST_DEFAULT_QUEUE,
-        workflows=[InductionWorkflow],
-        activities=[activities.induce_skill],
-    )
     browser = Worker(
         temporal_client,
         task_queue=TEST_BROWSER_QUEUE,
         workflows=[RecordingSessionWorkflow],
         activities=[activities.abandon_stale_recording, activities.close_browser_session],
     )
-    async with default, browser:
+    async with browser:
         yield
-
-
-async def _seal_two_runs(uow: UnitOfWork) -> tuple[str, str]:
-    runs = []
-    for index, value in enumerate(("W-1001", "W-2002")):
-        recording = f.recording(frames=0, id=RecordingId(f"rec-temporal-{index}"))
-        recording.append_frame(
-            f.frame(requests=(f.request(url=f"https://wms.test/api/waves/{value}/release"),))
-        )
-        recording.seal(f.at(300))
-        async with uow as unit:
-            await unit.recordings.add(recording)
-            await unit.commit()
-        runs.append(recording.id.value)
-    return runs[0], runs[1]
-
-
-class TestInduction:
-    async def test_induction_runs_through_the_workflow(
-        self, worker: None, container: Container, session_factory: async_sessionmaker[AsyncSession]
-    ) -> None:
-        first, second = await _seal_two_runs(SqlUnitOfWork(session_factory))
-
-        induced = await container.durable.induce_skill(
-            CTX,
-            first=RecordingId(first),
-            second=RecordingId(second),
-        )
-
-        assert induced.version == 1
-        assert induced.step_count == 1
-        # The wave id varies between the runs, so it must be a parameter.
-        assert induced.input_parameter_count == 1
-
-        async with SqlUnitOfWork(session_factory) as unit:
-            stored = await unit.skills.get(f.TENANT, induced.skill_id)
-        assert stored.latest.version == 1
-
-    async def test_a_bad_pair_fails_the_caller_rather_than_retrying_forever(
-        self, worker: None, container: Container, session_factory: async_sessionmaker[AsyncSession]
-    ) -> None:
-        first, _ = await _seal_two_runs(SqlUnitOfWork(session_factory))
-
-        with pytest.raises(InductionFailed) as failure:
-            await container.durable.induce_skill(
-                CTX, first=RecordingId(first), second=RecordingId(first)
-            )
-
-        # The supervisor has to read this. "Activity task failed" is not a reason.
-        assert "two different recordings" in str(failure.value)
 
 
 class TestSessionDeadline:

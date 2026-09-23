@@ -10,12 +10,6 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/a
 > Domain objects stay behind the use case, so a change to an aggregate never
 > invalidates a workflow history.
 
-## `InductionRequest`, [line 29](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L29): Note on the line above
-
-Code: `second_recording_id: str = ""`
-
-> Empty when the operator induced from a single demonstration.
-
 ## `StartRunRequest`, [line 51](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L51): Note on the line above
 
 Code: `run_id: str = ""`

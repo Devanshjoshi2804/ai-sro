@@ -16,7 +16,6 @@ from sro.infrastructure.temporal.activities import Activities
 from sro.infrastructure.temporal.queues import BROWSER_QUEUE, DEFAULT_QUEUE
 from sro.infrastructure.temporal.workflows import (
     ExecutionWorkflow,
-    InductionWorkflow,
     RecordingSessionWorkflow,
     TriggerWorkflow,
 )
@@ -119,9 +118,8 @@ async def run() -> None:
         client,
         identity=me,
         task_queue=DEFAULT_QUEUE,
-        workflows=[InductionWorkflow, ExecutionWorkflow, TriggerWorkflow],
+        workflows=[ExecutionWorkflow, TriggerWorkflow],
         activities=[
-            activities.induce_skill,
             activities.start_run,
             activities.execute_step,
             activities.finish_run,

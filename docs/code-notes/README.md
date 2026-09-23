@@ -99,26 +99,17 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/execution/workflow_runs.py`](backend/src/sro/application/execution/workflow_runs.py.md) | 74 |
 | [`backend/src/sro/application/induction/assertions.py`](backend/src/sro/application/induction/assertions.py.md) | 4 |
 | [`backend/src/sro/application/induction/binding.py`](backend/src/sro/application/induction/binding.py.md) | 9 |
-| [`backend/src/sro/application/induction/capabilities.py`](backend/src/sro/application/induction/capabilities.py.md) | 16 |
-| [`backend/src/sro/application/induction/companions.py`](backend/src/sro/application/induction/companions.py.md) | 12 |
-| [`backend/src/sro/application/induction/describe.py`](backend/src/sro/application/induction/describe.py.md) | 5 |
 | [`backend/src/sro/application/induction/diff.py`](backend/src/sro/application/induction/diff.py.md) | 87 |
 | [`backend/src/sro/application/induction/emit.py`](backend/src/sro/application/induction/emit.py.md) | 4 |
 | [`backend/src/sro/application/induction/errors.py`](backend/src/sro/application/induction/errors.py.md) | 1 |
-| [`backend/src/sro/application/induction/frequency.py`](backend/src/sro/application/induction/frequency.py.md) | 7 |
 | [`backend/src/sro/application/induction/headers.py`](backend/src/sro/application/induction/headers.py.md) | 7 |
-| [`backend/src/sro/application/induction/induce_skill.py`](backend/src/sro/application/induction/induce_skill.py.md) | 63 |
 | [`backend/src/sro/application/induction/jsonutil.py`](backend/src/sro/application/induction/jsonutil.py.md) | 7 |
 | [`backend/src/sro/application/induction/locators.py`](backend/src/sro/application/induction/locators.py.md) | 4 |
-| [`backend/src/sro/application/induction/lookups.py`](backend/src/sro/application/induction/lookups.py.md) | 25 |
-| [`backend/src/sro/application/induction/loops.py`](backend/src/sro/application/induction/loops.py.md) | 18 |
 | [`backend/src/sro/application/induction/naming.py`](backend/src/sro/application/induction/naming.py.md) | 8 |
 | [`backend/src/sro/application/induction/narration.py`](backend/src/sro/application/induction/narration.py.md) | 5 |
-| [`backend/src/sro/application/induction/seed_from_flow.py`](backend/src/sro/application/induction/seed_from_flow.py.md) | 4 |
 | [`backend/src/sro/application/induction/sites.py`](backend/src/sro/application/induction/sites.py.md) | 20 |
 | [`backend/src/sro/application/induction/transform.py`](backend/src/sro/application/induction/transform.py.md) | 6 |
 | [`backend/src/sro/application/induction/understand.py`](backend/src/sro/application/induction/understand.py.md) | 16 |
-| [`backend/src/sro/application/induction/version.py`](backend/src/sro/application/induction/version.py.md) | 2 |
 | [`backend/src/sro/application/intent/match.py`](backend/src/sro/application/intent/match.py.md) | 18 |
 | [`backend/src/sro/application/intent/narrow.py`](backend/src/sro/application/intent/narrow.py.md) | 27 |
 | [`backend/src/sro/application/intent/next_steps.py`](backend/src/sro/application/intent/next_steps.py.md) | 15 |
@@ -164,7 +155,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/ports/capture.py`](backend/src/sro/application/ports/capture.py.md) | 4 |
 | [`backend/src/sro/application/ports/channel.py`](backend/src/sro/application/ports/channel.py.md) | 2 |
 | [`backend/src/sro/application/ports/dispatch.py`](backend/src/sro/application/ports/dispatch.py.md) | 4 |
-| [`backend/src/sro/application/ports/durable.py`](backend/src/sro/application/ports/durable.py.md) | 5 |
+| [`backend/src/sro/application/ports/durable.py`](backend/src/sro/application/ports/durable.py.md) | 4 |
 | [`backend/src/sro/application/ports/embedding.py`](backend/src/sro/application/ports/embedding.py.md) | 3 |
 | [`backend/src/sro/application/ports/http.py`](backend/src/sro/application/ports/http.py.md) | 4 |
 | [`backend/src/sro/application/ports/intent.py`](backend/src/sro/application/ports/intent.py.md) | 12 |
@@ -345,7 +336,6 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/infrastructure/knowledge/catalogue.py`](backend/src/sro/infrastructure/knowledge/catalogue.py.md) | 12 |
 | [`backend/src/sro/infrastructure/knowledge/embedding.py`](backend/src/sro/infrastructure/knowledge/embedding.py.md) | 5 |
 | [`backend/src/sro/infrastructure/knowledge/ingest.py`](backend/src/sro/infrastructure/knowledge/ingest.py.md) | 4 |
-| [`backend/src/sro/infrastructure/knowledge/seed_skills.py`](backend/src/sro/infrastructure/knowledge/seed_skills.py.md) | 1 |
 | [`backend/src/sro/infrastructure/knowledge/write_endpoints.py`](backend/src/sro/infrastructure/knowledge/write_endpoints.py.md) | 6 |
 | [`backend/src/sro/infrastructure/mcp/client.py`](backend/src/sro/infrastructure/mcp/client.py.md) | 14 |
 | [`backend/src/sro/infrastructure/mcp/server.py`](backend/src/sro/infrastructure/mcp/server.py.md) | 3 |
@@ -359,12 +349,12 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/infrastructure/steel/video.py`](backend/src/sro/infrastructure/steel/video.py.md) | 13 |
 | [`backend/src/sro/infrastructure/system.py`](backend/src/sro/infrastructure/system.py.md) | 2 |
 | [`backend/src/sro/infrastructure/telemetry/otel.py`](backend/src/sro/infrastructure/telemetry/otel.py.md) | 5 |
-| [`backend/src/sro/infrastructure/temporal/activities.py`](backend/src/sro/infrastructure/temporal/activities.py.md) | 10 |
-| [`backend/src/sro/infrastructure/temporal/durable.py`](backend/src/sro/infrastructure/temporal/durable.py.md) | 11 |
+| [`backend/src/sro/infrastructure/temporal/activities.py`](backend/src/sro/infrastructure/temporal/activities.py.md) | 9 |
+| [`backend/src/sro/infrastructure/temporal/durable.py`](backend/src/sro/infrastructure/temporal/durable.py.md) | 9 |
 | [`backend/src/sro/infrastructure/temporal/queues.py`](backend/src/sro/infrastructure/temporal/queues.py.md) | 1 |
 | [`backend/src/sro/infrastructure/temporal/schedules.py`](backend/src/sro/infrastructure/temporal/schedules.py.md) | 5 |
 | [`backend/src/sro/infrastructure/temporal/worker.py`](backend/src/sro/infrastructure/temporal/worker.py.md) | 9 |
-| [`backend/src/sro/infrastructure/temporal/workflows.py`](backend/src/sro/infrastructure/temporal/workflows.py.md) | 14 |
+| [`backend/src/sro/infrastructure/temporal/workflows.py`](backend/src/sro/infrastructure/temporal/workflows.py.md) | 12 |
 | [`backend/src/sro/infrastructure/transcription/gemini.py`](backend/src/sro/infrastructure/transcription/gemini.py.md) | 3 |
 | [`backend/src/sro/infrastructure/transcription/null.py`](backend/src/sro/infrastructure/transcription/null.py.md) | 1 |
 | [`backend/src/sro/infrastructure/vault/file_vault.py`](backend/src/sro/infrastructure/vault/file_vault.py.md) | 2 |
@@ -403,10 +393,6 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/execution/read_runs.py:58`](backend/src/sro/application/execution/read_runs.py.md) | ponytail: in-process only. A device run and its socket live in one |
 | [`backend/src/sro/application/execution/workflow_runs.py:572`](backend/src/sro/application/execution/workflow_runs.py.md) | ponytail: in-process only. A run and the socket it drives live in one |
 | [`backend/src/sro/application/induction/diff.py:267`](backend/src/sro/application/induction/diff.py.md) | ponytail: this scores every run against every other run, so choosing the |
-| [`backend/src/sro/application/induction/frequency.py:18`](backend/src/sro/application/induction/frequency.py.md) | ponytail: closing it needs a per-doing record of which parameters each |
-| [`backend/src/sro/application/induction/induce_skill.py:205`](backend/src/sro/application/induction/induce_skill.py.md) | ponytail: per-run loop detection would let a looping task read |
-| [`backend/src/sro/application/induction/induce_skill.py:377`](backend/src/sro/application/induction/induce_skill.py.md) | ponytail: `optional` is still a proxy for the rest of it, and the proxy |
-| [`backend/src/sro/application/induction/induce_skill.py:518`](backend/src/sro/application/induction/induce_skill.py.md) | ponytail: dropping a paired step needs the mirror of `_moved` -- indices |
 | [`backend/src/sro/application/intent/resolve.py:28`](backend/src/sro/application/intent/resolve.py.md) | ponytail: when a library outgrows one page, this becomes a query -- the ranking |
 | [`backend/src/sro/application/lookup/run_lookups.py:74`](backend/src/sro/application/lookup/run_lookups.py.md) | ponytail: whole-store scan; a `calls_for_path` query if a tenant's |
 | [`backend/src/sro/application/observation/ingest.py:152`](backend/src/sro/application/observation/ingest.py.md) | ponytail: the daily byte budget is enforced in the extension only. |
@@ -415,7 +401,6 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/observation/mining_pass.py:282`](backend/src/sro/application/observation/mining_pass.py.md) | ponytail: two genuinely distinct controls that varied over the same value |
 | [`backend/src/sro/application/observation/mining_pass.py:350`](backend/src/sro/application/observation/mining_pass.py.md) | ponytail: this reads the tenant's WHOLE HISTORY, not a day. Neither |
 | [`backend/src/sro/application/observation/mining_pass.py:571`](backend/src/sro/application/observation/mining_pass.py.md) | ponytail: whole-store read per workflow; a `between(first, last)` |
-| [`backend/src/sro/application/observation/propose.py:326`](backend/src/sro/application/observation/propose.py.md) | ponytail: whole-tenant read, indexed in memory. One sweep, not one per |
 | [`backend/src/sro/application/observation/read_gesture.py:65`](backend/src/sro/application/observation/read_gesture.py.md) | ponytail: a process-local lock, because this runs in one process. Claim |
 | [`backend/src/sro/application/observation/read_gesture.py:139`](backend/src/sro/application/observation/read_gesture.py.md) | ponytail: this reads the tenant's WHOLE HISTORY, not a day. Neither |
 | [`backend/src/sro/application/ports/repositories.py:122`](backend/src/sro/application/ports/repositories.py.md) | ponytail: whole rows, and the caller judges each one with the same |

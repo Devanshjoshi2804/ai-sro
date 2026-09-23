@@ -1,4 +1,4 @@
-"""Skill endpoints: induce from two recordings, review, promote."""
+"""Skill endpoints: review, promote."""
 
 from __future__ import annotations
 
@@ -15,8 +15,6 @@ from sro.interface.http.schemas import (
     ChoiceModel,
     DemonstrationModel,
     DescribeRequest,
-    InduceSkillRequest,
-    InductionResponse,
     MapStepRequest,
     PromoteRequest,
     SkillDetail,
@@ -50,32 +48,6 @@ async def choices(
         ctx, skill_id=SkillId(skill_id), parameter=parameter, version=version, like=q
     )
     return [ChoiceModel(value=choice.value, label=choice.label) for choice in found]
-
-
-@router.post("/induct", status_code=status.HTTP_201_CREATED)
-async def induce_skill(
-    body: InduceSkillRequest, container: ContainerDep, ctx: ContextDep
-) -> InductionResponse:
-    """Two runs to one skill version.
-
-    Runs through Temporal rather than in the request: a failed induction keeps a
-    history worth reading, and a retry starts from the sealed recordings rather
-    than from a browser session nobody can reproduce. The caller still waits --
-    induction takes milliseconds -- but the work is not lost if this process is.
-    """
-    induced = await container.durable.induce_skill(
-        ctx,
-        first=RecordingId(body.first_recording_id),
-        second=RecordingId(body.second_recording_id) if body.second_recording_id else None,
-        name=body.name,
-    )
-    return InductionResponse(
-        skill_id=induced.skill_id.value,
-        version=induced.version,
-        step_count=induced.step_count,
-        input_parameter_count=induced.input_parameter_count,
-        derived_parameter_count=induced.derived_parameter_count,
-    )
 
 
 @router.post("/understand", status_code=status.HTTP_201_CREATED)

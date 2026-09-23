@@ -1322,31 +1322,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/skills/induct": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Induce Skill
-         * @description Two runs to one skill version.
-         *
-         *     Runs through Temporal rather than in the request: a failed induction keeps a
-         *     history worth reading, and a retry starts from the sealed recordings rather
-         *     than from a browser session nobody can reproduce. The caller still waits --
-         *     induction takes milliseconds -- but the work is not lost if this process is.
-         */
-        post: operations["induce_skill_v1_skills_induct_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/skills/understand": {
         parameters: {
             query?: never;
@@ -3482,28 +3457,6 @@ export interface components {
             policy: components["schemas"]["ObservationPolicyModel"] | null;
             /** Pause */
             pause: boolean;
-        };
-        /** InduceSkillRequest */
-        InduceSkillRequest: {
-            /** First Recording Id */
-            first_recording_id: string;
-            /** Second Recording Id */
-            second_recording_id?: string | null;
-            /** Name */
-            name?: string | null;
-        };
-        /** InductionResponse */
-        InductionResponse: {
-            /** Skill Id */
-            skill_id: string;
-            /** Version */
-            version: number;
-            /** Step Count */
-            step_count: number;
-            /** Input Parameter Count */
-            input_parameter_count: number;
-            /** Derived Parameter Count */
-            derived_parameter_count: number;
         };
         /** KnowledgeEntryModel */
         KnowledgeEntryModel: {
@@ -12570,132 +12523,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChoiceModel"][];
-                };
-            };
-            /** @description No credential, or one this deployment rejects. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-            /** @description No such thing, or not yours. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-            /** @description The system's state says no, not the request. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-            /** @description The request cannot be processed as asked. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-            /** @description Something this depends on is unavailable. */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-        };
-    };
-    induce_skill_v1_skills_induct_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InduceSkillRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InductionResponse"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

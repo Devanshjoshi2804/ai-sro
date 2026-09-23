@@ -25,6 +25,7 @@ from sro.application.analytics.audit import ReadAudit
 from sro.application.capture.devices import ReadRoster, RestoreDevice, RevokeDevice
 from sro.application.context import RequestContext
 from sro.application.skill.record_offer import RecordOffer
+from sro.application.skill.retire_workflow import RetireWorkflow
 from sro.application.skill.serve_shapes import ServeShapes
 from sro.container import Container
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
@@ -432,3 +433,15 @@ def test_an_asker_that_is_not_the_sdk_is_handed_back_untouched() -> None:
 
     assert _patient_asker_for(Settings(_env_file=None), fake) is fake
     assert _patient_asker_for(Settings(_env_file=None), None) is None
+
+
+def test_retiring_a_job_is_handed_the_containers_store_and_clock(
+    container: Container, uow: FakeUnitOfWork
+) -> None:
+    """A retirement stamped by a clock nobody can move, or written to a store
+    of its own, is one no test can see."""
+    retire = container.retire_workflow()
+
+    assert isinstance(retire, RetireWorkflow)
+    assert retire._uow is uow
+    assert retire._clock is container.clock

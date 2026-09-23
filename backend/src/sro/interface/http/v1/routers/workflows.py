@@ -41,7 +41,6 @@ from __future__ import annotations
 
 from fastapi import APIRouter, status
 
-from sro.application.skill.retire_workflow import RetireWorkflow
 from sro.interface.http.asking import AskingDeviceDep, TenantOnly
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
@@ -84,9 +83,7 @@ async def retire_workflow(container: ContainerDep, ctx: ContextDep, workflow_id:
     A job this tenant does not have, or has already retired, is a 404.
     Tenant-only: which jobs a deployment keeps is not a browser's decision.
     """
-    await RetireWorkflow(container.unit_of_work(), container.clock).execute(
-        ctx, workflow_id=workflow_id
-    )
+    await container.retire_workflow().execute(ctx, workflow_id=workflow_id)
 
 
 @router.get("/workflows/{workflow_id}/taught", dependencies=[TenantOnly])

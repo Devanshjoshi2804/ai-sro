@@ -149,6 +149,7 @@ from sro.application.skill.read_skills import GetSkill, ListSkills
 from sro.application.skill.read_workflows import ReadEvidence, ReadWorkflows
 from sro.application.skill.record_offer import RecordOffer
 from sro.application.skill.repair_drift import RepairDrift
+from sro.application.skill.retire_workflow import RetireWorkflow
 from sro.application.skill.serve_shapes import ServeShapes
 from sro.application.trigger.answer_confirmation import (
     AnswerConfirmation,
@@ -299,6 +300,9 @@ class Container:
 
     def read_workflows(self) -> ReadWorkflows:
         return ReadWorkflows(self.unit_of_work())
+
+    def retire_workflow(self) -> RetireWorkflow:
+        return RetireWorkflow(self.unit_of_work(), self.clock)
 
     def read_evidence(self) -> ReadEvidence:
         return ReadEvidence(self.unit_of_work())

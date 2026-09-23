@@ -696,6 +696,50 @@ def test_the_other_mailboxes_this_system_knows_about_count_too() -> None:
     assert _served(_in_a_mailbox(by_id, host="outlook.office.com"), by_id) is None
 
 
+def test_a_mailbox_host_with_an_explicit_port_still_counts() -> None:
+    """The netloc is split on `:` before it is matched, so a host named with
+    its port is still the same mailbox."""
+    by_id = _evidence()
+
+    assert _served(_in_a_mailbox(by_id, host="mail.google.com:443"), by_id) is None
+
+
+def test_a_mailbox_system_still_counts_when_the_gesture_has_no_url() -> None:
+    """A tool step in the mailbox names its `system` and never its own `url`;
+    the fallback from `url` to `system` has to hold for it too."""
+    by_id = _evidence()
+    workflow = _in_a_mailbox(by_id)
+    for gesture in by_id.values():
+        gesture.url = None
+
+    assert _served(workflow, by_id) is None
+
+
+def test_the_gestures_own_url_decides_over_a_different_system() -> None:
+    """`system` is the channel a gesture went out on, not where it happened.
+    A job entirely inside the mailbox by its own `url`s counts even when
+    every gesture's `system` names the warehouse instead."""
+    by_id = _evidence()
+    workflow = _in_a_mailbox(by_id)
+    for gesture in by_id.values():
+        gesture.system = HOST
+
+    assert _served(workflow, by_id) is None
+
+
+def test_a_gesture_with_neither_a_url_nor_a_system_is_not_a_mailbox() -> None:
+    """`_all_in_a_mailbox` reads `url`, falling back to `system` -- and a
+    gesture that names neither is not read as being in the mailbox, so one
+    among an otherwise-mailbox job is enough to still serve it."""
+    by_id = _evidence()
+    workflow = _in_a_mailbox(by_id)
+    stray = _saver(by_id)
+    stray.url = None
+    stray.system = None
+
+    assert _served(workflow, by_id) is not None
+
+
 def test_a_job_that_reads_a_mail_and_then_acts_is_still_served() -> None:
     """The shape this whole system is for. Every gesture, not any: a job that
     reads a request and then does it in the warehouse cites gestures on both,

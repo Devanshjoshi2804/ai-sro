@@ -92,6 +92,10 @@ def test_an_accepted_session_with_a_rejected_request_is_a_token_not_a_login() ->
     found = diagnose(failure=None, status_code=403, redirected_off_host=False)
 
     assert found.remedy is Remedy.REFRESH_SESSION_CONTEXT
+    assert found.because == (
+        "the session was accepted and the request was not; on these systems that is "
+        "an anti-forgery token the page reissues"
+    )
 
 
 def test_a_control_that_moved_is_the_ladders_business_not_the_healers() -> None:
@@ -103,6 +107,9 @@ def test_a_control_that_moved_is_the_ladders_business_not_the_healers() -> None:
     )
 
     assert found.remedy is Remedy.ESCALATE_MEDIUM
+    assert found.because == (
+        "the control has moved; a rung that looks at the screen may still find it"
+    )
     # Nothing was sent: the executor could not find the control to send it
     # with. This is the assertion that was missing on three of the five
     # branches -- a mutation sweep on 2026-09-13 flipped `safe_for_writes` to
@@ -110,6 +117,31 @@ def test_a_control_that_moved_is_the_ladders_business_not_the_healers() -> None:
     # noticed. `safe_for_writes` is the one field in this module the docstring
     # calls non-negotiable, and `remedy` alone does not carry it.
     assert found.safe_for_writes
+
+
+def test_a_302_with_no_redirect_flag_still_reads_as_the_login_page() -> None:
+    """The redirect flag is one way to see the login page; an exact 302 with
+    no flag set is the other. The branch has to read the status on its own,
+    not only in combination with the flag."""
+    found = diagnose(
+        failure=FailureKind.ASSERTION_FAILED, status_code=302, redirected_off_host=False
+    )
+
+    assert found.remedy is Remedy.REFRESH_SESSION
+
+
+def test_a_missing_header_names_every_one_that_is_gone() -> None:
+    found = diagnose(
+        failure=FailureKind.CREDENTIAL_MISSING,
+        status_code=None,
+        redirected_off_host=False,
+        missing_headers=("csrf-encrypt-token", "x-session-context"),
+    )
+
+    assert found.because == (
+        "the executor holds no live value for csrf-encrypt-token, x-session-context, "
+        "which the application mints rather than stores"
+    )
 
 
 @pytest.mark.parametrize("status", [401, 419, 440])

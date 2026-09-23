@@ -255,7 +255,6 @@ async def plan_step(
     said = data.get("value")
     if action not in VALUED:
         asked = sorted(name for name in step.parameters if name in values)
-        wanted = values[asked[0]] if asked else ""
         if asked and not writes(step, {gesture.id: gesture for gesture in cited}):
             if not opened:
                 return Planned(
@@ -265,11 +264,10 @@ async def plan_step(
                     answer,
                     opens=True,
                 )
+            wanted = values[asked[0]]
             return Planned(
                 "ui.perform",
-                _clicking(
-                    [Locator("text", wanted, visible_only=True)], origin, allow_focus, starts_on
-                ),
+                _clicking([Locator("text", wanted)], origin, allow_focus, starts_on),
                 f"choosing {wanted} from the open list",
                 answer,
             )
@@ -345,7 +343,7 @@ async def plan_step(
             return Planned(
                 "ui.perform",
                 _clicking(
-                    [Locator("role_and_name", f"option|{option}", visible_only=True)],
+                    [Locator("role_and_name", f"option|{option}")],
                     origin,
                     allow_focus,
                     starts_on,

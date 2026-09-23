@@ -22,6 +22,7 @@ from urllib.parse import urlsplit
 
 from sro.application.execution.plan_step import ACTIONS, plan_by_sight, plan_step
 from sro.domain.execution.evidence import locators_for
+from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.planning import (
     PLAN_INSTRUCTIONS,
     PLAN_SCHEMA,
@@ -179,6 +180,84 @@ async def test_a_ui_plan_carries_the_evidence_locators_not_the_models() -> None:
     assert planned.payload["origin"] == "http://127.0.0.1:63319"
     assert planned.payload["allow_focus"] is True
     assert planned.answer.cost_usd == 0.0003
+
+
+async def test_a_learned_locator_leads_the_ladder_and_is_still_visible_only() -> None:
+    """A control this skill has already found once by a strategy that worked
+    is tried before the evidence's own ladder -- and still constrained to
+    what is visible, the same as every other rung."""
+    gesture = _typed()
+    planned = await plan_step(
+        step=Step(
+            order=0,
+            says="type the code",
+            system=None,
+            cites=[gesture.id],
+            parameters=["clientCode"],
+        ),
+        learned=LearnedStep(ord=0, strategy="css_path", query="input#clientCode", found_by="sight"),
+        cited=[gesture],
+        values={"clientCode": "THIRD"},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=FakeAsker(_answer(action="type", value="THIRD")),
+        model="m",
+    )
+
+    locators = planned.payload["locators"]
+    assert isinstance(locators, list)
+    assert locators[0] == {
+        "strategy": "css_path",
+        "query": "input#clientCode",
+        "within": None,
+        "visible_only": True,
+    }
+
+
+async def test_an_unusable_learned_locator_is_not_tried_at_all() -> None:
+    """`usable` is the gate: a learned step with no strategy or no query is
+    nothing to lead the ladder with, and the evidence's own ladder is used as
+    if nothing had been learned."""
+    gesture = _typed()
+    without_learning = await plan_step(
+        step=Step(
+            order=0,
+            says="type the code",
+            system=None,
+            cites=[gesture.id],
+            parameters=["clientCode"],
+        ),
+        cited=[gesture],
+        values={"clientCode": "THIRD"},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=FakeAsker(_answer(action="type", value="THIRD")),
+        model="m",
+    )
+    with_unusable_learning = await plan_step(
+        step=Step(
+            order=0,
+            says="type the code",
+            system=None,
+            cites=[gesture.id],
+            parameters=["clientCode"],
+        ),
+        learned=LearnedStep(ord=0, strategy="", query="", found_by="sight"),
+        cited=[gesture],
+        values={"clientCode": "THIRD"},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=FakeAsker(_answer(action="type", value="THIRD")),
+        model="m",
+    )
+
+    assert with_unusable_learning.payload["locators"] == without_learning.payload["locators"]
 
 
 async def test_a_step_declaring_nothing_is_aimed_at_the_box_the_run_has_a_value_for() -> None:
@@ -705,6 +784,7 @@ async def test_a_navigate_with_nowhere_to_go_is_not_a_navigate() -> None:
     for url in (None, "", 7):
         planned, _ = await _planned(cited=[gesture], answer=_answer(kind="navigate", url=url))
         assert (planned.kind, planned.payload) == ("none", {}), url
+        assert planned.why == "navigate with no url", url
 
 
 async def test_the_why_on_the_plan_is_the_models_own_and_empty_when_it_gave_none() -> None:
@@ -819,6 +899,9 @@ async def test_an_http_plan_aims_the_operators_body_at_this_runs_values() -> Non
 
     assert planned.kind == "http.send"
     assert json.loads(str(planned.payload["body"]))["clientCode"] == "THIRD"
+    assert planned.rewrote is True
+    assert planned.filled == {"clientCode": "clientCode"}
+    assert planned.confirm == {}
 
 
 async def test_a_body_that_cannot_be_aimed_downgrades_to_clicking_save() -> None:
@@ -845,10 +928,53 @@ async def test_a_body_that_cannot_be_aimed_downgrades_to_clicking_save() -> None
     assert "cannot be re-aimed" in planned.why
 
 
+async def test_a_value_that_would_pick_a_row_is_refused_when_the_step_also_writes() -> None:
+    """Opening the list first would perform this step's own write to find out
+    what is on it, and performing the recorded choice instead of the one
+    asked for would write the wrong thing -- so this step is refused by name."""
+    gesture = _saver()
+    planned, _ = await _planned(
+        cited=[gesture],
+        answer=_answer(action="click"),
+        step=Step(
+            order=3, says="pick the depot", system=None, cites=[gesture.id], parameters=["depot"]
+        ),
+        values={"depot": "D3"},
+    )
+
+    assert planned.kind == "none"
+    assert planned.why == (
+        "step 3 was given depot and a click cannot carry a value: this step also writes, so the "
+        "list cannot be opened first, and performing it would use the "
+        "recorded choice instead of the one asked for"
+    )
+    assert planned.answer is not None
+
+
+async def test_a_run_given_no_values_at_all_does_not_claim_a_body_could_not_be_aimed() -> None:
+    """Nothing to aim is not the same failure as a value that cannot be found
+    in the body -- the second message is reserved for the second case."""
+    first, second = _twice_over(sent="ACME", then="WIDGET")
+    step = Step(order=0, says="save", system=None, cites=[first.id, second.id])
+
+    planned, _ = await _planned(
+        cited=[first, second],
+        answer=_answer(kind="http.send"),
+        step=step,
+        values={},
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+        seen={"clientCode": frozenset({"ACME", "WIDGET"})},
+    )
+
+    assert "cannot be re-aimed" not in planned.why
+
+
 async def test_an_http_plan_for_a_step_whose_evidence_made_no_call_plans_nothing() -> None:
     gesture = _typed()  # a typed field; the recorder heard no traffic from it
     planned, _ = await _planned(cited=[gesture], answer=_answer(kind="http.send"))
     assert (planned.kind, planned.payload) == ("none", {})
+    assert planned.why == "http.send planned for a step whose evidence carries no call"
+    assert planned.answer is not None
 
 
 async def test_the_model_is_told_where_the_step_was_demonstrated_and_under_what_effort() -> None:
@@ -921,10 +1047,12 @@ async def test_a_rescue_is_shown_the_page_the_failed_attempt_left_behind() -> No
     assert asked["image"] == b"now-png", "the page as it is now is the first picture"
     assert asked["images"] == (b"left-png",), "the page the failed attempt left is the second"
     assert isinstance(asked["evidence"], str)
+    assert asked["evidence"].splitlines()[1] == '  "step": {', "pretty-printed at two spaces"
     evidence = json.loads(asked["evidence"])
     assert evidence["previous_attempt_failed"] == "the code was not typed"
     assert evidence["previous_attempt_left"]["screenshot"] == "the second image"
     assert evidence["previous_attempt_left"]["url"].endswith("?after")
+    assert evidence["previous_attempt_left"]["screen_text"] == "still empty"
 
 
 async def test_a_first_attempt_carries_no_second_picture() -> None:
@@ -1244,6 +1372,7 @@ async def test_a_value_a_click_cannot_carry_opens_the_list_first() -> None:
     assert planned.payload["starts_on"] == "http://127.0.0.1:63319/form"
     locators = planned.payload["locators"]
     assert isinstance(locators, list) and locators, "the evidence's own ladder opens it"
+    assert planned.answer is not None
 
 
 async def test_the_second_click_is_the_row_named_by_the_value_asked_for() -> None:
@@ -1258,6 +1387,10 @@ async def test_the_second_click_is_the_row_named_by_the_value_asked_for() -> Non
         {"strategy": "text", "query": "THIRD", "within": None, "visible_only": True}
     ]
     assert planned.payload["action"] == "click" and planned.payload["value"] is None
+    assert planned.payload["origin"] == "http://127.0.0.1:63319"
+    assert planned.payload["allow_focus"] is True
+    assert planned.payload["starts_on"] == "http://127.0.0.1:63319/form"
+    assert planned.answer is not None
 
 
 async def test_a_pick_that_may_not_take_the_screen_says_nothing_about_focus() -> None:
@@ -1510,6 +1643,7 @@ async def test_a_step_that_needs_a_password_nobody_stored_refuses_by_name() -> N
 
     assert planned.kind == "none"
     assert secret_key_for("new", field) in planned.why
+    assert planned.answer is not None
 
 
 async def test_a_run_with_no_vault_says_so_rather_than_typing_nothing() -> None:
@@ -1528,7 +1662,64 @@ async def test_a_run_with_no_vault_says_so_rather_than_typing_nothing() -> None:
     )
 
     assert planned.kind == "none"
+    assert planned.payload == {}
     assert "vault" in planned.why
+    assert planned.answer is not None
+
+
+async def test_a_password_key_defaults_to_no_tenant_when_none_is_given() -> None:
+    """A run with no tenant of its own still keys the vault lookup by
+    something -- an empty tenant segment, not a placeholder."""
+    field = _secret_field()
+    asked: list[str] = []
+
+    async def vault(key: str) -> str | None:
+        asked.append(key)
+        return "kept"
+
+    await plan_step(
+        step=Step(order=0, says="sign in", system=None, cites=[field.id]),
+        cited=[field],
+        values={},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=_says_type(),
+        model="m",
+        secret_for=vault,
+    )
+
+    assert asked == [secret_key_for("", field)]
+
+
+async def test_the_secret_key_falls_back_to_the_gestures_system_with_no_url() -> None:
+    """A step with no url of its own -- nothing the browser navigated to --
+    still has to be keyed by wherever it was demonstrated."""
+    field = copy.deepcopy(_secret_field())
+    field.url = None
+    field.page_url = None
+    asked: list[str] = []
+
+    async def vault(key: str) -> str | None:
+        asked.append(key)
+        return "kept"
+
+    await plan_step(
+        step=Step(order=0, says="sign in", system=None, cites=[field.id]),
+        cited=[field],
+        values={},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=_says_type(),
+        model="m",
+        tenant_id="new",
+        secret_for=vault,
+    )
+
+    assert asked == [secret_key_for("new", field)]
 
 
 async def test_a_step_that_needs_a_password_says_which_one_as_structure() -> None:

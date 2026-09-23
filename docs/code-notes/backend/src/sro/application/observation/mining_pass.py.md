@@ -591,6 +591,31 @@ Code: `in_pool = set(pooled_ids)`
 > gesture the budget dropped six times unreadable forever, and nothing ever
 > un-retires.
 
+## `_one_pass`, [line 370](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L370): Comment
+
+Code: `stored_cites = await uow.workflows.placed(tenant_id)`
+
+> What any stored job cites, retired ones included, is not read again --
+> neither as fresh evidence nor out of the pool. Every pass used to re-send
+> the gestures of every known job, so the model re-read and re-proposed the
+> jobs it had already found, at the price of the call, and each duplicate it
+> minted grew the known list the next pass paid to send as well.
+>
+> A new doing of a known job is new gestures, and those are read: that is
+> how the job is recognised and learns what varies. Nothing downstream needs
+> the old doing in the window -- `learn_parameters` and `_grow` read the
+> stored job's citations from `by_id`, the whole store, and `known` is
+> re-shaped from the same.
+>
+> Measured read-only on the local store, 2026-09-23: tenant `new` sent 104
+> already-cited gestures in a 254-gesture window; after, none, and the
+> budget went to 15 more unplaced ones. Where the unplaced backlog fits in
+> one window the prompt shrinks outright -- `rigproof`, 48K tokens to 16K.
+>
+> A pooled gesture a job has since cited is handed to `add_unclaimed` as
+> claimed, so it leaves the pool rather than waiting in it for a place it
+> will never be given.
+
 ## `_one_pass`, [line 392](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L392): Comment
 
 Code: `known = [`

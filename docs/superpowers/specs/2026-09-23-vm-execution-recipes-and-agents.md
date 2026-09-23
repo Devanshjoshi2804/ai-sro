@@ -181,6 +181,25 @@ In order: the status of the page's own call (CDP network events in Steel), then 
 
 Recipes that keep failing after repair are flagged for re-learning from the operator's next demonstration.
 
+### 6.4 Sessions: sign-in, expiry and recovery
+
+**Credentials.** A session signs in with the **username recorded in the job's sign-in evidence** and the **password from the vault** under the run-time key `{tenant}/{login origin}/password`, which is the key the panel's password box writes and the run engine reads. The connection-level keys (`{tenant}/{system}/username|password`) are empty in real data and must be retired in favour of that one scheme. After the POC, a service account replaces the operator's credentials (D9).
+
+**Edge cases the runner must handle**, each learned from what the extension observes the operator doing, never hardcoded per system:
+
+| Situation | How it shows | Handling |
+| --- | --- | --- |
+| Session expired between runs | First navigation lands on the identity provider | Session broker signs in (§3), then the run starts |
+| Session expired mid-run | A step's page is the identity provider, or a call answers 401 | Sign in, return to the step's page, **resume that step** (never from step 0) |
+| Stale CSRF token | A call answers 403/419, or the app says the request was rejected | Re-read the token from the page (or reload once), retry **reads** once; a **write** with an unknown outcome is never retried (§4.3) |
+| App state stale after a long idle | Controls missing, masks stuck, "loading" that never ends | Reload the page once, re-locate the step, then repair (§6.3) |
+| Bad request from a replayed call | 400 with a validation message | Stop the step, report the server's message, try the UI path once if the step has one |
+| Credentials refused | The credential form reappears after one submit | Stop; latch "credentials refused" on that vault key; ask the operator in the panel; no retries until a new password is stored |
+| MFA or a new prompt | Unknown form after sign-in | Stop and ask in the panel (D4) |
+| Account busy elsewhere | (measured not to happen on QA) | Parallel logins are allowed; re-measure per customer |
+
+**Monitoring feeds recovery.** When the operator recovers from one of these by hand in their own browser, the extension captures it, and the miner learns the recovery the same way it learns jobs, so the next run handles it without asking.
+
 ## 7. Agents and prompts
 
 ### 7.1 Roster

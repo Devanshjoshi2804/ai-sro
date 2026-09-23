@@ -9,6 +9,7 @@
       "secret": false,
       "text": "choose\nDock 3",
       "testId": null,
+      "required": null,
       "cssPath": "select#dock",
       "xpath": "/html/body[1]/form[1]/select[1]",
       "bounds": {
@@ -26,10 +27,10 @@
     "value": "D3",
     "secret": false,
     "modifiers": [],
-    "at": 1789915822.259,
-    "url": "http://127.0.0.1:51729/"
+    "at": 1790187506.493,
+    "url": "http://127.0.0.1:52399/"
   },
-  "tab_id": 247501454,
-  "frame_url": "http://127.0.0.1:51729/",
-  "page_url": "http://127.0.0.1:51729/"
+  "tab_id": 446238358,
+  "frame_url": "http://127.0.0.1:52399/",
+  "page_url": "http://127.0.0.1:52399/"
 }

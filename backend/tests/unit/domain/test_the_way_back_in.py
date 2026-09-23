@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from sro.domain.observation.gesture import Action, Gesture, PageMark
+from sro.domain.observation.gesture import Action, Gesture, PageMark, Target
 from sro.domain.skill.signing_in import sign_in_chain, signs_in_at
 from sro.domain.skill.workflow import Step, Workflow
 
@@ -135,12 +135,20 @@ def test_a_sign_in_that_crosses_hosts_is_the_way_in_where_it_starts() -> None:
 
 
 def _did(
-    gesture_id: str, url: str, at: float, kind: str = "click", *, secret: bool = False, to: str = ""
+    gesture_id: str,
+    url: str,
+    at: float,
+    kind: str = "click",
+    *,
+    secret: bool = False,
+    to: str = "",
+    field: str = "",
 ) -> Gesture:
+    target = Target(tag="input", css_path=field, secret=secret) if field else None
     return replace(
         _at(gesture_id, url),
         at=at,
-        action=Action(kind=kind, at=at, url=f"{url}/page", secret=secret),
+        action=Action(kind=kind, at=at, url=f"{url}/page", secret=secret, target=target),
         page_events=[PageMark(at=at, page_kind="load", url=f"{to}/landed")] if to else [],
     )
 
@@ -233,10 +241,11 @@ def test_the_cut_is_the_first_submit_in_time_not_in_step_order() -> None:
     assert chain[-1].cites == ["submit"]
 
 
-def test_a_credential_step_ordered_after_the_submit_is_kept() -> None:
+def test_a_credential_step_ordered_after_the_submit_is_replayed_before_it() -> None:
     """The deployed job files a `Type the password` step after the one that
-    first cites the password; what happened before the landing is the
-    sign-in, whatever order the steps were given."""
+    first cites the password. Replayed in step order, the submit would press
+    on an empty box and the password would be typed on the landed page; the
+    chain is replayed in the order it happened, the leaving submit last."""
     job, gestures = _azure()
     job.steps[2].order, job.steps[3].order = 3, 2
 
@@ -245,7 +254,49 @@ def test_a_credential_step_ordered_after_the_submit_is_kept() -> None:
     assert [step.says for step in chain] == [
         "Click the chooser",
         "Type the username",
-        "Sign in and open the portal",
         "Type the password",
+        "Sign in and open the portal",
     ]
-    assert chain[2].cites == ["submit"]
+    assert chain[-1].cites == ["submit"]
+
+
+def test_a_refused_submit_in_the_evidence_is_not_replayed() -> None:
+    """The deployed recording (`wfl_5873ec01`, step 2): the operator focused
+    the password box, typed, pressed Sign In and stayed on Keycloak, focused
+    again, retyped and pressed Enter -- also staying -- and only then the
+    Sign In that left. Replayed as recorded, the first submit goes in early.
+    The chain keeps the typing and the focusing, and submits once, last."""
+    job, gestures = _azure()
+    for one in (
+        _did("pw-box", KEYCLOAK, 3.5, secret=True, field="input#password"),
+        _did("pw", KEYCLOAK, 3.6, "type", secret=True, field="input#password"),
+        _did("early-sign-in", KEYCLOAK, 3.7, field="input#kc-login"),
+        _did("pw-box-again", KEYCLOAK, 3.8, secret=True, field="input#password"),
+        _did("pw-again", KEYCLOAK, 3.9, "type", secret=True, field="input#password"),
+        _did("enter", KEYCLOAK, 4.5, "press", secret=True, field="input#password"),
+    ):
+        gestures[one.id] = one
+    job.steps[2].cites = ["pw-box", "pw", "early-sign-in", "pw-box-again", "pw-again", "enter"]
+
+    chain = sign_in_chain(job, gestures)
+
+    assert chain[2].cites == ["pw-box", "pw", "pw-box-again", "pw-again"]
+    kept = [gestures[one] for step in chain for one in step.cites]
+    assert [one.id for one in kept if one.action.kind in ("click", "press")] == [
+        "chooser",
+        "user-box",
+        "pw-box",
+        "pw-box-again",
+        "submit",
+    ]
+    assert chain[-1].cites == ["submit"]
+
+
+def test_a_next_before_the_password_is_not_a_refused_submit() -> None:
+    """Identifier first on one host: the username page's Next stays, and it
+    is the way to the password box, not a refused attempt."""
+    job, gestures = _azure()
+    gestures["next"] = _did("next", KEYCLOAK, 3.2, field="input#next")
+    job.steps[1].cites = ["user-box", "user", "next"]
+
+    assert sign_in_chain(job, gestures)[1].cites == ["user-box", "user", "next"]

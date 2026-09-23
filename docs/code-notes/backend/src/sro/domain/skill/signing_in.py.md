@@ -112,12 +112,30 @@ Code: `_SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-action
 >   portal with only the submit's evidence.
 > - General: hosts via `passed_through`, never a host, page text or title.
 
-## `RecordedLogin`, [line 64](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L64): Class
+>
+> Fix round 2 (2026-09-24), reviewer rulings:
+>
+> - **Replay order.** Kept steps are replayed by the latest time among their
+>   kept gestures, ties by step order, and the step holding the leaving
+>   submit always last. In step order, a `Type the password` step filed
+>   after the submit's step would submit an empty box and then type the
+>   password on the landed page.
+> - **Refused attempts are not replayed.** After the credential was first
+>   typed, a submit on the leaving submit's host that stayed there
+>   (`_submits`: an Enter/NumpadEnter/empty press, or a click that is not on
+>   a field the job types into -- `_same_field`) is a refused attempt in the
+>   evidence and is dropped; typing and focusing stay. The deployed job's
+>   step 2 holds the operator's first Sign In (stayed on Keycloak) and an
+>   Enter in the password box; replayed, they submitted early. On the QA
+>   export the chain now types the username and password and submits once,
+>   with the Keycloak Sign In that left last. A Next before the password
+>   (identifier first) is before the credential and is kept.
+## `RecordedLogin`, [line 98](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L98): Class
 
 > What a recorded sign-in says about credentials: the origin the password was
 > typed on, which names its vault key, and the username typed before it.
 
-## `recorded_login`, [line 70](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L70): Docstring
+## `recorded_login`, [line 104](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L104): Docstring
 
 > The job that starts on the system's own page, when there is one
 > (`signs_in_at`); otherwise the only tagged sign-in job that carries a

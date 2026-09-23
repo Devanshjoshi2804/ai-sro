@@ -31,7 +31,11 @@ import pytest
 from sro.application.connection.check_session import CheckSession
 from sro.application.connection.connect_system import RefreshSession
 from sro.application.connection.keep_open import KeepSessionsOpen
-from sro.application.connection.refusals import ForgetsRefusalOnWrite, RefusedCredentials
+from sro.application.connection.refusals import (
+    ForgetsRefusalOnWrite,
+    RefusedCredentials,
+    fingerprint,
+)
 from sro.application.connection.sign_in import (
     PASSWORD,
     USERNAME,
@@ -494,11 +498,46 @@ async def test_a_count_for_the_old_password_never_refuses_a_new_one() -> None:
     gate.set()
     await failing
 
-    assert await RefusedCredentials(vault).standing(LOGIN_KEY) is None
+    assert await RefusedCredentials(vault).standing(LOGIN_KEY, "new") is None
     later = RunSecrets(vault, OneTimeSecrets(), run_id="run-c")
     await _fail_once(later, "new")
-    assert await RefusedCredentials(vault).standing(LOGIN_KEY) is None
+    assert await RefusedCredentials(vault).standing(LOGIN_KEY, "new") is None
     assert await later(LOGIN_KEY) == "new"
+
+
+async def test_a_refusal_written_after_a_new_password_does_not_refuse_it() -> None:
+    """The refusal is bound to the password it refused: one that lands just
+    after the operator stored a new password stands against the old one
+    only."""
+    raw = _SlowCount()
+    vault = ForgetsRefusalOnWrite(raw)
+    await vault.store(LOGIN_KEY, "old")
+    refusals = RefusedCredentials(vault)
+
+    await vault.store(LOGIN_KEY, "new")
+    await refusals.refuse(
+        LOGIN_KEY,
+        at=datetime.now(tz=UTC),
+        reason="refused",
+        fingerprint=fingerprint(LOGIN_KEY, "old"),
+    )
+
+    assert await refusals.standing(LOGIN_KEY, "old") is not None
+    assert await refusals.standing(LOGIN_KEY, "new") is None
+    assert await RunSecrets(vault, OneTimeSecrets(), run_id="run-1")(LOGIN_KEY) == "new"
+
+
+async def test_a_latched_password_is_refused_by_its_own_fingerprint() -> None:
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+    run = world.run()
+    await _fail_once(run)
+    await _fail_once(run)
+
+    standing = await world.refusals.standing(LOGIN_KEY, WRONG)
+    assert standing is not None
+    assert standing.fingerprint == fingerprint(LOGIN_KEY, WRONG)
+    assert WRONG not in standing.fingerprint
 
 
 async def test_a_held_password_is_not_counted_on_the_vault_key() -> None:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
 from datetime import datetime
@@ -9,30 +10,43 @@ from sro.application.ports.vault import CredentialVault
 MARK = "#refused"
 FAILED = "#failed"
 MARKS = (MARK, FAILED)
+FINGERPRINT = 12
+
+
+def fingerprint(key: str, value: str) -> str:
+    return hashlib.sha256(f"{key}\0{value}".encode()).hexdigest()[:FINGERPRINT]
 
 
 @dataclass(frozen=True, slots=True)
 class Refusal:
     at: datetime | None
     reason: str
+    fingerprint: str = ""
 
 
 class RefusedCredentials:
     def __init__(self, vault: CredentialVault) -> None:
         self._vault = vault
 
-    async def refuse(self, key: str, *, at: datetime, reason: str) -> None:
-        await self._vault.store(key + MARK, json.dumps({"at": at.isoformat(), "reason": reason}))
+    async def refuse(self, key: str, *, at: datetime, reason: str, fingerprint: str = "") -> None:
+        said = {"at": at.isoformat(), "reason": reason, "fingerprint": fingerprint}
+        await self._vault.store(key + MARK, json.dumps(said))
 
-    async def standing(self, key: str) -> Refusal | None:
+    async def standing(self, key: str, value: str | None = None) -> Refusal | None:
         said = await self._vault.get(key + MARK)
         if not said:
             return None
         try:
             body = json.loads(said)
-            return Refusal(at=datetime.fromisoformat(body["at"]), reason=str(body["reason"]))
-        except (ValueError, KeyError, TypeError):
+            refusal = Refusal(
+                at=datetime.fromisoformat(body["at"]),
+                reason=str(body["reason"]),
+                fingerprint=str(body.get("fingerprint") or ""),
+            )
+        except (ValueError, KeyError, TypeError, AttributeError):
             return Refusal(at=None, reason=said)
+        stale = value is not None and refusal.fingerprint not in ("", fingerprint(key, value))
+        return None if stale else refusal
 
 
 class FailedAttempts:

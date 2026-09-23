@@ -50,12 +50,15 @@ Code: `raise Conflict(`
 > job that recorded none, proceeds. The comparison ignores case (task 10,
 > 2026-09-24): identity providers match usernames case-insensitively, so
 > `OPERATOR-7` against a recorded `operator-7` is the same account, not a 409.
+> `SignIn.execute` checks and writes refusals with the password's
+> fingerprint (fix round 2), so a refusal only stands for the password it
+> refused.
 
 ## `SignIn`, [line 68](../../../../../../../backend/src/sro/application/connection/sign_in.py#L68): Docstring
 
 > Open a browser, sign in with what is stored, keep the session it produced.
 
-## `EnsureSignedIn`, [line 181](../../../../../../../backend/src/sro/application/connection/sign_in.py#L181): Docstring
+## `EnsureSignedIn`, [line 183](../../../../../../../backend/src/sro/application/connection/sign_in.py#L183): Docstring
 
 > A session, whatever it takes -- and nothing more than it takes.
 >
@@ -68,7 +71,7 @@ Code: `raise Conflict(`
 > 2026-09-23, two logins for the same account in separate browser contexts
 > both stayed valid; the behaviour stands on the reasons above without it.
 
-## `_is_a_login`, [line 230](../../../../../../../backend/src/sro/application/connection/sign_in.py#L230): Docstring
+## `_is_a_login`, [line 232](../../../../../../../backend/src/sro/application/connection/sign_in.py#L232): Docstring
 
 > Whether this skill is somebody signing in.
 >
@@ -76,7 +79,7 @@ Code: `raise Conflict(`
 > the system name was derived properly is still a demonstration of this
 > login.
 
-## `SignIn._chooser`, [line 135](../../../../../../../backend/src/sro/application/connection/sign_in.py#L135): Docstring
+## `SignIn._chooser`, [line 137](../../../../../../../backend/src/sro/application/connection/sign_in.py#L137): Docstring
 
 > What a demonstration of this login clicked before the form appeared.
 >
@@ -86,7 +89,7 @@ Code: `raise Conflict(`
 > choosing rather than guessed at -- and where nobody has demonstrated a
 > login, nothing is chosen and the driver behaves as before.
 
-## `EnsureSignedIn.for_url`, [line 196](../../../../../../../backend/src/sro/application/connection/sign_in.py#L196): Docstring
+## `EnsureSignedIn.for_url`, [line 198](../../../../../../../backend/src/sro/application/connection/sign_in.py#L198): Docstring
 
 > Same, for a caller that knows an address and not a system name.
 >
@@ -94,11 +97,11 @@ Code: `raise Conflict(`
 > connected system that belongs to is ours to work out, not theirs to
 > declare.
 
-## `EnsureSignedIn.execute`, [line 202](../../../../../../../backend/src/sro/application/connection/sign_in.py#L202): Docstring
+## `EnsureSignedIn.execute`, [line 204](../../../../../../../backend/src/sro/application/connection/sign_in.py#L204): Docstring
 
 > True if the system is open. False only when nobody can be asked.
 
-## `SignIn.execute`, [line 117](../../../../../../../backend/src/sro/application/connection/sign_in.py#L117): Comment
+## `SignIn.execute`, [line 119](../../../../../../../backend/src/sro/application/connection/sign_in.py#L119): Comment
 
 Code: `await self._browser.close(session.id)`
 
@@ -106,13 +109,13 @@ Code: `await self._browser.close(session.id)`
 > it open would hold the provider's only slot against the next
 > demonstration.
 
-## `SignIn.execute`, [line 124](../../../../../../../backend/src/sro/application/connection/sign_in.py#L124): Comment
+## `SignIn.execute`, [line 126](../../../../../../../backend/src/sro/application/connection/sign_in.py#L126): Comment
 
 Code: `if self._life is not None and self._clock is not None:`
 
 > The clock this session is measured against starts here.
 
-## `SignIn._chooser`, [line 139](../../../../../../../backend/src/sro/application/connection/sign_in.py#L139): Comment
+## `SignIn._chooser`, [line 141](../../../../../../../backend/src/sro/application/connection/sign_in.py#L141): Comment
 
 Code: `matching = [s for s in skills if _is_a_login(s)]`
 
@@ -122,14 +125,14 @@ Code: `matching = [s for s in skills if _is_a_login(s)]`
 > belongs to another system costs nothing -- the driver clicks only text
 > that is actually on the page in front of it.
 
-## `EnsureSignedIn.execute`, [line 205](../../../../../../../backend/src/sro/application/connection/sign_in.py#L205): Comment
+## `EnsureSignedIn.execute`, [line 207](../../../../../../../backend/src/sro/application/connection/sign_in.py#L207): Comment
 
 Code: `return False`
 
 > An outage is not a login problem, and signing in during one only
 > burns the credentials against a system that cannot answer.
 
-## `EnsureSignedIn.execute`, [line 207](../../../../../../../backend/src/sro/application/connection/sign_in.py#L207): Comment
+## `EnsureSignedIn.execute`, [line 209](../../../../../../../backend/src/sro/application/connection/sign_in.py#L209): Comment
 
 Code: `if await self._ageing(ctx, target_system):`
 
@@ -137,13 +140,13 @@ Code: `if await self._ageing(ctx, target_system):`
 > about to be asked of it. Replacing it here costs one login;
 > finding out halfway through a batch costs the batch.
 
-## `EnsureSignedIn.execute`, [line 211](../../../../../../../backend/src/sro/application/connection/sign_in.py#L211): Inline
+## `EnsureSignedIn.execute`, [line 213](../../../../../../../backend/src/sro/application/connection/sign_in.py#L213): Inline
 
 Code: `return True`
 
 > the session we have still works
 
-## `EnsureSignedIn.execute`, [line 217](../../../../../../../backend/src/sro/application/connection/sign_in.py#L217): Comment
+## `EnsureSignedIn.execute`, [line 219](../../../../../../../backend/src/sro/application/connection/sign_in.py#L219): Comment
 
 Code: `await self._life.died(ctx, system=target_system, at=self._clock.now())`
 
@@ -152,7 +155,7 @@ Code: `await self._life.died(ctx, system=target_system, at=self._clock.now())`
 
 ## `SignIn.execute`, [line 95](../../../../../../../backend/src/sro/application/connection/sign_in.py#L95): Comment
 
-Code: `if (standing := await refusals.standing(key)) is not None:`
+Code: `if (standing := await refusals.standing(key, password)) is not None:`
 
 > A password already refused is not submitted again -- not by the keeper's
 > next pass, not by `EnsureSignedIn`, not by anyone -- until that vault key is
@@ -172,7 +175,7 @@ Code: `except CredentialsRefused as refused:`
 
 > Only a refusal is latched. Any other failure leaves the password usable.
 
-## `SignIn._credentials`, [line 150](../../../../../../../backend/src/sro/application/connection/sign_in.py#L150): Docstring
+## `SignIn._credentials`, [line 152](../../../../../../../backend/src/sro/application/connection/sign_in.py#L152): Docstring
 
 > Sign in the way the deployed tenant does (review round 3, 2026-09-23): the
 > username the tagged sign-in job recorded, and the password stored under that
@@ -190,12 +193,12 @@ Code: `except CredentialsRefused as refused:`
 >
 > Returns the login host too, for the refusal message.
 
-## `_recorded`, [line 235](../../../../../../../backend/src/sro/application/connection/sign_in.py#L235): Docstring
+## `_recorded`, [line 237](../../../../../../../backend/src/sro/application/connection/sign_in.py#L237): Docstring
 
 > The recorded login for this connection, read from the tenant's tagged
 > sign-in jobs and their evidence. See `recorded_login` for which one. A
 > module function so `StoreCredentials` and `SignIn` resolve the same login.
 
-## `_key`, [line 246](../../../../../../../backend/src/sro/application/connection/sign_in.py#L246): Docstring
+## `_key`, [line 248](../../../../../../../backend/src/sro/application/connection/sign_in.py#L248): Docstring
 
 > The vault key a recorded login keeps a field under -- the one a run reads.

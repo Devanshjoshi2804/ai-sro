@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from urllib.parse import urlsplit
 
-from sro.domain.observation.gesture import Gesture, passed_through
+from sro.domain.observation.gesture import Gesture, Target, passed_through
 from sro.domain.shared.hosts import origin_of
 from sro.domain.skill.workflow import Step, Workflow, ordered_cites
 
@@ -52,12 +52,46 @@ def sign_in_chain(job: Workflow, by_id: Mapping[str, Gesture]) -> list[Step]:
     ]
     if not landed:
         return steps
-    cut = landed[0].at
-    chain = [
-        replace(step, cites=[one for one in step.cites if one not in by_id or by_id[one].at <= cut])
-        for step in steps
-    ]
-    return [step for step in chain if step.cites]
+    cut = landed[0]
+    fields = [one.action.target for one in cited if one.action.kind == "type"]
+
+    def replayed(one: str) -> bool:
+        gesture = by_id.get(one)
+        if gesture is None or gesture is cut:
+            return True
+        return gesture.at <= cut.at and not (
+            gesture.at >= min(typed)
+            and origin_of(gesture.system or "") == origin_of(cut.system or "")
+            and _submits(gesture, fields)
+            and not passed_through(gesture)
+        )
+
+    chain = [replace(step, cites=[one for one in step.cites if replayed(one)]) for step in steps]
+    kept = [step for step in chain if step.cites]
+    return sorted(
+        kept,
+        key=lambda step: (
+            cut.id in step.cites,
+            max((by_id[one].at for one in step.cites if one in by_id), default=float("-inf")),
+            step.order,
+        ),
+    )
+
+
+def _submits(gesture: Gesture, fields: Sequence[Target | None]) -> bool:
+    if gesture.action.kind == "press":
+        return gesture.action.value in (None, "", "Enter", "NumpadEnter")
+    return gesture.action.kind == "click" and not any(
+        _same_field(gesture.action.target, field) for field in fields
+    )
+
+
+def _same_field(one: Target | None, other: Target | None) -> bool:
+    if one is None or other is None:
+        return False
+    if one.css_path or other.css_path:
+        return one.css_path == other.css_path
+    return (one.tag, one.role, one.name) == (other.tag, other.role, other.name)
 
 
 @dataclass(frozen=True, slots=True)

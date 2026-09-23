@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from urllib.parse import urlsplit
 
-from sro.application.connection.refusals import FailedAttempts, RefusedCredentials
+from sro.application.connection.refusals import FailedAttempts, RefusedCredentials, fingerprint
 from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.ports.channel import Channel, Reply
 from sro.application.ports.vault import CredentialVault, VaultUnavailable
@@ -13,7 +12,6 @@ from sro.domain.shared.identifiers import DeviceId, TenantId
 
 TYPES = ("ui.perform", "ui.perform_at")
 LATCH_AT = 2
-FINGERPRINT = 12
 
 
 class RunSecrets:
@@ -37,21 +35,21 @@ class RunSecrets:
         once = self._held.take(key, run_id=self._run_id) or self._kept.get(key)
         if once is not None:
             self._kept[key] = once
-            if _mark(key, once) in self._refused:
+            if fingerprint(key, once) in self._refused:
                 return None
-            self._handed[key] = (_mark(key, once), False)
+            self._handed[key] = (fingerprint(key, once), False)
             return once
         if self._vault is None:
             return None
         try:
-            if await RefusedCredentials(self._vault).standing(key) is not None:
-                return None
             value = await self._vault.get(key)
+            if value is None:
+                return None
+            if await RefusedCredentials(self._vault).standing(key, value) is not None:
+                return None
         except VaultUnavailable:
             return None
-        if value is None:
-            return None
-        mark = _mark(key, value)
+        mark = fingerprint(key, value)
         if mark in self._refused:
             return None
         self._handed[key] = (mark, True)
@@ -59,7 +57,7 @@ class RunSecrets:
 
     def typed(self, value: str) -> None:
         for key, (mark, _) in self._handed.items():
-            if mark == _mark(key, value):
+            if mark == fingerprint(key, value):
                 self._typed[key] = self._host
                 self._signing = True
 
@@ -125,7 +123,7 @@ class RunSecrets:
         if not from_vault or self._vault is None:
             return self._failed[key]
         try:
-            return await FailedAttempts(self._vault).add(key, mark[:FINGERPRINT])
+            return await FailedAttempts(self._vault).add(key, mark)
         except VaultUnavailable:
             return self._failed[key]
 
@@ -135,12 +133,10 @@ class RunSecrets:
         if not from_vault or self._vault is None:
             return
         try:
-            current = await self._vault.get(key)
-            if current is None or _mark(key, current) != mark:
-                return
             await RefusedCredentials(self._vault).refuse(
                 key,
                 at=datetime.now(tz=UTC),
+                fingerprint=mark,
                 reason=(
                     f"this password was submitted {LATCH_AT} times with no success between, the "
                     f"last by run {self._run_id}, and each time the sign-in form on {self._host} "
@@ -197,7 +193,3 @@ def _submits(payload: Mapping[str, object]) -> bool:
     return action == "click" or (
         action == "press" and payload.get("value") in (None, "", "Enter", "NumpadEnter")
     )
-
-
-def _mark(key: str, value: str) -> str:
-    return hashlib.sha256(f"{key}\0{value}".encode()).hexdigest()

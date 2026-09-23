@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from sro.application.capture.identity import system_of
 from sro.application.connection.check_session import CheckSession, SessionHealth
 from sro.application.connection.connect_system import RefreshSession
-from sro.application.connection.refusals import RefusedCredentials
+from sro.application.connection.refusals import RefusedCredentials, fingerprint
 from sro.application.connection.session_life import SessionLife
 from sro.application.context import RequestContext
 from sro.application.ports.browser import BrowserProvider
@@ -92,7 +92,7 @@ class SignIn:
 
         username, password, key, where = await self._credentials(ctx, connection)
         refusals = RefusedCredentials(self._vault)
-        if (standing := await refusals.standing(key)) is not None:
+        if (standing := await refusals.standing(key, password)) is not None:
             raise CredentialsRefused(
                 f"the password {connection.target_system} signs in with at {where} was refused"
                 f"{' at ' + standing.at.isoformat() if standing.at else ''}, so it is not "
@@ -111,7 +111,9 @@ class SignIn:
             )
             cookies = list(await self._browser.session_cookies(session.id))
         except CredentialsRefused as refused:
-            await refusals.refuse(key, at=self._now(), reason=str(refused))
+            await refusals.refuse(
+                key, at=self._now(), reason=str(refused), fingerprint=fingerprint(key, password)
+            )
             raise
         finally:
             await self._browser.close(session.id)

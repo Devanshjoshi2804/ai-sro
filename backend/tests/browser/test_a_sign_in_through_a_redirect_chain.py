@@ -102,7 +102,20 @@ def _server(arrived: list[dict[str, str]]) -> tuple[ThreadingHTTPServer, int]:
                 self.send_header("location", f"{provider}/nowhere")
                 self.end_headers()
             elif path == "/nowhere":
-                self._page(f"<!doctype html><html><body>{LINKS}</body></html>")
+                self._page(
+                    "<!doctype html><html><body><p>Access denied for this account.</p>"
+                    f"{LINKS}</body></html>"
+                )
+            elif path == "/refuses":
+                self.send_response(302)
+                self.send_header("location", f"{provider}/refusing-form")
+                self.end_headers()
+            elif path == "/refusing-form":
+                query = parse_qs(urlsplit(self.path).query)
+                if query:
+                    arrived.append({k: v[0] for k, v in query.items()})
+                said = "<p>Invalid username or password.</p>" if query else ""
+                self._page(said + FORM.format(app=f"{provider}/refusing-form"))
             elif path == "/app":
                 query = parse_qs(urlsplit(self.path).query)
                 arrived.append({k: v[0] for k, v in query.items()})
@@ -172,26 +185,47 @@ async def test_a_login_that_hops_twice_before_its_form_still_signs_in(
     assert arrived == [{"username": "operator", "password": "not-a-real-secret"}]
 
 
-async def test_a_login_that_goes_nowhere_still_fails_inside_its_timeout(
+async def test_a_page_that_goes_nowhere_fails_soon_and_says_what_it_showed(
     chain: tuple[int, list[dict[str, str]]], debugger_url: str
 ) -> None:
-    """Waiting out a hop is not waiting forever.
+    """A hand-over moves; a dead end does not.
 
     A page off the system's host with nothing to fill and nothing to press is
-    now read as a hand-over still in flight, so the only thing that ends it is
-    the caller's timeout -- which therefore has to hold.
+    waited on, because it is usually a hop in flight. One that stays the same
+    document probe after probe is an answer -- a locked account, an access
+    denied -- and the operator needs to read it, well before the timeout.
     """
     port, arrived = chain
     started = time.monotonic()
 
-    with pytest.raises(SignInFailed, match="did not finish"):
+    with pytest.raises(SignInFailed, match="Access denied for this account"):
         await PlaywrightSignIn().sign_in(
             debugger_url=debugger_url,
             url=f"http://127.0.0.1:{port}/lost",
             username="operator",
             password="not-a-real-secret",  # noqa: S106 -- a local test page's field
-            timeout_s=4.0,
+            timeout_s=60.0,
         )
 
-    assert time.monotonic() - started < 15.0
+    assert time.monotonic() - started < 25.0
     assert arrived == []
+
+
+async def test_refused_credentials_are_submitted_once_and_never_again(
+    chain: tuple[int, list[dict[str, str]]], debugger_url: str
+) -> None:
+    """Retyping a password the system just refused is how an account gets locked."""
+    port, arrived = chain
+
+    with pytest.raises(SignInFailed, match="refused") as failed:
+        await PlaywrightSignIn().sign_in(
+            debugger_url=debugger_url,
+            url=f"http://127.0.0.1:{port}/refuses",
+            username="operator",
+            password="not-a-real-secret",  # noqa: S106 -- a local test page's field
+            timeout_s=60.0,
+        )
+
+    assert len(arrived) == 1
+    assert "Invalid username or password" in str(failed.value)
+    assert "not-a-real-secret" not in str(failed.value)

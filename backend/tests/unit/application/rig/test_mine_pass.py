@@ -24,11 +24,10 @@ from sro.application.observation.mine_pass import MinePass
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
 from sro.application.skill.serve_shapes import shapes_for
-from sro.domain.chat.reading import ChatReading
 from sro.domain.observation.driving import WAS_OUR_OWN_DRIVING
 from sro.domain.observation.gesture import Gesture, Intent, PageMark
 from sro.domain.shared.identifiers import PrincipalId, TenantId
-from sro.domain.shared.prices import Answer
+from sro.domain.shared.prices import Answer, ModelSpend
 from sro.infrastructure.db.codec import when
 from tests.unit.domain.rig.conftest import gestures as _gestures
 from tests.unit.fakes import FakeAsker, FakeClock, FakeGestureRepository, FakeUnitOfWork
@@ -118,10 +117,9 @@ async def _did_it_again(uow: FakeUnitOfWork, ids: list[str]) -> list[str]:
 
 
 async def _billed(uow: FakeUnitOfWork, *, cost_usd: float, at: datetime) -> None:
-    """A day with a model call on it. The chat door is one of the four billable
-    tables and the cheapest to write; the cap reads the sum, not the table."""
-    await uow.chats.record(
-        ChatReading(id=f"cht_{cost_usd}", tenant=TENANT.value, at=at.isoformat(), cost_usd=cost_usd)
+    """A day with a model call on it, as the metered client bills one."""
+    await uow.spend.record(
+        ModelSpend(id=f"cht_{cost_usd}", tenant=TENANT.value, model="m", at=at, cost_usd=cost_usd)
     )
 
 
@@ -580,8 +578,10 @@ async def test_the_pass_that_spends_the_last_of_the_cap_still_gets_its_receipt()
 
     assert result.kept == 1
     assert result.cost_usd == 0.01
-    # And the day is now over the cap, which is what makes the ordering
-    # visible: the next caller is the one that gets refused.
+    # And the day is now over the cap once the client's bill for it lands,
+    # which is what makes the ordering visible: the next caller is the one
+    # that gets refused.
+    await _billed(uow, cost_usd=0.01, at=NOW.replace(hour=11))
     with pytest.raises(OverCap):
         await _pass(uow, asker=FakeAsker(_answer(ids[:2]))).execute(_ctx())
 
@@ -739,12 +739,9 @@ async def test_the_day_the_cap_judges_is_the_callers_and_never_a_neighbours() ->
     assert result.pass_id, "another tenant's spending refused this one's pass"
 
     # And the converse: the same money on RIVAL's own day does refuse it.
-    await uow.chats.record(
-        ChatReading(
-            id="cht_rival",
-            tenant=RIVAL.value,
-            at=NOW.replace(hour=10).isoformat(),
-            cost_usd=5.01,
+    await uow.spend.record(
+        ModelSpend(
+            id="cht_rival", tenant=RIVAL.value, model="m", at=NOW.replace(hour=10), cost_usd=5.01
         )
     )
 

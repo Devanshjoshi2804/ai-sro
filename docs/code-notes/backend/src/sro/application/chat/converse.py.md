@@ -712,16 +712,6 @@ Code: `named = said_as_the_value(pending, text)`
 > typed a real value with no move except typing it again -- so the
 > re-ask below tells them this form exists, and this takes it.
 
-## `Converse._is_it_an_answer`, [line 332](../../../../../../../backend/src/sro/application/chat/converse.py#L332): Comment
-
-Code: `if read.spent is not None:`
-
-> The reading's own cost, billed whatever it turns out to say. A reading
-> that could not tell still asked the model once -- the day's spend cap
-> has to see that call the same way it sees every other one, and reading
-> it back out of the `Read` this door already holds is one write, not a
-> second call to make one.
-
 ## `Converse._is_it_an_answer`, [line 343](../../../../../../../backend/src/sro/application/chat/converse.py#L343): Comment
 
 Code: `return None, read.about`
@@ -735,15 +725,6 @@ Code: `return None, read.about`
 > Taking the unreadable sentence as the value is how `HAS REPLY ARRIVED`
 > reached a four-character box; this is the same question asked in
 > reverse, at the door that decides what a refusal means.
-
-## `Converse._record_reading`, [line 345](../../../../../../../backend/src/sro/application/chat/converse.py#L345): Docstring
-
-> What this reading cost, recorded the way `read_utterance` bills every
-> other chat reading -- a `ChatReading` row, so the day's spend cap sees
-> a reading of the standing question exactly as it sees one that placed a
-> sentence against the jobs. Filed against the pending job's own id: it is
-> the spend this question incurred, whether or not it turned out to be
-> answered by what was typed.
 
 ## `Converse._answer_the_question`, [line 386](../../../../../../../backend/src/sro/application/chat/converse.py#L386): Comment
 

@@ -290,9 +290,8 @@ async def _read(*answers: Answer, workflows: list[Workflow] | None = None) -> Fa
 
 
 async def test_what_the_reading_cost_is_written_down() -> None:
-    """The row exists for the cap and the spend line. A door whose readings
-    are not billed is model money nothing sums, which is how an unattended
-    week spends without limit."""
+    """The reading's own record of what it cost. The day's bill is the metered
+    client's, so this row is what the chat door shows, not what the cap sums."""
     uow = await _read(
         Answer(
             data={"workflow_id": "wfl_1", "values": [], "missing": []},
@@ -311,9 +310,7 @@ async def test_what_the_reading_cost_is_written_down() -> None:
     assert row.workflow_id == "wfl_1"
     assert (row.in_tokens, row.out_tokens, row.thought_tokens) == (120, 30, 7)
     assert row.cost_usd == 0.0003 and row.unpriced is False and row.error is None
-    assert uow.commits == 1, "a bill nothing committed is a bill the next rollback loses"
-    # The whole point of the row: the day's cap can see what the door spent.
-    assert (await uow.spend.today(TENANT, now=NOW)).cost_usd == 0.0003
+    assert uow.commits == 1, "a record nothing committed is a record the next rollback loses"
 
 
 async def test_a_refusal_is_a_reading_and_gets_its_row() -> None:

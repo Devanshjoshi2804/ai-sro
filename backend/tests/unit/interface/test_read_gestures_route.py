@@ -22,9 +22,8 @@ import pytest
 from httpx import ASGITransport
 
 from sro.config import Settings
-from sro.domain.chat.reading import ChatReading
 from sro.domain.shared.identifiers import DeviceId, TenantId
-from sro.domain.shared.prices import Answer
+from sro.domain.shared.prices import Answer, ModelSpend
 from sro.interface.http.app import create_app
 from sro.interface.http.deps import get_container
 from tests import factories as f
@@ -105,9 +104,9 @@ async def test_a_tenant_over_its_cap_is_told_to_come_back_later(
     container: _FakeContainer, client: httpx.AsyncClient, uow: FakeUnitOfWork, day: list[str]
 ) -> None:
     container.asker = FakeAsker(*(_answer() for _ in day))
-    await uow.chats.record(
-        ChatReading(
-            id="cht_1", tenant=TENANT.value, at=NOW.replace(hour=10).isoformat(), cost_usd=5.01
+    await uow.spend.record(
+        ModelSpend(
+            id="cht_1", tenant=TENANT.value, at=NOW.replace(hour=10), cost_usd=5.01, model="m"
         )
     )
 

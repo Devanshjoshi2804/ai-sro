@@ -35,6 +35,7 @@ from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.template import Template
 from sro.infrastructure.agent.sockets import DeviceSockets
 from sro.infrastructure.auth.signed_tokens import SignedTokens
+from sro.infrastructure.gemini.metered import Meter
 from sro.infrastructure.gemini.null_interpreter import NoInterpreter
 from sro.interface.http.app import create_app
 from sro.interface.http.deps import get_container
@@ -70,6 +71,7 @@ class _FakeContainer(Container):
         self._uow = uow
         self.settings = Settings()
         self.clock = FakeClock()
+        self.meter = Meter(lambda: uow, clock=self.clock, cap_usd=-1.0)
         self.ids = FakeIdFactory()
         self.blobs = FakeBlobStore()
         self.browser = FakeBrowserProvider()

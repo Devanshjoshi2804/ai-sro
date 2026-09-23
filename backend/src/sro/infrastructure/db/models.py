@@ -850,6 +850,24 @@ class OfferRow(Base):
     __table_args__ = (Index("ix_offers_tenant_workflow", "tenant_id", "workflow_id", "at"),)
 
 
+class ModelSpendRow(Base):
+    __tablename__ = "model_spend"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    model: Mapped[str] = mapped_column(String(64), nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    in_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    out_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    thought_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    cost_usd: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    unpriced: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    __table_args__ = (Index("ix_model_spend_tenant_at", "tenant_id", "at"),)
+
+
 class ChatRow(Base):
     __tablename__ = "chats"
 

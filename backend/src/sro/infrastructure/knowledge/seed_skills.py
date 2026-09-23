@@ -10,6 +10,7 @@ from sro.application.context import RequestContext
 from sro.container import build_container
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.observability import configure_logging
+from sro.whose import attribute
 
 logger = logging.getLogger("sro.knowledge.seed_skills")
 
@@ -28,6 +29,7 @@ async def seed(*, tenant: str, system: str, root: Path) -> None:
 
     container = build_container()
     ctx = RequestContext(tenant_id=TenantId(tenant), principal_id=PrincipalId("knowledge-base"))
+    attribute(tenant=tenant)
     seeder = container.seed_skill_from_flow()
 
     seeded = skipped = failed = 0

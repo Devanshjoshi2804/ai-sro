@@ -19,6 +19,7 @@ from sro.domain.shared.identifiers import ConfirmationId, TriggerId
 from sro.domain.skill.skill import SkillVersion
 from sro.domain.trigger.confirmation import ANSWER_WITHIN, Confirmation
 from sro.domain.trigger.trigger import Trigger
+from sro.whose import attribute
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,7 @@ class FireTrigger:
                 return Fired(trigger_id, skipped=trigger.disabled_reason or "disabled")
 
             ctx = RequestContext(tenant_id=trigger.tenant_id, principal_id=trigger.created_by)
+            attribute(tenant=trigger.tenant_id.value, principal=trigger.created_by.value)
             now = self._clock.now()
             values = trigger.values_from(message or {})
 

@@ -26,11 +26,9 @@ import pytest
 from httpx import ASGITransport
 
 from sro.config import Settings
-from sro.domain.chat.reading import ChatReading
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import DeviceId
-from sro.domain.shared.prices import DaySpend
+from sro.domain.shared.prices import DaySpend, ModelSpend
 from sro.interface.http.app import create_app
 from sro.interface.http.deps import get_container
 from tests import factories as f
@@ -78,46 +76,34 @@ async def client(container: _FakeContainer) -> AsyncIterator[httpx.AsyncClient]:
         yield http
 
 
-def _chat(chat_id: str, *, at: str, cost_usd: float = 0.0, unpriced: bool = False) -> ChatReading:
-    return ChatReading(id=chat_id, tenant="acme", at=at, cost_usd=cost_usd, unpriced=unpriced)
-
-
-def _run(run_id: str, *, at: str, cost_usd: float = 0.0, unpriced: bool = False) -> WorkflowRun:
-    run = WorkflowRun(
-        id=run_id,
+def _call(call_id: str, *, at: str, cost_usd: float = 0.0, unpriced: bool = False) -> ModelSpend:
+    return ModelSpend(
+        id=call_id,
         tenant="acme",
-        workflow_id="wfl-1",
-        device_id=LAPTOP.value,
-        values={},
-        started_by="offer",
-        live=True,
-        allow_focus=True,
-        started_at=at,
-        finished_at=at,
-        outcome="held",
-        steps=[RunStep(order=0, says="save", verdict="held", verdict_by="status")],
+        model="m",
+        at=datetime.fromisoformat(at),
+        cost_usd=cost_usd,
+        unpriced=unpriced,
     )
-    run.cost_usd, run.unpriced = cost_usd, unpriced
-    return run
 
 
 @pytest.fixture
 async def day(uow: FakeUnitOfWork) -> None:
     """One tenant's morning: $1.75 billed and two calls nobody could price.
 
-    Two tables rather than one, and priced and blind rows in each, so the
-    answer disagrees with every obvious wrong sum -- $0.25 (one table), $1.50
-    (the other), $100.75 (a day that began twenty-four hours ago). Two blind
+    Priced and blind calls, so the answer disagrees with every obvious wrong
+    sum -- $0.25 (the first), $1.50 (the second), $100.75 (a day that began
+    twenty-four hours ago). Two blind
     rows rather than one, so a count that came back as a flag is a failure
     rather than a coincidence.
     """
-    await uow.chats.record(_chat("cht_1", at=f.at(-3600).isoformat(), cost_usd=0.25))
-    await uow.chats.record(_chat("cht_2", at=f.at(-1800).isoformat(), unpriced=True))
-    await uow.workflow_runs.save(_run("run_1", at=f.at(-2700).isoformat(), cost_usd=1.50))
-    await uow.workflow_runs.save(_run("run_2", at=f.at(-900).isoformat(), unpriced=True))
+    await uow.spend.record(_call("cht_1", at=f.at(-3600).isoformat(), cost_usd=0.25))
+    await uow.spend.record(_call("cht_2", at=f.at(-1800).isoformat(), unpriced=True))
+    await uow.spend.record(_call("run_1", at=f.at(-2700).isoformat(), cost_usd=1.50))
+    await uow.spend.record(_call("run_2", at=f.at(-900).isoformat(), unpriced=True))
 
-    await uow.chats.record(_chat("cht_old", at=LAST_NIGHT.isoformat(), cost_usd=99.0))
-    await uow.workflow_runs.save(_run("run_old", at=LAST_NIGHT.isoformat(), unpriced=True))
+    await uow.spend.record(_call("cht_old", at=LAST_NIGHT.isoformat(), cost_usd=99.0))
+    await uow.spend.record(_call("run_old", at=LAST_NIGHT.isoformat(), unpriced=True))
 
 
 async def _spend(client: httpx.AsyncClient) -> httpx.Response:
@@ -164,8 +150,8 @@ async def test_a_day_that_could_not_be_priced_at_all_does_not_read_as_a_free_one
     architecture billed $1.12 and every row said free, which is this shape
     exactly -- and a wire that carried only `cost_usd` cannot tell it from a
     morning nobody used."""
-    await uow.chats.record(_chat("cht_1", at=f.at(-3600).isoformat(), unpriced=True))
-    await uow.workflow_runs.save(_run("run_1", at=f.at(-900).isoformat(), unpriced=True))
+    await uow.spend.record(_call("cht_1", at=f.at(-3600).isoformat(), unpriced=True))
+    await uow.spend.record(_call("run_1", at=f.at(-900).isoformat(), unpriced=True))
 
     body = (await _spend(client)).json()
 
@@ -197,8 +183,8 @@ async def test_the_total_is_rounded_where_the_rig_rounded_it(
     of a cent -- below anything a cap in dollars can notice, and above every
     call this system makes.
     """
-    await uow.chats.record(_chat("cht_1", at=f.at(-3600).isoformat(), cost_usd=0.1))
-    await uow.chats.record(_chat("cht_2", at=f.at(-1800).isoformat(), cost_usd=0.023456))
+    await uow.spend.record(_call("cht_1", at=f.at(-3600).isoformat(), cost_usd=0.1))
+    await uow.spend.record(_call("cht_2", at=f.at(-1800).isoformat(), cost_usd=0.023456))
 
     assert (await _spend(client)).json()["cost_usd"] == 0.123456
 

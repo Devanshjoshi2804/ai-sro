@@ -55,11 +55,11 @@ from httpx import ASGITransport
 from sro.application.execution.approvals import K_APPROVAL_WAIT_S
 from sro.application.execution.pursuits import Pursuits
 from sro.config import Settings
-from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Action, Body, Call, Gesture
 from sro.domain.shared.identifiers import DeviceId, SkillId, TenantId
+from sro.domain.shared.prices import ModelSpend
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.workflow import Step, Workflow
 from sro.interface.http.app import create_app, on_start
@@ -443,8 +443,8 @@ async def test_a_tenant_over_its_cap_answers_429(
 ) -> None:
     """The container's cap, not the shipped default: `CAP` is 3.25 and this day
     has spent 3.30, which a door wired to 5.0 lets through."""
-    await uow.chats.record(
-        ChatReading(id="cht_1", tenant=TENANT.value, at=f.T0.isoformat(), cost_usd=3.30)
+    await uow.spend.record(
+        ModelSpend(id="cht_1", tenant=TENANT.value, at=f.T0, cost_usd=3.30, model="m")
     )
 
     landed = await client.post("/v1/workflow-runs", json=_body())

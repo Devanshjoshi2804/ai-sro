@@ -3036,3 +3036,11 @@ Code: `await forget_effects(uow.workflows, run)`
 > because the step body is not reached when a browser goes away
 > mid-write -- and that run wrote, was never shown to have held, and
 > would have kept its autonomy.
+
+## `run_workflow`: Comment
+
+Code: `except OverCap as reached:`
+
+> The meter refusing a step's own call is the day running out between two leg
+> checks -- the same condition the leg check records as `stopped`. One outcome
+> for one condition, and no traceback: it is the cap working, not a failure.

@@ -33,12 +33,12 @@ from sro.application.execution.stops import Stops
 from sro.application.execution.workflow_runs import RunRefused, StartWorkflowRun
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
-from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.waiting import K_PATIENCE, read_wait, still_waiting
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
+from sro.domain.shared.prices import ModelSpend
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.fakes import (
     FakeAsker,
@@ -218,11 +218,12 @@ async def _press(
 
 
 async def _billed(uow: FakeUnitOfWork, *, cost_usd: float, tenant: TenantId = TENANT) -> None:
-    await uow.chats.record(
-        ChatReading(
+    await uow.spend.record(
+        ModelSpend(
             id=f"cht_{tenant.value}_{cost_usd}",
             tenant=tenant.value,
-            at=NOW.replace(hour=10).isoformat(),
+            model="m",
+            at=NOW.replace(hour=10),
             cost_usd=cost_usd,
         )
     )

@@ -18,14 +18,15 @@ import pytest
 from sro.application.ports.model import Asker
 from sro.application.shared.locks import one_at_a_time
 from sro.domain.shared.prices import Answer, price
-from sro.infrastructure.gemini.asker import K_TIMEOUT_MS, K_TRIES, GeminiAsker
-from tests.unit.fakes import FakeAsker
+from sro.infrastructure.gemini.asker import K_TRIES, GeminiAsker
+from sro.infrastructure.gemini.metered import Meter, metered_client
+from tests.unit.fakes import FakeAsker, FakeClock, FakeUnitOfWork
 
 # The one assertion here that mypy makes and pytest cannot: the real asker
 # still satisfies the port every use case and every fake is written against.
 # `client` sidesteps the google.genai import, so this costs nothing at import
 # time and fails the type gate the moment the two signatures part.
-_PORT: Asker = GeminiAsker(api_key="", client=object())
+_PORT: Asker = GeminiAsker(client=object())
 
 
 async def test_a_fake_asker_records_what_it_was_asked() -> None:
@@ -80,7 +81,7 @@ async def test_gemini_asker_names_a_cut_off_answer_rather_than_calling_it_not_js
         candidates=[SimpleNamespace(finish_reason=SimpleNamespace(name="MAX_TOKENS"))],
     )
     client, _ = _fake_client(lambda: cut)
-    answer = await GeminiAsker(api_key="unused", client=client).ask(
+    answer = await GeminiAsker(client=client).ask(
         model="gemini-3.1-pro-preview", instructions="i", evidence="e", schema={"type": "object"}
     )
     assert answer.data is None
@@ -94,7 +95,7 @@ async def test_gemini_asker_names_a_cut_off_answer_rather_than_calling_it_not_js
         candidates=[SimpleNamespace(finish_reason="STOP")],
     )
     client, _ = _fake_client(lambda: stopped)
-    answer = await GeminiAsker(api_key="unused", client=client).ask(
+    answer = await GeminiAsker(client=client).ask(
         model="gemini-3.1-pro-preview", instructions="i", evidence="e", schema={"type": "object"}
     )
     assert answer.error and answer.error.startswith("not json:")
@@ -124,7 +125,7 @@ async def test_gemini_asker_happy_path_parses_data_and_prices_it() -> None:
     usage = SimpleNamespace(prompt_token_count=10, candidates_token_count=5)
     response = SimpleNamespace(text=json.dumps({"act": "typed a code"}), usage_metadata=usage)
     client, _ = _fake_client(lambda: response)
-    asker = GeminiAsker(api_key="unused", client=client)
+    asker = GeminiAsker(client=client)
 
     answer = await asker.ask(
         model="gemini-3.8-flash", instructions="i", evidence="e", schema={"type": "object"}
@@ -143,7 +144,7 @@ async def test_gemini_asker_reports_a_blocked_response_as_an_error() -> None:
     usage = SimpleNamespace(prompt_token_count=10, candidates_token_count=0)
     response = SimpleNamespace(text=None, usage_metadata=usage)
     client, _ = _fake_client(lambda: response)
-    asker = GeminiAsker(api_key="unused", client=client)
+    asker = GeminiAsker(client=client)
 
     answer = await asker.ask(
         model="gemini-3.8-flash", instructions="i", evidence="e", schema={"type": "object"}
@@ -158,7 +159,7 @@ async def test_gemini_asker_reports_non_json_text_as_an_error() -> None:
     usage = SimpleNamespace(prompt_token_count=10, candidates_token_count=5)
     response = SimpleNamespace(text="not json", usage_metadata=usage)
     client, _ = _fake_client(lambda: response)
-    asker = GeminiAsker(api_key="unused", client=client)
+    asker = GeminiAsker(client=client)
 
     answer = await asker.ask(
         model="gemini-3.8-flash", instructions="i", evidence="e", schema={"type": "object"}
@@ -173,7 +174,7 @@ async def test_gemini_asker_reports_non_json_text_as_an_error() -> None:
 async def test_gemini_asker_flags_unpriced_when_usage_metadata_is_missing() -> None:
     response = SimpleNamespace(text="{}", usage_metadata=None)
     client, _ = _fake_client(lambda: response)
-    asker = GeminiAsker(api_key="unused", client=client)
+    asker = GeminiAsker(client=client)
 
     answer = await asker.ask(
         model="gemini-3.8-flash", instructions="i", evidence="e", schema={"type": "object"}
@@ -188,7 +189,7 @@ async def test_gemini_asker_flags_unpriced_when_usage_counts_are_none() -> None:
     usage = SimpleNamespace(prompt_token_count=None, candidates_token_count=None)
     response = SimpleNamespace(text="{}", usage_metadata=usage)
     client, _ = _fake_client(lambda: response)
-    asker = GeminiAsker(api_key="unused", client=client)
+    asker = GeminiAsker(client=client)
 
     answer = await asker.ask(
         model="gemini-3.8-flash", instructions="i", evidence="e", schema={"type": "object"}
@@ -201,7 +202,7 @@ async def test_gemini_asker_flags_unpriced_for_an_unknown_model() -> None:
     usage = SimpleNamespace(prompt_token_count=10, candidates_token_count=5)
     response = SimpleNamespace(text="{}", usage_metadata=usage)
     client, _ = _fake_client(lambda: response)
-    asker = GeminiAsker(api_key="unused", client=client)
+    asker = GeminiAsker(client=client)
 
     answer = await asker.ask(
         model="gemini-9-imaginary", instructions="i", evidence="e", schema={"type": "object"}
@@ -216,7 +217,7 @@ async def test_gemini_asker_survives_the_client_raising() -> None:
         raise RuntimeError("network is down")
 
     client, _ = _fake_client(_raise)
-    asker = GeminiAsker(api_key="unused", client=client)
+    asker = GeminiAsker(client=client)
 
     answer = await asker.ask(
         model="gemini-3.8-flash", instructions="i", evidence="e", schema={"type": "object"}
@@ -236,7 +237,7 @@ async def test_a_call_that_never_returned_does_not_claim_to_be_free() -> None:
         raise RuntimeError("network is down")
 
     client, _ = _fake_client(_raise)
-    asker = GeminiAsker(api_key="unused", client=client)
+    asker = GeminiAsker(client=client)
 
     answer = await asker.ask(
         model="gemini-3.8-flash", instructions="i", evidence="e", schema={"type": "object"}
@@ -289,7 +290,7 @@ async def test_a_server_that_gave_up_is_asked_again() -> None:
     good = SimpleNamespace(text=json.dumps({"act": "typed a code"}), usage_metadata=usage)
     flaky = _Flaky(_server_error(504), times=2, answer=good)
     client, _ = _fake_client(flaky)
-    asker = GeminiAsker(api_key="unused", client=client)
+    asker = GeminiAsker(client=client)
 
     answer = await asker.ask(
         model="gemini-3.8-flash", instructions="i", evidence="e", schema={"type": "object"}
@@ -309,7 +310,7 @@ async def test_a_refusal_this_deployment_earned_is_not_asked_again() -> None:
     for code in (400, 403, 429):
         flaky = _Flaky(_server_error(code), times=99, answer=None)
         client, _ = _fake_client(flaky)
-        asker = GeminiAsker(api_key="unused", client=client)
+        asker = GeminiAsker(client=client)
 
         answer = await asker.ask(
             model="gemini-3.8-flash", instructions="i", evidence="e", schema={"type": "object"}
@@ -323,7 +324,7 @@ async def test_a_refusal_this_deployment_earned_is_not_asked_again() -> None:
 async def test_a_server_that_never_comes_back_is_recorded_as_failed_not_retried_forever() -> None:
     flaky = _Flaky(_server_error(503), times=99, answer=None)
     client, _ = _fake_client(flaky)
-    asker = GeminiAsker(api_key="unused", client=client)
+    asker = GeminiAsker(client=client)
 
     answer = await asker.ask(
         model="gemini-3.8-flash", instructions="i", evidence="e", schema={"type": "object"}
@@ -341,7 +342,7 @@ async def test_gemini_asker_ask_really_routes_through_build_config() -> None:
     usage = SimpleNamespace(prompt_token_count=1, candidates_token_count=1)
     response = SimpleNamespace(text="{}", usage_metadata=usage)
     client, models = _fake_client(lambda: response)
-    asker = GeminiAsker(api_key="unused", client=client)
+    asker = GeminiAsker(client=client)
 
     await asker.ask(
         model="gemini-3.8-flash", instructions="i", evidence="e", schema={"type": "object"}
@@ -376,7 +377,7 @@ async def test_gemini_asker_hands_the_effort_to_the_config() -> None:
     usage = SimpleNamespace(prompt_token_count=1, candidates_token_count=1)
     response = SimpleNamespace(text="{}", usage_metadata=usage)
     client, models = _fake_client(lambda: response)
-    asker = GeminiAsker(api_key="unused", client=client)
+    asker = GeminiAsker(client=client)
 
     await asker.ask(
         model="gemini-3.8-flash",
@@ -398,7 +399,7 @@ async def test_an_empty_instruction_is_not_sent_as_an_empty_part() -> None:
     usage = SimpleNamespace(prompt_token_count=1, candidates_token_count=1)
     response = SimpleNamespace(text="{}", usage_metadata=usage)
     client, models = _fake_client(lambda: response)
-    asker = GeminiAsker(api_key="unused", client=client)
+    asker = GeminiAsker(client=client)
 
     await asker.ask(
         model="gemini-3.8-flash", instructions="", evidence="e", schema={"type": "object"}
@@ -429,7 +430,7 @@ def test_thinking_tokens_are_part_of_the_bill() -> None:
     class _Client:
         aio = type("_Aio", (), {"models": _Models()})()
 
-    asker = GeminiAsker(api_key="", client=_Client())
+    asker = GeminiAsker(client=_Client())
     answer = asyncio.run(
         asker.ask(model="gemini-3.1-pro", instructions="i", evidence="e", schema={})
     )
@@ -507,20 +508,14 @@ def test_a_real_client_is_built_with_a_timeout(monkeypatch: pytest.MonkeyPatch) 
 
     def _client(**kwargs: Any) -> object:
         built.update(kwargs)
-        return object()
+        return SimpleNamespace(aio=SimpleNamespace(models=object()))
 
     monkeypatch.setattr(genai, "Client", _client)
-    GeminiAsker(api_key="k", timeout_ms=90_000)
+    metered_client("k", Meter(FakeUnitOfWork, clock=FakeClock(), cap_usd=-1.0), timeout_ms=90_000)
 
     options = built.get("http_options")
     assert options is not None, "the client was built with no http_options at all"
     assert options.timeout == 90_000
-
-
-def test_the_timeout_is_bounded_even_for_a_caller_that_names_none() -> None:
-    """A script or a bake-off that builds this directly is bounded too, rather
-    than inheriting the SDK's indefinite wait."""
-    assert K_TIMEOUT_MS > 0
 
 
 # -- a truncated answer is a level to lower, not a failure to report ----------
@@ -555,7 +550,7 @@ async def test_an_answer_cut_off_by_the_ceiling_is_asked_again_thinking_less() -
     answers = iter([_cut_off(), _answered()])
     client, models = _fake_client(lambda: next(answers))
 
-    answer = await GeminiAsker(api_key="unused", client=client).ask(
+    answer = await GeminiAsker(client=client).ask(
         model="gemini-3.8-flash",
         instructions="i",
         evidence="e",
@@ -581,7 +576,7 @@ async def test_it_asks_again_once_and_not_forever() -> None:
     spending the tenant's day finding out."""
     client, _ = _fake_client(_cut_off)
 
-    answer = await GeminiAsker(api_key="unused", client=client).ask(
+    answer = await GeminiAsker(client=client).ask(
         model="gemini-3.8-flash",
         instructions="i",
         evidence="e",
@@ -604,7 +599,7 @@ async def test_a_call_that_named_no_level_has_none_to_lower() -> None:
 
     client, _ = _fake_client(_once)
 
-    answer = await GeminiAsker(api_key="unused", client=client).ask(
+    answer = await GeminiAsker(client=client).ask(
         model="gemini-3.8-flash", instructions="i", evidence="e", schema={"type": "object"}
     )
 
@@ -621,7 +616,7 @@ async def test_a_call_already_thinking_as_little_as_it_can_is_not_asked_again() 
 
     client, _ = _fake_client(_once)
 
-    await GeminiAsker(api_key="unused", client=client).ask(
+    await GeminiAsker(client=client).ask(
         model="gemini-3.8-flash",
         instructions="i",
         evidence="e",

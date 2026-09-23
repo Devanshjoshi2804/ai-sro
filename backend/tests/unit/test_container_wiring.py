@@ -283,7 +283,7 @@ def test_a_deployment_with_a_key_gets_a_model_for_the_rigs_own_passes() -> None:
     from sro.infrastructure.gemini.asker import GeminiAsker
 
     with_key = Settings(gemini_api_key="k", interpretation_enabled=True, _env_file=None)
-    assert isinstance(_build_asker(with_key), GeminiAsker)
+    assert isinstance(_build_asker(with_key, _meter()), GeminiAsker)
 
 
 def test_no_key_and_no_consent_each_mean_no_model() -> None:
@@ -294,11 +294,15 @@ def test_no_key_and_no_consent_each_mean_no_model() -> None:
     from sro.container import _build_asker
 
     assert (
-        _build_asker(Settings(gemini_api_key="", interpretation_enabled=True, _env_file=None))
+        _build_asker(
+            Settings(gemini_api_key="", interpretation_enabled=True, _env_file=None), _meter()
+        )
         is None
     )
     assert (
-        _build_asker(Settings(gemini_api_key="k", interpretation_enabled=False, _env_file=None))
+        _build_asker(
+            Settings(gemini_api_key="k", interpretation_enabled=False, _env_file=None), _meter()
+        )
         is None
     )
 
@@ -413,9 +417,9 @@ def test_the_mining_pass_is_given_its_own_patience() -> None:
     assert settings.gemini_mine_timeout_ms >= 300_000, (
         "a mining pass is minutes long and this is the timeout it runs under"
     )
-    ordinary = GeminiAsker("k", client=object())
+    ordinary = GeminiAsker(client=object())
 
-    patient = _patient_asker_for(settings, ordinary)
+    patient = _patient_asker_for(settings, ordinary, _meter())
 
     assert isinstance(patient, GeminiAsker)
     assert patient is not ordinary, "the mining pass shares the reader's two minutes"
@@ -431,8 +435,8 @@ def test_an_asker_that_is_not_the_sdk_is_handed_back_untouched() -> None:
 
     fake = FakeAsker()
 
-    assert _patient_asker_for(Settings(_env_file=None), fake) is fake
-    assert _patient_asker_for(Settings(_env_file=None), None) is None
+    assert _patient_asker_for(Settings(_env_file=None), fake, _meter()) is fake
+    assert _patient_asker_for(Settings(_env_file=None), None, _meter()) is None
 
 
 def test_retiring_a_job_is_handed_the_containers_store_and_clock(
@@ -445,3 +449,59 @@ def test_retiring_a_job_is_handed_the_containers_store_and_clock(
     assert isinstance(retire, RetireWorkflow)
     assert retire._uow is uow
     assert retire._clock is container.clock
+
+
+def _meter() -> Any:
+    from sro.infrastructure.gemini.metered import Meter
+
+    return Meter(FakeUnitOfWork, clock=FakeClock(), cap_usd=-1.0)
+
+
+def test_every_model_adapter_a_deployment_builds_is_metered() -> None:
+    """The meter is the client, so an adapter built without it spends without
+    a bill and past the cap. Every Gemini adapter the root builds is checked,
+    not a sample of them."""
+    from sro.config import Settings
+    from sro.container import (
+        _build_asker,
+        _build_embedder,
+        _build_intent_parser,
+        _build_transcriber,
+        _build_vision,
+        _patient_asker_for,
+    )
+    from sro.infrastructure.gemini.metered import Metered
+
+    settings = Settings(
+        _env_file=None,
+        gemini_api_key="k",
+        interpretation_enabled=True,
+        vision_enabled=True,
+        transcription_enabled=True,
+        knowledge_embeddings_enabled=True,
+    )
+    meter = _meter()
+    asker = _build_asker(settings, meter)
+    built = [
+        asker,
+        _patient_asker_for(settings, asker, meter),
+        _build_vision(settings, meter),
+        _build_embedder(settings, meter),
+        _build_transcriber(settings, meter),
+        _build_intent_parser(settings, meter),
+    ]
+
+    assert [type(getattr(one, "_client", None)).__name__ for one in built] == [
+        Metered.__name__
+    ] * len(built)
+
+
+def test_the_meter_judges_the_day_on_the_containers_own_clock() -> None:
+    """A second clock is a second "today": a pinned container clock would put
+    the ledger's rows and the cap's midnight on different days."""
+    from sro.config import Settings
+    from sro.container import build_container
+
+    built = build_container(Settings(_env_file=None))
+
+    assert built.meter._clock is built.clock

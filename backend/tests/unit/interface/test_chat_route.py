@@ -27,7 +27,7 @@ from httpx import ASGITransport
 from sro.config import Settings
 from sro.domain.chat.reading import ChatReading
 from sro.domain.shared.identifiers import DeviceId, TenantId
-from sro.domain.shared.prices import Answer
+from sro.domain.shared.prices import Answer, ModelSpend
 from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.db.codec import when
 from sro.interface.http.app import create_app
@@ -148,9 +148,9 @@ async def test_a_tenant_over_its_cap_is_told_to_come_back_later(
     problem document's `type`, and there is no `code` key on the wire.
     """
     container.asker = FakeAsker(_answer("wfl_1", []))
-    await uow.chats.record(
-        ChatReading(
-            id="cht_1", tenant=TENANT.value, at=NOW.replace(hour=10).isoformat(), cost_usd=5.01
+    await uow.spend.record(
+        ModelSpend(
+            id="cht_1", tenant=TENANT.value, at=NOW.replace(hour=10), cost_usd=5.01, model="m"
         )
     )
 
@@ -160,7 +160,7 @@ async def test_a_tenant_over_its_cap_is_told_to_come_back_later(
     body = answered.json()
     assert body["type"] == "https://ai-sro.dev/problems/over_cap"
     assert "$5.0100 of $5.00" in body["detail"]
-    assert [row.id for row in _billed_rows(uow)] == ["cht_1"], "the refusal billed a row of its own"
+    assert _billed_rows(uow) == [], "the refusal billed a row of its own"
 
 
 async def test_the_cap_the_door_judges_against_is_the_configured_one(
@@ -170,9 +170,9 @@ async def test_the_cap_the_door_judges_against_is_the_configured_one(
     not answer the other number; the answer having to move is what no literal
     can do."""
     container.asker = FakeAsker(_answer("wfl_1", []), _answer("wfl_1", []))
-    await uow.chats.record(
-        ChatReading(
-            id="cht_1", tenant=TENANT.value, at=NOW.replace(hour=10).isoformat(), cost_usd=5.01
+    await uow.spend.record(
+        ModelSpend(
+            id="cht_1", tenant=TENANT.value, at=NOW.replace(hour=10), cost_usd=5.01, model="m"
         )
     )
     assert (await client.post("/v1/chat", json={"utterance": SAID})).status_code == 429

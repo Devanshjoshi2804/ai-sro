@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Literal
 
 PRICES: dict[str, tuple[float, float]] = {
@@ -41,6 +42,19 @@ Effort = Literal["minimal", "low", "medium", "high"]
 class DaySpend:
     cost_usd: float
     blind: int
+
+
+@dataclass(frozen=True, slots=True)
+class ModelSpend:
+    id: str
+    tenant: str
+    model: str
+    at: datetime
+    in_tokens: int = 0
+    out_tokens: int = 0
+    thought_tokens: int = 0
+    cost_usd: float = 0.0
+    unpriced: bool = False
 
 
 @dataclass(frozen=True, slots=True)

@@ -12,7 +12,6 @@ from sro.domain.chat.is_it_an_answer import (
     IS_IT_AN_ANSWER_SCHEMA,
     plainly_a_value,
 )
-from sro.domain.shared.prices import Answer
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +22,6 @@ class Read:
     value: str = ""
     why: str = ""
     about: str = ""
-
-    spent: Answer | None = None
 
 
 class IsItAnAnswer:
@@ -53,7 +50,7 @@ class IsItAnAnswer:
             return Read(answers=None, why="the reading failed")
         data = answer.data if isinstance(answer.data, dict) else None
         if data is None:
-            return Read(answers=None, why="nothing came back", spent=answer)
+            return Read(answers=None, why="nothing came back")
         answers = bool(data.get("answers"))
         value = str(data.get("value") or "").strip() or said.strip()
         return Read(
@@ -61,7 +58,6 @@ class IsItAnAnswer:
             value=value if answers else "",
             why=str(data.get("why") or ""),
             about=str(data.get("about") or "") or "the_wait",
-            spent=answer,
         )
 
 

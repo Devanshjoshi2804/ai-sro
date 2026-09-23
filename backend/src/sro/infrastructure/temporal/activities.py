@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from temporalio import activity
 
 from sro.application.context import RequestContext
+from sro.whose import attribute
 
 if TYPE_CHECKING:
     from sro.container import Container
@@ -195,4 +196,5 @@ class Activities:
 
 
 def _context(tenant_id: str, principal_id: str) -> RequestContext:
+    attribute(tenant=tenant_id, principal=principal_id)
     return RequestContext(tenant_id=TenantId(tenant_id), principal_id=PrincipalId(principal_id))

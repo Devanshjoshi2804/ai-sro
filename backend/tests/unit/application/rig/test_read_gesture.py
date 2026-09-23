@@ -23,7 +23,6 @@ from sro.application.observation.read_gesture import (
 )
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
-from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.observation.batch import CaptureMode, ObservationBatch
 from sro.domain.observation.driving import was_our_own_driving
@@ -41,7 +40,7 @@ from sro.domain.observation.redaction import is_secret_name
 from sro.domain.observation.trim import is_secret
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.shared.identifiers import BatchId, DeviceId, PrincipalId, TenantId
-from sro.domain.shared.prices import Answer
+from sro.domain.shared.prices import Answer, ModelSpend
 from tests.unit.domain.rig.conftest import gestures as _gestures
 from tests.unit.fakes import FakeAsker, FakeBlobStore, FakeClock, FakeUnitOfWork
 
@@ -1211,8 +1210,9 @@ def _door(
 
 
 async def _billed(uow: FakeUnitOfWork, *, cost_usd: float, at: datetime) -> None:
-    await uow.chats.record(
-        ChatReading(id=f"cht_{cost_usd}", tenant=TENANT.value, at=at.isoformat(), cost_usd=cost_usd)
+    """A day with a model call on it, as the metered client bills one."""
+    await uow.spend.record(
+        ModelSpend(id=f"cht_{cost_usd}", tenant=TENANT.value, model="m", at=at, cost_usd=cost_usd)
     )
 
 

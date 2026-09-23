@@ -38,12 +38,10 @@ from sro.domain.chat.asking import (
     too_long_for,
 )
 from sro.domain.chat.is_it_an_answer import said_as_the_value
-from sro.domain.chat.reading import ChatReading, new_chat_id
 from sro.domain.chat.thread import Message, Said, Speaker, Thread, ThreadId
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
 from sro.domain.lookup.asking import is_a_question
 from sro.domain.shared.errors import DomainError
-from sro.domain.shared.prices import Answer
 from sro.domain.skill.learned import demanded
 from sro.domain.skill.skill import Skill
 
@@ -329,8 +327,6 @@ class Converse:
         if named is not None:
             return named, ""
         read = await self._answers.execute(ctx, pending, text)
-        if read.spent is not None:
-            await self._record_reading(ctx, pending, read.spent)
         if read.answers:
             return read.value or text, ""
         logger.info(
@@ -341,24 +337,6 @@ class Converse:
             read.why[:80],
         )
         return None, read.about
-
-    async def _record_reading(self, ctx: RequestContext, pending: Pending, spent: Answer) -> None:
-        async with self._uow as uow:
-            await uow.chats.record(
-                ChatReading(
-                    id=new_chat_id(),
-                    tenant=ctx.tenant_id.value,
-                    at=self._clock.now().isoformat(),
-                    workflow_id=pending.workflow_id,
-                    in_tokens=spent.in_tokens,
-                    out_tokens=spent.out_tokens,
-                    thought_tokens=spent.thought_tokens,
-                    cost_usd=spent.cost_usd,
-                    unpriced=spent.unpriced,
-                    error=spent.error,
-                )
-            )
-            await uow.commit()
 
     async def _answer_the_question(
         self, ctx: RequestContext, *, thread_id: ThreadId, text: str, pending: Pending

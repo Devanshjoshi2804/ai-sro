@@ -78,6 +78,7 @@ from sro.domain.observation.mining import MiningPass
 from sro.domain.observation.pool import K_POOL_AGE, RETIRED_PASSES
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId, TenantId
+from sro.domain.shared.prices import ModelSpend
 from sro.domain.skill import PromotionStage
 from sro.domain.skill.offers import Offer
 from sro.domain.skill.workflow import Step, Workflow
@@ -1298,50 +1299,31 @@ class TestPool:
 
 
 class TestSpend:
-    async def test_the_day_is_summed_over_every_table_that_can_bill_it(
-        self, store: UnitOfWork
-    ) -> None:
-        """A cap that summed one of the four was a cap on a quarter of the
-        bill. The blind count is read beside the sum, never derived from it: a
-        model the price table never heard of records $0.00 and ``unpriced``."""
+    async def test_the_day_is_the_ledger_the_metered_client_writes(self, store: UnitOfWork) -> None:
+        """Every model call is one row, whichever door made it. The blind count
+        is read beside the sum, never derived from it: a model the price table
+        never heard of records $0.00 and ``unpriced``."""
         now = datetime.now(tz=UTC)
+        today = now.replace(hour=0, minute=0, second=1, microsecond=0)
         async with store as work:
-            await work.gestures.save_intent(_intent("ges_1", cost_usd=0.01))
-            await work.gestures.save_intent(_intent("ges_2", cost_usd=0.0, unpriced=True))
-            await work.workflows.add_pass(_pass("pas_1", started_at=_today(), cost_usd=0.02))
-            await work.workflow_runs.save(
-                _run("run_1", started_at=_today(), cost_usd=0.04, unpriced=True)
+            await work.spend.record(_spent("spd_1", at=today, cost_usd=0.01))
+            await work.spend.record(_spent("spd_2", at=today, unpriced=True))
+            await work.spend.record(_spent("spd_3", at=today, cost_usd=0.04))
+            await work.spend.record(
+                _spent("spd_4", at=today, cost_usd=9.0, tenant=OTHER_TENANT.value)
             )
-            await work.chats.record(_chat("cha_1", at=_today(), cost_usd=0.08))
-            # Errored, so nothing was billed: unpriced without being blind.
-            await work.chats.record(
-                _chat("cha_2", at=_today(), unpriced=True, error="the model refused")
-            )
+            await work.spend.record(_spent("spd_5", at=today - timedelta(seconds=2), cost_usd=7.0))
             await work.commit()
 
         async with store as work:
             spent = await work.spend.today(TENANT, now=now)
 
-        assert spent.cost_usd == pytest.approx(0.15)
-        # The unpriced reading, and nothing else: the run billed, and the chat
-        # errored.
+        assert spent.cost_usd == pytest.approx(0.05)
         assert spent.blind == 1
 
-    async def test_a_run_that_billed_nothing_at_all_is_the_blind_one(
-        self, store: UnitOfWork
-    ) -> None:
-        """A run carries no error column, so its blind row is the one that
-        billed nothing. A run that billed its other steps and lost one to a
-        503 is not that."""
-        now = datetime.now(tz=UTC)
-        async with store as work:
-            await work.workflow_runs.save(
-                _run("run_blind", started_at=_today(), cost_usd=0.0, unpriced=True)
-            )
-            await work.commit()
 
-        async with store as work:
-            assert (await work.spend.today(TENANT, now=now)).blind == 1
+def _spent(spent_id: str, *, at: datetime, tenant: str = TENANT.value, **over: Any) -> ModelSpend:
+    return ModelSpend(id=spent_id, tenant=tenant, model="gemini-3-flash", at=at, **over)
 
 
 class TestSinceWindows:

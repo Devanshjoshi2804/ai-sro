@@ -1,10 +1,8 @@
 """The day's bill, and what the audit is assembled from.
 
-Against real Postgres, because all of it is queries. The rules are the rig's
-``spent_today`` and ``SPENT_IN`` in ``new_agent_arch/src/rig/api.py`` -- four
-tables that can be billed, each with its own clock column and its own idea of
-what a blind row is -- and the audit route's own selects a hundred lines below
-them.
+Against real Postgres, because all of it is queries. The day's bill is the
+``model_spend`` ledger the metered client writes, one row per model call, and
+the audit route's own selects a hundred lines below it.
 
 Two things are proved here that a fake cannot prove. The midnight boundary is
 a ``timestamptz`` comparison rather than the rig's text one, so it is checked a
@@ -29,6 +27,7 @@ from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
+from sro.domain.shared.prices import ModelSpend
 from sro.domain.skill.offers import Offer, new_offer_id
 from sro.infrastructure.db.models import IntentRow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
@@ -139,50 +138,48 @@ async def _bill(
         await uow.commit()
 
 
+def _call(*, tenant: str = TENANT.value, at: datetime, cost: float, **over: Any) -> ModelSpend:
+    return ModelSpend(
+        id=f"spd_{tenant}_{at.isoformat()}_{cost}_{over.get('unpriced', False)}",
+        tenant=tenant,
+        model="gemini-3-flash",
+        at=at,
+        cost_usd=cost,
+        **over,
+    )
+
+
+async def _spent(session_factory: async_sessionmaker[AsyncSession], *calls: ModelSpend) -> None:
+    async with SqlUnitOfWork(session_factory) as uow:
+        for call in calls:
+            await uow.spend.record(call)
+        await uow.commit()
+
+
 class TestTheDaysSpend:
-    async def test_the_day_sums_every_table_that_can_be_billed(
+    async def test_the_day_is_every_call_the_meter_wrote(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
-        """A reading, a mining pass, a run and a chat are the four things that
-        cost money. The rig learnt this the expensive way: a cap that summed
-        one of them was a cap on a quarter of the bill."""
-        await _bill(
-            session_factory,
-            intents=(_intent_row(tenant=TENANT.value, created_at=NOW, cost=0.01),),
-            passes=(_pass(at=NOW, cost=0.02),),
-            runs=(_run(at=NOW, cost=0.04),),
-            chats=(_chat(at=NOW, cost=0.08),),
-        )
+        """One ledger, whichever door made the call. The four feature tables
+        still carry their own costs for their own screens; summing them as
+        well would bill every call twice."""
+        await _spent(session_factory, _call(at=NOW, cost=0.01), _call(at=NOW, cost=0.04))
+        await _bill(session_factory, chats=(_chat(at=NOW, cost=0.08),))
 
         async with SqlUnitOfWork(session_factory) as uow:
             day = await uow.spend.today(TENANT, now=NOW)
 
-        assert (round(day.cost_usd, 6), day.blind) == (0.15, 0)
+        assert (round(day.cost_usd, 6), day.blind) == (0.05, 0)
 
     async def test_a_row_from_yesterday_is_not_in_todays_day(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
-        """Midnight UTC, a second either side, in all four tables. The rig
-        compared ISO text against a date string; this is a ``timestamptz``
-        comparison, and the boundary is the whole rule."""
-        await _bill(
+        """Midnight UTC, a second either side. A ``timestamptz`` comparison,
+        and the boundary is the whole rule."""
+        await _spent(
             session_factory,
-            intents=(
-                _intent_row(tenant=TENANT.value, created_at=JUST_YESTERDAY, cost=1.0),
-                _intent_row(tenant=TENANT.value, created_at=JUST_TODAY, cost=0.01),
-            ),
-            passes=(
-                _pass(at=JUST_YESTERDAY, cost=1.0),
-                _pass(at=JUST_TODAY, cost=0.02),
-            ),
-            runs=(
-                _run(at=JUST_YESTERDAY, cost=1.0),
-                _run(at=JUST_TODAY, cost=0.04),
-            ),
-            chats=(
-                _chat(at=JUST_YESTERDAY, cost=1.0),
-                _chat(at=JUST_TODAY, cost=0.08),
-            ),
+            _call(at=JUST_YESTERDAY, cost=1.0),
+            _call(at=JUST_TODAY, cost=0.15),
         )
 
         async with SqlUnitOfWork(session_factory) as uow:
@@ -193,70 +190,37 @@ class TestTheDaysSpend:
     async def test_a_blind_row_is_counted_as_blind_and_still_summed(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
-        """A day whose cost cannot be trusted is not a cheap day. Each table
-        has its own idea of what blind means: a reading, a pass and a chat that
-        errored were never billed at all, so they are unpriced without being
-        blind; a run carries no error column, so its blind row is the one that
-        billed nothing."""
-        await _bill(
+        """A day whose cost cannot be trusted is not a cheap day. A call that
+        never answered wrote no row, so every unpriced row is blind."""
+        await _spent(
             session_factory,
-            intents=(
-                _intent_row(tenant=TENANT.value, created_at=NOW, cost=0.0, unpriced=True),
-                _intent_row(
-                    tenant=TENANT.value,
-                    created_at=NOW,
-                    cost=0.0,
-                    unpriced=True,
-                    error="503",
-                    gesture_id="ges_refused",
-                ),
-            ),
-            passes=(
-                _pass(at=NOW, cost=0.02, unpriced=True),
-                _pass(at=NOW, cost=0.0, unpriced=True, error="503", id="pas_refused"),
-            ),
-            runs=(
-                _run(at=NOW, cost=0.0, unpriced=True),
-                # Billed its other steps and lost one to a 503: unpriced, and
-                # not the accident `blind` exists for.
-                _run(at=NOW, cost=0.04, unpriced=True, id="run_partly_billed"),
-            ),
-            chats=(
-                _chat(at=NOW, cost=0.08, unpriced=True),
-                _chat(at=NOW, cost=0.0, unpriced=True, error="503", id="cht_refused"),
-            ),
+            _call(at=NOW, cost=0.0, unpriced=True),
+            _call(at=NOW, cost=0.08, unpriced=True),
+            _call(at=NOW, cost=0.06),
         )
 
         async with SqlUnitOfWork(session_factory) as uow:
             day = await uow.spend.today(TENANT, now=NOW)
 
-        assert day.blind == 4, "one per table, and the refusals are not among them"
+        assert day.blind == 2
         assert round(day.cost_usd, 6) == 0.14, "a blind row still spends what it says"
 
     async def test_another_tenants_spending_is_not_in_this_days(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
-        """Every one of the four predicates is tenant-scoped, or one warehouse's
-        morning closes another warehouse's day."""
-        await _bill(
+        """Tenant-scoped, or one warehouse's morning closes another's day."""
+        await _spent(
             session_factory,
-            intents=(
-                _intent_row(tenant=OTHER_TENANT.value, created_at=NOW, cost=5.0, unpriced=True),
-            ),
-            passes=(_pass(tenant=OTHER_TENANT.value, at=NOW, cost=5.0, unpriced=True),),
-            runs=(_run(tenant=OTHER_TENANT.value, at=NOW, cost=5.0, unpriced=True),),
-            chats=(_chat(tenant=OTHER_TENANT.value, at=NOW, cost=5.0, unpriced=True),),
+            _call(tenant=OTHER_TENANT.value, at=NOW, cost=5.0, unpriced=True),
+            _call(at=NOW, cost=0.08),
         )
-        await _bill(session_factory, chats=(_chat(at=NOW, cost=0.08),))
 
         async with SqlUnitOfWork(session_factory) as uow:
             mine = await uow.spend.today(TENANT, now=NOW)
             theirs = await uow.spend.today(OTHER_TENANT, now=NOW)
 
         assert (round(mine.cost_usd, 6), mine.blind) == (0.08, 0)
-        # Three of their four rows are blind, not four: the run billed $5.00,
-        # and a run that billed is not the accident `unpriced` exists for.
-        assert (round(theirs.cost_usd, 6), theirs.blind) == (20.0, 3)
+        assert (round(theirs.cost_usd, 6), theirs.blind) == (5.0, 1)
 
     async def test_a_day_nobody_spent_anything_in_is_zero_rather_than_nothing(
         self, session_factory: async_sessionmaker[AsyncSession]
@@ -274,9 +238,8 @@ class TestTheDaysSpend:
         """Midnight is UTC's, never the server's. A naive ``now`` read as local
         time moves the boundary by the machine's offset, which on a westward
         host bills yesterday evening to today."""
-        await _bill(
-            session_factory,
-            chats=(_chat(at=JUST_YESTERDAY, cost=1.0), _chat(at=JUST_TODAY, cost=0.08)),
+        await _spent(
+            session_factory, _call(at=JUST_YESTERDAY, cost=1.0), _call(at=JUST_TODAY, cost=0.08)
         )
 
         async with SqlUnitOfWork(session_factory) as uow:

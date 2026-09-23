@@ -36,6 +36,7 @@ from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Channel, Reply
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.shared.refusals import OverCap
 from sro.domain.chat.asked_by import only_reads_the_mail
 from sro.domain.execution.belts import K_WEAK_LOCATORS, StepVerdict
 from sro.domain.execution.evidence import (
@@ -2032,6 +2033,9 @@ async def run_workflow(
                 run.outcome = "held"
     except DeviceUnreachable as gone:
         _fell_over(run, in_flight, str(gone))
+    except OverCap as reached:
+        _fell_over(run, in_flight, str(reached))
+        run.outcome = "stopped"
     except Exception as broke:
         _fell_over(run, in_flight, f"{type(broke).__name__}: {broke}")
         raise

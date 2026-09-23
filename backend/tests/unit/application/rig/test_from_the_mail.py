@@ -13,11 +13,14 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
+import pytest
+
 from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.converse import StartThread
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.context import RequestContext
 from sro.application.ports.tools import ToolResult, ToolsUnavailable
+from sro.application.shared.refusals import OverCap
 from sro.domain.chat.asking import NEEDS, Pending, pending_job
 from sro.domain.chat.thread import Message, MessageId, Speaker
 from sro.domain.execution.gathering import Found, Gathered
@@ -30,7 +33,7 @@ from sro.domain.knowledge.entry import (
     KnowledgeId,
 )
 from sro.domain.shared.identifiers import PrincipalId, TenantId
-from sro.domain.shared.prices import Answer
+from sro.domain.shared.prices import Answer, ModelSpend
 from sro.domain.skill.workflow import Step, Workflow
 from tests import factories as f
 from tests.unit.fakes import FakeClock, FakeIdFactory, FakeUnitOfWork
@@ -151,9 +154,23 @@ async def _held() -> FakeUnitOfWork:
     return uow
 
 
-def _look(uow: FakeUnitOfWork, mailbox: _Mailbox, reads: _Reads, gather: Any = None) -> FromTheMail:
+def _look(
+    uow: FakeUnitOfWork,
+    mailbox: _Mailbox,
+    reads: _Reads,
+    gather: Any = None,
+    *,
+    cap_usd: float = -1.0,
+) -> FromTheMail:
     return FromTheMail(
-        uow, mailbox, reads, model="m", gather=gather, clock=FakeClock(), ids=FakeIdFactory()
+        uow,
+        mailbox,
+        reads,
+        model="m",
+        gather=gather,
+        clock=FakeClock(),
+        ids=FakeIdFactory(),
+        cap_usd=cap_usd,
     )
 
 
@@ -202,6 +219,59 @@ async def test_a_mail_that_asks_for_a_job_becomes_the_same_offer_a_typed_request
     # themselves, or when their day does -- a thread line would outlive all
     # three and be history of a question nobody answered.
     assert await _thread(uow) is None
+
+
+async def test_an_over_cap_tenant_s_look_never_reaches_the_model_or_the_mailbox() -> None:
+    """A look spends the tenant's model budget; a spent day refuses it before
+    the first mail is fetched, the way every other door does."""
+    uow = await _held()
+    await uow.spend.record(
+        ModelSpend(id="spd_1", tenant=f.TENANT.value, model="m", at=FakeClock().now(), cost_usd=6.0)
+    )
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("please add customer type GPX")})
+    reads = _Reads(_reading(JOB))
+
+    with pytest.raises(OverCap) as refused:
+        await _look(uow, mailbox, reads, cap_usd=5.0).execute(CTX)
+
+    assert "daily cap reached" in str(refused.value)
+    assert reads.saw == []
+    assert mailbox.asked == []
+
+
+async def test_a_cap_crossed_partway_through_a_look_stops_it_and_keeps_the_rest_unread() -> None:
+    """The first mail's reading spends the last of the day; the second is
+    refused by the meter. That is a refusal, not a mail that asks for nothing:
+    the look stops, says why, keeps the offer it already made, and leaves the
+    refused mail to be read by the next look instead of remembering it as seen
+    for a month."""
+    uow = await _held()
+    mailbox = _Mailbox(
+        search=_found("m-1", "m-2", "m-3"),
+        **{
+            "m-1": _mail("please add customer type GPX"),
+            "m-2": _mail("please add customer type GPY"),
+            "m-3": _mail("please add customer type GPZ"),
+        },
+    )
+
+    class _SpendsTheLast(_Reads):
+        async def ask(self, *, evidence: str, **rest: object) -> Answer:
+            if len(self.saw) >= 1:
+                self.saw.append(evidence)
+                raise OverCap("daily cap reached: $5.0100 of $5.00 spent today")
+            return await super().ask(evidence=evidence, **rest)
+
+    looked = await _look(uow, mailbox, _SpendsTheLast(_reading(JOB))).execute(CTX)
+
+    assert [one.message for one in looked.offered] == ["m-1"]
+    assert "daily cap reached" in looked.why
+    fetched = [args.get("id") for _, tool, args in mailbox.asked if tool == "get_message"]
+    assert "m-3" not in fetched, "the look went on reading after the cap stopped it"
+
+    again = _Reads(_reading(JOB), _reading(JOB))
+    later = await _look(uow, mailbox, again).execute(CTX)
+    assert sorted(one.message for one in later.offered) == ["m-2", "m-3"]
 
 
 async def test_a_mail_is_offered_once_however_often_the_mailbox_is_read() -> None:

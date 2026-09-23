@@ -59,7 +59,7 @@ from sro.application.execution.run_workflow import (
 from sro.application.execution.stops import Stops
 from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Reply
-from sro.domain.chat.reading import ChatReading
+from sro.application.shared.refusals import OverCap
 from sro.domain.execution.belts import K_EARNED_RUNS, SCREEN_SCHEMA
 from sro.domain.execution.gathering import Found, Gathered
 from sro.domain.execution.learned_step import LearnedStep
@@ -68,7 +68,7 @@ from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Action, Body, Call, Gesture, PageMark, Target
 from sro.domain.shared.identifiers import DeviceId, TenantId
-from sro.domain.shared.prices import Answer
+from sro.domain.shared.prices import Answer, ModelSpend
 from sro.domain.skill.checks import signs_in
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
 from sro.domain.skill.workflow import Step, Workflow
@@ -8193,7 +8193,7 @@ async def test_a_long_list_reads_the_days_bill_again_and_stops_when_it_is_spent(
     four-step body is about a hundred legs, and at this deployment's measured
     $0.0118 a step that is $1.20 against a $5 day, with nothing asking.
 
-    The bill is planted mid-run by a chat row landing after the first thing on
+    The bill is planted mid-run by a model call landing after the first thing on
     the list, which is what a mining pass or another browser does while a long
     run is going.
     """
@@ -8222,11 +8222,12 @@ async def test_a_long_list_reads_the_days_bill_again_and_stops_when_it_is_spent(
         async def ask(self, *args: object, **kwargs: object) -> Answer:
             self.times += 1
             if self.times == 2:
-                await uow.chats.record(
-                    ChatReading(
+                await uow.spend.record(
+                    ModelSpend(
                         id="cha_someone_else",
                         tenant=TENANT.value,
-                        at=datetime.now(tz=UTC).isoformat(),
+                        model="m",
+                        at=datetime.now(tz=UTC),
                         cost_usd=9.99,
                     )
                 )
@@ -8248,6 +8249,28 @@ async def test_a_long_list_reads_the_days_bill_again_and_stops_when_it_is_spent(
     # Stopped at a boundary between two things on the list, so what it did is
     # whole records rather than half of one.
     assert run.steps[-1].item is not None and run.steps[-1].item > 0
+
+
+async def test_a_cap_the_meter_refuses_mid_step_stops_the_run_like_the_leg_check() -> None:
+    """The leg check and the meter judge the same day. Crossed between them --
+    a step's own call refused by the meter -- the run is stopped with the
+    reason, the way the leg check stops it, not failed with a traceback."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+
+    class _Refused(_PerSchemaAsker):
+        async def ask(self, *args: object, **kwargs: object) -> Answer:
+            raise OverCap("daily cap reached: $5.0100 of $5.00 spent today")
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=FakeChannel({**_looks(4)}),
+        asker=_Refused(plan=_plan("type", "x"), verdict=Answer(data={"held": True})),
+    )
+
+    assert run.outcome == "stopped"
+    assert "daily cap reached" in (run.steps[-1].reason or "")
 
 
 async def test_a_list_longer_than_one_press_can_mean_is_refused_before_anything_is_sent() -> None:

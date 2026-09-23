@@ -20,6 +20,7 @@ from sro.application.observation.mining_pass import MineResult
 from sro.application.shared.refusals import OverCap
 from sro.domain.observation.gesture import Action, Gesture, GestureBatch
 from sro.domain.observation.mining import MiningPass
+from sro.whose import about, whose
 from tests.unit.fakes import FakeUnitOfWork
 
 NOW = datetime(2026, 9, 13, 12, 0, tzinfo=UTC)
@@ -471,3 +472,31 @@ async def test_one_tenant_working_does_not_hold_up_another_who_has_stopped() -> 
     await _swept(uow, passes)
 
     assert passes.asked == ["new"]
+
+
+async def test_each_tenant_s_reading_and_pass_are_billed_to_that_tenant() -> None:
+    """The sweep runs outside any request, so nothing names the tenant but the
+    sweep itself: the metered client bills whoever is named while that
+    tenant's reading and pass run, and nobody once the sweep moves on."""
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", "new")
+    seen: list[tuple[str, str]] = []
+
+    class _Noting(_Reads):
+        async def execute(self, ctx: RequestContext) -> int:
+            seen.append(("read", str(whose().get("tenant"))))
+            return 0
+
+    class _Mining(_Passes):
+        async def execute(self, ctx: RequestContext) -> MineResult:
+            seen.append(("mine", str(whose().get("tenant"))))
+            assert whose().get("tenant") == ctx.tenant_id.value
+            return MineResult()
+
+    with about():
+        await _swept(uow, _Mining(), _Noting())
+        assert "tenant" not in whose()
+
+    assert sorted(seen) == sorted(
+        [("read", "acme"), ("mine", "acme"), ("read", "new"), ("mine", "new")]
+    )

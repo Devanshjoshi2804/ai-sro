@@ -152,6 +152,15 @@ steps:
 - **Medium:** `api` when the write is in `learned_writes` and its body can be re-aimed (`write_plan_for`); otherwise `ui`; `tool` for mail steps (**done** on main: `e5ca64a8`, `ec42ef39` send mail through the mailbox, not the composer).
 - A recipe compiles only if every required parameter is bound, every write step has a proof, and every UI step has at least one locator. A job that fails to compile is reported in the console, not run.
 
+### 5.4 Jobs that span tabs
+
+Measured 2026-09-23: 5 of 59 learned jobs (local) were done across more than one tab. Today the tab is captured on every gesture (`tab_id`) but lost afterwards: the mining evidence does not show it, steps do not store it, and the run engine has no tab concept (the extension picks one tab per origin, `tabForRun`). A job that needs two tabs of one system, or a popup, is flattened into one tab.
+
+- **Learning:** each step gets a **tab role** ("tab 1", "tab 2", "opened from tab 1" when a click opened a popup or new tab), derived in code from the cited gestures' `tab_id` and `popup_opened` page events, not by the model. It is stored on the step (additive column). The mining evidence shows the role, so a two-tab doing reads as one job.
+- **Recipe:** every step carries `tab: <role>`; a step that opens one says `opens_tab: <role>`.
+- **Runner:** each run holds a map from role to page inside its account's browser (D8). A step for a new role opens a tab, or catches the popup its own click opened; later steps switch to their role's page. Values cross tabs through `Step.uses`. Tool steps (Gmail) take no tab.
+- **Parallel runs:** roles are per run, so runs never share or steal each other's tabs.
+
 ## 6. Execution
 
 ### 6.1 Fast path
@@ -227,7 +236,7 @@ Per run step, record: `started_at`, `finished_at`, `model_ms`, `browser_ms`, `wa
 | --- | --- | --- |
 | 1 | Timing per step (§9) | Baseline table for today's runs, locally and on QA |
 | 2 | Evaluation harness (§8) with the three suites | Baseline accuracy and cost for today's prompts |
-| 3 | Recipe compiler and YAML export (§5); read-only | Every learned job compiles, or has a listed reason why not |
+| 3 | Recipe compiler and YAML export (§5), including tab roles (§5.4); read-only | Every learned job compiles, or has a listed reason why not; the 5 multi-tab jobs carry correct roles |
 | 4 | Recipe rung before the model rung in today's engine | Measured drop in model calls and step time, with no loss of verified runs |
 | 5 | Verification from the page's own calls (§6.2) | Screen-model verifications fall to screen-only steps |
 | 6 | Remove the approval gates; autonomy switch; stop-don't-ask rails (§4) | A mined job runs end to end with no panel interaction |

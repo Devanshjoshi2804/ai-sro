@@ -14,7 +14,7 @@ FRONTEND := cd frontend &&
 
 .DEFAULT_GOAL := help
 .PHONY: help up down ps logs reset install migrate revision api worker status web vault-key one-whole-run \
-        lint lint-backend lint-frontend format test test-unit test-integration \
+        lint lint-backend check-code-notes lint-frontend format test test-unit test-integration \
         test-contract test-browser types check ingest-kb gen-recorder \
         mutants-backend images smoke gen-deployment
 
@@ -152,6 +152,9 @@ lint-backend: ## ruff + mypy --strict + import-linter
 	$(BACKEND) uv run ruff format --check .
 	$(BACKEND) uv run mypy src tests
 	$(BACKEND) uv run lint-imports
+
+check-code-notes: ## docs/code-notes/ anchors still point at the line they name
+	$(BACKEND) uv run python scripts/check_code_notes.py
 
 lint-frontend: ## eslint + tsc
 	$(FRONTEND) npm run lint

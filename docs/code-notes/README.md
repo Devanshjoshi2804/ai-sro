@@ -12,6 +12,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | --- | --- |
 | [`backend/gmail-connector/server.py`](backend/gmail-connector/server.py.md) | 25 |
 | [`backend/mock-connector/server.py`](backend/mock-connector/server.py.md) | 3 |
+| [`backend/scripts/check_code_notes.py`](backend/scripts/check_code_notes.py.md) | 7 |
 | [`backend/scripts/dev_browser.py`](backend/scripts/dev_browser.py.md) | 5 |
 | [`backend/scripts/dry_run.py`](backend/scripts/dry_run.py.md) | 9 |
 | [`backend/scripts/look_up.py`](backend/scripts/look_up.py.md) | 1 |

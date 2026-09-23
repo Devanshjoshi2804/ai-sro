@@ -75,6 +75,9 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run mypy src tests
       - run: uv run lint-imports
+      # docs/code-notes/ line anchors, against this checkout's own source --
+      # `--fix` is never run here; the controller runs it once, after merges.
+      - run: uv run python scripts/check_code_notes.py
 
   backend-tests:
     name: Backend — unit, contract, integration

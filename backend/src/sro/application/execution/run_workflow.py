@@ -2508,6 +2508,38 @@ async def run_workflow(
                     }
 
                     if proposal.kind == "none":
+                        # A planner that finds nothing to do here may be
+                        # looking at a page the operator has already left
+                        # behind: a session-expired dialog that is not up, a
+                        # link somebody already clicked. The same question the
+                        # browser's refusals get asked below -- where is it
+                        # standing? -- asked before anything is sent, because
+                        # a decline sends nothing. Measured 2026-09-23,
+                        # `run_43ab2c7c`: "the browser is currently not loaded
+                        # on the required page for this step" on step 0 of a
+                        # sign-in, and the run stopped there.
+                        if live:
+                            ahead = await _ahead_of_here(
+                                channel,
+                                tenant_id,
+                                device_id,
+                                run.id,
+                                origin,
+                                ordered=ordered,
+                                after=step,
+                                by_id=by_id,
+                                screen_of_step=_screen_of,
+                            )
+                            if ahead is not None:
+                                joined_at = ahead
+                                stepped_over = True
+                                never_filled = False
+                                record.verdict, record.verdict_by = "not_needed", "none"
+                                record.reason = (
+                                    "the browser is already past this: it is on the"
+                                    f" screen step {ahead} starts from"
+                                )
+                                break
                         verdict = StepVerdict("failed", "none", proposal.why)
                         break
                     off = _target_origin(proposal)

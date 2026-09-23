@@ -8885,3 +8885,79 @@ async def test_a_delete_done_on_screen_earns_the_job_by_its_status() -> None:
     assert (run.tenant, "DELETE", "/api/customerTypes/{id}") in uow.workflows.learned_write_rows, (
         "the ledger never learnt the endpoint this run watched succeed"
     )
+
+
+async def test_a_declined_step_is_stepped_over_when_the_browser_is_ahead() -> None:
+    """The same rescue for a decline as for a refusal.
+
+    `run_43ab2c7c`, 2026-09-23: step 0 of a sign-in -- "Click OK on the session
+    expired dialog" -- was declined by the planner, "the browser is currently
+    not loaded on the required page for this step", and the run stopped. A
+    decline sends nothing, so the browser never got to refuse, and the rescue
+    that reads where it is standing never ran.
+    """
+    uow = await _fixture()
+    door = replace(
+        _evidence(uow)[0],
+        id="ges_door",
+        url=f"{LOGIN}/oauth2/v2.0/authorize",
+        page_url=f"{LOGIN}/oauth2/v2.0/authorize",
+        system=LOGIN,
+        requests=[],
+    )
+    form = replace(
+        _evidence(uow)[0],
+        id="ges_form",
+        url="https://keycloak.test/auth/realms/x/protocol/openid-connect/auth",
+        page_url="https://keycloak.test/auth/realms/x/protocol/openid-connect/auth",
+        system="https://keycloak.test",
+        requests=[],
+    )
+    await uow.gestures.add_gestures((door, form))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_declined",
+            tenant=TENANT.value,
+            title="Log in using Azure B2C SSO",
+            narrative="n",
+            systems=[LOGIN, "https://keycloak.test"],
+            steps=[
+                Step(order=0, says="Click OK on the dialog", system=None, cites=[door.id]),
+                Step(order=1, says="Enter username or email", system=None, cites=[form.id]),
+            ],
+        )
+    )
+    workflow = await uow.workflows.get(TENANT, "wfl_declined")
+    here = Reply(ok=True, result={"url": form.url, "elsewhere_is_ours": True})
+    channel = FakeChannel(
+        {
+            # Every rung of step 0 fails to find the dialog, so the ladder
+            # reaches a planner -- which declines.
+            "ui.perform": [
+                Reply(ok=False, error_kind="element_gone", error_detail="gone"),
+                Reply(ok=False, error_kind="element_gone", error_detail="gone"),
+                _performed(),
+                _performed(),
+            ],
+            "ui.url": [here] * 8,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+            ]
+            * 8,
+        }
+    )
+    declined = Answer(
+        data={"kind": "none", "why": "the browser is not on the step page"}, cost_usd=0.001
+    )
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=FakeAsker(declined, declined, declined, *[_plan("type", "x")] * 6),
+        earned=True,
+    )
+
+    behind = next((one for one in run.steps if one.of_step == 0), None)
+    assert behind is not None, "step 0 was never recorded"
+    assert behind.verdict == "not_needed", f"{behind.verdict}: {behind.reason}"
+    assert any(one.of_step == 1 for one in run.steps), "the run never reached the step it was on"

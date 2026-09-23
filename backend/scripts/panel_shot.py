@@ -58,24 +58,7 @@ def main() -> int:
                         { kind: "sign-in", apiUrl, consoleUrl, token }, () => resolve(null)))""",
                 [API, CONSOLE, TOKEN],
             )
-        if BESIDE and os.environ.get("SRO_TEACHING"):
-            beside = context.new_page()
-            beside.goto(BESIDE)
-            beside.wait_for_timeout(2500)
-            panel.evaluate(
-                """(url) => new Promise((resolve) =>
-                    chrome.tabs.query({}, (tabs) => {
-                        const tab = tabs.find((each) => (each.url || "").startsWith(url));
-                        chrome.runtime.sendMessage(
-                            { kind: "teach-start", tabId: tab?.id, label: "a demonstration" },
-                            () => resolve(null));
-                    }))""",
-                BESIDE,
-            )
-            beside.bring_to_front()
-            beside.mouse.click(200, 200)
-            beside.wait_for_timeout(2500)
-        elif BESIDE:
+        if BESIDE:
             beside = context.new_page()
             beside.goto(BESIDE)
             beside.wait_for_timeout(1500)

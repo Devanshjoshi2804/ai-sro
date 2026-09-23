@@ -1,26 +1,25 @@
 {
-  "batch_id": "bat_browsertest_04091dc2_1",
+  "batch_id": "bat_browsertest_ad18cf79_1",
   "device_id": "dev_browsertest",
-  "started_at": "2026-09-23T18:18:26.398Z",
-  "ended_at": "2026-09-23T18:18:26.611Z",
+  "started_at": "2026-09-23T21:34:38.326Z",
+  "ended_at": "2026-09-23T21:34:38.521Z",
   "mode": "passive",
-  "recording_id": null,
   "events": [
     {
       "kind": "page",
-      "at": "2026-09-23T18:18:26.385Z",
+      "at": "2026-09-23T21:34:38.311Z",
       "page_kind": "navigated",
-      "url": "http://127.0.0.1:52399/",
+      "url": "http://127.0.0.1:59717/",
       "detail": null,
-      "tab_id": 446238358
+      "tab_id": 203210683
     },
     {
       "kind": "page",
-      "at": "2026-09-23T18:18:26.387Z",
+      "at": "2026-09-23T21:34:38.316Z",
       "page_kind": "loaded",
-      "url": "http://127.0.0.1:52399/",
+      "url": "http://127.0.0.1:59717/",
       "detail": null,
-      "tab_id": 446238358
+      "tab_id": 203210683
     },
     {
       "kind": "gesture",
@@ -65,12 +64,12 @@
         "value": "ACME-4471",
         "secret": false,
         "modifiers": [],
-        "at": 1790187506.438,
-        "url": "http://127.0.0.1:52399/"
+        "at": 1790199278.361,
+        "url": "http://127.0.0.1:59717/"
       },
-      "tab_id": 446238358,
-      "frame_url": "http://127.0.0.1:52399/",
-      "page_url": "http://127.0.0.1:52399/"
+      "tab_id": 203210683,
+      "frame_url": "http://127.0.0.1:59717/",
+      "page_url": "http://127.0.0.1:59717/"
     },
     {
       "kind": "gesture",
@@ -101,12 +100,12 @@
         "value": "D3",
         "secret": false,
         "modifiers": [],
-        "at": 1790187506.493,
-        "url": "http://127.0.0.1:52399/"
+        "at": 1790199278.409,
+        "url": "http://127.0.0.1:59717/"
       },
-      "tab_id": 446238358,
-      "frame_url": "http://127.0.0.1:52399/",
-      "page_url": "http://127.0.0.1:52399/"
+      "tab_id": 203210683,
+      "frame_url": "http://127.0.0.1:59717/",
+      "page_url": "http://127.0.0.1:59717/"
     },
     {
       "kind": "gesture",
@@ -137,12 +136,12 @@
         },
         "value": "manifest.csv",
         "modifiers": [],
-        "at": 1790187506.502,
-        "url": "http://127.0.0.1:52399/"
+        "at": 1790199278.418,
+        "url": "http://127.0.0.1:59717/"
       },
-      "tab_id": 446238358,
-      "frame_url": "http://127.0.0.1:52399/",
-      "page_url": "http://127.0.0.1:52399/"
+      "tab_id": 203210683,
+      "frame_url": "http://127.0.0.1:59717/",
+      "page_url": "http://127.0.0.1:59717/"
     },
     {
       "kind": "gesture",
@@ -174,12 +173,12 @@
         "value": null,
         "secret": true,
         "modifiers": [],
-        "at": 1790187506.542,
-        "url": "http://127.0.0.1:52399/"
+        "at": 1790199278.454,
+        "url": "http://127.0.0.1:59717/"
       },
-      "tab_id": 446238358,
-      "frame_url": "http://127.0.0.1:52399/",
-      "page_url": "http://127.0.0.1:52399/"
+      "tab_id": 203210683,
+      "frame_url": "http://127.0.0.1:59717/",
+      "page_url": "http://127.0.0.1:59717/"
     },
     {
       "kind": "gesture",
@@ -222,12 +221,12 @@
           }
         },
         "modifiers": [],
-        "at": 1790187506.543,
-        "url": "http://127.0.0.1:52399/"
+        "at": 1790199278.455,
+        "url": "http://127.0.0.1:59717/"
       },
-      "tab_id": 446238358,
-      "frame_url": "http://127.0.0.1:52399/",
-      "page_url": "http://127.0.0.1:52399/"
+      "tab_id": 203210683,
+      "frame_url": "http://127.0.0.1:59717/",
+      "page_url": "http://127.0.0.1:59717/"
     },
     {
       "kind": "gesture",
@@ -271,12 +270,12 @@
         },
         "value": "Enter",
         "modifiers": [],
-        "at": 1790187506.554,
-        "url": "http://127.0.0.1:52399/"
+        "at": 1790199278.462,
+        "url": "http://127.0.0.1:59717/"
       },
-      "tab_id": 446238358,
-      "frame_url": "http://127.0.0.1:52399/",
-      "page_url": "http://127.0.0.1:52399/"
+      "tab_id": 203210683,
+      "frame_url": "http://127.0.0.1:59717/",
+      "page_url": "http://127.0.0.1:59717/"
     },
     {
       "kind": "gesture",
@@ -318,21 +317,21 @@
           }
         },
         "modifiers": [],
-        "at": 1790187506.588,
-        "url": "http://127.0.0.1:52399/"
+        "at": 1790199278.497,
+        "url": "http://127.0.0.1:59717/"
       },
-      "tab_id": 446238358,
-      "frame_url": "http://127.0.0.1:52399/",
-      "page_url": "http://127.0.0.1:52399/"
+      "tab_id": 203210683,
+      "frame_url": "http://127.0.0.1:59717/",
+      "page_url": "http://127.0.0.1:59717/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_67cec3c6_0",
+        "request_id": "req_77e9ff1c_0",
         "method": "GET",
-        "url": "http://127.0.0.1:52399/api/orders?facility=DC1",
+        "url": "http://127.0.0.1:59717/api/orders?facility=DC1",
         "resource_type": "fetch",
-        "started_at": "2026-09-23T18:18:26.588Z",
+        "started_at": "2026-09-23T21:34:38.498Z",
         "request_headers": {},
         "request_body": null,
         "status": 200,
@@ -342,7 +341,7 @@
           "access-control-allow-origin": "*",
           "content-length": "29",
           "content-type": "application/json",
-          "date": "Wed, 23 Sep 2026 18:18:26 GMT",
+          "date": "Wed, 23 Sep 2026 21:34:38 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": {
@@ -358,17 +357,17 @@
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 446238358,
-      "frame_url": "http://127.0.0.1:52399/"
+      "tab_id": 203210683,
+      "frame_url": "http://127.0.0.1:59717/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_67cec3c6_1",
+        "request_id": "req_77e9ff1c_1",
         "method": "POST",
-        "url": "http://127.0.0.1:52399/api/orders",
+        "url": "http://127.0.0.1:59717/api/orders",
         "resource_type": "fetch",
-        "started_at": "2026-09-23T18:18:26.604Z",
+        "started_at": "2026-09-23T21:34:38.514Z",
         "request_headers": {
           "content-type": "application/json"
         },
@@ -386,7 +385,7 @@
           "access-control-allow-origin": "*",
           "content-length": "12",
           "content-type": "application/json",
-          "date": "Wed, 23 Sep 2026 18:18:26 GMT",
+          "date": "Wed, 23 Sep 2026 21:34:38 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": {
@@ -402,17 +401,17 @@
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 446238358,
-      "frame_url": "http://127.0.0.1:52399/"
+      "tab_id": 203210683,
+      "frame_url": "http://127.0.0.1:59717/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_67cec3c6_2",
+        "request_id": "req_77e9ff1c_2",
         "method": "GET",
         "url": "http://127.0.0.1:1/never",
         "resource_type": "fetch",
-        "started_at": "2026-09-23T18:18:26.606Z",
+        "started_at": "2026-09-23T21:34:38.517Z",
         "request_headers": {},
         "request_body": null,
         "status": null,
@@ -425,17 +424,17 @@
         "failure_reason": "Failed to fetch",
         "blocked_reason": null
       },
-      "tab_id": 446238358,
-      "frame_url": "http://127.0.0.1:52399/"
+      "tab_id": 203210683,
+      "frame_url": "http://127.0.0.1:59717/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_67cec3c6_3",
+        "request_id": "req_77e9ff1c_3",
         "method": "POST",
-        "url": "http://127.0.0.1:52399/api/legacy",
+        "url": "http://127.0.0.1:59717/api/legacy",
         "resource_type": "xhr",
-        "started_at": "2026-09-23T18:18:26.607Z",
+        "started_at": "2026-09-23T21:34:38.518Z",
         "request_headers": {
           "content-type": "application/x-www-form-urlencoded"
         },
@@ -453,7 +452,7 @@
           "access-control-allow-origin": "*",
           "content-length": "12",
           "content-type": "application/json",
-          "date": "Wed, 23 Sep 2026 18:18:26 GMT",
+          "date": "Wed, 23 Sep 2026 21:34:38 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": {
@@ -469,24 +468,24 @@
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 446238358,
-      "frame_url": "http://127.0.0.1:52399/"
+      "tab_id": 203210683,
+      "frame_url": "http://127.0.0.1:59717/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_67cec3c6_4",
+        "request_id": "req_77e9ff1c_4",
         "method": "GET",
-        "url": "http://127.0.0.1:52399/api/stream",
+        "url": "http://127.0.0.1:59717/api/stream",
         "resource_type": "fetch",
-        "started_at": "2026-09-23T18:18:26.608Z",
+        "started_at": "2026-09-23T21:34:38.519Z",
         "request_headers": {},
         "request_body": null,
         "status": 200,
         "status_text": "OK",
         "response_headers": {
           "content-type": "text/event-stream",
-          "date": "Wed, 23 Sep 2026 18:18:26 GMT",
+          "date": "Wed, 23 Sep 2026 21:34:38 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": null,
@@ -496,8 +495,8 @@
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 446238358,
-      "frame_url": "http://127.0.0.1:52399/"
+      "tab_id": 203210683,
+      "frame_url": "http://127.0.0.1:59717/"
     }
   ]
 }

@@ -1,18 +1,18 @@
 {
   "kind": "request",
   "request": {
-    "request_id": "req_67cec3c6_4",
+    "request_id": "req_77e9ff1c_4",
     "method": "GET",
-    "url": "http://127.0.0.1:52399/api/stream",
+    "url": "http://127.0.0.1:59717/api/stream",
     "resource_type": "fetch",
-    "started_at": "2026-09-23T18:18:26.608Z",
+    "started_at": "2026-09-23T21:34:38.519Z",
     "request_headers": {},
     "request_body": null,
     "status": 200,
     "status_text": "OK",
     "response_headers": {
       "content-type": "text/event-stream",
-      "date": "Wed, 23 Sep 2026 18:18:26 GMT",
+      "date": "Wed, 23 Sep 2026 21:34:38 GMT",
       "server": "BaseHTTP/0.6 Python/3.14.7"
     },
     "response_body": null,
@@ -22,6 +22,6 @@
     "failure_reason": null,
     "blocked_reason": null
   },
-  "tab_id": 446238358,
-  "frame_url": "http://127.0.0.1:52399/"
+  "tab_id": 203210683,
+  "frame_url": "http://127.0.0.1:59717/"
 }

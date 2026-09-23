@@ -193,20 +193,6 @@ def _capture(context: Any, api_url: str, batches: list[dict[str, Any]]) -> list[
 
     flushing = _options(context, worker)
     flushing.evaluate("""async () => await chrome.runtime.sendMessage({kind: "flush"})""")
-
-    # And once more as a demonstration, which is the only thing that produces a
-    # snapshot: the accessibility tree needs `chrome.debugger`, and passive
-    # capture deliberately never attaches it.
-    began = flushing.evaluate(
-        """async () => await chrome.runtime.sendMessage({kind: "teach-start"})"""
-    )
-    if not began.get("ok"):
-        raise SystemExit(f"the demonstration did not start: {began}")
-    page.click("#client")
-    page.fill("#client", CLIENT_CODE)
-    page.click("#save")
-    page.wait_for_timeout(500)
-    flushing.evaluate("""async () => await chrome.runtime.sendMessage({kind: "teach-stop"})""")
     flushing.close()
     page.close()
 
@@ -301,7 +287,6 @@ def main(into: Path = FIXTURES) -> int:
         "gesture-upload": _one(events, "gesture", {"kind": "upload"}),
         "gesture-secret": _one(events, "gesture", {"secret": True}),
         "page-navigated": _one(events, "page", {"page_kind": "navigated"}),
-        "snapshot": _one(events, "snapshot"),
     }
     requests = [event for event in events if event["kind"] == "request"]
     wanted["request-get"] = next(
@@ -346,9 +331,6 @@ def main(into: Path = FIXTURES) -> int:
 
     if _Stub.batches:
         _write("batch", _Stub.batches[0], into)
-    teaching = [batch for batch in _Stub.batches if batch.get("mode") == "teaching"]
-    if teaching:
-        _write("batch-teaching", teaching[0], into)
 
     if missing:
         # Loudly, and with a failing exit: a fixture silently not regenerated is

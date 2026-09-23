@@ -245,8 +245,6 @@ class _Stub(BaseHTTPRequestHandler):
     shape_queries: ClassVar[list[str]] = []
     rig_presses: ClassVar[list[dict[str, Any]]] = []
     rig_runs: ClassVar[dict[str, dict[str, Any]]] = {}
-    recordings: ClassVar[list[str]] = []
-    sealed: ClassVar[list[str]] = []
     watches: ClassVar[list[dict[str, Any]]] = []
     """The mail rules this browser is handed. Empty by default, so every other
     test here is a browser with no watch on it and nothing of ours in a
@@ -303,7 +301,7 @@ class _Stub(BaseHTTPRequestHandler):
             # device-scoped -- but they are, and the same secret is what says
             # which browser is filing under whose name.
             self.path.split("?")[0] == each
-            for each in ("/v1/observations", "/v1/observations/artifacts", "/v1/recordings")
+            for each in ("/v1/observations", "/v1/observations/artifacts")
         )
         if not device_scoped or self.path == "/v1/agents/register":
             return True
@@ -614,33 +612,6 @@ class _Stub(BaseHTTPRequestHandler):
         if self.path.endswith("/heartbeat"):
             self._send(200, json.dumps({"pause": False, "policy": None}).encode())
             return
-        if self.path == "/v1/recordings":
-            recording_id = f"rec_browsertest{len(_Stub.recordings)}"
-            _Stub.recordings.append(recording_id)
-            self._send(
-                201,
-                json.dumps({"recording_id": recording_id, "live_view_url": ""}).encode(),
-            )
-            return
-        if self.path.startswith("/v1/recordings/") and self.path.endswith("/finish"):
-            _Stub.sealed.append(self.path.split("/")[3])
-            self._send(
-                200,
-                json.dumps(
-                    {
-                        "id": self.path.split("/")[3],
-                        "objective_key": None,
-                        "label": None,
-                        "status": "sealed",
-                        "demonstrator": "browser-test",
-                        "started_at": "2026-08-25T09:00:00+00:00",
-                        "ended_at": "2026-08-25T09:05:00+00:00",
-                        "frame_count": 2,
-                        "has_narration": False,
-                    }
-                ).encode(),
-            )
-            return
         if self.path.endswith("/runs/from-preview"):
             body = json.loads(raw)
             skill_id = self.path.split("/")[3]
@@ -753,8 +724,6 @@ def stub() -> Iterator[tuple[str, list[dict[str, Any]]]]:
     _Stub.shape_queries = []
     _Stub.rig_presses = []
     _Stub.rig_runs = {}
-    _Stub.recordings = []
-    _Stub.sealed = []
     _Stub.watches = []
     _Stub.matched = []
     _Stub.fired = []
@@ -782,12 +751,6 @@ def artifacts(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
     screenshots keep unpacking two things.
     """
     return _Stub.artifacts
-
-
-@pytest.fixture
-def demonstrations(stub: tuple[str, list[dict[str, Any]]]) -> tuple[list[str], list[str]]:
-    """The recordings this browser started, and the ones it sealed."""
-    return _Stub.recordings, _Stub.sealed
 
 
 @pytest.fixture

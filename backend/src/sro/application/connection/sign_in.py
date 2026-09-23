@@ -48,8 +48,14 @@ class StoreCredentials:
             raise DomainError("a sign-in needs both a username and a password")
         async with self._uow as uow:
             connection = await uow.connections.get(ctx.tenant_id, connection_id)
-        await self._vault.store(connection.credential_key(USERNAME), username.strip())
-        await self._vault.store(connection.credential_key(PASSWORD), password)
+        recorded = await _recorded(self._uow, ctx, connection)
+        if recorded is None:
+            await self._vault.store(connection.credential_key(USERNAME), username.strip())
+            await self._vault.store(connection.credential_key(PASSWORD), password)
+            return
+        if not recorded.username:
+            await self._vault.store(_key(ctx, recorded, USERNAME), username.strip())
+        await self._vault.store(_key(ctx, recorded, PASSWORD), password)
 
 
 class SignIn:
@@ -77,13 +83,14 @@ class SignIn:
         if connection is None:
             raise NoCredentials(f"{target_system} is not connected")
 
-        username, password, key = await self._credentials(ctx, connection)
+        username, password, key, where = await self._credentials(ctx, connection)
         refusals = RefusedCredentials(self._vault)
         if (standing := await refusals.standing(key)) is not None:
             raise CredentialsRefused(
-                f"the password stored for {connection.target_system} was refused"
+                f"the password {connection.target_system} signs in with at {where} was refused"
                 f"{' at ' + standing.at.isoformat() if standing.at else ''}, so it is not "
-                "tried again. Store a new one and it will be used."
+                f"tried again. Store a new password for {where} (vault key {key!r}) and it "
+                "will be used."
             )
 
         session = await self._browser.open()
@@ -135,14 +142,15 @@ class SignIn:
 
     async def _credentials(
         self, ctx: RequestContext, connection: Connection
-    ) -> tuple[str, str, str]:
-        recorded = await self._recorded(ctx, connection)
+    ) -> tuple[str, str, str, str]:
+        recorded = await _recorded(self._uow, ctx, connection)
         if recorded is not None:
-            key = secret_key_of(ctx.tenant_id.value, recorded.origin, PASSWORD)
+            key = _key(ctx, recorded, PASSWORD)
             password = await self._vault.get(key)
-            if recorded.username and password:
-                return recorded.username, password, key
-            if recorded.username:
+            username = recorded.username or await self._vault.get(_key(ctx, recorded, USERNAME))
+            if username and password:
+                return username, password, key, recorded.origin
+            if username:
                 raise NoCredentials(
                     f"{connection.target_system} signs in at {recorded.origin}, and no password "
                     f"is stored under {key!r}. Store it once and it will be used."
@@ -150,7 +158,7 @@ class SignIn:
             if password:
                 raise NoCredentials(
                     f"{connection.target_system} signs in at {recorded.origin}, and the job that "
-                    "signs in there recorded no username. Connect it by hand once."
+                    "signs in there recorded no username. Store one with the password."
                 )
         key = connection.credential_key(PASSWORD)
         username = await self._vault.get(connection.credential_key(USERNAME))
@@ -160,15 +168,7 @@ class SignIn:
                 f"no credentials are stored for {connection.target_system}, so it cannot sign "
                 "itself back in. Add them once on the connection."
             )
-        return username, password, key
-
-    async def _recorded(self, ctx: RequestContext, connection: Connection) -> RecordedLogin | None:
-        async with self._uow as uow:
-            known = await uow.workflows.known(ctx.tenant_id)
-            tagged = [job for job in known if job.signs_in]
-            cited = tuple(sorted({one for job in tagged for one in ordered_cites(job)}))
-            seen = await uow.gestures.gestures_for(ctx.tenant_id, ids=cited) if cited else ()
-        return recorded_login(connection.base_url, tagged, {one.id: one for one in seen})
+        return username, password, key, connection.target_system
 
 
 class EnsureSignedIn:
@@ -223,3 +223,18 @@ class EnsureSignedIn:
 def _is_a_login(skill: Skill) -> bool:
     said = f"{skill.name} {skill.objective_key.objective_type}".lower()
     return any(word in said for word in ("login", "log in", "sign in", "authenticate", "auth"))
+
+
+async def _recorded(
+    uow: UnitOfWork, ctx: RequestContext, connection: Connection
+) -> RecordedLogin | None:
+    async with uow:
+        known = await uow.workflows.known(ctx.tenant_id)
+        tagged = [job for job in known if job.signs_in]
+        cited = tuple(sorted({one for job in tagged for one in ordered_cites(job)}))
+        seen = await uow.gestures.gestures_for(ctx.tenant_id, ids=cited) if cited else ()
+    return recorded_login(connection.base_url, tagged, {one.id: one for one in seen})
+
+
+def _key(ctx: RequestContext, recorded: RecordedLogin, field: str) -> str:
+    return secret_key_of(ctx.tenant_id.value, recorded.origin, field)

@@ -1020,6 +1020,10 @@ export interface paths {
          *     Encrypted into the vault on arrival. No endpoint returns it, nothing logs
          *     it, no recording contains it, and it is typed into no page but the login
          *     page of the host this connection names.
+         *
+         *     When a recorded job signs in to this system, the password is kept where
+         *     that job's run reads it -- under the login page's origin -- so one stored
+         *     password serves both, and storing it lifts a refusal of the old one.
          */
         put: operations["store_credentials_v1_connections__connection_id__credentials_put"];
         post?: never;

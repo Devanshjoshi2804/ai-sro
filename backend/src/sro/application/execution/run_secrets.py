@@ -12,6 +12,7 @@ from sro.application.ports.vault import CredentialVault, VaultUnavailable
 from sro.domain.shared.identifiers import DeviceId, TenantId
 
 TYPES = ("ui.perform", "ui.perform_at")
+SUBMITS = ("click", "press")
 
 
 class RunSecrets:
@@ -20,13 +21,19 @@ class RunSecrets:
         self._held = held
         self._run_id = run_id
         self._handed: dict[str, tuple[str, bool]] = {}
-        self._waiting: dict[str, str] = {}
+        self._waiting: dict[str, tuple[str, bool]] = {}
+        self._unsure: set[str] = set()
         self._refused: set[str] = set()
+        self._kept: dict[str, str] = {}
         self._host = ""
+        self._out = False
 
     async def __call__(self, key: str) -> str | None:
-        once = self._held.take(key, run_id=self._run_id)
+        once = self._kept.get(key) or self._held.take(key, run_id=self._run_id)
         if once is not None:
+            self._kept[key] = once
+            if _mark(key, once) in self._refused:
+                return None
             self._handed[key] = (_mark(key, once), False)
             return once
         if self._vault is None:
@@ -48,19 +55,28 @@ class RunSecrets:
     def typed(self, value: str) -> None:
         for key, (mark, _) in self._handed.items():
             if mark == _mark(key, value):
-                self._waiting[key] = self._host
+                self._waiting[key] = (self._host, False)
+
+    def pressed(self) -> None:
+        if not self._out:
+            self._unsure.clear()
+            self._waiting = {key: wait for key, wait in self._waiting.items() if not wait[1]}
+        self._waiting = {key: (form, True) for key, (form, _) in self._waiting.items()}
 
     async def saw(self, url: str, *, signed_out: bool, credential_empty: bool) -> None:
         host = urlsplit(url).netloc.lower()
         if not host:
             return
         self._host = host
-        for key, form in list(self._waiting.items()):
-            if signed_out and credential_empty and host == form:
+        self._out = signed_out
+        for key, (form, submitted) in list(self._waiting.items()):
+            if signed_out and credential_empty and submitted and host == form:
                 del self._waiting[key]
+                self._unsure.discard(key)
                 await self._refuse(key)
-            elif not signed_out and host != form:
+            elif not signed_out and key not in self._unsure:
                 del self._waiting[key]
+                self._unsure.add(key)
 
     async def _refuse(self, key: str) -> None:
         mark, from_vault = self._handed[key]
@@ -101,14 +117,17 @@ class WatchingChannel:
         if not reply.ok:
             return reply
         if kind == "ui.url":
+            ours = reply.result.get("elsewhere") if reply.result.get("elsewhere_is_ours") else ""
             await self._secrets.saw(
-                str(reply.result.get("url") or reply.result.get("elsewhere") or ""),
+                str(reply.result.get("url") or ours or ""),
                 signed_out=bool(reply.result.get("signed_out")),
                 credential_empty=bool(reply.result.get("credential_empty")),
             )
         typed = payload.get("value") if kind in TYPES else payload.get("password")
         if kind in (*TYPES, "sign_in") and isinstance(typed, str):
             self._secrets.typed(typed)
+        if kind == "sign_in" or (kind in TYPES and payload.get("action") in SUBMITS):
+            self._secrets.pressed()
         return reply
 
     def online(self, tenant_id: TenantId) -> tuple[DeviceId, ...]:

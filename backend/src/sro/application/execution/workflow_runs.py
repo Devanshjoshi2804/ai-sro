@@ -229,9 +229,6 @@ class StartWorkflowRun:
         by_id = {gesture.id: gesture for gesture in cited}
         return workflow if is_mail_only(workflow, by_id) else None
 
-    async def _secret_for(self, run_id: str, key: str) -> str | None:
-        return await RunSecrets(self._vault, self._one_time_secrets, run_id=run_id)(key)
-
     async def perform(self, ctx: RequestContext, run: WorkflowRun) -> None:
         try:
             asker = asker_or_refuse(self._asker)

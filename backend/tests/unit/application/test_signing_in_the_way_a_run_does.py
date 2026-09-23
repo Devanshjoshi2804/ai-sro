@@ -21,7 +21,13 @@ import pytest
 
 from sro.application.connection.connect_system import RefreshSession
 from sro.application.connection.refusals import ForgetsRefusalOnWrite, RefusedCredentials
-from sro.application.connection.sign_in import PASSWORD, USERNAME, NoCredentials, SignIn
+from sro.application.connection.sign_in import (
+    PASSWORD,
+    USERNAME,
+    NoCredentials,
+    SignIn,
+    StoreCredentials,
+)
 from sro.application.context import RequestContext
 from sro.application.ports.sign_in import CredentialsRefused
 from sro.domain.connection.connection import Connection, ConnectionId
@@ -90,7 +96,9 @@ class _World:
         self.clock = FakeClock()
         self.driver = FakeSignInDriver()
 
-    async def connect(self, *, job: Workflow | None) -> Connection:
+    async def connect(
+        self, *, job: Workflow | None, username: str | None = "operator-7"
+    ) -> Connection:
         connection = Connection(
             id=ConnectionId("con_1"),
             tenant_id=f.TENANT,
@@ -105,7 +113,7 @@ class _World:
             await self.uow.commit()
         await self.uow.gestures.add_gestures(
             (
-                _typed("g-user", 1.0, value="operator-7", secret=False),
+                _typed("g-user", 1.0, value=username, secret=False),
                 _typed("g-pass", 2.0, value=None, secret=True),
             )
         )
@@ -179,3 +187,51 @@ async def test_a_job_whose_password_nobody_stored_falls_back_only_when_nothing_i
     with pytest.raises(NoCredentials, match=r"login\.example\.com"):
         await world.sign_in().execute(CTX, target_system="wms")
     assert world.driver.calls == 0
+
+
+async def test_credentials_stored_on_the_connection_go_where_the_sign_in_reads_them() -> None:
+    """One key per password: storing through the connection's credentials
+    endpoint writes the login origin's key, which lifts its refusal too."""
+    world = _World()
+    connection = await world.connect(job=_login_job())
+    await world.vault.store(LOGIN_KEY, "wrong")
+    await RefusedCredentials(world.vault).refuse(LOGIN_KEY, at=world.clock.now(), reason="no")
+
+    await StoreCredentials(world.uow, world.vault).execute(
+        CTX,
+        connection_id=connection.id,
+        username="ignored",
+        password="right",  # noqa: S106 -- a fake vault's value
+    )
+
+    assert await world.vault.get(LOGIN_KEY) == "right"
+    assert await world.vault.get(connection.credential_key(PASSWORD)) is None
+    await world.sign_in().execute(CTX, target_system="wms")
+    assert world.driver.given == ("operator-7", "right")
+
+
+async def test_a_job_that_recorded_no_username_takes_the_one_stored_with_the_password() -> None:
+    world = _World()
+    connection = await world.connect(job=_login_job(), username=None)
+
+    await StoreCredentials(world.uow, world.vault).execute(
+        CTX,
+        connection_id=connection.id,
+        username=" operator-9 ",
+        password="right",  # noqa: S106 -- a fake vault's value
+    )
+
+    assert await world.vault.get(LOGIN_KEY) == "right"
+    await world.sign_in().execute(CTX, target_system="wms")
+    assert world.driver.given == ("operator-9", "right")
+
+
+async def test_a_standing_refusal_names_the_login_that_needs_a_new_password() -> None:
+    world = _World()
+    await world.connect(job=_login_job())
+    await world.vault.store(LOGIN_KEY, "wrong")
+    await RefusedCredentials(world.vault).refuse(LOGIN_KEY, at=world.clock.now(), reason="no")
+
+    with pytest.raises(CredentialsRefused, match=r"login\.example\.com") as raised:
+        await world.sign_in().execute(CTX, target_system="wms")
+    assert "wrong" not in str(raised.value)

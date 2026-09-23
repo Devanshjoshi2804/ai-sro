@@ -27,8 +27,17 @@ Comments and docstrings moved out of [`backend/src/sro/application/connection/si
 ## `StoreCredentials`, [line 39](../../../../../../../backend/src/sro/application/connection/sign_in.py#L39): Docstring
 
 > Keep what a human typed once, so nothing has to ask them again.
+>
+> One key per password (review round 4, 2026-09-23). When a tagged sign-in job
+> records where this system logs in, the password goes to
+> `<tenant>/<login origin>/password` -- the key `SignIn` and a run's password
+> step read and a refusal is latched on -- so storing here is used, and lifts
+> that refusal. Before, it went to the connection's own key, which a recorded
+> login never reads. The username is stored under the login origin only when
+> the job recorded none; the job's own username wins, as it does in a run. With
+> no recorded login, the connection's keys, as before.
 
-## `SignIn`, [line 55](../../../../../../../backend/src/sro/application/connection/sign_in.py#L55): Docstring
+## `SignIn`, [line 61](../../../../../../../backend/src/sro/application/connection/sign_in.py#L61): Docstring
 
 > Open a browser, sign in with what is stored, keep the session it produced.
 
@@ -53,7 +62,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/connection/si
 > the system name was derived properly is still a demonstration of this
 > login.
 
-## `SignIn._chooser`, [line 121](../../../../../../../backend/src/sro/application/connection/sign_in.py#L121): Docstring
+## `SignIn._chooser`, [line 128](../../../../../../../backend/src/sro/application/connection/sign_in.py#L128): Docstring
 
 > What a demonstration of this login clicked before the form appeared.
 >
@@ -75,7 +84,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/connection/si
 
 > True if the system is open. False only when nobody can be asked.
 
-## `SignIn.execute`, [line 103](../../../../../../../backend/src/sro/application/connection/sign_in.py#L103): Comment
+## `SignIn.execute`, [line 110](../../../../../../../backend/src/sro/application/connection/sign_in.py#L110): Comment
 
 Code: `await self._browser.close(session.id)`
 
@@ -83,13 +92,13 @@ Code: `await self._browser.close(session.id)`
 > it open would hold the provider's only slot against the next
 > demonstration.
 
-## `SignIn.execute`, [line 110](../../../../../../../backend/src/sro/application/connection/sign_in.py#L110): Comment
+## `SignIn.execute`, [line 117](../../../../../../../backend/src/sro/application/connection/sign_in.py#L117): Comment
 
 Code: `if self._life is not None and self._clock is not None:`
 
 > The clock this session is measured against starts here.
 
-## `SignIn._chooser`, [line 125](../../../../../../../backend/src/sro/application/connection/sign_in.py#L125): Comment
+## `SignIn._chooser`, [line 132](../../../../../../../backend/src/sro/application/connection/sign_in.py#L132): Comment
 
 Code: `matching = [s for s in skills if _is_a_login(s)]`
 
@@ -127,7 +136,7 @@ Code: `await self._life.died(ctx, system=target_system, at=self._clock.now())`
 > It used to work and does not now, which is the only way anybody
 > learns how long these last.
 
-## `SignIn.execute`, [line 82](../../../../../../../backend/src/sro/application/connection/sign_in.py#L82): Comment
+## `SignIn.execute`, [line 88](../../../../../../../backend/src/sro/application/connection/sign_in.py#L88): Comment
 
 Code: `if (standing := await refusals.standing(key)) is not None:`
 
@@ -138,14 +147,18 @@ Code: `if (standing := await refusals.standing(key)) is not None:`
 >
 > The key is the one `_credentials` actually read the password from, so the
 > latch lands on the same key the run engine and the panel use.
+>
+> The message names the system, the login host that needs a new password and
+> its vault key -- never the password -- so the operator knows where to store
+> a new one (review round 4).
 
-## `SignIn.execute`, [line 99](../../../../../../../backend/src/sro/application/connection/sign_in.py#L99): Comment
+## `SignIn.execute`, [line 106](../../../../../../../backend/src/sro/application/connection/sign_in.py#L106): Comment
 
 Code: `except CredentialsRefused as refused:`
 
 > Only a refusal is latched. Any other failure leaves the password usable.
 
-## `SignIn._credentials`, [line 136](../../../../../../../backend/src/sro/application/connection/sign_in.py#L136): Docstring
+## `SignIn._credentials`, [line 143](../../../../../../../backend/src/sro/application/connection/sign_in.py#L143): Docstring
 
 > Sign in the way the deployed tenant does (review round 3, 2026-09-23): the
 > username the tagged sign-in job recorded, and the password stored under that
@@ -157,9 +170,18 @@ Code: `except CredentialsRefused as refused:`
 > The connection's own keys are the fallback only when the job knows nothing
 > (no tagged job, or neither a username nor a password for it). A job that
 > knows half names the missing half rather than borrowing a different
-> credential from the connection.
+> credential from the connection. A job that recorded no username (a sensitive
+> field redacted it) reads the one `StoreCredentials` kept beside the
+> password, under the login origin.
+>
+> Returns the login host too, for the refusal message.
 
-## `SignIn._recorded`, [line 165](../../../../../../../backend/src/sro/application/connection/sign_in.py#L165): Docstring
+## `_recorded`, [line 228](../../../../../../../backend/src/sro/application/connection/sign_in.py#L228): Docstring
 
 > The recorded login for this connection, read from the tenant's tagged
-> sign-in jobs and their evidence. See `recorded_login` for which one.
+> sign-in jobs and their evidence. See `recorded_login` for which one. A
+> module function so `StoreCredentials` and `SignIn` resolve the same login.
+
+## `_key`, [line 239](../../../../../../../backend/src/sro/application/connection/sign_in.py#L239): Docstring
+
+> The vault key a recorded login keeps a field under -- the one a run reads.

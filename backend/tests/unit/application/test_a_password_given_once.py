@@ -95,85 +95,53 @@ def test_one_system_is_not_another(secrets: OneTimeSecrets) -> None:
     assert secrets.take("acme/wms.test/password", run_id="run_a", now=1001.0) == "hunter2"
 
 
-async def test_the_runner_takes_it_before_the_vault_and_only_once() -> None:
+async def test_the_runner_takes_it_before_the_vault_and_only_for_that_run() -> None:
     """The lookup a step goes through. A value given for one run beats the
     stored one -- an operator typing a password into the card is answering
     about the run in front of them, not rotating what the deployment keeps --
-    and the run after that is back on the vault."""
-    from sro.application.execution.workflow_runs import StartWorkflowRun
-    from tests.unit.fakes import FakeCredentialVault, FakeUnitOfWork
+    and it stays that run's answer however often the run asks, while the run
+    after that is back on the vault."""
+    from sro.application.execution.run_secrets import RunSecrets
+    from tests.unit.fakes import FakeCredentialVault
 
     vault = FakeCredentialVault()
     await vault.store("acme/wms.test/password", "the-stored-one")
     secrets = OneTimeSecrets()
-    runs = StartWorkflowRun(
-        FakeUnitOfWork(),
-        channel=None,
-        asker=None,
-        plan_model="m",
-        rescue_model="m",
-        clock=lambda: 0.0,
-        cap_usd=1.0,
-        stops=None,
-        approvals=None,
-        one_time_secrets=secrets,
-        vault=vault,
-    )
-
     secrets.hold("acme/wms.test/password", "typed-just-now", run_id="run_a")
+    run = RunSecrets(vault, secrets, run_id="run_a")
 
-    assert await runs._secret_for("run_a", "acme/wms.test/password") == "typed-just-now"
-    assert await runs._secret_for("run_a", "acme/wms.test/password") == "the-stored-one"
+    assert await run("acme/wms.test/password") == "typed-just-now"
+    assert await run("acme/wms.test/password") == "typed-just-now"
+    again = RunSecrets(vault, secrets, run_id="run_a")
+    assert await again("acme/wms.test/password") == "the-stored-one"
 
 
 async def test_a_password_held_for_one_run_is_not_read_by_another() -> None:
     """The same property, through the door a step actually calls: a run that
     did not receive the password falls straight through to the vault, rather
     than reading what an operator lent to a different run."""
-    from sro.application.execution.workflow_runs import StartWorkflowRun
-    from tests.unit.fakes import FakeUnitOfWork
+    from sro.application.execution.run_secrets import RunSecrets
 
     secrets = OneTimeSecrets()
-    runs = StartWorkflowRun(
-        FakeUnitOfWork(),
-        channel=None,
-        asker=None,
-        plan_model="m",
-        rescue_model="m",
-        clock=lambda: 0.0,
-        cap_usd=1.0,
-        stops=None,
-        approvals=None,
-        one_time_secrets=secrets,
-    )
-
     secrets.hold("acme/wms.test/password", "typed-just-now", run_id="run_a")
 
-    assert await runs._secret_for("run_b", "acme/wms.test/password") is None
-    assert await runs._secret_for("run_a", "acme/wms.test/password") == "typed-just-now"
+    assert await RunSecrets(None, secrets, run_id="run_b")("acme/wms.test/password") is None
+    assert (
+        await RunSecrets(None, secrets, run_id="run_a")("acme/wms.test/password")
+        == "typed-just-now"
+    )
 
 
 async def test_with_no_vault_at_all_a_password_given_once_still_signs_in() -> None:
     """A deployment that keeps no credentials is one somebody can still sign
     into by hand, which is half the point of this door."""
-    from sro.application.execution.workflow_runs import StartWorkflowRun
-    from tests.unit.fakes import FakeUnitOfWork
+    from sro.application.execution.run_secrets import RunSecrets
 
     secrets = OneTimeSecrets()
-    runs = StartWorkflowRun(
-        FakeUnitOfWork(),
-        channel=None,
-        asker=None,
-        plan_model="m",
-        rescue_model="m",
-        clock=lambda: 0.0,
-        cap_usd=1.0,
-        stops=None,
-        approvals=None,
-        one_time_secrets=secrets,
-    )
-
     secrets.hold("acme/wms.test/password", "typed-just-now", run_id="run_a")
 
-    assert await runs._secret_for("run_a", "acme/wms.test/password") == "typed-just-now"
-    assert await runs._secret_for("run_a", "acme/wms.test/password") is None
+    assert (
+        await RunSecrets(None, secrets, run_id="run_a")("acme/wms.test/password")
+        == "typed-just-now"
+    )
+    assert await RunSecrets(None, secrets, run_id="run_a")("acme/wms.test/password") is None

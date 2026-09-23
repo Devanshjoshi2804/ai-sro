@@ -639,6 +639,7 @@ test("just this once sends a password to the door that keeps nothing", async () 
     system: "keycloak.test",
     field: "password",
     value: "lent-33f1",
+    runId: "run_g33f1",
   });
 
   const kept = calls.find((call) => call.path === "/v1/secrets");
@@ -650,6 +651,7 @@ test("just this once sends a password to the door that keeps nothing", async () 
     system: "keycloak.test",
     field: "password",
     value: "lent-33f1",
+    run_id: "run_g33f1",
   });
 });
 

@@ -25,6 +25,7 @@ import pytest
 
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
+from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.pursuits import Pursuits
 from sro.application.execution.stops import Stops
 from sro.application.execution.workflow_runs import StartWorkflowRun
@@ -131,6 +132,7 @@ def _starter(uow: FakeUnitOfWork) -> StartWorkflowRun:
         cap_usd=5.0,
         stops=Stops(),
         approvals=Approvals(),
+        one_time_secrets=OneTimeSecrets(),
     )
 
 

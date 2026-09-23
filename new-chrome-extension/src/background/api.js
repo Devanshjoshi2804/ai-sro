@@ -588,11 +588,15 @@ export const api = {
    * to rotate and nothing to delete. The operator signing into a system whose
    * credential does not belong in this deployment gives it this way.
    *
-   * Nothing keeps it on this side either, exactly as above. */
-  holdSecretOnce: ({ system, field, value }) =>
+   * Nothing keeps it on this side either, exactly as above.
+   *
+   * `run_id` is the run the card was drawn for: the backend binds the hold
+   * to it, so a password lent here can only ever reach that run and not a
+   * different one racing to ask first. */
+  holdSecretOnce: ({ system, field, value, runId }) =>
     call("/v1/secrets/once", {
       method: "POST",
-      body: { system, field, value },
+      body: { system, field, value, run_id: runId },
       asDevice: false,
     }),
 

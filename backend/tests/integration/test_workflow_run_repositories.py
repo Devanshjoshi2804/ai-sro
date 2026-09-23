@@ -422,6 +422,7 @@ class TestWorkflowRuns:
         reads the row back in a session of its own.
         """
         from sro.application.execution.approvals import Approvals
+        from sro.application.execution.one_time_secrets import OneTimeSecrets
         from sro.application.execution.stops import Stops
         from sro.application.execution.workflow_runs import StartWorkflowRun
 
@@ -444,6 +445,7 @@ class TestWorkflowRuns:
             cap_usd=1.0,
             stops=Stops(),
             approvals=Approvals(),
+            one_time_secrets=OneTimeSecrets(),
         )
         await starter._settle_the_wait(
             RequestContext(tenant_id=TENANT, principal_id=PrincipalId("operator")), run

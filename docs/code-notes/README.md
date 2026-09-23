@@ -82,7 +82,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/execution/headers.py`](backend/src/sro/application/execution/headers.py.md) | 12 |
 | [`backend/src/sro/application/execution/learn_from_rescue.py`](backend/src/sro/application/execution/learn_from_rescue.py.md) | 5 |
 | [`backend/src/sro/application/execution/mail_job.py`](backend/src/sro/application/execution/mail_job.py.md) | 11 |
-| [`backend/src/sro/application/execution/one_time_secrets.py`](backend/src/sro/application/execution/one_time_secrets.py.md) | 6 |
+| [`backend/src/sro/application/execution/one_time_secrets.py`](backend/src/sro/application/execution/one_time_secrets.py.md) | 8 |
 | [`backend/src/sro/application/execution/paging.py`](backend/src/sro/application/execution/paging.py.md) | 6 |
 | [`backend/src/sro/application/execution/plan.py`](backend/src/sro/application/execution/plan.py.md) | 5 |
 | [`backend/src/sro/application/execution/plan_step.py`](backend/src/sro/application/execution/plan_step.py.md) | 40 |

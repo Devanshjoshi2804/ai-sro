@@ -14,6 +14,7 @@ from httpx import ASGITransport
 
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
+from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.pursuits import Pursuits
 from sro.application.execution.stops import Stops
 from sro.application.ports.auth import Caller
@@ -113,6 +114,10 @@ class _FakeContainer(Container):
         # waits on an event in this process, so a container with a register of
         # its own is a tap nothing is waiting on.
         self.approvals = Approvals()
+        # Beside the stops and the approvals, for the same reason: a one-time
+        # password is held in this process's memory, and a container that
+        # writes its own `__init__` needs its own store.
+        self.one_time_secrets = OneTimeSecrets()
         self.agent_sockets = DeviceSockets()
         self.scheduler = FakeScheduler()
         self.dispatcher = FakeRunDispatcher()

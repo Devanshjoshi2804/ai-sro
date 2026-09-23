@@ -17,7 +17,7 @@ from sro.application.execution.mail_job import (
     send_the_mail,
     write_the_mail,
 )
-from sro.application.execution.one_time_secrets import take as take_once
+from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.read_runs import NOT_IN_A_BROWSER_HERE, CannotStop
 from sro.application.execution.run_workflow import GatherValues, KnownFields, run_workflow
 from sro.application.execution.stops import Stops
@@ -99,6 +99,7 @@ class StartWorkflowRun:
         cap_usd: float,
         stops: Stops,
         approvals: Approvals,
+        one_time_secrets: OneTimeSecrets,
         verified_writes: tuple[VerifiedWrite, ...] = (),
         vault: CredentialVault | None = None,
         retrieve: Retrieve | None = None,
@@ -109,6 +110,7 @@ class StartWorkflowRun:
         self._uow = uow
         self._asker_drafts: DraftsForTheAsker | None = asker_drafts
         self._vault = vault
+        self._one_time_secrets = one_time_secrets
         self._retrieve = retrieve
         self._gather = gather
         self._ids = ids
@@ -226,8 +228,8 @@ class StartWorkflowRun:
         by_id = {gesture.id: gesture for gesture in cited}
         return workflow if is_mail_only(workflow, by_id) else None
 
-    async def _secret_for(self, key: str) -> str | None:
-        once = take_once(key)
+    async def _secret_for(self, run_id: str, key: str) -> str | None:
+        once = self._one_time_secrets.take(key, run_id=run_id)
         if once is not None:
             return once
         if self._vault is None:
@@ -279,7 +281,7 @@ class StartWorkflowRun:
                     from_step=run.from_step,
                     items=run.items,
                     verified_writes=self._verified_writes + learned,
-                    secret_for=self._secret_for,
+                    secret_for=lambda key: self._secret_for(run.id, key),
                     known_fields=None if self._retrieve is None else self._known_fields(ctx),
                     gather_values=(
                         None

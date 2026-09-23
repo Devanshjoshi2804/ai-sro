@@ -1174,7 +1174,7 @@ function performing(status) {
  * the worker, and returns what the worker said. Nothing is stored on this
  * side -- not in `chrome.storage`, not in a variable that outlives the call.
  */
-async function keepSecret({ system, field, value, once = false }) {
+async function keepSecret({ system, field, value, once = false, runId }) {
   // Caught rather than thrown on: `ask` turns a worker's `error` into an
   // exception, and an exception inside the Save listener would leave the
   // person who just typed their password looking at a row that said nothing.
@@ -1184,6 +1184,10 @@ async function keepSecret({ system, field, value, once = false }) {
       system,
       field,
       value,
+      // The run the card was drawn for. Only "just this once" needs it --
+      // the vault has no runs to bind to -- but it costs nothing to send on
+      // the other path too, and the worker only reads it where it matters.
+      runId,
     });
     // Said under the cards as well as on the row. The row's own line is drawn
     // inside a card the next poll rebuilds -- the guard above only holds it

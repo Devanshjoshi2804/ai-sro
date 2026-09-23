@@ -9315,7 +9315,7 @@
           "secrets"
         ],
         "summary": "Hold Secret For One Run",
-        "description": "Keep one password for the next run that types it, and nowhere else.\n\nThe other answer to the question `PUT /v1/secrets` asks. An operator\nsigning into a system whose credential does not belong in this\ndeployment's vault gives it for the run in front of them: it is held in\nmemory, handed out once, and forgotten -- there is nothing to rotate and\nnothing to delete afterwards.\n\n`POST` and not `PUT`: this stores nothing. It is a value handed to the\nnext step that asks, which is an action rather than a resource.\n\nNo vault, so a deployment with none configured can still sign in by hand.\nWhat comes back is the key and when the value is forgotten -- never the\nvalue, for the reason the door above has no GET.",
+        "description": "Keep one password for the next run that types it, and nowhere else.\n\nThe other answer to the question `PUT /v1/secrets` asks. An operator\nsigning into a system whose credential does not belong in this\ndeployment's vault gives it for the run in front of them: it is held in\nmemory, handed to that run and nothing else, and forgotten -- there is\nnothing to rotate and nothing to delete afterwards.\n\n`POST` and not `PUT`: this stores nothing. It is a value handed to the\nnext step that asks, which is an action rather than a resource.\n\nNo vault, so a deployment with none configured can still sign in by hand.\nWhat comes back is the key and when the value is forgotten -- never the\nvalue, for the reason the door above has no GET.",
         "operationId": "hold_secret_for_one_run_v1_secrets_once_post",
         "parameters": [
           {
@@ -9366,7 +9366,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NewSecretRequest"
+                "$ref": "#/components/schemas/NewSecretOnceRequest"
               }
             }
           }
@@ -35976,6 +35976,37 @@
           "required_credentials"
         ],
         "title": "NetworkPlanModel"
+      },
+      "NewSecretOnceRequest": {
+        "properties": {
+          "system": {
+            "type": "string",
+            "title": "System"
+          },
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Value"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "system",
+          "field",
+          "value",
+          "run_id"
+        ],
+        "title": "NewSecretOnceRequest",
+        "description": "`NewSecretRequest`, plus the run this password was given for.\n\n`PUT /v1/secrets` has no run: what it stores outlives every run that will\never read it. What `POST /v1/secrets/once` holds does not -- it is handed\nto one run and refused to every other, so the run has to be named here\nrather than guessed at the moment a step asks for it."
       },
       "NewSecretRequest": {
         "properties": {

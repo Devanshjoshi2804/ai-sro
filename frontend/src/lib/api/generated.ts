@@ -868,8 +868,8 @@ export interface paths {
          *     The other answer to the question `PUT /v1/secrets` asks. An operator
          *     signing into a system whose credential does not belong in this
          *     deployment's vault gives it for the run in front of them: it is held in
-         *     memory, handed out once, and forgotten -- there is nothing to rotate and
-         *     nothing to delete afterwards.
+         *     memory, handed to that run and nothing else, and forgotten -- there is
+         *     nothing to rotate and nothing to delete afterwards.
          *
          *     `POST` and not `PUT`: this stores nothing. It is a value handed to the
          *     next step that asks, which is an action rather than a resource.
@@ -4181,6 +4181,25 @@ export interface components {
             unreplayable_reason: string | null;
             /** Required Credentials */
             required_credentials: string[];
+        };
+        /**
+         * NewSecretOnceRequest
+         * @description `NewSecretRequest`, plus the run this password was given for.
+         *
+         *     `PUT /v1/secrets` has no run: what it stores outlives every run that will
+         *     ever read it. What `POST /v1/secrets/once` holds does not -- it is handed
+         *     to one run and refused to every other, so the run has to be named here
+         *     rather than guessed at the moment a step asks for it.
+         */
+        NewSecretOnceRequest: {
+            /** System */
+            system: string;
+            /** Field */
+            field: string;
+            /** Value */
+            value: string;
+            /** Run Id */
+            run_id: string;
         };
         /**
          * NewSecretRequest
@@ -10024,7 +10043,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["NewSecretRequest"];
+                "application/json": components["schemas"]["NewSecretOnceRequest"];
             };
         };
         responses: {

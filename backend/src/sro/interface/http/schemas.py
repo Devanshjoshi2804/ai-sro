@@ -2434,6 +2434,18 @@ class NewSecretRequest(BaseModel):
     logged, never in the evidence plane. See `v1/routers/secrets`."""
 
 
+class NewSecretOnceRequest(NewSecretRequest):
+    """`NewSecretRequest`, plus the run this password was given for.
+
+    `PUT /v1/secrets` has no run: what it stores outlives every run that will
+    ever read it. What `POST /v1/secrets/once` holds does not -- it is handed
+    to one run and refused to every other, so the run has to be named here
+    rather than guessed at the moment a step asks for it.
+    """
+
+    run_id: str
+
+
 class SecretStoredModel(BaseModel):
     """What was stored, named by its key and never by its value."""
 

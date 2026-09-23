@@ -27,6 +27,7 @@ import pytest
 from sro.application.context import RequestContext
 from sro.application.execution import workflow_runs as door
 from sro.application.execution.approvals import Approvals
+from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.run_workflow import run_workflow
 from sro.application.execution.stops import Stops
 from sro.application.execution.workflow_runs import RunRefused, StartWorkflowRun
@@ -182,6 +183,7 @@ def _starter(
         cap_usd=cap_usd,
         stops=stops or Stops(),
         approvals=approvals or Approvals(),
+        one_time_secrets=OneTimeSecrets(),
     )
 
 
@@ -1001,6 +1003,7 @@ async def test_the_question_says_which_step_the_run_had_reached() -> None:
         cap_usd=CAP,
         stops=Stops(),
         approvals=Approvals(),
+        one_time_secrets=OneTimeSecrets(),
         ids=FakeIdFactory(),
     )
     await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
@@ -1056,6 +1059,7 @@ async def test_the_question_offers_the_fields_the_page_does_not_ask_for() -> Non
         cap_usd=CAP,
         stops=Stops(),
         approvals=Approvals(),
+        one_time_secrets=OneTimeSecrets(),
         ids=FakeIdFactory(),
     )
     await starter._ask_for_values(_ctx(), run, "Create a Customer Type")

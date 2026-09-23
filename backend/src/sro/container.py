@@ -47,6 +47,7 @@ from sro.application.execution.execute_skill import (
     StartRun,
 )
 from sro.application.execution.gather import GatherContext
+from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.pursue_goal import PursueGoal
 from sro.application.execution.pursuits import Pursuits
 from sro.application.execution.read_runs import GetRun, ListRuns, StopRun
@@ -233,6 +234,8 @@ class Container:
     agent_sockets: DeviceSockets = field(default_factory=DeviceSockets)
 
     stops: Stops = field(default_factory=Stops)
+
+    one_time_secrets: OneTimeSecrets = field(default_factory=OneTimeSecrets)
 
     approvals: Approvals = field(default_factory=Approvals)
 
@@ -848,6 +851,7 @@ class Container:
             cap_usd=self.settings.daily_usd_cap,
             stops=self.stops,
             approvals=self.approvals,
+            one_time_secrets=self.one_time_secrets,
             verified_writes=load_verified_writes(),
             vault=self.vault,
             retrieve=self.retrieve_knowledge(),

@@ -60,7 +60,12 @@ from sro.application.ports.repositories import (
     WorkflowRunRepository,
 )
 from sro.application.ports.schedule import Scheduler, SchedulerUnavailable
-from sro.application.ports.sign_in import SignInDriver, SignInFailed, SignInResult
+from sro.application.ports.sign_in import (
+    CredentialsRefused,
+    SignInDriver,
+    SignInFailed,
+    SignInResult,
+)
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.tools import ToolOffered, ToolResult, ToolsUnavailable
 from sro.application.ports.transcription import TranscribedSegment, Transcriber
@@ -208,10 +213,15 @@ class FakeSignInDriver:
     """Types what it is given, and remembers only that it was asked."""
 
     def __init__(
-        self, *, lands_at: str = "https://wms.example.com/portal", fails: str = ""
+        self,
+        *,
+        lands_at: str = "https://wms.example.com/portal",
+        fails: str = "",
+        refuses: str = "",
     ) -> None:
         self.lands_at = lands_at
         self.fails = fails
+        self.refuses = refuses
         self.calls = 0
         self.chose: tuple[str, ...] = ()
 
@@ -227,6 +237,8 @@ class FakeSignInDriver:
     ) -> SignInResult:
         self.calls += 1
         self.chose = choose
+        if self.refuses:
+            raise CredentialsRefused(self.refuses)
         if self.fails:
             raise SignInFailed(self.fails)
         return SignInResult(landed_at=self.lands_at, steps=("entered the username",))

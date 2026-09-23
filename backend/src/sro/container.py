@@ -28,6 +28,7 @@ from sro.application.connection.connect_system import (
     StoreSession,
 )
 from sro.application.connection.keep_open import KeepSessionsOpen
+from sro.application.connection.refusals import ForgetsRefusalOnWrite
 from sro.application.connection.release_strays import ReleaseStrayBrowsers
 from sro.application.connection.session_headers import StoreSessionHeaders
 from sro.application.connection.session_life import SessionLife
@@ -1011,7 +1012,7 @@ def build_container(settings: Settings | None = None) -> Container:
         interpreter=_build_interpreter(settings),
         asker=_build_asker(settings),
         intent_parser=_build_intent_parser(settings),
-        vault=(built_vault := _build_vault(settings)),
+        vault=(built_vault := ForgetsRefusalOnWrite(_build_vault(settings))),
         http=HttpxCaller(),
         tools=McpToolCaller(_servers(settings.mcp_servers), vault=built_vault),
         ui=PlaywrightUiDriver(settings.ui_debugger_url),

@@ -330,6 +330,7 @@ async def _sign_in_here(
     where: str,
     secret_for: SecretFor | None,
     record: RunStep,
+    typed: Callable[[str], None] | None = None,
 ) -> bool:
     system = origin_of_url(where) or where
     if not system or secret_for is None:
@@ -360,6 +361,8 @@ async def _sign_in_here(
     if not answered.ok:
         record.reason = f"{record.reason}; the sign-in was refused: {answered.detail}"
         return False
+    if typed is not None:
+        typed(password)
     record.reason = f"{record.reason}; signed in again ({did})"
     return True
 
@@ -861,6 +864,7 @@ async def run_workflow(
     items: Sequence[Mapping[str, str]] = (),
     verified_writes: tuple[VerifiedWrite, ...] = (),
     secret_for: SecretFor | None = None,
+    typed: Callable[[str], None] | None = None,
     known_fields: KnownFields | None = None,
     gather_values: GatherValues | None = None,
     mail: MailHand | None = None,
@@ -1665,6 +1669,8 @@ async def run_workflow(
                     tenant_id, device_id, kind=planned.kind, run_id=run.id, payload=planned.payload
                 )
                 sent_nothing_yet = False
+                if reply.ok and typed is not None and isinstance(asked_for, str):
+                    typed(asked_for)
                 record.result = _result(reply, wrote=may_write)
                 if how == "look" and reply.ok:
                     wrote_by_looking = await _a_write_went_out(
@@ -1895,6 +1901,7 @@ async def run_workflow(
                             where=here,
                             secret_for=secret_for,
                             record=record,
+                            typed=typed,
                         )
                     ):
                         signed_in_here = True

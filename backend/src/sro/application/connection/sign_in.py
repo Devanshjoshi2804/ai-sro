@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from sro.application.capture.identity import system_of
 from sro.application.connection.check_session import CheckSession, SessionHealth
 from sro.application.connection.connect_system import RefreshSession
+from sro.application.connection.refusals import RefusedCredentials
 from sro.application.connection.session_life import SessionLife
 from sro.application.context import RequestContext
 from sro.application.ports.browser import BrowserProvider
 from sro.application.ports.repositories import UnitOfWork
-from sro.application.ports.sign_in import SignInDriver, SignInFailed
+from sro.application.ports.sign_in import CredentialsRefused, SignInDriver, SignInFailed
 from sro.application.ports.system import Clock
 from sro.application.ports.vault import CredentialVault
 from sro.domain.connection.connection import Connection, ConnectionId
@@ -71,6 +73,14 @@ class SignIn:
             connection = await uow.connections.find_by_system(ctx.tenant_id, target_system)
         if connection is None:
             raise NoCredentials(f"{target_system} is not connected")
+        key = connection.credential_key(PASSWORD)
+        refusals = RefusedCredentials(self._vault)
+        if (standing := await refusals.standing(key)) is not None:
+            raise CredentialsRefused(
+                f"the password stored for {connection.target_system} was refused"
+                f"{' at ' + standing.at.isoformat() if standing.at else ''}, so it is not "
+                "tried again. Store a new one and it will be used."
+            )
 
         username, password = await self._credentials(connection)
         session = await self._browser.open()
@@ -83,6 +93,9 @@ class SignIn:
                 choose=await self._chooser(ctx, connection.target_system),
             )
             cookies = list(await self._browser.session_cookies(session.id))
+        except CredentialsRefused as refused:
+            await refusals.refuse(key, at=self._now(), reason=str(refused))
+            raise
         finally:
             await self._browser.close(session.id)
 
@@ -98,6 +111,9 @@ class SignIn:
             landed_at=result.landed_at,
             steps=result.steps,
         )
+
+    def _now(self) -> datetime:
+        return self._clock.now() if self._clock is not None else datetime.now(UTC)
 
     async def _chooser(self, ctx: RequestContext, system: str) -> tuple[str, ...]:
         async with self._uow as uow:

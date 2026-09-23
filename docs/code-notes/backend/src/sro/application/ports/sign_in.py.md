@@ -45,3 +45,10 @@ Code: `steps: tuple[str, ...]`
 > offers a choice rather than a form. Taken from a demonstration of this
 > system's own login, because which of six tenants an operator belongs to
 > is not something to guess at.
+
+## `CredentialsRefused`, [line 31](../../../../../../../backend/src/sro/application/ports/sign_in.py#L31): Class
+
+> A sign-in the system answered by rejecting the credentials, as distinct from
+> one that could not be finished. Only this kind is remembered as a refusal:
+> an outage or a page the driver could not read is no reason to stop using a
+> password.

@@ -19,6 +19,7 @@ from sro.application.execution.mail_job import (
 )
 from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.read_runs import NOT_IN_A_BROWSER_HERE, CannotStop
+from sro.application.execution.run_secrets import RunSecrets
 from sro.application.execution.run_workflow import GatherValues, KnownFields, run_workflow
 from sro.application.execution.stops import Stops
 from sro.application.intent.spend import over_cap
@@ -27,7 +28,7 @@ from sro.application.ports.channel import Channel
 from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
-from sro.application.ports.vault import CredentialVault, VaultUnavailable
+from sro.application.ports.vault import CredentialVault
 from sro.application.shared.refusals import OverCap
 from sro.domain.chat.asking import NEEDS, Pending, also_set, question
 from sro.domain.chat.thread import Speaker
@@ -229,15 +230,7 @@ class StartWorkflowRun:
         return workflow if is_mail_only(workflow, by_id) else None
 
     async def _secret_for(self, run_id: str, key: str) -> str | None:
-        once = self._one_time_secrets.take(key, run_id=run_id)
-        if once is not None:
-            return once
-        if self._vault is None:
-            return None
-        try:
-            return await self._vault.get(key)
-        except VaultUnavailable:
-            return None
+        return await RunSecrets(self._vault, self._one_time_secrets, run_id=run_id)(key)
 
     async def perform(self, ctx: RequestContext, run: WorkflowRun) -> None:
         try:
@@ -260,6 +253,7 @@ class StartWorkflowRun:
                 workflow = await uow.workflows.get(ctx.tenant_id, run.workflow_id)
                 title = workflow.title
                 learned = await uow.workflows.learned_writes(ctx.tenant_id)
+                secrets = RunSecrets(self._vault, self._one_time_secrets, run_id=run.id)
                 done = await run_workflow(
                     uow,
                     workflow,
@@ -281,7 +275,8 @@ class StartWorkflowRun:
                     from_step=run.from_step,
                     items=run.items,
                     verified_writes=self._verified_writes + learned,
-                    secret_for=lambda key: self._secret_for(run.id, key),
+                    secret_for=secrets,
+                    typed=secrets.typed,
                     known_fields=None if self._retrieve is None else self._known_fields(ctx),
                     gather_values=(
                         None

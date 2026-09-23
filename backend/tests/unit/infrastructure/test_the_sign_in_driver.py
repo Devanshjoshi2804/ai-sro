@@ -18,7 +18,7 @@ from typing import Any
 import pytest
 from playwright.async_api import Error as PlaywrightError
 
-from sro.application.ports.sign_in import SignInFailed
+from sro.application.ports.sign_in import CredentialsRefused, SignInFailed
 from sro.infrastructure.steel import sign_in as driver
 
 SECRET = "hunter2-not-real"  # noqa: S105 -- a fake page's field
@@ -175,7 +175,7 @@ async def test_credentials_the_form_refused_are_never_typed_again() -> None:
     page.elements[driver._PASSWORD] = [password]
     page.elements[driver._SUBMIT] = [_Element(on_click=refused)]
 
-    with pytest.raises(SignInFailed, match="refused") as failed:
+    with pytest.raises(CredentialsRefused, match="refused") as failed:
         await _drive(page)
 
     assert typed == [SECRET]
@@ -203,3 +203,30 @@ async def test_an_error_that_escapes_the_loop_carries_no_password() -> None:
     assert "Target closed" in str(failed.value)
     assert failed.value.__cause__ is None
     assert failed.value.__suppress_context__
+
+
+def test_a_secret_cut_in_half_by_the_length_limit_leaves_no_half_behind() -> None:
+    """Redacted before it is cut. Cut first, and the half of a password that
+    fits under the limit no longer matches the password, so it stays."""
+    error = PlaywrightError("x" * 195 + SECRET + " tail\nCall log:")
+
+    said = driver._brief(error, (SECRET,))
+
+    assert SECRET[:5] not in said
+
+
+async def test_page_text_cut_across_a_secret_leaves_no_half_behind() -> None:
+    page = _Page(text="a" * (driver._SHOWN - 5) + SECRET)
+    login = driver._Login(host=HOST, username="operator", password=SECRET, choose=(), deadline=1e12)
+
+    shown = await driver._shown(page, login)
+
+    assert SECRET[:5] not in shown
+
+
+async def test_an_offer_cut_across_a_secret_leaves_no_half_behind() -> None:
+    page = _Page(elements={driver._OFFERS: [_Element(text="b" * 55 + SECRET)]})
+
+    offered = await driver._on_offer(page, (SECRET,))
+
+    assert SECRET[:5] not in offered

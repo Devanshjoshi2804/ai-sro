@@ -11,7 +11,12 @@ from urllib.parse import urlsplit
 from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import Page, async_playwright
 
-from sro.application.ports.sign_in import SignInDriver, SignInFailed, SignInResult
+from sro.application.ports.sign_in import (
+    CredentialsRefused,
+    SignInDriver,
+    SignInFailed,
+    SignInResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +35,8 @@ _MFA: Final = (
     "input[autocomplete='one-time-code'], "
     "input[name*='otp' i], input[name*='mfa' i], input[id*='verification' i]"
 )
+
+_OFFERS: Final = "a, button, [role=link], [role=button], input[type=submit]"
 
 _ROUNDS: Final = 6
 
@@ -170,7 +177,7 @@ async def _walk(
         if did is _Round.LANDED:
             break
         if did is _Round.REFUSED:
-            raise SignInFailed(
+            raise CredentialsRefused(
                 f"the credentials were refused -- {urlsplit(page.url).hostname} showed its "
                 f"sign-in form again after they were submitted, saying: "
                 f"{await _shown(page, login) or 'nothing readable'}. They were submitted once "
@@ -187,7 +194,7 @@ async def _walk(
             raise SignInFailed(
                 f"the login stopped at {urlsplit(page.url).hostname}, which shows: "
                 f"{await _shown(page, login) or 'nothing readable'} and offered: "
-                f"{_redacted(await _on_offer(page), login.secrets) or 'nothing clickable'}. "
+                f"{await _on_offer(page, login.secrets) or 'nothing clickable'}. "
                 f"It did: {', '.join(login.steps)}. Connect this system by hand once and "
                 "the session will be kept from there."
             )
@@ -195,7 +202,7 @@ async def _walk(
 
     landed = page.url
     if not _on(landed, login.host):
-        offered = _redacted(await _on_offer(page), login.secrets)
+        offered = await _on_offer(page, login.secrets)
         raise SignInFailed(
             f"the login did not finish -- the browser is still at "
             f"{urlsplit(landed).hostname}, which offered: {offered or 'nothing clickable'}. "
@@ -258,8 +265,8 @@ def _ms(deadline: float) -> float:
 
 
 def _brief(error: BaseException, secrets: tuple[str, ...]) -> str:
-    first = str(error).split("\n", 1)[0][:200]
-    return f"{type(error).__name__}: {_redacted(first, secrets)}"
+    first = _redacted(str(error).split("\n", 1)[0], secrets)
+    return f"{type(error).__name__}: {first[:200]}"
 
 
 def _redacted(text: str, secrets: tuple[str, ...]) -> str:
@@ -334,15 +341,13 @@ async def _shown(page: Page, login: _Login) -> str:
     except PlaywrightError as why:
         logger.debug("the page would not say what it shows: %s", _brief(why, login.secrets))
         return ""
-    return _redacted(" ".join(text.split())[:_SHOWN], login.secrets)
+    return " ".join(_redacted(text, login.secrets).split())[:_SHOWN]
 
 
-async def _on_offer(page: Page) -> str:
+async def _on_offer(page: Page, secrets: tuple[str, ...]) -> str:
     seen: list[str] = []
     try:
-        elements = await page.query_selector_all(
-            "a, button, [role=link], [role=button], input[type=submit]"
-        )
+        elements = await page.query_selector_all(_OFFERS)
     except PlaywrightError as why:
         logger.debug("the page moved while its options were read: %s", _brief(why, ()))
         return ""
@@ -350,11 +355,8 @@ async def _on_offer(page: Page) -> str:
         try:
             if not await element.is_visible():
                 continue
-            text = " ".join(
-                (
-                    (await element.inner_text()) or (await element.get_attribute("value")) or ""
-                ).split()
-            )[:60]
+            said = (await element.inner_text()) or (await element.get_attribute("value")) or ""
+            text = " ".join(_redacted(said, secrets).split())[:60]
         except Exception as why:  # pragma: no cover - the page is redrawing
             logger.debug("an option would not describe itself: %s", _brief(why, ()))
             continue

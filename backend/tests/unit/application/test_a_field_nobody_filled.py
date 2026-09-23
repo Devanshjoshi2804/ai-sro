@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -37,15 +37,12 @@ from sro.application.induction.induce_skill import InduceSkill, _conditionals
 from sro.application.induction.sites import JsonBodySite, UrlQuerySite, substitute_body
 from sro.application.knowledge.open_questions import AskAbout
 from sro.application.knowledge.record_claim import RecordClaims
-from sro.application.observation.teach import TeachCandidate
 from sro.domain.execution.diagnosis import Remedy
 from sro.domain.execution.run import Medium, Run, RunStatus, StepDisposition
-from sro.domain.observation.batch import CaptureMode, ObservationBatch
-from sro.domain.observation.candidate import Episode, TaskCandidate
 from sro.domain.recording.events import ActionKind, InputAction
 from sro.domain.recording.sensitivity import Sensitivity
 from sro.domain.shared.errors import InvariantViolation
-from sro.domain.shared.identifiers import BatchId, CandidateId, DeviceId, RecordingId, SkillId
+from sro.domain.shared.identifiers import RecordingId, SkillId
 from sro.domain.skill.locator import ControlLocator, LocatorStrategy
 from sro.domain.skill.parameter import Parameter, ParameterKind
 from sro.domain.skill.plan import HeaderPlan, UiPlan
@@ -54,7 +51,6 @@ from sro.domain.skill.skill import SkillStep, SkillVersion
 from sro.domain.skill.template import Template
 from tests import factories as f
 from tests.unit.fakes import (
-    FakeBlobStore,
     FakeClock,
     FakeCredentialVault,
     FakeEmbedder,
@@ -820,31 +816,6 @@ def _looking(index: int, zone: str) -> object:
     )
 
 
-async def test_a_derived_parameter_still_names_the_step_that_produced_it() -> None:
-    """A derived parameter says which step's response carries it, and that
-    index counts aligned steps too. Here the operator typed the optional field
-    before looking the zone up, so the conditional step lands in front of the
-    read -- and an index left where it was would name the keystroke as the
-    thing that produced the zone."""
-    version = await _induce(
-        (
-            _typing(0, _DELTA_PRIORITY, "1"),
-            _looking(1, "A1"),
-            _saving(2, {"workArea": "SEVEN", "deltaPriority": 1, "zoneId": "A1"}),
-        ),
-        (
-            _looking(0, "B2"),
-            _saving(1, {"workArea": "SEVEN", "deltaPriority": None, "zoneId": "B2"}),
-        ),
-    )
-
-    zone = next(p for p in version.parameters if p.name == "zone_id")
-    assert zone.source_step_index == 1
-    produced_by = version.steps[zone.source_step_index]
-    assert produced_by.network_plan is not None
-    assert produced_by.network_plan.method == "GET", "it names the read, not the keystroke"
-
-
 async def test_an_empty_response_leaf_is_not_where_a_skipped_field_comes_from() -> None:
     """The absent form of the optional field -- `""` -- also sat in the earlier
     response, in both runs. `_find_source` requires both runs to match, and
@@ -1566,53 +1537,6 @@ def test_a_number_json_cannot_spell_is_not_a_number(value: str) -> None:
     )
 
 
-async def test_a_value_a_response_produced_is_checked_where_it_is_rendered() -> None:
-    """Not everything substituted was supplied by whoever asked for the run: a
-    derived value comes out of the system's own earlier answer, and the thing
-    a loop is acting on comes out of a list. `_check_runnable` never sees
-    those, so the same rule is asked again where the body is actually built --
-    and the step fails saying why rather than sending a body an earlier
-    response helped write."""
-    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
-    await vault.store(_SCOPED, "session=live")
-    http.answer(status_code=200, text=json.dumps({"qty": '2,"approved":true'}))
-    http.answer(status_code=200, text="{}")
-
-    version = f.skill_version(
-        steps=(
-            f.step(
-                index=0,
-                network_plan=f.network_plan(method="GET", url=Template(URL), body=None),
-            ),
-            f.step(
-                index=1,
-                network_plan=f.network_plan(url=Template(URL), body=Template('{"qty":${qty}}')),
-            ),
-        ),
-        parameters=(
-            Parameter(
-                name="qty",
-                kind=ParameterKind.DERIVED,
-                source_step_index=0,
-                source_pointer="/qty",
-                absent_as="null",
-                unquoted_as="number",
-            ),
-        ),
-    )
-    await _promoted(uow, version, PromotionStage.ASSISTED)
-
-    run = await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
-        CTX,
-        ExecutionRequest(skill_id=SkillId("skill-1"), parameters={}, authorized_by="supervisor"),
-    )
-
-    assert run.status is RunStatus.FAILED
-    assert len(http.sent) == 1, "the read went; the write it fed never did"
-    assert run.steps[1].detail is not None
-    assert "is sent as a bare number" in run.steps[1].detail
-
-
 async def test_a_value_a_response_produced_is_escaped_into_the_body() -> None:
     """The other half of the same path. A derived value that a quoted slot can
     hold once it is encoded is sent, not refused: the answer said `he said
@@ -1830,142 +1754,6 @@ async def test_a_conditional_step_with_the_parameter_absent_is_skipped_not_faile
 
 FIXTURES = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "work_areas"
 WATCHED = datetime(2026, 8, 27, 13, 0, tzinfo=UTC)
-
-
-async def _the_two_work_areas(uow: FakeUnitOfWork, blobs: FakeBlobStore) -> TaskCandidate:
-    episodes = []
-    for index, name in enumerate(("with_a_delta_priority", "without_a_delta_priority")):
-        payload = (FIXTURES / f"{name}.ndjson").read_bytes()
-        # Tenant and principal from the factories, never a real person: this
-        # is shaped like the artifact bucket's own keys, and the repo owner's
-        # given name was in it.
-        key = f"{f.TENANT}/{f.OPERATOR}/2026-08-27/{name}.ndjson"
-        blobs.objects[key] = payload
-        batch_id = BatchId(f"bat-{name}")
-        await uow.observations.add(
-            ObservationBatch(
-                id=batch_id,
-                tenant_id=f.TENANT,
-                device_id=DeviceId("dev-1"),
-                principal_id=f.OPERATOR,
-                mode=CaptureMode.PASSIVE,
-                started_at=WATCHED,
-                ended_at=WATCHED + timedelta(hours=1),
-                received_at=WATCHED + timedelta(hours=1),
-                uri=f"s3://sro-artifacts/{key}",
-                event_count=len(payload.splitlines()),
-                byte_count=len(payload),
-            )
-        )
-        episodes.append(
-            Episode(
-                started_at=WATCHED + timedelta(minutes=index),
-                ended_at=WATCHED + timedelta(hours=1),
-                host="wms.acme.test",
-                batch_ids=(batch_id,),
-                gestures=14,
-                calls=3,
-            )
-        )
-
-    candidate = TaskCandidate(
-        id=CandidateId("cnd-work-areas"),
-        tenant_id=f.TENANT,
-        principal_id=f.OPERATOR,
-        signature="POST data/WM/wm/workAreas",
-        host="wms.acme.test",
-        title="Create work areas on wms.acme.test",
-        episodes=tuple(episodes),
-    )
-    await uow.candidates.add(candidate)
-    return candidate
-
-
-async def _induced_from_the_evidence() -> SkillVersion:
-    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
-    candidate = await _the_two_work_areas(uow, blobs)
-    clock = FakeClock(WATCHED + timedelta(days=1))
-    induce = InduceSkill(
-        uow,
-        clock,
-        FakeIdFactory(),
-        AskAbout(uow, RecordClaims(uow, clock, FakeIdFactory(), FakeEmbedder())),
-    )
-    taught = await TeachCandidate(
-        uow, blobs, clock, FakeIdFactory(), _NeverAsked(), induce
-    ).execute(CTX, candidate_id=candidate.id)
-
-    assert taught.skill_id is not None, taught.because
-    skill = await uow.skills.get(f.TENANT, taught.skill_id)
-    return skill.versions[-1]
-
-
-class _NeverAsked:
-    """A single doing would fall back to a model reading it. Two doings never
-    should, and this says so out loud if the diff ever gives up quietly."""
-
-    async def execute(self, ctx: RequestContext, **kwargs: object) -> object:
-        raise AssertionError("two doings were diffed by asking a model")
-
-
-async def test_the_two_work_areas_become_one_skill() -> None:
-    """The evidence this whole plan came from: two work areas created by hand
-    on 2026-08-27, one with a Delta Priority typed and one with the field left
-    alone."""
-    version = await _induced_from_the_evidence()
-
-    names = {p.name for p in version.parameters}
-    assert {"work_area", "work_area_description"} <= names
-    # One parameter per box on the form, and nothing else. The Work Area box
-    # uppercases as you type, so `twoTEST` was typed and `TWOTEST` was sent:
-    # grouped by exact text those are two parameters, and the second is named
-    # after the field's help text -- `work_area_enter_a_unique_name_for_this_
-    # large_work_space`, asked of an operator alongside the real one.
-    assert names == {
-        "work_area",
-        "work_area_description",
-        "voice_code",
-        "absolute_priority",
-        "home_work_area_absolute_priority",
-        "delta_priority",
-    }
-
-
-async def test_what_a_reviewer_is_shown_is_what_the_system_stored() -> None:
-    """A parameter's observed values come from the site that names it.
-
-    The Work Area group holds two sites: the keystroke (`twoTEST`, `Three TE`)
-    and the body leaf the form uppercased on the way out (`TWOTEST`,
-    `THREE TE`). Tidying exists to join those two into one parameter -- and
-    once joined, only one of them is a fact about the system. Reading the
-    values off whichever site happened to be first or last in the group shows
-    a reviewer what somebody's fingers did, and offers the next operator a
-    value the form will not store as typed.
-    """
-    version = await _induced_from_the_evidence()
-
-    work_area = next(p for p in version.parameters if p.name == "work_area")
-    assert work_area.observed_values == ("THREE TE", "TWOTEST"), (
-        "the naming site's values, not the keystroke's"
-    )
-
-
-async def test_the_only_thing_nobody_has_to_fill_in_is_the_delta_priority() -> None:
-    """Every other field was filled in both times, so every other field is
-    required. Delta Priority is optional because one of the two doings proves
-    the form takes it empty -- and what "empty" means here is the shape the
-    evidence actually sent, `null`, not the empty string a different field of
-    the same form uses."""
-    version = await _induced_from_the_evidence()
-
-    optional = [p for p in version.parameters if p.optional]
-    assert [p.name for p in optional] == ["delta_priority"]
-    assert optional[0].absent_as == "null"
-    # And the gesture only one of the two runs made is kept, conditional on it:
-    # this is the only step in either recording that fills that box, so a skill
-    # that dropped it could never fill Delta Priority by clicking at all.
-    conditional = [step for step in version.steps if step.when]
-    assert [step.when for step in conditional] == ["delta_priority"]
 
 
 class _HealsTheSession:

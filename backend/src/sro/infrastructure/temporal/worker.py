@@ -4,16 +4,14 @@ import asyncio
 import logging
 import os
 import socket
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from temporalio.client import Client
 from temporalio.worker import Worker
 
-from sro.application.context import RequestContext
 from sro.application.observation.mining_pass import rekey_workflows
 from sro.config import Settings, get_settings
 from sro.container import Container, build_container
-from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.infrastructure.temporal.activities import Activities
 from sro.infrastructure.temporal.queues import BROWSER_QUEUE, DEFAULT_QUEUE
 from sro.infrastructure.temporal.workflows import (
@@ -51,40 +49,6 @@ async def keep_sessions_open(container: Container, every_seconds: float) -> None
                 ", ".join(swept.left_alone) or "none",
                 ", ".join(swept.released) or "none",
             )
-
-
-async def mine_lately(container: Container, every_seconds: float, window_hours: int) -> None:
-    if every_seconds <= 0:
-        logger.info("the observation miner is off (mining_sweep_seconds=0)")
-        return
-    while True:
-        await asyncio.sleep(every_seconds)
-        since = datetime.now(UTC) - timedelta(hours=window_hours)
-        try:
-            mined = await container.mine_everything().execute(since=since)
-        except Exception:
-            logger.exception("the miner could not finish its sweep")
-            continue
-        for tenant, found in mined.items():
-            if found.candidates_new or found.occurrences_new:
-                logger.info(
-                    "%s: %s new tasks noticed, %s more doings of ones already known",
-                    tenant,
-                    found.candidates_new,
-                    found.occurrences_new,
-                )
-
-        for tenant in mined:
-            ctx = RequestContext(tenant_id=TenantId(tenant), principal_id=PrincipalId("miner"))
-            try:
-                learned = await container.learn_what_repeats().execute(ctx)
-            except Exception:
-                logger.exception("%s: the learner could not finish its pass", tenant)
-                continue
-            for skill_id in learned.skills:
-                logger.info("%s: learned a task nobody demonstrated -- %s", tenant, skill_id)
-            for waiting in learned.still_waiting:
-                logger.info("%s: waiting for a demonstration -- %s", tenant, waiting)
 
 
 async def mine_the_rig_lately(container: Container, every_seconds: float) -> None:
@@ -180,9 +144,6 @@ async def run() -> None:
         logger.exception("the shape keys could not be recomputed")
 
     keeper = asyncio.create_task(keep_sessions_open(container, settings.session_sweep_seconds))
-    miner = asyncio.create_task(
-        mine_lately(container, settings.mining_sweep_seconds, settings.mining_window_hours)
-    )
     rig_miner = asyncio.create_task(mine_the_rig_lately(container, settings.rig_sweep_seconds))
     retainer = asyncio.create_task(retain_lately(container, settings.retention_sweep_seconds))
     try:
@@ -190,7 +151,6 @@ async def run() -> None:
             await asyncio.Future()
     finally:
         keeper.cancel()
-        miner.cancel()
         rig_miner.cancel()
         retainer.cancel()
 

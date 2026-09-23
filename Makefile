@@ -16,7 +16,7 @@ FRONTEND := cd frontend &&
 .PHONY: help up down ps logs reset install migrate revision api worker status web vault-key one-whole-run \
         lint lint-backend lint-frontend format test test-unit test-integration \
         test-contract test-browser types check ingest-kb seed-skills gen-recorder \
-        mutants-backend open-joins two-miners images smoke gen-deployment
+        mutants-backend images smoke gen-deployment
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -94,7 +94,7 @@ token: ## Issue a credential: make token tenant=acme principal=you [days=30]
 	@# `(principal, signature)` -- so a forgotten argument does not fail, it
 	@# quietly files that person's day under somebody else. It is how one
 	@# operator became `devansh`, `operator` and `you` on two tenants, whose
-	@# work can never be paired: see `make open-joins`.
+	@# work can never be paired.
 	@test -n "$(principal)" || { \
 		echo "principal= is required: a credential names a person, and the wrong"; \
 		echo "name splits their work from itself. Try:"; \
@@ -217,12 +217,6 @@ mutants-backend: ## Mutation score for the bridge and the ladder, against their 
 	$(BACKEND) uv run mutmut run || true
 	$(BACKEND) uv run mutmut export-cicd-stats
 	$(BACKEND) uv run python scripts/mutation_floor.py
-
-open-joins: ## The joins waiting on a person -- the last unmet item of phase 7's precondition
-	@$(BACKEND) uv run python scripts/open_joins.py $(args)
-
-two-miners: ## Both miners over one tenant, side by side: make two-miners tenant=acme
-	@$(BACKEND) uv run python scripts/two_miners.py $(or $(tenant),acme) $(args)
 
 # Beside the rig's rather than replacing it: the same measurement from the
 # other store, so the two can be read against each other until phase 7 deletes

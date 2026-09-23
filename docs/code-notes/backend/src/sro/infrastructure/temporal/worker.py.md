@@ -30,21 +30,11 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 > cheapest thing that keeps a connection alive over a weekend is the right
 > amount of machinery for it.
 
-## `mine_lately`, [line 56](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L56): Docstring
-
-> Notice what somebody keeps doing, for as long as this runs.
->
-> A loop for the same reasons as the keeper above: nothing to replay, and a
-> missed sweep costs nothing because the next one reads the same window. Every
-> episode already recorded is skipped, so running it often is only the price
-> of reading the evidence again.
-
 ## `mine_the_rig_lately`, [line 90](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L90): Docstring
 
 > Read each recorded tenant's day, for as long as this runs.
 >
-> The rig's whole learning cycle, where `mine_lately` above is the pre-rig
-> miner. Both halves had a person in them: `mine_pass` was reachable from a
+> The rig's whole learning cycle. Both halves had a person in them: `mine_pass` was reachable from a
 > door and a script, `read_gestures` from a door and the crontab line in
 > `sro.cli.read_cron`'s own docstring. Every mining result this project has
 > measured came from somebody running a script.
@@ -107,25 +97,6 @@ Code: `logger.exception("the session keeper could not finish its sweep")`
 
 > A keeper that dies quietly is worse than no keeper: the sessions
 > look fine until the morning somebody needs one.
-
-## `mine_lately`, [line 58](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L58): Comment
-
-Code: `logger.info("the observation miner is off (mining_sweep_seconds=0)")`
-
-> The pre-rig miner, left to a deliberate call. `Settings`' own field
-> carries the whole argument; the short of it is that this sweep
-> teaches what it notices without asking anybody, and four of the nine
-> skills it has taught are Gmail's sync endpoint or this console's own
-> Learn button. Returning rather than looping so the task finishes and
-> the worker is not holding a coroutine that will never do anything.
-
-## `mine_lately`, [line 77](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L77): Comment
-
-Code: `for tenant in mined:`
-
-> And anything now done often enough is learned, without waiting for
-> somebody to press a button. What comes out sits at the bottom of the
-> promotion ladder; nothing here lets anything run.
 
 ## `run`, [line 175](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L175): Comment
 

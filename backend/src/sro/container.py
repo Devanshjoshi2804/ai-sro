@@ -85,12 +85,9 @@ from sro.application.observation.artifacts import StoreObservationArtifact
 from sro.application.observation.demonstrate import AssembleDemonstration
 from sro.application.observation.forget import ForgetObservations
 from sro.application.observation.ingest import IngestObservation
-from sro.application.observation.learn import LearnWhatRepeats
-from sro.application.observation.mine import MineEverything, MineObservations
 from sro.application.observation.mine_lately import MineLately
 from sro.application.observation.mine_pass import MinePass
 from sro.application.observation.policy import ReadObservationPolicy, SetObservationPolicy
-from sro.application.observation.propose import AnswerJoin, ProposeAboutCandidates
 from sro.application.observation.read_gesture import ReadGestures
 from sro.application.observation.read_pool import ReadPool
 from sro.application.observation.read_shots import ReadShots
@@ -103,12 +100,6 @@ from sro.application.observation.register import (
     RevokeHost,
 )
 from sro.application.observation.retain import SweepRetention
-from sro.application.observation.teach import (
-    DismissCandidate,
-    ReadCandidates,
-    TeachCandidate,
-    TeachWorkflow,
-)
 from sro.application.ports.agent import AgentDrivers
 from sro.application.ports.auth import Credentials
 from sro.application.ports.blob import BlobStore
@@ -323,9 +314,6 @@ class Container:
     def adopt_rig_workflow(self) -> AdoptRigWorkflow:
         return AdoptRigWorkflow(self.unit_of_work(), self.clock, self.ids)
 
-    def mine_observations(self) -> MineObservations:
-        return MineObservations(self.unit_of_work(), self.blobs, self.ids)
-
     def _patient_asker(self) -> Asker | None:
         if self._mining_asker is None or self._mining_asker_from is not self.asker:
             self._mining_asker_from = self.asker
@@ -383,46 +371,6 @@ class Container:
 
     def run_lookups(self) -> RunLookups:
         return RunLookups(self.unit_of_work(), SocketChannel(self.agent_sockets))
-
-    def mine_everything(self) -> MineEverything:
-        return MineEverything(
-            self.unit_of_work(), self.mine_observations(), self.propose_about_candidates()
-        )
-
-    def answer_join(self) -> AnswerJoin:
-        return AnswerJoin(self.unit_of_work())
-
-    def propose_about_candidates(self) -> ProposeAboutCandidates:
-        return ProposeAboutCandidates(self.unit_of_work(), self.interpreter, self.clock, self.ids)
-
-    def read_candidates(self) -> ReadCandidates:
-        return ReadCandidates(self.unit_of_work())
-
-    def teach_candidate(self) -> TeachCandidate:
-        return TeachCandidate(
-            self.unit_of_work(),
-            self.blobs,
-            self.clock,
-            self.ids,
-            self.understand_recording(),
-            self.induce_skill(),
-        )
-
-    def learn_what_repeats(self) -> LearnWhatRepeats:
-        return LearnWhatRepeats(self.unit_of_work(), self.teach_candidate())
-
-    def teach_workflow(self) -> TeachWorkflow:
-        return TeachWorkflow(
-            self.unit_of_work(),
-            self.blobs,
-            self.clock,
-            self.ids,
-            self.induce_skill(),
-            self.interpreter,
-        )
-
-    def dismiss_candidate(self) -> DismissCandidate:
-        return DismissCandidate(self.unit_of_work(), self.clock, self.ids)
 
     def create_trigger(self) -> CreateTrigger:
         return CreateTrigger(

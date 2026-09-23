@@ -24,7 +24,6 @@ from sro.interface.http.v1.routers import (
     analytics,
     ask,
     audit,
-    candidates,
     chat,
     confirmations,
     connections,
@@ -262,7 +261,6 @@ def create_app() -> FastAPI:
     app.include_router(agent_channel.router, prefix="/v1")
     app.include_router(analytics.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(audit.router, prefix="/v1", responses=PROBLEMS)
-    app.include_router(candidates.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(ask.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(chat.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(secrets.router, prefix="/v1", responses=PROBLEMS)

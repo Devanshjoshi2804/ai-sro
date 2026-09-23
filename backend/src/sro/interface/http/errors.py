@@ -22,7 +22,6 @@ from sro.application.execution.revise_run import NotYours as NotYoursToRevise
 from sro.application.execution.workflow_runs import NotDrivingThisRun, RunRefused
 from sro.application.induction.errors import InductionFailed
 from sro.application.observation.ingest import ObservationRefused
-from sro.application.observation.teach import NothingToTeach
 from sro.application.ports.browser import BrowserUnavailable
 from sro.application.ports.dispatch import DispatchFailed
 from sro.application.ports.http import TargetUnreachable
@@ -61,7 +60,6 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     NotRunnable: status.HTTP_409_CONFLICT,
     NoSessionForSystem: status.HTTP_409_CONFLICT,
     ObservationRefused: status.HTTP_409_CONFLICT,
-    NothingToTeach: status.HTTP_409_CONFLICT,
     TriggerRefused: status.HTTP_409_CONFLICT,
     InboundRefused: status.HTTP_404_NOT_FOUND,
     NoCredentials: status.HTTP_409_CONFLICT,

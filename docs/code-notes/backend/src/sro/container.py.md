@@ -400,19 +400,6 @@ Code: `driving_runs: AsyncConnection | None = None`
 
 > Going and looking, through the operator's own browser.
 
-## `Container.propose_about_candidates`, [line 391](../../../../../backend/src/sro/container.py#L391): Docstring
-
-> The three model slots over what the miner found, and the offer said
-> out loud. The model slots do nothing at all when no interpreter is
-> configured; the offer is written either way, because which tasks are
-> worth offering was never a model's decision.
-
-## `Container.teach_workflow`, [line 410](../../../../../backend/src/sro/container.py#L410): Docstring
-
-> Two candidates as one skill. The pair diffed is two occurrences of
-> the whole job, so this goes through the two-run induction rather than
-> the single-demonstration reading a lone candidate gets.
-
 ## `Container.record_attempt`, [line 441](../../../../../backend/src/sro/container.py#L441): Docstring
 
 > What somebody asked for, and what came of it. See

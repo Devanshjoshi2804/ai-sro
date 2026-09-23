@@ -260,63 +260,6 @@ Code: `transcription_enabled: bool = False`
 
 > Narration transcription is optional. Default binding is NullTranscriber.
 
-## `Settings`, [line 128](../../../../../backend/src/sro/config.py#L128): Note on the line above
-
-Code: `mining_sweep_seconds: float = 0.0`
-
-> How often a day's observation is mined for tasks worth automating, or 0
-> to leave it to a deliberate call.
->
-> **This is the PRE-RIG miner, and it is off by default.**
-> `MineObservations` clusters `observations` into `task_candidates` with no
-> model in the loop; `mining_pass.mine` reads `gestures` and writes
-> `workflows`, and is the path this deployment runs on. Neither reads the
-> other's tables.
->
-> Off because the sweep does not stop at noticing. `worker.mine_lately` runs
-> `LearnWhatRepeats` straight after it, which teaches every candidate seen
-> `WORTH_OFFERING` times with nobody asked -- the console's "Learn this one"
-> is a manual trigger for something that already happens on its own. The
-> admission rule learned this deployment's own origins in `cfdb7e4` and
-> no console candidate has appeared since 2026-09-01, but nothing filters a
-> third party's traffic, and the sweep went on running: of the nine skills
-> taught across both tenants by 2026-09-12, **four are not work.** Two are
-> `POST sync/u/*/i/s` -- Gmail's background synchronisation endpoint, learned
-> on both tenants -- and two are `POST */candidates/*/teach`, this console's
-> own Learn button, which the system watched somebody press and decided was
-> a task somebody keeps doing here. On tenant `new`, 28 of 46 candidates are
-> titled after Google's own request paths as though each were a job: `Create
-> u`, `Create fd`, `Create bv`, `Create perftrace`.
->
-> **Corrected 2026-09-14: those are not idle beacons.** 27 of those 28 have
-> warehouse work within three minutes of every doing -- `Create u` sits beside
-> 283 warehouse gestures, `Create s` beside 392 -- and on 2026-09-10 the
-> browser went mail, warehouse, mail, warehouse sixteen times in an hour,
-> thirty-five seconds and then two seconds apart. That is somebody reading a
-> mail and doing what it asks. The titles are meaningless because this miner
-> segments per host and names an episode after its busiest request, so it cuts
-> a two-system job in half and titles the half it cannot explain. The model
-> path has both of those as ONE job apiece, `systems=['mail.google.com',
-> 'bf56-...jdadelivers.com']`, with the mail step in sequence.
->
-> So the count above is an argument about this miner's OUTPUT, not about the
-> operator's day: the four skills it taught really are not work, and the 28
-> rows really are unusable -- but they are unusable because they are severed,
-> not because nothing was happening.
->
-> Nothing is lost by leaving it off. Mining is idempotent by construction --
-> an episode already recorded is not counted twice, so mining a window again
-> changes nothing -- and `observations` keep arriving from ingest either way.
-> A deliberate pass over any window can still be run at any time, which is
-> exactly what the phase 7 precondition in
-> `docs/new-agent-doc-arc/two-miners-one-day.md` asks for and has not had:
-> both miners over one shared day. Set a positive number to run the sweep
-> again.
->
-> A loop rather than a schedule, when it does run, for the same reason as the
-> session keeper: it holds no state worth replaying and a missed sweep is
-> corrected by the next one.
-
 ## `Settings`, [line 130](../../../../../backend/src/sro/config.py#L130): Note on the line above
 
 Code: `rig_sweep_seconds: float = 60.0`
@@ -324,11 +267,7 @@ Code: `rig_sweep_seconds: float = 60.0`
 > How often the RIG's miner reads each recorded tenant's day, or 0 to
 > leave it to a deliberate call.
 >
-> On by default, where `mining_sweep_seconds` above is off, and the two are
-> not variants of one setting: that one runs `MineObservations` and then
-> teaches what it found with nobody asked, and four of the nine skills it
-> taught across both real tenants are not work. This one runs
-> `mining_pass.mine`, whose output is a `workflows` row that `validate` has
+> This runs `mining_pass.mine`, whose output is a `workflows` row that `validate` has
 > already refused nine ways, that no browser is offered until it is proven,
 > and whose first run is always dry.
 >

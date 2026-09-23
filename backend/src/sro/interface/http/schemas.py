@@ -40,13 +40,6 @@ from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.lookup.plan import Asked, Lookup
 from sro.domain.observation.attempts import Attempt
 from sro.domain.observation.batch import CaptureMode, RejectedEvent
-from sro.domain.observation.candidate import (
-    Episode,
-    Join,
-    JoinAnswer,
-    JoinKind,
-    TaskCandidate,
-)
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.identity import Resolution as MinedResolution
 from sro.domain.observation.policy import ObservationPolicy
@@ -2644,127 +2637,6 @@ class WatchMatchModel(BaseModel):
     says what it needs."""
 
 
-class EpisodeModel(BaseModel):
-    started_at: datetime
-    ended_at: datetime
-    duration_ms: int
-    gestures: int
-    calls: int
-
-    @classmethod
-    def of(cls, episode: Episode) -> EpisodeModel:
-        return cls(
-            started_at=episode.started_at,
-            ended_at=episode.ended_at,
-            duration_ms=episode.duration_ms,
-            gestures=episode.gestures,
-            calls=episode.calls,
-        )
-
-
-class JoinModel(BaseModel):
-    """A suggestion that this candidate and another are one piece of work.
-
-    `variant` is the same task done two ways; `workflow` is two halves of one
-    task in two systems. Suggestions, with the reason attached: nothing merges
-    on them, and `by_model` says who is doing the suggesting.
-    """
-
-    other_id: str
-    kind: str
-    because: str
-    by_model: bool
-
-    answered: str | None = None
-    """`same` or `different`, once somebody has looked. Absent means it is
-    still a question, and a screen should be asking it rather than stating it."""
-
-    answered_by: str | None = None
-
-    @classmethod
-    def of(cls, join: Join) -> JoinModel:
-        return cls(
-            other_id=join.other_id.value,
-            kind=join.kind.value,
-            because=join.because,
-            by_model=join.by_model,
-            answered=join.answered.value if join.answered else None,
-            answered_by=join.answered_by.value if join.answered_by else None,
-        )
-
-
-class AnswerJoinRequest(BaseModel):
-    """What a person says two candidates are to each other."""
-
-    other_id: str
-    kind: JoinKind
-    answer: JoinAnswer
-
-
-class TaskCandidateModel(BaseModel):
-    """A task somebody keeps doing, offered rather than acted on."""
-
-    id: str
-    title: str
-    host: str
-    signature: str
-    """The calls it makes, in order, with the identifiers taken out. On the wire
-    because it is the whole argument that two doings are the same task, and an
-    operator who disagrees should be able to see why."""
-
-    status: str
-    times_seen: int
-    median_duration_ms: int
-    minutes_so_far: float
-    first_seen: datetime | None
-    last_seen: datetime | None
-    skill_id: str | None
-    dismissed_reason: str | None
-    named_by_model: bool
-    """Whether the title is a model's sentence rather than one derived from the
-    calls. On the wire so a screen can say so: a name is not a fact."""
-
-    offered_at: datetime | None
-    """When this was said out loud in the operator's conversation, if it has
-    been. On the wire so the panel's list can stop drawing what the thread is
-    already showing: an offer belongs in one place, and two surfaces carrying
-    the same two buttons is how they come to disagree about whether it was
-    answered."""
-
-    starts_on: str = ""
-    """Host and path of the page this task begins on, no query string.
-
-    On the wire so the extension can recognise that page the moment the operator
-    lands on it, against the candidate list it already holds -- without asking
-    the server on every navigation what the tab in front of somebody is for.
-    """
-
-    joins: list[JoinModel]
-    episodes: list[EpisodeModel]
-
-    @classmethod
-    def of(cls, candidate: TaskCandidate) -> TaskCandidateModel:
-        return cls(
-            id=candidate.id.value,
-            title=candidate.title,
-            host=candidate.host,
-            starts_on=candidate.starts_on,
-            signature=candidate.signature,
-            status=candidate.status.value,
-            times_seen=candidate.times_seen,
-            median_duration_ms=candidate.median_duration_ms,
-            minutes_so_far=round(candidate.minutes_so_far, 1),
-            first_seen=candidate.first_seen,
-            last_seen=candidate.last_seen,
-            skill_id=candidate.skill_id.value if candidate.skill_id else None,
-            dismissed_reason=candidate.dismissed_reason,
-            named_by_model=candidate.named_by_model,
-            offered_at=candidate.offered_at,
-            joins=[JoinModel.of(join) for join in candidate.joins],
-            episodes=[EpisodeModel.of(episode) for episode in candidate.episodes],
-        )
-
-
 class ReviseRunRequest(BaseModel):
     """What the operator changed while the run was going.
 
@@ -2774,10 +2646,6 @@ class ReviseRunRequest(BaseModel):
     """
 
     values: dict[str, str] = Field(min_length=1)
-
-
-class DismissCandidateRequest(BaseModel):
-    reason: str
 
 
 class TaughtModel(BaseModel):
@@ -2792,30 +2660,6 @@ class TaughtModel(BaseModel):
     nobody can trust."""
 
 
-class TeachTogetherRequest(BaseModel):
-    """The other half of a job a person has said is one job."""
-
-    other_id: str
-
-
-class TaughtTogetherModel(BaseModel):
-    """One skill out of two candidates. Both ids, because both were spent."""
-
-    first_id: str
-    second_id: str
-    recording_ids: list[str]
-    skill_id: str | None
-    needs_demonstration: bool
-    because: str | None
-
-
-class MinedModel(BaseModel):
-    episodes: int
-    candidates_seen: int
-    candidates_new: int
-    occurrences_new: int
-
-
 class WatchingModel(BaseModel):
     devices: int
     batches: int
@@ -2825,9 +2669,6 @@ class WatchingModel(BaseModel):
 
 class NoticingModel(BaseModel):
     tasks: int
-    worth_offering: int
-    taught: int
-    dismissed: int
     by_kind: dict[str, int]
 
 
@@ -2839,7 +2680,6 @@ class DoingModel(BaseModel):
     withheld: int
     unreachable: int
     writes_sent: int
-    minutes_saved: float
 
 
 class TaskLineModel(BaseModel):
@@ -2847,13 +2687,7 @@ class TaskLineModel(BaseModel):
     title: str
     host: str
     kind: str
-    status: str
-    times_seen: int
-    median_seconds: float
-    minutes_spent: float
-    skill_id: str | None
-    runs: int
-    minutes_saved: float
+    steps: int
 
 
 class SummaryModel(BaseModel):

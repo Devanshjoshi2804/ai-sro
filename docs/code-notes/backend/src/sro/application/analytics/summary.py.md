@@ -20,7 +20,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/analytics/sum
 Code: `MOST = 10`
 
 > How many tasks the summary names. A list nobody scrolls is a list nobody
-> reads; the rest are on the candidates screen.
+> reads.
 
 ## `Watching`, [line 22](../../../../../../../backend/src/sro/application/analytics/summary.py#L22): Note on the line above
 
@@ -44,38 +44,16 @@ Code: `unreachable: int`
 > because it is neither a success nor a fault, and folding it into either
 > would make a week of closed laptops read as a week of a broken skill.
 
-## `_runs_by_skill`, [line 149](../../../../../../../backend/src/sro/application/analytics/summary.py#L149): Docstring
-
-> Only the ones that worked. A failed run saved nobody anything, and
-> counting it would make a broken skill look like its best week.
-
 ## `kind_of`, [line 165](../../../../../../../backend/src/sro/application/analytics/summary.py#L165): Docstring
 
-> The verb a mined title starts with. A renamed candidate falls back to
-> "other" rather than being guessed at.
+> The verb a mined title starts with. Any other title falls back to "other"
+> rather than being guessed at.
 
 ## `TaskLine`, [line 49](../../../../../../../backend/src/sro/application/analytics/summary.py#L49): Comment
 
 Code: `id: str`
 
-> Two candidates can carry the same host and the same title -- mining groups
-> by signature, and two signatures describe themselves the same way. Without
-> this the console keyed rows on host+title, React warned that it could drop
+> Two jobs can carry the same host and the same title. Without this the
+> console keyed rows on host+title, React warned that it could drop
 > one of them, and a reviewer had no way to tell the pair apart.
 
-## `ReadSummary.execute`, [line 82](../../../../../../../backend/src/sro/application/analytics/summary.py#L82): Comment
-
-Code: `candidates = tuple(`
-
-> list_for_tenant has no window of its own -- it is every candidate this
-> tenant has ever had, dismissed or not. Without this, the day-range
-> control on the screen would change everything except what it looks
-> most like it should change.
-
-## `_line`, [line 133](../../../../../../../backend/src/sro/application/analytics/summary.py#L133): Comment
-
-Code: `saved = runs * candidate.median_duration_ms / 60_000`
-
-> What the person would have spent doing it by hand, times the number of
-> times the system did it instead. Stated that way on the screen too: it is
-> an estimate built from one measurement, not a measurement.

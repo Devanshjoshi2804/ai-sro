@@ -21,7 +21,6 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/scripts/mirror_backfill.py`](backend/scripts/mirror_backfill.py.md) | 8 |
 | [`backend/scripts/mutation_floor.py`](backend/scripts/mutation_floor.py.md) | 9 |
 | [`backend/scripts/one_whole_run.py`](backend/scripts/one_whole_run.py.md) | 35 |
-| [`backend/scripts/open_joins.py`](backend/scripts/open_joins.py.md) | 6 |
 | [`backend/scripts/panel_shot.py`](backend/scripts/panel_shot.py.md) | 5 |
 | [`backend/scripts/probe_mine_route.py`](backend/scripts/probe_mine_route.py.md) | 6 |
 | [`backend/scripts/redact_stored_evidence.py`](backend/scripts/redact_stored_evidence.py.md) | 8 |
@@ -30,7 +29,6 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/scripts/smoke.py`](backend/scripts/smoke.py.md) | 11 |
 | [`backend/scripts/status.py`](backend/scripts/status.py.md) | 9 |
 | [`backend/scripts/stub_device.py`](backend/scripts/stub_device.py.md) | 11 |
-| [`backend/scripts/two_miners.py`](backend/scripts/two_miners.py.md) | 2 |
 | [`backend/scripts/two_tabs.py`](backend/scripts/two_tabs.py.md) | 5 |
 | [`backend/scripts/verify_held.py`](backend/scripts/verify_held.py.md) | 9 |
 | [`backend/scripts/what_one_press_writes.py`](backend/scripts/what_one_press_writes.py.md) | 14 |
@@ -40,7 +38,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/__init__.py`](backend/src/sro/__init__.py.md) | 1 |
 | [`backend/src/sro/application/__init__.py`](backend/src/sro/application/__init__.py.md) | 1 |
 | [`backend/src/sro/application/analytics/audit.py`](backend/src/sro/application/analytics/audit.py.md) | 8 |
-| [`backend/src/sro/application/analytics/summary.py`](backend/src/sro/application/analytics/summary.py.md) | 10 |
+| [`backend/src/sro/application/analytics/summary.py`](backend/src/sro/application/analytics/summary.py.md) | 7 |
 | [`backend/src/sro/application/capture/assemble.py`](backend/src/sro/application/capture/assemble.py.md) | 8 |
 | [`backend/src/sro/application/capture/decode.py`](backend/src/sro/application/capture/decode.py.md) | 12 |
 | [`backend/src/sro/application/capture/devices.py`](backend/src/sro/application/capture/devices.py.md) | 6 |
@@ -146,13 +144,10 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/observation/evidence.py`](backend/src/sro/application/observation/evidence.py.md) | 4 |
 | [`backend/src/sro/application/observation/forget.py`](backend/src/sro/application/observation/forget.py.md) | 4 |
 | [`backend/src/sro/application/observation/ingest.py`](backend/src/sro/application/observation/ingest.py.md) | 18 |
-| [`backend/src/sro/application/observation/learn.py`](backend/src/sro/application/observation/learn.py.md) | 7 |
-| [`backend/src/sro/application/observation/mine.py`](backend/src/sro/application/observation/mine.py.md) | 7 |
 | [`backend/src/sro/application/observation/mine_lately.py`](backend/src/sro/application/observation/mine_lately.py.md) | 14 |
 | [`backend/src/sro/application/observation/mine_pass.py`](backend/src/sro/application/observation/mine_pass.py.md) | 4 |
 | [`backend/src/sro/application/observation/mining_pass.py`](backend/src/sro/application/observation/mining_pass.py.md) | 79 |
 | [`backend/src/sro/application/observation/policy.py`](backend/src/sro/application/observation/policy.py.md) | 3 |
-| [`backend/src/sro/application/observation/propose.py`](backend/src/sro/application/observation/propose.py.md) | 50 |
 | [`backend/src/sro/application/observation/read_gesture.py`](backend/src/sro/application/observation/read_gesture.py.md) | 31 |
 | [`backend/src/sro/application/observation/read_pool.py`](backend/src/sro/application/observation/read_pool.py.md) | 3 |
 | [`backend/src/sro/application/observation/read_shots.py`](backend/src/sro/application/observation/read_shots.py.md) | 8 |
@@ -160,9 +155,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/observation/redact.py`](backend/src/sro/application/observation/redact.py.md) | 14 |
 | [`backend/src/sro/application/observation/register.py`](backend/src/sro/application/observation/register.py.md) | 15 |
 | [`backend/src/sro/application/observation/retain.py`](backend/src/sro/application/observation/retain.py.md) | 4 |
-| [`backend/src/sro/application/observation/segment.py`](backend/src/sro/application/observation/segment.py.md) | 17 |
 | [`backend/src/sro/application/observation/shots.py`](backend/src/sro/application/observation/shots.py.md) | 9 |
-| [`backend/src/sro/application/observation/teach.py`](backend/src/sro/application/observation/teach.py.md) | 40 |
 | [`backend/src/sro/application/ports/__init__.py`](backend/src/sro/application/ports/__init__.py.md) | 1 |
 | [`backend/src/sro/application/ports/agent.py`](backend/src/sro/application/ports/agent.py.md) | 7 |
 | [`backend/src/sro/application/ports/auth.py`](backend/src/sro/application/ports/auth.py.md) | 6 |
@@ -221,8 +214,8 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/cli/mint.py`](backend/src/sro/cli/mint.py.md) | 2 |
 | [`backend/src/sro/cli/observe.py`](backend/src/sro/cli/observe.py.md) | 3 |
 | [`backend/src/sro/cli/read_cron.py`](backend/src/sro/cli/read_cron.py.md) | 5 |
-| [`backend/src/sro/config.py`](backend/src/sro/config.py.md) | 53 |
-| [`backend/src/sro/container.py`](backend/src/sro/container.py.md) | 76 |
+| [`backend/src/sro/config.py`](backend/src/sro/config.py.md) | 52 |
+| [`backend/src/sro/container.py`](backend/src/sro/container.py.md) | 75 |
 | [`backend/src/sro/domain/__init__.py`](backend/src/sro/domain/__init__.py.md) | 1 |
 | [`backend/src/sro/domain/chat/asked_by.py`](backend/src/sro/domain/chat/asked_by.py.md) | 13 |
 | [`backend/src/sro/domain/chat/asking.py`](backend/src/sro/domain/chat/asking.py.md) | 37 |
@@ -370,7 +363,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/infrastructure/temporal/durable.py`](backend/src/sro/infrastructure/temporal/durable.py.md) | 11 |
 | [`backend/src/sro/infrastructure/temporal/queues.py`](backend/src/sro/infrastructure/temporal/queues.py.md) | 1 |
 | [`backend/src/sro/infrastructure/temporal/schedules.py`](backend/src/sro/infrastructure/temporal/schedules.py.md) | 5 |
-| [`backend/src/sro/infrastructure/temporal/worker.py`](backend/src/sro/infrastructure/temporal/worker.py.md) | 12 |
+| [`backend/src/sro/infrastructure/temporal/worker.py`](backend/src/sro/infrastructure/temporal/worker.py.md) | 9 |
 | [`backend/src/sro/infrastructure/temporal/workflows.py`](backend/src/sro/infrastructure/temporal/workflows.py.md) | 14 |
 | [`backend/src/sro/infrastructure/transcription/gemini.py`](backend/src/sro/infrastructure/transcription/gemini.py.md) | 3 |
 | [`backend/src/sro/infrastructure/transcription/null.py`](backend/src/sro/infrastructure/transcription/null.py.md) | 1 |

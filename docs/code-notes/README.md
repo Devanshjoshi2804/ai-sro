@@ -50,11 +50,11 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/chat/about_an_offer.py`](backend/src/sro/application/chat/about_an_offer.py.md) | 19 |
 | [`backend/src/sro/application/chat/announce.py`](backend/src/sro/application/chat/announce.py.md) | 3 |
 | [`backend/src/sro/application/chat/ask_the_asker.py`](backend/src/sro/application/chat/ask_the_asker.py.md) | 28 |
-| [`backend/src/sro/application/chat/converse.py`](backend/src/sro/application/chat/converse.py.md) | 84 |
-| [`backend/src/sro/application/chat/from_the_mail.py`](backend/src/sro/application/chat/from_the_mail.py.md) | 62 |
+| [`backend/src/sro/application/chat/converse.py`](backend/src/sro/application/chat/converse.py.md) | 85 |
+| [`backend/src/sro/application/chat/from_the_mail.py`](backend/src/sro/application/chat/from_the_mail.py.md) | 63 |
 | [`backend/src/sro/application/chat/read_chat.py`](backend/src/sro/application/chat/read_chat.py.md) | 4 |
 | [`backend/src/sro/application/chat/read_threads.py`](backend/src/sro/application/chat/read_threads.py.md) | 2 |
-| [`backend/src/sro/application/chat/reading_an_answer.py`](backend/src/sro/application/chat/reading_an_answer.py.md) | 7 |
+| [`backend/src/sro/application/chat/reading_an_answer.py`](backend/src/sro/application/chat/reading_an_answer.py.md) | 10 |
 | [`backend/src/sro/application/chat/understand.py`](backend/src/sro/application/chat/understand.py.md) | 24 |
 | [`backend/src/sro/application/connection/browsers.py`](backend/src/sro/application/connection/browsers.py.md) | 9 |
 | [`backend/src/sro/application/connection/check_session.py`](backend/src/sro/application/connection/check_session.py.md) | 15 |
@@ -127,7 +127,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/intent/plan_task.py`](backend/src/sro/application/intent/plan_task.py.md) | 2 |
 | [`backend/src/sro/application/intent/pursue.py`](backend/src/sro/application/intent/pursue.py.md) | 15 |
 | [`backend/src/sro/application/intent/resolve.py`](backend/src/sro/application/intent/resolve.py.md) | 32 |
-| [`backend/src/sro/application/intent/spend.py`](backend/src/sro/application/intent/spend.py.md) | 4 |
+| [`backend/src/sro/application/intent/spend.py`](backend/src/sro/application/intent/spend.py.md) | 5 |
 | [`backend/src/sro/application/knowledge/backfill.py`](backend/src/sro/application/knowledge/backfill.py.md) | 4 |
 | [`backend/src/sro/application/knowledge/learn_from_run.py`](backend/src/sro/application/knowledge/learn_from_run.py.md) | 7 |
 | [`backend/src/sro/application/knowledge/open_questions.py`](backend/src/sro/application/knowledge/open_questions.py.md) | 10 |
@@ -338,13 +338,14 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/infrastructure/db/repositories.py`](backend/src/sro/infrastructure/db/repositories.py.md) | 34 |
 | [`backend/src/sro/infrastructure/db/schema_version.py`](backend/src/sro/infrastructure/db/schema_version.py.md) | 7 |
 | [`backend/src/sro/infrastructure/db/session.py`](backend/src/sro/infrastructure/db/session.py.md) | 1 |
-| [`backend/src/sro/infrastructure/db/spend.py`](backend/src/sro/infrastructure/db/spend.py.md) | 5 |
+| [`backend/src/sro/infrastructure/db/spend.py`](backend/src/sro/infrastructure/db/spend.py.md) | 3 |
 | [`backend/src/sro/infrastructure/db/workflow_runs.py`](backend/src/sro/infrastructure/db/workflow_runs.py.md) | 27 |
 | [`backend/src/sro/infrastructure/db/workflows.py`](backend/src/sro/infrastructure/db/workflows.py.md) | 30 |
 | [`backend/src/sro/infrastructure/gemini/asker.py`](backend/src/sro/infrastructure/gemini/asker.py.md) | 21 |
 | [`backend/src/sro/infrastructure/gemini/computer_use.py`](backend/src/sro/infrastructure/gemini/computer_use.py.md) | 7 |
 | [`backend/src/sro/infrastructure/gemini/intent.py`](backend/src/sro/infrastructure/gemini/intent.py.md) | 3 |
 | [`backend/src/sro/infrastructure/gemini/interpreter.py`](backend/src/sro/infrastructure/gemini/interpreter.py.md) | 4 |
+| [`backend/src/sro/infrastructure/gemini/metered.py`](backend/src/sro/infrastructure/gemini/metered.py.md) | 7 |
 | [`backend/src/sro/infrastructure/gemini/null_intent.py`](backend/src/sro/infrastructure/gemini/null_intent.py.md) | 2 |
 | [`backend/src/sro/infrastructure/gemini/null_interpreter.py`](backend/src/sro/infrastructure/gemini/null_interpreter.py.md) | 2 |
 | [`backend/src/sro/infrastructure/http/api_runs.py`](backend/src/sro/infrastructure/http/api_runs.py.md) | 5 |
@@ -436,5 +437,5 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/domain/observation/window.py:199`](backend/src/sro/domain/observation/window.py.md) | ponytail: greedy per-write, not sitting-level packing. Two writes three |
 | [`backend/src/sro/domain/skill/track_record.py:88`](backend/src/sro/domain/skill/track_record.py.md) | ponytail: the remembered number describes the most recently counted |
 | [`backend/src/sro/infrastructure/agent/sockets.py:25`](backend/src/sro/infrastructure/agent/sockets.py.md) | How often the wait above checks. ponytail: a poll, where an event per device |
-| [`backend/src/sro/infrastructure/db/spend.py:50`](backend/src/sro/infrastructure/db/spend.py.md) | ponytail: four round trips, as the rig made four queries. One |
+| [`backend/src/sro/infrastructure/gemini/metered.py:99`](backend/src/sro/infrastructure/gemini/metered.py.md) | ponytail: the Gemini API returns no token count for embeddings (Vertex |
 | [`backend/src/sro/infrastructure/steel/capture.py:329`](backend/src/sro/infrastructure/steel/capture.py.md) | ponytail: gestures arrive in order, so this matches the frame |

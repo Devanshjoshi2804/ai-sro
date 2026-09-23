@@ -10,6 +10,7 @@ from sro.container import build_container
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.infrastructure.knowledge.catalogue import read_catalogue
 from sro.observability import configure_logging
+from sro.whose import attribute
 
 logger = logging.getLogger("sro.knowledge.ingest")
 
@@ -24,6 +25,7 @@ async def ingest(*, tenant: str, system: str, root: Path) -> None:
 
     container = build_container()
     ctx = RequestContext(tenant_id=TenantId(tenant), principal_id=PrincipalId("knowledge-base"))
+    attribute(tenant=tenant)
     logger.info("read %d claims from %s", len(claims), root)
 
     recorded = await container.record_claims().execute(ctx, claims)

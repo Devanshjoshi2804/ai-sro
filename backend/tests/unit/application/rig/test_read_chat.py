@@ -32,7 +32,7 @@ from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
 from sro.domain.chat.reading import UNDERSTAND_SCHEMA, ChatReading
 from sro.domain.shared.identifiers import PrincipalId, TenantId
-from sro.domain.shared.prices import Answer
+from sro.domain.shared.prices import Answer, ModelSpend
 from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.db.codec import when
 from tests.unit.fakes import FakeAsker, FakeChatRepository, FakeClock, FakeUnitOfWork
@@ -119,10 +119,9 @@ def _billed_rows(uow: FakeUnitOfWork) -> list[ChatReading]:
 
 
 async def _billed(uow: FakeUnitOfWork, *, cost_usd: float, at: datetime) -> None:
-    """A day with a model call on it. The chat door is one of the four billable
-    tables and the cheapest to write; the cap reads the sum, not the table."""
-    await uow.chats.record(
-        ChatReading(id=f"cht_{cost_usd}", tenant=TENANT.value, at=at.isoformat(), cost_usd=cost_usd)
+    """A day with a model call on it, as the metered client bills one."""
+    await uow.spend.record(
+        ModelSpend(id=f"cht_{cost_usd}", tenant=TENANT.value, model="m", at=at, cost_usd=cost_usd)
     )
 
 
@@ -195,7 +194,7 @@ async def test_a_refusal_at_the_door_leaves_no_row_behind() -> None:
     with pytest.raises(OverCap):
         await _read(uow, asker=FakeAsker()).execute(_ctx(), utterance=SAID)
 
-    assert [row.id for row in _billed_rows(uow)] == ["cht_5.01"], "the refusal billed a row"
+    assert _billed_rows(uow) == [], "the refusal billed a row"
 
 
 async def test_a_negative_cap_is_no_cap_and_the_sentence_is_read() -> None:
@@ -227,6 +226,7 @@ async def test_the_reading_that_spends_the_last_of_the_cap_still_gets_its_offer(
     )
 
     assert got.workflow_id == "wfl_1"
+    await _billed(uow, cost_usd=0.01, at=NOW.replace(hour=11))
     with pytest.raises(OverCap):
         await _read(uow, asker=FakeAsker(_answer("wfl_1", []))).execute(_ctx(), utterance=SAID)
 
@@ -367,7 +367,7 @@ _ORDER_UNDER_ONE_SEED = """
 import asyncio
 
 from sro.application.chat.understand import understand
-from sro.domain.shared.prices import Answer
+from sro.domain.shared.prices import Answer, ModelSpend
 from sro.domain.skill.workflow import Workflow
 
 NAMES = [
@@ -456,12 +456,9 @@ async def test_the_day_the_cap_judges_is_the_callers_and_never_a_neighbours() ->
     assert got.workflow_id == "wfl_1", "another tenant's spending refused this one's reading"
 
     # And the converse: the same money on RIVAL's own day does refuse it.
-    await uow.chats.record(
-        ChatReading(
-            id="cht_rival",
-            tenant=RIVAL.value,
-            at=NOW.replace(hour=10).isoformat(),
-            cost_usd=5.01,
+    await uow.spend.record(
+        ModelSpend(
+            id="cht_rival", tenant=RIVAL.value, model="m", at=NOW.replace(hour=10), cost_usd=5.01
         )
     )
 

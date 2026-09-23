@@ -59,7 +59,6 @@ from sro.application.execution.run_workflow import (
 from sro.application.execution.stops import Stops
 from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Reply
-from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.belts import K_EARNED_RUNS, SCREEN_SCHEMA
 from sro.domain.execution.gathering import Found, Gathered
 from sro.domain.execution.learned_step import LearnedStep
@@ -68,7 +67,7 @@ from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Action, Body, Call, Gesture, PageMark, Target
 from sro.domain.shared.identifiers import DeviceId, TenantId
-from sro.domain.shared.prices import Answer
+from sro.domain.shared.prices import Answer, ModelSpend
 from sro.domain.skill.checks import signs_in
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
 from sro.domain.skill.workflow import Step, Workflow
@@ -8193,7 +8192,7 @@ async def test_a_long_list_reads_the_days_bill_again_and_stops_when_it_is_spent(
     four-step body is about a hundred legs, and at this deployment's measured
     $0.0118 a step that is $1.20 against a $5 day, with nothing asking.
 
-    The bill is planted mid-run by a chat row landing after the first thing on
+    The bill is planted mid-run by a model call landing after the first thing on
     the list, which is what a mining pass or another browser does while a long
     run is going.
     """
@@ -8222,11 +8221,12 @@ async def test_a_long_list_reads_the_days_bill_again_and_stops_when_it_is_spent(
         async def ask(self, *args: object, **kwargs: object) -> Answer:
             self.times += 1
             if self.times == 2:
-                await uow.chats.record(
-                    ChatReading(
+                await uow.spend.record(
+                    ModelSpend(
                         id="cha_someone_else",
                         tenant=TENANT.value,
-                        at=datetime.now(tz=UTC).isoformat(),
+                        model="m",
+                        at=datetime.now(tz=UTC),
                         cost_usd=9.99,
                     )
                 )

@@ -1,8 +1,8 @@
 """The day's cap: what a tenant's model calls may cost before the rig stops.
 
 Ported from the rig's ``over_cap`` in ``new_agent_arch/src/rig/api.py``. The
-spend itself is not handed to the rule as a number -- it is put into the same
-repositories the rest of the system writes to and summed back out by
+spend itself is not handed to the rule as a number -- it is written to the
+ledger the metered client writes to and summed back out by
 ``FakeSpendRepository``, so a day that reads as $5.00 here is a day something
 actually billed $5.00.
 """
@@ -13,9 +13,9 @@ import pytest
 
 from sro.application.intent.spend import over_cap, spent_today
 from sro.config import Settings
-from sro.domain.chat.reading import ChatReading
 from sro.domain.shared.identifiers import TenantId
-from sro.domain.shared.prices import DaySpend
+from sro.domain.shared.prices import DaySpend, ModelSpend
+from sro.whose import about, whose
 from tests.unit.fakes import FakeUnitOfWork
 
 TENANT = TenantId("acme")
@@ -29,21 +29,26 @@ was pinned for a day and unpinned from the next morning.
 """
 
 
-async def _billed(*chats: ChatReading) -> FakeUnitOfWork:
-    """A day with these calls on it. The chat door is one of the four billable
-    tables and the cheapest to write, and the rule reads the sum, not the
-    table."""
+async def _billed(*calls: ModelSpend) -> FakeUnitOfWork:
+    """A day with these model calls on it."""
     uow = FakeUnitOfWork()
-    for chat in chats:
-        await uow.chats.record(chat)
+    for call in calls:
+        await uow.spend.record(call)
     return uow
 
 
-def _chat(chat_id: str, *, cost_usd: float = 0.0, unpriced: bool = False) -> ChatReading:
-    return ChatReading(
-        id=chat_id,
+def _chat(call_id: str, *, cost_usd: float = 0.0, unpriced: bool = False) -> ModelSpend:
+    return _call(call_id, at=NOW.replace(hour=10), cost_usd=cost_usd, unpriced=unpriced)
+
+
+def _call(
+    call_id: str, *, at: datetime, cost_usd: float = 0.0, unpriced: bool = False
+) -> ModelSpend:
+    return ModelSpend(
+        id=call_id,
         tenant=TENANT.value,
-        at=NOW.replace(hour=10).isoformat(),
+        model="gemini-3-flash",
+        at=at,
         cost_usd=cost_usd,
         unpriced=unpriced,
     )
@@ -84,6 +89,9 @@ async def test_a_day_over_the_cap_says_how_much_of_what() -> None:
 
 class _RefusesToBeAsked:
     """A spend repository that fails if anything asks it what today cost."""
+
+    async def record(self, spent: ModelSpend) -> None:
+        raise AssertionError("nothing here bills a call")
 
     async def today(self, tenant_id: TenantId, *, now: datetime) -> DaySpend:
         raise AssertionError("a cap that is not a cap must not pay for the query")
@@ -160,14 +168,11 @@ async def test_the_day_is_the_utc_day_whatever_zone_the_clock_carries() -> None:
     clock = datetime(2025, 3, 4, 2, 0, tzinfo=timezone(timedelta(hours=5, minutes=30)))
     assert clock.astimezone(UTC).date() != clock.date(), "the two days must differ"
 
-    uow = FakeUnitOfWork()
-    # Inside the UTC day of `clock`, and outside the calendar day it reads as.
-    await uow.chats.record(
-        ChatReading(id="cha_1", tenant=TENANT.value, at="2025-03-03T10:00:00+00:00", cost_usd=2.0)
-    )
-    # The UTC day before: outside by nine hours, whatever the caller's offset.
-    await uow.chats.record(
-        ChatReading(id="cha_2", tenant=TENANT.value, at="2025-03-02T15:00:00+00:00", cost_usd=4.0)
+    uow = await _billed(
+        # Inside the UTC day of `clock`, and outside the calendar day it reads as.
+        _call("cha_1", at=datetime(2025, 3, 3, 10, 0, tzinfo=UTC), cost_usd=2.0),
+        # The UTC day before: outside by nine hours, whatever the caller's offset.
+        _call("cha_2", at=datetime(2025, 3, 2, 15, 0, tzinfo=UTC), cost_usd=4.0),
     )
 
     assert (await spent_today(uow, TENANT, now=clock)).cost_usd == 2.0
@@ -231,3 +236,11 @@ class TestTheSettingEveryPaidLoopReadsTheCapFrom:
 
         assert cap == 0.0
         assert await over_cap(await _billed(), TENANT, now=NOW, cap_usd=cap) is not None
+
+
+async def test_the_tenant_whose_cap_was_asked_is_the_one_the_next_call_bills() -> None:
+    """Asking the cap is where model work for a tenant starts, so it is also
+    where the work is attributed: the metered client bills whoever is named."""
+    with about():
+        await over_cap(FakeUnitOfWork(), TENANT, now=NOW, cap_usd=-1.0)
+        assert whose()["tenant"] == TENANT.value

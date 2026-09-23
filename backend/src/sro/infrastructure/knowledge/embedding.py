@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +24,14 @@ class NoEmbedder:
 
 
 class GeminiEmbedder:
-    def __init__(self, api_key: str, model: str) -> None:
+    def __init__(self, api_key: str, model: str, *, client: Any | None = None) -> None:
+        self._model = model
+        if client is not None:
+            self._client = client
+            return
         from google import genai
 
         self._client = genai.Client(api_key=api_key)
-        self._model = model
 
     @property
     def available(self) -> bool:

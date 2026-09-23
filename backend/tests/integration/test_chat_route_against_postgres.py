@@ -20,8 +20,10 @@ the real `SpendRepository` can produce.
 
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -31,9 +33,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sro.application.ports.repositories import UnitOfWork
 from sro.config import Settings
 from sro.domain.shared.identifiers import TenantId
-from sro.domain.shared.prices import Answer
+from sro.domain.shared.prices import Answer, price
 from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
+from sro.infrastructure.gemini.asker import GeminiAsker
+from sro.infrastructure.gemini.metered import Meter, Metered
 from sro.interface.http.app import create_app
 from sro.interface.http.deps import get_container
 from tests.unit.fakes import FakeAsker, FakeClock, FakeUnitOfWork
@@ -156,34 +160,53 @@ async def test_a_sentence_is_read_and_billed_through_one_real_session(
     assert SAID not in str(row), "the operator's sentence reached the store"
 
 
-async def test_the_cap_is_read_off_the_same_session_the_bill_is_written_through(
+async def test_the_cap_is_read_off_the_same_store_the_meter_bills_into(
     container: _RealSessionContainer, client: httpx.AsyncClient
 ) -> None:
-    """The 4a defect, aimed at this door, and the cap earned rather than set.
+    """The cap earned rather than set, through the real metered client.
 
-    The first reading bills $0.60 into `chats`; the cap is then dropped to
-    $0.50 and the second is refused by a sum the real `SpendRepository`
-    computed over four tables. `over_cap` reads `uow.spend` and
-    `read_utterance` writes through the same unit of work, so a cap checked on
-    a second unit of work nobody entered is an `AttributeError` here and
-    invisible in the unit suite.
+    The first reading is billed by the meter into `model_spend`; the cap is
+    then dropped below what it cost and the second is refused by the sum the
+    real `SpendRepository` computed. The tenant the bill lands on is the one
+    the request was authenticated as -- nothing in the door passes it along.
     """
     await _hold(container)
-    container.asker = FakeAsker(_answer("wfl_1", [], cost_usd=0.60), _answer("wfl_1", []))
+    model = container.settings.gemini_plan_model
+    reading = json.dumps({"workflow_id": "wfl_1", "values": [], "missing": []})
+
+    class _Models:
+        async def generate_content(self, **_: object) -> object:
+            return SimpleNamespace(
+                text=reading,
+                candidates=[],
+                usage_metadata=SimpleNamespace(
+                    prompt_token_count=100_000,
+                    candidates_token_count=100_000,
+                    thoughts_token_count=0,
+                    tool_use_prompt_token_count=None,
+                ),
+            )
+
+    meter = Meter(
+        lambda: SqlUnitOfWork(container._session_factory), clock=FakeClock(NOW), cap_usd=-1.0
+    )
+    container.asker = GeminiAsker(
+        api_key="",
+        client=Metered(SimpleNamespace(aio=SimpleNamespace(models=_Models())), meter),
+    )
+    cost = price(model, 100_000, 100_000)
 
     first = await client.post("/v1/chat", json={"utterance": SAID})
     assert first.status_code == 200, first.text
-    assert first.json()["cost_usd"] == 0.60
 
-    container.settings = Settings(daily_usd_cap=0.50, _env_file=None)
+    container.settings = Settings(daily_usd_cap=round(cost - 0.01, 2), _env_file=None)
 
     refused = await client.post("/v1/chat", json={"utterance": SAID})
 
     assert refused.status_code == 429, refused.text
-    assert "$0.6000 of $0.50" in refused.json()["detail"]
+    assert f"${cost:.4f} of" in refused.json()["detail"]
     async with SqlUnitOfWork(container._session_factory) as uow:
-        rows = await uow.chats.since(TENANT, since=NOW.replace(hour=0).isoformat())
-    assert len(rows) == 1, "the refusal billed a row of its own"
+        assert (await uow.spend.today(TENANT, now=NOW)).cost_usd == pytest.approx(cost)
 
 
 async def test_a_deployment_with_no_model_is_refused_by_the_real_container(

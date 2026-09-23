@@ -23,10 +23,9 @@ import pytest
 from httpx import ASGITransport
 
 from sro.config import Settings
-from sro.domain.chat.reading import ChatReading
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.identifiers import DeviceId, TenantId
-from sro.domain.shared.prices import Answer
+from sro.domain.shared.prices import Answer, ModelSpend
 from sro.infrastructure.db.codec import when
 from sro.interface.http.app import create_app
 from sro.interface.http.deps import get_container
@@ -150,9 +149,9 @@ async def test_a_tenant_over_its_cap_is_told_to_come_back_later(
     be accepted tomorrow. The body names both numbers, so whoever reads it
     knows whether to raise the cap or to go and find the unpriced call."""
     container.asker = FakeAsker(_answer(_proposal(day[:2])))
-    await uow.chats.record(
-        ChatReading(
-            id="cht_1", tenant=TENANT.value, at=NOW.replace(hour=10).isoformat(), cost_usd=5.01
+    await uow.spend.record(
+        ModelSpend(
+            id="cht_1", tenant=TENANT.value, at=NOW.replace(hour=10), cost_usd=5.01, model="m"
         )
     )
 
@@ -172,9 +171,9 @@ async def test_the_cap_the_door_judges_against_is_the_configured_one(
     not answer the other number; the answer having to move is what no literal
     can do."""
     container.asker = FakeAsker(_answer(_proposal(day[:2])))
-    await uow.chats.record(
-        ChatReading(
-            id="cht_1", tenant=TENANT.value, at=NOW.replace(hour=10).isoformat(), cost_usd=5.01
+    await uow.spend.record(
+        ModelSpend(
+            id="cht_1", tenant=TENANT.value, at=NOW.replace(hour=10), cost_usd=5.01, model="m"
         )
     )
     assert (await client.post("/v1/mine")).status_code == 429

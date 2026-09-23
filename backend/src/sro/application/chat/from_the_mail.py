@@ -18,10 +18,12 @@ from sro.application.execution.declared import (
     screen_for,
 )
 from sro.application.execution.gather import GatherContext
+from sro.application.intent.spend import over_cap
 from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
+from sro.application.shared.refusals import OverCap
 from sro.domain.chat.asked_by import mails_behind, texts
 from sro.domain.chat.asking import NEEDS, Pending, pending_job, question
 from sro.domain.chat.thread import Speaker
@@ -98,6 +100,7 @@ class FromTheMail:
         gather: GatherContext | None = None,
         clock: Clock | None = None,
         ids: IdFactory | None = None,
+        cap_usd: float = -1.0,
     ) -> None:
         self._uow = uow
         self._tools = tools
@@ -106,11 +109,20 @@ class FromTheMail:
         self._gather = gather
         self._clock = clock
         self._ids = ids
+        self._cap_usd = cap_usd
 
     async def execute(self, ctx: RequestContext, *, limit: int = K_LOOK) -> LookedInTheMail:
         asker = asker_or_refuse(self._asker)
         now = datetime.now(tz=UTC)
         async with self._uow as uow:
+            why = await over_cap(
+                uow,
+                ctx.tenant_id,
+                now=self._clock.now() if self._clock is not None else now,
+                cap_usd=self._cap_usd,
+            )
+            if why is not None:
+                raise OverCap(why)
             workflows = list(await uow.workflows.known(ctx.tenant_id))
             if not workflows:
                 return LookedInTheMail(why="this tenant has no mined jobs to recognise")

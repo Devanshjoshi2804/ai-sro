@@ -93,15 +93,12 @@ async def test_a_deployment_with_no_model_says_it_could_not_tell() -> None:
 
 
 async def test_a_reply_with_no_data_says_it_could_not_tell() -> None:
-    """The reading was spent -- it is not free just because nothing came
-    back -- so the caller must still see it to bill it."""
     says = _Says(None)
 
     read = await IsItAnAnswer(says, model="m").execute(CTX, ASKING, "has reply arrived")
 
     assert read.answers is None
     assert read.value == ""
-    assert read.spent is not None
 
 
 async def test_an_answer_with_no_value_in_it_falls_back_to_the_sentence() -> None:

@@ -127,7 +127,7 @@ from sro.domain.shared.objective import ObjectiveKey
 
 # `Answer` is already the trigger confirmation's; this one is a model's reply.
 from sro.domain.shared.prices import Answer as ModelAnswer
-from sro.domain.shared.prices import DaySpend, Effort
+from sro.domain.shared.prices import DaySpend, Effort, ModelSpend
 from sro.domain.skill.locator import LocatorStrategy
 from sro.domain.skill.offers import Offer, OfferRow
 from sro.domain.skill.skill import Skill
@@ -2301,56 +2301,22 @@ class FakeChatRepository:
 
 
 class FakeSpendRepository:
-    """The day's bill, summed off the other fakes rather than out of a dict.
+    """The day's bill: one row per model call, as the metered client writes it."""
 
-    The four tables are four repositories here, so this holds none of its own
-    rows: it reads theirs, with the rig's predicates. A fake that could be
-    handed a total nobody spent would prove nothing about a cap.
-    """
+    def __init__(self) -> None:
+        self.rows: list[ModelSpend] = []
 
-    def __init__(
-        self,
-        gestures: FakeGestureRepository,
-        workflows: FakeWorkflowRepository,
-        workflow_runs: FakeWorkflowRunRepository,
-        chats: FakeChatRepository,
-    ) -> None:
-        self._gestures = gestures
-        self._workflows = workflows
-        self._workflow_runs = workflow_runs
-        self._chats = chats
+    async def record(self, spent: ModelSpend) -> None:
+        self.rows.append(spent)
 
     async def today(self, tenant_id: TenantId, *, now: datetime) -> DaySpend:
         aware = now if now.tzinfo is not None else now.replace(tzinfo=UTC)
         midnight = aware.astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
-        since = midnight.isoformat()
-
-        readings = await self._gestures.intents_since(tenant_id, since=since)
-        passes = [
-            one
-            for one in await self._workflows.passes(tenant_id)
-            if when(one.started_at) >= midnight
-        ]
-        runs = await self._workflow_runs.since(tenant_id, since=since)
-        chats = await self._chats.since(tenant_id, since=since)
-
-        usd = (
-            sum(one.cost_usd for one in readings)
-            + sum(one.cost_usd for one in passes)
-            + sum(one.cost_usd for one in runs)
-            + sum(one.cost_usd for one in chats)
+        mine = [one for one in self.rows if one.tenant == tenant_id.value and one.at >= midnight]
+        return DaySpend(
+            cost_usd=sum(one.cost_usd for one in mine),
+            blind=sum(1 for one in mine if one.unpriced),
         )
-        # A call that errored was never billed, so it is unpriced without being
-        # blind; a run carries no error column, so its blind row is the one
-        # that billed nothing at all. The rig's `SPENT_IN`, predicate for
-        # predicate.
-        blind = (
-            sum(1 for one in readings if one.unpriced and one.error is None)
-            + sum(1 for one in passes if one.unpriced and one.error is None)
-            + sum(1 for one in runs if one.unpriced and one.cost_usd == 0.0)
-            + sum(1 for one in chats if one.unpriced and one.error is None)
-        )
-        return DaySpend(cost_usd=usd, blind=blind)
 
 
 _REPOSITORIES = frozenset(
@@ -2436,11 +2402,7 @@ class FakeUnitOfWork:
         self.attempts = FakeAttemptRepository()
         self.offers = FakeOfferRepository()
         self.chats = FakeChatRepository()
-        # One database in the store: the day's bill is summed over the same
-        # four repositories the rest of the unit of work writes to.
-        self.spend = FakeSpendRepository(
-            self.gestures, self._workflows, self.workflow_runs, self.chats
-        )
+        self.spend = FakeSpendRepository()
         self.pool = FakePoolRepository()
         self.observation_policies = FakeObservationPolicyRepository()
         self.candidates = FakeCandidateRepository()

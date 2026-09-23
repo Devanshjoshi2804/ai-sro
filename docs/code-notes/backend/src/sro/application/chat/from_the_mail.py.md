@@ -291,6 +291,16 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > mailbox to decide one thing, and `ChatReading` has no field for them
 > for the same reason.
 
+## `FromTheMail.execute`, [line 118](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L118): Comment
+
+Code: `why = await over_cap(`
+
+> A look spends the tenant's model budget -- a reading per mail, and a gather
+> for what the mail did not carry -- so a spent day refuses it before the first
+> mail is fetched, as every other door that starts model work does. The metered
+> client would refuse each call anyway; asking here gives the operator the 429
+> and the reason instead of a look that quietly read nothing.
+
 ## `FromTheMail._answering`, [line 265](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L265): Docstring
 
 > The run still waiting to hear back on this conversation, if any.

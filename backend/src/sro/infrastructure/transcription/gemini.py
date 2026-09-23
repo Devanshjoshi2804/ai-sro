@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from typing import Any
 
 from sro.application.ports.transcription import TranscribedSegment
 
@@ -34,11 +35,14 @@ _SCHEMA: dict[str, object] = {
 
 
 class GeminiTranscriber:
-    def __init__(self, api_key: str, model: str) -> None:
+    def __init__(self, api_key: str, model: str, *, client: Any | None = None) -> None:
+        self._model = model
+        if client is not None:
+            self._client = client
+            return
         from google import genai
 
         self._client = genai.Client(api_key=api_key)
-        self._model = model
 
     @property
     def available(self) -> bool:

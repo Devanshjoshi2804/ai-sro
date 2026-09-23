@@ -176,6 +176,7 @@ from sro.infrastructure.gemini.asker import GeminiAsker
 from sro.infrastructure.gemini.computer_use import GeminiVisionDriver
 from sro.infrastructure.gemini.intent import GeminiIntentParser
 from sro.infrastructure.gemini.interpreter import GeminiInterpreter
+from sro.infrastructure.gemini.metered import Meter, metered_client
 from sro.infrastructure.gemini.null_intent import NoIntentParser
 from sro.infrastructure.gemini.null_interpreter import NoInterpreter
 from sro.infrastructure.http.api_runs import ApiRunDispatcher
@@ -246,6 +247,8 @@ class Container:
     capture: CaptureController = field(init=False)
 
     driving_runs: AsyncConnection | None = None
+
+    meter: Meter | None = None
 
     def unit_of_work(self) -> UnitOfWork:
         return SqlUnitOfWork(self.session_factory)
@@ -329,7 +332,7 @@ class Container:
     def _patient_asker(self) -> Asker | None:
         if self._mining_asker is None or self._mining_asker_from is not self.asker:
             self._mining_asker_from = self.asker
-            self._mining_asker = _patient_asker_for(self.settings, self.asker)
+            self._mining_asker = _patient_asker_for(self.settings, self.asker, self.meter)
         return self._mining_asker
 
     def mine_pass(self) -> MinePass:
@@ -802,6 +805,7 @@ class Container:
             model=self.settings.gemini_plan_model,
             clock=self.clock,
             ids=self.ids,
+            cap_usd=self.settings.daily_usd_cap,
             gather=GatherContext(
                 tools=self.tools, asker=self.asker, model=self.settings.gemini_plan_model
             )
@@ -909,15 +913,23 @@ class Container:
         return ListRuns(self.unit_of_work())
 
 
-def _build_transcriber(settings: Settings) -> Transcriber:
+def _build_transcriber(settings: Settings, meter: Meter) -> Transcriber:
     if settings.transcription_enabled and settings.gemini_api_key:
-        return GeminiTranscriber(settings.gemini_api_key, settings.gemini_transcription_model)
+        return GeminiTranscriber(
+            settings.gemini_api_key,
+            settings.gemini_transcription_model,
+            client=metered_client(settings.gemini_api_key, meter),
+        )
     return NullTranscriber()
 
 
-def _build_intent_parser(settings: Settings) -> IntentParser:
+def _build_intent_parser(settings: Settings, meter: Meter) -> IntentParser:
     if settings.interpretation_enabled and settings.gemini_api_key:
-        return GeminiIntentParser(settings.gemini_api_key, settings.gemini_intent_model)
+        return GeminiIntentParser(
+            settings.gemini_api_key,
+            settings.gemini_intent_model,
+            client=metered_client(settings.gemini_api_key, meter),
+        )
     return NoIntentParser()
 
 
@@ -927,27 +939,46 @@ def _build_interpreter(settings: Settings) -> WorkflowInterpreter:
     return NoInterpreter()
 
 
-def _patient_asker_for(settings: Settings, asker: Asker | None) -> Asker | None:
+def _patient_asker_for(
+    settings: Settings, asker: Asker | None, meter: Meter | None
+) -> Asker | None:
     if not isinstance(asker, GeminiAsker):
         return asker
-    return GeminiAsker(settings.gemini_api_key, timeout_ms=settings.gemini_mine_timeout_ms)
+    return _gemini_asker(settings, meter, timeout_ms=settings.gemini_mine_timeout_ms)
 
 
-def _build_asker(settings: Settings) -> Asker | None:
+def _gemini_asker(settings: Settings, meter: Meter | None, *, timeout_ms: int) -> GeminiAsker:
+    if meter is None:
+        return GeminiAsker(settings.gemini_api_key, timeout_ms=timeout_ms)
+    return GeminiAsker(
+        settings.gemini_api_key,
+        client=metered_client(settings.gemini_api_key, meter, timeout_ms=timeout_ms),
+    )
+
+
+def _build_asker(settings: Settings, meter: Meter) -> Asker | None:
     if settings.interpretation_enabled and settings.gemini_api_key:
-        return GeminiAsker(settings.gemini_api_key, timeout_ms=settings.gemini_timeout_ms)
+        return _gemini_asker(settings, meter, timeout_ms=settings.gemini_timeout_ms)
     return None
 
 
-def _build_vision(settings: Settings) -> VisionDriver | None:
+def _build_vision(settings: Settings, meter: Meter) -> VisionDriver | None:
     if settings.vision_enabled and settings.gemini_api_key:
-        return GeminiVisionDriver(settings.gemini_api_key, settings.gemini_vision_model)
+        return GeminiVisionDriver(
+            settings.gemini_api_key,
+            settings.gemini_vision_model,
+            client=metered_client(settings.gemini_api_key, meter),
+        )
     return None
 
 
-def _build_embedder(settings: Settings) -> Embedder:
+def _build_embedder(settings: Settings, meter: Meter) -> Embedder:
     if settings.knowledge_embeddings_enabled and settings.gemini_api_key:
-        return GeminiEmbedder(settings.gemini_api_key, settings.gemini_embedding_model)
+        return GeminiEmbedder(
+            settings.gemini_api_key,
+            settings.gemini_embedding_model,
+            client=metered_client(settings.gemini_api_key, meter),
+        )
     return NoEmbedder()
 
 
@@ -990,6 +1021,10 @@ def build_container(settings: Settings | None = None) -> Container:
     if settings.otlp_endpoint:
         watch_queries(engine)
     credentials = SignedTokens(settings.auth_secret)
+    sessions = create_session_factory(engine)
+    meter = Meter(
+        lambda: SqlUnitOfWork(sessions), clock=SystemClock(), cap_usd=settings.daily_usd_cap
+    )
 
     container = Container(
         settings=settings,
@@ -1010,12 +1045,12 @@ def build_container(settings: Settings | None = None) -> Container:
             session_timeout_seconds=settings.steel_session_timeout_seconds,
             dimensions=(settings.browser_width, settings.browser_height),
         ),
-        transcriber=_build_transcriber(settings),
-        embedder=_build_embedder(settings),
-        vision=_build_vision(settings),
+        transcriber=_build_transcriber(settings, meter),
+        embedder=_build_embedder(settings, meter),
+        vision=_build_vision(settings, meter),
         interpreter=_build_interpreter(settings),
-        asker=_build_asker(settings),
-        intent_parser=_build_intent_parser(settings),
+        asker=_build_asker(settings, meter),
+        intent_parser=_build_intent_parser(settings, meter),
         vault=(built_vault := ForgetsRefusalOnWrite(_build_vault(settings))),
         http=HttpxCaller(),
         tools=McpToolCaller(_servers(settings.mcp_servers), vault=built_vault),
@@ -1039,8 +1074,9 @@ def build_container(settings: Settings | None = None) -> Container:
         durable=TemporalDurableExecution(
             address=settings.temporal_address, namespace=settings.temporal_namespace
         ),
-        session_factory=create_session_factory(engine),
+        session_factory=sessions,
         engine=engine,
+        meter=meter,
     )
     container.capture = CaptureSupervisor(
         blobs=container.blobs,

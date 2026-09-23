@@ -55,11 +55,11 @@ from sro.application.context import RequestContext
 from sro.application.execution.pursuits import Pursuits
 from sro.application.ports.repositories import UnitOfWork
 from sro.config import Settings
-from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
 from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
+from sro.domain.shared.prices import ModelSpend
 from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from sro.interface.http.app import create_app
@@ -269,17 +269,13 @@ async def test_a_browser_whose_last_run_finished_may_be_pressed_again(
 async def test_the_cap_is_summed_over_the_real_tables(
     container: _RealSessionContainer, client: httpx.AsyncClient
 ) -> None:
-    """429 out of a number no fake in this file plants: the day's spend is a
-    sum across four tables in the store, and the door refuses before it claims
-    anything."""
+    """429 out of a number no fake in this file plants: the day's spend is the
+    ledger in the store, and the door refuses before it claims anything."""
     await _hold(container)
     async with SqlUnitOfWork(container._session_factory) as uow:
-        await uow.chats.record(
-            ChatReading(
-                id="cht_1",
-                tenant=TENANT.value,
-                at=NOW.replace(hour=10).isoformat(),
-                cost_usd=3.30,
+        await uow.spend.record(
+            ModelSpend(
+                id="spd_1", tenant=TENANT.value, model="m", at=NOW.replace(hour=10), cost_usd=3.30
             )
         )
         await uow.commit()

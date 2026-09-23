@@ -38,7 +38,7 @@ from sro.domain.shared.identifiers import (
     TriggerId,
 )
 from sro.domain.shared.objective import ObjectiveKey
-from sro.domain.shared.prices import DaySpend
+from sro.domain.shared.prices import DaySpend, ModelSpend
 from sro.domain.skill.offers import Offer, OfferRow
 from sro.domain.skill.skill import Skill
 from sro.domain.skill.workflow import Workflow
@@ -507,6 +507,8 @@ class ChatRepository(Protocol):
 
 
 class SpendRepository(Protocol):
+    async def record(self, spent: ModelSpend) -> None: ...
+
     async def today(self, tenant_id: TenantId, *, now: datetime) -> DaySpend: ...
 
 

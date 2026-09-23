@@ -7,9 +7,10 @@ Comments and docstrings moved out of [`backend/src/sro/application/intent/spend.
 > What a tenant's day of model calls may cost before the rig stops asking.
 >
 > The rule is the rig's ``over_cap`` in ``new_agent_arch/src/rig/api.py``, and
-> the number it judges comes from ``SpendRepository.today`` -- four billable
-> tables summed since midnight UTC, with the blind rows counted beside the sum.
-> This file judges; it queries nothing itself.
+> the number it judges comes from ``SpendRepository.today`` -- the ledger the
+> metered client writes one row per model call into, summed since midnight UTC,
+> with the blind rows counted beside the sum. This file judges; it queries
+> nothing itself.
 >
 > Three things about the rule, each of them a decision rather than an accident:
 >
@@ -30,15 +31,10 @@ Comments and docstrings moved out of [`backend/src/sro/application/intent/spend.
 >   alone reads zero. This deployment lived that once -- the run that proved the
 >   architecture billed $1.12 and every row said free.
 >
-> The rig's ``SPENT_IN`` has no counterpart here on purpose. It is the list of
-> tables, clock columns and blind-row predicates that ``spent_today`` queried
-> with, and plan 2 landed it as ``_BILLED`` in
-> ``sro/infrastructure/db/spend.py``, where the schema it names lives. The
-> application layer may not import infrastructure, and a second copy of that
-> table over here would be a second answer to "what bills" -- which is the exact
-> failure its docstring is about.
+> What bills is answered once, by the metered client every Gemini adapter is
+> handed in ``container.py``; this file never names a table.
 
-## `spent_today`, [line 10](../../../../../../../backend/src/sro/application/intent/spend.py#L10): Docstring
+## `spent_today`, [line 11](../../../../../../../backend/src/sro/application/intent/spend.py#L11): Docstring
 
 > The dollars and the blind calls this tenant has run up since midnight.
 >
@@ -47,7 +43,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/intent/spend.
 > what lets a caller's clock -- not the server's -- decide which day is being
 > asked about.
 
-## `over_cap`, [line 14](../../../../../../../backend/src/sro/application/intent/spend.py#L14): Docstring
+## `over_cap`, [line 15](../../../../../../../backend/src/sro/application/intent/spend.py#L15): Docstring
 
 > Why the rig will not make another model call today, or ``None``.
 >
@@ -55,7 +51,18 @@ Comments and docstrings moved out of [`backend/src/sro/application/intent/spend.
 > so whoever reads it knows whether to raise the cap or to go and find the
 > unpriced call.
 
-## `over_cap`, [line 20](../../../../../../../backend/src/sro/application/intent/spend.py#L20): Comment
+## `over_cap`, [line 18](../../../../../../../backend/src/sro/application/intent/spend.py#L18): Comment
+
+Code: `attribute(tenant=tenant_id.value)`
+
+> Asking the cap is where model work for a tenant starts, so it is where the
+> work is attributed: the metered client bills, and checks the cap of,
+> whichever tenant `sro.whose` names. A loop over tenants -- the miner's --
+> re-attributes on every tenant's first check rather than billing the next
+> tenant's reading to the last one. Before the negative-cap return, so an
+> uncapped deployment is attributed too.
+
+## `over_cap`, [line 22](../../../../../../../backend/src/sro/application/intent/spend.py#L22): Comment
 
 Code: `if day.cost_usd >= cap_usd or day.blind:`
 

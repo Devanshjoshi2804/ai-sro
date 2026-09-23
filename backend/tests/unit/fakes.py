@@ -1441,6 +1441,7 @@ class FakeGestureRepository:
 
         self.orphan_requests: dict[tuple[str, str], Mapping[str, object]] = {}
         self.orphan_pages: list[tuple[str, str, str, Mapping[str, object]]] = []
+        self.gestures_for_calls = 0
 
     async def add_batch(self, batch: GestureBatch) -> None:
         if batch.batch_id in self.batches:
@@ -1469,6 +1470,7 @@ class FakeGestureRepository:
         after: float | None = None,
         before: float | None = None,
     ) -> tuple[Gesture, ...]:
+        self.gestures_for_calls += 1
         found = [
             gesture
             for gesture in self.rows.values()

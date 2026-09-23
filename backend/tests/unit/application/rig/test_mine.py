@@ -913,6 +913,37 @@ async def test_a_day_over_its_cap_is_not_mined_and_is_not_billed() -> None:
     assert uow.commits == 0, "a pass that wrote nothing must not commit the caller's session"
 
 
+async def test_a_capped_tenant_does_no_work_at_all() -> None:
+    """The cap was read inside `_one_pass`, after `fill_in_passwords` had
+    already read the store and (had there been anything to fix) written to
+    it. A capped tenant must do no work, not just skip the model call."""
+    uow, ids = await _day()
+    secret = next(g for g in await uow.gestures.gestures_for(TENANT) if is_secret(g))
+    stored = Workflow(
+        id="wfl_stored",
+        tenant=TENANT.value,
+        title="Sign in",
+        narrative="n",
+        systems=[HOST],
+        steps=[
+            Step(order=0, says="type the code", system=HOST, cites=[ids[0]]),
+            Step(order=1, says="save", system=HOST, cites=[ids[-1]]),
+        ],
+        parameters=[],
+    )
+    await uow.workflows.save(stored)
+    asker = FakeAsker(_found(_proposal(ids[:2])))
+
+    result = await _mine(uow, asker, cap_usd=0.0)
+
+    assert result.error is not None and "daily cap" in result.error
+    back = await uow.workflows.get(TENANT, "wfl_stored")
+    assert [step.cites for step in back.steps].count([secret.id]) == 0, (
+        "a capped tenant still got its stored jobs healed"
+    )
+    assert uow.commits == 0
+
+
 # --------------------------------------------------------------------------
 # what a second doing teaches
 
@@ -1818,6 +1849,19 @@ async def test_filling_the_same_job_twice_changes_nothing_the_second_time() -> N
 
     assert await fill_in_passwords(uow, tenant_id=TENANT) == 1
     assert await fill_in_passwords(uow, tenant_id=TENANT) == 0
+
+
+async def test_fill_in_passwords_reads_the_tenants_gestures_once_for_the_whole_pass() -> None:
+    """The whole store was read inside the loop over workflows, so a tenant
+    with N stored jobs paid for the same read N times."""
+    uow = FakeUnitOfWork()
+    by_id = _evidence()
+    await _plant(uow, by_id, _keyed(by_id, "wfl_1"), _keyed(by_id, "wfl_2"), _keyed(by_id, "wfl_3"))
+    assert isinstance(uow.gestures, FakeGestureRepository)
+
+    await fill_in_passwords(uow, tenant_id=TENANT)
+
+    assert uow.gestures.gestures_for_calls == 1
 
 
 async def test_a_refused_proposal_says_which_gate_refused_it(

@@ -107,7 +107,7 @@ Code: `unplaced: int = 0`
 > "the relevant ones" is a retrieval design with its own measurements to
 > make. It is left empty, and it is left named.
 
-## `learn_parameters`, [line 156](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L156): Docstring (debt)
+## `learn_parameters`, [line 159](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L159): Docstring (debt)
 
 > Diff a job's two doings and keep what they disagree about.
 >
@@ -126,14 +126,14 @@ Code: `unplaced: int = 0`
 > can still lose a widening. The lost update is a parameter value, not a
 > workflow, and the next doing of the job re-derives it.
 
-## `_names_of`, [line 222](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L222): Docstring
+## `_names_of`, [line 225](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L225): Docstring
 
 > Every name a stored parameter answers to, its own included.
 >
 > `names` is absent on everything learnt before it existed, and those entries
 > answer to exactly the one name they were written with.
 
-## `_known_by`, [line 229](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L229): Docstring
+## `_known_by`, [line 232](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L232): Docstring
 
 > The stored parameter that is this control under another of its names.
 >
@@ -144,7 +144,7 @@ Code: `unplaced: int = 0`
 > four boxes on the offer card, two of them asking for values nobody has ever
 > typed.
 
-## `_folded`, [line 243](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L243): Docstring
+## `_folded`, [line 246](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L246): Docstring
 
 > One entry per control, for a job that already has two.
 >
@@ -179,7 +179,7 @@ Code: `unplaced: int = 0`
 > genuinely distinct controls that varied over one value set merge, and the
 > second loses its machine name.
 
-## `_same_typing`, [line 275](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L275): Docstring
+## `_same_typing`, [line 278](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L278): Docstring
 
 > Whether two stored parameters were read off the same typing.
 >
@@ -187,7 +187,7 @@ Code: `unplaced: int = 0`
 > of one control look like when one of them has seen more doings than the
 > other. Two empties are not evidence of anything and never match.
 
-## `_same_control`, [line 282](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L282): Docstring (debt)
+## `_same_control`, [line 285](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L285): Docstring (debt)
 
 > The stored parameter that is this one under the model's own name.
 >
@@ -211,7 +211,7 @@ Code: `unplaced: int = 0`
 > the cost is a machine name, not a parameter. Compare on the cited gesture
 > ids instead if that ever bites.
 
-## `_grow`, [line 295](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L295): Docstring
+## `_grow`, [line 298](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L298): Docstring
 
 > Take this doing's steps, where it does everything the stored job does.
 >
@@ -237,19 +237,19 @@ Code: `unplaced: int = 0`
 > they are -- only what it DOES is replaced -- and what is keyed to a step's
 > number moves with it. See `where_steps_moved`.
 
-## `_packed`, [line 318](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L318): Docstring
+## `_packed`, [line 321](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L321): Docstring
 
 > A pooled gesture as `pack` would have built it. `pack` takes the pool
 > already packed -- it is the one input that does not arrive as a Gesture --
 > and adds K_POOL_BONUS itself, so nothing here touches the strength.
 
-## `_billed`, [line 541](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L541): Docstring
+## `_billed`, [line 538](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L538): Docstring
 
 > One row per reading of the day, written whether it found anything or
 > not -- including when it was refused, which is the only record left of a
 > call that cost money and returned nothing.
 
-## `fill_in_passwords`, [line 565](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L565): Docstring
+## `fill_in_passwords`, [line 562](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L562): Docstring
 
 > Every stored job given the credential step nobody could cite, and how
 > many changed.
@@ -269,7 +269,7 @@ Code: `unplaced: int = 0`
 > job was mined has to reach the jobs mined before it, or the fix only helps
 > whoever arrives next.
 
-## `rekey_workflows`, [line 587](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L587): Docstring
+## `rekey_workflows`, [line 584](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L584): Docstring
 
 > Every stored workflow's shape key recomputed from its cited gestures,
 > and how many changed.
@@ -346,18 +346,34 @@ Code: `if not isinstance(raw, list):`
 > as a bare number, costs the pass and not the process -- and this guard is
 > `propose`'s own, one level above every check `workflow_from` makes.
 
-## `mine`, [line 141](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L141): Comment
+## `mine`, [line 143](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L143): Comment
+
+Code: `logger.warning("%s for %s, nothing mined", why, tenant_id.value)`
+
+> Before anything is read and long before anything is asked -- and before
+> `fill_in_passwords` too. That call used to run first, inside this same
+> lock, and read (and on a job needing repair, write) the tenant's whole
+> workflow store whether or not the day's cap had already been reached: a
+> capped tenant still paid for a store read and a possible write every
+> sweep. This is the most expensive call in the system, so a cap checked
+> after the window is packed is a cap that has already paid for the pass
+> it stops -- checked here, a capped tenant does no work at all. No
+> `mining_passes` row either: the row exists to record a call that cost
+> money, and this pass never made one.
+
+## `mine`, [line 145](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L145): Comment
 
 Code: `filled = await fill_in_passwords(uow, tenant_id=tenant_id)`
 
-> Before the reading, and cheap: the rule that adds a credential step
-> reached proposals the moment it was written, and a job already stored
-> is re-proposed as `same_job` and dropped -- so without this the fix
-> only ever helps whoever mines a sign-in for the first time after it.
+> After the cap is checked and before the reading, and cheap once the cap
+> has confirmed there is a reading to do: the rule that adds a credential
+> step reached proposals the moment it was written, and a job already
+> stored is re-proposed as `same_job` and dropped -- so without this the
+> fix only ever helps whoever mines a sign-in for the first time after it.
 > Inside the lock, because it writes workflows this pass is about to
 > compare against.
 
-## `learn_parameters`, [line 169](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L169): Comment
+## `learn_parameters`, [line 172](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L172): Comment
 
 Code: `folded = _folded(stored.parameters)`
 
@@ -370,14 +386,14 @@ Code: `folded = _folded(stored.parameters)`
 > repaired by any pass that recognises it, not only by one that happens to
 > see a new value.
 
-## `learn_parameters`, [line 168](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L168): Comment
+## `learn_parameters`, [line 171](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L171): Comment
 
 Code: `return 0`
 
 > Nothing was LEARNT. A fold is not learning -- it is this pass
 > noticing that two of the job's parameters were always one.
 
-## `learn_parameters`, [line 178](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L178): Comment
+## `learn_parameters`, [line 181](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L181): Comment
 
 Code: `by_name = {str(p["name"]): p for p in stored.parameters if "name" in p}`
 
@@ -389,14 +405,14 @@ Code: `by_name = {str(p["name"]): p for p in stored.parameters if "name" in p}`
 > asked for `$statusCombo` wants to know it has been Active, Closed and
 > Staged, not only the first two.
 
-## `learn_parameters`, [line 193](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L193): Comment
+## `learn_parameters`, [line 196](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L196): Comment
 
 Code: `"names": list(parameter.names),`
 
 > Every name this control answers to, so the doing after
 > this one recognises it however the page named it then.
 
-## `learn_parameters`, [line 194](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L194): Comment
+## `learn_parameters`, [line 197](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L197): Comment
 
 Code: `"key": parameter.key,`
 
@@ -404,7 +420,7 @@ Code: `"key": parameter.key,`
 > carried one: two fields can share a label and two fields
 > cannot share an itemId.
 
-## `learn_parameters`, [line 196](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L196): Comment
+## `learn_parameters`, [line 199](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L199): Comment
 
 Code: `"in_all": parameter.in_all,`
 
@@ -413,7 +429,7 @@ Code: `"in_all": parameter.in_all,`
 > reached belongs to a route, and a run taking the other
 > route must not stop for want of it.
 
-## `learn_parameters`, [line 197](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L197): Comment
+## `learn_parameters`, [line 200](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L200): Comment
 
 Code: `**({"required": parameter.required} if parameter.said is not None else {}),`
 
@@ -429,7 +445,7 @@ Code: `**({"required": parameter.required} if parameter.said is not None else {}
 > "the form says optional" -- and a later recording that
 > does carry the star would lose to it.
 
-## `learn_parameters`, [line 201](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L201): Comment
+## `learn_parameters`, [line 204](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L204): Comment
 
 Code: `known = _names_of(existing)`
 
@@ -438,7 +454,7 @@ Code: `known = _names_of(existing)`
 > two entries for one field; a stored parameter that has since been
 > seen under the page's own name will not do it again.
 
-## `learn_parameters`, [line 204](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L204): Comment
+## `learn_parameters`, [line 207](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L207): Comment
 
 Code: `named = named or existing["names"] != known`
 
@@ -447,7 +463,7 @@ Code: `named = named or existing["names"] != known`
 > the page's own name for the same control are one -- a job stored
 > before any of this has nothing else to recognise itself by.
 
-## `learn_parameters`, [line 205](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L205): Comment
+## `learn_parameters`, [line 208](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L208): Comment
 
 Code: `if parameter.said is not None and existing.get("required") != parameter.required:`
 
@@ -467,7 +483,7 @@ Code: `if parameter.said is not None and existing.get("required") != parameter.r
 > `False` would turn "nobody said" into "the form says optional" --
 > and that is a claim about a warehouse nobody made.
 
-## `learn_parameters`, [line 217](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L217): Comment
+## `learn_parameters`, [line 220](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L220): Comment
 
 Code: `stored.generalise_title()`
 
@@ -477,7 +493,7 @@ Code: `stored.generalise_title()`
 > learnt rather than left reading "Create Customer Type DSS" over a
 > parameter that has since been DSS, DPP, CCD and CCF.
 
-## `_packed`, [line 326](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L326): Comment
+## `_packed`, [line 329](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L329): Comment
 
 Code: `stream_id=gesture.stream_id,`
 
@@ -487,22 +503,12 @@ Code: `stream_id=gesture.stream_id,`
 
 ## `_one_pass`, [line 343](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L343): Comment
 
-Code: `logger.warning("%s for %s, nothing mined", why, tenant_id.value)`
-
-> Before anything is read and long before anything is asked. This is
-> the most expensive call in the system, so a cap checked after the
-> window is packed is a cap that has already paid for the pass it
-> stops. No `mining_passes` row either: the row exists to record a call
-> that cost money, and this pass never made one.
-
-## `_one_pass`, [line 346](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L346): Comment
-
 Code: `started_at = now.isoformat()`
 
 > The caller's clock, not the server's, so a test can move it and so the
 > day a pass is billed to is the day its caller meant.
 
-## `_one_pass`, [line 348](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L348): Comment
+## `_one_pass`, [line 345](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L345): Comment
 
 Code: `attribute(tenant=tenant_id.value, pass_id=pass_id)`
 
@@ -510,7 +516,7 @@ Code: `attribute(tenant=tenant_id.value, pass_id=pass_id)`
 > why, what it recognised -- says which tenant's day it was reading and
 > which reading it was.
 
-## `_one_pass`, [line 350](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L350): Comment (debt)
+## `_one_pass`, [line 347](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L347): Comment (debt)
 
 Code: `gestures = list(await uow.gestures.gestures_for(tenant_id))`
 
@@ -525,7 +531,7 @@ Code: `gestures = list(await uow.gestures.gestures_for(tenant_id))`
 > the rig had in SQL. The two are one fix, and fixing only the reading loop
 > fixes half of it.
 
-## `_one_pass`, [line 352](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L352): Comment
+## `_one_pass`, [line 349](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L349): Comment
 
 Code: `driven = {gesture_id for gesture_id, intent in intents.items() if was_our_own_driving(inte`
 
@@ -537,7 +543,7 @@ Code: `driven = {gesture_id for gesture_id, intent in intents.items() if was_our
 > end up in a candidate. Skipping it in only one of the two places would
 > be the rule with a copy per caller that this system keeps not having.
 
-## `_one_pass`, [line 363](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L363): Comment
+## `_one_pass`, [line 360](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L360): Comment
 
 Code: `linked = {gesture_id for ids in crossings.values() for gesture_id in ids}`
 
@@ -553,7 +559,7 @@ Code: `linked = {gesture_id for ids in crossings.values() for gesture_id in ids}
 > one doing, tied to the extension's own tail. `ours` is this deployment,
 > which nobody works in.
 
-## `_one_pass`, [line 366](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L366): Comment
+## `_one_pass`, [line 363](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L363): Comment
 
 Code: `carried = await uow.pool.waiting(tenant_id)`
 
@@ -563,7 +569,7 @@ Code: `carried = await uow.pool.waiting(tenant_id)`
 > comprehension. Nothing deletes a gesture today, which is exactly why the
 > day something does, this is the only line that would have noticed.
 
-## `_one_pass`, [line 371](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L371): Comment
+## `_one_pass`, [line 368](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L368): Comment
 
 Code: `pooled: list[Packed] = []`
 
@@ -574,7 +580,7 @@ Code: `pooled: list[Packed] = []`
 > rotates the day through the window. `pack` adds its flat K_POOL_BONUS on
 > top of whatever strength arrives here.
 
-## `_one_pass`, [line 379](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L379): Comment
+## `_one_pass`, [line 376](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L376): Comment
 
 Code: `in_pool = set(pooled_ids)`
 
@@ -585,7 +591,7 @@ Code: `in_pool = set(pooled_ids)`
 > gesture the budget dropped six times unreadable forever, and nothing ever
 > un-retires.
 
-## `_one_pass`, [line 383](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L383): Comment
+## `_one_pass`, [line 380](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L380): Comment
 
 Code: `known = [`
 
@@ -602,7 +608,7 @@ Code: `known = [`
 > Free in practice: these gestures are already loaded, and a tenant has
 > tens of jobs against hundreds of thousands of gestures.
 
-## `_one_pass`, [line 399](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L399): Comment
+## `_one_pass`, [line 396](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L396): Comment
 
 Code: `residue = (answer.data or {}).get("unplaced")`
 
@@ -610,7 +616,7 @@ Code: `residue = (answer.data or {}).get("unplaced")`
 > figure on a billing row rather than anything a reader gates on -- so a
 > model that answers with a string leaves a zero and costs the pass nothing.
 
-## `_one_pass`, [line 417](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L417): Comment
+## `_one_pass`, [line 414](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L414): Comment
 
 Code: `evidence = {item.gesture_id: by_id[item.gesture_id].system or "" for item in window.items}`
 
@@ -620,7 +626,7 @@ Code: `evidence = {item.gesture_id: by_id[item.gesture_id].system or "" for item
 > cannot afford. "" for a gesture whose system could not be established,
 > which `validate` reads as "unknown" rather than as a system of its own.
 
-## `_one_pass`, [line 418](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L418): Comment
+## `_one_pass`, [line 415](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L415): Comment
 
 Code: `shown = {item.gesture_id: by_id[item.gesture_id] for item in window.items}`
 
@@ -644,7 +650,7 @@ Code: `shown = {item.gesture_id: by_id[item.gesture_id] for item in window.items
 > this tenant already has, re-proposed and re-refused every pass, at
 > the price of the model call that proposed it.
 
-## `_one_pass`, [line 421](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L421): Comment
+## `_one_pass`, [line 418](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L418): Comment
 
 Code: `placed: list[Workflow] = []`
 
@@ -657,7 +663,7 @@ Code: `placed: list[Workflow] = []`
 > this answers "what was accounted for", and coverage and the pool both
 > want the second.
 
-## `_one_pass`, [line 423](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L423): Comment
+## `_one_pass`, [line 420](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L420): Comment
 
 Code: `one_occurrence(proposal, by_id)`
 
@@ -669,7 +675,7 @@ Code: `one_occurrence(proposal, by_id)`
 > actually be stored, and refuses it for an uncited step if the
 > doing it kept cannot supply one.
 
-## `_one_pass`, [line 424](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L424): Comment
+## `_one_pass`, [line 421](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L421): Comment
 
 Code: `typed = with_passwords(proposal, shown)`
 
@@ -680,7 +686,7 @@ Code: `typed = with_passwords(proposal, shown)`
 > like any other step: `validate` sees a step citing a real
 > gesture of this doing.
 
-## `_one_pass`, [line 431](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L431): Comment
+## `_one_pass`, [line 428](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L428): Comment
 
 Code: `pressed = with_the_press(proposal, shown)`
 
@@ -688,7 +694,7 @@ Code: `pressed = with_the_press(proposal, shown)`
 > passed over. A step that cites the login card rather than the
 > Sign In button inside it runs, answers ok, and signs nobody in.
 
-## `_one_pass`, [line 438](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L438): Comment
+## `_one_pass`, [line 435](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L435): Comment
 
 Code: `for order, used in uses_edges(proposal, by_id).items():`
 
@@ -706,7 +712,7 @@ Code: `for order, used in uses_edges(proposal, by_id).items():`
 > a producer trusted because it is careful is a producer nobody
 > checks.
 
-## `_one_pass`, [line 354](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L354): Comment
+## `_one_pass`, [line 351](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L351): Comment
 
 Code: `logger.info(`
 
@@ -721,7 +727,7 @@ Code: `logger.info(`
 > repeat -- and kept on neither. Which gate refused it, and
 > why, was not recoverable from anything this system stores.
 
-## `_one_pass`, [line 466](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L466): Comment
+## `_one_pass`, [line 463](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L463): Comment
 
 Code: `lost = undeliverable(proposal, by_id)`
 
@@ -732,7 +738,7 @@ Code: `lost = undeliverable(proposal, by_id)`
 > job with no parameters has always done, and a later pass
 > re-derives the parameter properly from a second doing.
 
-## `_one_pass`, [line 476](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L476): Comment
+## `_one_pass`, [line 473](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L473): Comment
 
 Code: `proposal.shape_key = [`
 
@@ -740,7 +746,7 @@ Code: `proposal.shape_key = [`
 > and the only order a shape can be matched against. See
 > `shape.in_time_order`.
 
-## `_one_pass`, [line 479](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L479): Comment
+## `_one_pass`, [line 476](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L476): Comment
 
 Code: `resolution = resolve(proposal, known + kept)`
 
@@ -750,7 +756,7 @@ Code: `resolution = resolve(proposal, known + kept)`
 > alone was not enough: two proposals of one job inside a single pass
 > both read an empty store and both saved.
 
-## `_one_pass`, [line 426](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L426): Comment
+## `_one_pass`, [line 423](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L423): Comment
 
 Code: `logger.info(`
 
@@ -765,7 +771,7 @@ Code: `logger.info(`
 > being recognised. Nothing anywhere could tell that apart from the
 > job being thrown away, and I read it as thrown away.
 
-## `_one_pass`, [line 499](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L499): Comment
+## `_one_pass`, [line 496](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L496): Comment
 
 Code: `result.learned_parameters += await learn_parameters(`
 
@@ -777,7 +783,7 @@ Code: `result.learned_parameters += await learn_parameters(`
 > than the proposal, because the proposal is about to be
 > discarded and the job is what learns.
 
-## `_one_pass`, [line 507](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L507): Comment
+## `_one_pass`, [line 504](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L504): Comment
 
 Code: `if resolution.contains:`
 
@@ -789,7 +795,7 @@ Code: `if resolution.contains:`
 > every control reached by both, no value different from
 > itself, and nothing learnable ever again.
 
-## `_one_pass`, [line 518](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L518): Comment
+## `_one_pass`, [line 515](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L515): Comment
 
 Code: `result.lopsided = result.error is None and (`
 
@@ -799,7 +805,7 @@ Code: `result.lopsided = result.error is None and (`
 > which is the table a person actually reads. Recoverable from `error`;
 > nobody should have to.
 
-## `_one_pass`, [line 523](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L523): Comment
+## `_one_pass`, [line 520](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L520): Comment
 
 Code: `await uow.pool.add_unclaimed(`
 
@@ -829,7 +835,7 @@ Code: `await uow.pool.add_unclaimed(`
 > workflow citing an id outside `window.items`. Narrowing it to the
 > fresh ids is the failure above, and is what the test plants.
 
-## `_one_pass`, [line 528](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L528): Comment
+## `_one_pass`, [line 525](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L525): Comment
 
 Code: `if result.error is None:`
 
@@ -846,7 +852,7 @@ Code: `if result.error is None:`
 > reading like any other -- the pool was shown, considered and not cited,
 > which is the case it ages for.
 
-## `_one_pass`, [line 529](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L529): Comment
+## `_one_pass`, [line 526](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L526): Comment
 
 Code: `await uow.pool.age(tenant_id, shown=tuple(item.gesture_id for item in window.items))`
 
@@ -854,7 +860,7 @@ Code: `await uow.pool.age(tenant_id, shown=tuple(item.gesture_id for item in win
 > out was not read and has not used up its patience -- ageing it
 > anyway retired 2,630 of a 3,240-gesture day unread.
 
-## `_one_pass`, [line 531](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L531): Comment
+## `_one_pass`, [line 528](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L528): Comment
 
 Code: `billed = _billed(pass_id, tenant_id, started_at, result)`
 
@@ -868,7 +874,7 @@ Code: `billed = _billed(pass_id, tenant_id, started_at, result)`
 > on the happy path the workflows, the pool and the bill land in one
 > transaction.
 
-## `_one_pass`, [line 535](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L535): Comment
+## `_one_pass`, [line 532](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L532): Comment
 
 Code: `await uow.rollback()`
 
@@ -886,7 +892,7 @@ Code: `await uow.rollback()`
 > transaction and the bill after a failed one simply landed. One
 > session is the port's shape, and this is what that shape costs.
 
-## `fill_in_passwords`, [line 571](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L571): Comment (debt)
+## `fill_in_passwords`, [line 564](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L564): Comment (debt)
 
 Code: `by_id = {gesture.id: gesture for gesture in await uow.gestures.gestures_for(tenant_id)}`
 
@@ -895,10 +901,16 @@ Code: `by_id = {gesture.id: gesture for gesture in await uow.gestures.gestures_f
 > could never find it. Bounded by the span `with_passwords` then
 > applies -- this reads a tenant's gestures once per pass.
 >
-> ponytail: whole-store read per workflow; a `between(first, last)`
-> query when a tenant's day stops fitting comfortably in memory.
+> Once, and before the loop over stored jobs -- not once per job. It used
+> to live inside the loop, so this note's "once per pass" was true of the
+> intent and false of the code: a tenant with N stored jobs paid for the
+> whole-store read N times, once per pass really meaning once per job that
+> pass touched. Moved up so the code says what the note always claimed.
+>
+> ponytail: whole-store read per pass; a `between(first, last)` query when
+> a tenant's day stops fitting comfortably in memory.
 
-## `fill_in_passwords`, [line 574](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L574): Comment
+## `fill_in_passwords`, [line 571](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L571): Comment
 
 Code: `found = repeated_block(workflow, by_id)`
 
@@ -908,7 +920,7 @@ Code: `found = repeated_block(workflow, by_id)`
 > it; and the repeat is what the evidence says about how many times the
 > block was done.
 
-## `fill_in_passwords`, [line 576](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L576): Comment
+## `fill_in_passwords`, [line 573](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L573): Comment
 
 Code: `if workflow.repeat != found:`
 
@@ -917,7 +929,7 @@ Code: `if workflow.repeat != found:`
 > to a job that does one thing once rather than keeping a block nothing
 > supports.
 
-## `rekey_workflows`, [line 597](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L597): Comment
+## `rekey_workflows`, [line 594](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L594): Comment
 
 Code: `if any(cited not in by_id for cited in wanted):`
 

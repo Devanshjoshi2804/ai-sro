@@ -62,11 +62,11 @@ class MineLately:
         if not passes:
             return True
         last = passes[-1]
-        if await uow.gestures.tenants_since(_when(last.started_at)):
+        newest = await uow.gestures.newest_arrival(tenant_id)
+        if newest is not None and newest >= _when(last.started_at):
             return True
         if not last.left_out:
             return False
-        newest = await uow.gestures.newest_arrival(tenant_id)
         if newest is None:
             return False
         held = max(1, last.window_size)

@@ -445,6 +445,23 @@ async def test_a_tenant_that_has_gone_quiet_is_mined_on_the_next_sweep() -> None
     assert mined["acme"].kept == 1
 
 
+async def test_tenant_as_new_gestures_do_not_make_tenant_b_worth_a_pass() -> None:
+    """`tenants_since` answers for every tenant with new evidence, not just
+    this one -- so a global read of it made any tenant's new gestures worth a
+    pass for all of them. `b`'s own evidence predates its last pass; only
+    `a`'s does not."""
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "b", taken=NOW - timedelta(hours=3))
+    await _mined(uow, "b", left_out=0, at=NOW - timedelta(hours=2))
+    await _recorded(uow, "a", taken=NOW - timedelta(hours=1))
+    passes = _Passes()
+
+    mined = await _swept(uow, passes)
+
+    assert passes.asked == ["a"], "b's own evidence has not changed since its last pass"
+    assert sorted(mined) == ["a"]
+
+
 async def test_one_tenant_working_does_not_hold_up_another_who_has_stopped() -> None:
     uow = FakeUnitOfWork()
     await _recorded(uow, "acme", taken=NOW - timedelta(seconds=10))

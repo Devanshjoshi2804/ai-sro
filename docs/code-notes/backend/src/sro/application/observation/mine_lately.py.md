@@ -138,15 +138,23 @@ Code: `last = passes[-1]`
 
 > `passes` is oldest first, by `started_at` then id.
 
-## `MineLately._worth_a_pass`, [line 65](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L65): Comment
+## `MineLately._worth_a_pass`, [line 66](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L66): Comment
 
-Code: `if await uow.gestures.tenants_since(_when(last.started_at)):`
+Code: `if newest is not None and newest >= _when(last.started_at):`
 
 > The pass's own clock, against the server's `received_at` on a batch.
 > A pass that was refused before it read anything still wrote its row,
 > so this is "since anything last looked", which is what it should be.
+>
+> `newest_arrival(tenant_id)`, not `tenants_since`. `tenants_since` answers
+> for every tenant with a batch since the given time, so reading it here
+> asked "has anybody's evidence changed" and answered it for THIS tenant --
+> any tenant's new gestures made every other tenant worth a pass, and on a
+> minute-by-minute sweep that is every tenant re-read on every other
+> tenant's work. `newest_arrival` is the same `received_at` column, scoped
+> to `tenant_id` the way the question actually is.
 
-## `MineLately._worth_a_pass`, [line 68](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L68): Comment
+## `MineLately._worth_a_pass`, [line 69](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L69): Comment
 
 Code: `return False`
 

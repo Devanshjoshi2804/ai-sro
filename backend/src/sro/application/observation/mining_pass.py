@@ -138,6 +138,10 @@ async def mine(
     ours: frozenset[str] = frozenset(),
 ) -> MineResult:
     async with one_at_a_time(f"mining:{tenant_id.value}"):
+        why = await over_cap(uow, tenant_id, now=now, cap_usd=cap_usd)
+        if why:
+            logger.warning("%s for %s, nothing mined", why, tenant_id.value)
+            return MineResult(error=why)
         filled = await fill_in_passwords(uow, tenant_id=tenant_id)
         if filled:
             await uow.commit()
@@ -147,7 +151,6 @@ async def mine(
             asker=asker,
             model=model,
             now=now,
-            cap_usd=cap_usd,
             kb=kb,
             ours=ours,
         )
@@ -334,15 +337,9 @@ async def _one_pass(
     asker: Asker,
     model: str,
     now: datetime,
-    cap_usd: float,
     kb: str,
     ours: frozenset[str] = frozenset(),
 ) -> MineResult:
-    why = await over_cap(uow, tenant_id, now=now, cap_usd=cap_usd)
-    if why:
-        logger.warning("%s for %s, nothing mined", why, tenant_id.value)
-        return MineResult(error=why)
-
     started_at = now.isoformat()
     pass_id = new_pass_id()
     attribute(tenant=tenant_id.value, pass_id=pass_id)
@@ -564,11 +561,11 @@ def _billed(pass_id: str, tenant_id: TenantId, started_at: str, result: MineResu
 
 async def fill_in_passwords(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
     changed = 0
+    by_id = {gesture.id: gesture for gesture in await uow.gestures.gestures_for(tenant_id)}
     for workflow in await uow.workflows.known(tenant_id):
         wanted = ordered_cites(workflow)
         if not wanted:
             continue
-        by_id = {gesture.id: gesture for gesture in await uow.gestures.gestures_for(tenant_id)}
         if any(cited not in by_id for cited in wanted):
             continue
         found = repeated_block(workflow, by_id)

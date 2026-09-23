@@ -31,7 +31,6 @@ from fastapi import APIRouter, status
 
 from sro.application.ports.vault import VaultUnavailable
 from sro.domain.execution.secrets import secret_key_of
-from sro.domain.shared.errors import NotFound
 from sro.interface.http.asking import TenantOnly
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
@@ -85,10 +84,7 @@ async def hold_secret_for_one_run(
     What comes back is the key and when the value is forgotten -- never the
     value, for the reason the door above has no GET.
     """
-    async with container.unit_of_work() as uow:
-        run = await uow.workflow_runs.get(ctx.tenant_id, body.run_id)
-    if run is None:
-        raise NotFound(f"no such run: {body.run_id}")
+    await container.get_workflow_run().execute(ctx, run_id=body.run_id)
     key = secret_key_of(ctx.tenant_id.value, body.system, body.field)
     until = container.one_time_secrets.hold(key, body.value, run_id=body.run_id)
     return SecretHeldModel(key=key, until=until)

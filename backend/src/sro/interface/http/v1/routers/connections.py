@@ -10,7 +10,6 @@ from __future__ import annotations
 from fastapi import APIRouter, status
 
 from sro.domain.connection.connection import Connection, ConnectionId
-from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import BrowserSessionId
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
@@ -44,9 +43,7 @@ def _model(connection: Connection) -> ConnectionModel:
 
 @router.get("")
 async def list_connections(container: ContainerDep, ctx: ContextDep) -> list[ConnectionModel]:
-    uow = container.unit_of_work()
-    async with uow as unit:
-        connections = await unit.connections.list_for_tenant(ctx.tenant_id)
+    connections = await container.list_connections().execute(ctx)
     return [_model(connection) for connection in connections]
 
 
@@ -184,21 +181,13 @@ async def establish_token(
     token is, and the identity provider can revoke it without anybody changing
     a password.
     """
-    if container.tokens is None:
-        raise NotFound(
-            "this deployment has no identity provider configured, so it cannot hold a "
-            "credential of its own"
-        )
-    async with container.unit_of_work() as uow:
-        connection = await uow.connections.get(ctx.tenant_id, ConnectionId(connection_id))
-
-    await container.tokens.establish(
-        tenant=ctx.tenant_id.value,
-        system=connection.target_system,
+    established = await container.establish_token().execute(
+        ctx,
+        connection_id=ConnectionId(connection_id),
         username=body.username,
         password=body.password,
     )
-    return TokenEstablishedResponse(target_system=connection.target_system, held=True)
+    return TokenEstablishedResponse(target_system=established.target_system, held=True)
 
 
 @router.post("/{connection_id}/resume")

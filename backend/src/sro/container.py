@@ -27,7 +27,9 @@ from sro.application.connection.connect_system import (
     RefreshSession,
     StoreSession,
 )
+from sro.application.connection.establish_token import EstablishToken
 from sro.application.connection.keep_open import KeepSessionsOpen
+from sro.application.connection.list_connections import ListConnections
 from sro.application.connection.refusals import ForgetsRefusalOnWrite
 from sro.application.connection.release_strays import ReleaseStrayBrowsers
 from sro.application.connection.session_headers import StoreSessionHeaders
@@ -53,6 +55,7 @@ from sro.application.execution.pursuits import Pursuits
 from sro.application.execution.read_runs import GetRun, ListRuns, StopRun
 from sro.application.execution.revise_run import ReviseRun
 from sro.application.execution.run_from_preview import RunFromPreview
+from sro.application.execution.run_workflow import fail_orphans
 from sro.application.execution.self_heal import SelfHeal
 from sro.application.execution.stops import Stops
 from sro.application.execution.vision_step import PerformWithVision
@@ -246,6 +249,10 @@ class Container:
             return False
         self.driving_runs = connection
         return True
+
+    async def sweep_orphaned_runs(self, reason: str) -> int:
+        async with self.unit_of_work() as uow:
+            return await fail_orphans(uow, reason)
 
     async def readiness(self) -> dict[str, bool]:
         try:
@@ -476,6 +483,12 @@ class Container:
 
     def store_credentials(self) -> StoreCredentials:
         return StoreCredentials(self.unit_of_work(), self.vault)
+
+    def establish_token(self) -> EstablishToken:
+        return EstablishToken(self.unit_of_work(), self.tokens)
+
+    def list_connections(self) -> ListConnections:
+        return ListConnections(self.unit_of_work())
 
     def session_life(self) -> SessionLife:
         return SessionLife(self.unit_of_work(), self.record_claims())

@@ -367,6 +367,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/main.py`](backend/src/sro/main.py.md) | 1 |
 | [`backend/src/sro/observability.py`](backend/src/sro/observability.py.md) | 10 |
 | [`backend/src/sro/whose.py`](backend/src/sro/whose.py.md) | 10 |
+| [`backend/tests/unit/interface/test_no_router_touches_the_unit_of_work.py`](backend/tests/unit/interface/test_no_router_touches_the_unit_of_work.py.md) | 1 |
 
 ## Known shortcuts (`ponytail:` notes)
 

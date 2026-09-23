@@ -12,7 +12,6 @@ from uuid import uuid4
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from sro.application.execution.run_workflow import fail_orphans
 from sro.config import Settings, get_settings
 from sro.container import Container, build_container, instrument
 from sro.domain.shared.prices import PRICES
@@ -95,8 +94,7 @@ async def on_start(container: Container) -> int:
             "check that this deployment really means to run two"
         )
         return 0
-    async with container.unit_of_work() as uow:
-        swept = await fail_orphans(uow, "the process driving this run stopped")
+    swept = await container.sweep_orphaned_runs("the process driving this run stopped")
     if swept:
         logging.getLogger(__name__).warning(
             "swept %d run(s) left running by a process that is gone", swept

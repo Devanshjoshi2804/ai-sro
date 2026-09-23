@@ -256,6 +256,45 @@ Each phase is its own branch and review, merged only on the operator lead's word
 - **Duplicate jobs:** four defects in `identity.py` still create duplicates (see the architecture doc, L7). Fix them before recipes multiply them.
 - **Wrong job, full autonomy:** with no approval, a mis-mined job writes wrong data. The mitigation is compile-time checks (§5.3), stopping on any unconfirmed write, audit and undo.
 
+## 13. The panel design (Ember & Glass) under this direction
+
+The panel hand-off (`designof-panel/`, 2026-09-22, not in git) predates decisions D1–D7. Measured against `main` at `4d7ef474`, about 57% of the design is built (36 of 63 product screens), and about 90% of what was agreed for the reskin and passive learning. This section says what still holds, what the new decisions overturn, and which backend work the design needs.
+
+### 13.1 Overturned
+
+| Design element | Why it changes | Becomes |
+| --- | --- | --- |
+| Approve a write; Waiting confirmations; "Rehearse → Approve → On its own" ladder (`07` Runs; `08` #11) | D3: no approvals | A report on each learned job ("learned from 6 doings · 3 verified runs") and one control per job: "Stop doing this on its own" |
+| WMS in-page band, screen 57 (built, `background/showing.js`) | D1: no operator tab is driven | The panel run card, plus an optional live view of the Steel session (`steel/screencast.py`) |
+| Learning cards from `/v1/candidates`; "Two halves of one job" joins (`07` GAP 1) | That pipeline is dead and is removed in audit wave 1 (Task 6) | Learned cards read `/v1/workflows` (already used by `panel/learned.js`). **"Not a job" (screen 10) calls the retire route added in wave 1 Task 7**, so a dismissed job is never re-mined |
+| Password "Save for this job" typed into the operator's page | D1 | The password goes to the vault or the single-use hold; the session broker types it in Steel |
+
+### 13.2 Needed backend work (reasonable, and fits "the panel is for decisions only")
+
+| # | Need | Design reference | Where it comes from |
+| --- | --- | --- | --- |
+| P1 | Thread list with status (running, parked, waiting on a reply, needs you, done), last activity, origin (mail or chat, and the sender), unread | `07` GAPS 2–3; screen list shows no thread switcher yet | Extend `ThreadSummary` from the thread's open run, its wait and unanswered offers or questions |
+| P2 | Each optional field's class before a run: learned, will set and check, can't set | `07` GAP 5 | Produced by the recipe compiler (§5.3) |
+| P3 | Per step, where each written value came from (request, mail, recipe default) | `07` GAP 7 | Recorded by the recipe runner (§6) on each run step |
+| P4 | A field's maximum length before the press (`ZZAUDIT` saved as `ZZAU`) | `07` GAP 9; `08` #5 | Knowledge-base field dictionary where known, else the learned `holds` limit; shown on the offer card |
+| P5 | "Reading your mailbox · checked N s ago" | `07` Offers; §12 of the screen audit | The server mail poll (§3) reports its last look |
+| P6 | Recording only half (screen 13); pause, excluded host and grant states | `07` Strip | Extension monitoring status, unchanged by D1 |
+
+### 13.3 Future scope: compose a job
+
+The design's compose case (screens 42–54, 60, 62–64) is reasonable once recipes exist. It becomes a **composer agent** that chains proven recipes through their data links (`Step.uses`), with a validator that marks each piece Proven, Seen once, Built-in or New. It needs, first: recipes (§5), recorded `uses` edges, and a catalog endpoint of proven recipes. Two design questions must be answered before it is built:
+
+- `08` #19: under full autonomy (D3), may a step the system has never seen run on its own, and does a supervised first run count as a demonstration?
+- `08` #18: who pays for live model use in compose, and does the operator consent per use?
+
+### 13.4 Still open from the design (owner's call)
+
+Brand font (Geist in the design, Inter in the brand), primary-button and muted-text contrast (both fail AA), the blue info tint, whether pending threads raise the Waiting badge, stale mail requests (swept after a day vs never), deadline wording for 7-day waits, whether several runs may run at once (Steel makes it possible; the design refuses it), and whether "Never watch this site" stops a run in progress (moot under D1: no run uses that tab).
+
+### 13.5 Build order impact
+
+P1 and the "Not a job" wiring can start now (they need no Steel). P2 and P3 land with phases 3–4 (recipe compiler and runner). P4 lands with phase 3. P5 lands with the server mail poll. The run card changes (13.1) land with phase 6 (approval gates removed) and phase 10 (Steel runner).
+
 ## Related
 
 - Code notes (why each piece of code exists): [`docs/code-notes/README.md`](../../code-notes/README.md)

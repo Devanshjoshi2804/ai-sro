@@ -468,7 +468,9 @@ the two differ by the display's scale factor.
 ## 4. Candidates, triggers, analytics
 
 Read-mostly, consumed by the side panel. Full schemas come from the generated
-OpenAPI; the shapes the extension depends on are:
+OpenAPI; the shapes the extension depends on are below. The `/v1/candidates`
+routes are kept here as history: they, and the miner behind them, were removed
+on 2026-09-24. The extension offers the mined jobs from `/v1/shapes` instead.
 
 ```jsonc
 // GET /v1/candidates?status=new&limit=20

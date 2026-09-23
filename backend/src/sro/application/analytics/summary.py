@@ -6,10 +6,8 @@ from datetime import datetime
 
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
-from sro.domain.execution.run import Run, RunStatus
-from sro.domain.execution.verdict import judge
-from sro.domain.skill.track_record import Verdict
-from sro.domain.skill.workflow import Workflow
+from sro.domain.execution.workflow_run import WorkflowRun
+from sro.domain.skill.workflow import Noticed
 
 MOST = 10
 
@@ -31,13 +29,8 @@ class Noticing:
 @dataclass(frozen=True, slots=True)
 class Doing:
     runs: int
-    clean: int
-    degraded: int
-    failed: int
-    withheld: int
-    unreachable: int
-
-    writes_sent: int
+    rehearsed: int
+    outcomes: dict[str, int]
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,10 +59,10 @@ class ReadSummary:
         async with self._uow as uow:
             devices = await uow.devices.list_for_tenant(ctx.tenant_id)
             batches = await uow.observations.between(ctx.tenant_id, since=since)
-            workflows = await uow.workflows.known(ctx.tenant_id)
-            runs = await uow.runs.since(ctx.tenant_id, since=since)
+            noticed = await uow.workflows.noticed_since(ctx.tenant_id, since=since)
+            runs = await uow.workflow_runs.since(ctx.tenant_id, since=since.isoformat())
 
-        lines = tuple(_line(workflow) for workflow in workflows)
+        lines = tuple(_line(job) for job in noticed)
         return Summary(
             since=since,
             watching=Watching(
@@ -84,26 +77,24 @@ class ReadSummary:
         )
 
 
-def _doing(runs: Sequence[Run]) -> Doing:
-    verdicts = [judge(run) for run in runs if run.status is not RunStatus.RUNNING]
+def _doing(runs: Sequence[WorkflowRun]) -> Doing:
+    outcomes: dict[str, int] = {}
+    for run in runs:
+        outcomes[run.outcome] = outcomes.get(run.outcome, 0) + 1
     return Doing(
         runs=len(runs),
-        clean=verdicts.count(Verdict.CLEAN),
-        degraded=verdicts.count(Verdict.DEGRADED),
-        failed=verdicts.count(Verdict.FAILED),
-        withheld=verdicts.count(Verdict.WITHHELD),
-        unreachable=verdicts.count(Verdict.UNREACHABLE),
-        writes_sent=sum(run.writes_sent for run in runs),
+        rehearsed=sum(1 for run in runs if run.outcome == "held" and not run.live),
+        outcomes=dict(sorted(outcomes.items(), key=lambda pair: pair[1], reverse=True)),
     )
 
 
-def _line(workflow: Workflow) -> TaskLine:
+def _line(job: Noticed) -> TaskLine:
     return TaskLine(
-        id=workflow.id,
-        title=workflow.title,
-        host=", ".join(workflow.systems),
-        kind=kind_of(workflow.title),
-        steps=len(workflow.steps),
+        id=job.id,
+        title=job.title,
+        host=", ".join(job.systems),
+        kind=kind_of(job.title),
+        steps=job.steps,
     )
 
 

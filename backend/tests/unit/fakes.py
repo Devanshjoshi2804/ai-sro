@@ -130,7 +130,7 @@ from sro.domain.shared.prices import DaySpend, Effort
 from sro.domain.skill.locator import LocatorStrategy
 from sro.domain.skill.offers import Offer, OfferRow
 from sro.domain.skill.skill import Skill
-from sro.domain.skill.workflow import Workflow
+from sro.domain.skill.workflow import Noticed, Workflow
 from sro.domain.trigger.confirmation import Answer, Confirmation
 from sro.domain.trigger.trigger import Trigger
 from sro.infrastructure.db.codec import when
@@ -1958,6 +1958,7 @@ class FakeWorkflowRepository:
         and a re-save does not bring it back."""
         self._saved = count()
         self._created: dict[str, int] = {}
+        self.created_at: dict[str, datetime] = {}
 
     def _alive(self) -> None:
         if self.poisoned:
@@ -1969,6 +1970,23 @@ class FakeWorkflowRepository:
         # The store rewrites ``created_at`` on a re-save, as INSERT OR REPLACE
         # did, so a re-saved workflow moves to the end of ``known``.
         self._created[workflow.id] = next(self._saved)
+        self.created_at[workflow.id] = datetime.now(tz=UTC)
+
+    async def noticed_since(self, tenant_id: TenantId, *, since: datetime) -> tuple[Noticed, ...]:
+        found = [
+            Noticed(
+                id=row.id,
+                title=row.title,
+                systems=tuple(row.systems),
+                steps=len(row.steps),
+                at=self.created_at[row.id],
+            )
+            for row in self.rows.values()
+            if row.tenant == tenant_id.value
+            and row.id not in self.retired
+            and self.created_at[row.id] >= since
+        ]
+        return tuple(sorted(found, key=lambda one: (one.at, one.id), reverse=True))
 
     async def known(self, tenant_id: TenantId) -> tuple[Workflow, ...]:
         found = [

@@ -713,13 +713,14 @@ export const api = {
     }
   },
 
-  /** What this tenant has watched, noticed and done since a moment.
+  /** What this tenant has watched, noticed and done over the last `days`.
    *
-   * The panel asks for today, to say what was done over the ledger. Counted
+   * The panel asks for one day, to say what was done over the ledger. The
+   * route reads `days` and nothing else: a `since` sent here was ignored and
+   * the line counted a week. Counted
    * from rows somebody can open rather than tallied in the browser: a figure a
    * person repeats to their manager has to be one an auditor can reach. */
-  summary: (since) =>
-    call(`/v1/analytics/summary?since=${encodeURIComponent(since)}`),
+  summary: (days) => call(`/v1/analytics/summary?days=${Number(days) || 1}`),
 
   /** The operator deleting their own evidence, from their own devices, for the
    * tenant on their credential. Answers with what went. */

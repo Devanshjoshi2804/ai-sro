@@ -2853,22 +2853,23 @@ export interface components {
          * @enum {string}
          */
         Direction: "inbound" | "outbound" | "internal";
-        /** DoingModel */
+        /**
+         * DoingModel
+         * @description The mined jobs' runs started in the window.
+         *
+         *     `outcomes` counts each run by the outcome it ended with (`held`,
+         *     `stopped`, `refused`, `aborted`, `failed`, or `running` while it still
+         *     is). `rehearsed` is the held runs that were dry and sent nothing.
+         */
         DoingModel: {
             /** Runs */
             runs: number;
-            /** Clean */
-            clean: number;
-            /** Degraded */
-            degraded: number;
-            /** Failed */
-            failed: number;
-            /** Withheld */
-            withheld: number;
-            /** Unreachable */
-            unreachable: number;
-            /** Writes Sent */
-            writes_sent: number;
+            /** Rehearsed */
+            rehearsed: number;
+            /** Outcomes */
+            outcomes: {
+                [key: string]: number;
+            };
         };
         /**
          * EntryKind

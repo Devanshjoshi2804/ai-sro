@@ -269,8 +269,8 @@ async function candidatesFor(host) {
   // which offered to TEACH a skill from recordings. That is not the system
   // this browser drives: an operator pressed one of those offers for work the
   // rig already held as a seven-step job and got "the doings differ too much
-  // for me to be sure". Dropped where it is read, so the backend goes on
-  // mining candidates and the console goes on reviewing them.
+  // for me to be sure". That pipeline has since been removed from the
+  // backend as well.
   const held = knownHere.get(host);
   if (held && Date.now() - held.at < CANDIDATES_FRESH_MS) return held.list;
   const proven = rigArrivals(await shapesFor(), host);
@@ -1984,7 +1984,7 @@ async function handle(message, sender) {
     case "skill":
       return api.skill(message.skillId);
     case "summary":
-      return api.summary(message.since);
+      return api.summary(message.days);
     case "what-this-browser-said": {
       // What is waiting to go up on the next beat, for the operator standing
       // in front of the browser that refused. Read only: the heartbeat still

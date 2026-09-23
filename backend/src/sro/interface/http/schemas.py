@@ -2420,13 +2420,16 @@ class NoticingModel(BaseModel):
 
 
 class DoingModel(BaseModel):
+    """The mined jobs' runs started in the window.
+
+    `outcomes` counts each run by the outcome it ended with (`held`,
+    `stopped`, `refused`, `aborted`, `failed`, or `running` while it still
+    is). `rehearsed` is the held runs that were dry and sent nothing.
+    """
+
     runs: int
-    clean: int
-    degraded: int
-    failed: int
-    withheld: int
-    unreachable: int
-    writes_sent: int
+    rehearsed: int
+    outcomes: dict[str, int]
 
 
 class TaskLineModel(BaseModel):

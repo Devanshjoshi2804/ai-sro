@@ -954,6 +954,16 @@ test("marking accepted does not write back a list read before the run started", 
   assert.equal(nudges().find((n) => n.id === offer.id).state, "accepted");
 });
 
+test("the day's summary asks for the window the backend reads", async () => {
+  // The route reads `days`. It used to be sent `since`, which it ignored, so
+  // the panel's "today" line counted the last seven days.
+  ready();
+  await send({ kind: "summary", days: 1 });
+  const asked = calls.find((call) => call.path === "/v1/analytics/summary");
+  assert.ok(asked, "the summary was never asked for");
+  assert.equal(asked.query, "days=1");
+});
+
 test("dropping an offer ends it and says so once", async () => {
   ready();
   await gesture("a", "NEW");

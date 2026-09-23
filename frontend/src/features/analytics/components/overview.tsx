@@ -71,8 +71,10 @@ export function Overview() {
           jobs the miner found in what was watched
         </Figure>
         <Figure label="Runs" value={doing.runs.toString()}>
-          {doing.clean} clean · {doing.degraded} degraded · {doing.failed} failed · {doing.withheld}{" "}
-          rehearsed · {doing.unreachable} never reached
+          {Object.entries(doing.outcomes)
+            .map(([outcome, count]) => `${count} ${outcome}`)
+            .join(" · ") || "none yet"}
+          {doing.rehearsed > 0 && ` · ${doing.rehearsed} rehearsed`}
         </Figure>
       </section>
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import secrets
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -66,6 +67,15 @@ class Workflow:
         tidied = " ".join(words).strip(" -:,")
         if tidied:
             self.title = tidied
+
+
+@dataclass(frozen=True, slots=True)
+class Noticed:
+    id: str
+    title: str
+    systems: tuple[str, ...]
+    steps: int
+    at: datetime
 
 
 def cited_ids(workflow: Workflow) -> set[str]:

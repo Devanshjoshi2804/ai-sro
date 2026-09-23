@@ -10,10 +10,10 @@ Comments and docstrings moved out of [`backend/src/sro/application/analytics/sum
 > kept alongside the truth and updated by hand -- a metric that can drift from what
 > happened is worse than no metric, because it is believed.
 >
-> The run outcomes are judged with ``judge``, the same function that classified
-> each run when it finished. A screen that scored runs its own way would sooner or
-> later disagree with the promotion ladder, and then two things in the same
-> building would be saying different words about the same afternoon.
+> The runs are the mined jobs' runs (`workflow_runs`), counted by the outcome
+> each one ended with -- the outcome the run itself recorded, not a second
+> judgement made here. The old engine's `runs` table was read until 2026-09-24,
+> and on a deployment whose work is all mined jobs it read zero.
 
 ## module, [line 14](../../../../../../../backend/src/sro/application/analytics/summary.py#L14): Note on the line above
 
@@ -36,13 +36,13 @@ Code: `by_kind: dict[str, int]`
 > Create, Update, Read, Remove -- taken from the calls each task makes, not
 > from anything a person filled in.
 
-## `Doing`, [line 41](../../../../../../../backend/src/sro/application/analytics/summary.py#L41): Note on the line above
+## `ReadSummary.execute`, [line 62](../../../../../../../backend/src/sro/application/analytics/summary.py#L62): Note
 
-Code: `unreachable: int`
+Code: `noticed = await uow.workflows.noticed_since(ctx.tenant_id, since=since)`
 
-> Runs that never reached the system they were aiming at. Its own number
-> because it is neither a success nor a fault, and folding it into either
-> would make a week of closed laptops read as a week of a broken skill.
+> The jobs mined inside the window, newest first, read without their steps
+> (a count comes back instead). A job mined before the window is not "noticed"
+> in it, and the list shows the latest jobs rather than the oldest ten.
 
 ## `kind_of`, [line 165](../../../../../../../backend/src/sro/application/analytics/summary.py#L165): Docstring
 

@@ -41,7 +41,7 @@ from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.shared.prices import DaySpend
 from sro.domain.skill.offers import Offer, OfferRow
 from sro.domain.skill.skill import Skill
-from sro.domain.skill.workflow import Workflow
+from sro.domain.skill.workflow import Noticed, Workflow
 from sro.domain.trigger.confirmation import Confirmation
 from sro.domain.trigger.trigger import Trigger
 
@@ -415,6 +415,10 @@ class WorkflowRepository(Protocol):
     async def save(self, workflow: Workflow) -> None: ...
 
     async def known(self, tenant_id: TenantId) -> tuple[Workflow, ...]: ...
+
+    async def noticed_since(
+        self, tenant_id: TenantId, *, since: datetime
+    ) -> tuple[Noticed, ...]: ...
 
     async def get(self, tenant_id: TenantId, workflow_id: str) -> Workflow: ...
 

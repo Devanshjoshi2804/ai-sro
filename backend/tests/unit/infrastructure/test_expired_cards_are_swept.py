@@ -15,7 +15,11 @@ from sro.infrastructure.temporal.worker import keep_sessions_open
 
 
 class _Keeper:
+    def __init__(self, calls: list[str]) -> None:
+        self._calls = calls
+
     async def sweep(self) -> Swept:
+        self._calls.append("swept")
         return Swept()
 
 
@@ -33,7 +37,7 @@ class _Container:
         self.calls: list[str] = []
 
     def keep_sessions_open(self) -> _Keeper:
-        return _Keeper()
+        return _Keeper(self.calls)
 
     def expire_confirmations(self) -> _Expirer:
         return _Expirer(self.calls)
@@ -45,7 +49,7 @@ async def test_each_pass_of_the_keeper_expires_the_late_cards() -> None:
     with contextlib.suppress(TimeoutError):
         await asyncio.wait_for(keep_sessions_open(container, 0.001), timeout=0.1)
 
-    assert container.calls, "the keeper never expired a card"
+    assert container.calls[:2] == ["expired", "swept"], container.calls
 
 
 async def test_a_failing_expiry_does_not_stop_the_keeper() -> None:
@@ -59,4 +63,5 @@ async def test_a_failing_expiry_does_not_stop_the_keeper() -> None:
     with contextlib.suppress(TimeoutError):
         await asyncio.wait_for(keep_sessions_open(container, 0.001), timeout=0.1)
 
-    assert len(container.calls) > 1, "one failure ended the loop"
+    # The session sweep still ran after the expiry raised, on every pass.
+    assert container.calls[:4] == ["tried", "swept", "tried", "swept"], container.calls

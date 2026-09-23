@@ -293,6 +293,29 @@ class TestWorkflows:
                 "wfl_1",
             ]
 
+    async def test_noticed_since_is_newest_first_and_leaves_out_the_retired_and_the_old(
+        self, store: UnitOfWork
+    ) -> None:
+        before = datetime.now(tz=UTC) - timedelta(seconds=1)
+        async with store as work:
+            for name in ("wfl_1", "wfl_2", "wfl_3"):
+                await work.workflows.save(
+                    _workflow(name, steps=[Step(order=0, says="open", system=None)])
+                )
+            await work.workflows.save(_workflow("wfl_other", tenant=OTHER_TENANT))
+            await work.commit()
+        async with store as work:
+            await work.workflows.retire(TENANT, "wfl_2", at=_when(12))
+            await work.commit()
+
+        async with store as work:
+            noticed = await work.workflows.noticed_since(TENANT, since=before)
+            assert [(one.id, one.steps) for one in noticed] == [("wfl_3", 1), ("wfl_1", 1)]
+            assert noticed[0].title == "put away a pallet"
+            assert noticed[0].systems == ("https://wms.example",)
+            later = datetime.now(tz=UTC) + timedelta(minutes=1)
+            assert await work.workflows.noticed_since(TENANT, since=later) == ()
+
     async def test_a_step_the_merge_dropped_leaves_the_store(self, store: UnitOfWork) -> None:
         async with store as work:
             await work.workflows.save(

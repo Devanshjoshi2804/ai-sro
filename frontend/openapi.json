@@ -28576,42 +28576,26 @@
             "type": "integer",
             "title": "Runs"
           },
-          "clean": {
+          "rehearsed": {
             "type": "integer",
-            "title": "Clean"
+            "title": "Rehearsed"
           },
-          "degraded": {
-            "type": "integer",
-            "title": "Degraded"
-          },
-          "failed": {
-            "type": "integer",
-            "title": "Failed"
-          },
-          "withheld": {
-            "type": "integer",
-            "title": "Withheld"
-          },
-          "unreachable": {
-            "type": "integer",
-            "title": "Unreachable"
-          },
-          "writes_sent": {
-            "type": "integer",
-            "title": "Writes Sent"
+          "outcomes": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Outcomes"
           }
         },
         "type": "object",
         "required": [
           "runs",
-          "clean",
-          "degraded",
-          "failed",
-          "withheld",
-          "unreachable",
-          "writes_sent"
+          "rehearsed",
+          "outcomes"
         ],
-        "title": "DoingModel"
+        "title": "DoingModel",
+        "description": "The mined jobs' runs started in the window.\n\n`outcomes` counts each run by the outcome it ended with (`held`,\n`stopped`, `refused`, `aborted`, `failed`, or `running` while it still\nis). `rehearsed` is the held runs that were dry and sent nothing."
       },
       "EntryKind": {
         "type": "string",

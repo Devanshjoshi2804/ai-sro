@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 import secrets
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -75,7 +74,6 @@ class Noticed:
     title: str
     systems: tuple[str, ...]
     steps: int
-    at: datetime
 
 
 def cited_ids(workflow: Workflow) -> set[str]:

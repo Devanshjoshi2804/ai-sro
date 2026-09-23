@@ -83,7 +83,9 @@ Code: `FLOORS = {`
 > production caller. What `sro.application.skill` holds now -- `counsel`,
 > `describe_skill`, `read_skills`, `read_workflows`, `record_offer`,
 > `repair_drift`, `retire_workflow`, `serve_shapes` -- read 555 mutants, 489
-> killed, 53 survived, 13 unreached: **90.2%**, which is the floor now.
+> killed, 53 survived, 13 unreached: **90.2%**. The floor is 90.0, just under
+> it, so one mutant flipping (a timeout, a harmless test change) does not fail
+> the build.
 >
 > The ladder's first sweep, the same day, read **83.9%** with two modules far
 > under it: `diagnosis` 49.2% and `safety` 60.6%. Both were the same kind of

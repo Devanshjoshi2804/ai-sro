@@ -111,6 +111,21 @@ async def test_a_job_mined_before_the_window_is_not_a_task_noticed_in_it() -> No
     assert [line.id for line in summary.tasks] == ["wfl-1"]
 
 
+async def test_a_job_mined_long_ago_and_re_saved_today_is_not_noticed_today() -> None:
+    # A repeat of the job with a new value makes `learn_parameters` save it
+    # again. That is using the job, not noticing it.
+    uow = await _seeded()
+    old = _workflow("wfl-old", "Read an old report", "wms.test")
+    await uow.workflows.save(old)
+    uow.workflows.created_at["wfl-old"] = WEEK - timedelta(days=14)
+    old.parameters = [{"name": "client", "seen_values": ["NEW"]}]
+    await uow.workflows.save(old)
+
+    summary = await ReadSummary(uow).execute(CTX, since=WEEK)
+
+    assert [line.id for line in summary.tasks] == ["wfl-1"]
+
+
 async def test_the_tasks_listed_are_the_most_recent_ones() -> None:
     uow = FakeUnitOfWork()
     for n in range(12):
@@ -163,6 +178,19 @@ async def test_a_mined_job_s_run_in_the_window_is_done_and_one_before_it_is_not(
 
     assert summary.doing.runs == 2
     assert summary.doing.outcomes == {"held": 2}
+
+
+async def test_the_runs_are_counted_without_loading_them() -> None:
+    uow = await _seeded(runs=3)
+
+    async def _loaded(*_: object, **__: object) -> object:
+        raise AssertionError("the summary loaded every run to count them")
+
+    uow.workflow_runs.since = _loaded  # type: ignore[method-assign, assignment]
+
+    summary = await ReadSummary(uow).execute(CTX, since=WEEK)
+
+    assert summary.doing.runs == 3
 
 
 async def test_another_tenant_s_runs_are_not_counted() -> None:

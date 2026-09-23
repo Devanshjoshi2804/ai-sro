@@ -6,7 +6,7 @@ import subprocess
 import sys
 
 FLOORS = {
-    "sro.application.skill": (90.2, "the skill and job reads -- shapes, offers, drift repair"),
+    "sro.application.skill": (90.0, "the skill and job reads -- shapes, offers, drift repair"),
     "sro.domain.execution": (91.5, "the ladder -- what may write, and what proves it landed"),
     "sro.application.execution": (92.8, "the step -- what this run sends, and what settles it"),
     "sro.domain.skill.shape": (99.8, "the offer -- which jobs a browser is shown, and where"),

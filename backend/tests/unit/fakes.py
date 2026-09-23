@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import re
 import sys
+from collections import Counter
 from collections.abc import AsyncIterator, Callable, Mapping
 from copy import deepcopy
 from dataclasses import replace
@@ -1818,6 +1819,17 @@ class FakeWorkflowRunRepository:
             for run in sorted(found, key=lambda run: (when(run.started_at), run.id), reverse=True)
         )
 
+    async def outcomes_since(
+        self, tenant_id: TenantId, *, since: str
+    ) -> tuple[tuple[str, bool, int], ...]:
+        at = when(since)
+        counted = Counter(
+            (run.outcome, run.live)
+            for run in self.rows.values()
+            if run.tenant == tenant_id.value and when(run.started_at) >= at
+        )
+        return tuple((outcome, live, n) for (outcome, live), n in counted.items())
+
     async def driving_windows(self, tenant_id: TenantId) -> tuple[Driving, ...]:
         """Off the same rows `in_flight` reads, with the clock parsed.
 
@@ -1913,8 +1925,8 @@ class FakeWorkflowRepository:
 
     Faithful rather than convenient, because the mining and runner suites will
     be built on it. Workflows are stored and returned as copies, so "steps are
-    replaced, not appended" is real here. ``known`` is oldest first and a
-    re-save moves a workflow to the end, which is what the store's ``created_at``
+    replaced, not appended" is real here. ``known`` is oldest first by
+    creation, and a re-save keeps its place, as the store's ``created_at``
     does. ``record_effect`` keeps the state-belt gate -- a picture is not an
     effect -- and asks the domain rather than holding a second copy of the belt
     list. ``proofs`` reads the runs from the run repository, because in the
@@ -1967,10 +1979,10 @@ class FakeWorkflowRepository:
     async def save(self, workflow: Workflow) -> None:
         self._alive()
         self.rows[workflow.id] = deepcopy(workflow)
-        # The store rewrites ``created_at`` on a re-save, as INSERT OR REPLACE
-        # did, so a re-saved workflow moves to the end of ``known``.
-        self._created[workflow.id] = next(self._saved)
-        self.created_at[workflow.id] = datetime.now(tz=UTC)
+        # A re-save keeps the creation time, as the store's upsert does.
+        if workflow.id not in self._created:
+            self._created[workflow.id] = next(self._saved)
+            self.created_at[workflow.id] = datetime.now(tz=UTC)
 
     async def noticed_since(self, tenant_id: TenantId, *, since: datetime) -> tuple[Noticed, ...]:
         found = [
@@ -1979,14 +1991,13 @@ class FakeWorkflowRepository:
                 title=row.title,
                 systems=tuple(row.systems),
                 steps=len(row.steps),
-                at=self.created_at[row.id],
             )
             for row in self.rows.values()
             if row.tenant == tenant_id.value
             and row.id not in self.retired
             and self.created_at[row.id] >= since
         ]
-        return tuple(sorted(found, key=lambda one: (one.at, one.id), reverse=True))
+        return tuple(sorted(found, key=lambda one: (self.created_at[one.id], one.id), reverse=True))
 
     async def known(self, tenant_id: TenantId) -> tuple[Workflow, ...]:
         found = [

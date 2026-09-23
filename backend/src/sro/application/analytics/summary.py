@@ -6,7 +6,6 @@ from datetime import datetime
 
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
-from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.skill.workflow import Noticed
 
 MOST = 10
@@ -60,7 +59,7 @@ class ReadSummary:
             devices = await uow.devices.list_for_tenant(ctx.tenant_id)
             batches = await uow.observations.between(ctx.tenant_id, since=since)
             noticed = await uow.workflows.noticed_since(ctx.tenant_id, since=since)
-            runs = await uow.workflow_runs.since(ctx.tenant_id, since=since.isoformat())
+            runs = await uow.workflow_runs.outcomes_since(ctx.tenant_id, since=since.isoformat())
 
         lines = tuple(_line(job) for job in noticed)
         return Summary(
@@ -77,13 +76,13 @@ class ReadSummary:
         )
 
 
-def _doing(runs: Sequence[WorkflowRun]) -> Doing:
+def _doing(counted: Sequence[tuple[str, bool, int]]) -> Doing:
     outcomes: dict[str, int] = {}
-    for run in runs:
-        outcomes[run.outcome] = outcomes.get(run.outcome, 0) + 1
+    for outcome, _, n in counted:
+        outcomes[outcome] = outcomes.get(outcome, 0) + n
     return Doing(
-        runs=len(runs),
-        rehearsed=sum(1 for run in runs if run.outcome == "held" and not run.live),
+        runs=sum(n for _, _, n in counted),
+        rehearsed=sum(n for outcome, live, n in counted if outcome == "held" and not live),
         outcomes=dict(sorted(outcomes.items(), key=lambda pair: pair[1], reverse=True)),
     )
 

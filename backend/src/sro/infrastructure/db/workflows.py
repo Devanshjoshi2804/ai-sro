@@ -147,7 +147,7 @@ class SqlWorkflowRepository(WorkflowRepository):
                 set_={
                     column.name: statement.excluded[column.name]
                     for column in WorkflowRow.__table__.columns
-                    if column.name not in ("id", "retired_at")
+                    if column.name not in ("id", "retired_at", "created_at")
                 },
             )
         )
@@ -186,7 +186,6 @@ class SqlWorkflowRepository(WorkflowRepository):
                 WorkflowRow.id,
                 WorkflowRow.title,
                 WorkflowRow.systems,
-                WorkflowRow.created_at,
                 steps,
             )
             .where(
@@ -201,8 +200,7 @@ class SqlWorkflowRepository(WorkflowRepository):
                 id=row[0],
                 title=row[1],
                 systems=tuple(str(one) for one in row[2] or ()),
-                steps=int(row[4]),
-                at=row[3],
+                steps=int(row[3]),
             )
             for row in (await self._session.execute(query)).all()
         )

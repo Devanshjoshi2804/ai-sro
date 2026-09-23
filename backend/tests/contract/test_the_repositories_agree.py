@@ -265,33 +265,41 @@ def _skill_run(run_id: str, **overrides: Any) -> Run:
 
 
 class TestWorkflows:
-    async def test_known_is_oldest_first_and_a_resave_moves_a_workflow_to_the_end(
+    async def test_known_is_oldest_first_and_a_resave_keeps_its_place(
         self, store: UnitOfWork
     ) -> None:
         """Load-bearing, not cosmetic: ``resolve`` breaks a tie at the top
         score with a strict ``>``, so the first workflow in this list wins a
-        proposal that matches two of them equally well. The store rewrites
-        ``created_at`` on a re-save, which is what moves one to the end."""
+        proposal that matches two of them equally well. A re-save is not a
+        new job, so it does not move one: ``created_at`` is when it was made."""
         async with store as work:
             for name in ("wfl_1", "wfl_2", "wfl_3"):
                 await work.workflows.save(_workflow(name))
             await work.commit()
 
         async with store as work:
-            assert [one.id for one in await work.workflows.known(TENANT)] == [
-                "wfl_1",
-                "wfl_2",
-                "wfl_3",
-            ]
             await work.workflows.save(_workflow("wfl_1", title="renamed by a merge"))
             await work.commit()
 
         async with store as work:
             assert [one.id for one in await work.workflows.known(TENANT)] == [
+                "wfl_1",
                 "wfl_2",
                 "wfl_3",
-                "wfl_1",
             ]
+
+    async def test_a_re_saved_job_is_not_noticed_again(self, store: UnitOfWork) -> None:
+        async with store as work:
+            await work.workflows.save(_workflow("wfl_1"))
+            await work.commit()
+        after_it_was_made = datetime.now(tz=UTC)
+
+        async with store as work:
+            await work.workflows.save(_workflow("wfl_1", title="a parameter learnt"))
+            await work.commit()
+
+        async with store as work:
+            assert await work.workflows.noticed_since(TENANT, since=after_it_was_made) == ()
 
     async def test_noticed_since_is_newest_first_and_leaves_out_the_retired_and_the_old(
         self, store: UnitOfWork
@@ -687,6 +695,26 @@ class TestWorkflowRuns:
             found = await work.workflow_runs.since(TENANT, since=_at(9))
         assert [one.id for one in found] == ["run_c", "run_b", "run_a", "run_early"]
         assert found[-1].started_at == "2026-09-06T10:00:00+00:00"
+
+    async def test_outcomes_since_counts_by_outcome_and_live_in_the_window(
+        self, store: UnitOfWork
+    ) -> None:
+        async with store as work:
+            await work.workflow_runs.save(_run("run_a", started_at=_at(10), live=True))
+            await work.workflow_runs.save(_run("run_b", started_at=_at(11), live=True))
+            await work.workflow_runs.save(_run("run_dry", started_at=_at(11)))
+            await work.workflow_runs.save(
+                _run("run_stopped", started_at=_at(12, offset="+02:00"), outcome="stopped")
+            )
+            await work.workflow_runs.save(_run("run_before", started_at=_at(8), live=True))
+            await work.workflow_runs.save(
+                _run("run_theirs", tenant=OTHER_TENANT, started_at=_at(11), live=True)
+            )
+            await work.commit()
+
+        async with store as work:
+            found = await work.workflow_runs.outcomes_since(TENANT, since=_at(9))
+        assert sorted(found) == [("held", False, 1), ("held", True, 2), ("stopped", False, 1)]
 
     async def test_save_replaces_a_runs_steps_rather_than_appending(
         self, store: UnitOfWork

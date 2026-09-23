@@ -1,4 +1,4 @@
-// The day so far, in two numbers.
+// The last 24 hours, in two numbers.
 //
 // This is the one line in the product a person repeats to somebody else, so
 // every number in it is measured rather than estimated. They come off
@@ -13,7 +13,7 @@
 /**
  * The line, or `null` when there is nothing yet to say.
  *
- * `summary` is the analytics answer; `openOffers` is how many offers in today's
+ * `summary` is the analytics answer for the last 24 hours; `openOffers` is how many offers in today's
  * thread nobody has answered, which the panel counts from the thread it already
  * holds rather than asking for a second time.
  */

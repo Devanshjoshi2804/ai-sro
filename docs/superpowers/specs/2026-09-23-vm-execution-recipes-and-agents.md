@@ -183,7 +183,7 @@ Recipes that keep failing after repair are flagged for re-learning from the oper
 
 ### 6.4 Sessions: sign-in, expiry and recovery
 
-**Credentials.** A session signs in with the **username recorded in the job's sign-in evidence** and the **password from the vault** under the run-time key `{tenant}/{login origin}/password`, which is the key the panel's password box writes and the run engine reads. The connection-level keys (`{tenant}/{system}/username|password`) are empty in real data and must be retired in favour of that one scheme. After the POC, a service account replaces the operator's credentials (D9).
+**Credentials.** A session signs in with the **username recorded in the job's sign-in evidence** and the **password from the vault** under the run-time key `{tenant}/{login origin}/password`, which is the key the panel's password box writes and the run engine reads. The connection-level keys (`{tenant}/{system}/username|password`) are empty in real data and must be retired in favour of that one scheme. On the deployed QA box (tenant `greyorange`, checked 2026-09-23) the `connections` table is empty and the vault is the file vault; sign-in happens by running the mined job "Log in to Keycloak" through the run engine (9 held, 5 stopped runs since 2026-09-20). The session broker must build on that path, not on the unused connection-based sign-in. After the POC, a service account replaces the operator's credentials (D9).
 
 **Edge cases the runner must handle**, each learned from what the extension observes the operator doing, never hardcoded per system:
 

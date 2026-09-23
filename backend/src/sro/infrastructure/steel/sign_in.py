@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Set as AbstractSet
+from enum import Enum, auto
 from typing import Final
 from urllib.parse import urlsplit
 
+from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import Page, async_playwright
 
 from sro.application.ports.sign_in import SignInDriver, SignInFailed, SignInResult
@@ -29,6 +32,10 @@ _MFA: Final = (
 
 _ROUNDS: Final = 6
 
+_QUIET_S: Final = 8.0
+
+_PROBE_S: Final = 1.0
+
 
 class PlaywrightSignIn(SignInDriver):
     async def sign_in(
@@ -43,6 +50,8 @@ class PlaywrightSignIn(SignInDriver):
     ) -> SignInResult:
         steps: list[str] = []
         host = urlsplit(url).hostname or ""
+        clock = asyncio.get_running_loop()
+        deadline = clock.time() + timeout_s
         async with async_playwright() as driver:
             browser = await driver.chromium.connect_over_cdp(debugger_url)
             context = browser.contexts[0] if browser.contexts else await browser.new_context()
@@ -51,35 +60,24 @@ class PlaywrightSignIn(SignInDriver):
                 await page.goto(url, wait_until="domcontentloaded")
                 steps.append("opened the system")
                 taken: set[str] = set()
-                for _ in range(_ROUNDS):
-                    await _settle(page)
-                    if await _visible(page, _MFA):
-                        raise SignInFailed(
-                            "this system asks for a second factor, which no stored credential "
-                            "can answer. Connect it by hand and the session will be kept."
-                        )
-
-                    if picked := await _chose(page, choose, taken):
-                        taken.add(picked)
-                        steps.append("chose how to sign in")
-                        continue
-
-                    named = await _filled(page, _IDENTIFIER, username)
-                    secret = await _filled(page, _PASSWORD, password)
-                    if named:
-                        steps.append("entered the username")
-                    if secret:
-                        steps.append("entered the password")
-
-                    if not named and not secret:
-                        if _on(page.url, host):
-                            break
-                        if not await _submit(page):
-                            break
-                        steps.append("continued")
-                        continue
-                    await _submit(page)
-                await _settle(page)
+                acted = 0
+                while clock.time() < deadline:
+                    await _settle(page, deadline - clock.time())
+                    if acted >= _ROUNDS:
+                        break
+                    try:
+                        did = await _round(page, host, username, password, choose, taken, steps)
+                    except PlaywrightError:
+                        if page.is_closed():
+                            raise
+                        logger.debug("the page moved while it was being read", exc_info=True)
+                        did = _Round.WAITING
+                    if did is _Round.LANDED:
+                        break
+                    if did is _Round.ACTED:
+                        acted += 1
+                    else:
+                        await asyncio.sleep(_PROBE_S)
                 landed = page.url
                 offered = await _on_offer(page)
             finally:
@@ -95,15 +93,61 @@ class PlaywrightSignIn(SignInDriver):
         return SignInResult(landed_at=landed, steps=tuple(steps))
 
 
+class _Round(Enum):
+    LANDED = auto()
+    ACTED = auto()
+    WAITING = auto()
+
+
+async def _round(
+    page: Page,
+    host: str,
+    username: str,
+    password: str,
+    choose: tuple[str, ...],
+    taken: set[str],
+    steps: list[str],
+) -> _Round:
+    if await _visible(page, _MFA):
+        raise SignInFailed(
+            "this system asks for a second factor, which no stored credential "
+            "can answer. Connect it by hand and the session will be kept."
+        )
+
+    if picked := await _chose(page, choose, taken):
+        taken.add(picked)
+        steps.append("chose how to sign in")
+        return _Round.ACTED
+
+    named = await _filled(page, _IDENTIFIER, username)
+    secret = await _filled(page, _PASSWORD, password)
+    if named:
+        steps.append("entered the username")
+    if secret:
+        steps.append("entered the password")
+
+    if not named and not secret:
+        if _on(page.url, host):
+            return _Round.LANDED
+        if not await _submit(page):
+            return _Round.WAITING
+        steps.append("continued")
+        return _Round.ACTED
+    await _submit(page)
+    return _Round.ACTED
+
+
 def _on(url: str, host: str) -> bool:
     return (urlsplit(url).hostname or "") == host
 
 
-async def _settle(page: Page) -> None:
+async def _settle(page: Page, remaining_s: float) -> None:
     try:
-        await page.wait_for_load_state("networkidle", timeout=8000)
+        await page.wait_for_load_state(
+            "networkidle", timeout=max(1.0, min(_QUIET_S, remaining_s) * 1000)
+        )
     except Exception:
-        await page.wait_for_timeout(1500)
+        await asyncio.sleep(max(0.0, min(_PROBE_S, remaining_s)))
 
 
 async def _visible(page: Page, selector: str) -> bool:
@@ -153,9 +197,14 @@ async def _chose(
 
 async def _on_offer(page: Page) -> str:
     seen: list[str] = []
-    for element in await page.query_selector_all(
-        "a, button, [role=link], [role=button], input[type=submit]"
-    ):
+    try:
+        elements = await page.query_selector_all(
+            "a, button, [role=link], [role=button], input[type=submit]"
+        )
+    except PlaywrightError:
+        logger.debug("the page moved while its options were read", exc_info=True)
+        return ""
+    for element in elements:
         try:
             if not await element.is_visible():
                 continue

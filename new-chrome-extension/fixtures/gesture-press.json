@@ -9,6 +9,7 @@
       "secret": false,
       "text": null,
       "testId": null,
+      "required": null,
       "cssPath": "input#client",
       "xpath": "/html/body[1]/form[1]/input[1]",
       "bounds": {
@@ -28,6 +29,7 @@
         "itemId": "clientCode",
         "name": "clientCode",
         "fieldLabel": "Client Code",
+        "required": null,
         "text": null,
         "query": "panel#clients textfield#clientCode",
         "chain": [
@@ -38,10 +40,10 @@
     },
     "value": "Enter",
     "modifiers": [],
-    "at": 1789915822.316,
-    "url": "http://127.0.0.1:51729/"
+    "at": 1790187506.554,
+    "url": "http://127.0.0.1:52399/"
   },
-  "tab_id": 247501454,
-  "frame_url": "http://127.0.0.1:51729/",
-  "page_url": "http://127.0.0.1:51729/"
+  "tab_id": 446238358,
+  "frame_url": "http://127.0.0.1:52399/",
+  "page_url": "http://127.0.0.1:52399/"
 }

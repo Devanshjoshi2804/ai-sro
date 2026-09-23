@@ -13,7 +13,7 @@ Status: agreed direction, 2026-09-23. Nothing below is built yet unless marked *
 | D5 | Allowlists belong to the extension (which hosts it watches) and the panel. There is no mail-sender allowlist; the VM is one unified executor. Mail and page text are **untrusted data** to every agent, and that is enforced in the prompts. | Operator lead |
 | D6 | Jobs are compiled into **recipes** and run **without a model or a screenshot**. A model is called only when a recipe step fails, and the fix is written back so the same failure is not repeated. | Operator lead |
 | D7 | Agents and their prompts are first-class: each prompt is versioned, and is measured on real cases before it ships. | Operator lead |
-| D8 | **Runs go in parallel**, as many as the Steel pool can hold; a request beyond capacity queues rather than being refused. Runs for the same account run as **tabs of one Steel browser session** that holds that account's login, so they share cookies and CSRF token and never sign each other out (Blue Yonder allows one session per account). Steps that change session-wide context (for example the current facility) take a per-account lock; each browser has a tab cap, and runs beyond it queue. Steps on a system with a connector (Gmail today) are **tool calls, not tabs**: the runner's order is connector tool, proven API call, then UI. | Operator lead |
+| D8 | **Runs go in parallel**, as many as the Steel pool can hold; a request beyond capacity queues rather than being refused. Runs for the same account run as **tabs of one Steel browser session** that holds that account's login, so they share cookies and CSRF token and one login serves them all. Steps that change session-wide context (for example the current facility) take a per-account lock; each browser has a tab cap, and runs beyond it queue. Steps on a system with a connector (Gmail today) are **tool calls, not tabs**: the runner's order is connector tool, proven API call, then UI. | Operator lead |
 
 ## 2. Why: measured latency
 
@@ -250,7 +250,9 @@ Each phase is its own branch and review, merged only on the operator lead's word
 ## 12. Risks and open questions
 
 - **MFA:** automated sign-in refuses MFA today (`infrastructure/steel/sign_in.py`). Needs a per-account policy: an exempt service account, or MFA handed to the panel.
-- **One session per account:** a VM login with an operator's account signs out their own browser.
+- **One session per account: tested false on QA (2026-09-23).** A second login for the same account in a separate Steel context (Azure chooser, then Keycloak, vault password, no MFA, 50 s) left the first session working: both read `GET /data/WM/wm/clients` from the server (200, 34 rows), and the first was still valid 20 s later. The code notes claiming a server login signs the operator out are wrong for this environment; re-check once from the VM's IP.
+- **Server-side API calls with a Steel session work:** cookies plus the page's CSRF token, 625 ms per call, no browser needed after login.
+- **The production sign-in driver crashes on this login chain** (`infrastructure/steel/sign_in.py`: `_settle` gives up after 1.5 s while the portal is still redirecting through Azure and Keycloak, then `query_selector` hits a destroyed page). Fixed in audit wave 1, Task 8.
 - **Account model:** a service account (Blue Yonder's audit shows the bot) or per-operator logins (the vault holds each operator's credentials).
 - **Learning source:** learning stays in the operator's browser (D2). If it moves to Steel later, capture must move with it.
 - **Locator parity:** today the extension's locator code (`in-page.js`) and the backend driver differ. The Steel runner must inject the same code.

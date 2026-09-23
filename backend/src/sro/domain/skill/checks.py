@@ -1,10 +1,11 @@
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from sro.domain.observation.gesture import Gesture, passed_through
 from sro.domain.observation.identity import K_MIN_SHARED_STEPS
 from sro.domain.observation.window import Window
 from sro.domain.shared.hosts import origin_of
-from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
+from sro.domain.skill.workflow import Step, Workflow, cited_ids, ordered_cites
 
 K_MIN_COVERAGE = 0.5
 K_MAX_SKEW = 0.4
@@ -152,7 +153,7 @@ def undeliverable(workflow: Workflow, gestures: dict[str, Gesture]) -> list[str]
     ]
 
 
-def _during(workflow: Workflow, gestures: dict[str, Gesture]) -> list[Gesture]:
+def _during(workflow: Workflow, gestures: Mapping[str, Gesture]) -> list[Gesture]:
     cited = [gestures[one] for one in ordered_cites(workflow) if one in gestures]
     if not cited:
         return []
@@ -163,6 +164,17 @@ def _during(workflow: Workflow, gestures: dict[str, Gesture]) -> list[Gesture]:
         for gesture in gestures.values()
         if gesture.stream_id in streams and first <= gesture.at <= last
     ]
+
+
+def signs_in(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
+    during = _during(workflow, gestures)
+    return any(_signed_in_here(gesture) for gesture in during) and not any(
+        _did_business(gesture) for gesture in during
+    )
+
+
+def does_business(step: Step, gestures: Mapping[str, Gesture]) -> bool:
+    return any(_did_business(gestures[one]) for one in step.cites if one in gestures)
 
 
 def work_only(
@@ -178,11 +190,8 @@ def work_only(
         if system and index < len(order) - 1 and system in bounced
     }
 
-    during = _during(workflow, gestures)
-    if (
-        any(_signed_in_here(gesture) for gesture in during)
-        and any(passed_through(gesture) for gesture in during)
-        and not any(_did_business(gesture) for gesture in during)
+    if signs_in(workflow, gestures) and any(
+        passed_through(gesture) for gesture in _during(workflow, gestures)
     ):
         return Rejection(
             workflow.title,

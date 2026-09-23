@@ -688,6 +688,10 @@ class WorkflowRow(Base):
 
     repeat: Mapped[Any] = mapped_column(JSONB, nullable=True)
 
+    signs_in: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+
     same_as: Mapped[str | None] = mapped_column(String(64))
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

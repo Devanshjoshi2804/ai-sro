@@ -92,7 +92,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/execution/reversal.py`](backend/src/sro/application/execution/reversal.py.md) | 9 |
 | [`backend/src/sro/application/execution/revise_run.py`](backend/src/sro/application/execution/revise_run.py.md) | 3 |
 | [`backend/src/sro/application/execution/run_from_preview.py`](backend/src/sro/application/execution/run_from_preview.py.md) | 9 |
-| [`backend/src/sro/application/execution/run_workflow.py`](backend/src/sro/application/execution/run_workflow.py.md) | 210 |
+| [`backend/src/sro/application/execution/run_workflow.py`](backend/src/sro/application/execution/run_workflow.py.md) | 212 |
 | [`backend/src/sro/application/execution/self_heal.py`](backend/src/sro/application/execution/self_heal.py.md) | 17 |
 | [`backend/src/sro/application/execution/stops.py`](backend/src/sro/application/execution/stops.py.md) | 3 |
 | [`backend/src/sro/application/execution/verify.py`](backend/src/sro/application/execution/verify.py.md) | 39 |
@@ -150,7 +150,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/observation/mine.py`](backend/src/sro/application/observation/mine.py.md) | 7 |
 | [`backend/src/sro/application/observation/mine_lately.py`](backend/src/sro/application/observation/mine_lately.py.md) | 14 |
 | [`backend/src/sro/application/observation/mine_pass.py`](backend/src/sro/application/observation/mine_pass.py.md) | 4 |
-| [`backend/src/sro/application/observation/mining_pass.py`](backend/src/sro/application/observation/mining_pass.py.md) | 73 |
+| [`backend/src/sro/application/observation/mining_pass.py`](backend/src/sro/application/observation/mining_pass.py.md) | 76 |
 | [`backend/src/sro/application/observation/policy.py`](backend/src/sro/application/observation/policy.py.md) | 3 |
 | [`backend/src/sro/application/observation/propose.py`](backend/src/sro/application/observation/propose.py.md) | 50 |
 | [`backend/src/sro/application/observation/read_gesture.py`](backend/src/sro/application/observation/read_gesture.py.md) | 31 |
@@ -296,7 +296,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/domain/shared/prices.py`](backend/src/sro/domain/shared/prices.py.md) | 13 |
 | [`backend/src/sro/domain/skill/__init__.py`](backend/src/sro/domain/skill/__init__.py.md) | 1 |
 | [`backend/src/sro/domain/skill/assertion.py`](backend/src/sro/domain/skill/assertion.py.md) | 2 |
-| [`backend/src/sro/domain/skill/checks.py`](backend/src/sro/domain/skill/checks.py.md) | 25 |
+| [`backend/src/sro/domain/skill/checks.py`](backend/src/sro/domain/skill/checks.py.md) | 27 |
 | [`backend/src/sro/domain/skill/earned.py`](backend/src/sro/domain/skill/earned.py.md) | 9 |
 | [`backend/src/sro/domain/skill/learned.py`](backend/src/sro/domain/skill/learned.py.md) | 31 |
 | [`backend/src/sro/domain/skill/locator.py`](backend/src/sro/domain/skill/locator.py.md) | 8 |
@@ -311,13 +311,13 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/domain/skill/repeats.py`](backend/src/sro/domain/skill/repeats.py.md) | 8 |
 | [`backend/src/sro/domain/skill/reversals.py`](backend/src/sro/domain/skill/reversals.py.md) | 11 |
 | [`backend/src/sro/domain/skill/shape.py`](backend/src/sro/domain/skill/shape.py.md) | 25 |
-| [`backend/src/sro/domain/skill/signing_in.py`](backend/src/sro/domain/skill/signing_in.py.md) | 6 |
+| [`backend/src/sro/domain/skill/signing_in.py`](backend/src/sro/domain/skill/signing_in.py.md) | 5 |
 | [`backend/src/sro/domain/skill/skill.py`](backend/src/sro/domain/skill/skill.py.md) | 43 |
 | [`backend/src/sro/domain/skill/template.py`](backend/src/sro/domain/skill/template.py.md) | 3 |
 | [`backend/src/sro/domain/skill/track_record.py`](backend/src/sro/domain/skill/track_record.py.md) | 19 |
 | [`backend/src/sro/domain/skill/transform.py`](backend/src/sro/domain/skill/transform.py.md) | 3 |
 | [`backend/src/sro/domain/skill/umbrella.py`](backend/src/sro/domain/skill/umbrella.py.md) | 19 |
-| [`backend/src/sro/domain/skill/workflow.py`](backend/src/sro/domain/skill/workflow.py.md) | 11 |
+| [`backend/src/sro/domain/skill/workflow.py`](backend/src/sro/domain/skill/workflow.py.md) | 12 |
 | [`backend/src/sro/domain/trigger/arrival.py`](backend/src/sro/domain/trigger/arrival.py.md) | 8 |
 | [`backend/src/sro/domain/trigger/confirmation.py`](backend/src/sro/domain/trigger/confirmation.py.md) | 11 |
 | [`backend/src/sro/domain/trigger/cron.py`](backend/src/sro/domain/trigger/cron.py.md) | 2 |

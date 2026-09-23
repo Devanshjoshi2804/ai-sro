@@ -40,8 +40,15 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/signing_in.p
 >
 > **One job or none.** Two jobs entirely on one sign-in host is two ways in, and
 > picking between them is guessing with somebody's credentials.
+>
+> **Only a job found to sign in.** "Entirely on that host" alone is also
+> every ordinary job done on one host, so a run bounced to a page the tenant
+> had worked on would have spliced that work in. The candidates are the jobs
+> whose `Workflow.signs_in` the mining pass set -- a credential typed and
+> nothing written back, `checks.signs_in` -- and the host then picks among
+> them.
 
-## module, [line 29](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L29): Note on the line above
+## module, [line 25](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L25): Note on the line above
 
 Code: `_SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-actions/", "/saml2/")`
 
@@ -59,21 +66,7 @@ Code: `_SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-action
 >
 > `not_this` is the job being run, which can never be its own way back in.
 
-## `is_a_way_in`, [line 21](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L21): Docstring
-
-> Whether this job does nothing but sign in somewhere.
->
-> `signs_in_at` asks which job gets a run back into a named page. This asks
-> the same thing of a job on its own: every gesture it cites happened on one
-> origin, and that is what a sign-in is -- a chooser, a form, a button, all
-> on the identity provider and nothing anywhere else. A job that touches a
-> second system is doing work there, whatever it did first.
->
-> Nothing about the title. `Log in using Azure B2C SSO` is a model's sentence
-> about a job, and a job that signed in and then created a customer type
-> would wear the same one.
-
-## `is_sign_in_page`, [line 32](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L32): Docstring
+## `is_sign_in_page`, [line 28](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L28): Docstring
 
 > Whether this page belongs to an identity provider's sign-in.
 >
@@ -84,6 +77,6 @@ Code: `_SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-action
 > moved yet the run ended "state unknown after a write; not retried" on a
 > sign-in link.
 
-## `_entirely_at`, [line 37](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L37): Docstring
+## `_entirely_at`, [line 33](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L33): Docstring
 
 > Whether every gesture this job cites happened on that origin.

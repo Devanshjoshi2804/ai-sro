@@ -55,6 +55,7 @@ def _workflow_values(workflow: Workflow) -> dict[str, Any]:
                 "last_step": workflow.repeat.last_step,
             }
         ),
+        "signs_in": workflow.signs_in,
         "created_at": datetime.now(tz=UTC),
     }
 
@@ -102,6 +103,7 @@ def _row_to_workflow(row: WorkflowRow, steps: list[Step]) -> Workflow:
             if isinstance(row.repeat, dict)
             else None
         ),
+        signs_in=row.signs_in,
     )
 
 

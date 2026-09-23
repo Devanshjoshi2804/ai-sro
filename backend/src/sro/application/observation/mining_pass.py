@@ -40,6 +40,7 @@ from sro.domain.skill.checks import (
     Rejection,
     coverage,
     one_occurrence,
+    signs_in,
     undeliverable,
     validate,
     work_only,
@@ -309,6 +310,7 @@ async def _grow(
         return
     moved = where_steps_moved(stored.steps, proposal.steps, by_id)
     stored.steps = list(proposal.steps)
+    stored.signs_in = proposal.signs_in
     stored.shape_key = [list(entry) for entry in shape_key(in_time_order(stored, by_id))]
     await uow.workflows.grew(stored, moved=moved)
     logger.info(
@@ -460,6 +462,7 @@ async def _one_pass(
                     rejection.detail,
                 )
                 continue
+            proposal.signs_in = signs_in(proposal, by_id)
             lost = undeliverable(proposal, by_id)
             if lost:
                 logger.warning(
@@ -572,6 +575,10 @@ async def fill_in_passwords(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
         changed_here = with_passwords(workflow, by_id) + with_the_press(workflow, by_id)
         if workflow.repeat != found:
             workflow.repeat = found
+            changed_here += 1
+        marked = signs_in(workflow, by_id)
+        if workflow.signs_in != marked:
+            workflow.signs_in = marked
             changed_here += 1
         if not changed_here:
             continue

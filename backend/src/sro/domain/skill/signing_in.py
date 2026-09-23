@@ -14,16 +14,12 @@ def signs_in_at(
     origin = origin_of(where)
     if not origin:
         return None
-    found = [job.id for job in among if job.id != not_this and _entirely_at(job, origin, by_id)]
+    found = [
+        job.id
+        for job in among
+        if job.signs_in and job.id != not_this and _entirely_at(job, origin, by_id)
+    ]
     return found[0] if len(found) == 1 else None
-
-
-def is_a_way_in(job: Workflow, by_id: Mapping[str, Gesture]) -> bool:
-    cited = [by_id[one] for step in job.steps for one in step.cites if one in by_id]
-    if not cited:
-        return False
-    where = {origin_of(one.url or one.system or "") for one in cited}
-    return len(where) == 1 and bool(next(iter(where)))
 
 
 _SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-actions/", "/saml2/")
@@ -41,4 +37,4 @@ def _entirely_at(job: Workflow, origin: str, by_id: Mapping[str, Gesture]) -> bo
     return all(origin_of(one.url or one.system or "") == origin for one in cited)
 
 
-__all__ = ["is_a_way_in", "is_sign_in_page", "signs_in_at"]
+__all__ = ["is_sign_in_page", "signs_in_at"]

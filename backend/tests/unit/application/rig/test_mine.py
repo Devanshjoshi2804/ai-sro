@@ -1965,3 +1965,49 @@ async def test_a_proposal_is_not_repointed_at_a_gesture_nobody_read() -> None:
     assert [(r.reason, r.detail) for r in result.rejections] == [], (
         "a citation the pass added itself was refused as one the model invented"
     )
+
+
+async def test_a_pass_marks_a_job_that_types_a_credential_and_writes_nothing() -> None:
+    """Whether a job signs in is decided here, once, from what the operator
+    did -- a credential typed and nothing written back -- and kept on the job,
+    so a run never has to guess it from where the gestures happened."""
+    uow, ids = await _day()
+
+    result = await _mine(uow, FakeAsker(_found(_proposal([ids[3], ids[4]], title="Sign in"))))
+
+    assert result.kept == 1, result.rejections
+    (kept,) = await uow.workflows.known(TENANT)
+    assert kept.signs_in is True
+
+
+async def test_a_pass_does_not_mark_a_job_that_types_a_credential_and_then_writes() -> None:
+    uow, ids = await _day()
+
+    result = await _mine(uow, FakeAsker(_found(_proposal([ids[3], ids[6]]))))
+
+    assert result.kept == 1, result.rejections
+    (kept,) = await uow.workflows.known(TENANT)
+    assert kept.signs_in is False
+
+
+async def test_a_job_already_stored_is_marked_as_signing_in_by_the_healing_pass() -> None:
+    """Jobs mined before the mark existed are healed onto it, from the same
+    evidence and by the same rule."""
+    uow, ids = await _day()
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_stored",
+            tenant=TENANT.value,
+            title="Sign in",
+            narrative="n",
+            systems=[HOST],
+            steps=[
+                Step(order=0, says="type the code", system=HOST, cites=[ids[3]]),
+                Step(order=1, says="sign in", system=HOST, cites=[ids[4]]),
+            ],
+        )
+    )
+
+    assert await fill_in_passwords(uow, tenant_id=TENANT) == 1
+    assert (await uow.workflows.get(TENANT, "wfl_stored")).signs_in is True
+    assert await fill_in_passwords(uow, tenant_id=TENANT) == 0

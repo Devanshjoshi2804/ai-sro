@@ -45,6 +45,8 @@ class Workflow:
 
     repeat: Repeat | None = None
 
+    signs_in: bool = False
+
     def generalise_title(self) -> None:
         seen: list[str] = []
         for parameter in self.parameters:

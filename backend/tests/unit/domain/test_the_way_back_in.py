@@ -33,7 +33,7 @@ def _at(gesture_id: str, url: str) -> Gesture:
     )
 
 
-def _job(workflow_id: str, title: str, *cites: str) -> Workflow:
+def _job(workflow_id: str, title: str, *cites: str, signs_in: bool = True) -> Workflow:
     return Workflow(
         id=workflow_id,
         tenant="greyorange",
@@ -42,6 +42,7 @@ def _job(workflow_id: str, title: str, *cites: str) -> Workflow:
         steps=[
             Step(order=n, says=f"step {n}", system=None, cites=[one]) for n, one in enumerate(cites)
         ],
+        signs_in=signs_in,
     )
 
 
@@ -58,7 +59,7 @@ def _store() -> dict[str, Gesture]:
 
 SSO = _job("wfl_sso", "Log in using Azure B2C SSO", "b2c-1", "b2c-2")
 KEYCLOAK_JOB = _job("wfl_kc", "Log in to Keycloak", "kc-1", "b2c-3", "kc-2")
-CREATE = _job("wfl_make", "Create a Customer Type", "wms-1")
+CREATE = _job("wfl_make", "Create a Customer Type", "wms-1", signs_in=False)
 
 
 def test_the_job_whose_evidence_is_that_page_is_the_way_back_in() -> None:
@@ -109,3 +110,13 @@ def test_a_page_nothing_was_ever_demonstrated_on_has_no_way_back_in() -> None:
 
 def test_a_job_whose_evidence_has_aged_out_says_nothing() -> None:
     assert signs_in_at(f"{B2C}/oauth2", [_job("wfl_gone", "Log in", "vanished")], _store()) is None
+
+
+def test_a_job_that_does_not_sign_in_is_never_the_way_back_in() -> None:
+    """Being entirely on the page is where, not what. A job entirely on one
+    host that was never found to sign in is somebody's work there, and
+    splicing it in would do that work on a run that asked for something else."""
+    ordinary = _job("wfl_browse", "Browse the chooser", "b2c-1", "b2c-2", signs_in=False)
+
+    assert signs_in_at(f"{B2C}/oauth2", [ordinary], _store()) is None
+    assert signs_in_at(f"{B2C}/oauth2", [ordinary, SSO], _store()) == "wfl_sso"

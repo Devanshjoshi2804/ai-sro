@@ -1,40 +1,54 @@
-"""Whether a job does nothing but sign in somewhere.
+"""Whether a job signs in, decided once from what the operator did.
 
-`signs_in_at` asks which job gets a run back into a named page. This asks the
-same thing of a job on its own, and it is what lets a run tell "the page I sign
-in at is gone because I signed in" from "I have failed".
+The rule it replaces read "every cited gesture on one origin" as a sign-in,
+which is also every ordinary job done on one warehouse host: a run of `Create
+a Customer Type` that lost its page was reported as succeeded with its Save
+never pressed. A sign-in is a credential typed and nothing written back.
 """
 
 from __future__ import annotations
 
-from sro.domain.observation.gesture import Action, Gesture
-from sro.domain.skill.signing_in import is_a_way_in
+from dataclasses import replace
+
+from sro.domain.observation.gesture import Action, Call, Gesture
+from sro.domain.skill.checks import signs_in
 from sro.domain.skill.workflow import Step, Workflow
 
-KEYCLOAK = "https://keycloak-service-exec-wms-keycloak-prod.us.live.external.byp.ai"
-WMS = "https://bf56-kms-wms-web-np2.jdadelivers.com"
+KEYCLOAK = "https://keycloak.example"
+WMS = "https://wms.example"
 
 
-def _at(gesture_id: str, url: str) -> Gesture:
+def _at(gesture_id: str, url: str, at: float) -> Gesture:
     return Gesture(
         id=gesture_id,
-        tenant="greyorange",
+        tenant="acme",
         stream_id="s",
         batch_id="b",
-        at=1.0,
+        at=at,
         url=f"{url}/page",
         system=url,
         tab_id=1,
         frame_url=None,
-        action=Action(kind="click", at=1.0, url=f"{url}/page"),
+        action=Action(kind="click", at=at),
+    )
+
+
+def _secret(gesture_id: str, url: str, at: float) -> Gesture:
+    return replace(_at(gesture_id, url, at), action=Action(kind="type", at=at, secret=True))
+
+
+def _wrote(gesture_id: str, url: str, at: float, status: int = 201) -> Gesture:
+    return replace(
+        _at(gesture_id, url, at),
+        requests=[Call(method="POST", url=f"{url}/api/things", status=status)],
     )
 
 
 def _job(*cites: str) -> Workflow:
     return Workflow(
         id="wfl_1",
-        tenant="greyorange",
-        title="Log in to Keycloak",
+        tenant="acme",
+        title="t",
         narrative="n",
         steps=[
             Step(order=n, says=f"step {n}", system=None, cites=[one]) for n, one in enumerate(cites)
@@ -42,34 +56,36 @@ def _job(*cites: str) -> Workflow:
     )
 
 
-def test_a_job_entirely_on_one_identity_provider_is_a_way_in() -> None:
-    store = {"a": _at("a", KEYCLOAK), "b": _at("b", KEYCLOAK)}
+def test_a_credential_typed_and_nothing_written_is_a_sign_in() -> None:
+    """The credential need not be cited: redaction strips it of anything a
+    model would point at, so it is read off the job's span."""
+    store = {"a": _at("a", KEYCLOAK, 1), "b": _secret("b", KEYCLOAK, 2), "c": _at("c", KEYCLOAK, 3)}
 
-    assert is_a_way_in(_job("a", "b"), store) is True
-
-
-def test_a_job_that_goes_on_to_do_something_is_not() -> None:
-    """Whatever it did first. A job that signs in and then creates a customer
-    type has work to finish, and its page going away is not the end of it."""
-    store = {"a": _at("a", KEYCLOAK), "b": _at("b", WMS)}
-
-    assert is_a_way_in(_job("a", "b"), store) is False
+    assert signs_in(_job("a", "c"), store) is True
 
 
-def test_the_title_says_nothing() -> None:
-    """`Log in using Azure B2C SSO` is a model's sentence about a job, and a
-    job that signed in and then did the work would wear the same one."""
-    store = {"a": _at("a", WMS), "b": _at("b", WMS)}
-    working = _job("a", "b")
-    working.title = "Log in to Keycloak"
+def test_a_job_on_one_host_that_types_no_credential_does_not_sign_in() -> None:
+    """The shape the old rule got wrong: one origin, no password."""
+    store = {"a": _at("a", WMS, 1), "b": _at("b", WMS, 2)}
 
-    # One origin, so it is a way in -- by its evidence, which is the only
-    # thing that decides. And a two-system job keeps its title and is not.
-    assert is_a_way_in(working, store) is True
-    assert is_a_way_in(_job("a", "c"), {**store, "c": _at("c", KEYCLOAK)}) is False
+    assert signs_in(_job("a", "b"), store) is False
 
 
-def test_a_job_citing_nothing_anybody_kept_is_not_a_way_in() -> None:
-    """Evidence that has aged out leaves a job nothing can be read off. A rule
-    that answered True here would end a run on an absence."""
-    assert is_a_way_in(_job("gone"), {}) is False
+def test_a_credential_typed_on_the_way_to_a_write_is_not_a_sign_in() -> None:
+    """Signed in, then created something: work that happens to start with a
+    password."""
+    store = {"a": _secret("a", WMS, 1), "b": _wrote("b", WMS, 2)}
+
+    assert signs_in(_job("a", "b"), store) is False
+
+
+def test_a_credential_post_that_redirects_is_not_business() -> None:
+    """A sign-in posts the credential and is sent somewhere else; the post is
+    not written back to the page it came from."""
+    store = {"a": _secret("a", KEYCLOAK, 1), "b": _wrote("b", KEYCLOAK, 2, status=302)}
+
+    assert signs_in(_job("a", "b"), store) is True
+
+
+def test_a_job_citing_nothing_anybody_kept_does_not_sign_in() -> None:
+    assert signs_in(_job("gone"), {}) is False

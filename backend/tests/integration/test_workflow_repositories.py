@@ -129,6 +129,30 @@ class TestWorkflows:
         assert back[0].systems == ["https://wms.example", "https://sap.example"]
         assert one == workflow
 
+    async def test_a_job_that_signs_in_is_read_back_as_one(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Decided once by the mining pass and read by every run after it, so
+        it has to survive the store -- and a re-save must be able to clear it
+        when the healing pass reads the evidence differently."""
+        workflow = _workflow(signs_in=True)
+        ordinary = _workflow()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(workflow)
+            await uow.workflows.save(ordinary)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert (await uow.workflows.get(TENANT, workflow.id)).signs_in is True
+            assert (await uow.workflows.get(TENANT, ordinary.id)).signs_in is False
+            workflow.signs_in = False
+            await uow.workflows.save(workflow)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert (await uow.workflows.get(TENANT, workflow.id)).signs_in is False
+
     async def test_a_workflow_names_the_pass_that_found_it(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:

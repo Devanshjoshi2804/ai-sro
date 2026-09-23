@@ -61,7 +61,7 @@ Code: `repeat: Repeat | None = None`
 > given one item performs exactly like a run of a job with no repeat at all.
 > See `domain/skill/repeats`.
 
-## `ordered_cites`, [line 73](../../../../../../../backend/src/sro/domain/skill/workflow.py#L73): Docstring
+## `ordered_cites`, [line 75](../../../../../../../backend/src/sro/domain/skill/workflow.py#L75): Docstring
 
 > Every gesture the workflow cites, in step order.
 >
@@ -71,7 +71,7 @@ Code: `repeat: Repeat | None = None`
 > caller: the mining pass writes a shape key and `rekey_workflows` rewrites
 > one, and two spellings of "in step order" is two shapes for one job.
 
-## `Workflow.generalise_title`, [line 48](../../../../../../../backend/src/sro/domain/skill/workflow.py#L48): Docstring
+## `Workflow.generalise_title`, [line 50](../../../../../../../backend/src/sro/domain/skill/workflow.py#L50): Docstring
 
 > This job's own parameter values taken out of its name.
 >
@@ -126,3 +126,15 @@ Code: `pass_id: str = ""`
 > carrying a copy of the bill that three workflows would then sum to three
 > times. Empty for a workflow saved outside a pass, which today is only a
 > test.
+
+## `Workflow`, [line 48](../../../../../../../backend/src/sro/domain/skill/workflow.py#L48): Note on the line above
+
+Code: `signs_in: bool = False`
+
+> Whether this job signs in: set by the mining pass from its evidence
+> (`checks.signs_in`) and healed onto stored jobs, never guessed at run time.
+> Read by the run engine -- the only jobs a run may splice in to get back
+> through a sign-in page, and the only jobs whose run may end `held` because
+> the browser has moved past their page -- and by anything that later has to
+> know which jobs sign in to a system.
+

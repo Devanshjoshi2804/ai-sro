@@ -72,9 +72,10 @@ from sro.domain.shared.hosts import (
 from sro.domain.shared.hosts import same_screen, screen_of, system_of
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
+from sro.domain.skill.checks import does_business
 from sro.domain.skill.learned import demanded
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
-from sro.domain.skill.signing_in import is_a_way_in, is_sign_in_page, signs_in_at
+from sro.domain.skill.signing_in import is_sign_in_page, signs_in_at
 from sro.domain.skill.workflow import Step, Workflow
 from sro.whose import attribute
 
@@ -199,14 +200,14 @@ async def _the_way_back_in(
     if look is None or not (look.signed_out or look.elsewhere):
         return None, []
     where = look.elsewhere or look.url or ""
-    known = await uow.workflows.known(tenant_id)
+    known = [job for job in await uow.workflows.known(tenant_id) if job.signs_in]
     cited = sorted({one for job in known for step in job.steps for one in step.cites})
     seen = (
         {one.id: one for one in await uow.gestures.gestures_for(tenant_id, ids=tuple(cited))}
         if cited
         else {}
     )
-    back = signs_in_at(where, list(known), seen, not_this=workflow.id)
+    back = signs_in_at(where, known, seen, not_this=workflow.id)
     if back is None:
         return None, []
     job = next((one for one in known if one.id == back), None)
@@ -1192,7 +1193,8 @@ async def run_workflow(
             in_flight = record
             run.steps.append(record)
             origin = origin_of(primary) if primary is not None else None
-            mutates = writes(step, by_id)
+            sign_in_step = (leg.rescue or workflow.signs_in) and not does_business(step, by_id)
+            mutates = not sign_in_step and writes(step, by_id)
             writes_ahead = any(
                 later.order > step.order and writes(later, by_id) for later in ordered
             )
@@ -1518,7 +1520,7 @@ async def run_workflow(
 
                 pressing = planned.payload.get("action") in ("click", "press")
                 signing_in = is_sign_in_page(primary.url if primary is not None else None)
-                may_write = (not leg.rescue) and (
+                may_write = not sign_in_step and (
                     mutates
                     or (
                         pressing
@@ -1711,7 +1713,7 @@ async def run_workflow(
                     if reply.ok
                     else f"FAILED {reply.detail[:120]}",
                 )
-                if not reply.ok and reply.error_kind in K_NOT_HERE and is_a_way_in(workflow, by_id):
+                if not reply.ok and reply.error_kind in K_NOT_HERE and workflow.signs_in:
                     went = await _where(channel, tenant_id, device_id, run.id, origin)
                     if went.elsewhere_is_ours and not went.signed_out:
                         record.verdict, record.verdict_by = "skipped", "none"

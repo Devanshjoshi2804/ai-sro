@@ -1685,6 +1685,7 @@ async def test_a_session_that_went_is_signed_back_into_and_the_step_tried_again(
             narrative="n",
             systems=[LOGIN],
             steps=[Step(order=0, says="Click 'Local WMS users'", system=None, cites=[door.id])],
+            signs_in=True,
         )
     )
     # The browser is at the sign-in page: no tab on the system, and the page in
@@ -1737,6 +1738,7 @@ async def test_a_run_signs_back_in_once_and_not_forever() -> None:
             narrative="n",
             systems=[LOGIN],
             steps=[Step(order=0, says="Click 'Local WMS users'", system=None, cites=[door.id])],
+            signs_in=True,
         )
     )
     away = Reply(ok=True, result={"url": None, "elsewhere": f"{LOGIN}/oauth2", "signed_out": True})
@@ -1792,6 +1794,7 @@ async def test_a_step_that_failed_for_its_own_reasons_does_not_go_looking_for_a_
             narrative="n",
             systems=[LOGIN],
             steps=[Step(order=0, says="Click 'Local WMS users'", system=None, cites=[door.id])],
+            signs_in=True,
         )
     )
     # On the right screen, and the control simply is not there.
@@ -1812,9 +1815,12 @@ async def test_a_step_that_failed_for_its_own_reasons_does_not_go_looking_for_a_
     ]
 
 
-async def _a_way_back_in(uow: FakeUnitOfWork, how_many: int = 1) -> None:
+async def _a_way_back_in(
+    uow: FakeUnitOfWork, how_many: int = 1, requests: Sequence[Call] = ()
+) -> None:
     """The tenant's sign-in job, `how_many` steps of it, every gesture on the
-    sign-in host -- which is the shape `signs_in_at` looks for."""
+    sign-in host and the job found to sign in -- which is what `signs_in_at`
+    looks for."""
     doors = [
         replace(
             _evidence(uow)[0],
@@ -1827,7 +1833,7 @@ async def _a_way_back_in(uow: FakeUnitOfWork, how_many: int = 1) -> None:
             # (SSO)`. To this loop a silent click is a possible write
             # (`_saw_nothing`) -- which is exactly the rule a sign-in must not
             # be judged by, and the fixture says so by being the same shape.
-            requests=[],
+            requests=list(requests),
         )
         for n in range(how_many)
     ]
@@ -1843,6 +1849,7 @@ async def _a_way_back_in(uow: FakeUnitOfWork, how_many: int = 1) -> None:
                 Step(order=n, says=f"Click the sign-in control {n}", system=None, cites=[one.id])
                 for n, one in enumerate(doors)
             ],
+            signs_in=True,
         )
     )
 
@@ -2047,6 +2054,47 @@ async def test_a_click_that_signs_back_in_is_not_a_write() -> None:
     # And the marker that would stop the card offering another press.
     assert not any((one.result or {}).get("wrote") for one in signing_in), [
         one.result for one in signing_in
+    ]
+
+
+async def test_a_spliced_step_that_writes_is_judged_as_a_write() -> None:
+    """A leg spliced in to sign back in obeys the same write rules as any
+    other. What makes a sign-in click not a write is its own evidence -- a job
+    found to sign in, and a step that wrote nothing back to its page -- and a
+    spliced step whose demonstration came back 201 on its own host is a write
+    whatever job it came from."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    await _a_way_back_in(
+        uow, requests=(Call(method="POST", url=f"{LOGIN}/api/accounts", status=201),)
+    )
+    away = Reply(ok=True, result={"url": None, "elsewhere": f"{LOGIN}/oauth2", "signed_out": True})
+    channel = FakeChannel(
+        {
+            "ui.url": [away] * 20,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+            ]
+            * 20,
+            "ui.perform": [_performed()] * 10,
+        }
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=_PerSchemaAsker(
+            plan=_plan("click"), verdict=Answer(data={"held": False, "why": "no"})
+        ),
+        values={},
+        earned=True,
+    )
+
+    spliced = [one for one in run.steps if one.says.startswith("Click the sign-in control")]
+    assert spliced, [one.says for one in run.steps]
+    assert any((one.result or {}).get("wrote") for one in spliced), [
+        (one.result, one.reason[:60]) for one in spliced
     ]
 
 
@@ -6979,6 +7027,40 @@ async def test_a_sign_in_whose_page_is_gone_because_it_worked_is_done() -> None:
     """
     uow = await _fixture()
     workflow = await _workflow(uow)
+    workflow.signs_in = True
+    run = await _ran_where_the_page_went(uow, workflow)
+
+    assert run.outcome == "held", [(s.order, s.verdict, s.reason[:70]) for s in run.steps]
+    assert "signed in" in run.steps[-1].reason
+    assert "wms.example" in run.steps[-1].reason, "it did not say where the browser had got to"
+
+
+async def test_an_ordinary_job_whose_page_is_gone_has_not_succeeded() -> None:
+    """The same browser, the same failure, on a job that does not sign in.
+
+    Every gesture of an ordinary job on one warehouse host is on one origin,
+    which is what the old rule read as "a job that does nothing but sign in".
+    So a run of it that lost its page while the browser sat elsewhere on the
+    system was reported `held` -- succeeded -- with its Save never pressed."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    approvals = Approvals()
+
+    # It goes the ordinary way: the panel asks for the browser, and the step
+    # that still finds no tab fails.
+    task = asyncio.create_task(_ran_where_the_page_went(uow, workflow, approvals))
+    approvals.approve(await _parked(approvals))
+    run = await task
+
+    assert run.outcome != "held", [(s.order, s.verdict, s.reason[:70]) for s in run.steps]
+    assert not any("signs in at is gone" in one.reason for one in run.steps)
+
+
+async def _ran_where_the_page_went(
+    uow: FakeUnitOfWork, workflow: Workflow, approvals: Approvals | None = None
+) -> WorkflowRun:
+    """Step 0 held, then step 1 found no tab, and the run's own tab is
+    elsewhere on this system and not asking anybody to sign in."""
     gone = Reply(ok=False, error_kind="no_tab_for_system", error_detail="no tab")
     channel = FakeChannel(
         {
@@ -7009,11 +7091,9 @@ async def test_a_sign_in_whose_page_is_gone_because_it_worked_is_done() -> None:
     )
     asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": ""}))
 
-    run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
-
-    assert run.outcome == "held", [(s.order, s.verdict, s.reason[:70]) for s in run.steps]
-    assert "signed in" in run.steps[-1].reason
-    assert "wms.example" in run.steps[-1].reason, "it did not say where the browser had got to"
+    return await _ran(
+        uow, workflow, channel=channel, asker=asker, values={}, earned=True, approvals=approvals
+    )
 
 
 async def test_a_sign_in_whose_page_is_gone_asks_rather_than_calling_itself_done() -> None:
@@ -7035,6 +7115,7 @@ async def test_a_sign_in_whose_page_is_gone_asks_rather_than_calling_itself_done
     """
     uow = await _fixture()
     workflow = await _workflow(uow)
+    workflow.signs_in = True
     # The run's own tab, and a page still asking somebody to sign in. That is
     # the whole of the difference from the run above, where the browser was in
     # the warehouse: same job, same failure, same step held before it.

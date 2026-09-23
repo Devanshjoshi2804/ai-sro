@@ -9039,3 +9039,94 @@ async def test_a_run_does_not_navigate_back_to_a_page_the_browser_is_past() -> N
     behind = next((one for one in run.steps if one.of_step == 0), None)
     assert behind is not None and behind.verdict == "not_needed", behind
     assert any(one.of_step == 1 for one in run.steps), "the run never reached the step it was on"
+
+
+async def test_a_sign_in_page_is_recognised_whatever_fragment_it_was_recorded_with() -> None:
+    """The SSO chooser as the recorder saw it, and as the operator stood on it.
+
+    Recorded after a session expired, so the redirect carried the portal
+    screen the operator had left: `#wm.config/wm.config.partners.customers.
+    types////`. The live chooser carried none. `same_screen` compares the
+    fragment -- rightly, for the portal, where it IS the screen -- so the
+    chooser the operator was on never matched the chooser that was recorded,
+    and `run_18c9f4ef` opened two more portal tabs and did nothing.
+    """
+    uow = await _fixture()
+    chooser = "https://b2c.example/tenant.onmicrosoft.com/b2c_1a_signin/oauth2/v2.0/authorize"
+    door = replace(
+        _evidence(uow)[0],
+        id="ges_portal",
+        url="https://wms.test/portal?siteId=SG#wm.config/wm.config.warehouse.warehouse////",
+        page_url="https://wms.test/portal?siteId=SG#wm.config/wm.config.warehouse.warehouse////",
+        system="https://wms.test",
+        requests=[],
+    )
+    recorded = replace(
+        _evidence(uow)[0],
+        id="ges_chooser",
+        url=f"{chooser}?client_id=abc#wm.config/wm.config.partners.customers.types////",
+        page_url=f"{chooser}?client_id=abc#wm.config/wm.config.partners.customers.types////",
+        system="https://b2c.example",
+        requests=[],
+    )
+    await uow.gestures.add_gestures((door, recorded))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_fragment",
+            tenant=TENANT.value,
+            title="Log in using Azure B2C SSO",
+            narrative="n",
+            systems=["https://wms.test", "https://b2c.example"],
+            steps=[
+                Step(order=0, says="Click OK on the dialog", system=None, cites=[door.id]),
+                Step(order=1, says="Click Local WMS users", system=None, cites=[recorded.id]),
+            ],
+        )
+    )
+    workflow = await uow.workflows.get(TENANT, "wfl_fragment")
+    here = Reply(
+        ok=True,
+        result={"url": None, "elsewhere": f"{chooser}?client_id=xyz", "elsewhere_is_ours": True},
+    )
+    channel = FakeChannel(
+        {
+            "ui.perform": [
+                Reply(ok=False, error_kind="element_gone", error_detail="gone"),
+                Reply(ok=False, error_kind="element_gone", error_detail="gone"),
+                _performed(),
+                _performed(),
+            ],
+            "ui.url": [here] * 8,
+            "navigate": [Reply(ok=True, result={})] * 4,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+            ]
+            * 8,
+        }
+    )
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=FakeAsker(_navigate("https://wms.test/portal"), *[_plan("click")] * 8),
+        earned=True,
+    )
+
+    assert not [one for one in channel.sent if one["kind"] == "navigate"], (
+        "it opened the portal again instead of seeing it was on the chooser"
+    )
+    behind = next((one for one in run.steps if one.of_step == 0), None)
+    assert behind is not None and behind.verdict == "not_needed", behind
+
+
+def test_two_portal_screens_are_still_told_apart_by_their_route() -> None:
+    """The exception is for crossing systems only. Within the portal the
+    fragment is the screen, and host-and-path would call every screen one."""
+    from sro.application.execution.run_workflow import _host_path
+
+    warehouse = "https://wms.test/portal?siteId=SG#wm.config/wm.config.warehouse.warehouse////"
+    types = "https://wms.test/portal?siteId=SG#wm.config/wm.config.partners.customers.types////"
+    assert _host_path(warehouse) == _host_path(types), "the premise of the exception"
+    from sro.domain.shared.hosts import same_screen
+
+    assert not same_screen(warehouse, types)

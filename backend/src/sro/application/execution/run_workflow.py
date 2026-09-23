@@ -47,7 +47,7 @@ from collections.abc import Set as AbstractSet
 from contextlib import suppress
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit
 
 from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
 from sro.application.execution.declared import declared_keys, names_of, screen_for
@@ -970,29 +970,55 @@ async def _ahead_of_here(
     )
     if not on:
         return None
+    after_screen = screen_of_step(after)
     for one in ordered:
         if one.order <= after.order:
             continue
         screen = screen_of_step(one)
+        # `same_screen` and not `page_of`: a warehouse portal keeps its route
+        # in the fragment, so `page_of` calls the Warehouse screen and the
+        # Customer Types screen the same page -- and this would step over the
+        # navigation between them.
+        #
+        # Except across systems. A sign-in page reached by a redirect carries
+        # the fragment of the page the operator LEFT: `wfl_5873ec01`'s SSO
+        # chooser was recorded as `…/oauth2/v2.0/authorize?…#wm.config/
+        # wm.config.partners.customers.types////`, the portal screen whose
+        # session expired. That fragment is not the chooser's route, and
+        # comparing it made the chooser the operator was standing on a
+        # different screen from the chooser that was recorded -- `run_18c9f4ef`,
+        # 2026-09-23, two more tabs and nothing done. Within one system the
+        # full route still decides.
+        same = bool(screen) and (
+            same_screen(screen, on)
+            or (_host_of(screen) != _host_of(after_screen) and _host_path(screen) == _host_path(on))
+        )
         logger.info(
             "%s step %d: step %d's screen is %r -- %s",
             run_id,
             after.order,
             one.order,
             screen,
-            "the same" if screen and same_screen(screen, on) else "not this one",
+            "the same" if same else "not this one",
         )
-        # `same_screen` and not `page_of`: a warehouse portal keeps its route
-        # in the fragment, so `page_of` calls the Warehouse screen and the
-        # Customer Types screen the same page -- and this would step over the
-        # navigation between them.
-        if not screen or not same_screen(screen, on):
+        if not same:
             continue
         passed = [before for before in ordered if after.order <= before.order < one.order]
         if any(writes(before, by_id) for before in passed):
             return None
         return one.order
     return None
+
+
+def _host_of(url: str | None) -> str:
+    return urlsplit(url or "").netloc.lower()
+
+
+def _host_path(url: str | None) -> tuple[str, str]:
+    """A url as host and path, the screen of a page whose route is not in its
+    fragment -- a sign-in form, a chooser."""
+    parts = urlsplit(url or "")
+    return (parts.netloc.lower(), parts.path.rstrip("/").lower())
 
 
 async def _where(

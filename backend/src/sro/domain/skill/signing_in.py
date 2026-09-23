@@ -39,6 +39,7 @@ picking between them is guessing with somebody's credentials.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from urllib.parse import urlsplit
 
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.hosts import origin_of
@@ -83,6 +84,26 @@ def is_a_way_in(job: Workflow, by_id: Mapping[str, Gesture]) -> bool:
     return len(where) == 1 and bool(next(iter(where)))
 
 
+_SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-actions/", "/saml2/")
+"""Paths an identity provider serves its sign-in pages under: Azure B2C's
+chooser (`…/oauth2/v2.0/authorize`), Keycloak's form (`…/protocol/openid-connect/
+auth`, and `…/login-actions/authenticate` once it has been posted once), SAML."""
+
+
+def is_sign_in_page(url: str | None) -> bool:
+    """Whether this page belongs to an identity provider's sign-in.
+
+    A click there can sign somebody in and nothing else -- no warehouse record
+    is on an identity provider. Measured on the deployment 2026-09-23,
+    `run_0133f4ce`: the click on the Azure chooser recorded no traffic, so it
+    was a possible write by the silent-click rule, and when the page had not
+    moved yet the run ended "state unknown after a write; not retried" on a
+    sign-in link.
+    """
+    path = urlsplit(url or "").path.lower()
+    return any(marker in path + "/" for marker in _SIGN_IN_PATHS)
+
+
 def _entirely_at(job: Workflow, origin: str, by_id: Mapping[str, Gesture]) -> bool:
     """Whether every gesture this job cites happened on that origin."""
     cited = [by_id[one] for step in job.steps for one in step.cites if one in by_id]
@@ -91,4 +112,4 @@ def _entirely_at(job: Workflow, origin: str, by_id: Mapping[str, Gesture]) -> bo
     return all(origin_of(one.url or one.system or "") == origin for one in cited)
 
 
-__all__ = ["is_a_way_in", "signs_in_at"]
+__all__ = ["is_a_way_in", "is_sign_in_page", "signs_in_at"]

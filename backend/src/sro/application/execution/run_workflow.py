@@ -78,6 +78,7 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.domain.chat.asked_by import only_reads_the_mail
 from sro.domain.execution.belts import K_WEAK_LOCATORS, StepVerdict
 from sro.domain.execution.evidence import (
+    PUTS_A_VALUE,
     READ_METHODS,
     allowlist,
     origin_of,
@@ -110,7 +111,7 @@ from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.learned import demanded
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
-from sro.domain.skill.signing_in import is_a_way_in, signs_in_at
+from sro.domain.skill.signing_in import is_a_way_in, is_sign_in_page, signs_in_at
 from sro.domain.skill.workflow import Step, Workflow
 from sro.whose import attribute
 
@@ -1004,10 +1005,28 @@ async def _ahead_of_here(
         if not same:
             continue
         passed = [before for before in ordered if after.order <= before.order < one.order]
-        if any(writes(before, by_id) for before in passed):
+        # Nor over a step that puts a value in. A page that looks right is not
+        # a field that holds it: Keycloak serves its one login form at two
+        # addresses, `…/openid-connect/auth` and, once posted, `…/login-actions/
+        # authenticate`, and `wfl_5873ec01` recorded its Sign In on the second.
+        # `run_6f30e995`, 2026-09-23, stood on that address after an earlier
+        # failed run, matched Sign In, stepped over the username and the
+        # password, and pressed Sign In on an empty form. Only while the browser
+        # is still on that value's host: one that has left it -- the portal,
+        # after a sign-in somebody did themselves -- is past it.
+        if any(
+            writes(before, by_id)
+            or (_puts_a_value(before, by_id) and _host_of(screen_of_step(before)) == _host_of(on))
+            for before in passed
+        ):
             return None
         return one.order
     return None
+
+
+def _puts_a_value(step: Step, by_id: Mapping[str, Gesture]) -> bool:
+    primary = primary_gesture(step, by_id)
+    return primary is not None and primary.action.kind in PUTS_A_VALUE
 
 
 def _host_of(url: str | None) -> str:
@@ -2798,6 +2817,10 @@ async def run_workflow(
                 # card then offered no "Try it again" either -- because a run
                 # whose write may have landed must not be pressed twice.
                 pressing = planned.payload.get("action") in ("click", "press")
+                # A silent click on an identity provider's page signs somebody
+                # in and cannot write anything -- see `is_sign_in_page`. A
+                # recorded write there is still a write: `mutates` is untouched.
+                signing_in = is_sign_in_page(primary.url if primary is not None else None)
                 may_write = (not leg.rescue) and (
                     mutates
                     # A click at a point the MODEL chose is a click on whatever
@@ -2807,7 +2830,12 @@ async def run_workflow(
                     # whatever the job does later.
                     # Except a `look` move, which is judged by what it sent
                     # rather than by what it might have: see `K_LOOKS`.
-                    or (pressing and planned.kind == "ui.perform_at" and how != "look")
+                    or (
+                        pressing
+                        and planned.kind == "ui.perform_at"
+                        and how != "look"
+                        and not signing_in
+                    )
                     # A click the recorder heard nothing from is a possible
                     # write too -- unless this job's own write is still ahead
                     # of it. Then the demonstration says what this step is:
@@ -2818,6 +2846,7 @@ async def run_workflow(
                         and planned.kind == "ui.perform"
                         and _saw_nothing(step, by_id)
                         and not writes_ahead
+                        and not signing_in
                     )
                 )
 

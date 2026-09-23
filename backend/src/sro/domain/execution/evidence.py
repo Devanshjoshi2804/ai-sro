@@ -17,6 +17,7 @@ from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 
 from sro.domain.observation.gesture import Call, Gesture
+from sro.domain.recording.background import is_background_traffic
 from sro.domain.shared.hosts import same_screen, screen_of, system_of
 from sro.domain.skill.workflow import Step, Workflow
 
@@ -366,6 +367,12 @@ def recorded_call(step: Step, by_id: Mapping[str, Gesture]) -> Call | None:
             if origin is not None and system_of(request.url) != origin:
                 continue
             if not _caused_by(gesture, request):
+                continue
+            # A keep-alive that happened to fire within `K_CAUSED_S` of the
+            # click is still the page's timer: `wfl_5873ec01`'s session-expired
+            # dialog was a "write" by `sessionKeepAlive` and `perftrace` alone,
+            # and a run could not step over it.
+            if is_background_traffic(request.url):
                 continue
             if request.method.upper() not in READ_METHODS:
                 mutations.append(request)

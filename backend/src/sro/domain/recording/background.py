@@ -24,6 +24,8 @@ _BACKGROUND_MARKERS = (
     "analytics",
     "performanceentries",
     "/rum",
+    # Azure B2C's client performance trace, `…/client/perftrace`.
+    "perftrace",
 )
 
 

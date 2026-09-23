@@ -9130,3 +9130,93 @@ def test_two_portal_screens_are_still_told_apart_by_their_route() -> None:
     from sro.domain.shared.hosts import same_screen
 
     assert not same_screen(warehouse, types)
+
+
+async def test_a_value_is_never_stepped_over_because_the_form_looks_right() -> None:
+    """Keycloak serves one login form at two addresses, and `run_6f30e995`,
+    2026-09-23, matched Sign In's address, stepped over the username and
+    the password, and pressed Sign In on an empty form."""
+    uow = await _fixture()
+    realm = "https://keycloak.test/auth/realms/x"
+    door = replace(
+        _evidence(uow)[0],
+        id="ges_door",
+        action=replace(_evidence(uow)[0].action, kind="click", value=None),
+        url=f"{LOGIN}/oauth2/v2.0/authorize",
+        page_url=f"{LOGIN}/oauth2/v2.0/authorize",
+        system=LOGIN,
+        requests=[],
+    )
+    base = _evidence(uow)[0]
+    name = replace(
+        base,
+        id="ges_name",
+        url=f"{realm}/protocol/openid-connect/auth",
+        page_url=f"{realm}/protocol/openid-connect/auth",
+        system="https://keycloak.test",
+        requests=[],
+        action=replace(base.action, kind="type", value="RKU"),
+    )
+    sign_in = replace(
+        _evidence(uow)[0],
+        id="ges_sign_in",
+        url=f"{realm}/login-actions/authenticate",
+        page_url=f"{realm}/login-actions/authenticate",
+        system="https://keycloak.test",
+        requests=[],
+    )
+    await uow.gestures.add_gestures((door, name, sign_in))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_two_addresses",
+            tenant=TENANT.value,
+            title="Log in using Azure B2C SSO",
+            narrative="n",
+            systems=[LOGIN, "https://keycloak.test"],
+            steps=[
+                Step(order=0, says="Click 'Local WMS users'", system=None, cites=[door.id]),
+                Step(order=1, says="Enter the username", system=None, cites=[name.id]),
+                Step(order=2, says="Click Sign In", system=None, cites=[sign_in.id]),
+            ],
+        )
+    )
+    workflow = await uow.workflows.get(TENANT, "wfl_two_addresses")
+    missing = Reply(ok=False, error_kind="control_not_found", error_detail="no visible match")
+    here = Reply(ok=True, result={"url": sign_in.url, "elsewhere_is_ours": True})
+    channel = FakeChannel(
+        {
+            "ui.perform": [missing] * 8,
+            "ui.url": [here] * 8,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+            ]
+            * 8,
+        }
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=FakeAsker(*[_plan("click")] * 8), earned=True
+    )
+
+    assert not [one for one in run.steps if one.verdict == "not_needed"], [
+        (one.of_step, one.reason) for one in run.steps
+    ]
+    assert not any(one.of_step == 2 for one in run.steps), "Sign In was pressed on an empty form"
+
+
+def test_a_click_on_an_identity_providers_page_is_a_sign_in() -> None:
+    from sro.domain.skill.signing_in import is_sign_in_page
+
+    assert is_sign_in_page("https://b2c.test/t/b2c_1a_signin/oauth2/v2.0/authorize?x=1")
+    assert is_sign_in_page("https://kc.test/auth/realms/r/protocol/openid-connect/auth")
+    assert is_sign_in_page("https://kc.test/auth/realms/r/login-actions/authenticate?e=1")
+    assert not is_sign_in_page("https://wms.test/portal?siteId=SG#wm.config/x////")
+    assert not is_sign_in_page(None)
+
+
+def test_a_keep_alive_beside_a_click_is_not_its_write() -> None:
+    from sro.domain.recording.background import is_background_traffic
+
+    assert is_background_traffic("https://wms.test/refs/data/api/v1/rp/admin/sessionKeepAlive")
+    assert is_background_traffic("https://b2c.test/t/B2C_1A_x/client/perftrace?tx=1")
+    assert not is_background_traffic("https://wms.test/data/WM/wm/customerTypes")

@@ -8740,7 +8740,6 @@ async def test_a_click_that_sent_nothing_leaves_the_next_move_free() -> None:
     assert run.steps[0].verdict == "held", run.steps[0].reason
 
 
-
 async def test_a_run_joins_the_job_where_the_browser_already_is() -> None:
     """A step whose page the operator has already been through is stepped over.
 
@@ -8807,6 +8806,7 @@ async def test_a_run_joins_the_job_where_the_browser_already_is() -> None:
     assert behind.verdict == "not_needed", f"{behind.verdict}: {behind.reason}"
     assert "already past this" in behind.reason
     assert any(one.of_step == 1 for one in run.steps), "the run never reached the step it was on"
+
 
 async def test_a_delete_done_on_screen_earns_the_job_by_its_status() -> None:
     """Measured on the deployment 2026-09-22 at 15:28: the first `Delete a
@@ -8960,4 +8960,82 @@ async def test_a_declined_step_is_stepped_over_when_the_browser_is_ahead() -> No
     behind = next((one for one in run.steps if one.of_step == 0), None)
     assert behind is not None, "step 0 was never recorded"
     assert behind.verdict == "not_needed", f"{behind.verdict}: {behind.reason}"
+    assert any(one.of_step == 1 for one in run.steps), "the run never reached the step it was on"
+
+
+async def test_a_run_does_not_navigate_back_to_a_page_the_browser_is_past() -> None:
+    """No tab on this step's system, so the planner asks to navigate there --
+    and the navigate opened one, a new tab each rung. `run_f1a970de`,
+    2026-09-23: step 0 is a session-expired dialog on the portal, the browser
+    was already on the SSO chooser step 1 clicks, and the run kept opening the
+    portal until it gave up."""
+    uow = await _fixture()
+    door = replace(
+        _evidence(uow)[0],
+        id="ges_portal",
+        url="https://wms.test/portal",
+        page_url="https://wms.test/portal",
+        system="https://wms.test",
+        requests=[],
+    )
+    chooser = replace(
+        _evidence(uow)[0],
+        id="ges_chooser",
+        url=f"{LOGIN}/oauth2/v2.0/authorize",
+        page_url=f"{LOGIN}/oauth2/v2.0/authorize",
+        system=LOGIN,
+        requests=[],
+    )
+    await uow.gestures.add_gestures((door, chooser))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_back",
+            tenant=TENANT.value,
+            title="Log in using Azure B2C SSO",
+            narrative="n",
+            systems=["https://wms.test", LOGIN],
+            steps=[
+                Step(order=0, says="Click OK on the dialog", system=None, cites=[door.id]),
+                Step(order=1, says="Click Local WMS users", system=None, cites=[chooser.id]),
+            ],
+        )
+    )
+    workflow = await uow.workflows.get(TENANT, "wfl_back")
+    # The browser answers about the tab this run is for: none on the portal,
+    # and the one it has is on the chooser.
+    here = Reply(
+        ok=True,
+        result={"url": None, "elsewhere": chooser.url, "elsewhere_is_ours": True},
+    )
+    channel = FakeChannel(
+        {
+            "ui.perform": [
+                Reply(ok=False, error_kind="element_gone", error_detail="gone"),
+                Reply(ok=False, error_kind="element_gone", error_detail="gone"),
+                _performed(),
+                _performed(),
+            ],
+            "ui.url": [here] * 8,
+            "navigate": [Reply(ok=True, result={})] * 4,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+            ]
+            * 8,
+        }
+    )
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        # Step 0's planner asks to go back to the portal; step 1 is planned as
+        # the click it is.
+        asker=FakeAsker(_navigate("https://wms.test/portal"), *[_plan("click")] * 8),
+        earned=True,
+    )
+
+    assert not [one for one in channel.sent if one["kind"] == "navigate"], (
+        "it navigated back to a page the browser had already left"
+    )
+    behind = next((one for one in run.steps if one.of_step == 0), None)
+    assert behind is not None and behind.verdict == "not_needed", behind
     assert any(one.of_step == 1 for one in run.steps), "the run never reached the step it was on"

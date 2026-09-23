@@ -2341,6 +2341,13 @@ async def run_workflow(
             # failure handling below applies to a step nobody needed.
             stepped_over = False
             for how, model in rungs:
+                # A step found to be behind the browser is over, whichever rung
+                # found it. The hooks that decide it sit inside the planning
+                # loop below, where a `break` only leaves that loop -- and the
+                # next rung then planned the step again and navigated back to
+                # a page the operator had left, in a new tab each time.
+                if stepped_over:
+                    break
                 # Only after the SCREEN failed a move, because that is the one
                 # verdict that says what is wrong in a sentence a picture can
                 # act on. A navigate that would not go, a point off the screen,
@@ -2614,6 +2621,38 @@ async def run_workflow(
                         )
                         break
                     else:
+                        # Going BACK to this step's page, when the operator is
+                        # already further on, is the wrong way. The browser has
+                        # no tab on this step's system -- that is why the
+                        # planner wants to navigate -- so the navigate opened
+                        # one, and each rung that asked opened another.
+                        # Measured 2026-09-23, `run_f1a970de`: step 0 of `Log in
+                        # using Azure B2C SSO` is a session-expired dialog on the
+                        # portal, the browser was on the SSO chooser that step 1
+                        # clicks, and the run kept opening the portal in new
+                        # tabs until it gave up.
+                        if live:
+                            ahead = await _ahead_of_here(
+                                channel,
+                                tenant_id,
+                                device_id,
+                                run.id,
+                                origin,
+                                ordered=ordered,
+                                after=step,
+                                by_id=by_id,
+                                screen_of_step=_screen_of,
+                            )
+                            if ahead is not None:
+                                joined_at = ahead
+                                stepped_over = True
+                                never_filled = False
+                                record.verdict, record.verdict_by = "not_needed", "none"
+                                record.reason = (
+                                    "the browser is already past this: it is on the"
+                                    f" screen step {ahead} starts from"
+                                )
+                                break
                         moved = await channel.send(
                             tenant_id,
                             device_id,

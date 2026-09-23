@@ -22,6 +22,7 @@ from sro.application.context import RequestContext
 from sro.application.observation.mine_pass import MinePass
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
+from sro.application.skill.serve_shapes import shapes_for
 from sro.domain.chat.reading import ChatReading
 from sro.domain.observation.driving import WAS_OUR_OWN_DRIVING
 from sro.domain.observation.gesture import Gesture, Intent
@@ -647,3 +648,75 @@ async def test_the_day_the_cap_judges_is_the_callers_and_never_a_neighbours() ->
 
     with pytest.raises(OverCap):
         await _pass(uow, asker=FakeAsker(Answer(data={"workflows": []}))).execute(_ctx(RIVAL))
+
+
+# --- a pass reads only work nothing has placed ------------------------------
+
+
+def _shown(asker: FakeAsker) -> str:
+    [asked] = asker.asked
+    return str(asked["evidence"])
+
+
+async def test_what_a_stored_job_cites_is_not_read_again() -> None:
+    """Every pass used to re-send the gestures stored jobs already cite, so
+    the model re-read and re-proposed known jobs at the price of a call every
+    time. What a job cites is placed; a pass is for what is not."""
+    uow, ids = await _day()
+    assert (await _pass(uow, asker=FakeAsker(_answer(ids[:2]))).execute(_ctx())).kept == 1
+
+    second = FakeAsker(Answer(data={"workflows": []}, cost_usd=0.01))
+    result = await _pass(uow, asker=second).execute(_ctx())
+
+    assert result.window_size == len(ids) - 2
+    assert not any(f'"{one}"' in _shown(second) for one in ids[:2])
+    assert all(f'"{one}"' in _shown(second) for one in ids[2:])
+
+
+async def test_a_new_doing_of_a_stored_job_still_teaches_it_without_the_old_one() -> None:
+    """The earlier doing is not in the window any more, and learning does not
+    need it there: `learn_parameters` reads the stored job's own citations from
+    the gesture store, not from what this pass was shown."""
+    uow, ids = await _day()
+    original = [_rows(uow)[gesture_id] for gesture_id in ids]
+    assert (await _pass(uow, asker=FakeAsker(_answer(ids))).execute(_ctx())).kept == 1
+
+    again_rows = [
+        replace(
+            row,
+            id=f"{row.id}_again",
+            at=row.at + 10_000.0,
+            action=(
+                replace(row.action, value="SOMETHING-ELSE")
+                if row.action.kind == "type" and row.action.value
+                else row.action
+            ),
+        )
+        for row in original
+    ]
+    await uow.gestures.add_gestures(tuple(again_rows))
+    asker = FakeAsker(_answer([row.id for row in again_rows]))
+
+    again = await _pass(uow, asker=asker).execute(_ctx())
+
+    assert not any(f'"{one}"' in _shown(asker) for one in ids), "the first doing was sent again"
+    assert (again.kept, again.window_size) == (0, len(again_rows))
+    assert again.learned_parameters >= 1
+
+
+async def test_a_retired_job_is_not_mined_back_and_not_offered() -> None:
+    """Retired is for good: the job leaves the menu and the shapes, and its
+    gestures stay placed, so no pass can read them into a fresh copy."""
+    uow, ids = await _day()
+    assert (await _pass(uow, asker=FakeAsker(_answer(ids[:2]))).execute(_ctx())).kept == 1
+    [job] = await uow.workflows.known(TENANT)
+    await uow.workflows.retire(TENANT, job.id, at=NOW)
+
+    asker = FakeAsker(_answer(ids[:2]))
+    result = await _pass(uow, asker=asker).execute(_ctx())
+
+    assert not any(f'"{one}"' in _shown(asker) for one in ids[:2])
+    assert result.kept == 0
+    assert [one.reason for one in result.rejections] == ["unknown gesture"]
+    assert await uow.workflows.known(TENANT) == ()
+    assert await shapes_for(uow, tenant_id=TENANT, now=NOW) == []

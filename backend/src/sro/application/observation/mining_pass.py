@@ -367,6 +367,7 @@ async def _one_pass(
     linked = {gesture_id for ids in crossings.values() for gesture_id in ids}
     linked |= worked_in_both(gestures, gap=K_SITTING_GAP_S, ours=ours)
 
+    stored_cites = await uow.workflows.placed(tenant_id)
     carried = await uow.pool.waiting(tenant_id)
     pooled_ids = [entry.gesture_id for entry in carried]
     lost = [gesture_id for gesture_id in pooled_ids if gesture_id not in by_id]
@@ -375,13 +376,17 @@ async def _one_pass(
     pooled: list[Packed] = []
     for entry in carried:
         gesture = by_id.get(entry.gesture_id)
-        if gesture is None:
+        if gesture is None or gesture.id in stored_cites:
             continue
         item = _packed(gesture, intents.get(entry.gesture_id), linked)
         item.strength += entry.waited * K_POOL_WAIT
         pooled.append(item)
     in_pool = set(pooled_ids)
-    fresh = [gesture for gesture in gestures if gesture.id not in in_pool]
+    fresh = [
+        gesture
+        for gesture in gestures
+        if gesture.id not in in_pool and gesture.id not in stored_cites
+    ]
 
     known = list(await uow.workflows.known(tenant_id))
     known = [
@@ -532,7 +537,7 @@ async def _one_pass(
             result.coverage.coverage < K_MIN_COVERAGE or abs(result.coverage.skew) > K_MAX_SKEW
         )
 
-        claimed = frozenset(c for w in placed for c in cited_ids(w))
+        claimed = frozenset(c for w in placed for c in cited_ids(w)) | (in_pool & stored_cites)
         await uow.pool.add_unclaimed(
             tenant_id,
             window_ids=tuple(item.gesture_id for item in window.items) + tuple(window.left_out),

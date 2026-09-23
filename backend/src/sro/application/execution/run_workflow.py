@@ -958,12 +958,30 @@ async def _ahead_of_here(
     """
     look = await _where(channel, tenant_id, device_id, run_id, origin)
     on = look.url or look.elsewhere or ""
+    # Said whichever way it goes. Nothing else records what the browser
+    # answered here -- a `ui.url` that succeeds leaves no trace -- and "why did
+    # it not step over" was unanswerable from the record on 2026-09-23.
+    logger.info(
+        "%s step %d: is the browser ahead? it is on %r (asked about %r)",
+        run_id,
+        after.order,
+        on,
+        origin,
+    )
     if not on:
         return None
     for one in ordered:
         if one.order <= after.order:
             continue
         screen = screen_of_step(one)
+        logger.info(
+            "%s step %d: step %d's screen is %r -- %s",
+            run_id,
+            after.order,
+            one.order,
+            screen,
+            "the same" if screen and same_screen(screen, on) else "not this one",
+        )
         # `same_screen` and not `page_of`: a warehouse portal keeps its route
         # in the fragment, so `page_of` calls the Warehouse screen and the
         # Customer Types screen the same page -- and this would step over the

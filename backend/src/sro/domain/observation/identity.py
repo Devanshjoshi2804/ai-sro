@@ -180,7 +180,7 @@ def resolve(
         theirs = _shape_set(other)
         matched = _shared(shape, theirs)
         score = matched / min(len(shape), len(theirs)) if shape and theirs else 0.0
-        whole = matched >= K_MIN_SHARED_STEPS or matched == len(shape)
+        whole = matched >= K_MIN_SHARED_STEPS
         if (
             score >= K_SAME_JOB
             and whole

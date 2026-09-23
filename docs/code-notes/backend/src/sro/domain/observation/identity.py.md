@@ -267,6 +267,10 @@ Code: `K_MIN_SHARED_STEPS = 2`
 > next reading of it, and the tenant ended the day with three `Log in to
 > Keycloak` -- each one offering itself on the sign-in page, so signing in
 > never made the card stop. A bar nothing can clear is not a bar.
+>
+> That case is now the sign-in fold's (see `resolve`), and the bar is held
+> at two for every shape: letting a one-entry shape clear it on "all of it
+> matched" folded unrelated doings at 1.0 (2026-09-23 review).
 
 ## `Resolution`, [line 98](../../../../../../../backend/src/sro/domain/observation/identity.py#L98): Inline
 
@@ -357,21 +361,25 @@ Code: `matched = _shared(shape, theirs)`
 
 ## `resolve`, [line 183](../../../../../../../backend/src/sro/domain/observation/identity.py#L183): Comment
 
-Code: `whole = matched >= K_MIN_SHARED_STEPS or matched == len(shape)`
+Code: `whole = matched >= K_MIN_SHARED_STEPS`
 
 > Both bars first, then the best of whatever clears them -- not the best
-> overall and then the bars. Two shared steps, OR every step this proposal
-> has. See K_MIN_SHARED_STEPS: the bar cannot ask a one-entry shape for two.
-> Wholly-contained is the honest reading: every distinct step this proposal
-> has already exists in that job, so it is a fragment of it.
+> overall and then the bars. Two shared distinct steps, whichever side is the
+> smaller, and nothing less.
 >
-> Not the other way round. "Every step the STORED job has" was tried
-> (2026-09-23) and folded -- and then grew -- any bigger doing into a
-> one-entry job whose one entry was present in it: an unnamed click on the
-> warehouse is present in every doing that clicks the warehouse, and the
-> 2026-09-19 `Navigate to Receiving` trap came back held shut by nothing
-> but the names. A stored job wholly inside a bigger doing still folds when
-> it has two distinct steps, through the absolute bar; one of one does not.
+> Two escape hatches were tried and both removed (2026-09-23 review). "Every
+> step the STORED job has" folded -- and grew -- any bigger doing into a
+> one-entry job: an unnamed click on the warehouse is present in every doing
+> that clicks the warehouse. "Every step the PROPOSAL has" folded a doing
+> that pressed one control twice into any bigger job touching that control,
+> at 1.0 -- and since a folded doing is now placed, its gestures were filed
+> under the wrong job for good. `validate` counts steps, not distinct shape
+> entries, so two steps on one control reach here as a one-entry shape.
+>
+> What those hatches were for -- the 2026-09-19 `Log in to Keycloak` typed
+> into one box twice -- is a sign-in, and the sign-in fold above recognises
+> it by what it signs in to. A one-entry doing that is not a sign-in resolves
+> new; what it cites is one entry wide either way.
 >
 > Ranked by how many steps are shared, then by containment, so a one-entry
 > stub 1.0-contained by the proposal cannot beat the real match behind it.

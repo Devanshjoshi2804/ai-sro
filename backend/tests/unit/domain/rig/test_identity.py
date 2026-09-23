@@ -239,16 +239,12 @@ MAIL = "https://mail.google.com"
 WMS = "https://bf56-kms-wms-web-np2.jdadelivers.com"
 
 
-def test_a_job_that_does_one_thing_twice_is_not_a_new_job_every_pass() -> None:
-    """A shape is a SET, so a job whose two steps touch the same control the
-    same way is one entry wide -- and the absolute bar then asked it for two
-    shared steps it could not have.
-
-    Measured on the deployment 2026-09-19, tenant `greyorange`. Containment
-    against the stored job was 1.0, a perfect match, and `1 >= 2` refused it.
-    The tenant ended the day holding THREE `Log in to Keycloak`, each offering
-    itself on the sign-in page, so signing in never made the card stop.
-    """
+def test_a_doing_of_one_distinct_step_does_not_fold_into_a_bigger_job() -> None:
+    """A shape is a SET, so a doing that touches one control twice is one
+    entry wide, and "every step of it is in that job" is then true of any
+    job that touches that control -- at 1.0. Folding on it placed the doing's
+    gestures under the wrong job for good. One entry is not enough to say
+    which job this is; it resolves new."""
     stored = _workflow(
         ["ges_a", "ges_b", "ges_c"],
         [
@@ -266,10 +262,31 @@ def test_a_job_that_does_one_thing_twice_is_not_a_new_job_every_pass() -> None:
         ],
     )
 
-    resolution = resolve(again, [stored])
+    assert resolve(again, [stored]).kind == "new"
 
-    assert resolution.kind == "same_job"
-    assert resolution.workflow_id == "wfl_stored"
+
+def test_a_sign_in_that_does_one_thing_twice_folds_by_what_it_signs_in_to() -> None:
+    """Measured on the deployment 2026-09-19: three `Log in to Keycloak`, one
+    of them the same box typed twice. The shape cannot say which job that is;
+    the sign-in can -- the same credential host, the same application after."""
+    stored = _workflow(
+        ["ges_a", "ges_b", "ges_c"],
+        [
+            [KEYCLOAK, "name|Username or email", "type"],
+            [KEYCLOAK, "anon|click", "click"],
+            [KEYCLOAK, "anon|type", "type"],
+        ],
+        id="wfl_stored",
+        signs_in=True,
+    )
+    again = _workflow(
+        ["ges_d", "ges_e"],
+        [[KEYCLOAK, "name|Username or email", "type"]] * 2,
+        signs_in=True,
+    )
+    lands = {"wfl_stored": (KEYCLOAK, WMS), again.id: (KEYCLOAK, WMS)}
+
+    assert resolve(again, [stored], signs_in_to=lands).workflow_id == "wfl_stored"
 
 
 def test_a_step_nobody_could_name_matches_the_named_one_it_is() -> None:

@@ -92,7 +92,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/execution/reversal.py`](backend/src/sro/application/execution/reversal.py.md) | 9 |
 | [`backend/src/sro/application/execution/revise_run.py`](backend/src/sro/application/execution/revise_run.py.md) | 3 |
 | [`backend/src/sro/application/execution/run_from_preview.py`](backend/src/sro/application/execution/run_from_preview.py.md) | 9 |
-| [`backend/src/sro/application/execution/run_workflow.py`](backend/src/sro/application/execution/run_workflow.py.md) | 212 |
+| [`backend/src/sro/application/execution/run_workflow.py`](backend/src/sro/application/execution/run_workflow.py.md) | 213 |
 | [`backend/src/sro/application/execution/self_heal.py`](backend/src/sro/application/execution/self_heal.py.md) | 17 |
 | [`backend/src/sro/application/execution/stops.py`](backend/src/sro/application/execution/stops.py.md) | 3 |
 | [`backend/src/sro/application/execution/verify.py`](backend/src/sro/application/execution/verify.py.md) | 39 |
@@ -345,7 +345,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/infrastructure/gemini/computer_use.py`](backend/src/sro/infrastructure/gemini/computer_use.py.md) | 7 |
 | [`backend/src/sro/infrastructure/gemini/intent.py`](backend/src/sro/infrastructure/gemini/intent.py.md) | 3 |
 | [`backend/src/sro/infrastructure/gemini/interpreter.py`](backend/src/sro/infrastructure/gemini/interpreter.py.md) | 4 |
-| [`backend/src/sro/infrastructure/gemini/metered.py`](backend/src/sro/infrastructure/gemini/metered.py.md) | 6 |
+| [`backend/src/sro/infrastructure/gemini/metered.py`](backend/src/sro/infrastructure/gemini/metered.py.md) | 7 |
 | [`backend/src/sro/infrastructure/gemini/null_intent.py`](backend/src/sro/infrastructure/gemini/null_intent.py.md) | 2 |
 | [`backend/src/sro/infrastructure/gemini/null_interpreter.py`](backend/src/sro/infrastructure/gemini/null_interpreter.py.md) | 2 |
 | [`backend/src/sro/infrastructure/http/api_runs.py`](backend/src/sro/infrastructure/http/api_runs.py.md) | 5 |

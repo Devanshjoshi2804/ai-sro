@@ -59,6 +59,7 @@ from sro.application.execution.run_workflow import (
 from sro.application.execution.stops import Stops
 from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Reply
+from sro.application.shared.refusals import OverCap
 from sro.domain.execution.belts import K_EARNED_RUNS, SCREEN_SCHEMA
 from sro.domain.execution.gathering import Found, Gathered
 from sro.domain.execution.learned_step import LearnedStep
@@ -8248,6 +8249,28 @@ async def test_a_long_list_reads_the_days_bill_again_and_stops_when_it_is_spent(
     # Stopped at a boundary between two things on the list, so what it did is
     # whole records rather than half of one.
     assert run.steps[-1].item is not None and run.steps[-1].item > 0
+
+
+async def test_a_cap_the_meter_refuses_mid_step_stops_the_run_like_the_leg_check() -> None:
+    """The leg check and the meter judge the same day. Crossed between them --
+    a step's own call refused by the meter -- the run is stopped with the
+    reason, the way the leg check stops it, not failed with a traceback."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+
+    class _Refused(_PerSchemaAsker):
+        async def ask(self, *args: object, **kwargs: object) -> Answer:
+            raise OverCap("daily cap reached: $5.0100 of $5.00 spent today")
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=FakeChannel({**_looks(4)}),
+        asker=_Refused(plan=_plan("type", "x"), verdict=Answer(data={"held": True})),
+    )
+
+    assert run.outcome == "stopped"
+    assert "daily cap reached" in (run.steps[-1].reason or "")
 
 
 async def test_a_list_longer_than_one_press_can_mean_is_refused_before_anything_is_sent() -> None:

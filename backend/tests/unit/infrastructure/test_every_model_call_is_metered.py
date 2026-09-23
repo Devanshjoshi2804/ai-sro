@@ -341,3 +341,25 @@ async def test_a_worker_activity_names_its_tenant_so_its_calls_are_capped_and_bi
     with about(), pytest.raises(OverCap):
         await _activity("acme")
     assert models.called == 1
+
+
+async def test_a_refusal_names_the_model_and_who_asked(caplog: pytest.LogCaptureFixture) -> None:
+    """A refused call in the log is only useful if it says which model and
+    which part of the system wanted it."""
+    uow = FakeUnitOfWork()
+    await uow.spend.record(_spent("acme", 6.0))
+    client, _ = _metered(_Models(), cap_usd=5.0, uow=uow)
+    embedder = GeminiEmbedder("gemini-embedding-001", client=client)
+
+    async def _wanting_a_vector() -> None:
+        await embedder.embed(("x",))
+
+    with about(tenant="acme"), pytest.raises(OverCap):
+        await _wanting_a_vector()
+    with about(), pytest.raises(Unattributed):
+        await _wanting_a_vector()
+
+    lines = [r.getMessage() for r in caplog.records if r.name.endswith("metered")]
+    assert len(lines) == 2, lines
+    for line in lines:
+        assert "gemini-embedding-001" in line and "_wanting_a_vector" in line, line

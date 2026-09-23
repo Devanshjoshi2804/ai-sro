@@ -38,6 +38,13 @@ Comments and docstrings for [`backend/src/sro/infrastructure/gemini/metered.py`]
 > knowledge CLIs. A negative cap -- the shipped default -- is then answered
 > without a query.
 
+## `_caller`: Docstring
+
+> Who wanted the refused call: the nearest frame outside the adapters, the
+> metered client and asyncio -- the use case, as `module.function`. The refusal
+> and over-cap lines carry it with the model, so a log line says which part of
+> the system hit the cap on which model.
+
 ## `Meter.record`, [line 40](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L40): Docstring
 
 > One `model_spend` row per answered call, in its own unit of work: the money

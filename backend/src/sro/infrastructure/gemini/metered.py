@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import logging
 import math
+import traceback
 from collections.abc import Callable
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 from uuid import uuid4
@@ -19,6 +21,8 @@ logger = logging.getLogger(__name__)
 
 K_CHARS_PER_TOKEN = 4
 
+_NOT_THE_CALLER = ("/sro/infrastructure/", "/asyncio/", "contextlib")
+
 
 class Unattributed(Exception):
     pass
@@ -30,10 +34,10 @@ class Meter:
         self._clock = clock
         self._cap_usd = cap_usd
 
-    async def check(self) -> None:
+    async def check(self, model: str) -> None:
         tenant = _tenant()
         if not tenant:
-            logger.error("a model call was made for no tenant; refused")
+            logger.error("a %s call from %s was made for no tenant; refused", model, _caller())
             raise Unattributed("a model call was made for no tenant, so no cap or bill sees it")
         if self._cap_usd < 0:
             return
@@ -42,6 +46,7 @@ class Meter:
                 uow, TenantId(tenant), now=self._clock.now(), cap_usd=self._cap_usd
             )
         if why is not None:
+            logger.warning("%s: a %s call from %s refused -- %s", tenant, model, _caller(), why)
             raise OverCap(why)
 
     async def record(
@@ -84,7 +89,7 @@ class Metered:
         self.aio = SimpleNamespace(models=self)
 
     async def generate_content(self, *, model: str, **rest: Any) -> Any:
-        await self._meter.check()
+        await self._meter.check(model)
         response = await self._models.generate_content(model=model, **rest)
         usage = getattr(response, "usage_metadata", None)
         prompt = getattr(usage, "prompt_token_count", None)
@@ -98,7 +103,7 @@ class Metered:
         return response
 
     async def embed_content(self, *, model: str, contents: Any, **rest: Any) -> Any:
-        await self._meter.check()
+        await self._meter.check(model)
         response = await self._models.embed_content(model=model, contents=contents, **rest)
         sent = sum(len(str(one)) for one in contents)
         await self._meter.record(
@@ -118,6 +123,13 @@ def metered_client(api_key: str, meter: Meter, *, timeout_ms: int | None = None)
         ),
         meter,
     )
+
+
+def _caller() -> str:
+    for frame in reversed(traceback.extract_stack()[:-2]):
+        if not any(part in frame.filename for part in _NOT_THE_CALLER):
+            return f"{Path(frame.filename).stem}.{frame.name}"
+    return "unknown"
 
 
 def _tenant() -> str:

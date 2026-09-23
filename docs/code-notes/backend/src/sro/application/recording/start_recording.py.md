@@ -36,16 +36,6 @@ Code: `target_system: str | None = None`
 > The connected system this URL belongs to, if any -- which is how a
 > demonstration that names nothing still starts already signed in.
 
-## `StartRecording._in_their_own_browser`, [line 114](../../../../../../../backend/src/sro/application/recording/start_recording.py#L114): Docstring
-
-> A demonstration this deployment does not drive.
->
-> No browser is opened and no session is restored: the operator is
-> already signed in to the system, in front of it, and about to do the
-> task. The recording is an empty vessel until their extension uploads
-> the teaching batches that fill it, and there is no live view because
-> there is nothing to watch that they are not already looking at.
-
 ## `StartRecording._refuse_unless_allowed`, [line 148](../../../../../../../backend/src/sro/application/recording/start_recording.py#L148): Docstring
 
 > Scheme and host, checked before anything dials it.
@@ -66,17 +56,3 @@ Code: `session = (`
 > provider's login page and teaches signing in instead of the task.
 > Capture navigates after restoring them.
 
-## `StartRecording._in_their_own_browser`, [line 125](../../../../../../../backend/src/sro/application/recording/start_recording.py#L125): Comment
-
-Code: `refuse_unless_itself(device, secret, device_id)`
-
-> A demonstration is the strongest evidence this system has -- it is
-> what a skill is induced from -- so naming somebody else's browser as
-> the one about to perform it is refused the way every device-scoped
-> path refuses it.
-
-## `StartRecording._in_their_own_browser`, [line 143](../../../../../../../backend/src/sro/application/recording/start_recording.py#L143): Comment
-
-Code: `live_view_url="",`
-
-> Nothing to watch that the operator is not already looking at.

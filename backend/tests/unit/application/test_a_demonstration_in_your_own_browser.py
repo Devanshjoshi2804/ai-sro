@@ -1,16 +1,9 @@
-"""Teaching the system a task in the operator's own Chrome.
-
-The server-side path opens a browser, drives it over CDP and assembles frames
-as they happen. This one cannot see any of that: the operator is in front of
-the system already, and what they did arrives afterwards as teaching-mode
-observation batches from their extension.
+"""Teaching-mode evidence: observation batches that name a demonstration.
 
 What has to hold is that the evidence is attributable — that a batch says which
-demonstration it belongs to, that the browser it came from is the one that was
-asked, and that it becomes frames before the recording is sealed. Evidence
-nobody can attribute is indistinguishable from an ordinary morning's browsing,
-and a demonstration that seals with no frames is a skill that will be refused by
-induction long after the operator has walked away.
+demonstration it belongs to, and that the browser it came from is the one that
+was asked. Evidence nobody can attribute is indistinguishable from an ordinary
+morning's browsing.
 """
 
 from __future__ import annotations
@@ -20,7 +13,6 @@ from datetime import UTC, datetime
 import pytest
 
 from sro.application.context import RequestContext
-from sro.application.observation.demonstrate import AssembleDemonstration, NothingDemonstrated
 from sro.application.observation.ingest import IngestObservation, ObservationRefused
 from sro.application.observation.policy import SetObservationPolicy
 from sro.domain.observation.batch import CaptureMode
@@ -194,105 +186,3 @@ async def test_a_sealed_demonstration_takes_nothing_more() -> None:
             events=[_gesture()],
             recording_id=RecordingId("rec-1"),
         )
-
-
-async def test_what_was_uploaded_becomes_the_recording_s_frames() -> None:
-    """Assembled from every batch at once rather than per upload: a click and
-    the call it caused routinely land in different uploads, and a frame split
-    across that seam is a step that lost its evidence."""
-    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
-    await _device(uow)
-    await _recording(uow)
-    ingest = _ingest(uow, blobs)
-
-    for index, at in enumerate((1_787_654_321.5, 1_787_654_330.0)):
-        await ingest.execute(
-            CTX,
-            device_id=LAPTOP,
-            secret=SECRET,
-            batch_id=BatchId(f"bat-{index}"),
-            started_at=datetime(2026, 8, 25, 9, 1, tzinfo=UTC),
-            ended_at=datetime(2026, 8, 25, 9, 2, tzinfo=UTC),
-            mode=CaptureMode.TEACHING,
-            events=[_gesture(at)],
-            recording_id=RecordingId("rec-1"),
-        )
-
-    assembled = await AssembleDemonstration(uow, blobs).execute(
-        CTX, recording_id=RecordingId("rec-1")
-    )
-
-    assert assembled.batches == 2
-    assert assembled.frames == 2
-    recording = await uow.recordings.get(f.TENANT, RecordingId("rec-1"))
-    assert len(recording.frames) == 2, "the demonstration sealed with fewer steps than were shown"
-
-
-async def test_a_demonstration_where_nothing_happened_is_said_so_out_loud() -> None:
-    """Rather than sealing an empty recording, which induction would refuse
-    later — somewhere much further from the operator who could redo it."""
-    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
-    await _device(uow)
-    await _recording(uow)
-
-    with pytest.raises(NothingDemonstrated):
-        await AssembleDemonstration(uow, blobs).execute(CTX, recording_id=RecordingId("rec-1"))
-
-
-async def test_an_upload_that_cannot_be_read_does_not_lose_the_rest() -> None:
-    """One unreadable object costs its own frames, visibly at review, rather
-    than the whole demonstration failing to seal."""
-    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
-    await _device(uow)
-    await _recording(uow)
-    ingest = _ingest(uow, blobs)
-    for index in range(2):
-        await ingest.execute(
-            CTX,
-            device_id=LAPTOP,
-            secret=SECRET,
-            batch_id=BatchId(f"bat-{index}"),
-            started_at=datetime(2026, 8, 25, 9, 1, tzinfo=UTC),
-            ended_at=datetime(2026, 8, 25, 9, 2, tzinfo=UTC),
-            mode=CaptureMode.TEACHING,
-            events=[_gesture(1_787_654_321.5 + index)],
-            recording_id=RecordingId("rec-1"),
-        )
-
-    batches = await uow.observations.for_recording(f.TENANT, RecordingId("rec-1"))
-    await blobs.forget(batches[0].uri)
-
-    assembled = await AssembleDemonstration(uow, blobs).execute(
-        CTX, recording_id=RecordingId("rec-1")
-    )
-
-    assert assembled.frames == 1, "the readable half of the demonstration was lost with the other"
-
-
-async def test_assembling_twice_does_not_teach_every_step_twice() -> None:
-    """Sealing is two calls: assemble, then finish. A retry of the second after
-    the first succeeded -- a lost reply, a 503, somebody's second click -- used
-    to append every frame again, and the skill induced from it had each step
-    twice."""
-    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
-    await _device(uow)
-    await _recording(uow)
-    await _ingest(uow, blobs).execute(
-        CTX,
-        device_id=LAPTOP,
-        secret=SECRET,
-        batch_id=BatchId("bat-1"),
-        started_at=datetime(2026, 8, 25, 9, 1, tzinfo=UTC),
-        ended_at=datetime(2026, 8, 25, 9, 2, tzinfo=UTC),
-        mode=CaptureMode.TEACHING,
-        events=[_gesture()],
-        recording_id=RecordingId("rec-1"),
-    )
-    assemble = AssembleDemonstration(uow, blobs)
-
-    once = await assemble.execute(CTX, recording_id=RecordingId("rec-1"))
-    again = await assemble.execute(CTX, recording_id=RecordingId("rec-1"))
-
-    assert once.frames == again.frames == 1
-    recording = await uow.recordings.get(f.TENANT, RecordingId("rec-1"))
-    assert len(recording.frames) == 1, "the demonstration was assembled into itself twice"

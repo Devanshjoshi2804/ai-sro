@@ -51,7 +51,6 @@ from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.pursue_goal import PursueGoal
 from sro.application.execution.pursuits import Pursuits
 from sro.application.execution.read_runs import GetRun, ListRuns, StopRun
-from sro.application.execution.revise_run import ReviseRun
 from sro.application.execution.run_from_preview import RunFromPreview
 from sro.application.execution.self_heal import SelfHeal
 from sro.application.execution.stops import Stops
@@ -78,7 +77,6 @@ from sro.application.knowledge.retrieve import Retrieve
 from sro.application.lookup.plan_lookups import PlanLookups
 from sro.application.lookup.run_lookups import RunLookups
 from sro.application.observation.artifacts import StoreObservationArtifact
-from sro.application.observation.demonstrate import AssembleDemonstration
 from sro.application.observation.forget import ForgetObservations
 from sro.application.observation.ingest import IngestObservation
 from sro.application.observation.mine_lately import MineLately
@@ -449,9 +447,6 @@ class Container:
     def store_observation_artifact(self) -> StoreObservationArtifact:
         return StoreObservationArtifact(self.unit_of_work(), self.blobs, self.clock)
 
-    def assemble_demonstration(self) -> AssembleDemonstration:
-        return AssembleDemonstration(self.unit_of_work(), self.blobs)
-
     def forget_observations(self) -> ForgetObservations:
         return ForgetObservations(self.unit_of_work(), self.blobs, self.clock)
 
@@ -796,9 +791,6 @@ class Container:
 
     def call_run_wrong(self) -> CallRunWrong:
         return CallRunWrong(self.unit_of_work(), self.clock)
-
-    def revise_run(self) -> ReviseRun:
-        return ReviseRun(self.unit_of_work(), self.clock)
 
     def mcp_server(self) -> SkillToolServer:
         return SkillToolServer(

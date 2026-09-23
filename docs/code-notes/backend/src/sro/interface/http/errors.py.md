@@ -90,15 +90,6 @@ Code: `NotYours: status.HTTP_403_FORBIDDEN,`
 > one person who saw what it produced. That is an identity mismatch, not a
 > missing resource or a conflicting state.
 
-## module, [line 71](../../../../../../../backend/src/sro/interface/http/errors.py#L71): Comment
-
-Code: `NotYoursToRevise: status.HTTP_403_FORBIDDEN,`
-
-> The same refusal on the sibling door that changes a run's values.
-> A separate class with the same name, in a different module, and it
-> was in neither this table nor the handler list -- so `/v1/runs/{id}/values`
-> answered a wrong principal with a 500.
-
 ## module, [line 72](../../../../../../../backend/src/sro/interface/http/errors.py#L72): Comment
 
 Code: `NotDrivingThisRun: status.HTTP_403_FORBIDDEN,`
@@ -107,9 +98,9 @@ Code: `NotDrivingThisRun: status.HTTP_403_FORBIDDEN,`
 > the entry above and the same 403: the credential was accepted and the
 > browser proved it is itself, it is simply not the one that may answer for
 > this run. A `DomainError`, so the handler registered below reaches it
-> without being named -- which is the one way it differs from the two
-> `NotYours` classes above, which are plain `Exception`s and had to be
-> listed by name before their 403s could fire at all.
+> without being named -- which is the one way it differs from the `NotYours`
+> class above, which is a plain `Exception` and had to be listed by name
+> before its 403 could fire at all.
 
 ## module, [line 73](../../../../../../../backend/src/sro/interface/http/errors.py#L73): Comment
 
@@ -215,7 +206,6 @@ Code: `RunRefused,`
 
 Code: `NotYours,`
 
-> Neither is a `DomainError` either, and until this line their 403s
-> above never fired: a caller who is not the person a run was
-> performed for was told the server broke, in text/plain, on both
-> `/v1/runs/{run_id}/wrong` and `/v1/runs/{run_id}/values`.
+> Not a `DomainError` either, and until this line its 403 above never
+> fired: a caller who is not the person a run was performed for was
+> told the server broke, in text/plain, on `/v1/runs/{run_id}/wrong`.

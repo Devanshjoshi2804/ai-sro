@@ -24,7 +24,6 @@ from sro.interface.http.schemas import (
     BatchRequest,
     BatchResultModel,
     CalledWrongRequest,
-    ReviseRunRequest,
     RunFromPreviewRequest,
     RunModel,
     RunSkillRequest,
@@ -145,24 +144,6 @@ async def called_wrong(
     "does this still work", and a run that made the wrong record did not.
     """
     run = await container.call_run_wrong().execute(ctx, run_id=RunId(run_id), because=body.because)
-    return RunModel.of(run)
-
-
-@router.post("/runs/{run_id}/values", status_code=status.HTTP_202_ACCEPTED)
-async def revise_run(
-    run_id: str, body: ReviseRunRequest, container: ContainerDep, ctx: ContextDep
-) -> RunModel:
-    """Change what the steps still to come will run with.
-
-    Reached from the panel, where a run is drawn a row per step and a step that
-    has not been sent yet still shows a way to argue with it. Steps already
-    performed keep what they sent; the next one is a fresh read of the run, so
-    it renders from what is saved here.
-
-    Accepted rather than OK: the run goes on being performed elsewhere, and
-    what this returns is the run as it stands, not the effect of the change.
-    """
-    run = await container.revise_run().execute(ctx, run_id=RunId(run_id), values=body.values)
     return RunModel.of(run)
 
 

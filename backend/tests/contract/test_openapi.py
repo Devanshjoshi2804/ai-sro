@@ -52,14 +52,14 @@ def test_every_route_is_documented() -> None:
 
 def test_error_responses_are_declared_for_lookups() -> None:
     """A generated client that does not know 404 exists will treat the problem
-    document as a RecordingDetail.
+    document as a SkillDetail.
 
     ``422`` is what this used to assert, and FastAPI generates that one for any
     operation with parameters -- so it held whatever the code did.
     """
-    get_recording = schema_dict["paths"]["/v1/recordings/{recording_id}"]["get"]
+    get_skill = schema_dict["paths"]["/v1/skills/{skill_id}"]["get"]
 
-    assert "404" in get_recording["responses"]
+    assert "404" in get_skill["responses"]
 
 
 class TestFuzz:

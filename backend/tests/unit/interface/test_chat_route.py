@@ -1,4 +1,6 @@
-"""`POST /v1/chat`: who may ask, what it costs them, and what comes back.
+"""`POST /v1/ask`, the job half: who may ask, what it costs them, and what
+comes back. `container.read_chat()` is the reading; `/v1/ask` is the only
+door that reaches it, once `is_a_question` has said this sentence is not one.
 
 The reading itself is proved in `tests/unit/application/rig/test_read_chat.py`
 and `test_understand.py`. What is here is the wire: that a deployment with no
@@ -127,7 +129,7 @@ async def test_a_deployment_with_no_model_says_so_rather_than_offering_nothing(
     which is what a deployment with no key has, and "the model named nothing"
     is exactly what an operator's own badly-worded sentence looks like -- they
     would go and rephrase a sentence that was never read."""
-    answered = await client.post("/v1/chat", json={"utterance": SAID})
+    answered = await client.post("/v1/ask", json={"said": SAID})
 
     assert answered.status_code == 503
     assert "gemini_api_key" in answered.text
@@ -151,7 +153,7 @@ async def test_a_tenant_over_its_cap_is_told_to_come_back_later(
         )
     )
 
-    answered = await client.post("/v1/chat", json={"utterance": SAID})
+    answered = await client.post("/v1/ask", json={"said": SAID})
 
     assert answered.status_code == 429
     body = answered.json()
@@ -172,11 +174,11 @@ async def test_the_cap_the_door_judges_against_is_the_configured_one(
             id="cht_1", tenant=TENANT.value, at=NOW.replace(hour=10).isoformat(), cost_usd=5.01
         )
     )
-    assert (await client.post("/v1/chat", json={"utterance": SAID})).status_code == 429
+    assert (await client.post("/v1/ask", json={"said": SAID})).status_code == 429
 
     container.settings = Settings(daily_usd_cap=50.0, gemini_plan_model=MODEL, _env_file=None)
 
-    assert (await client.post("/v1/chat", json={"utterance": SAID})).status_code == 200
+    assert (await client.post("/v1/ask", json={"said": SAID})).status_code == 200
 
 
 async def test_a_sentence_nobody_typed_is_refused_before_the_model_is_asked(
@@ -191,11 +193,11 @@ async def test_a_sentence_nobody_typed_is_refused_before_the_model_is_asked(
     asked = FakeAsker(_answer("wfl_1", []))
     container.asker = asked
 
-    assert (await client.post("/v1/chat", json={"utterance": ""})).status_code == 422
-    assert (await client.post("/v1/chat", json={})).status_code == 422
+    assert (await client.post("/v1/ask", json={"said": ""})).status_code == 422
+    assert (await client.post("/v1/ask", json={})).status_code == 422
     # Stripped before it is measured, or `min_length` judges something other
     # than what would have been sent. Three spaces is a paid call about nothing.
-    assert (await client.post("/v1/chat", json={"utterance": "   \t\n "})).status_code == 422
+    assert (await client.post("/v1/ask", json={"said": "   \t\n "})).status_code == 422
 
     assert asked.asked == [], "an empty sentence reached the model anyway"
 
@@ -213,10 +215,10 @@ async def test_a_sentence_longer_than_anybody_types_is_refused_before_it_is_paid
     asked = FakeAsker(_answer("wfl_1", []))
     container.asker = asked
 
-    assert (await client.post("/v1/chat", json={"utterance": "x" * 501})).status_code == 422
+    assert (await client.post("/v1/ask", json={"said": "x" * 501})).status_code == 422
     assert asked.asked == [], "a body nobody could have typed reached the model"
 
-    assert (await client.post("/v1/chat", json={"utterance": "x" * 500})).status_code == 200
+    assert (await client.post("/v1/ask", json={"said": "x" * 500})).status_code == 200
 
 
 # --- what comes back --------------------------------------------------------
@@ -242,16 +244,20 @@ async def test_the_offer_and_the_bill_both_reach_the_wire(
         )
     )
 
-    answered = await client.post("/v1/chat", json={"utterance": SAID})
+    answered = await client.post("/v1/ask", json={"said": SAID})
 
     assert answered.status_code == 200, answered.text
     body = answered.json()
-    assert body["workflow_id"] == "wfl_1"
-    assert body["values"] == {"areaName": "ZONE4"}
-    assert body["missing"] == ["zone"]
-    assert body["error"] is None
-    assert (body["in_tokens"], body["out_tokens"], body["thought_tokens"]) == (900, 140, 40)
-    assert (body["cost_usd"], body["unpriced"]) == (0.0007, False)
+    assert body["job"]["workflow_id"] == "wfl_1"
+    assert body["job"]["values"] == {"areaName": "ZONE4"}
+    assert body["job"]["missing"] == ["zone"]
+    assert body["job"]["error"] is None
+    assert (body["job"]["in_tokens"], body["job"]["out_tokens"], body["job"]["thought_tokens"]) == (
+        900,
+        140,
+        40,
+    )
+    assert (body["job"]["cost_usd"], body["job"]["unpriced"]) == (0.0007, False)
 
 
 async def test_a_sentence_naming_no_job_is_an_offer_of_nothing_and_still_a_bill(
@@ -266,11 +272,11 @@ async def test_a_sentence_naming_no_job_is_an_offer_of_nothing_and_still_a_bill(
     """
     container.asker = FakeAsker(_answer("wfl_invented", [], cost_usd=0.0009))
 
-    body = (await client.post("/v1/chat", json={"utterance": SAID})).json()
+    body = (await client.post("/v1/ask", json={"said": SAID})).json()
 
-    assert body["workflow_id"] is None
-    assert (body["values"], body["missing"]) == ({}, [])
-    assert body["cost_usd"] == 0.0009
+    assert body["job"]["workflow_id"] is None
+    assert (body["job"]["values"], body["job"]["missing"]) == ({}, [])
+    assert body["job"]["cost_usd"] == 0.0009
     (row,) = _billed_rows(uow)
     assert (row.workflow_id, row.cost_usd) == (None, 0.0009)
 
@@ -295,11 +301,11 @@ async def test_a_reading_whose_model_call_failed_is_not_answered_as_no_job_match
         Answer(error="truncated: the answer hit the 65536 output-token ceiling", unpriced=True)
     )
 
-    body = (await client.post("/v1/chat", json={"utterance": SAID})).json()
+    body = (await client.post("/v1/ask", json={"said": SAID})).json()
 
-    assert body["error"] == "truncated: the answer hit the 65536 output-token ceiling"
-    assert body["unpriced"] is True
-    assert body["workflow_id"] is None
+    assert body["job"]["error"] == "truncated: the answer hit the 65536 output-token ceiling"
+    assert body["job"]["unpriced"] is True
+    assert body["job"]["workflow_id"] is None
 
 
 async def test_the_bill_is_not_rounded_on_the_way_out(
@@ -310,9 +316,9 @@ async def test_the_bill_is_not_rounded_on_the_way_out(
     came from -- and `/v1/spend`, which does round, sums the raw figure."""
     container.asker = FakeAsker(_answer("wfl_1", [], cost_usd=0.0123456789))
 
-    body = (await client.post("/v1/chat", json={"utterance": SAID})).json()
+    body = (await client.post("/v1/ask", json={"said": SAID})).json()
 
-    assert body["cost_usd"] == 0.0123456789
+    assert body["job"]["cost_usd"] == 0.0123456789
 
 
 async def test_what_is_missing_comes_back_in_the_order_the_reader_sorted_it(
@@ -350,9 +356,9 @@ async def test_what_is_missing_comes_back_in_the_order_the_reader_sorted_it(
     )
     container.asker = FakeAsker(_answer("wfl_8", []))
 
-    body = (await client.post("/v1/chat", json={"utterance": SAID})).json()
+    body = (await client.post("/v1/ask", json={"said": SAID})).json()
 
-    assert body["missing"] == [
+    assert body["job"]["missing"] == [
         "areaName",
         "clientCode",
         "dockId",
@@ -384,7 +390,7 @@ async def test_the_sentence_itself_is_not_stored_and_is_not_echoed_back(
     said = "create a work area for zone 4 for ACME-99, ask Priya"
     container.asker = FakeAsker(_answer("wfl_1", [{"name": "areaName", "value": "ZONE4"}]))
 
-    answered = await client.post("/v1/chat", json={"utterance": said})
+    answered = await client.post("/v1/ask", json={"said": said})
 
     assert answered.status_code == 200, answered.text
     assert len(_billed_rows(uow)) == 1, "the reading was never stored, so it stores nothing"
@@ -405,7 +411,7 @@ async def test_the_model_asked_is_the_one_this_deployment_configured(
     asked = FakeAsker(_answer("wfl_1", []))
     container.asker = asked
 
-    await client.post("/v1/chat", json={"utterance": SAID})
+    await client.post("/v1/ask", json={"said": SAID})
 
     assert [one["model"] for one in asked.asked] == [MODEL]
 
@@ -424,7 +430,7 @@ async def test_the_sentence_the_model_reads_is_the_one_on_the_request(
     container.asker = asked
     said = "make me a work area called NEWTEST9 in zone 4"
 
-    await client.post("/v1/chat", json={"utterance": said})
+    await client.post("/v1/ask", json={"said": said})
 
     assert said in str(asked.asked[0]["evidence"])
 
@@ -444,9 +450,9 @@ async def test_the_jobs_read_against_are_the_ones_on_the_credential(
         base_url="http://test",
         headers={"Authorization": f"Bearer {token_for(tenant='rival')}"},
     ) as rival:
-        body = (await rival.post("/v1/chat", json={"utterance": SAID})).json()
+        body = (await rival.post("/v1/ask", json={"said": SAID})).json()
 
-    assert body["workflow_id"] is None
+    assert body["job"]["workflow_id"] is None
     assert "wfl_1" not in str(asked.asked[0]["evidence"])
     assert [row.tenant for row in _billed_rows(uow)] == ["rival"], "billed to the wrong tenant"
 
@@ -459,7 +465,7 @@ async def test_the_reading_is_stamped_with_the_containers_clock(
     route that read one of its own stamps today."""
     container.asker = FakeAsker(_answer("wfl_1", []))
 
-    await client.post("/v1/chat", json={"utterance": SAID})
+    await client.post("/v1/ask", json={"said": SAID})
 
     (row,) = _billed_rows(uow)
     assert when(row.at) == NOW
@@ -479,8 +485,8 @@ async def test_a_browser_may_not_spend_the_tenants_model_budget(
     await uow.devices.add(f.device(id=LAPTOP, secret=HERS))
 
     answered = await client.post(
-        "/v1/chat",
-        json={"utterance": SAID},
+        "/v1/ask",
+        json={"said": SAID},
         params={"device_id": LAPTOP.value},
         headers={"X-Device-Secret": HERS},
     )
@@ -489,15 +495,13 @@ async def test_a_browser_may_not_spend_the_tenants_model_budget(
     assert answered.json()["detail"] == "that is the tenant's to do, not a browser's"
     # And the same request without the browser is answered, so the 403 is the
     # refusal and not this route being absent or unroutable.
-    assert (await client.post("/v1/chat", json={"utterance": SAID})).status_code == 200
+    assert (await client.post("/v1/ask", json={"said": SAID})).status_code == 200
 
 
 async def test_no_credential_is_refused_before_anything_is_read(
     client: httpx.AsyncClient, held: Workflow
 ) -> None:
-    answered = await client.post(
-        "/v1/chat", json={"utterance": SAID}, headers={"Authorization": ""}
-    )
+    answered = await client.post("/v1/ask", json={"said": SAID}, headers={"Authorization": ""})
 
     assert answered.status_code == 401
 

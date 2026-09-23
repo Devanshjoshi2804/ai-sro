@@ -2,15 +2,6 @@
 
 Comments and docstrings moved out of [`backend/src/sro/interface/http/v1/routers/recordings.py`](../../../../../../../../../backend/src/sro/interface/http/v1/routers/recordings.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `start_recording`, [line 39](../../../../../../../../../backend/src/sro/interface/http/v1/routers/recordings.py#L39): Comment
-
-Code: `started = await container.start_recording().execute(`
-
-> Nothing to open, nothing to sign in, nothing to capture from here:
-> the operator is in front of the system already and their extension
-> uploads what it sees. The whole of the rest of this function is about
-> a browser this deployment owns.
-
 ## `start_recording`, [line 50](../../../../../../../../../backend/src/sro/interface/http/v1/routers/recordings.py#L50): Comment
 
 Code: `if not body.attach_to:`
@@ -48,22 +39,6 @@ Code: `if started.browser_session_id is not None:`
 
 > Best effort by design -- see DurableExecution.watch_recording. A scheduler
 > outage costs this session its deadline, never the demonstration.
-
-## `list_recordings`, [line 108](../../../../../../../../../backend/src/sro/interface/http/v1/routers/recordings.py#L108): Comment
-
-Code: `objective = (`
-
-> An objective key is all five fields or none: a partial filter would silently
-> match the wrong demonstrations, which is worse than refusing to filter.
-
-## `finish_recording`, [line 211](../../../../../../../../../backend/src/sro/interface/http/v1/routers/recordings.py#L211): Comment
-
-Code: `if not body.abandon_reason:`
-
-> Demonstrated in the operator's own browser. There is no session to
-> take cookies from and no CDP stream to drain -- the evidence arrived
-> as teaching batches, and this is where it becomes frames. Before the
-> seal, because a sealed recording rejects appends.
 
 ## `finish_recording`, [line 216](../../../../../../../../../backend/src/sro/interface/http/v1/routers/recordings.py#L216): Comment
 

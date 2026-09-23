@@ -98,15 +98,6 @@ class StartRecordingRequest(BaseModel):
     When set, no hosted session is created and capture attaches to that browser
     instead — the operator demonstrates in their own window."""
 
-    device_id: str | None = None
-    """Demonstrated through the extension, in the operator's own Chrome.
-
-    Different from `attach_to` in the direction the evidence flows: an attached
-    browser is driven by this deployment over CDP, and a device uploads what it
-    saw afterwards, as teaching-mode observation batches. Nothing is opened,
-    nothing is signed in, and there is no live view — the operator is already
-    looking at the only screen involved."""
-
 
 class StartRecordingResponse(BaseModel):
     recording_id: str
@@ -268,19 +259,6 @@ class OpenedConnectionResponse(BaseModel):
     decided rather than making somebody type it."""
 
 
-class MediaModel(BaseModel):
-    kind: str
-    url: str
-    content_type: str
-    size_bytes: int
-    duration_ms: int | None
-    frame_index: int | None
-
-
-class LiveViewResponse(BaseModel):
-    live_view_url: str | None
-
-
 class FinishRecordingRequest(BaseModel):
     abandon_reason: str | None = Field(
         default=None,
@@ -319,84 +297,6 @@ class RecordingSummary(BaseModel):
             ended_at=recording.ended_at,
             frame_count=len(recording.frames),
             has_narration=recording.has_narration,
-        )
-
-
-class FrameSummary(BaseModel):
-    """Enough to render the timeline. The full frame is fetched per frame."""
-
-    index: int
-    occurred_at: datetime
-    action_kind: str
-    target: str | None
-    request_count: int
-    primary_request: str | None
-    primary_status: int | None
-    error_count: int
-
-    applied: bool
-    """The action caused a mutating call the system accepted.
-
-    How a teaching session knows the task actually happened rather than asking
-    the operator to say so. It means something was applied, not that the task is
-    finished -- a task can apply several things.
-    """
-
-
-class RecordingDetail(RecordingSummary):
-    frames: list[FrameSummary]
-    artifacts: list[ArtifactModel]
-
-    @classmethod
-    def of_recording(cls, recording: Recording) -> RecordingDetail:
-        summary = RecordingSummary.of(recording)
-        return cls(
-            **summary.model_dump(),
-            frames=[
-                FrameSummary(
-                    index=frame.index,
-                    occurred_at=frame.occurred_at,
-                    action_kind=frame.action.kind.value,
-                    target=frame.action.target.describe() if frame.action.target else None,
-                    request_count=len(frame.requests),
-                    primary_request=(
-                        f"{frame.primary_request.method} {frame.primary_request.url}"
-                        if frame.primary_request
-                        else None
-                    ),
-                    primary_status=(
-                        frame.primary_request.status if frame.primary_request else None
-                    ),
-                    applied=(
-                        frame.primary_request is not None
-                        and frame.primary_request.is_mutation
-                        and frame.primary_request.succeeded
-                    ),
-                    error_count=len(frame.errors),
-                )
-                for frame in recording.frames
-            ],
-            artifacts=[ArtifactModel.of(a) for a in recording.artifacts],
-        )
-
-
-class ArtifactModel(BaseModel):
-    kind: str
-    uri: str
-    content_type: str
-    size_bytes: int
-    frame_index: int | None
-    label: str | None
-
-    @classmethod
-    def of(cls, artifact: Any) -> ArtifactModel:
-        return cls(
-            kind=artifact.kind.value,
-            uri=artifact.uri,
-            content_type=artifact.content_type,
-            size_bytes=artifact.size_bytes,
-            frame_index=artifact.frame_index,
-            label=artifact.label,
         )
 
 
@@ -1256,7 +1156,7 @@ class ProblemModel(BaseModel):
 
     Declared so the generated client knows the shape. It did not: every failure
     reached the browser as whatever the success model said it should be, and a
-    404 was read as a RecordingDetail with every field missing.
+    404 was read as a SkillDetail with every field missing.
     """
 
     type: str
@@ -2396,17 +2296,6 @@ class WatchMatchModel(BaseModel):
     says what it needs."""
 
 
-class ReviseRunRequest(BaseModel):
-    """What the operator changed while the run was going.
-
-    Names the skill declares and nothing else -- a name outside them reaches no
-    step, and the run refuses it rather than recording a decision with no
-    effect.
-    """
-
-    values: dict[str, str] = Field(min_length=1)
-
-
 class WatchingModel(BaseModel):
     devices: int
     batches: int
@@ -2460,9 +2349,9 @@ class SummaryModel(BaseModel):
 class LookupRequest(BaseModel):
     """A question, and whether to go and answer it.
 
-    The same two bounds `ChatRequest` carries and for the same reason: this
-    door spends a model call, so the one part of the prompt a caller controls
-    is bounded at both ends before anything is asked.
+    The same two bounds a sentence to `POST /v1/ask` carries and for the same
+    reason: this door spends a model call, so the one part of the prompt a
+    caller controls is bounded at both ends before anything is asked.
     """
 
     question: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
@@ -2632,37 +2521,6 @@ class LookupResponse(BaseModel):
             cost_usd=bill.cost_usd if bill else 0.0,
             unpriced=bill.unpriced if bill else False,
         )
-
-
-class ChatRequest(BaseModel):
-    """What an operator said, and nothing else.
-
-    No tenant and no day: both come off the credential and the container's
-    clock. A body naming either would be a request to read somebody else's jobs
-    or to bill a day the cap was not measured against.
-
-    All three constraints are about the same thing: this is the door whose
-    entire premise is refusing before it spends, so the one part of the prompt
-    a caller controls is bounded at both ends before a model is asked.
-
-    * `strip_whitespace` FIRST, so `min_length` judges what will actually be
-      sent. Without it `"   "` validates, and three spaces is a paid model call
-      about nothing.
-    * `min_length=1` because the rig took `str(body.get("utterance") or "")`
-      and asked the model that: a missing field there spent money on a prompt
-      containing nothing. This is the one refusal that costs nothing to make.
-    * `max_length=500` because without a ceiling a 200,000-character body is a
-      valid request and one caller's spend is unbounded. 500 is not a new
-      number -- it is `CalledWrongRequest.because`'s, the only other free-text
-      sentence in this file that a person types by hand, and one number for
-      "one sentence a human wrote" is worth more here than a bound tuned to
-      this door alone. It is roughly eighty words; the sentences this door was
-      built for are "create a work area for zone 4".
-    """
-
-    utterance: Annotated[
-        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)
-    ]
 
 
 class ChatResponse(BaseModel):

@@ -3,8 +3,8 @@
 An operator types a sentence, or a page they are on asks them something, and
 the sentence is either an instruction -- a job this deployment has watched
 somebody do -- or a question, whose answer is somewhere in the systems they
-work in. `POST /v1/chat` resolves the first. `POST /v1/lookups` resolves the
-second. This decides which, so the extension does not have to.
+work in. `container.read_chat()` resolves the first. `POST /v1/lookups`
+resolves the second. This decides which, so the extension does not have to.
 
 The deciding is a word rule in `domain/lookup/asking`, no model, and here
 rather than in the browser for the reason every rule in this codebase lives on

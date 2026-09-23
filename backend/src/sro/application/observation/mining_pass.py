@@ -42,6 +42,7 @@ from sro.domain.skill.checks import (
     one_occurrence,
     signs_in,
     signs_in_to,
+    types_a_credential,
     undeliverable,
     validate,
     work_only,
@@ -308,6 +309,9 @@ async def _grow(
     try:
         stored = await uow.workflows.get(tenant_id, known_id)
     except NotFound:
+        return
+    if types_a_credential(proposal, by_id) and not types_a_credential(stored, by_id):
+        logger.info("%s: not grown -- the doing types a credential the job never did", stored.title)
         return
     moved = where_steps_moved(stored.steps, proposal.steps, by_id)
     stored.steps = list(proposal.steps)

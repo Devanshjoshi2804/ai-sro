@@ -331,6 +331,36 @@ async def test_a_doing_that_contains_the_job_grows_it() -> None:
     assert len(grown.steps) == 3, "the job did not take the step it had just watched"
 
 
+async def test_a_doing_that_adds_a_password_does_not_grow_the_job() -> None:
+    """Growth takes the doing's steps wholesale, and a step typing a secret
+    the stored job never had would turn a job into a job that signs in first
+    -- every run of it then asking for a credential it never needed. Such a
+    doing still teaches the job its parameters; it does not become it."""
+    uow, ids = await _day()
+    first = FakeAsker(Answer(data={"workflows": [_proposal(ids[:2])]}, cost_usd=0.01))
+    assert (await _pass(uow, asker=first).execute(_ctx())).kept == 1
+    [stored] = await uow.workflows.known(TENANT)
+
+    again = await _did_it_again(uow, ids[:3])
+    rows = _rows(uow)
+    rows[again[2]] = replace(
+        rows[again[2]], action=replace(rows[again[2]].action, kind="type", secret=True)
+    )
+    wider = _proposal(again[:2])
+    wider["steps"] = [
+        *wider["steps"],  # type: ignore[misc]
+        {"order": 2, "cites": [again[2]], "says": "type the password", "system": HOST},
+    ]
+    result = await _pass(
+        uow, asker=FakeAsker(Answer(data={"workflows": [wider]}, cost_usd=0.01))
+    ).execute(_ctx())
+
+    assert [one.kind for one in result.resolutions] == ["same_job"]
+    [held] = await uow.workflows.known(TENANT)
+    assert held.id == stored.id
+    assert len(held.steps) == 2, "the job grew a credential step it never had"
+
+
 async def test_a_second_way_of_signing_in_to_one_system_is_the_same_job() -> None:
     """Two doings that both sign in to one system, one through a chooser and
     one straight to the password box, share almost no shape and were given

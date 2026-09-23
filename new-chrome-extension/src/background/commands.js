@@ -471,7 +471,11 @@ async function uiPerform(payload, runId) {
   // was knowable only by reproducing it by hand. It is known here, for free,
   // at the moment it stops being recoverable.
   if (answer && !answer.ok) {
-    answer.result = { ...(answer.result || {}), acted_in: frameId ?? null, claims };
+    answer.result = {
+      ...(answer.result || {}),
+      acted_in: frameId ?? null,
+      claims,
+    };
   }
   // What "the page did not answer" actually means, said where it is known.
   //
@@ -655,7 +659,6 @@ function originOf(url) {
     return null;
   }
 }
-
 
 /** Open a tab on that screen and wait for it to finish loading.
  *
@@ -1004,7 +1007,8 @@ async function uiUrl(payload, runId) {
  * prevent -- and a run that has pinned no tab has not driven anything yet.
  */
 async function theRunsOwnTab(runId) {
-  if (!runId || latest?.runId !== runId || latest.tabId === undefined) return null;
+  if (!runId || latest?.runId !== runId || latest.tabId === undefined)
+    return null;
   const known = await chrome.tabs.get(latest.tabId).catch(() => null);
   return known?.url && /^https?:/.test(known.url) ? known : null;
 }
@@ -1073,19 +1077,27 @@ async function signIn(payload, runId) {
  */
 async function whatThePageSays(tabId) {
   try {
-    const [got] = await chrome.scripting.executeScript({
-      target: { tabId },
-      world: "MAIN",
-      args: [
-        {
-          login: A_LOGIN,
-          dialog: A_DIALOG,
-          loading: STILL_COMING,
-          cap: K_SAID,
-        },
-      ],
-      func: whatIsOnThisPage,
-    });
+    // Within a budget. A tab mid-navigation -- the portal loading right after
+    // a sign-in went through -- holds an injection until it settles, and
+    // `run_1a494937`, 2026-09-23, sat on "ui.url" for minutes after signing
+    // the operator in. Not knowing what a page says is an answer here.
+    const [got] =
+      (await within(
+        K_MEASURE_MS,
+        chrome.scripting.executeScript({
+          target: { tabId },
+          world: "MAIN",
+          args: [
+            {
+              login: A_LOGIN,
+              dialog: A_DIALOG,
+              loading: STILL_COMING,
+              cap: K_SAID,
+            },
+          ],
+          func: whatIsOnThisPage,
+        }),
+      )) || [];
     return {
       signed_out: Boolean(got?.result?.signed_out),
       dialog: String(got?.result?.dialog || ""),

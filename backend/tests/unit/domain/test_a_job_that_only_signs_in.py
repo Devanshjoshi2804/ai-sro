@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from sro.domain.observation.gesture import Action, Call, Gesture, PageMark, Target
-from sro.domain.skill.checks import is_sign_in_step, signs_in
+from sro.domain.skill.checks import is_sign_in_step, signs_in, signs_in_to
 from sro.domain.skill.signing_in import signs_in_at
 from sro.domain.skill.workflow import Step, Workflow
 
@@ -375,3 +375,17 @@ def test_one_step_with_a_refused_press_and_the_leaving_one_is_not_exempt() -> No
 
     assert is_sign_in_step(job, job.steps[0], store) is False
     assert signs_in(job, store) is True
+
+
+def test_a_sign_in_is_to_the_system_its_credential_was_typed_on() -> None:
+    """Not the first host of the chain (an identity chooser the operator may or
+    may not pass through), and not the page it landed on (which a job that
+    stops at the password never cites): the one host every doing of it types
+    the credential into."""
+    assert signs_in_to(_azure_job(), _azure_store()) == "keycloak.example"
+
+
+def test_a_job_with_no_credential_signs_in_to_nothing() -> None:
+    store = {"a": _at("a", WMS, 1), "b": _at("b", WMS, 2)}
+
+    assert signs_in_to(_job("a", "b"), store) is None

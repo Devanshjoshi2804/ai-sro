@@ -331,6 +331,59 @@ async def test_a_doing_that_contains_the_job_grows_it() -> None:
     assert len(grown.steps) == 3, "the job did not take the step it had just watched"
 
 
+async def test_a_second_way_of_signing_in_to_one_system_is_the_same_job() -> None:
+    """Two doings that both sign in to one system, one through a chooser and
+    one straight to the password box, share almost no shape and were given
+    different names. They are one job: the deployment held three `Log in
+    using Azure B2C SSO` for want of this."""
+    uow = FakeUnitOfWork()
+    base = replace(_gestures(TENANT.value)[0], requests=[], page_events=[])
+
+    def typed(gesture_id: str, at: float, *, secret: bool = False) -> Gesture:
+        return replace(
+            base,
+            id=gesture_id,
+            at=at,
+            action=replace(
+                base.action,
+                kind="type",
+                at=at,
+                secret=secret,
+                target=None if secret else base.action.target,
+            ),
+        )
+
+    def clicked(gesture_id: str, at: float) -> Gesture:
+        return replace(base, id=gesture_id, at=at, action=replace(base.action, kind="click", at=at))
+
+    await uow.gestures.add_gestures((typed("user", 10.0), typed("pw", 11.0, secret=True)))
+
+    def login(title: str, *cites: str) -> dict[str, object]:
+        return {
+            "title": title,
+            "narrative": "signed in",
+            "systems": [HOST],
+            "steps": [
+                {"order": n, "cites": [one], "says": f"step {n}", "system": HOST}
+                for n, one in enumerate(cites)
+            ],
+        }
+
+    first = FakeAsker(Answer(data={"workflows": [login("Log in", "user", "pw")]}, cost_usd=0.01))
+    assert (await _pass(uow, asker=first).execute(_ctx())).kept == 1
+    [stored] = await uow.workflows.known(TENANT)
+    assert stored.signs_in
+
+    await uow.gestures.add_gestures((clicked("choose", 5000.0), typed("pw2", 5001.0, secret=True)))
+    other = login("Sign in through the chooser", "choose", "pw2")
+    result = await _pass(
+        uow, asker=FakeAsker(Answer(data={"workflows": [other]}, cost_usd=0.01))
+    ).execute(_ctx())
+
+    assert [(one.kind, one.workflow_id) for one in result.resolutions] == [("same_job", stored.id)]
+    assert len(await uow.workflows.known(TENANT)) == 1
+
+
 async def test_a_doing_the_job_contains_does_not_shrink_it() -> None:
     """Only ever the other way. A shorter doing is the operator taking a route
     that skipped something, and a job that dropped a step every time somebody

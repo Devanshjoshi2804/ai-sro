@@ -41,6 +41,7 @@ from sro.domain.skill.checks import (
     coverage,
     one_occurrence,
     signs_in,
+    signs_in_to,
     undeliverable,
     validate,
     work_only,
@@ -385,6 +386,11 @@ async def _one_pass(
         else one
         for one in known
     ]
+    lands = {
+        one.id: where
+        for one in known
+        if one.signs_in and (where := signs_in_to(one, by_id)) is not None
+    }
     summary: list[dict[str, object]] = [
         {"id": w.id, "title": w.title, "systems": w.systems, "shape_key": w.shape_key}
         for w in known
@@ -476,7 +482,10 @@ async def _one_pass(
             proposal.shape_key = [
                 list(entry) for entry in shape_key(in_time_order(proposal, by_id))
             ]
-            resolution = resolve(proposal, known + kept)
+            where = signs_in_to(proposal, by_id) if proposal.signs_in else None
+            if where is not None:
+                lands[proposal.id] = where
+            resolution = resolve(proposal, known + kept, signs_in_to=lands)
             result.resolutions.append(resolution)
             logger.info(
                 "%s: %s%s",

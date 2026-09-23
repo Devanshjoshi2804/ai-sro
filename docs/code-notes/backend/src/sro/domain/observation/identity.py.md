@@ -15,7 +15,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/observation/identi
 > Never cssPath or xpath: both encode document position, both change when the page
 > is restyled, and a key built on them is the brittleness this replaces.
 
-## module, [line 11](../../../../../../../backend/src/sro/domain/observation/identity.py#L11): Note on the line above
+## module, [line 12](../../../../../../../backend/src/sro/domain/observation/identity.py#L12): Note on the line above
 
 Code: `K_TEXT_IDENTITY_MAX = 40`
 
@@ -25,7 +25,7 @@ Code: `K_TEXT_IDENTITY_MAX = 40`
 > was touched, changes with the page, and would be served to every browser as a
 > shape.
 
-## module, [line 56](../../../../../../../backend/src/sro/domain/observation/identity.py#L56): Note on the line above
+## module, [line 57](../../../../../../../backend/src/sro/domain/observation/identity.py#L57): Note on the line above
 
 Code: `K_SAME_NAME = 0.5`
 
@@ -63,13 +63,13 @@ Code: `K_SAME_NAME = 0.5`
 > four, which is the same job named twice by a model that does not phrase things
 > identically. Half is between them, and comfortably.
 
-## module, [line 58](../../../../../../../backend/src/sro/domain/observation/identity.py#L58): Note on the line above
+## module, [line 59](../../../../../../../backend/src/sro/domain/observation/identity.py#L59): Note on the line above
 
 Code: `NOT_A_NAME = frozenset({"a", "an", "the", "to", "for", "of", "in", "on", "and"})`
 
 > Words that say nothing about which job this is.
 
-## module, [line 108](../../../../../../../backend/src/sro/domain/observation/identity.py#L108): Note on the line above
+## module, [line 109](../../../../../../../backend/src/sro/domain/observation/identity.py#L109): Note on the line above
 
 Code: `ANON = "anon|"`
 
@@ -78,11 +78,11 @@ Code: `ANON = "anon|"`
 > It is the ABSENCE of a name, not a different name, and two shapes that differ
 > only there are not two jobs. See `_shared`.
 
-## `target_identity`, [line 18](../../../../../../../backend/src/sro/domain/observation/identity.py#L18): Docstring
+## `target_identity`, [line 19](../../../../../../../backend/src/sro/domain/observation/identity.py#L19): Docstring
 
 > What to call the control this gesture touched, stably across occurrences.
 
-## `screen_of`, [line 40](../../../../../../../backend/src/sro/domain/observation/identity.py#L40): Docstring
+## `screen_of`, [line 41](../../../../../../../backend/src/sro/domain/observation/identity.py#L41): Docstring
 
 > Which SCREEN this happened on, not merely which system.
 >
@@ -115,11 +115,11 @@ Code: `ANON = "anon|"`
 > `page_url` and not `url`: the tab's address, because a gesture inside an
 > iframe reports the frame's src, and the frame is not the screen.
 
-## `shape_key`, [line 50](../../../../../../../backend/src/sro/domain/observation/identity.py#L50): Docstring
+## `shape_key`, [line 51](../../../../../../../backend/src/sro/domain/observation/identity.py#L51): Docstring
 
 > The job's shape: which control, on which screen, touched how -- in order.
 
-## `named_alike`, [line 71](../../../../../../../backend/src/sro/domain/observation/identity.py#L71): Docstring
+## `named_alike`, [line 72](../../../../../../../backend/src/sro/domain/observation/identity.py#L72): Docstring
 
 > Whether these two names could be the same job's.
 >
@@ -127,7 +127,7 @@ Code: `ANON = "anon|"`
 > empty one, a job proposed with no title -- is not evidence of difference,
 > so it does not block anything.
 
-## `containment`, [line 78](../../../../../../../backend/src/sro/domain/observation/identity.py#L78): Docstring
+## `containment`, [line 79](../../../../../../../backend/src/sro/domain/observation/identity.py#L79): Docstring
 
 > |a ∩ b| / min(|a|, |b|).
 >
@@ -137,12 +137,12 @@ Code: `ANON = "anon|"`
 > says the smaller is part of the larger, which is true and is the variant
 > relation worth surfacing.
 
-## `jaccard`, [line 84](../../../../../../../backend/src/sro/domain/observation/identity.py#L84): Docstring
+## `jaccard`, [line 85](../../../../../../../backend/src/sro/domain/observation/identity.py#L85): Docstring
 
 > |a ∩ b| / |a ∪ b|. For the occurrence question, where the two sets are
 > the same size by construction.
 
-## `_shared`, [line 111](../../../../../../../backend/src/sro/domain/observation/identity.py#L111): Docstring (debt)
+## `_shared`, [line 122](../../../../../../../backend/src/sro/domain/observation/identity.py#L122): Docstring (debt)
 
 > How many steps these two shapes have in common.
 >
@@ -170,6 +170,11 @@ Code: `ANON = "anon|"`
 > Only across a matching system and kind: an unnamed click on the mailbox is
 > not the warehouse's Save button, and it is not a keystroke either.
 >
+> Either way round (2026-09-23): the stored job may be the unnamed reading and
+> the new doing the named one. Only the proposal's unnamed entries used to be
+> aliased, so the same pair of recordings folded or split depending on which
+> one happened to be mined first.
+>
 > ponytail: `anon` is the only aliasing here. Two recordings that both name a
 > control and disagree -- `viewport toolbar` against `toolbar button`, the
 > third duplicate of that day -- stay apart, because a rule that called those
@@ -177,21 +182,24 @@ Code: `ANON = "anon|"`
 > `skill.learned.same_control`'s alias set, which needs the names carried on
 > the shape and is a migration, not an edit.
 
-## `resolve`, [line 124](../../../../../../../backend/src/sro/domain/observation/identity.py#L124): Docstring
+## `resolve`, [line 145](../../../../../../../backend/src/sro/domain/observation/identity.py#L145): Docstring
 
 > Which of the known workflows, if any, this proposal already is.
+>
+> `signs_in_to` maps a workflow id to the system it signs in to, for the jobs
+> (and the proposal) that sign in; see the note at `here`.
 >
 > No guard for an empty shape or an uncited proposal: containment and jaccard
 > both return 0.0 for an empty set, no threshold here is at or below zero, and
 > a proposal that matches nothing falls out of the bottom as "new" anyway.
 
-## `target_identity`, [line 21](../../../../../../../backend/src/sro/domain/observation/identity.py#L21): Comment
+## `target_identity`, [line 22](../../../../../../../backend/src/sro/domain/observation/identity.py#L22): Comment
 
 Code: `return f"anon|{gesture.action.kind}"`
 
 > A scroll has no target -- you scroll a page, not an element.
 
-## `target_identity`, [line 29](../../../../../../../backend/src/sro/domain/observation/identity.py#L29): Comment
+## `target_identity`, [line 30](../../../../../../../backend/src/sro/domain/observation/identity.py#L30): Comment
 
 Code: `if target.role and target.name and _names_a_control(target.name):`
 
@@ -213,7 +221,7 @@ Code: `if target.role and target.name and _names_a_control(target.name):`
 > paragraph that nothing here carries a typed value, while this served an
 > operator's own mail to every browser in the tenant asking for shapes.
 
-## `target_identity`, [line 37](../../../../../../../backend/src/sro/domain/observation/identity.py#L37): Comment
+## `target_identity`, [line 38](../../../../../../../backend/src/sro/domain/observation/identity.py#L38): Comment
 
 Code: `return f"anon|{gesture.action.kind}"`
 
@@ -221,7 +229,7 @@ Code: `return f"anon|{gesture.action.kind}"`
 > is what actually happened, and the rest of the shape is what tells this
 > job from another.
 
-## module, [line 90](../../../../../../../backend/src/sro/domain/observation/identity.py#L90): Comment
+## module, [line 91](../../../../../../../backend/src/sro/domain/observation/identity.py#L91): Comment
 
 Code: `K_SAME_EVIDENCE = 0.5`
 
@@ -237,7 +245,7 @@ Code: `K_SAME_EVIDENCE = 0.5`
 > re-judge its earlier verdict disagrees with itself at roughly 90%, and `same_as`
 > asks precisely that.
 
-## module, [line 92](../../../../../../../backend/src/sro/domain/observation/identity.py#L92): Comment
+## module, [line 93](../../../../../../../backend/src/sro/domain/observation/identity.py#L93): Comment
 
 Code: `K_MIN_SHARED_STEPS = 2`
 
@@ -260,44 +268,50 @@ Code: `K_MIN_SHARED_STEPS = 2`
 > Keycloak` -- each one offering itself on the sign-in page, so signing in
 > never made the card stop. A bar nothing can clear is not a bar.
 
-## `Resolution`, [line 97](../../../../../../../backend/src/sro/domain/observation/identity.py#L97): Inline
+## `Resolution`, [line 98](../../../../../../../backend/src/sro/domain/observation/identity.py#L98): Inline
 
 Code: `kind: str`
 
 > "new" | "same_occurrence" | "same_job"
 
-## `Resolution`, [line 101](../../../../../../../backend/src/sro/domain/observation/identity.py#L101): Comment
+## `Resolution`, [line 102](../../../../../../../backend/src/sro/domain/observation/identity.py#L102): Comment
 
 Code: `contains: bool = False`
 
-> True when MINE is the larger shape -- mine contains theirs. Three states
-> exist and this collapses two of them: "theirs contains mine" and "neither
-> contains the other" are both False here, and they are not the same fact.
+> True when the stored job's steps appear, in time order, inside this
+> proposal's, and the proposal has more -- see `_in_order`. Read by the mining
+> pass's `_grow`, which replaces the stored steps with the proposal's only then.
 >
-> A bool on purpose, for now. Nothing acts on it: Task 6 flagged the
-> collapse, Task 7 confirmed there was no first consumer, and Task 8
-> confirmed the mining loop does not branch on `same_job` at all -- so the
-> third state would be a distinction drawn for no reader, and a guess at
-> what that reader will want.
+> Three states exist and this collapses two: "theirs contains mine" and
+> "neither contains the other" are both False, and both mean "do not grow".
+> That is the only question the one reader asks.
+
+## `_shared`, [line 127](../../../../../../../backend/src/sro/domain/observation/identity.py#L127): Comment
+
+Code: `for one in left:`
+
+> Sorted on both sides so a shape matching several candidates matches the
+> same one every time, and each entry on the other side is consumed once, so
+> two unnamed steps cannot claim one named step. Two unnamed entries of one
+> system and kind are one entry by the time a set has been made of them.
+
+## `_alike`, [line 112](../../../../../../../backend/src/sro/domain/observation/identity.py#L112): Docstring
+
+> The same step: equal, or one of the two unnamed on the same screen, done the
+> same way. See `_shared`.
+
+## `_in_order`, [line 135](../../../../../../../backend/src/sro/domain/observation/identity.py#L135): Docstring
+
+> Whether the doing holds every stored step in the order the job does them,
+> with more besides -- which is what `contains` means and what `_grow` may
+> act on.
 >
-> The caller that needs it is specific and namable: the one that must decide
-> whether to REPLACE a known workflow with this proposal rather than link to
-> it. "Mine contains theirs" is the case for replacing; "theirs contains
-> mine" is the case for discarding mine; "neither" is the case for keeping
-> both. Whoever writes that caller should widen this to those three states
-> rather than reading False as "theirs contains mine".
+> It used to be "the doing's shape is bigger", which is true of a doing that
+> did the job's steps in another order, or did a different job sharing most
+> of its controls, and `_grow` replaced the stored steps with it either way.
+> Greedy, earliest match first, which is exact for a subsequence test.
 
-## `_shared`, [line 117](../../../../../../../backend/src/sro/domain/observation/identity.py#L117): Comment
-
-Code: `named = sorted(one for one in right if not one[1].startswith(ANON))`
-
-> Sorted so a shape matching several candidates matches the same one every
-> time. No bookkeeping to stop two unnamed steps claiming one named step:
-> an entry carries its kind twice -- `anon|click` beside `click` -- so two
-> unnamed entries of one system and kind are one entry by the time a set
-> has been made of them.
-
-## `resolve`, [line 125](../../../../../../../backend/src/sro/domain/observation/identity.py#L125): Comment
+## `resolve`, [line 151](../../../../../../../backend/src/sro/domain/observation/identity.py#L151): Comment
 
 Code: `peers = [other for other in known if other.tenant == proposal.tenant]`
 
@@ -306,7 +320,7 @@ Code: `peers = [other for other in known if other.tenant == proposal.tenant]`
 > tenant; resolve() takes whatever list it is handed, and welding one
 > tenant's job onto another's is not a mistake anyone can undo afterwards.
 
-## `resolve`, [line 135](../../../../../../../backend/src/sro/domain/observation/identity.py#L135): Comment
+## `resolve`, [line 162](../../../../../../../backend/src/sro/domain/observation/identity.py#L162): Comment
 
 Code: `return Resolution("same_occurrence", seen.id, seen_score)`
 
@@ -314,7 +328,21 @@ Code: `return Resolution("same_occurrence", seen.id, seen_score)`
 > the same occurrence and is not identity, and a constant is a number
 > no caller can ever threshold on a second time.
 
-## `resolve`, [line 143](../../../../../../../backend/src/sro/domain/observation/identity.py#L143): Comment
+## `resolve`, [line 164](../../../../../../../backend/src/sro/domain/observation/identity.py#L164): Comment
+
+Code: `here = lands.get(proposal.id) if proposal.signs_in else None`
+
+> Two jobs that both sign in (`Workflow.signs_in`) to the same system are one
+> job, whatever path each took to the password box -- an identity chooser
+> first, a refused attempt, a different login screen of the same provider.
+> Their shapes share almost nothing and their names were made up separately
+> (`Log in to Keycloak`, `Log in using Azure B2C SSO`), so neither the shape
+> nor the name can say so. `signs_in_to` is where the credential was typed
+> (`checks.signs_in_to`), computed by the caller because it needs the
+> gestures and this module holds none -- and a job with no single such system
+> is in no map and is resolved by its shape as before.
+
+## `resolve`, [line 180](../../../../../../../backend/src/sro/domain/observation/identity.py#L180): Comment
 
 Code: `matched = _shared(shape, theirs)`
 
@@ -324,25 +352,32 @@ Code: `matched = _shared(shape, theirs)`
 > step aliases a named one scored as though it had not, and `Reply to
 > Email` cleared K_SAME_JOB at exactly 0.5 by arithmetic coincidence.
 
-## `resolve`, [line 145](../../../../../../../backend/src/sro/domain/observation/identity.py#L145): Comment
+## `resolve`, [line 182](../../../../../../../backend/src/sro/domain/observation/identity.py#L182): Comment
 
-Code: `whole = matched >= K_MIN_SHARED_STEPS or matched == len(shape)`
+Code: `whole = matched >= K_MIN_SHARED_STEPS or matched in (len(shape), len(theirs))`
 
 > Both bars first, then the best of whatever clears them -- not the best
-> overall and then the bars. A one-step stub is 1.0-contained by
-> anything beginning where it does; ranking before filtering lets it win
-> the comparison, fail the step count, and hide the real match behind it.
-> Two shared steps, OR every step this proposal has. See
-> K_MIN_SHARED_STEPS: the bar cannot ask a one-entry shape for two, and
-> `min(K_MIN_SHARED_STEPS, len(shape), len(theirs))` is the wrong way to
-> say so -- measured on the deployment 2026-09-19, it folded a two-step
-> `Navigate to Warehouse Sub-menu` into `Navigate to Receiving`, whose
-> own shape is one generic `tabItem` click repeated three times, on the
-> strength of that one click. Wholly-contained is the honest reading:
-> every distinct step this proposal has already exists in that job, so
-> it is a fragment of it rather than a new job.
+> overall and then the bars. Two shared steps, OR every step one of the two
+> has. See K_MIN_SHARED_STEPS: the bar cannot ask a one-entry shape for two.
+>
+> Every step the PROPOSAL has already in that job: it is a fragment of it.
+> Every step the STORED job has already in this doing (2026-09-23): a small
+> stored job wholly present in a bigger doing is that job, done with more
+> around it -- the one-entry `Log in to Keycloak` against a later doing that
+> also typed the password and pressed Sign In. Without that half the bigger
+> doing was stored as a new job every time.
+>
+> The case this half re-opens was measured on 2026-09-19: a two-step
+> `Navigate to Warehouse Sub-menu` sharing one generic `tabItem` click with
+> the one-entry `Navigate to Receiving`. The shape alone can no longer keep
+> those apart; the name does (one word in five), exactly as it keeps `Reply`
+> and `Forward` apart on one screen.
+>
+> Ranked by how many steps are shared, then by containment: a one-entry stub
+> is 1.0-contained by anything beginning where it does, and ranking on the
+> ratio alone let it beat the real match standing behind it.
 
-## `resolve`, [line 146](../../../../../../../backend/src/sro/domain/observation/identity.py#L146): Comment
+## `resolve`, [line 183](../../../../../../../backend/src/sro/domain/observation/identity.py#L183): Comment
 
 Code: `if (`
 

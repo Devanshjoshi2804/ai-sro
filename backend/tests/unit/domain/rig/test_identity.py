@@ -318,23 +318,29 @@ def test_an_unnamed_step_matches_one_named_step_and_not_two() -> None:
 
 
 def test_a_job_is_not_folded_into_one_that_shares_a_single_generic_click() -> None:
-    """The trap the absolute bar exists for, and it is not hypothetical.
+    """The trap the absolute bar existed for, and it is not hypothetical.
 
     `Navigate to Receiving` on the deployment is one `tabItem` click repeated
     three times -- one distinct entry, and `tabItem` is the component id of
     every tab on that system. Scaling the bar down to the smaller shape folded
     a two-step `Navigate to Warehouse Sub-menu` into it on the strength of that
-    one click. Wholly-contained is the honest reading instead: every distinct
-    step the proposal has must already exist in that job.
+    one click.
+
+    A stored job wholly present in a bigger doing is now that job (see
+    `test_a_small_stored_job_wholly_inside_a_bigger_doing_is_that_job`), so
+    the shape alone no longer keeps these apart -- the names do, as they keep
+    `Reply` and `Forward` apart on one screen.
     """
     generic = _workflow(
         ["ges_a", "ges_b", "ges_c"],
         [[WMS, "tabItem", "click"], [WMS, "tabItem", "click"], [WMS, "tabItem", "click"]],
         id="wfl_generic",
+        title="Navigate to Receiving",
     )
     other = _workflow(
         ["ges_d", "ges_e"],
         [[WMS, "toolbar button", "click"], [WMS, "tabItem", "click"]],
+        title="Navigate to Warehouse Sub-menu",
     )
 
     assert resolve(other, [generic]).kind == "new"
@@ -556,3 +562,134 @@ def test_the_words_that_say_nothing_are_not_what_makes_two_names_alike() -> None
     assert named_alike("Reply to Email", "Forward Email") is False
     assert named_alike("Create a Customer Type", "Create Customer Type") is True
     assert named_alike("Send Email", "Reply to Email") is False
+
+
+# -- variants fold into one job ------------------------------------------------
+
+
+def test_a_doing_that_holds_the_stored_job_in_order_contains_it() -> None:
+    """Containment is the stored job's steps appearing, in time order, inside
+    the doing -- not the doing merely being bigger."""
+    stored = _workflow(["ges_a", "ges_b"], SHAPE, id="wfl_stored")
+    bigger = _workflow(
+        ["ges_c", "ges_d", "ges_e", "ges_f"],
+        [SHAPE[0], [WMS, "extra", "click"], SHAPE[1], [WMS, "more", "type"]],
+    )
+
+    resolution = resolve(bigger, [stored])
+
+    assert resolution.kind == "same_job"
+    assert resolution.contains is True
+
+
+def test_a_bigger_doing_that_does_the_steps_in_another_order_does_not_contain_it() -> None:
+    """Same job by the shape, and bigger -- but the stored steps are not a
+    subsequence of it, so growing the job into it would reorder what works."""
+    stored = _workflow(["ges_a", "ges_b"], SHAPE, id="wfl_stored")
+    reordered = _workflow(
+        ["ges_c", "ges_d", "ges_e"],
+        [SHAPE[1], SHAPE[0], [WMS, "extra", "click"]],
+    )
+
+    resolution = resolve(reordered, [stored])
+
+    assert resolution.kind == "same_job"
+    assert resolution.contains is False
+
+
+def test_a_small_stored_job_wholly_inside_a_bigger_doing_is_that_job() -> None:
+    """The stored `Log in to Keycloak` is one entry wide (the same box typed
+    twice). A later doing that also types the password and presses Sign In
+    holds every stored entry, and is the same job grown -- not a new one."""
+    stored = _workflow(
+        ["ges_a", "ges_b"],
+        [[KEYCLOAK, "name|Username or email", "type"]] * 2,
+        id="wfl_stored",
+        title="Log in to Keycloak",
+    )
+    doing = _workflow(
+        ["ges_c", "ges_d", "ges_e"],
+        [
+            [KEYCLOAK, "name|Username or email", "type"],
+            [KEYCLOAK, "anon|type", "type"],
+            [KEYCLOAK, "button|Sign In", "click"],
+        ],
+        title="Log in to Keycloak",
+    )
+
+    resolution = resolve(doing, [stored])
+
+    assert resolution.kind == "same_job"
+    assert resolution.workflow_id == "wfl_stored"
+    assert resolution.contains is True
+
+
+def test_an_unnamed_stored_step_matches_a_named_one_in_the_doing() -> None:
+    """The alias runs both ways: which recording could name the control is a
+    property of the recording, whichever of the two is stored."""
+    stored = _workflow(
+        ["ges_a", "ges_b"],
+        [[MAIL, "anon|click", "click"], [MAIL, "button|Send", "click"]],
+        id="wfl_stored",
+    )
+    again = _workflow(
+        ["ges_c", "ges_d"],
+        [[MAIL, "link|Reply", "click"], [MAIL, "button|Send", "click"]],
+    )
+
+    resolution = resolve(again, [stored])
+
+    assert resolution.kind == "same_job"
+    assert resolution.score == 1.0
+
+
+B2C = "https://idp-chooser.example"
+
+
+def test_two_sign_ins_to_one_system_are_one_job_whatever_way_they_came() -> None:
+    """One went through an identity chooser first, the other straight to the
+    password page; both are tagged as signing in, and both sign in to the
+    same system. The path to the password box is not the job."""
+    direct = _workflow(
+        ["ges_a", "ges_b"],
+        [[KEYCLOAK, "name|Username or email", "type"], [KEYCLOAK, "anon|type", "type"]],
+        id="wfl_direct",
+        title="Log in to Keycloak",
+        signs_in=True,
+    )
+    chooser = _workflow(
+        ["ges_c", "ges_d", "ges_e"],
+        [
+            [B2C, "link|Local users", "click"],
+            [f"{KEYCLOAK}/login-actions", "textbox|Username", "type"],
+            [f"{KEYCLOAK}/login-actions", "button|Sign In", "click"],
+        ],
+        title="Log in using Azure B2C SSO",
+        signs_in=True,
+    )
+    lands = {"wfl_direct": KEYCLOAK, chooser.id: KEYCLOAK}
+
+    resolution = resolve(chooser, [direct], signs_in_to=lands)
+
+    assert resolution.kind == "same_job"
+    assert resolution.workflow_id == "wfl_direct"
+
+
+def test_two_sign_ins_to_two_systems_stay_two_jobs() -> None:
+    one = _workflow(["ges_a", "ges_b"], SHAPE, id="wfl_one", title="Log in", signs_in=True)
+    other = _workflow(
+        ["ges_c", "ges_d"], [[MAIL, "x", "type"], [MAIL, "y", "click"]], signs_in=True
+    )
+
+    lands = {"wfl_one": KEYCLOAK, other.id: MAIL}
+
+    assert resolve(other, [one], signs_in_to=lands).kind == "new"
+
+
+def test_a_job_that_does_not_sign_in_is_not_folded_into_one_that_does() -> None:
+    signing = _workflow(["ges_a", "ges_b"], SHAPE, id="wfl_one", signs_in=True)
+    other = _workflow(["ges_c", "ges_d"], [[MAIL, "x", "type"], [MAIL, "y", "click"]])
+
+    lands = {"wfl_one": KEYCLOAK, other.id: KEYCLOAK}
+
+    assert resolve(other, [signing], signs_in_to=lands).kind == "new"

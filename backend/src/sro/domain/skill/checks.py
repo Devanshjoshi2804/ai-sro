@@ -181,6 +181,22 @@ def signs_in(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
     )
 
 
+def signs_in_to(workflow: Workflow, gestures: Mapping[str, Gesture]) -> str | None:
+    where = {
+        origin_of(gesture.system or "")
+        for gesture in _during(workflow, gestures)
+        if _typed_the_credential(gesture)
+    }
+    where.discard("")
+    return where.pop() if len(where) == 1 else None
+
+
+def types_a_credential(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
+    return any(
+        _typed_the_credential(gestures[one]) for one in ordered_cites(workflow) if one in gestures
+    )
+
+
 def _in_time(workflow: Workflow, gestures: Mapping[str, Gesture]) -> list[Gesture]:
     cited = [gestures[one] for one in dict.fromkeys(ordered_cites(workflow)) if one in gestures]
     return sorted(cited, key=lambda gesture: gesture.at)

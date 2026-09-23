@@ -293,6 +293,87 @@ async def test_a_refused_held_password_is_not_latched_on_the_vault_key() -> None
     assert await world.refusals.standing(LOGIN_KEY) is None
 
 
+async def test_one_bad_submit_in_each_of_two_runs_latches_on_the_second() -> None:
+    """Counted per run, a system with no recorded sign-in job lets every run
+    spend one bad submit, and the account locks anyway."""
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+
+    await _fail_once(world.run("run-1"))
+    assert await world.refusals.standing(LOGIN_KEY) is None
+    await _fail_once(world.run("run-2"))
+
+    assert await world.refusals.standing(LOGIN_KEY) is not None
+    assert await world.run("run-3")(LOGIN_KEY) is None
+
+
+async def test_the_count_kept_between_runs_holds_nothing_secret() -> None:
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+
+    await _fail_once(world.run("run-1"))
+
+    kept = await world.vault.get(LOGIN_KEY + "#failed")
+    assert kept == "1"
+
+
+async def test_a_success_in_a_run_between_them_resets_the_count() -> None:
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+    await _fail_once(world.run("run-1"))
+
+    between = world.run("run-2")
+    await between.saw(FORM, signed_out=True, credential_empty=True)
+    assert await between(LOGIN_KEY) == WRONG
+    between.typed(WRONG)
+    between.pressed()
+    await between.step_ended(False)
+    await between.saw(SYSTEM, signed_out=False, credential_empty=False)
+    await between.step_ended(True)
+    await _fail_once(world.run("run-3"))
+
+    assert await world.refusals.standing(LOGIN_KEY) is None
+    assert await world.run("run-4")(LOGIN_KEY) == WRONG
+
+
+async def test_a_new_password_clears_the_count_kept_between_runs() -> None:
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+    await _fail_once(world.run("run-1"))
+
+    await world.vault.store(LOGIN_KEY, "another")
+    await _fail_once(world.run("run-2"), "another")
+
+    assert await world.refusals.standing(LOGIN_KEY) is None
+    assert await world.run("run-3")(LOGIN_KEY) == "another"
+
+
+async def test_a_run_that_never_submitted_the_password_does_not_reset_the_count() -> None:
+    """Its held step says the session was alive, not that the password works."""
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+    await _fail_once(world.run("run-1"))
+
+    between = world.run("run-2")
+    assert await between(LOGIN_KEY) == WRONG
+    await between.step_ended(True)
+    await _fail_once(world.run("run-3"))
+
+    assert await world.refusals.standing(LOGIN_KEY) is not None
+
+
+async def test_a_held_password_is_not_counted_on_the_vault_key() -> None:
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+    held = OneTimeSecrets()
+    held.hold(LOGIN_KEY, "typed just now", run_id="run-1")
+
+    await _fail_once(world.run("run-1", held), "typed just now")
+    await _fail_once(world.run("run-2"))
+
+    assert await world.refusals.standing(LOGIN_KEY) is None
+
+
 class _Browser:
     """Answers each command kind with one scripted reply."""
 
@@ -461,14 +542,14 @@ async def test_a_re_login_after_a_held_business_step_is_typed_again_and_not_latc
     run = world.run()
 
     await _fail_once(run)
-    run.step_ended(False)
+    await run.step_ended(False)
     await run.saw(FORM, signed_out=True, credential_empty=True)
     assert await run(LOGIN_KEY) == WRONG
     run.typed(WRONG)
     run.pressed()
-    run.step_ended(False)
+    await run.step_ended(False)
     await run.saw(SYSTEM, signed_out=False, credential_empty=False)
-    run.step_ended(True)
+    await run.step_ended(True)
     await _fail_once(run)
 
     assert await world.refusals.standing(LOGIN_KEY) is None
@@ -483,7 +564,7 @@ async def test_a_held_step_that_signed_in_is_not_a_success() -> None:
     run = world.run()
 
     await _fail_once(run)
-    run.step_ended(True)
+    await run.step_ended(True)
     await _fail_once(run)
 
     assert await world.refusals.standing(LOGIN_KEY) is not None
@@ -538,10 +619,10 @@ async def test_a_sign_in_that_landed_is_not_latched_when_the_form_is_later_seen(
         f.TENANT, device, kind="ui.perform", payload={"action": "type", "value": value}
     )
     await watched.send(f.TENANT, device, kind="ui.perform", payload={"action": "click"})
-    run.step_ended(True)
+    await run.step_ended(True)
     browser.replies["ui.url"] = landed
     await watched.send(f.TENANT, device, kind="ui.url", payload={})
-    run.step_ended(True)
+    await run.step_ended(True)
     browser.replies["ui.url"] = form
     await watched.send(f.TENANT, device, kind="ui.url", payload={})
     value = await run(LOGIN_KEY)
@@ -586,6 +667,35 @@ async def test_tab_is_not_a_submit() -> None:
 
     assert await world.refusals.standing(LOGIN_KEY) is None
     assert await run(LOGIN_KEY) == WRONG
+
+
+async def test_the_keypad_enter_is_a_submit_like_enter() -> None:
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+    run = world.run()
+    browser = _Browser(
+        {
+            "ui.url": Reply(
+                ok=True, result={"url": FORM, "signed_out": True, "credential_empty": True}
+            ),
+            "ui.perform": Reply(ok=True, result={"performed": True}),
+        }
+    )
+    watched = WatchingChannel(browser, run)
+    device = DeviceId("dev-1")
+
+    for _ in range(2):
+        await watched.send(f.TENANT, device, kind="ui.url", payload={})
+        value = await run(LOGIN_KEY)
+        await watched.send(
+            f.TENANT, device, kind="ui.perform", payload={"action": "type", "value": value}
+        )
+        await watched.send(
+            f.TENANT, device, kind="ui.perform", payload={"action": "press", "value": "NumpadEnter"}
+        )
+        await watched.send(f.TENANT, device, kind="ui.url", payload={})
+
+    assert await world.refusals.standing(LOGIN_KEY) is not None
 
 
 async def test_a_fresh_hold_beats_the_one_kept_for_the_run() -> None:

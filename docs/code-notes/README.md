@@ -311,7 +311,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/domain/skill/repeats.py`](backend/src/sro/domain/skill/repeats.py.md) | 8 |
 | [`backend/src/sro/domain/skill/reversals.py`](backend/src/sro/domain/skill/reversals.py.md) | 11 |
 | [`backend/src/sro/domain/skill/shape.py`](backend/src/sro/domain/skill/shape.py.md) | 25 |
-| [`backend/src/sro/domain/skill/signing_in.py`](backend/src/sro/domain/skill/signing_in.py.md) | 5 |
+| [`backend/src/sro/domain/skill/signing_in.py`](backend/src/sro/domain/skill/signing_in.py.md) | 8 |
 | [`backend/src/sro/domain/skill/skill.py`](backend/src/sro/domain/skill/skill.py.md) | 43 |
 | [`backend/src/sro/domain/skill/template.py`](backend/src/sro/domain/skill/template.py.md) | 3 |
 | [`backend/src/sro/domain/skill/track_record.py`](backend/src/sro/domain/skill/track_record.py.md) | 19 |

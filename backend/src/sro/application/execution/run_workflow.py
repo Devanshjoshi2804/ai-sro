@@ -75,7 +75,7 @@ from sro.domain.shared.prices import Answer
 from sro.domain.skill.checks import is_sign_in_step
 from sro.domain.skill.learned import demanded
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
-from sro.domain.skill.signing_in import is_sign_in_page, signs_in_at
+from sro.domain.skill.signing_in import is_sign_in_page, sign_in_chain, signs_in_at
 from sro.domain.skill.workflow import Step, Workflow
 from sro.whose import attribute
 
@@ -214,15 +214,12 @@ async def _the_way_back_in(
     job = next((one for one in known if one.id == back), None)
     if job is None or not job.steps:
         return None, []
-    by_id.update({one: seen[one] for step in job.steps for one in step.cites if one in seen})
-    if not all(any(one in by_id for one in step.cites) for step in job.steps):
+    chain = sign_in_chain(job, seen)
+    by_id.update({one: seen[one] for step in chain for one in step.cites if one in seen})
+    if not all(any(one in by_id for one in step.cites) for step in chain):
         return None, []
     logger.info("%s signing back in at %s with %s", workflow.id, where, job.title)
-    legs = [
-        _Leg(step, dict(values), rescue=True, of=job)
-        for step in sorted(job.steps, key=lambda one: one.order)
-    ]
-    return job, legs
+    return job, [_Leg(step, dict(values), rescue=True, of=job) for step in chain]
 
 
 def _target_origin(planned: Planned) -> str | None:
@@ -864,7 +861,7 @@ async def run_workflow(
     known_fields: KnownFields | None = None,
     gather_values: GatherValues | None = None,
     mail: MailHand | None = None,
-    step_ended: Callable[[bool], None] | None = None,
+    step_ended: Callable[[bool], Awaitable[None]] | None = None,
     cap_usd: float,
 ) -> WorkflowRun:
     saved = await uow.workflow_runs.get(tenant_id, run_id) if run_id else None
@@ -1966,7 +1963,7 @@ async def run_workflow(
                 record.verdict, record.verdict_by = verdict.state, verdict.by
                 record.reason = verdict.reason
             if step_ended is not None:
-                step_ended(record.verdict == "held" and not of_job.signs_in)
+                await step_ended(record.verdict == "held" and not of_job.signs_in)
 
             in_flight = None
             await _save(uow, run)

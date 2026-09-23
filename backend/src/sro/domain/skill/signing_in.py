@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from urllib.parse import urlsplit
 
-from sro.domain.observation.gesture import Gesture
+from sro.domain.observation.gesture import Gesture, passed_through
 from sro.domain.shared.hosts import origin_of
-from sro.domain.skill.workflow import Workflow, ordered_cites
+from sro.domain.skill.workflow import Step, Workflow, ordered_cites
 
 
 def signs_in_at(
@@ -37,6 +37,29 @@ def _starts_at(job: Workflow, by_id: Mapping[str, Gesture]) -> str | None:
         return None
     first = min(range(len(cited)), key=lambda index: (cited[index].at, index))
     return origin_of(cited[first].url or cited[first].system or "")
+
+
+def sign_in_chain(job: Workflow, by_id: Mapping[str, Gesture]) -> list[Step]:
+    steps = sorted(job.steps, key=lambda one: one.order)
+    cited = _in_order(job, by_id)
+    typed = [one.at for one in cited if _secret(one)] or [
+        one.at for one in cited if one.action.kind == "type"
+    ]
+    if not typed:
+        return steps
+    since = min(typed)
+    for index, step in enumerate(steps):
+        for one in step.cites:
+            gesture = by_id.get(one)
+            if (
+                gesture is not None
+                and gesture.at >= since
+                and gesture.action.kind != "type"
+                and passed_through(gesture)
+            ):
+                kept = [c for c in step.cites if c in by_id and by_id[c].at <= gesture.at]
+                return [*steps[:index], replace(step, cites=kept)]
+    return steps
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,4 +110,4 @@ def _secret(gesture: Gesture) -> bool:
     return bool(gesture.action.secret or (target is not None and target.secret))
 
 
-__all__ = ["RecordedLogin", "is_sign_in_page", "recorded_login", "signs_in_at"]
+__all__ = ["RecordedLogin", "is_sign_in_page", "recorded_login", "sign_in_chain", "signs_in_at"]

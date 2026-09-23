@@ -26,7 +26,7 @@ import base64
 import copy
 import json
 import logging
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -66,7 +66,7 @@ from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.planning import PLAN_SCHEMA, SIGHT_SCHEMA, Look, Planned
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
-from sro.domain.observation.gesture import Action, Body, Call, Gesture, Target
+from sro.domain.observation.gesture import Action, Body, Call, Gesture, PageMark, Target
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.checks import signs_in
@@ -1003,7 +1003,7 @@ async def _ran(
     known_fields: KnownFields | None = None,
     gather_values: GatherValues | None = None,
     mail: MailHand | None = None,
-    step_ended: Callable[[bool], None] | None = None,
+    step_ended: Callable[[bool], Awaitable[None]] | None = None,
 ) -> WorkflowRun:
     """One run, with the arguments no test varies spelled once.
 
@@ -1092,6 +1092,9 @@ async def test_each_step_says_whether_it_held_outside_signing_in(signs_in: bool)
     )
     ended: list[bool] = []
 
+    async def end(held: bool) -> None:
+        ended.append(held)
+
     run = await _ran(
         uow,
         workflow,
@@ -1099,7 +1102,7 @@ async def test_each_step_says_whether_it_held_outside_signing_in(signs_in: bool)
         asker=asker,
         values={"clientCode": "THIRD"},
         earned=True,
-        step_ended=ended.append,
+        step_ended=end,
     )
 
     assert [s.verdict for s in run.steps] == ["held", "held"]
@@ -1742,6 +1745,65 @@ async def test_a_session_that_went_is_signed_back_into_and_the_step_tried_again(
     assert any("signing back in" in one for one in said), said
     # The sign-in step really ran, through the ordinary ladder.
     assert any("Local WMS users" in one.says for one in run.steps), [s.says for s in run.steps]
+
+
+async def test_signing_back_in_splices_the_sign_in_and_nothing_after_the_landing() -> None:
+    """The deployed Azure B2C job cites a click in the WMS after the submit
+    left the sign-in host (QA, 2026-09-23). Spliced whole, a sign-back-in would
+    do that business click in the middle of somebody else's run."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    base = _evidence(uow)[0]
+    door = replace(
+        base,
+        id="ges_door",
+        url=f"{LOGIN}/oauth2/v2.0/authorize",
+        page_url=f"{LOGIN}/oauth2/v2.0/authorize",
+        system=LOGIN,
+        requests=[],
+    )
+    password = _password_beside(door)
+    submit = replace(
+        door,
+        id="ges_submit",
+        at=door.at + 1,
+        action=Action(kind="click", at=door.at + 1),
+        page_events=[PageMark(at=door.at + 1, page_kind="load", url=f"{base.system}/home")],
+    )
+    business = replace(base, id="ges_business", at=door.at + 20, requests=[])
+    await uow.gestures.add_gestures((door, password, submit, business))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_sso",
+            tenant=TENANT.value,
+            title="Log in using Azure B2C SSO",
+            narrative="n",
+            systems=[LOGIN],
+            steps=[
+                Step(order=0, says="Click 'Local WMS users'", system=None, cites=[door.id]),
+                Step(order=1, says="Type the password", system=None, cites=[password.id]),
+                Step(order=2, says="Sign in", system=None, cites=[submit.id]),
+                Step(
+                    order=3, says="Open Customers in the portal", system=None, cites=[business.id]
+                ),
+            ],
+            signs_in=True,
+        )
+    )
+    at_the_door = Look(
+        url=None, screenshot=None, digest="Sign in", elsewhere=f"{LOGIN}/oauth2", signed_out=True
+    )
+
+    job, legs = await runner_module._the_way_back_in(uow, TENANT, workflow, at_the_door, {}, {})
+
+    assert job is not None
+    assert job.id == "wfl_sso"
+    assert [leg.step.says for leg in legs] == [
+        "Click 'Local WMS users'",
+        "Type the password",
+        "Sign in",
+    ]
+    assert all(leg.rescue for leg in legs)
 
 
 async def test_a_run_signs_back_in_once_and_not_forever() -> None:

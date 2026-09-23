@@ -87,12 +87,32 @@ Code: `_SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-action
 > The origin of the first gesture this job cites, in time; the job's own step
 > order breaks a tie.
 
-## `RecordedLogin`, [line 43](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L43): Class
+## `sign_in_chain`, [line 42](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L42): Function
+
+> The steps a sign-back-in replays: from the job's first step through the
+> first act that left its host after the credential was typed, cut inside
+> that step at that gesture (audit wave 1, task 10, 2026-09-24).
+>
+> - The credential anchors the end, not the username: an identifier-first
+>   sign-in leaves the username page's host for the password's, and that
+>   Next is not the landing. With no credential cited, the first typed value
+>   anchors it; with nothing typed, nothing says where the sign-in ends and
+>   the whole job is the chain, as before.
+> - A door before any typing (a credential chooser that crosses to the form's
+>   host) is not a submit and never ends the chain.
+> - Cut inside the step: the deployed Azure B2C job's last step cites both
+>   the submit that left Keycloak and a click in the WMS nineteen seconds
+>   later. Only cites up to the submit are kept; the job itself is not changed.
+>   The step's `says` still describes both, so the planner sees text about the
+>   portal with only the submit's evidence.
+> - General: hosts via `passed_through`, never a host, page text or title.
+
+## `RecordedLogin`, [line 66](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L66): Class
 
 > What a recorded sign-in says about credentials: the origin the password was
 > typed on, which names its vault key, and the username typed before it.
 
-## `recorded_login`, [line 49](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L49): Docstring
+## `recorded_login`, [line 72](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L72): Docstring
 
 > The job that starts on the system's own page, when there is one
 > (`signs_in_at`); otherwise the only tagged sign-in job that carries a

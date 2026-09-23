@@ -9,8 +9,10 @@ crossing into Keycloak, and is not the job for that page.
 
 from __future__ import annotations
 
-from sro.domain.observation.gesture import Action, Gesture
-from sro.domain.skill.signing_in import signs_in_at
+from dataclasses import replace
+
+from sro.domain.observation.gesture import Action, Gesture, PageMark
+from sro.domain.skill.signing_in import sign_in_chain, signs_in_at
 from sro.domain.skill.workflow import Step, Workflow
 
 B2C = "https://blueyonderalphaus.b2clogin.com"
@@ -130,3 +132,88 @@ def test_a_sign_in_that_crosses_hosts_is_the_way_in_where_it_starts() -> None:
 
     assert signs_in_at(f"{B2C}/oauth2", [chain], _store()) == "wfl_chain"
     assert signs_in_at(f"{KEYCLOAK}/auth", [chain], _store()) is None
+
+
+def _did(
+    gesture_id: str, url: str, at: float, kind: str = "click", *, secret: bool = False, to: str = ""
+) -> Gesture:
+    return replace(
+        _at(gesture_id, url),
+        at=at,
+        action=Action(kind=kind, at=at, url=f"{url}/page", secret=secret),
+        page_events=[PageMark(at=at, page_kind="load", url=f"{to}/landed")] if to else [],
+    )
+
+
+def _azure() -> tuple[Workflow, dict[str, Gesture]]:
+    """The deployed Azure B2C sign-in, as the QA export holds it (2026-09-23):
+    the chooser on b2clogin, the username and password on Keycloak, and a last
+    step that cites both the submit that left Keycloak and a click in the WMS
+    nineteen seconds later."""
+    gestures = {
+        one.id: one
+        for one in (
+            _did("chooser", B2C, 1.0, to=KEYCLOAK),
+            _did("user-box", KEYCLOAK, 2.0),
+            _did("user", KEYCLOAK, 3.0, "type"),
+            _did("password", KEYCLOAK, 4.0, "type", secret=True),
+            _did("submit", KEYCLOAK, 5.0, to=WMS),
+            _did("wms-click", WMS, 24.0),
+        )
+    }
+    steps = [
+        Step(order=0, says="Click the chooser", system=B2C, cites=["chooser"]),
+        Step(order=1, says="Type the username", system=KEYCLOAK, cites=["user-box", "user"]),
+        Step(order=2, says="Type the password", system=KEYCLOAK, cites=["password"]),
+        Step(
+            order=3,
+            says="Sign in and open the portal",
+            system=KEYCLOAK,
+            cites=["submit", "wms-click"],
+        ),
+    ]
+    return Workflow(
+        id="wfl_azure", tenant="t", title="Log in", narrative="n", steps=steps
+    ), gestures
+
+
+def test_the_azure_chain_is_spliced_through_the_submit_that_left_the_host_only() -> None:
+    """The chooser also leaves its host, but nothing was typed before it: it
+    is a door, not a submit. The chain ends at the submit, inside its step."""
+    job, gestures = _azure()
+
+    chain = sign_in_chain(job, gestures)
+
+    assert [step.order for step in chain] == [0, 1, 2, 3]
+    assert chain[-1].cites == ["submit"]
+    assert "wms-click" not in {one for step in chain for one in step.cites}
+    assert job.steps[3].cites == ["submit", "wms-click"], "the job itself was changed"
+
+
+def test_a_step_after_the_landing_is_never_part_of_the_chain() -> None:
+    job, gestures = _azure()
+    job.steps[3].cites = ["submit"]
+    job.steps.append(Step(order=4, says="Open Customers", system=WMS, cites=["wms-click"]))
+
+    assert [step.order for step in sign_in_chain(job, gestures)] == [0, 1, 2, 3]
+
+
+def test_a_job_that_never_left_the_host_after_typing_is_all_chain() -> None:
+    """Nothing says where the sign-in ends, so every step is the sign-in, as
+    before."""
+    job, gestures = _azure()
+    gestures["submit"] = replace(gestures["submit"], page_events=[])
+
+    chain = sign_in_chain(job, gestures)
+
+    assert [step.cites for step in chain] == [step.cites for step in job.steps]
+
+
+def test_the_credential_decides_where_the_chain_can_end_not_the_username() -> None:
+    """Identifier first: the username page's Next leaves for the password's
+    host. The chain goes on to the submit after the password."""
+    job, gestures = _azure()
+    gestures["user-next"] = _did("user-next", KEYCLOAK, 3.5, to=B2C)
+    job.steps[1].cites = ["user-box", "user", "user-next"]
+
+    assert sign_in_chain(job, gestures)[-1].cites == ["submit"]

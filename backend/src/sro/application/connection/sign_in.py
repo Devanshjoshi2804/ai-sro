@@ -53,7 +53,7 @@ class StoreCredentials:
             await self._vault.store(connection.credential_key(USERNAME), username.strip())
             await self._vault.store(connection.credential_key(PASSWORD), password)
             return
-        if recorded.username and recorded.username != username.strip():
+        if recorded.username and recorded.username.casefold() != username.strip().casefold():
             raise Conflict(
                 f"the recorded sign-in job {recorded.job_id} signs in at {recorded.origin} "
                 "with a different username than the one given, so a password stored for it "

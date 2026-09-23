@@ -47,7 +47,9 @@ Code: `raise Conflict(`
 > account's password with it -- a refused sign-in on the next run, typed by
 > nobody who could see why. Nothing is stored, and the message names the job
 > and login origin but neither username nor password. The same username, or a
-> job that recorded none, proceeds.
+> job that recorded none, proceeds. The comparison ignores case (task 10,
+> 2026-09-24): identity providers match usernames case-insensitively, so
+> `OPERATOR-7` against a recorded `operator-7` is the same account, not a 409.
 
 ## `SignIn`, [line 68](../../../../../../../backend/src/sro/application/connection/sign_in.py#L68): Docstring
 

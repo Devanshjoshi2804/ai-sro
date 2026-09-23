@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from urllib.parse import urlsplit
 
-from sro.application.connection.refusals import RefusedCredentials
+from sro.application.connection.refusals import FailedAttempts, RefusedCredentials
 from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.ports.channel import Channel, Reply
 from sro.application.ports.vault import CredentialVault, VaultUnavailable
@@ -25,6 +25,7 @@ class RunSecrets:
         self._attempts: dict[str, str] = {}
         self._failed: dict[str, int] = {}
         self._signing = False
+        self._counted: set[str] = set()
         self._refused: set[str] = set()
         self._kept: dict[str, str] = {}
         self._host = ""
@@ -62,14 +63,24 @@ class RunSecrets:
     def pressed(self) -> None:
         if self._typed:
             self._signing = True
+        self._counted.update(key for key in self._typed if self._handed[key][1])
         self._attempts.update(self._typed)
         self._typed.clear()
 
-    def step_ended(self, held: bool) -> None:
-        if held and not self._signing:
-            self._attempts.clear()
-            self._failed.clear()
-        self._signing = False
+    async def step_ended(self, held: bool) -> None:
+        signing, self._signing = self._signing, False
+        if not held or signing:
+            return
+        self._attempts.clear()
+        self._failed.clear()
+        if self._vault is None:
+            return
+        for key in list(self._counted):
+            try:
+                await FailedAttempts(self._vault).clear(key)
+            except VaultUnavailable:
+                continue
+            self._counted.discard(key)
 
     async def saw(self, url: str, *, signed_out: bool, credential_empty: bool) -> None:
         host = urlsplit(url).netloc.lower()
@@ -83,8 +94,17 @@ class RunSecrets:
                 continue
             del self._attempts[key]
             self._failed[key] = self._failed.get(key, 0) + 1
-            if self._failed[key] >= LATCH_AT:
+            if await self._count(key) >= LATCH_AT:
                 await self._refuse(key)
+
+    async def _count(self, key: str) -> int:
+        _, from_vault = self._handed[key]
+        if not from_vault or self._vault is None:
+            return self._failed[key]
+        try:
+            return await FailedAttempts(self._vault).add(key)
+        except VaultUnavailable:
+            return self._failed[key]
 
     async def _refuse(self, key: str) -> None:
         mark, from_vault = self._handed[key]
@@ -96,8 +116,9 @@ class RunSecrets:
                 key,
                 at=datetime.now(tz=UTC),
                 reason=(
-                    f"run {self._run_id} submitted this password {LATCH_AT} times and each "
-                    f"time the sign-in form on {self._host} came back with its password box empty"
+                    f"this password was submitted {LATCH_AT} times with no success between, the "
+                    f"last by run {self._run_id}, and each time the sign-in form on {self._host} "
+                    "came back with its password box empty"
                 ),
             )
         except VaultUnavailable:
@@ -147,7 +168,9 @@ class WatchingChannel:
 
 def _submits(payload: Mapping[str, object]) -> bool:
     action = payload.get("action")
-    return action == "click" or (action == "press" and payload.get("value") in (None, "", "Enter"))
+    return action == "click" or (
+        action == "press" and payload.get("value") in (None, "", "Enter", "NumpadEnter")
+    )
 
 
 def _mark(key: str, value: str) -> str:

@@ -7,6 +7,8 @@ from datetime import datetime
 from sro.application.ports.vault import CredentialVault
 
 MARK = "#refused"
+FAILED = "#failed"
+MARKS = (MARK, FAILED)
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,19 +35,37 @@ class RefusedCredentials:
             return Refusal(at=None, reason=said)
 
 
+class FailedAttempts:
+    def __init__(self, vault: CredentialVault) -> None:
+        self._vault = vault
+
+    async def add(self, key: str) -> int:
+        said = await self._vault.get(key + FAILED) or ""
+        count = (int(said) if said.isdigit() else 0) + 1
+        await self._vault.store(key + FAILED, str(count))
+        return count
+
+    async def clear(self, key: str) -> None:
+        await self._vault.delete(key + FAILED)
+
+
 class ForgetsRefusalOnWrite:
     def __init__(self, vault: CredentialVault) -> None:
         self._vault = vault
 
     async def store(self, key: str, value: str) -> None:
         await self._vault.store(key, value)
-        if not key.endswith(MARK):
-            await self._vault.delete(key + MARK)
+        await self._forget(key)
 
     async def get(self, key: str) -> str | None:
         return await self._vault.get(key)
 
     async def delete(self, key: str) -> None:
         await self._vault.delete(key)
-        if not key.endswith(MARK):
-            await self._vault.delete(key + MARK)
+        await self._forget(key)
+
+    async def _forget(self, key: str) -> None:
+        if key.endswith(MARKS):
+            return
+        for mark in MARKS:
+            await self._vault.delete(key + mark)

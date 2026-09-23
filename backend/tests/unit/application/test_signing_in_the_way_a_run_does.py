@@ -231,6 +231,21 @@ async def test_a_username_other_than_the_one_the_job_signs_in_with_is_refused() 
     assert await world.vault.get(LOGIN_KEY) == "kept"
 
 
+async def test_the_recorded_username_in_another_case_is_the_same_username() -> None:
+    """Identity providers match usernames without regard to case."""
+    world = _World()
+    connection = await world.connect(job=_login_job())
+
+    await StoreCredentials(world.uow, world.vault).execute(
+        CTX,
+        connection_id=connection.id,
+        username="OPERATOR-7",
+        password="right",  # noqa: S106 -- a fake vault's value
+    )
+
+    assert await world.vault.get(LOGIN_KEY) == "right"
+
+
 async def test_a_job_that_recorded_no_username_takes_the_one_stored_with_the_password() -> None:
     world = _World()
     connection = await world.connect(job=_login_job(), username=None)

@@ -28,15 +28,33 @@ Code: `MARK = "#refused"`
 > the thing whose lifecycle it follows. `#` never occurs in a key
 > `secret_key_of` builds, so no real secret can be mistaken for a mark.
 
-## `RefusedCredentials.standing`, [line 25](../../../../../../../backend/src/sro/application/connection/refusals.py#L25): Docstring
+## `RefusedCredentials.standing`, [line 27](../../../../../../../backend/src/sro/application/connection/refusals.py#L27): Docstring
 
 > The standing refusal for this key, or None. A mark that cannot be parsed
 > still counts as a refusal: the safe reading of a latch nobody can read is
 > "latched".
 
-## `ForgetsRefusalOnWrite`, [line 36](../../../../../../../backend/src/sro/application/connection/refusals.py#L36): Class
+## module, [line 10](../../../../../../../backend/src/sro/application/connection/refusals.py#L10): Constant
 
-> The vault, wrapped so that writing a key lifts any refusal against it.
+Code: `FAILED = "#failed"`
+
+> The failed-attempt count, kept next to `#refused` under the secret's own key
+> (audit wave 1, task 10, 2026-09-24). A count per run let every run spend one
+> bad submit without limit on a system with no recorded sign-in job. The
+> record holds only a decimal count -- never the password or a hash of it.
+
+## `FailedAttempts`, [line 38](../../../../../../../backend/src/sro/application/connection/refusals.py#L38): Class
+
+> Failed sign-in attempts for one vault key, across runs. `add` reads,
+> increments and writes back; two runs failing at the same moment can both
+> read the same count and lose one increment -- the latch then comes one
+> attempt later, never early. An unparsable record counts as zero.
+
+## `ForgetsRefusalOnWrite`, [line 52](../../../../../../../backend/src/sro/application/connection/refusals.py#L52): Class
+
+> The vault, wrapped so that writing a key lifts any refusal against it and
+> clears its failed-attempt count (`#failed`, task 10). Writing or deleting a
+> mark itself touches nothing else.
 >
 > New credentials are the one thing that can fix a refusal, and they arrive
 > through several doors -- `PUT /v1/secrets` (which the panel's keep-secret box
@@ -44,6 +62,6 @@ Code: `MARK = "#refused"`
 > it here, once, in the vault every one of them writes through, is what keeps
 > a door from being forgotten. Installed in `build_container`.
 >
-> It costs one extra delete per write, including the session cookies a
+> It costs two extra deletes per write, including the session cookies a
 > refresh stores. Deleting a missing key is a no-op in the file vault and a
 > handled NotFound in Secret Manager.

@@ -77,6 +77,14 @@ Code: `FLOORS = {`
 > killed, 293 survived. The bridge read **85.8%** unchanged by any work here --
 > the floor rises to just under it, which is what a ratchet is for.
 >
+> Re-measured 2026-09-24 after the bridge (`from_rig`, `network_from_rig`,
+> `version_from_rig`, `adopt_rig_workflow`) and `map_step_to_tool`,
+> `read_doings`, `add_assertion`, `promote_skill` were removed with no
+> production caller. What `sro.application.skill` holds now -- `counsel`,
+> `describe_skill`, `read_skills`, `read_workflows`, `record_offer`,
+> `repair_drift`, `retire_workflow`, `serve_shapes` -- read 555 mutants, 489
+> killed, 53 survived, 13 unreached: **90.2%**, which is the floor now.
+>
 > The ladder's first sweep, the same day, read **83.9%** with two modules far
 > under it: `diagnosis` 49.2% and `safety` 60.6%. Both were the same kind of
 > hole. Every `safety` boundary was a number nothing stood on -- `>` for `>=`

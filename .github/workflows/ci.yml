@@ -193,8 +193,8 @@ jobs:
           cache-dependency-glob: backend/uv.lock
       - run: uv sync --all-extras
         working-directory: backend
-      # Scoped to `sro/application/skill/`, which is what turns a model's
-      # reading of a captured day into a Skill something goes and performs.
+      # Scoped by `[tool.mutmut] source_paths` in backend/pyproject.toml; each
+      # area's floor is in backend/scripts/mutation_floor.py.
       # `mutmut run` exits non-zero whenever any mutant survived, which is
       # every run at this score, so the floor script is what decides the build.
       - run: make mutants-backend

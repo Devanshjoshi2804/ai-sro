@@ -12,36 +12,19 @@ Comments and docstrings moved out of [`backend/scripts/check_code_notes.py`](../
 > repository re-checks that.
 >
 > `check` (the default): report every anchor whose line no longer matches its
-> named symbol, every anchor whose symbol can no longer be found (or is
-> ambiguous), and every non-trivial backend source file with no note file at
-> all. Exits non-zero if anything was found.
+> named symbol, and every anchor whose symbol can no longer be found or
+> resolved. Exits non-zero if anything was found. It does not check whether a
+> source file is missing a note file -- `docs/code-notes/README.md` asks for
+> one only where the source once carried a comment, and nothing in the
+> current file says whether it ever did.
 >
 > `--fix`: rewrite the stale line numbers to where the symbol sits now, found
 > by name with `ast` -- including a dotted qualname like `Class.method`. Note
-> text is never touched, and an anchor that cannot be resolved cleanly
-> (missing or ambiguous) is left alone and reported instead of guessed at.
-> Run once, after every merge -- not by the branches that cause the drift.
+> text is never touched, and an anchor that cannot be resolved cleanly is
+> left alone and reported instead of guessed at. Run once, after every merge
+> -- not by the branches that cause the drift.
 
-## `EXEMPT_FROM_NOTES`, [line 10](../../../../backend/scripts/check_code_notes.py#L10): Constant
-
-Code: `EXEMPT_FROM_NOTES = ("backend", "src", "sro", "interface", "http")`
-
-> `docs/code-notes/README.md`'s one exemption: a source file under
-> `interface/http/` may keep its own docstrings, because they become the
-> OpenAPI document. A file entirely covered by that exemption legitimately
-> has nothing left to move out, so `requires_note` does not flag it for
-> having no note file. It can still get one -- most files there do, for
-> their non-docstring comments -- this only excuses the directory from the
-> "must have a note" rule, not from carrying one.
-
-## `EXCLUDED_DIR_PARTS`, [line 12](../../../../backend/scripts/check_code_notes.py#L12): Constant
-
-Code: `EXCLUDED_DIR_PARTS = {"tests", "migrations", "__pycache__", ".venv"}`
-
-> Not backend source in the sense the README means: generated Alembic
-> migrations, the test suite, and anything not checked in.
-
-## `HEADING_RE`, [line 14](../../../../backend/scripts/check_code_notes.py#L14): Constant
+## `HEADING_RE`, [line 11](../../../../backend/scripts/check_code_notes.py#L11): Constant
 
 > One pattern for every anchor heading this repository generates, e.g.
 > `` ## `Container.claim_the_runs`, [line 255](...#L255): Comment ``. The
@@ -51,22 +34,12 @@ Code: `EXCLUDED_DIR_PARTS = {"tests", "migrations", "__pycache__", ".venv"}`
 > rebuild the line byte-for-byte around the two numbers it changes, rather
 > than reconstructing Markdown it might get subtly wrong.
 >
-> Three headings in this repository today have no `line N` at all --
-> `` ## `FromTheMail.execute`: Comment `` and two others. `HEADING_RE` simply
-> does not match them; `parse_anchors` below is what turns that non-match
-> into a reported finding instead of a silent skip.
+> A few headings in this repository have no `line N` at all -- e.g.
+> `` ## `FromTheMail.execute`: Comment ``. `HEADING_RE` simply does not match
+> them; `parse_anchors` below is what turns that non-match into a reported
+> finding instead of a silent skip.
 
-## `requires_note`, [line 56](../../../../backend/scripts/check_code_notes.py#L56): Function
-
-> Whether `docs/code-notes/README.md`'s rules say this source file should
-> have a note file.
->
-> An empty file never carried a comment worth moving -- an empty
-> `__init__.py` has no note anywhere in this tree, a one-line one does. That
-> is the whole test: not "is this file trivial" by any deeper measure, just
-> "is there anything in it at all" once whitespace is stripped.
-
-## `resolve_symbol`, [line 129](../../../../backend/scripts/check_code_notes.py#L129): Function
+## `resolve_symbol`, [line 112](../../../../backend/scripts/check_code_notes.py#L112): Function
 
 > A dotted name (`Container`, `Container.claim_the_runs`, a bare module-level
 > constant like `LATCH_AT`) walked one segment at a time through direct
@@ -81,34 +54,60 @@ Code: `EXCLUDED_DIR_PARTS = {"tests", "migrations", "__pycache__", ".venv"}`
 > to a name-only lookup, and both get reported rather than resolved to
 > whichever match happened to come first.
 
-## `resolve_target_line`, [line 142](../../../../backend/scripts/check_code_notes.py#L142): Function
+## `evaluate_anchor`, [line 134](../../../../backend/scripts/check_code_notes.py#L134): Function
 
-> Where one anchor's line should be today.
+> Where one anchor's line should be, without yet trusting position to settle
+> a tie -- that needs every anchor's `"certain"` result gathered first (see
+> `order_violations` below), so this only ever returns one of three
+> answers: `"certain"` (a symbol-only anchor's own `lineno`, a single hit, or
+> the stated line itself when it's one of several hits -- a quote matching
+> more than one line is not an error by itself, only an unconfirmed one is),
+> `"dead"` (the symbol or the quoted code cannot be found at all), or
+> `"ambiguous"` (more than one hit, and the stated line isn't among them).
 >
-> A `Docstring`/`Class`/`Function`/`Constant`-style anchor (no `Code:` line
-> in the note) names the symbol itself; its target is that symbol's own
-> `lineno` -- the `class`/`def` line, or the assignment's line for a bare
-> constant. Every other kind quotes the exact source line it was written
-> against, and the target is wherever that literal text sits today, searched
-> only inside the named symbol's own line range (or the whole file, for a
+> The search for a `Code:`-quoted line is exact and whitespace-trimmed, and
+> scoped to the named symbol's own line range (the whole file, for a
 > `module` anchor) -- never the whole tree, which is what keeps `import json`
 > in one function from resolving a note written about `import json` in
 > another.
->
-> ponytail: the search is an exact, whitespace-trimmed line match, not a
-> structural one. A method that calls `await self._session.execute(` more
-> than once reads as ambiguous here and is reported rather than guessed --
-> matching on the statement's AST shape (or which argument follows) would
-> resolve more of these, and is not worth building before real duplicates,
-> not just repeated boilerplate, show up as noise in `check`'s output.
 
-## `run`, [line 190](../../../../backend/scripts/check_code_notes.py#L190): Function
+## `order_violations`, [line 175](../../../../backend/scripts/check_code_notes.py#L175): Function
 
-> One pass over every note file, plus one pass over every source file.
+> The rule `resolve_note_file` relies on to break an `"ambiguous"` tie --
+> the notes for one symbol are written in source order, so the next one's
+> line should never resolve *before* the previous one's -- is an assumption
+> about how these files were written, not a law, so it is checked here
+> against real evidence before anything downstream trusts it: only the
+> `"certain"` resolutions, per symbol, per file, in heading order. Those
+> never depended on position to resolve, so they can't beg the question they
+> are being used to answer.
 >
-> The first pass is where `--fix` writes: a note file is rewritten once, in
-> place, only if at least one of its anchors resolved cleanly to a different
-> line -- an anchor this pass could not resolve is reported and left as-is,
-> on this run and on `--fix` alike. The second pass is the other direction:
-> a source file `requires_note` and has no matching note file at all, which
-> a per-anchor pass over existing notes could never find by construction.
+> A symbol found out of order here is not guessed through anywhere in this
+> file again -- every `"ambiguous"` note under it is reported instead
+> (`resolve_note_file` below). Measured on this repository: most of the
+> symbols this flags never actually had an ambiguous note under them, so
+> flagging them costs nothing; the ones that did (e.g. `FromTheMail.execute`,
+> whose six identical `logger.info(` lines cannot be told apart once its
+> notes are known to be out of order) are exactly the reports this rule
+> exists to produce instead of a wrong guess.
+
+## `resolve_note_file`, [line 201](../../../../backend/scripts/check_code_notes.py#L201): Function
+
+> One note file, anchor by anchor, in heading order. `"certain"` results
+> feed `last_resolved` outright; an `"ambiguous"` one is resolved the same
+> way *if* its symbol is not in `broken` -- the first hit strictly after
+> `last_resolved`'s line for that symbol (or the symbol's own start line, for
+> its first note) -- and left as a dead report otherwise: no hit past that
+> floor, or the symbol's own notes already proven out of order.
+>
+> `last_resolved` is updated by every resolution, `"certain"` or
+> structurally resolved alike, because the rule it enforces --
+> next-note-after-previous-note -- does not care which way a line was
+> confirmed, only that it was.
+
+## `run`, [line 265](../../../../backend/scripts/check_code_notes.py#L265): Function
+
+> One pass over every note file. A note file is rewritten once, in place,
+> only if at least one of its anchors resolved to a line different from the
+> one stated -- an anchor `resolve_note_file` could not resolve is reported
+> and left exactly as written, on this run and on `--fix` alike.

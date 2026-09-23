@@ -4,12 +4,9 @@ import argparse
 import ast
 import re
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-
-EXEMPT_FROM_NOTES = ("backend", "src", "sro", "interface", "http")
-
-EXCLUDED_DIR_PARTS = {"tests", "migrations", "__pycache__", ".venv"}
+from typing import cast
 
 HEADING_RE = re.compile(
     r"^(?P<prefix>## (?:`(?P<name>[^`]+)`|(?P<module>module)), \[line )"
@@ -36,33 +33,19 @@ class SourceInfo:
     lines: list[str]
 
 
+@dataclass
+class AnchorEval:
+    anchor: Anchor
+    symbol_key: str | None
+    kind: str  # "certain" | "ambiguous" | "dead"
+    line: int | None
+    hits: list[int] = field(default_factory=list)
+    floor_default: int = 0
+    dead_reason: str | None = None
+
+
 def notes_root(repo_root: Path) -> Path:
     return repo_root / "docs" / "code-notes"
-
-
-def iter_backend_sources(repo_root: Path) -> list[Path]:
-    backend = repo_root / "backend"
-    if not backend.is_dir():
-        return []
-    found = []
-    for path in backend.rglob("*.py"):
-        parts = path.relative_to(repo_root).parts
-        if any(part in EXCLUDED_DIR_PARTS for part in parts):
-            continue
-        found.append(path)
-    return sorted(found)
-
-
-def requires_note(repo_root: Path, source_path: Path) -> bool:
-    if not source_path.read_text(encoding="utf-8").strip():
-        return False
-    parts = source_path.relative_to(repo_root).parts
-    return parts[: len(EXEMPT_FROM_NOTES)] != EXEMPT_FROM_NOTES
-
-
-def note_path_for(repo_root: Path, source_path: Path) -> Path:
-    rel = source_path.relative_to(repo_root)
-    return notes_root(repo_root) / f"{rel}.md"
 
 
 def source_path_for(repo_root: Path, note_path: Path) -> Path:
@@ -139,34 +122,126 @@ def resolve_symbol(tree: ast.Module, dotted_name: str) -> tuple[ast.stmt | None,
     return node, None
 
 
-def resolve_target_line(anchor: Anchor, source: SourceInfo) -> tuple[int | None, str | None]:
+def find_hits(lines: list[str], code: str, start: int, end: int) -> list[int]:
+    target = code.strip()
+    return [
+        line_no
+        for line_no in range(start, min(end, len(lines)) + 1)
+        if lines[line_no - 1].strip() == target
+    ]
+
+
+def evaluate_anchor(anchor: Anchor, source: SourceInfo) -> AnchorEval:
     if source.tree is None:
-        return None, "source file does not parse"
+        return AnchorEval(
+            anchor, anchor.name, "dead", None, dead_reason="source file does not parse"
+        )
 
     if anchor.name is None:
+        floor_default = 0
         if anchor.code is None:
-            return 1, None
+            return AnchorEval(anchor, None, "certain", 1, floor_default=floor_default)
         scope_start, scope_end = 1, len(source.lines)
     else:
         node, error = resolve_symbol(source.tree, anchor.name)
         if node is None:
-            return None, f"symbol `{anchor.name}` {error}"
+            return AnchorEval(
+                anchor, anchor.name, "dead", None, dead_reason=f"symbol `{anchor.name}` {error}"
+            )
+        floor_default = node.lineno
         if anchor.code is None:
-            return node.lineno, None
+            return AnchorEval(
+                anchor, anchor.name, "certain", node.lineno, floor_default=floor_default
+            )
         scope_start = node.lineno
         scope_end = getattr(node, "end_lineno", scope_start)
 
-    target = anchor.code.strip()
-    hits = [
-        line_no
-        for line_no in range(scope_start, min(scope_end, len(source.lines)) + 1)
-        if source.lines[line_no - 1].strip() == target
-    ]
-    if len(hits) == 1:
-        return hits[0], None
+    hits = find_hits(source.lines, anchor.code, scope_start, scope_end)
     if not hits:
-        return None, f"code `{anchor.code}` not found in its symbol's current lines"
-    return None, f"code `{anchor.code}` matches {len(hits)} lines in its symbol -- ambiguous"
+        return AnchorEval(
+            anchor,
+            anchor.name,
+            "dead",
+            None,
+            floor_default=floor_default,
+            dead_reason=f"code `{anchor.code}` not found in its symbol's current lines",
+        )
+    if len(hits) == 1 or anchor.stated_line in hits:
+        line = hits[0] if len(hits) == 1 else anchor.stated_line
+        return AnchorEval(anchor, anchor.name, "certain", line, hits, floor_default)
+    return AnchorEval(anchor, anchor.name, "ambiguous", None, hits, floor_default)
+
+
+def order_violations(evals: list[AnchorEval]) -> tuple[set[str | None], list[str]]:
+    broken: set[str | None] = set()
+    messages: list[str] = []
+    last: dict[str | None, tuple[int, int]] = {}
+    for ev in evals:
+        if ev.kind != "certain":
+            continue
+        line = cast(int, ev.line)
+        previous = last.get(ev.symbol_key)
+        if previous is not None and line < previous[0] and ev.symbol_key not in broken:
+            broken.add(ev.symbol_key)
+            where = ev.symbol_key or "module"
+            messages.append(
+                f"{ev.anchor.note_path}: notes for `{where}` are not in source order -- "
+                f"the one at heading line {ev.anchor.heading_index + 1} resolves to source line "
+                f"{line}, before an earlier note's {previous[0]}"
+            )
+        last[ev.symbol_key] = (line, ev.anchor.heading_index)
+    return broken, messages
+
+
+def _dead(anchor: Anchor, reason: str) -> str:
+    where = anchor.name or "module"
+    return f"{anchor.note_path}:{anchor.heading_index + 1}: `{where}` -- {reason}"
+
+
+def resolve_note_file(
+    note_path: Path, note_lines: list[str], source: SourceInfo
+) -> tuple[list[tuple[Anchor, int]], list[str], list[str]]:
+    anchors, malformed = parse_anchors(note_path, note_lines)
+    evals = [evaluate_anchor(anchor, source) for anchor in anchors]
+    broken, order_messages = order_violations(evals)
+
+    resolved: list[tuple[Anchor, int]] = []
+    dead_messages: list[str] = list(malformed)
+    last_resolved: dict[str | None, int] = {}
+
+    for ev in evals:
+        anchor = ev.anchor
+        if ev.kind == "certain":
+            line = cast(int, ev.line)
+            resolved.append((anchor, line))
+            last_resolved[ev.symbol_key] = line
+        elif ev.kind == "dead":
+            dead_messages.append(_dead(anchor, cast(str, ev.dead_reason)))
+        elif ev.symbol_key in broken:
+            dead_messages.append(
+                _dead(
+                    anchor,
+                    f"code `{anchor.code}` matches {len(ev.hits)} lines and this symbol's notes "
+                    "are not in source order in this file, so position cannot disambiguate it",
+                )
+            )
+        else:
+            floor = last_resolved.get(ev.symbol_key, ev.floor_default)
+            candidates = [hit for hit in ev.hits if hit > floor]
+            if not candidates:
+                dead_messages.append(
+                    _dead(
+                        anchor,
+                        f"code `{anchor.code}` matches {len(ev.hits)} lines, none after the "
+                        f"previous note's line {floor}",
+                    )
+                )
+                continue
+            line = min(candidates)
+            resolved.append((anchor, line))
+            last_resolved[ev.symbol_key] = line
+
+    return resolved, dead_messages, order_messages
 
 
 def rewrite_heading(heading_line: str, new_line: int) -> str:
@@ -180,15 +255,15 @@ def rewrite_heading(heading_line: str, new_line: int) -> str:
 class Report:
     stale: list[str]
     dead: list[str]
-    missing_notes: list[str]
+    unordered: list[str]
 
     @property
     def findings(self) -> int:
-        return len(self.stale) + len(self.dead) + len(self.missing_notes)
+        return len(self.stale) + len(self.dead) + len(self.unordered)
 
 
 def run(repo_root: Path, *, fix: bool) -> Report:
-    report = Report(stale=[], dead=[], missing_notes=[])
+    report = Report(stale=[], dead=[], unordered=[])
     source_cache: dict[Path, SourceInfo] = {}
 
     root = notes_root(repo_root)
@@ -201,35 +276,25 @@ def run(repo_root: Path, *, fix: bool) -> Report:
             continue
 
         note_lines = note_path.read_text(encoding="utf-8").splitlines()
-        anchors, malformed = parse_anchors(note_path, note_lines)
-        report.dead.extend(malformed)
-
         source = load_source(source_path, source_cache)
+        resolved, dead_messages, order_messages = resolve_note_file(note_path, note_lines, source)
+        report.dead.extend(dead_messages)
+        report.unordered.extend(order_messages)
+
         rewrites: list[tuple[int, int]] = []
-        for anchor in anchors:
-            target_line, error = resolve_target_line(anchor, source)
-            if error is not None:
-                where = anchor.name or "module"
-                report.dead.append(f"{note_path}:{anchor.heading_index + 1}: `{where}` -- {error}")
-                continue
+        for anchor, target_line in resolved:
             if target_line != anchor.stated_line:
                 report.stale.append(
                     f"{note_path}:{anchor.heading_index + 1}: "
                     f"`{anchor.name or 'module'}` stated line {anchor.stated_line}, "
                     f"now at {target_line}"
                 )
-                rewrites.append((anchor.heading_index, target_line))  # type: ignore[arg-type]
+                rewrites.append((anchor.heading_index, target_line))
 
         if fix and rewrites:
             for heading_index, new_line in rewrites:
                 note_lines[heading_index] = rewrite_heading(note_lines[heading_index], new_line)
             note_path.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
-
-    for source_path in iter_backend_sources(repo_root):
-        if not requires_note(repo_root, source_path):
-            continue
-        if not note_path_for(repo_root, source_path).is_file():
-            report.missing_notes.append(f"{source_path}: no note file")
 
     return report
 
@@ -242,11 +307,11 @@ def main(argv: list[str] | None = None) -> int:
     repo_root = Path(__file__).resolve().parents[2]
     report = run(repo_root, fix=args.fix)
 
-    for line in [*report.stale, *report.dead, *report.missing_notes]:
+    for line in [*report.stale, *report.dead, *report.unordered]:
         print(line)
     print(
         f"{len(report.stale)} stale anchor(s), {len(report.dead)} dead/unresolvable note(s), "
-        f"{len(report.missing_notes)} source file(s) with no note."
+        f"{len(report.unordered)} symbol(s) whose notes are out of source order."
     )
     return 1 if report.findings else 0
 

@@ -258,7 +258,7 @@ Each phase is its own branch and review, merged only on the operator lead's word
 
 ## 13. The panel design (Ember & Glass) under this direction
 
-The panel hand-off (`designof-panel/`, 2026-09-22, not in git) predates decisions D1–D7. Measured against `main` at `4d7ef474`, about 57% of the design is built (36 of 63 product screens), and about 90% of what was agreed for the reskin and passive learning. This section says what still holds, what the new decisions overturn, and which backend work the design needs.
+The panel hand-off (`designof-panel/`, 2026-09-22, not in git) predates decisions D1–D7. **The decisions are firm; the design is adjusted to fit them, never the reverse.** Measured against `main` at `4d7ef474`, about 57% of the design is built (36 of 63 product screens), and about 90% of what was agreed for the reskin and passive learning. This section says what still holds, what the new decisions overturn, and which backend work the design needs.
 
 ### 13.1 Overturned
 

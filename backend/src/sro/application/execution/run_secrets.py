@@ -13,6 +13,7 @@ from sro.domain.shared.identifiers import DeviceId, TenantId
 
 TYPES = ("ui.perform", "ui.perform_at")
 LATCH_AT = 2
+FINGERPRINT = 12
 
 
 class RunSecrets:
@@ -26,6 +27,8 @@ class RunSecrets:
         self._failed: dict[str, int] = {}
         self._signing = False
         self._counted: set[str] = set()
+        self._homes: dict[str, set[str]] = {}
+        self._left: set[str] = set()
         self._refused: set[str] = set()
         self._kept: dict[str, str] = {}
         self._host = ""
@@ -63,19 +66,34 @@ class RunSecrets:
     def pressed(self) -> None:
         if self._typed:
             self._signing = True
-        self._counted.update(key for key in self._typed if self._handed[key][1])
+        for key, host in self._typed.items():
+            self._homes.setdefault(key, set()).add(host)
+            self._left.discard(key)
+            if self._handed[key][1]:
+                self._counted.add(key)
         self._attempts.update(self._typed)
         self._typed.clear()
 
-    async def step_ended(self, held: bool) -> None:
+    async def step_ended(self, held: bool, origin: str | None = None) -> None:
         signing, self._signing = self._signing, False
         if not held or signing:
             return
-        self._attempts.clear()
-        self._failed.clear()
+        here = urlsplit(origin).netloc.lower() if origin else self._host
+        mine = [key for key, hosts in self._homes.items() if here in hosts]
+        for key in mine:
+            self._attempts.pop(key, None)
+            self._failed.pop(key, None)
+        await self._forget(mine)
+
+    async def finished(self) -> None:
+        await self._forget(list(self._left))
+
+    async def _forget(self, keys: list[str]) -> None:
         if self._vault is None:
             return
-        for key in list(self._counted):
+        for key in keys:
+            if key not in self._counted:
+                continue
             try:
                 await FailedAttempts(self._vault).clear(key)
             except VaultUnavailable:
@@ -87,22 +105,27 @@ class RunSecrets:
         if not host:
             return
         self._host = host
+        for key, form in self._attempts.items():
+            if not signed_out and host != form and key not in self._left:
+                self._left.add(key)
+                self._homes[key].add(host)
         if not (signed_out and credential_empty):
             return
         for key, form in list(self._attempts.items()):
             if host != form:
                 continue
             del self._attempts[key]
+            self._left.discard(key)
             self._failed[key] = self._failed.get(key, 0) + 1
             if await self._count(key) >= LATCH_AT:
                 await self._refuse(key)
 
     async def _count(self, key: str) -> int:
-        _, from_vault = self._handed[key]
+        mark, from_vault = self._handed[key]
         if not from_vault or self._vault is None:
             return self._failed[key]
         try:
-            return await FailedAttempts(self._vault).add(key)
+            return await FailedAttempts(self._vault).add(key, mark[:FINGERPRINT])
         except VaultUnavailable:
             return self._failed[key]
 
@@ -112,6 +135,9 @@ class RunSecrets:
         if not from_vault or self._vault is None:
             return
         try:
+            current = await self._vault.get(key)
+            if current is None or _mark(key, current) != mark:
+                return
             await RefusedCredentials(self._vault).refuse(
                 key,
                 at=datetime.now(tz=UTC),

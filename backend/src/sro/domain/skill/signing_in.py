@@ -45,21 +45,19 @@ def sign_in_chain(job: Workflow, by_id: Mapping[str, Gesture]) -> list[Step]:
     typed = [one.at for one in cited if _secret(one)] or [
         one.at for one in cited if one.action.kind == "type"
     ]
-    if not typed:
+    landed = [
+        one
+        for one in cited
+        if typed and one.at >= min(typed) and one.action.kind != "type" and passed_through(one)
+    ]
+    if not landed:
         return steps
-    since = min(typed)
-    for index, step in enumerate(steps):
-        for one in step.cites:
-            gesture = by_id.get(one)
-            if (
-                gesture is not None
-                and gesture.at >= since
-                and gesture.action.kind != "type"
-                and passed_through(gesture)
-            ):
-                kept = [c for c in step.cites if c in by_id and by_id[c].at <= gesture.at]
-                return [*steps[:index], replace(step, cites=kept)]
-    return steps
+    cut = landed[0].at
+    chain = [
+        replace(step, cites=[one for one in step.cites if one not in by_id or by_id[one].at <= cut])
+        for step in steps
+    ]
+    return [step for step in chain if step.cites]
 
 
 @dataclass(frozen=True, slots=True)

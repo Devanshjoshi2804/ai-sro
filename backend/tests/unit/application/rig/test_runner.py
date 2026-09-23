@@ -1003,7 +1003,7 @@ async def _ran(
     known_fields: KnownFields | None = None,
     gather_values: GatherValues | None = None,
     mail: MailHand | None = None,
-    step_ended: Callable[[bool], Awaitable[None]] | None = None,
+    step_ended: Callable[[bool, str | None], Awaitable[None]] | None = None,
 ) -> WorkflowRun:
     """One run, with the arguments no test varies spelled once.
 
@@ -1092,8 +1092,11 @@ async def test_each_step_says_whether_it_held_outside_signing_in(signs_in: bool)
     )
     ended: list[bool] = []
 
-    async def end(held: bool) -> None:
+    origins: list[str | None] = []
+
+    async def end(held: bool, origin: str | None) -> None:
         ended.append(held)
+        origins.append(origin)
 
     run = await _ran(
         uow,
@@ -1107,6 +1110,9 @@ async def test_each_step_says_whether_it_held_outside_signing_in(signs_in: bool)
 
     assert [s.verdict for s in run.steps] == ["held", "held"]
     assert ended == [not signs_in, not signs_in]
+    assert origins == ["http://127.0.0.1:63319"] * 2, (
+        "the held step never said which system it was on"
+    )
 
 
 async def test_the_run_is_saved_after_every_step_and_not_only_at_the_end() -> None:

@@ -286,6 +286,7 @@ class StartWorkflowRun:
             logger.exception("a run in an operator's browser could not be finished")
             await self._close(ctx, run.id, f"{type(error).__name__}: {error}")
         else:
+            await secrets.finished()
             await self._settle_the_wait(ctx, done)
             await self._ask_for_values(ctx, done, title)
 

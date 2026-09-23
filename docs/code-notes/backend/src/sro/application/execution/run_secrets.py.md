@@ -12,7 +12,7 @@ Why the code in [`backend/src/sro/application/execution/run_secrets.py`](../../.
 > count for a vault password is kept in the vault (`FailedAttempts`), so the
 > two are counted across runs, not per run.
 
-## `RunSecrets`, [line 18](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L18): Class
+## `RunSecrets`, [line 19](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L19): Class
 
 > One run's view of the vault: the password a step types, and a count of the
 > times the system refused it.
@@ -42,8 +42,28 @@ Why the code in [`backend/src/sro/application/execution/run_secrets.py`](../../.
 > vault (`<key>#failed`), so one bad submit in each of two runs latches. A
 > held password is the operator answering for one run and is counted in the
 > run only. If the vault will not answer, the run's own count decides.
+>
+> Task 10 fix round (2026-09-24), reviewer rulings:
+>
+> - **Success at run end.** A run of the sign-in job itself never holds a step
+>   outside signing in, so held steps alone let a GOOD password latch across
+>   two runs: the deployed Azure recording bounces once on Keycloak (first
+>   Sign In stayed, retype and Enter landed), and each run added one. Now a key
+>   whose last attempt LEFT the form's host (a look on another host, not
+>   signed out -- the same leave-host evidence `sign_in_chain` trusts) and
+>   did not see the form again before the run ended is a success, recorded by
+>   `finished` when the run is over.
+> - **The count is bound to the password it counted.** `#failed` holds the
+>   count and a 12-hex fingerprint (`_mark`, keyed sha256, truncated); a
+>   different fingerprint counts from zero. Before a vault refusal is written
+>   the current vault value is read back, and a password changed since it
+>   was handed out is not refused.
+> - **Success is per system.** A key belongs to the hosts it was submitted on
+>   and the first host its attempt landed on (`_homes`). A held step clears
+>   only keys whose homes include the step's own origin (the engine passes
+>   it; the last look's host when it does not).
 
-## `RunSecrets.__call__`, [line 33](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L33): Docstring
+## `RunSecrets.__call__`, [line 36](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L36): Docstring
 
 > A value held for this run comes first and is typed regardless of any
 > standing refusal: the operator is answering for this run. A fresh hold wins
@@ -57,45 +77,57 @@ Why the code in [`backend/src/sro/application/execution/run_secrets.py`](../../.
 > this run latched, which is never typed again in this run even if the
 > operator re-stores the same one.
 
-## `RunSecrets.typed`, [line 57](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L57): Docstring
+## `RunSecrets.typed`, [line 60](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L60): Docstring
 
 > A value the browser reported typing. If it is a password this run handed
 > out, the key is armed on the host the form was on, and the current step is
 > part of signing in.
 
-## `RunSecrets.pressed`, [line 63](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L63): Docstring
+## `RunSecrets.pressed`, [line 66](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L66): Docstring
 
 > A submit. Every armed key becomes an attempt on its form's host and is
 > disarmed; a vault key submitted this run is one a later success may clear
 > in the vault, so later clicks -- an error page's "Back to login" -- are not new
 > attempts and do not clear anything. Typing alone submits nothing.
 
-## `RunSecrets.step_ended`, [line 70](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L70): Docstring
+## `RunSecrets.step_ended`, [line 77](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L77): Docstring
 
 > The engine's verdict for a step. Held, outside a sign-in job, and this run
 > neither typed nor submitted a password during it: the sign-in worked, so
 > open attempts and failure counts are cleared. Anything else only closes the
 > step.
 >
-> Task 10: the success also clears the vault's count for each vault key this
-> run submitted -- and only those. A run that was handed the password but
+> Task 10: the success clears, in the run and in the vault, only keys that
+> sign into the held step's system (its origin, or the last look's host)
+> and, in the vault, only keys this run submitted. A run that was handed the password but
 > never submitted it proves nothing about it (its session was still alive),
 > so its held steps leave another run's failed attempt standing. A key whose
 > clear the vault refused is tried again at the next success.
 
-## `RunSecrets.saw`, [line 85](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L85): Docstring
+## `RunSecrets.finished`, [line 88](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L88): Function
 
-> What the page showed. A signed-out page whose password box is empty, on the
-> host an open attempt typed on, fails that attempt. Any other page decides
+> Called by `StartWorkflowRun.perform` once the run is over (not when it
+> crashed). Every key whose last attempt left its form and never saw the form
+> again is a sign-in that worked; its vault count is cleared.
+
+## `RunSecrets.saw`, [line 103](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L103): Docstring
+
+> What the page showed. A page on another host that is not signed out marks
+> each open attempt as having left its form (once; that host joins the key's
+> homes). A signed-out page whose password box is empty, on the
+> host an open attempt typed on, fails that attempt and undoes the leaving. Any other page decides
 > nothing -- not a landing, not a refusal. A form still holding what was typed
 > is a submit in flight. Hosts, never page text.
 
-## `RunSecrets._refuse`, [line 109](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L109): Docstring
+## `RunSecrets._refuse`, [line 132](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L132): Docstring
 
 > Only a vault value is latched on its key; a held value refused says nothing
-> about what the vault keeps. Either way it is not typed again in this run.
+> about what the vault keeps. The vault value is read back first and must be
+> the one this run submitted: a password stored in the meantime is not
+> refused for the old one's attempts. A write landing between that read and
+> the refusal can still be refused once; the operator's next write lifts it. Either way it is not typed again in this run.
 
-## `WatchingChannel`, [line 128](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L128): Class
+## `WatchingChannel`, [line 154](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L154): Class
 
 > The run's browser channel, read on the way through. What was typed, what
 > was submitted and what every `ui.url` answer says about the page
@@ -110,7 +142,7 @@ Why the code in [`backend/src/sro/application/execution/run_secrets.py`](../../.
 > `elsewhere_is_ours` false: the operator's front tab) is ignored -- an
 > unrelated page must not fail an attempt (review round 4).
 
-## `_submits`, [line 169](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L169): Docstring
+## `_submits`, [line 195](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L195): Docstring
 
 > A submit is a click, or Enter or NumpadEnter (task 10; a press with no key
 > named defaults to Enter in the extension). Tab and other keys move focus or edit; counting them

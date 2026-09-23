@@ -863,6 +863,30 @@ async def test_perform_plans_on_the_plan_model_and_rescues_on_the_other(
     assert seen["started_by"] == WHO.value
 
 
+async def test_perform_tells_the_runs_credentials_the_run_ended(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A sign-in whose last submit left the form's host is a success only once
+    nothing brought the form back -- which is known when the run is over."""
+    uow = await _held()
+    starter = _starter(uow)
+    claimed = await _press(starter, from_step=4, live=True, allow_focus=False)
+    ended: list[object] = []
+
+    async def _recorded(_uow: object, workflow: Workflow, **given: object) -> WorkflowRun:
+        return claimed
+
+    async def _finished(secrets: object) -> None:
+        ended.append(secrets)
+
+    monkeypatch.setattr(door, "run_workflow", _recorded)
+    monkeypatch.setattr(door.RunSecrets, "finished", _finished)
+
+    await starter.perform(_ctx(), claimed)
+
+    assert len(ended) == 1
+
+
 async def test_a_run_that_could_not_be_driven_at_all_does_not_stay_running() -> None:
     """Nobody is awaiting `perform`, so nobody would see it raise. A row left
     `running` is swept only by `fail_orphans` at the next process start -- a

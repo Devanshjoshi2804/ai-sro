@@ -89,9 +89,14 @@ Code: `_SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-action
 
 ## `sign_in_chain`, [line 42](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L42): Function
 
-> The steps a sign-back-in replays: from the job's first step through the
-> first act that left its host after the credential was typed, cut inside
-> that step at that gesture (audit wave 1, task 10, 2026-09-24).
+> The steps a sign-back-in replays: every step, in step order, cut to the
+> gestures made no later than the first act (in time) that left its host
+> after the credential was typed; a step left with nothing is dropped
+> (audit wave 1, task 10, 2026-09-24). Cutting by time rather than walking
+> by step order (fix round): a step ordered early can cite a click made after
+> the landing, and a credential step can be ordered after the submit's step.
+> Cites whose gesture is missing are kept, so aged-out evidence still refuses
+> the way back in.
 >
 > - The credential anchors the end, not the username: an identifier-first
 >   sign-in leaves the username page's host for the password's, and that
@@ -107,12 +112,12 @@ Code: `_SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-action
 >   portal with only the submit's evidence.
 > - General: hosts via `passed_through`, never a host, page text or title.
 
-## `RecordedLogin`, [line 66](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L66): Class
+## `RecordedLogin`, [line 64](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L64): Class
 
 > What a recorded sign-in says about credentials: the origin the password was
 > typed on, which names its vault key, and the username typed before it.
 
-## `recorded_login`, [line 72](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L72): Docstring
+## `recorded_login`, [line 70](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L70): Docstring
 
 > The job that starts on the system's own page, when there is one
 > (`signs_in_at`); otherwise the only tagged sign-in job that carries a

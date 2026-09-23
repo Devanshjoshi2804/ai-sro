@@ -2872,7 +2872,7 @@ Code: `if record.verdict == "skipped" and verdict is not None:`
 
 ## `run_workflow`, [line 1966](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1966): Note on the line above
 
-Code: `await step_ended(record.verdict == "held" and not of_job.signs_in)`
+Code: `await step_ended(record.verdict == "held" and not of_job.signs_in, origin)`
 
 > Every step that reaches its record says whether it held outside signing in
 > (fix round 5, 2026-09-23). The run's credentials (`RunSecrets.step_ended`)
@@ -2881,6 +2881,8 @@ Code: `await step_ended(record.verdict == "held" and not of_job.signs_in)`
 > `signs_in` never count, so re-running the login job (the username step
 > holds) cannot reset a failed-attempt count between two refused submits.
 > Awaited since task 10: a success also clears the count kept in the vault.
+> The step's origin goes with it, so a held step clears only the keys that
+> sign into its own system.
 
 ## `run_workflow`, [line 1972](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1972): Comment
 

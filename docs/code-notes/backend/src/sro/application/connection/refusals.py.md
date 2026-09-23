@@ -41,14 +41,20 @@ Code: `FAILED = "#failed"`
 > The failed-attempt count, kept next to `#refused` under the secret's own key
 > (audit wave 1, task 10, 2026-09-24). A count per run let every run spend one
 > bad submit without limit on a system with no recorded sign-in job. The
-> record holds only a decimal count -- never the password or a hash of it.
+> record holds a decimal count and a truncated keyed-hash fingerprint of the
+> password it counted, in the same vault as the password itself.
 
 ## `FailedAttempts`, [line 38](../../../../../../../backend/src/sro/application/connection/refusals.py#L38): Class
 
-> Failed sign-in attempts for one vault key, across runs. `add` reads,
-> increments and writes back; two runs failing at the same moment can both
-> read the same count and lose one increment -- the latch then comes one
-> attempt later, never early. An unparsable record counts as zero.
+> Failed sign-in attempts for one vault key, across runs, recorded as
+> `"<count> <fingerprint>"`. The fingerprint is the first 12 hex of the run's
+> keyed sha256 of the password it counted (task 10 fix round): a count read
+> for another password -- or an old record with none -- starts again from
+> zero, so a run that read the count, lost a race with the operator storing a
+> new password and wrote its count back cannot bring the NEW password closer
+> to a latch. `add` is still read, increment, write: two runs failing on the
+> same password at the same moment can lose one increment, making the latch
+> one attempt late.
 
 ## `ForgetsRefusalOnWrite`, [line 52](../../../../../../../backend/src/sro/application/connection/refusals.py#L52): Class
 

@@ -861,7 +861,7 @@ async def run_workflow(
     known_fields: KnownFields | None = None,
     gather_values: GatherValues | None = None,
     mail: MailHand | None = None,
-    step_ended: Callable[[bool], Awaitable[None]] | None = None,
+    step_ended: Callable[[bool, str | None], Awaitable[None]] | None = None,
     cap_usd: float,
 ) -> WorkflowRun:
     saved = await uow.workflow_runs.get(tenant_id, run_id) if run_id else None
@@ -1963,7 +1963,7 @@ async def run_workflow(
                 record.verdict, record.verdict_by = verdict.state, verdict.by
                 record.reason = verdict.reason
             if step_ended is not None:
-                await step_ended(record.verdict == "held" and not of_job.signs_in)
+                await step_ended(record.verdict == "held" and not of_job.signs_in, origin)
 
             in_flight = None
             await _save(uow, run)

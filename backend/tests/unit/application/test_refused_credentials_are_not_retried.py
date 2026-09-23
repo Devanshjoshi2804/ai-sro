@@ -22,6 +22,7 @@ login box. A login form seen with no attempt before it counts for nothing.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping
 from datetime import UTC, datetime
 
@@ -314,7 +315,9 @@ async def test_the_count_kept_between_runs_holds_nothing_secret() -> None:
     await _fail_once(world.run("run-1"))
 
     kept = await world.vault.get(LOGIN_KEY + "#failed")
-    assert kept == "1"
+    assert kept is not None
+    assert kept.startswith("1 ")
+    assert WRONG not in kept
 
 
 async def test_a_success_in_a_run_between_them_resets_the_count() -> None:
@@ -360,6 +363,142 @@ async def test_a_run_that_never_submitted_the_password_does_not_reset_the_count(
     await _fail_once(world.run("run-3"))
 
     assert await world.refusals.standing(LOGIN_KEY) is not None
+
+
+async def _bounce_then_land(world: _World, run_id: str) -> RunSecrets:
+    """The deployed Azure recording: the first Sign In stayed on the form's
+    host with the box empty, the retype and Enter landed in the system. A run
+    of the sign-in job itself never holds a step outside signing in."""
+    run = world.run(run_id)
+    await _fail_once(run)
+    await run.step_ended(False)
+    assert await run(LOGIN_KEY) == WRONG
+    run.typed(WRONG)
+    run.pressed()
+    await run.saw(SYSTEM, signed_out=False, credential_empty=False)
+    await run.step_ended(False)
+    return run
+
+
+async def test_a_run_whose_last_submit_left_the_form_is_a_success() -> None:
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+
+    for run_id in ("run-1", "run-2"):
+        run = await _bounce_then_land(world, run_id)
+        await run.finished()
+
+    assert await world.refusals.standing(LOGIN_KEY) is None
+    assert await world.run("run-3")(LOGIN_KEY) == WRONG
+
+
+async def test_the_form_again_after_leaving_is_no_success_at_the_end() -> None:
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+    run = world.run("run-1")
+    await run.saw(FORM, signed_out=True, credential_empty=True)
+    assert await run(LOGIN_KEY) == WRONG
+    run.typed(WRONG)
+    run.pressed()
+    await run.saw(SYSTEM, signed_out=False, credential_empty=False)
+    await run.saw(FORM, signed_out=True, credential_empty=True)
+    await run.finished()
+
+    await _fail_once(world.run("run-2"))
+
+    assert await world.refusals.standing(LOGIN_KEY) is not None
+
+
+async def test_a_run_that_ended_on_the_form_keeps_its_count() -> None:
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+    run = world.run("run-1")
+    await _fail_once(run)
+    await run.finished()
+
+    await _fail_once(world.run("run-2"))
+
+    assert await world.refusals.standing(LOGIN_KEY) is not None
+
+
+async def test_a_held_step_on_another_system_clears_nothing() -> None:
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+    run = world.run()
+    await _fail_once(run)
+
+    await run.saw("https://other.example.com/home", signed_out=False, credential_empty=False)
+    await run.step_ended(True, "https://other.example.com")
+    await _fail_once(run)
+
+    assert await world.refusals.standing(LOGIN_KEY) is not None
+
+
+async def test_a_held_step_on_the_system_the_password_signs_into_clears_it() -> None:
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+    run = world.run()
+    await _fail_once(run)
+    assert await run(LOGIN_KEY) == WRONG
+    run.typed(WRONG)
+    run.pressed()
+    await run.step_ended(False)
+    await run.saw(SYSTEM, signed_out=False, credential_empty=False)
+
+    await run.step_ended(True, "https://wms.example.com")
+    await _fail_once(world.run("run-2"))
+
+    assert await world.refusals.standing(LOGIN_KEY) is None
+
+
+class _SlowCount:
+    """A vault whose read of the failed count waits until told to go on."""
+
+    def __init__(self) -> None:
+        self.kept: dict[str, str] = {}
+        self.gate: asyncio.Event | None = None
+
+    async def get(self, key: str) -> str | None:
+        value = self.kept.get(key)
+        if self.gate is not None and key.endswith("#failed"):
+            gate, self.gate = self.gate, None
+            await gate.wait()
+        return value
+
+    async def store(self, key: str, value: str) -> None:
+        self.kept[key] = value
+
+    async def delete(self, key: str) -> None:
+        self.kept.pop(key, None)
+
+
+async def test_a_count_for_the_old_password_never_refuses_a_new_one() -> None:
+    """Run B read the count, the operator stored a new password, then B wrote
+    its count back: the new password was never submitted and is not refused."""
+    raw = _SlowCount()
+    vault = ForgetsRefusalOnWrite(raw)
+    await vault.store(LOGIN_KEY, "old")
+    first = RunSecrets(vault, OneTimeSecrets(), run_id="run-a")
+    await _fail_once(first, "old")
+    gate = asyncio.Event()
+    raw.gate = gate
+    late = RunSecrets(vault, OneTimeSecrets(), run_id="run-b")
+    await late.saw(FORM, signed_out=True, credential_empty=True)
+    assert await late(LOGIN_KEY) == "old"
+    late.typed("old")
+    late.pressed()
+
+    failing = asyncio.create_task(late.saw(FORM, signed_out=True, credential_empty=True))
+    await asyncio.sleep(0)
+    await vault.store(LOGIN_KEY, "new")
+    gate.set()
+    await failing
+
+    assert await RefusedCredentials(vault).standing(LOGIN_KEY) is None
+    later = RunSecrets(vault, OneTimeSecrets(), run_id="run-c")
+    await _fail_once(later, "new")
+    assert await RefusedCredentials(vault).standing(LOGIN_KEY) is None
+    assert await later(LOGIN_KEY) == "new"
 
 
 async def test_a_held_password_is_not_counted_on_the_vault_key() -> None:

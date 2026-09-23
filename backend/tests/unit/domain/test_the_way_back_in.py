@@ -217,3 +217,35 @@ def test_the_credential_decides_where_the_chain_can_end_not_the_username() -> No
     job.steps[1].cites = ["user-box", "user", "user-next"]
 
     assert sign_in_chain(job, gestures)[-1].cites == ["submit"]
+
+
+def test_the_cut_is_the_first_submit_in_time_not_in_step_order() -> None:
+    """A step ordered early can cite a click made after the landing; walking by
+    order would end the chain there and lose the password and the submit."""
+    job, gestures = _azure()
+    gestures["later-nav"] = _did("later-nav", KEYCLOAK, 30.0, to=WMS)
+    job.steps[1].cites = ["user-box", "user", "later-nav"]
+
+    chain = sign_in_chain(job, gestures)
+
+    assert [step.order for step in chain] == [0, 1, 2, 3]
+    assert chain[1].cites == ["user-box", "user"]
+    assert chain[-1].cites == ["submit"]
+
+
+def test_a_credential_step_ordered_after_the_submit_is_kept() -> None:
+    """The deployed job files a `Type the password` step after the one that
+    first cites the password; what happened before the landing is the
+    sign-in, whatever order the steps were given."""
+    job, gestures = _azure()
+    job.steps[2].order, job.steps[3].order = 3, 2
+
+    chain = sign_in_chain(job, gestures)
+
+    assert [step.says for step in chain] == [
+        "Click the chooser",
+        "Type the username",
+        "Sign in and open the portal",
+        "Type the password",
+    ]
+    assert chain[2].cites == ["submit"]

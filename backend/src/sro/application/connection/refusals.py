@@ -39,11 +39,11 @@ class FailedAttempts:
     def __init__(self, vault: CredentialVault) -> None:
         self._vault = vault
 
-    async def add(self, key: str) -> int:
-        said = await self._vault.get(key + FAILED) or ""
-        count = (int(said) if said.isdigit() else 0) + 1
-        await self._vault.store(key + FAILED, str(count))
-        return count
+    async def add(self, key: str, fingerprint: str) -> int:
+        count, _, against = (await self._vault.get(key + FAILED) or "").partition(" ")
+        counted = int(count) if count.isdigit() and against == fingerprint else 0
+        await self._vault.store(key + FAILED, f"{counted + 1} {fingerprint}")
+        return counted + 1
 
     async def clear(self, key: str) -> None:
         await self._vault.delete(key + FAILED)

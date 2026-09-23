@@ -3862,9 +3862,16 @@ async def run_workflow(
                 # signing in is a system this run cannot get into, and a loop
                 # that kept trying would spend a budget it cannot see the end
                 # of on somebody's credentials.
+                # Nor while this step is itself on a sign-in page: the job is
+                # signing in, and its own next steps are the way through.
+                # `run_3610aa05`, 2026-09-23: `Log in using Azure B2C SSO`'s
+                # password step could not be photographed, read the Keycloak
+                # form as a session that had gone, and spliced `Log in to
+                # Keycloak` into the middle of itself -- two sign-ins, and a
+                # run left asking for a third after the second worked.
                 _signing_in, back = (
                     (None, [])
-                    if signed_back_in
+                    if signed_back_in or is_sign_in_page(primary.url if primary else None)
                     else await _the_way_back_in(
                         uow, tenant_id, workflow, after_failed, values, by_id
                     )

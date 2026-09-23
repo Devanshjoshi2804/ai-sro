@@ -9220,3 +9220,63 @@ def test_a_keep_alive_beside_a_click_is_not_its_write() -> None:
     assert is_background_traffic("https://wms.test/refs/data/api/v1/rp/admin/sessionKeepAlive")
     assert is_background_traffic("https://b2c.test/t/B2C_1A_x/client/perftrace?tx=1")
     assert not is_background_traffic("https://wms.test/data/WM/wm/customerTypes")
+
+
+async def test_a_job_that_is_signing_in_is_not_signed_back_in_halfway() -> None:
+    """`run_3610aa05`, 2026-09-23: the Azure sign-in's password step, on the
+    Keycloak form, could not be photographed, and the run spliced `Log in to
+    Keycloak` into the middle of the sign-in it was already doing."""
+    uow = await _fixture()
+    door = replace(
+        _evidence(uow)[0],
+        id="ges_door",
+        url=f"{LOGIN}/oauth2/v2.0/authorize",
+        page_url=f"{LOGIN}/oauth2/v2.0/authorize",
+        system=LOGIN,
+        requests=[],
+    )
+    form = "https://kc.test/auth/realms/x/protocol/openid-connect/auth"
+    password = replace(
+        _evidence(uow)[0], id="ges_password", url=form, page_url=form, system="https://kc.test"
+    )
+    await uow.gestures.add_gestures((door, password))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_sso",
+            tenant=TENANT.value,
+            title="Log in to the chooser",
+            narrative="n",
+            systems=[LOGIN],
+            steps=[Step(order=0, says="Click 'Local WMS users'", system=None, cites=[door.id])],
+        )
+    )
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_signing_in",
+            tenant=TENANT.value,
+            title="Log in using Azure B2C SSO",
+            narrative="n",
+            systems=["https://kc.test"],
+            steps=[Step(order=0, says="Type the password", system=None, cites=[password.id])],
+        )
+    )
+    workflow = await uow.workflows.get(TENANT, "wfl_signing_in")
+    away = Reply(ok=True, result={"url": None, "elsewhere": f"{LOGIN}/oauth2", "signed_out": True})
+    channel = FakeChannel(
+        {
+            "ui.url": [away] * 8,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Sign in"})
+            ]
+            * 8,
+            "ui.perform": [_performed()] * 4,
+        }
+    )
+
+    run = await _ran(
+        uow, workflow, channel=channel, asker=FakeAsker(*[_plan("click")] * 6), earned=True
+    )
+
+    said = [one.reason for one in run.steps]
+    assert not any("signing back in" in one for one in said), said
+    assert not any("Local WMS users" in one.says for one in run.steps)

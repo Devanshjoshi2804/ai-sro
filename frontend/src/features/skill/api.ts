@@ -3,12 +3,9 @@ import { api, type Schemas } from "@/lib/api/client";
 export type SkillSummary = Schemas["SkillSummary"];
 export type SkillDetail = Schemas["SkillDetail"];
 export type SkillVersionModel = Schemas["SkillVersionModel"];
-export type TrackRecordModel = Schemas["TrackRecordModel"];
-export type StepModel = Schemas["StepModel"];
 export type ParameterModel = Schemas["ParameterModel"];
 
 export type Choice = Schemas["ChoiceModel"];
-export type AssertionModel = Schemas["AssertionModel"];
 
 export const skillKeys = {
   all: ["skills"] as const,

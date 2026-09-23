@@ -13,6 +13,7 @@ Status: agreed direction, 2026-09-23. Nothing below is built yet unless marked *
 | D5 | Allowlists belong to the extension (which hosts it watches) and the panel. There is no mail-sender allowlist; the VM is one unified executor. Mail and page text are **untrusted data** to every agent, and that is enforced in the prompts. | Operator lead |
 | D6 | Jobs are compiled into **recipes** and run **without a model or a screenshot**. A model is called only when a recipe step fails, and the fix is written back so the same failure is not repeated. | Operator lead |
 | D7 | Agents and their prompts are first-class: each prompt is versioned, and is measured on real cases before it ships. | Operator lead |
+| D8 | **Runs go in parallel**, as many as the Steel pool can hold; a request beyond capacity queues rather than being refused. Several runs on one account share or serialise that account's session through the session broker, because Blue Yonder allows one session per account. | Operator lead |
 
 ## 2. Why: measured latency
 
@@ -289,7 +290,7 @@ The design's compose case (screens 42–54, 60, 62–64) is reasonable once reci
 
 ### 13.4 Still open from the design (owner's call)
 
-Brand font (Geist in the design, Inter in the brand), primary-button and muted-text contrast (both fail AA), the blue info tint, whether pending threads raise the Waiting badge, stale mail requests (swept after a day vs never), deadline wording for 7-day waits, whether several runs may run at once (Steel makes it possible; the design refuses it), and whether "Never watch this site" stops a run in progress (moot under D1: no run uses that tab).
+Brand font (Geist in the design, Inter in the brand), primary-button and muted-text contrast (both fail AA), the blue info tint, whether pending threads raise the Waiting badge, stale mail requests (swept after a day vs never), deadline wording for 7-day waits, and whether "Never watch this site" stops a run in progress (moot under D1: no run uses that tab).
 
 ### 13.5 Build order impact
 

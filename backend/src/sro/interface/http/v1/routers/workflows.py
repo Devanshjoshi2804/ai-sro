@@ -39,8 +39,9 @@ list, which would tell them their bridge is fine and their job is empty.
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, status
 
+from sro.application.skill.retire_workflow import RetireWorkflow
 from sro.interface.http.asking import AskingDeviceDep, TenantOnly
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
@@ -65,6 +66,27 @@ async def workflows(
     """
     del asking
     return WorkflowsResponse.of(await container.read_workflows().execute(ctx))
+
+
+@router.post(
+    "/workflows/{workflow_id}/retire",
+    dependencies=[TenantOnly],
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def retire_workflow(container: ContainerDep, ctx: ContextDep, workflow_id: str) -> None:
+    """Retire a job: it stops being offered, listed or run, for good.
+
+    The row and its citations stay. Deleting it would hand its gestures back
+    to the miner, which would read them into a fresh copy of the job the
+    operator just dropped -- so a retired job's evidence stays placed, and the
+    job stays retired.
+
+    A job this tenant does not have, or has already retired, is a 404.
+    Tenant-only: which jobs a deployment keeps is not a browser's decision.
+    """
+    await RetireWorkflow(container.unit_of_work(), container.clock).execute(
+        ctx, workflow_id=workflow_id
+    )
 
 
 @router.get("/workflows/{workflow_id}/taught", dependencies=[TenantOnly])

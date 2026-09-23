@@ -1958,6 +1958,9 @@ class FakeWorkflowRepository:
         """What this deployment has watched succeed and may now replay,
         keyed as the store keys it: (tenant, method, path pattern)."""
         self.runs = runs if runs is not None else FakeWorkflowRunRepository()
+        self.retired: dict[str, datetime] = {}
+        """Retired jobs by id, as the store's ``retired_at``: the row stays,
+        and a re-save does not bring it back."""
         self._saved = count()
         self._created: dict[str, int] = {}
 
@@ -1973,7 +1976,11 @@ class FakeWorkflowRepository:
         self._created[workflow.id] = next(self._saved)
 
     async def known(self, tenant_id: TenantId) -> tuple[Workflow, ...]:
-        found = [row for row in self.rows.values() if row.tenant == tenant_id.value]
+        found = [
+            row
+            for row in self.rows.values()
+            if row.tenant == tenant_id.value and row.id not in self.retired
+        ]
         # (created_at, id), as the store orders it. The counter stands in for
         # the clock, and the id is the same tiebreak -- two workflows of one
         # pass can share an instant in Postgres, and the fake and the store
@@ -1984,9 +1991,22 @@ class FakeWorkflowRepository:
 
     async def get(self, tenant_id: TenantId, workflow_id: str) -> Workflow:
         row = self.rows.get(workflow_id)
-        if row is None or row.tenant != tenant_id.value:
+        if row is None or row.tenant != tenant_id.value or workflow_id in self.retired:
             raise NotFound(f"workflow {workflow_id} was not found")
         return deepcopy(row)
+
+    async def retire(self, tenant_id: TenantId, workflow_id: str, *, at: datetime) -> None:
+        await self.get(tenant_id, workflow_id)
+        self.retired[workflow_id] = at
+
+    async def placed(self, tenant_id: TenantId) -> frozenset[str]:
+        return frozenset(
+            cited
+            for row in self.rows.values()
+            if row.tenant == tenant_id.value
+            for step in row.steps
+            for cited in step.cites
+        )
 
     async def rekey(self, tenant_id: TenantId, workflow_id: str, key: ShapeKey) -> None:
         row = self.rows.get(workflow_id)

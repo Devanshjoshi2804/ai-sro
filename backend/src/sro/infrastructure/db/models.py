@@ -696,6 +696,8 @@ class WorkflowRow(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
+    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
     __table_args__ = (Index("ix_workflows_tenant_created", "tenant_id", "created_at"),)
 
 

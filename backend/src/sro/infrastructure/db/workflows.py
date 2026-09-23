@@ -146,7 +146,7 @@ class SqlWorkflowRepository(WorkflowRepository):
                 set_={
                     column.name: statement.excluded[column.name]
                     for column in WorkflowRow.__table__.columns
-                    if column.name != "id"
+                    if column.name not in ("id", "retired_at")
                 },
             )
         )
@@ -163,7 +163,7 @@ class SqlWorkflowRepository(WorkflowRepository):
     async def known(self, tenant_id: TenantId) -> tuple[Workflow, ...]:
         query = (
             select(WorkflowRow)
-            .where(WorkflowRow.tenant_id == tenant_id.value)
+            .where(WorkflowRow.tenant_id == tenant_id.value, WorkflowRow.retired_at.is_(None))
             .order_by(WorkflowRow.created_at, WorkflowRow.id)
             .execution_options(populate_existing=True)
         )
@@ -176,7 +176,11 @@ class SqlWorkflowRepository(WorkflowRepository):
     async def get(self, tenant_id: TenantId, workflow_id: str) -> Workflow:
         query = (
             select(WorkflowRow)
-            .where(WorkflowRow.tenant_id == tenant_id.value, WorkflowRow.id == workflow_id)
+            .where(
+                WorkflowRow.tenant_id == tenant_id.value,
+                WorkflowRow.id == workflow_id,
+                WorkflowRow.retired_at.is_(None),
+            )
             .execution_options(populate_existing=True)
         )
         row = (await self._session.execute(query)).scalar_one_or_none()
@@ -184,6 +188,28 @@ class SqlWorkflowRepository(WorkflowRepository):
             raise NotFound(f"workflow {workflow_id} was not found")
         steps = await self._steps_of([row.id])
         return _row_to_workflow(row, steps[row.id])
+
+    async def retire(self, tenant_id: TenantId, workflow_id: str, *, at: datetime) -> None:
+        done = await self._session.execute(
+            update(WorkflowRow)
+            .where(
+                WorkflowRow.tenant_id == tenant_id.value,
+                WorkflowRow.id == workflow_id,
+                WorkflowRow.retired_at.is_(None),
+            )
+            .values(retired_at=at)
+            .returning(WorkflowRow.id)
+        )
+        if done.first() is None:
+            raise NotFound(f"workflow {workflow_id} was not found")
+
+    async def placed(self, tenant_id: TenantId) -> frozenset[str]:
+        rows = await self._session.execute(
+            select(WorkflowStepRow.cites)
+            .join(WorkflowRow, WorkflowRow.id == WorkflowStepRow.workflow_id)
+            .where(WorkflowRow.tenant_id == tenant_id.value)
+        )
+        return frozenset(str(one) for (cites,) in rows for one in cites or ())
 
     async def rekey(self, tenant_id: TenantId, workflow_id: str, key: ShapeKey) -> None:
         await self._session.execute(

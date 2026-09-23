@@ -87,7 +87,7 @@ Code: `_SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-action
 > The origin of the first gesture this job cites, in time; the job's own step
 > order breaks a tie.
 
-## `sign_in_chain`, [line 42](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L42): Function
+## `sign_in_chain`, [line 45](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L45): Function
 
 > The steps a sign-back-in replays: every step, in step order, cut to the
 > gestures made no later than the first act (in time) that left its host
@@ -123,19 +123,35 @@ Code: `_SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-action
 > - **Refused attempts are not replayed.** After the credential was first
 >   typed, a submit on the leaving submit's host that stayed there
 >   (`_submits`: an Enter/NumpadEnter/empty press, or a click that is not on
->   a field the job types into -- `_same_field`) is a refused attempt in the
->   evidence and is dropped; typing and focusing stay. The deployed job's
+>   a field the job types into -- `_same_field`) is dropped only when it was
+>   refused: a field typed before it is typed again after it and before the
+>   leaving submit (fix round 3). Staying alone is not refusal -- an accepted
+>   password is followed on the same host by "Stay signed in? Yes", a
+>   one-time-code or update-password page, or a consent screen, and dropping
+>   that `Sign in` would click Yes on a password page never submitted.
+>   Typing and focusing always stay.
+> - **An Enter that is the leaving submit.** A press within
+>   `K_ONE_SUBMIT_S` (50 ms) before the leaving submit is the same submit: the
+>   browser turns Enter in a form into a click on its submit button, and the
+>   recorder logs both (the deployed job: press at .074, the leaving Sign In
+>   at .075). The coordinator's ruling said "later or equal"; it is bounded
+>   to 50 ms because an accepted Enter followed seconds later by a same-host
+>   "Yes" that leaves must be kept (tested). No person presses Enter and then
+>   clicks within 50 ms.
+> - **A gesture cited twice replays once.** The deployed job cites its first
+>   password typing in two steps; the later-replayed step loses it, and a
+>   step left with nothing is dropped. The deployed job's
 >   step 2 holds the operator's first Sign In (stayed on Keycloak) and an
 >   Enter in the password box; replayed, they submitted early. On the QA
 >   export the chain now types the username and password and submits once,
 >   with the Keycloak Sign In that left last. A Next before the password
 >   (identifier first) is before the credential and is kept.
-## `RecordedLogin`, [line 98](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L98): Class
+## `RecordedLogin`, [line 121](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L121): Class
 
 > What a recorded sign-in says about credentials: the origin the password was
 > typed on, which names its vault key, and the username typed before it.
 
-## `recorded_login`, [line 104](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L104): Docstring
+## `recorded_login`, [line 127](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L127): Docstring
 
 > The job that starts on the system's own page, when there is one
 > (`signs_in_at`); otherwise the only tagged sign-in job that carries a

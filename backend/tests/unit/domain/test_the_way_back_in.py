@@ -263,17 +263,18 @@ def test_a_credential_step_ordered_after_the_submit_is_replayed_before_it() -> N
 def test_a_refused_submit_in_the_evidence_is_not_replayed() -> None:
     """The deployed recording (`wfl_5873ec01`, step 2): the operator focused
     the password box, typed, pressed Sign In and stayed on Keycloak, focused
-    again, retyped and pressed Enter -- also staying -- and only then the
-    Sign In that left. Replayed as recorded, the first submit goes in early.
-    The chain keeps the typing and the focusing, and submits once, last."""
+    again, retyped and pressed Enter -- recorded a millisecond before the Sign
+    In click that left, which is the browser submitting the form for it.
+    Replayed as recorded, the first submit goes in early. The chain keeps the
+    typing and the focusing, and submits once, last."""
     job, gestures = _azure()
     for one in (
         _did("pw-box", KEYCLOAK, 3.5, secret=True, field="input#password"),
         _did("pw", KEYCLOAK, 3.6, "type", secret=True, field="input#password"),
         _did("early-sign-in", KEYCLOAK, 3.7, field="input#kc-login"),
         _did("pw-box-again", KEYCLOAK, 3.8, secret=True, field="input#password"),
-        _did("pw-again", KEYCLOAK, 3.9, "type", secret=True, field="input#password"),
-        _did("enter", KEYCLOAK, 4.5, "press", secret=True, field="input#password"),
+        _did("pw-again", KEYCLOAK, 4.999, "type", secret=True, field="input#password"),
+        _did("enter", KEYCLOAK, 4.999, "press", secret=True, field="input#password"),
     ):
         gestures[one.id] = one
     job.steps[2].cites = ["pw-box", "pw", "early-sign-in", "pw-box-again", "pw-again", "enter"]
@@ -300,3 +301,70 @@ def test_a_next_before_the_password_is_not_a_refused_submit() -> None:
     job.steps[1].cites = ["user-box", "user", "next"]
 
     assert sign_in_chain(job, gestures)[1].cites == ["user-box", "user", "next"]
+
+
+LOGIN_HOST = "https://login.example.org"
+APP = "https://app.example.org"
+
+
+def _kmsi(*, enter: bool = False) -> tuple[Workflow, dict[str, Gesture]]:
+    """Identifier first, then an accepted password whose page is followed by
+    "Stay signed in? Yes" on the same host -- the click that leaves."""
+    submit = (
+        _did("sign-in", LOGIN_HOST, 4.0, "press", secret=True, field="input#passwd")
+        if enter
+        else _did("sign-in", LOGIN_HOST, 4.0, field="input#idSIButton9")
+    )
+    gestures = {
+        one.id: one
+        for one in (
+            _did("u", LOGIN_HOST, 1.0, "type", field="input#loginfmt"),
+            _did("next", LOGIN_HOST, 2.0, field="input#idSIButton9"),
+            _did("pw", LOGIN_HOST, 3.0, "type", secret=True, field="input#passwd"),
+            submit,
+            _did("yes", LOGIN_HOST, 6.0, field="input#idSIButton9", to=APP),
+        )
+    }
+    steps = [
+        Step(order=n, says=one, system=LOGIN_HOST, cites=[one])
+        for n, one in enumerate(("u", "next", "pw", "sign-in", "yes"))
+    ]
+    job = Workflow(id="wfl_kmsi", tenant="t", title="Log in", narrative="n", steps=steps)
+    return job, gestures
+
+
+def test_an_accepted_submit_followed_by_a_same_host_page_is_kept() -> None:
+    """Nothing typed the password again after `Sign in`, so it was not refused:
+    the next page (stay signed in, a one-time code, consent) came on the same
+    host. Dropping it would click Yes on a password page never submitted."""
+    job, gestures = _kmsi()
+
+    assert [step.cites for step in sign_in_chain(job, gestures)] == [
+        ["u"],
+        ["next"],
+        ["pw"],
+        ["sign-in"],
+        ["yes"],
+    ]
+
+
+def test_an_accepted_enter_followed_by_a_same_host_page_is_kept() -> None:
+    job, gestures = _kmsi(enter=True)
+
+    assert ["sign-in"] in [step.cites for step in sign_in_chain(job, gestures)]
+
+
+def test_a_gesture_cited_by_two_steps_is_replayed_once() -> None:
+    """The deployed job cites its first password typing in both `Focus the
+    Password field...` and `Type the password.`"""
+    job, gestures = _azure()
+    job.steps.insert(3, Step(order=5, says="Type it again", system=KEYCLOAK, cites=["password"]))
+    job.steps[2].cites = ["password"]
+    gestures["pw-box"] = _did("pw-box", KEYCLOAK, 3.5, secret=True, field="input#password")
+    job.steps[3].cites = ["pw-box", "password"]
+
+    chain = sign_in_chain(job, gestures)
+
+    replayed = [one for step in chain for one in step.cites]
+    assert replayed.count("password") == 1
+    assert replayed[-1] == "submit"

@@ -39,6 +39,9 @@ def _starts_at(job: Workflow, by_id: Mapping[str, Gesture]) -> str | None:
     return origin_of(cited[first].url or cited[first].system or "")
 
 
+K_ONE_SUBMIT_S = 0.05
+
+
 def sign_in_chain(job: Workflow, by_id: Mapping[str, Gesture]) -> list[Step]:
     steps = sorted(job.steps, key=lambda one: one.order)
     cited = _in_order(job, by_id)
@@ -53,36 +56,56 @@ def sign_in_chain(job: Workflow, by_id: Mapping[str, Gesture]) -> list[Step]:
     if not landed:
         return steps
     cut = landed[0]
-    fields = [one.action.target for one in cited if one.action.kind == "type"]
+    fields = [one for one in cited if one.action.kind == "type" and one.at <= cut.at]
+
+    def refused(gesture: Gesture) -> bool:
+        if gesture.at < min(typed) or passed_through(gesture):
+            return False
+        if origin_of(gesture.system or "") != origin_of(cut.system or ""):
+            return False
+        if not _submits(gesture, fields):
+            return False
+        if gesture.action.kind == "press" and cut.at - gesture.at <= K_ONE_SUBMIT_S:
+            return True
+        return any(
+            before.at <= gesture.at
+            and any(
+                gesture.at < again.at and _same_field(before.action.target, again.action.target)
+                for again in fields
+            )
+            for before in fields
+        )
 
     def replayed(one: str) -> bool:
         gesture = by_id.get(one)
         if gesture is None or gesture is cut:
             return True
-        return gesture.at <= cut.at and not (
-            gesture.at >= min(typed)
-            and origin_of(gesture.system or "") == origin_of(cut.system or "")
-            and _submits(gesture, fields)
-            and not passed_through(gesture)
-        )
+        return gesture.at <= cut.at and not refused(gesture)
 
     chain = [replace(step, cites=[one for one in step.cites if replayed(one)]) for step in steps]
-    kept = [step for step in chain if step.cites]
-    return sorted(
-        kept,
+    ordered = sorted(
+        (step for step in chain if step.cites),
         key=lambda step: (
             cut.id in step.cites,
             max((by_id[one].at for one in step.cites if one in by_id), default=float("-inf")),
             step.order,
         ),
     )
+    seen: set[str] = set()
+    once = []
+    for step in ordered:
+        fresh = [one for one in step.cites if one not in seen]
+        seen.update(fresh)
+        if fresh:
+            once.append(replace(step, cites=fresh))
+    return once
 
 
-def _submits(gesture: Gesture, fields: Sequence[Target | None]) -> bool:
+def _submits(gesture: Gesture, typed: Sequence[Gesture]) -> bool:
     if gesture.action.kind == "press":
         return gesture.action.value in (None, "", "Enter", "NumpadEnter")
     return gesture.action.kind == "click" and not any(
-        _same_field(gesture.action.target, field) for field in fields
+        _same_field(gesture.action.target, field.action.target) for field in typed
     )
 
 

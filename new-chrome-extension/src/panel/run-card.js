@@ -297,6 +297,10 @@ function wordsFor(sent) {
   const p = sent.payload || {};
   if (sent.kind === "http.send") return `${p.method || "call"} ${p.url || ""}`;
   if (sent.kind === "navigate") return `open ${p.url || ""}`;
+  // The whole mail, because approving it is sending it: a mail cannot be
+  // unsent, and its words are a model's.
+  if (sent.kind === "mail.send")
+    return `send to ${p.to || "?"} — "${p.subject || ""}"\n\n${p.body || ""}`;
   const where = (p.locators || [])[0]?.query || "";
   return `${p.action || "act"}${p.value ? ` "${p.value}"` : ""} ${where}`.trim();
 }

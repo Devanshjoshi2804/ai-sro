@@ -1763,6 +1763,8 @@ input::placeholder {
   font: 10.5px var(--mono);
   color: var(--ink-strong);
   overflow-wrap: anywhere;
+  /* A mail to approve keeps its paragraphs. */
+  white-space: pre-wrap;
 }
 
 /* What a step was matched by and what it cost, under the step rather than

@@ -21,10 +21,11 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Mapping
+from urllib.parse import urlsplit
 
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.hosts import origin_of
-from sro.domain.skill.workflow import Workflow
+from sro.domain.skill.workflow import Step, Workflow
 
 MAILBOXES = frozenset({"mail.google.com"})
 """The mailbox the connector reads and writes, as a host -- which is what
@@ -53,6 +54,45 @@ def is_mail_only(workflow: Workflow, by_id: Mapping[str, Gesture]) -> bool:
         if not seen or not seen <= MAILBOXES:
             return False
     return True
+
+
+def sends_mail(step: Step, by_id: Mapping[str, Gesture]) -> bool:
+    """Whether this step pressed a mailbox's Send button.
+
+    By the control, never by the traffic. Gmail POSTs to fetch a thread, to
+    save a draft and to send, so a mailbox step's calls say nothing about
+    whether it wrote -- measured across every job on the deployment
+    2026-09-23: `Create a Customer Type`'s "Read the customer type details in
+    Gmail" was a write by its `POST mail/u/4/`. What does separate them is
+    what was pressed: each of the nine steps that sent a mail, in every job
+    that sends one, clicked a button named `Send (⌘Enter)`, and no other
+    mailbox step did.
+    """
+    return any(
+        _pressed_send(by_id[one])
+        for one in step.cites
+        if one in by_id and on_the_mailbox(by_id[one])
+    )
+
+
+def on_the_mailbox(gesture: Gesture) -> bool:
+    """Whether this happened on a mailbox's own page -- by where it happened,
+    not by the system it was filed under. `Log in to Google Account` is filed
+    under the mailbox and types its password on `accounts.google.com`."""
+    return (urlsplit(gesture.url or "").hostname or "") in MAILBOX_HOSTS
+
+
+MAILBOX_HOSTS = frozenset({"mail.google.com", "outlook.office.com", "outlook.live.com"})
+"""Every mailbox a person reads requests in. Wider than `MAILBOXES`, which is
+only the one the connector can also write through."""
+
+
+def _pressed_send(gesture: Gesture) -> bool:
+    target = gesture.action.target
+    if gesture.action.kind != "click" or target is None:
+        return False
+    name = " ".join((target.name or "").split()).lower()
+    return (target.role or "button") == "button" and name.startswith("send")
 
 
 MAIL_SCHEMA: dict[str, object] = {

@@ -53,6 +53,7 @@ from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
 from sro.application.execution.declared import declared_keys, names_of, screen_for
 from sro.application.execution.effects import earned, forget_effects, record_effect
 from sro.application.execution.learn_from_rescue import learn_from_the_rescue
+from sro.application.execution.mail_job import MailHand
 from sro.application.execution.plan_step import (
     SecretFor,
     plan_by_sight,
@@ -91,9 +92,11 @@ from sro.domain.execution.evidence import (
 from sro.domain.execution.field_notes import notes_on
 from sro.domain.execution.gathering import Gathered
 from sro.domain.execution.learned_step import LearnedStep, learned_from
+from sro.domain.execution.mail_job import MAILBOXES, on_the_mailbox, sends_mail
 from sro.domain.execution.planning import Look, Planned
 from sro.domain.execution.secrets import secret_key_of, without_secrets
 from sro.domain.execution.verified_writes import VerifiedWrite
+from sro.domain.execution.waiting import read_wait
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
 from sro.domain.execution.write_plan import (
     demonstrated_writes,
@@ -1024,6 +1027,59 @@ async def _ahead_of_here(
     return None
 
 
+async def _through_the_mailbox(
+    uow: UnitOfWork,
+    run: WorkflowRun,
+    record: RunStep,
+    workflow: Workflow,
+    values: Mapping[str, str],
+    mail: MailHand,
+    *,
+    approvals: Approvals,
+    stops: Stops,
+) -> None:
+    """Write the mail this step sends, put it in front of a person, and send it
+    on their word -- every time, earned or not.
+
+    A mail cannot be unsent and its words are a model's, so the `earned` rung
+    that lets a job's warehouse writes go unasked does not reach it. A dry run
+    writes it and stops there: `withheld`, with the words on the record.
+    """
+    waiting = read_wait(run.awaiting) if run.awaiting else None
+    written = await mail.write(workflow, values, waiting.thread if waiting else "")
+    if isinstance(written, str):
+        record.verdict, record.verdict_by, record.reason = "failed", "none", written
+        return
+    record.sent = {
+        "kind": "mail.send",
+        "payload": {"to": written.to, "subject": written.subject, "body": written.body},
+    }
+    if not run.live:
+        record.verdict, record.verdict_by = "withheld", "none"
+        record.reason = f"a dry run: the mail to {written.to} was written and not sent"
+        return
+    record.verdict, record.verdict_by = "awaiting", "none"
+    record.reason = f"waiting for a person to read the mail to {written.to} and approve it"
+    approvals.register(run.id)
+    await _save(uow, run)
+    if not await approvals.wait_for(run.id, K_APPROVAL_WAIT_S):
+        record.verdict, record.verdict_by = "failed", "none"
+        record.reason = f"nobody approved the mail within {K_APPROVAL_WAIT_S / 60:.0f} minutes"
+        return
+    if stops.asked(run.id):
+        record.verdict, record.verdict_by = "failed", "none"
+        record.reason = "stopped while waiting for approval; the mail was not sent"
+        run.outcome = "aborted"
+        return
+    sent_id, why = await mail.send(written)
+    if not sent_id:
+        record.verdict, record.verdict_by, record.reason = "failed", "none", why
+        return
+    record.verdict, record.verdict_by = "held", "status"
+    record.reason = f"Gmail took the mail to {written.to} (id {sent_id})"
+    record.made = {"message": sent_id}
+
+
 def _puts_a_value(step: Step, by_id: Mapping[str, Gesture]) -> bool:
     primary = primary_gesture(step, by_id)
     return primary is not None and primary.action.kind in PUTS_A_VALUE
@@ -1521,6 +1577,7 @@ async def run_workflow(
     secret_for: SecretFor | None = None,
     known_fields: KnownFields | None = None,
     gather_values: GatherValues | None = None,
+    mail: MailHand | None = None,
     cap_usd: float,
 ) -> WorkflowRun:
     # A run the caller already claimed. `POST /v1/runs` writes the `running` row
@@ -1858,6 +1915,24 @@ async def run_workflow(
     already_read: set[int] = {
         step.order for step in workflow.steps if only_reads_the_mail(step, by_id)
     }
+    # A step that sends a mail is sent through the mailbox's API, never clicked:
+    # the composer is a page a click cannot carry a recipient, a subject and a
+    # body into, and nothing on it can say the mail went. Only where the
+    # connector can write -- `MAILBOXES` -- and only with a hand to do it.
+    mail_sends: set[int] = (
+        {
+            step.order
+            for step in workflow.steps
+            if sends_mail(step, by_id)
+            and all(
+                (urlsplit(by_id[one].url or "").hostname or "") in MAILBOXES
+                for one in step.cites
+                if one in by_id and on_the_mailbox(by_id[one])
+            )
+        }
+        if mail is not None
+        else set()
+    )
     # The steps the operator already did cost nothing and are not attempted, so
     # they buy no slack either: the budget is what is left to perform.
     # Which writes this run has claimed the right to make, so a rescue of a
@@ -2133,6 +2208,27 @@ async def run_workflow(
                     )
                 )
                 await _save(uow, run)
+                continue
+            if mail is not None and not leg.rescue and step.order in mail_sends:
+                record = RunStep(
+                    order=position,
+                    of_step=step.order,
+                    item=leg.item,
+                    says=step.says,
+                    verdict="skipped",
+                )
+                in_flight = record
+                run.steps.append(record)
+                await _through_the_mailbox(
+                    uow, run, record, workflow, values, mail, approvals=approvals, stops=stops
+                )
+                in_flight = None
+                await _save(uow, run)
+                if run.outcome != "running":
+                    break
+                if record.verdict not in ("held", "withheld"):
+                    run.outcome = "stopped"
+                    break
                 continue
             cited = [by_id[c] for c in step.cites if c in by_id]
             primary = primary_gesture(step, by_id)

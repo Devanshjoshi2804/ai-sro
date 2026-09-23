@@ -36,6 +36,7 @@ import pytest
 from sro.application.execution import run_workflow as runner_module
 from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
 from sro.application.execution.effects import can_try_again
+from sro.application.execution.mail_job import MailHand, Written
 from sro.application.execution.run_workflow import (
     K_SAME_WRITE_WINDOW,
     K_STEP_SLACK,
@@ -1000,6 +1001,7 @@ async def _ran(
     verified_writes: tuple[VerifiedWrite, ...] = (),
     known_fields: KnownFields | None = None,
     gather_values: GatherValues | None = None,
+    mail: MailHand | None = None,
 ) -> WorkflowRun:
     """One run, with the arguments no test varies spelled once.
 
@@ -1034,6 +1036,7 @@ async def _ran(
             verified_writes=verified_writes,
             known_fields=known_fields,
             gather_values=gather_values,
+            mail=mail,
             # No cap unless a test is about the cap: `over_cap` answers a
             # negative one before it touches the repository, so every other
             # test here pays nothing and asserts nothing about money.
@@ -6287,6 +6290,14 @@ async def test_a_step_that_sends_a_mail_is_not_a_step_that_reads_one() -> None:
     sending.requests = [
         replace(sending.requests[0], url="https://mail.google.com/mail/u/0/sendmessage")
     ]
+    # What every send on the deployment pressed. The POST alone says nothing:
+    # Gmail POSTs to open a thread too.
+    sending.action = replace(
+        sending.action,
+        kind="click",
+        value=None,
+        target=Target(tag="div", name="Send \u202a(⌘Enter)\u202c", role="button"),
+    )
     await uow.gestures.add_gestures((sending,))
     for step in workflow.steps:
         step.order += 1
@@ -9280,3 +9291,149 @@ async def test_a_job_that_is_signing_in_is_not_signed_back_in_halfway() -> None:
     said = [one.reason for one in run.steps]
     assert not any("signing back in" in one for one in said), said
     assert not any("Local WMS users" in one.says for one in run.steps)
+
+
+class _Mailbox:
+    """A mail hand that writes one mail and records every send."""
+
+    def __init__(self) -> None:
+        self.sent: list[Written] = []
+
+    def hand(self) -> MailHand:
+        async def write(workflow: Workflow, values: Mapping[str, str], thread: str) -> Written:
+            return Written("alex@example.com", "Re: client", "SROCLS8 is set up.", thread, "")
+
+        async def send(mail: Written) -> tuple[str, str]:
+            self.sent.append(mail)
+            return "gm-7", ""
+
+        return MailHand(write=write, send=send)
+
+
+async def _a_job_that_replies(uow: FakeUnitOfWork) -> Workflow:
+    workflow = await _workflow(uow)
+    send = _demonstrated("mail-send", {"threadId": "t1"})
+    send.url = "https://mail.google.com/mail/u/0/#inbox/t1"
+    send.system = "https://mail.google.com"
+    send.action = replace(
+        send.action,
+        kind="click",
+        value=None,
+        target=Target(tag="div", name="Send \u202a(⌘Enter)\u202c", role="button"),
+    )
+    await uow.gestures.add_gestures((send,))
+    after = max(step.order for step in workflow.steps) + 1
+    workflow.steps.append(Step(order=after, says="Click Send", system=None, cites=["mail-send"]))
+    await uow.workflows.save(workflow)
+    return workflow
+
+
+async def test_a_mail_in_the_middle_of_a_job_is_sent_through_the_mailbox() -> None:
+    """A job that creates a thing and replies to say so: the warehouse half is
+    driven, the reply is written and sent through the connector on a person's
+    word, never clicked out of Gmail's composer."""
+    uow = await _fixture()
+    workflow = await _a_job_that_replies(uow)
+    mailbox = _Mailbox()
+    approvals = Approvals()
+    approvals.register("run_reply")
+    approvals.approve("run_reply")
+    channel = FakeChannel({**_looks(6), "ui.perform": [_performed()] * 3})
+    asker = FakeAsker(
+        _plan("type", "TYPED"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+    )
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "TYPED"},
+        earned=True,
+        approvals=approvals,
+        run_id="run_reply",
+        mail=mailbox.hand(),
+    )
+
+    (mail,) = mailbox.sent
+    assert mail.body == "SROCLS8 is set up."
+    replied = run.steps[-1]
+    assert (replied.verdict, replied.verdict_by) == ("held", "status"), replied.reason
+    assert replied.made == {"message": "gm-7"}
+    assert replied.sent is not None and replied.sent["kind"] == "mail.send"
+    assert not [
+        one
+        for one in channel.sent
+        if one["kind"] in ("ui.perform", "ui.perform_at")
+        and "Send" in json.dumps(one["payload"], ensure_ascii=False)
+    ], "the Send button was clicked"
+    assert run.outcome == "held"
+
+
+async def test_a_dry_run_writes_the_mail_and_does_not_send_it() -> None:
+    uow = await _fixture()
+    workflow = await _a_job_that_replies(uow)
+    mailbox = _Mailbox()
+    channel = FakeChannel({**_looks(6), "ui.perform": [_performed()] * 3})
+    asker = FakeAsker(*[_plan("type", "TYPED"), Answer(data={"held": True, "why": ""})] * 3)
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "TYPED"},
+        live=False,
+        mail=mailbox.hand(),
+    )
+
+    assert mailbox.sent == []
+    assert run.steps[-1].verdict == "withheld", run.steps[-1].reason
+
+
+def test_only_the_send_button_sends_a_mail() -> None:
+    """The shapes the deployment's own jobs recorded, 2026-09-23."""
+    from sro.domain.chat.asked_by import only_reads_the_mail
+    from sro.domain.execution.mail_job import sends_mail
+
+    def one(gid: str, url: str, name: str, role: str | None, requests: list[Call]) -> Gesture:
+        return Gesture(
+            id=gid,
+            tenant=TENANT.value,
+            stream_id="s",
+            batch_id="b",
+            at=1.0,
+            url=url,
+            system="https://mail.google.com",
+            tab_id=1,
+            frame_url=None,
+            action=Action(
+                kind="click", at=1.0, url=url, target=Target(tag="div", name=name, role=role)
+            ),
+            requests=requests,
+        )
+
+    post = Call(
+        method="POST", url="https://mail.google.com/mail/u/4/?ui=2", status=200, started_at=1.0
+    )
+    read = one(
+        "r", "https://mail.google.com/mail/u/4/#inbox", "Please set up a customer", None, [post]
+    )
+    send = one(
+        "s", "https://mail.google.com/mail/u/0/#inbox/t", "Send \u202a(⌘Enter)\u202c", "button", []
+    )
+    login = one("l", "https://accounts.google.com/v3/signin", "Next", "button", [post])
+    by_id = {g.id: g for g in (read, send, login)}
+
+    reading = Step(
+        order=0, says="Read the customer type details in Gmail", system=None, cites=["r"]
+    )
+    sending = Step(order=1, says="Click Send", system=None, cites=["s"])
+    signing = Step(order=2, says="Click Next", system=None, cites=["l"])
+    assert only_reads_the_mail(reading, by_id), "a POST to open a thread is not a send"
+    assert not sends_mail(reading, by_id)
+    assert sends_mail(sending, by_id) and not only_reads_the_mail(sending, by_id)
+    assert not only_reads_the_mail(signing, by_id), "a sign-in filed under the mailbox is not mail"

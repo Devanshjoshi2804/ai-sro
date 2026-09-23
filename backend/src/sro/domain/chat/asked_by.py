@@ -31,7 +31,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from sro.domain.execution.evidence import writes
+from sro.domain.execution.mail_job import MAILBOX_HOSTS, on_the_mailbox, sends_mail
 from sro.domain.observation.gesture import Gesture
 from sro.domain.skill.workflow import Step, Workflow
 
@@ -62,7 +62,7 @@ name reads "Inbox", "Archive", "More". Those match everything and mean nothing,
 and a prompt that carried them would be teaching the model noise.
 """
 
-K_MAILBOXES = ("mail.google.com", "outlook.office.com", "outlook.live.com")
+K_MAILBOXES = tuple(sorted(MAILBOX_HOSTS))
 """Where a request arrives. Named, rather than "any host that is not the
 warehouse": a job that spans two warehouse systems cites gestures on both, and
 calling the second one a mailbox would put a page of stock levels into the
@@ -145,11 +145,19 @@ def only_reads_the_mail(step: Step, by_id: Mapping[str, Gesture]) -> bool:
     five steps skipped by the first version of this rule and reported `held`
     having done nothing at all. A run that says it did the job and sent no mail
     is worse than one that fails, because nobody goes looking.
+
+    **What writes is the Send button, not the traffic.** Gmail POSTs to open a
+    thread, so by `writes` reading a request was a write -- measured on the
+    deployment 2026-09-23, `Create a Customer Type`'s "Read the customer type
+    details in Gmail". Opening a composer, typing into it and picking a
+    recipient change nothing until Send is pressed; see `sends_mail`. And only
+    on the mailbox's own page: `Log in to Google Account` is filed under the
+    mailbox and types its password on `accounts.google.com`.
     """
     cited = [by_id[one] for one in step.cites if one in by_id]
-    if not cited or not all(from_a_mailbox(gesture) for gesture in cited):
+    if not cited or not all(on_the_mailbox(gesture) for gesture in cited):
         return False
-    return not writes(step, by_id)
+    return not sends_mail(step, by_id)
 
 
 def _said(gesture: Gesture) -> str | None:

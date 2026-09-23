@@ -80,7 +80,13 @@ from sro.application.execution.approvals import Approvals
 from sro.application.execution.declared import declared_limits, names_of, screen_for
 from sro.application.execution.effects import wrote
 from sro.application.execution.gather import GatherContext
-from sro.application.execution.mail_job import draft_the_mail_job
+from sro.application.execution.mail_job import (
+    MailHand,
+    Written,
+    draft_the_mail_job,
+    send_the_mail,
+    write_the_mail,
+)
 from sro.application.execution.one_time_secrets import take as take_once
 from sro.application.execution.read_runs import NOT_IN_A_BROWSER_HERE, CannotStop
 from sro.application.execution.run_workflow import GatherValues, KnownFields, run_workflow
@@ -618,6 +624,7 @@ class StartWorkflowRun:
                         if self._gather is None
                         else self._gathering(ctx, workflow.title, seen_values(workflow))
                     ),
+                    mail=self._mail_hand(ctx, asker),
                 )
         except Exception as error:
             logger.exception("a run in an operator's browser could not be finished")
@@ -815,6 +822,25 @@ class StartWorkflowRun:
                 await self._asker_drafts(ctx, run.id, pending)
             except Exception:
                 logger.exception("%s could not be drafted a mail about", run.id)
+
+    def _mail_hand(self, ctx: RequestContext, asker: Asker) -> MailHand | None:
+        """How a run writes and sends a mail through the connector the gather
+        rung already reads with. None where there is no connector."""
+        if self._gather is None:
+            return None
+        tools = self._gather.tools
+
+        async def write(
+            workflow: Workflow, values: Mapping[str, str], thread: str
+        ) -> Written | str:
+            return await write_the_mail(
+                ctx, workflow, values, thread, tools=tools, asker=asker, model=self._plan_model
+            )
+
+        async def send(mail: Written) -> tuple[str, str]:
+            return await send_the_mail(ctx, self._uow, tools, mail, clock=self._clock)
+
+        return MailHand(write=write, send=send)
 
     def _gathering(
         self, ctx: RequestContext, job: str, seen: Mapping[str, frozenset[str]]

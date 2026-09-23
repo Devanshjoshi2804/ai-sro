@@ -317,6 +317,32 @@ test("an awaiting step shows what would go out and asks for approval", () => {
   assert.deepEqual(asMarkup, [], "a planned command reached the page as markup");
 });
 
+test("a mail waiting for approval is shown whole before it can be sent", () => {
+  // Approving it is sending it, and its words are a model's.
+  const run = {
+    id: "run_1",
+    source: "rig",
+    status: "running",
+    steps: [
+      {
+        index: 0,
+        outcome: "awaiting",
+        says: "Click Send",
+        sent: {
+          kind: "mail.send",
+          payload: { to: "alex@example.com", subject: "Re: client", body: "SROCLS8 is set up." },
+        },
+      },
+    ],
+  };
+  const card = runCard({ run }, {});
+  const row = card.kids.filter((kid) => kid.className === "step")[0];
+
+  assert.match(words(row), /send to alex@example\.com/);
+  assert.match(words(row), /Re: client/);
+  assert.match(words(row), /SROCLS8 is set up\./, "the body was not shown before approval");
+});
+
 test("a step the operator did is drawn done, not in flight", () => {
   // The operator went and did it themselves while the rig waited. That step is
   // over -- drawing it as the one in flight would leave the panel pointing at

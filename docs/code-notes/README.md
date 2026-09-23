@@ -296,7 +296,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/domain/shared/prices.py`](backend/src/sro/domain/shared/prices.py.md) | 13 |
 | [`backend/src/sro/domain/skill/__init__.py`](backend/src/sro/domain/skill/__init__.py.md) | 1 |
 | [`backend/src/sro/domain/skill/assertion.py`](backend/src/sro/domain/skill/assertion.py.md) | 2 |
-| [`backend/src/sro/domain/skill/checks.py`](backend/src/sro/domain/skill/checks.py.md) | 29 |
+| [`backend/src/sro/domain/skill/checks.py`](backend/src/sro/domain/skill/checks.py.md) | 31 |
 | [`backend/src/sro/domain/skill/earned.py`](backend/src/sro/domain/skill/earned.py.md) | 9 |
 | [`backend/src/sro/domain/skill/learned.py`](backend/src/sro/domain/skill/learned.py.md) | 31 |
 | [`backend/src/sro/domain/skill/locator.py`](backend/src/sro/domain/skill/locator.py.md) | 8 |

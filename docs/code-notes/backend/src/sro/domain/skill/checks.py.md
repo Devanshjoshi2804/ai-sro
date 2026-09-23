@@ -30,7 +30,7 @@ Code: `_DEFAULT_PORTS = {"http": "80", "https": "443"}`
 > `config._origins_of` keeps the same map for the same reason and cannot be
 > imported here: the domain reads settings through arguments or not at all.
 
-## module, [line 258](../../../../../../../backend/src/sro/domain/skill/checks.py#L258): Note on the line above
+## module, [line 270](../../../../../../../backend/src/sro/domain/skill/checks.py#L270): Note on the line above
 
 Code: `K_SITTING_GAP_S = 600.0`
 
@@ -160,9 +160,14 @@ Code: `K_SITTING_GAP_S = 600.0`
 > with the run engine's idea of a write: every step `writes` counts as a write
 > -- any mutating method at any status -- and every step that carries the
 > credential or comes right after it must be a step `is_sign_in_step` proves is
-> part of the sign-in. A job whose steps write anything else, or whose press
-> after the credential stays on its host, is never marked: that is a PIN
-> approval or an e-signature as much as a sign-in.
+> part of the sign-in. And every gesture it cites after its first credential
+> that does anything but type a value -- a click, a press, a select, an upload
+> -- must have sent the browser to another host, wherever in the job it sits.
+> A job with anything else after the credential is never marked: a PIN
+> approval or an e-signature looks exactly like a sign-in until then, and the
+> mark makes a job eligible to end a run `held` and to be spliced into
+> another. Step by step the engine still gates such a press; the mark is about
+> the whole job.
 >
 > `work_only` keeps its own reading of the same halves and does not call this:
 > its refusal is "a credential typed, the browser moved, nothing written", and
@@ -189,14 +194,15 @@ Code: `K_SITTING_GAP_S = 600.0`
 > hold none -- including a Warehouse Equipment Type job whose span is 52
 > gestures wide.
 
-## `is_sign_in_step`, [line 188](../../../../../../../backend/src/sro/domain/skill/checks.py#L188): Docstring
+## `is_sign_in_step`, [line 200](../../../../../../../backend/src/sro/domain/skill/checks.py#L200): Docstring
 
 > Whether this step's own evidence proves it is part of signing in, and so
 > not a write. Two shapes, and nothing else:
 >
 > - the step carries the credential (the recorder's secret mark), records no
->   mutation, and every press or click it cites sent the browser to another
->   host -- typing the password, alone or with the submit. "Records no
+>   mutation, and every gesture it cites that is not typing a value -- a
+>   click, a press, a select that submits on change, an upload -- sent the
+>   browser to another host: typing the password, alone or with the submit. "Records no
 >   mutation" is absence of evidence: a top-level form post is never captured
 >   (no Keycloak POST exists anywhere in the stored data), and the miner puts
 >   a credential and a press in one step. A PIN typed and Approve pressed on
@@ -210,16 +216,26 @@ Code: `K_SITTING_GAP_S = 600.0`
 > 302 back to the same system or with no status recorded -- proves nothing,
 > and a write must fail safe: it is judged as a write.
 
-## `_carries_the_credential`, [line 201](../../../../../../../backend/src/sro/domain/skill/checks.py#L201): Docstring
+## `_acted_after_the_credential`, [line 186](../../../../../../../backend/src/sro/domain/skill/checks.py#L186): Docstring
+
+> The gestures this job cites after its first credential, in time, that do
+> anything but type a value.
+
+## `_acts`, [line 196](../../../../../../../backend/src/sro/domain/skill/checks.py#L196): Docstring
+
+> Anything but typing a value. Typing changes a field; everything else --
+> clicking, pressing, choosing, uploading -- can submit.
+
+## `_carries_the_credential`, [line 213](../../../../../../../backend/src/sro/domain/skill/checks.py#L213): Docstring
 
 > Whether any gesture this step cites bears the recorder's secret mark.
 
-## `_after_the_credential`, [line 205](../../../../../../../backend/src/sro/domain/skill/checks.py#L205): Docstring
+## `_after_the_credential`, [line 217](../../../../../../../backend/src/sro/domain/skill/checks.py#L217): Docstring
 
 > Whether the step just before this one, in the job's order, typed the
 > credential on the same host this step is on.
 
-## `work_only`, [line 218](../../../../../../../backend/src/sro/domain/skill/checks.py#L218): Docstring
+## `work_only`, [line 230](../../../../../../../backend/src/sro/domain/skill/checks.py#L230): Docstring
 
 > Strike the systems that were never the work, and refuse a job with none
 > left. None when it may be kept, as `validate` answers.
@@ -265,11 +281,11 @@ Code: `K_SITTING_GAP_S = 600.0`
 > somebody has to keep, wrong for every customer running an SSO nobody here
 > has heard of.
 
-## `_sittings`, [line 261](../../../../../../../backend/src/sro/domain/skill/checks.py#L261): Docstring
+## `_sittings`, [line 273](../../../../../../../backend/src/sro/domain/skill/checks.py#L273): Docstring
 
 > Consecutive runs of `times`, split wherever the pause is long enough.
 
-## `one_occurrence`, [line 271](../../../../../../../backend/src/sro/domain/skill/checks.py#L271): Docstring
+## `one_occurrence`, [line 283](../../../../../../../backend/src/sro/domain/skill/checks.py#L283): Docstring
 
 > Strike every citation but one doing's, in place.
 >
@@ -409,14 +425,14 @@ Code: `coverage=sum(1 for d in deciles if d > 0) / min(10, n),`
 > four parts and can only ever land in four deciles, so dividing by ten
 > reported a FULLY cited short window at 0.4 -- under K_MIN_COVERAGE.
 
-## `work_only`, [line 223](../../../../../../../backend/src/sro/domain/skill/checks.py#L223): Comment
+## `work_only`, [line 235](../../../../../../../backend/src/sro/domain/skill/checks.py#L235): Comment
 
 Code: `last = {system: index for index, system in enumerate(order)}`
 
 > Last occurrence per system: what matters is whether the job carried on
 > after this system the LAST time it was on it, not the first.
 
-## `work_only`, [line 231](../../../../../../../backend/src/sro/domain/skill/checks.py#L231): Comment
+## `work_only`, [line 243](../../../../../../../backend/src/sro/domain/skill/checks.py#L243): Comment
 
 Code: `during = _during(workflow, gestures)`
 
@@ -447,7 +463,7 @@ Code: `during = _during(workflow, gestures)`
 > list of identity hostnames -- which this function declined to keep, on
 > the grounds that every customer runs an SSO nobody here has heard of.
 
-## `work_only`, [line 248](../../../../../../../backend/src/sro/domain/skill/checks.py#L248): Comment
+## `work_only`, [line 260](../../../../../../../backend/src/sro/domain/skill/checks.py#L260): Comment
 
 Code: `if workflow.systems and not kept:`
 

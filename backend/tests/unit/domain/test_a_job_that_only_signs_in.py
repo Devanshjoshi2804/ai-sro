@@ -192,3 +192,34 @@ def test_a_credential_then_a_press_that_stays_on_its_host_is_not_a_sign_in() -> 
     }
 
     assert signs_in(_job("a", "b"), store) is False
+
+
+def test_a_credential_and_a_same_host_select_are_not_a_sign_in_step() -> None:
+    """Not only a press can submit: a select that posts on change, an upload
+    carrying the PIN. Anything but typing a value has to prove it left."""
+    store = {
+        "a": _secret("a", WMS, 1),
+        "b": replace(_at("b", WMS, 2), action=Action(kind="select", at=2, value="yes")),
+    }
+    job = Workflow(
+        id="wfl_pin",
+        tenant="acme",
+        title="t",
+        narrative="n",
+        steps=[Step(order=0, says="approve with the PIN", system=None, cites=["a", "b"])],
+    )
+
+    assert is_sign_in_step(job, job.steps[0], store) is False
+
+
+def test_a_same_host_press_anywhere_after_the_credential_unmarks_the_job() -> None:
+    """A PIN, a step on another system, then Approve on the first system with
+    nothing recorded. The press is gated where it stands, but a job with it is
+    no sign-in to end a run on or to splice into one."""
+    store = {
+        "a": _secret("a", WMS, 1),
+        "b": replace(_at("b", KEYCLOAK, 2), action=Action(kind="type", at=2, value="x")),
+        "c": replace(_at("c", WMS, 3), action=Action(kind="press", at=3)),
+    }
+
+    assert signs_in(_job("a", "b", "c"), store) is False

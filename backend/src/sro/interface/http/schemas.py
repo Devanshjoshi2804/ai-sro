@@ -2163,7 +2163,7 @@ class EvidenceResponse(BaseModel):
     """Everything a workflow cites, in the shape a runner's bridge consumes.
 
     Three maps and not one. `gestures` is the extension's own wire shape --
-    what `application.skill.from_rig` reads a replayable plan out of -- and a
+    what a runner's bridge reads a replayable plan out of -- and a
     gesture on the wire never carried its calls, so folding them in would give
     the bridge a shape neither side speaks. `requests` is keyed by gesture id
     beside it, as the rig served it and as the two are stored.
@@ -2184,8 +2184,8 @@ class EvidenceResponse(BaseModel):
     missing: list[str]
     """Cited gesture ids the store no longer holds, in cited order.
 
-    The rig served this and the port dropped it. `from_rig.plans_for_step`
-    skips a citation with no gesture, so a caller building a runnable job out
+    The rig served this and the port dropped it. A bridge skips a citation
+    with no gesture, so a caller building a runnable job out
     of this body gets one silently missing a step -- and is entitled to know
     before it runs it. Normally empty: the proposal that became this workflow
     was refused if it cited evidence that did not exist, so a non-empty

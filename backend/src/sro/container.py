@@ -129,7 +129,6 @@ from sro.application.recording.live_view import GetLiveView
 from sro.application.recording.media import GetRecordingMedia
 from sro.application.recording.start_recording import StartRecording
 from sro.application.skill.add_assertion import AddAssertion
-from sro.application.skill.adopt_rig_workflow import AdoptRigWorkflow
 from sro.application.skill.describe_skill import DescribeSkill
 from sro.application.skill.map_step_to_tool import MapStepToTool
 from sro.application.skill.promote_skill import PromoteSkill
@@ -308,9 +307,6 @@ class Container:
 
     def record_offer(self) -> RecordOffer:
         return RecordOffer(self.unit_of_work(), self.clock)
-
-    def adopt_rig_workflow(self) -> AdoptRigWorkflow:
-        return AdoptRigWorkflow(self.unit_of_work(), self.clock, self.ids)
 
     def _patient_asker(self) -> Asker | None:
         if self._mining_asker is None or self._mining_asker_from is not self.asker:

@@ -18,14 +18,12 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/scripts/dry_run.py`](backend/scripts/dry_run.py.md) | 9 |
 | [`backend/scripts/look_up.py`](backend/scripts/look_up.py.md) | 1 |
 | [`backend/scripts/measure.py`](backend/scripts/measure.py.md) | 7 |
-| [`backend/scripts/mirror_backfill.py`](backend/scripts/mirror_backfill.py.md) | 8 |
 | [`backend/scripts/mutation_floor.py`](backend/scripts/mutation_floor.py.md) | 9 |
 | [`backend/scripts/one_whole_run.py`](backend/scripts/one_whole_run.py.md) | 35 |
 | [`backend/scripts/panel_shot.py`](backend/scripts/panel_shot.py.md) | 5 |
 | [`backend/scripts/probe_mine_route.py`](backend/scripts/probe_mine_route.py.md) | 6 |
 | [`backend/scripts/redact_stored_evidence.py`](backend/scripts/redact_stored_evidence.py.md) | 8 |
 | [`backend/scripts/route_shots.py`](backend/scripts/route_shots.py.md) | 5 |
-| [`backend/scripts/skill_from_rig.py`](backend/scripts/skill_from_rig.py.md) | 4 |
 | [`backend/scripts/smoke.py`](backend/scripts/smoke.py.md) | 11 |
 | [`backend/scripts/status.py`](backend/scripts/status.py.md) | 9 |
 | [`backend/scripts/stub_device.py`](backend/scripts/stub_device.py.md) | 11 |
@@ -183,12 +181,9 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/shared/locks.py`](backend/src/sro/application/shared/locks.py.md) | 2 |
 | [`backend/src/sro/application/shared/refusals.py`](backend/src/sro/application/shared/refusals.py.md) | 2 |
 | [`backend/src/sro/application/skill/add_assertion.py`](backend/src/sro/application/skill/add_assertion.py.md) | 4 |
-| [`backend/src/sro/application/skill/adopt_rig_workflow.py`](backend/src/sro/application/skill/adopt_rig_workflow.py.md) | 8 |
 | [`backend/src/sro/application/skill/counsel.py`](backend/src/sro/application/skill/counsel.py.md) | 2 |
 | [`backend/src/sro/application/skill/describe_skill.py`](backend/src/sro/application/skill/describe_skill.py.md) | 1 |
-| [`backend/src/sro/application/skill/from_rig.py`](backend/src/sro/application/skill/from_rig.py.md) | 18 |
 | [`backend/src/sro/application/skill/map_step_to_tool.py`](backend/src/sro/application/skill/map_step_to_tool.py.md) | 7 |
-| [`backend/src/sro/application/skill/network_from_rig.py`](backend/src/sro/application/skill/network_from_rig.py.md) | 17 |
 | [`backend/src/sro/application/skill/promote_skill.py`](backend/src/sro/application/skill/promote_skill.py.md) | 3 |
 | [`backend/src/sro/application/skill/read_doings.py`](backend/src/sro/application/skill/read_doings.py.md) | 11 |
 | [`backend/src/sro/application/skill/read_skills.py`](backend/src/sro/application/skill/read_skills.py.md) | 1 |
@@ -196,7 +191,6 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/skill/record_offer.py`](backend/src/sro/application/skill/record_offer.py.md) | 7 |
 | [`backend/src/sro/application/skill/repair_drift.py`](backend/src/sro/application/skill/repair_drift.py.md) | 34 |
 | [`backend/src/sro/application/skill/serve_shapes.py`](backend/src/sro/application/skill/serve_shapes.py.md) | 7 |
-| [`backend/src/sro/application/skill/version_from_rig.py`](backend/src/sro/application/skill/version_from_rig.py.md) | 11 |
 | [`backend/src/sro/application/trigger/answer_confirmation.py`](backend/src/sro/application/trigger/answer_confirmation.py.md) | 10 |
 | [`backend/src/sro/application/trigger/create_trigger.py`](backend/src/sro/application/trigger/create_trigger.py.md) | 23 |
 | [`backend/src/sro/application/trigger/fire_trigger.py`](backend/src/sro/application/trigger/fire_trigger.py.md) | 30 |

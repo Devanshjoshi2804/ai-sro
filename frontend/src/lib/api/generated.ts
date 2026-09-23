@@ -3273,7 +3273,7 @@ export interface components {
          * @description Everything a workflow cites, in the shape a runner's bridge consumes.
          *
          *     Three maps and not one. `gestures` is the extension's own wire shape --
-         *     what `application.skill.from_rig` reads a replayable plan out of -- and a
+         *     what a runner's bridge reads a replayable plan out of -- and a
          *     gesture on the wire never carried its calls, so folding them in would give
          *     the bridge a shape neither side speaks. `requests` is keyed by gesture id
          *     beside it, as the rig served it and as the two are stored.

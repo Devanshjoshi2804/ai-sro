@@ -596,7 +596,7 @@ def test_a_key_one_doing_carried_and_the_other_did_not_is_never_a_slot() -> None
 
 
 def test_a_constant_that_happens_to_equal_a_typed_value_is_still_a_constant() -> None:
-    """The trap `from_rig` warns about: a constant of the job that happens to
+    """The trap: a constant of the job that happens to
     equal some parameter's value turns into a slot the runner substitutes. The
     diff is what stops it -- a key both doings sent identically is structure,
     whatever its value looks like."""

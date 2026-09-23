@@ -38,7 +38,6 @@ from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
 from sro.application.execution.batch import RunBatch
 from sro.application.execution.call_run_wrong import CallRunWrong
-from sro.application.execution.call_workflow_run_wrong import CallWorkflowRunWrong
 from sro.application.execution.choices import ListChoices
 from sro.application.execution.derived_read import AskTheSystem
 from sro.application.execution.execute_skill import (
@@ -57,7 +56,6 @@ from sro.application.execution.run_from_preview import RunFromPreview
 from sro.application.execution.self_heal import SelfHeal
 from sro.application.execution.stops import Stops
 from sro.application.execution.vision_step import PerformWithVision
-from sro.application.execution.what_a_job_taught import ReadWhatAJobTaught
 from sro.application.execution.workflow_runs import (
     AbortWorkflowRun,
     ApproveWorkflowStep,
@@ -87,7 +85,6 @@ from sro.application.observation.mine_lately import MineLately
 from sro.application.observation.mine_pass import MinePass
 from sro.application.observation.policy import ReadObservationPolicy, SetObservationPolicy
 from sro.application.observation.read_gesture import ReadGestures
-from sro.application.observation.read_pool import ReadPool
 from sro.application.observation.read_shots import ReadShots
 from sro.application.observation.record_attempt import RecordAttempt
 from sro.application.observation.register import (
@@ -128,11 +125,7 @@ from sro.application.recording.list_recordings import ListRecordings
 from sro.application.recording.live_view import GetLiveView
 from sro.application.recording.media import GetRecordingMedia
 from sro.application.recording.start_recording import StartRecording
-from sro.application.skill.add_assertion import AddAssertion
 from sro.application.skill.describe_skill import DescribeSkill
-from sro.application.skill.map_step_to_tool import MapStepToTool
-from sro.application.skill.promote_skill import PromoteSkill
-from sro.application.skill.read_doings import ReadDoings
 from sro.application.skill.read_skills import GetSkill, ListSkills
 from sro.application.skill.read_workflows import ReadEvidence, ReadWorkflows
 from sro.application.skill.record_offer import RecordOffer
@@ -297,9 +290,6 @@ class Container:
 
     def read_shots(self) -> ReadShots:
         return ReadShots(self.unit_of_work(), self.blobs)
-
-    def read_pool(self) -> ReadPool:
-        return ReadPool(self.unit_of_work())
 
     async def read_spend(self, ctx: RequestContext) -> DaySpend:
         async with self.unit_of_work() as uow:
@@ -556,15 +546,6 @@ class Container:
     def get_skill(self) -> GetSkill:
         return GetSkill(self.unit_of_work())
 
-    def read_doings(self) -> ReadDoings:
-        return ReadDoings(self.unit_of_work())
-
-    def map_step_to_tool(self) -> MapStepToTool:
-        return MapStepToTool(self.unit_of_work(), self.clock, self.tools)
-
-    def add_assertion(self) -> AddAssertion:
-        return AddAssertion(self.unit_of_work(), self.clock)
-
     def grant_host(self) -> GrantHost:
         return GrantHost(self.unit_of_work(), self.clock)
 
@@ -582,9 +563,6 @@ class Container:
 
     def understand_recording(self) -> UnderstandRecording:
         return UnderstandRecording(self.unit_of_work(), self.interpreter, self.clock, self.ids)
-
-    def promote_skill(self) -> PromoteSkill:
-        return PromoteSkill(self.unit_of_work(), self.clock)
 
     def describe_skill(self) -> DescribeSkill:
         return DescribeSkill(self.unit_of_work())
@@ -711,9 +689,6 @@ class Container:
             answers=IsItAnAnswer(self.asker, model=self.settings.gemini_plan_model),
         )
 
-    def read_what_a_job_taught(self) -> ReadWhatAJobTaught:
-        return ReadWhatAJobTaught(self.unit_of_work())
-
     def ask_about_the_offer(self) -> AskAboutTheOffer:
         return AskAboutTheOffer(self.unit_of_work(), self.clock, self.ids, self._drafting_for)
 
@@ -821,9 +796,6 @@ class Container:
 
     def call_run_wrong(self) -> CallRunWrong:
         return CallRunWrong(self.unit_of_work(), self.clock)
-
-    def call_workflow_run_wrong(self) -> CallWorkflowRunWrong:
-        return CallWorkflowRunWrong(self.unit_of_work())
 
     def revise_run(self) -> ReviseRun:
         return ReviseRun(self.unit_of_work(), self.clock)

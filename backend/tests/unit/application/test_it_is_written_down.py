@@ -16,9 +16,7 @@ from sro.application.connection.browsers import Browsers
 from sro.application.context import RequestContext
 from sro.application.knowledge.record_claim import Claim, RecordClaims
 from sro.application.recording.start_recording import StartRecording
-from sro.application.skill.promote_skill import PromoteSkill
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel
-from sro.domain.skill.promotion import PromotionStage
 from tests import factories as f
 from tests.unit.fakes import (
     FakeBrowserProvider,
@@ -29,18 +27,6 @@ from tests.unit.fakes import (
 )
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
-
-
-async def test_a_promotion_is_committed() -> None:
-    uow = FakeUnitOfWork()
-    skill = f.skill(versions=1)
-    await uow.skills.add(skill)
-
-    await PromoteSkill(uow, FakeClock()).execute(
-        CTX, skill_id=skill.id, version=1, to=PromotionStage.SHADOW
-    )
-
-    assert uow.commits >= 1, "the rung it moved to would not survive a restart"
 
 
 async def test_a_started_recording_is_committed() -> None:

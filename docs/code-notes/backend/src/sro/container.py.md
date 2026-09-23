@@ -423,10 +423,6 @@ Code: `driving_runs: AsyncConnection | None = None`
 > Everything that used to take ``self.browser`` takes this instead, so
 > an unowned session cannot be produced by anything this system runs.
 
-## `Container.read_what_a_job_taught`, [line 778](../../../../../backend/src/sro/container.py#L778): Docstring
-
-> What a job has changed its mind about, for somebody to read.
-
 ## `Container.ask_about_the_offer`, [line 781](../../../../../backend/src/sro/container.py#L781): Docstring
 
 > The card's way into the conversation the chat door already runs.

@@ -20,13 +20,6 @@ Code: `return WorkflowRunModel.of(run, await reader.undo_for(ctx, run))`
 > their evidence, and a response model that went to a repository would be a
 > response model with a session.
 
-## `called_wrong`, [line 278](../../../../../../../../../backend/src/sro/interface/http/v1/routers/workflow_runs.py#L278): Comment
-
-Code: `await container.record_attempt().execute(`
-
-> The operator's own verdict, in their own words. Not a refusal by this
-> system: they asked to say it was wrong, and they said it.
-
 ## `approve_workflow_step`, [line 339](../../../../../../../../../backend/src/sro/interface/http/v1/routers/workflow_runs.py#L339): Comment
 
 Code: `await container.record_attempt().execute(`

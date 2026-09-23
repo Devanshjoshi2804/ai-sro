@@ -7,9 +7,6 @@ cap answers 429, that every figure the reading measured survives the trip, that
 the operator's own sentence does NOT, and that a browser's secret does not open
 the tenant's purse.
 
-**Not `POST /v1/intent/resolve`**, which resolves over skills and asks no
-model. Two doors, two vocabularies.
-
 Nothing is dated today. The container's clock stands in February 2025, six
 months from any wall clock this runs against, so a route that reached for
 `datetime.now(UTC)` bills a different day than the one asserted here.
@@ -308,7 +305,7 @@ async def test_a_reading_whose_model_call_failed_is_not_answered_as_no_job_match
 async def test_the_bill_is_not_rounded_on_the_way_out(
     container: _FakeContainer, client: httpx.AsyncClient, held: Workflow
 ) -> None:
-    """As `/v1/mine` leaves it. Rounding for display is the reader's job; a
+    """Unrounded. Rounding for display is the reader's job; a
     bill rounded on the way out cannot be summed against the `chats` row it
     came from -- and `/v1/spend`, which does round, sums the raw figure."""
     container.asker = FakeAsker(_answer("wfl_1", [], cost_usd=0.0123456789))

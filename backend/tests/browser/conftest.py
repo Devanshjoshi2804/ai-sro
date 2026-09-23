@@ -265,7 +265,6 @@ class _Stub(BaseHTTPRequestHandler):
     """Answer this many artifact uploads with a 503 before taking any. A lost
     reply from the blob store is the ordinary way one of these fails."""
 
-    resolutions_asked: ClassVar[list[str]] = []
     """Every sentence handed to intent resolution, in the operator's own
     words -- what the box in `beginOffer` actually sent, not what it was
     prefilled with."""
@@ -642,42 +641,6 @@ class _Stub(BaseHTTPRequestHandler):
                 ).encode(),
             )
             return
-        if self.path == "/v1/intent/resolve":
-            asked = json.loads(raw)
-            _Stub.resolutions_asked.append(asked.get("utterance", ""))
-            # A fixed match regardless of what was typed: reading a sentence
-            # is `resolve_intent`'s job and is proven at the unit and contract
-            # level already (`tests/unit/application/test_resolve_intent.py`).
-            # What a browser has to prove is that the sentence really leaves
-            # the panel and a real preview comes back for it -- not that the
-            # parser is any good, which no stub could prove anyway.
-            self._send(
-                200,
-                json.dumps(
-                    {
-                        "utterance": asked.get("utterance", ""),
-                        "matched": {
-                            "skill_id": _SKILL_LPN_ADJUST["id"],
-                            "name": _SKILL_LPN_ADJUST["name"],
-                            "version": 1,
-                            "stage": "practice",
-                            "summary": "Types the LPN and saves the new quantity.",
-                            "score": 100,
-                            "why": [],
-                            "unexplained": [],
-                        },
-                        "choices": [],
-                        "missing_parameters": [],
-                        "runnable": True,
-                        "confident": True,
-                        "question": None,
-                        "why": [],
-                        "proposal": None,
-                        "items": [{"lpn": "LPN-4471"}],
-                    }
-                ).encode(),
-            )
-            return
         if self.path.endswith("/runs/from-preview"):
             body = json.loads(raw)
             skill_id = self.path.split("/")[3]
@@ -795,7 +758,6 @@ def stub() -> Iterator[tuple[str, list[dict[str, Any]]]]:
     _Stub.watches = []
     _Stub.matched = []
     _Stub.fired = []
-    _Stub.resolutions_asked = []
     _Stub.run_previews = []
     _Stub.run_wrongs = []
     _Stub.runs = {}
@@ -878,12 +840,6 @@ def fired(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
 def purges(stub: tuple[str, list[dict[str, Any]]]) -> list[str]:
     """The `DELETE /v1/observations` calls the extension made, as sent."""
     return _Stub.purges
-
-
-@pytest.fixture
-def resolutions_asked(stub: tuple[str, list[dict[str, Any]]]) -> list[str]:
-    """Every sentence the panel asked `/v1/intent/resolve` about, in order."""
-    return _Stub.resolutions_asked
 
 
 @pytest.fixture

@@ -7,7 +7,7 @@ behind them stay free to change.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import asdict
 from datetime import datetime
 from typing import Annotated, Any
@@ -23,35 +23,26 @@ from sro.application.execution.effects import can_try_again
 from sro.application.execution.pursuits import PursuitProgress
 from sro.application.execution.reversal import Reversal
 from sro.application.intent.match import Candidate
-from sro.application.intent.resolve import Resolution
 from sro.application.lookup.answer import as_seen
 from sro.application.lookup.plan_lookups import Planned
 from sro.application.lookup.run_lookups import Answers, Looked
-from sro.application.observation.mining_pass import MineResult
-from sro.application.observation.read_pool import Pool
 from sro.application.observation.read_shots import PlayableShot
 from sro.application.skill.read_workflows import CitedEvidence, KnownWorkflow
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread
 from sro.domain.execution.belts import K_EARNED_RUNS
-from sro.domain.execution.learned_step import Taught
 from sro.domain.execution.run import Medium, Run, StepOutcome
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.lookup.plan import Asked, Lookup
 from sro.domain.observation.attempts import Attempt
 from sro.domain.observation.batch import CaptureMode, RejectedEvent
 from sro.domain.observation.device import AgentDevice
-from sro.domain.observation.identity import Resolution as MinedResolution
 from sro.domain.observation.policy import ObservationPolicy
-from sro.domain.observation.pool import PoolEntry
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.objective import Direction, ObjectiveKey
 from sro.domain.shared.prices import DaySpend
-from sro.domain.skill.assertion import AssertionKind
-from sro.domain.skill.checks import Coverage, Rejection
 from sro.domain.skill.locator import ControlLocator, LocatorStrategy
 from sro.domain.skill.offers import Offer
-from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill, SkillVersion
 from sro.domain.skill.template import Template
 from sro.domain.skill.track_record import (
@@ -409,21 +400,6 @@ class ArtifactModel(BaseModel):
         )
 
 
-class UnderstandRequest(BaseModel):
-    recording_id: str
-    name: str | None = None
-
-
-class UnderstoodResponse(BaseModel):
-    skill_id: str
-    version: int
-    step_count: int
-    proposed_parameter_count: int
-    caveat: str
-    """What the reading could not account for. Kept, because "I did not
-    understand step 4" is the most useful thing it can say."""
-
-
 class SkillSummary(BaseModel):
     id: str
     name: str
@@ -532,24 +508,6 @@ class GrantsResponse(BaseModel):
         )
 
 
-class DemonstrationModel(BaseModel):
-    """One demonstration behind a version, and what it put in each field.
-
-    ``values`` holds a name only where this doing answers for it: a null is
-    "sent holding nothing", which is the evidence behind an optional field,
-    and a name absent from the mapping is a field this doing does not answer
-    for at all. The two are different facts and the screen shows them
-    differently.
-    """
-
-    recording_id: str
-    started_at: datetime
-    demonstrator: str
-    frames: int
-    diffed: bool
-    values: dict[str, str | None]
-
-
 class AssertionModel(BaseModel):
     kind: str
     expected: str
@@ -577,12 +535,6 @@ class UiPlanModel(BaseModel):
     target_path: str | None
     value: str | None
     wait_for: str | None
-
-
-class ToolOfferedModel(BaseModel):
-    name: str
-    description: str
-    arguments: list[str]
 
 
 class ConfirmationModel(BaseModel):
@@ -625,26 +577,6 @@ class AnsweredModel(BaseModel):
     confirmation_id: str
     answer: str
     run_id: str | None = None
-
-
-class AssertRequest(BaseModel):
-    version: int
-    step_index: int
-    kind: AssertionKind
-    expected: str
-    pointer: str | None = None
-
-
-class MapStepRequest(BaseModel):
-    version: int
-    step_index: int
-    server: str
-    tool: str
-    arguments: dict[str, str] = {}
-    writes: bool = False
-    """Whether calling this changes something outside this system. Said by the
-    person mapping it, because nothing else can: MCP declares no such thing,
-    and a tool named `send_message` is a name rather than a promise."""
 
 
 class ToolPlanModel(BaseModel):
@@ -922,28 +854,6 @@ class ChoiceModel(BaseModel):
     label: str
 
 
-class PromoteRequest(BaseModel):
-    """A person, in the console, choosing to move a version up a rung.
-
-    Carries no `from_where`: this endpoint is answered by `PromoteSkill`, which
-    always tells the version it was `"console"`. A press on the panel's preview
-    promotes through a different call, because it is a different review -- see
-    ADR 014 -- and this request never stands in for it."""
-
-    version: int
-    to: PromotionStage
-    """The rung to move to, checked here rather than in the router: coercing an
-    unknown name inside the handler raised a bare ValueError, so asking to
-    promote something to "wizard" answered 500 — an internal fault for a typo."""
-
-    acknowledging_fixed_values: bool = False
-    """Yes, I have read what this sends and I mean it.
-
-    Only consulted for a version induced from one demonstration that writes:
-    with nothing to diff against, every value it sends is the one that run
-    happened to carry, and above shadow it is sent for real."""
-
-
 class DescribeRequest(BaseModel):
     version: int
     summary: str
@@ -1216,12 +1126,6 @@ class SessionHeadersResponse(BaseModel):
     """Key names only. A credential is never echoed back."""
 
 
-class ResolveIntentRequest(BaseModel):
-    utterance: str
-    system: str | None = None
-    parameters: dict[str, str] = Field(default_factory=dict)
-
-
 class CandidateModel(BaseModel):
     skill_id: str
     name: str
@@ -1231,77 +1135,6 @@ class CandidateModel(BaseModel):
     score: int
     why: list[str]
     unexplained: list[str]
-
-
-class ProposedStepModel(BaseModel):
-    what: str
-    detail: str
-    source: str
-    evidence: str
-
-
-class ProposalModel(BaseModel):
-    steps: list[ProposedStepModel]
-    sources: list[str]
-    caveat: str
-
-
-class ResolutionModel(BaseModel):
-    """What the system decided a sentence asked for.
-
-    `matched` absent with `choices` present means two skills were too close to
-    separate; `proposal` present means nothing was taught and this is what the
-    knowledge base says. Neither is a run.
-    """
-
-    utterance: str
-    matched: CandidateModel | None
-    choices: list[CandidateModel]
-    missing_parameters: list[str]
-    runnable: bool
-    confident: bool
-    question: str | None
-    why: list[str]
-    proposal: ProposalModel | None
-
-    items: list[dict[str, str]] = []
-    """Values the parser read out of the sentence for the matched skill, one
-    set per thing to do -- "these six SKUs" is six. Sent so a caller that asks
-    in a sentence rather than a form can actually use what typing the sentence
-    was for; without this a matched skill whose parameters the sentence
-    supplied was refused at the press for values nobody was ever asked to
-    give twice."""
-
-    @classmethod
-    def of(cls, resolution: Resolution) -> ResolutionModel:
-        return cls(
-            utterance=resolution.utterance,
-            matched=_candidate(resolution.matched),
-            choices=[model for c in resolution.choices if (model := _candidate(c))],
-            missing_parameters=list(resolution.missing_parameters),
-            runnable=resolution.runnable,
-            confident=resolution.confident,
-            question=resolution.question,
-            why=list(resolution.why),
-            items=[dict(item) for item in resolution.items],
-            proposal=(
-                ProposalModel(
-                    steps=[
-                        ProposedStepModel(
-                            what=step.what,
-                            detail=step.detail,
-                            source=step.source,
-                            evidence=step.evidence.value,
-                        )
-                        for step in resolution.proposal.steps
-                    ],
-                    sources=list(resolution.proposal.sources),
-                    caveat=resolution.proposal.caveat,
-                )
-                if resolution.proposal is not None
-                else None
-            ),
-        )
 
 
 def _candidate(candidate: Candidate | None) -> CandidateModel | None:
@@ -1955,63 +1788,6 @@ class AuditResponse(BaseModel):
         )
 
 
-class PoolEntryModel(BaseModel):
-    """One gesture waiting for a better reading, and how long it has waited."""
-
-    gesture_id: str
-
-    age: int
-    """Readings this entry was SHOWN and not cited. Runs out at `K_POOL_AGE`."""
-
-    waited: int
-    """Passes it was PASSED OVER. The other clock, and the one that drives
-    priority so the day rotates -- an entry read six times outranking one never
-    seen at all is what happened when age did both jobs."""
-
-    entered_at: str
-
-    reason: str
-    """Why it retired, empty while it is still live.
-
-    There is no `retired` field, here or on the entry: `reason != ""` IS
-    retirement, so the flag and its cause cannot drift apart. Carried on both
-    lists rather than only on the retired one, so a reader that concatenates
-    them can still tell which is which.
-    """
-
-    @classmethod
-    def of(cls, entry: PoolEntry) -> PoolEntryModel:
-        return cls(
-            gesture_id=entry.gesture_id,
-            age=entry.age,
-            waited=entry.waited,
-            entered_at=entry.entered_at,
-            reason=entry.reason,
-        )
-
-
-class PoolResponse(BaseModel):
-    """What the next pass will be offered first, and what it will not."""
-
-    waiting: list[PoolEntryModel]
-    """Live entries, oldest first."""
-
-    retired: list[PoolEntryModel]
-    """What stopped being privileged, and under which cap.
-
-    A second list rather than a flag on the first, because a retired entry is
-    not a deleted one: it goes on being packed at its own strength, and the two
-    lists are the two reads the repository promises.
-    """
-
-    @classmethod
-    def of(cls, pool: Pool) -> PoolResponse:
-        return cls(
-            waiting=[PoolEntryModel.of(entry) for entry in pool.waiting],
-            retired=[PoolEntryModel.of(entry) for entry in pool.retired],
-        )
-
-
 class SpendResponse(BaseModel):
     """What the day has cost, whether that figure can be trusted, and the cap.
 
@@ -2631,18 +2407,6 @@ class ReviseRunRequest(BaseModel):
     values: dict[str, str] = Field(min_length=1)
 
 
-class TaughtModel(BaseModel):
-    candidate_id: str
-    recording_id: str | None
-    skill_id: str | None
-    needs_demonstration: bool
-    because: str | None
-    """Why one more doing of it is needed. Passive capture sees no accessibility
-    tree and only the response bodies the page could see, so some tasks cannot
-    be induced from it -- and being told which, and why, is better than a skill
-    nobody can trust."""
-
-
 class WatchingModel(BaseModel):
     devices: int
     batches: int
@@ -2691,149 +2455,6 @@ class SummaryModel(BaseModel):
             doing=DoingModel(**asdict(summary.doing)),
             tasks=[TaskLineModel(**asdict(line)) for line in summary.tasks],
         )
-
-
-class MineRejectionModel(BaseModel):
-    """A proposal the checker would not let through, and why.
-
-    `Mine...` rather than `RejectionModel` for the same reason as the two
-    below: the names without the prefix are taken in this file by models over
-    entirely different domain classes.
-    """
-
-    workflow_title: str
-    reason: str
-    detail: str
-
-    @classmethod
-    def of(cls, rejection: Rejection) -> MineRejectionModel:
-        return cls(**asdict(rejection))
-
-
-class MineResolutionModel(BaseModel):
-    """Where a proposed workflow went when it was not kept.
-
-    `kind` is "new", "same_occurrence" or "same_job". Named `Mine...` because
-    `ResolutionModel` further up already belongs to the intent resolver, over
-    a different `Resolution` class entirely -- there are two classes of that
-    name and this one is `observation.identity.Resolution`.
-    """
-
-    kind: str
-    workflow_id: str | None
-    score: float
-    contains: bool
-
-    @classmethod
-    def of(cls, resolution: MinedResolution) -> MineResolutionModel:
-        return cls(**asdict(resolution))
-
-
-class MineCoverageModel(BaseModel):
-    """How much of the window the kept proposals actually accounted for."""
-
-    coverage: float
-    skew: float
-    gini: float
-
-    lopsided: bool
-    """The reading was concentrated in part of the window.
-
-    Which of the three numbers beside it broke its threshold is readable from
-    them; that one did is the verdict, and long-context citation bias is real
-    and model-specific enough that a pass saying so is worth a field. Carried
-    on this object rather than at the top level, matching the rig -- on
-    `MineResult` it sits at the top, which is why this is assembled rather
-    than mapped straight across.
-    """
-
-    @classmethod
-    def of(cls, coverage: Coverage, *, lopsided: bool) -> MineCoverageModel:
-        return cls(**asdict(coverage), lopsided=lopsided)
-
-
-class MinePassResponse(BaseModel):
-    """What one reading of a day cost and found.
-
-    `rejections` and `resolutions` are both here and neither is optional. The
-    rig's reason, kept: without resolutions, `proposed: 3, kept: 0,
-    rejections: []` is three jobs that vanished with no account of where they
-    went.
-
-    `learned_parameters` is the one figure that says whether parameter
-    learning is getting better, and until migration 0041 every pass computed
-    it and the persistence layer discarded it. A pass that recognises nothing
-    new and widens two parameters did real work.
-
-    `left_out` and `lost_pool` are counted rather than inferred: `left_out`
-    did not fit the token budget and is offered again next pass, `lost_pool`
-    is a pooled id with no gesture row that no pass can ever read. Neither is
-    derivable from `window_size` alone.
-
-    Three deliberate divergences from the rig. It names the window field
-    `window` and this keeps `window_size`, matching `MineResult`; it names a
-    rejection's job `title` (`api.py:766`) and this says `workflow_title`, so
-    that a rejection read beside a workflow cannot be mistaken for one; and it
-    rounds `cost_usd` to six places in the route while this does not --
-    rounding for display is the reader's job, and a bill rounded on the way
-    out cannot be summed against the row it came from.
-    """
-
-    pass_id: str
-    error: str | None
-    """What the model said went wrong, when something did. A pass that failed
-    and a pass that honestly found nothing are the same body without it."""
-
-    proposed: int
-    kept: int
-    learned_parameters: int
-    window_size: int
-    left_out: int
-    lost_pool: list[str]
-    rejections: list[MineRejectionModel]
-    resolutions: list[MineResolutionModel]
-    coverage: MineCoverageModel
-    in_tokens: int
-    out_tokens: int
-    thought_tokens: int
-    """Inside `out_tokens`, not beside them. Added to them, a reader reports a
-    number no invoice will match."""
-
-    cost_usd: float
-    unpriced: bool
-
-    @classmethod
-    def of(cls, result: MineResult) -> MinePassResponse:
-        return cls(
-            pass_id=result.pass_id,
-            error=result.error,
-            proposed=result.proposed,
-            kept=result.kept,
-            learned_parameters=result.learned_parameters,
-            window_size=result.window_size,
-            left_out=result.left_out,
-            lost_pool=list(result.lost_pool),
-            rejections=[MineRejectionModel.of(one) for one in result.rejections],
-            resolutions=[MineResolutionModel.of(one) for one in result.resolutions],
-            coverage=MineCoverageModel.of(result.coverage, lopsided=result.lopsided),
-            in_tokens=result.in_tokens,
-            out_tokens=result.out_tokens,
-            thought_tokens=result.thought_tokens,
-            cost_usd=result.cost_usd,
-            unpriced=result.unpriced,
-        )
-
-
-class ReadGesturesResponse(BaseModel):
-    """How many of this tenant's unread gestures this reading picked up.
-
-    A bare count, not a per-gesture list: `POST /v1/mine` already answers what
-    each stored reading amounts to, and re-serving the readings themselves
-    here would be a second, narrower door onto the same rows the gestures
-    route -- not yet ported -- exists to open properly.
-    """
-
-    read: int
 
 
 class LookupRequest(BaseModel):
@@ -3508,41 +3129,6 @@ class WorkflowStepApprovedModel(BaseModel):
     Not a refusal. The row naming who let the write out is committed either
     way, and answering 409 would be claiming the authorisation did not happen.
     What this says is narrower and truer: nobody was listening."""
-
-
-class LearnedChangeModel(BaseModel):
-    """One thing a job changed its mind about.
-
-    `was` empty is the job learning something it never knew, which is the row
-    somebody reads to find out where a locator nobody demonstrated came from.
-    """
-
-    ord: int
-    about: str
-    was: str
-    now: str
-    by_run: str
-    found_by: str
-
-
-class LearnedChangesResponse(BaseModel):
-    changes: list[TaughtModel]
-
-    @classmethod
-    def of(cls, changes: Sequence[Taught]) -> LearnedChangesResponse:
-        return cls(
-            changes=[
-                LearnedChangeModel(
-                    ord=one.ord,
-                    about=one.about,
-                    was=one.was,
-                    now=one.now,
-                    by_run=one.by_run,
-                    found_by=one.found_by,
-                )
-                for one in changes
-            ]
-        )
 
 
 class MailOfferModel(BaseModel):

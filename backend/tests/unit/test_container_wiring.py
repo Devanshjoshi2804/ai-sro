@@ -344,9 +344,9 @@ def test_every_door_that_needs_a_model_refuses_through_the_one_guard() -> None:
     assert callers == {
         # Where the guard itself lives.
         "sro/application/ports/model.py",
-        # POST /v1/mine
+        # The rig miner's pass.
         "sro/application/observation/mine_pass.py",
-        # POST /v1/gestures/read
+        # The rig miner's reading of each gesture.
         "sro/application/observation/read_gesture.py",
         # POST /v1/chat
         "sro/application/chat/read_chat.py",

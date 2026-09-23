@@ -67,7 +67,6 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/execution/approvals.py`](backend/src/sro/application/execution/approvals.py.md) | 11 |
 | [`backend/src/sro/application/execution/batch.py`](backend/src/sro/application/execution/batch.py.md) | 4 |
 | [`backend/src/sro/application/execution/call_run_wrong.py`](backend/src/sro/application/execution/call_run_wrong.py.md) | 7 |
-| [`backend/src/sro/application/execution/call_workflow_run_wrong.py`](backend/src/sro/application/execution/call_workflow_run_wrong.py.md) | 4 |
 | [`backend/src/sro/application/execution/choices.py`](backend/src/sro/application/execution/choices.py.md) | 5 |
 | [`backend/src/sro/application/execution/declared.py`](backend/src/sro/application/execution/declared.py.md) | 8 |
 | [`backend/src/sro/application/execution/derived_read.py`](backend/src/sro/application/execution/derived_read.py.md) | 6 |
@@ -93,7 +92,6 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/execution/stops.py`](backend/src/sro/application/execution/stops.py.md) | 3 |
 | [`backend/src/sro/application/execution/verify.py`](backend/src/sro/application/execution/verify.py.md) | 39 |
 | [`backend/src/sro/application/execution/vision_step.py`](backend/src/sro/application/execution/vision_step.py.md) | 5 |
-| [`backend/src/sro/application/execution/what_a_job_taught.py`](backend/src/sro/application/execution/what_a_job_taught.py.md) | 3 |
 | [`backend/src/sro/application/execution/workflow_runs.py`](backend/src/sro/application/execution/workflow_runs.py.md) | 74 |
 | [`backend/src/sro/application/induction/assertions.py`](backend/src/sro/application/induction/assertions.py.md) | 4 |
 | [`backend/src/sro/application/induction/binding.py`](backend/src/sro/application/induction/binding.py.md) | 9 |
@@ -138,7 +136,6 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/observation/mining_pass.py`](backend/src/sro/application/observation/mining_pass.py.md) | 79 |
 | [`backend/src/sro/application/observation/policy.py`](backend/src/sro/application/observation/policy.py.md) | 3 |
 | [`backend/src/sro/application/observation/read_gesture.py`](backend/src/sro/application/observation/read_gesture.py.md) | 31 |
-| [`backend/src/sro/application/observation/read_pool.py`](backend/src/sro/application/observation/read_pool.py.md) | 3 |
 | [`backend/src/sro/application/observation/read_shots.py`](backend/src/sro/application/observation/read_shots.py.md) | 8 |
 | [`backend/src/sro/application/observation/record_attempt.py`](backend/src/sro/application/observation/record_attempt.py.md) | 5 |
 | [`backend/src/sro/application/observation/redact.py`](backend/src/sro/application/observation/redact.py.md) | 14 |
@@ -180,12 +177,8 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/shared/__init__.py`](backend/src/sro/application/shared/__init__.py.md) | 1 |
 | [`backend/src/sro/application/shared/locks.py`](backend/src/sro/application/shared/locks.py.md) | 2 |
 | [`backend/src/sro/application/shared/refusals.py`](backend/src/sro/application/shared/refusals.py.md) | 2 |
-| [`backend/src/sro/application/skill/add_assertion.py`](backend/src/sro/application/skill/add_assertion.py.md) | 4 |
 | [`backend/src/sro/application/skill/counsel.py`](backend/src/sro/application/skill/counsel.py.md) | 2 |
 | [`backend/src/sro/application/skill/describe_skill.py`](backend/src/sro/application/skill/describe_skill.py.md) | 1 |
-| [`backend/src/sro/application/skill/map_step_to_tool.py`](backend/src/sro/application/skill/map_step_to_tool.py.md) | 7 |
-| [`backend/src/sro/application/skill/promote_skill.py`](backend/src/sro/application/skill/promote_skill.py.md) | 3 |
-| [`backend/src/sro/application/skill/read_doings.py`](backend/src/sro/application/skill/read_doings.py.md) | 11 |
 | [`backend/src/sro/application/skill/read_skills.py`](backend/src/sro/application/skill/read_skills.py.md) | 1 |
 | [`backend/src/sro/application/skill/read_workflows.py`](backend/src/sro/application/skill/read_workflows.py.md) | 15 |
 | [`backend/src/sro/application/skill/record_offer.py`](backend/src/sro/application/skill/record_offer.py.md) | 7 |
@@ -200,7 +193,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/cli/observe.py`](backend/src/sro/cli/observe.py.md) | 3 |
 | [`backend/src/sro/cli/read_cron.py`](backend/src/sro/cli/read_cron.py.md) | 5 |
 | [`backend/src/sro/config.py`](backend/src/sro/config.py.md) | 52 |
-| [`backend/src/sro/container.py`](backend/src/sro/container.py.md) | 75 |
+| [`backend/src/sro/container.py`](backend/src/sro/container.py.md) | 74 |
 | [`backend/src/sro/domain/__init__.py`](backend/src/sro/domain/__init__.py.md) | 1 |
 | [`backend/src/sro/domain/chat/asked_by.py`](backend/src/sro/domain/chat/asked_by.py.md) | 13 |
 | [`backend/src/sro/domain/chat/asking.py`](backend/src/sro/domain/chat/asking.py.md) | 37 |
@@ -374,7 +367,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/interface/http/v1/routers/stream.py`](backend/src/sro/interface/http/v1/routers/stream.py.md) | 3 |
 | [`backend/src/sro/interface/http/v1/routers/threads.py`](backend/src/sro/interface/http/v1/routers/threads.py.md) | 8 |
 | [`backend/src/sro/interface/http/v1/routers/watch.py`](backend/src/sro/interface/http/v1/routers/watch.py.md) | 3 |
-| [`backend/src/sro/interface/http/v1/routers/workflow_runs.py`](backend/src/sro/interface/http/v1/routers/workflow_runs.py.md) | 4 |
+| [`backend/src/sro/interface/http/v1/routers/workflow_runs.py`](backend/src/sro/interface/http/v1/routers/workflow_runs.py.md) | 3 |
 | [`backend/src/sro/main.py`](backend/src/sro/main.py.md) | 1 |
 | [`backend/src/sro/observability.py`](backend/src/sro/observability.py.md) | 10 |
 | [`backend/src/sro/whose.py`](backend/src/sro/whose.py.md) | 10 |

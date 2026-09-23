@@ -338,36 +338,6 @@ class TestLiveView:
         assert response.json()["live_view_url"] is None
 
 
-class TestSkills:
-    async def test_promoting_past_the_permitted_stage_is_refused(
-        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
-    ) -> None:
-        skill = f.skill()
-        await uow.skills.add(skill)
-
-        response = await client.post(
-            f"/v1/skills/{skill.id}/promote",
-            json={"version": 1, "to": "autonomous"},
-        )
-
-        assert response.status_code == 422
-        assert "autonomous" in response.json()["detail"]
-
-    async def test_promotion_to_shadow_is_allowed(
-        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
-    ) -> None:
-        skill = f.skill()
-        await uow.skills.add(skill)
-
-        response = await client.post(
-            f"/v1/skills/{skill.id}/promote",
-            json={"version": 1, "to": "shadow"},
-        )
-
-        assert response.status_code == 200
-        assert response.json()["stage"] == "shadow"
-
-
 class TestProblemDocuments:
     async def test_a_malformed_body_is_a_problem_document_like_everything_else(
         self, client: httpx.AsyncClient

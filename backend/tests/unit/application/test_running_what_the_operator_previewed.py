@@ -296,9 +296,7 @@ async def test_the_press_runs_the_version_the_operator_read_not_the_newest() -> 
     """The whole of ADR 014, checked.
 
     A skill can perfectly ordinarily hold a runnable v1 and a newer RECORDED
-    v2 -- re-teaching lands one, so does `repair_drift`, and so do the two
-    console screens that reset a version for a fresh review
-    (`map_step_to_tool`, `add_assertion`). `ResolveIntent` matches on
+    v2 -- re-teaching lands one, and so does `repair_drift`. `ResolveIntent` matches on
     `skill.runnable or skill.latest`, so the panel previews v1's steps and v1's
     values. This call used to take `skill.latest` regardless, which meant v2
     ran with v1's parameters and was promoted to ASSISTED by a press that never

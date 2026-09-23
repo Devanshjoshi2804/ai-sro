@@ -32,7 +32,6 @@ const asking = (over = {}) => ({
   visit: "1:100",
   candidates: [TAUGHT],
   nudges: [],
-  muted: {},
   performing: null,
   now: T0,
   ...over,
@@ -177,15 +176,6 @@ test("a job the rig has proved is offerable without a count behind it", () => {
     skill_id: null,
   };
   assert.equal(shouldFire(asking({ candidates: [proved] })), proved);
-});
-
-test("a muted page holds until its mute ends", () => {
-  const muted = { [TAUGHT.starts_on]: T0 + 60_000 };
-  assert.equal(shouldFire(asking({ muted })), null);
-
-  // After it, it is a fair question again.
-  const tomorrow = muted[TAUGHT.starts_on] + 1;
-  assert.equal(shouldFire(asking({ muted, now: tomorrow })), TAUGHT);
 });
 
 let failed = 0;

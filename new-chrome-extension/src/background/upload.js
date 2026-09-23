@@ -119,14 +119,7 @@ async function sendBatch(deviceId) {
   } else {
     kept = [];
     let bytes = 0;
-    // A batch is one demonstration's evidence or none at all. The backend
-    // refuses a teaching batch that names no recording and a passive one that
-    // names one, so a batch that spanned the moment teaching started or
-    // stopped would be refused whole -- and it is right to refuse it: the two
-    // are different claims about what the operator was doing.
-    const belongsTo = rows[0].recordingId || null;
     for (const row of rows) {
-      if ((row.recordingId || null) !== belongsTo) break;
       // At least one event always goes, even past the byte cap -- a single
       // oversized event must not queue forever behind a limit it alone exceeds.
       if (kept.length && bytes + row.size > MAX_BYTES) break;
@@ -147,14 +140,12 @@ async function sendBatch(deviceId) {
   // at the head of the queue being re-sent and re-refused forever.
   const endedAt = Math.max(kept[kept.length - 1].queuedAt, startedAt);
 
-  const teaching = kept[0].recordingId || null;
   const body = {
     batch_id: batchId,
     device_id: deviceId,
     started_at: isoFrom(startedAt),
     ended_at: isoFrom(endedAt),
-    mode: teaching ? "teaching" : "passive",
-    recording_id: teaching,
+    mode: "passive",
     events: kept.map((row) => row.event),
   };
 

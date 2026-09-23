@@ -70,14 +70,13 @@ export function page(url) {
  * means an operator who comes back in the afternoon is asked again, and one who
  * is standing on the page is asked once.
  */
-export function shouldFire({ url, visit, candidates, nudges, muted, performing, now }) {
+export function shouldFire({ url, visit, candidates, nudges, performing }) {
   // The browser is already being driven. Offering to drive it again is the
   // panel talking over itself.
   if (performing) return null;
 
   const here = page(url);
   if (!here) return null;
-  if (muted[here] && muted[here] > now) return null;
   // One at a time, anywhere. Two open at once is a queue, and a queue of
   // prompts is the thing this design exists to not be.
   if (nudges.some((nudge) => nudge.state === "open")) return null;

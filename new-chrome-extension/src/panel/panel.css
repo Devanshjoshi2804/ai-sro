@@ -361,12 +361,6 @@ body::after {
   box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.14);
 }
 
-.chip[data-state="recording"]::before {
-  background: var(--accent-hi);
-  box-shadow: 0 0 0 3px rgba(255, 132, 82, 0.18);
-  animation: pulse 1.6s var(--ease) infinite;
-}
-
 .chip[data-state="paused"]::before {
   background: var(--warn);
   box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.14);
@@ -2128,12 +2122,6 @@ input::placeholder {
     opacity: 0;
     transform: translateY(14px) scale(0.985);
     filter: blur(6px);
-  }
-}
-
-@keyframes pulse {
-  50% {
-    opacity: 0.35;
   }
 }
 

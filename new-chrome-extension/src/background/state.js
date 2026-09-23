@@ -30,7 +30,6 @@ const KEYS = {
   watches: "sro.watches",
   offers: "sro.offers",
   nudges: "sro.nudges",
-  muted: "sro.muted",
   tails: "sro.tails",
   watched: "sro.watched",
   alwaysWatch: "sro.alwaysWatch",
@@ -44,7 +43,6 @@ const KEYS = {
   pendingBatch: "sro.pendingBatch",
   shotTimes: "sro.shotTimes",
   treeTimes: "sro.treeTimes",
-  teaching: "sro.teaching",
   finishedRun: "sro.finishedRun",
   question: "sro.question",
   activeRun: "sro.activeRun",
@@ -181,9 +179,6 @@ export const state = {
   // worker holding it is evicted every few seconds. See `service-worker.js`.
   repaired: () => read(KEYS.repaired, []),
   setRepaired: (tabIds) => write(KEYS.repaired, tabIds),
-
-  muted: () => read(KEYS.muted, {}),
-  setMuted: (muted) => write(KEYS.muted, muted),
 
   /** The last few gestures on each watched tab, by tab id.
    *
@@ -326,13 +321,6 @@ export const state = {
    * happened first spend the other's allowance. */
   treeTimes: () => read(KEYS.treeTimes, []),
   setTreeTimes: (times) => write(KEYS.treeTimes, times),
-
-  /** The demonstration this browser is in the middle of: which recording, in
-   * which tab. In storage rather than a module variable because the worker is
-   * evicted between two of the operator's clicks, and a demonstration that
-   * forgot itself halfway through would upload the rest as ordinary work. */
-  teaching: () => read(KEYS.teaching, null),
-  setTeaching: (teaching) => write(KEYS.teaching, teaching),
 
   /** The last run this browser finished, and what it made -- `{ id, status,
    * derived, reversal, failure, at, wrongBecause? }`, or null. In storage

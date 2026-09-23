@@ -255,24 +255,6 @@ export const api = {
       { method: "POST", body: values },
     ),
 
-  /** Start a demonstration this browser will fill. Nothing is opened on the
-   * server: the operator is already in front of the system. */
-  startRecording: (deviceId, label) =>
-    call("/v1/recordings", {
-      method: "POST",
-      body: { device_id: deviceId, label },
-    }),
-
-  /** Seal it. The backend assembles the frames from what this browser
-   * uploaded, so everything must have gone up before this is called. */
-  finishRecording: (recordingId, abandonReason = null) =>
-    call(`/v1/recordings/${encodeURIComponent(recordingId)}/finish`, {
-      method: "POST",
-      // A reason means abandon rather than seal. The evidence is kept either
-      // way -- what changes is that nothing will be induced from it.
-      body: abandonReason ? { abandon_reason: abandonReason } : {},
-    }),
-
   /** One run, for the panel to say what is happening in this browser.
    *
    * The worker knows a run is driving a tab and knows its id; what it is called,

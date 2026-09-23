@@ -118,12 +118,6 @@ test("a host is shown as text, never as markup", () => {
   assert.match(words(drawn), /<img src=x onerror=alert\(1\)>/);
 });
 
-test("a recording says so, and says how long for", () => {
-  const drawn = strip({ ...STEADY, teaching: { elapsed: "1:12" } }, HERE, {});
-  const chip = drawn.kids.find((kid) => kid.className === "chip");
-  assert.equal(chip.dataset.state, "recording");
-  assert.match(words(chip), /1:12/);
-});
 
 let failed = 0;
 for (const [name, fn] of tests) {

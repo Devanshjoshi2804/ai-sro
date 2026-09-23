@@ -61,12 +61,6 @@ export function needsAPress(status, here) {
 
 /** What is happening to the tab beside the panel, as a word and a sentence. */
 function stateOf(status, here) {
-  if (status.teaching) {
-    const elapsed = status.teaching.elapsed
-      ? ` ${status.teaching.elapsed}`
-      : "";
-    return ["recording", `recording a demonstration${elapsed}`];
-  }
   if (status.paused || status.serverPaused) return ["paused", "paused"];
   const watchedHere = (status.watched || []).some(
     (tab) => tab.tabId === here.tabId,

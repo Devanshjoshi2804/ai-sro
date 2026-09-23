@@ -1,15 +1,13 @@
 // The surface docked beside the system the operator is working in.
 //
 // Everything above the console frame is native, because everything on it needs
-// `chrome.*` or needs to know which tab this is: teaching is a control you want
-// beside the page being taught, a run driving this browser has to be stoppable
-// while it happens, and "tasks you keep doing *here*" is a question a page that
-// does not know the host cannot ask.
+// `chrome.*` or needs to know which tab this is: a run driving this browser has
+// to be stoppable while it happens, and "tasks you keep doing *here*" is a
+// question a page that does not know the host cannot ask.
 //
 // What is drawn is one card per thing that is true, in the order somebody
 // should deal with it. Not connected outranks not observing, which outranks a
-// closed channel; a demonstration in progress outranks all of them, because
-// while one is running the panel is about that and nothing else.
+// closed channel.
 
 import { hostMatches } from "../background/scripts.js";
 import {
@@ -271,15 +269,12 @@ function render(status) {
         ],
       }),
     );
-  } else if (status.teaching) {
-    cards.push(recording(status));
   } else {
     cards.push(watching(status));
   }
 
   // Before the run and after the state card: it is the only thing here waiting
-  // on the person. Not while teaching, because then the panel is about the
-  // demonstration and nothing else -- the offer keeps.
+  // on the person.
   // Everything after the state card is gathered by kind and laid down in one
   // order at the end -- the design's: what is wrong, the run, what it made,
   // what is asked, and only then what is offered and what was learned. The
@@ -288,8 +283,7 @@ function render(status) {
   const asks = [];
   const now = [];
   const standing = [];
-  if (!status.teaching)
-    for (const offer of status.offers || []) offers.push(offering(offer));
+  for (const offer of status.offers || []) offers.push(offering(offer));
 
   // The jobs this browser is offering to do, HERE rather than in the
   // conversation.
@@ -317,7 +311,7 @@ function render(status) {
   // The newest, because that is the one anybody acts on -- nobody works
   // Tuesday's request on Thursday, and the older ones are a list to go
   // through rather than a thing in the way of the run happening now.
-  if (!status.teaching) {
+  {
     // Not the job that is running right now.
     //
     // A card offering to do what is already being done is a card whose Yes
@@ -366,7 +360,7 @@ function render(status) {
   // Only the ones about the page they are on. `page` is the rule's own, put
   // there by the worker, and a card about somewhere else belongs in the list
   // rather than in the way of the page being worked.
-  if (!status.teaching) {
+  {
     const here = page(tabHere.url || "").toLowerCase();
     // Not one that has already run out.
     //
@@ -414,11 +408,10 @@ function render(status) {
   // now. It is the one thing on this panel that is waiting on THEM.
   if (status.question) asks.unshift(theQuestion(status.question));
   if (status.performing) now.push(performing(status));
-  // Not while teaching, same rule as the offers above: a demonstration in
-  // progress is the only thing the panel is about. Placed after the run that
-  // is happening now and before what is wrong, because it outranks neither --
-  // it is a look back at the last thing this browser did, not a fault.
-  if (!status.teaching && status.finished) now.push(finished(status));
+  // Placed after the run that is happening now and before what is wrong,
+  // because it outranks neither -- it is a look back at the last thing this
+  // browser did, not a fault.
+  if (status.finished) now.push(finished(status));
   // What was learned on this system, and how far each job is toward writing
   // on its own. Below everything that is happening now: it is standing
   // information, and the loud cards above are the ones waiting on somebody.
@@ -429,7 +422,7 @@ function render(status) {
   // operator just pressed sat there beside the run it started, offering to
   // start it again. An offer taken stops being an offer, which is the rule
   // the nudges have always followed; this card is the same kind of thing.
-  if (!status.teaching && status.deviceId && !status.performing) {
+  if (status.deviceId && !status.performing) {
     const here = learned(learnedHere(learnedJobs, tabHere.host), {
       onRun: runHere,
       onReview: (job) => openConsole(`/jobs/${encodeURIComponent(job.id)}`),
@@ -443,7 +436,7 @@ function render(status) {
   // day -- and on a wide panel that is a large black rectangle under a strip,
   // indistinguishable from a panel that has failed to draw. Measured beside
   // a b2clogin tab on 2026-09-22: watching, connected, working, and blank.
-  if (cards.length <= 1 && status.deviceId && !status.teaching)
+  if (cards.length <= 1 && status.deviceId)
     cards.push(nothingNeedsYou(status));
 
   // The first card is the state of this tab, which is what the strip's chevron
@@ -478,10 +471,8 @@ function render(status) {
     $("cards").replaceChildren(...rest);
   }
 
-  // While a demonstration is being recorded the panel is about that and
-  // nothing else, and none of it applies to a browser that is not connected.
-  $("here").hidden = Boolean(status.teaching) || !status.deviceId;
-  $("thread").hidden = Boolean(status.teaching) || !status.deviceId;
+  $("here").hidden = !status.deviceId;
+  $("thread").hidden = !status.deviceId;
   lastStatus = status;
   drawnCardsOnce = true;
   toTheQuestion(status.finished);
@@ -707,34 +698,6 @@ async function menu(action) {
 function toggleExpanded() {
   expanded = !expanded;
   if (lastStatus) render(lastStatus);
-}
-
-/** A demonstration, while it is being recorded.
- *
- * It counts out loud. A recording that is capturing nothing looks exactly like
- * one that is capturing everything until it is stopped, and finding out then
- * means doing the task again.
- */
-function recording(status) {
-  const since = Date.parse(status.teaching.startedAt || "") || Date.now();
-  const seen = status.queued ?? 0;
-  return card({
-    title: "Recording your demonstration",
-    says: "Do the task normally. Gestures, network calls and the page structure are being captured.",
-    metrics: `${clock(since)} · ${seen} thing${seen === 1 ? "" : "s"} seen`,
-    tone: "live",
-    actions: [
-      {
-        label: "Stop and save",
-        primary: true,
-        act: (button) => stopTeaching(button),
-      },
-      {
-        label: "Discard",
-        act: (button) => stopTeaching(button, { discard: true }),
-      },
-    ],
-  });
 }
 
 /** Whether the operator has opened the watching card past what its own state
@@ -1922,24 +1885,6 @@ async function dismissError(button) {
   button.disabled = true;
   try {
     await ask({ kind: "clear-error" });
-  } catch (error) {
-    said(error.message);
-  }
-  await refresh();
-}
-
-async function stopTeaching(button, { discard = false } = {}) {
-  button.disabled = true;
-  try {
-    const stopped = await ask({ kind: "teach-stop", discard });
-    if (discard) {
-      said("discarded — nothing was kept");
-    } else {
-      const steps = stopped.summary?.frame_count ?? 0;
-      said(
-        `saved — ${steps} step${steps === 1 ? "" : "s"}. Teach it once more to prove what varies.`,
-      );
-    }
   } catch (error) {
     said(error.message);
   }

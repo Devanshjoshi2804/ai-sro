@@ -1,16 +1,3 @@
-"""Sign a hosted browser in by filling the system's own login page.
-
-Written against the shape of a login rather than against one vendor's markup:
-a page with a password box wants a password, a page with only a text box wants
-an identifier, and an identity provider that asks for them on separate pages is
-the same loop run twice. That covers Keycloak, Azure B2C and the ordinary
-single-form login without a per-system script.
-
-What it will not do is a second factor. A code sent to a phone has no answer in
-the vault, and pretending otherwise would leave an operator watching a browser
-time out. Those systems are told plainly to connect by hand.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -41,9 +28,6 @@ _MFA: Final = (
 )
 
 _ROUNDS: Final = 6
-"""Identifier page, password page, consent, and slack. A login that has not
-finished in six is stuck, and looping harder on a stuck login only delays
-telling somebody."""
 
 
 class PlaywrightSignIn(SignInDriver):
@@ -75,22 +59,11 @@ class PlaywrightSignIn(SignInDriver):
                             "can answer. Connect it by hand and the session will be kept."
                         )
 
-                    # What a person was recorded clicking, before anything this
-                    # code infers from the shape of the page. Keycloak shows its
-                    # own username box beside the link to the identity provider
-                    # that actually holds the account, so a driver that fills
-                    # whatever box it finds signs in to the wrong realm -- which
-                    # is what it did, six rounds in a row.
                     if picked := await _chose(page, choose, taken):
                         taken.add(picked)
                         steps.append("chose how to sign in")
                         continue
 
-                    # Both, before submitting either. Keycloak puts the
-                    # username and the password on one form, and a driver that
-                    # filled whichever it found first submitted a password with
-                    # no username -- five times, because the page came back
-                    # empty and it did the same thing again.
                     named = await _filled(page, _IDENTIFIER, username)
                     secret = await _filled(page, _PASSWORD, password)
                     if named:
@@ -113,9 +86,6 @@ class PlaywrightSignIn(SignInDriver):
                 await browser.close()
 
         if not _on(landed, host):
-            # What the page was offering, because "it did not finish" is not
-            # something anybody can act on. The options are what a recorded
-            # login would have matched against, so seeing them names the fix.
             raise SignInFailed(
                 f"the login did not finish -- the browser is still at "
                 f"{urlsplit(landed).hostname}, which offered: {offered or 'nothing clickable'}. "
@@ -130,11 +100,6 @@ def _on(url: str, host: str) -> bool:
 
 
 async def _settle(page: Page) -> None:
-    """Give the page the moment it needs, without making it a deadline.
-
-    Identity providers redirect through several documents, some of which never
-    go quiet -- so a timeout here is normal and means "carry on", not "failed".
-    """
     try:
         await page.wait_for_load_state("networkidle", timeout=8000)
     except Exception:
@@ -147,11 +112,6 @@ async def _visible(page: Page, selector: str) -> bool:
 
 
 async def _filled(page: Page, selector: str, value: str) -> bool:
-    """Fill the first visible match, and say whether there was one.
-
-    Fills only an empty box: an identity provider that carries the username
-    across its own pages would otherwise have it typed twice.
-    """
     for element in await page.query_selector_all(selector):
         if not await element.is_visible() or await element.input_value():
             continue
@@ -161,7 +121,6 @@ async def _filled(page: Page, selector: str, value: str) -> bool:
 
 
 async def _submit(page: Page) -> bool:
-    """Press the button, or the key that stands in for it."""
     for element in await page.query_selector_all(_SUBMIT):
         if await element.is_visible():
             await element.click()
@@ -175,16 +134,6 @@ async def _submit(page: Page) -> bool:
 async def _chose(
     page: Page, choose: tuple[str, ...], taken: AbstractSet[str] = frozenset()
 ) -> str | None:
-    """Click the identity provider a demonstration showed us choosing.
-
-    Matched on the text somebody was recorded clicking rather than on anything
-    this code believes about tenants: "Local WMS users (bf56-001-eus2) (SSO)"
-    means nothing to anyone who has not seen this deployment.
-
-    ``taken`` is what has already been clicked this attempt. Without it the
-    same link is clicked every round, because an identity provider that carries
-    its branding onto the next page still shows text that matches.
-    """
     for wanted in choose:
         if not wanted.strip() or wanted in taken:
             continue
@@ -194,7 +143,6 @@ async def _chose(
                     continue
                 text = ((await element.inner_text()) or "").strip()
             except Exception:
-                # A chooser redraws itself as it is read. Not the option.
                 logger.debug("an option would not describe itself", exc_info=True)
                 continue
             if (text and text[:80] in wanted) or wanted[:80] in text:
@@ -204,7 +152,6 @@ async def _chose(
 
 
 async def _on_offer(page: Page) -> str:
-    """The clickable text on the page, for a failure somebody has to diagnose."""
     seen: list[str] = []
     for element in await page.query_selector_all(
         "a, button, [role=link], [role=button], input[type=submit]"

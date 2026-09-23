@@ -1,5 +1,3 @@
-"""Recording aggregate. Start at ``recording.py``."""
-
 from sro.domain.recording.artifact import ArtifactKind, MediaArtifact
 from sro.domain.recording.axgraph import AxGraph
 from sro.domain.recording.element import Bounds, ElementFingerprint

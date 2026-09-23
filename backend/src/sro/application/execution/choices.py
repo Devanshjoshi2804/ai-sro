@@ -1,15 +1,3 @@
-"""What a field's dropdown holds, asked of the system now.
-
-The console draws a form for a task somebody asked for, and the fields that
-were dropdowns when it was taught are dropdowns here: this fetches their
-contents from the same endpoint the screen used, with the same session, and
-turns the records into something a person can pick from.
-
-Live, never cached from the demonstration. The addresses in this warehouse
-changed the afternoon after it was taught, and a list of what used to exist is
-a way of writing to a record that no longer does.
-"""
-
 from __future__ import annotations
 
 import json
@@ -35,7 +23,6 @@ from sro.domain.skill.skill import SkillVersion
 from sro.domain.skill.template import Template
 
 MOST_ROWS = 50
-"""Enough to choose from, few enough to render. A dropdown is not a report."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,30 +89,10 @@ def _options_of(version: SkillVersion, name: str) -> Options:
 
 
 def _fetch_plan(options: Options, like: str) -> NetworkPlan:
-    """The listing call, with the headers the demonstration sent it.
-
-    Kept on the options rather than found among the steps: the call that fills
-    a dropdown is not one of the task's own steps, and looking for it there
-    returned a plan with no session at all -- which fetched a login page and
-    rendered as an empty list, the most misleading thing a dropdown can do.
-    """
     return NetworkPlan(method="GET", url=_searched(options, like), headers=options.headers)
 
 
 def _searched(options: Options, like: str) -> Template:
-    """The listing, asked for what somebody is typing into the field.
-
-    The filter is the one the demonstration proved, with its own column swapped
-    for the field being searched. The typed value goes in as it was typed:
-    `as_a_filter` builds the term with `json.dumps` and the query string with
-    `urlencode`, so both the JSON it sits inside and the URL it rides on are
-    already its business.
-
-    Escaping here as well was the double-encoding this file warns about, in the
-    other dimension. Typing a quote into a dropdown searched for the backslash
-    in front of it -- `ATTN "ALI"` went out as `ATTN \"ALI\"` -- so the field
-    that most needed the search silently found nothing.
-    """
     if not like or options.search is None:
         return Template(_showing(without_filter(options.url), MOST_ROWS))
     searched = as_a_filter(options.url, column=options.search, placeholder=like)
@@ -133,7 +100,6 @@ def _searched(options: Options, like: str) -> Template:
 
 
 def _showing(url: str, rows: int) -> str:
-    """The demonstration's page size was the operator's window, not ours."""
     parts = urlsplit(url)
     pairs = [(key, value) for key, value in url_query_pairs(url) if key.lower() != "limit"]
     if any(key.lower() == "limit" for key, _ in url_query_pairs(url)):

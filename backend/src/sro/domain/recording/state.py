@@ -1,5 +1,3 @@
-"""Browser state and out-of-band events. See docs/11-capture-completeness.md."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -20,12 +18,6 @@ class ConsoleLevel(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class ConsoleMessage:
-    """A console entry with its stack.
-
-    Kept because a WMS that logs a validation failure is stating why a branch was
-    taken -- the cheapest 'why' signal in the whole capture.
-    """
-
     at: datetime
     level: ConsoleLevel
     text: str
@@ -55,7 +47,6 @@ class PageEvent:
     kind: PageEventKind
     url: str | None = None
     detail: str | None = None
-    """Dialog text, download filename, frame id -- whatever the kind carries."""
 
     def __post_init__(self) -> None:
         if self.at.tzinfo is None:

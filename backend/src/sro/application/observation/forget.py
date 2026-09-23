@@ -1,10 +1,3 @@
-"""An operator deleting their own evidence.
-
-The button in the extension that says "purge the last hour" and means it. Scoped
-to the principal on the credential, never to the tenant: one operator does not
-get to erase another's day, and nothing here reaches across tenants at all.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -22,32 +15,15 @@ class Forgotten:
     batches: int
     events: int
     artifacts: int = 0
-    """Screenshots and oversized bodies, which are most of what an operator
-    means when they ask for their evidence to be deleted."""
 
 
 class ForgetObservations:
-    """Rows go, then blobs.
-
-    That order on purpose: a row pointing at an object that is gone is a miner
-    error somebody sees, and an object nobody points at is a lifecycle rule's
-    problem. The reverse leaves evidence readable after it was said to be
-    deleted, which is the one outcome that makes the promise a lie.
-    """
-
     def __init__(self, uow: UnitOfWork, blobs: BlobStore, clock: Clock) -> None:
         self._uow = uow
         self._blobs = blobs
         self._clock = clock
 
     async def execute(self, ctx: RequestContext, *, since: datetime) -> Forgotten:
-        # A naive `since` is UTC, which is the rule `_bound` keeps for the
-        # audit read and `codec.when` keeps on the storage edge. Without it
-        # asyncpg hands the bare datetime to Postgres and it comes back as the
-        # API HOST's local time: an operator on a +05:30 machine asking to
-        # forget everything since 09:00 deleted from 03:30Z -- five and a half
-        # extra hours of their own day, rows and screenshots, answered 200. It
-        # is the one read that cannot be run again to check.
         bound = since if since.tzinfo else since.replace(tzinfo=UTC)
         async with self._uow as uow:
             doomed = await uow.observations.between(

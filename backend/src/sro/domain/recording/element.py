@@ -1,5 +1,3 @@
-"""Accessibility node identity. See docs/06-glossary.md#element-fingerprint."""
-
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -19,14 +17,6 @@ class Bounds:
 
 @dataclass(frozen=True, slots=True)
 class ComponentIdentity:
-    """What the application itself calls this control.
-
-    Present only where the page is built out of components and the recorder
-    could reach the framework. For ExtJS that is `xtype`, `itemId`, and a query
-    in the framework's own selector language -- the three things that survive a
-    re-render, which the DOM id and often the accessibility role do not.
-    """
-
     framework: str
     query: str
     xtype: str | None = None
@@ -35,7 +25,6 @@ class ComponentIdentity:
     field_label: str | None = None
     text: str | None = None
     required: bool | None = None
-    """Ext's own `allowBlank: false`. None where the component said nothing."""
 
     chain: tuple[str, ...] = ()
 
@@ -46,15 +35,7 @@ class ComponentIdentity:
 
 @dataclass(frozen=True, slots=True)
 class ElementFingerprint:
-    """Every independent signal about one element at one moment.
-
-    Redundant by design: a single selector breaks on redesign and leaves nothing
-    to reason about, whereas a heal step can score candidates that still match on
-    role, accessible name and ancestry after the DOM path moved.
-    """
-
     node_id: str | None = None
-    """AX tree node id. Identity within one snapshot only -- not stable across them."""
 
     parent_id: str | None = None
     child_ids: tuple[str, ...] = ()
@@ -68,17 +49,12 @@ class ElementFingerprint:
     css_path: str | None = None
     xpath: str | None = None
     required: bool | None = None
-    """Whether the PAGE says this field must be filled -- `aria-required`, the
-    HTML5 attribute, or a star on its label. None where nothing said."""
 
     tag: str | None = None
 
     states: frozenset[str] = frozenset()
-    """AX states present: ``disabled``, ``checked``, ``expanded``, ``selected``,
-    ``focused``, ``required``, ``invalid``, ``busy``."""
 
     component: ComponentIdentity | None = None
-    """The framework's own handle on this control, when there is one."""
 
     bounds: Bounds | None = None
     attributes: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
@@ -91,7 +67,6 @@ class ElementFingerprint:
                 "ElementFingerprint needs at least one identifying signal; "
                 "structural noise alone cannot be healed or replayed"
             )
-        # Without this the dataclass is frozen but its attributes dict is not.
         object.__setattr__(self, "attributes", MappingProxyType(dict(self.attributes)))
 
     @property

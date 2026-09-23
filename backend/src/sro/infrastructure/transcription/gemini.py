@@ -1,10 +1,3 @@
-"""Narration to timed segments, through Gemini.
-
-The audio leaves the deployment, so this adapter is bound only when a key is
-configured and transcription is switched on. See docs/12-execution-and-agents.md
-on egress: capture stays in the customer's infrastructure, sending does not.
-"""
-
 from __future__ import annotations
 
 import json
@@ -41,13 +34,6 @@ _SCHEMA: dict[str, object] = {
 
 
 class GeminiTranscriber:
-    """The SDK is imported here rather than at module scope.
-
-    A deployment that never sends anything to a hosted model should not load a
-    hosted model's client to boot, and the composition root imports this module
-    either way.
-    """
-
     def __init__(self, api_key: str, model: str) -> None:
         from google import genai
 
@@ -78,11 +64,6 @@ class GeminiTranscriber:
 
 
 def _parse(text: str | None) -> tuple[TranscribedSegment, ...]:
-    """Model output is data crossing a trust boundary; a bad shape is silence.
-
-    A demonstration is still perfectly usable without narration, so a malformed
-    response must not fail the upload the operator is waiting on.
-    """
     try:
         document = json.loads(text or "{}")
         segments = document["segments"]

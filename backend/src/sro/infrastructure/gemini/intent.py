@@ -1,10 +1,3 @@
-"""Reading parameter values out of a sentence, with Gemini.
-
-Extraction only. The skill is already chosen and its parameters are already
-declared; what comes back is checked against that list, so a value for a
-parameter the skill does not have is dropped rather than sent.
-"""
-
 from __future__ import annotations
 
 import json
@@ -70,7 +63,6 @@ class GeminiIntentParser:
         return True
 
     async def read(self, utterance: str, *, after: str = "") -> Reading:
-        """What the sentence means. Never what to run."""
         from google.genai import types
 
         schema: dict[str, Any] = {
@@ -156,16 +148,6 @@ class GeminiIntentParser:
 
 
 async def _answered(call: Awaitable[GenerateContentResponse]) -> GenerateContentResponse | None:
-    """The model's answer, or ``None`` when it did not give one.
-
-    Google answers `500 INTERNAL` often enough that a chat request carrying one
-    straight through is a nightly outage: the operator asked how many suppliers
-    there are and was told the system is broken, for a call whose whole job is
-    to *suggest* a reading that is then checked against real skills.
-
-    So a model failure is an absent opinion, not an error. Everything here has
-    a deterministic path underneath it, which is exactly why this is safe.
-    """
     try:
         return await call
     except Exception:

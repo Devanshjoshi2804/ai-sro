@@ -1,5 +1,3 @@
-"""Ambient effects: time and id generation."""
-
 from __future__ import annotations
 
 from datetime import datetime
@@ -19,9 +17,7 @@ from sro.domain.shared.identifiers import (
 
 
 class Clock(Protocol):
-    def now(self) -> datetime:
-        """Current time. Must be timezone-aware; entities reject naive datetimes."""
-        ...
+    def now(self) -> datetime: ...
 
 
 class IdFactory(Protocol):

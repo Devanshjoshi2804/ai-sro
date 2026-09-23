@@ -1,5 +1,3 @@
-"""Open a browser session and the Recording that will collect its frames."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -19,25 +17,10 @@ from sro.domain.shared.objective import ObjectiveKey
 
 
 class BrowserNotAttachable(DomainError):
-    """The debugger URL points somewhere this deployment will not connect.
-
-    ``attach_to`` arrives in the request body and is dialled by the backend, so
-    without a bound it reaches anything the backend can: another tenant's
-    container, an internal service, a cloud metadata endpoint. The browser being
-    attached to is the operator's own, which is on this machine.
-    """
-
     code = "browser_not_attachable"
 
 
 class NoSessionForSystem(DomainError):
-    """This system is known but nobody is signed in to it.
-
-    Raised before a browser opens, because the alternative is what used to
-    happen: the operator gets a login page inside a live recording and teaches
-    signing in, which is a different task from the one they meant to teach.
-    """
-
     code = "no_session_for_system"
 
 
@@ -47,13 +30,10 @@ class StartedRecording:
     live_view_url: str
 
     debugger_url: str = ""
-    """CDP endpoint for the capture adapter. Never put on the wire."""
 
     browser_session_id: BrowserSessionId | None = None
 
     target_system: str | None = None
-    """The connected system this URL belongs to, if any -- which is how a
-    demonstration that names nothing still starts already signed in."""
 
 
 class StartRecording:
@@ -103,13 +83,6 @@ class StartRecording:
             else system_of(connections, start_url, attach_to)
         )
 
-        # Browser first: if it fails nothing is written, so we never accumulate
-        # recordings that can only ever be abandoned.
-        # Opened blank on purpose. Handing the provider a start URL makes it
-        # navigate the moment the session exists -- before the stored session
-        # cookies have been restored -- so the operator lands on the identity
-        # provider's login page and teaches signing in instead of the task.
-        # Capture navigates after restoring them.
         session = (
             await self._browsers.attach(ctx, attach_to)
             if attach_to
@@ -147,20 +120,8 @@ class StartRecording:
         objective_key: ObjectiveKey | None,
         label: str | None,
     ) -> StartedRecording:
-        """A demonstration this deployment does not drive.
-
-        No browser is opened and no session is restored: the operator is
-        already signed in to the system, in front of it, and about to do the
-        task. The recording is an empty vessel until their extension uploads
-        the teaching batches that fill it, and there is no live view because
-        there is nothing to watch that they are not already looking at.
-        """
         async with self._uow as uow:
             device = await uow.devices.get(ctx.tenant_id, device_id)
-        # A demonstration is the strongest evidence this system has -- it is
-        # what a skill is induced from -- so naming somebody else's browser as
-        # the one about to perform it is refused the way every device-scoped
-        # path refuses it.
         refuse_unless_itself(device, secret, device_id)
 
         recording = Recording(
@@ -179,19 +140,12 @@ class StartRecording:
 
         return StartedRecording(
             recording_id=recording.id,
-            # Nothing to watch that the operator is not already looking at.
             live_view_url="",
             browser_session_id=None,
             target_system=objective_key.target_system if objective_key else "",
         )
 
     def _refuse_unless_allowed(self, attach_to: str) -> None:
-        """Scheme and host, checked before anything dials it.
-
-        The scheme matters as much as the host: ``file:`` and ``gopher:`` are
-        not debugger endpoints, and neither is anything else a URL library will
-        happily open on our behalf.
-        """
         if urlsplit(attach_to).scheme not in ("http", "https", "ws", "wss"):
             raise BrowserNotAttachable(f"{attach_to} is not a debugger endpoint")
         if host_of(attach_to) not in self._attach_hosts:

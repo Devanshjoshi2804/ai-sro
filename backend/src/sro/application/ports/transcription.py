@@ -1,5 +1,3 @@
-"""Optional narration transcription. Default binding is ``NullTranscriber``."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -10,12 +8,6 @@ from sro.domain.shared.errors import InvariantViolation
 
 @dataclass(frozen=True, slots=True)
 class TranscribedSegment:
-    """One utterance, as offsets into the audio.
-
-    Offsets rather than timestamps because a transcriber knows only the file it
-    was given; the caller owns the clock the microphone started on.
-    """
-
     start_ms: int
     end_ms: int
     text: str
@@ -27,14 +19,8 @@ class TranscribedSegment:
 
 class Transcriber(Protocol):
     @property
-    def available(self) -> bool:
-        """Whether a backend is configured. Absence is a normal deployment,
-        so callers branch on this rather than catching."""
-        ...
+    def available(self) -> bool: ...
 
     async def transcribe(
         self, audio: bytes, *, content_type: str
-    ) -> tuple[TranscribedSegment, ...]:
-        """Timed segments, in any order. An empty result is a silent recording,
-        not a failure."""
-        ...
+    ) -> tuple[TranscribedSegment, ...]: ...

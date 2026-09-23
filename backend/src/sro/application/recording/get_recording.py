@@ -1,5 +1,3 @@
-"""Read one recording."""
-
 from __future__ import annotations
 
 from sro.application.context import RequestContext

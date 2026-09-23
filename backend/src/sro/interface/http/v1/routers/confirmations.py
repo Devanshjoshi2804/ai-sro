@@ -35,9 +35,6 @@ async def list_confirmations(container: ContainerDep, ctx: ContextDep) -> list[C
     titles: dict[str, str] | None = None
     for confirmation in waiting:
         if confirmation.workflow_id is not None:
-            # The tenant's jobs, once, rather than a read per card: there is no
-            # single-workflow use case and a card list is short. `titles` is
-            # built lazily so a queue with no job cards makes no extra read.
             if titles is None:
                 titles = {
                     known.workflow.id: known.workflow.title
@@ -46,9 +43,6 @@ async def list_confirmations(container: ContainerDep, ctx: ContextDep) -> list[C
             named.append(
                 ConfirmationModel.of(
                     confirmation,
-                    # A job that has since been re-mined away still has a card
-                    # somebody has to answer, and an id is better on it than a
-                    # blank.
                     skill_name=titles.get(confirmation.workflow_id, confirmation.workflow_id),
                 )
             )
@@ -69,9 +63,6 @@ async def approve(confirmation_id: str, container: ContainerDep, ctx: ContextDep
     answered = await container.answer_confirmation().approve(
         ctx, confirmation_id=ConfirmationId(confirmation_id)
     )
-    # An approval that starts nothing is the shape this records. The card is
-    # answered either way -- the row for it exists -- and whether a run came
-    # out of the yes is the thing nobody could see afterwards.
     await container.record_attempt().execute(
         ctx,
         asked_for="approve a write",
@@ -98,9 +89,6 @@ async def decline(
     answered = await container.answer_confirmation().decline(
         ctx, confirmation_id=ConfirmationId(confirmation_id), note=body.note
     )
-    # A person saying no is not a refusal BY this system, so it is `done`: they
-    # asked to decline and they declined. What `refused` would mean here is
-    # that the decline itself was turned down, which is a different sentence.
     await container.record_attempt().execute(
         ctx, asked_for="decline a write", came_of=DONE, why=body.note or ""
     )

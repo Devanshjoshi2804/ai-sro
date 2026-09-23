@@ -1,14 +1,3 @@
-"""Keeps a capture session running for the life of a recording.
-
-A `CaptureSession` is a live object bound to a socket and to this process; it
-cannot live in a Temporal workflow, and the operator is driving the browser
-themselves, so nothing else is going to pump it. This is the loop that does:
-attach on start, drain on an interval, drain once more and detach on finish.
-
-Draining on an interval rather than at the end is what makes a crashed API
-process cost one interval instead of the whole demonstration.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -34,12 +23,6 @@ class _Running:
 
 
 class CaptureSupervisor:
-    """Use cases are built per call, never shared.
-
-    A unit of work owns a database session; handing the same one to two
-    concurrent demonstrations would interleave their transactions.
-    """
-
     def __init__(
         self,
         *,
@@ -83,9 +66,6 @@ class CaptureSupervisor:
             redact_secrets=self._redact_secrets,
         )
         await session.attach(debugger_url)
-        # Cookies before navigation: restoring them afterwards means the first
-        # page load is the login screen, and the demonstration starts with a
-        # step nobody wants in the skill.
         if session_cookies:
             await session.restore_cookies([dict(cookie) for cookie in session_cookies])
         if start_url:
@@ -95,7 +75,6 @@ class CaptureSupervisor:
         self._running[recording_id.value] = _Running(session=session, task=task)
 
     async def stop(self, ctx: RequestContext, *, recording_id: RecordingId) -> None:
-        """Final drain, then detach. Safe to call for a recording never started."""
         running = self._running.pop(recording_id.value, None)
         if running is None:
             return
@@ -103,8 +82,6 @@ class CaptureSupervisor:
         running.task.cancel()
         await asyncio.gather(running.task, return_exceptions=True)
         try:
-            # Strand nothing: in-flight exchanges become part of the batch
-            # before the final drain, not after it.
             running.session.flush_incomplete()
             await self._flush(ctx, recording_id, running.session.drain())
             await self._store_video(ctx, recording_id, running.session)
@@ -112,7 +89,6 @@ class CaptureSupervisor:
             await running.session.detach()
 
     async def snapshot_cookies(self, recording_id: RecordingId) -> list[dict[str, object]]:
-        """Session cookies from a live capture, for the vault."""
         running = self._running.get(recording_id.value)
         if running is None:
             return []
@@ -128,12 +104,6 @@ class CaptureSupervisor:
     async def _store_video(
         self, ctx: RequestContext, recording_id: RecordingId, session: CaptureSession
     ) -> None:
-        """Upload the screencast, then remove the local file.
-
-        Last of the capture channels to be stored and the only one that can be
-        skipped: a recording without video is still reviewable, so a failure
-        here is logged rather than raised.
-        """
         recorded = session.stop_video()
         if recorded is None:
             return
@@ -172,8 +142,6 @@ class CaptureSupervisor:
             try:
                 await self._flush(ctx, recording_id, session.drain())
             except Exception:
-                # One bad batch must not end the capture: the operator is still
-                # demonstrating, and the next drain is five seconds away.
                 logger.exception("capture drain failed for recording %s", recording_id)
 
     async def _flush(
@@ -183,8 +151,6 @@ class CaptureSupervisor:
             result = await self._ingest().execute(
                 ctx, recording_id=recording_id, events=batch.events
             )
-            # A recording that ends up thin is diagnosed here or not at all: by
-            # review time the only evidence left is what survived.
             logger.info(
                 "capture drain: recording=%s events=%d frames=+%d (%d total) "
                 "absorbed=%d orphaned=%d artifacts=%d",
@@ -197,7 +163,6 @@ class CaptureSupervisor:
                 len(batch.artifacts),
             )
 
-        # Artifacts after events, so the frame a screenshot points at exists.
         for artifact in batch.artifacts:
             await self._artifacts().record_stored_blob(
                 ctx,

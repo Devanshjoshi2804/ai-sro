@@ -1,15 +1,3 @@
-"""Gemini's computer-use model, asked for exactly one gesture.
-
-The model returns actions from its own fixed set. They are mapped onto the
-``ActionKind`` the rest of the system already knows, and anything that does not
-map is refused rather than approximated -- a `drag` translated into a click is a
-different gesture performed confidently.
-
-Coordinates come back normalised to 0-1000 and are converted here into the
-screenshot's own pixels, because a normalised coordinate silently means a
-different point on a different viewport.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -33,13 +21,6 @@ _ACTIONS: dict[str, ActionKind] = {
     "scroll_at": ActionKind.SCROLL,
     "hover_at": ActionKind.HOVER,
 }
-"""Its predefined functions to ours. Absence is a refusal, never a nearest
-match: a `drag_and_drop` turned into a click is a different gesture performed
-confidently. Navigation is absent on purpose and excluded at the tool as well.
-
-``wait_5_seconds`` is handled separately, before this table: it carries no
-coordinates at all, and mapping it onto ``HOVER`` turned "let this finish
-loading" into a real click at whatever an absent x/y defaulted to."""
 
 _INSTRUCTIONS = (
     "You are helping finish one step of a warehouse task that was demonstrated "
@@ -58,19 +39,9 @@ _EXCLUDED = [
     "search",
     "drag_and_drop",
 ]
-"""Predefined functions this rung must not have.
-
-The model requires its own tool -- a plain JSON schema is refused with 400 -- so
-the way to bound it is to remove the functions rather than to ask it politely.
-Navigation is excluded for the reason the step allow-list exists: a gesture
-demonstrated on one screen must not become "go somewhere else and try there".
-"""
 
 
 class GeminiVisionDriver:
-    """The SDK is imported inside the adapter: a deployment that sends nothing
-    to a hosted model should not load one in order to boot."""
-
     def __init__(self, api_key: str, model: str) -> None:
         from google import genai
 
@@ -130,12 +101,6 @@ class GeminiVisionDriver:
 def _from_response(
     response: Any, screen: Screen, allowed: tuple[ActionKind, ...]
 ) -> ProposedGesture:
-    """The model answers with a function call, or with prose meaning it did not act.
-
-    Prose is treated as a refusal rather than parsed for intent: a sentence that
-    is not a call is the model declining to name a gesture, and guessing one out
-    of it is exactly the confident-wrong-action this rung is bounded against.
-    """
     call = next(
         (
             part.function_call
@@ -145,8 +110,6 @@ def _from_response(
         ),
         None,
     )
-    # Assembled from the text parts rather than `response.text`, which warns
-    # (correctly) that it is dropping the function call we came for.
     said = " ".join(
         part.text.strip()
         for candidate in (response.candidates or [])
@@ -168,7 +131,6 @@ def _gesture(
     screen: Screen,
     allowed: tuple[ActionKind, ...],
 ) -> ProposedGesture:
-    """A named call becomes a gesture, or a refusal. Never an approximation."""
     if name.lower() == "wait_5_seconds":
         return ProposedGesture(action=ActionKind.HOVER, wait=True, reasoning=said[:400])
     kind = _ACTIONS.get(name.lower())

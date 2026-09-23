@@ -1,9 +1,3 @@
-"""Rows to aggregates and back.
-
-Kept apart from the repositories so the shape of persistence is readable in one
-place, and apart from the domain so the domain never learns it is stored.
-"""
-
 from __future__ import annotations
 
 from datetime import datetime
@@ -170,9 +164,6 @@ def row_to_recording(row: RecordingRow) -> Recording:
         ended_at=row.ended_at,
         abandon_reason=row.abandon_reason,
     )
-    # Frames and artifacts are replayed through the private lists rather than
-    # ``append_frame``: a sealed recording rejects appends, and rehydration is
-    # not a state transition.
     recording._frames.extend(load_frames(row.frames))
     recording._artifacts.extend(load_artifacts(row.artifacts))
     recording._narration.extend(load_narration(row.narration))
@@ -192,7 +183,6 @@ def update_skill_row(row: SkillRow, skill: Skill) -> None:
     row.name = skill.name
     row.created_at = skill.created_at
     row.versions = dump_versions(skill.versions)
-    # Denormalised so listing skills does not mean parsing every version.
     row.latest_version = skill.versions[-1].version if skill.versions else 0
     row.latest_stage = (
         skill.versions[-1].stage.value if skill.versions else PromotionStage.RECORDED.value
@@ -297,9 +287,6 @@ def row_to_run(row: RunRow) -> Run:
         started_at=row.started_at,
         authorized_by=PrincipalId(row.authorized_by) if row.authorized_by else None,
         derived=dict(row.derived),
-        # A stored run was validated when it was created; rehydration must not
-        # re-litigate that. A read-only assisted run has no authoriser by
-        # design, and re-checking would make it unreadable ever afterwards.
         may_change_the_system=False,
         intent=row.intent or "",
     )
@@ -496,10 +483,6 @@ def update_device_row(row: AgentDeviceRow, device: AgentDevice) -> None:
     row.queued_bytes = device.queued_bytes
     row.uploads = device.uploads
     row.secret = device.secret
-    # Deliberately not written back from the record: revocation is a column the
-    # repository sets under its own condition, and a device loaded before it was
-    # revoked and saved after would otherwise undo the revocation with a
-    # heartbeat. `revoked_at` leaves the store on read and never returns.
     row.grants = dump_grants(device.grants)
 
 
@@ -584,9 +567,6 @@ def update_trigger_row(row: TriggerRow, trigger: Trigger) -> None:
     row.cron = trigger.cron
     row.timezone = trigger.timezone
     row.parameters = dict(trigger.parameters)
-    # A watch derives its `from_message` from the places it reads, so storing
-    # that list too would be the same names written down twice -- and two
-    # lists of the same names are two lists that can disagree.
     row.from_message = [] if trigger.watch else list(trigger.from_message)
     row.watch = dump_watch(trigger.watch)
     row.arrival = {"page": trigger.arrival.page} if trigger.arrival else None
@@ -657,8 +637,6 @@ def update_candidate_row(row: TaskCandidateRow, candidate: TaskCandidate) -> Non
     row.offered_at = candidate.offered_at
     row.episodes = dump_episodes(candidate.episodes)
     row.joins = dump_joins(candidate.joins)
-    # Lifted out of the document so "offer me what happened most often" is an
-    # index rather than a scan of every candidate's episodes.
     row.times_seen = candidate.times_seen
     row.first_seen = candidate.first_seen
     row.last_seen = candidate.last_seen

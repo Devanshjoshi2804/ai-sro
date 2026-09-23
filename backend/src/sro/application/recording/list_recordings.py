@@ -1,5 +1,3 @@
-"""List a tenant's recordings."""
-
 from __future__ import annotations
 
 from sro.application.context import RequestContext

@@ -1,16 +1,3 @@
-"""Skills a demonstration proved without being about them.
-
-Teaching "create a transport mode" opens the screen, and opening the screen
-lists the ones that already exist. That list is a real GET with a real 200 and a
-real body -- so "how many transport modes are there" is answerable from evidence
-already in hand, and asking the operator to demonstrate it separately is asking
-them for something we have.
-
-These are built beside the taught skill, never instead of it, and only ever
-from reads. They start where any read starts and climb on their own record like
-everything else.
-"""
-
 from __future__ import annotations
 
 from dataclasses import replace
@@ -32,14 +19,6 @@ from sro.domain.skill.track_record import Verdict
 
 
 def ambiguity_in(frames: tuple[ActionFrame, ...], taught: ObjectiveKey) -> Ambiguity | None:
-    """Two readings of one entity, where picking either would be a guess.
-
-    Blue Yonder creates in `transportModes` and refreshes `warehouseTransportModes`:
-    sixteen rows at this site, twenty-three across all of them. Both answer "how
-    many transport modes are there", and which one somebody means is a fact
-    about how they talk, not about the system -- so it is asked, once, rather
-    than decided by whichever the screen happened to fetch first.
-    """
     reads = reads_about(frames, taught.entity_type)
     written = wrote_to(frames)
     if not reads or not written:
@@ -74,14 +53,6 @@ def read_skills(
     at: datetime,
     new_id: object,
 ) -> tuple[Skill, ...]:
-    """The read that answers questions about this entity, if the demonstration
-    made one.
-
-    One, not several. A screen reads its subject, and then reads three things
-    named after its subject -- unit conversions, defaults, permissions -- and a
-    library with four "List transport mode" skills in it is worse than one with
-    none, because now somebody has to pick.
-    """
     return tuple(
         _skill(
             capability,
@@ -100,17 +71,6 @@ def read_skills(
 def _chosen(
     frames: tuple[ActionFrame, ...], taught: ObjectiveKey, prefer: str | None
 ) -> tuple[ReadCapability, ...]:
-    """The read to build from, once somebody has said which collection they mean.
-
-    The screen creates in one collection and refreshes another, and only a
-    person can say which one their words are about. When they have said, and it
-    is not the one the demonstration happened to fetch, the read is built from
-    the collection they named -- addressed by the URL the task already writes
-    to, which is proven to exist because a 201 came back from it.
-
-    That is the operator's instruction, not an inference: the address is
-    evidence, and which collection they mean is theirs to declare.
-    """
     captured = reads_about(frames, taught.entity_type)
     if not prefer or (captured and captured[0].entity.lower() == prefer.lower()):
         return captured
@@ -118,8 +78,6 @@ def _chosen(
     write = _write_request(frames)
     if write is None or _resource(write.url).lower() != prefer.lower():
         return captured
-    # No query at all: the site parameters belong to the site's own view, and
-    # this collection answers 500 when given them.
     return (ReadCapability(replace(write, method="GET", url=write.url.split("?")[0]), prefer, -1),)
 
 
@@ -136,7 +94,6 @@ def _resource(url: str) -> str:
 
 
 def objective_for(capability: ReadCapability, taught: ObjectiveKey) -> ObjectiveKey:
-    """A read of the same entity, at the same site, named for what it does."""
     return ObjectiveKey(
         objective_type="list" if capability.rows != 1 else "view",
         target_system=taught.target_system,
@@ -158,16 +115,9 @@ def _skill(
     skill_id: object,
 ) -> Skill:
     entity = taught.entity_type.replace("_", " ")
-    # -1 means the collection was named rather than observed: nobody fetched it
-    # during the demonstration, so how many it holds is not something to claim.
     listing = capability.rows != 1
     objective = objective_for(capability, taught)
 
-    # The screen creates in one collection and refreshes another: the site's own
-    # view of it. Both are real and they answer different questions, so a skill
-    # reading the narrower one says which, rather than calling itself the list.
-    # Compared raw, not normalised: normalising exists to see through the
-    # `warehouse` prefix, and the prefix is exactly the difference here.
     narrower = bool(written) and capability.entity.lower() != (written or "").lower()
     where = f" at {taught.facility}" if narrower else ""
 
@@ -192,15 +142,10 @@ def _skill(
                         target_system=taught.target_system,
                         facility=taught.facility,
                     ),
-                    # 200 when the collection was named rather than observed:
-                    # the request it was synthesised from was a create, and a
-                    # read that expects 201 fails on every success.
                     expected_status=200
                     if capability.rows < 0
                     else (capability.request.status or 200),
                 ),
-                # The only assertion a read needs, and the one that makes it
-                # verifiable: it answered the way it answered for the human.
                 assertions=(
                     Assertion(
                         kind=AssertionKind.HTTP_STATUS,
@@ -214,9 +159,6 @@ def _skill(
         parameters=(),
         provenance=Provenance(
             recording_ids=(recording_id,),
-            # The one step this version has -- a read -- is built from what
-            # this exact recording observed, not left to the default that
-            # means "nobody said". One recording, and it plainly shaped it.
             aligned_recording_ids=(recording_id,),
             induced_at=at,
             induced_by=by,
@@ -245,8 +187,5 @@ def _skill(
         ),
     )
     skill.add_version(version)
-    # A read is the safest thing in the system and nothing about it is withheld
-    # at the next rung, so it starts where every other version starts and takes
-    # the same first step immediately.
     version.earn(Verdict.WITHHELD, at)
     return skill

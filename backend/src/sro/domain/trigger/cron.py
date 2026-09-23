@@ -1,11 +1,3 @@
-"""Enough of cron to refuse the expressions that are wrong.
-
-Not an implementation: the scheduler that runs these owns the meaning, and a
-second parser here would be a second opinion about when a warehouse gets
-written to. This checks the shape, so a typed mistake is caught by the person
-who typed it rather than by silence at three in the morning.
-"""
-
 from __future__ import annotations
 
 import re
@@ -23,7 +15,6 @@ _TERM = re.compile(r"^(\*|\d+|[a-z]{3})(-(\d+|[a-z]{3}))?(/\d+)?$")
 
 
 def why_not(expression: str) -> str | None:
-    """The reason this is not a cron expression, or ``None`` when it is one."""
     fields = expression.split()
     if len(fields) != len(FIELDS):
         return f"a cron expression has five fields ({', '.join(FIELDS)}), not {len(fields)}"

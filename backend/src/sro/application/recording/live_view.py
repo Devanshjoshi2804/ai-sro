@@ -1,5 +1,3 @@
-"""Where to point an operator at a demonstration in progress."""
-
 from __future__ import annotations
 
 from sro.application.context import RequestContext
@@ -9,13 +7,6 @@ from sro.domain.shared.identifiers import RecordingId
 
 
 class GetLiveView:
-    """Asks the provider rather than reading a stored URL.
-
-    A live view belongs to a browser session, not to a recording: it stops
-    existing when the session ends, and a URL kept on the row would go stale
-    without anything noticing.
-    """
-
     def __init__(self, uow: UnitOfWork, browser: BrowserProvider) -> None:
         self._uow = uow
         self._browser = browser
@@ -29,5 +20,4 @@ class GetLiveView:
         try:
             return await self._browser.live_view_url(recording.browser_session_id)
         except BrowserUnavailable:
-            # The demonstration is still valid; only the window into it is gone.
             return None

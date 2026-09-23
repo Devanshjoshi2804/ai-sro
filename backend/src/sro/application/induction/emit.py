@@ -1,5 +1,3 @@
-"""Build a SkillStep from run A's frame. See docs/07-adr/005-dual-recipe.md."""
-
 from __future__ import annotations
 
 from sro.application.induction.assertions import StepEvidence
@@ -41,14 +39,9 @@ def emit_step(
         network_plan=_network_plan(frame, replacements, objective, unquoted),
         ui_plan=_ui_plan(frame, replacements, evidence, other),
         assertions=evidence.assertions,
-        # Either source may flag a human: the screen shows an MFA field, or the
-        # operator says they would check with a supervisor here.
         requires_human=_requires_human(frame) or bool(narration and narration.requires_human),
         narration=narration.text if narration else "",
         branch_hint=narration.branch_hint if narration else None,
-        # Given for a gesture only one run made, and asked for otherwise: a
-        # step that types an optional field is conditional on it wherever it
-        # came from.
         when=when or parameterisation.conditional_on(index),
     )
 
@@ -147,11 +140,6 @@ def _describe_intent(frame: ActionFrame) -> str:
 
 
 def _requires_human(frame: ActionFrame) -> bool:
-    """Keyword match, biased towards flagging.
-
-    A step wrongly flagged costs an operator ten seconds; one wrongly cleared
-    costs an MFA lockout.
-    """
     target = frame.action.target
     haystack = " ".join(
         part.lower()

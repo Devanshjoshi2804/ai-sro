@@ -1,5 +1,3 @@
-"""HttpCaller over httpx."""
-
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -11,9 +9,6 @@ from sro.application.ports.http import HttpResponse, MalformedRequest, TargetUnr
 
 class HttpxCaller:
     def __init__(self, client: httpx.AsyncClient | None = None) -> None:
-        # No cookie jar and no redirect following: a session the executor was
-        # not handed is a session it must not acquire, and a 302 on a mutation
-        # is a fact the run should record rather than chase.
         self._client = client or httpx.AsyncClient(follow_redirects=False, cookies=None)
 
     async def send(
@@ -39,21 +34,8 @@ class HttpxCaller:
             httpx.LocalProtocolError,
             httpx.DecodingError,
         ) as wrong:
-            # This end got it wrong: the URL a template rendered is not a URL,
-            # the scheme is one no client speaks, the request could not be
-            # framed. Separated from the network errors below because a step
-            # that failed here failed for a reason the skill owns, and letting
-            # it look like a closed laptop is how a broken skill stops being
-            # counted as broken. `InvalidURL` is not an `httpx.HTTPError` at
-            # all, so until now it escaped the executor and took the run with
-            # it rather than being recorded as a failed step.
             raise MalformedRequest(str(wrong) or type(wrong).__name__) from wrong
         except httpx.HTTPError as error:
-            # httpx raises several of these with an empty message -- a read
-            # error carries nothing but its class -- and a run that failed with
-            # a blank reason costs an afternoon to attribute. The class name is
-            # not much, and it is the difference between "unreachable" and
-            # "nothing happened".
             raise TargetUnreachable(str(error) or type(error).__name__) from error
 
         return HttpResponse(

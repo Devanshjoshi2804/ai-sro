@@ -1,17 +1,3 @@
-"""Perform a skill at L1: replay the calls the demonstration produced.
-
-What this is careful about, in order of how much damage the alternative does:
-
-- A mutation is sent at most once per run, and nothing here retries one. The run
-  is saved after every step, so a run left RUNNING with N outcomes says exactly
-  one thing: step N was in flight, and whether it landed is unknown. That is the
-  state a human has to be told about rather than a state a retry may guess at.
-- A stage that does not permit writes withholds them rather than skipping them.
-  A shadow run produces the full request it would have sent, which is the only
-  way to review one before allowing it.
-- A step whose headers cannot be resolved does not go out degraded.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -82,22 +68,9 @@ from sro.domain.skill.skill import Skill, SkillStep, SkillVersion
 logger = logging.getLogger(__name__)
 
 MAX_RECORDED_BODY_BYTES = 64 * 1024
-"""How much of a write's body a run will keep.
-
-Capture already bounds it -- a payload over the inline limit is a blob and
-never becomes a body template at all -- but a loop writes one body per thing in
-a list, and twenty-five of the largest inlined body would be a megabyte of run
-log nobody is going to read. This is the size a person reads, not the size the
-wire allows."""
 
 
 def _recordable(body: str | None) -> tuple[str | None, str | None]:
-    """The body to keep beside a write, and why it is missing when it is.
-
-    Past the cap the body is dropped and *said* to be dropped rather than cut:
-    a truncated body reads exactly like a whole one, and the reviewer this
-    exists for would sign off a write on half of it.
-    """
     size = len(body.encode()) if body is not None else 0
     if size > MAX_RECORDED_BODY_BYTES:
         return None, f"its {size} byte body was too large to record"
@@ -105,29 +78,15 @@ def _recordable(body: str | None) -> tuple[str | None, str | None]:
 
 
 class NotRunnable(DomainError):
-    """The skill cannot be run as asked. Never a partial run: this is raised
-    before anything is sent."""
-
     code = "not_runnable"
 
 
 async def refuse_if_breaker_is_open(
     uow: UnitOfWork, ctx: RequestContext, system: str, now: datetime
 ) -> None:
-    """Whether anything at all may be driven against this system right now.
-
-    About the system's recent behaviour, not about what is being asked of it, so
-    every rung asks it: a replay, and a pursuit working a task out on the screen.
-    The pursuit did not, and the rung with no demonstration behind it was the one
-    allowed to keep going after the others had been stopped.
-    """
     recent = await uow.runs.finished_since(
         ctx.tenant_id, target_system=system, since=now - FAILURE_WINDOW - WRITE_WINDOW
     )
-    # Failures somebody has already looked at stop counting. Without this the
-    # breaker asks for a person and gives them nothing to do: every run is
-    # refused until the window ages out, including the one that would show the
-    # fault is already fixed.
     connection = await uow.connections.find_by_system(ctx.tenant_id, system)
     cleared = connection.failures_acknowledged_at if connection else None
     if cleared is not None:
@@ -145,22 +104,7 @@ async def ensure_runnable(
     request: ExecutionRequest,
     now: datetime,
 ) -> None:
-    """Everything that must hold before anything is sent, given a version
-    that has already been resolved -- checked here rather than folded back
-    into a single fetch-and-check step, so a caller that has already reached
-    into a skill for some other reason (promoting it, for instance) can ask
-    this about the exact object it is holding, before committing anything on
-    the strength of the answer.
-
-    This is the whole of what `StartRun._may_run` used to do inline: the
-    stage/parameter/medium refusals and the circuit breaker, in the order
-    that matters -- nothing here has side effects, so raising costs nothing
-    to undo.
-    """
     _check_runnable(version, request)
-    # Every system it touches, not only the one it is keyed by: a workflow
-    # that writes into a second system must be stopped by that system's
-    # breaker, and keying alone would hide exactly that.
     for system in version.systems or (skill.objective_key.target_system,):
         await refuse_if_breaker_is_open(uow, ctx, system, now)
 
@@ -173,68 +117,27 @@ class ExecutionRequest:
     authorized_by: str | None = None
 
     run_id: RunId | None = None
-    """Given by the caller when it has to know the id before the run ends --
-    a console streaming the steps as they happen, for instance."""
 
     device_id: DeviceId | None = None
-    """Perform this in the operator's own browser rather than in one of ours.
-
-    Which is how a skill runs against a system this deployment holds no
-    credentials for: the request goes out of a page the operator is already
-    signed in to. It also means the browser can close, and a run that loses it
-    fails rather than being finished somewhere else."""
 
     medium: Medium = Medium.NETWORK
-    """Which rung performs the whole task.
-
-    A choice, not a fallback. Swapping medium mid-run leaves the browser without
-    the screen state the earlier steps would have produced, so the task is the
-    unit that changes rung, and today a human picks it."""
 
     may_take_focus: bool = False
-    """Whether this run may bring a tab to the front of the operator's browser.
-
-    Somebody watching a run they asked for is not interrupted by their tab
-    changing; somebody typing at 3pm while a schedule fires behind them is.
-    Default no, so a caller that has not thought about it does not take
-    anybody's screen."""
 
     intent: str = ""
-    """The sentence the operator typed, carried onto ``Run.intent`` verbatim.
-
-    Blank for a console run, a batch, a trigger -- everything that did not
-    begin with somebody's own words. See ``Run.intent`` for why this is the
-    one place it is kept."""
 
 
 class Refused(DomainError):
-    """A safety limit stopped this before anything was sent.
-
-    Separate from NotRunnable, which is about the skill: this is about the
-    system's recent behaviour, and the answer is a person rather than a retry.
-    """
-
     code = "refused"
 
 
 class StartRun:
-    """Create the run. Nothing has been sent when this returns."""
-
     def __init__(self, uow: UnitOfWork, clock: Clock, ids: IdFactory) -> None:
         self._uow = uow
         self._clock = clock
         self._ids = ids
 
     async def check(self, ctx: RequestContext, request: ExecutionRequest) -> None:
-        """Everything ``execute`` would refuse for, without starting anything.
-
-        For a caller that schedules the run somewhere else and answers before it
-        begins. Without this, a refusal -- a skill at a stage that may not run, a
-        breaker asking for a person -- happened inside the workflow, after the
-        request had already answered 201 with a run id for a run that was never
-        created. The console then watched that id forever, which is the one
-        outcome a breaker exists to prevent.
-        """
         async with self._uow as uow:
             await self._may_run(uow, ctx, request, self._clock.now())
 
@@ -244,20 +147,8 @@ class StartRun:
         skill = await uow.skills.get(ctx.tenant_id, request.skill_id)
         version = _version_of(skill, request.version)
         await ensure_runnable(uow, ctx, skill, version, request, now)
-        # One run per browser, which the rig has had since migration 0043 and
-        # this path had in no form at all -- not the index, not even the read.
-        # Two triggers firing two skills at one device in the same minute both
-        # started, and their clicks interleaved in one window: the corrupted
-        # form against a live warehouse that 0043 was written about.
-        #
-        # The read names the run that has the browser, which is what a person
-        # can act on. `uq_runs_one_running_per_device` is the guard: there are
-        # awaits between here and the commit, and a read alone loses that race
-        # -- demonstrated against real Postgres on the rig's own path.
         if request.device_id is not None:
             busy = await uow.runs.in_flight(ctx.tenant_id, request.device_id)
-            # `!= request.run_id`: a caller that minted the id and is
-            # re-entering its own run is not a second press.
             if busy is not None and busy != str(request.run_id or ""):
                 raise Conflict(already_running(request.device_id.value, busy))
         return skill, version
@@ -269,9 +160,6 @@ class StartRun:
             system = skill.objective_key.target_system
 
             run = Run(
-                # Minted by whoever asked, where they need to know it before it
-                # finishes: a console cannot stream a run whose id only arrives
-                # with the last step.
                 id=request.run_id or self._ids.new_run_id(),
                 tenant_id=ctx.tenant_id,
                 skill_id=skill.id,
@@ -295,29 +183,13 @@ class StartRun:
 
 
 _LOOK_AGAIN = 0.4
-"""How long to leave a screen that has not caught up yet, between looks."""
 
 NOTHING_ASSERTED = "the step asserts nothing"
-"""Recorded as unchecked, because that is what it is.
-
-A step with no post-condition cannot fail one, so it came out "ok" and the run
-came out SUCCEEDED -- and everything reading that took it for a step that had
-been verified. It was performed. Nothing looked."""
 
 SCREEN_SETTLES_WITHIN = 2.0
-"""And how long to keep looking. Long enough for a screen that is working and
-short enough that a step which is genuinely wrong is not a wait: what is being
-waited for is a page reacting to a gesture, not a warehouse deciding anything."""
 
 
 class ExecuteStep:
-    """One step of one run.
-
-    A step at a time because that is the unit a crash can be resumed at. It is
-    also the unit that must not be retried blindly: the caller knows whether the
-    step it is asking for has already been recorded, because the run says so.
-    """
-
     def __init__(
         self,
         uow: UnitOfWork,
@@ -346,12 +218,6 @@ class ExecuteStep:
         self._settles_within = settles_within
 
     async def has_more(self, ctx: RequestContext, *, run_id: RunId) -> bool:
-        """Whether this run has another position to perform.
-
-        For the durable path, which cannot count the steps up front: a loop's
-        body occupies as many positions as the system said there were things,
-        and that number arrives partway through the run.
-        """
         async with self._uow as uow:
             run = await uow.runs.get(ctx.tenant_id, run_id)
             skill = await uow.skills.get(ctx.tenant_id, run.skill_id)
@@ -360,18 +226,13 @@ class ExecuteStep:
     async def execute(self, ctx: RequestContext, *, run_id: RunId, index: int) -> StepOutcome:
         async with self._uow as uow:
             run = await uow.runs.get(ctx.tenant_id, run_id)
-            # Read here because a step's credentials depend on which system it
-            # is calling, and a workflow's steps do not all call the same one.
             connections = await uow.connections.list_for_tenant(ctx.tenant_id)
             skill = await uow.skills.get(ctx.tenant_id, run.skill_id)
 
         version = skill.version(run.skill_version)
         if index < len(run.steps):
-            return run.steps[index]  # already done; never send it twice
+            return run.steps[index]
 
-        # Which step of the plan this position is, and -- inside a loop -- which
-        # thing it is acting on this time round. The two are the same number for
-        # every skill without loops, which is every skill taught before them.
         nxt = next_step(version, run)
         if nxt is None:
             raise NotRunnable(
@@ -382,11 +243,6 @@ class ExecuteStep:
         values = nxt.values
 
         if step.tool_plan is not None and run.medium is not Medium.UI:
-            # Chosen by the step, not by the run. A run's medium says which rung
-            # it is being performed at; a tool plan says this particular step
-            # goes through a connector, and the two are different questions. A
-            # run asked for in the interface still clicks, because that is
-            # somebody deliberately watching it happen.
             outcome = await self._perform_with_tool(run, step, values=values)
             outcome = replace(
                 outcome, index=index, plan_step=nxt.step_index, iteration=nxt.iteration
@@ -410,8 +266,6 @@ class ExecuteStep:
                 await uow.commit()
             return outcome
 
-        # Every value this step hands forward, not the first: one call can
-        # return an id and the code the next call needs alongside it.
         produces = tuple(
             parameter
             for parameter in version.parameters
@@ -431,30 +285,14 @@ class ExecuteStep:
             feeds=version.loop_from(nxt.step_index),
         )
 
-        # A session that aged out is not a broken skill, and the run should not
-        # need a person to say so. Repair what the target system owns, once,
-        # and let the step speak for itself; anything the healer cannot explain
-        # is left exactly as it failed.
         healed = await self._heal(ctx, run, skill, step, outcome, failure)
         if healed is not None and not healed.repaired:
-            # Diagnosed and not repaired. The diagnosis is the useful half: a
-            # step that says "assertion_failed" sends somebody to read the
-            # skill, and this one was turned away at a login page by a system
-            # nobody is signed into any more.
             outcome = replace(
                 outcome,
                 detail=f"{healed.because}; {healed.detail}"
                 + (f" -- {outcome.detail}" if outcome.detail else ""),
             )
         elif healed is not None and _may_be_retried(step, outcome):
-            # The same call again, so the same facts about it: `parameters`
-            # is what fills an optional nobody supplied with its absent form
-            # and what checks a value against the slot it goes in, and `feeds`
-            # is the list a loop is over. Handed only `produces`, the retry
-            # rendered a body with an empty parameter tuple and failed "no
-            # value for parameter" -- so a healed session expiry, the ordinary
-            # thing the healer exists for, became a hard failure on any skill
-            # with an unsupplied optional.
             outcome, derived, failure, iterated = await self._perform(
                 run,
                 step,
@@ -472,8 +310,6 @@ class ExecuteStep:
                 + (f" -- {outcome.detail}" if outcome.detail else ""),
             )
         elif healed is not None:
-            # Repaired, and deliberately not retried: this step's write reached
-            # the application. Sending it again is how one create becomes two.
             outcome = replace(
                 outcome,
                 detail=f"{healed.because}; {healed.detail}, and not retried because "
@@ -512,7 +348,6 @@ class ExecuteStep:
         outcome: StepOutcome,
         failure: FailureKind | None,
     ) -> Healed | None:
-        """Ask the healer whether this failure is one the session explains."""
         if self._heal_with is None or (
             outcome.disposition is StepDisposition.PERFORMED and not failure
         ):
@@ -534,19 +369,15 @@ class ExecuteStep:
         )
 
     def _budget_for(self, run: Run) -> HealBudget:
-        """One budget per run, so a repair that did not take is not repeated."""
         return self._budgets.setdefault(run.id.value, HealBudget())
 
     async def _bearer(self, tenant: str, session_scope: str) -> str | None:
-        """An access token for this system, if one has been established."""
         if self._tokens is None:
             return None
         system = session_scope.split("/", 1)[0]
         try:
             return await self._tokens.access_token(tenant=tenant, system=system)
         except TokenRefused as refusal:
-            # Worth a line, not a failure: the run falls back to the session
-            # cookies and says so if those are gone too.
             logger.info("no access token for %s: %s", system, refusal)
             return None
 
@@ -557,17 +388,6 @@ class ExecuteStep:
         step: SkillStep | None = None,
         connections: Sequence[Connection] = (),
     ) -> UiDriver | None:
-        """The browser this run is performed in, and the page in it.
-
-        A run bound to a device never falls back to the deployment's own
-        browser. That one is signed in as somebody else, on a screen nobody
-        demonstrated, and quietly using it would be worse than not running.
-
-        The origin goes with it. An operator's Chrome has a dozen tabs and only
-        one of them is the system this skill was taught on; without being told
-        which, the extension can only take the frontmost page, and a run that
-        guesses wrong performs a warehouse task on somebody's email.
-        """
         if run.device_id is None:
             return self._ui
         if self._agents is None:
@@ -578,16 +398,12 @@ class ExecuteStep:
             _origin_of(version, step, connections),
             run.may_take_focus,
             starts_on=version.starts_on if version is not None else None,
-            # What this step is for, not what the skill is called: the band is
-            # read by somebody watching their own screen change, and "adding
-            # the work area" answers what is happening to them now.
             doing=step.intent if step is not None else "",
             step=(step.index + 1) if step is not None else None,
             of=len(version.steps) if version is not None else None,
         )
 
     def _caller_for(self, run: Run) -> HttpCaller:
-        """Whose session the call goes out under. Same rule as the browser."""
         if run.device_id is None:
             return self._http
         if self._agents is None:
@@ -603,17 +419,7 @@ class ExecuteStep:
         version: SkillVersion,
         connections: Sequence[Connection] = (),
     ) -> StepOutcome:
-        """Perform one step of a task that is being run in the browser.
-
-        The write rule is the same as at L1 and matters more here: a click is
-        indistinguishable from a call once it has happened, so a stage that may
-        not write may not click either.
-        """
         if step.when and not values.get(step.when):
-            # The demonstration that skipped this field did not touch this
-            # control, so neither does this. Skipped rather than typed empty:
-            # an empty keystroke into a required-looking field is how a form
-            # ends up with a validation error nobody asked for.
             return StepOutcome(
                 index=step.index,
                 medium=Medium.UI,
@@ -667,9 +473,6 @@ class ExecuteStep:
         try:
             result = await ui.perform(action=plan.action, locators=locators, value=value)
         except UiUnavailable as error:
-            # A laptop that closed, or no tab open on the system this step acts
-            # on. The driver already sorts those from a control that moved; this
-            # carries that distinction onto the run.
             return self._failed(step, None, str(error), medium=Medium.UI, unreachable=True)
 
         if not result.performed:
@@ -694,26 +497,8 @@ class ExecuteStep:
     async def _check_on_screen(
         self, ui: UiDriver, step: SkillStep, values: dict[str, str]
     ) -> tuple[tuple[str, ...], tuple[str, ...]]:
-        """What the screen says, after the gesture that was supposed to change it.
-
-        Only where the demonstration proved something visible, so a step whose
-        evidence is a response body costs no screenshot. A screen that cannot be
-        read is not a failed step -- the gesture landed, and calling the task
-        wrong because a capture failed would be worse than saying what happened.
-
-        Looked at again while it has not settled, because a driver answers the
-        moment it dispatches the gesture: the extension's `perform` returns
-        before the page has done anything at all. Checking once would call every
-        screen that takes a moment a failed task, which is a worse lie than the
-        one this exists to stop. Only a step that is failing pays for the
-        looking; a screen that already says what it should is read once.
-        """
         wanted = tuple(a for a in step.assertions if a.kind is AssertionKind.UI_TEXT_VISIBLE)
         if not wanted:
-            # Nothing here can be checked from the interface -- either the step
-            # asserts nothing at all, or what it asserts is a response body no
-            # rung in a browser can see. Silence was returned for both, and
-            # silence reads as a passing check to everything downstream.
             return (), tuple(dict.fromkeys(a.kind.value for a in step.assertions)) or (
                 NOTHING_ASSERTED,
             )
@@ -745,12 +530,6 @@ class ExecuteStep:
         version: SkillVersion,
         connections: Sequence[Connection] = (),
     ) -> StepOutcome:
-        """Try the next rung, if the policy allows one and the run may act.
-
-        Shadow never drives the interface. A withheld call is a call that did not
-        happen; a click on the same screen is a call that did, and a rehearsal
-        that quietly changed a warehouse would be worse than no rehearsal.
-        """
         rule = next_medium(failure, Medium.NETWORK)
         if rule is None or rule.then is not Medium.UI:
             return outcome
@@ -787,8 +566,6 @@ class ExecuteStep:
             return replace(outcome, detail=f"{outcome.detail or failure}; no browser: {error}")
 
         if not result.performed:
-            # The recorded control is gone. Whether anything above may look at
-            # the screen instead is the policy's decision, not this method's.
             return await self._escalate_to_vision(
                 run,
                 step,
@@ -832,22 +609,10 @@ class ExecuteStep:
         version: SkillVersion,
         connections: Sequence[Connection] = (),
     ) -> StepOutcome:
-        """The last rung, if the policy allows it and it is configured.
-
-        Every attempt is recorded whether or not the model was reached: a run
-        that would have escalated and could not is a different fact from a run
-        that never tried, and only one of them means the deployment is missing
-        a rung.
-        """
         rule = next_medium(FailureKind.CONTROL_NOT_FOUND, Medium.UI)
         if rule is None or rule.then is not Medium.VISION or self._vision is None:
             return outcome
 
-        # The same browser the rungs below it were driving. A run bound to a
-        # device is performed in somebody's own Chrome, and a vision rung
-        # holding the deployment's driver would photograph a different screen
-        # and click on it -- signed in as somebody else, on a page nobody
-        # demonstrated. Falling back is the one thing it must not do.
         ui = self._ui_for(run, version, step, connections)
         if ui is None:
             return replace(
@@ -864,11 +629,6 @@ class ExecuteStep:
                 await uow.commit()
 
         performed = result.outcome.disposition is StepDisposition.PERFORMED
-        # The rung's own docstring says the model may claim a step is done and
-        # the demonstration's assertions decide. Nothing decided: a click a
-        # model chose by looking at a screenshot was recorded as a step that
-        # succeeded, and counted towards the version's promotion. Here is where
-        # they decide.
         failures, unchecked = (
             await self._check_on_screen(ui, step, run.values) if performed else ((), ())
         )
@@ -933,40 +693,9 @@ class ExecuteStep:
         mutating = plan.is_mutation
         key = f"{run.id}:{step.index}" if mutating else None
 
-        # An optional field nobody supplied is sent the way the demonstration
-        # that skipped it sent it, filled in here rather than left to the
-        # template: `absent_as` is the demonstration's own JSON -- `null` for
-        # a number the form nulls, `""` for a text control it empties -- and
-        # the string form (the two characters `n`,`u`,`l`,`l`) is not the JSON
-        # value. Its own quotes come off before it goes in a text slot, since
-        # the slot is already quoted at emission for a string-typed field.
-        #
-        # Supplied empty counts as not supplied, because `_perform_in_ui`
-        # already reads it that way and skips the gesture: these values come
-        # off a form, and a form hands back `""` for the box nobody typed in.
-        # One run cannot mean two things depending on which medium performs
-        # it -- and an empty in an unquoted slot renders `{"deltaPriority":}`,
-        # which is not JSON at all.
-        #
-        # Everything else that goes into the body is encoded for the JSON
-        # string it lands in, and not merely the text slot the form nulls.
-        # A body leaf is a body leaf: `check dock 9` pasted raw into an
-        # unquoted one is not JSON, and `he said "go"` pasted into a quoted
-        # one writes the rest of the body itself. One `json.dumps` answers
-        # both -- the difference is only whose quotes are used, its own where
-        # the slot has none and the template's where it already wrote them --
-        # and for anything carrying neither a quote nor a backslash it changes
-        # nothing at all. Refusing such a value instead, which is what this
-        # did, made a task whose body is XML permanently unrunnable.
-        #
-        # Only the body gets the encoded form; the same value in a URL segment
-        # or a header is text. And a parameter that *is* the body gets none of
-        # it: there is no surrounding string to escape into.
         rendered = dict(values)
         encoded: dict[str, str] = {}
         for parameter in parameters:
-            # `absent_value is not None` is what `optional` means; asked this
-            # way round because the value is wanted as well as the fact.
             if (absent := parameter.absent_value) is not None and not rendered.get(parameter.name):
                 rendered[parameter.name] = absent
             elif parameter.name in rendered and not parameter.is_the_body:
@@ -975,13 +704,6 @@ class ExecuteStep:
                     written if parameter.unquoted_as == "string" else written[1:-1]
                 )
 
-        # Last look before anything leaves: a value is substituted as text, so
-        # one that is not the shape its slot was demonstrated holding writes
-        # part of the body itself. `_check_runnable` has already refused what
-        # an operator supplied -- before step one, rather than halfway through
-        # a job -- and this is the same rule where the value came from
-        # somewhere it could not see: an earlier response, or the thing a loop
-        # is on this time round.
         for parameter in parameters:
             supplied = rendered.get(parameter.name)
             if supplied is not None and (refused := parameter.rejects(supplied)) is not None:
@@ -991,11 +713,6 @@ class ExecuteStep:
             url = render_url(plan.url, rendered)
             body = plan.body.render({**rendered, **encoded}) if plan.body is not None else None
         except KeyError as missing:
-            # The step that would have minted this value, not merely some step
-            # that was withheld. Any withheld step used to count, so a step that
-            # failed for an unrelated reason -- a parameter nobody ever filled
-            # in -- was recorded as cleanly withheld, and the run it belonged to
-            # earned its way up the ladder on the strength of it.
             producer = next(
                 (
                     parameter
@@ -1015,11 +732,6 @@ class ExecuteStep:
                 None,
             )
             if withheld is not None:
-                # Not a fault: this rehearsal withheld the write that would have
-                # minted the value. A create chain -- post the address, then the
-                # client that names it -- can never be rehearsed to the end, and
-                # reporting that as a failed step meant every such skill failed
-                # its shadow run and could never earn its way off the rung.
                 return (
                     StepOutcome(
                         index=step.index,
@@ -1044,24 +756,6 @@ class ExecuteStep:
                 None,
             )
 
-        # Whose session this call goes out under, decided by the host it is
-        # going to rather than by the skill it belongs to.
-        #
-        # Everything credential-shaped hangs off this: the stored cookie, the
-        # minted CSRF token, the live referer, and the bearer. A workflow's
-        # second half keyed to its first would fetch the WMS's live token and
-        # post it to the ERP -- one system's session handed to another, silently
-        # -- and would fail to authenticate against the ERP into the bargain.
-        #
-        # A host nobody has connected falls back to the skill's own system,
-        # which is every run there has ever been: a device run against a system
-        # this deployment holds no credentials for is the whole point of naming
-        # a device, and dropping its headers would break it.
-        # A host nobody has connected falls back to the skill's own system --
-        # every run there has ever been -- but only where the whole skill is
-        # that one system. A workflow's unconnected half falling back would
-        # resolve the *other* system's bearer and referer and send them there,
-        # which is the leak this per-call scope exists to close.
         calling = system_of(connections, url) or (
             system_named(connections, url) if len(run.systems) > 1 else objective.target_system
         )
@@ -1074,17 +768,9 @@ class ExecuteStep:
             scope=scope,
             session_scope=session_scope,
             bearer=await self._bearer(scope, session_scope),
-            # The operator's own browser is the session. Nothing stored here is
-            # sent as one, and nothing stored here is required.
             browser_session=run.device_id is not None,
         )
         if resolved.missing:
-            # A device run has already been given the browser's session, so
-            # what is missing here is a value minted per run -- and "connect
-            # the system" is advice that would not have helped: the token
-            # belongs to whichever session it was issued for, and this one is
-            # the operator's. Everything before the semicolon is the record the
-            # self-healer reads back, so only the advice changes.
             advice = (
                 "connect the system"
                 if run.device_id is None
@@ -1102,10 +788,6 @@ class ExecuteStep:
             )
 
         if mutating and not run.performs_writes:
-            # The body as well as the line above it. Method and URL alone say
-            # nothing about what would have changed, and the body is where a
-            # reviewer sees whether the skill got the fields right -- it is the
-            # only copy there will ever be, since nothing sent it anywhere.
             detail = f"{run.stage} does not send writes; the request was produced, not sent"
             recorded, oversize = _recordable(body)
             if oversize is not None:
@@ -1129,22 +811,12 @@ class ExecuteStep:
 
         headers = {**client_headers(plan.headers, url), **resolved.headers}
 
-        # A write keeps the body it sends, success or failure alike. The safety
-        # story here is that a person reviews what the skill did, and a step
-        # that records only "POST -> 201" makes that review impossible: it says
-        # a record was created and nothing about what is in it. On the failure
-        # side the same body is the only thing to debug with, and "the call may
-        # have arrived" is precisely when somebody needs to know what would
-        # have arrived. Only a write: a read's body is not what anybody reviews.
         sent, oversize = _recordable(body) if mutating else (None, None)
 
         try:
             caller = self._caller_for(run)
             response = await caller.send(plan.method, url, headers=headers, body=body)
         except TargetUnreachable as error:
-            # Which end failed. A request this end could not build was never in
-            # flight, so it neither warns about a write that may have landed nor
-            # excuses the skill that produced it.
             built_wrong = isinstance(error, MalformedRequest)
             detail = str(error)
             if mutating and not built_wrong:
@@ -1166,15 +838,8 @@ class ExecuteStep:
                 None,
             )
 
-        # What it found, not only that it answered -- and for a write, what it
-        # created. A create returns the record it made, which is the one thing
-        # the person who asked wants to see, and discarding it left them
-        # looking at a status code for that too.
         answer = read_answer(response.text, url=url)
         if answer is not None and not mutating:
-            # And the rest of it. An operator who asks which suppliers exist is
-            # not asking for the first page; the paging is the system's own and
-            # this walks it in the dialect the demonstration proved.
             answer = await self._rest_of(caller, url, headers, answer)
 
         failures = check(step.assertions, response, values=values)
@@ -1188,15 +853,8 @@ class ExecuteStep:
         if feeds is not None and not failures:
             found = _iterations_of(feeds, response)
             if isinstance(found, str):
-                # The list this loop is over is not in the answer, or its things
-                # are not the shape the demonstration proved. Nothing is done a
-                # guessed number of times: the step says what it could not read.
                 return (self._failed(step, key, found, method=plan.method, url=url), {}, None, None)
             if len(found) > MAX_ITEMS_PER_BATCH:
-                # Refused before the first iteration, not after fifty writes.
-                # The same limit a batch of the same size would meet, because it
-                # is the same question: this many writes is a migration, and a
-                # migration is somebody's decision.
                 return (
                     self._failed(
                         step,
@@ -1225,13 +883,6 @@ class ExecuteStep:
                 request_body=sent,
                 detail=oversize,
                 assertion_failures=failures,
-                # The same fact the interface rung records, on the rung that
-                # runs far more often. A step with no post-condition cannot
-                # fail one, so it came back with an empty failure list -- and
-                # empty is what a fully checked step returns too. Everything
-                # downstream read the silence as "verified": `LearnFromRun`
-                # took a claim from it, and a reviewer reading the run saw a
-                # step that had been tested.
                 unchecked=() if step.assertions else (NOTHING_ASSERTED,),
                 found_rows=answer.rows if answer else None,
                 found_total=answer.total if answer else None,
@@ -1253,7 +904,6 @@ class ExecuteStep:
     async def _rest_of(
         self, caller: HttpCaller, url: str, headers: dict[str, str], first: Answer
     ) -> Answer:
-        """Follow this read's own paging until there is nothing after it."""
         paging = how_it_pages(url)
         if not paging.pages or first.rows < paging.limit:
             return first
@@ -1267,8 +917,6 @@ class ExecuteStep:
             try:
                 response = await caller.send("GET", following, headers=headers)
             except TargetUnreachable:
-                # What was read is still true. Stopping here reports fewer
-                # records than exist, which the count beside them already says.
                 break
             answer = read_answer(response.text, url=following)
             if answer is None or answer.rows == 0:
@@ -1282,13 +930,6 @@ class ExecuteStep:
     async def _perform_with_tool(
         self, run: Run, step: SkillStep, *, values: dict[str, str]
     ) -> StepOutcome:
-        """Call the connector this step was mapped onto.
-
-        The one kind of step nobody demonstrated, so there is no recorded call
-        to replay and no recorded gesture to fall back to -- `escalation.py`
-        says as much, and every failure here stops rather than trying a lower
-        rung at a door the connector already answered.
-        """
         plan = step.tool_plan
         assert plan is not None  # noqa: S101 -- the caller checked; this is for the reader
         key = f"{run.id}:{step.index}"
@@ -1313,10 +954,6 @@ class ExecuteStep:
             )
 
         if plan.writes:
-            # Claimed before the call and kept whatever it answers. A key
-            # released on failure would let a timeout -- the one case where the
-            # send may well have landed -- be retried into a second send, which
-            # is the thing this exists to prevent.
             async with self._uow as uow:
                 first = await uow.tool_calls.remember(
                     run.tenant_id,
@@ -1336,11 +973,6 @@ class ExecuteStep:
                 )
 
         try:
-            # The RUN's own tenant and requester, not a context passed down:
-            # the row is the authority on whose run this is, and a connector is
-            # reached with that operator's own grant or not at all. Each reads
-            # their own mail, so a run performed for one person must not reach
-            # another's mailbox.
             answered = await self._tools.call(
                 run.tenant_id, run.requested_by, plan.server, plan.tool, arguments
             )
@@ -1396,13 +1028,6 @@ class ExecuteStep:
 
 
 class FinishRun:
-    """Close the run and decide what it says.
-
-    Both paths end here -- in-process and durable -- which is why the knowledge
-    write-back hangs off this and not off the workflow: a run that survives a
-    restart teaches the store the same thing as one that did not.
-    """
-
     def __init__(
         self,
         uow: UnitOfWork,
@@ -1418,15 +1043,6 @@ class FinishRun:
     async def execute(
         self, ctx: RequestContext, *, run_id: RunId, stopped: str | None = None
     ) -> Run:
-        """End the run, and let the ladder read what happened.
-
-        `stopped` is for a run that could not continue rather than one that ran
-        and failed its checks -- a detached performer that raised, and in time a
-        person who pressed stop. Both are FAILED, and both count against the
-        skill: three in a row demote it. That is defensible for a real fault and
-        arguable for a deliberate stop, and the alternative is a fourth verdict,
-        a migration, and a rewrite of promotion. Not yet.
-        """
         async with self._uow as uow:
             run = await uow.runs.get(ctx.tenant_id, run_id)
             now = self._clock.now()
@@ -1437,45 +1053,24 @@ class FinishRun:
             await uow.runs.save(run)
 
             skill = await uow.skills.get(ctx.tenant_id, run.skill_id)
-            # `apply_verdict` is the one place a run's verdict reaches a
-            # skill's track record and stage; `CallRunWrong` reaches the same
-            # function later for the same reason. `version` is looked up again
-            # rather than threaded through the return, only because the code
-            # below still needs it after the `with` block closes.
             apply_verdict(skill, run, now)
             version = skill.version(run.skill_version)
             await uow.skills.save(skill)
             await uow.commit()
 
         if self._learn is not None:
-            # After the commit: what the run did is the record, and a failure to
-            # write down what was learned must not undo it.
             await self._learn.execute(
                 ctx,
                 run=run,
                 system=skill.objective_key.target_system,
-                # For the steps performed in the interface: which locator found
-                # the control is only meaningful beside the one it was taught
-                # with, and that lives on the version.
                 version=version,
             )
         if self._repair is not None:
-            # Also after the commit, and after the knowledge write: a repair is
-            # this run's evidence adopted into a new version beside the old one,
-            # and a run that already happened must not be undone by it. The
-            # version this run was performing is untouched -- another run in
-            # flight against it goes on doing exactly what it started doing.
             await self._repair.execute(ctx, run=run)
         return run
 
 
 class ExecuteSkill:
-    """Start, step through, finish. The in-process path.
-
-    The durable path runs the same three use cases as separate activities, so a
-    run that survives a restart is the same run, not a second implementation.
-    """
-
     def __init__(
         self,
         uow: UnitOfWork,
@@ -1500,43 +1095,19 @@ class ExecuteSkill:
         self._stops = stops or Stops()
 
     async def execute(self, ctx: RequestContext, request: ExecutionRequest) -> Run:
-        """Start it and see it through, in one call."""
         return await self.resume(ctx, await self.begin(ctx, request))
 
     async def begin(self, ctx: RequestContext, request: ExecutionRequest) -> Run:
-        """Write the row, refuse it here if it is going to be refused.
-
-        Everything that says no -- the circuit breaker, the blast radius, a
-        stage that may not send a write, a version that does not exist -- says
-        so from here, so a caller that means to perform the run detached still
-        gets its answer as a `4xx` rather than in a task nobody is awaiting.
-        """
         return await self._start.execute(ctx, request)
 
     async def resume(self, ctx: RequestContext, run: Run) -> Run:
-        """Perform a run whose row already exists.
-
-        Split out so a caller can be told the run's id before the last step
-        rather than after it. A run in an operator's own browser is watched
-        while it happens, and a console cannot watch a run whose id arrives with
-        the answer.
-        """
         async with self._uow as uow:
             skill = await uow.skills.get(ctx.tenant_id, run.skill_id)
         version = skill.version(run.skill_version)
 
-        # Positions, not steps: a loop's body occupies as many of them as the
-        # system said there were things, and how many that is arrives partway
-        # through. The run itself is the record of where this has got to, so it
-        # is re-read each time rather than counted here.
         position = 0
         stopped: str | None = None
         while True:
-            # Between steps, never mid-command. A gesture already sent cannot be
-            # recalled from a warehouse, and a stop that ended the run while one
-            # was in flight would report a write as not having happened when it
-            # had. The cost is that stopping takes until the current step's
-            # deadline, which the console says rather than hides.
             if self._stops.asked(run.id.value):
                 stopped = "a person stopped this run"
                 break
@@ -1549,7 +1120,6 @@ class ExecuteSkill:
         try:
             return await self._finish.execute(ctx, run_id=run.id, stopped=stopped)
         finally:
-            # A run id is never reused, so nothing else would ever clear this.
             self._stops.forget(run.id.value)
 
 
@@ -1558,27 +1128,6 @@ def _origin_of(
     step: SkillStep | None = None,
     connections: Sequence[Connection] = (),
 ) -> str | None:
-    """The page a step acts on, as a bare scheme and host.
-
-    The step's own recorded call where it has one, because a skill's steps do
-    not all belong to the same system: a workflow checks the WMS and then
-    records the receipt in the ERP, and a driver bound to one origin for the
-    whole run would attempt the second half in the first half's tab.
-
-    Where the step has no call of its own -- a UI-only step, or one whose host
-    is parameterised -- the version answers instead, from the first step that
-    names one. A parameterised host is no answer at all: the placeholder is not
-    filled in until the step runs, and a tab cannot be chosen by a template.
-
-    And where the whole skill recorded no call, the system it belongs to
-    answers. A task taught entirely by clicking -- which is most of them, and
-    every one taught on a screen that renders itself from a bundle -- named no
-    URL anywhere, so it was driven in whichever tab happened to be in front:
-    the exact coin toss this function exists to prevent, and one that reads as
-    thirteen steps of `control_not_found` rather than as a wrong tab. The
-    version already knows its systems and a connection already knows its host,
-    so nothing here is inferred -- it is the origin the operator authenticated.
-    """
     if step is not None and (named := _origin_of_call(step)) is not None:
         return named
     if version is None:
@@ -1590,12 +1139,6 @@ def _origin_of(
 
 
 def _origin_of_system(version: SkillVersion, connections: Sequence[Connection]) -> str | None:
-    """The origin of the one system this skill belongs to.
-
-    Only when there is exactly one. A workflow across two systems whose steps
-    named no URL cannot be placed by this -- picking either would send half the
-    run to the wrong tab, and the frontmost page is at least honestly a guess.
-    """
     if len(version.systems) != 1:
         return None
     for connection in connections:
@@ -1631,10 +1174,6 @@ def _check_runnable(version: SkillVersion, request: ExecutionRequest) -> None:
             "a recorded skill has not been reviewed by anybody; promote it to shadow "
             "to run it against the system"
         )
-    # Authorisation is for changing the system. A skill that only reads asked
-    # for a name and told the operator it "performs real writes" while fetching
-    # a list -- which is both untrue and the kind of prompt that teaches people
-    # to click past prompts.
     if (
         version.changes_the_system
         and version.stage.rung > PromotionStage.SHADOW.rung
@@ -1643,14 +1182,7 @@ def _check_runnable(version: SkillVersion, request: ExecutionRequest) -> None:
         raise NotRunnable(
             f"a {version.stage} run performs real writes and must name the human who authorised it"
         )
-    # A version that spans systems is performed in a browser signed in to all of
-    # them, and this deployment holds one session per system and never two at
-    # once. Refused here rather than discovered at step four, halfway through a
-    # job, with the first system already written to.
     if version.loops and request.medium is not Medium.NETWORK:
-        # A loop's list is a response, and the rungs above L1 do not read
-        # responses: they click. Refused rather than performed once, which is
-        # what a body with no list to iterate would silently become.
         raise NotRunnable(
             "this skill does part of its work once for each thing a response lists, "
             f"which only the network rung can read; {request.medium} cannot run it"
@@ -1662,20 +1194,9 @@ def _check_runnable(version: SkillVersion, request: ExecutionRequest) -> None:
             + ", so it runs in a browser that is signed in to all of them: name a device"
         )
     supplied = set(request.parameters)
-    # `version.inputs` is the one definition of "values somebody has to supply
-    # for a run to be worth starting", and it has already changed once --
-    # optional parameters were folded out of it after a skill with any optional
-    # field turned out to be impossible to put on a trigger. Re-deriving the
-    # same expression here left that rule written in two places, so the next
-    # change to it would have been correct in one of them.
     required = {p.name for p in version.inputs}
     if absent := sorted(required - supplied):
         raise NotRunnable("no value supplied for " + ", ".join(absent))
-    # And what was supplied is the shape its slot holds. A template
-    # substitutes as text: a quantity given as `2,"approved":true` renders a
-    # valid body carrying a field no demonstration ever sent. Refused here,
-    # before the first step of a job, rather than at the step that would have
-    # sent it -- by which time the steps before it have already written.
     for parameter in version.parameters:
         value = request.parameters.get(parameter.name, "")
         if value and (refused := parameter.rejects(value)) is not None:
@@ -1683,17 +1204,9 @@ def _check_runnable(version: SkillVersion, request: ExecutionRequest) -> None:
 
 
 _Iterations = tuple[int, list[dict[str, str]]]
-"""Which loop, and what its body is to be run with, one entry per thing."""
 
 
 def _iterations_of(loop: Loop, response: HttpResponse) -> list[dict[str, str]] | str:
-    """The things this loop will act on, read out of the answer that listed them.
-
-    A sentence instead, where the answer does not hold them: a list that is
-    missing, or things that do not carry what the demonstration proved they
-    carry, is a system that has changed under a skill -- which is a step that
-    failed saying so, never a run that does something a guessed number of times.
-    """
     document = _parse_json(response.text)
     if document is None:
         return f"the answer is not JSON, so {loop.over_pointer} could not be read"
@@ -1720,22 +1233,12 @@ def _iterations_of(loop: Loop, response: HttpResponse) -> list[dict[str, str]] |
 
 
 def _derive(produces: tuple[Parameter, ...], response: HttpResponse) -> dict[str, str]:
-    """The values this step's response hands to later ones.
-
-    A derived parameter that cannot be extracted is left unbound on purpose: the
-    step that needs it then fails with the parameter's name, which points at the
-    response that was supposed to carry it rather than at the step that broke.
-    """
     bound: dict[str, str] = {}
     for parameter in produces:
         if parameter.source_pointer is None:
             continue
         value = extract(response, parameter.source_pointer)
         if value is not None:
-            # Reformatted on the way where the demonstrations were: the WMS
-            # answers `42` and the ERP is sent `LPN-00042`, and sending the bare
-            # number would be a write the target system rejects or, worse,
-            # accepts against the wrong record.
             bound[parameter.name] = (
                 parameter.transform.apply(value) if parameter.transform else value
             )
@@ -1743,15 +1246,6 @@ def _derive(produces: tuple[Parameter, ...], response: HttpResponse) -> dict[str
 
 
 def _may_be_retried(step: SkillStep, outcome: StepOutcome) -> bool:
-    """Whether sending this step again is safe, on the evidence of the attempt.
-
-    Not on the diagnosis. The healer reads a 302 as proof the request was turned
-    away at a login page, which it sometimes is -- and is also exactly what a
-    successful form POST answers with. Both look identical from here, so the one
-    that decides is whether a mutating request went out at all: a status code
-    means the application answered, and an answered POST that is sent again is
-    how one create becomes two.
-    """
     plan = step.network_plan
     mutating = bool(plan and plan.is_mutation)
     return not (mutating and outcome.status_code is not None)
@@ -1782,13 +1276,6 @@ __all__ = [
 
 
 def _missing_named(detail: str | None) -> tuple[str, ...]:
-    """The headers a step said it had no live value for.
-
-    Read back off the step's own words rather than threaded through a second
-    return value: the message is the record, and a healer that diagnosed from
-    something the record does not show would be repairing a failure nobody can
-    see afterwards.
-    """
     if not detail or not detail.startswith("no live value for "):
         return ()
     named = detail[len("no live value for ") :].split(";", 1)[0]

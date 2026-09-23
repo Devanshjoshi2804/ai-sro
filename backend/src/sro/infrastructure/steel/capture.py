@@ -1,15 +1,3 @@
-"""Attach to a Steel session over CDP and record everything it does.
-
-Subscribes to every capture domain at once: ``Network`` for the exchange,
-``Runtime`` for console output, ``Page`` for navigation and dialogs, the
-accessibility tree and a screenshot on each human gesture, and the injected
-page recorder for the gestures themselves.
-
-Buffering is deliberate. CDP delivers on the browser's schedule; the use case
-wants batches. ``drain`` hands over what has accumulated and clears, so an
-ingest failure loses at most one interval rather than the session.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -53,11 +41,6 @@ _RECORDER_JS = Path(__file__).with_name("recorder.js")
 
 
 def _recorder_script() -> str:
-    """The page script, with the one list of credential words put into it.
-
-    Loudly rather than silently: a script still carrying the marker would run,
-    redact nothing, and keep every password an operator typed.
-    """
     source = _RECORDER_JS.read_text(encoding="utf-8")
     if "__SECRET_WORDS__" not in source:
         raise RuntimeError("recorder.js has no place to put the credential word list")
@@ -66,8 +49,6 @@ def _recorder_script() -> str:
 
 @dataclass(frozen=True, slots=True)
 class PendingArtifact:
-    """A blob written during capture, waiting to be attached to a frame."""
-
     kind: ArtifactKind
     uri: str
     content_type: str
@@ -87,8 +68,6 @@ class CaptureBatch:
 
 @dataclass
 class _PendingRequest:
-    """A request between ``requestWillBeSent`` and ``loadingFinished``."""
-
     request_id: str
     method: str
     url: str
@@ -110,8 +89,6 @@ class _PendingRequest:
 
 
 class CaptureSession:
-    """One attached CDP session. Not reusable across browser sessions."""
-
     def __init__(
         self,
         *,
@@ -157,21 +134,6 @@ class CaptureSession:
         await self._enable_domains()
 
     async def _install_recorder(self) -> None:
-        """Install the page recorder, and keep it installed.
-
-        Three paths, because one is not enough:
-
-        - ``add_init_script`` covers navigation, and runs before page scripts.
-        - an immediate ``evaluate`` covers the document that already exists at
-          the moment we attach.
-        - re-injecting on every ``domcontentloaded`` covers a page that replaces
-          its document without navigating. ``document.open()`` unregisters every
-          listener on the window and no init script re-runs, so without this the
-          recorder goes quiet for the rest of the session and the recording
-          silently loses its remaining steps.
-
-        The script's own guard makes re-injection a no-op when it is not needed.
-        """
         context, page = self._require_context(), self._require_page()
         self._recorder_source = _recorder_script()
 
@@ -183,14 +145,6 @@ class CaptureSession:
         await self._reinstall_recorder()
 
     async def _reinstall_recorder(self) -> None:
-        """Install into every frame, not just the main one.
-
-        A DOM event does not cross a frame boundary, so a recorder living only
-        in the top document sees nothing an operator does inside an embedded
-        application. Blue Yonder's portal attaches one iframe per screen, which
-        puts every gesture that matters in a child frame -- capture ran against
-        it and recorded zero steps while the operator worked.
-        """
         page = self._page
         if page is None:
             return
@@ -201,8 +155,6 @@ class CaptureSession:
         try:
             await frame.evaluate(self._recorder_source)
         except Exception:
-            # A frame being torn down, or one from an origin we cannot reach.
-            # Neither is worth failing a recording over.
             logger.debug("no recorder in frame %s", frame.url[:80], exc_info=True)
 
     async def _enable_domains(self) -> None:
@@ -233,12 +185,6 @@ class CaptureSession:
             cdp.on(method, self._page_event_handler(method))
 
     async def snapshot_cookies(self) -> list[dict[str, Any]]:
-        """Every cookie the browser holds, for the vault.
-
-        The one place cookie *values* are read deliberately. They are a bearer
-        credential — whoever holds them is the operator until they expire — so
-        they go straight to the vault and never into a frame.
-        """
         cdp = self._cdp
         if cdp is None:
             return []
@@ -251,7 +197,6 @@ class CaptureSession:
         return cookies
 
     async def restore_cookies(self, cookies: list[dict[str, Any]]) -> bool:
-        """Start a session already logged in. Returns whether anything was set."""
         cdp = self._cdp
         if cdp is None or not cookies:
             return False
@@ -264,9 +209,6 @@ class CaptureSession:
         except Exception:
             logger.warning("could not restore the stored session", exc_info=True)
             return False
-        # Silence here is what used to send an operator to a login page: the
-        # command succeeds, some cookies never land, and the identity provider
-        # is the first thing that notices.
         refused = [
             f"{c['domain']}{c['path']}{c['name']}"
             for c in cookies
@@ -279,32 +221,15 @@ class CaptureSession:
         return len(refused) < len(cookies)
 
     async def open_at(self, url: str) -> None:
-        """Put the session on the page the operator asked to start from.
-
-        Steel accepts a ``startUrl`` when a session is created and does not act
-        on it for an attached browser, so the navigation happens here -- after
-        the recorder is installed, which also means the first page load is
-        captured rather than missed.
-        """
         page = self._page
         if page is None:
             return
         try:
             await page.goto(url, wait_until="domcontentloaded")
         except Exception:
-            # A bad start URL is the operator's to fix in the live view; it must
-            # not fail the recording that already exists.
             logger.warning("could not open the session at %s", url, exc_info=True)
 
     def flush_incomplete(self) -> int:
-        """Emit exchanges still in flight, with whatever was observed.
-
-        A request that never reaches ``loadingFinished`` -- the tab closed, the
-        session ended, the socket dropped -- would otherwise sit in ``_pending``
-        until the process forgets it. The method, URL, headers and initiator are
-        already known, and that is most of what a skill is built from, so an
-        incomplete exchange is recorded as incomplete rather than discarded.
-        """
         stranded = list(self._pending.values())
         self._pending.clear()
         for pending in stranded:
@@ -333,11 +258,8 @@ class CaptureSession:
         return batch
 
     async def detach(self) -> None:
-        # Before tearing anything down: whatever is still in flight is evidence.
         self.flush_incomplete()
         if self._recorder is not None:
-            # Normally the supervisor takes the file first; this is the crash
-            # path, where closing the encoder matters more than keeping it.
             self._recorder.close()
             self._recorder = None
         for task in list(self._tasks):
@@ -361,14 +283,7 @@ class CaptureSession:
     ) -> None:
         await self.detach()
 
-    # -- gestures -------------------------------------------------------
-
     async def _on_gesture(self, _source: object, raw: str) -> None:
-        """Called from the page by ``recorder.js``.
-
-        A gesture is the only moment the page state is worth a full snapshot:
-        it is the boundary of an action frame.
-        """
         payload: CdpPayload = json.loads(raw)
         at = epoch_to_datetime(float(payload.get("at", 0)))
         url = str(payload.get("url", ""))
@@ -411,13 +326,9 @@ class CaptureSession:
                 content_type="image/png",
                 size_bytes=len(data),
                 captured_at=at,
-                # ponytail: gestures arrive in order, so this matches the frame
-                # index the assembler will assign. Revisit if frames ever merge.
                 frame_index=index,
             )
         )
-
-    # -- network --------------------------------------------------------
 
     def _on_request(self, payload: CdpPayload) -> None:
         request = payload.get("request", {})
@@ -463,7 +374,6 @@ class CaptureSession:
         )
 
     def _on_request_extra(self, payload: CdpPayload) -> None:
-        """Headers the browser adds after the page hands over -- cookies included."""
         pending = self._pending.get(str(payload.get("requestId")))
         if pending is None:
             return
@@ -495,13 +405,6 @@ class CaptureSession:
         )
 
     def _safe_cookies(self, cookies: tuple[Cookie, ...]) -> tuple[Cookie, ...]:
-        """Cookies without their values.
-
-        A session cookie is a credential in the same sense a password is: anyone
-        who reads the recording can be that operator until it expires. The name,
-        domain, flags and expiry are the evidence — they say what the session
-        looked like — and the value is the key, which belongs in the vault.
-        """
         if not self._redact_secrets:
             return cookies
         return tuple(replace(cookie, value=REDACTED) for cookie in cookies)
@@ -540,20 +443,12 @@ class CaptureSession:
         if not raw:
             return None
 
-        # Before the size branch, not inside it. A body too large to inline was
-        # written to object storage exactly as it arrived, so the one response
-        # big enough to be interesting was the one whose credentials were kept
-        # -- and a response CDP had base64-encoded skipped redaction outright,
-        # then reported no fields removed, which reads as "there were none".
         redacted: tuple[str, ...] = ()
         if self._redact_secrets:
             readable = _as_text(raw) if base64_encoded else text
             if readable is not None:
                 cleaned, redacted = redact_body(readable, content_type=pending.mime_type)
                 if redacted:
-                    # Rewritten, so it is text now whatever it arrived as.
-                    # Nothing is gained by re-encoding a document we have just
-                    # had to parse, and a reviewer can read this one.
                     text, raw, base64_encoded = cleaned, cleaned.encode(), False
 
         if len(raw) <= self._inline_limit:
@@ -614,18 +509,6 @@ class CaptureSession:
         )
 
     async def _video_loop(self) -> None:
-        """Frames for the video, taken rather than streamed.
-
-        ``Page.startScreencast`` is the obvious way to do this and it is the
-        wrong one: Chrome allows a single screencast consumer per page and the
-        newest one wins. Steel's live view is a screencast consumer, so
-        subscribing here silently freezes the browser the operator is driving --
-        proved by attaching two clients and watching the first receive nothing.
-
-        ``Page.captureScreenshot`` is request/response, so it takes nothing away
-        from anyone. The cost is sampling rather than repaint-accurate frames,
-        which for reviewing a demonstration is not a cost worth the breakage.
-        """
         interval = 1 / max(self._video_fps, 1)
         while True:
             await asyncio.sleep(interval)
@@ -638,9 +521,6 @@ class CaptureSession:
                     {"format": "jpeg", "quality": 55, "optimizeForSpeed": True},
                 )
             except Exception:
-                # A navigating or closing page cannot be photographed. Logged at
-                # debug because it is expected on every navigation; the next tick
-                # finds the page again, and video is never worth failing over.
                 logger.debug("skipped a video frame", exc_info=True)
                 continue
             data = shot.get("data")
@@ -650,11 +530,8 @@ class CaptureSession:
                 )
 
     def stop_video(self) -> Recorded | None:
-        """Finish the recording and hand over the file, if there is one."""
         recorder, self._recorder = self._recorder, None
         return recorder.close() if recorder is not None else None
-
-    # -- console and page ------------------------------------------------
 
     def _on_console(self, payload: CdpPayload) -> None:
         at = epoch_to_datetime(float(payload.get("timestamp", 0)) / 1000)
@@ -668,8 +545,6 @@ class CaptureSession:
 
         return handle
 
-    # -- plumbing --------------------------------------------------------
-
     def _spawn(self, coro: Any) -> None:
         task: asyncio.Task[None] = asyncio.create_task(coro)
         self._tasks.add(task)
@@ -677,7 +552,6 @@ class CaptureSession:
 
     @property
     def page(self) -> Page:
-        """The attached page. Tests drive it; production leaves it to the human."""
         return self._require_page()
 
     def _require_context(self) -> BrowserContext:
@@ -692,14 +566,6 @@ class CaptureSession:
 
 
 def _addressed(cookie: dict[str, Any]) -> dict[str, Any]:
-    """Give a stored cookie the URL it came from.
-
-    ``Network.setCookies`` derives the source scheme from the URL. Without one a
-    cookie marked ``secure`` is treated as arriving over plain HTTP and is
-    dropped -- silently, in a batch the command still reports as successful.
-    The identity-provider cookies are exactly the ones marked secure, so the
-    session restored without them looks complete and is not.
-    """
     if cookie.get("url"):
         return cookie
     domain = str(cookie.get("domain", "")).lstrip(".")
@@ -710,13 +576,6 @@ def _addressed(cookie: dict[str, Any]) -> dict[str, Any]:
 
 
 def _as_text(raw: bytes) -> str | None:
-    """A base64 body read back as text, or ``None`` when it is really binary.
-
-    CDP base64-encodes whatever it cannot hand back as a UTF-8 string, which is
-    a screenshot *and* a JSON document served with a charset it would not guess
-    at. The second kind has field names in it, and a credential in one was
-    stored verbatim and reported as nothing removed.
-    """
     try:
         return raw.decode("utf-8")
     except UnicodeDecodeError:

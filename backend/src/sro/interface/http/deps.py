@@ -51,8 +51,6 @@ async def get_context(
     try:
         caller = container.credentials.verify(authorization)
     except Unconfigured as exc:
-        # Ours to fix, not theirs, and never a reason to let the request past:
-        # a deployment that cannot check credentials must refuse, not shrug.
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
         ) from exc
@@ -63,10 +61,6 @@ async def get_context(
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
 
-    # From here on, every line this request writes says whose it is. The
-    # middleware gave it an id before anything knew who was asking; this is
-    # the first moment anything does. Inside the request's own task, so it
-    # lasts exactly as long as the request -- see `whose.attribute`.
     attribute(tenant=caller.tenant_id.value, principal=caller.principal_id.value)
     return RequestContext(tenant_id=caller.tenant_id, principal_id=caller.principal_id)
 

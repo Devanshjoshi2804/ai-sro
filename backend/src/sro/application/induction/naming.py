@@ -1,9 +1,3 @@
-"""Parameter names, derived from where the value was found.
-
-No model is involved: the captured payload already uses the vocabulary of the
-system being automated, and invented names would not match it.
-"""
-
 from __future__ import annotations
 
 import re
@@ -21,14 +15,10 @@ from sro.application.induction.sites import (
 )
 
 CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
-"""Where ``shipmentId`` becomes two words. Shared, because a second copy of
-this that disagreed about digits would split field names one way for naming
-and another way for deciding what is a credential."""
 _NON_IDENTIFIER = re.compile(r"[^0-9a-zA-Z]+")
 
 
 def snake_case(text: str) -> str:
-    """``shipmentId`` -> ``shipment_id``; ``Order Number`` -> ``order_number``."""
     spaced = CAMEL_BOUNDARY.sub("_", text)
     cleaned = _NON_IDENTIFIER.sub("_", spaced).strip("_").lower()
     if not cleaned or cleaned[0].isdigit():
@@ -37,8 +27,6 @@ def snake_case(text: str) -> str:
 
 
 def _singular(word: str) -> str:
-    # Naive by choice: getting `entries` or `boxes` slightly wrong still yields a
-    # readable name, which is not worth an inflection dependency.
     if len(word) > 3 and word.endswith("s") and not word.endswith("ss"):
         return word[:-1]
     return word
@@ -54,18 +42,12 @@ def suggest_name(site: Site, *, url: str = "", field_label: str | None = None) -
             return snake_case(key)
 
         case UrlPathSite(index):
-            # The segment before an id usually names it: /shipments/12345.
-            # Segments come from the same helper the sites are indexed against;
-            # splitting the whole URL here would count the scheme and host and
-            # name every path parameter after the wrong segment.
             segments = url_path_segments(url)
             if index > 0 and index - 1 < len(segments):
                 return f"{snake_case(_singular(segments[index - 1]))}_id"
             return f"path_{index}"
 
         case HeaderSite(name):
-            # `X-Wave-Id` reads as `wave_id`: the `x-` prefix says the header is
-            # non-standard, which is not information the parameter needs.
             cleaned = name[2:] if name.lower().startswith("x-") else name
             return snake_case(cleaned)
 
@@ -77,14 +59,6 @@ def suggest_name(site: Site, *, url: str = "", field_label: str | None = None) -
 
 
 def singular(word: str) -> str:
-    """One of whatever this is, as far as spelling alone can say.
-
-    Deliberately shallow -- no dictionary, no stemmer. `addresses` has to give
-    back `address` and not `addresse`, which is what a bare trailing-s rule
-    produced and what then appeared in every sentence the system said out loud:
-    "list every addresse at SG". `-es` only collapses after the endings that
-    take it, because `modes` is not `mod`.
-    """
     lowered = word
     if len(lowered) > 3 and lowered.endswith("ies"):
         return f"{lowered[:-3]}y"
@@ -100,7 +74,6 @@ def singular(word: str) -> str:
 
 
 def deduplicate(preferred: str, taken: set[str]) -> str:
-    """Suffix a colliding name rather than merging two distinct parameters."""
     if preferred not in taken:
         return preferred
     suffix = 2

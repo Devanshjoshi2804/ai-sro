@@ -1,10 +1,3 @@
-"""Reword what a skill is for.
-
-Induction writes a description from the evidence; this is how a supervisor
-corrects it into the words their warehouse actually uses. It changes what the
-skill is found by, never what it does.
-"""
-
 from __future__ import annotations
 
 from sro.application.context import RequestContext

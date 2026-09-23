@@ -1,9 +1,3 @@
-"""Post-conditions extracted from what the demonstration proved.
-
-Fields identical across both runs are stable success markers; fields that
-differed are parameters and asserting on them would pin the skill to one run.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -33,7 +27,6 @@ def extract(
     next_a: ActionFrame | None = None,
     next_b: ActionFrame | None = None,
 ) -> StepEvidence:
-    """Derive assertions for one aligned step pair."""
     appeared = _element_that_appeared(frame_a, frame_b, next_a, next_b)
 
     request_a, request_b = frame_a.primary_request, frame_b.primary_request
@@ -68,7 +61,6 @@ def _stable_response_fields(body_a: str | None, body_b: str | None) -> list[Asse
         and leaf != ""
         and len(jsonutil.as_text(leaf)) <= MAX_ASSERTED_VALUE_LENGTH
     ]
-    # A stable `status` witnesses success better than a stable `pageSize`.
     stable.sort(key=lambda item: 0 if _looks_like_a_success_marker(item[0]) else 1)
 
     return [
@@ -100,10 +92,6 @@ def _element_that_appeared(
     next_a: ActionFrame | None,
     next_b: ActionFrame | None,
 ) -> ElementFingerprint | None:
-    """First element that showed up after this step in *both* runs.
-
-    Requiring both filters out incidentals -- a spinner, a tooltip, a timestamp.
-    """
     if next_a is None or next_b is None:
         return None
     if frame_a.ax_graph is None or next_a.ax_graph is None:

@@ -1,5 +1,3 @@
-"""Structured identity of a task. See docs/06-glossary.md#objective-key."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -18,8 +16,6 @@ class Direction(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class ObjectiveKey:
-    """What a demonstration demonstrates. Equality is exact, never fuzzy."""
-
     objective_type: str
     target_system: str
     entity_type: str

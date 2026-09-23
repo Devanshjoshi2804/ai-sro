@@ -1,14 +1,3 @@
-"""The recorded knowledge base on disk, read as claims.
-
-`knowledge-base/blue-yonder-sce/` was produced by driving the real application
-and storing every exchange. This turns it into entries the system can retrieve,
-carrying each record's own evidence level rather than flattening everything to
-"we know this" -- the flattening is exactly what its own audit caught.
-
-Reading only. Nothing here writes to the knowledge base directory: it is
-evidence, and evidence that a program edits is no longer evidence.
-"""
-
 from __future__ import annotations
 
 import json
@@ -32,7 +21,6 @@ _EVIDENCE_BY_NAME = {
 
 
 def read_catalogue(root: Path, *, system: str) -> tuple[Claim, ...]:
-    """Every claim the recorded base makes, in one pass."""
     claims: list[Claim] = []
     claims.extend(_screens(root, system))
     claims.extend(_endpoints(root, system))
@@ -53,7 +41,6 @@ def _load(root: Path, relative: str) -> Any | None:
 
 
 def _screens(root: Path, system: str) -> Iterator[Claim]:
-    """A screen: its route, what it reads, and what it lets an operator do."""
     document = _load(root, "index/app-map.json")
     for screen in (document or {}).get("screens", []):
         route = screen.get("hash") or screen.get("label")
@@ -79,7 +66,6 @@ def _screens(root: Path, system: str) -> Iterator[Claim]:
                 "resources": screen.get("resources", []),
             },
             source="index/app-map.json",
-            # A screen nobody could open is a claim, not an observation.
             evidence=(
                 EvidenceLevel.ASSERTED
                 if screen.get("unverified") or screen.get("route_dead")
@@ -107,9 +93,6 @@ def _endpoints(root: Path, system: str) -> Iterator[Claim]:
                 "hits": endpoint.get("hits", 0),
             },
             source="index/api-endpoints.json",
-            # `hits` counts times the endpoint was actually seen on the wire.
-            # Zero means it was catalogued from a screen's configuration and
-            # nobody has watched it answer.
             evidence=(
                 EvidenceLevel.OBSERVED
                 if int(endpoint.get("hits") or 0) > 0
@@ -119,12 +102,6 @@ def _endpoints(root: Path, system: str) -> Iterator[Claim]:
 
 
 def _fields(root: Path, system: str) -> Iterator[Claim]:
-    """A payload key and what the vendor's help says it means.
-
-    Always `asserted`: this is documentation joined to a key, not a request
-    anybody watched. It is the vocabulary layer -- what `abcCountFlag` is called
-    on screen -- which is what makes an operator's sentence resolvable.
-    """
     document = _load(root, "index/field-dictionary.json")
     for entry in (document or {}).get("fields", []):
         key = entry.get("key")
@@ -152,7 +129,6 @@ def _fields(root: Path, system: str) -> Iterator[Claim]:
 
 
 def _forms(root: Path, system: str) -> Iterator[Claim]:
-    """The fields a create form actually posts, captured from the real form."""
     document = _load(root, "index/form-models-all.json")
     for form in (document or {}).get("forms", []):
         route = form.get("hash")
@@ -178,31 +154,11 @@ def _forms(root: Path, system: str) -> Iterator[Claim]:
 
 
 def _flows(root: Path, system: str) -> Iterator[Claim]:
-    """A recorded call cascade: what a create or update actually sends, in order.
-
-    Deliberately compact. The full exchange -- headers, real payloads, real
-    responses -- is what `seed_skills` reads to induce a runnable skill from;
-    a claim only needs enough to answer "what does this send and in what
-    order", with a pointer at the file for whoever needs the rest.
-
-    Only the full-cascade shape (``calls`` of real request/response pairs) is
-    read here. Two other shapes also live under this directory -- ``phases``
-    of one-line ``METHOD path -> status`` strings, and a flat read-only-
-    dashboard shape with a top-level method/url and no nested request or
-    response at all -- and neither has anything this claim could replay or
-    cite precisely. Both are skipped rather than half-represented: a call
-    missing the nested shape used to leave method/status silently null
-    instead of raising anything, so a flow with real writes was cited here
-    as having none.
-    """
     flows_dir = root / "http" / "flows"
     if not flows_dir.is_dir():
         return
     for path in sorted(flows_dir.glob("*.json")):
         document = json.loads(path.read_text())
-        # `resource` alone collides -- a duplicate-name rejection flow and the
-        # ordinary create both name `clients`. `spec` is the file's own scenario
-        # name and is unique by construction: it is where the filename came from.
         spec = document.get("spec") or path.stem
         resource = document.get("resource") or spec
         calls = document.get("calls") or []
@@ -237,12 +193,6 @@ def _flows(root: Path, system: str) -> Iterator[Claim]:
 
 
 def _statuses(root: Path, system: str) -> Iterator[Claim]:
-    """What a resource answered for each case of the probe battery.
-
-    This is the verifier's raw material, and the reason the base distinguishes
-    two 404s: `ROUTE-MISSING` means the endpoint never existed, `RECORD-MISSING`
-    means it exists and the record is gone. Only the second proves a delete.
-    """
     document = _load(root, "http/status-matrix.json")
     for resource, detail in ((document or {}).get("resources") or {}).items():
         for case, observation in (detail.get("cases") or {}).items():
@@ -262,8 +212,6 @@ def _statuses(root: Path, system: str) -> Iterator[Claim]:
                     "evidence_file": detail.get("evidence"),
                 },
                 source="http/status-matrix.json",
-                # The battery was re-run: a case seen more than once matched
-                # what was stored the first time, which is what reproduced means.
                 evidence=(
                     EvidenceLevel.REPRODUCED
                     if int(observation.get("observations") or 1) > 1
@@ -273,12 +221,6 @@ def _statuses(root: Path, system: str) -> Iterator[Claim]:
 
 
 def _quirks(root: Path, system: str) -> Iterator[Claim]:
-    """Claims the base makes about behaviour, including the falsified ones.
-
-    A falsified claim is kept with its verdict. "We believed this and it was
-    wrong" is the single most useful thing in the base, and deleting it is how
-    the same wrong belief gets rediscovered next quarter.
-    """
     document = _load(root, "http/claims.json")
     for claim in (document or {}).get("claims", []):
         identifier = claim.get("id")

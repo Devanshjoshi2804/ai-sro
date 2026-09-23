@@ -1,5 +1,3 @@
-"""Real time and real ids. The fakes in tests/unit/fakes.py are the other half."""
-
 from __future__ import annotations
 
 import uuid
@@ -25,8 +23,6 @@ class SystemClock(Clock):
 
 
 class UuidFactory(IdFactory):
-    """Prefixed so an id is readable in a log line without a lookup."""
-
     def new_recording_id(self) -> RecordingId:
         return RecordingId(f"rec_{uuid.uuid4().hex}")
 

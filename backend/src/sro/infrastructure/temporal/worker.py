@@ -1,10 +1,3 @@
-"""Worker process. ``make worker`` runs this.
-
-Two task queues: ``browser`` for anything holding a scarce browser slot,
-``default`` for everything else. Splitting them now means a slow induction can
-never starve session reaping.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -31,25 +24,10 @@ from sro.infrastructure.temporal.workflows import (
 )
 from sro.observability import configure_logging
 
-# Not `__name__`. This module is started as `python -m`, which names it
-# `__main__` -- outside the `sro` hierarchy, so it inherits the root level
-# `configure_logging` sets, which is WARNING. Every `logger.info` below was
-# being dropped: the worker ran with a zero-byte log while polling Temporal
-# perfectly well, and "silent" and "dead" looked identical from outside.
-# Errors still came through, which is what made it so quiet a failure.
 logger = logging.getLogger("sro.infrastructure.temporal.worker")
 
 
 def identity(settings: Settings) -> str:
-    """How this worker names itself to Temporal: ``pid@host@revision``.
-
-    Temporal's default is ``pid@host``; the revision is appended because that is
-    the field the server already keeps for every process polling a queue and
-    hands back from DescribeTaskQueue. So the worker reports which code it is
-    running without a new table, a new endpoint, or a log file to tail -- and it
-    reports it live, which a row written at startup by a process since killed
-    would not. `make status` reads the last ``@``-separated field.
-    """
     return f"{os.getpid()}@{socket.gethostname()}@{settings.revision}"
 
 
@@ -58,20 +36,11 @@ async def connect(settings: Settings) -> Client:
 
 
 async def keep_sessions_open(container: Container, every_seconds: float) -> None:
-    """Sign systems back in before they expire, for as long as this runs.
-
-    A loop in the worker rather than a scheduled workflow: it holds no state
-    worth replaying, a missed sweep is corrected by the next one, and the
-    cheapest thing that keeps a connection alive over a weekend is the right
-    amount of machinery for it.
-    """
     while True:
         await asyncio.sleep(every_seconds)
         try:
             swept = await container.keep_sessions_open().sweep()
         except Exception:
-            # A keeper that dies quietly is worse than no keeper: the sessions
-            # look fine until the morning somebody needs one.
             logger.exception("the session keeper could not finish its sweep")
             continue
         if swept.open_now or swept.unreachable or swept.released:
@@ -85,20 +54,7 @@ async def keep_sessions_open(container: Container, every_seconds: float) -> None
 
 
 async def mine_lately(container: Container, every_seconds: float, window_hours: int) -> None:
-    """Notice what somebody keeps doing, for as long as this runs.
-
-    A loop for the same reasons as the keeper above: nothing to replay, and a
-    missed sweep costs nothing because the next one reads the same window. Every
-    episode already recorded is skipped, so running it often is only the price
-    of reading the evidence again.
-    """
     if every_seconds <= 0:
-        # The pre-rig miner, left to a deliberate call. `Settings`' own field
-        # carries the whole argument; the short of it is that this sweep
-        # teaches what it notices without asking anybody, and four of the nine
-        # skills it has taught are Gmail's sync endpoint or this console's own
-        # Learn button. Returning rather than looping so the task finishes and
-        # the worker is not holding a coroutine that will never do anything.
         logger.info("the observation miner is off (mining_sweep_seconds=0)")
         return
     while True:
@@ -118,9 +74,6 @@ async def mine_lately(container: Container, every_seconds: float, window_hours: 
                     found.occurrences_new,
                 )
 
-        # And anything now done often enough is learned, without waiting for
-        # somebody to press a button. What comes out sits at the bottom of the
-        # promotion ladder; nothing here lets anything run.
         for tenant in mined:
             ctx = RequestContext(tenant_id=TenantId(tenant), principal_id=PrincipalId("miner"))
             try:
@@ -135,23 +88,6 @@ async def mine_lately(container: Container, every_seconds: float, window_hours: 
 
 
 async def mine_the_rig_lately(container: Container, every_seconds: float) -> None:
-    """Read each recorded tenant's day, for as long as this runs.
-
-    The rig's whole learning cycle, where `mine_lately` above is the pre-rig
-    miner. Both halves had a person in them: `mine_pass` was reachable from a
-    door and a script, `read_gestures` from a door and the crontab line in
-    `sro.cli.read_cron`'s own docstring. Every mining result this project has
-    measured came from somebody running a script.
-
-    A loop for the same reasons as the keeper: nothing worth replaying, and a
-    missed sweep is corrected by the next one reading the same window. What one
-    pass costs is bounded by `daily_usd_cap`, checked before the window is
-    packed, and a tenant over it is logged by `MineLately` and skipped rather
-    than raised.
-
-    Sleeps first. A worker restarting in a crash loop would otherwise fire the
-    most expensive call in the system on every start.
-    """
     if every_seconds <= 0:
         logger.info("the rig miner is off (rig_sweep_seconds=0)")
         return
@@ -178,12 +114,6 @@ async def mine_the_rig_lately(container: Container, every_seconds: float) -> Non
 
 
 async def retain_lately(container: Container, every_seconds: float) -> None:
-    """Delete evidence that has aged out of its tenant's own window.
-
-    A loop for the same reason as the keeper and the miner: nothing here needs
-    replaying, and a missed sweep costs one more day of storage rather than a
-    broken promise -- the next sweep finds the same rows and removes them.
-    """
     while True:
         await asyncio.sleep(every_seconds)
         try:
@@ -199,26 +129,6 @@ async def retain_lately(container: Container, every_seconds: float) -> None:
 
 
 async def rekey_everything(container: Container) -> int:
-    """Recompute every stored workflow's shape key, once, at startup.
-
-    `rekey_workflows` has said "run once at startup" since it was written and
-    nothing ran it. The rule that makes a shape key changed on 2026-09-15 --
-    an accessible name that is a paragraph is page copy, not an identifier --
-    and the keys mined before that change were never rewritten, so they still
-    carry the words of one mail:
-
-        name|a customer type :- GGD\ndescription :- leaning new SRO type 01
-
-    A key like that matches nothing, ever. Measured on the deployment,
-    2026-09-18: `Create a Customer Type` held nineteen shape entries, most of
-    them one mail's text, so a fresh demonstration shared ONE entry with it --
-    under `K_MIN_SHARED_STEPS` -- and was mined as a second job with the same
-    name. The mail path then went silent for both, because a request that
-    names a job this tenant holds twice is a request nothing can act on: it
-    was deleted by hand at 21:20 and mined again by 01:13.
-
-    A fix that ships without its migration is a fix for new rows only.
-    """
     async with container.unit_of_work() as uow:
         tenants = await uow.gestures.tenants_since(datetime(1970, 1, 1, tzinfo=UTC))
     changed = 0
@@ -262,8 +172,6 @@ async def run() -> None:
         activities=[activities.abandon_stale_recording, activities.close_browser_session],
     )
 
-    # Before anything mines, because a pass that runs against stale keys is a
-    # pass that proposes a duplicate of a job the rig already holds.
     try:
         rekeyed = await rekey_everything(container)
         if rekeyed:

@@ -1,5 +1,3 @@
-"""What is known about a system. Start at ``entry.py``, then ``supersede.py``."""
-
 from sro.domain.knowledge.entry import (
     SUPPORTS_AUTOMATION,
     EntryKind,

@@ -70,17 +70,6 @@ async def run_skill(
     )
 
     if request.device_id is not None:
-        # Performed here rather than handed to the worker, because the browser
-        # this run needs is a laptop. Durability across a restart would mean
-        # resuming into a Chrome that may be closed, on a page that has moved,
-        # halfway through a task -- and a step that has already been recorded as
-        # sent must never be sent again to find out.
-        #
-        # Answered as soon as the row exists, though, rather than when the last
-        # step lands. A run in somebody's own browser is the one a person sits
-        # and watches, and they could not: the id arrived with the result, so
-        # `/runs/{id}/stream` had nothing to subscribe to until there was
-        # nothing left to see.
         started = await container.execute_skill().begin(ctx, request)
         container.pursuits.spawn(_perform(container, ctx, started))
         return RunModel.of(started)
@@ -236,10 +225,6 @@ async def get_run(run_id: str, container: ContainerDep, ctx: ContextDep) -> RunM
     run = await container.get_run().execute(ctx, run_id=RunId(run_id))
     reversal = None
     if run.status is RunStatus.SUCCEEDED:
-        # Only a run that actually made something is a candidate for an undo --
-        # a failed run has nothing settled to take back, and computing this
-        # needs the tenant's whole skill library, which the list endpoint must
-        # not pay for on every row.
         skills = await container.list_skills().execute(ctx, limit=_LIBRARY_PAGE)
         reversal = reversal_for(run, skills)
     return RunModel.of(run, reversal=reversal)

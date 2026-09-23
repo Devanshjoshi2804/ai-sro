@@ -1,42 +1,3 @@
-"""Gmail, as a connector a skill's step can call.
-
-The point is not convenience. A step done by clicking can never be trusted to
-run unattended -- `verdict.py` makes a run with a UI step DEGRADED, and DEGRADED
-resets the streak autonomy counts -- so a mail half taught by clicking in Gmail
-is capped at assisted forever, however many times it works. A step that is a
-call is clean-eligible, and can climb.
-
-Streamable-HTTP MCP, because that is what this system's connector speaks. Most
-Gmail MCP servers are stdio and cannot be reached by it at all.
-
-    # once per operator, in a browser that operator is signed into:
-    uv run python backend/gmail-connector/server.py --authorize <tenant> <operator>
-
-    # then, to serve:
-    uv run python backend/gmail-connector/server.py 8932
-
-Credentials come from the environment, never from arguments -- an argument is in
-the shell history and in `ps`:
-
-    GMAIL_CLIENT_ID=...     # the OAuth client, from Google Cloud
-    GMAIL_CLIENT_SECRET=... # put it in backend/.env; it is not printed here
-
-Each grant is written to `backend/.gmail-grants/`, gitignored, named by the
-sha256 of the bearer that reaches it -- so what is on disk cannot be read back
-into a credential. Nothing about the mailbox is stored: this reads and sends,
-and keeps no copy.
-
-**One grant per OPERATOR, and a call with no grant behind its bearer reaches
-nothing.** Each operator reads their own mail, so the grant belongs to a person
-and not to a company: a connector keyed by tenant would have one operator's
-inbox answering for everybody in it.
-
-It was one grant for everybody until 2026-09-16, and this checked no credential
-at all: it listens on localhost, so whatever ran on the box got whichever
-mailbox it had. The backend now sends that operator's own bearer, read from the
-vault under `secrets.connector_key`.
-"""
-
 from __future__ import annotations
 
 import base64
@@ -57,36 +18,13 @@ import httpx
 
 HERE = Path(__file__).resolve().parent
 TOKEN_FILE = HERE.parent / ".gmail-token.json"
-"""The single-tenant grant this connector used to keep. Read only to adopt it
-into the per-tenant store below; nothing serves from it."""
 
 HOST = os.environ.get("GMAIL_CONNECTOR_HOST", "127.0.0.1")
-"""What to bind. Loopback by default, because on a laptop this is a local tool
-and a connector on 0.0.0.0 is a mailbox on the office network.
-
-A container is the other case and is why this is settable: inside one, loopback
-is reachable by nothing, so the compose service sets `0.0.0.0` and publishes no
-port. What can reach it is then exactly the compose network -- the API and the
-worker -- and a bearer is still required from every one of them."""
 
 GRANTS = HERE.parent / ".gmail-grants"
-"""One grant per tenant, each named by the sha256 of the bearer that reaches it.
-
-A connector holding ONE Google grant and checking no credential is a connector
-that hands whoever reaches it whichever mailbox it has -- and it listens on
-localhost, so "whoever reaches it" is anything on the box. Every tenant's step
-went to the same inbox.
-
-Keyed by the hash of the bearer rather than by the tenant's name, so this
-directory is a lookup and not a mapping table: a request either carries a
-bearer we have a grant for or it does not, and the answer needs no second file
-to be kept in step. The bearer itself is never written down -- what is on disk
-cannot be replayed against this server.
-"""
 
 
 def _grant_of(bearer: str) -> dict[str, str] | None:
-    """The grant this bearer reaches, or None. The whole of the gate."""
     if not bearer:
         return None
     named = GRANTS / f"{hashlib.sha256(bearer.encode()).hexdigest()}.json"
@@ -97,15 +35,11 @@ def _grant_of(bearer: str) -> dict[str, str] | None:
 
 
 REDIRECT = "http://localhost:8933/oauth/callback"
-"""Where Google sends the operator back. Must be listed in the OAuth client's
-Authorized redirect URIs, exactly as written here."""
 
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/gmail.send",
 ]
-"""Read and send, and nothing else. `gmail.modify` would also let this delete,
-which no step here does and no operator agreed to."""
 
 GMAIL = "https://gmail.googleapis.com/gmail/v1/users/me"
 SESSION = uuid.uuid4().hex
@@ -177,16 +111,6 @@ TOOLS = [
 
 
 def _client() -> tuple[str, str]:
-    """The OAuth client, from the file Google hands you.
-
-    Read out of `client_secret*.json` as downloaded, rather than asking anybody
-    to copy two values into a second place. A secret copied by hand is a secret
-    typed into a shell, pasted into a chat, and left in a scrollback -- and the
-    file is already the thing Google treats as canonical.
-
-    The environment still wins where it is set, because a deployment that keeps
-    its secrets somewhere else should not have to invent this file.
-    """
     ident = os.environ.get("GMAIL_CLIENT_ID", "").strip()
     secret = os.environ.get("GMAIL_CLIENT_SECRET", "").strip()
     if ident and secret:
@@ -221,16 +145,6 @@ def _client() -> tuple[str, str]:
 
 
 def _access_token(grant: dict[str, str]) -> str:
-    """A live access token, refreshed from THIS tenant's grant.
-
-    Refreshed on every call rather than cached with an expiry: this serves one
-    request at a time, minutes apart, and a token that expired between two of
-    them is a failure nobody could explain from the logs.
-
-    The grant is passed in rather than read from a module global, because which
-    grant to use is a fact about the request: it is whichever one the caller's
-    bearer reached.
-    """
     stored = grant
     ident, secret = _client()
     answer = httpx.post(
@@ -252,14 +166,6 @@ def _access_token(grant: dict[str, str]) -> str:
 
 
 def _keep(tenant: str, operator: str, refresh_token: str) -> None:
-    """Write one operator's grant, and print the bearer that reaches it once.
-
-    The bearer is minted here rather than chosen, and printed rather than
-    stored: what goes on disk is its sha256, so this directory cannot be read
-    back into a credential that reaches this server. Whoever runs this puts the
-    printed value in the vault under `tenant/gmail/mcp-token` and it is never
-    seen again.
-    """
     bearer = secrets.token_urlsafe(32)
     GRANTS.mkdir(mode=0o700, exist_ok=True)
     named = GRANTS / f"{hashlib.sha256(bearer.encode()).hexdigest()}.json"
@@ -272,42 +178,16 @@ def _keep(tenant: str, operator: str, refresh_token: str) -> None:
     print(f"\ngrant stored for {operator} of {tenant}. Gitignored, and holds no mail.")
     print("Put this in the vault as this operator's connector credential:")
     print(f"\n  {bearer}\n")
-    # Printed because the key hashes the operator in and nobody can derive it
-    # by eye -- see `secrets.connector_key` for why it has to.
     print(f"  key: {_vault_key(tenant, operator)}")
     print("It is shown once. Losing it costs a re-authorize, not the mailbox.")
 
 
 def _vault_key(tenant: str, operator: str) -> str:
-    """The same key the backend asks the vault for.
-
-    Spelled here rather than imported: this script runs on its own, outside the
-    package, and a second spelling is how a grant gets stored where nothing
-    looks for it. Held to the original by
-    `test_the_connector_and_the_backend_agree_on_where_a_grant_lives`.
-    """
     named = hashlib.sha256(operator.encode()).hexdigest()[:32]
     return f"{tenant}/gmail/mcp-token-{named}"
 
 
 def authorize(tenant: str, operator: str) -> None:
-    """The one step nobody can take on the operator's behalf.
-
-    Their Google account, their consent screen, their decision about what this
-    may read and send. All this does is open the page and catch the code Google
-    sends back.
-
-    Per OPERATOR, because a grant belongs to one person: each reads their own
-    mail. A connector holding a single grant and checking no credential hands
-    whichever mailbox it has to whoever reaches it -- and it listens on
-    localhost, so that is anything on the box.
-
-    Adopts the old single-tenant `.gmail-token.json` where one is still there,
-    so a deployment that authorized before this existed does not have to send
-    somebody back to Google. The old file is left alone rather than deleted: it
-    is a credential, and deleting somebody's credential is not this script's
-    decision to make.
-    """
     if TOKEN_FILE.exists():
         kept = json.loads(TOKEN_FILE.read_text())
         if kept.get("refresh_token"):
@@ -339,8 +219,6 @@ def authorize(tenant: str, operator: str) -> None:
             "redirect_uri": REDIRECT,
             "response_type": "code",
             "scope": " ".join(SCOPES),
-            # Offline and forced, so a refresh token comes back. Google sends
-            # one only on the first consent unless asked again.
             "access_type": "offline",
             "prompt": "consent",
         }
@@ -389,11 +267,6 @@ def _headers_of(payload: dict[str, Any]) -> dict[str, str]:
 
 
 def _body_of(payload: dict[str, Any]) -> str:
-    """The readable text of a mail, preferring plain over HTML.
-
-    Walked rather than assumed: a mail is a tree of parts, and the one a person
-    reads is rarely the first.
-    """
     if payload.get("mimeType") == "text/plain":
         data = payload.get("body", {}).get("data", "")
         if data:
@@ -407,14 +280,6 @@ def _body_of(payload: dict[str, Any]) -> str:
 
 
 def _answered(response: httpx.Response, what: str) -> dict[str, Any]:
-    """The body, or a refusal said out loud.
-
-    Gmail answers a disabled API, a missing scope and a revoked grant with a
-    4xx and a JSON body that simply has no results in it. Read with `.json()`
-    and no check, every one of those becomes an empty inbox -- a failure
-    wearing the face of a success, which is worse than an error because nobody
-    goes looking for the cause of nothing.
-    """
     if response.status_code >= 400:
         detail = ""
         try:
@@ -475,20 +340,7 @@ def _get(token: str, arguments: dict[str, Any]) -> str:
     return json.dumps(
         {
             "id": full.get("id", ""),
-            # Which conversation this belongs to.
-            #
-            # A request rarely carries what it is about -- "please create the
-            # customer type as discussed" -- and what it is about is in the
-            # mail before it, in the same thread. Without this the only way to
-            # reach that mail is to search the whole mailbox and hope, which on
-            # a mailbox holding seventeen near-identical threads finds the
-            # wrong one or none. Measured on the deployment, 2026-09-17 at
-            # 21:26: "gathered 0 of 2 ... the mailbox holds none of the values
-            # this job needs", about values sitting one mail away.
             "thread_id": full.get("threadId", ""),
-            # The mail's own id, for the same reason `_thread` carries one: a
-            # reply names it in `In-Reply-To`, and Gmail's internal id is not
-            # one any other client can thread on.
             "rfc822_message_id": head.get("message-id", ""),
             "from": head.get("from", ""),
             "subject": head.get("subject", ""),
@@ -499,12 +351,6 @@ def _get(token: str, arguments: dict[str, Any]) -> str:
 
 
 def _thread(token: str, arguments: dict[str, Any]) -> str:
-    """Every mail in one conversation, oldest first.
-
-    The conversation and not a search: a reply names no values and the mail it
-    replies to holds them, and which mail that is, is a fact Gmail already
-    knows. Searching for it is guessing at something nobody has to guess at.
-    """
     whole = _answered(
         httpx.get(
             f"{GMAIL}/threads/{arguments.get('id', '')}",
@@ -521,18 +367,6 @@ def _thread(token: str, arguments: dict[str, Any]) -> str:
         said.append(
             {
                 "id": one.get("id", ""),
-                # The mail's OWN id, which is not Gmail's id for it.
-                #
-                # `In-Reply-To` must carry an RFC822 `Message-Id` -- the
-                # `<...@host>` the sending client minted -- and this was
-                # sending Gmail's internal `1a0b...` instead, because it was
-                # the only id here. Gmail itself threads on `threadId` and
-                # never noticed; every other client saw a header naming a
-                # message it has never heard of and drew an orphan.
-                #
-                # Measured on the deployment 2026-09-18: the mail this system
-                # sent arrived in the recipient's mailbox as a NEW
-                # conversation, not under the request it was answering.
                 "rfc822_message_id": head.get("message-id", ""),
                 "from": head.get("from", ""),
                 "date": head.get("date", ""),
@@ -548,13 +382,6 @@ def _send(token: str, arguments: dict[str, Any]) -> str:
     mail["To"] = str(arguments.get("to", ""))
     mail["Subject"] = str(arguments.get("subject", ""))
     mail.set_content(str(arguments.get("body", "")))
-    # Threaded two ways, because two different things do the threading.
-    #
-    # `threadId` is what GMAIL uses, and it is what makes the reply findable:
-    # this system matches an arriving mail to the run waiting on it by thread
-    # id, so a reply that starts its own conversation answers nobody. The
-    # `In-Reply-To` header is what every OTHER mail client uses, and without it
-    # the person who receives this sees an orphan.
     within = str(arguments.get("thread_id", "")).strip()
     answering = str(arguments.get("in_reply_to", "")).strip()
     if answering:
@@ -574,12 +401,6 @@ def _send(token: str, arguments: dict[str, Any]) -> str:
 
 
 class Connector(BaseHTTPRequestHandler):
-    """The MCP half: greet, hand out a session, then answer calls.
-
-    The same protocol the mock connector speaks, and for the same reason -- a
-    client that skipped the greeting could talk to neither.
-    """
-
     def log_message(self, *args: Any) -> None:
         return
 
@@ -617,10 +438,6 @@ class Connector(BaseHTTPRequestHandler):
             self._reply(200, self._envelope(request.get("id"), {"tools": TOOLS}))
             return
         if method == "tools/call":
-            # The gate, and it is here rather than at `initialize` on purpose:
-            # a handshake tells a caller nothing about a mailbox, and a call
-            # is the first thing that would. An unknown bearer reaches no
-            # grant, so it reaches no mail.
             bearer = self.headers.get("Authorization", "").removeprefix("Bearer ").strip()
             grant = _grant_of(bearer)
             if grant is None:
@@ -659,9 +476,6 @@ class Connector(BaseHTTPRequestHandler):
                     )
                     return
             except Exception as refused:
-                # `isError` rather than a transport failure: the escalation table
-                # treats "it refused" and "there was nothing to ask" differently,
-                # and both arriving as an exception would collapse them.
                 print(f"  ! {refused}")
                 self._reply(
                     200,
@@ -712,7 +526,7 @@ if __name__ == "__main__":
         raise SystemExit(0)
 
     port = int(next((one for one in sys.argv[1:] if one.isdigit()), "8932"))
-    _client()  # fail now, with a sentence, rather than on the first call
+    _client()
     if not GRANTS.is_dir() or not any(GRANTS.glob("*.json")):
         raise SystemExit(f"no grant yet: run `{sys.argv[0]} --authorize <tenant> <operator>` first")
 

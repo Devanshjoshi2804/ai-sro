@@ -32,10 +32,6 @@ async def health() -> Health:
 
 @router.get("/ready")
 async def ready(container: ContainerDep) -> Health:
-    # Two facts, not one. A database that answers and is behind its code is
-    # reachable and useless -- which is the state that cost an afternoon of
-    # diagnosis aimed at the wrong half of the system. Both come back from one
-    # connection: see `Container.readiness`.
     checks = await container.readiness()
     return Health(
         status="ok" if all(checks.values()) else "degraded",

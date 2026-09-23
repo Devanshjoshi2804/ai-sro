@@ -1,10 +1,3 @@
-"""Playback links for a recording's media.
-
-URLs are minted per request and expire. A recording holds live customer traffic,
-so a link that outlives the page it was rendered on is a copy of the evidence
-nobody is tracking.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass

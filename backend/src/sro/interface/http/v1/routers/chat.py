@@ -49,14 +49,6 @@ async def read_chat(body: ChatRequest, container: ContainerDep, ctx: ContextDep)
     the operator may walk away from it.
     """
     read = await container.read_chat().execute(ctx, utterance=body.utterance)
-    # A sentence that named no job. The tenant was billed for the reading and
-    # the `chats` row records that, in a table about what was SPENT -- and
-    # from where the operator is standing this is the plainest version of the
-    # whole complaint: they asked for something and nothing came back.
-    #
-    # The sentence itself is not recorded, here or anywhere: `ChatReading` has
-    # no column for an operator's words about their own warehouse, and an
-    # attempt is not the place to give them one.
     await container.record_attempt().execute(
         ctx,
         asked_for="ask for a job in words",

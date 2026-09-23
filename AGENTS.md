@@ -139,9 +139,11 @@ grep -rn "unit_of_work()" backend/src/sro/interface/    # must return nothing
 Full detail: [`docs/02-code-standards.md`](docs/02-code-standards.md). The parts
 agents get wrong most often:
 
-- **Comments say why, code says what, `docs/` says why-it-was-designed-so.**
-  Module docstrings are one or two lines. Do not write design essays in source
-  files. Prose should stay under ~25% of lines in `src/`.
+- **Code says what; the why lives in `docs/`.** Backend source has no comments
+  or docstrings. Write the note in `docs/code-notes/<source path>.md` under a
+  heading naming the function or class and the line. Kept in code only: docstrings
+  under `interface/http/` and on schema/pydantic classes (they feed
+  `openapi.json`), and tool directives (`# noqa`, `# type: ignore`).
 - **Business rules live on entities**, not in use cases. A rule in a use case
   holds only on the paths that call it.
 - `tenant_id` is the first parameter of every repository method, never defaulted.

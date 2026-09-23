@@ -35,16 +35,6 @@ async def ask(body: AskRequest, container: ContainerDep, ctx: ContextDep) -> Ask
     """Whichever of the two this sentence was, answered by the half that owns it."""
     if not is_a_question(body.said):
         read = await container.read_chat().execute(ctx, utterance=body.said)
-        # The door the panel's own box actually posts to.
-        #
-        # `/v1/chat` was instrumented first and the panel never calls it:
-        # measured on the deployment 2026-09-20, an operator typed two
-        # sentences into the panel and the attempts table stayed empty, because
-        # every one of them came through here. A record of what somebody asked
-        # for is worth nothing if it is kept at the door they did not use.
-        #
-        # The sentence itself is not recorded, here or anywhere: `ChatReading`
-        # has no column for an operator's words about their own warehouse.
         await container.record_attempt().execute(
             ctx,
             asked_for="ask for a job in words",
@@ -56,9 +46,6 @@ async def ask(body: AskRequest, container: ContainerDep, ctx: ContextDep) -> Ask
 
     planned = await container.plan_lookups().execute(ctx, question=body.said)
     if not body.execute or not planned.plan.ready:
-        # A question this system cannot yet answer -- it has no plan it is
-        # ready to run -- which from the person asking is a question that got
-        # nothing back.
         await container.record_attempt().execute(
             ctx,
             asked_for="ask a question",

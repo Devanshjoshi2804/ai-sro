@@ -85,17 +85,6 @@ async def heartbeat(
         queued_bytes=body.queued_bytes,
         policy_version=body.policy_version,
     )
-    # What the browser decided since the last beat, straight into the same log
-    # the ladder narrates into. Trimmed here rather than trusted: a device is
-    # not a trusted writer, and a line long enough to bury a log is a line
-    # somebody would have to grep around.
-    #
-    # AFTER the beat, which is where the browser proves it is itself. These
-    # used to be written first, so anything holding a device id -- a namespace,
-    # not a credential -- could put lines of its choosing into this tenant's
-    # log without ever answering for them. The id is no longer interpolated
-    # either: `refuse_unless_itself` attributes the request to the browser, so
-    # every one of these carries it the way every other line does.
     for line in body.said:
         logger.info("said: %s", line[:K_SAID_CHARS].replace("\n", " "))
     return HeartbeatResponse(
@@ -235,18 +224,8 @@ async def arrival_fire(
         container, ctx, device_id=device_id, trigger_id=trigger_id, secret=x_device_secret
     )
     if arrival.arrival is None or not arrival.arrival.matches(url):
-        # Not `Conflict`: from the browser's side this is "that rule is not
-        # about this page", which is the same answer as a rule that does not
-        # exist -- and telling the two apart tells a caller which pages this
-        # operator has rules for.
         raise NotFound("no such arrival")
     fired = await container.fire_trigger().execute(arrival.id)
-    # What the operator asked for and what came of it -- including the case
-    # that used to leave nothing at all behind. `FireTrigger` skips rather
-    # than starting a run whose required inputs are empty, and a skip answers
-    # 202 with a `run_id` of null: from the browser it is a press that did
-    # nothing, and until this there was no record anywhere that it had
-    # happened.
     await container.record_attempt().execute(
         ctx,
         asked_for="fire an arrival rule",
@@ -323,10 +302,6 @@ async def watch_matched(
         container, ctx, device_id=device_id, trigger_id=trigger_id, secret=x_device_secret
     )
     running_with = watch.values_from(values)
-    # A skill or a mined job. Both answer the same two questions -- what is this
-    # called, and what did the mail not say -- out of different places: a
-    # skill's runnable version declares its inputs, a job declares its
-    # parameters. `_watch_of` has already refused a watch that names neither.
     if watch.workflow_id is not None:
         job = await container.read_workflows().one(ctx, workflow_id=str(watch.workflow_id))
         named = job.title
@@ -340,19 +315,8 @@ async def watch_matched(
         skill = await container.get_skill().execute(ctx, skill_id=watch.skill_id)
         version = skill.runnable
         named = skill.name
-        # A skill with no runnable version is not a shortage of values, and
-        # saying "nothing said shipment_id" about one would send somebody
-        # looking in the mail for a value that was never the problem. The press
-        # answers that one, with the trigger's own words.
         missing = [] if version is None else blank_inputs(version, running_with)
     if offer:
-        # Said into the conversation as well as answered here, so the operator
-        # sees it somewhere that survives the panel closing. Names only: the
-        # values were read out of somebody's mail and stay in the browser that
-        # read them, which is what `ValueAt` is for. Once per offer -- a browser
-        # reports a match per frame it sees the mail in, and without an id to
-        # recognise the second report by there is nothing to say it once, which
-        # is why an older extension that sends none has nothing written.
         thread = await container.read_threads().current(ctx)
         if thread is None:
             thread = await container.start_thread().execute(ctx)
@@ -374,10 +338,6 @@ async def watch_matched(
         title=named,
         values=running_with,
         missing=missing,
-        # Whether what the mail did not say stops the press. A deployment that
-        # can read the operator's mailbox answers a missing value by going and
-        # looking for it, and a card that refused to start would be the panel
-        # asking for what the run already knows how to find.
         can_find=container.tools.available and container.asker is not None,
     )
 
@@ -436,9 +396,6 @@ async def _watch_of(
     if watch is None:
         raise NotFound("no such watch")
     if watch.skill_id is None and watch.workflow_id is None:
-        # A watch that asks a question runs nothing, and the two calls below
-        # would reach it with nothing to describe. The same `NotFound`
-        # everything else here answers, rather than a 500 about a field.
         raise NotFound("no such watch")
     return watch
 
@@ -446,11 +403,6 @@ async def _watch_of(
 @router.get("")
 async def list_devices(container: ContainerDep, ctx: ContextDep) -> list[DeviceModel]:
     """Whose browsers are being observed. The screen behind the consent story."""
-    # `ReadRoster` rather than the `ReadDevices` that used to be here: a strict
-    # superset over the identical repository call, and two use cases over one
-    # `list_for_tenant` in two packages is how they drift apart. `online` is
-    # the thing it adds, and it is the question this list is actually read to
-    # answer.
     return [
         DeviceModel.of(line.device, online=line.online)
         for line in await container.read_roster().execute(ctx)

@@ -1,5 +1,3 @@
-"""Steel sessions API. Implements ``BrowserProvider``. See docs/07-adr/003-steel.md."""
-
 from __future__ import annotations
 
 import asyncio
@@ -21,34 +19,16 @@ from sro.infrastructure.steel.capture import _addressed
 from sro.infrastructure.steel.screencast import stream_frames
 
 _CONTEXT = frozenset({"referer"})
-"""Not a credential, and not replayable from the demonstration either.
-
-Blue Yonder's auth filter reads a per-session ``libraryContext`` out of the
-Referer and redirects to the login page without it. The executor sent a live
-cookie and a live token and still got a 302 -- which looks exactly like being
-signed out. The page the application itself calls from is part of the session,
-so it is kept with the session."""
 
 _WANTED = frozenset({Sensitivity.AUTH, Sensitivity.CSRF})
-"""What authenticates a call, and nothing else. The cookie is kept separately
-and refreshed on its own schedule; the transport headers belong to the request
-being made, not to the one being replayed."""
 
 logger = logging.getLogger(__name__)
 
 _LIVE_ATTEMPTS = 4
 _LIVE_POLL_SECONDS = 0.5
-"""Chrome takes a moment to attach, so `idle` is only a failure once it has had
-a few seconds to stop being one."""
 
 
 class SteelClient:
-    """Talks to a self-hosted Steel instance.
-
-    Steel's REST shape is confined to this module. The application only knows
-    ``BrowserProvider``, so replacing Steel is an adapter change.
-    """
-
     def __init__(
         self,
         base_url: str,
@@ -61,24 +41,12 @@ class SteelClient:
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._cdp_url = cdp_url.rstrip("/")
-        # Everything this client does itself goes to `_base_url`. The one
-        # string it builds for somebody else's browser uses this.
         self._viewer_base = (public_base_url or base_url).rstrip("/")
         self._timeout_seconds = session_timeout_seconds
         self._dimensions = dimensions
         self._client = client or httpx.AsyncClient(timeout=30.0)
 
     async def open(self, *, start_url: str | None = None) -> BrowserSession:
-        # Measured against this deployment: creating a session while another is
-        # `live` does not add a browser, it *takes* the one there is -- the
-        # previous session vanishes from the list mid-task. So a sign-in, a
-        # session check or a second pursuit silently killed whatever was already
-        # on screen, and the thing that lost its browser reported, truthfully,
-        # that the screen stopped responding to it.
-        #
-        # Refusing says which session holds it, which is something an operator
-        # can act on. An `idle` session has no browser behind it and is not
-        # holding anything, so it does not count.
         holding = [
             held
             for held in await self._live_sessions()
@@ -93,10 +61,6 @@ class SteelClient:
             "timeout": self._timeout_seconds * 1000,
             "blockAds": True,
             "solveCaptcha": False,
-            # Sized deliberately. The operator has to be able to read the screen
-            # they are demonstrating on, and the accessibility tree that gets
-            # captured is the one this viewport produced -- a cramped layout
-            # teaches a skill about a layout nobody uses.
             "dimensions": {"width": self._dimensions[0], "height": self._dimensions[1]},
         }
         if start_url:
@@ -114,25 +78,11 @@ class SteelClient:
 
         return BrowserSession(
             id=session_id,
-            # Steel reports its own URLs as seen from inside its container
-            # (0.0.0.0:3000). Only the path is usable from out here; the host
-            # comes from configuration, which knows the published ports.
             live_view_url=self._viewer(body),
             debugger_url=await self._websocket_debugger_url(),
         )
 
     async def _require_browser(self, session_id: BrowserSessionId, status: str) -> None:
-        """Refuse a session that has no browser behind it.
-
-        Steel answers 201 whether or not Chrome came up: a session with nothing
-        attached is reported as `idle`, and a self-hosted Steel has exactly one
-        browser to give. Handing that back produced a teaching session that
-        looked like it was recording and showed "the browser session has ended"
-        -- half an hour of a demonstration going nowhere.
-
-        A brief `idle` is normal while Chrome starts, so this waits before
-        deciding, and then says which session is holding the browser.
-        """
         for attempt in range(_LIVE_ATTEMPTS):
             if status.lower() == "live":
                 return
@@ -163,7 +113,6 @@ class SteelClient:
         return str(response.json().get("status", "unknown"))
 
     async def _live_sessions(self) -> list[dict[str, object]]:
-        """Sessions Steel currently believes are using the browser."""
         try:
             response = await self._client.get(f"{self._base_url}/v1/sessions")
             response.raise_for_status()
@@ -177,37 +126,6 @@ class SteelClient:
         ]
 
     async def _cdp_origin(self) -> str:
-        """The CDP endpoint with its host resolved to an address.
-
-        Chrome refuses every `/json/*` request and every devtools websocket
-        whose Host header is a name:
-
-            500 Host header is specified and is not an IP address or localhost.
-
-        It is a DNS-rebinding guard, and on a compose network the host IS a
-        name -- `steel`. So this deployment could reach Chrome's port and could
-        not use it, and nothing noticed until a browser session was opened for
-        the first time. `localhost:9223` on a laptop has an IP for a host and
-        walks straight past the check.
-
-        Resolved rather than overridden with a `Host: localhost` header,
-        because the header would have to be right on the websocket dial too --
-        and that dial belongs to Playwright, which takes a url and not headers.
-        An address in the url is the one thing both halves obey.
-
-        `*.localhost` does not work either: the C library answers it from
-        RFC 6761 before Docker's DNS is asked, so the name resolves to
-        127.0.0.1 and the connection is refused by nothing at all.
-
-        Re-resolved per call, not cached: a restarted Steel comes back on a
-        different address, and a cached one turns that into a connection
-        refused that outlives the restart.
-
-        A host that does not resolve is handed back as it was written. The
-        connection that follows fails on its own and says what it could not
-        reach, which is a better error than one about DNS -- and it keeps a
-        made-up hostname in a test from depending on a resolver.
-        """
         parts = urlsplit(self._cdp_url)
         host, port = parts.hostname or "localhost", parts.port or 9223
         try:
@@ -216,18 +134,9 @@ class SteelClient:
             )
         except OSError:
             return parts.netloc
-        # `sockaddr[0]` for AF_INET is the dotted address. `str()` rather than
-        # a cast because the annotation admits shapes this family never has.
         return f"{found[0][4][0]!s}:{port}"
 
     async def _websocket_debugger_url(self) -> str:
-        """Chrome's own websocket endpoint, with the host put back.
-
-        Chrome derives ``webSocketDebuggerUrl`` from the request Host header and
-        drops the port, so what it returns is ``ws://localhost/devtools/...``.
-        Following that verbatim dials port 80. The path is right; the authority
-        has to come from configuration.
-        """
         authority = await self._cdp_origin()
         try:
             response = await self._client.get(f"http://{authority}/json/version")
@@ -239,13 +148,6 @@ class SteelClient:
         return f"ws://{authority}{path}"
 
     async def close(self, session_id: BrowserSessionId) -> None:
-        """Release the session. A 404 is success -- crash recovery calls this on
-        sessions the provider already reaped.
-
-        The release is checked rather than assumed. Steel answers 200 to
-        releasing a session whose Chrome has already died and leaves it marked
-        live, which reads as success and holds the only browser forever.
-        """
         try:
             response = await self._client.post(f"{self._base_url}/v1/sessions/{session_id}/release")
             if response.status_code == httpx.codes.NOT_FOUND:
@@ -273,12 +175,6 @@ class SteelClient:
 
     @asynccontextmanager
     async def _attached(self) -> AsyncIterator[Browser]:
-        """A short-lived CDP attachment.
-
-        Deliberately not held open: these run against a browser a human is
-        using, and an idle connection to it is a way to lose their session
-        rather than keep it.
-        """
         debugger_url = await self._websocket_debugger_url()
         async with async_playwright() as driver:
             browser = await driver.chromium.connect_over_cdp(debugger_url)
@@ -288,20 +184,12 @@ class SteelClient:
                 await browser.close()
 
     async def session_cookies(self, session_id: BrowserSessionId) -> tuple[dict[str, object], ...]:
-        """Read the cookies through a short-lived CDP attachment.
-
-        Deliberately not held open: this runs once, when a human has just
-        finished logging in, and an idle connection to the browser they are
-        using is a way to lose their session rather than keep it.
-        """
         async with self._attached() as browser:
             context = browser.contexts[0] if browser.contexts else None
             cookies = await context.cookies() if context else []
         return tuple(dict(cookie) for cookie in cookies)
 
     async def forget_everything(self, session_id: BrowserSessionId) -> None:
-        """Clear the cookie jar this deployment's one browser carries between
-        sessions, so what a session is signed into is only what it restored."""
         async with self._attached() as browser:
             context = browser.contexts[0] if browser.contexts else await browser.new_context()
             page = context.pages[0] if context.pages else await context.new_page()
@@ -310,13 +198,6 @@ class SteelClient:
             await cdp.detach()
 
     async def restore(self, session_id: BrowserSessionId, cookies: list[dict[str, object]]) -> None:
-        """Set stored cookies, addressed so the browser will accept them.
-
-        ``Network.setCookies`` derives the source scheme from the URL, and drops
-        a cookie marked secure without one -- silently, in a batch it still
-        reports as successful. The identity provider's cookies are exactly the
-        secure ones.
-        """
         if not cookies:
             return
         async with self._attached() as browser:
@@ -327,17 +208,6 @@ class SteelClient:
             await cdp.detach()
 
     async def session_headers(self, session_id: BrowserSessionId, url: str) -> dict[str, str]:
-        """Watch the application make one request, and keep what authenticates it.
-
-        The page is reloaded rather than merely observed: the tokens wanted are
-        sent on the application's own data calls, and a browser sitting idle on
-        a screen makes none. Reloading the address the connection names is the
-        cheapest way to provoke exactly the traffic the executor will imitate.
-
-        Only same-origin requests are read. A third party's bearer token is
-        theirs, is useless against this system, and has no business in a vault
-        keyed by it.
-        """
         host = urlsplit(url).hostname or ""
         found: dict[str, str] = {}
 
@@ -350,8 +220,6 @@ class SteelClient:
                 request = event.get("request") or {}
                 if (urlsplit(str(request.get("url", ""))).hostname or "") != host:
                     return
-                # Data calls only: the document request carries no token, and
-                # its Referer is whatever the operator came from.
                 if "/data/" not in str(request.get("url", "")):
                     return
                 for name, value in (request.get("headers") or {}).items():
@@ -364,7 +232,6 @@ class SteelClient:
             await cdp.send("Network.enable")
             try:
                 await page.goto(url, wait_until="domcontentloaded")
-                # The data calls follow the document, not the other way round.
                 await page.wait_for_timeout(6000)
             except Exception:
                 logger.warning("could not provoke traffic at %s", url, exc_info=True)
@@ -374,26 +241,16 @@ class SteelClient:
         return found
 
     async def live_sessions(self) -> tuple[BrowserSessionId, ...]:
-        """Every session Steel currently has a browser for."""
         return tuple(BrowserSessionId(str(held["id"])) for held in await self._live_sessions())
 
     async def debugger_url(self, session_id: BrowserSessionId) -> str:
-        """A self-hosted Steel has one browser, so this is the same endpoint for
-        every session it reports. Asked per session anyway, because that is what
-        the port promises and what a pool would have to honour."""
         return await self._websocket_debugger_url()
 
     async def frames(self, session_id: BrowserSessionId) -> AsyncIterator[bytes]:
-        """The session's screen off CDP, rather than Steel's own viewer page."""
         async for frame in stream_frames(await self.debugger_url(session_id)):
             yield frame
 
     async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
-        """Ask Steel where the session can be driven.
-
-        A released session still answers, but with a status that says it is over;
-        there is nothing to point an operator at, so that is ``None``.
-        """
         try:
             response = await self._client.get(f"{self._base_url}/v1/sessions/{session_id}")
             if response.status_code == httpx.codes.NOT_FOUND:
@@ -403,21 +260,11 @@ class SteelClient:
             raise BrowserUnavailable(f"could not read Steel session {session_id}: {exc}") from exc
 
         body = response.json()
-        # `idle` too: a viewer pointed at a session with no browser behind it
-        # renders an empty frame that reads as "the operator's work vanished".
         if str(body.get("status", "")).lower() in {"released", "failed", "idle"}:
             return None
         return self._viewer(body)
 
     def _viewer(self, body: dict[str, object]) -> str:
-        """Steel's bare session player rather than its own console.
-
-        `sessionViewerUrl` is Steel's product UI — its header, its Docs and
-        Discord links, a details panel and a Release Session button sitting
-        inside our teaching screen, offering an operator a way to end the
-        recording that we would never hear about. `debugUrl` is the same
-        screencast with none of it.
-        """
         return self._viewer_base + _path_of(body.get("debugUrl") or body.get("sessionViewerUrl"))
 
     async def health(self) -> bool:
@@ -443,13 +290,6 @@ class SteelClient:
 
 
 def _held_by(holders: list[dict[str, object]]) -> str:
-    """Which sessions are holding the only browser, and since when.
-
-    One sentence, two callers: refusing to take the browser from somebody, and
-    reporting that nothing attached to the session we were given. An operator
-    needs the same three facts either way -- who has it, how long they have had
-    it, and that a stuck one outlives its own Chrome.
-    """
     return (
         ", ".join(
             f"{held.get('id')} has been {held.get('status')} since {held.get('createdAt')}"
@@ -461,7 +301,6 @@ def _held_by(holders: list[dict[str, object]]) -> str:
 
 
 def _path_of(url: object) -> str:
-    """Path and query of a URL, or "/" when there is nothing useful."""
     if not url:
         return "/"
     parts = urlsplit(str(url))

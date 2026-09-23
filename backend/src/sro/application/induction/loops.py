@@ -1,28 +1,3 @@
-"""Reading a loop off two demonstrations that did the same block a different
-number of times.
-
-"Adjust every short-shipped line on this order" is one task, and two honest
-demonstrations of it disagree about how many steps it has. Induction refused
-that pair outright -- *the runs are not two runs of one task* -- which was the
-one thing it could say that was certainly wrong.
-
-The shape recognised here is narrow, and every part of it is checked against
-both runs:
-
-- the block repeats **whole**, the same block in both runs, a different number
-  of times;
-- an **earlier step's response** carried a list whose length is exactly that
-  number, in each run, at the same pointer;
-- every value the block sends that changes from one iteration to the next is a
-  field of the element being acted on, at the **same place in the element**,
-  in every iteration of both runs.
-
-The last rule is what makes this evidence. WebRobot (PLDI 2022, and
-docs/16-what-others-have-solved.md) calls the equivalent test speculate and
-validate: a guessed loop must predict actions it was not built from, or it is
-memorisation with a data structure around it.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
@@ -51,8 +26,6 @@ class LoopFound:
     parameters: tuple[Parameter, ...]
     substitutions: dict[int, tuple[Substitution, ...]]
     keep: int
-    """How many frames of each run survive: the prefix and one iteration. The
-    rest are the same block again and have nothing left to prove."""
 
 
 def detect(
@@ -61,28 +34,13 @@ def detect(
     *,
     taken: set[str] | None = None,
 ) -> LoopFound | None:
-    """The loop these two runs are two lengths of, if they are.
-
-    None for everything else, which is nearly everything: a pair that is not a
-    loop must reach the ordinary refusals unchanged, and a wrong loop is a
-    warehouse doing something once per row of a list nobody meant.
-    """
     shapes_a = [_shape(frame) for frame in frames_a]
     shapes_b = [_shape(frame) for frame in frames_b]
     if len(frames_a) == len(frames_b):
-        # Two runs that did the same number of things prove nothing about
-        # looping. They are a task that does three similar things, and the
-        # ordinary diff has always read that correctly.
         return None
     if any(len(_mutations(frame)) > 1 for frame in (*frames_a, *frames_b)):
-        # One gesture that made two calls is split into two steps later, which
-        # renumbers everything a loop names. Refused rather than guessed at.
         return None
 
-    # Where the block starts is not a guess: the prefix is only right if an
-    # earlier response holds a list as long as the number of iterations that
-    # prefix implies -- in *each* run. Tried shortest first, so the loop starts
-    # as early as the evidence allows.
     for prefix in range(1, min(len(shapes_a), len(shapes_b))):
         if shapes_a[:prefix] != shapes_b[:prefix]:
             break
@@ -143,24 +101,6 @@ def in_step_space(
     frames_a: tuple[ActionFrame, ...],
     frames_b: tuple[ActionFrame, ...],
 ) -> LoopFound:
-    """The same loop, counting the steps the two runs share.
-
-    `detect` reads the frames as they were recorded, and has to: the runs
-    differ in length precisely because one iterated more times, so aligning
-    them first would destroy the very signal a loop is found by. Everything
-    downstream counts aligned steps instead -- what only one operator did is
-    not part of the task and `align` drops it.
-
-    Two index spaces met here and neither was converted. A pair with one
-    unmatched gesture before the block produced a loop whose body named steps
-    the version did not have (`a loop covers steps 3-3, and this version has
-    2`), and the same mismatch is why a loop and a skipped field could not be
-    induced together at all.
-
-    Refused rather than approximated where a frame of the block did not survive
-    alignment: the two runs then disagree about what one iteration is, and
-    guessing there is what ADR 004 exists to prevent.
-    """
     pairs = align(frames_a, frames_b)
     where = {id(frame): position for position, frame in enumerate(frames_a)}
     step_of = {where[id(frame_a)]: step for step, (frame_a, _) in enumerate(pairs)}
@@ -179,9 +119,6 @@ def in_step_space(
 
     steps = [step_of[frame] for frame in body]
     if steps != list(range(steps[0], steps[-1] + 1)):
-        # The body survived, but something the runs do not share sits inside
-        # it. A body with a hole in it is two loops somebody has to be able to
-        # see separately, which is the rule `Loop` itself states.
         raise InductionFailed(
             "this pair is a loop with a gesture inside its body that only one run "
             "made, so the block is not one repeated thing",
@@ -203,8 +140,6 @@ def in_step_space(
 
 
 def _shape(frame: ActionFrame) -> str:
-    """What makes two frames the same step of one task, for this purpose: the
-    control, and the call it made with its identifiers taken out."""
     target = frame.action.target
     named = (target.accessible_name or target.text or target.css_path or "") if target else ""
     request = frame.primary_request
@@ -213,13 +148,6 @@ def _shape(frame: ActionFrame) -> str:
 
 
 def _block_length(tail_a: list[str], tail_b: list[str]) -> int | None:
-    """The shortest block both tails are whole repetitions of.
-
-    Shortest because it claims the least: a body of one step repeated four times
-    is a stronger reading of the same evidence than a body of two repeated
-    twice, and it is the one that keeps working when the third demonstration has
-    five.
-    """
     if not tail_a or not tail_b:
         return None
     for block in range(1, min(len(tail_a), len(tail_b)) + 1):
@@ -229,8 +157,6 @@ def _block_length(tail_a: list[str], tail_b: list[str]) -> int | None:
         if len(tail_a) % block or len(tail_b) % block:
             continue
         if _repeats(tail_a, unit) and _repeats(tail_b, unit):
-            # The counts differ by construction: `detect` refuses two runs of
-            # equal length, and both tails start at the same prefix.
             return block
     return None
 
@@ -246,12 +172,6 @@ def _source_of(
     times_a: int,
     times_b: int,
 ) -> tuple[int, str] | None:
-    """The earlier response that said how many there would be.
-
-    The same pointer of the same step in both runs, holding a list as long as
-    that run's own number of iterations. Anything less is a coincidence: a page
-    of results happens to have three rows in the run that did three things.
-    """
     for index in range(prefix):
         for pointer, listed in _arrays(frames_a[index]):
             if len(listed) != times_a:
@@ -295,22 +215,11 @@ def _bindings(
     times: tuple[int, int],
     taken: set[str],
 ) -> tuple[tuple[Binding, ...], dict[int, tuple[Substitution, ...]], tuple[Parameter, ...]]:
-    """Which values the block sends are fields of the thing it is acting on.
-
-    Read off what changes from one iteration to the next, and then required to
-    hold for *every* iteration of *both* runs -- including the first, which is
-    the one the skill keeps. A rule that explains the iterations it was read
-    from and not the others is the memorisation this is arranged against.
-    """
     elements_a = _elements(frames_a[source], pointer)
     elements_b = _elements(frames_b[source], pointer)
     if len(elements_a) != times[0] or len(elements_b) != times[1]:
         return (), {}, ()
 
-    # Grouped by where in the element the value comes from, not by where it is
-    # sent: Blue Yonder's adjust puts the line id in the path and in the body,
-    # and two parameters that always hold the same value is how a reviewer ends
-    # up reading a plan that looks like a mis-binding.
     places: dict[str, list[tuple[int, Difference]]] = {}
     for offset in range(block):
         for difference in _varies(frames_a, prefix, block, offset, times[0]):
@@ -344,10 +253,6 @@ def _bindings(
                 ),
                 source_step_index=source,
                 source_pointer=place,
-                # A field of the thing being acted on can be a whole non-JSON
-                # body, where the call this loop repeats sends nothing else.
-                # Such a value is the body rather than a value inside one, and
-                # escaping it into a string that is not there would corrupt it.
                 is_the_body=any(isinstance(d.site, TextBodySite) for _, d in sites),
             )
         )
@@ -358,8 +263,6 @@ def _bindings(
 def _varies(
     frames: tuple[ActionFrame, ...], prefix: int, block: int, offset: int, times: int
 ) -> list[Difference]:
-    """Sites where this position of the block sent something different the
-    second time round."""
     first = frames[prefix + offset]
     if times < 2:
         return []
@@ -384,13 +287,6 @@ def _place_in_element(
     elements_b: list[jsonutil.JsonValue],
     times: tuple[int, int],
 ) -> str | None:
-    """Where inside one element this value lives -- if the same place explains
-    every iteration of both runs.
-
-    Read off the first run's first two iterations, then required to hold for all
-    of them and for the other run's as well. A place that explains only what it
-    was read from explains nothing.
-    """
     sent_a = _per_iteration(
         frames_a, prefix, block, offset, times[0], difference, difference.value_a
     )
@@ -422,11 +318,6 @@ def _per_iteration(
     difference: Difference,
     first: str,
 ) -> list[str]:
-    """What this run sent at this site, iteration by iteration.
-
-    Read by diffing each iteration against the first: a site that does not
-    appear in that diff sent the same thing the first one did.
-    """
     values = [first]
     at = frames[prefix + offset]
     for iteration in range(1, times):

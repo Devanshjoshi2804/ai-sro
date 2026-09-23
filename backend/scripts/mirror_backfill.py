@@ -1,17 +1,3 @@
-"""Replay captured batches into the rig.
-
-The extension mirrors an upload to the rig only while the rig's URL and token
-are set in its options, so everything captured before that went to the backend
-alone. This posts the backend's own stored batches to the rig's /v1/observations
-so the rig starts from the evidence that already exists rather than from zero.
-
-Reads only. It never writes to the backend, and the rig refuses a batch id it
-already holds, so running it twice costs two rejected requests and nothing else.
-
-    uv run python scripts/mirror_backfill.py --rig http://127.0.0.1:8100 \
-        --token "$RIG_TOKEN" --tenant acme [--since 2026-09-01] [--dry-run]
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -63,10 +49,6 @@ async def main() -> int:
 
     settings = get_settings()
 
-    # The batches were captured under whatever policy was in force then, and
-    # replaying them into a rig governed by today's policy would ingest exactly
-    # what the tenant has since decided not to watch. The policy is the one
-    # source of truth for that, so it is read rather than restated here.
     excluded: tuple[str, ...] = ()
     if not args.no_policy:
         async with create_session_factory(create_engine(settings.database_url))() as probe:
@@ -83,18 +65,10 @@ async def main() -> int:
             )
         excluded = tuple((found.policy or {}).get("exclude_hosts", ())) if found else ()
         print(f"excluding {len(excluded)} host(s) the tenant no longer watches")
-    # Plus this deployment's own API and console, which `admit` now refuses at
-    # ingest -- but these batches were stored before it did. Without this, a
-    # re-run faithfully re-imports the console asking the API for its own
-    # recordings, which is how twelve such requests reached the rig and one of
-    # them became the write a mined workflow reports as its job.
     ours = settings.our_own_hosts()
     print(f"excluding {len(ours)} host(s) that are this system recording itself")
 
     def watched(event: dict) -> bool:
-        # `.get(k, {})` returns the JSON null, not the default, when the key
-        # is present and null -- and then `.get("url")` on it raises. Every
-        # other reader of this shape uses isinstance for exactly that reason.
         def _at(key: str) -> object:
             nested = event.get(key)
             return nested.get("url") if isinstance(nested, Mapping) else None
@@ -106,9 +80,6 @@ async def main() -> int:
             return False
         host = urlsplit(url).hostname or ""
         if not host:
-            # No host is not the same as a host nobody excluded: a page event
-            # with no url is kept, because dropping evidence for being
-            # unattributable is the failure this whole rig is built against.
             return True
         return not any(host == bad or host.endswith(f".{bad}") for bad in excluded)
 
@@ -140,7 +111,6 @@ async def main() -> int:
     for index, row in enumerate(rows, start=1):
         if args.limit and index > args.limit:
             break
-        # `uri` is s3://bucket/key and the port takes the key alone.
         key = row.uri.split(f"s3://{settings.s3_bucket}/", 1)[-1]
         try:
             raw = await blobs.get(key)
@@ -149,14 +119,9 @@ async def main() -> int:
             failed += 1
             continue
 
-        # The blob is ndjson -- one event per line, as the extension streamed
-        # it -- not an object with an `events` array.
         parsed = [
             json.loads(line) for line in raw.decode("utf8", "replace").splitlines() if line.strip()
         ]
-        # The rig re-declares the wire protocol rather than importing it, so the
-        # batch goes over as the extension sent it. Anything the rig's own
-        # parser refuses it names in the response; it does not reject the batch.
         body = {
             "batch_id": row.id,
             "device_id": row.device_id,

@@ -1,15 +1,3 @@
-"""What the organisation knows, and how it got there.
-
-Teaching is not a conversation. One person demonstrates a task and the whole
-tenant has it: skills, knowledge and threads are tenant-scoped, so the next
-operator to ask finds what a colleague taught last week without knowing they
-taught it.
-
-That only counts for something if it can be seen. This is the read side: what
-is known about a system, how firmly, where each claim came from, and which
-claims the organisation's own runs have proven since.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -32,8 +20,6 @@ class TaughtSkill:
     taught_at: str
     clean_streak: int
     proposed_parameters: int
-    """Values a single demonstration proposed and no second run has proven. The
-    number a reviewer should want to see fall."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,8 +28,6 @@ class KnowledgeSummary:
     kind_counts: dict[str, int]
     evidence_counts: dict[str, int]
     learned_from_runs: int
-    """Claims this tenant's own runs proved, as opposed to scraped. The number
-    that says the system is learning rather than merely loaded."""
 
     superseded: int
     skills: tuple[TaughtSkill, ...]

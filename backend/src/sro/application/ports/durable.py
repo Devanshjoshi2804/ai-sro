@@ -1,15 +1,3 @@
-"""Work that must survive a process dying.
-
-Two very different needs behind one port:
-
-- **Induction** is a computation whose inputs are already durable. Running it
-  through a workflow buys retries and a history to look at when it fails, not
-  correctness.
-- **The session deadline** is the opposite: nothing else in the system will ever
-  notice that an operator walked away, so if this is not durable the recording
-  stays open forever.
-"""
-
 from __future__ import annotations
 
 from typing import Protocol
@@ -28,9 +16,7 @@ class DurableExecution(Protocol):
         first: RecordingId,
         second: RecordingId | None = None,
         name: str | None = None,
-    ) -> InducedSkill:
-        """Run induction durably and wait for its result."""
-        ...
+    ) -> InducedSkill: ...
 
     async def execute_skill(
         self,
@@ -43,14 +29,7 @@ class DurableExecution(Protocol):
         medium: str = "network",
         run_id: RunId | None = None,
         wait: bool = True,
-    ) -> RunId:
-        """Perform a skill durably and wait for it to finish.
-
-        Durable for a different reason again: a run touches a live warehouse one
-        step at a time, and a process that dies halfway must be resumable
-        without repeating the step that may already have landed.
-        """
-        ...
+    ) -> RunId: ...
 
     async def watch_recording(
         self,
@@ -59,15 +38,8 @@ class DurableExecution(Protocol):
         recording_id: RecordingId,
         browser_session_id: BrowserSessionId,
         timeout_seconds: int,
-    ) -> bool:
-        """Start the deadline that reaps this demonstration if it is abandoned.
+    ) -> bool: ...
 
-        Returns whether the watch was actually started. Best effort by contract:
-        the recording is already durable by the time this is called, so a
-        scheduler outage must cost a deadline, never the demonstration.
-        """
-        ...
-
-    async def recording_finished(self, ctx: RequestContext, *, recording_id: RecordingId) -> None:
-        """Tell the deadline it is no longer needed. Never raises."""
-        ...
+    async def recording_finished(
+        self, ctx: RequestContext, *, recording_id: RecordingId
+    ) -> None: ...

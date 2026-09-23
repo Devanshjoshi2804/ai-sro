@@ -1,16 +1,3 @@
-"""Attempts, written and read back.
-
-The domain's own module says what an attempt is and why one exists. This is
-the half that touches a database, and the only thing it adds is a rule the
-port states and this has to keep: **recording an attempt never raises.**
-
-Every caller is a door in the middle of answering somebody, and most of them
-are in the middle of refusing somebody. A refusal that becomes a 500 because
-the recording of it failed is strictly worse than the silence this replaces --
-the operator loses the sentence that told them what was wrong, and gains an
-outage.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -49,9 +36,6 @@ class SqlAttemptRepository(AttemptRepository):
             )
             await self._session.flush()
         except Exception:
-            # Broad on purpose, and said out loud rather than swallowed: the
-            # log is where this fact lives anyway, so a table that will not
-            # take it loses the durable copy and not the fact itself.
             logger.exception(
                 "an attempt could not be recorded: %s came to %s",
                 attempt.asked_for,
@@ -66,9 +50,6 @@ class SqlAttemptRepository(AttemptRepository):
                 await self._session.execute(
                     select(AttemptRow)
                     .where(AttemptRow.tenant_id == tenant_id.value, AttemptRow.at >= since)
-                    # `at` then arrival, which is `offers`' rule and for its
-                    # reason: several attempts share a second, and a day read
-                    # from the end needs "newest" to be a total order.
                     .order_by(AttemptRow.at.desc(), AttemptRow.seq.desc())
                     .limit(limit)
                 )

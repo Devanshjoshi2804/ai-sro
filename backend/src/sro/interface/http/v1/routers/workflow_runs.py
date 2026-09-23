@@ -137,10 +137,6 @@ async def start_workflow_run(
         undoes_run=body.undoes_run,
     )
     container.pursuits.spawn(starter.perform(ctx, claimed))
-    # The press itself, before anything the run does. What the run then makes
-    # of it is the run's own row; this is the record that somebody asked --
-    # and `undoes_run` is what makes an undo legible as the press it is rather
-    # than as another run of a delete.
     await container.record_attempt().execute(
         ctx,
         asked_for="take back a run" if body.undoes_run else "press a job",
@@ -210,10 +206,6 @@ async def get_workflow_run(
     """
     reader = container.get_workflow_run()
     run = await reader.execute(ctx, run_id=run_id)
-    # And whether anything this tenant has been seen doing takes back what it
-    # made. Asked here rather than in the model: it reads the tenant's jobs and
-    # their evidence, and a response model that went to a repository would be a
-    # response model with a session.
     return WorkflowRunModel.of(run, await reader.undo_for(ctx, run))
 
 
@@ -283,8 +275,6 @@ async def called_wrong(
     run = await container.call_workflow_run_wrong().execute(
         ctx, run_id=run_id, because=body.because
     )
-    # The operator's own verdict, in their own words. Not a refusal by this
-    # system: they asked to say it was wrong, and they said it.
     await container.record_attempt().execute(
         ctx,
         asked_for="call a run's result wrong",
@@ -346,9 +336,6 @@ async def approve_workflow_step(
     order, first, resumed = await container.approve_workflow_step().execute(
         ctx, run_id=run_id, asking=asking
     )
-    # `resumed` is whether the tap actually released anything. A second tap on
-    # a card that has already gone through answers 200 and moves nothing --
-    # which, from the person tapping it, is a button that did nothing.
     await container.record_attempt().execute(
         ctx,
         asked_for="approve a step",

@@ -1,0 +1,440 @@
+# Code notes
+
+The backend's comments and docstrings live here instead of in the code. There is one file per source file, at the same path plus `.md`. Each note names the function or class and the line it explains, and keeps the original wording.
+
+Kept in the code: tool directives (`# noqa`, `# type: ignore`, `# pragma`), and docstrings that become runtime text: HTTP routers and schemas (`backend/src/sro/interface/http/`, which feed `frontend/openapi.json`) and pydantic model classes.
+
+Line numbers are correct as of the commit that moved the notes. When the code moves, go by the function or class name.
+
+## Files
+
+| File | Notes |
+| --- | --- |
+| [`backend/gmail-connector/server.py`](backend/gmail-connector/server.py.md) | 25 |
+| [`backend/mock-connector/server.py`](backend/mock-connector/server.py.md) | 3 |
+| [`backend/scripts/backfill_gestures.py`](backend/scripts/backfill_gestures.py.md) | 2 |
+| [`backend/scripts/create_by_api.py`](backend/scripts/create_by_api.py.md) | 3 |
+| [`backend/scripts/dev_browser.py`](backend/scripts/dev_browser.py.md) | 5 |
+| [`backend/scripts/dry_run.py`](backend/scripts/dry_run.py.md) | 9 |
+| [`backend/scripts/look_up.py`](backend/scripts/look_up.py.md) | 1 |
+| [`backend/scripts/measure.py`](backend/scripts/measure.py.md) | 7 |
+| [`backend/scripts/mirror_backfill.py`](backend/scripts/mirror_backfill.py.md) | 8 |
+| [`backend/scripts/mutation_floor.py`](backend/scripts/mutation_floor.py.md) | 9 |
+| [`backend/scripts/one_whole_run.py`](backend/scripts/one_whole_run.py.md) | 35 |
+| [`backend/scripts/open_joins.py`](backend/scripts/open_joins.py.md) | 6 |
+| [`backend/scripts/panel_shot.py`](backend/scripts/panel_shot.py.md) | 5 |
+| [`backend/scripts/probe_mine_route.py`](backend/scripts/probe_mine_route.py.md) | 6 |
+| [`backend/scripts/redact_stored_evidence.py`](backend/scripts/redact_stored_evidence.py.md) | 8 |
+| [`backend/scripts/route_shots.py`](backend/scripts/route_shots.py.md) | 5 |
+| [`backend/scripts/skill_from_rig.py`](backend/scripts/skill_from_rig.py.md) | 4 |
+| [`backend/scripts/smoke.py`](backend/scripts/smoke.py.md) | 11 |
+| [`backend/scripts/status.py`](backend/scripts/status.py.md) | 9 |
+| [`backend/scripts/stub_device.py`](backend/scripts/stub_device.py.md) | 11 |
+| [`backend/scripts/two_miners.py`](backend/scripts/two_miners.py.md) | 2 |
+| [`backend/scripts/two_tabs.py`](backend/scripts/two_tabs.py.md) | 5 |
+| [`backend/scripts/verify_held.py`](backend/scripts/verify_held.py.md) | 9 |
+| [`backend/scripts/what_one_press_writes.py`](backend/scripts/what_one_press_writes.py.md) | 14 |
+| [`backend/scripts/what_they_did.py`](backend/scripts/what_they_did.py.md) | 4 |
+| [`backend/scripts/write_deployment.py`](backend/scripts/write_deployment.py.md) | 2 |
+| [`backend/scripts/write_tokens.py`](backend/scripts/write_tokens.py.md) | 1 |
+| [`backend/src/sro/__init__.py`](backend/src/sro/__init__.py.md) | 1 |
+| [`backend/src/sro/application/__init__.py`](backend/src/sro/application/__init__.py.md) | 1 |
+| [`backend/src/sro/application/analytics/audit.py`](backend/src/sro/application/analytics/audit.py.md) | 8 |
+| [`backend/src/sro/application/analytics/summary.py`](backend/src/sro/application/analytics/summary.py.md) | 10 |
+| [`backend/src/sro/application/capture/assemble.py`](backend/src/sro/application/capture/assemble.py.md) | 8 |
+| [`backend/src/sro/application/capture/decode.py`](backend/src/sro/application/capture/decode.py.md) | 12 |
+| [`backend/src/sro/application/capture/devices.py`](backend/src/sro/application/capture/devices.py.md) | 6 |
+| [`backend/src/sro/application/capture/events.py`](backend/src/sro/application/capture/events.py.md) | 2 |
+| [`backend/src/sro/application/capture/identity.py`](backend/src/sro/application/capture/identity.py.md) | 16 |
+| [`backend/src/sro/application/capture/rig_wire.py`](backend/src/sro/application/capture/rig_wire.py.md) | 32 |
+| [`backend/src/sro/application/chat/about_an_offer.py`](backend/src/sro/application/chat/about_an_offer.py.md) | 19 |
+| [`backend/src/sro/application/chat/announce.py`](backend/src/sro/application/chat/announce.py.md) | 3 |
+| [`backend/src/sro/application/chat/ask_the_asker.py`](backend/src/sro/application/chat/ask_the_asker.py.md) | 28 |
+| [`backend/src/sro/application/chat/converse.py`](backend/src/sro/application/chat/converse.py.md) | 84 |
+| [`backend/src/sro/application/chat/from_the_mail.py`](backend/src/sro/application/chat/from_the_mail.py.md) | 62 |
+| [`backend/src/sro/application/chat/read_chat.py`](backend/src/sro/application/chat/read_chat.py.md) | 4 |
+| [`backend/src/sro/application/chat/read_threads.py`](backend/src/sro/application/chat/read_threads.py.md) | 2 |
+| [`backend/src/sro/application/chat/reading_an_answer.py`](backend/src/sro/application/chat/reading_an_answer.py.md) | 7 |
+| [`backend/src/sro/application/chat/understand.py`](backend/src/sro/application/chat/understand.py.md) | 24 |
+| [`backend/src/sro/application/connection/browsers.py`](backend/src/sro/application/connection/browsers.py.md) | 9 |
+| [`backend/src/sro/application/connection/check_session.py`](backend/src/sro/application/connection/check_session.py.md) | 15 |
+| [`backend/src/sro/application/connection/connect_system.py`](backend/src/sro/application/connection/connect_system.py.md) | 26 |
+| [`backend/src/sro/application/connection/cookies.py`](backend/src/sro/application/connection/cookies.py.md) | 2 |
+| [`backend/src/sro/application/connection/keep_open.py`](backend/src/sro/application/connection/keep_open.py.md) | 7 |
+| [`backend/src/sro/application/connection/release_strays.py`](backend/src/sro/application/connection/release_strays.py.md) | 6 |
+| [`backend/src/sro/application/connection/session_headers.py`](backend/src/sro/application/connection/session_headers.py.md) | 2 |
+| [`backend/src/sro/application/connection/session_life.py`](backend/src/sro/application/connection/session_life.py.md) | 10 |
+| [`backend/src/sro/application/connection/sign_in.py`](backend/src/sro/application/connection/sign_in.py.md) | 16 |
+| [`backend/src/sro/application/connection/watch_browser.py`](backend/src/sro/application/connection/watch_browser.py.md) | 3 |
+| [`backend/src/sro/application/context.py`](backend/src/sro/application/context.py.md) | 1 |
+| [`backend/src/sro/application/execution/answer.py`](backend/src/sro/application/execution/answer.py.md) | 29 |
+| [`backend/src/sro/application/execution/approvals.py`](backend/src/sro/application/execution/approvals.py.md) | 11 |
+| [`backend/src/sro/application/execution/batch.py`](backend/src/sro/application/execution/batch.py.md) | 4 |
+| [`backend/src/sro/application/execution/call_run_wrong.py`](backend/src/sro/application/execution/call_run_wrong.py.md) | 7 |
+| [`backend/src/sro/application/execution/call_workflow_run_wrong.py`](backend/src/sro/application/execution/call_workflow_run_wrong.py.md) | 4 |
+| [`backend/src/sro/application/execution/choices.py`](backend/src/sro/application/execution/choices.py.md) | 5 |
+| [`backend/src/sro/application/execution/declared.py`](backend/src/sro/application/execution/declared.py.md) | 8 |
+| [`backend/src/sro/application/execution/derived_read.py`](backend/src/sro/application/execution/derived_read.py.md) | 6 |
+| [`backend/src/sro/application/execution/effects.py`](backend/src/sro/application/execution/effects.py.md) | 12 |
+| [`backend/src/sro/application/execution/egress.py`](backend/src/sro/application/execution/egress.py.md) | 6 |
+| [`backend/src/sro/application/execution/execute_skill.py`](backend/src/sro/application/execution/execute_skill.py.md) | 97 |
+| [`backend/src/sro/application/execution/gather.py`](backend/src/sro/application/execution/gather.py.md) | 21 |
+| [`backend/src/sro/application/execution/headers.py`](backend/src/sro/application/execution/headers.py.md) | 12 |
+| [`backend/src/sro/application/execution/learn_from_rescue.py`](backend/src/sro/application/execution/learn_from_rescue.py.md) | 5 |
+| [`backend/src/sro/application/execution/mail_job.py`](backend/src/sro/application/execution/mail_job.py.md) | 11 |
+| [`backend/src/sro/application/execution/one_time_secrets.py`](backend/src/sro/application/execution/one_time_secrets.py.md) | 6 |
+| [`backend/src/sro/application/execution/paging.py`](backend/src/sro/application/execution/paging.py.md) | 6 |
+| [`backend/src/sro/application/execution/plan.py`](backend/src/sro/application/execution/plan.py.md) | 5 |
+| [`backend/src/sro/application/execution/plan_step.py`](backend/src/sro/application/execution/plan_step.py.md) | 40 |
+| [`backend/src/sro/application/execution/pursue_goal.py`](backend/src/sro/application/execution/pursue_goal.py.md) | 32 |
+| [`backend/src/sro/application/execution/pursuits.py`](backend/src/sro/application/execution/pursuits.py.md) | 10 |
+| [`backend/src/sro/application/execution/read_runs.py`](backend/src/sro/application/execution/read_runs.py.md) | 5 |
+| [`backend/src/sro/application/execution/reversal.py`](backend/src/sro/application/execution/reversal.py.md) | 9 |
+| [`backend/src/sro/application/execution/revise_run.py`](backend/src/sro/application/execution/revise_run.py.md) | 3 |
+| [`backend/src/sro/application/execution/run_from_preview.py`](backend/src/sro/application/execution/run_from_preview.py.md) | 9 |
+| [`backend/src/sro/application/execution/run_workflow.py`](backend/src/sro/application/execution/run_workflow.py.md) | 210 |
+| [`backend/src/sro/application/execution/self_heal.py`](backend/src/sro/application/execution/self_heal.py.md) | 17 |
+| [`backend/src/sro/application/execution/stops.py`](backend/src/sro/application/execution/stops.py.md) | 3 |
+| [`backend/src/sro/application/execution/verify.py`](backend/src/sro/application/execution/verify.py.md) | 39 |
+| [`backend/src/sro/application/execution/vision_step.py`](backend/src/sro/application/execution/vision_step.py.md) | 5 |
+| [`backend/src/sro/application/execution/what_a_job_taught.py`](backend/src/sro/application/execution/what_a_job_taught.py.md) | 3 |
+| [`backend/src/sro/application/execution/workflow_runs.py`](backend/src/sro/application/execution/workflow_runs.py.md) | 74 |
+| [`backend/src/sro/application/induction/assertions.py`](backend/src/sro/application/induction/assertions.py.md) | 4 |
+| [`backend/src/sro/application/induction/binding.py`](backend/src/sro/application/induction/binding.py.md) | 9 |
+| [`backend/src/sro/application/induction/capabilities.py`](backend/src/sro/application/induction/capabilities.py.md) | 16 |
+| [`backend/src/sro/application/induction/companions.py`](backend/src/sro/application/induction/companions.py.md) | 12 |
+| [`backend/src/sro/application/induction/describe.py`](backend/src/sro/application/induction/describe.py.md) | 5 |
+| [`backend/src/sro/application/induction/diff.py`](backend/src/sro/application/induction/diff.py.md) | 87 |
+| [`backend/src/sro/application/induction/emit.py`](backend/src/sro/application/induction/emit.py.md) | 4 |
+| [`backend/src/sro/application/induction/errors.py`](backend/src/sro/application/induction/errors.py.md) | 1 |
+| [`backend/src/sro/application/induction/frequency.py`](backend/src/sro/application/induction/frequency.py.md) | 7 |
+| [`backend/src/sro/application/induction/headers.py`](backend/src/sro/application/induction/headers.py.md) | 7 |
+| [`backend/src/sro/application/induction/induce_skill.py`](backend/src/sro/application/induction/induce_skill.py.md) | 63 |
+| [`backend/src/sro/application/induction/jsonutil.py`](backend/src/sro/application/induction/jsonutil.py.md) | 7 |
+| [`backend/src/sro/application/induction/locators.py`](backend/src/sro/application/induction/locators.py.md) | 4 |
+| [`backend/src/sro/application/induction/lookups.py`](backend/src/sro/application/induction/lookups.py.md) | 25 |
+| [`backend/src/sro/application/induction/loops.py`](backend/src/sro/application/induction/loops.py.md) | 18 |
+| [`backend/src/sro/application/induction/naming.py`](backend/src/sro/application/induction/naming.py.md) | 8 |
+| [`backend/src/sro/application/induction/narration.py`](backend/src/sro/application/induction/narration.py.md) | 5 |
+| [`backend/src/sro/application/induction/seed_from_flow.py`](backend/src/sro/application/induction/seed_from_flow.py.md) | 4 |
+| [`backend/src/sro/application/induction/sites.py`](backend/src/sro/application/induction/sites.py.md) | 20 |
+| [`backend/src/sro/application/induction/transform.py`](backend/src/sro/application/induction/transform.py.md) | 6 |
+| [`backend/src/sro/application/induction/understand.py`](backend/src/sro/application/induction/understand.py.md) | 16 |
+| [`backend/src/sro/application/induction/version.py`](backend/src/sro/application/induction/version.py.md) | 2 |
+| [`backend/src/sro/application/intent/match.py`](backend/src/sro/application/intent/match.py.md) | 18 |
+| [`backend/src/sro/application/intent/narrow.py`](backend/src/sro/application/intent/narrow.py.md) | 27 |
+| [`backend/src/sro/application/intent/next_steps.py`](backend/src/sro/application/intent/next_steps.py.md) | 15 |
+| [`backend/src/sro/application/intent/plan_task.py`](backend/src/sro/application/intent/plan_task.py.md) | 2 |
+| [`backend/src/sro/application/intent/pursue.py`](backend/src/sro/application/intent/pursue.py.md) | 15 |
+| [`backend/src/sro/application/intent/resolve.py`](backend/src/sro/application/intent/resolve.py.md) | 32 |
+| [`backend/src/sro/application/intent/spend.py`](backend/src/sro/application/intent/spend.py.md) | 4 |
+| [`backend/src/sro/application/knowledge/backfill.py`](backend/src/sro/application/knowledge/backfill.py.md) | 4 |
+| [`backend/src/sro/application/knowledge/learn_from_run.py`](backend/src/sro/application/knowledge/learn_from_run.py.md) | 7 |
+| [`backend/src/sro/application/knowledge/open_questions.py`](backend/src/sro/application/knowledge/open_questions.py.md) | 10 |
+| [`backend/src/sro/application/knowledge/read_knowledge.py`](backend/src/sro/application/knowledge/read_knowledge.py.md) | 3 |
+| [`backend/src/sro/application/knowledge/record_claim.py`](backend/src/sro/application/knowledge/record_claim.py.md) | 5 |
+| [`backend/src/sro/application/knowledge/retrieve.py`](backend/src/sro/application/knowledge/retrieve.py.md) | 3 |
+| [`backend/src/sro/application/knowledge/vectors.py`](backend/src/sro/application/knowledge/vectors.py.md) | 3 |
+| [`backend/src/sro/application/lookup/answer.py`](backend/src/sro/application/lookup/answer.py.md) | 15 |
+| [`backend/src/sro/application/lookup/naming.py`](backend/src/sro/application/lookup/naming.py.md) | 8 |
+| [`backend/src/sro/application/lookup/plan_lookups.py`](backend/src/sro/application/lookup/plan_lookups.py.md) | 11 |
+| [`backend/src/sro/application/lookup/run_lookups.py`](backend/src/sro/application/lookup/run_lookups.py.md) | 15 |
+| [`backend/src/sro/application/observation/admit.py`](backend/src/sro/application/observation/admit.py.md) | 5 |
+| [`backend/src/sro/application/observation/artifacts.py`](backend/src/sro/application/observation/artifacts.py.md) | 6 |
+| [`backend/src/sro/application/observation/correlate.py`](backend/src/sro/application/observation/correlate.py.md) | 9 |
+| [`backend/src/sro/application/observation/demonstrate.py`](backend/src/sro/application/observation/demonstrate.py.md) | 6 |
+| [`backend/src/sro/application/observation/evidence.py`](backend/src/sro/application/observation/evidence.py.md) | 4 |
+| [`backend/src/sro/application/observation/forget.py`](backend/src/sro/application/observation/forget.py.md) | 4 |
+| [`backend/src/sro/application/observation/ingest.py`](backend/src/sro/application/observation/ingest.py.md) | 18 |
+| [`backend/src/sro/application/observation/learn.py`](backend/src/sro/application/observation/learn.py.md) | 7 |
+| [`backend/src/sro/application/observation/mine.py`](backend/src/sro/application/observation/mine.py.md) | 7 |
+| [`backend/src/sro/application/observation/mine_lately.py`](backend/src/sro/application/observation/mine_lately.py.md) | 14 |
+| [`backend/src/sro/application/observation/mine_pass.py`](backend/src/sro/application/observation/mine_pass.py.md) | 4 |
+| [`backend/src/sro/application/observation/mining_pass.py`](backend/src/sro/application/observation/mining_pass.py.md) | 73 |
+| [`backend/src/sro/application/observation/policy.py`](backend/src/sro/application/observation/policy.py.md) | 3 |
+| [`backend/src/sro/application/observation/propose.py`](backend/src/sro/application/observation/propose.py.md) | 50 |
+| [`backend/src/sro/application/observation/read_gesture.py`](backend/src/sro/application/observation/read_gesture.py.md) | 31 |
+| [`backend/src/sro/application/observation/read_pool.py`](backend/src/sro/application/observation/read_pool.py.md) | 3 |
+| [`backend/src/sro/application/observation/read_shots.py`](backend/src/sro/application/observation/read_shots.py.md) | 8 |
+| [`backend/src/sro/application/observation/record_attempt.py`](backend/src/sro/application/observation/record_attempt.py.md) | 5 |
+| [`backend/src/sro/application/observation/redact.py`](backend/src/sro/application/observation/redact.py.md) | 14 |
+| [`backend/src/sro/application/observation/register.py`](backend/src/sro/application/observation/register.py.md) | 15 |
+| [`backend/src/sro/application/observation/retain.py`](backend/src/sro/application/observation/retain.py.md) | 4 |
+| [`backend/src/sro/application/observation/segment.py`](backend/src/sro/application/observation/segment.py.md) | 17 |
+| [`backend/src/sro/application/observation/shots.py`](backend/src/sro/application/observation/shots.py.md) | 9 |
+| [`backend/src/sro/application/observation/teach.py`](backend/src/sro/application/observation/teach.py.md) | 40 |
+| [`backend/src/sro/application/ports/__init__.py`](backend/src/sro/application/ports/__init__.py.md) | 1 |
+| [`backend/src/sro/application/ports/agent.py`](backend/src/sro/application/ports/agent.py.md) | 7 |
+| [`backend/src/sro/application/ports/auth.py`](backend/src/sro/application/ports/auth.py.md) | 6 |
+| [`backend/src/sro/application/ports/blob.py`](backend/src/sro/application/ports/blob.py.md) | 8 |
+| [`backend/src/sro/application/ports/browser.py`](backend/src/sro/application/ports/browser.py.md) | 14 |
+| [`backend/src/sro/application/ports/capture.py`](backend/src/sro/application/ports/capture.py.md) | 4 |
+| [`backend/src/sro/application/ports/channel.py`](backend/src/sro/application/ports/channel.py.md) | 2 |
+| [`backend/src/sro/application/ports/dispatch.py`](backend/src/sro/application/ports/dispatch.py.md) | 4 |
+| [`backend/src/sro/application/ports/durable.py`](backend/src/sro/application/ports/durable.py.md) | 5 |
+| [`backend/src/sro/application/ports/embedding.py`](backend/src/sro/application/ports/embedding.py.md) | 3 |
+| [`backend/src/sro/application/ports/http.py`](backend/src/sro/application/ports/http.py.md) | 4 |
+| [`backend/src/sro/application/ports/intent.py`](backend/src/sro/application/ports/intent.py.md) | 12 |
+| [`backend/src/sro/application/ports/interpretation.py`](backend/src/sro/application/ports/interpretation.py.md) | 11 |
+| [`backend/src/sro/application/ports/model.py`](backend/src/sro/application/ports/model.py.md) | 3 |
+| [`backend/src/sro/application/ports/repositories.py`](backend/src/sro/application/ports/repositories.py.md) | 109 |
+| [`backend/src/sro/application/ports/schedule.py`](backend/src/sro/application/ports/schedule.py.md) | 4 |
+| [`backend/src/sro/application/ports/sign_in.py`](backend/src/sro/application/ports/sign_in.py.md) | 5 |
+| [`backend/src/sro/application/ports/system.py`](backend/src/sro/application/ports/system.py.md) | 2 |
+| [`backend/src/sro/application/ports/token.py`](backend/src/sro/application/ports/token.py.md) | 4 |
+| [`backend/src/sro/application/ports/tools.py`](backend/src/sro/application/ports/tools.py.md) | 9 |
+| [`backend/src/sro/application/ports/transcription.py`](backend/src/sro/application/ports/transcription.py.md) | 4 |
+| [`backend/src/sro/application/ports/ui.py`](backend/src/sro/application/ports/ui.py.md) | 10 |
+| [`backend/src/sro/application/ports/vault.py`](backend/src/sro/application/ports/vault.py.md) | 5 |
+| [`backend/src/sro/application/ports/vision.py`](backend/src/sro/application/ports/vision.py.md) | 9 |
+| [`backend/src/sro/application/recording/attach_artifact.py`](backend/src/sro/application/recording/attach_artifact.py.md) | 5 |
+| [`backend/src/sro/application/recording/finish_recording.py`](backend/src/sro/application/recording/finish_recording.py.md) | 4 |
+| [`backend/src/sro/application/recording/get_recording.py`](backend/src/sro/application/recording/get_recording.py.md) | 1 |
+| [`backend/src/sro/application/recording/ingest_capture_events.py`](backend/src/sro/application/recording/ingest_capture_events.py.md) | 5 |
+| [`backend/src/sro/application/recording/list_recordings.py`](backend/src/sro/application/recording/list_recordings.py.md) | 1 |
+| [`backend/src/sro/application/recording/live_view.py`](backend/src/sro/application/recording/live_view.py.md) | 3 |
+| [`backend/src/sro/application/recording/media.py`](backend/src/sro/application/recording/media.py.md) | 1 |
+| [`backend/src/sro/application/recording/start_recording.py`](backend/src/sro/application/recording/start_recording.py.md) | 10 |
+| [`backend/src/sro/application/shared/__init__.py`](backend/src/sro/application/shared/__init__.py.md) | 1 |
+| [`backend/src/sro/application/shared/locks.py`](backend/src/sro/application/shared/locks.py.md) | 2 |
+| [`backend/src/sro/application/shared/refusals.py`](backend/src/sro/application/shared/refusals.py.md) | 2 |
+| [`backend/src/sro/application/skill/add_assertion.py`](backend/src/sro/application/skill/add_assertion.py.md) | 4 |
+| [`backend/src/sro/application/skill/adopt_rig_workflow.py`](backend/src/sro/application/skill/adopt_rig_workflow.py.md) | 8 |
+| [`backend/src/sro/application/skill/counsel.py`](backend/src/sro/application/skill/counsel.py.md) | 2 |
+| [`backend/src/sro/application/skill/describe_skill.py`](backend/src/sro/application/skill/describe_skill.py.md) | 1 |
+| [`backend/src/sro/application/skill/from_rig.py`](backend/src/sro/application/skill/from_rig.py.md) | 18 |
+| [`backend/src/sro/application/skill/map_step_to_tool.py`](backend/src/sro/application/skill/map_step_to_tool.py.md) | 7 |
+| [`backend/src/sro/application/skill/network_from_rig.py`](backend/src/sro/application/skill/network_from_rig.py.md) | 17 |
+| [`backend/src/sro/application/skill/promote_skill.py`](backend/src/sro/application/skill/promote_skill.py.md) | 3 |
+| [`backend/src/sro/application/skill/read_doings.py`](backend/src/sro/application/skill/read_doings.py.md) | 11 |
+| [`backend/src/sro/application/skill/read_skills.py`](backend/src/sro/application/skill/read_skills.py.md) | 1 |
+| [`backend/src/sro/application/skill/read_workflows.py`](backend/src/sro/application/skill/read_workflows.py.md) | 15 |
+| [`backend/src/sro/application/skill/record_offer.py`](backend/src/sro/application/skill/record_offer.py.md) | 7 |
+| [`backend/src/sro/application/skill/repair_drift.py`](backend/src/sro/application/skill/repair_drift.py.md) | 34 |
+| [`backend/src/sro/application/skill/serve_shapes.py`](backend/src/sro/application/skill/serve_shapes.py.md) | 7 |
+| [`backend/src/sro/application/skill/version_from_rig.py`](backend/src/sro/application/skill/version_from_rig.py.md) | 11 |
+| [`backend/src/sro/application/trigger/answer_confirmation.py`](backend/src/sro/application/trigger/answer_confirmation.py.md) | 10 |
+| [`backend/src/sro/application/trigger/create_trigger.py`](backend/src/sro/application/trigger/create_trigger.py.md) | 23 |
+| [`backend/src/sro/application/trigger/fire_trigger.py`](backend/src/sro/application/trigger/fire_trigger.py.md) | 30 |
+| [`backend/src/sro/application/trigger/read_triggers.py`](backend/src/sro/application/trigger/read_triggers.py.md) | 7 |
+| [`backend/src/sro/application/trigger/receive_inbound.py`](backend/src/sro/application/trigger/receive_inbound.py.md) | 3 |
+| [`backend/src/sro/cli/mint.py`](backend/src/sro/cli/mint.py.md) | 2 |
+| [`backend/src/sro/cli/observe.py`](backend/src/sro/cli/observe.py.md) | 3 |
+| [`backend/src/sro/cli/read_cron.py`](backend/src/sro/cli/read_cron.py.md) | 5 |
+| [`backend/src/sro/config.py`](backend/src/sro/config.py.md) | 53 |
+| [`backend/src/sro/container.py`](backend/src/sro/container.py.md) | 76 |
+| [`backend/src/sro/domain/__init__.py`](backend/src/sro/domain/__init__.py.md) | 1 |
+| [`backend/src/sro/domain/chat/asked_by.py`](backend/src/sro/domain/chat/asked_by.py.md) | 13 |
+| [`backend/src/sro/domain/chat/asking.py`](backend/src/sro/domain/chat/asking.py.md) | 37 |
+| [`backend/src/sro/domain/chat/asking_the_asker.py`](backend/src/sro/domain/chat/asking_the_asker.py.md) | 8 |
+| [`backend/src/sro/domain/chat/is_it_an_answer.py`](backend/src/sro/domain/chat/is_it_an_answer.py.md) | 11 |
+| [`backend/src/sro/domain/chat/reading.py`](backend/src/sro/domain/chat/reading.py.md) | 7 |
+| [`backend/src/sro/domain/chat/thread.py`](backend/src/sro/domain/chat/thread.py.md) | 14 |
+| [`backend/src/sro/domain/connection/connection.py`](backend/src/sro/domain/connection/connection.py.md) | 11 |
+| [`backend/src/sro/domain/execution/belts.py`](backend/src/sro/domain/execution/belts.py.md) | 27 |
+| [`backend/src/sro/domain/execution/cascade.py`](backend/src/sro/domain/execution/cascade.py.md) | 10 |
+| [`backend/src/sro/domain/execution/diagnosis.py`](backend/src/sro/domain/execution/diagnosis.py.md) | 10 |
+| [`backend/src/sro/domain/execution/escalation.py`](backend/src/sro/domain/execution/escalation.py.md) | 10 |
+| [`backend/src/sro/domain/execution/evidence.py`](backend/src/sro/domain/execution/evidence.py.md) | 22 |
+| [`backend/src/sro/domain/execution/field_notes.py`](backend/src/sro/domain/execution/field_notes.py.md) | 12 |
+| [`backend/src/sro/domain/execution/gathering.py`](backend/src/sro/domain/execution/gathering.py.md) | 20 |
+| [`backend/src/sro/domain/execution/learned_step.py`](backend/src/sro/domain/execution/learned_step.py.md) | 16 |
+| [`backend/src/sro/domain/execution/mail_job.py`](backend/src/sro/domain/execution/mail_job.py.md) | 8 |
+| [`backend/src/sro/domain/execution/model_call.py`](backend/src/sro/domain/execution/model_call.py.md) | 4 |
+| [`backend/src/sro/domain/execution/planning.py`](backend/src/sro/domain/execution/planning.py.md) | 21 |
+| [`backend/src/sro/domain/execution/records.py`](backend/src/sro/domain/execution/records.py.md) | 8 |
+| [`backend/src/sro/domain/execution/rescued.py`](backend/src/sro/domain/execution/rescued.py.md) | 5 |
+| [`backend/src/sro/domain/execution/run.py`](backend/src/sro/domain/execution/run.py.md) | 43 |
+| [`backend/src/sro/domain/execution/safety.py`](backend/src/sro/domain/execution/safety.py.md) | 7 |
+| [`backend/src/sro/domain/execution/secrets.py`](backend/src/sro/domain/execution/secrets.py.md) | 10 |
+| [`backend/src/sro/domain/execution/uses_edges.py`](backend/src/sro/domain/execution/uses_edges.py.md) | 10 |
+| [`backend/src/sro/domain/execution/verdict.py`](backend/src/sro/domain/execution/verdict.py.md) | 8 |
+| [`backend/src/sro/domain/execution/verified_writes.py`](backend/src/sro/domain/execution/verified_writes.py.md) | 5 |
+| [`backend/src/sro/domain/execution/waiting.py`](backend/src/sro/domain/execution/waiting.py.md) | 9 |
+| [`backend/src/sro/domain/execution/what_it_writes.py`](backend/src/sro/domain/execution/what_it_writes.py.md) | 6 |
+| [`backend/src/sro/domain/execution/workflow_run.py`](backend/src/sro/domain/execution/workflow_run.py.md) | 23 |
+| [`backend/src/sro/domain/execution/write_plan.py`](backend/src/sro/domain/execution/write_plan.py.md) | 35 |
+| [`backend/src/sro/domain/knowledge/__init__.py`](backend/src/sro/domain/knowledge/__init__.py.md) | 1 |
+| [`backend/src/sro/domain/knowledge/entry.py`](backend/src/sro/domain/knowledge/entry.py.md) | 10 |
+| [`backend/src/sro/domain/knowledge/supersede.py`](backend/src/sro/domain/knowledge/supersede.py.md) | 5 |
+| [`backend/src/sro/domain/lookup/address.py`](backend/src/sro/domain/lookup/address.py.md) | 10 |
+| [`backend/src/sro/domain/lookup/asking.py`](backend/src/sro/domain/lookup/asking.py.md) | 6 |
+| [`backend/src/sro/domain/lookup/plan.py`](backend/src/sro/domain/lookup/plan.py.md) | 19 |
+| [`backend/src/sro/domain/observation/attempts.py`](backend/src/sro/domain/observation/attempts.py.md) | 10 |
+| [`backend/src/sro/domain/observation/batch.py`](backend/src/sro/domain/observation/batch.py.md) | 6 |
+| [`backend/src/sro/domain/observation/candidate.py`](backend/src/sro/domain/observation/candidate.py.md) | 27 |
+| [`backend/src/sro/domain/observation/device.py`](backend/src/sro/domain/observation/device.py.md) | 10 |
+| [`backend/src/sro/domain/observation/driving.py`](backend/src/sro/domain/observation/driving.py.md) | 9 |
+| [`backend/src/sro/domain/observation/gesture.py`](backend/src/sro/domain/observation/gesture.py.md) | 9 |
+| [`backend/src/sro/domain/observation/grant.py`](backend/src/sro/domain/observation/grant.py.md) | 3 |
+| [`backend/src/sro/domain/observation/identity.py`](backend/src/sro/domain/observation/identity.py.md) | 26 |
+| [`backend/src/sro/domain/observation/mining.py`](backend/src/sro/domain/observation/mining.py.md) | 7 |
+| [`backend/src/sro/domain/observation/policy.py`](backend/src/sro/domain/observation/policy.py.md) | 11 |
+| [`backend/src/sro/domain/observation/pool.py`](backend/src/sro/domain/observation/pool.py.md) | 4 |
+| [`backend/src/sro/domain/observation/reading.py`](backend/src/sro/domain/observation/reading.py.md) | 16 |
+| [`backend/src/sro/domain/observation/redaction.py`](backend/src/sro/domain/observation/redaction.py.md) | 24 |
+| [`backend/src/sro/domain/observation/trim.py`](backend/src/sro/domain/observation/trim.py.md) | 10 |
+| [`backend/src/sro/domain/observation/values.py`](backend/src/sro/domain/observation/values.py.md) | 15 |
+| [`backend/src/sro/domain/observation/window.py`](backend/src/sro/domain/observation/window.py.md) | 25 |
+| [`backend/src/sro/domain/recording/__init__.py`](backend/src/sro/domain/recording/__init__.py.md) | 1 |
+| [`backend/src/sro/domain/recording/artifact.py`](backend/src/sro/domain/recording/artifact.py.md) | 5 |
+| [`backend/src/sro/domain/recording/axgraph.py`](backend/src/sro/domain/recording/axgraph.py.md) | 5 |
+| [`backend/src/sro/domain/recording/background.py`](backend/src/sro/domain/recording/background.py.md) | 3 |
+| [`backend/src/sro/domain/recording/element.py`](backend/src/sro/domain/recording/element.py.md) | 9 |
+| [`backend/src/sro/domain/recording/events.py`](backend/src/sro/domain/recording/events.py.md) | 9 |
+| [`backend/src/sro/domain/recording/narration.py`](backend/src/sro/domain/recording/narration.py.md) | 3 |
+| [`backend/src/sro/domain/recording/network.py`](backend/src/sro/domain/recording/network.py.md) | 11 |
+| [`backend/src/sro/domain/recording/recording.py`](backend/src/sro/domain/recording/recording.py.md) | 9 |
+| [`backend/src/sro/domain/recording/redaction.py`](backend/src/sro/domain/recording/redaction.py.md) | 9 |
+| [`backend/src/sro/domain/recording/sensitivity.py`](backend/src/sro/domain/recording/sensitivity.py.md) | 32 |
+| [`backend/src/sro/domain/recording/state.py`](backend/src/sro/domain/recording/state.py.md) | 3 |
+| [`backend/src/sro/domain/shared/__init__.py`](backend/src/sro/domain/shared/__init__.py.md) | 1 |
+| [`backend/src/sro/domain/shared/errors.py`](backend/src/sro/domain/shared/errors.py.md) | 4 |
+| [`backend/src/sro/domain/shared/hosts.py`](backend/src/sro/domain/shared/hosts.py.md) | 8 |
+| [`backend/src/sro/domain/shared/identifiers.py`](backend/src/sro/domain/shared/identifiers.py.md) | 8 |
+| [`backend/src/sro/domain/shared/objective.py`](backend/src/sro/domain/shared/objective.py.md) | 2 |
+| [`backend/src/sro/domain/shared/prices.py`](backend/src/sro/domain/shared/prices.py.md) | 13 |
+| [`backend/src/sro/domain/skill/__init__.py`](backend/src/sro/domain/skill/__init__.py.md) | 1 |
+| [`backend/src/sro/domain/skill/assertion.py`](backend/src/sro/domain/skill/assertion.py.md) | 2 |
+| [`backend/src/sro/domain/skill/checks.py`](backend/src/sro/domain/skill/checks.py.md) | 25 |
+| [`backend/src/sro/domain/skill/earned.py`](backend/src/sro/domain/skill/earned.py.md) | 9 |
+| [`backend/src/sro/domain/skill/learned.py`](backend/src/sro/domain/skill/learned.py.md) | 31 |
+| [`backend/src/sro/domain/skill/locator.py`](backend/src/sro/domain/skill/locator.py.md) | 8 |
+| [`backend/src/sro/domain/skill/lookup.py`](backend/src/sro/domain/skill/lookup.py.md) | 7 |
+| [`backend/src/sro/domain/skill/loop.py`](backend/src/sro/domain/skill/loop.py.md) | 7 |
+| [`backend/src/sro/domain/skill/offers.py`](backend/src/sro/domain/skill/offers.py.md) | 15 |
+| [`backend/src/sro/domain/skill/parameter.py`](backend/src/sro/domain/skill/parameter.py.md) | 22 |
+| [`backend/src/sro/domain/skill/passwords.py`](backend/src/sro/domain/skill/passwords.py.md) | 12 |
+| [`backend/src/sro/domain/skill/plan.py`](backend/src/sro/domain/skill/plan.py.md) | 19 |
+| [`backend/src/sro/domain/skill/presses.py`](backend/src/sro/domain/skill/presses.py.md) | 6 |
+| [`backend/src/sro/domain/skill/promotion.py`](backend/src/sro/domain/skill/promotion.py.md) | 3 |
+| [`backend/src/sro/domain/skill/repeats.py`](backend/src/sro/domain/skill/repeats.py.md) | 8 |
+| [`backend/src/sro/domain/skill/reversals.py`](backend/src/sro/domain/skill/reversals.py.md) | 11 |
+| [`backend/src/sro/domain/skill/shape.py`](backend/src/sro/domain/skill/shape.py.md) | 25 |
+| [`backend/src/sro/domain/skill/signing_in.py`](backend/src/sro/domain/skill/signing_in.py.md) | 6 |
+| [`backend/src/sro/domain/skill/skill.py`](backend/src/sro/domain/skill/skill.py.md) | 43 |
+| [`backend/src/sro/domain/skill/template.py`](backend/src/sro/domain/skill/template.py.md) | 3 |
+| [`backend/src/sro/domain/skill/track_record.py`](backend/src/sro/domain/skill/track_record.py.md) | 19 |
+| [`backend/src/sro/domain/skill/transform.py`](backend/src/sro/domain/skill/transform.py.md) | 3 |
+| [`backend/src/sro/domain/skill/umbrella.py`](backend/src/sro/domain/skill/umbrella.py.md) | 19 |
+| [`backend/src/sro/domain/skill/workflow.py`](backend/src/sro/domain/skill/workflow.py.md) | 11 |
+| [`backend/src/sro/domain/trigger/arrival.py`](backend/src/sro/domain/trigger/arrival.py.md) | 8 |
+| [`backend/src/sro/domain/trigger/confirmation.py`](backend/src/sro/domain/trigger/confirmation.py.md) | 11 |
+| [`backend/src/sro/domain/trigger/cron.py`](backend/src/sro/domain/trigger/cron.py.md) | 2 |
+| [`backend/src/sro/domain/trigger/trigger.py`](backend/src/sro/domain/trigger/trigger.py.md) | 28 |
+| [`backend/src/sro/domain/trigger/watch.py`](backend/src/sro/domain/trigger/watch.py.md) | 18 |
+| [`backend/src/sro/infrastructure/agent/channel.py`](backend/src/sro/infrastructure/agent/channel.py.md) | 4 |
+| [`backend/src/sro/infrastructure/agent/drivers.py`](backend/src/sro/infrastructure/agent/drivers.py.md) | 13 |
+| [`backend/src/sro/infrastructure/agent/sockets.py`](backend/src/sro/infrastructure/agent/sockets.py.md) | 25 |
+| [`backend/src/sro/infrastructure/auth/keycloak.py`](backend/src/sro/infrastructure/auth/keycloak.py.md) | 7 |
+| [`backend/src/sro/infrastructure/auth/signed_tokens.py`](backend/src/sro/infrastructure/auth/signed_tokens.py.md) | 3 |
+| [`backend/src/sro/infrastructure/blob/minio_store.py`](backend/src/sro/infrastructure/blob/minio_store.py.md) | 5 |
+| [`backend/src/sro/infrastructure/db/attempts.py`](backend/src/sro/infrastructure/db/attempts.py.md) | 3 |
+| [`backend/src/sro/infrastructure/db/codec.py`](backend/src/sro/infrastructure/db/codec.py.md) | 4 |
+| [`backend/src/sro/infrastructure/db/evidence.py`](backend/src/sro/infrastructure/db/evidence.py.md) | 26 |
+| [`backend/src/sro/infrastructure/db/mappers.py`](backend/src/sro/infrastructure/db/mappers.py.md) | 7 |
+| [`backend/src/sro/infrastructure/db/models.py`](backend/src/sro/infrastructure/db/models.py.md) | 125 |
+| [`backend/src/sro/infrastructure/db/offers.py`](backend/src/sro/infrastructure/db/offers.py.md) | 8 |
+| [`backend/src/sro/infrastructure/db/repositories.py`](backend/src/sro/infrastructure/db/repositories.py.md) | 34 |
+| [`backend/src/sro/infrastructure/db/schema_version.py`](backend/src/sro/infrastructure/db/schema_version.py.md) | 7 |
+| [`backend/src/sro/infrastructure/db/session.py`](backend/src/sro/infrastructure/db/session.py.md) | 1 |
+| [`backend/src/sro/infrastructure/db/spend.py`](backend/src/sro/infrastructure/db/spend.py.md) | 5 |
+| [`backend/src/sro/infrastructure/db/workflow_runs.py`](backend/src/sro/infrastructure/db/workflow_runs.py.md) | 27 |
+| [`backend/src/sro/infrastructure/db/workflows.py`](backend/src/sro/infrastructure/db/workflows.py.md) | 26 |
+| [`backend/src/sro/infrastructure/gemini/asker.py`](backend/src/sro/infrastructure/gemini/asker.py.md) | 21 |
+| [`backend/src/sro/infrastructure/gemini/computer_use.py`](backend/src/sro/infrastructure/gemini/computer_use.py.md) | 7 |
+| [`backend/src/sro/infrastructure/gemini/intent.py`](backend/src/sro/infrastructure/gemini/intent.py.md) | 3 |
+| [`backend/src/sro/infrastructure/gemini/interpreter.py`](backend/src/sro/infrastructure/gemini/interpreter.py.md) | 4 |
+| [`backend/src/sro/infrastructure/gemini/null_intent.py`](backend/src/sro/infrastructure/gemini/null_intent.py.md) | 2 |
+| [`backend/src/sro/infrastructure/gemini/null_interpreter.py`](backend/src/sro/infrastructure/gemini/null_interpreter.py.md) | 2 |
+| [`backend/src/sro/infrastructure/http/api_runs.py`](backend/src/sro/infrastructure/http/api_runs.py.md) | 5 |
+| [`backend/src/sro/infrastructure/http/httpx_caller.py`](backend/src/sro/infrastructure/http/httpx_caller.py.md) | 4 |
+| [`backend/src/sro/infrastructure/knowledge/catalogue.py`](backend/src/sro/infrastructure/knowledge/catalogue.py.md) | 12 |
+| [`backend/src/sro/infrastructure/knowledge/embedding.py`](backend/src/sro/infrastructure/knowledge/embedding.py.md) | 5 |
+| [`backend/src/sro/infrastructure/knowledge/ingest.py`](backend/src/sro/infrastructure/knowledge/ingest.py.md) | 4 |
+| [`backend/src/sro/infrastructure/knowledge/seed_skills.py`](backend/src/sro/infrastructure/knowledge/seed_skills.py.md) | 1 |
+| [`backend/src/sro/infrastructure/knowledge/write_endpoints.py`](backend/src/sro/infrastructure/knowledge/write_endpoints.py.md) | 6 |
+| [`backend/src/sro/infrastructure/mcp/client.py`](backend/src/sro/infrastructure/mcp/client.py.md) | 14 |
+| [`backend/src/sro/infrastructure/mcp/server.py`](backend/src/sro/infrastructure/mcp/server.py.md) | 3 |
+| [`backend/src/sro/infrastructure/steel/capture.py`](backend/src/sro/infrastructure/steel/capture.py.md) | 32 |
+| [`backend/src/sro/infrastructure/steel/client.py`](backend/src/sro/infrastructure/steel/client.py.md) | 30 |
+| [`backend/src/sro/infrastructure/steel/generate_extension_recorder.py`](backend/src/sro/infrastructure/steel/generate_extension_recorder.py.md) | 6 |
+| [`backend/src/sro/infrastructure/steel/screencast.py`](backend/src/sro/infrastructure/steel/screencast.py.md) | 5 |
+| [`backend/src/sro/infrastructure/steel/sign_in.py`](backend/src/sro/infrastructure/steel/sign_in.py.md) | 11 |
+| [`backend/src/sro/infrastructure/steel/supervisor.py`](backend/src/sro/infrastructure/steel/supervisor.py.md) | 10 |
+| [`backend/src/sro/infrastructure/steel/ui_driver.py`](backend/src/sro/infrastructure/steel/ui_driver.py.md) | 18 |
+| [`backend/src/sro/infrastructure/steel/video.py`](backend/src/sro/infrastructure/steel/video.py.md) | 13 |
+| [`backend/src/sro/infrastructure/system.py`](backend/src/sro/infrastructure/system.py.md) | 2 |
+| [`backend/src/sro/infrastructure/telemetry/otel.py`](backend/src/sro/infrastructure/telemetry/otel.py.md) | 5 |
+| [`backend/src/sro/infrastructure/temporal/activities.py`](backend/src/sro/infrastructure/temporal/activities.py.md) | 10 |
+| [`backend/src/sro/infrastructure/temporal/durable.py`](backend/src/sro/infrastructure/temporal/durable.py.md) | 11 |
+| [`backend/src/sro/infrastructure/temporal/queues.py`](backend/src/sro/infrastructure/temporal/queues.py.md) | 1 |
+| [`backend/src/sro/infrastructure/temporal/schedules.py`](backend/src/sro/infrastructure/temporal/schedules.py.md) | 5 |
+| [`backend/src/sro/infrastructure/temporal/worker.py`](backend/src/sro/infrastructure/temporal/worker.py.md) | 12 |
+| [`backend/src/sro/infrastructure/temporal/workflows.py`](backend/src/sro/infrastructure/temporal/workflows.py.md) | 14 |
+| [`backend/src/sro/infrastructure/transcription/gemini.py`](backend/src/sro/infrastructure/transcription/gemini.py.md) | 3 |
+| [`backend/src/sro/infrastructure/transcription/null.py`](backend/src/sro/infrastructure/transcription/null.py.md) | 1 |
+| [`backend/src/sro/infrastructure/vault/file_vault.py`](backend/src/sro/infrastructure/vault/file_vault.py.md) | 2 |
+| [`backend/src/sro/infrastructure/vault/secret_manager.py`](backend/src/sro/infrastructure/vault/secret_manager.py.md) | 14 |
+| [`backend/src/sro/interface/http/app.py`](backend/src/sro/interface/http/app.py.md) | 7 |
+| [`backend/src/sro/interface/http/asking.py`](backend/src/sro/interface/http/asking.py.md) | 3 |
+| [`backend/src/sro/interface/http/deps.py`](backend/src/sro/interface/http/deps.py.md) | 2 |
+| [`backend/src/sro/interface/http/errors.py`](backend/src/sro/interface/http/errors.py.md) | 24 |
+| [`backend/src/sro/interface/http/schemas.py`](backend/src/sro/interface/http/schemas.py.md) | 5 |
+| [`backend/src/sro/interface/http/v1/routers/agent_channel.py`](backend/src/sro/interface/http/v1/routers/agent_channel.py.md) | 4 |
+| [`backend/src/sro/interface/http/v1/routers/agents.py`](backend/src/sro/interface/http/v1/routers/agents.py.md) | 9 |
+| [`backend/src/sro/interface/http/v1/routers/ask.py`](backend/src/sro/interface/http/v1/routers/ask.py.md) | 2 |
+| [`backend/src/sro/interface/http/v1/routers/chat.py`](backend/src/sro/interface/http/v1/routers/chat.py.md) | 1 |
+| [`backend/src/sro/interface/http/v1/routers/confirmations.py`](backend/src/sro/interface/http/v1/routers/confirmations.py.md) | 4 |
+| [`backend/src/sro/interface/http/v1/routers/health.py`](backend/src/sro/interface/http/v1/routers/health.py.md) | 1 |
+| [`backend/src/sro/interface/http/v1/routers/lookups.py`](backend/src/sro/interface/http/v1/routers/lookups.py.md) | 1 |
+| [`backend/src/sro/interface/http/v1/routers/observations.py`](backend/src/sro/interface/http/v1/routers/observations.py.md) | 2 |
+| [`backend/src/sro/interface/http/v1/routers/offers.py`](backend/src/sro/interface/http/v1/routers/offers.py.md) | 1 |
+| [`backend/src/sro/interface/http/v1/routers/recordings.py`](backend/src/sro/interface/http/v1/routers/recordings.py.md) | 10 |
+| [`backend/src/sro/interface/http/v1/routers/runs.py`](backend/src/sro/interface/http/v1/routers/runs.py.md) | 2 |
+| [`backend/src/sro/interface/http/v1/routers/secrets.py`](backend/src/sro/interface/http/v1/routers/secrets.py.md) | 1 |
+| [`backend/src/sro/interface/http/v1/routers/shapes.py`](backend/src/sro/interface/http/v1/routers/shapes.py.md) | 1 |
+| [`backend/src/sro/interface/http/v1/routers/stream.py`](backend/src/sro/interface/http/v1/routers/stream.py.md) | 3 |
+| [`backend/src/sro/interface/http/v1/routers/threads.py`](backend/src/sro/interface/http/v1/routers/threads.py.md) | 8 |
+| [`backend/src/sro/interface/http/v1/routers/watch.py`](backend/src/sro/interface/http/v1/routers/watch.py.md) | 3 |
+| [`backend/src/sro/interface/http/v1/routers/workflow_runs.py`](backend/src/sro/interface/http/v1/routers/workflow_runs.py.md) | 4 |
+| [`backend/src/sro/main.py`](backend/src/sro/main.py.md) | 1 |
+| [`backend/src/sro/observability.py`](backend/src/sro/observability.py.md) | 10 |
+| [`backend/src/sro/whose.py`](backend/src/sro/whose.py.md) | 10 |
+
+## Known shortcuts (`ponytail:` notes)
+
+| Where | Note |
+| --- | --- |
+| [`backend/src/sro/application/execution/one_time_secrets.py:1`](backend/src/sro/application/execution/one_time_secrets.py.md) | ponytail: process memory, because the deployment serves this from one uvicorn |
+| [`backend/src/sro/application/execution/read_runs.py:58`](backend/src/sro/application/execution/read_runs.py.md) | ponytail: in-process only. A device run and its socket live in one |
+| [`backend/src/sro/application/execution/workflow_runs.py:572`](backend/src/sro/application/execution/workflow_runs.py.md) | ponytail: in-process only. A run and the socket it drives live in one |
+| [`backend/src/sro/application/induction/diff.py:267`](backend/src/sro/application/induction/diff.py.md) | ponytail: this scores every run against every other run, so choosing the |
+| [`backend/src/sro/application/induction/frequency.py:18`](backend/src/sro/application/induction/frequency.py.md) | ponytail: closing it needs a per-doing record of which parameters each |
+| [`backend/src/sro/application/induction/induce_skill.py:205`](backend/src/sro/application/induction/induce_skill.py.md) | ponytail: per-run loop detection would let a looping task read |
+| [`backend/src/sro/application/induction/induce_skill.py:377`](backend/src/sro/application/induction/induce_skill.py.md) | ponytail: `optional` is still a proxy for the rest of it, and the proxy |
+| [`backend/src/sro/application/induction/induce_skill.py:518`](backend/src/sro/application/induction/induce_skill.py.md) | ponytail: dropping a paired step needs the mirror of `_moved` -- indices |
+| [`backend/src/sro/application/intent/resolve.py:28`](backend/src/sro/application/intent/resolve.py.md) | ponytail: when a library outgrows one page, this becomes a query -- the ranking |
+| [`backend/src/sro/application/lookup/run_lookups.py:74`](backend/src/sro/application/lookup/run_lookups.py.md) | ponytail: whole-store scan; a `calls_for_path` query if a tenant's |
+| [`backend/src/sro/application/observation/ingest.py:152`](backend/src/sro/application/observation/ingest.py.md) | ponytail: the daily byte budget is enforced in the extension only. |
+| [`backend/src/sro/application/observation/mining_pass.py:129`](backend/src/sro/application/observation/mining_pass.py.md) | ponytail: a process-local lock. Claim rows in the database if this ever |
+| [`backend/src/sro/application/observation/mining_pass.py:156`](backend/src/sro/application/observation/mining_pass.py.md) | ponytail: read-modify-write inside one pass's transaction, where the rig |
+| [`backend/src/sro/application/observation/mining_pass.py:282`](backend/src/sro/application/observation/mining_pass.py.md) | ponytail: two genuinely distinct controls that varied over the same value |
+| [`backend/src/sro/application/observation/mining_pass.py:350`](backend/src/sro/application/observation/mining_pass.py.md) | ponytail: this reads the tenant's WHOLE HISTORY, not a day. Neither |
+| [`backend/src/sro/application/observation/mining_pass.py:571`](backend/src/sro/application/observation/mining_pass.py.md) | ponytail: whole-store read per workflow; a `between(first, last)` |
+| [`backend/src/sro/application/observation/propose.py:326`](backend/src/sro/application/observation/propose.py.md) | ponytail: whole-tenant read, indexed in memory. One sweep, not one per |
+| [`backend/src/sro/application/observation/read_gesture.py:65`](backend/src/sro/application/observation/read_gesture.py.md) | ponytail: a process-local lock, because this runs in one process. Claim |
+| [`backend/src/sro/application/observation/read_gesture.py:139`](backend/src/sro/application/observation/read_gesture.py.md) | ponytail: this reads the tenant's WHOLE HISTORY, not a day. Neither |
+| [`backend/src/sro/application/ports/repositories.py:122`](backend/src/sro/application/ports/repositories.py.md) | ponytail: whole rows, and the caller judges each one with the same |
+| [`backend/src/sro/application/trigger/read_triggers.py:26`](backend/src/sro/application/trigger/read_triggers.py.md) | ponytail: filtered here rather than in SQL -- a tenant has tens of |
+| [`backend/src/sro/domain/chat/asking.py:251`](backend/src/sro/domain/chat/asking.py.md) | ponytail: the twin rule is a suffix match on the normalised names, and the |
+| [`backend/src/sro/domain/execution/belts.py:91`](backend/src/sro/domain/execution/belts.py.md) | ponytail: "first completed GET after the write" still admits a stream, a |
+| [`backend/src/sro/domain/execution/evidence.py:14`](backend/src/sro/domain/execution/evidence.py.md) | ponytail: one constant, no per-host calibration. A page that saves on a |
+| [`backend/src/sro/domain/execution/evidence.py:50`](backend/src/sro/domain/execution/evidence.py.md) | ponytail: the FIRST row. Right after a step that filtered on a |
+| [`backend/src/sro/domain/observation/identity.py:111`](backend/src/sro/domain/observation/identity.py.md) | ponytail: `anon` is the only aliasing here. Two recordings that both name a |
+| [`backend/src/sro/domain/observation/window.py:20`](backend/src/sro/domain/observation/window.py.md) | # ponytail: every other cap in this module -- K_MAX_GESTURE_TOKENS, |
+| [`backend/src/sro/domain/observation/window.py:199`](backend/src/sro/domain/observation/window.py.md) | ponytail: greedy per-write, not sitting-level packing. Two writes three |
+| [`backend/src/sro/domain/skill/track_record.py:88`](backend/src/sro/domain/skill/track_record.py.md) | ponytail: the remembered number describes the most recently counted |
+| [`backend/src/sro/infrastructure/agent/sockets.py:25`](backend/src/sro/infrastructure/agent/sockets.py.md) | How often the wait above checks. ponytail: a poll, where an event per device |
+| [`backend/src/sro/infrastructure/db/spend.py:50`](backend/src/sro/infrastructure/db/spend.py.md) | ponytail: four round trips, as the rig made four queries. One |
+| [`backend/src/sro/infrastructure/steel/capture.py:329`](backend/src/sro/infrastructure/steel/capture.py.md) | ponytail: gestures arrive in order, so this matches the frame |

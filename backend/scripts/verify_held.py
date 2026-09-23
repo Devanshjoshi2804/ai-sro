@@ -1,19 +1,3 @@
-"""End to end: a person typing in their own browser reaches the console.
-
-Everything in this chain has a unit test and none of them proves the chain. It
-runs a real extension in a real Chromium, watches a real tab, makes a real
-gesture in it, and then reads the run stream the console reads:
-
-    real gesture -> content script -> worker -> `busy` on the socket
-                 -> DeviceSockets._busy -> AgentDrivers.held_for
-                 -> `waiting` on GET /v1/runs/{id}/stream
-
-    make verify-held
-
-Prints each link as it is proved, and says which one broke when one does.
-Nothing here is part of the product.
-"""
-
 from __future__ import annotations
 
 import json
@@ -32,12 +16,9 @@ TOKEN = os.environ.get("SRO_TOKEN", "")
 
 DEADLINE_S = 20.0
 MAX_BUSY_WAIT = 0.5
-"""Mirrors `infrastructure/agent/sockets.py`. Written out rather than imported so
-this asks the question from outside, the way a console would."""
 
 
 def call(path: str, body: dict | None = None) -> dict:
-    # S310 below: every URL is built from this file's own constants.
     request = urllib.request.Request(  # noqa: S310
         f"{API}{path}",
         data=None if body is None else json.dumps(body).encode(),
@@ -48,14 +29,11 @@ def call(path: str, body: dict | None = None) -> dict:
         with urllib.request.urlopen(request, timeout=20) as answer:  # noqa: S310
             return json.loads(answer.read())
     except urllib.error.HTTPError as refused:
-        # RFC 9457 all the way down, so the reason is readable rather than a
-        # traceback about a status code.
         problem = refused.read().decode()
         raise SystemExit(f"{path} answered {refused.code}: {problem}") from None
 
 
 def held_in_stream(run_id: str, seconds: float = 6.0) -> dict | None:
-    """The `waiting` event, read the way the console reads it."""
     request = urllib.request.Request(  # noqa: S310
         f"{API}/v1/runs/{run_id}/stream", headers={"Authorization": f"Bearer {TOKEN}"}
     )
@@ -132,9 +110,6 @@ def main() -> int:
                 return 1
             print(f"2/6  device registered, channel open   {device[:16]}…")
 
-            # A tab to work in, and told to watch it -- `busy` is only ever sent
-            # from an operator's own gestures, so a tab nobody is observing
-            # produces nothing to prove.
             work = context.new_page()
             work.goto(f"{CONSOLE}/overview")
             work.wait_for_timeout(1500)
@@ -149,12 +124,6 @@ def main() -> int:
             )
             print(f"3/6  tab watched                 {watched}")
 
-            # Typing first, and then the run -- which is both the order that can
-            # be observed and the realistic one. A run that starts against an
-            # idle browser is over in a step, and the stream sends `done` before
-            # it ever asks whether anybody is typing. A browser already busy
-            # holds the first command, which is what keeps the run running long
-            # enough for the console to be told about it.
             work.bring_to_front()
             for _ in range(6):
                 work.mouse.click(600, 400)
@@ -182,10 +151,6 @@ def main() -> int:
             if not held or held <= 0:
                 print(f"6/6  a `waiting` event that says nothing: {waiting}", file=sys.stderr)
                 return 1
-            # Never longer than the backend will actually wait. The browser asks
-            # for BUSY_FOR_MS; a command is held for at most half its own
-            # deadline, and a console counting down from the raw request would
-            # promise a pause nobody intends to take.
             ceiling = DEADLINE_S * MAX_BUSY_WAIT * 1000
             if held > ceiling:
                 print(
@@ -200,13 +165,6 @@ def main() -> int:
 
 
 def skill_to_run() -> tuple[str, dict[str, str]]:
-    """A shadow skill and the values it asks for.
-
-    The rung matters: at shadow every write is produced and withheld, so a
-    verification script cannot change anybody's data whatever it types into the
-    parameters. Which skill does not matter -- the run only has to be running
-    while the operator types.
-    """
     for skill in call("/v1/skills"):
         if skill.get("latest_stage") != "shadow":
             continue

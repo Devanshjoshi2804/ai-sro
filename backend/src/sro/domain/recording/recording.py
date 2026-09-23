@@ -1,5 +1,3 @@
-"""Recording aggregate. See docs/06-glossary.md#recording."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -29,31 +27,15 @@ class RecordingStatus(StrEnum):
 
 @dataclass(eq=False)
 class Recording:
-    """One demonstration. Mutable while capturing, immutable once sealed.
-
-    Skill provenance cites recordings, so a sealed recording must never change --
-    every state transition goes through a method, never a direct assignment.
-    """
-
     id: RecordingId
     tenant_id: TenantId
     demonstrator: PrincipalId
     started_at: datetime
 
     objective_key: ObjectiveKey | None = None
-    """What the demonstration was about. Unknown until it is over: the operator
-    starts one by naming a URL, and the evidence names the task at seal."""
 
     browser_session_id: BrowserSessionId | None = None
     device_id: DeviceId | None = None
-    """Set when the demonstration happened in the operator's own browser rather
-    than one this deployment opened.
-
-    The two are exclusive in practice and the difference decides everything
-    about how the recording is filled: a server-side one is driven through CDP
-    while it happens, and this one arrives afterwards as teaching-mode
-    observation batches. It is also the answer to why a recording has no
-    browser session, which otherwise reads as a bug."""
     label: str | None = None
     status: RecordingStatus = RecordingStatus.CAPTURING
     ended_at: datetime | None = None
@@ -88,7 +70,6 @@ class Recording:
         return self.artifact(ArtifactKind.AUDIO) is not None
 
     def artifact(self, kind: ArtifactKind) -> MediaArtifact | None:
-        """Most recent artifact of a kind. Re-uploads supersede rather than fail."""
         matches = [a for a in self._artifacts if a.kind is kind]
         return matches[-1] if matches else None
 
@@ -99,11 +80,6 @@ class Recording:
         self.browser_session_id = session_id
 
     def append_frame(self, frame: ActionFrame) -> ActionFrame:
-        """Append with an aggregate-assigned index.
-
-        The caller's index is overwritten: the two-run diff aligns positionally,
-        so a gap from a retrying capture adapter would mis-pair steps silently.
-        """
         self._require_open("append a frame")
         placed = (
             frame
@@ -122,12 +98,6 @@ class Recording:
         return placed
 
     def absorb_late_evidence(self, *, requests: tuple[CapturedRequest, ...]) -> bool:
-        """Attach evidence belonging to the most recent action.
-
-        Returns whether there was a frame to attach it to. Nothing to attach to
-        means the traffic really is page-load noise from before the first
-        action, which the caller counts rather than keeps.
-        """
         self._require_open("absorb late evidence")
         if not self._frames or not requests:
             return False
@@ -139,16 +109,10 @@ class Recording:
         self._artifacts.append(artifact)
 
     def attach_narration(self, segments: tuple[NarrationSegment, ...]) -> None:
-        """Replace what was heard. A re-transcription supersedes, never appends.
-
-        Kept in time order because everything downstream lines it up against
-        frames, and a transcriber is free to return segments out of order.
-        """
         self._require_open("attach narration")
         self._narration = sorted(segments, key=lambda segment: segment.starts_at)
 
     def name_objective(self, key: ObjectiveKey) -> None:
-        """Say what this was. Once only -- provenance cites the key as taught."""
         self._require_open("name the objective")
         if self.objective_key is not None and self.objective_key != key:
             raise InvariantViolation("a recording's objective cannot be renamed once it is set")

@@ -1,5 +1,3 @@
-"""What is on a clock, and switching one off."""
-
 from __future__ import annotations
 
 from sro.application.context import RequestContext
@@ -24,23 +22,7 @@ class ReadTriggers:
             return await uow.triggers.get(ctx.tenant_id, trigger_id)
 
     async def watches(self, ctx: RequestContext, *, device_id: DeviceId) -> tuple[Trigger, ...]:
-        """What this one browser is watching for.
-
-        A watch is evaluated nowhere else -- the browser that already has the
-        mailbox open applies the rule locally, and nothing about the mail ever
-        leaves it -- so the browser has to be able to ask what its rules are.
-
-        Scoped to the device as well as the tenant, and that is the point: two
-        operators in the same tenant have their own mailboxes, and a rule about
-        one person's mail handed to another person's browser is that mail being
-        read by somebody who was never offered it. Disabled ones are left out
-        rather than sent with a flag, because a browser that had to remember to
-        check the flag is a browser that one day does not.
-        """
         async with self._uow as uow:
-            # ponytail: filtered here rather than in SQL -- a tenant has tens of
-            # triggers, not thousands. A `device_id` clause on `list_for_tenant`
-            # is the move the first time that stops being true.
             triggers = await uow.triggers.list_for_tenant(ctx.tenant_id)
         return tuple(
             trigger
@@ -51,20 +33,6 @@ class ReadTriggers:
         )
 
     async def arrivals(self, ctx: RequestContext, *, device_id: DeviceId) -> tuple[Trigger, ...]:
-        """The pages this one browser starts a job on.
-
-        Watches and arrivals are asked for separately rather than as "the rules
-        this browser holds", because the browser does two different things with
-        them: a watch is evaluated against a mail and OFFERS what it matched,
-        an arrival is evaluated against the page in front of somebody and
-        STARTS something. One list would make the caller sort them by kind,
-        which is this method's job.
-
-        Scoped to the device for `watches`'s reason and one of its own: an
-        arrival drives that browser, and a rule about one operator's window
-        handed to another's is that window being driven by somebody who never
-        agreed to it.
-        """
         async with self._uow as uow:
             triggers = await uow.triggers.list_for_tenant(ctx.tenant_id)
         return tuple(
@@ -77,10 +45,6 @@ class ReadTriggers:
 
 
 class SetTriggerEnabled:
-    """Pausing a trigger unschedules it rather than letting it fire into a
-    check. A schedule that runs every minute to decide it should not have is a
-    schedule somebody will find in a bill."""
-
     def __init__(self, uow: UnitOfWork, scheduler: Scheduler) -> None:
         self._uow = uow
         self._scheduler = scheduler
@@ -113,15 +77,7 @@ class DeleteTrigger:
 
     async def execute(self, ctx: RequestContext, *, trigger_id: TriggerId) -> None:
         async with self._uow as uow:
-            # Read first: deleting a trigger that is not this tenant's must be
-            # the same "not found" as one that never existed, and a blind
-            # DELETE would answer 200 either way.
             trigger = await uow.triggers.get(ctx.tenant_id, trigger_id)
-            # Only a schedule kind was ever registered with the scheduler --
-            # the same gate SetTriggerEnabled applies. Without it, deleting a
-            # manual or inbound trigger, which never depended on it, could
-            # not be done during exactly the outage the rest of this system
-            # goes out of its way to tolerate.
             if trigger.kind is TriggerKind.SCHEDULE:
                 await self._scheduler.unschedule(trigger.id)
             await uow.triggers.remove(ctx.tenant_id, trigger.id)

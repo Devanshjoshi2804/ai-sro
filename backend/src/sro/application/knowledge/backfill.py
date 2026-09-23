@@ -1,14 +1,3 @@
-"""Give existing claims their vectors.
-
-Turning embeddings on later is the normal case, not an edge one: a deployment
-runs on structured filters for weeks, then somebody decides sending titles to a
-hosted model is acceptable. Everything already stored has no vector, and nothing
-re-ingests it — an unchanged claim is deliberately not rewritten.
-
-So this exists, and it is idempotent by construction: it only ever asks for the
-entries that have no vector yet.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -21,8 +10,6 @@ from sro.application.ports.repositories import UnitOfWork
 logger = logging.getLogger(__name__)
 
 _BATCH = 200
-"""Rows per transaction. Small enough that an interrupted backfill loses a page
-rather than an afternoon, and the next run picks up where it stopped."""
 
 
 class BackfillEmbeddings:
@@ -31,7 +18,6 @@ class BackfillEmbeddings:
         self._embedder = embedder
 
     async def execute(self, ctx: RequestContext, *, limit: int = 10_000) -> int:
-        """Returns how many entries were given a vector."""
         if not self._embedder.available:
             logger.warning("no embedder is configured; nothing to backfill")
             return 0
@@ -56,8 +42,6 @@ class BackfillEmbeddings:
                 await uow.commit()
 
             if written == 0:
-                # The embedder answered with nothing usable. Looping would ask
-                # for the same page forever.
                 logger.warning("embedding produced no vectors; stopping with %d done", filled)
                 break
             filled += written

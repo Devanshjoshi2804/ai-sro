@@ -1,17 +1,3 @@
-"""What each demonstration put in each field.
-
-A version stores the *two* doings it diffed -- that is what proves a field
-varies -- and reads the rest for one thing only, whether some field was left
-empty. So a screen asked to show ten doings side by side has values for two of
-them and nothing for the other eight.
-
-Nothing is missing, though: the version holds the call it sends as a template
-with ``$name`` in the slots, and every doing holds the call it actually made.
-Laying one over the other reads the value straight back out. That is a
-measurement, not an inference -- the same rule as everywhere else here. Where
-the template does not fit what a doing sent, this says so rather than guessing.
-"""
-
 from __future__ import annotations
 
 import re
@@ -38,20 +24,11 @@ class Doing:
     demonstrator: PrincipalId
     frames: int
     diffed: bool
-    """Whether this is one of the two the induction actually diffed. The other
-    doings are evidence read back here, and a reviewer should be able to tell
-    which is which."""
 
     values: dict[str, str | None]
-    """The value this doing put in each parameter it can be read for. ``None``
-    means it sent the field holding nothing -- the absent form -- which is the
-    evidence behind an optional field. A name missing from the mapping is a
-    field this doing does not answer for, and the screen says so."""
 
 
 class ReadDoings:
-    """Every demonstration behind a version, and what each one filled in."""
-
     def __init__(self, uow: UnitOfWork) -> None:
         self._uow = uow
 
@@ -66,10 +43,6 @@ class ReadDoings:
                 try:
                     recording = await uow.recordings.get(ctx.tenant_id, recording_id)
                 except NotFound:
-                    # Purged by retention. The version still cites it -- a
-                    # skill's provenance is never rewritten to hide a gap --
-                    # so the doing is simply not among the ones that can be
-                    # read back.
                     continue
                 doings.append(
                     Doing(
@@ -94,13 +67,6 @@ def _version(versions: tuple[SkillVersion, ...], wanted: int | None) -> SkillVer
 
 
 def values_in(version: SkillVersion, frames: tuple[ActionFrame, ...]) -> dict[str, str | None]:
-    """Read this version's parameters out of one doing's traffic.
-
-    Matched by call rather than by step number: only the two diffed doings
-    have frames the induction aligned, and an older doing may have taken a
-    different route to the same writes. Same method, same endpoint shape --
-    the rule the diff itself uses to decide two calls are the same call.
-    """
     sent = [
         request
         for frame in frames
@@ -120,22 +86,12 @@ def values_in(version: SkillVersion, frames: tuple[ActionFrame, ...]) -> dict[st
             if read is None:
                 continue
             for name, value in read.items():
-                # First reading wins: a task that sends the same call twice in
-                # one doing gets the value from the first, which is the one the
-                # step was induced from.
                 found.setdefault(name, value)
             break
     return found
 
 
 def _unify(plan: NetworkPlan, request: CapturedRequest) -> dict[str, str | None] | None:
-    """The slot values this request holds, or ``None`` if it is not this call.
-
-    The URL decides whether it is the same call at all; only then is the body
-    read. A template that does not fit the body of a call that is otherwise
-    the right one yields the URL's slots and nothing else -- a doing whose
-    payload changed shape still tells you which record it acted on.
-    """
     from_url = _slots(str(plan.url), request.url)
     if from_url is None:
         return None
@@ -148,17 +104,6 @@ def _unify(plan: NetworkPlan, request: CapturedRequest) -> dict[str, str | None]
 
 
 def _slots(template: str, actual: str) -> dict[str, str | None] | None:
-    """What each ``$name`` in ``template`` stands over in ``actual``.
-
-    A regex built from the template's literals, with a non-greedy group per
-    placeholder. Non-greedy because two slots in one JSON body are separated
-    by punctuation the template carries verbatim; greedy matching would let
-    the first slot swallow the second.
-
-    ``None`` when the literals do not fit, which is this function's whole
-    value: it is how a doing that sent something else is reported as unread
-    rather than as a wrong value.
-    """
     names: list[str] = []
     pattern: list[str] = ["\\A"]
     position = 0
@@ -171,8 +116,6 @@ def _slots(template: str, actual: str) -> dict[str, str | None] | None:
     pattern.append("\\Z")
 
     if not names:
-        # A literal call. It identifies itself or it does not; either way it
-        # carries no values.
         return {} if template == actual else None
 
     fitted = re.match("".join(pattern), actual, re.DOTALL)
@@ -182,13 +125,6 @@ def _slots(template: str, actual: str) -> dict[str, str | None] | None:
 
 
 def _read(raw: str) -> str | None:
-    """A slot's contents as a person would read them.
-
-    ``None`` for the absent forms -- a JSON ``null``, an empty string, an
-    emptied slot -- because "this doing left it out" is the fact behind every
-    optional field, and rendering it as the four characters ``null`` hides
-    exactly the thing a reviewer is looking for.
-    """
     value = raw.strip()
     if value in ("", "null", '""', "None"):
         return None

@@ -1,6 +1,3 @@
-"""Induction failures. Messages are written for the operator deciding whether
-to re-record, so they name the step and the disagreement."""
-
 from __future__ import annotations
 
 from sro.domain.shared.errors import DomainError

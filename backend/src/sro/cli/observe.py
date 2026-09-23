@@ -1,15 +1,3 @@
-"""Switch passive observation on or off for one tenant. Shell access only.
-
-Not an endpoint, and the reason is the same one that keeps ``mint`` here: there
-is no role model, so every credential for a tenant can do everything that tenant
-can do. A route that enabled observation would let any operator consent on their
-colleagues' behalf, and ADR 008 makes this a contract conversation.
-
-    python -m sro.cli.observe acme --on --exclude payroll.acme.com --keep-days 30
-    python -m sro.cli.observe acme --off
-    python -m sro.cli.observe acme            # just read it back
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -58,7 +46,6 @@ async def _run(args: argparse.Namespace) -> int:
     container = build_container()
     ctx = RequestContext(
         tenant_id=TenantId(args.tenant),
-        # The shell is the authority here; the name is for the record, not a check.
         principal_id=PrincipalId("shell"),
     )
 
@@ -82,10 +69,6 @@ async def _run(args: argparse.Namespace) -> int:
         )
     )
     if changed.capture_enabled and not changed.include_hosts:
-        # Said every time, because the deny-list is the shape that fails
-        # quietly: it protects the hosts somebody thought of, and a browser has
-        # every host in it. Naming the systems is a minute's work and it is the
-        # difference between observing a warehouse and observing a person.
         print(
             "\nnote: every site in the browser is observed except the excluded ones.\n"
             "      Name the systems instead:\n"

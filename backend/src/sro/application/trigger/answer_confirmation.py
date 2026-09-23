@@ -1,15 +1,3 @@
-"""Somebody answering a fire that was waiting for them.
-
-The run starts here rather than when the trigger went off, and it starts with
-the name of whoever pressed the button. That is the whole point of the queue:
-an unattended write happens because a person said so, minutes or hours later,
-and the record says which person.
-
-Nothing in this file starts anything on its own. `Sweep` marks the ones nobody
-answered as expired, and expiring runs nothing -- a write that happened because
-everybody was on holiday is the failure the ladder exists to prevent.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -52,19 +40,10 @@ class AnswerConfirmation:
         self._ids = ids
         self._durable = durable
         self._dispatcher = dispatcher
-        # The job half, the same shape `dispatcher` has for the skill half:
-        # `None` in a process that cannot drive a browser.
         self._start_run = start_run
         self._pursuits = pursuits
 
     async def approve(self, ctx: RequestContext, *, confirmation_id: ConfirmationId) -> Answered:
-        """Yes: run it, with this person's name on the run.
-
-        The values are the ones frozen when it was asked. Re-reading the
-        trigger here would let a change made in between turn a yes to one thing
-        into a yes to another, and the person who pressed the button would
-        carry the name on it.
-        """
         now = self._clock.now()
         async with self._uow as uow:
             waiting = await uow.confirmations.get(ctx.tenant_id, confirmation_id)
@@ -72,18 +51,12 @@ class AnswerConfirmation:
 
             trigger = await uow.triggers.get(ctx.tenant_id, waiting.trigger_id)
             if not trigger.enabled:
-                # Switched off between the fire and the answer. Approving it
-                # now would run a task somebody has since decided to stop.
                 raise InvariantViolation(
                     f"this trigger was disabled after it fired: "
                     f"{trigger.disabled_reason or 'no reason given'}"
                 )
 
             if waiting.workflow_id is not None:
-                # A mined job. Started the same way a fire starts one, for the
-                # reason the comment below gives about the skill path: a second
-                # start beside the first is how the first one's device_id got
-                # dropped. `authorized_by` is the person who answered.
                 if self._start_run is None and self._dispatcher is None:
                     raise InvariantViolation("this process cannot start a job")
                 run_id = await start_job_for(
@@ -108,17 +81,6 @@ class AnswerConfirmation:
             if version is None:
                 raise InvariantViolation("this skill has no version that may run")
 
-            # The same start a fire uses, rather than a second one beside it.
-            # This called `execute_skill` directly and quietly dropped the
-            # trigger's `device_id`, so a card for a task bound to the
-            # operator's own browser drove a browser this deployment owns --
-            # and failed to attach to a CDP endpoint nobody was listening on,
-            # with the card already marked approved. Found by pressing the
-            # button.
-            #
-            # `authorized_by` is the person who answered, not the person who
-            # made the trigger: an unattended write happens because somebody
-            # said so, and this is the somebody.
             run_id = await start_for(
                 ctx,
                 trigger,
@@ -140,8 +102,6 @@ class AnswerConfirmation:
     async def decline(
         self, ctx: RequestContext, *, confirmation_id: ConfirmationId, note: str = ""
     ) -> Answered:
-        """No. Kept rather than deleted: a card somebody turned down is the
-        clearest evidence there is about a trigger that should not exist."""
         now = self._clock.now()
         async with self._uow as uow:
             waiting = await uow.confirmations.get(ctx.tenant_id, confirmation_id)
@@ -153,8 +113,6 @@ class AnswerConfirmation:
 
 
 class ReadConfirmations:
-    """What is waiting, oldest first."""
-
     def __init__(self, uow: UnitOfWork) -> None:
         self._uow = uow
 
@@ -164,14 +122,6 @@ class ReadConfirmations:
 
 
 class ExpireConfirmations:
-    """Mark the ones nobody answered, so a screen can say so.
-
-    `Confirmation.waiting_at` already refuses a late answer on read, so this
-    changes nothing about what may run -- it is what turns "not answered yet"
-    into "nobody looked", which is a different thing to read a month later and
-    the only one worth changing how a team works over.
-    """
-
     def __init__(self, uow: UnitOfWork, clock: Clock) -> None:
         self._uow = uow
         self._clock = clock
@@ -190,12 +140,6 @@ class ExpireConfirmations:
 
 
 def _refuse_unless_still_askable(waiting: Confirmation, now: datetime) -> None:
-    """The domain object holds both rules; this is where they are asked.
-
-    Kept as a call rather than inlined twice, because approve and decline have
-    to refuse for the same reasons -- a decline recorded against something that
-    already ran would read as somebody having stopped it.
-    """
     if not waiting.waiting_at(now):
         if waiting.answer is not Answer.WAITING:
             raise InvariantViolation(f"this was already {waiting.answer}")

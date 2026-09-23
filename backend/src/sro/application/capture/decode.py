@@ -1,17 +1,3 @@
-"""Wire payloads to domain objects.
-
-The shapes are Chrome's -- ``Network.*``, ``Accessibility.getFullAXTree``, and
-the records the page recorder emits -- and they arrive from two places now: the
-capture adapter attached to a browser this deployment owns, and an extension in
-an operator's own. One definition, so evidence gathered either way becomes the
-same ``ActionFrame``.
-
-Pure: dictionaries in, domain out, no I/O and no clock. It lives here rather
-than beside the adapter because the second caller is a use case, and because
-what it translates is this system's own protocol (docs/14-extension-protocol.md)
-rather than anything Steel decides.
-"""
-
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -86,19 +72,16 @@ _PAGE_EVENT_KINDS = {
 
 
 def epoch_to_datetime(seconds: float) -> datetime:
-    """CDP wall-clock timestamps are Unix seconds as a float."""
     return datetime.fromtimestamp(seconds, tz=UTC)
 
 
 def to_headers(raw: CdpPayload | None) -> dict[str, str]:
-    """Every header, verbatim. Nothing filtered -- see docs/11-capture-completeness.md."""
     if not raw:
         return {}
     return {str(key): str(value) for key, value in raw.items()}
 
 
 def to_initiator(raw: CdpPayload | None) -> Initiator | None:
-    """The 'why' of a request: what caused the browser to make it."""
     if not raw:
         return None
 
@@ -126,11 +109,6 @@ def to_initiator(raw: CdpPayload | None) -> Initiator | None:
 
 
 def to_timing(raw: CdpPayload | None) -> ResourceTiming | None:
-    """CDP timings are offsets in milliseconds from ``requestTime``.
-
-    Negative offsets mean the phase did not happen -- a reused connection has no
-    DNS or TLS -- so they collapse to ``None`` rather than to a bogus zero.
-    """
     if not raw:
         return None
 
@@ -159,7 +137,6 @@ def to_timing(raw: CdpPayload | None) -> ResourceTiming | None:
 
 
 def to_cookies(raw: list[CdpPayload] | None) -> tuple[Cookie, ...]:
-    """All cookie attributes, including the ones that decide replayability."""
     if not raw:
         return ()
     cookies = []
@@ -188,11 +165,6 @@ def to_cookies(raw: list[CdpPayload] | None) -> tuple[Cookie, ...]:
 def to_ax_graph(
     payload: CdpPayload, *, url: str, taken_at: datetime, frame_url: str | None = None
 ) -> AxGraph:
-    """``Accessibility.getFullAXTree`` to a graph with its edges intact.
-
-    Ignored nodes are kept: an element becoming ignored is itself a state change,
-    and dropping them would break the parent chain for everything beneath.
-    """
     nodes: list[ElementFingerprint] = []
     root_id: str | None = None
 
@@ -252,7 +224,6 @@ def _ax_value(raw: CdpPayload | None) -> str | None:
 
 
 def to_console_message(payload: CdpPayload, *, at: datetime) -> ConsoleMessage:
-    """``Runtime.consoleAPICalled``. A logged validation failure is a branch reason."""
     args = payload.get("args", [])
     text = " ".join(
         str(arg.get("value", arg.get("description", ""))) for arg in args if isinstance(arg, dict)
@@ -298,20 +269,12 @@ def to_page_event(method: str, payload: CdpPayload, *, at: datetime) -> PageEven
 
 
 def to_input_action(payload: CdpPayload) -> InputAction:
-    """A record emitted by the injected page recorder.
-
-    The element description here is DOM-side and deliberately shallow: roles and
-    accessible names come from the AX tree taken at the same instant, which is
-    authoritative. This carries the selectors the AX tree cannot give.
-    """
     target = payload.get("target")
     fingerprint = _to_dom_fingerprint(target) if target else None
     secret = bool(payload.get("secret"))
     return InputAction(
         kind=ActionKind(str(payload.get("kind", "click"))),
         target=fingerprint,
-        # Belt and braces: the page already dropped it, and a page is not a
-        # trustworthy place to enforce this.
         value=(
             None
             if secret
@@ -369,14 +332,6 @@ def _text(value: object) -> str | None:
 
 
 def _said(value: object) -> bool | None:
-    """A three-state answer kept as three states.
-
-    The recorder says `true`, `false` or `null`, and the difference between
-    "the page said this is optional" and "the page said nothing" is the whole
-    point of capturing it: `false` is a statement and `null` is a silence, and
-    coercing the second to the first would be this system claiming a form said
-    something it never said.
-    """
     return value if isinstance(value, bool) else None
 
 
@@ -384,10 +339,4 @@ _REQUEST = TypeAdapter(CapturedRequest)
 
 
 def to_captured_request(payload: CdpPayload) -> CapturedRequest:
-    """A network exchange in the shape this system's own protocol uses.
-
-    Not the CDP one: an extension has already done that translation in the
-    browser, so what arrives is the domain's field names. Validated rather than
-    trusted -- the invariants are the same ones a recording made here obeys.
-    """
     return _REQUEST.validate_python(payload)

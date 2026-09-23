@@ -1,11 +1,3 @@
-"""A1 — a request belongs to the gesture that caused it, or to nobody.
-
-The existing pipeline learned this against a real browser: a request arriving
-after a drain belongs to the previous action, and only traffic with no owning
-gesture at all is an orphan. Orphans are stored, not discarded — a background
-poll is evidence that a background poll happened.
-"""
-
 from __future__ import annotations
 
 from datetime import datetime
@@ -45,13 +37,6 @@ def _epoch(rfc3339: str) -> float:
 
 
 def correlate(batch: Batch, tenant: str) -> tuple[list[Gesture], list[Call], list[PageMark], int]:
-    """Returns (gestures, orphan requests, orphan pages, snapshots ignored).
-
-    Accessibility-tree snapshots are deliberately out of scope for this plan
-    -- there is nowhere in the schema to put one -- but silently dropping
-    them is not the same as never having received them. The count is the
-    difference: it says a batch had snapshots even though nothing stores them.
-    """
     gestures: list[Gesture] = []
     requests: list[RequestEvent] = []
     pages: list[tuple[float, WirePageEvent]] = []
@@ -106,13 +91,6 @@ def correlate(batch: Batch, tenant: str) -> tuple[list[Gesture], list[Call], lis
 
 
 def _owner(gestures: list[Gesture], when: float, tab_id: int | None) -> Gesture | None:
-    """The last gesture in the same tab, within the attribution window.
-
-    Tab matching is strict equality: a request whose tab we cannot establish
-    (tab_id is None) is orphaned on purpose, never guessed at — missing
-    evidence means "I cannot prove this belongs to that gesture", not
-    "attach it to the nearest one".
-    """
     best: Gesture | None = None
     for gesture in gestures:
         if gesture.at > when:
@@ -126,14 +104,6 @@ def _owner(gestures: list[Gesture], when: float, tab_id: int | None) -> Gesture 
 
 
 def _nearest_owner(gestures: list[Gesture], when: float, tab_id: int | None) -> Gesture | None:
-    """The closest gesture in time, in the same tab, within the window.
-
-    Requests attach backwards only: a call is caused by the gesture before
-    it. A page event is different in kind — a navigation typically lands
-    *before* the gesture it gives context to (the operator arrives, then
-    acts) — so it may attach to a gesture on either side, whichever is
-    nearer in time.
-    """
     best: Gesture | None = None
     best_distance: float | None = None
     for gesture in gestures:
@@ -149,8 +119,6 @@ def _nearest_owner(gestures: list[Gesture], when: float, tab_id: int | None) -> 
 
 
 def as_action(wire: WireGesture) -> Action:
-    """The wire gesture as the domain sees it: the fields the arithmetic
-    reads, and nothing the recorder might add next week."""
     target = wire.target
     component = target.component if target else None
     return Action(
@@ -170,14 +138,6 @@ def as_action(wire: WireGesture) -> Action:
             test_id=target.testId,
             css_path=target.cssPath,
             xpath=target.xpath,
-            # What the page said about whether this field must be filled.
-            #
-            # Mapped here and not only in `decode`, which is the other ingest
-            # path: an extension's gestures arrive through this one, and a
-            # field this function does not name is a field that never reaches
-            # the store however faithfully the recorder captured it. Measured
-            # 2026-09-22 at 07:17 -- the recorder had been reading
-            # `aria-required` for an hour and every stored gesture had none.
             required=target.required,
             component=None
             if component is None
@@ -194,8 +154,6 @@ def as_action(wire: WireGesture) -> Action:
 
 
 def as_body(body: WireBody | None) -> Body | None:
-    """A wire body as the domain sees it: no encoding field, nothing the
-    belts don't read."""
     if body is None:
         return None
     return Body(
@@ -208,9 +166,6 @@ def as_body(body: WireBody | None) -> Body | None:
 
 
 def as_call(request: WireRequest, tab_id: int | None) -> Call:
-    """A wire request as the domain sees it. The tab is not on the request:
-    it is on the enclosing `RequestEvent`, so the caller passes it in — an
-    orphan call's tab is a fact worth keeping."""
     return Call(
         method=request.method,
         url=request.url,
@@ -227,7 +182,6 @@ def as_call(request: WireRequest, tab_id: int | None) -> Call:
 
 
 def as_mark(event: WirePageEvent) -> PageMark:
-    """A wire page event as the domain sees it."""
     return PageMark(
         at=_epoch(event.at),
         page_kind=event.page_kind,

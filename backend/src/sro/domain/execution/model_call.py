@@ -1,11 +1,3 @@
-"""One call to a hosted model, recorded whether or not it worked.
-
-Written for the incident review that has not happened yet: which run, which
-step, what left the deployment, what came back, and what was removed first. A
-model call with no such record is a hole in the audit trail exactly where
-somebody will look.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -23,7 +15,6 @@ class ModelCall:
     run_id: RunId
     step_index: int
     purpose: str
-    """What it was asked for -- ``propose_gesture``, ``transcribe`` -- not a prompt."""
 
     destination: str
     model: str
@@ -33,10 +24,8 @@ class ModelCall:
     sent_bytes: int
     image_sent: bool
     redacted_fields: tuple[str, ...] = ()
-    """Field names removed before sending. Never their values."""
 
     outcome: str = ""
-    """What came back, in one line: the proposed gesture, a refusal, or an error."""
 
     failed: bool = False
 

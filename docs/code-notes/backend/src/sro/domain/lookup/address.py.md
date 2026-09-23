@@ -1,0 +1,103 @@
+# Notes for `backend/src/sro/domain/lookup/address.py`
+
+Comments and docstrings moved out of [`backend/src/sro/domain/lookup/address.py`](../../../../../../../backend/src/sro/domain/lookup/address.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
+
+## module, [line 1](../../../../../../../backend/src/sro/domain/lookup/address.py#L1): Docstring
+
+> Where a planned lookup actually goes on the wire.
+>
+> A plan names a knowledge key -- `/data/WM/wm/suppliers`, or the route hash
+> `#wm.config/wm.config.partners.suppliers////` -- and neither is something a
+> browser can open. The knowledge base holds no host: `api-endpoints.json`
+> catalogues paths, and a deployment is whatever host that tenant's operator
+> signs into.
+>
+> So an address is RESOLVED FROM WHERE THIS DEPLOYMENT HAS ALREADY BEEN. The
+> same evidence discipline as everything else here: a lookup reaches a host
+> because a gesture was recorded against that host, never because a host was
+> assembled out of parts. Two consequences worth stating, because both look like
+> limitations until the alternative is written down:
+>
+> **A screen is a url somebody was on, not a url built from a route.** The real
+> page is `.../portal/page?libraryContext=f4d675...&siteId=SG&menu=wm.config
+> #wm.config.partners.suppliers////`, and `libraryContext` is a session token
+> this side cannot invent. Assembling `origin + hash` produces a url that loads
+> the shell and not the screen. Reusing the recorded one is the only honest
+> option, and when its token has expired the answer says the page did not come
+> up -- which is a true answer, where a confidently wrong url is not.
+>
+> **A read may not write, checked again here.** The planner cannot express a
+> write, and this refuses anything that is not a recorded GET. Two belts,
+> because this is the half that reaches somebody's warehouse.
+
+## `Address`, [line 14](../../../../../../../backend/src/sro/domain/lookup/address.py#L14): Docstring
+
+> One lookup, as something the extension can be asked to do.
+
+## `Address`, [line 17](../../../../../../../backend/src/sro/domain/lookup/address.py#L17): Note on the line above
+
+Code: `live_headers: tuple[str, ...] = ()`
+
+> Names the extension reads off the live page. The recorder strikes these
+> out at the boundary, so what is stored is the marker's own text; the tab
+> the operator is signed into has the real value.
+
+## `Address`, [line 19](../../../../../../../backend/src/sro/domain/lookup/address.py#L19): Note on the line above
+
+Code: `struck: tuple[str, ...] = ()`
+
+> Struck out, with no live source. Not an error on its own -- the call
+> goes without them and the system may well answer -- but the first thing to
+> look at when it does not.
+
+## `Address`, [line 21](../../../../../../../backend/src/sro/domain/lookup/address.py#L21): Note on the line above
+
+Code: `seen_at: float | None = None`
+
+> When the evidence this address came from was recorded. A month-old
+> session still names the right host; its session token may be spent.
+
+## `address_for`, [line 24](../../../../../../../backend/src/sro/domain/lookup/address.py#L24): Docstring
+
+> Where this lookup goes, or nothing if this deployment has not been there.
+
+## `_call_address`, [line 31](../../../../../../../backend/src/sro/domain/lookup/address.py#L31): Docstring
+
+> The newest successful GET of this exact path, re-aimed at the question.
+>
+> Newest because a session moves: the last call that worked carries the
+> headers the system wanted most recently. Exact path, because a prefix match
+> would answer `/suppliers` with `/suppliers/count` -- a different question
+> with a plausible-looking answer, which is the failure this whole module is
+> arranged against.
+
+## `_screen_address`, [line 55](../../../../../../../backend/src/sro/domain/lookup/address.py#L55): Docstring
+
+> The newest page url whose fragment names this route.
+>
+> Matched on the route name alone. The catalogue writes
+> `#wm.config/wm.config.partners.suppliers////` -- the menu and the route --
+> where the application's url carries `menu=wm.config` in the query and only
+> `#wm.config.partners.suppliers////` after the hash. One screen, spelled
+> differently by the two sides, so the comparison is over the part they
+> agree on.
+
+## `_route_name`, [line 70](../../../../../../../backend/src/sro/domain/lookup/address.py#L70): Docstring
+
+> A route as the screen it names, however either side spells it.
+>
+> The catalogue writes `#<menu>/<route>////`; the application's url carries
+> the menu in its query and only `#<route>////` after the hash. So the last
+> non-empty segment is the screen in both spellings -- the leading `#` and
+> the menu are the catalogue's, and the trailing separators are the
+> application's own padding for parameters the screen was opened without.
+
+## `_with_params`, [line 75](../../../../../../../backend/src/sro/domain/lookup/address.py#L75): Docstring
+
+> The recorded url, asking the question that was planned.
+>
+> The recorded query is a previous operator's question -- `siteId=SG` from
+> whenever this was captured -- and the plan's parameters are this one's, so
+> the plan wins on any name they share. Names it does not mention are kept:
+> dropping `libraryContext` or a paging parameter the system requires turns
+> a working call into a 400.

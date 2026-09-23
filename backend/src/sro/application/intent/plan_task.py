@@ -1,16 +1,3 @@
-"""What the knowledge base says a task would involve, when nothing was taught.
-
-A proposal is not a skill. It cites screens, endpoints and form models rather
-than two demonstrations, so it has no evidence that anybody ever performed it
-successfully -- which is exactly the difference `docs/12` draws around generated
-workflows. It is shown to an operator, and the honest next move is usually
-"teach me this once".
-
-Nothing here is executable. Turning a proposal into something that runs means
-giving it provenance, and provenance comes from doing the task, not from reading
-about it.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -98,8 +85,6 @@ def _step(entry: KnowledgeEntry) -> ProposedStep | None:
                 evidence=entry.evidence,
             )
         case EntryKind.QUIRK:
-            # A falsified claim is included on purpose: "this looked true and
-            # was not" is the warning an operator most needs before trying it.
             prefix = "known to be wrong: " if entry.body.get("falsified") else "watch out: "
             return ProposedStep(
                 what=prefix + str(entry.body.get("claim") or entry.title)[:160],

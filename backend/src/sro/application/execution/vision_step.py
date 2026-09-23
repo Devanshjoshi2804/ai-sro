@@ -1,22 +1,3 @@
-"""The last rung: finish a step by looking at the screen.
-
-Reached only when the demonstration's own locators no longer find anything, and
-bounded on every side, because this is the least predictable thing in the system
-pointed at a live warehouse:
-
-- **A budget.** A fixed number of gestures per step. A model that has not
-  finished in that many is not about to.
-- **Allowed actions only.** The step's own gesture plus the ones needed to reach
-  it. A step demonstrated as a click cannot become a navigation.
-- **No writes without authorisation.** Same rule as every other rung: a stage
-  that may not write may not click either.
-- **Every call recorded.** What was sent, what came back, what was redacted
-  first -- whether or not the call worked.
-
-What the model is never allowed to do is decide the step succeeded. `done` is
-recorded as a claim; the assertions from the demonstration are what verify.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -32,13 +13,8 @@ from sro.domain.recording.events import ActionKind
 from sro.domain.skill.skill import SkillStep
 
 GESTURE_BUDGET = 5
-"""Per step. Chosen to be obviously finite rather than tuned: the point is that
-an unbounded loop of a vision model driving a WMS is not a thing that exists."""
 
 _REACHING = (ActionKind.SCROLL, ActionKind.HOVER)
-"""Allowed alongside the step's own gesture, because a control can be off
-screen. Deliberately excludes navigation: a step that was demonstrated as a
-click must not become "go somewhere else and try there"."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,10 +42,6 @@ class PerformWithVision:
         self._model = model
 
     async def execute(self, run: Run, step: SkillStep, ui: UiDriver | None = None) -> VisionResult:
-        """`ui` is the browser this run is performed in, when that is not the
-        deployment's own -- a run bound to a device is performed in somebody's
-        Chrome, and the rung that looks has to look at the same screen the rungs
-        below it were driving."""
         driver = ui if ui is not None else self._ui
         if driver is None or self._vision is None:
             return self._stopped(run, step, "no vision rung is configured for this deployment")
@@ -147,7 +119,6 @@ class PerformWithVision:
                 return self._stopped(run, step, f"the model declined: {gesture.refusal}", calls)
 
             if gesture.done:
-                # A claim, not a verification. The step's assertions decide.
                 return VisionResult(
                     outcome=StepOutcome(
                         index=step.index,

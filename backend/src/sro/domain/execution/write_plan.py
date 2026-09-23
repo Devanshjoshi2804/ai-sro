@@ -1,66 +1,3 @@
-"""The call a step would send, re-aimed at this run's values.
-
-`plan_step` has always replayed a recorded call byte for byte: the payload it
-builds carries `call.request_body.text` and nothing puts the run's values into
-it. So a replay of `Create a Customer Type` created the customer type the
-DEMONSTRATION created -- `GGD`, every time, whatever the operator asked for.
-`value_for` exists and is called only on the `ui.perform` paths.
-
-This is the arithmetic that fixes it, and it is arithmetic rather than a model
-because the evidence settles it. Measured on the deployment's own store,
-2026-09-15: the three real bodies of that job carry **46 keys each, the same
-key set every time, 44 of them byte-identical across all three**, and the two
-that differ are the two the operator typed. A body is a constant with slots in
-it, and the recording says which are which.
-
-**Two joins, and each catches what the other cannot.**
-
-The first is a diff, and it needs no names. A step cites the gestures that
-prove it, and a job demonstrated twice cites both doings -- step 6 of that
-workflow cites two gestures, one carrying `"customerType":"GGD"` and the other
-`"customerType":"GKB"`. The keys whose values differ between two bodies sent to
-the same endpoint are the keys the job varies. Nothing is inferred.
-
-The second decides which of the run's values goes in which slot, and it is the
-rule this codebase already applies in two other places -- `network_from_rig._bind`
-binds only where "value must be one of the seen values", and `shape.typed_at`
-joins a parameter to a gesture through `seen & put_by(gesture)`. A value binds
-to a slot only where it is one the operator was seen typing there.
-
-**The name join is refused, and the real body is the counter-example.** A
-parameter is named for its control (`control_name`: an ExtJS `itemId`, else the
-field label, else the target's name), so it arrives as
-`customertype-longDescription` while the body key is `longDescription`. A suffix
-match looks obvious and is already ambiguous on the only real body there is: it
-carries both `palletBuildingConsolidateBy` (the code the API stores, `""`) and
-`displayedPalletBuildingConsolidateBy` (the label the API ignores, `"Inherit
-from transport mode"`). A control ending `…ConsolidateBy` matches both, one of
-them writes and the other does nothing, and telling them apart needs a
-longest-match tiebreak on a correspondence nothing guarantees -- `item_id` is
-the page's vocabulary and a body key is the API's. That is a heuristic wearing
-arithmetic's clothes.
-
-**Every refusal is a refusal, never a guess.** Ambiguity in either direction, or
-a value this run supplied that no key carries, returns `None` -- and the step is
-performed through the interface exactly as it is today. The case that makes this
-matter is in the ledger's own notes: `csttyp truncates at 4 chars`, and the
-captured lifecycle shows a harness asking for `ZV9680` while the body goes out
-as `ZV96`. Where the form transformed what was typed, the typed value is not in
-the body, nothing binds, and a plan that quietly kept the demonstration's value
-would create the demonstration's record again. Refusing sends it to the
-interface, where it already works.
-
-**No template machinery.** `network_from_rig._bind` carries a `@@SRO-PARAM-{}@@`
-sentinel and `$`-escaping because the skill pipeline must STORE a template and
-render it months later, with `absent_as` and `unquoted_as` reconstructing an
-absence nobody kept. A run holds the body and the values in one stack frame and
-substitutes immediately, so none of that exists here. The rule is borrowed; the
-apparatus is not, and `absent_as`/`unquoted_as` must not be imported. The 28
-empty strings in that body are structurally unbindable -- `typed_values` drops
-an empty string, so no `seen_values` can contain one -- and they go out exactly
-as the form sent them, which is what the form sends for a box nobody touched.
-"""
-
 from __future__ import annotations
 
 import json
@@ -80,61 +17,17 @@ from sro.domain.skill.workflow import Step, Workflow
 
 @dataclass(frozen=True, slots=True)
 class WritePlan:
-    """One call, ready for the wire, with this run's values in it."""
-
     method: str
     url: str
     body: str | None
     filled: Mapping[str, str]
-    """Body key -> the parameter whose value now sits there.
-
-    What the result card reads back. `made_by`'s suffix rule cannot help on this
-    endpoint -- the identifier is `customerType`, which ends in none of
-    `id`/`code`/`name`/`number`/`key` -- but the plan already knows which keys
-    this job varies, so those are the keys worth showing the operator, with
-    whatever the warehouse echoed back in them rather than what was sent.
-    """
 
     confirm: Mapping[str, str]
-    """Body key -> the value this run put there, for the keys a read can settle.
-
-    `filled` narrowed to the slots the demonstration's OWN answer gave back
-    unchanged, which is the only honest set to check a read against.
-
-    Measured over the 94 recorded creates whose request and response are both
-    JSON objects (`knowledge-base/http/exchanges/*.jsonl`): **16 of them send a
-    value that appears nowhere in the answer**, and they are one pattern. The
-    form posts the CODE into a `…Description` key and the server stores the
-    resolved LABEL -- `allocationAssetGroupDescription` sent `ZV9054` and came
-    back `Any Handling unit for pallet movement`; `holdTypeDescription` sent
-    `ZV86092` and came back `QA Hold`. The record is right; the field simply
-    does not hold what was posted into it.
-
-    A read-back that looked for `ZV9054` in such a record would find nothing and
-    call a perfectly good create failed -- which stops the run and empties the
-    job's register of verified effects. So a slot is compared only where the
-    demonstration proves it is comparable.
-
-    No name rule anywhere in this, deliberately. Matching `…Description` by its
-    spelling is the same suffix heuristic the module docstring rejects for
-    binding, and it is wrong for the same reason: `palletBuildingConsolidateBy`
-    and `displayedPalletBuildingConsolidateBy` are the page's vocabulary, not a
-    contract. The demonstration already shows which slots the server rewrites.
-    """
 
     entry: VerifiedWrite
-    """The ledger row this call is proven under. Kept so a reader of the run can
-    see which watched endpoint authorised sending bytes instead of clicking."""
 
 
 def seen_values(workflow: Workflow) -> dict[str, frozenset[str]]:
-    """Every value each declared parameter has been observed taking.
-
-    The domain twin of `application.skill.from_rig.bindings_for`, and
-    deliberately not shared with it: that one reads a model's raw answer and
-    runs safe-naming and collision-dropping over it, while this reads a stored
-    `Workflow` whose names already went through exactly that.
-    """
     found: dict[str, frozenset[str]] = {}
     for parameter in workflow.parameters:
         name = parameter.get("name")
@@ -148,12 +41,6 @@ def seen_values(workflow: Workflow) -> dict[str, frozenset[str]]:
 
 
 def _same_endpoint(call: Call, other: Call) -> bool:
-    """Whether two calls are the same write, so their bodies may be diffed.
-
-    Method and origin and path. The query is left out for `verified_write_for`'s
-    reason: a write does not become a different endpoint because one recording
-    carried `?siteId=SG` and the next did not.
-    """
     return (
         call.method.upper() == other.method.upper()
         and system_of(call.url) == system_of(other.url)
@@ -162,13 +49,6 @@ def _same_endpoint(call: Call, other: Call) -> bool:
 
 
 def _bodies_of(step: Step, by_id: Mapping[str, Gesture], like: Call) -> list[dict[str, object]]:
-    """Every demonstration of this step's write, as parsed JSON objects.
-
-    One per cited gesture that produced a call to the same endpoint. A job
-    demonstrated once yields one, which is the honest answer: with a single
-    doing nothing distinguishes a slot from a constant, and the diff below
-    returns nothing rather than guessing.
-    """
     found: list[dict[str, object]] = []
     for cited in step.cites:
         gesture = by_id.get(cited)
@@ -190,12 +70,6 @@ def _bodies_of(step: Step, by_id: Mapping[str, Gesture], like: Call) -> list[dic
 
 
 def _record(text: str | None) -> dict[str, object] | None:
-    """One recorded body as the record it describes, envelope removed.
-
-    Blue Yonder answers a create with `{"@type": "ResponseBodyWrapper",
-    "data": {…}}`, which `verify.made_by` unwraps for the same reason: read at
-    the top level the answer has no fields of the record in it at all.
-    """
     if text is None:
         return None
     try:
@@ -209,26 +83,6 @@ def _record(text: str | None) -> dict[str, object] | None:
 
 
 def _echoed(step: Step, by_id: Mapping[str, Gesture], like: Call) -> frozenset[str] | None:
-    """The keys the server gave back exactly as they were sent, every time.
-
-    Asked of the demonstrations' own answers, which is the only place the
-    question can be settled without a rule about names. A key the server
-    rewrites -- a `…Description` that stores the label for the code posted into
-    it -- is one no later read can be checked against, because the record will
-    never hold what was sent however correct it is.
-
-    `all`, not `any`, and over the demonstrations that answered at all: one
-    doing that echoed a key proves nothing if another rewrote it.
-
-    `None` where NO demonstration answered, and that distinction is the whole
-    care of this function. A capture with no response body is not evidence that
-    the server rewrites anything -- absence of evidence about a slot is not
-    evidence about the slot -- so the caller then checks every slot it filled,
-    which is no weaker than the whole-body search this replaced and keeps the
-    belt that catches a truncated code. An empty SET is a different fact: the
-    demonstrations answered and agreed on nothing, so there is nothing a read
-    could settle.
-    """
     echoed: set[str] | None = None
     for cited in step.cites:
         gesture = by_id.get(cited)
@@ -247,29 +101,6 @@ def _echoed(step: Step, by_id: Mapping[str, Gesture], like: Call) -> frozenset[s
 
 
 def _returned(step: Step, by_id: Mapping[str, Gesture], like: Call) -> frozenset[str] | None:
-    """The keys the record came back HOLDING, whatever value they held.
-
-    `_echoed`'s weaker sibling, and the right question for a slot no
-    demonstration filled. That one asks whether the server gave a key back
-    unchanged, which is the test for trusting a value without looking. This
-    asks only whether the key is IN the record the server returned -- which is
-    what makes a read-back able to check it afterwards.
-
-    The difference is not academic and it is not small. Measured on this
-    deployment's own create, 2026-09-19: **46 keys sent, 43 in the record, 15
-    echoed unchanged.** The 28 that disagree are the boxes nobody touched --
-    sent as `""` and stored as `null` -- so the echo test excludes precisely
-    the fields a request might name and a demonstration never filled, which is
-    every field item 4 exists for.
-
-    A key present in the record is a key the server acknowledges. Whether it
-    accepted THIS value is a different question, and it is the one the
-    read-back answers at run time -- and fails the step on.
-
-    `all`, and `None` where no demonstration answered, both for `_echoed`'s
-    reasons: one doing that returned a key proves nothing if another did not,
-    and absence of evidence about a slot is not evidence about the slot.
-    """
     returned: set[str] | None = None
     for cited in step.cites:
         gesture = by_id.get(cited)
@@ -287,13 +118,6 @@ def _returned(step: Step, by_id: Mapping[str, Gesture], like: Call) -> frozenset
 
 
 def _slots(bodies: list[dict[str, object]]) -> frozenset[str]:
-    """The keys the job varies: present in every doing, differing in at least one.
-
-    `present in every doing` matters as much as `differing`. A key one recording
-    carried and the next did not is a form that changed between them, not a
-    value somebody typed, and substituting into it would send a field the
-    demonstration never proved.
-    """
     if len(bodies) < 2:
         return frozenset()
     shared = set(bodies[0])
@@ -309,28 +133,9 @@ def wanted_by(
     by_id: Mapping[str, Gesture],
     seen: Mapping[str, frozenset[str]],
 ) -> frozenset[str]:
-    """The parameters whose values this step's own body carries.
-
-    Asked WITHOUT the run's values, which is the whole point of it: the
-    question "does this call need a value from this run" has to be answerable
-    before anybody knows whether the run has one. `_assigned` answers a
-    narrower question -- which parameter owns which slot, given what this run
-    was given -- and it cannot see a parameter the run is missing, because a
-    parameter with no value never appears in `values` to be matched.
-
-    That blind spot is what let a run with NO values replay a demonstration
-    byte for byte: every guard downstream asked "were we given values we could
-    not place", and a run given nothing has none to fail to place.
-
-    Empty for a call that carries no parameter at all -- most calls -- which is
-    what keeps this from turning every replay into a click.
-    """
     call = recorded_call(step, by_id)
     if call is None or call.method.upper() in READ_METHODS or unreplayable(call):
         return frozenset()
-    # And the one its PATH carries. A delete names its record in the url and
-    # sends no body at all, so a guard that only read bodies let a run holding
-    # no value replay the demonstration's own `DELETE .../customerTypes/MRN5`.
     owner = _path_owner(step, by_id, call, seen)
     bodies = _bodies_of(step, by_id, call)
     if not bodies:
@@ -340,9 +145,6 @@ def wanted_by(
         taken = {body[slot] for body in bodies if isinstance(body.get(slot), str)}
         if not taken:
             continue
-        # The same claim `_assigned` makes, minus the run's values: a parameter
-        # owns a slot when every value that slot was seen taking is one the
-        # operator was seen typing into that parameter's control.
         claiming = [name for name, observed in seen.items() if taken <= observed]
         if len(claiming) == 1:
             owners.add(claiming[0])
@@ -356,38 +158,13 @@ def _assigned(
     seen: Mapping[str, frozenset[str]],
     elsewhere: frozenset[str] = frozenset(),
 ) -> dict[str, str] | None:
-    """Which parameter owns which slot, or None where that is not a fact.
-
-    A parameter claims a slot when every value that slot has been seen taking is
-    one the operator was seen typing into that parameter's control. Two
-    refusals, both of them silence rather than a guess: a slot two parameters
-    claim, and a parameter claiming two slots.
-    """
     claimed: dict[str, str] = {}
-    # Every parameter that turned out to have somewhere to go, which is not the
-    # same list as `claimed.values()` once two of them name one slot.
     placed: set[str] = set()
     for slot in sorted(slots):
         taken = {body[slot] for body in bodies if isinstance(body.get(slot), str)}
         if not taken:
             continue
         owners = [name for name, observed in seen.items() if name in values and taken <= observed]
-        # Two parameters claiming one slot is a refusal only when they
-        # DISAGREE.
-        #
-        # This job declares four parameters for two values: `Customer Type` and
-        # `customertype-customerType` are the same thing under the label the
-        # operator reads and the key the form posts, and mining named both.
-        # Both then claim `customerType`, and refusing on the count alone made
-        # the write unreplayable for every run that supplied them -- which is
-        # every run the gather fills, because it answers for each parameter the
-        # job declares. Measured on the deployment 2026-09-16: the replay was
-        # refused, the ladder fell to a model, and the model pressed Save on a
-        # form that run had never filled.
-        #
-        # Two names for one value is not ambiguity. Two values for one slot is,
-        # and it still refuses: there is no way to tell which the operator
-        # meant, and a warehouse record is the wrong place to guess.
         if len({values[name] for name in owners}) > 1:
             return None
         if owners:
@@ -395,31 +172,7 @@ def _assigned(
             placed.update(owners)
     if len(set(claimed.values())) != len(claimed):
         return None
-    # Every value this run was given must have somewhere to go. A parameter the
-    # operator supplied that no key carries is the transformed-value case, and
-    # sending the body without it would send the demonstration's value in its
-    # place -- silently, because the endpoint answers 201 either way.
-    #
-    # Unless it is the SAME value that already went somewhere. Measured on the
-    # deployment 2026-09-16: mining declared this job's two fields four times
-    # -- `Customer Type`, the label an operator reads, beside
-    # `customertype-customerType`, the key the form posts -- and the gather
-    # answers for every parameter a job declares, so a run arrives holding four
-    # values for two slots. Two of them are placed and two are the same strings
-    # under another name, and refusing on that made the write unreplayable for
-    # every gathered run: the ladder then fell to a model, and the model
-    # pressed Save on a form that run had never filled.
-    #
-    # A value that equals one already in the body is carried, whatever it is
-    # called. A DIFFERENT value with nowhere to go is still the transformed
-    # case and still refuses -- that is the one this rule was written for.
     carried = {values[name] for name in placed}
-    # `elsewhere` is the names that have a DECLARED slot to go to, which is the
-    # other half of "must have somewhere to go". A value that binds to a
-    # dictionary-named key is not a value with nowhere to go, and refusing the
-    # whole plan for it would mean a request naming one extra field falls back
-    # to the interface for every field -- the opposite of what naming it was
-    # for.
     if any(
         name not in placed and name not in elsewhere and values[name] not in carried
         for name in values
@@ -436,12 +189,6 @@ def write_plan_for(
     seen: Mapping[str, frozenset[str]],
     keys: Mapping[str, str] = MappingProxyType({}),
 ) -> WritePlan | None:
-    """The call this step would send with this run's values in it, or None.
-
-    `None` is not a failure. It is this module declining to answer, and every
-    caller reads it the same way: perform the step through the interface, which
-    is what happens today and what has always happened.
-    """
     call = recorded_call(step, by_id)
     if call is None or call.method.upper() in READ_METHODS:
         return None
@@ -450,10 +197,6 @@ def write_plan_for(
     entry = verified_write_for(call, verified)
     if entry is None:
         return None
-    # A step that types a password is not a step whose body this holds: the
-    # recorder struck the value out at the boundary, so there is nothing to
-    # substitute and `unreplayable` would already have refused a body carrying
-    # the marker. Belt and braces, and cheap.
     if any(
         needs_a_secret(gesture)
         for gesture in (by_id.get(cited) for cited in step.cites)
@@ -463,62 +206,18 @@ def write_plan_for(
 
     bodies = _bodies_of(step, by_id, call)
     if not bodies:
-        # No JSON body to aim. A form-encoded write is replayable byte for byte
-        # and this module has nothing to add to it, so it declines and the
-        # existing path sends it as it was recorded -- unless the value this
-        # run was given lives in the path, which is what a delete is.
         return _path_plan(step, by_id, call, values, seen, entry)
 
     slots = _slots(bodies)
     echoed = _echoed(step, by_id, call)
-    # Worked out BEFORE the assignment, because the assignment has to know
-    # about it: a value with a declared slot to go to is not a value with
-    # nowhere to go, and refusing the whole plan for one would send every field
-    # through the interface because a request named one extra.
-    # `_returned` and not `_echoed`: the echo test is for trusting a value
-    # without looking, and this is the opposite -- a slot that will be looked
-    # at. See `_returned`, which carries the measurement.
     also = _undemonstrated(keys, values, bodies[0], slots, _returned(step, by_id, call))
-    # Every name with a declared slot, not only the ones actually filled.
-    #
-    # "Every value must have somewhere to go" exists for the TRANSFORMED case:
-    # a value that should have gone into a varied slot and did not means the
-    # demonstration's value goes out in its place, silently, because the
-    # endpoint answers 201 either way. A field the dictionary names is not that
-    # case -- nothing is being substituted for it, the slot goes out as the
-    # empty string the form sends for a box nobody touched -- and refusing the
-    # whole replay for it would send every field through the interface, which
-    # cannot set that field either. The cost would be paid for nothing.
     named = frozenset(keys)
     claimed = _assigned(slots, bodies, values, seen, named)
     if claimed is None:
         return None
     if not claimed:
-        # Nothing to aim, which is not the same as a plan that changes nothing.
-        # A job with no parameters -- or a write carrying none of them -- has to
-        # replay BYTE FOR BYTE, and a plan built here would re-serialise the
-        # body instead: `{"a":1}` recorded goes out as `{"a": 1}`, different
-        # bytes for no reason and wrong outright for a body anything signs.
-        #
-        # Worse than the bytes, it would set `rewrote`. `verify` reads that as
-        # "the status no longer proves the demonstrated effect" and demands a
-        # read-back -- so a job nobody parameterised would stop asking for
-        # evidence it was never going to have, for a body nobody rewrote.
         return None
 
-    # And the fields nobody demonstrated, where the record can be made to prove
-    # them.
-    #
-    # A job's slots are what two doings proved VARY, and the form posts far
-    # more than that -- 46 keys, 44 of them byte-identical across all three
-    # bodies. So a request naming `Department: Inbound` has named a slot this
-    # write already sends, as the empty string the form sends for a box nobody
-    # touched, and the value had nowhere to go.
-    #
-    # `keys` is `field_notes.keys_named`: the declared label-to-key join, with
-    # its own refusals. Not the suffix match this module argues against at
-    # length -- that argument is about INFERRING a correspondence from two
-    # strings, and this is reading one somebody wrote down.
     aimed = dict(bodies[0])
     for slot, parameter in claimed.items():
         aimed[slot] = values[parameter]
@@ -534,11 +233,6 @@ def write_plan_for(
                 for slot, parameter in claimed.items()
                 if echoed is None or slot in echoed
             },
-            # Unconditionally, which is the whole of what makes the binding
-            # above safe: a slot no demonstration exercised has to PROVE it
-            # landed rather than be trusted to a status. `_undemonstrated`
-            # refuses any slot that cannot be read back, so everything here is
-            # provable by construction.
             **also,
         },
         entry=entry,
@@ -548,20 +242,6 @@ def write_plan_for(
 def _path_owner(
     step: Step, by_id: Mapping[str, Gesture], like: Call, seen: Mapping[str, frozenset[str]]
 ) -> str | None:
-    """The parameter this write's last path segment IS, where the doings prove it.
-
-    `DELETE /data/WM/wm/customerTypes/MRN5`, then `.../DDLS`, then `.../ZQ46`:
-    six demonstrations of `Delete a Customer Type` on the deployment, every one
-    answered 200, and every last segment a value the operator typed into the
-    job's one parameter. That is the binding, read off the evidence the same way
-    `_assigned` reads a body slot -- a parameter owns the segment when every
-    value the segment was seen taking is one it was seen taking.
-
-    Two doings at least, with different segments: one proves nothing about
-    what varies. Only answered calls that succeeded, because a demonstration
-    that got a 404 demonstrated the wrong record. Every other segment must be
-    the same across them, so this can only ever name the LAST one.
-    """
     head = urlsplit(like.url).path.rsplit("/", 1)[0]
     taken: set[str] = set()
     for cited in step.cites:
@@ -592,12 +272,6 @@ def _path_plan(
     seen: Mapping[str, frozenset[str]],
     entry: VerifiedWrite,
 ) -> WritePlan | None:
-    """The recorded call with this run's value where the demonstration's was.
-
-    Nothing to read back afterwards, deliberately: `confirm` is empty, so
-    `verify` holds it on the status -- and for a url that NAMES the record, a
-    2xx is the server saying which record it acted on.
-    """
     owner = _path_owner(step, by_id, call, seen)
     wanted = values.get(owner, "").strip() if owner else ""
     if not wanted:
@@ -605,8 +279,6 @@ def _path_plan(
     parts = urlsplit(call.url)
     head = parts.path.rsplit("/", 1)[0]
     url = urlunsplit(parts._replace(path=f"{head}/{quote(wanted, safe='')}"))
-    # Matched against the same ledger entry again: a value that decodes to a
-    # traversal is refused by `verified_write_for`, never sent.
     if verified_write_for(replace(call, url=url), (entry,)) is None:
         return None
     return WritePlan(
@@ -622,19 +294,6 @@ def _path_plan(
 def demonstrated_writes(
     workflow: Workflow, by_id: Mapping[str, Gesture]
 ) -> tuple[VerifiedWrite, ...]:
-    """The endpoints this job's OWN demonstrations proved, for this job alone.
-
-    The ledger admits an endpoint once a run of ours watched it succeed, which
-    no run of a job can do while the job cannot finish by the interface --
-    `Delete a Customer Type` failed at its filter box for a day with six
-    recorded, answered `DELETE`s in its evidence and nothing in the ledger.
-
-    Narrow on purpose, and only the one shape the evidence makes airtight: a
-    write whose last path segment `_path_owner` proves IS the job's parameter.
-    The pattern is the literal path with that one segment as `{id}`. Nothing
-    is stored; the tuple is added to this run's ledger and gone with it, so
-    one job's demonstrations never license another job's call.
-    """
     seen = seen_values(workflow)
     found: list[VerifiedWrite] = []
     for step in workflow.steps:
@@ -655,38 +314,6 @@ def _undemonstrated(
     slots: frozenset[str],
     returned: frozenset[str] | None,
 ) -> dict[str, str]:
-    """Values for slots no demonstration varied, and only the provable ones.
-
-    Four refusals, and each is the difference between filling a form and
-    inventing an API.
-
-    **A slot the body already sends.** Adding a key no recorded body carried is
-    this system deciding what the endpoint accepts, from a dictionary that
-    describes a screen. The form posts every field it has; a box nobody touched
-    goes out as the empty string, and filling that is editing a request rather
-    than composing one.
-
-    **Not a slot the evidence already binds.** `_assigned` decided those from
-    what the operator was seen typing, which is stronger than a declaration.
-
-    **Only a slot the record comes back holding.** This is item 5 and it is the
-    reason item 4 is safe at all: nothing demonstrated this slot, so a status
-    proves nothing about it -- the request went and the field may have been
-    ignored, renamed or silently dropped. A key the server returns is one a
-    read-back can check; one it never returns cannot be checked at all, and a
-    value written where nobody can confirm it is exactly the wrong record this
-    whole ladder exists to prevent.
-
-    Returned, and deliberately not ECHOED. The echo test asks whether a value
-    came back unchanged, which is the test for trusting one without looking --
-    and 28 of the 46 keys in this deployment's create are boxes nobody touched,
-    sent as `""` and stored as `null`, so it would exclude exactly the fields
-    this is for. Whether the server accepts THIS value is what the read-back
-    answers, and fails the step on.
-
-    **And never where the demonstrations answered nothing at all.** `None` is
-    "no evidence about the record's shape", which is not evidence about it.
-    """
     if not keys or returned is None:
         return {}
     filled: dict[str, str] = {}
@@ -699,32 +326,6 @@ def _undemonstrated(
 
 
 def begins_again_at(workflow: Workflow, by_id: Mapping[str, Gesture], *, stopped_at: int) -> int:
-    """Where a run has to start over so the screen the stopped step needed is
-    there again.
-
-    A run that came up short of a value ends in front of a half-filled form.
-    Resuming at the step that stopped re-types one field into whatever is on
-    the screen a minute later -- which is right if the form is still open, and
-    wrong every other way it can go: the operator navigated off it, the session
-    timed out, the page reset. The step then acts on a screen that is not the
-    one it was recorded against.
-
-    So the run goes back to the beginning of the block that BUILT that screen:
-    the first step after the last write before it. Everything from there to the
-    stopped step is scaffolding and keystrokes -- pressing Add, opening a tab,
-    typing into a form nothing has posted yet -- and re-performing it rebuilds
-    the form the value is going into.
-
-    **Nothing in that stretch wrote, and that is the whole safety argument.**
-    The partition is at the last write precisely so a resumed run cannot
-    re-perform one: a write that went out and may have landed is not a step to
-    try again, and this returns a step strictly after every write the run
-    performed. The same rule, and the same reasoning, as `scaffolding_for` --
-    which is why they compute the same boundary and sit next to each other.
-
-    `stopped_at` itself where there is nothing before it to rebuild from, which
-    is a run that stopped on its own first step.
-    """
     from sro.domain.execution.evidence import writes
 
     ordered = sorted(workflow.steps, key=lambda step: step.order)
@@ -739,24 +340,6 @@ def begins_again_at(workflow: Workflow, by_id: Mapping[str, Gesture], *, stopped
 def scaffolding_for(
     workflow: Workflow, by_id: Mapping[str, Gesture], *, write_step: int
 ) -> tuple[int, ...]:
-    """The steps whose only job was to put the write's form on the screen.
-
-    Measured on the deployment's own row: of the six steps of `Create a Customer
-    Type`, only step 6 changes warehouse state. Steps 4 and 5 -- typing the code
-    and the description -- make no network call at all; they are keystrokes into
-    a form that step 6 posts. Step 2's thirty-four GETs are the screen loading.
-    Replay the write and there is nothing left for the other five to do.
-
-    Partitioned at the previous write rather than taken from the top, and that
-    is what makes it right for a job with more than one write in it: a field
-    typed at step 4 whose value leaves in a call fired at step 5 makes step 5 a
-    write, so step 4 feeds step 5 and is collapsed only when step 5's own write
-    is being replayed too.
-
-    Nothing after the write is scaffolding, and a step that types a password
-    never is -- its value was struck out of the evidence, so no replayed body
-    can be carrying it.
-    """
     from sro.domain.execution.evidence import writes
 
     ordered = sorted(workflow.steps, key=lambda step: step.order)

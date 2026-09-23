@@ -1,18 +1,3 @@
-"""Credentials this deployment signs itself.
-
-A JWT-shaped token with an HMAC over it: header, claims, signature, all
-base64url, so anything that reads JWTs can read these. Written against the
-standard library rather than a JWT package on purpose -- the whole of it is
-sixty lines that can be audited in one sitting, and the alternative is a
-dependency whose defaults decide who gets in.
-
-What it is not: an identity provider. There are no passwords here, no refresh
-flow and no revocation list. A token is minted for an operator by somebody with
-shell access, it expires, and a compromised one is dealt with by rotating the
-signing key. That is the honest shape for a system whose customers will bring
-their own SSO -- and it is the difference between a boundary and a decoration.
-"""
-
 from __future__ import annotations
 
 import base64
@@ -30,9 +15,6 @@ _HEADER: dict[str, object] = {"alg": ALGORITHM, "typ": "JWT"}
 
 class SignedTokens(Credentials):
     def __init__(self, secret: str) -> None:
-        # Not a default, not a generated-per-boot value: a deployment that
-        # signs with a key nobody wrote down accepts nothing after a restart,
-        # and one that signs with a default accepts everybody's tokens.
         self._secret = secret.encode() if secret else b""
 
     def issue(self, caller: Caller, *, lasting_hours: float = 24 * 30) -> str:
@@ -58,8 +40,6 @@ class SignedTokens(Credentials):
             raise CredentialRejected("not a credential this system issued")
         header_part, claims_part, signature = parts
 
-        # Compared in constant time, and before anything in the token is read:
-        # a signature checked after the claims are trusted is not a check.
         expected = self._sign(f"{header_part}.{claims_part}")
         if not hmac.compare_digest(_b64(expected), signature):
             raise CredentialRejected("this credential was not signed by us")

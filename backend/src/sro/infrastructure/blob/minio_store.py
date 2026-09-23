@@ -1,10 +1,3 @@
-"""S3-compatible object storage. MinIO locally, whatever the tenant runs in production.
-
-boto3 is synchronous, so every call is offloaded to a thread. A capture session
-writes a screenshot per gesture and the occasional large payload, which is far
-below the point where an async S3 client would earn its dependency.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -42,12 +35,6 @@ class MinioBlobStore(BlobStore):
             )
 
         self._client: Any = client(endpoint_url)
-        # A presigned url is the one thing here that leaves the deployment: it
-        # is handed to a browser, which has never heard of `minio`. Signed
-        # against the address that browser can reach, when they differ --
-        # deployed, the store is on a compose network and the operator is not.
-        # The signature covers the host, so this cannot be a string rewrite
-        # afterwards; it has to be signed by a client that knows the address.
         self._signer: Any = client(public_endpoint_url) if public_endpoint_url else self._client
 
     async def put(self, key: str, data: bytes, *, content_type: str) -> str:
@@ -85,8 +72,6 @@ class MinioBlobStore(BlobStore):
         prefix = f"s3://{self._bucket}/"
         if not uri.startswith(prefix):
             return
-        # S3 answers 204 for a key that was never there, which is the
-        # idempotence the port promises rather than something to check for.
         await asyncio.to_thread(
             self._client.delete_object, Bucket=self._bucket, Key=uri[len(prefix) :]
         )
@@ -97,7 +82,6 @@ class MinioBlobStore(BlobStore):
 
     async def forget_prefix(self, prefix: str) -> int:
         keys = await asyncio.to_thread(self._list_keys, prefix)
-        # S3's batch delete takes at most 1000 keys per call.
         for start in range(0, len(keys), 1000):
             chunk = keys[start : start + 1000]
             await asyncio.to_thread(
@@ -124,10 +108,6 @@ class MinioBlobStore(BlobStore):
                 self._client.get_object, Bucket=self._bucket, Key=key
             )
         except ClientError as missing:
-            # The port's contract for "not there" is `KeyError` -- the fake
-            # raises it because that is what a dict does, and every caller
-            # (the miner, a teach reading a batch that aged out mid-sweep) is
-            # written against that, not against botocore's own exception.
             code = missing.response.get("Error", {}).get("Code")
             if code in ("NoSuchKey", "404"):
                 raise KeyError(key) from missing

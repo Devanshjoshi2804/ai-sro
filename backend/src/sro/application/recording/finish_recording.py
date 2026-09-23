@@ -1,5 +1,3 @@
-"""End a demonstration: sealed if it produced evidence, abandoned if not."""
-
 from __future__ import annotations
 
 from contextlib import suppress
@@ -16,12 +14,6 @@ from sro.domain.shared.objective import ObjectiveKey
 
 
 class UnnamedDemonstration(InvariantViolation):
-    """Nothing the demonstration did says what task it was.
-
-    Recoverable by the operator naming it, so it is a 422 with an instruction
-    rather than a failure of capture.
-    """
-
     code = "unnamed_demonstration"
 
 
@@ -44,11 +36,6 @@ class FinishRecording:
         recording_id: RecordingId,
         objective_key: ObjectiveKey | None = None,
     ) -> Recording:
-        """Seal, naming the task from the evidence unless the caller named it.
-
-        A caller-supplied key is for the second run of a pair and for the rare
-        demonstration that asked the server nothing; the first run names itself.
-        """
         return await self._finish(
             ctx, recording_id=recording_id, reason=None, objective_key=objective_key
         )
@@ -90,9 +77,6 @@ class FinishRecording:
             await uow.commit()
 
         if recording.browser_session_id is not None:
-            # Best effort: the recording is already durable, and a provider
-            # outage must not turn a good demonstration into a failed request.
-            # The RecordingWorkflow reaper collects anything left behind.
             with suppress(BrowserUnavailable):
                 await self._browser.close(recording.browser_session_id)
 

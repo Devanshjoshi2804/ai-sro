@@ -1,5 +1,3 @@
-"""Embeddings, through Gemini, and the no-op that stands in without a key."""
-
 from __future__ import annotations
 
 import logging
@@ -7,20 +5,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 DIMENSIONS = 768
-"""Matches the column. `gemini-embedding-001` is asked for this size rather than
-its default, because the store cannot mix two geometries in one index."""
 
 _BATCH = 100
-"""Requests are capped server-side; a catalogue is thousands of claims."""
 
 
 class NoEmbedder:
-    """Retrieval still works: structured filters narrow, terms order.
-
-    Worse at synonyms, no worse at anything else — and it is never what decides
-    which system or entity a request is about.
-    """
-
     @property
     def available(self) -> bool:
         return False
@@ -60,9 +49,6 @@ class GeminiEmbedder:
                 config=types.EmbedContentConfig(output_dimensionality=DIMENSIONS),
             )
             returned = response.embeddings or []
-            # One vector per text, in order, or the store silently attaches the
-            # wrong meaning to the wrong claim. A short reply is dropped rather
-            # than aligned by hope.
             if len(returned) != len(batch):
                 logger.warning(
                     "embedding returned %d vectors for %d texts", len(returned), len(batch)

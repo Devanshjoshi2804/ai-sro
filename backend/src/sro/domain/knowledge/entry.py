@@ -1,15 +1,3 @@
-"""What is known about a system, and how well it is known.
-
-Every entry is a claim with the evidence behind it named. That is the rule the
-knowledge base was rebuilt under after an audit found endpoints marked
-"verified" whose only proof was a 404 on a route that never existed -- see
-knowledge-base/SCHEMA.md.
-
-Nothing here is ever overwritten. A verified run that contradicts a scraped
-claim supersedes it and both rows stay, because "we used to believe this" is the
-only way to explain an incident afterwards.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -22,16 +10,12 @@ from sro.domain.shared.identifiers import TenantId
 
 class EvidenceLevel(StrEnum):
     ASSERTED = "asserted"
-    """Written down by a human or a model. Not evidence."""
 
     OBSERVED = "observed"
-    """Seen once, and the exchange was stored."""
 
     REPRODUCED = "reproduced"
-    """Re-run deliberately and matched what was stored before."""
 
     ROUND_TRIP = "round_trip"
-    """Created, read back, changed and removed, all recorded."""
 
     @property
     def rank(self) -> int:
@@ -49,7 +33,6 @@ _RANK = {
 }
 
 SUPPORTS_AUTOMATION = EvidenceLevel.REPRODUCED
-"""Below this, a claim may inform a human and may not drive a call."""
 
 
 class EntryKind(StrEnum):
@@ -61,11 +44,6 @@ class EntryKind(StrEnum):
     STATUS = "status"
     QUIRK = "quirk"
     QUESTION = "question"
-    """Something the system could not decide and will not guess at.
-
-    Kept with what is known about the system on purpose: an open question is a
-    fact about this deployment -- the place where the next confident answer
-    would be a guess -- and it is answered once, by somebody who works here."""
 
 
 class KnowledgeId(str):
@@ -74,13 +52,6 @@ class KnowledgeId(str):
 
 @dataclass(eq=False)
 class KnowledgeEntry:
-    """One claim about one system.
-
-    ``key`` is the claim's identity within its kind -- an endpoint's method and
-    path, a screen's route, a field's payload name. Two entries with the same
-    key are the same claim believed twice, which is what supersession is for.
-    """
-
     id: KnowledgeId
     tenant_id: TenantId
     system: str
@@ -89,7 +60,6 @@ class KnowledgeEntry:
     title: str
     body: dict[str, object]
     source: str
-    """Where this came from: a knowledge-base file, or the run that proved it."""
 
     evidence: EvidenceLevel
     observed_at: datetime
@@ -107,7 +77,6 @@ class KnowledgeEntry:
         return self.superseded_by is None
 
     def superseded(self, by: KnowledgeEntry) -> None:
-        """Point forward at what replaced this. The old row stays."""
         if by.id == self.id:
             raise InvariantViolation("an entry cannot supersede itself")
         self.superseded_by = by.id

@@ -1,10 +1,3 @@
-"""Turn recorded Blue Yonder flows into skills, without teaching them again.
-
-Run with `make seed-skills`. Re-runnable by construction: a flow whose objective
-already has a skill is skipped, so a repeat run over a growing corpus only ever
-seeds what is new.
-"""
-
 from __future__ import annotations
 
 import asyncio

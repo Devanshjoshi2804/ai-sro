@@ -63,7 +63,6 @@ async def stream_run(run_id: str, container: ContainerDep, ctx: ContextDep) -> S
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
-            # Nginx and friends buffer event streams into uselessness.
             "X-Accel-Buffering": "no",
         },
     )
@@ -85,7 +84,6 @@ async def _events(container: Container, ctx: RequestContext, run_id: RunId) -> A
                     {"id": run_id.value, "detail": "no run with that id belongs to you"},
                 )
                 return
-            # The workflow has been started but the row is a moment behind.
             await asyncio.sleep(LOOK_EVERY)
             waited += LOOK_EVERY
             continue
@@ -99,12 +97,6 @@ async def _events(container: Container, ctx: RequestContext, run_id: RunId) -> A
             yield _event("done", model.model_dump(mode="json"))
             return
 
-        # The operator is typing into the browser this run is driving, and the
-        # backend is holding its commands back. Nothing about that reaches the
-        # row -- it lives for a few seconds in the process holding the socket --
-        # so it is reported here or nowhere. On change only: at 0.4s a ticking
-        # countdown would be two and a half events a second saying the same
-        # thing, and the client can count down on its own.
         if run.device_id is not None:
             seconds = await container.agents().held_for(ctx.tenant_id, run.device_id)
             if (seconds is not None) != held:

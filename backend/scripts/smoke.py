@@ -1,33 +1,3 @@
-"""Does this deployment work from outside itself?
-
-Every defect found on the first day of deploying was on an edge that *leaves*
-the deployment, and every one of them looked correct in the code and worked on
-a laptop:
-
-- the trace pipeline had a provider and an exporter and never opened a span;
-- a presigned artifact url named `minio:9000`, which no browser can resolve;
-- `live_view_url` named `steel:3000`, the same mistake one service along;
-- the CDP endpoint named a host, and Chrome refuses a Host that is not an
-  address.
-
-They share a shape. A url or a connection that stays inside the compose network
-is exercised by everything, all the time. One that is handed to a browser is
-exercised by nobody until an operator opens a page -- and then it fails as a
-broken image, a frame that never loads, or a silence.
-
-So this asks the questions only an outside caller can ask. It runs *in* the API
-container, because it needs the app's own adapters to mint the urls under test,
-and then it uses those urls the way a browser would: over the public address,
-through the proxy, from end to end.
-
-    docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa \
-        exec -T api python scripts/smoke.py http://10.11.9.25:8088
-
-Exits non-zero if anything is wrong, and says which thing. Safe to run against
-a live deployment: it writes one small blob and deletes it, opens one browser
-session and releases it, and touches nothing else.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -58,11 +28,6 @@ def bad(what: str, detail: str) -> None:
 
 
 def _is_private_name(url: str) -> bool:
-    """Whether this url names something only the compose network can resolve.
-
-    A single label with no dot -- `minio`, `steel`, `api` -- is a container
-    name. That is the whole bug class this script exists for.
-    """
     host = urlsplit(url).hostname or ""
     if not host or host == "localhost":
         return False
@@ -74,13 +39,6 @@ def _is_private_name(url: str) -> bool:
 
 
 async def check_addresses(public: str) -> None:
-    """What this deployment believes its own addresses are.
-
-    `our_own_origins()` reads these to know which traffic is the system's own,
-    and evidence is refused for them ahead of any tenant's policy. Left at
-    their defaults, the console's own calls are captured and mined as
-    warehouse work -- which has happened.
-    """
     settings = get_settings()
     for name, value in (
         ("SRO_API_URL", settings.api_url),
@@ -97,7 +55,6 @@ async def check_addresses(public: str) -> None:
 
 
 async def check_artifact(container: object, public: str) -> None:
-    """A presigned url, fetched the way the console fetches a screenshot."""
     blobs = container.blobs  # type: ignore[attr-defined]
     uri = await blobs.put(PROBE_KEY, PROBE_BODY, content_type="text/plain")
     try:
@@ -114,9 +71,6 @@ async def check_artifact(container: object, public: str) -> None:
                 bad("artifact fetch", f"{got.status_code}, {len(got.content)} bytes")
                 return
             ok("artifact fetch", f"{urlsplit(url).netloc} → 200, contents match")
-            # The signature covers the host and the path. If a proxy rewrote
-            # either, this would be a 200 and the deployment would be serving
-            # unsigned objects to anyone who guessed a key.
             tampered = await web.get(url + "X")
             if tampered.status_code == httpx.codes.FORBIDDEN:
                 ok("artifact signature", "a tampered url is refused")
@@ -127,7 +81,6 @@ async def check_artifact(container: object, public: str) -> None:
 
 
 async def check_browser(container: object, public: str) -> None:
-    """A real session, its live view, and the screencast socket behind it."""
     browser = container.browser  # type: ignore[attr-defined]
     authority = await browser._cdp_origin()
     host = authority.rsplit(":", 1)[0]
@@ -163,8 +116,6 @@ async def check_browser(container: object, public: str) -> None:
 
 
 async def _check_cast(page: str, public: str) -> None:
-    """The screencast socket the live view opens. An iframe that loads and
-    never paints is what a broken one looks like."""
     import re
 
     found = re.search(r"wss?://[^\"'\s]+", page)
@@ -186,12 +137,6 @@ async def _check_cast(page: str, public: str) -> None:
 
 
 async def check_console(public: str) -> None:
-    """The console, and what its bundle was built to talk to.
-
-    `NEXT_PUBLIC_API_URL` is inlined at build time. A bundle carrying an
-    absolute hostname is one image that serves one environment, and a bundle
-    carrying a private name is a console that loads and fails every request.
-    """
     async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as web:
         page = await web.get(public)
         if page.status_code != httpx.codes.OK:
@@ -212,7 +157,6 @@ async def check_console(public: str) -> None:
 
 
 async def check_api(public: str) -> None:
-    """The API through whatever is in front of it, with and without a token."""
     async with httpx.AsyncClient(timeout=20.0) as web:
         health = await web.get(f"{public}/api/health")
         if health.status_code != httpx.codes.OK:
@@ -228,8 +172,6 @@ async def check_api(public: str) -> None:
 
 
 async def check_worker(container: object) -> None:
-    """Whether a worker is polling. Its container status cannot say: one image
-    serves the API and the worker, and the worker serves no HTTP."""
     settings = get_settings()
     try:
         from sro.infrastructure.temporal.queues import DEFAULT_QUEUE
@@ -256,20 +198,6 @@ async def check_worker(container: object) -> None:
 
 
 def check_ledger() -> None:
-    """Whether this deployment can tell a watched write from an unwatched one.
-
-    The one question that decides whether a mined job replays its recorded call
-    or drives the form: `verified_write_for` is membership in this ledger, and
-    an empty ledger is a deployment where nothing is verified, every replay
-    falls back to clicking, and `live_headers` is never asked for.
-
-    It belongs here rather than in the suite for this module's whole reason. On
-    a laptop the loader resolves its root five parents up from its own file and
-    finds the repository's `knowledge-base/`; in the image those five parents
-    are `/`, so it looks in `/knowledge-base` and finds nothing unless the
-    compose file mounts it there. Every test passes either way. Measured on QA
-    2026-09-16, after a clean deploy and a green suite: `ledger rows: 0`.
-    """
     try:
         from sro.infrastructure.knowledge.write_endpoints import load_verified_writes
 

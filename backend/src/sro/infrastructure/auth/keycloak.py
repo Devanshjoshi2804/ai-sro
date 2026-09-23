@@ -1,19 +1,3 @@
-"""Offline tokens from Keycloak, so a run does not depend on a browser session.
-
-The realm advertises what it will do -- `password`, `refresh_token` and the
-`offline_access` scope -- and the WMS behind it distinguishes a bad token from
-no credential at all: it answers a bearer it dislikes with 401 and a request
-with nothing at all with a redirect to the identity provider. That difference
-is what makes this worth building; an API that only understood cookies could
-not be given a token however good the token was.
-
-Two things are stored and they are not the same. The offline token is the thing
-worth protecting: it acts as the operator until somebody revokes it, so it
-lives in the vault and is never returned by anything. The access token it
-produces is short-lived and kept in memory only, refreshed when it is close
-enough to expiry that a slow call would outlive it.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -28,8 +12,6 @@ from sro.application.ports.vault import CredentialVault
 logger = logging.getLogger(__name__)
 
 _EARLY = 60.0
-"""Seconds before expiry to refresh anyway. A token that dies mid-call fails a
-run for a reason that has nothing to do with the task."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,20 +38,15 @@ class KeycloakTokens:
         self._live: dict[str, _Live] = {}
 
     def _key(self, tenant: str, system: str) -> str:
-        """Tenant-scoped, like every other credential: one tenant's token must
-        never authenticate another tenant's run."""
         return f"{tenant}/{system}/offline_token"
 
     async def establish(self, *, tenant: str, system: str, username: str, password: str) -> str:
-        """One login, exchanged for something that outlives it."""
         answer = await self._grant(
             {
                 "grant_type": "password",
                 "client_id": self._client_id,
                 "username": username,
                 "password": password,
-                # Without this the refresh token dies with the SSO session,
-                # which is the whole problem being solved.
                 "scope": "openid offline_access",
             }
         )
@@ -99,9 +76,6 @@ class KeycloakTokens:
                 "refresh_token": offline,
             }
         )
-        # Rotation is on in some realms: the refresh that comes back replaces
-        # the one that produced it, and keeping the old one means the next
-        # refresh fails for a reason nobody would guess at.
         if rotated := answer.get("refresh_token"):
             await self._vault.store(self._key(tenant, system), str(rotated))
         return self._remember(tenant, system, answer)
@@ -125,9 +99,6 @@ class KeycloakTokens:
             raise TokenRefused(f"could not reach the identity provider: {error}") from error
 
         if response.status_code != httpx.codes.OK:
-            # The provider's own words, which name the actual problem --
-            # invalid_grant for a revoked token, unauthorized_client for a
-            # client that may not do this.
             detail = response.json().get("error_description") if _json(response) else response.text
             raise TokenRefused(f"the identity provider refused: {detail}"[:300])
         answer: dict[str, object] = response.json()

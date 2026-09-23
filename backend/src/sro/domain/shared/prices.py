@@ -1,44 +1,20 @@
-"""What a model call costs, and what it answered.
-
-The prices are dollars per million tokens; a model missing from the table is
-unpriced, never free.
-"""
-
 from dataclasses import dataclass
 from typing import Literal
 
-# Dollars per million tokens, (input, output).
 PRICES: dict[str, tuple[float, float]] = {
-    "gemini-3.8-flash": (0.75, 3.75),  # introductory, to 2026-12-31
+    "gemini-3.8-flash": (0.75, 3.75),
     "gemini-3-flash": (0.50, 3.00),
     "gemini-3.1-flash-lite": (0.25, 1.50),
-    "gemini-3.1-pro": (2.00, 12.00),  # doubles to (4, 18) above 200K
-    # A preview is priced like the model it previews. Without these rows a real
-    # pass on a preview name records cost_usd 0.0 with unpriced=True -- which is
-    # honest, and useless: the measurement run that proved this architecture
-    # works billed $1.12 and every row said free. A name missing from this table
-    # is the one failure mode `unpriced` cannot fix, because nothing downstream
-    # can price a call the table never knew about.
+    "gemini-3.1-pro": (2.00, 12.00),
     "gemini-3.1-pro-preview": (2.00, 12.00),
     "gemini-3-flash-preview": (0.50, 3.00),
     "gemini-3.8-flash-preview": (0.75, 3.75),
-    # An embedding model bills input only, and this table's shape is (in, out).
-    # Zero for output is the truth here rather than a missing row: a name
-    # absent from this table records the whole call as unpriced, and the
-    # embedder runs on every reading of the knowledge store.
     "gemini-embedding-001": (0.15, 0.00),
-    # Gemini Embedding 2, $0.20/M in. Dearer than the model it replaces by a
-    # third, and worth it for what the knowledge store is for: this is the one
-    # place a similarity is allowed to decide anything, and it decides which
-    # prose a model is shown. Text only at this rate -- the multimodal rates are
-    # image $0.45/M, audio $6.50/M, video $12.00/M, and nothing here sends any
-    # of those yet.
     "gemini-embedding-2": (0.20, 0.00),
 }
 
 LONG_PROMPT_TOKENS = 200_000
 
-# Above a 200K-token prompt, Gemini 3.1 Pro's rates double.
 LONG_PROMPT_PRICES: dict[str, tuple[float, float]] = {
     "gemini-3.1-pro": (4.00, 18.00),
     "gemini-3.1-pro-preview": (4.00, 18.00),
@@ -58,26 +34,11 @@ def is_priced(model: str) -> bool:
     return model in PRICES
 
 
-# The levels the SDK accepts. Narrowed to a Literal rather than left as str
-# because google-genai does not reject an unknown one: ThinkingLevel("nonsense")
-# returns a pseudo-member carrying the typo straight to the API on 2.22.0. A
-# constant that silently means "model default" is the exact failure wiring
-# K_EFFORT was meant to close, one layer down, so mypy catches it instead.
 Effort = Literal["minimal", "low", "medium", "high"]
 
 
 @dataclass(frozen=True, slots=True)
 class DaySpend:
-    """What one tenant has been billed for since midnight UTC.
-
-    ``blind`` is read beside the sum rather than derived from it, because the
-    two say different things and only one of them can be trusted: a model name
-    the price table never knew about records $0.0000 with ``unpriced`` set, so
-    a day summed on ``cost_usd`` alone reads as free while it spends. A day
-    whose cost cannot be established is not a cheap day, and the rule that
-    judges this pair says so.
-    """
-
     cost_usd: float
     blind: int
 
@@ -87,25 +48,9 @@ class Answer:
     data: dict[str, object] | None = None
     in_tokens: int = 0
     out_tokens: int = 0
-    # Part of out_tokens for pricing, kept separately so a reader can see how
-    # much of the bill was reasoning nobody ever read.
     thought_tokens: int = 0
     cost_usd: float = 0.0
-    # True when cost_usd cannot be trusted: the model is missing from PRICES,
-    # or the SDK did not give back real usage counts. A $0.00 row and an
-    # honestly-unpriced row look the same in cost_usd alone -- this is what
-    # tells them apart.
     truncated: bool = False
-    """Whether the model was cut off by the output ceiling rather than
-    answering.
-
-    A fact about the call and not a kind of error, because the caller acts on
-    it: thinking is billed inside `maxOutputTokens` on Gemini and the ceiling
-    is the model's own, so the only remedy is to think less. `GeminiAsker`
-    reads this to ask again one level down. Told apart from `error` rather
-    than parsed back out of it, for the reason every sentence in this system
-    is: a name read out of prose breaks the first time the prose is reworded.
-    """
 
     unpriced: bool = False
     error: str | None = None

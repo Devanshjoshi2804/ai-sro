@@ -1,12 +1,3 @@
-"""Find what is known, structurally first.
-
-The order matters more than the ranking. Filter by system, kind and entity, and
-only then let similarity order what survived. A nearest neighbour over the whole
-store returns another system's endpoint with total confidence, and a wrong
-answer that is confident and fast is the failure mode this whole design is
-arranged against.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -26,8 +17,6 @@ class Question:
     limit: int = 20
 
     automation_only: bool = False
-    """Keep only claims strong enough to drive a call. A screen's help text is
-    worth showing an operator and is not worth building a request from."""
 
 
 class Retrieve:
@@ -46,13 +35,6 @@ class Retrieve:
                 ctx.tenant_id,
                 system=question.system,
                 kinds=question.kinds,
-                # Terms still narrow when a vector is present: similarity is an
-                # ordering, and on a store this size it will always return
-                # twenty of something. The ternary here used to run backwards
-                # -- it dropped the WHERE the moment embedding succeeded,
-                # which is the common case, and left nothing but system/kind
-                # between a question and a confident nearest neighbour from
-                # another entity entirely.
                 terms=question.text,
                 embedding=vector,
                 min_evidence=SUPPORTS_AUTOMATION if question.automation_only else None,

@@ -1,11 +1,3 @@
-"""The two ports execution already has, performed in somebody else's browser.
-
-Nothing here decides anything. A gesture is proposed by the same code that
-proposes it for a browser on the server, and what comes back is the same
-``UiOutcome`` or ``HttpResponse``. The only new fact is that this browser can
-close, and that arrives as the unavailability execution already records.
-"""
-
 from __future__ import annotations
 
 import base64
@@ -27,10 +19,6 @@ _NO_BROWSER = (
     "focus_not_permitted",
     "aborted",
 )
-"""Failures that mean there was no browser to act in, rather than facts about
-the page. A page whose control moved is a skill that has drifted; a laptop that
-closed is not, and counting the second as the first would demote a skill for
-somebody going to lunch."""
 
 
 class RemoteAgents(AgentDrivers):
@@ -135,9 +123,6 @@ class RemoteUiDriver(UiDriver):
         return str(url) if url else None
 
     async def capture(self) -> Screen:
-        """Inline, not an artifact: this picture is being looked at now, and a
-        round trip through object storage to read back what we just asked for
-        would be two more places for it to be delayed or lost."""
         answer = await self._ask("screenshot", {"inline": True}, timeout_s=30.0)
         if not answer.ok:
             raise UiUnavailable(answer.detail or "the browser did not send a screen")
@@ -153,35 +138,17 @@ class RemoteUiDriver(UiDriver):
         )
 
     def for_session(self, debugger_url: str) -> UiDriver:
-        """Itself. A device is one browser and there is no other to point at;
-        the deployment does not own it and cannot open a second."""
         return self
 
     async def _ask(
         self, kind: str, payload: Mapping[str, object], *, timeout_s: float | None = None
     ) -> Answer:
-        # Named on every command rather than once at connect: a device holds one
-        # channel and may be asked to act for several runs against different
-        # systems, so which page a command belongs to is a fact about the
-        # command.
         if self._origin:
             payload = {**payload, "origin": self._origin}
-        # Sent only when it is true. A payload carrying `allow_focus: false`
-        # says the same thing as one that omits it, and the omission is the
-        # safer default to have in a protocol: a browser reading a field it
-        # does not understand takes nobody's screen.
         if self._may_take_focus:
             payload = {**payload, "allow_focus": True}
-        # The screen the task was demonstrated on. Without it a run could only
-        # be performed by an operator who had already navigated there, and one
-        # who had not got a page of `control_not_found` that said nothing about
-        # being on the wrong screen.
         if self._starts_on:
             payload = {**payload, "starts_on": self._starts_on}
-        # What the page says about itself while this is happening. The operator
-        # whose browser is being driven is watching the page, not the panel,
-        # and "AI-SRO is doing X, step 4 of 13" is the difference between an
-        # application behaving oddly and a task somebody can see and stop.
         if self._doing:
             payload = {**payload, "skill": self._doing}
         if self._step is not None:
@@ -193,16 +160,10 @@ class RemoteUiDriver(UiDriver):
                 self._tenant_id, self._device_id, kind=kind, payload=payload, timeout_s=timeout_s
             )
         except DeviceUnreachable as gone:
-            # Never a fall back to a browser on the server: that one is signed
-            # in as somebody else, on a screen nobody demonstrated.
             raise UiUnavailable(str(gone)) from gone
 
 
 class RemoteHttpCaller(HttpCaller):
-    """Sends from the operator's own page context, so the call carries their
-    session. It is why a skill can be replayed against a system this deployment
-    holds no credentials for at all."""
-
     def __init__(self, sockets: DeviceSockets, tenant_id: TenantId, device_id: DeviceId) -> None:
         self._sockets = sockets
         self._tenant_id = tenant_id
@@ -229,9 +190,6 @@ class RemoteHttpCaller(HttpCaller):
             raise TargetUnreachable(str(gone)) from gone
 
         if not answer.ok:
-            # Including the timeout: a mutation whose answer never came back is
-            # in an unknown state, and TargetUnreachable is how the executor is
-            # told not to retry it without looking.
             raise TargetUnreachable(answer.detail or "the browser did not send the request")
 
         raw = answer.result.get("headers")
@@ -260,14 +218,6 @@ def _outcome(answer: Answer) -> UiOutcome:
 
 
 def _locator(value: object) -> LocatorStrategy | None:
-    """Which of the five known strategies matched, or none.
-
-    An operator's extension is a different build than this deployment's own
-    code, unlike the local Playwright driver which only ever produces a
-    strategy it constructed itself -- version drift here is a fact about the
-    reply, not a reason a whole run's outcome should raise instead of just
-    losing this one diagnostic field.
-    """
     if not value:
         return None
     try:
@@ -277,8 +227,6 @@ def _locator(value: object) -> LocatorStrategy | None:
 
 
 def _int(value: object) -> int:
-    """JSON from a browser, so a number may arrive as one, as a float, or as
-    the string somebody's template produced."""
     if isinstance(value, bool):
         return 0
     if isinstance(value, int):

@@ -1,15 +1,3 @@
-"""Ask the system whether the session we hold still works.
-
-A stored session goes stale silently. The vault still has cookies, the
-connection still says "connected", and the first thing that notices is an
-operator halfway into a demonstration looking at a login page.
-
-So this asks. One unauthenticated-if-stale GET at the system's own address,
-with the header the executor would send: a login page or a redirect to the
-identity provider means the session is gone, and the app can say so before
-anybody wastes a demonstration on it.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -28,12 +16,8 @@ from sro.domain.connection.connection import Connection, ConnectionStatus
 from sro.domain.skill.plan import NetworkPlan
 
 _LOGIN_SCAN_CHARS = 200_000
-"""Enough of a page to find its form in. A login page is small; a data
-response this size is not one, and scanning all of it costs nothing useful."""
 
 _LIBRARY_PAGE = 200
-"""How many skills to look through for something to probe with. A tenant with
-more than this has plenty to choose from in the first page."""
 
 
 class SessionHealth(StrEnum):
@@ -41,8 +25,6 @@ class SessionHealth(StrEnum):
     SIGNED_OUT = "signed_out"
     NEVER_CONNECTED = "never_connected"
     UNREACHABLE = "unreachable"
-    """The system did not answer. Says nothing about the session, and must not
-    be reported as a bad one -- signing in again would not fix an outage."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,7 +58,6 @@ class CheckSession:
         return tuple([await self._check(ctx, c) for c in connections])
 
     async def for_system(self, ctx: RequestContext, *, target_system: str) -> SessionCheck | None:
-        """None when the tenant has no such connection at all."""
         async with self._uow as uow:
             connection = await uow.connections.find_by_system(ctx.tenant_id, target_system)
         return await self._check(ctx, connection) if connection else None
@@ -90,12 +71,6 @@ class CheckSession:
                 connection_id, system, SessionHealth.NEVER_CONNECTED, "nobody has signed in yet"
             )
 
-        # A read this system has actually proved, rather than its front page --
-        # and sent the way a run sends it. The portal answered 200 to a session
-        # whose data calls all redirected to the identity provider, and a bare
-        # cookie was not enough for those calls either: the site parameters and
-        # the anti-forgery header are part of what makes a request authentic
-        # here, so a probe without them tests something nobody does.
         proved = await self._proved_read(ctx, system)
         probe = str(proved[0].url) if proved else connection.base_url
         headers = {"cookie": header}
@@ -108,10 +83,6 @@ class CheckSession:
                 scope=str(ctx.tenant_id),
                 session_scope=session_scope,
             )
-            # The cookie first, and kept: rebuilding this dict without it sent
-            # the probe unauthenticated, so every check redirected to the
-            # identity provider no matter how good the session was -- and the
-            # verdict came to rest entirely on the browser adoption below.
             headers = {
                 "cookie": header,
                 **client_headers(plan.headers, probe),
@@ -128,10 +99,6 @@ class CheckSession:
             connection.base_url,
             response.text,
         ):
-            # Before saying so: is somebody signed in right now in a browser we
-            # opened? An operator who signs in and closes the tab has done the
-            # whole job, and three times today a good session was thrown away
-            # because the console happened not to be watching that window.
             if await self._adopt(ctx, connection) and await self._works(
                 ctx, connection, probe, headers
             ):
@@ -153,15 +120,6 @@ class CheckSession:
         probe: str,
         headers: dict[str, str],
     ) -> bool:
-        """Whether the session just adopted actually answers the probe.
-
-        Adoption used to be taken as proof on its own. It is not: a browser
-        keeps its cookie jar in a profile that outlives the session in it, so an
-        expired cookie for the right host reads as a completed login. That
-        reported "the session works" over a connection whose every call was
-        redirected to the identity provider -- and wrote the dead cookies back
-        into the vault on the way past.
-        """
         cookie = await self._vault.get(connection.cookie_key)
         if not cookie:
             return False
@@ -181,12 +139,6 @@ class CheckSession:
     async def _proved_read(
         self, ctx: RequestContext, system: str
     ) -> tuple[NetworkPlan, str] | None:
-        """A GET some demonstration of this system made and got 200 from.
-
-        Evidence, not a guess at a health endpoint: whatever this deployment
-        answers to is what a taught skill already calls, and if that call needs
-        a session then so does everything the operator will ask for.
-        """
         async with self._uow as uow:
             skills = await uow.skills.list_for_tenant(ctx.tenant_id, limit=_LIBRARY_PAGE)
         for skill in skills:
@@ -196,26 +148,12 @@ class CheckSession:
                 plan = step.network_plan
                 if plan is None or plan.method.upper() != "GET":
                     continue
-                # Only a call with nothing to fill in: a probe that needs a
-                # parameter is a probe nobody can run unattended.
                 if "${" not in str(plan.url):
                     key = skill.objective_key
                     return plan, f"{key.target_system}/{key.facility}"
         return None
 
     async def _adopt(self, ctx: RequestContext, connection: Connection) -> bool:
-        """Take a session from a browser that is signed in, if one is open.
-
-        Nothing here signs anybody in: it looks at browsers **this tenant**
-        already has open and keeps what an operator has already done. A live
-        browser holding a cookie for this system is a completed login that
-        nobody wrote down.
-
-        It used to look at every browser in the deployment. Since the write is
-        into the caller's vault and the only remaining check was a host name,
-        one tenant's health check could take another tenant's live session and
-        act as their operator from then on.
-        """
         if self._browsers is None or self._browser is None or self._refresh is None:
             return False
         try:
@@ -228,35 +166,16 @@ class CheckSession:
                 cookies = list(await self._browser.session_cookies(session.id))
             except BrowserUnavailable:
                 continue
-            # Trusted: the browser is open and holds the application's own
-            # cookie, which is what signing in produces and what an identity
-            # provider's cookies alone are not.
             if await self._refresh.execute(ctx, cookies=cookies, trusted=True):
                 return True
         return False
 
 
 def _is_login(status_code: int, location: str | None, base_url: str, body: str = "") -> bool:
-    """Whether the system answered with its login rather than with the thing.
-
-    Two shapes, and this only ever detected one of them. A redirect off the
-    system's own host is the identity provider taking over -- judged by host
-    rather than by any word in the URL, because "login", "auth" and "signin" are
-    all absent from at least one identity provider we work with and present in
-    plenty of pages that are not one.
-
-    The other shape is a 200 that *is* the login page, served in place of what
-    was asked for. That read as "the session works", so a connection whose every
-    call came back as a sign-in form could never self-heal: the check it depends
-    on reported it healthy.
-    """
     if 300 <= status_code < 400 and location:
         here = urlsplit(base_url).hostname or ""
         there = urlsplit(location).hostname
         return bool(there) and there != here
-    # A password field is the page saying what it is. Any heuristic on words
-    # would fire on a warehouse screen that happens to mention a password
-    # policy; a control the browser will autofill a credential into does not.
     lowered = body[:_LOGIN_SCAN_CHARS].lower()
     return status_code == 200 and (
         'type="password"' in lowered or 'autocomplete="current-password"' in lowered

@@ -63,10 +63,6 @@ async def record_offer(
         k=body.k,
         fate=body.fate,
         run_id=body.run_id,
-        # The browser's reading, as it wrote it, for `clamped` to hold against
-        # the server's. Passed on and never defaulted here: which day an offer
-        # falls on decides when its job comes back, and a route that read a
-        # clock would decide that.
         at=body.at.isoformat() if body.at else None,
     )
     return OfferRecordedResponse(offer_id=recorded.id)

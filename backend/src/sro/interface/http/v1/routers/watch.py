@@ -45,16 +45,9 @@ async def watch_session(websocket: WebSocket, session_id: str) -> None:
 
     try:
         caller = container.credentials.verify(f"Bearer {token}")
-        # Signed by this deployment is not the same as yours. Session ids are
-        # handed out by another endpoint, so proving only the credential let
-        # anybody list a browser and then watch it -- somebody else's warehouse,
-        # live, for the price of one request.
         ctx = RequestContext(tenant_id=caller.tenant_id, principal_id=caller.principal_id)
         await container.browsers().session(ctx, BrowserSessionId(session_id))
     except (CredentialRejected, Unconfigured, NotFound):
-        # Closed rather than refused with a status: the handshake has not been
-        # accepted, so there is no response body a browser would ever show. A
-        # browser that is not yours closes exactly like one that is not there.
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
@@ -69,6 +62,4 @@ async def watch_session(websocket: WebSocket, session_id: str) -> None:
     except Exception:
         logger.exception("live view for %s failed", session_id)
     with contextlib.suppress(RuntimeError):
-        # The socket is already closed when the viewer left first, and closing a
-        # closed socket raises rather than being the no-op it reads as.
         await websocket.close()

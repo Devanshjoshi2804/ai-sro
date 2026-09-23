@@ -1,15 +1,3 @@
-"""Domain objects to JSON and back.
-
-Frames and skill versions are deep, immutable and read as whole documents; a
-column-per-field mapping would be a hundred tables and would still lose the
-parts of a capture that have no fixed shape. They are stored as JSONB and the
-queryable fields are lifted into real columns by the models.
-
-The conversion is derived from the domain's own type annotations. There is no
-second definition of the shape to keep in step, and a field added to a domain
-dataclass is persisted the moment it exists.
-"""
-
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -30,15 +18,6 @@ from sro.domain.trigger.watch import Watch
 
 
 def when(moment: str) -> datetime:
-    """An ISO instant as a real timestamp, in UTC when it said nothing.
-
-    The rig kept every clock as text and the records still carry ISO strings,
-    so every repository storing one in a ``timestamptz`` converts on both
-    edges. Public and here rather than private to one of them: a naive instant
-    must be read as UTC and not as the server's local time -- otherwise a run
-    that finished hours before it started -- and that is one rule, not one per
-    repository.
-    """
     parsed = datetime.fromisoformat(moment)
     return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
 
@@ -57,10 +36,6 @@ _WATCH: TypeAdapter[Watch | None] = TypeAdapter(Watch | None)
 
 
 def dump[T](adapter: TypeAdapter[T], value: T) -> Any:
-    """Adapter to JSON. Public, because the per-table codecs need it too."""
-    # ``fallback=dict`` covers the read-only mappings the domain uses to keep
-    # captured headers immutable; ``warnings=False`` silences the resulting
-    # "expected dict, got mappingproxy" notice, which is exactly what we mean.
     return adapter.dump_python(value, mode="json", fallback=dict, warnings=False)
 
 

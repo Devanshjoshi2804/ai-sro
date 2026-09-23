@@ -1,5 +1,3 @@
-"""Caller identity passed to every use case."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass

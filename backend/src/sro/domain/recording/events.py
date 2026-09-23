@@ -1,5 +1,3 @@
-"""One human action and everything that followed. See docs/06-glossary.md#action-frame."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
@@ -33,17 +31,8 @@ class InputAction:
     target: ElementFingerprint | None = None
     value: str | None = None
     modifiers: frozenset[str] = frozenset()
-    """``ctrl``, ``shift``, ``alt``, ``meta`` -- a shift-click is a different action."""
 
     secret: bool = False
-    """The value was typed into a credential field.
-
-    The one thing capture does not keep. Everything else is evidence of what
-    happened; a password is an access token to the customer's system, and
-    storing it would turn the evidence plane into a credential store. What is
-    recorded is that a credential was entered, and where -- enough to replay the
-    step from the vault, and useless to anyone who reads the recording.
-    """
 
     def __post_init__(self) -> None:
         if self.kind in _ACTIONS_NEEDING_TARGET and self.target is None:
@@ -59,17 +48,13 @@ class InputAction:
 
 @dataclass(frozen=True)
 class ActionFrame:
-    """A step of a demonstration, with its complete observable context."""
-
     index: int
     occurred_at: datetime
     action: InputAction
 
     page_url: str | None = None
-    """The page this gesture happened on, as the recorder saw it."""
 
     ax_graph: AxGraph | None = None
-    """The page as the human saw it when they acted."""
 
     requests: tuple[CapturedRequest, ...] = field(default_factory=tuple)
     console: tuple[ConsoleMessage, ...] = ()
@@ -88,13 +73,6 @@ class ActionFrame:
         console: tuple[ConsoleMessage, ...] = (),
         page_events: tuple[PageEvent, ...] = (),
     ) -> ActionFrame:
-        """A copy carrying evidence that arrived after this frame was stored.
-
-        Capture is drained on an interval, so a response that finishes just
-        after a drain belongs to an action already written down. Without this
-        the request is discarded and the step loses the very call the skill
-        would replay.
-        """
         return replace(
             self,
             requests=self.requests + requests,
@@ -104,12 +82,10 @@ class ActionFrame:
 
     @property
     def primary_request(self) -> CapturedRequest | None:
-        """The call this frame is about. See `network.primary_of` for the rule."""
         return primary_of(self.requests)
 
     @property
     def errors(self) -> tuple[str, ...]:
-        """Failure signals in this frame -- the 'why' behind a branch."""
         return tuple(
             [message.text for message in self.console if message.level is ConsoleLevel.ERROR]
             + [

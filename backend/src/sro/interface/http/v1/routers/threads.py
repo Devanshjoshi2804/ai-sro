@@ -78,22 +78,9 @@ async def run_from_thread(
     result that lives only in the browser's memory is gone on the next render.
     """
     if not body.skill_id:
-        # Caught here, before any workflow starts: without this, a missing
-        # skill_id started a durable run against no skill at all, and the only
-        # sign of it was a 404 from the *next* line -- one whose real cause was
-        # already off running as an orphaned workflow.
         raise InvariantViolation("a run started from a thread must name a skill_id")
     skill_id = SkillId(body.skill_id)
-    # Read before the workflow starts, not after: a skill id that names nothing
-    # answered 404 from below while the workflow it had already scheduled went
-    # off to fail on its own, out of sight of the request that caused it.
     skill = await container.get_skill().execute(ctx, skill_id=skill_id)
-    # Refused here or not at all. This answers before the run begins, so a
-    # refusal raised inside the workflow -- a skill at a stage that may not run,
-    # a breaker asking for a person -- reached nobody: the request had already
-    # answered 201 with the id of a run that was never created, and the console
-    # sat on "opening the connection" for a run that had been stopped on
-    # purpose.
     await container.start_run().check(
         ctx,
         ExecutionRequest(
@@ -103,8 +90,6 @@ async def run_from_thread(
             medium=Medium(body.medium),
         ),
     )
-    # Named before it starts, so the console can watch the steps land instead
-    # of holding this request open for as long as the warehouse takes.
     run_id = container.ids.new_run_id()
     await container.durable.execute_skill(
         ctx,
@@ -143,11 +128,6 @@ async def pursue(
     held the whole API until it finished -- which is not a slow endpoint, it is
     an outage with a good excuse. What comes back is an address to watch.
     """
-    # One screen, one pursuit. The provider behind this deployment has a single
-    # browser, so a second pursuit does not get a second screen -- it drives the
-    # same one, mid-task, and both navigate it out from under each other. Two
-    # pursuits then report, separately and truthfully, that the screen would not
-    # respond to anything they did.
     if (busy := container.pursuits.working()) is not None:
         raise Conflict(
             f"a pursuit is already working on {busy.goal!r}; there is one browser, "
@@ -155,9 +135,6 @@ async def pursue(
         )
     pursuit_id = f"pur_{uuid.uuid4().hex}"
     goal = replace(compose(body.intent, None), start_url=body.start_url)
-    # Answered here as well as refused inside, because 202 with a pursuit that
-    # fails a second later reads as "it tried and could not" rather than "you
-    # have not confirmed this".
     if goal.changes_the_system and not body.authorized_by:
         raise Unauthorised(
             "this would change the warehouse. Confirm it first: a pursuit has no "
@@ -186,8 +163,6 @@ async def pursue(
             progress.state = PursuitState.FAILED
             progress.detail = str(error)
         finally:
-            # The thread outlives the process; the progress does not. What
-            # happened has to end up somewhere an operator can read tomorrow.
             await container.converse().note(
                 ctx, thread_id=ThreadId(thread_id), text=_pursuit_note(progress)
             )
@@ -240,14 +215,6 @@ async def say(
         parameters=body.parameters,
         run_id=RunId(body.run_id) if body.run_id else None,
     )
-    # What this system made of what they said, in the thread's own vocabulary.
-    #
-    # `nothing` where the answer carried no decision at all -- the words went
-    # in and the thread went on as it was. Measured on the deployment
-    # 2026-09-20: an operator was asked for an Address, typed one, and the
-    # thread read the sentence as a fresh request and offered a different job
-    # while the first card went on waiting. Nothing anywhere recorded that
-    # their answer had not been taken as one.
     last = thread.messages[-1] if thread.messages else None
     decided = str((last.decision or {}).get("kind") or "") if last else ""
     await container.record_attempt().execute(

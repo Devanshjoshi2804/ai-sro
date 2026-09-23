@@ -7,24 +7,31 @@ Run `make lint` before every push. It is the same command CI runs.
 
 ## Comments and docstrings
 
-The rule: **code says what, comments say why, `docs/` says why it was designed
-that way.**
+The rule: **code says what; the why lives in `docs/`.** Backend source carries
+no comments and no docstrings. The explanation of a line, function or module
+goes in [`docs/code-notes/`](code-notes/README.md), in the file that mirrors the
+source path (`backend/src/sro/x/y.py` → `docs/code-notes/backend/src/sro/x/y.py.md`),
+under a heading naming the function or class and the line.
 
-Rationale that spans more than one module belongs here in `docs/` — written
-once, linked from the code. A design decision restated in six modules rots in
-six places the first time the design changes.
+Rationale that spans more than one module belongs in the numbered `docs/` pages —
+written once, linked from the notes. A design decision restated in six modules
+rots in six places the first time the design changes.
 
-| Write | Do not write |
+Exceptions, kept in code because they are read at runtime or by tools:
+
+| Kept in code | Why |
 |---|---|
-| Module docstring: one or two lines naming what the module is | A page of design rationale |
-| One-line docstring on a public callable | A restatement of the signature |
-| A comment explaining a rejected alternative, a safety rule, or an external constraint | A comment narrating the next line |
-| `# ponytail:` on a deliberate shortcut, naming its ceiling and upgrade path | Silent shortcuts |
+| Docstrings under `backend/src/sro/interface/http/` | FastAPI turns them into `frontend/openapi.json` |
+| Docstrings of pydantic models and of classes that appear in the OpenAPI schema | They become schema descriptions |
+| `# noqa`, `# type: ignore[...]`, `# pragma`, `# fmt:` | Tool directives |
 
-If a field needs a docstring to be understood, first try renaming it.
+A deliberate shortcut is still named: put the `ponytail:` note (its ceiling and
+upgrade path) in the code-notes file; the index lists every one.
 
-Rough target: prose under 25% of lines in `src/`. Not gated in CI — a metric
-like that gets gamed — but a file at 50% is a review comment.
+If a field needs a note to be understood, first try renaming it.
+
+Outside the exceptions above, prose in `src/` should measure close to 0%. Any
+comment or docstring in a diff is a review comment: move it to the notes file.
 
 Measure it:
 

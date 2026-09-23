@@ -1,5 +1,3 @@
-"""Store a capture artifact and attach it to the recording."""
-
 from __future__ import annotations
 
 import json
@@ -20,7 +18,6 @@ from sro.domain.shared.identifiers import RecordingId, TenantId
 def _place(
     segments: tuple[TranscribedSegment, ...], recorded_from: datetime
 ) -> tuple[NarrationSegment, ...]:
-    """Offsets into the audio become points on the recording's clock."""
     return tuple(
         NarrationSegment(
             starts_at=recorded_from + timedelta(milliseconds=segment.start_ms),
@@ -34,7 +31,6 @@ def _place(
 def artifact_key(
     tenant_id: TenantId, recording_id: RecordingId, kind: ArtifactKind, content_type: str
 ) -> str:
-    """Object-store key. Tenant-first so bucket policies can scope per tenant."""
     extension = mimetypes.guess_extension(content_type.split(";")[0].strip()) or ".bin"
     return f"{tenant_id}/{recording_id}/{kind.value}{extension}"
 
@@ -69,9 +65,6 @@ class AttachArtifact:
         duration_ms: int | None = None,
         recorded_from: datetime | None = None,
     ) -> AttachResult:
-        """``recorded_from`` is when the microphone started, which is the only
-        thing that turns a transcript's offsets into times a frame can be
-        matched against."""
         now = self._clock.now()
 
         key = artifact_key(ctx.tenant_id, recording_id, kind, content_type)
@@ -143,12 +136,6 @@ class AttachArtifact:
         frame_index: int | None = None,
         label: str | None = None,
     ) -> None:
-        """Attach a blob the capture adapter already wrote.
-
-        Screenshots and oversized payloads are stored as they are captured --
-        holding them in memory until the recording ends would defeat the point.
-        This records their existence without moving the bytes again.
-        """
         async with self._uow as uow:
             recording = await uow.recordings.get(ctx.tenant_id, recording_id)
             recording.attach_artifact(

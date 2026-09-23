@@ -1,15 +1,3 @@
-"""Connecting a system: open a browser at it, let a human log in, keep the session.
-
-The credentials are typed by the operator into the system's own login page, in a
-browser we opened for them. They never pass through this application, are never
-in a request body we handle, and are never in a recording — the capture recorder
-drops credential values where they are typed.
-
-What we keep is the *session* the login produced, encrypted in the vault. That is
-what lets the executor replay a call tomorrow without a human, and what lets the
-next capture start already logged in.
-"""
-
 from __future__ import annotations
 
 import json
@@ -29,8 +17,6 @@ from sro.domain.shared.identifiers import BrowserSessionId
 
 
 class NotAuthenticated(Exception):
-    """The browser was opened but nobody completed the login."""
-
     code = "not_authenticated"
 
 
@@ -40,11 +26,9 @@ class OpenedConnection:
     live_view_url: str
     browser_session_id: BrowserSessionId
     debugger_url: str
-    """For the capture adapter. Never put on the wire."""
 
     target_system: str
     name: str
-    """Derived from the address when the operator did not name them."""
 
 
 class ConnectSystem:
@@ -68,7 +52,6 @@ class ConnectSystem:
         name: str | None = None,
         target_system: str | None = None,
     ) -> OpenedConnection:
-        """Create or reuse the connection, and open a browser at its login page."""
         target_system = (target_system or "").strip() or _system_from(base_url)
         name = (name or "").strip() or _name_from(base_url)
         async with self._uow as uow:
@@ -86,16 +69,7 @@ class ConnectSystem:
             await uow.commit()
 
         session = await self._browser.open(start_url=connection.base_url)
-        # Empty first. This is the flow that decides who the system thinks we
-        # are, and a provider with one browser hands over the last tenant's
-        # cookie jar: a second tenant opened a browser, the WMS showed it
-        # already signed in as the first, and this flow stored that session
-        # under the second tenant's name. Nobody typed a password, and one
-        # tenant held another's warehouse session.
         await self._browser.forget_everything(session.id)
-        # Opening "at" a URL is two steps: the provider ignores the start URL
-        # for an attached browser, so an unnavigated session would show the
-        # operator a blank page to sign into.
         await self._browser.navigate(session.id, connection.base_url)
         return OpenedConnection(
             connection_id=connection.id,
@@ -113,35 +87,18 @@ _KNOWN_SYSTEMS = {
     "manh.com": "manhattan",
     "sap.com": "sap",
 }
-"""Vendors whose hostnames say nothing useful. ``bf56-kms-wms-web-np2`` is an
-environment, not a system, and two environments of one WMS must land on one
-system key or a skill taught in QA is a skill about a different system."""
 
 
 def _system_from(base_url: str) -> str:
-    """A stable key for the system this address belongs to.
-
-    Derived rather than asked for. Two operators naming one system produce two
-    keys, and everything that pairs -- sessions, skills, knowledge -- pairs on
-    that key being identical.
-    """
     host = (urlsplit(base_url).hostname or "").lower()
     for domain, system in _KNOWN_SYSTEMS.items():
         if host == domain or host.endswith(f".{domain}"):
             return system
-    # Otherwise the registrable-looking part, without the environment prefix:
-    # wms.acme.com and wms.acme.co.uk both become "acme".
     parts = [part for part in host.split(".") if part not in {"www", "com", "co", "uk", "net"}]
     return (parts[-1] if parts else host).replace("-", "_") or "system"
 
 
 def _facility_of(base_url: str) -> str:
-    """Which site this login covers, from the address it was made at.
-
-    Session headers are stored per facility because that is how the executor
-    looks them up -- ``<system>/<facility>/<header>``. Blue Yonder names it in
-    the portal URL, and a connection made without one covers the default site.
-    """
     query = dict(parse_qsl(urlsplit(base_url).query))
     for key in ("siteId", "site", "facility", "warehouseId"):
         if query.get(key):
@@ -150,24 +107,15 @@ def _facility_of(base_url: str) -> str:
 
 
 def _name_from(base_url: str) -> str:
-    """Something a human recognises in a sidebar, from the same one field."""
     return urlsplit(base_url).hostname or base_url
 
 
 def _cookie_header(cookies: list[dict[str, object]], origin: str) -> str:
-    """The cookies this system's own host would receive, as one header.
-
-    Scoped by host on purpose: the identity-provider cookies belong to the login
-    domain and sending them to the application proves nothing, while the
-    application's own session cookie is the thing being kept.
-    """
     wanted = [cookie for cookie in cookies if belongs_to(cookie, origin)]
     return "; ".join(f"{cookie['name']}={cookie['value']}" for cookie in wanted)
 
 
 class StoreSession:
-    """Keep the session a human just created, so nothing has to ask them again."""
-
     def __init__(
         self,
         uow: UnitOfWork,
@@ -189,30 +137,15 @@ class StoreSession:
         connection_id: ConnectionId,
         browser_session_id: BrowserSessionId,
     ) -> Connection:
-        # Whose browser this is, before a single cookie is read out of it. The
-        # id arrives as a query parameter, so without this any operator could
-        # name another tenant's browser and have its live session encrypted into
-        # their own vault -- and every run afterwards would authenticate as that
-        # tenant's operator while the audit trail named this one.
         await self._browsers.session(ctx, browser_session_id)
         cookies = list(await self._browser.session_cookies(browser_session_id))
         async with self._uow as uow:
             connection = await uow.connections.get(ctx.tenant_id, connection_id)
-        # Cookies alone prove nothing: an identity provider sets its own before
-        # anybody types a password, so "has cookies" said signed-in while the
-        # login page was still on screen. What signing in produces is a cookie
-        # for the system's own host, and that is what is waited for -- which is
-        # also what lets the console watch instead of asking.
         if not _cookie_header(cookies, connection.base_url):
             raise NotAuthenticated(
                 "nobody has signed in yet: the browser holds no session for this system."
             )
 
-        # Some systems authenticate a call with more than a cookie. Blue Yonder
-        # signs every request with a token minted by the portal page, so the
-        # executor was refused while the browser beside it was signed in -- and
-        # a run cannot diagnose that for itself. Taken here, from the browser
-        # that just proved it is signed in, because that is where it exists.
         headers = await self._browser.session_headers(browser_session_id, connection.base_url)
 
         async with self._uow as uow:
@@ -230,18 +163,6 @@ class StoreSession:
 
 
 class RefreshSession:
-    """Keep the stored session current, every time a browser proves it is signed in.
-
-    Written once at connect, a session is stale by the following week: the
-    application rotates its session cookie, the identity provider issues a new
-    one, and the blob in the vault names a session the server has forgotten.
-    Restoring it puts the operator back on the login page -- which is the thing
-    connecting once was supposed to prevent.
-
-    So every capture that ends signed in refreshes it. Connect once means
-    connect once only if what was connected is kept alive.
-    """
-
     def __init__(self, uow: UnitOfWork, vault: CredentialVault, clock: Clock) -> None:
         self._uow = uow
         self._vault = vault
@@ -254,23 +175,13 @@ class RefreshSession:
         cookies: list[dict[str, object]],
         trusted: bool = False,
     ) -> int:
-        """Refresh every connection these cookies can speak for. Returns how many."""
         if not cookies:
             return 0
         async with self._uow as uow:
             connections = await uow.connections.list_for_tenant(ctx.tenant_id)
             refreshed = 0
             for connection in connections:
-                # A cookie header with nothing in it means these cookies are not
-                # this system's -- a second connection open in another tab, say.
-                # Overwriting a good session with it would be the bug we are here
-                # to fix, pointed the other way.
                 header = _cookie_header(cookies, connection.base_url)
-                # `trusted` means the caller has just watched this browser make
-                # an authenticated call, which is better evidence than the name
-                # comparison below -- and the comparison rejects a good session
-                # for holding one cookie fewer, which is how a healer took a
-                # fresh token and left the stale cookie beside it.
                 if not header or not (
                     trusted
                     or _still_signed_in(header, await self._vault.get(connection.cookie_key))
@@ -288,14 +199,6 @@ def _names(header: str) -> set[str]:
 
 
 def _still_signed_in(header: str, stored: str | None) -> bool:
-    """Whether this browser ended the session logged in, judged by what it kept.
-
-    A capture that finished on the identity provider still holds cookies -- the
-    routing and anti-forgery ones survive being signed out -- so "has cookies"
-    is not the question. What a logged-out browser has *lost* is the
-    application's own session cookie. Refreshing from it would replace a working
-    session with a logged-out one, which is worse than never refreshing at all.
-    """
     return not stored or _names(stored) <= _names(header)
 
 
@@ -305,27 +208,12 @@ async def _keep(
     cookies: list[dict[str, object]],
     now: datetime,
 ) -> None:
-    """Both forms of the session, written together.
-
-    Cookies are bearer credentials: whoever holds them is the operator until
-    they expire. They go to the vault, never to a recording.
-
-    The blob is what a browser restores; the header is what the executor sends.
-    Keeping only the blob meant a skill kept replaying a cookie header written
-    weeks earlier: two places held "the session", they aged apart, and every
-    call came back 302 to the login page while the browser was happily signed
-    in. One store, refreshed together.
-    """
     await vault.store(
         connection.session_key,
         json.dumps({"origin": connection.base_url, "cookies": cookies}),
     )
     header = _cookie_header(cookies, connection.base_url)
     await vault.store(connection.cookie_key, header)
-    # And the site-scoped copy, which a skill's credential reference names first.
-    # Left behind, it shadows the system-scoped one forever: the executor sent a
-    # cookie from a session that ended hours earlier while every check on the
-    # fresh one passed, and the run failed in a way nothing could explain.
     await vault.store(
         f"{connection.cookie_key.rsplit('/', 1)[0]}/{_facility_of(connection.base_url)}/cookie",
         header,
@@ -334,8 +222,6 @@ async def _keep(
 
 
 class LoadSession:
-    """The stored session, for a browser that needs to start already logged in."""
-
     def __init__(self, uow: UnitOfWork, vault: CredentialVault) -> None:
         self._uow = uow
         self._vault = vault
@@ -358,14 +244,6 @@ class LoadSession:
 
 
 class AcknowledgeFailures:
-    """Close a tripped breaker by a named decision rather than by waiting.
-
-    The breaker's own message asks for a person to look. This is what that
-    person does afterwards, and it is recorded -- who, when, why -- because a
-    breaker anybody can clear anonymously is a breaker that stops meaning
-    anything.
-    """
-
     def __init__(self, uow: UnitOfWork, clock: Clock) -> None:
         self._uow = uow
         self._clock = clock

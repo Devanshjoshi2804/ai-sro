@@ -1,17 +1,3 @@
-"""A mail relay or a chat webhook, asking for its trigger to fire.
-
-There is no principal on the other end of an email -- no bearer token, no
-tenant to prove by reading a row the caller's own credential unlocked. The
-per-trigger token is the only thing standing in for that, so it is checked in
-constant time and a wrong trigger id and a wrong token look identical from the
-outside: neither should tell an unauthenticated caller which one it got wrong
--- which is also why the comparison is on bytes. `hmac.compare_digest` raises
-`TypeError` for a non-ASCII `str`, and Starlette decodes every header value
-through latin-1, so a header byte >= 0x80 always becomes a non-ASCII `str`
-that would otherwise turn a 404 into an unhandled 500 -- itself a signal an
-unauthenticated caller could read.
-"""
-
 from __future__ import annotations
 
 import hmac
@@ -25,9 +11,6 @@ from sro.domain.trigger.trigger import TriggerKind
 
 
 class InboundRefused(DomainError):
-    """No such reachable inbound trigger. Deliberately the same error whether
-    the id is wrong, the kind is wrong, or the token is wrong."""
-
     code = "inbound_refused"
 
 
@@ -39,10 +22,6 @@ class ReceiveInbound:
     async def execute(
         self, trigger_id: TriggerId, *, token: str, message: Mapping[str, str] | None = None
     ) -> Fired:
-        """`message` is the relay's payload. A trigger reads from it only the
-        parameters it declared it would take, so a relay -- which nobody in
-        this tenant wrote and which anybody who learns a token can post to --
-        cannot name the facility a warehouse read runs against."""
         async with self._uow as uow:
             trigger = await uow.triggers.find(trigger_id)
         if (

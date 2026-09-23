@@ -1,26 +1,3 @@
-"""Both miners over one tenant's day, side by side.
-
-The precondition on deleting anything, and the one number the spec asks for
-that nobody has produced. `MineObservations` reads `observations` and writes
-`task_candidates`; `mining_pass.mine` reads `gestures` and the pool and writes
-`workflows`. **Neither reads the other's tables**, so "the model path works"
-and "the rule-based path is safe to delete" are two claims and only the first
-has ever been tested.
-
-    uv run python scripts/two_miners.py acme
-    uv run python scripts/two_miners.py acme --window-hours 720
-
-Reads only, by default. The rule-based miner WRITES candidates as it goes --
-that is how it records what it found -- so `--rule-based` has to be asked for,
-and the model pass costs a 150K-token call, so `--model` does too. With
-neither, this reports what the two paths have already produced over the same
-window, which is the comparison as far as it can be made for free.
-
-What it cannot answer is the half the spec puts last: how many of each a person
-agrees with. That is a reading, not a count, and it is why this prints both
-lists in full rather than only their sizes.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -61,9 +38,6 @@ async def _report(tenant: str, *, hours: int, run_rules: bool, run_model: bool) 
 
     print(f"-- the rule-based path named {len(candidates)} candidate(s)")
     for candidate in sorted(candidates, key=lambda c: -len(c.episodes))[:40]:
-        # How many times it was seen, because that is what the rule-based path
-        # is FOR: a task done once is not a task worth automating, and the
-        # count is the whole of its argument.
         print(f"   {len(candidate.episodes):3}x  {candidate.title or candidate.signature}")
 
     print(f"\n-- the model path named {len(workflows)} job(s)")

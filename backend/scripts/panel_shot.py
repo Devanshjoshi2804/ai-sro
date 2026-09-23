@@ -1,14 +1,3 @@
-"""A picture of the side panel, for working on how it looks.
-
-The panel is an extension page, so it cannot be opened by URL in an ordinary
-browser and cannot be seen without loading the extension. This loads it the way
-the tests do, signs it in against whatever is running locally, opens the panel
-at the width Chrome gives it, and writes a PNG.
-
-    make panel-shot            # /tmp/panel.png
-    make panel-shot at=here    # a tab on `here` first, so the panel has a host
-"""
-
 from __future__ import annotations
 
 import os
@@ -30,19 +19,12 @@ def main() -> int:
 
     with sync_playwright() as p:
         context = p.chromium.launch_persistent_context(
-            # A profile of its own each time: storage persists, so a shot of
-            # the unconnected state taken in yesterday's profile is a shot of
-            # yesterday's sign-in.
             tempfile.mkdtemp(prefix="sro-panel-"),
             headless=False,
             channel="chromium",
             args=[f"--disable-extensions-except={EXTENSION}", f"--load-extension={EXTENSION}"],
             viewport={"width": 420, "height": 900},
         )
-        # The worker starts when something asks it to. A page on the extension's
-        # own origin is enough, and its id is the one thing not known yet -- so
-        # the worker is waited for, and then woken by opening a tab if it has
-        # not started on its own.
         ident = ""
         for attempt in range(40):
             if context.service_workers:
@@ -52,7 +34,6 @@ def main() -> int:
                 context.new_page().goto("about:blank")
             time.sleep(0.25)
         if not ident:
-            # Chrome lists it even when it has not been woken.
             page = context.new_page()
             page.goto("chrome://extensions/")
             found = page.evaluate(
@@ -78,8 +59,6 @@ def main() -> int:
                 [API, CONSOLE, TOKEN],
             )
         if BESIDE and os.environ.get("SRO_TEACHING"):
-            # A demonstration in progress: the state with the most to show and
-            # the most tedious to reach by hand.
             beside = context.new_page()
             beside.goto(BESIDE)
             beside.wait_for_timeout(2500)

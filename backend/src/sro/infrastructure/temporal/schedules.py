@@ -1,14 +1,3 @@
-"""Temporal Schedules: the clock this system does not keep itself.
-
-A cron loop in a process fires nothing while that process is down and twice
-while two are up, and both of those are a warehouse write. Temporal already
-answers those questions, and the deployment already runs it.
-
-The schedule id is derived from the trigger id, which is what makes creating one
-twice idempotent -- the same trigger scheduled again is one schedule, not two
-runs of the same task at the same moment against the same records.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -53,8 +42,6 @@ class TemporalScheduler(Scheduler):
         action = ScheduleActionStartWorkflow(
             TriggerWorkflow.run,
             TriggerRequest(trigger_id=trigger.id.value),
-            # Derived, so a firing is traceable to the trigger that caused it
-            # without a lookup.
             id=f"fire-{trigger.id.value}",
             task_queue=DEFAULT_QUEUE,
         )
@@ -63,8 +50,6 @@ class TemporalScheduler(Scheduler):
                 schedule_id(trigger.id), Schedule(action=action, spec=spec)
             )
         except ScheduleAlreadyRunningError:
-            # Idempotent by id: an update replaces the spec rather than adding
-            # a second schedule for the same trigger.
             handle = client.get_schedule_handle(schedule_id(trigger.id))
             await handle.update(
                 lambda _: ScheduleUpdate(schedule=Schedule(action=action, spec=spec))
@@ -77,13 +62,9 @@ class TemporalScheduler(Scheduler):
         except RPCError as failure:
             if failure.status is not RPCStatusCode.NOT_FOUND:
                 raise
-            # Already gone. Deleting what is not there is the success this port
-            # promises, because a failed teardown must be safe to repeat.
             logger.debug("no schedule for trigger %s to remove", trigger_id)
 
     async def _connect(self) -> Client:
-        """Connected on first use, not at boot: a Temporal outage must not stop
-        the API from serving reads. Same reason as the durable adapter."""
         async with self._lock:
             if self._client is None:
                 try:

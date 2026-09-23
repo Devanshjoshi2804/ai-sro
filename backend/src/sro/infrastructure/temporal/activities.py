@@ -1,10 +1,3 @@
-"""Activities: the effectful half. Everything that touches the world lives here.
-
-Arguments and returns are plain dataclasses because Temporal serialises them.
-Domain objects stay behind the use case, so a change to an aggregate never
-invalidates a workflow history.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -15,8 +8,6 @@ from temporalio import activity
 from sro.application.context import RequestContext
 
 if TYPE_CHECKING:
-    # Type-only: the composition root builds the activities, so importing it at
-    # runtime would make anything that schedules work import every adapter.
     from sro.container import Container
 from sro.application.execution.execute_skill import ExecutionRequest
 from sro.domain.execution.run import Medium, RunId
@@ -36,7 +27,6 @@ class InductionRequest:
     principal_id: str
     first_recording_id: str
     second_recording_id: str = ""
-    """Empty when the operator induced from a single demonstration."""
     name: str | None = None
 
 
@@ -59,7 +49,6 @@ class StartRunRequest:
     authorized_by: str | None = None
     medium: str = "network"
     run_id: str = ""
-    """Chosen before the workflow starts, so whoever asked can watch it."""
 
 
 @dataclass
@@ -82,16 +71,8 @@ class StepResult:
     disposition: str
     ok: bool
     mutating: bool
-    """Whether this step changed the target system. The workflow uses it to
-    decide that a failure must not be retried."""
 
     more: bool = False
-    """Whether the run has another position to perform.
-
-    Asked rather than counted, because a skill with a loop does not know how
-    many steps it has until the system says how many things there are -- and a
-    workflow that counted up front would stop after the first line of a
-    twelve-line order."""
 
 
 @dataclass
@@ -104,9 +85,6 @@ class ReapRequest:
 @dataclass
 class TriggerRequest:
     trigger_id: str
-    """The whole request. A schedule has no caller, so the tenant and the
-    principal come off the trigger itself rather than being carried here where
-    they could disagree with it."""
 
 
 @dataclass
@@ -117,8 +95,6 @@ class TriggerResult:
 
 
 class Activities:
-    """Bound to a container so the worker owns exactly one set of adapters."""
-
     def __init__(self, container: Container) -> None:
         self._container = container
 
@@ -146,11 +122,6 @@ class Activities:
 
     @activity.defn(name="abandon_stale_recording")
     async def abandon_stale_recording(self, request: ReapRequest) -> bool:
-        """Close a demonstration nobody came back to.
-
-        Returns whether anything was abandoned, so the workflow can say what it
-        did rather than report success either way.
-        """
         ctx = RequestContext(
             tenant_id=TenantId(request.tenant_id),
             principal_id=PrincipalId("system"),
@@ -215,8 +186,6 @@ class Activities:
 
     @activity.defn(name="fire_trigger")
     async def fire_trigger(self, request: TriggerRequest) -> TriggerResult:
-        """No context argument: a schedule has no caller, and the tenant comes
-        off the trigger."""
         fired = await self._container.fire_trigger().execute(TriggerId(request.trigger_id))
         return TriggerResult(
             trigger_id=fired.trigger_id.value,

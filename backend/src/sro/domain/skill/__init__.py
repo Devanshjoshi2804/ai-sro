@@ -1,5 +1,3 @@
-"""Skill aggregate. Start at ``skill.py``, then ``promotion.py``."""
-
 from sro.domain.skill.assertion import Assertion, AssertionKind
 from sro.domain.skill.parameter import Parameter, ParameterKind
 from sro.domain.skill.plan import NetworkPlan, UiPlan

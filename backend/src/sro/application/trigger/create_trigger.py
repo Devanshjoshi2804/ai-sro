@@ -1,11 +1,3 @@
-"""Putting a task on a clock.
-
-Everything that can be refused is refused here rather than at three in the
-morning: a skill that has never earned a stage that may run, values the skill
-declares and nobody supplied, a write with nobody's name on it. A trigger that
-exists is a trigger that would work.
-"""
-
 from __future__ import annotations
 
 import secrets
@@ -24,9 +16,6 @@ from sro.domain.trigger.watch import QUESTION, Watch
 
 
 class TriggerRefused(DomainError):
-    """This trigger will not be created, and the reason is about the skill or
-    the authority rather than about the request being malformed."""
-
     code = "trigger_refused"
 
 
@@ -34,41 +23,25 @@ class TriggerRefused(DomainError):
 class NewTrigger:
     skill_id: SkillId | None = None
     workflow_id: str | None = None
-    """What this will run. Exactly one, refused below rather than by an
-    `InvariantViolation` from `Trigger` -- a caller naming both deserves a
-    sentence about it, not a 500."""
 
     kind: TriggerKind = TriggerKind.SCHEDULE
     cron: str | None = None
     timezone: str = "UTC"
     parameters: dict[str, str] | None = None
     from_message: tuple[str, ...] = ()
-    """Parameters a message that fires this may name -- an order number in a
-    mail. Everything not listed here is fixed at creation, so a relay cannot
-    point a warehouse read at another facility."""
 
     watch: Watch | None = None
-    """What makes a mail one of these, for a trigger the operator's own browser
-    evaluates. The names it reads are its `from_message`; there is no second
-    list to keep in step."""
 
     arrival: Arrival | None = None
-    """The page whose arrival fires it -- the other rule a browser holds. An
-    operator standing on the page where a job starts, saying "do this here"."""
 
     device_id: DeviceId | None = None
     medium: Medium = Medium.NETWORK
     authorized_by: bool = False
-    """Whether the caller is standing behind every run this will start. The
-    name comes from their credential, never from the request."""
 
     auto_approve: bool = False
     may_take_focus: bool = False
 
     asks: bool = False
-    """This watch asks a question rather than running anything. No skill and no
-    job, because there is nothing to name: the mail carries a question and the
-    answer is somewhere in the systems the operator works in."""
 
 
 class CreateTrigger:
@@ -84,10 +57,6 @@ class CreateTrigger:
         self._clock = clock
         self._ids = ids
         self._scheduler = scheduler
-        # Whether a run can go and find a value nobody supplied. The same pair
-        # `start_workflow_run` builds its gather out of, asked here so this
-        # door and the run door make the same judgement: a deployment with no
-        # mailbox still refuses a trigger whose job would fail at 3am.
         self._can_gather = can_gather
 
     async def execute(self, ctx: RequestContext, request: NewTrigger) -> Trigger:
@@ -105,11 +74,6 @@ class CreateTrigger:
             return await self._for_a_job(ctx, request, parameters=parameters)
 
         if request.kind is TriggerKind.ARRIVAL:
-            # Only a mined job, for now. A job knows the page it starts on --
-            # the candidate carried it before the job existed -- and a taught
-            # skill does not: there would be nothing to check the rule against,
-            # so "do this here" could name any page and fire on the wrong one
-            # forever. Refused rather than half-built.
             raise TriggerRefused("only a mined job can be started by arriving somewhere")
 
         assert request.skill_id is not None  # noqa: S101 - checked directly above
@@ -121,16 +85,10 @@ class CreateTrigger:
                     "this skill has no version that may run yet; it has never been rehearsed"
                 )
 
-            # A watch names the values it supplies by where it reads them out
-            # of the mail. One list, checked the same way -- a value pointed at
-            # a parameter this skill does not have is the same silent typo.
             supplied = request.watch.reads if request.watch else request.from_message
 
             declared = {parameter.name for parameter in version.parameters}
             if unknown := sorted(set(supplied) - declared):
-                # A typo here is silent otherwise: the mail's value is dropped
-                # for having the wrong name, and the trigger fires with nothing
-                # every time until somebody reads a run.
                 raise TriggerRefused(
                     f"this skill has no {', '.join(unknown)} for a message to supply"
                 )
@@ -141,8 +99,6 @@ class CreateTrigger:
                 if parameter.name not in parameters and parameter.name not in supplied
             )
             if missing:
-                # A trigger with a value missing fails every single time it
-                # fires, and nobody is watching when it does.
                 raise TriggerRefused(
                     f"this skill needs {', '.join(missing)}: supply a value, "
                     "or say that a message will"
@@ -153,12 +109,6 @@ class CreateTrigger:
                 raise TriggerRefused(
                     "this skill changes the system, so a trigger for it must be authorised"
                 )
-            # A write that fires with nobody there used to be refused outright,
-            # because there was nowhere to ask. There is now: the fire becomes
-            # a card in `confirmations` and the run starts when somebody
-            # answers it, with their name on it. `auto_approve` remains the
-            # other honest answer -- a named person saying in advance that this
-            # one need not be asked about.
 
             trigger = Trigger(
                 id=self._ids.new_trigger_id(),
@@ -184,10 +134,6 @@ class CreateTrigger:
             )
 
             if trigger.is_scheduled:
-                # Before the commit, deliberately. A schedule for a trigger that
-                # was never stored fires once, finds nothing, and removes
-                # itself; a stored trigger with no schedule is a task somebody
-                # believes is covered and is not.
                 await self._scheduler.schedule(trigger)
 
             await uow.triggers.add(trigger)
@@ -196,16 +142,6 @@ class CreateTrigger:
         return trigger
 
     async def _for_a_question(self, ctx: RequestContext, request: NewTrigger) -> Trigger:
-        """A watch that asks rather than runs.
-
-        The checks a job trigger makes are all about the thing it runs, and
-        there is nothing here to check them against: no version to have earned
-        a stage, no parameters to be missing, no write to authorise. What is
-        left is what this kind can get wrong -- being asked of a browser that
-        is not there, or being given no question to ask -- and the second is
-        `Trigger`'s own invariant, checked here so a caller reads a sentence
-        rather than a 500.
-        """
         if request.skill_id or request.workflow_id:
             raise TriggerRefused("a trigger that asks a question runs nothing: name neither")
         if request.kind is not TriggerKind.WATCH:
@@ -227,8 +163,6 @@ class CreateTrigger:
             watch=request.watch,
             device_id=request.device_id,
             medium=request.medium,
-            # Neither, and both for the same reason: a read writes nothing, so
-            # there is no write to authorise and no card to ask anybody for.
             writes=False,
             requires_confirmation=False,
             may_take_focus=request.may_take_focus,
@@ -241,32 +175,9 @@ class CreateTrigger:
     async def _for_a_job(
         self, ctx: RequestContext, request: NewTrigger, *, parameters: dict[str, str]
     ) -> Trigger:
-        """A trigger on a mined job.
-
-        The checks are the ones this moment knows and a later one cannot. The
-        job exists -- a schedule for one this tenant does not have is refused
-        here rather than at 3am. It runs in a browser,
-        because a workflow is a recording of somebody's own window and there is
-        no headless path for one. And every parameter it declares has a value,
-        from the trigger or from whatever fires it: `StartWorkflowRun` refuses
-        a job with one left blank, which for a schedule means failing at 3am
-        every night instead of being refused once, now, in front of a person.
-
-        `writes` is True for a job and is not computed from its steps. It is a
-        standing authority to drive somebody's browser through a recording of
-        real work, and the honest reading of that is "this changes things" --
-        so it needs a name behind it. What decides whether the write actually
-        goes out unattended is not this flag at all: it is `earned`, three live
-        runs whose every write a state belt verified, checked per run.
-        """
         async with self._uow as uow:
-            # `get` raising is the existence check: a schedule for a job this
-            # tenant does not have is refused here rather than at 3am.
             workflow = await uow.workflows.get(ctx.tenant_id, str(request.workflow_id))
             if request.kind is TriggerKind.ARRIVAL and request.arrival is None:
-                # The kind and the rule are one decision. A row with the kind
-                # and no page would be refused by `Trigger` as a 500 out of a
-                # route; here it is a sentence the caller can act on.
                 raise TriggerRefused("an arrival trigger needs the page it fires on")
             if request.device_id is None:
                 raise TriggerRefused("a job runs in a browser: name a device")
@@ -289,18 +200,6 @@ class CreateTrigger:
                     name for name in declared if name not in parameters and name not in supplied
                 )
             ) and not self._can_gather:
-                # Every declared parameter is required: `StartWorkflowRun`
-                # refuses a press that leaves one blank, because the planner
-                # would otherwise fall back to the value the RECORDING happened
-                # to contain and do the job with somebody else's client code.
-                #
-                # Unless something can go and find it. The same relaxation the
-                # run door makes and for the same reason: a deployment that can
-                # read the operator's mailbox has a second answer, and refusing
-                # here would mean a watch on "create a customer type" could only
-                # be made by somebody willing to map `customertype-longDescription`
-                # onto a line of the mail by hand. What it cannot find, it
-                # refuses at the step, with the names on the card.
                 raise TriggerRefused(
                     f"this job needs {', '.join(missing)}: supply a value, "
                     "or say that a message will"
@@ -316,9 +215,6 @@ class CreateTrigger:
                 parameters=parameters,
                 from_message=request.from_message,
                 arrival=request.arrival,
-                # The rule a mail is recognised by. Carried here since a watch
-                # may name a job: without it the row would be a watch that
-                # matches nothing, which is a trigger that silently never fires.
                 watch=request.watch,
                 cron=request.cron,
                 timezone=request.timezone,
@@ -333,10 +229,6 @@ class CreateTrigger:
                 ),
             )
             if trigger.is_scheduled:
-                # Before the commit, for the reason the skill path gives: a
-                # schedule for a trigger that was never stored fires once and
-                # removes itself, and a stored trigger with no schedule is a
-                # task somebody believes is covered and is not.
                 await self._scheduler.schedule(trigger)
             await uow.triggers.add(trigger)
             await uow.commit()

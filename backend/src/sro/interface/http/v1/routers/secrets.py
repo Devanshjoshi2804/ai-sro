@@ -61,9 +61,6 @@ async def store_secret(
     try:
         await container.vault.store(key, body.value)
     except VaultUnavailable as unusable:
-        # Deliberately not a 500. A deployment with no key configured is a
-        # deployment that cannot keep a secret, and the honest answer is that
-        # it refused rather than that something broke.
         raise unusable
     return SecretStoredModel(key=key)
 

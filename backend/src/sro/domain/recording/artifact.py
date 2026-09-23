@@ -1,5 +1,3 @@
-"""Capture outputs stored as blobs rather than rows."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -11,16 +9,13 @@ from sro.domain.shared.errors import InvariantViolation
 
 class ArtifactKind(StrEnum):
     RAW_EVENTS = "raw_events"
-    """Unabridged CDP stream. Frames are re-derivable from this without re-recording."""
 
     VIDEO = "video"
     SCREENSHOT = "screenshot"
-    """Still capture. One per action frame, plus any taken on demand."""
 
     AUDIO = "audio"
     TRANSCRIPT = "transcript"
     PAYLOAD = "payload"
-    """A request or response body too large to store inline."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,8 +28,6 @@ class MediaArtifact:
     duration_ms: int | None = None
 
     frame_index: int | None = None
-    """Set when the artifact belongs to one action frame -- a screenshot, or a
-    payload blob referenced by a captured request."""
 
     label: str | None = None
 

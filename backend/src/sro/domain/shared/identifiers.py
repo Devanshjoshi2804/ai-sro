@@ -1,5 +1,3 @@
-"""Typed identifiers. See docs/01-architecture.md#tenancy."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -19,8 +17,6 @@ class Identifier:
         return self.value
 
 
-# Subclasses exist so mypy rejects a SkillId where a RecordingId belongs, and so
-# ids of different kinds never compare equal at runtime.
 class TenantId(Identifier): ...
 
 
@@ -33,26 +29,19 @@ class SkillId(Identifier): ...
 class PrincipalId(Identifier): ...
 
 
-class DeviceId(Identifier):
-    """One installed extension in one browser profile."""
+class DeviceId(Identifier): ...
 
 
-class BatchId(Identifier):
-    """Minted by the extension, not here: a retried upload must be recognised as
-    the same batch rather than stored twice."""
+class BatchId(Identifier): ...
 
 
-class CandidateId(Identifier):
-    """A task somebody keeps doing, noticed rather than reported."""
+class CandidateId(Identifier): ...
 
 
-class TriggerId(Identifier):
-    """What starts a run when nobody typed a sentence."""
+class TriggerId(Identifier): ...
 
 
-class ConfirmationId(Identifier):
-    """A fire waiting for somebody to say yes."""
+class ConfirmationId(Identifier): ...
 
 
-class BrowserSessionId(Identifier):
-    """Session in the browser provider. Owned by them, referenced by us."""
+class BrowserSessionId(Identifier): ...

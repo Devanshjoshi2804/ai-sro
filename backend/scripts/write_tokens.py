@@ -1,17 +1,3 @@
-"""Copy the brand palette into the extension.
-
-The console and the extension shipped two different oranges, neither of them the
-brand's, because each surface kept its own copy of the colours. There is no
-bundler here and there should not be one for a stylesheet, so this does the one
-thing that stops them drifting: writes the canonical file into the extension's
-tree with a header saying not to edit it.
-
-    make tokens
-
-`new-chrome-extension/src/tokens.test.mjs` fails if the copy is stale, so the
-question gets asked where the code is rather than in a pipeline nobody watches.
-"""
-
 from __future__ import annotations
 
 import sys

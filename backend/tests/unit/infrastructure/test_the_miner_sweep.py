@@ -40,10 +40,7 @@ async def test_the_rig_sweep_of_zero_seconds_returns_instead_of_looping() -> Non
 def test_the_shipped_default_leaves_the_rig_miner_on() -> None:
     """The decision, pinned where a diff has to argue with it.
 
-    The opposite default from `mining_sweep_seconds`, and the two are not
-    variants of one setting. That one teaches what it notices with nobody asked
-    and four of the nine skills it taught across both real tenants are not
-    work. This one writes a `workflows` row that `validate` has already refused
+    This writes a `workflows` row that `validate` has already refused
     nine ways, that no browser is offered until it is proven, and whose first
     run is always dry.
 

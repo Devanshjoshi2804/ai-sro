@@ -26,9 +26,15 @@ from sro.application.trigger.answer_confirmation import (
 from sro.application.trigger.fire_trigger import FireTrigger
 from sro.domain.execution.run import Medium
 from sro.domain.shared.errors import InvariantViolation
-from sro.domain.shared.identifiers import DeviceId, PrincipalId, TriggerId
+from sro.domain.shared.identifiers import (
+    ConfirmationId,
+    DeviceId,
+    PrincipalId,
+    TenantId,
+    TriggerId,
+)
 from sro.domain.skill.promotion import PromotionStage
-from sro.domain.trigger.confirmation import ANSWER_WITHIN, Answer
+from sro.domain.trigger.confirmation import ANSWER_WITHIN, Answer, Confirmation
 from sro.domain.trigger.trigger import Trigger, TriggerKind
 from tests import factories as f
 from tests.unit.fakes import (
@@ -252,9 +258,9 @@ async def test_nothing_runs_because_time_passed() -> None:
     await _armed(uow)
     await _fire(uow, durable).execute(TriggerId("trg-1"))
 
-    expired = await ExpireConfirmations(uow, FakeClock(AT + ANSWER_WITHIN)).execute(CTX)
+    expired = await ExpireConfirmations(uow, FakeClock(AT + ANSWER_WITHIN)).execute()
 
-    assert expired == 1
+    assert expired == {CTX.tenant_id.value: 1}
     assert durable.started == []
     # Recorded rather than deleted: "we chose not to" and "we never looked" are
     # different things to read a month later.
@@ -307,9 +313,35 @@ async def test_a_card_that_expired_is_no_longer_waiting() -> None:
     uow, durable = FakeUnitOfWork(), FakeDurableExecution()
     await _armed(uow)
     await _fire(uow, durable).execute(TriggerId("trg-1"))
-    await ExpireConfirmations(uow, FakeClock(AT + timedelta(days=2))).execute(CTX)
+    await ExpireConfirmations(uow, FakeClock(AT + timedelta(days=2))).execute()
 
     assert await ReadConfirmations(uow).execute(CTX) == ()
+
+
+async def test_the_sweep_expires_every_tenant_s_cards_and_only_the_late_ones() -> None:
+    """One sweep for the whole deployment: nobody signs in as each tenant to
+    expire its cards, so the sweep finds the tenants itself."""
+    uow = FakeUnitOfWork()
+    for card, tenant, asked in (
+        ("cnf-late", "acme", AT),
+        ("cnf-late-elsewhere", "other-corp", AT),
+        ("cnf-fresh", "acme", AT + ANSWER_WITHIN),
+    ):
+        await uow.confirmations.add(
+            Confirmation(
+                id=ConfirmationId(card),
+                tenant_id=TenantId(tenant),
+                trigger_id=TriggerId("trg-1"),
+                asked_at=asked,
+                expires_at=asked + ANSWER_WITHIN,
+                workflow_id="wfl-1",
+            )
+        )
+
+    expired = await ExpireConfirmations(uow, FakeClock(AT + ANSWER_WITHIN)).execute()
+
+    assert expired == {"acme": 1, "other-corp": 1}
+    assert uow.confirmations.rows["cnf-fresh"].answer is Answer.WAITING
 
 
 async def test_approving_a_card_runs_it_in_the_browser_the_trigger_named() -> None:

@@ -340,7 +340,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/infrastructure/temporal/durable.py`](backend/src/sro/infrastructure/temporal/durable.py.md) | 9 |
 | [`backend/src/sro/infrastructure/temporal/queues.py`](backend/src/sro/infrastructure/temporal/queues.py.md) | 1 |
 | [`backend/src/sro/infrastructure/temporal/schedules.py`](backend/src/sro/infrastructure/temporal/schedules.py.md) | 5 |
-| [`backend/src/sro/infrastructure/temporal/worker.py`](backend/src/sro/infrastructure/temporal/worker.py.md) | 9 |
+| [`backend/src/sro/infrastructure/temporal/worker.py`](backend/src/sro/infrastructure/temporal/worker.py.md) | 10 |
 | [`backend/src/sro/infrastructure/temporal/workflows.py`](backend/src/sro/infrastructure/temporal/workflows.py.md) | 12 |
 | [`backend/src/sro/infrastructure/transcription/gemini.py`](backend/src/sro/infrastructure/transcription/gemini.py.md) | 3 |
 | [`backend/src/sro/infrastructure/transcription/null.py`](backend/src/sro/infrastructure/transcription/null.py.md) | 1 |

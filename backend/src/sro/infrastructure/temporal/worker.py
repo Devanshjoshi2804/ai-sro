@@ -36,6 +36,13 @@ async def keep_sessions_open(container: Container, every_seconds: float) -> None
     while True:
         await asyncio.sleep(every_seconds)
         try:
+            expired = await container.expire_confirmations().execute()
+        except Exception:
+            logger.exception("the confirmation sweep could not finish")
+        else:
+            for tenant, count in expired.items():
+                logger.info("%s: %s confirmation(s) expired unanswered", tenant, count)
+        try:
             swept = await container.keep_sessions_open().sweep()
         except Exception:
             logger.exception("the session keeper could not finish its sweep")

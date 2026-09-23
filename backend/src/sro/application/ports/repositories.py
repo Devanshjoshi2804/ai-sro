@@ -287,6 +287,8 @@ class ConfirmationRepository(Protocol):
 
     async def waiting(self, tenant_id: TenantId) -> tuple[Confirmation, ...]: ...
 
+    async def tenants_waiting(self) -> tuple[TenantId, ...]: ...
+
 
 class ToolCallRepository(Protocol):
     async def remember(

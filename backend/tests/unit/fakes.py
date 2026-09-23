@@ -1378,6 +1378,13 @@ class FakeConfirmationRepository:
             )
         )
 
+    async def tenants_waiting(self) -> tuple[TenantId, ...]:
+        return tuple(
+            dict.fromkeys(
+                row.tenant_id for row in self.rows.values() if row.answer is Answer.WAITING
+            )
+        )
+
 
 class FakeToolCallRepository:
     """A set, which is what the real one is: a key is claimed or it is not."""

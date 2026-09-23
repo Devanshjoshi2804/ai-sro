@@ -126,15 +126,16 @@ class ExpireConfirmations:
         self._uow = uow
         self._clock = clock
 
-    async def execute(self, ctx: RequestContext) -> int:
+    async def execute(self) -> dict[str, int]:
         now = self._clock.now()
-        expired = 0
+        expired: dict[str, int] = {}
         async with self._uow as uow:
-            for waiting in await uow.confirmations.waiting(ctx.tenant_id):
-                if now >= waiting.expires_at:
-                    waiting.expire(now)
-                    await uow.confirmations.save(waiting)
-                    expired += 1
+            for tenant_id in await uow.confirmations.tenants_waiting():
+                for waiting in await uow.confirmations.waiting(tenant_id):
+                    if now >= waiting.expires_at:
+                        waiting.expire(now)
+                        await uow.confirmations.save(waiting)
+                        expired[tenant_id.value] = expired.get(tenant_id.value, 0) + 1
             await uow.commit()
         return expired
 

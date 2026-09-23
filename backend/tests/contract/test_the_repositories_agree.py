@@ -77,10 +77,18 @@ from sro.domain.observation.gesture import Action, Gesture, GestureBatch, Intent
 from sro.domain.observation.mining import MiningPass
 from sro.domain.observation.pool import K_POOL_AGE, RETIRED_PASSES
 from sro.domain.shared.errors import Conflict
-from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId, TenantId
+from sro.domain.shared.identifiers import (
+    ConfirmationId,
+    DeviceId,
+    PrincipalId,
+    SkillId,
+    TenantId,
+    TriggerId,
+)
 from sro.domain.skill import PromotionStage
 from sro.domain.skill.offers import Offer
 from sro.domain.skill.workflow import Step, Workflow
+from sro.domain.trigger.confirmation import Answer, Confirmation
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 
 # The SQL half runs against the same Postgres the integration suite uses.
@@ -1571,3 +1579,43 @@ class TestSkillRunsInFlight:
 
         async with store as work:
             assert await work.runs.in_flight(TENANT, DEVICE) is None
+
+
+def _confirmation(
+    confirmation_id: str, *, tenant: TenantId = TENANT, answer: Answer = Answer.WAITING
+) -> Confirmation:
+    return Confirmation(
+        id=ConfirmationId(confirmation_id),
+        tenant_id=tenant,
+        trigger_id=TriggerId("trg_1"),
+        asked_at=_when(9),
+        expires_at=_when(10),
+        workflow_id="wfl_1",
+        answer=answer,
+    )
+
+
+class TestTenantsWaiting:
+    async def test_each_tenant_with_a_card_still_waiting_once(self, store: UnitOfWork) -> None:
+        async with store as work:
+            await work.confirmations.add(_confirmation("cnf_1"))
+            await work.confirmations.add(_confirmation("cnf_2"))
+            await work.confirmations.add(_confirmation("cnf_3", tenant=OTHER_TENANT))
+            await work.commit()
+
+        async with store as work:
+            assert sorted(t.value for t in await work.confirmations.tenants_waiting()) == [
+                "acme",
+                "other-corp",
+            ]
+
+    async def test_a_tenant_whose_cards_were_all_answered_is_not_waiting(
+        self, store: UnitOfWork
+    ) -> None:
+        async with store as work:
+            await work.confirmations.add(_confirmation("cnf_1", answer=Answer.APPROVED))
+            await work.confirmations.add(_confirmation("cnf_2", answer=Answer.EXPIRED))
+            await work.commit()
+
+        async with store as work:
+            assert await work.confirmations.tenants_waiting() == ()

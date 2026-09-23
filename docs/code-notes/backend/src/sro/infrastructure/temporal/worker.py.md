@@ -30,6 +30,16 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 > cheapest thing that keeps a connection alive over a weekend is the right
 > amount of machinery for it.
 
+## `keep_sessions_open`, [line 39](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L39): Note
+
+Code: `expired = await container.expire_confirmations().execute()`
+
+> Confirmations nobody answered inside their window are expired here, once a
+> pass, for every tenant. Before this `ExpireConfirmations` had no caller and
+> an expired card stayed in the waiting list for good. It rides on this loop
+> because the loop already wakes every few minutes for the whole deployment;
+> a failure is logged and the session sweep still runs.
+
 ## `mine_the_rig_lately`, [line 90](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L90): Docstring
 
 > Read each recorded tenant's day, for as long as this runs.

@@ -98,7 +98,6 @@ WORKFLOW_SCHEMA: dict[str, object] = {
                             "required": ["name", "seen_values"],
                         },
                     },
-                    "same_as": {"type": "string"},
                 },
                 "required": ["title", "steps"],
             },

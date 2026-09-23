@@ -65,7 +65,7 @@ Code: `K_MAX_CROSSING_TOKENS = 2_000`
 > caught. It is subtracted from the budget whether or not any crossing fires, so
 > the prompt fits in the case that matters -- the full one.
 
-## `bounded_crossings`, [line 112](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L112): Docstring
+## `bounded_crossings`, [line 111](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L111): Docstring
 
 > The crossings that fit K_MAX_CROSSING_TOKENS, best-evidenced first.
 >
@@ -75,7 +75,7 @@ Code: `K_MAX_CROSSING_TOKENS = 2_000`
 > than one seen on two. Ties break on the value so the same store always
 > produces the same prompt.
 
-## `build_prompt`, [line 124](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L124): Docstring
+## `build_prompt`, [line 123](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L123): Docstring
 
 > The task first, the evidence, then the task again.
 >
@@ -83,7 +83,7 @@ Code: `K_MAX_CROSSING_TOKENS = 2_000`
 > constraints after the evidence costs almost nothing. Nothing here marks
 > which evidence matters most -- doing that was measured to reduce accuracy.
 
-## `workflow_from`, [line 162](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L162): Docstring
+## `workflow_from`, [line 161](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L161): Docstring
 
 > One workflow out of one model answer, or None if it is not one.
 >
@@ -113,7 +113,7 @@ Code: `"parameters": {`
 > empty every time, on jobs whose evidence plainly showed
 > four different customer types being typed.
 
-## module, [line 106](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L106): Comment
+## module, [line 105](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L105): Comment
 
 Code: `"unplaced": {"type": "array", "items": {"type": "string"}},`
 
@@ -126,7 +126,7 @@ Code: `"unplaced": {"type": "array", "items": {"type": "string"}},`
 > a correct six-step job carried thirty-six unplaced ids, a third of
 > which were gestures supporting its own steps, and was never offered.
 
-## `bounded_crossings`, [line 116](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L116): Comment
+## `bounded_crossings`, [line 115](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L115): Comment
 
 Code: `cost = tokens(json.dumps({value: ids}, indent=1, ensure_ascii=False))`
 
@@ -134,7 +134,7 @@ Code: `cost = tokens(json.dumps({value: ids}, indent=1, ensure_ascii=False))`
 > came before it. Slightly over -- it pays for a pair of braces per entry
 > -- which is the direction a budget should err in.
 
-## `bounded_crossings`, [line 117](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L117): Comment
+## `bounded_crossings`, [line 116](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L116): Comment
 
 Code: `if spent + cost > K_MAX_CROSSING_TOKENS:`
 
@@ -147,7 +147,7 @@ Code: `if spent + cost > K_MAX_CROSSING_TOKENS:`
 > too well evidenced to print. Nothing says so downstream, and the
 > architecture's central claim quietly loses its input.
 
-## `build_prompt`, [line 130](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L130): Comment
+## `build_prompt`, [line 129](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L129): Comment
 
 Code: `parts = [INSTRUCTIONS, "", "## The day", ""]`
 
@@ -159,7 +159,7 @@ Code: `parts = [INSTRUCTIONS, "", "## The day", ""]`
 > algorithms.md's pseudocode has it: `chosen.sort(key=at)` upstream,
 > `arrange(chosen)` at assembly.
 
-## `build_prompt`, [line 134](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L134): Comment
+## `build_prompt`, [line 133](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L133): Comment
 
 Code: `in_window = {item.gesture_id for item in window.items}`
 
@@ -182,7 +182,7 @@ Code: `in_window = {item.gesture_id for item in window.items}`
 > id is not a crossing, and "this value appears in more than one system"
 > over a single gesture is a claim the prompt cannot support.
 
-## module, [line 154](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L154): Comment
+## module, [line 153](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L153): Comment
 
 Code: `_PROBE = [Packed(gesture_id=name, at=0.0, evidence={}, strength=0.0, tokens=0) for name in`
 
@@ -201,13 +201,13 @@ Code: `_PROBE = [Packed(gesture_id=name, at=0.0, evidence={}, strength=0.0, toke
 > one the block disappears, and the probe would stop counting a heading the real
 > prompt still pays for.
 
-## `workflow_from`, [line 176](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L176): Comment
+## `workflow_from`, [line 175](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L175): Comment
 
 Code: `order=step["order"]`
 
 > True is an int in Python, and would sort as step 1.
 
-## `workflow_from`, [line 182](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L182): Comment
+## `workflow_from`, [line 181](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L181): Comment
 
 Code: `parameters=[`
 
@@ -220,7 +220,7 @@ Code: `parameters=[`
 > usable name is not a parameter" is one rule now, applied at
 > both. A blank name is no name.
 
-## `workflow_from`, [line 190](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L190): Comment
+## `workflow_from`, [line 189](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L189): Comment
 
 Code: `steps.sort(key=lambda step: step.order)`
 
@@ -230,7 +230,7 @@ Code: `steps.sort(key=lambda step: step.order)`
 > it is an ordinary model slip rather than a broken answer. An answer that
 > numbered its steps correctly keeps its own numbering.
 
-## `workflow_from`, [line 204](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L204): Comment
+## `workflow_from`, [line 203](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L203): Comment
 
 Code: `parameters=[`
 
@@ -239,7 +239,7 @@ Code: `parameters=[`
 > rule against the same-named field one level down; `.strip()` is here
 > too so that `{"name": "  "}` and `"  "` are refused alike.
 
-## `workflow_from`, [line 187](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L187): Comment
+## `workflow_from`, [line 186](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L186): Comment
 
 Code: `)`
 

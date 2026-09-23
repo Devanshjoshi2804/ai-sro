@@ -10,8 +10,9 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from sro.domain.observation.gesture import Action, Call, Gesture, PageMark
+from sro.domain.observation.gesture import Action, Call, Gesture, PageMark, Target
 from sro.domain.skill.checks import is_sign_in_step, signs_in
+from sro.domain.skill.signing_in import signs_in_at
 from sro.domain.skill.workflow import Step, Workflow
 
 KEYCLOAK = "https://keycloak.example"
@@ -223,3 +224,154 @@ def test_a_same_host_press_anywhere_after_the_credential_unmarks_the_job() -> No
     }
 
     assert signs_in(_job("a", "b", "c"), store) is False
+
+
+B2C = "https://idp-chooser.example"
+
+
+def _did(
+    gesture_id: str, url: str, at: float, kind: str = "click", *, on_secret: bool = False
+) -> Gesture:
+    """A gesture shaped like the deployment's own. `on_secret` is the
+    recorder's mark on the input itself -- a click that focuses the password
+    box, an Enter pressed in it -- which is not the recorder's mark on a typed
+    value."""
+    target = Target(role="textbox", secret=True) if on_secret else Target(role="button")
+    return replace(
+        _at(gesture_id, url, at),
+        action=Action(kind=kind, at=at, target=target),
+    )
+
+
+def _typed_secret(gesture_id: str, url: str, at: float) -> Gesture:
+    return replace(
+        _at(gesture_id, url, at),
+        action=Action(kind="type", at=at, secret=True, target=Target(role="textbox", secret=True)),
+    )
+
+
+def _left(gesture: Gesture, landed: str) -> Gesture:
+    return replace(
+        gesture, page_events=[PageMark(at=gesture.at, page_kind="navigated", url=f"{landed}/home")]
+    )
+
+
+def _azure_store() -> dict[str, Gesture]:
+    """The deployed chain `Log in using Azure B2C SSO`, as its evidence stood:
+    the identity chooser, the username, a first password refused on its own
+    host, focus clicks and an Enter on the password box, the Sign In that
+    finally left for the warehouse, and a click in the warehouse after it."""
+    return {
+        "chooser": _did("chooser", B2C, 1.0),
+        "user-focus": _did("user-focus", KEYCLOAK, 2.0),
+        "user": replace(_at("user", KEYCLOAK, 3.0), action=Action(kind="type", at=3.0, value="u")),
+        "pw-focus-1": _did("pw-focus-1", KEYCLOAK, 4.0, on_secret=True),
+        "pw-1": _typed_secret("pw-1", KEYCLOAK, 5.0),
+        "refused": _did("refused", KEYCLOAK, 5.1),
+        "pw-focus-2": _did("pw-focus-2", KEYCLOAK, 6.0, on_secret=True),
+        "pw-2": _typed_secret("pw-2", KEYCLOAK, 7.0),
+        "enter": _did("enter", KEYCLOAK, 7.0, "press", on_secret=True),
+        "submit": _left(_did("submit", KEYCLOAK, 7.0), WMS),
+        "landed": _did("landed", WMS, 20.0),
+    }
+
+
+def _azure_job() -> Workflow:
+    return Workflow(
+        id="wfl_azure",
+        tenant="acme",
+        title="Log in using Azure B2C SSO",
+        narrative="n",
+        steps=[
+            Step(order=0, says="choose local users", system=None, cites=["chooser"]),
+            Step(order=1, says="username", system=None, cites=["user-focus", "user"]),
+            Step(
+                order=2,
+                says="password",
+                system=None,
+                cites=["pw-focus-1", "pw-1", "refused", "pw-focus-2", "pw-2", "enter"],
+            ),
+            Step(order=3, says="password again", system=None, cites=["pw-1"]),
+            Step(order=4, says="sign in", system=None, cites=["submit", "landed"]),
+        ],
+    )
+
+
+def test_a_login_with_a_refused_attempt_and_focus_clicks_signs_in() -> None:
+    """Focus clicks and an Enter on the password box are part of typing it; a
+    same-host Sign In followed by the password typed again is a refused first
+    attempt; the chain ends at the submit that left the host, so the click in
+    the warehouse after it is not part of the sign-in."""
+    assert signs_in(_azure_job(), _azure_store()) is True
+
+
+def test_the_refused_attempt_is_never_exempt_from_write_rules() -> None:
+    job, store = _azure_job(), _azure_store()
+
+    assert is_sign_in_step(job, job.steps[2], store) is False
+
+
+def test_a_step_mixing_the_submit_with_work_after_landing_is_never_exempt() -> None:
+    job, store = _azure_job(), _azure_store()
+
+    assert is_sign_in_step(job, job.steps[3], store) is True
+    assert is_sign_in_step(job, job.steps[4], store) is False
+
+
+def test_the_chain_is_found_at_its_first_host() -> None:
+    store = _azure_store()
+    job = replace(_azure_job(), signs_in=signs_in(_azure_job(), store))
+
+    assert signs_in_at(f"{B2C}/authorize", [job], store) == "wfl_azure"
+
+
+def test_a_pin_and_enter_on_its_own_box_that_stays_on_the_host_is_not_a_sign_in() -> None:
+    """The Enter on the secret box only counts as typing when the chain goes on
+    to leave the host: pressed on a PIN box that answers on the same system it
+    is a submit, and a possible write."""
+    store = {
+        "a": _typed_secret("a", WMS, 1),
+        "b": _did("b", WMS, 2, "press", on_secret=True),
+    }
+    job = Workflow(
+        id="wfl_pin",
+        tenant="acme",
+        title="t",
+        narrative="n",
+        steps=[Step(order=0, says="approve with the PIN", system=None, cites=["a", "b"])],
+    )
+
+    assert is_sign_in_step(job, job.steps[0], store) is False
+    assert signs_in(job, store) is False
+
+
+def test_a_same_host_press_with_no_second_try_after_it_is_not_forgiven() -> None:
+    """A refused attempt is a same-host press the password is typed AGAIN
+    after. One with nothing retyped behind it is the PIN shape, even when
+    something later leaves the host."""
+    store = {
+        "a": _typed_secret("a", WMS, 1),
+        "b": _did("b", WMS, 2, "press"),
+        "c": _left(_did("c", WMS, 3), KEYCLOAK),
+    }
+
+    assert signs_in(_job("a", "b", "c"), store) is False
+
+
+def test_one_step_with_a_refused_press_and_the_leaving_one_is_not_exempt() -> None:
+    store = {
+        "a": _typed_secret("a", KEYCLOAK, 1),
+        "b": _did("b", KEYCLOAK, 2),
+        "c": _typed_secret("c", KEYCLOAK, 3),
+        "d": _left(_did("d", KEYCLOAK, 4), WMS),
+    }
+    job = Workflow(
+        id="wfl_login",
+        tenant="acme",
+        title="t",
+        narrative="n",
+        steps=[Step(order=0, says="sign in", system=None, cites=["a", "b", "c", "d"])],
+    )
+
+    assert is_sign_in_step(job, job.steps[0], store) is False
+    assert signs_in(job, store) is True

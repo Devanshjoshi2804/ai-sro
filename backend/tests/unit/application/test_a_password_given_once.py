@@ -39,11 +39,26 @@ def test_a_secret_held_for_one_run_is_not_given_to_another(secrets: OneTimeSecre
     assert secrets.take("acme/wms.test/password", run_id="run_a", now=1002.0) == "hunter2"
 
 
+def test_two_runs_holding_the_same_key_at_once_do_not_collide(secrets: OneTimeSecrets) -> None:
+    """Runs execute in parallel, so two runs needing the same system
+    credential at the same time is a normal case and not a race one of them
+    loses. The second run's hold must not overwrite the first's -- each run
+    gets its own hold on the key, and each takes its own value."""
+    secrets.hold("acme/wms.test/password", "for-run-a", run_id="run_a", now=1000.0)
+    secrets.hold("acme/wms.test/password", "for-run-b", run_id="run_b", now=1000.0)
+
+    assert secrets.take("acme/wms.test/password", run_id="run_a", now=1001.0) == "for-run-a"
+    assert secrets.take("acme/wms.test/password", run_id="run_b", now=1001.0) == "for-run-b"
+
+
 def test_it_is_forgotten_after_its_quarter_of_an_hour(secrets: OneTimeSecrets) -> None:
     """A password nobody used is not still in memory at the end of a shift."""
     secrets.hold("acme/wms.test/password", "hunter2", run_id="run_a", now=1000.0)
 
-    assert secrets.waiting("acme/wms.test/password", now=1000.0 + K_HELD_FOR - 1) is True
+    assert (
+        secrets.waiting("acme/wms.test/password", run_id="run_a", now=1000.0 + K_HELD_FOR - 1)
+        is True
+    )
     assert (
         secrets.take("acme/wms.test/password", run_id="run_a", now=1000.0 + K_HELD_FOR + 1) is None
     )
@@ -60,7 +75,7 @@ def test_an_expired_entry_is_gone_after_the_sweep_even_if_never_taken(
     # its own quarter of an hour, without anybody ever taking it.
     secrets.hold("acme/other.test/password", "irrelevant", run_id="run_z", now=2000.0)
 
-    assert secrets.waiting("acme/wms.test/password", now=2000.0) is False
+    assert secrets.waiting("acme/wms.test/password", run_id="run_a", now=2000.0) is False
     assert secrets.take("acme/wms.test/password", run_id="run_a", now=2000.0) is None
 
 

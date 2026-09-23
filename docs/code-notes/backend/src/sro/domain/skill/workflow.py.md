@@ -116,6 +116,10 @@ Code: `same_as: str | None = None`
 > The model's opinion about whether this is one it has proposed before. It is
 > recorded and it decides nothing: a model re-judging its own earlier verdict
 > disagrees with itself at roughly 90%. identity.py decides.
+>
+> No longer asked of the model (2026-09-23): the mining schema dropped it.
+> `workflow_from` still takes it from an answer that carries it, and the
+> field and its column stay.
 
 ## `Workflow`, [line 44](../../../../../../../backend/src/sro/domain/skill/workflow.py#L44): Comment
 

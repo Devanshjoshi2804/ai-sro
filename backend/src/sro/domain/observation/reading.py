@@ -19,8 +19,7 @@ and a few lines of what the same person did just before.
 First say why: point at the one piece of evidence (the control's label, its
 component metadata, the request body, the picture) that tells you what
 happened. Only then name the act, in the words an operator would use, and the
-object they were working on. List the values you can see them entering. Say
-whether this looks like a continuation of the previous doing.
+object they were working on. List the values you can see them entering.
 
 If the evidence is thin -- an icon with no label, no field, nothing typed --
 say so in why and mark confidence low, rather than guessing at a specific act.
@@ -44,7 +43,6 @@ INTENT_SCHEMA: dict[str, object] = {
                 "required": ["field", "value"],
             },
         },
-        "continues": {"type": "string", "description": "empty unless it continues the last doing"},
         "confidence": {"type": "string", "enum": _CONFIDENCE},
     },
     "propertyOrdering": [
@@ -53,7 +51,6 @@ INTENT_SCHEMA: dict[str, object] = {
         "object",
         "page",
         "values_seen",
-        "continues",
         "confidence",
     ],
     "required": ["act", "why"],

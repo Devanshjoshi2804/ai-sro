@@ -696,7 +696,17 @@ class WorkflowRow(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
+    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
     __table_args__ = (Index("ix_workflows_tenant_created", "tenant_id", "created_at"),)
+
+
+class WorkflowPlacementRow(Base):
+    __tablename__ = "workflow_placements"
+
+    tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    gesture_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    workflow_id: Mapped[str] = mapped_column(String(64), nullable=False)
 
 
 class WorkflowStepRow(Base):

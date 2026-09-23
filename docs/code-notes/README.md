@@ -150,7 +150,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/observation/mine.py`](backend/src/sro/application/observation/mine.py.md) | 7 |
 | [`backend/src/sro/application/observation/mine_lately.py`](backend/src/sro/application/observation/mine_lately.py.md) | 14 |
 | [`backend/src/sro/application/observation/mine_pass.py`](backend/src/sro/application/observation/mine_pass.py.md) | 4 |
-| [`backend/src/sro/application/observation/mining_pass.py`](backend/src/sro/application/observation/mining_pass.py.md) | 76 |
+| [`backend/src/sro/application/observation/mining_pass.py`](backend/src/sro/application/observation/mining_pass.py.md) | 79 |
 | [`backend/src/sro/application/observation/policy.py`](backend/src/sro/application/observation/policy.py.md) | 3 |
 | [`backend/src/sro/application/observation/propose.py`](backend/src/sro/application/observation/propose.py.md) | 50 |
 | [`backend/src/sro/application/observation/read_gesture.py`](backend/src/sro/application/observation/read_gesture.py.md) | 31 |
@@ -267,7 +267,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/domain/observation/driving.py`](backend/src/sro/domain/observation/driving.py.md) | 9 |
 | [`backend/src/sro/domain/observation/gesture.py`](backend/src/sro/domain/observation/gesture.py.md) | 9 |
 | [`backend/src/sro/domain/observation/grant.py`](backend/src/sro/domain/observation/grant.py.md) | 3 |
-| [`backend/src/sro/domain/observation/identity.py`](backend/src/sro/domain/observation/identity.py.md) | 26 |
+| [`backend/src/sro/domain/observation/identity.py`](backend/src/sro/domain/observation/identity.py.md) | 29 |
 | [`backend/src/sro/domain/observation/mining.py`](backend/src/sro/domain/observation/mining.py.md) | 7 |
 | [`backend/src/sro/domain/observation/policy.py`](backend/src/sro/domain/observation/policy.py.md) | 11 |
 | [`backend/src/sro/domain/observation/pool.py`](backend/src/sro/domain/observation/pool.py.md) | 4 |
@@ -296,7 +296,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/domain/shared/prices.py`](backend/src/sro/domain/shared/prices.py.md) | 13 |
 | [`backend/src/sro/domain/skill/__init__.py`](backend/src/sro/domain/skill/__init__.py.md) | 1 |
 | [`backend/src/sro/domain/skill/assertion.py`](backend/src/sro/domain/skill/assertion.py.md) | 2 |
-| [`backend/src/sro/domain/skill/checks.py`](backend/src/sro/domain/skill/checks.py.md) | 31 |
+| [`backend/src/sro/domain/skill/checks.py`](backend/src/sro/domain/skill/checks.py.md) | 39 |
 | [`backend/src/sro/domain/skill/earned.py`](backend/src/sro/domain/skill/earned.py.md) | 9 |
 | [`backend/src/sro/domain/skill/learned.py`](backend/src/sro/domain/skill/learned.py.md) | 31 |
 | [`backend/src/sro/domain/skill/locator.py`](backend/src/sro/domain/skill/locator.py.md) | 8 |
@@ -333,14 +333,14 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/infrastructure/db/codec.py`](backend/src/sro/infrastructure/db/codec.py.md) | 4 |
 | [`backend/src/sro/infrastructure/db/evidence.py`](backend/src/sro/infrastructure/db/evidence.py.md) | 26 |
 | [`backend/src/sro/infrastructure/db/mappers.py`](backend/src/sro/infrastructure/db/mappers.py.md) | 7 |
-| [`backend/src/sro/infrastructure/db/models.py`](backend/src/sro/infrastructure/db/models.py.md) | 125 |
+| [`backend/src/sro/infrastructure/db/models.py`](backend/src/sro/infrastructure/db/models.py.md) | 127 |
 | [`backend/src/sro/infrastructure/db/offers.py`](backend/src/sro/infrastructure/db/offers.py.md) | 8 |
 | [`backend/src/sro/infrastructure/db/repositories.py`](backend/src/sro/infrastructure/db/repositories.py.md) | 34 |
 | [`backend/src/sro/infrastructure/db/schema_version.py`](backend/src/sro/infrastructure/db/schema_version.py.md) | 7 |
 | [`backend/src/sro/infrastructure/db/session.py`](backend/src/sro/infrastructure/db/session.py.md) | 1 |
 | [`backend/src/sro/infrastructure/db/spend.py`](backend/src/sro/infrastructure/db/spend.py.md) | 5 |
 | [`backend/src/sro/infrastructure/db/workflow_runs.py`](backend/src/sro/infrastructure/db/workflow_runs.py.md) | 27 |
-| [`backend/src/sro/infrastructure/db/workflows.py`](backend/src/sro/infrastructure/db/workflows.py.md) | 26 |
+| [`backend/src/sro/infrastructure/db/workflows.py`](backend/src/sro/infrastructure/db/workflows.py.md) | 30 |
 | [`backend/src/sro/infrastructure/gemini/asker.py`](backend/src/sro/infrastructure/gemini/asker.py.md) | 21 |
 | [`backend/src/sro/infrastructure/gemini/computer_use.py`](backend/src/sro/infrastructure/gemini/computer_use.py.md) | 7 |
 | [`backend/src/sro/infrastructure/gemini/intent.py`](backend/src/sro/infrastructure/gemini/intent.py.md) | 3 |

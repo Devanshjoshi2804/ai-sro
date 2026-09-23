@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 
@@ -22,9 +23,10 @@ from sro.application.context import RequestContext
 from sro.application.observation.mine_pass import MinePass
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
+from sro.application.skill.serve_shapes import shapes_for
 from sro.domain.chat.reading import ChatReading
 from sro.domain.observation.driving import WAS_OUR_OWN_DRIVING
-from sro.domain.observation.gesture import Gesture, Intent
+from sro.domain.observation.gesture import Gesture, Intent, PageMark
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.infrastructure.db.codec import when
@@ -35,6 +37,7 @@ TENANT = TenantId("acme")
 RIVAL = TenantId("rival")
 MODEL = "gemini-3.1-pro-preview"
 HOST = "http://127.0.0.1:63319"
+APP = "https://app.example"
 
 NOW = datetime(2025, 2, 11, 23, 0, tzinfo=UTC)
 """23:00, one hour before a midnight. `over_cap` sums the day from the midnight
@@ -331,6 +334,189 @@ async def test_a_doing_that_contains_the_job_grows_it() -> None:
     assert len(grown.steps) == 3, "the job did not take the step it had just watched"
 
 
+async def test_a_doing_that_adds_a_password_does_not_grow_the_job() -> None:
+    """Growth takes the doing's steps wholesale, and a step typing a secret
+    the stored job never had would turn a job into a job that signs in first
+    -- every run of it then asking for a credential it never needed. Such a
+    doing still teaches the job its parameters; it does not become it."""
+    uow, ids = await _day()
+    first = FakeAsker(Answer(data={"workflows": [_proposal(ids[:2])]}, cost_usd=0.01))
+    assert (await _pass(uow, asker=first).execute(_ctx())).kept == 1
+    [stored] = await uow.workflows.known(TENANT)
+
+    again = await _did_it_again(uow, ids[:3])
+    rows = _rows(uow)
+    rows[again[2]] = replace(
+        rows[again[2]], action=replace(rows[again[2]].action, kind="type", secret=True)
+    )
+    wider = _proposal(again[:2])
+    wider["steps"] = [
+        *wider["steps"],  # type: ignore[misc]
+        {"order": 2, "cites": [again[2]], "says": "type the password", "system": HOST},
+    ]
+    result = await _pass(
+        uow, asker=FakeAsker(Answer(data={"workflows": [wider]}, cost_usd=0.01))
+    ).execute(_ctx())
+
+    assert [one.kind for one in result.resolutions] == ["same_job"]
+    [held] = await uow.workflows.known(TENANT)
+    assert held.id == stored.id
+    assert len(held.steps) == 2, "the job grew a credential step it never had"
+
+
+def _sign_in_kit() -> tuple[Any, Any, Any, Any]:
+    base = replace(_gestures(TENANT.value)[0], requests=[], page_events=[])
+
+    def typed(gesture_id: str, at: float, *, secret: bool = False) -> Gesture:
+        return replace(
+            base,
+            id=gesture_id,
+            at=at,
+            action=replace(
+                base.action,
+                kind="type",
+                at=at,
+                secret=secret,
+                target=None if secret else base.action.target,
+            ),
+        )
+
+    def clicked(gesture_id: str, at: float) -> Gesture:
+        return replace(base, id=gesture_id, at=at, action=replace(base.action, kind="click", at=at))
+
+    def left_for(gesture_id: str, at: float, app: str) -> Gesture:
+        """The submit, uncited: the model summarises a sign-in as the typing,
+        and the leave is read off the doing after it."""
+        return replace(
+            clicked(gesture_id, at),
+            page_events=[PageMark(at=at, page_kind="navigated", url=f"{app}/home")],
+        )
+
+    def login(title: str, *cites: str) -> dict[str, object]:
+        return {
+            "title": title,
+            "narrative": "signed in",
+            "systems": [HOST],
+            "steps": [
+                {"order": n, "cites": [one], "says": f"step {n}", "system": HOST}
+                for n, one in enumerate(cites)
+            ],
+        }
+
+    return typed, clicked, left_for, login
+
+
+async def test_a_second_way_of_signing_in_to_one_system_is_the_same_job() -> None:
+    """Two doings that both sign in to one application through one identity
+    provider, one through a chooser and one straight to the password box,
+    share almost no shape and were given different names. They are one job:
+    the deployment held three `Log in using Azure B2C SSO` for want of this."""
+    uow = FakeUnitOfWork()
+    typed, clicked, left_for, login = _sign_in_kit()
+    await uow.gestures.add_gestures(
+        (typed("user", 10.0), typed("pw", 11.0, secret=True), left_for("go", 12.0, APP))
+    )
+    first = FakeAsker(Answer(data={"workflows": [login("Log in", "user", "pw")]}, cost_usd=0.01))
+    assert (await _pass(uow, asker=first).execute(_ctx())).kept == 1
+    [stored] = await uow.workflows.known(TENANT)
+    assert stored.signs_in
+
+    await uow.gestures.add_gestures(
+        (
+            clicked("choose", 5000.0),
+            typed("pw2", 5001.0, secret=True),
+            left_for("go2", 5002.0, APP),
+        )
+    )
+    other = login("Sign in through the chooser", "choose", "pw2")
+    result = await _pass(
+        uow, asker=FakeAsker(Answer(data={"workflows": [other]}, cost_usd=0.01))
+    ).execute(_ctx())
+
+    assert [(one.kind, one.workflow_id) for one in result.resolutions] == [("same_job", stored.id)]
+    assert len(await uow.workflows.known(TENANT)) == 1
+
+
+async def test_two_applications_behind_one_identity_provider_are_two_sign_ins() -> None:
+    """One identity provider in front of two applications is two sign-ins:
+    folding them would leave the second application with no way back in."""
+    uow = FakeUnitOfWork()
+    typed, clicked, left_for, login = _sign_in_kit()
+    await uow.gestures.add_gestures(
+        (typed("user", 10.0), typed("pw", 11.0, secret=True), left_for("go", 12.0, APP))
+    )
+    first = FakeAsker(Answer(data={"workflows": [login("Log in", "user", "pw")]}, cost_usd=0.01))
+    assert (await _pass(uow, asker=first).execute(_ctx())).kept == 1
+
+    await uow.gestures.add_gestures(
+        (
+            clicked("choose", 5000.0),
+            typed("pw2", 5001.0, secret=True),
+            left_for("go2", 5002.0, "https://other-app.example"),
+        )
+    )
+    other = login("Sign in to the other app", "choose", "pw2")
+    result = await _pass(
+        uow, asker=FakeAsker(Answer(data={"workflows": [other]}, cost_usd=0.01))
+    ).execute(_ctx())
+
+    assert [one.kind for one in result.resolutions] == ["new"]
+    assert len(await uow.workflows.known(TENANT)) == 2
+
+
+async def test_a_doing_that_types_a_second_credential_does_not_grow_the_job() -> None:
+    """Per credential, not per job: a job that already types one password
+    must not take a doing's steps that type a different one as well."""
+    uow = FakeUnitOfWork()
+    typed, clicked, _, _ = _sign_in_kit()
+    mfa = "https://second-factor.example"
+    await uow.gestures.add_gestures(
+        (typed("pw", 10.0, secret=True), clicked("save", 11.0), clicked("done", 12.0))
+    )
+    job = _proposal(["pw", "save"])
+    job["steps"] = [
+        {"order": 0, "cites": ["pw"], "says": "password", "system": HOST},
+        {"order": 1, "cites": ["save"], "says": "save", "system": HOST},
+        {"order": 2, "cites": ["done"], "says": "done", "system": HOST},
+    ]
+    assert (
+        await _pass(uow, asker=FakeAsker(Answer(data={"workflows": [job]}, cost_usd=0.01))).execute(
+            _ctx()
+        )
+    ).kept == 1
+    [stored] = await uow.workflows.known(TENANT)
+
+    second = replace(
+        typed("pw-b", 5001.5, secret=True), page_url=f"{mfa}/", url=f"{mfa}/", system=mfa
+    )
+    await uow.gestures.add_gestures(
+        (
+            typed("pw2", 5000.0, secret=True),
+            clicked("save2", 5001.0),
+            second,
+            clicked("done2", 5002.0),
+        )
+    )
+    wider = {
+        **job,
+        "systems": [HOST, mfa],
+        "steps": [
+            {"order": 0, "cites": ["pw2"], "says": "password", "system": HOST},
+            {"order": 1, "cites": ["save2"], "says": "save", "system": HOST},
+            {"order": 2, "cites": ["pw-b"], "says": "second password", "system": mfa},
+            {"order": 3, "cites": ["done2"], "says": "done", "system": HOST},
+        ],
+    }
+    result = await _pass(
+        uow, asker=FakeAsker(Answer(data={"workflows": [wider]}, cost_usd=0.01))
+    ).execute(_ctx())
+
+    assert [(one.kind, one.contains) for one in result.resolutions] == [("same_job", True)]
+    [held] = await uow.workflows.known(TENANT)
+    assert held.id == stored.id
+    assert len(held.steps) == 3, "the job grew a second credential it never typed"
+
+
 async def test_a_doing_the_job_contains_does_not_shrink_it() -> None:
     """Only ever the other way. A shorter doing is the operator taking a route
     that skipped something, and a job that dropped a step every time somebody
@@ -564,3 +750,94 @@ async def test_the_day_the_cap_judges_is_the_callers_and_never_a_neighbours() ->
 
     with pytest.raises(OverCap):
         await _pass(uow, asker=FakeAsker(Answer(data={"workflows": []}))).execute(_ctx(RIVAL))
+
+
+# --- a pass reads only work nothing has placed ------------------------------
+
+
+def _shown(asker: FakeAsker) -> str:
+    [asked] = asker.asked
+    return str(asked["evidence"])
+
+
+async def test_what_a_stored_job_cites_is_not_read_again() -> None:
+    """Every pass used to re-send the gestures stored jobs already cite, so
+    the model re-read and re-proposed known jobs at the price of a call every
+    time. What a job cites is placed; a pass is for what is not."""
+    uow, ids = await _day()
+    assert (await _pass(uow, asker=FakeAsker(_answer(ids[:2]))).execute(_ctx())).kept == 1
+
+    second = FakeAsker(Answer(data={"workflows": []}, cost_usd=0.01))
+    result = await _pass(uow, asker=second).execute(_ctx())
+
+    assert result.window_size == len(ids) - 2
+    assert not any(f'"{one}"' in _shown(second) for one in ids[:2])
+    assert all(f'"{one}"' in _shown(second) for one in ids[2:])
+
+
+async def test_a_new_doing_of_a_stored_job_still_teaches_it_without_the_old_one() -> None:
+    """The earlier doing is not in the window any more, and learning does not
+    need it there: `learn_parameters` reads the stored job's own citations from
+    the gesture store, not from what this pass was shown."""
+    uow, ids = await _day()
+    original = [_rows(uow)[gesture_id] for gesture_id in ids]
+    assert (await _pass(uow, asker=FakeAsker(_answer(ids))).execute(_ctx())).kept == 1
+
+    again_rows = [
+        replace(
+            row,
+            id=f"{row.id}_again",
+            at=row.at + 10_000.0,
+            action=(
+                replace(row.action, value="SOMETHING-ELSE")
+                if row.action.kind == "type" and row.action.value
+                else row.action
+            ),
+        )
+        for row in original
+    ]
+    await uow.gestures.add_gestures(tuple(again_rows))
+    asker = FakeAsker(_answer([row.id for row in again_rows]))
+
+    again = await _pass(uow, asker=asker).execute(_ctx())
+
+    assert not any(f'"{one}"' in _shown(asker) for one in ids), "the first doing was sent again"
+    assert (again.kept, again.window_size) == (0, len(again_rows))
+    assert again.learned_parameters >= 1
+
+
+async def test_a_doing_folded_into_a_job_is_not_read_again() -> None:
+    """A second doing recognised as a stored job is not saved as a job of its
+    own, so nothing in the job's steps cites it -- and the pass after that used
+    to send all of it again, every pass, for good."""
+    uow, ids = await _day()
+    original = [_rows(uow)[gesture_id] for gesture_id in ids]
+    assert (await _pass(uow, asker=FakeAsker(_answer(ids))).execute(_ctx())).kept == 1
+    again = [replace(row, id=f"{row.id}_again", at=row.at + 10_000.0) for row in original]
+    await uow.gestures.add_gestures(tuple(again))
+    folded = await _pass(uow, asker=FakeAsker(_answer([row.id for row in again]))).execute(_ctx())
+    assert [one.kind for one in folded.resolutions] == ["same_job"]
+
+    third = FakeAsker(Answer(data={"workflows": []}, cost_usd=0.01))
+    result = await _pass(uow, asker=third).execute(_ctx())
+
+    assert result.window_size == 0
+    assert not any(f'"{row.id}"' in _shown(third) for row in again)
+
+
+async def test_a_retired_job_is_not_mined_back_and_not_offered() -> None:
+    """Retired is for good: the job leaves the menu and the shapes, and its
+    gestures stay placed, so no pass can read them into a fresh copy."""
+    uow, ids = await _day()
+    assert (await _pass(uow, asker=FakeAsker(_answer(ids[:2]))).execute(_ctx())).kept == 1
+    [job] = await uow.workflows.known(TENANT)
+    await uow.workflows.retire(TENANT, job.id, at=NOW)
+
+    asker = FakeAsker(_answer(ids[:2]))
+    result = await _pass(uow, asker=asker).execute(_ctx())
+
+    assert not any(f'"{one}"' in _shown(asker) for one in ids[:2])
+    assert result.kept == 0
+    assert [one.reason for one in result.rejections] == ["unknown gesture"]
+    assert await uow.workflows.known(TENANT) == ()
+    assert await shapes_for(uow, tenant_id=TENANT, now=NOW) == []

@@ -293,17 +293,15 @@ async def test_the_model_is_told_what_to_do_and_given_a_response_schema() -> Non
         "act",
         "object",
         "values_seen",
-        "continues",
         "confidence",
         "why",
     }
 
 
 async def test_an_empty_continues_is_not_a_continuation() -> None:
-    """The schema itself says "empty unless it continues the last doing", so
-    `""` is what a model returns for most gestures. Stored verbatim it is
-    neither a link nor an absence, and `continues` is what the mining pass
-    walks to join gestures into a workflow."""
+    """No longer asked for, and still read tolerantly: an answer that carries
+    it anyway -- `""` for most gestures, as the old schema invited -- is
+    stored as no link rather than as an empty one."""
     asker = FakeAsker(_answer(continues=""))
 
     intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)

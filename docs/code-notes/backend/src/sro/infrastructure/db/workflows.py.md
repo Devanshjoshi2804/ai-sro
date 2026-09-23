@@ -32,7 +32,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/db/workflo
 > repository's mapping belongs with the repository, and these shapes are read by
 > nothing else.
 
-## `SqlWorkflowRepository.remember_limit`, [line 252](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L252): Docstring
+## `SqlWorkflowRepository.remember_limit`, [line 302](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L302): Docstring
 
 > What this step's box will take, learnt once.
 >
@@ -44,7 +44,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/db/workflo
 > erasing a limit -- so each writes only its own columns, and a step can
 > carry both.
 
-## `SqlWorkflowRepository._keep_what_changed`, [line 312](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L312): Docstring
+## `SqlWorkflowRepository._keep_what_changed`, [line 362](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L362): Docstring
 
 > Append what this step just learned that it did not already know.
 >
@@ -57,25 +57,25 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/db/workflo
 > fell over because it could not write one would have turned reading into
 > a reason to stop working.
 
-## `SqlWorkflowRepository.taught_itself`, [line 338](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L338): Docstring
+## `SqlWorkflowRepository.taught_itself`, [line 388](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L388): Docstring
 
 > What this job has changed its mind about, newest first.
 >
 > The one query the history is for. A history nobody can read in one page
 > is a log, which is why there is a limit and why it is small.
 
-## `SqlWorkflowRepository._steps_of`, [line 530](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L530): Docstring
+## `SqlWorkflowRepository._steps_of`, [line 580](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L580): Docstring
 
 > One query for every workflow's steps rather than one per workflow.
 
-## `_row_to_step`, [line 82](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L82): Comment
+## `_row_to_step`, [line 83](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L83): Comment
 
 Code: `uses=list(row.uses or []),`
 
 > An older row has no `uses` at all, and a job that predates the column
 > used nothing -- which is what an absent one honestly means.
 
-## `SqlWorkflowRepository.save`, [line 146](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L146): Comment
+## `SqlWorkflowRepository.save`, [line 147](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L147): Comment
 
 Code: `set_={`
 
@@ -85,8 +85,13 @@ Code: `set_={`
 > moves to the end of ``known``, and the miner resolving in a
 > different order here than in the rig is exactly the drift
 > this port exists to avoid.
+>
+> Except ``retired_at``: the domain workflow does not carry it, so the
+> insert's value is always NULL, and copying it over would bring a
+> retired job back the next time anything re-saved the row -- a
+> healing pass, a parameter learnt, a growth.
 
-## `SqlWorkflowRepository.save`, [line 143](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L143): Comment
+## `SqlWorkflowRepository.save`, [line 144](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L144): Comment
 
 Code: `await self._session.execute(`
 
@@ -94,7 +99,7 @@ Code: `await self._session.execute(`
 > merge dropped has to leave the store with it, and an upsert would
 > leave it behind.
 
-## `SqlWorkflowRepository.known`, [line 167](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L167): Comment
+## `SqlWorkflowRepository.known`, [line 168](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L168): Comment
 
 Code: `.order_by(WorkflowRow.created_at, WorkflowRow.id)`
 
@@ -103,14 +108,43 @@ Code: `.order_by(WorkflowRow.created_at, WorkflowRow.id)`
 > here, and an order that is not total is an order that changes
 > between reads.
 
-## `SqlWorkflowRepository.known`, [line 168](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L168): Comment
+## `SqlWorkflowRepository.known`, [line 167](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L167): Comment
+
+Code: `.where(WorkflowRow.tenant_id == tenant_id.value, WorkflowRow.retired_at.is_(None))`
+
+> A retired job is not known: not to the miner's list of jobs already proven,
+> not to the shapes a browser is offered, not to a chat asked what it can do.
+> `get` refuses it the same way, so a run or a trigger naming it is a 404.
+> Filtered here, once, rather than at every caller of the two.
+
+## `SqlWorkflowRepository.retire`, [line 193](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L193): Docstring
+
+> Retire a live job of this tenant's, or NotFound -- for another tenant's
+> job, an id nobody minted and a job already retired alike: the first
+> retirement's instant is the one kept.
+
+## `SqlWorkflowRepository.place`, [line 207](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L207): Docstring
+
+> Record gestures a job has explained without citing them: a doing folded
+> into it, or the doing a growth replaced. First placement wins; a gesture
+> is placed once per tenant.
+
+## `SqlWorkflowRepository.placed`, [line 223](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L223): Docstring
+
+> Every gesture any job of this tenant cites, retired jobs included, and every
+> gesture `place` recorded. What
+> the mining pass does not read again: a gesture a job already explains is
+> not new work, and a retired job's gestures read again would be mined
+> straight back into the job the operator dropped.
+
+## `SqlWorkflowRepository.known`, [line 169](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L169): Comment
 
 Code: `.execution_options(populate_existing=True)`
 
 > ``save`` upserts with a Core statement, so a row this session had
 > already loaded would otherwise come back at its pre-save state.
 
-## `SqlWorkflowRepository.add_pass`, [line 196](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L196): Comment
+## `SqlWorkflowRepository.add_pass`, [line 246](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L246): Comment
 
 Code: `try:`
 
@@ -119,7 +153,7 @@ Code: `try:`
 > call billed twice. Reported as a Conflict rather than escaping as an
 > IntegrityError out of somebody else's commit.
 
-## `SqlWorkflowRepository.mark_stale`, [line 236](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L236): Comment
+## `SqlWorkflowRepository.mark_stale`, [line 286](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L286): Comment
 
 Code: `statement = pg_insert(WorkflowStaleRow).values(`
 
@@ -128,7 +162,7 @@ Code: `statement = pg_insert(WorkflowStaleRow).values(`
 > notice wins, because the last rung a step matched on is the current
 > answer about that step.
 
-## `SqlWorkflowRepository.remember_limit`, [line 255](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L255): Comment
+## `SqlWorkflowRepository.remember_limit`, [line 305](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L305): Comment
 
 Code: `already = next(`
 
@@ -136,7 +170,7 @@ Code: `already = next(`
 > what is compared here carries the locator this step already has --
 > otherwise every measured limit would read as a locator being erased.
 
-## `SqlWorkflowRepository.remember_limit`, [line 272](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L272): Comment
+## `SqlWorkflowRepository.remember_limit`, [line 322](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L322): Comment
 
 Code: `strategy="",`
 
@@ -144,14 +178,14 @@ Code: `strategy="",`
 > locator learnt: the columns are not null, and "" is honestly what
 > is known about a locator nobody has had to find.
 
-## `SqlWorkflowRepository.remember_locator`, [line 291](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L291): Comment
+## `SqlWorkflowRepository.remember_locator`, [line 341](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L341): Comment
 
 Code: `await self._keep_what_changed(workflow_id, learned, by_run=by_run)`
 
 > Before the upsert, because the upsert is what destroys the answer it
 > is compared against.
 
-## `SqlWorkflowRepository.remember_locator`, [line 292](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L292): Comment
+## `SqlWorkflowRepository.remember_locator`, [line 319](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L319): Comment
 
 Code: `statement = pg_insert(WorkflowLearnedRow).values(`
 
@@ -159,7 +193,7 @@ Code: `statement = pg_insert(WorkflowLearnedRow).values(`
 > later notice winning, because the last locator that worked is the
 > current answer about that step.
 
-## `SqlWorkflowRepository._keep_what_changed`, [line 324](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L324): Comment
+## `SqlWorkflowRepository._keep_what_changed`, [line 374](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L374): Comment
 
 Code: `id=f"lrn_{workflow_id}_{change.ord}_{change.about}_{at.timestamp()}"[:64],`
 
@@ -168,7 +202,7 @@ Code: `id=f"lrn_{workflow_id}_{change.ord}_{change.about}_{at.timestamp()}"[:64]
 > same microsecond, and a uuid here would be a second
 > thing to explain.
 
-## `SqlWorkflowRepository.grew`, [line 392](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L392): Comment
+## `SqlWorkflowRepository.grew`, [line 442](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L442): Comment
 
 Code: `keyed_by_ord: tuple[type[Any], ...] = (`
 
@@ -177,14 +211,14 @@ Code: `keyed_by_ord: tuple[type[Any], ...] = (`
 > update that moved 3 to 5 while 5 was still there would collide on a
 > primary key for no reason but the order the rows came back in.
 
-## `SqlWorkflowRepository.grew`, [line 414](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L414): Comment
+## `SqlWorkflowRepository.grew`, [line 464](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L464): Comment
 
 Code: `if kept:`
 
 > A step the new shape does not have is a step nobody performs,
 > and a locator for it is one nobody can check. Dropped with it.
 
-## `SqlWorkflowRepository.remember_write`, [line 430](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L430): Comment
+## `SqlWorkflowRepository.remember_write`, [line 480](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L480): Comment
 
 Code: `if not state_verified(verified_by):`
 
@@ -193,7 +227,7 @@ Code: `if not state_verified(verified_by):`
 > a picture is not evidence that an endpoint works, and this is the
 > fact that licenses sending one without a click.
 
-## `SqlWorkflowRepository.remember_write`, [line 442](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L442): Comment
+## `SqlWorkflowRepository.remember_write`, [line 427](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L427): Comment
 
 Code: `await self._session.execute(`
 
@@ -201,7 +235,7 @@ Code: `await self._session.execute(`
 > run first earned the endpoint, which is what somebody asking "why is
 > this being sent without a click" needs in order to go and read it.
 
-## `SqlWorkflowRepository.record_effect`, [line 457](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L457): Comment
+## `SqlWorkflowRepository.record_effect`, [line 480](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L480): Comment
 
 Code: `if not state_verified(verified_by):`
 
@@ -210,7 +244,7 @@ Code: `if not state_verified(verified_by):`
 > was written. Dropped rather than stored-and-filtered, so nothing
 > downstream has to remember to ask again.
 
-## `SqlWorkflowRepository.record_effect`, [line 466](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L466): Comment
+## `SqlWorkflowRepository.record_effect`, [line 465](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L465): Comment
 
 Code: `await self._session.execute(`
 
@@ -218,7 +252,7 @@ Code: `await self._session.execute(`
 > is verified -- a write rescued to the second rung verifies at the
 > same step, and that is not two proofs.
 
-## `SqlWorkflowRepository.forget_effects`, [line 477](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L477): Comment
+## `SqlWorkflowRepository.forget_effects`, [line 527](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L527): Comment
 
 Code: `gone = await self._session.execute(`
 
@@ -226,13 +260,13 @@ Code: `gone = await self._session.execute(`
 > a job had earned is the answer the caller wants, and a driver's
 > rowcount is not the same promise across drivers.
 
-## `SqlWorkflowRepository.proofs`, [line 501](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L501): Comment
+## `SqlWorkflowRepository.proofs`, [line 551](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L551): Comment
 
 Code: `wrote: defaultdict[str, set[int]] = defaultdict(set)`
 
 > Three queries whatever the number of runs, rather than two per run.
 
-## `SqlWorkflowRepository.proofs`, [line 508](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L508): Comment
+## `SqlWorkflowRepository.proofs`, [line 558](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L558): Comment
 
 Code: `if result and result.get("wrote"):`
 

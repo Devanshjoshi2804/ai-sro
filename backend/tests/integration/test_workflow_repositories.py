@@ -153,6 +153,82 @@ class TestWorkflows:
         async with SqlUnitOfWork(session_factory) as uow:
             assert (await uow.workflows.get(TENANT, workflow.id)).signs_in is False
 
+    async def test_a_retired_job_stays_retired_and_its_evidence_stays_placed(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Retired is gone from everything that offers or runs a job -- the
+        known list and a lookup by id -- and it survives a re-save of the same
+        row. Its citations are still placed, so its gestures are never mined
+        into a fresh copy of it."""
+        retired = _workflow()
+        kept = _workflow(
+            steps=[Step(order=0, says="x", system="https://wms.example", cites=["ges_9"])]
+        )
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(retired)
+            await uow.workflows.save(kept)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.retire(TENANT, retired.id, at=datetime(2026, 9, 23, tzinfo=UTC))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert [one.id for one in await uow.workflows.known(TENANT)] == [kept.id]
+            with pytest.raises(NotFound):
+                await uow.workflows.get(TENANT, retired.id)
+            assert await uow.workflows.placed(TENANT) == {"ges_1", "ges_2", "ges_3", "ges_9"}
+            assert await uow.workflows.placed(OTHER_TENANT) == frozenset()
+            await uow.workflows.save(retired)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert [one.id for one in await uow.workflows.known(TENANT)] == [kept.id]
+
+    async def test_a_doing_folded_into_a_job_stays_placed(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A second doing recognised as a stored job is not a row of its own,
+        and a growth replaces the steps that cited the first. Both doings stay
+        placed, once each, for the tenant that did them and no other."""
+        workflow = _workflow()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(workflow)
+            await uow.workflows.place(TENANT, workflow.id, ("ges_7", "ges_8"))
+            await uow.workflows.place(TENANT, workflow.id, ("ges_8", "ges_9"))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.workflows.placed(TENANT) == {
+                "ges_1",
+                "ges_2",
+                "ges_3",
+                "ges_7",
+                "ges_8",
+                "ges_9",
+            }
+            assert await uow.workflows.placed(OTHER_TENANT) == frozenset()
+
+    async def test_only_the_tenants_own_job_can_be_retired(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        workflow = _workflow()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(workflow)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            with pytest.raises(NotFound):
+                await uow.workflows.retire(OTHER_TENANT, workflow.id, at=datetime.now(tz=UTC))
+            with pytest.raises(NotFound):
+                await uow.workflows.retire(TENANT, "wfl_nobody", at=datetime.now(tz=UTC))
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert [one.id for one in await uow.workflows.known(TENANT)] == [workflow.id]
+
     async def test_a_workflow_names_the_pass_that_found_it(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:

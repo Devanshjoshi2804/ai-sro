@@ -292,7 +292,9 @@ async def test_a_gesture_whose_system_is_unknown_cannot_prove_a_step_that_names_
 
 
 async def test_a_second_pass_over_the_same_evidence_adds_no_second_workflow() -> None:
-    """Mining re-runs over evidence it has already read."""
+    """Mining re-runs over a day it has already read. What the stored job
+    cites is not shown again, so a model that re-proposes it anyway cites
+    gestures the pass never saw, and is refused for it."""
     uow, ids = await _day()
     proposal = _proposal(ids[:2])
     asker = FakeAsker(_found(proposal), _found(proposal))
@@ -300,7 +302,7 @@ async def test_a_second_pass_over_the_same_evidence_adds_no_second_workflow() ->
     await _mine(uow, asker)
     second = await _mine(uow, asker)
 
-    assert second.resolutions[0].kind == "same_occurrence"
+    assert [one.reason for one in second.rejections] == ["unknown gesture"]
     assert len(await uow.workflows.known(TENANT)) == 1
 
 
@@ -408,13 +410,18 @@ async def test_a_pass_that_keeps_nothing_still_says_it_read_the_window() -> None
     first = await _mine(uow, FakeAsker(_found(_proposal(ids))))
     assert first.kept == 1
 
-    again = await _mine(uow, FakeAsker(_found(_proposal(ids))))
+    rows = _rows(uow)
+    again_ids = [f"{one}_again" for one in ids]
+    await uow.gestures.add_gestures(
+        tuple(replace(rows[one], id=f"{one}_again", at=rows[one].at + 3600) for one in ids)
+    )
+    again = await _mine(uow, FakeAsker(_found(_proposal(again_ids))))
 
     assert again.kept == 0, "the same job again is not a new workflow"
     assert again.rejections == [], "it was not refused, it was recognised"
     assert again.coverage.coverage > 0.0, "it read the window; coverage must say so"
     assert not again.lopsided, "a correct pass that keeps nothing is not lopsided"
-    assert set(ids).isdisjoint(await _pool_ids(uow)), (
+    assert set(ids + again_ids).isdisjoint(await _pool_ids(uow)), (
         "evidence a stored workflow already explains must not be re-pooled"
     )
 
@@ -678,10 +685,10 @@ async def test_a_gesture_the_budget_left_out_is_read_by_the_next_pass() -> None:
     # went uncited, and a tail still outside the window would have been refused
     # above for citing gestures the pass never saw.
     assert second.unplaced == 0
-    # The window is the same size; the bonus changed who is in it. The fresh
-    # weak gestures that displaced the tail last pass are this pass's tail.
-    assert second.window_size == 25
-    assert second.left_out == len(tail)
+    # What the first pass placed is not read again, so the window is the tail
+    # the budget left out, and nothing else.
+    assert second.window_size == len(tail)
+    assert second.left_out == 0
 
 
 async def test_a_retired_gesture_loses_its_bonus_and_not_its_place() -> None:

@@ -109,13 +109,10 @@ def test_every_field_asked_of_the_reading_is_a_field_something_reads() -> None:
     the origin the browser recorded, one name per host by construction -- and
     the tail a reading is given is `one_line`, which is `act` and `object`.
 
-    Each name below carries the reader it is paid for. `continues` is the one
-    exception and is marked as such: nothing consumes it, and it stays because
-    `gemini_read_tail`'s docstring keeps the tail knob open FOR it after
-    measuring what that tail costs. That is a decision somebody made with
-    numbers, not an oversight -- which is exactly the difference this test is
-    here to make visible. Adding a field means naming its reader in the same
-    commit, or saying plainly that it has none and why.
+    Each name below carries the reader it is paid for. `continues` was the
+    one exception until 2026-09-23: nothing consumed it, and every reading paid
+    for the model to write it. Adding a field means naming its reader in the
+    same commit.
     """
     properties = _in_schema("properties")
     assert isinstance(properties, dict)
@@ -126,11 +123,9 @@ def test_every_field_asked_of_the_reading_is_a_field_something_reads() -> None:
         "object",  # one_line, and the whole window
         "page",  # as_evidence
         "values_seen",  # typed_values, values.crossings, learn_parameters
-        # No reader. Kept deliberately: `gemini_read_tail` exists for it, and
-        # that knob's docstring is a measured argument rather than a hope.
-        "continues",
         "confidence",  # read before a reading is trusted
     }
+    assert "continu" not in INSTRUCTIONS, "the words still ask for a field nobody reads"
 
 
 def test_the_words_ask_for_the_order_the_schema_imposes() -> None:

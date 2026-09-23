@@ -39,8 +39,10 @@ from sro.domain.skill.checks import (
     Coverage,
     Rejection,
     coverage,
+    credentials_typed,
     one_occurrence,
     signs_in,
+    signs_in_to,
     undeliverable,
     validate,
     work_only,
@@ -308,6 +310,10 @@ async def _grow(
         stored = await uow.workflows.get(tenant_id, known_id)
     except NotFound:
         return
+    if credentials_typed(proposal, by_id) - credentials_typed(stored, by_id):
+        logger.info("%s: not grown -- the doing types a credential the job never did", stored.title)
+        return
+    await uow.workflows.place(tenant_id, stored.id, tuple(ordered_cites(stored)))
     moved = where_steps_moved(stored.steps, proposal.steps, by_id)
     stored.steps = list(proposal.steps)
     stored.signs_in = proposal.signs_in
@@ -362,6 +368,7 @@ async def _one_pass(
     linked = {gesture_id for ids in crossings.values() for gesture_id in ids}
     linked |= worked_in_both(gestures, gap=K_SITTING_GAP_S, ours=ours)
 
+    stored_cites = await uow.workflows.placed(tenant_id)
     carried = await uow.pool.waiting(tenant_id)
     pooled_ids = [entry.gesture_id for entry in carried]
     lost = [gesture_id for gesture_id in pooled_ids if gesture_id not in by_id]
@@ -370,13 +377,17 @@ async def _one_pass(
     pooled: list[Packed] = []
     for entry in carried:
         gesture = by_id.get(entry.gesture_id)
-        if gesture is None:
+        if gesture is None or gesture.id in stored_cites:
             continue
         item = _packed(gesture, intents.get(entry.gesture_id), linked)
         item.strength += entry.waited * K_POOL_WAIT
         pooled.append(item)
     in_pool = set(pooled_ids)
-    fresh = [gesture for gesture in gestures if gesture.id not in in_pool]
+    fresh = [
+        gesture
+        for gesture in gestures
+        if gesture.id not in in_pool and gesture.id not in stored_cites
+    ]
 
     known = list(await uow.workflows.known(tenant_id))
     known = [
@@ -385,6 +396,11 @@ async def _one_pass(
         else one
         for one in known
     ]
+    lands = {
+        one.id: where
+        for one in known
+        if one.signs_in and (where := signs_in_to(one, by_id)) is not None
+    }
     summary: list[dict[str, object]] = [
         {"id": w.id, "title": w.title, "systems": w.systems, "shape_key": w.shape_key}
         for w in known
@@ -476,7 +492,10 @@ async def _one_pass(
             proposal.shape_key = [
                 list(entry) for entry in shape_key(in_time_order(proposal, by_id))
             ]
-            resolution = resolve(proposal, known + kept)
+            where = signs_in_to(proposal, by_id) if proposal.signs_in else None
+            if where is not None:
+                lands[proposal.id] = where
+            resolution = resolve(proposal, known + kept, signs_in_to=lands)
             result.resolutions.append(resolution)
             logger.info(
                 "%s: %s%s",
@@ -495,7 +514,11 @@ async def _one_pass(
                 proposal.pass_id = pass_id
                 await uow.workflows.save(proposal)
                 kept.append(proposal)
-            elif resolution.kind == "same_job" and resolution.workflow_id:
+            elif resolution.workflow_id:
+                await uow.workflows.place(
+                    tenant_id, resolution.workflow_id, tuple(ordered_cites(proposal))
+                )
+            if resolution.kind == "same_job" and resolution.workflow_id:
                 result.learned_parameters += await learn_parameters(
                     uow,
                     tenant_id=tenant_id,
@@ -519,7 +542,7 @@ async def _one_pass(
             result.coverage.coverage < K_MIN_COVERAGE or abs(result.coverage.skew) > K_MAX_SKEW
         )
 
-        claimed = frozenset(c for w in placed for c in cited_ids(w))
+        claimed = frozenset(c for w in placed for c in cited_ids(w)) | (in_pool & stored_cites)
         await uow.pool.add_unclaimed(
             tenant_id,
             window_ids=tuple(item.gesture_id for item in window.items) + tuple(window.left_out),

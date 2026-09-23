@@ -4,7 +4,7 @@
 // it is idle and every wake-up starts from storage.
 
 import { api, ApiError } from "./api.js";
-import { alsoWatch, alwaysWatched, hostOf, stopWatching } from "./always.js";
+import { alsoWatch, alwaysWatched, hostOf } from "./always.js";
 import { questionIn } from "./asking.js";
 import { waitBeforeLooking } from "./looking.js";
 import * as channel from "./channel.js";
@@ -32,7 +32,6 @@ import {
   LIFETIME_MS,
   endOfDay,
   fire,
-  mute,
   onCall,
   page as pageOf,
   shouldFire,
@@ -1854,9 +1853,9 @@ async function handle(message, sender) {
       void channel.settle();
       return status();
     case "flush":
-      // Upload now rather than on the next tick, and all of it: the options
-      // page offers this so an operator about to close the laptop can watch the
-      // queue go, and "it went" has to mean the queue is empty.
+      // Upload now rather than on the next tick, and all of it: "it went" has
+      // to mean the queue is empty. No screen sends this any more; the
+      // real-Chrome suite and `make fixtures` drain through it.
       return drain();
     case "teach-start": {
       // Everything captured so far goes up as ordinary work before the
@@ -1986,43 +1985,6 @@ async function handle(message, sender) {
       return api.skill(message.skillId);
     case "summary":
       return api.summary(message.since);
-    case "nudge-answer": {
-      // Answering ends it either way. What "do it" starts is the same path a
-      // candidate row has always taken -- taught if it needs teaching, run if
-      // it is already a skill -- and the panel drives that, because the press
-      // that authorises a run belongs where somebody can read what it says.
-      // Read and written under the same lock as every other writer of the
-      // list: this was the one whole-list write left outside it, and a stale
-      // snapshot written back here would undo a claim `start-rig-run` had just
-      // made -- an offer shown open behind a live run, and a second fate.
-      const was = await serially(async () => {
-        const held = await state.nudges();
-        await state.setNudges(
-          held.map((nudge) =>
-            nudge.id === message.id
-              ? {
-                  ...nudge,
-                  state: "answered",
-                  answer: message.answer,
-                  endedAt: Date.now(),
-                }
-              : nudge,
-          ),
-        );
-        return held.find((nudge) => nudge.id === message.id);
-      });
-      if (was) void hideNudge(was.tabId);
-      if (was && message.answer === "not-here") {
-        await state.setMuted(
-          mute(await state.muted(), was.startsOn, Date.now()),
-        );
-        // Only if the answer is what ended it. A nudge already swept or
-        // dropped has reported its fate, and an offer with two fates is one
-        // the rig cannot count.
-        if (was.state === "open") void report(was, "dismissed");
-      }
-      return { ok: true, nudge: was || null };
-    }
     case "what-this-browser-said": {
       // What is waiting to go up on the next beat, for the operator standing
       // in front of the browser that refused. Read only: the heartbeat still
@@ -2437,17 +2399,14 @@ async function handle(message, sender) {
       if (sender?.tab?.id !== undefined)
         await chrome.sidePanel.open({ tabId: sender.tab.id });
       return { ok: true };
-    case "revise-run":
-      return api.reviseRun(message.runId, message.values);
-    case "say-to-run":
-      return api.sayToRun(message.threadId, message.runId, message.text);
     // `candidates`, `teach-candidate`, `teach-together`, `answer-join`,
     // `dismiss-candidate` and `resolve-intent` were here, and are not any
     // more: every one of them served the mining pipeline's offer -- a card
     // that proposed teaching a skill from recordings, and a box that resolved
     // a sentence against the skills it had taught. This deployment runs the
-    // rig, whose jobs come with their steps already. The routes still exist on
-    // the backend for the console.
+    // rig, whose jobs come with their steps already. `nudge-answer`,
+    // `never-watch-site`, `revise-run`, `say-to-run`, `look-in-the-mail` and
+    // `panel-open` went the same way: nothing sent them.
     case "thread":
       return api.currentThread();
     case "new-thread":
@@ -2504,8 +2463,6 @@ async function handle(message, sender) {
         title: titles.get(run.workflow_id) || run.workflow_id,
       }));
     }
-    case "look-in-the-mail":
-      return lookInTheMail();
     case "thread-say": {
       const said = await api.say(message.threadId, message.text);
       // What the thread is waiting on NOW, off the reply that just changed it.
@@ -2697,11 +2654,6 @@ async function handle(message, sender) {
       }
       return { always: await state.alwaysWatch() };
     }
-    case "never-watch-site": {
-      const host = hostOf(message.url || "") || message.host || "";
-      await state.setAlwaysWatch(stopWatching(host, await state.alwaysWatch()));
-      return { always: await state.alwaysWatch() };
-    }
     case "unwatch-tab": {
       const tabId = message.tabId ?? sender?.tab?.id ?? null;
       if (tabId === null) return { error: "no tab to stop watching" };
@@ -2858,11 +2810,6 @@ async function handle(message, sender) {
     }
     case "status":
       return status(sender);
-    case "panel-open":
-      // The panel saying it is there, for a worker that was evicted while it
-      // was open. Answered with the status like any poll -- what this changes
-      // is that the push below knows somebody is listening.
-      return status(null);
     default:
       return { error: `no such message: ${message?.kind}` };
   }
@@ -2986,7 +2933,7 @@ chrome.storage.onChanged?.addListener(() => {
  */
 let readingTheMail = null;
 
-async function lookInTheMail() {
+export async function lookInTheMail() {
   const last = await state.mailLooked();
   const since = Date.now() - (last?.at || 0);
   const wait = waitBeforeLooking(last);

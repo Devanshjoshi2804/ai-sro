@@ -540,20 +540,6 @@ export const api = {
   /** This operator's running conversation, started if they have none. */
   currentThread: () => call("/v1/threads/current"),
 
-  /** One sentence, read against the jobs this tenant has been seen doing.
-   *
-   * Answers `{workflow_id, values, missing}` and starts nothing: the backend's
-   * own words are "an offer, never a start; pressing start is a different
-   * door". It spends a model call doing it -- about a fifth of a cent -- and
-   * the backend bills and caps that per tenant.
-   *
-   * The rig's resolver, and now the only one this extension has. The other
-   * read an utterance over the tenant's taught SKILLS; it went with the rest
-   * of the mining pipeline's offers.
-   */
-  readChat: (utterance) =>
-    call("/v1/chat", { method: "POST", body: { utterance } }),
-
   /** One sentence, through the one door that decides what kind it is.
    *
    * The backend answers `{kind: "job"|"lookup"}` -- an instruction becomes an
@@ -727,33 +713,9 @@ export const api = {
     }
   },
 
-  /** Change what the steps still to come will run with.
-   *
-   * Only names the skill declares; the run refuses anything else rather than
-   * recording a decision that reaches nothing. Answers with the run as it
-   * stands, which is not the effect of the change -- the next step is a fresh
-   * read and renders from what this saved. */
-  reviseRun: (runId, values) =>
-    call(`/v1/runs/${encodeURIComponent(runId)}/values`, {
-      method: "POST",
-      body: { values },
-    }),
-
-  /** Say something to a run that is happening.
-   *
-   * Kept beside it and resolved against nothing: an operator watching a run who
-   * types "use the north yard address" is talking about the thing in front of
-   * them, and putting that through intent matching finds some other skill and
-   * offers to run it. */
-  sayToRun: (threadId, runId, text) =>
-    call(`/v1/threads/${encodeURIComponent(threadId)}/messages`, {
-      method: "POST",
-      body: { text, run_id: runId },
-    }),
-
   /** What this tenant has watched, noticed and done since a moment.
    *
-   * The panel asks for today, to say three numbers over the ledger. Counted
+   * The panel asks for today, to say what was done over the ledger. Counted
    * from rows somebody can open rather than tallied in the browser: a figure a
    * person repeats to their manager has to be one an auditor can reach. */
   summary: (since) =>

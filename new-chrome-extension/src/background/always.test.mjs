@@ -5,7 +5,7 @@
 import assert from "node:assert";
 import { test } from "node:test";
 
-const { alsoWatch, alwaysWatched, hostOf, stopWatching } = await import("./always.js");
+const { alsoWatch, alwaysWatched, hostOf } = await import("./always.js");
 
 test("a system said once is watched on every tab of it", () => {
   // The defect this exists for: a run drove a tab it had opened itself while
@@ -29,9 +29,4 @@ test("only pages, and only the name the browser shows", () => {
 test("saying it twice says it once", () => {
   assert.deepEqual(alsoWatch("wms.example", ["wms.example"]), ["wms.example"]);
   assert.deepEqual(alsoWatch("a.example", ["b.example"]), ["a.example", "b.example"]);
-});
-
-test("and it can be taken back", () => {
-  assert.deepEqual(stopWatching("a.example", ["a.example", "b.example"]), ["b.example"]);
-  assert.deepEqual(stopWatching("c.example", ["b.example"]), ["b.example"]);
 });

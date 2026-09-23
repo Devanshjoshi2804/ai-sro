@@ -109,21 +109,15 @@ PAGE = """<!doctype html>
 
 
 CONSOLE = """<!doctype html>
-<html><body><h1>Console</h1>
-<script>
-  // What the real console does: says it is listening, then takes a credential
-  // from the origin that framed it and confirms.
-  window.__handed = null;
-  addEventListener("message", (event) => {
-    if (event.data && event.data.kind === "sro.credential") {
-      window.__handed = event.data.token;
-      event.source.postMessage({kind: "sro.credential.ok"}, event.origin);
-    }
-  });
-  parent.postMessage({kind: "sro.ready"}, "*");
-</script>
-</body></html>
+<html><body><h1>Console</h1></body></html>
 """
+"""What the real console is, as far as the panel is concerned now: a page at
+an address, nothing more. It used to announce itself with `sro.ready` and take
+a credential posted into its frame -- that whole handshake was this stub
+proving itself rather than the extension, because the frame it answered was
+already gone from the panel (`service-worker.js`'s `panel-console`: "the token
+no longer leaves this worker for the panel at all"). AGENTS.md's rule is that a
+double must not implement the thing under test."""
 
 MAIL = """<!doctype html>
 <html><body>
@@ -572,8 +566,8 @@ class _Stub(BaseHTTPRequestHandler):
             )
             return
         if self.path.startswith("/console"):
-            # A console, as far as the panel is concerned: it announces itself
-            # and writes down whatever it is handed.
+            # Where "Open the console here" and "Console ↗" are supposed to
+            # land -- and nothing else, now that neither frames it.
             self._send(200, CONSOLE.encode(), "text/html; charset=utf-8")
             return
         if self.path == "/api/stream":

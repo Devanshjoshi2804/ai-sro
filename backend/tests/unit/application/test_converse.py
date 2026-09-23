@@ -439,10 +439,17 @@ class _Reads:
     be a second implementation of the thing being tested.
     """
 
-    def __init__(self, answers: bool, value: str = "", about: str = "the_wait") -> None:
+    def __init__(
+        self,
+        answers: bool | None,
+        value: str = "",
+        about: str = "the_wait",
+        spent: Answer | None = None,
+    ) -> None:
         self._answers = answers
         self._value = value
         self._about = about
+        self._spent = spent
         self.asked: list[str] = []
 
     async def execute(self, _ctx: object, _pending: object, said: str) -> Read:
@@ -451,7 +458,8 @@ class _Reads:
             answers=self._answers,
             value=self._value or said,
             why="a fake",
-            about="" if self._answers else self._about,
+            about=self._about if self._answers is False else "",
+            spent=self._spent,
         )
 
 
@@ -482,6 +490,45 @@ async def test_a_sentence_that_is_not_an_answer_does_not_become_the_value() -> N
     # And the question is still standing, because nothing consumed it: the
     # answer, when it comes, has something to land in.
     assert pending_job(said.messages) is not None, "the question was swallowed"
+
+
+async def test_an_unreadable_answer_is_not_taken_and_the_question_is_asked_again() -> None:
+    """A model that raised, was not configured, or came back with nothing to
+    read has not said the sentence is an answer -- and taking it as one is
+    the same wrong record as taking a question about the waiting for one."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked(uow, ["Customer Type"])
+    converse._answers = _Reads(answers=None)  # type: ignore[assignment]
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="has reply arrived")
+
+    last = said.messages[-1]
+    assert last.decision is None or last.decision.get("kind") != "job", (
+        "an unreadable sentence started a run anyway"
+    )
+    assert "has reply arrived" not in str(last.decision or {}), (
+        "it was written down as the value anyway"
+    )
+    assert pending_job(said.messages) is not None, "the question was swallowed"
+
+
+async def test_the_spend_of_a_real_reading_is_recorded() -> None:
+    """The reading's own cost is discarded no longer -- billed the way every
+    other chat reading is, so the day's spend cap sees it."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked(uow, ["Customer Type"])
+    spent = Answer(data={"answers": True}, in_tokens=11, out_tokens=7, cost_usd=0.02)
+    converse._answers = _Reads(answers=True, value="S057", spent=spent)  # type: ignore[assignment]
+
+    await converse.execute(CTX, thread_id=thread_id, text="the code is S057")
+
+    [row] = uow.chats.rows
+    assert row.tenant == CTX.tenant_id.value
+    assert row.in_tokens == 11
+    assert row.out_tokens == 7
+    assert row.cost_usd == 0.02
 
 
 async def test_a_question_about_the_waiting_is_answered_about_the_waiting() -> None:

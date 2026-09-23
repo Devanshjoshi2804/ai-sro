@@ -73,22 +73,35 @@ async def test_the_value_inside_a_sentence_is_what_is_taken() -> None:
     assert read.value == "S057"
 
 
-async def test_a_reading_that_raises_takes_the_sentence() -> None:
-    """The safe fallback is the old behaviour. A panel that stops accepting
-    answers the moment a model is unreachable has taken the operator's way of
-    working away from them over an outage they cannot see."""
+async def test_a_reading_that_raises_says_it_could_not_tell() -> None:
+    """An unreadable answer is not an answer. Taking the raw text as the value
+    is how `HAS REPLY ARRIVED` reached a four-character box; the safe fallback
+    is a third state the caller re-asks under, not a value nobody gave."""
     says = _Says(None, raises=True)
 
     read = await IsItAnAnswer(says, model="m").execute(CTX, ASKING, "has reply arrived")
 
-    assert read.answers is True
-    assert read.value == "has reply arrived"
+    assert read.answers is None
+    assert read.value == ""
 
 
-async def test_a_deployment_with_no_model_behaves_as_it_always_did() -> None:
+async def test_a_deployment_with_no_model_says_it_could_not_tell() -> None:
     read = await IsItAnAnswer(None, model="m").execute(CTX, ASKING, "has reply arrived")
 
-    assert read.answers is True
+    assert read.answers is None
+    assert read.value == ""
+
+
+async def test_a_reply_with_no_data_says_it_could_not_tell() -> None:
+    """The reading was spent -- it is not free just because nothing came
+    back -- so the caller must still see it to bill it."""
+    says = _Says(None)
+
+    read = await IsItAnAnswer(says, model="m").execute(CTX, ASKING, "has reply arrived")
+
+    assert read.answers is None
+    assert read.value == ""
+    assert read.spent is not None
 
 
 async def test_an_answer_with_no_value_in_it_falls_back_to_the_sentence() -> None:

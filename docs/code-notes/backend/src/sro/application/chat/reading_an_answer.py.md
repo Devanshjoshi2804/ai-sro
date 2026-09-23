@@ -11,12 +11,14 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/reading_
 > reading a decision that is already made is how a settled question gets
 > re-opened by two words.
 >
-> Refuses by saying "this is an answer", never by silence. A deployment with no
-> model, a day's cap spent, a door that raised -- all of them mean this system
-> behaves exactly as it did before this existed, which is a question that takes
-> the next sentence. That is the wrong default and it is the SAFE one to fall
-> back to: the alternative is a panel that silently stops accepting answers the
-> moment a model is unreachable.
+> An unreadable answer is not an answer. No model configured, the call
+> raising, a reply with no data in it -- none of those says whether what was
+> typed answers the question, and taking the raw text as the value the moment
+> reading becomes unavailable is how `HAS REPLY ARRIVED` reached a
+> four-character box: the model was down and nothing sat between an
+> operator's sentence and the warehouse system. `answers` is a third thing
+> here, not `True` -- `None` for "could not tell" -- so the caller re-asks
+> under the standing question rather than write down a guess.
 
 ## `Read`, [line 21](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L21): Docstring
 
@@ -36,6 +38,32 @@ Code: `about: str = ""`
 ## `IsItAnAnswer.execute`, [line 35](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L35): Docstring
 
 > Read it, or say it plainly is one without spending anything.
+
+## `IsItAnAnswer.execute`, [line 38](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L38): Comment
+
+Code: `if self._asker is None:`
+
+> Could not tell, not "this is an answer". A deployment with no model behaves
+> as one whose model is down: the question stands and is asked again, rather
+> than the sentence typed while nobody could read it going straight into the
+> warehouse system.
+
+## `IsItAnAnswer.execute`, [line 51](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L51): Comment
+
+Code: `except Exception:`
+
+> The safe fallback used to be "take the sentence" -- exactly the outage
+> `HAS REPLY ARRIVED` happened in. Could not tell is the safe one now: the
+> question is re-asked, not answered with whatever was said while the model
+> was unreachable.
+
+## `IsItAnAnswer.execute`, [line 55](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L55): Comment
+
+Code: `if data is None:`
+
+> A reply that spent a call and came back with nothing to read is still a
+> spend -- `spent=answer` carries it to the caller to bill -- but it is not a
+> reading, so it is not taken as one either.
 
 ## `IsItAnAnswer.execute`, [line 58](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L58): Comment
 

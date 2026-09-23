@@ -280,6 +280,7 @@ class StartWorkflowRun:
                         else self._gathering(ctx, workflow.title, seen_values(workflow))
                     ),
                     mail=self._mail_hand(ctx, asker),
+                    step_ended=secrets.step_ended,
                 )
         except Exception as error:
             logger.exception("a run in an operator's browser could not be finished")

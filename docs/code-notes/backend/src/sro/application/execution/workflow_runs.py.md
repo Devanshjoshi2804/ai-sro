@@ -132,7 +132,7 @@ Code: `K_EVERY_FORM = 400`
 > sits and watches, and they could not if the id only arrived when the last
 > step landed.
 
-## `ListWorkflowRuns`, [line 482](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L482): Docstring
+## `ListWorkflowRuns`, [line 483](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L483): Docstring
 
 > The most recent runs, newest first, as the rig listed them.
 >
@@ -167,7 +167,7 @@ Code: `K_EVERY_FORM = 400`
 > answer a parked run, and a queue that hides all but the deepest step hides
 > work from the person who could clear it.
 
-## `GetWorkflowRun`, [line 506](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L506): Docstring
+## `GetWorkflowRun`, [line 507](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L507): Docstring
 
 > One run, whole, or the 404 that will not say which kind of missing.
 >
@@ -184,7 +184,7 @@ Code: `K_EVERY_FORM = 400`
 > every run of the tenant, and a second place that says when a write was let
 > out is a second place for the two to disagree.
 
-## `AbortWorkflowRun`, [line 548](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L548): Docstring
+## `AbortWorkflowRun`, [line 549](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L549): Docstring
 
 > Ask a run of a mined job, in somebody's own browser, to stop.
 >
@@ -228,7 +228,7 @@ Code: `K_EVERY_FORM = 400`
 > the loop rather than moving here because the loop is what holds the socket
 > and knows the run is really over.
 
-## `NotDrivingThisRun`, [line 568](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L568): Docstring
+## `NotDrivingThisRun`, [line 569](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L569): Docstring
 
 > This browser is not the one driving the run it is trying to release.
 >
@@ -248,7 +248,7 @@ Code: `K_EVERY_FORM = 400`
 > neither `NotYours` had a handler registered, so both reached a caller as a
 > 500 and inheriting would have inherited it. `0302584` fixed that door.
 
-## `ApproveWorkflowStep`, [line 572](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L572): Docstring
+## `ApproveWorkflowStep`, [line 573](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L573): Docstring
 
 > A person saw the write the panel showed and said go.
 >
@@ -402,7 +402,7 @@ Code: `K_EVERY_FORM = 400`
 > step on the rescue model forever -- which is why they are asserted at
 > this call rather than only on the built object.
 
-## `StartWorkflowRun._settle_the_wait`, [line 291](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L291): Docstring
+## `StartWorkflowRun._settle_the_wait`, [line 292](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L292): Docstring
 
 > A run that came out whole is not waiting to hear anything.
 >
@@ -419,7 +419,7 @@ Code: `K_EVERY_FORM = 400`
 > run claiming every reply to its own thread is seven days of the next
 > request being swallowed by the last one.
 
-## `StartWorkflowRun._ask_for_values`, [line 302](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L302): Docstring
+## `StartWorkflowRun._ask_for_values`, [line 303](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L303): Docstring
 
 > Turn a run that came up short into a question somebody can answer.
 >
@@ -437,12 +437,12 @@ Code: `K_EVERY_FORM = 400`
 > collaborators are: a deployment that has not wired it runs exactly as
 > it did before, stopping with the sentence and asking nobody.
 
-## `StartWorkflowRun._mail_hand`, [line 370](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L370): Docstring
+## `StartWorkflowRun._mail_hand`, [line 371](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L371): Docstring
 
 > How a run writes and sends a mail through the connector the gather
 > rung already reads with. None where there is no connector.
 
-## `StartWorkflowRun._gathering`, [line 387](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L387): Docstring
+## `StartWorkflowRun._gathering`, [line 388](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L388): Docstring
 
 > Bound to this request's own tenant and operator.
 >
@@ -450,7 +450,7 @@ Code: `K_EVERY_FORM = 400`
 > `RequestContext` -- and for one more that matters here: a mailbox is
 > reached as ONE person, and the person is the one this run is for.
 
-## `StartWorkflowRun._known_fields`, [line 401](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L401): Docstring
+## `StartWorkflowRun._known_fields`, [line 402](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L402): Docstring
 
 > What the dictionary says about these body keys, by key.
 >
@@ -481,7 +481,7 @@ Code: `K_EVERY_FORM = 400`
 > REQUIRED comes back too -- a field the form marks required and the
 > write does not carry is the other fact worth a line.
 
-## `StartWorkflowRun._forms`, [line 423](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L423): Docstring
+## `StartWorkflowRun._forms`, [line 424](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L424): Docstring
 
 > What the real create form for THIS screen says about its fields.
 >
@@ -505,7 +505,7 @@ Code: `K_EVERY_FORM = 400`
 > guess between two forms is how this would start inventing missing
 > fields.
 
-## `StartWorkflowRun._close`, [line 455](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L455): Docstring
+## `StartWorkflowRun._close`, [line 456](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L456): Docstring
 
 > Mark a row nobody is driving any more, on a session of its own.
 >
@@ -515,7 +515,7 @@ Code: `K_EVERY_FORM = 400`
 > already finished: `run_workflow` may well have closed it on its way out,
 > and a second close would overwrite the verdict it wrote with this one.
 
-## `GetWorkflowRun.undo_for`, [line 517](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L517): Docstring
+## `GetWorkflowRun.undo_for`, [line 518](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L518): Docstring
 
 > Which of this tenant's jobs takes back what this run made, if any.
 >
@@ -533,7 +533,7 @@ Code: `K_EVERY_FORM = 400`
 > reason that sentence gives. A run that made two would need two deletes,
 > and an undo that takes back half of what a run did is worse than none.
 
-## `ApproveWorkflowStep.execute`, [line 578](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L578): Docstring
+## `ApproveWorkflowStep.execute`, [line 579](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L579): Docstring
 
 > (the step authorised, whether this tap was the one, whether anything woke).
 
@@ -801,7 +801,7 @@ Code: `cap_usd=self._cap_usd,`
 > keep asking. Read once and never again, one press on a
 > long list could spend the rest of the tenant's day.
 
-## `StartWorkflowRun.perform`, [line 288](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L288): Comment
+## `StartWorkflowRun.perform`, [line 289](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L289): Comment
 
 Code: `await self._settle_the_wait(ctx, done)`
 
@@ -809,7 +809,7 @@ Code: `await self._settle_the_wait(ctx, done)`
 > is over and its row is written, and a question that shared the
 > run's transaction would be a question that vanishes with it.
 
-## `StartWorkflowRun._settle_the_wait`, [line 295](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L295): Comment
+## `StartWorkflowRun._settle_the_wait`, [line 296](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L296): Comment
 
 Code: `saved = await uow.workflow_runs.get(ctx.tenant_id, run.id)`
 
@@ -818,7 +818,7 @@ Code: `saved = await uow.workflow_runs.get(ctx.tenant_id, run.id)`
 > saved. Whether anything is still outstanding is a question about
 > the row a reply would find, so it is asked of that row.
 
-## `StartWorkflowRun._settle_the_wait`, [line 300](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L300): Comment
+## `StartWorkflowRun._settle_the_wait`, [line 301](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L301): Comment
 
 Code: `await uow.commit()`
 
@@ -832,7 +832,7 @@ Code: `await uow.commit()`
 > store. Measured on the deployment 2026-09-18 -- a run held, needs
 > empty, `awaiting` still set.
 
-## `StartWorkflowRun._ask_for_values`, [line 305](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L305): Comment
+## `StartWorkflowRun._ask_for_values`, [line 306](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L306): Comment
 
 Code: `async with self._uow as uow:`
 
@@ -842,7 +842,7 @@ Code: `async with self._uow as uow:`
 > way to know the field stops at 28 characters, because the browser
 > never said so and neither did we.
 
-## `StartWorkflowRun._ask_for_values`, [line 308](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L308): Comment
+## `StartWorkflowRun._ask_for_values`, [line 309](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L309): Comment
 
 Code: `cited = (`
 
@@ -852,7 +852,7 @@ Code: `cited = (`
 > job and its evidence, and a run that stopped early performed too
 > few of them to say.
 
-## `StartWorkflowRun._ask_for_values`, [line 321](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L321): Comment
+## `StartWorkflowRun._ask_for_values`, [line 322](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L322): Comment
 
 Code: `await declared_limits(`
 
@@ -860,7 +860,7 @@ Code: `await declared_limits(`
 > has hit yet. A job whose first request is too long would
 > otherwise learn that by sending it.
 
-## `StartWorkflowRun._ask_for_values`, [line 336](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L336): Comment
+## `StartWorkflowRun._ask_for_values`, [line 337](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L337): Comment
 
 Code: `offered=offerable(workflow.parameters, run.values) if workflow else (),`
 
@@ -873,7 +873,7 @@ Code: `offered=offerable(workflow.parameters, run.values) if workflow else (),`
 > says it was ever possible. So it is offered, once, in the
 > opening, beside what it was last time.
 
-## `StartWorkflowRun._ask_for_values`, [line 337](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L337): Comment
+## `StartWorkflowRun._ask_for_values`, [line 338](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L338): Comment
 
 Code: `from_step=(`
 
@@ -890,14 +890,14 @@ Code: `from_step=(`
 > everything here does: a write that may have landed is not a step
 > to try again, and nothing it returns is on the far side of one.
 
-## `StartWorkflowRun._ask_for_values`, [line 345](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L345): Comment
+## `StartWorkflowRun._ask_for_values`, [line 346](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L346): Comment
 
 Code: `for_operator=PrincipalId(run.started_by) if run.started_by else ctx.principal_id,`
 
 > The person this run was for, not whoever is at the door: a
 > question in the wrong conversation is worse than none.
 
-## `StartWorkflowRun._ask_for_values`, [line 346](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L346): Comment
+## `StartWorkflowRun._ask_for_values`, [line 347](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L347): Comment
 
 Code: `text=_asking(run.needs, title, limits)`
 
@@ -905,14 +905,14 @@ Code: `text=_asking(run.needs, title, limits)`
 > is what the next sentence answers, and a question buried above an
 > offer gets the offer's answer.
 
-## `StartWorkflowRun._ask_for_values`, [line 349](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L349): Comment
+## `StartWorkflowRun._ask_for_values`, [line 350](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L350): Comment
 
 Code: `speaker=Speaker.ASSISTANT,`
 
 > A question, not an announcement: `pending_job` reads back what the
 > ASSISTANT last decided, so this is what makes the answer findable.
 
-## `StartWorkflowRun._ask_for_values`, [line 357](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L357): Comment
+## `StartWorkflowRun._ask_for_values`, [line 358](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L358): Comment
 
 Code: `"watched": pending.watched,`
 
@@ -921,7 +921,7 @@ Code: `"watched": pending.watched,`
 > it is carried rather than assumed, because a run started by a
 > trigger that asked and was answered hours later is not.
 
-## `StartWorkflowRun._ask_for_values`, [line 359](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L359): Comment
+## `StartWorkflowRun._ask_for_values`, [line 360](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L360): Comment
 
 Code: `"offered": [list(one) for one in pending.offered],`
 
@@ -929,7 +929,7 @@ Code: `"offered": [list(one) for one in pending.offered],`
 > same fields, and so an answer arriving minutes later is
 > still an answer to this. The state is the thread.
 
-## `StartWorkflowRun._ask_for_values`, [line 364](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L364): Comment
+## `StartWorkflowRun._ask_for_values`, [line 365](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L365): Comment
 
 Code: `if self._asker_drafts is not None:`
 
@@ -951,7 +951,7 @@ Code: `if self._asker_drafts is not None:`
 > nobody can trace to a request -- all of them mean no draft and none
 > of them means no question.
 
-## `StartWorkflowRun._known_fields.look`, [line 412](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L412): Comment
+## `StartWorkflowRun._known_fields.look`, [line 413](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L413): Comment
 
 Code: `known: dict[str, dict[str, object]] = {`
 
@@ -960,7 +960,7 @@ Code: `known: dict[str, dict[str, object]] = {`
 > for two fields answers with claims for either -- and a claim for
 > a field this write does not fill must not be read as one it does.
 
-## `ListWorkflowRuns.execute`, [line 495](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L495): Comment
+## `ListWorkflowRuns.execute`, [line 496](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L496): Comment
 
 Code: `async with self._uow as uow:`
 
@@ -969,7 +969,7 @@ Code: `async with self._uow as uow:`
 > page size, in the one of the two places that never reaches
 > `openapi.json`.
 
-## `ListWorkflowRuns.execute`, [line 498](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L498): Comment
+## `ListWorkflowRuns.execute`, [line 499](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L499): Comment
 
 Code: `parked = frozenset(`
 
@@ -982,7 +982,7 @@ Code: `parked = frozenset(`
 > was written, and the mutation that deleted it passed 59
 > tests.
 
-## `GetWorkflowRun.undo_for`, [line 518](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L518): Comment
+## `GetWorkflowRun.undo_for`, [line 519](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L519): Comment
 
 Code: `if run.outcome == "running" or not any(step.made or wrote(step) for step in run.steps):`
 
@@ -995,7 +995,7 @@ Code: `if run.outcome == "running" or not any(step.made or wrote(step) for step 
 > every run that did the job through the form -- which is every run a
 > person watched.
 
-## `GetWorkflowRun.undo_for`, [line 531](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L531): Comment
+## `GetWorkflowRun.undo_for`, [line 532](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L532): Comment
 
 Code: `undo_job = next(one for one in known if one.id == takes_back)`
 
@@ -1011,7 +1011,7 @@ Code: `undo_job = next(one for one in known if one.id == takes_back)`
 > cannot name. `None` where the delete does not say, which is the
 > old rule exactly.
 
-## `GetWorkflowRun.undo_for`, [line 537](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L537): Comment
+## `GetWorkflowRun.undo_for`, [line 538](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L538): Comment
 
 Code: `typed = str(run.values.get(asks, "")).strip()`
 
@@ -1035,7 +1035,7 @@ Code: `typed = str(run.values.get(asks, "")).strip()`
 > record that is not there and answers 404, which is the safe
 > way round.
 
-## `GetWorkflowRun.undo_for`, [line 543](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L543): Comment
+## `GetWorkflowRun.undo_for`, [line 544](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L544): Comment
 
 Code: `if asks is None:`
 
@@ -1046,14 +1046,14 @@ Code: `if asks is None:`
 > name a parameter the job does not have, and the run would refuse
 > it as a value nobody supplied.
 
-## `AbortWorkflowRun.execute`, [line 557](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L557): Comment
+## `AbortWorkflowRun.execute`, [line 558](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L558): Comment
 
 Code: `if run is None:`
 
 > A run of another tenant takes the same path as one that never
 > existed, for `GetWorkflowRun`'s reason: a 403 confirms the id exists.
 
-## `AbortWorkflowRun.execute`, [line 561](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L561): Comment
+## `AbortWorkflowRun.execute`, [line 562](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L562): Comment
 
 Code: `if not run.device_id:`
 
@@ -1063,7 +1063,7 @@ Code: `if not run.device_id:`
 > writes such a row: what a stop control must never do is answer
 > "stopping" for a run nothing in this process is driving.
 
-## `AbortWorkflowRun.execute`, [line 565](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L565): Comment (debt)
+## `AbortWorkflowRun.execute`, [line 566](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L566): Comment (debt)
 
 Code: `return run`
 
@@ -1071,7 +1071,7 @@ Code: `return run`
 > worker, so stopping must land there too -- sticky-route by device_id
 > if this is ever run with more than one.
 
-## `ApproveWorkflowStep.execute`, [line 588](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L588): Comment
+## `ApproveWorkflowStep.execute`, [line 589](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L589): Comment
 
 Code: `if run.outcome != "running" or not parked:`
 
@@ -1080,7 +1080,7 @@ Code: `if run.outcome != "running" or not parked:`
 > failed is not waiting on anybody, and a tap on it would record a
 > person letting out a write nothing is holding open.
 
-## `ApproveWorkflowStep.execute`, [line 597](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L597): Comment
+## `ApproveWorkflowStep.execute`, [line 598](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L598): Comment
 
 Code: `await uow.commit()`
 
@@ -1088,7 +1088,7 @@ Code: `await uow.commit()`
 > is durable before anything can act on the event. The other order
 > would let a write out on a transaction that then rolled back.
 
-## `ApproveWorkflowStep.execute`, [line 598](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L598): Comment
+## `ApproveWorkflowStep.execute`, [line 599](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L599): Comment
 
 Code: `resumed = self._approvals.approve(run.id)`
 
@@ -1114,5 +1114,8 @@ Code: `resumed = self._approvals.approve(run.id)`
 Code: `secrets = RunSecrets(self._vault, self._one_time_secrets, run_id=run.id)`
 
 > One per run: the lookup `run_workflow` asks for passwords, and -- through
-> `WatchingChannel`, which wraps the channel handed to it on line 263 -- the
-> place that learns what the run typed and what the page showed after it.
+> `WatchingChannel`, which wraps the channel handed to it on line 260 -- the
+> place that learns what the run typed and what the page showed after it --
+> and, through `step_ended` on line 283, which steps held outside signing in:
+> the one thing the engine tells it directly, because only the engine knows a
+> step's verdict (fix round 5).

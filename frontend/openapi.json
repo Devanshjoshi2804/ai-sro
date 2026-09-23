@@ -11349,7 +11349,7 @@
           "connections"
         ],
         "summary": "Store Credentials",
-        "description": "What the connection signs itself back in with, entered once.\n\nThis is the difference between a saved session and a connector: a session\ndies on the system's schedule, and something has to be able to make a new\none at 3am without waking anybody.\n\nEncrypted into the vault on arrival. No endpoint returns it, nothing logs\nit, no recording contains it, and it is typed into no page but the login\npage of the host this connection names.\n\nWhen a recorded job signs in to this system, the password is kept where\nthat job's run reads it -- under the login page's origin -- so one stored\npassword serves both, and storing it lifts a refusal of the old one.",
+        "description": "What the connection signs itself back in with, entered once.\n\nThis is the difference between a saved session and a connector: a session\ndies on the system's schedule, and something has to be able to make a new\none at 3am without waking anybody.\n\nEncrypted into the vault on arrival. No endpoint returns it, nothing logs\nit, no recording contains it, and it is typed into no page but the login\npage of the host this connection names.\n\nWhen a recorded job signs in to this system, the password is kept where\nthat job's run reads it -- under the login page's origin -- so one stored\npassword serves both, and storing it lifts a refusal of the old one. When\nthat job recorded a username and a different one is given, nothing is\nstored and the answer is 409: the run would type the job's username with\nthis password.",
         "operationId": "store_credentials_v1_connections__connection_id__credentials_put",
         "parameters": [
           {

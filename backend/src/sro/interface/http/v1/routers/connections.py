@@ -143,7 +143,10 @@ async def store_credentials(
 
     When a recorded job signs in to this system, the password is kept where
     that job's run reads it -- under the login page's origin -- so one stored
-    password serves both, and storing it lifts a refusal of the old one.
+    password serves both, and storing it lifts a refusal of the old one. When
+    that job recorded a username and a different one is given, nothing is
+    stored and the answer is 409: the run would type the job's username with
+    this password.
     """
     await container.store_credentials().execute(
         ctx,

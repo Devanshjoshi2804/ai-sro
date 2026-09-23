@@ -26,7 +26,7 @@ import base64
 import copy
 import json
 import logging
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -1003,6 +1003,7 @@ async def _ran(
     known_fields: KnownFields | None = None,
     gather_values: GatherValues | None = None,
     mail: MailHand | None = None,
+    step_ended: Callable[[bool], None] | None = None,
 ) -> WorkflowRun:
     """One run, with the arguments no test varies spelled once.
 
@@ -1038,6 +1039,7 @@ async def _ran(
             known_fields=known_fields,
             gather_values=gather_values,
             mail=mail,
+            step_ended=step_ended,
             # No cap unless a test is about the cap: `over_cap` answers a
             # negative one before it touches the repository, so every other
             # test here pays nothing and asserts nothing about money.
@@ -1072,6 +1074,36 @@ async def test_a_live_run_sends_the_write() -> None:
         " `test_the_claimed_row_says_what_the_run_is_doing_and_the_arguments_do_not`,"
         " which a caller passing a hardcoded False satisfies just as well"
     )
+
+
+@pytest.mark.parametrize("signs_in", [False, True])
+async def test_each_step_says_whether_it_held_outside_signing_in(signs_in: bool) -> None:
+    """The run's credentials count a held step as proof a sign-in worked, so
+    the engine says so for every step -- and never for a sign-in job's own."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    workflow.signs_in = signs_in
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = FakeAsker(
+        _plan("type", "THIRD"),
+        Answer(data={"held": True, "why": ""}),
+        _plan("click"),
+        Answer(data={"held": True, "why": ""}),
+    )
+    ended: list[bool] = []
+
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=asker,
+        values={"clientCode": "THIRD"},
+        earned=True,
+        step_ended=ended.append,
+    )
+
+    assert [s.verdict for s in run.steps] == ["held", "held"]
+    assert ended == [not signs_in, not signs_in]
 
 
 async def test_the_run_is_saved_after_every_step_and_not_only_at_the_end() -> None:

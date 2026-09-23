@@ -16,7 +16,7 @@ from sro.application.ports.system import Clock
 from sro.application.ports.vault import CredentialVault
 from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.execution.secrets import secret_key_of
-from sro.domain.shared.errors import DomainError
+from sro.domain.shared.errors import Conflict, DomainError
 from sro.domain.skill.signing_in import RecordedLogin, recorded_login
 from sro.domain.skill.skill import Skill
 from sro.domain.skill.workflow import ordered_cites
@@ -53,6 +53,13 @@ class StoreCredentials:
             await self._vault.store(connection.credential_key(USERNAME), username.strip())
             await self._vault.store(connection.credential_key(PASSWORD), password)
             return
+        if recorded.username and recorded.username != username.strip():
+            raise Conflict(
+                f"the recorded sign-in job {recorded.job_id} signs in at {recorded.origin} "
+                "with a different username than the one given, so a password stored for it "
+                "would be typed for that recorded username. Give the job's recorded "
+                "username, or record the sign-in again as the other user."
+            )
         if not recorded.username:
             await self._vault.store(_key(ctx, recorded, USERNAME), username.strip())
         await self._vault.store(_key(ctx, recorded, PASSWORD), password)

@@ -33,6 +33,7 @@ from sro.application.ports.sign_in import CredentialsRefused
 from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.execution.secrets import secret_key_of
 from sro.domain.observation.gesture import Action, Gesture, Target
+from sro.domain.shared.errors import Conflict
 from sro.domain.skill.workflow import Step, Workflow
 from tests import factories as f
 from tests.unit.fakes import (
@@ -200,7 +201,7 @@ async def test_credentials_stored_on_the_connection_go_where_the_sign_in_reads_t
     await StoreCredentials(world.uow, world.vault).execute(
         CTX,
         connection_id=connection.id,
-        username="ignored",
+        username=" operator-7 ",
         password="right",  # noqa: S106 -- a fake vault's value
     )
 
@@ -208,6 +209,26 @@ async def test_credentials_stored_on_the_connection_go_where_the_sign_in_reads_t
     assert await world.vault.get(connection.credential_key(PASSWORD)) is None
     await world.sign_in().execute(CTX, target_system="wms")
     assert world.driver.given == ("operator-7", "right")
+
+
+async def test_a_username_other_than_the_one_the_job_signs_in_with_is_refused() -> None:
+    """A run types the job's recorded username; storing a password for another
+    account under that login would pair it with the wrong user."""
+    world = _World()
+    connection = await world.connect(job=_login_job())
+    await world.vault.store(LOGIN_KEY, "kept")
+
+    with pytest.raises(Conflict, match="recorded username") as raised:
+        await StoreCredentials(world.uow, world.vault).execute(
+            CTX,
+            connection_id=connection.id,
+            username="someone-else",
+            password="new-secret",  # noqa: S106 -- a fake vault's value
+        )
+
+    assert "new-secret" not in str(raised.value)
+    assert "someone-else" not in str(raised.value)
+    assert await world.vault.get(LOGIN_KEY) == "kept"
 
 
 async def test_a_job_that_recorded_no_username_takes_the_one_stored_with_the_password() -> None:

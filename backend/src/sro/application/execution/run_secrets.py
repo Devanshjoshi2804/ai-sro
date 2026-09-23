@@ -12,7 +12,7 @@ from sro.application.ports.vault import CredentialVault, VaultUnavailable
 from sro.domain.shared.identifiers import DeviceId, TenantId
 
 TYPES = ("ui.perform", "ui.perform_at")
-SUBMITS = ("click", "press")
+LATCH_AT = 2
 
 
 class RunSecrets:
@@ -21,15 +21,16 @@ class RunSecrets:
         self._held = held
         self._run_id = run_id
         self._handed: dict[str, tuple[str, bool]] = {}
-        self._waiting: dict[str, tuple[str, bool]] = {}
-        self._unsure: set[str] = set()
+        self._typed: dict[str, str] = {}
+        self._attempts: dict[str, str] = {}
+        self._failed: dict[str, int] = {}
+        self._signing = False
         self._refused: set[str] = set()
         self._kept: dict[str, str] = {}
         self._host = ""
-        self._out = False
 
     async def __call__(self, key: str) -> str | None:
-        once = self._kept.get(key) or self._held.take(key, run_id=self._run_id)
+        once = self._held.take(key, run_id=self._run_id) or self._kept.get(key)
         if once is not None:
             self._kept[key] = once
             if _mark(key, once) in self._refused:
@@ -55,28 +56,35 @@ class RunSecrets:
     def typed(self, value: str) -> None:
         for key, (mark, _) in self._handed.items():
             if mark == _mark(key, value):
-                self._waiting[key] = (self._host, False)
+                self._typed[key] = self._host
+                self._signing = True
 
     def pressed(self) -> None:
-        if not self._out:
-            self._unsure.clear()
-            self._waiting = {key: wait for key, wait in self._waiting.items() if not wait[1]}
-        self._waiting = {key: (form, True) for key, (form, _) in self._waiting.items()}
+        if self._typed:
+            self._signing = True
+        self._attempts.update(self._typed)
+        self._typed.clear()
+
+    def step_ended(self, held: bool) -> None:
+        if held and not self._signing:
+            self._attempts.clear()
+            self._failed.clear()
+        self._signing = False
 
     async def saw(self, url: str, *, signed_out: bool, credential_empty: bool) -> None:
         host = urlsplit(url).netloc.lower()
         if not host:
             return
         self._host = host
-        self._out = signed_out
-        for key, (form, submitted) in list(self._waiting.items()):
-            if signed_out and credential_empty and submitted and host == form:
-                del self._waiting[key]
-                self._unsure.discard(key)
+        if not (signed_out and credential_empty):
+            return
+        for key, form in list(self._attempts.items()):
+            if host != form:
+                continue
+            del self._attempts[key]
+            self._failed[key] = self._failed.get(key, 0) + 1
+            if self._failed[key] >= LATCH_AT:
                 await self._refuse(key)
-            elif not signed_out and key not in self._unsure:
-                del self._waiting[key]
-                self._unsure.add(key)
 
     async def _refuse(self, key: str) -> None:
         mark, from_vault = self._handed[key]
@@ -88,8 +96,8 @@ class RunSecrets:
                 key,
                 at=datetime.now(tz=UTC),
                 reason=(
-                    f"run {self._run_id} typed this password and the sign-in form on "
-                    f"{self._host} came back with its password box empty"
+                    f"run {self._run_id} submitted this password {LATCH_AT} times and each "
+                    f"time the sign-in form on {self._host} came back with its password box empty"
                 ),
             )
         except VaultUnavailable:
@@ -126,7 +134,7 @@ class WatchingChannel:
         typed = payload.get("value") if kind in TYPES else payload.get("password")
         if kind in (*TYPES, "sign_in") and isinstance(typed, str):
             self._secrets.typed(typed)
-        if kind == "sign_in" or (kind in TYPES and payload.get("action") in SUBMITS):
+        if kind == "sign_in" or (kind in TYPES and _submits(payload)):
             self._secrets.pressed()
         return reply
 
@@ -135,6 +143,11 @@ class WatchingChannel:
 
     def drop(self, tenant_id: TenantId, device_id: DeviceId) -> bool:
         return self._channel.drop(tenant_id, device_id)
+
+
+def _submits(payload: Mapping[str, object]) -> bool:
+    action = payload.get("action")
+    return action == "click" or (action == "press" and payload.get("value") in (None, "", "Enter"))
 
 
 def _mark(key: str, value: str) -> str:

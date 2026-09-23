@@ -2,83 +2,102 @@
 
 Why the code in [`backend/src/sro/application/execution/run_secrets.py`](../../../../../../../backend/src/sro/application/execution/run_secrets.py) is the way it is. Each note names the code it explains (function or class, then the line in the current file).
 
+## `LATCH_AT`, [line 15](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L15): Constant
+
+> Two failed attempts with no success between latch the password. One is
+> forgiven because a single "form came back" can be a session that ended
+> just after a good sign-in; a second in a row is not given that benefit, so
+> a refused password is submitted at most twice per run -- under any IdP
+> lockout threshold seen (fix round 5, 2026-09-23).
+
 ## `RunSecrets`, [line 18](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L18): Class
 
-> One run's view of the vault: the password a step types, and the evidence
-> that the system refused it.
+> One run's view of the vault: the password a step types, and a count of the
+> times the system refused it.
 >
 > This is where production signs in (2026-09-23: the deployed tenant has no
 > connections and signs in by running the mined login job). A step typed the
 > stored password, the sign-in form came back, and rescue or sight rungs
 > planned the step again -- each one typing the refused password once more.
 >
-> "Refused" is decided by evidence, the rule the server-side driver uses: the
-> password was typed, and the same host then shows its sign-in form again with
-> the password box EMPTY (review round 3, 2026-09-23). Round 2 inferred it from
-> the same value being asked for twice, which would have latched a correct
-> password on an ordinary re-login after the session expired mid-run.
+> Fix round 5 (2026-09-23) replaced page-signal inference with counting,
+> because each inference rule was reproduced wrong (round 4 review): a click
+> on a same-host error page ("Back to login") read as the run moving on and
+> reset the bound -- five bad submits, nothing latched; and a stale doubt from
+> an earlier landing latched a GOOD password when the form was merely seen at
+> the next expiry. Now, per vault key:
 >
-> Review round 4 (2026-09-23) tightened both halves. A refusal now also needs
-> an observed submit after the typing (`pressed`), and landing is any page with
-> no login box, on any host -- a login form on the system's own host used to
-> latch every later re-login. Accepted trade-off: a spinner with no login box
-> between the submit and the refused form looks like a landing and buys one
-> more try; the second is not given that benefit (`_unsure`), so a refused
-> password is submitted at most twice in a run.
+> - an ATTEMPT is a submit (`pressed`) after this run typed that key;
+> - it FAILED when a look on the host the password was typed on shows the
+>   sign-in form with its password box empty -- counted once per attempt;
+> - SUCCESS is a later step that is not part of signing in ending held
+>   (`step_ended`), and resets the count; a page with no login box is never
+>   success;
+> - the count reaching `LATCH_AT` latches; a form seen with no attempt before
+>   it counts for nothing.
 
-## `RunSecrets.__call__`, [line 31](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L31): Docstring
+## `RunSecrets.__call__`, [line 32](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L32): Docstring
 
 > A value held for this run comes first and is typed regardless of any
-> standing refusal: the operator is answering for this run. It is taken from
-> `OneTimeSecrets` once and kept for the run (`_kept`), so asking whether a
-> password exists -- `_ask_for_the_password` does -- no longer uses up the
-> operator's answer before the step types it (review round 4). A held value
-> this run saw refused is not handed out again. Then a standing refusal
-> means nothing is handed out -- the step stops on its needs_secret ask and the
-> panel asks for a new password. Then the vault, except a value this run has
-> already seen refused, which is never typed again in this run even if the
+> standing refusal: the operator is answering for this run. A fresh hold wins
+> over the one kept earlier in the run (fix round 5): an operator who answers
+> again mid-run is correcting the first answer. The value is kept for the run
+> (`_kept`), so asking whether a password exists -- `_ask_for_the_password`
+> does -- does not use up the operator's answer before the step types it. A
+> held value this run saw refused is not handed out again. Then a standing
+> refusal means nothing is handed out -- the step stops on its needs_secret
+> ask and the panel asks for a new password. Then the vault, except a value
+> this run latched, which is never typed again in this run even if the
 > operator re-stores the same one.
 
-## `RunSecrets.typed`, [line 55](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L55): Docstring
+## `RunSecrets.typed`, [line 56](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L56): Docstring
 
 > A value the browser reported typing. If it is a password this run handed
-> out, the run now waits for the verdict, remembering the host the form was
-> on, and that nothing has been submitted yet.
+> out, the key is armed on the host the form was on, and the current step is
+> part of signing in.
 
-## `RunSecrets.pressed`, [line 60](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L60): Docstring
+## `RunSecrets.pressed`, [line 62](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L62): Docstring
 
-> A click or key press the browser performed: a submit of whatever was typed
-> before it. Typing alone submits nothing, so an empty form after a value went
-> into the wrong box is not a refusal (review round 4). Performed while the
-> page had no login box, it is the run moving on in the system: that confirms
-> the landing, and clears the waits and doubts a spinner could have caused.
+> A submit. Every armed key becomes an attempt on its form's host and is
+> disarmed, so later clicks -- an error page's "Back to login" -- are not new
+> attempts and do not clear anything. Typing alone submits nothing.
 
-## `RunSecrets.saw`, [line 66](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L66): Docstring
+## `RunSecrets.step_ended`, [line 68](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L68): Docstring
 
-> What the page showed next. Submitted, same host, password box on screen and
-> empty: refused. No password box, on any host: the browser landed, and a
-> sign-in form after that is a session ending, not a refusal -- the password
-> is typed again. A key whose last landing was never confirmed by the run
-> moving on (`_unsure`) does not get a second landing from a page alone. A
-> form still holding what was typed is a submit in flight and decides
-> nothing. Hosts, never page text.
+> The engine's verdict for a step. Held, outside a sign-in job, and this run
+> neither typed nor submitted a password during it: the sign-in worked, so
+> open attempts and failure counts are cleared. Anything else only closes the
+> step.
 
-## `RunSecrets._refuse`, [line 81](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L81): Docstring
+## `RunSecrets.saw`, [line 74](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L74): Docstring
+
+> What the page showed. A signed-out page whose password box is empty, on the
+> host an open attempt typed on, fails that attempt. Any other page decides
+> nothing -- not a landing, not a refusal. A form still holding what was typed
+> is a submit in flight. Hosts, never page text.
+
+## `RunSecrets._refuse`, [line 89](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L89): Docstring
 
 > Only a vault value is latched on its key; a held value refused says nothing
 > about what the vault keeps. Either way it is not typed again in this run.
 
-## `WatchingChannel`, [line 99](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L99): Class
+## `WatchingChannel`, [line 107](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L107): Class
 
-> The run's browser channel, read on the way through. Both facts the refusal
-> rule needs are already in the conversation the run engine has: what a
-> performed command typed, and what every `ui.url` answer says about the page
+> The run's browser channel, read on the way through. What was typed, what
+> was submitted and what every `ui.url` answer says about the page
 > (`signed_out`, and from the extension `credential_empty` -- whether a visible
-> login box is empty, never its value). Watching here means the 2,000-line
-> engine needed no new hook, and every command kind that types a password --
-> `ui.perform`, `ui.perform_at`, the browser's own `sign_in` -- is covered in
-> one place. Only replies the browser reported as done count.
+> login box is empty, never its value) are already in the conversation the run
+> engine has, and every command kind that types a password -- `ui.perform`,
+> `ui.perform_at`, the browser's own `sign_in` -- is covered in one place. Only
+> replies the browser reported as done count. Step verdicts are not in the
+> conversation, so the engine reports those itself (`step_ended`).
 >
 > A `ui.url` answer from a tab that is not the run's own (`elsewhere` with
 > `elsewhere_is_ours` false: the operator's front tab) is ignored -- an
-> unrelated page must not clear a wait or latch a password (review round 4).
+> unrelated page must not fail an attempt (review round 4).
+
+## `_submits`, [line 148](../../../../../../../backend/src/sro/application/execution/run_secrets.py#L148): Docstring
+
+> A submit is a click, or Enter (a press with no key named defaults to Enter
+> in the extension). Tab and other keys move focus or edit; counting them
+> would turn filling a form into attempts (fix round 5).

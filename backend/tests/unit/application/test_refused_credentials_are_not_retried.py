@@ -12,10 +12,12 @@ it: that vault key being written again, through whichever door. A password
 held for one run is the operator answering for that run, so it is typed for
 that run regardless.
 
-Inside a run, "refused" is decided by evidence, the rule the driver uses: the
-password was typed, and the same host then shows its sign-in form again with the
-password box empty. A fresh form after the browser had landed in the system is
-the session ending, and the password is typed again.
+Inside a run, "refused" is counted, not inferred from how a page looks. An
+attempt is a submit after the run typed the password; it failed when the same
+host then shows its sign-in form again with the password box empty. Two failed
+attempts with no success between latch the password. Success is a later step
+that is not part of signing in ending held -- never a page merely lacking a
+login box. A login form seen with no attempt before it counts for nothing.
 """
 
 from __future__ import annotations
@@ -190,18 +192,24 @@ FORM = "https://login.example.com/auth"
 SYSTEM = "https://wms.example.com/portal"
 
 
-async def test_the_form_coming_back_empty_after_the_submit_is_a_refusal() -> None:
-    """The evidence the driver uses, seen by the run engine: the password went
-    in, and the same host shows its sign-in form again with the box empty."""
+async def _fail_once(run: RunSecrets, value: str = WRONG, key: str = LOGIN_KEY) -> None:
+    await run.saw(FORM, signed_out=True, credential_empty=True)
+    assert await run(key) == value
+    run.typed(value)
+    run.pressed()
+    await run.saw(FORM, signed_out=True, credential_empty=True)
+
+
+async def test_the_second_failed_attempt_latches_the_password() -> None:
+    """The password went in, it was submitted, and the same host shows its
+    sign-in form again with the box empty -- twice."""
     world = _World()
     await world.vault.store(LOGIN_KEY, WRONG)
     run = world.run()
 
-    await run.saw(FORM, signed_out=True, credential_empty=True)
-    assert await run(LOGIN_KEY) == WRONG
-    run.typed(WRONG)
-    run.pressed()
-    await run.saw(FORM, signed_out=True, credential_empty=True)
+    await _fail_once(run)
+    assert await world.refusals.standing(LOGIN_KEY) is None
+    await _fail_once(run)
 
     standing = await world.refusals.standing(LOGIN_KEY)
     assert standing is not None
@@ -262,11 +270,8 @@ async def test_a_new_password_stored_during_the_run_is_typed() -> None:
     world = _World()
     await world.vault.store(LOGIN_KEY, WRONG)
     run = world.run()
-    await run.saw(FORM, signed_out=True, credential_empty=True)
-    assert await run(LOGIN_KEY) == WRONG
-    run.typed(WRONG)
-    run.pressed()
-    await run.saw(FORM, signed_out=True, credential_empty=True)
+    await _fail_once(run)
+    await _fail_once(run)
     assert await run(LOGIN_KEY) is None
 
     await world.vault.store(LOGIN_KEY, "the right one")
@@ -281,12 +286,10 @@ async def test_a_refused_held_password_is_not_latched_on_the_vault_key() -> None
     held.hold(LOGIN_KEY, "typed just now", run_id="run-1")
     run = world.run("run-1", held)
 
-    await run.saw(FORM, signed_out=True, credential_empty=True)
-    assert await run(LOGIN_KEY) == "typed just now"
-    run.typed("typed just now")
-    run.pressed()
-    await run.saw(FORM, signed_out=True, credential_empty=True)
+    await _fail_once(run, "typed just now")
+    await _fail_once(run, "typed just now")
 
+    assert await run(LOGIN_KEY) is None
     assert await world.refusals.standing(LOGIN_KEY) is None
 
 
@@ -332,13 +335,14 @@ async def test_the_run_learns_both_facts_from_the_browser_conversation() -> None
     watched = WatchingChannel(browser, run)
     device = DeviceId("dev-1")
 
-    await watched.send(f.TENANT, device, kind="ui.url", payload={})
-    value = await run(LOGIN_KEY)
-    await watched.send(
-        f.TENANT, device, kind="ui.perform", payload={"action": "type", "value": value}
-    )
-    await watched.send(f.TENANT, device, kind="ui.perform", payload={"action": "click"})
-    await watched.send(f.TENANT, device, kind="ui.url", payload={})
+    for _ in range(2):
+        await watched.send(f.TENANT, device, kind="ui.url", payload={})
+        value = await run(LOGIN_KEY)
+        await watched.send(
+            f.TENANT, device, kind="ui.perform", payload={"action": "type", "value": value}
+        )
+        await watched.send(f.TENANT, device, kind="ui.perform", payload={"action": "click"})
+        await watched.send(f.TENANT, device, kind="ui.url", payload={})
 
     assert await world.refusals.standing(LOGIN_KEY) is not None
 
@@ -381,12 +385,13 @@ async def test_the_browsers_own_sign_in_counts_as_typing_the_password() -> None:
     watched = WatchingChannel(browser, run)
     device = DeviceId("dev-1")
 
-    await watched.send(f.TENANT, device, kind="ui.url", payload={})
-    value = await run(LOGIN_KEY)
-    await watched.send(
-        f.TENANT, device, kind="sign_in", payload={"username": "u", "password": value}
-    )
-    await watched.send(f.TENANT, device, kind="ui.url", payload={})
+    for _ in range(2):
+        await watched.send(f.TENANT, device, kind="ui.url", payload={})
+        value = await run(LOGIN_KEY)
+        await watched.send(
+            f.TENANT, device, kind="sign_in", payload={"username": "u", "password": value}
+        )
+        await watched.send(f.TENANT, device, kind="ui.url", payload={})
 
     assert await world.refusals.standing(LOGIN_KEY) is not None
 
@@ -429,9 +434,9 @@ async def test_an_empty_form_with_no_submit_after_the_typing_is_not_a_refusal() 
     assert await run(LOGIN_KEY) == WRONG
 
 
-async def test_a_page_without_a_login_box_before_the_refusal_buys_one_more_try_only() -> None:
-    """A spinner between the submit and the refused form looks like a landing.
-    The second submit is not given that benefit: at most two, never three."""
+async def test_a_page_without_a_login_box_is_not_a_landing() -> None:
+    """A spinner between the submit and the refused form is not success: the
+    second failed attempt latches, as it would without the spinner."""
     world = _World()
     await world.vault.store(LOGIN_KEY, WRONG)
     run = world.run()
@@ -448,20 +453,152 @@ async def test_a_page_without_a_login_box_before_the_refusal_buys_one_more_try_o
     assert await run(LOGIN_KEY) is None
 
 
-async def test_every_re_login_after_the_run_moved_on_is_typed_again() -> None:
+async def test_a_re_login_after_a_held_business_step_is_typed_again_and_not_latched() -> None:
+    """The session expired mid-run after a business step held: that step was
+    the success, so the earlier failed attempt no longer counts."""
     world = _World()
     await world.vault.store(LOGIN_KEY, WRONG)
     run = world.run()
 
-    for _ in range(3):
+    await _fail_once(run)
+    run.step_ended(False)
+    await run.saw(FORM, signed_out=True, credential_empty=True)
+    assert await run(LOGIN_KEY) == WRONG
+    run.typed(WRONG)
+    run.pressed()
+    run.step_ended(False)
+    await run.saw(SYSTEM, signed_out=False, credential_empty=False)
+    run.step_ended(True)
+    await _fail_once(run)
+
+    assert await world.refusals.standing(LOGIN_KEY) is None
+    assert await run(LOGIN_KEY) == WRONG
+
+
+async def test_a_held_step_that_signed_in_is_not_a_success() -> None:
+    """A step that typed or submitted the password ending held says nothing
+    about whether the system took it."""
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+    run = world.run()
+
+    await _fail_once(run)
+    run.step_ended(True)
+    await _fail_once(run)
+
+    assert await world.refusals.standing(LOGIN_KEY) is not None
+
+
+async def test_a_click_through_error_page_does_not_reset_the_count() -> None:
+    """Refused, a same-host error page with no login box, a click on its
+    "Back to login" link, the form again: that is still a failed attempt,
+    and the second one latches."""
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+    run = world.run()
+    error_page = "https://login.example.com/auth/error"
+
+    for _ in range(2):
         await run.saw(FORM, signed_out=True, credential_empty=True)
         assert await run(LOGIN_KEY) == WRONG
         run.typed(WRONG)
         run.pressed()
-        await run.saw(SYSTEM, signed_out=False, credential_empty=False)
+        await run.saw(error_page, signed_out=False, credential_empty=False)
         run.pressed()
+        await run.saw(FORM, signed_out=True, credential_empty=True)
+
+    assert await world.refusals.standing(LOGIN_KEY) is not None
+    assert await run(LOGIN_KEY) is None
+
+
+async def test_a_sign_in_that_landed_is_not_latched_when_the_form_is_later_seen() -> None:
+    """Sign-in lands and the job's next step holds; at an expiry the form is
+    seen and the browser signs in again; at the next expiry the form is only
+    seen. Nothing was refused, and nothing latches."""
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+    run = world.run()
+    browser = _Browser(
+        {
+            "ui.url": Reply(
+                ok=True, result={"url": FORM, "signed_out": True, "credential_empty": True}
+            ),
+            "ui.perform": Reply(ok=True, result={"performed": True}),
+            "sign_in": Reply(ok=True, result={"did": ["submitted"]}),
+        }
+    )
+    watched = WatchingChannel(browser, run)
+    device = DeviceId("dev-1")
+    landed = Reply(ok=True, result={"url": SYSTEM, "signed_out": False})
+    form = browser.replies["ui.url"]
+
+    await watched.send(f.TENANT, device, kind="ui.url", payload={})
+    value = await run(LOGIN_KEY)
+    await watched.send(
+        f.TENANT, device, kind="ui.perform", payload={"action": "type", "value": value}
+    )
+    await watched.send(f.TENANT, device, kind="ui.perform", payload={"action": "click"})
+    run.step_ended(True)
+    browser.replies["ui.url"] = landed
+    await watched.send(f.TENANT, device, kind="ui.url", payload={})
+    run.step_ended(True)
+    browser.replies["ui.url"] = form
+    await watched.send(f.TENANT, device, kind="ui.url", payload={})
+    value = await run(LOGIN_KEY)
+    await watched.send(
+        f.TENANT, device, kind="sign_in", payload={"username": "u", "password": value}
+    )
+    browser.replies["ui.url"] = landed
+    await watched.send(f.TENANT, device, kind="ui.url", payload={})
+    browser.replies["ui.url"] = form
+    await watched.send(f.TENANT, device, kind="ui.url", payload={})
+    await watched.send(f.TENANT, device, kind="ui.url", payload={})
 
     assert await world.refusals.standing(LOGIN_KEY) is None
+    assert await run(LOGIN_KEY) == WRONG
+
+
+async def test_tab_is_not_a_submit() -> None:
+    world = _World()
+    await world.vault.store(LOGIN_KEY, WRONG)
+    run = world.run()
+    browser = _Browser(
+        {
+            "ui.url": Reply(
+                ok=True, result={"url": FORM, "signed_out": True, "credential_empty": True}
+            ),
+            "ui.perform": Reply(ok=True, result={"performed": True}),
+        }
+    )
+    watched = WatchingChannel(browser, run)
+    device = DeviceId("dev-1")
+
+    for _ in range(3):
+        await watched.send(f.TENANT, device, kind="ui.url", payload={})
+        value = await run(LOGIN_KEY)
+        await watched.send(
+            f.TENANT, device, kind="ui.perform", payload={"action": "type", "value": value}
+        )
+        await watched.send(
+            f.TENANT, device, kind="ui.perform", payload={"action": "press", "value": "Tab"}
+        )
+        await watched.send(f.TENANT, device, kind="ui.url", payload={})
+
+    assert await world.refusals.standing(LOGIN_KEY) is None
+    assert await run(LOGIN_KEY) == WRONG
+
+
+async def test_a_fresh_hold_beats_the_one_kept_for_the_run() -> None:
+    world = _World()
+    held = OneTimeSecrets()
+    held.hold(LOGIN_KEY, "first answer", run_id="run-1")
+    run = world.run("run-1", held)
+    assert await run(LOGIN_KEY) == "first answer"
+
+    held.hold(LOGIN_KEY, "second answer", run_id="run-1")
+
+    assert await run(LOGIN_KEY) == "second answer"
+    assert await run(LOGIN_KEY) == "second answer"
 
 
 async def test_a_password_held_for_the_run_survives_being_looked_up() -> None:
@@ -499,14 +636,20 @@ async def _type_submit_look(world: _World, run: RunSecrets, look: Reply) -> None
     )
     watched = WatchingChannel(browser, run)
     device = DeviceId("dev-1")
-    await watched.send(f.TENANT, device, kind="ui.url", payload={})
-    value = await run(LOGIN_KEY)
-    await watched.send(
-        f.TENANT, device, kind="ui.perform", payload={"action": "type", "value": value}
-    )
-    await watched.send(f.TENANT, device, kind="ui.perform", payload={"action": "press"})
-    browser.replies["ui.url"] = look
-    await watched.send(f.TENANT, device, kind="ui.url", payload={})
+    for _ in range(2):
+        browser.replies["ui.url"] = Reply(
+            ok=True, result={"url": FORM, "signed_out": True, "credential_empty": True}
+        )
+        await watched.send(f.TENANT, device, kind="ui.url", payload={})
+        value = await run(LOGIN_KEY)
+        await watched.send(
+            f.TENANT, device, kind="ui.perform", payload={"action": "type", "value": value}
+        )
+        await watched.send(
+            f.TENANT, device, kind="ui.perform", payload={"action": "press", "value": "Enter"}
+        )
+        browser.replies["ui.url"] = look
+        await watched.send(f.TENANT, device, kind="ui.url", payload={})
 
 
 async def test_the_operators_own_front_tab_decides_nothing() -> None:

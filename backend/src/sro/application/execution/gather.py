@@ -115,6 +115,12 @@ class GatherContext:
         self._asker = asker
         self._model = model
 
+    @property
+    def tools(self) -> ToolCaller:
+        """The connectors this gather reads through. A mail job sends through
+        the same one rather than being handed a second copy of it."""
+        return self._tools
+
     async def execute(
         self,
         ctx: RequestContext,

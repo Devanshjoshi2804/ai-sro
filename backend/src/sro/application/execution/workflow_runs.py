@@ -80,6 +80,7 @@ from sro.application.execution.approvals import Approvals
 from sro.application.execution.declared import declared_limits, names_of, screen_for
 from sro.application.execution.effects import wrote
 from sro.application.execution.gather import GatherContext
+from sro.application.execution.mail_job import draft_the_mail_job
 from sro.application.execution.one_time_secrets import take as take_once
 from sro.application.execution.read_runs import NOT_IN_A_BROWSER_HERE, CannotStop
 from sro.application.execution.run_workflow import GatherValues, KnownFields, run_workflow
@@ -97,6 +98,7 @@ from sro.domain.chat.thread import Speaker
 from sro.domain.execution.evidence import unperformable
 from sro.domain.execution.gathering import Gathered
 from sro.domain.execution.learned_step import limits_for
+from sro.domain.execution.mail_job import is_mail_only
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.waiting import as_said, waiting_on
 from sro.domain.execution.workflow_run import (
@@ -112,7 +114,7 @@ from sro.domain.shared.identifiers import DeviceId, PrincipalId
 from sro.domain.skill.learned import offerable
 from sro.domain.skill.reversals import addresses, asks_for, identifies, undoes
 from sro.domain.skill.shape import resumes_at
-from sro.domain.skill.workflow import cited_ids
+from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
 
 __all__ = [
     "AbortWorkflowRun",
@@ -475,6 +477,16 @@ class StartWorkflowRun:
             await uow.commit()
             return run
 
+    async def _a_mail_job(self, ctx: RequestContext, run: WorkflowRun) -> Workflow | None:
+        """The job, where every step of it happened in the mailbox."""
+        async with self._uow as uow:
+            workflow = await uow.workflows.get(ctx.tenant_id, run.workflow_id)
+            cited = await uow.gestures.gestures_for(
+                ctx.tenant_id, ids=tuple(ordered_cites(workflow))
+            )
+        by_id = {gesture.id: gesture for gesture in cited}
+        return workflow if is_mail_only(workflow, by_id) else None
+
     async def _secret_for(self, key: str) -> str | None:
         """One password, at the moment a step types it.
 
@@ -545,6 +557,25 @@ class StartWorkflowRun:
         """
         try:
             asker = asker_or_refuse(self._asker)
+            # A job that is nothing but mail is written, not clicked. See
+            # `domain/execution/mail_job.py`: it is drafted through the
+            # mailbox's API and waits for the operator's press, and none of
+            # what follows a driven run -- settling the wait, asking for
+            # values -- applies to a draft nobody has sent yet.
+            mail = await self._a_mail_job(ctx, run)
+            if mail is not None and self._gather is not None and self._ids is not None:
+                await draft_the_mail_job(
+                    ctx,
+                    run,
+                    mail,
+                    uow=self._uow,
+                    tools=self._gather.tools,
+                    asker=asker,
+                    model=self._plan_model,
+                    clock=self._clock,
+                    ids=self._ids,
+                )
+                return
             async with self._uow as uow:
                 workflow = await uow.workflows.get(ctx.tenant_id, run.workflow_id)
                 title = workflow.title

@@ -265,13 +265,18 @@ class SendTheDraft:
             return ""
 
         run_id = str(draft.get("run_id") or "")
+        # A mail job's own mail, rather than a question to whoever asked: the
+        # send IS the job, so none of the asking bookkeeping applies, and the
+        # run finishes on Gmail's answer below. See `application/execution/
+        # mail_job.py`. The once-only claim above still holds for it.
+        job = bool(draft.get("job"))
         async with self._uow as uow:
             run = await uow.workflow_runs.get(ctx.tenant_id, run_id) if run_id else None
             # Claimed before the send, not after. Between a check and a mailbox
             # sits a network call, and a second press landing in that gap is a
             # second mail about one request -- which is the one thing the
             # column exists to stop.
-            if run is not None:
+            if run is not None and not job:
                 if run.asked_the_asker:
                     logger.info("%s: %s was already asked", ctx.tenant_id.value, run_id)
                     return ""
@@ -330,6 +335,19 @@ class SendTheDraft:
         # question -- "have I dealt with this message" -- and a second store
         # for it is a second store to keep in step.
         await self._never_read(ctx, answered)
+        if job:
+            await self._finish_the_job(ctx, run_id, answered)
+            await self._say(
+                ctx,
+                thread_id,
+                f"Sent to {to}.",
+                run_id,
+                message_id,
+                to,
+                sent=True,
+            )
+            logger.info("%s: sent %s's mail to %s", ctx.tenant_id.value, run_id, to)
+            return to
         await self._say(
             ctx,
             thread_id,
@@ -341,6 +359,37 @@ class SendTheDraft:
         )
         logger.info("%s: asked %s about %s", ctx.tenant_id.value, to, run_id)
         return to
+
+    async def _finish_the_job(self, ctx: RequestContext, run_id: str, answered: object) -> None:
+        """The mail job's run, finished on what Gmail answered.
+
+        Held by `status`: the mailbox said it took the mail and gave it an id,
+        which is the state itself and not a picture of it -- the belt a mail
+        clicked out of Gmail's page could never reach, since nothing on a
+        screen can say a mail went.
+        """
+        if not run_id:
+            return
+        try:
+            said = json.loads(getattr(answered, "text", "") or "{}")
+        except ValueError:
+            said = {}
+        sent_id = str(said.get("id") or "") if isinstance(said, dict) else ""
+        async with self._uow as uow:
+            run = await uow.workflow_runs.get(ctx.tenant_id, run_id)
+            if run is None:
+                return
+            for step in run.steps:
+                if step.verdict == "awaiting":
+                    step.verdict, step.verdict_by = "held", "status"
+                    step.reason = (
+                        f"Gmail took the mail (id {sent_id})" if sent_id else "Gmail took the mail"
+                    )
+                    step.made = {"message": sent_id} if sent_id else {}
+            run.outcome = "held"
+            run.awaiting = None
+            await uow.workflow_runs.save(run)
+            await uow.commit()
 
     async def _claim(self, ctx: RequestContext, message_id: str) -> bool:
         """Take this draft, or say somebody already has it.

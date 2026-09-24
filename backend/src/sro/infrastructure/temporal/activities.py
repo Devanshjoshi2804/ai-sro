@@ -13,9 +13,7 @@ if TYPE_CHECKING:
 from sro.application.execution.execute_skill import ExecutionRequest
 from sro.domain.execution.run import Medium, RunId
 from sro.domain.shared.identifiers import (
-    BrowserSessionId,
     PrincipalId,
-    RecordingId,
     SkillId,
     TenantId,
     TriggerId,
@@ -59,13 +57,6 @@ class StepResult:
 
 
 @dataclass
-class ReapRequest:
-    tenant_id: str
-    recording_id: str
-    browser_session_id: str
-
-
-@dataclass
 class TriggerRequest:
     trigger_id: str
 
@@ -80,29 +71,6 @@ class TriggerResult:
 class Activities:
     def __init__(self, container: Container) -> None:
         self._container = container
-
-    @activity.defn(name="abandon_stale_recording")
-    async def abandon_stale_recording(self, request: ReapRequest) -> bool:
-        ctx = RequestContext(
-            tenant_id=TenantId(request.tenant_id),
-            principal_id=PrincipalId("system"),
-        )
-        uow = self._container.unit_of_work()
-        async with uow as unit:
-            recording = await unit.recordings.get(ctx.tenant_id, RecordingId(request.recording_id))
-            if not recording.is_open:
-                return False
-
-        await self._container.finish_recording().abandon(
-            ctx,
-            recording_id=RecordingId(request.recording_id),
-            reason="session timed out without being finished",
-        )
-        return True
-
-    @activity.defn(name="close_browser_session")
-    async def close_browser_session(self, session_id: str) -> None:
-        await self._container.browser.close(BrowserSessionId(session_id))
 
     @activity.defn(name="start_run")
     async def start_run(self, request: StartRunRequest) -> StartedRun:

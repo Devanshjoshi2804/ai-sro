@@ -23,12 +23,10 @@ Comments and docstrings moved out of [`backend/src/sro/application/execution/cal
 
 Code: `code = "not_yours"`
 
-> Shared, deliberately, with the same-named class in `revise_run`. Both
-> are "that run is not yours" to the same person on two doors, and a console
-> matching on `problem.type` should not have to learn two spellings of it.
-> Without a `code` at all -- which is how both shipped -- `_problem` falls
-> back to `error`, so the 403 `0302584` gave them was untellable from every
-> other refusal in the system.
+> "That run is not yours", to the person who is not the one it was
+> performed for. Without a `code` -- which is how it shipped -- `_problem`
+> fell back to `error`, so the 403 `0302584` gave them was untellable from
+> every other refusal in the system.
 
 ## `StillRunning`, [line 15](../../../../../../../backend/src/sro/application/execution/call_run_wrong.py#L15): Docstring
 

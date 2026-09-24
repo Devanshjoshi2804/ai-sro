@@ -389,21 +389,3 @@ Code: `intent: str = ""`
 > Once. The first answer is the one they gave while looking at what it
 > made; a second one later is somebody rewriting the record, and the
 > track record has already been told.
-
-## `Run.revise`, [line 227](../../../../../../../backend/src/sro/domain/execution/run.py#L227): Docstring
-
-> Change what the steps still to come will run with.
->
-> A run is watched while it happens, and a step that has not been sent can
-> still be argued with -- the address was wrong, or the mail never said
-> which one. What has already gone to the warehouse has gone: steps record
-> what they sent, and nothing here rewrites them.
->
-> Recorded as well as applied. "Who decided this run would use A000221"
-> is the first question about a run that wrote the wrong thing, and the
-> answer belongs on the run rather than in a log somewhere else.
->
-> A name the skill never declared is refused rather than stored. It would
-> reach nothing -- every step renders from the names its plan carries --
-> so accepting it would record a decision with no effect, which reads
-> afterwards as a change that was made and then ignored.

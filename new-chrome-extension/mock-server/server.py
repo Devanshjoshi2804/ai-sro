@@ -102,39 +102,10 @@ class Contract(BaseHTTPRequestHandler):
                 },
             )
 
-        if self.path == "/v1/recordings":
-            recording_id = f"rec_{uuid.uuid4().hex}"
-            STATE["recordings"].append(recording_id)  # type: ignore[union-attr]
-            self.log_message("a demonstration started in the operator's own browser")
-            return self._send(201, {"recording_id": recording_id, "live_view_url": ""})
-
-        if re.fullmatch(r"/v1/recordings/[^/]+/finish", self.path):
-            recording_id = self.path.split("/")[3]
-            self.log_message("demonstration %s sealed", recording_id)
-            return self._send(
-                200,
-                {
-                    "id": recording_id,
-                    "objective_key": None,
-                    "label": "a demonstration",
-                    "status": "sealed",
-                    "demonstrator": "you",
-                    "started_at": "2026-08-25T09:00:00+00:00",
-                    "ended_at": "2026-08-25T09:05:00+00:00",
-                    "frame_count": 3,
-                    "has_narration": False,
-                },
-            )
-
         if self.path == "/v1/observations":
             events = body.get("events", [])
             STATE["batches"].append(body.get("batch_id"))  # type: ignore[union-attr]
-            self.log_message(
-                "batch %s, %d events, %s",
-                body.get("batch_id"),
-                len(events),
-                f"teaching {body.get('recording_id')}" if body.get("mode") == "teaching" else "passive",
-            )
+            self.log_message("batch %s, %d events", body.get("batch_id"), len(events))
             return self._send(
                 202,
                 {
@@ -256,7 +227,6 @@ def main() -> int:
         labels={},
         batches=[],
         artifacts=[],
-        recordings=[],
     )
 
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Contract)

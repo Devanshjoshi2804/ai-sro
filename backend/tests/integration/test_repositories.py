@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from sro.application.observation.retain import SweepRetention
 from sro.domain.execution.run import Medium, Run, RunId, StepDisposition, StepOutcome
 from sro.domain.observation.batch import CaptureMode, ObservationBatch, RejectedEvent
 from sro.domain.observation.candidate import Episode, TaskCandidate
@@ -29,8 +30,10 @@ from sro.domain.skill.template import Template
 from sro.domain.skill.workflow import Workflow
 from sro.domain.trigger.trigger import Trigger, TriggerKind
 from sro.domain.trigger.watch import Term, TermField, ValueAt, Watch
+from sro.infrastructure.db.models import ObservationBatchRow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from tests import factories as f
+from tests.unit.fakes import FakeBlobStore, FakeClock
 
 OTHER_TENANT = TenantId("other-corp")
 
@@ -389,6 +392,65 @@ class TestObservation:
         async with SqlUnitOfWork(session_factory) as uow:
             with pytest.raises(Conflict):
                 await uow.observations.add(_batch())
+
+    async def test_a_teaching_row_is_read_and_swept_without_crashing(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A row a deployment received before the device-teaching path was
+        removed still says ``mode = 'teaching'`` -- Global Constraint 6 kept
+        the column and nothing rewrote the data. Both the retention sweep
+        and every gesture/shot read load a batch through this same
+        ``get``/``received_before``, so ``CaptureMode`` has to go on reading
+        the value even though nothing can produce it any more.
+        """
+        old_at = datetime(2026, 1, 1, 9, 0, tzinfo=UTC)
+        fresh_at = datetime(2026, 5, 1, 9, 0, tzinfo=UTC)
+
+        def _row(batch_id: str, recording_id: str, at: datetime) -> ObservationBatchRow:
+            return ObservationBatchRow(
+                id=batch_id,
+                tenant_id=f.TENANT.value,
+                device_id="dev-1",
+                principal_id=f.OPERATOR.value,
+                mode="teaching",
+                recording_id=recording_id,
+                started_at=at,
+                ended_at=at,
+                received_at=at,
+                uri=f"s3://sro-artifacts/{f.TENANT.value}/{f.OPERATOR.value}/{at.date()}/{batch_id}.ndjson",
+                event_count=1,
+                byte_count=10,
+                rejected=[],
+            )
+
+        async with session_factory() as session:
+            session.add_all(
+                [
+                    _row("bat-teaching-old", "rec-1", old_at),
+                    _row("bat-teaching-fresh", "rec-2", fresh_at),
+                ]
+            )
+            await session.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            # The exact read read_gesture.py, read_shots.py and artifacts.py
+            # do: load one batch by id. This is what raised ValueError
+            # before CaptureMode could read the legacy value.
+            loaded = await uow.observations.get(f.TENANT, BatchId("bat-teaching-fresh"))
+            assert loaded is not None
+            assert loaded.mode is CaptureMode.TEACHING
+            assert loaded.recording_id == RecordingId("rec-2")
+
+        forgotten = await SweepRetention(
+            SqlUnitOfWork(session_factory),
+            FakeBlobStore(),
+            FakeClock(datetime(2026, 5, 2, 9, 0, tzinfo=UTC)),
+        ).execute()
+
+        assert forgotten[f.TENANT.value].batches == 1, "the sweep did not run to completion"
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.observations.get(f.TENANT, BatchId("bat-teaching-old")) is None
+            assert await uow.observations.get(f.TENANT, BatchId("bat-teaching-fresh")) is not None
 
     async def test_a_window_finds_a_batch_that_began_before_it(
         self, session_factory: async_sessionmaker[AsyncSession]

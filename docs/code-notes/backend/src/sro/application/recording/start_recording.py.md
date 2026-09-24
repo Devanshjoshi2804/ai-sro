@@ -6,7 +6,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/recording/sta
 
 > Open a browser session and the Recording that will collect its frames.
 
-## `BrowserNotAttachable`, [line 19](../../../../../../../backend/src/sro/application/recording/start_recording.py#L19): Docstring
+## `BrowserNotAttachable`, [line 18](../../../../../../../backend/src/sro/application/recording/start_recording.py#L18): Docstring
 
 > The debugger URL points somewhere this deployment will not connect.
 >
@@ -15,7 +15,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/recording/sta
 > container, an internal service, a cloud metadata endpoint. The browser being
 > attached to is the operator's own, which is on this machine.
 
-## `NoSessionForSystem`, [line 23](../../../../../../../backend/src/sro/application/recording/start_recording.py#L23): Docstring
+## `NoSessionForSystem`, [line 22](../../../../../../../backend/src/sro/application/recording/start_recording.py#L22): Docstring
 
 > This system is known but nobody is signed in to it.
 >
@@ -23,30 +23,20 @@ Comments and docstrings moved out of [`backend/src/sro/application/recording/sta
 > happen: the operator gets a login page inside a live recording and teaches
 > signing in, which is a different task from the one they meant to teach.
 
-## `StartedRecording`, [line 32](../../../../../../../backend/src/sro/application/recording/start_recording.py#L32): Note on the line above
+## `StartedRecording`, [line 31](../../../../../../../backend/src/sro/application/recording/start_recording.py#L31): Note on the line above
 
 Code: `debugger_url: str = ""`
 
 > CDP endpoint for the capture adapter. Never put on the wire.
 
-## `StartedRecording`, [line 36](../../../../../../../backend/src/sro/application/recording/start_recording.py#L36): Note on the line above
+## `StartedRecording`, [line 35](../../../../../../../backend/src/sro/application/recording/start_recording.py#L35): Note on the line above
 
 Code: `target_system: str | None = None`
 
 > The connected system this URL belongs to, if any -- which is how a
 > demonstration that names nothing still starts already signed in.
 
-## `StartRecording._in_their_own_browser`, [line 114](../../../../../../../backend/src/sro/application/recording/start_recording.py#L114): Docstring
-
-> A demonstration this deployment does not drive.
->
-> No browser is opened and no session is restored: the operator is
-> already signed in to the system, in front of it, and about to do the
-> task. The recording is an empty vessel until their extension uploads
-> the teaching batches that fill it, and there is no live view because
-> there is nothing to watch that they are not already looking at.
-
-## `StartRecording._refuse_unless_allowed`, [line 148](../../../../../../../backend/src/sro/application/recording/start_recording.py#L148): Docstring
+## `StartRecording._refuse_unless_allowed`, [line 103](../../../../../../../backend/src/sro/application/recording/start_recording.py#L103): Docstring
 
 > Scheme and host, checked before anything dials it.
 >
@@ -54,7 +44,7 @@ Code: `target_system: str | None = None`
 > not debugger endpoints, and neither is anything else a URL library will
 > happily open on our behalf.
 
-## `StartRecording.execute`, [line 86](../../../../../../../backend/src/sro/application/recording/start_recording.py#L86): Comment
+## `StartRecording.execute`, [line 75](../../../../../../../backend/src/sro/application/recording/start_recording.py#L75): Comment
 
 Code: `session = (`
 
@@ -66,17 +56,3 @@ Code: `session = (`
 > provider's login page and teaches signing in instead of the task.
 > Capture navigates after restoring them.
 
-## `StartRecording._in_their_own_browser`, [line 125](../../../../../../../backend/src/sro/application/recording/start_recording.py#L125): Comment
-
-Code: `refuse_unless_itself(device, secret, device_id)`
-
-> A demonstration is the strongest evidence this system has -- it is
-> what a skill is induced from -- so naming somebody else's browser as
-> the one about to perform it is refused the way every device-scoped
-> path refuses it.
-
-## `StartRecording._in_their_own_browser`, [line 143](../../../../../../../backend/src/sro/application/recording/start_recording.py#L143): Comment
-
-Code: `live_view_url="",`
-
-> Nothing to watch that the operator is not already looking at.

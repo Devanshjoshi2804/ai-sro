@@ -13,12 +13,8 @@ from sro.application.observation.mining_pass import rekey_workflows
 from sro.config import Settings, get_settings
 from sro.container import Container, build_container
 from sro.infrastructure.temporal.activities import Activities
-from sro.infrastructure.temporal.queues import BROWSER_QUEUE, DEFAULT_QUEUE
-from sro.infrastructure.temporal.workflows import (
-    ExecutionWorkflow,
-    RecordingSessionWorkflow,
-    TriggerWorkflow,
-)
+from sro.infrastructure.temporal.queues import DEFAULT_QUEUE
+from sro.infrastructure.temporal.workflows import ExecutionWorkflow, TriggerWorkflow
 from sro.observability import configure_logging
 
 logger = logging.getLogger("sro.infrastructure.temporal.worker")
@@ -133,14 +129,6 @@ async def run() -> None:
             activities.fire_trigger,
         ],
     )
-    browser = Worker(
-        client,
-        identity=me,
-        task_queue=BROWSER_QUEUE,
-        workflows=[RecordingSessionWorkflow],
-        activities=[activities.abandon_stale_recording, activities.close_browser_session],
-    )
-
     try:
         rekeyed = await rekey_everything(container)
         if rekeyed:
@@ -152,7 +140,7 @@ async def run() -> None:
     rig_miner = asyncio.create_task(mine_the_rig_lately(container, settings.rig_sweep_seconds))
     retainer = asyncio.create_task(retain_lately(container, settings.retention_sweep_seconds))
     try:
-        async with default, browser:
+        async with default:
             await asyncio.Future()
     finally:
         keeper.cancel()

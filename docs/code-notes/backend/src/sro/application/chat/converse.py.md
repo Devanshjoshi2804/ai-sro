@@ -356,7 +356,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > transcript beside the step it arrived during, and so the surface can say
 > honestly that it was heard -- what reads it is the planner, when there
 > is one. A note that silently changed a run would be worse than one that
-> does nothing: the values a run uses are changed by `ReviseRun`, where
+> does nothing: changing the values a run uses is `Run.revise`'s job, where
 > the change is checked against the names the skill declares.
 
 ## `Converse.started`, [line 634](../../../../../../../backend/src/sro/application/chat/converse.py#L634): Docstring

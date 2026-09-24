@@ -293,9 +293,10 @@ console.log("network.test.mjs: ok");
 // `test_the_page_cannot_forge_an_exchange_into_the_evidence_plane` holds that
 // line and should be read beside this.
 //
-// So the tab says so, and teaching refuses to start in it. Silence here cost an
-// operator two demonstrations: gestures recorded, every call dropped, nothing
-// anywhere saying why.
+// So the tab says so: `status().deaf` names it and the panel calls it out
+// rather than looking healthy. Silence here cost an operator two
+// demonstrations: gestures recorded, every call dropped, nothing anywhere
+// saying why.
 {
   const orphaned = makeSandbox({ answerHandshake: false });
   await new Promise((resolve) => setTimeout(resolve, 1300));

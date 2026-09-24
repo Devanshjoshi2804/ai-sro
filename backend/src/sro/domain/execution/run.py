@@ -224,17 +224,6 @@ class Run:
             raise InvariantViolation("a run called wrong says why, even if only 'undone'")
         self.wrong_because = because
 
-    def revise(self, values: Mapping[str, str], *, at: datetime) -> None:
-        self._require_running()
-        self._require_after_start(at)
-        if not values:
-            raise InvariantViolation("a revision that names no value changes nothing")
-        unknown = sorted(name for name in values if name not in self.parameters)
-        if unknown:
-            raise InvariantViolation(f"no parameter named {', '.join(unknown)} on this run")
-        self.parameters = {**self.parameters, **values}
-        self.revisions += tuple((name, values[name], at) for name in sorted(values))
-
     def _require_running(self) -> None:
         if self.status is not RunStatus.RUNNING:
             raise InvariantViolation(f"run is {self.status} and cannot be added to")

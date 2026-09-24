@@ -1,4 +1,5 @@
-"""`POST /v1/chat` through the real container, against real Postgres.
+"""`POST /v1/ask`'s job reading, through the real container, against real
+Postgres.
 
 The unit suite cannot settle this one. `FakeUnitOfWork` builds its repositories
 in `__init__` and `SqlUnitOfWork` assigns them inside `__aenter__`, so a use
@@ -143,15 +144,23 @@ async def test_a_sentence_is_read_and_billed_through_one_real_session(
         )
     )
 
-    answered = await client.post("/v1/chat", json={"utterance": SAID})
+    answered = await client.post("/v1/ask", json={"said": SAID})
 
     assert answered.status_code == 200, answered.text
     body = answered.json()
-    assert body["workflow_id"] == "wfl_1"
-    assert body["values"] == {"areaName": "ZONE4"}
-    assert body["missing"] == ["zone"]
-    assert (body["in_tokens"], body["out_tokens"], body["thought_tokens"]) == (900, 140, 40)
-    assert (body["cost_usd"], body["unpriced"], body["error"]) == (0.0007, False, None)
+    assert body["job"]["workflow_id"] == "wfl_1"
+    assert body["job"]["values"] == {"areaName": "ZONE4"}
+    assert body["job"]["missing"] == ["zone"]
+    assert (body["job"]["in_tokens"], body["job"]["out_tokens"], body["job"]["thought_tokens"]) == (
+        900,
+        140,
+        40,
+    )
+    assert (body["job"]["cost_usd"], body["job"]["unpriced"], body["job"]["error"]) == (
+        0.0007,
+        False,
+        None,
+    )
 
     async with SqlUnitOfWork(container._session_factory) as uow:
         rows = await uow.chats.since(TENANT, since=NOW.replace(hour=0).isoformat())
@@ -195,12 +204,12 @@ async def test_the_cap_is_read_off_the_same_store_the_meter_bills_into(
     )
     cost = price(model, 100_000, 100_000)
 
-    first = await client.post("/v1/chat", json={"utterance": SAID})
+    first = await client.post("/v1/ask", json={"said": SAID})
     assert first.status_code == 200, first.text
 
     container.settings = Settings(daily_usd_cap=round(cost - 0.01, 2), _env_file=None)
 
-    refused = await client.post("/v1/chat", json={"utterance": SAID})
+    refused = await client.post("/v1/ask", json={"said": SAID})
 
     assert refused.status_code == 429, refused.text
     assert f"${cost:.4f} of" in refused.json()["detail"]
@@ -220,7 +229,7 @@ async def test_a_deployment_with_no_model_is_refused_by_the_real_container(
     unit file over a unit of work whose `__aenter__` raises -- which is a thing
     a real `SqlUnitOfWork` cannot be made to do from here.
     """
-    answered = await client.post("/v1/chat", json={"utterance": SAID})
+    answered = await client.post("/v1/ask", json={"said": SAID})
 
     assert answered.status_code == 503, answered.json()["detail"]
     assert "gemini_api_key" in answered.json()["detail"]

@@ -17,6 +17,7 @@ import json
 import sys
 import tempfile
 import threading
+import time
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -149,6 +150,61 @@ def _one(
     return None
 
 
+def _wanted(events: list[dict[str, Any]]) -> dict[str, dict[str, Any] | None]:
+    """Every fixture `main` writes, named, or `None` for the ones not seen yet.
+
+    The one place both `_capture`'s own completion check and `main`'s write
+    step name what a full capture looks like -- so the two cannot drift into
+    disagreeing about what "everything arrived" means.
+    """
+    found: dict[str, dict[str, Any] | None] = {
+        "gesture-click": _one(events, "gesture", {"kind": "click"}),
+        "gesture-type": _one(events, "gesture", {"kind": "type", "secret": False}),
+        "gesture-select": _one(events, "gesture", {"kind": "select"}),
+        "gesture-press": _one(events, "gesture", {"kind": "press"}),
+        "gesture-upload": _one(events, "gesture", {"kind": "upload"}),
+        "gesture-secret": _one(events, "gesture", {"secret": True}),
+        "page-navigated": _one(events, "page", {"page_kind": "navigated"}),
+        "snapshot": _one(events, "snapshot"),
+    }
+    requests = [event for event in events if event["kind"] == "request"]
+    found["request-get"] = next(
+        (r for r in requests if r["request"]["method"] == "GET" and r["request"].get("status")),
+        None,
+    )
+    found["request-post"] = next(
+        (
+            r
+            for r in requests
+            if r["request"]["method"] == "POST" and r["request"].get("request_body")
+        ),
+        None,
+    )
+    found["request-failed"] = next(
+        (r for r in requests if r["request"].get("failure_reason")), None
+    )
+    found["request-with-body"] = next(
+        (
+            r
+            for r in requests
+            if r["request"]["resource_type"] == "xhr" and r["request"].get("request_body")
+        ),
+        None,
+    )
+    # A response nothing read: an event stream stays open for the life of the
+    # page, so there is no "the body" to wait for.
+    found["request-uninspectable-body"] = next(
+        (
+            r
+            for r in requests
+            if (r["request"].get("response_body") or {}).get("text") is None
+            and r["request"].get("status")
+        ),
+        None,
+    )
+    return found
+
+
 def _capture(context: Any, api_url: str, batches: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Do a task the way an operator would, and hand back what was uploaded."""
     worker = _worker(context)
@@ -192,25 +248,37 @@ def _capture(context: Any, api_url: str, batches: list[dict[str, Any]]) -> list[
     page.wait_for_function("() => window.__done === true", timeout=20_000)
 
     flushing = _options(context, worker)
-    flushing.evaluate("""async () => await chrome.runtime.sendMessage({kind: "flush"})""")
-
-    # And once more as a demonstration, which is the only thing that produces a
-    # snapshot: the accessibility tree needs `chrome.debugger`, and passive
-    # capture deliberately never attaches it.
-    began = flushing.evaluate(
-        """async () => await chrome.runtime.sendMessage({kind: "teach-start"})"""
-    )
-    if not began.get("ok"):
-        raise SystemExit(f"the demonstration did not start: {began}")
-    page.click("#client")
-    page.fill("#client", CLIENT_CODE)
-    page.click("#save")
-    page.wait_for_timeout(500)
-    flushing.evaluate("""async () => await chrome.runtime.sendMessage({kind: "teach-stop"})""")
+    events = _flush_until_everything_wanted_has_arrived(flushing, batches)
     flushing.close()
     page.close()
 
-    return [event for batch in batches for event in batch["events"]]
+    return events
+
+
+def _flush_until_everything_wanted_has_arrived(
+    flushing: Any, batches: list[dict[str, Any]], deadline_seconds: float = 8.0
+) -> list[dict[str, Any]]:
+    """Flush until every fixture `main` writes has arrived, or the deadline.
+
+    One flush right after the page's own `__done` is not enough: a
+    content-script message can still be in flight -- on its way from the page
+    to the service worker -- when `drain()` sees an empty queue and returns.
+    The XHR body, the failed request and the open event stream are the ones
+    most often still travelling, because they are what the page's fetches
+    finish last. Retrying against what has actually arrived, rather than
+    guessing how long that takes, gives a late one the further flushes it
+    needs without slowing down the ordinary case where nothing is missing on
+    the first one.
+    """
+    deadline = time.monotonic() + deadline_seconds
+    while True:
+        flushing.evaluate("""async () => await chrome.runtime.sendMessage({kind: "flush"})""")
+        events = [event for batch in batches for event in batch["events"]]
+        if not any(found is None for found in _wanted(events).values()):
+            return events
+        if time.monotonic() >= deadline:
+            return events
+        flushing.wait_for_timeout(250)
 
 
 def _replies(context: Any, api_url: str, into: Path) -> None:
@@ -293,52 +361,7 @@ def main(into: Path = FIXTURES) -> int:
 
     print(f"captured {len(events)} events; writing:")  # noqa: T201
 
-    wanted = {
-        "gesture-click": _one(events, "gesture", {"kind": "click"}),
-        "gesture-type": _one(events, "gesture", {"kind": "type", "secret": False}),
-        "gesture-select": _one(events, "gesture", {"kind": "select"}),
-        "gesture-press": _one(events, "gesture", {"kind": "press"}),
-        "gesture-upload": _one(events, "gesture", {"kind": "upload"}),
-        "gesture-secret": _one(events, "gesture", {"secret": True}),
-        "page-navigated": _one(events, "page", {"page_kind": "navigated"}),
-        "snapshot": _one(events, "snapshot"),
-    }
-    requests = [event for event in events if event["kind"] == "request"]
-    wanted["request-get"] = next(
-        (r for r in requests if r["request"]["method"] == "GET" and r["request"].get("status")),
-        None,
-    )
-    wanted["request-post"] = next(
-        (
-            r
-            for r in requests
-            if r["request"]["method"] == "POST" and r["request"].get("request_body")
-        ),
-        None,
-    )
-    wanted["request-failed"] = next(
-        (r for r in requests if r["request"].get("failure_reason")), None
-    )
-    wanted["request-with-body"] = next(
-        (
-            r
-            for r in requests
-            if r["request"]["resource_type"] == "xhr" and r["request"].get("request_body")
-        ),
-        None,
-    )
-    # A response nothing read: an event stream stays open for the life of the
-    # page, so there is no "the body" to wait for.
-    wanted["request-uninspectable-body"] = next(
-        (
-            r
-            for r in requests
-            if (r["request"].get("response_body") or {}).get("text") is None
-            and r["request"].get("status")
-        ),
-        None,
-    )
-
+    wanted = _wanted(events)
     missing = [name for name, payload in wanted.items() if payload is None]
     for name, payload in wanted.items():
         if payload is not None:
@@ -346,9 +369,6 @@ def main(into: Path = FIXTURES) -> int:
 
     if _Stub.batches:
         _write("batch", _Stub.batches[0], into)
-    teaching = [batch for batch in _Stub.batches if batch.get("mode") == "teaching"]
-    if teaching:
-        _write("batch-teaching", teaching[0], into)
 
     if missing:
         # Loudly, and with a failing exit: a fixture silently not regenerated is

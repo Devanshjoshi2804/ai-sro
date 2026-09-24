@@ -30,7 +30,6 @@ const KEYS = {
   watches: "sro.watches",
   offers: "sro.offers",
   nudges: "sro.nudges",
-  muted: "sro.muted",
   tails: "sro.tails",
   watched: "sro.watched",
   alwaysWatch: "sro.alwaysWatch",
@@ -44,7 +43,6 @@ const KEYS = {
   pendingBatch: "sro.pendingBatch",
   shotTimes: "sro.shotTimes",
   treeTimes: "sro.treeTimes",
-  teaching: "sro.teaching",
   finishedRun: "sro.finishedRun",
   question: "sro.question",
   activeRun: "sro.activeRun",
@@ -63,14 +61,21 @@ const KEYS = {
 
 /** Keys this extension used to write and no longer does.
  *
- * The rig's URL, the tenant's rig bearer and the rig's last refusal. They were
- * in `KEYS`, so `forget()` took them at sign-out; dropped from `KEYS` they
- * would sit in `chrome.storage.local` forever on every browser that ever had a
- * rig configured -- including the tenant's bearer, which is a credential this
- * extension no longer has any door to use. Removed once on update rather than
- * left for a sign-out that may never come; see `service-worker.js`'s
- * `onInstalled`. */
-export const RETIRED_KEYS = ["sro.rigUrl", "sro.rigToken", "sro.rigRefusal"];
+ * The rig's URL, the tenant's rig bearer and the rig's last refusal; the
+ * demonstration a browser was in the middle of; and the per-page mutes
+ * nothing ever wrote. They were in `KEYS`, so `forget()` took them at
+ * sign-out; dropped from `KEYS` they would sit in `chrome.storage.local`
+ * forever on every browser that ever had one -- including the rig's tenant
+ * bearer, which is a credential this extension no longer has any door to
+ * use. Removed once on update rather than left for a sign-out that may
+ * never come; see `service-worker.js`'s `onInstalled`. */
+export const RETIRED_KEYS = [
+  "sro.rigUrl",
+  "sro.rigToken",
+  "sro.rigRefusal",
+  "sro.teaching",
+  "sro.muted",
+];
 
 async function read(key, fallback = null) {
   const held = await chrome.storage.local.get(key);
@@ -181,9 +186,6 @@ export const state = {
   // worker holding it is evicted every few seconds. See `service-worker.js`.
   repaired: () => read(KEYS.repaired, []),
   setRepaired: (tabIds) => write(KEYS.repaired, tabIds),
-
-  muted: () => read(KEYS.muted, {}),
-  setMuted: (muted) => write(KEYS.muted, muted),
 
   /** The last few gestures on each watched tab, by tab id.
    *
@@ -326,13 +328,6 @@ export const state = {
    * happened first spend the other's allowance. */
   treeTimes: () => read(KEYS.treeTimes, []),
   setTreeTimes: (times) => write(KEYS.treeTimes, times),
-
-  /** The demonstration this browser is in the middle of: which recording, in
-   * which tab. In storage rather than a module variable because the worker is
-   * evicted between two of the operator's clicks, and a demonstration that
-   * forgot itself halfway through would upload the rest as ordinary work. */
-  teaching: () => read(KEYS.teaching, null),
-  setTeaching: (teaching) => write(KEYS.teaching, teaching),
 
   /** The last run this browser finished, and what it made -- `{ id, status,
    * derived, reversal, failure, at, wrongBecause? }`, or null. In storage

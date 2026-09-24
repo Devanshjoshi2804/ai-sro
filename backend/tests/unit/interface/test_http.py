@@ -28,7 +28,6 @@ from sro.config import Settings, get_settings
 from sro.container import Container, build_container
 from sro.domain.execution.run import Medium, Run, RunId, StepDisposition, StepOutcome
 from sro.domain.shared.identifiers import (
-    BrowserSessionId,
     PrincipalId,
     RecordingId,
     SkillId,
@@ -272,108 +271,6 @@ async def _connected(uow: FakeUnitOfWork, container: _FakeContainer) -> None:
     )
 
 
-class TestRecordings:
-    async def test_starting_a_recording_returns_a_live_view(
-        self, client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
-    ) -> None:
-        await _connected(uow, container)
-
-        response = await client.post(
-            "/v1/recordings",
-            json={
-                "objective_key": {
-                    "objective_type": "release_wave",
-                    "target_system": "blue_yonder",
-                    "entity_type": "wave",
-                    "facility": "DC01",
-                    "direction": "outbound",
-                },
-                "start_url": "https://wms.test",
-            },
-        )
-
-        assert response.status_code == 201
-        assert response.json()["live_view_url"]
-
-    async def test_teaching_refuses_before_a_login_page_can_appear(
-        self, client: httpx.AsyncClient
-    ) -> None:
-        """Nobody is signed in to this system. Said now, rather than discovered
-        three clicks into a demonstration of the identity provider."""
-        response = await client.post(
-            "/v1/recordings",
-            json={
-                "objective_key": {
-                    "objective_type": "release_wave",
-                    "target_system": "blue_yonder",
-                    "entity_type": "wave",
-                    "facility": "DC01",
-                    "direction": "outbound",
-                },
-                "start_url": "https://wms.test",
-            },
-        )
-
-        assert response.status_code == 409
-        assert "nobody is signed in" in response.json()["detail"]
-        assert "Connect it once" in response.json()["detail"]
-
-    async def test_an_unknown_recording_is_a_problem_document(
-        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
-    ) -> None:
-        """A real recording is read through the same door on purpose: a path
-        nobody registered answers 404 with this exact problem document, so
-        without it this proves the route absent rather than well-mannered."""
-        real = f.recording(frames=0)
-        await uow.recordings.add(real)
-
-        response = await client.get("/v1/recordings/nope")
-
-        assert response.status_code == 404
-        assert response.headers["content-type"].startswith("application/problem+json")
-        assert response.json()["status"] == 404
-        assert (await client.get(f"/v1/recordings/{real.id}")).status_code == 200
-
-    async def test_a_recording_renders_its_frames(
-        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
-    ) -> None:
-        recording = f.recording(frames=0)
-        recording.append_frame(f.frame(requests=(f.request(),)))
-        await uow.recordings.add(recording)
-
-        response = await client.get(f"/v1/recordings/{recording.id}")
-        body = response.json()
-
-        assert response.status_code == 200
-        assert body["frame_count"] == 1
-        assert body["frames"][0]["primary_request"].startswith("POST ")
-
-
-class TestLiveView:
-    async def test_an_open_recording_points_at_its_session(
-        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
-    ) -> None:
-        recording = f.recording(frames=0)
-        recording.attach_browser_session(BrowserSessionId("sess-9"))
-        await uow.recordings.add(recording)
-
-        response = await client.get(f"/v1/recordings/{recording.id}/live-view")
-
-        assert response.status_code == 200
-        assert "sess-9" in response.json()["live_view_url"]
-
-    async def test_a_sealed_recording_has_no_live_view(
-        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
-    ) -> None:
-        recording = f.recording(frames=1, sealed=True)
-        await uow.recordings.add(recording)
-
-        response = await client.get(f"/v1/recordings/{recording.id}/live-view")
-
-        assert response.status_code == 200
-        assert response.json()["live_view_url"] is None
-
-
 class TestProblemDocuments:
     async def test_a_malformed_body_is_a_problem_document_like_everything_else(
         self, client: httpx.AsyncClient
@@ -381,13 +278,13 @@ class TestProblemDocuments:
         """FastAPI's default answer is a list of objects, which breaks the
         contract every other failure keeps — and a client that renders `detail`
         crashes on it rather than showing the operator what was wrong."""
-        response = await client.post("/v1/recordings", json={"objective_key": 12})
+        response = await client.post("/v1/ask", json={"said": 12})
 
         assert response.status_code == 422
         assert response.headers["content-type"].startswith("application/problem+json")
         problem = response.json()
         assert isinstance(problem["detail"], str)
-        assert "objective_key" in problem["detail"]
+        assert "said" in problem["detail"]
 
 
 class TestTheDoor:

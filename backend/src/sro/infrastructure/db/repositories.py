@@ -700,20 +700,6 @@ class SqlObservationRepository(ObservationRepository):
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(row_to_batch(row) for row in rows)
 
-    async def for_recording(
-        self, tenant_id: TenantId, recording_id: RecordingId
-    ) -> tuple[ObservationBatch, ...]:
-        query = (
-            select(ObservationBatchRow)
-            .where(
-                ObservationBatchRow.tenant_id == tenant_id.value,
-                ObservationBatchRow.recording_id == recording_id.value,
-            )
-            .order_by(ObservationBatchRow.started_at)
-        )
-        rows = (await self._session.execute(query)).scalars().all()
-        return tuple(row_to_batch(row) for row in rows)
-
     async def tenants_since(self, since: datetime) -> tuple[TenantId, ...]:
         rows = await self._session.execute(
             select(ObservationBatchRow.tenant_id)

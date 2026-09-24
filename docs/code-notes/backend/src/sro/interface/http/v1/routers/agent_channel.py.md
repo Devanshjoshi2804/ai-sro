@@ -14,7 +14,7 @@ Code: `device = await container.read_device().execute(`
 
 ## `commands`, [line 60](../../../../../../../../../backend/src/sro/interface/http/v1/routers/agent_channel.py#L60): Comment
 
-Code: `attribute(tenant=ctx.tenant_id.value, principal=ctx.principal_id.value, device=device.id.v`
+Code: `attribute(tenant=ctx.tenant_id.value, principal=ctx.principal_id.value, device=device.id.value)`
 
 > The socket authenticates for itself -- no `ContextDep`, no
 > `asking_device` -- so the attribution those two install never reached

@@ -1236,21 +1236,6 @@ test("an offer nobody wants is dismissed rather than left to rot", async () => {
   ]);
 });
 
-test("a demonstration in progress is the only thing the panel is about", async () => {
-  // The panel's own rule, and an offer does not get to break it: what is being
-  // recorded is what the operator is doing right now, and the offer keeps.
-  const { cards } = panel({
-    deviceId: "dev-1",
-    teaching: { startedAt: new Date().toISOString() },
-    offers: [OFFER],
-  });
-
-  assert.ok(
-    !cards.some((c) => words(c).includes("A mail matched")),
-    words(cards[0]),
-  );
-});
-
 test("a tab that stopped recording calls says so instead of looking healthy", async () => {
   // The worst shape a failure takes here. The page-realm patch outlives the
   // extension that installed it, so what the operator does is recorded and what
@@ -1278,12 +1263,6 @@ test("a tab that stopped recording calls says so instead of looking healthy", as
   // And the fix is offered, because reloading the page is the whole of it and
   // the sentence explaining why is on this card.
   assert.ok(/Reload this page/i.test(said), "no way to fix it was offered");
-  // Teaching is not, because a demonstration recorded this way is worse than
-  // none: it looks like a success and induces to a skill that asserts nothing.
-  assert.ok(
-    !/Start teaching/i.test(said),
-    "teaching was still offered on a half-deaf tab",
-  );
 });
 
 test("an ordinary watched tab is not accused of being half deaf", async () => {
@@ -3124,13 +3103,13 @@ test("the worker pushes the state and the panel draws it without asking", async 
     kind: "status",
     status: {
       deviceId: "dev-1",
-      teaching: { startedAt: new Date().toISOString() },
+      paused: true,
     },
   });
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   const drawn = `${words(made.ids["expanded"])} ${words(made.ids["cards"])}`;
-  assert.match(drawn, /[Rr]ecording/, "a pushed status was not drawn");
+  assert.match(drawn, /[Pp]aused/, "a pushed status was not drawn");
   assert.equal(
     made.sent.filter((message) => message.kind === "status").length,
     before,

@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/interface/http/v1/routers/runs.py`](../../../../../../../../../backend/src/sro/interface/http/v1/routers/runs.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `run_skill`, [line 73](../../../../../../../../../backend/src/sro/interface/http/v1/routers/runs.py#L73): Comment
+## `run_skill`, [line 72](../../../../../../../../../backend/src/sro/interface/http/v1/routers/runs.py#L72): Comment
 
 Code: `started = await container.execute_skill().begin(ctx, request)`
 
@@ -18,7 +18,7 @@ Code: `started = await container.execute_skill().begin(ctx, request)`
 > `/runs/{id}/stream` had nothing to subscribe to until there was
 > nothing left to see.
 
-## `get_run`, [line 228](../../../../../../../../../backend/src/sro/interface/http/v1/routers/runs.py#L228): Comment
+## `get_run`, [line 209](../../../../../../../../../backend/src/sro/interface/http/v1/routers/runs.py#L209): Comment
 
 Code: `skills = await container.list_skills().execute(ctx, limit=_LIBRARY_PAGE)`
 

@@ -1016,25 +1016,6 @@ test("an update waits for the end of a run, and installs itself in the gap", asy
   );
 });
 
-test("and for the end of a demonstration, which cannot be done twice", async () => {
-  // A demonstration loses its `chrome.debugger` attachment when the worker
-  // restarts: the banner goes, the events stop, and the recording is never
-  // sealed. The operator did it once, in front of the browser.
-  ready();
-  held.set("sro.teaching", { recordingId: "rec_1", tabId: TAB });
-
-  globalThis.__updateReady({ version: "1.4.0" });
-  await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.deepEqual(reloadedForUpdate, [], "an update landed mid-demonstration");
-
-  held.set("sro.teaching", null);
-  await globalThis.__beat({ name: "sro-heartbeat" });
-  await until(
-    () => reloadedForUpdate.length === 1,
-    "the update was still waiting after the demonstration ended",
-  );
-});
-
 test("a browser with nothing in flight takes it at once", async () => {
   ready();
 

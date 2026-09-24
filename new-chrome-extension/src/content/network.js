@@ -430,7 +430,8 @@
       // Left empty on purpose. The passive tier sees that a redirect happened
       // but not which hops or what they answered, and the protocol's rule for
       // what this tier cannot obtain is that it is omitted, not faked. The
-      // teaching tier attaches the debugger and reports the real chain.
+      // server-capture tier drives the browser over CDP and reports the real
+      // chain.
       redirect_chain: [],
       duration_ms: raw.duration_ms,
       from_cache: false,

@@ -112,6 +112,7 @@ from sro.application.ports.intent import IntentParser
 from sro.application.ports.interpretation import WorkflowInterpreter
 from sro.application.ports.locks import AccountLocks
 from sro.application.ports.model import Asker, asker_or_refuse
+from sro.application.ports.page import PageDriver
 from sro.application.ports.pool import BrowserPool
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.schedule import Scheduler
@@ -172,6 +173,7 @@ from sro.infrastructure.knowledge.write_endpoints import load_verified_writes
 from sro.infrastructure.mcp.client import McpServer, McpToolCaller
 from sro.infrastructure.mcp.server import SkillToolServer
 from sro.infrastructure.steel.client import SteelClient
+from sro.infrastructure.steel.driver import SteelDriver
 from sro.infrastructure.steel.pool import SteelPool
 from sro.infrastructure.steel.sign_in import PlaywrightSignIn
 from sro.infrastructure.steel.supervisor import CaptureSupervisor
@@ -214,6 +216,7 @@ class Container:
     sign_in_driver: SignInDriver
     locks: AccountLocks
     pool: BrowserPool
+    driver: PageDriver
     tokens: TokenSource | None
     credentials: Credentials
     durable: DurableExecution
@@ -1008,6 +1011,7 @@ def build_container(settings: Settings | None = None) -> Container:
         sign_in_driver=PlaywrightSignIn(),
         locks=PostgresAccountLocks(lock_engine),
         pool=_build_pool(settings),
+        driver=SteelDriver(settings.page_code_path),
         tokens=(
             KeycloakTokens(
                 built_vault,

@@ -16,7 +16,7 @@ from playwright.async_api import Error as PlaywrightError
 from sro.application.ports.browser import BrowserSession, BrowserUnavailable
 from sro.domain.recording.sensitivity import Sensitivity, classify_header
 from sro.domain.shared.identifiers import BrowserSessionId
-from sro.infrastructure.steel.capture import _addressed
+from sro.infrastructure.steel.capture import addressed
 from sro.infrastructure.steel.screencast import stream_frames
 
 _CONTEXT = frozenset({"referer"})
@@ -84,6 +84,7 @@ class SteelClient:
             "timeout": self._timeout_seconds * 1000,
             "blockAds": True,
             "solveCaptcha": False,
+            "skipFingerprintInjection": True,
             "dimensions": {"width": self._dimensions[0], "height": self._dimensions[1]},
         }
         if start_url:
@@ -165,27 +166,11 @@ class SteelClient:
             if str(session.get("status", "")).lower() in {"live", "idle"}
         ]
 
-    async def _cdp_origin(self) -> str:
-        parts = urlsplit(self._cdp_url)
-        host, port = parts.hostname or "localhost", parts.port or 9223
-        try:
-            found = await asyncio.get_running_loop().getaddrinfo(
-                host, port, family=socket.AF_INET, type=socket.SOCK_STREAM
-            )
-        except OSError:
-            return parts.netloc
-        return f"{found[0][4][0]!s}:{port}"
-
     async def _websocket_debugger_url(self) -> str:
-        authority = await self._cdp_origin()
         try:
-            response = await self._client.get(f"http://{authority}/json/version")
-            response.raise_for_status()
+            return await websocket_debugger_url(self._cdp_url, self._client)
         except httpx.HTTPError as exc:
             raise BrowserUnavailable(f"could not reach the CDP endpoint: {exc}") from exc
-
-        path = _path_of(response.json().get("webSocketDebuggerUrl"))
-        return f"ws://{authority}{path}"
 
     async def alive(self, session_id: BrowserSessionId) -> bool:
         sid = str(session_id)
@@ -329,7 +314,7 @@ class SteelClient:
                 context = browser.contexts[0] if browser.contexts else await browser.new_context()
                 page = context.pages[0] if context.pages else await context.new_page()
                 cdp = await context.new_cdp_session(page)
-                await cdp.send("Network.setCookies", {"cookies": [_addressed(c) for c in cookies]})
+                await cdp.send("Network.setCookies", {"cookies": [addressed(c) for c in cookies]})
                 await cdp.detach()
                 return
 
@@ -338,7 +323,7 @@ class SteelClient:
             await self._require_context(raw, sid)
             await raw.send(
                 "Storage.setCookies",
-                {"cookies": [_addressed(c) for c in cookies], "browserContextId": sid},
+                {"cookies": [addressed(c) for c in cookies], "browserContextId": sid},
             )
             await raw.detach()
 
@@ -442,6 +427,27 @@ def _held_by(holders: list[dict[str, object]]) -> str:
         "live after its Chrome has gone will hold that capacity forever. Restart the "
         "Steel container."
     )
+
+
+async def cdp_origin(cdp_url: str) -> str:
+    parts = urlsplit(cdp_url)
+    host, port = parts.hostname or "localhost", parts.port or 9223
+    try:
+        found = await asyncio.get_running_loop().getaddrinfo(
+            host, port, family=socket.AF_INET, type=socket.SOCK_STREAM
+        )
+    except OSError:
+        return parts.netloc
+    return f"{found[0][4][0]!s}:{port}"
+
+
+async def websocket_debugger_url(cdp_url: str, client: httpx.AsyncClient) -> str:
+    authority = await cdp_origin(cdp_url)
+    if urlsplit(cdp_url).scheme in {"ws", "wss"}:
+        return f"ws://{authority}{_path_of(cdp_url)}"
+    response = await client.get(f"http://{authority}/json/version")
+    response.raise_for_status()
+    return f"ws://{authority}{_path_of(response.json().get('webSocketDebuggerUrl'))}"
 
 
 def _path_of(url: object) -> str:

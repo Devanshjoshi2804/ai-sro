@@ -219,7 +219,7 @@ class CaptureSession:
         if cdp is None or not cookies:
             return False
         try:
-            await cdp.send("Network.setCookies", {"cookies": [_addressed(c) for c in cookies]})
+            await cdp.send("Network.setCookies", {"cookies": [addressed(c) for c in cookies]})
             stored = {
                 (c["domain"], c["name"])
                 for c in (await cdp.send("Network.getAllCookies"))["cookies"]
@@ -583,7 +583,7 @@ class CaptureSession:
         return self._page
 
 
-def _addressed(cookie: dict[str, Any]) -> dict[str, Any]:
+def addressed(cookie: dict[str, Any]) -> dict[str, Any]:
     if cookie.get("url"):
         return cookie
     domain = str(cookie.get("domain", "")).lstrip(".")

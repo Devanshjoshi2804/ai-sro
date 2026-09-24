@@ -9,6 +9,8 @@ one browser, every session after that came back `idle`. The console showed
 
 from __future__ import annotations
 
+import json
+
 import httpx
 import pytest
 
@@ -159,3 +161,29 @@ async def test_the_browser_is_never_taken_from_a_session_that_is_using_it() -> N
     assert "all are in use" in str(refused.value)
     assert "someone-working" in str(refused.value)
     assert steel.released == [], "nothing was created, so there is nothing to release"
+
+
+async def test_a_session_is_created_without_steel_s_fingerprint_injector() -> None:
+    """Steel's fingerprint injector attaches to every new tab and, when the tab
+    is already gone, throws a `Target.attachToTarget` error nothing catches:
+    Node exits and every account context in the container dies with it.
+    Reproduced 3 of 3 by closing a tab right after opening it (S5 review C2)."""
+    sent: list[dict[str, object]] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST" and request.url.path == "/v1/sessions":
+            sent.append(json.loads(request.content))
+            return httpx.Response(201, json={"id": "s", "status": "live"})
+        if request.url.path == "/json/version":
+            return httpx.Response(200, json={"webSocketDebuggerUrl": "ws://localhost/devtools/x"})
+        return httpx.Response(200, json={"sessions": []})
+
+    steel = SteelClient(
+        "http://steel:3010",
+        "http://steel:9223",
+        client=httpx.AsyncClient(transport=httpx.MockTransport(handle)),
+    )
+
+    await steel.open()
+
+    assert sent[0]["skipFingerprintInjection"] is True

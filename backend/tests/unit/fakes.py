@@ -35,6 +35,7 @@ from sro.application.ports.http import (
 from sro.application.ports.intent import Extraction, Reading
 from sro.application.ports.locks import AccountBusy
 from sro.application.ports.model import Asker
+from sro.application.ports.page import PageGone, SessionRef
 from sro.application.ports.pool import PoolFull
 from sro.application.ports.repositories import (
     AttemptRepository,
@@ -1400,6 +1401,74 @@ class FakeBrowserPool:
 
     async def cdp_url(self, container_url: str) -> str:
         return f"ws://{container_url}"
+
+
+class FakePageDriver:
+    """`tabs` maps a target id (`tab-1`, `tab-2`, ...) to the url it was last
+    sent to, and `owners` maps it to the context id that opened it: a tab
+    asked for under another account's context is `PageGone`, as the real
+    driver answers. `states` holds the saved storage-state JSON per context
+    id, and `dead` names context ids whose calls raise `PageGone`, the way a
+    context a lease no longer holds would. `calls` logs every call as a tuple
+    starting with the method name, for tests that check what was asked of
+    the driver rather than only its answers."""
+
+    def __init__(self) -> None:
+        self.tabs: dict[str, str] = {}
+        self.owners: dict[str, str] = {}
+        self.states: dict[str, str] = {}
+        self.dead: set[str] = set()
+        self.calls: list[tuple[str, ...]] = []
+        self.closed = False
+        self._next = count(1)
+
+    def _live(self, session: SessionRef) -> None:
+        if session.context_id in self.dead:
+            raise PageGone(f"context {session.context_id} is gone")
+
+    def _tab(self, session: SessionRef, target_id: str) -> None:
+        self._live(session)
+        if self.owners.get(target_id) != session.context_id:
+            raise PageGone(f"tab {target_id} is not open in context {session.context_id}")
+
+    async def open_tab(self, session: SessionRef, url: str) -> str:
+        self._live(session)
+        target_id = f"tab-{next(self._next)}"
+        self.tabs[target_id] = url
+        self.owners[target_id] = session.context_id
+        self.calls.append(("open_tab", session.context_id, url))
+        return target_id
+
+    async def close_tab(self, session: SessionRef, target_id: str) -> None:
+        self._tab(session, target_id)
+        del self.tabs[target_id], self.owners[target_id]
+        self.calls.append(("close_tab", session.context_id, target_id))
+
+    async def goto(self, session: SessionRef, target_id: str, url: str) -> None:
+        self._tab(session, target_id)
+        self.tabs[target_id] = url
+        self.calls.append(("goto", session.context_id, target_id, url))
+
+    async def url_of(self, session: SessionRef, target_id: str) -> str:
+        self._tab(session, target_id)
+        self.calls.append(("url_of", session.context_id, target_id))
+        return self.tabs[target_id]
+
+    async def storage_state(self, session: SessionRef) -> str:
+        self._live(session)
+        self.calls.append(("storage_state", session.context_id))
+        return self.states.get(session.context_id, "{}")
+
+    async def restore_state(self, session: SessionRef, state: str) -> None:
+        self._live(session)
+        self.states[session.context_id] = state
+        self.calls.append(("restore_state", session.context_id, state))
+
+    async def forget(self, session: SessionRef) -> None:
+        self.calls.append(("forget", session.context_id))
+
+    async def aclose(self) -> None:
+        self.closed = True
 
 
 class FakeAccountLocks:

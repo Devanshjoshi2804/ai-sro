@@ -221,7 +221,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/domain/lookup/asking.py`](backend/src/sro/domain/lookup/asking.py.md) | 6 |
 | [`backend/src/sro/domain/lookup/plan.py`](backend/src/sro/domain/lookup/plan.py.md) | 19 |
 | [`backend/src/sro/domain/observation/attempts.py`](backend/src/sro/domain/observation/attempts.py.md) | 10 |
-| [`backend/src/sro/domain/observation/batch.py`](backend/src/sro/domain/observation/batch.py.md) | 5 |
+| [`backend/src/sro/domain/observation/batch.py`](backend/src/sro/domain/observation/batch.py.md) | 6 |
 | [`backend/src/sro/domain/observation/candidate.py`](backend/src/sro/domain/observation/candidate.py.md) | 27 |
 | [`backend/src/sro/domain/observation/device.py`](backend/src/sro/domain/observation/device.py.md) | 10 |
 | [`backend/src/sro/domain/observation/driving.py`](backend/src/sro/domain/observation/driving.py.md) | 9 |

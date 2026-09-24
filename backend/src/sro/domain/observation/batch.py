@@ -11,6 +11,8 @@ from sro.domain.shared.identifiers import BatchId, DeviceId, PrincipalId, Record
 class CaptureMode(StrEnum):
     PASSIVE = "passive"
 
+    TEACHING = "teaching"
+
 
 @dataclass(frozen=True, slots=True)
 class RejectedEvent:

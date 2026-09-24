@@ -96,6 +96,11 @@ class IngestObservation:
         mode: CaptureMode,
         events: Sequence[Event],
     ) -> Ingested:
+        if mode is CaptureMode.TEACHING:
+            raise ObservationRefused(
+                "teaching batches are no longer accepted; the device-teaching path is gone"
+            )
+
         now = self._clock.now()
 
         async with self._uow as uow:

@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import asdict
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, StrictInt, StringConstraints
 
@@ -1844,7 +1844,10 @@ class ObservationBatchRequest(BaseModel):
     device_id: str = Field(max_length=64)
     started_at: datetime
     ended_at: datetime
-    mode: CaptureMode = CaptureMode.PASSIVE
+    mode: Literal[CaptureMode.PASSIVE] = CaptureMode.PASSIVE
+    """The only value this door accepts. `CaptureMode.TEACHING` still exists
+    for reading rows a deployment received before the device-teaching path
+    was removed -- see its own note -- but no wire input may carry it."""
 
     events: list[dict[str, Any]]
     """Screened, not parsed, and stored verbatim. The shapes are in

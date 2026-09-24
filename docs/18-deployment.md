@@ -128,6 +128,24 @@ volume made after that. One that already exists keeps the ownership it has:
 $C run --rm --user root --entrypoint sh api -c 'chown -R 10001:10001 /var/lib/sro'
 ```
 
+## Migrating QA's vault keys to the S1 scheme (one shot)
+
+S1 moved vault keys from `{tenant}/{credential origin}/password` to
+`{tenant}/{credential origin}/{username}/password`. QA's existing passwords
+are under the old key, so `backend/scripts/migrate_vault_keys.py` copies each
+one to the new key it belongs at, read off the tenant's recorded sign-in job.
+It never deletes the old key on its own and never prints a secret value.
+
+```bash
+make migrate-vault-keys                       # dry-run: prints what it would do
+make migrate-vault-keys apply=1                # copies old keys to new ones on QA
+make migrate-vault-keys apply=1 delete-old=1   # only after QA-1 has passed
+```
+
+Run the dry-run first, read its output, then `apply=1`. Run `apply=1
+delete-old=1` only once QA-1 has passed on the copied keys — it is a separate
+run so the old keys stay in place as a rollback until then.
+
 ## After every deploy
 
 ```bash

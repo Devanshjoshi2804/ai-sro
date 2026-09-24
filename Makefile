@@ -16,7 +16,7 @@ FRONTEND := cd frontend &&
 .PHONY: help up down ps logs reset install migrate revision api worker status web vault-key one-whole-run \
         lint lint-backend check-code-notes lint-frontend format test test-unit test-integration \
         test-contract test-browser types check ingest-kb gen-recorder \
-        mutants-backend images smoke gen-deployment
+        mutants-backend images smoke gen-deployment migrate-vault-keys
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -49,6 +49,9 @@ install: ## Install backend and frontend dependencies
 
 vault-key: ## Generate a vault key: export SRO_VAULT_KEY=$$(make -s vault-key)
 	@$(BACKEND) uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+migrate-vault-keys: ## Copy QA's old-scheme vault passwords to the new S1 keys: dry-run by default, add apply=1 [delete-old=1]
+	$(BACKEND) uv run python scripts/migrate_vault_keys.py $(if $(apply),--apply) $(if $(delete-old),--delete-old)
 
 migrate: ## Apply database migrations
 	$(BACKEND) uv run alembic upgrade head

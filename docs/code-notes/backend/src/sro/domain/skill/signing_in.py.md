@@ -53,14 +53,6 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/signing_in.p
 > the jobs whose `Workflow.signs_in` the mining pass set -- `checks.signs_in`
 > -- and the host then picks among them.
 
-## module, [line 26](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L26): Note on the line above
-
-Code: `_SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-actions/", "/saml2/")`
-
-> Paths an identity provider serves its sign-in pages under: Azure B2C's
-> chooser (`…/oauth2/v2.0/authorize`), Keycloak's form (`…/protocol/openid-connect/
-> auth`, and `…/login-actions/authenticate` once it has been posted once), SAML.
-
 ## `signs_in_at`, [line 12](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L12): Docstring
 
 > The job that signs in at this page, or None where nothing does.
@@ -70,17 +62,6 @@ Code: `_SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-action
 > from the inside.
 >
 > `not_this` is the job being run, which can never be its own way back in.
-
-## `is_sign_in_page`, [line 29](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L29): Docstring
-
-> Whether this page belongs to an identity provider's sign-in.
->
-> A click there can sign somebody in and nothing else -- no warehouse record
-> is on an identity provider. Measured on the deployment 2026-09-23,
-> `run_0133f4ce`: the click on the Azure chooser recorded no traffic, so it
-> was a possible write by the silent-click rule, and when the page had not
-> moved yet the run ended "state unknown after a write; not retried" on a
-> sign-in link.
 
 ## `_starts_at`, [line 34](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L34): Docstring
 

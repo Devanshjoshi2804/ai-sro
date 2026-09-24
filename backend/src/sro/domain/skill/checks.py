@@ -294,6 +294,9 @@ def is_sign_in_step(workflow: Workflow, step: Step, gestures: Mapping[str, Gestu
     cited = [gestures[one] for one in step.cites if one in gestures]
     if not cited or any(_did_business(gesture) for gesture in cited):
         return False
+    typed = [one.at for one in _in_time(workflow, gestures) if _typed_the_credential(one)]
+    if typed and not writes(step, gestures) and all(one.at < min(typed) for one in cited):
+        return True
     leaves = _leaves_at(workflow, gestures)
     if leaves is not None and any(gesture.at > leaves for gesture in cited):
         return False

@@ -2086,16 +2086,6 @@ Code: `pressing = planned.payload.get("action") in ("click", "press")`
 > `sign_in_step`, which decides that from the step's evidence
 > for every leg alike.
 
-## `run_workflow`, [line 1523](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1523): Comment
-
-Code: `signing_in = is_sign_in_page(primary.url if primary is not None else None)`
-
-> A silent click on an identity provider's page signs somebody
-> in and cannot write anything -- see `is_sign_in_page`. A
-> recorded write there is still a write here; what takes a
-> recorded write out of `mutates` is `sign_in_step`, which reads
-> the job and the step's evidence rather than the page's path.
-
 ## `run_workflow`, [line 1526](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1526): Comment
 
 Code: `or (`
@@ -2953,8 +2943,11 @@ Code: `_signing_in, back = (`
 > signing in is a system this run cannot get into, and a loop
 > that kept trying would spend a budget it cannot see the end
 > of on somebody's credentials.
-> Nor while this step is itself on a sign-in page: the job is
-> signing in, and its own next steps are the way through.
+> Nor while this step belongs to a job that signs in (the stored
+> `signs_in` tag): the job is signing in, and its own next steps
+> are the way through. This read the page's path against a list
+> of identity-provider paths until final review I-3 (2026-09-24);
+> the stored fact replaced the guess.
 > `run_3610aa05`, 2026-09-23: `Log in using Azure B2C SSO`'s
 > password step could not be photographed, read the Keycloak
 > form as a session that had gone, and spliced `Log in to

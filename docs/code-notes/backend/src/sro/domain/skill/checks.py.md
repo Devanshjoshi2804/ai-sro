@@ -202,8 +202,19 @@ Code: `K_SITTING_GAP_S = 600.0`
 ## `is_sign_in_step`, [line 293](../../../../../../../backend/src/sro/domain/skill/checks.py#L293): Docstring
 
 > Whether this step's own evidence proves it is part of signing in, and so
-> not a write. Two shapes, and nothing else:
+> not a write. Three shapes, and nothing else:
 >
+> - everything the step cites comes before the job's first cited credential
+>   typing, and it records no mutation: nobody is signed in yet, so nothing
+>   pressed there writes for anybody -- the identity chooser, a username
+>   focus click, an identifier-first Next (final review I-3, 2026-09-24). On
+>   the deployed `Log in using Azure B2C SSO` (`wfl_5873ec01`) the chooser
+>   and the username step record no traffic and never leave their host, and
+>   were spared the write rules only by a list of identity-provider paths
+>   that spared any press on such a path on any job. The list is gone; this
+>   is the fact it stood in for. Cited, not the job's span: at run time the
+>   loop holds the chain's own cites and nothing else. Tags are unchanged on
+>   the QA export: `signs_in` asks this only of steps that record a write;
 > - the step carries the credential (the recorder's secret mark), records no
 >   mutation, and every gesture it cites that acts -- a click, a press, a
 >   select that submits on change, an upload -- sent the browser to another

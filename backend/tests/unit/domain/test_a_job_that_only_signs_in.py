@@ -311,6 +311,24 @@ def test_the_refused_attempt_is_never_exempt_from_write_rules() -> None:
     assert is_sign_in_step(job, job.steps[2], store) is False
 
 
+def test_what_is_done_before_the_credential_is_typed_is_part_of_signing_in() -> None:
+    """The chooser and the username (final review I-3, 2026-09-24): nobody is
+    signed in yet, so nothing pressed there writes for anybody. This replaced
+    a list of identity-provider paths that spared any press on such a path,
+    on any job. The deployed chain's chooser and username focus click record
+    no traffic and never leave their host, so no other shape covers them."""
+    job, store = _azure_job(), _azure_store()
+
+    assert [is_sign_in_step(job, step, store) for step in job.steps[:3]] == [True, True, False]
+
+
+def test_a_recorded_write_before_the_credential_is_still_a_write() -> None:
+    store = {"a": _wrote("a", KEYCLOAK, 1, 302), "b": _secret("b", KEYCLOAK, 2)}
+    job = _job("a", "b")
+
+    assert is_sign_in_step(job, job.steps[0], store) is False
+
+
 def test_a_step_mixing_the_submit_with_work_after_landing_is_never_exempt() -> None:
     job, store = _azure_job(), _azure_store()
 

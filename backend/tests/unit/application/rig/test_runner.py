@@ -1938,11 +1938,20 @@ async def _classify(uow: FakeUnitOfWork, workflow_id: str) -> None:
 
 
 async def _a_way_back_in(
-    uow: FakeUnitOfWork, how_many: int = 1, path: str = "/oauth2/v2.0/authorize"
+    uow: FakeUnitOfWork,
+    how_many: int = 1,
+    path: str = "/oauth2/v2.0/authorize",
+    *,
+    in_order: bool = False,
 ) -> None:
     """The tenant's sign-in job, `how_many` steps of it, every gesture on the
     sign-in host and the job found to sign in -- which is what `signs_in_at`
-    looks for."""
+    looks for.
+
+    `in_order` spreads it out the way the deployment's chain happened, a
+    minute after the measured batch: the doors a second apart, then a step
+    that types the password and presses a Sign In that leaves for the
+    system."""
     doors = [
         replace(
             _evidence(uow)[0],
@@ -1959,7 +1968,37 @@ async def _a_way_back_in(
         )
         for n in range(how_many)
     ]
-    await uow.gestures.add_gestures((*doors, _password_beside(doors[0])))
+    steps = [
+        Step(order=n, says=f"Click the sign-in control {n}", system=None, cites=[one.id])
+        for n, one in enumerate(doors)
+    ]
+    if not in_order:
+        await uow.gestures.add_gestures((*doors, _password_beside(doors[0])))
+    else:
+        start = max(one.at for one in _evidence(uow)) + 60
+        landed = _evidence(uow)[0].system
+        doors = [
+            replace(one, at=start + n, action=replace(one.action, at=start + n))
+            for n, one in enumerate(doors)
+        ]
+        typed = start + how_many
+        password = replace(
+            _password_beside(doors[-1]),
+            at=typed,
+            action=Action(kind="type", at=typed, secret=True),
+            page_events=[],
+        )
+        leaves = replace(
+            doors[-1],
+            id="ges_sign_in",
+            at=typed + 1,
+            action=Action(kind="click", at=typed + 1),
+            page_events=[PageMark(at=typed + 1, page_kind="load", url=f"{landed}/home")],
+        )
+        await uow.gestures.add_gestures((*doors, password, leaves))
+        steps.append(
+            Step(order=how_many, says="Sign in", system=None, cites=[password.id, leaves.id])
+        )
     await uow.workflows.save(
         Workflow(
             id="wfl_sso",
@@ -1967,10 +2006,7 @@ async def _a_way_back_in(
             title="Log in using Azure B2C SSO",
             narrative="n",
             systems=[LOGIN],
-            steps=[
-                Step(order=n, says=f"Click the sign-in control {n}", system=None, cites=[one.id])
-                for n, one in enumerate(doors)
-            ],
+            steps=steps,
         )
     )
     await _classify(uow, "wfl_sso")
@@ -2141,7 +2177,7 @@ async def test_a_click_that_signs_back_in_is_not_a_write() -> None:
     """
     uow = await _fixture()
     workflow = await _workflow(uow)
-    await _a_way_back_in(uow, how_many=2)
+    await _a_way_back_in(uow, how_many=2, in_order=True)
     away = Reply(ok=True, result={"url": None, "elsewhere": f"{LOGIN}/oauth2", "signed_out": True})
     channel = FakeChannel(
         {
@@ -9442,14 +9478,60 @@ async def test_a_value_is_never_stepped_over_because_the_form_looks_right() -> N
     assert not any(one.of_step == 2 for one in run.steps), "Sign In was pressed on an empty form"
 
 
-def test_a_click_on_an_identity_providers_page_is_a_sign_in() -> None:
-    from sro.domain.skill.signing_in import is_sign_in_page
+async def test_a_press_on_an_untagged_job_on_a_sign_in_looking_path_is_a_write() -> None:
+    """Final review I-3, 2026-09-24: a path that looked like an identity
+    provider's (`/oauth2/`, `/login-actions/`) spared a silent press the write
+    rules on any job at all -- an OAuth-client admin screen has such a path.
+    Only the stored tag and the step's own evidence (`sign_in_step`) spare one."""
+    uow = await _fixture()
+    base = _evidence(uow)[0]
+    door = replace(
+        base,
+        id="ges_approve",
+        url=f"{LOGIN}/oauth2/v2.0/authorize",
+        page_url=f"{LOGIN}/oauth2/v2.0/authorize",
+        system=LOGIN,
+        requests=[],
+        action=replace(base.action, kind="click", value=None),
+    )
+    await uow.gestures.add_gestures((door,))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_untagged",
+            tenant=TENANT.value,
+            title="Approve the client",
+            narrative="n",
+            systems=[LOGIN],
+            steps=[Step(order=0, says="Click Approve", system=None, cites=[door.id])],
+        )
+    )
+    workflow = await uow.workflows.get(TENANT, "wfl_untagged")
+    here = Reply(ok=True, result={"url": door.url})
+    channel = FakeChannel(
+        {
+            "ui.url": [here] * 20,
+            "screenshot": [
+                Reply(ok=True, result={"image_base64": "aVBORw0=", "text_digest": "Approve"})
+            ]
+            * 20,
+            "ui.perform": [_performed()] * 10,
+        }
+    )
 
-    assert is_sign_in_page("https://b2c.test/t/b2c_1a_signin/oauth2/v2.0/authorize?x=1")
-    assert is_sign_in_page("https://kc.test/auth/realms/r/protocol/openid-connect/auth")
-    assert is_sign_in_page("https://kc.test/auth/realms/r/login-actions/authenticate?e=1")
-    assert not is_sign_in_page("https://wms.test/portal?siteId=SG#wm.config/x////")
-    assert not is_sign_in_page(None)
+    run = await _ran(
+        uow,
+        workflow,
+        channel=channel,
+        asker=_PerSchemaAsker(
+            plan=_plan("click"), verdict=Answer(data={"held": False, "why": "no"})
+        ),
+        values={},
+        earned=True,
+    )
+
+    assert any((one.result or {}).get("wrote") for one in run.steps), [
+        (one.result, one.reason[:60]) for one in run.steps
+    ]
 
 
 def test_a_keep_alive_beside_a_click_is_not_its_write() -> None:
@@ -9463,41 +9545,33 @@ def test_a_keep_alive_beside_a_click_is_not_its_write() -> None:
 async def test_a_job_that_is_signing_in_is_not_signed_back_in_halfway() -> None:
     """`run_3610aa05`, 2026-09-23: the Azure sign-in's password step, on the
     Keycloak form, could not be photographed, and the run spliced `Log in to
-    Keycloak` into the middle of the sign-in it was already doing."""
+    Keycloak` into the middle of the sign-in it was already doing. A job the
+    mining pass found to sign in is never given another way in; the page's
+    path is not asked (final review I-3, 2026-09-24)."""
     uow = await _fixture()
-    door = replace(
-        _evidence(uow)[0],
-        id="ges_door",
-        url=f"{LOGIN}/oauth2/v2.0/authorize",
-        page_url=f"{LOGIN}/oauth2/v2.0/authorize",
-        system=LOGIN,
-        requests=[],
-    )
+    await _a_way_back_in(uow)
     form = "https://kc.test/auth/realms/x/protocol/openid-connect/auth"
     password = replace(
-        _evidence(uow)[0], id="ges_password", url=form, page_url=form, system="https://kc.test"
+        _evidence(uow)[0],
+        id="ges_password",
+        url=form,
+        page_url=form,
+        system=LOGIN,
+        requests=[],
+        action=Action(kind="type", at=_evidence(uow)[0].action.at, secret=True),
     )
-    await uow.gestures.add_gestures((door, password))
-    await uow.workflows.save(
-        Workflow(
-            id="wfl_sso",
-            tenant=TENANT.value,
-            title="Log in to the chooser",
-            narrative="n",
-            systems=[LOGIN],
-            steps=[Step(order=0, says="Click 'Local WMS users'", system=None, cites=[door.id])],
-        )
-    )
+    await uow.gestures.add_gestures((password,))
     await uow.workflows.save(
         Workflow(
             id="wfl_signing_in",
             tenant=TENANT.value,
             title="Log in using Azure B2C SSO",
             narrative="n",
-            systems=["https://kc.test"],
+            systems=[LOGIN],
             steps=[Step(order=0, says="Type the password", system=None, cites=[password.id])],
         )
     )
+    await _classify(uow, "wfl_signing_in")
     workflow = await uow.workflows.get(TENANT, "wfl_signing_in")
     away = Reply(ok=True, result={"url": None, "elsewhere": f"{LOGIN}/oauth2", "signed_out": True})
     channel = FakeChannel(
@@ -9517,7 +9591,7 @@ async def test_a_job_that_is_signing_in_is_not_signed_back_in_halfway() -> None:
 
     said = [one.reason for one in run.steps]
     assert not any("signing back in" in one for one in said), said
-    assert not any("Local WMS users" in one.says for one in run.steps)
+    assert not any("sign-in control" in one.says for one in run.steps)
 
 
 class _Mailbox:

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
-from urllib.parse import urlsplit
 
 from sro.domain.observation.gesture import Gesture, Target, passed_through
 from sro.domain.shared.hosts import origin_of
@@ -22,14 +21,6 @@ def signs_in_at(
         if job.signs_in and job.id != not_this and _starts_at(job, by_id) == origin
     ]
     return found[0] if len(found) == 1 else None
-
-
-_SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-actions/", "/saml2/")
-
-
-def is_sign_in_page(url: str | None) -> bool:
-    path = urlsplit(url or "").path.lower()
-    return any(marker in path + "/" for marker in _SIGN_IN_PATHS)
 
 
 def _starts_at(job: Workflow, by_id: Mapping[str, Gesture]) -> str | None:
@@ -171,4 +162,4 @@ def _secret(gesture: Gesture) -> bool:
     return bool(gesture.action.secret or (target is not None and target.secret))
 
 
-__all__ = ["RecordedLogin", "is_sign_in_page", "recorded_login", "sign_in_chain", "signs_in_at"]
+__all__ = ["RecordedLogin", "recorded_login", "sign_in_chain", "signs_in_at"]

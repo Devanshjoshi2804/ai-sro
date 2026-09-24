@@ -76,7 +76,7 @@ from sro.domain.shared.prices import Answer
 from sro.domain.skill.checks import is_sign_in_step
 from sro.domain.skill.learned import demanded
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
-from sro.domain.skill.signing_in import is_sign_in_page, sign_in_chain, signs_in_at
+from sro.domain.skill.signing_in import sign_in_chain, signs_in_at
 from sro.domain.skill.workflow import Step, Workflow
 from sro.whose import attribute
 
@@ -1520,21 +1520,14 @@ async def run_workflow(
                     break
 
                 pressing = planned.payload.get("action") in ("click", "press")
-                signing_in = is_sign_in_page(primary.url if primary is not None else None)
                 may_write = not sign_in_step and (
                     mutates
-                    or (
-                        pressing
-                        and planned.kind == "ui.perform_at"
-                        and how != "look"
-                        and not signing_in
-                    )
+                    or (pressing and planned.kind == "ui.perform_at" and how != "look")
                     or (
                         pressing
                         and planned.kind == "ui.perform"
                         and _saw_nothing(step, by_id)
                         and not writes_ahead
-                        and not signing_in
                     )
                 )
 
@@ -1996,7 +1989,7 @@ async def run_workflow(
             if record.verdict not in ("held", "withheld"):
                 _signing_in, back = (
                     (None, [])
-                    if signed_back_in or is_sign_in_page(primary.url if primary else None)
+                    if signed_back_in or of_job.signs_in
                     else await _the_way_back_in(
                         uow, tenant_id, workflow, after_failed, values, by_id
                     )

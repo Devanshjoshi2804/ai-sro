@@ -103,10 +103,18 @@ hand-edited.
 
 ### 5.1 Layout
 
-One Steel container per operator account (compose services `steel-1…steel-N`, a
-`steel_urls` setting). Task C0 first measures whether one self-hosted container holds
-several sessions. If it does, the broker hands out browser contexts in one container
-instead; nothing above the broker changes.
+Measured by C0 (local Steel, 2026-09-24): one self-hosted Steel container runs one
+Chrome that holds many isolated browser contexts; a context survives a dropped CDP
+connection; releasing a Steel session kills the whole browser. So:
+
+- **One Steel container per tenant, one browser context per account.** The POC runs
+  one container.
+- **The broker never releases the Steel session.** It closes an account's context
+  only, and closing one context must leave its siblings alive (tested).
+- A container crash restores every account of that tenant from saved state (§5.5).
+
+QA-0 confirms the same on the QA box; if it answers "sessions", the broker uses Steel's
+own session API instead. Nothing above the broker changes either way.
 
 ### 5.2 Leases
 

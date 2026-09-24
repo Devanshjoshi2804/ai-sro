@@ -131,7 +131,7 @@ Code: `browser_height: int = 1000`
 > the default the operator is reading a postage stamp, and the accessibility
 > tree that gets captured is one of a layout nobody uses.
 
-## `Settings`, [line 95](../../../../../backend/src/sro/config.py#L95): Note on the line above
+## `Settings`, [line 101](../../../../../backend/src/sro/config.py#L101): Note on the line above
 
 Code: `attach_hosts: tuple[str, ...] = ("127.0.0.1", "localhost", "[::1]")`
 
@@ -144,7 +144,7 @@ Code: `attach_hosts: tuple[str, ...] = ("127.0.0.1", "localhost", "[::1]")`
 > loopback is the whole legitimate set; widen it only for a remote debugger
 > somebody actually runs.
 
-## `Settings`, [line 97](../../../../../backend/src/sro/config.py#L97): Note on the line above
+## `Settings`, [line 103](../../../../../backend/src/sro/config.py#L103): Note on the line above
 
 Code: `api_url: str = "http://localhost:8000"`
 
@@ -158,7 +158,7 @@ Code: `api_url: str = "http://localhost:8000"`
 > Also `our_own_hosts` below, which is a different kind of wrong: too NARROW
 > there and the evidence plane records this system recording.
 
-## `Settings`, [line 99](../../../../../backend/src/sro/config.py#L99): Note on the line above
+## `Settings`, [line 105](../../../../../backend/src/sro/config.py#L105): Note on the line above
 
 Code: `console_url: str = "http://localhost:3000"`
 
@@ -171,14 +171,14 @@ Code: `console_url: str = "http://localhost:3000"`
 > is exactly that shape: `cors_origins` holds only the extension, and the
 > console at :3000 was being captured with nothing to name it.
 
-## `Settings`, [line 119](../../../../../backend/src/sro/config.py#L119): Note on the line above
+## `Settings`, [line 125](../../../../../backend/src/sro/config.py#L125): Note on the line above
 
 Code: `inline_body_limit_bytes: int = Field(default=256 * 1024)`
 
 > Payloads above this go to object storage and the row keeps the URI.
 > Nothing is discarded either way -- see docs/11-capture-completeness.md.
 
-## `Settings`, [line 121](../../../../../backend/src/sro/config.py#L121): Note on the line above
+## `Settings`, [line 127](../../../../../backend/src/sro/config.py#L127): Note on the line above
 
 Code: `observation_artifact_bytes: int = 8_000_000`
 
@@ -191,7 +191,7 @@ Code: `observation_artifact_bytes: int = 8_000_000`
 > The measurement travels with the number on purpose. A constant whose reason
 > is missing is one the next person re-tunes by guess.
 
-## `Settings`, [line 123](../../../../../backend/src/sro/config.py#L123): Note on the line above
+## `Settings`, [line 129](../../../../../backend/src/sro/config.py#L129): Note on the line above
 
 Code: `observation_batch_events: int = 5000`
 
@@ -204,14 +204,14 @@ Code: `observation_batch_events: int = 5000`
 > A bound on one request and not on a day: a browser with more than this to
 > say splits it, and the refusal names the count so that it can.
 
-## `Settings`, [line 128](../../../../../backend/src/sro/config.py#L128): Note on the line above
+## `Settings`, [line 134](../../../../../backend/src/sro/config.py#L134): Note on the line above
 
 Code: `capture_video: bool = True`
 
 > Screencast the demonstration. Encoded as it arrives, so a long session
 > costs disk rather than memory.
 
-## `Settings`, [line 130](../../../../../backend/src/sro/config.py#L130): Note on the line above
+## `Settings`, [line 136](../../../../../backend/src/sro/config.py#L136): Note on the line above
 
 Code: `capture_video_fps: int = 2`
 
@@ -220,7 +220,7 @@ Code: `capture_video_fps: int = 2`
 > Sampled with screenshots rather than a screencast: a screencast would take
 > the live view away from the operator (Chrome allows one consumer per page).
 
-## `Settings`, [line 132](../../../../../backend/src/sro/config.py#L132): Note on the line above
+## `Settings`, [line 138](../../../../../backend/src/sro/config.py#L138): Note on the line above
 
 Code: `capture_redact_secret_values: bool = True`
 
@@ -231,7 +231,7 @@ Code: `capture_redact_secret_values: bool = True`
 > the evidence store a credential store -- do not, without a decision that says
 > who is accountable for it.
 
-## `Settings`, [line 134](../../../../../backend/src/sro/config.py#L134): Note on the line above
+## `Settings`, [line 140](../../../../../backend/src/sro/config.py#L140): Note on the line above
 
 Code: `vault_project: str | None = None`
 
@@ -247,20 +247,20 @@ Code: `vault_project: str | None = None`
 > refuses at first use with a sentence naming the extra, rather than
 > `no module named google.cloud`.
 
-## `Settings`, [line 137](../../../../../backend/src/sro/config.py#L137): Note on the line above
+## `Settings`, [line 143](../../../../../backend/src/sro/config.py#L143): Note on the line above
 
 Code: `vault_key: str | None = None`
 
 > Fernet key for the file vault. Without it the vault refuses to start
 > rather than writing plaintext. Generate one with `make vault-key`.
 
-## `Settings`, [line 139](../../../../../backend/src/sro/config.py#L139): Note on the line above
+## `Settings`, [line 145](../../../../../backend/src/sro/config.py#L145): Note on the line above
 
 Code: `transcription_enabled: bool = False`
 
 > Narration transcription is optional. Default binding is NullTranscriber.
 
-## `Settings`, [line 141](../../../../../backend/src/sro/config.py#L141): Note on the line above
+## `Settings`, [line 147](../../../../../backend/src/sro/config.py#L147): Note on the line above
 
 Code: `rig_sweep_seconds: float = 60.0`
 
@@ -317,7 +317,7 @@ Code: `rig_sweep_seconds: float = 60.0`
 > it holds no state worth replaying, and a missed sweep is corrected by the
 > next one reading the same window.
 
-## `Settings`, [line 143](../../../../../backend/src/sro/config.py#L143): Note on the line above
+## `Settings`, [line 149](../../../../../backend/src/sro/config.py#L149): Note on the line above
 
 Code: `mining_window_hours: int = 24`
 
@@ -329,7 +329,7 @@ Code: `mining_window_hours: int = 24`
 > whose browsers uploaded in the window. The pass itself then reads that
 > tenant's whole history, which is `_one_pass`'s own recorded ceiling.
 
-## `Settings`, [line 145](../../../../../backend/src/sro/config.py#L145): Note on the line above
+## `Settings`, [line 151](../../../../../backend/src/sro/config.py#L151): Note on the line above
 
 Code: `session_sweep_seconds: float = 600.0`
 
@@ -339,7 +339,7 @@ Code: `session_sweep_seconds: float = 600.0`
 > sessions have been observed to last. This is only how often the question is
 > asked, and asking is a cached read.
 
-## `Settings`, [line 147](../../../../../backend/src/sro/config.py#L147): Note on the line above
+## `Settings`, [line 153](../../../../../backend/src/sro/config.py#L153): Note on the line above
 
 Code: `retention_sweep_seconds: float = 86400.0`
 
@@ -347,7 +347,7 @@ Code: `retention_sweep_seconds: float = 86400.0`
 > retention window is measured in days, so checking more often than that
 > buys nothing but repeated table scans.
 
-## `Settings`, [line 149](../../../../../backend/src/sro/config.py#L149): Note on the line above
+## `Settings`, [line 155](../../../../../backend/src/sro/config.py#L155): Note on the line above
 
 Code: `auth_secret: str = ""`
 
@@ -358,7 +358,7 @@ Code: `auth_secret: str = ""`
 > a default here would be a key every deployment shares. Generate one with
 > `make auth-secret`.
 
-## `Settings`, [line 151](../../../../../backend/src/sro/config.py#L151): Note on the line above
+## `Settings`, [line 157](../../../../../backend/src/sro/config.py#L157): Note on the line above
 
 Code: `gemini_api_key: str = ""`
 
@@ -366,7 +366,7 @@ Code: `gemini_api_key: str = ""`
 > exactly as it does today -- deliberately, for deployments that may not send
 > a customer's screen or a customer's words to a hosted model.
 
-## `Settings`, [line 153](../../../../../backend/src/sro/config.py#L153): Note on the line above
+## `Settings`, [line 159](../../../../../backend/src/sro/config.py#L159): Note on the line above
 
 Code: `gemini_mine_timeout_ms: int = 600_000`
 
@@ -390,7 +390,7 @@ Code: `gemini_mine_timeout_ms: int = 600_000`
 > that a dead socket costs one sweep rather than a night -- which is what
 > the paragraph below is about and why a timeout exists at all.
 
-## `Settings`, [line 155](../../../../../backend/src/sro/config.py#L155): Note on the line above
+## `Settings`, [line 161](../../../../../backend/src/sro/config.py#L161): Note on the line above
 
 Code: `gemini_timeout_ms: int = 120_000`
 
@@ -412,7 +412,7 @@ Code: `gemini_timeout_ms: int = 120_000`
 > recorded either way -- which is what the rest of the rig already knows how
 > to carry.
 
-## `Settings`, [line 157](../../../../../backend/src/sro/config.py#L157): Note on the line above
+## `Settings`, [line 163](../../../../../backend/src/sro/config.py#L163): Note on the line above
 
 Code: `gemini_read_tail: int = 0`
 
@@ -458,7 +458,7 @@ Code: `gemini_read_tail: int = 0`
 > A deployment that later finds something to do with `continues` should --
 > that is the one field this pays for.
 
-## `Settings`, [line 159](../../../../../backend/src/sro/config.py#L159): Note on the line above
+## `Settings`, [line 165](../../../../../backend/src/sro/config.py#L165): Note on the line above
 
 Code: `gemini_read_at_once: int = 8`
 
@@ -493,7 +493,7 @@ Code: `gemini_read_at_once: int = 8`
 > the kind of failure that passes every test and corrupts a connection in
 > production.
 
-## `Settings`, [line 161](../../../../../backend/src/sro/config.py#L161): Note on the line above
+## `Settings`, [line 167](../../../../../backend/src/sro/config.py#L167): Note on the line above
 
 Code: `daily_usd_cap: float = -1.0`
 
@@ -528,7 +528,7 @@ Code: `daily_usd_cap: float = -1.0`
 > and works: a deployment that wants a ceiling sets one, and `over_cap` still
 > says how much of what. What is gone is a ceiling nobody chose.
 
-## `Settings`, [line 164](../../../../../backend/src/sro/config.py#L164): Note on the line above
+## `Settings`, [line 170](../../../../../backend/src/sro/config.py#L170): Note on the line above
 
 Code: `gemini_embedding_model: str = "gemini-embedding-2"`
 
@@ -548,7 +548,7 @@ Code: `gemini_embedding_model: str = "gemini-embedding-2"`
 > arrives with no migration on `knowledge_entries.embedding`, no rebuild of
 > the HNSW index that only landed in 0050, and one re-embed.
 
-## `Settings`, [line 166](../../../../../backend/src/sro/config.py#L166): Note on the line above
+## `Settings`, [line 172](../../../../../backend/src/sro/config.py#L172): Note on the line above
 
 Code: `gemini_vision_model: str = "gemini-3.8-flash"`
 
@@ -557,7 +557,7 @@ Code: `gemini_vision_model: str = "gemini-3.8-flash"`
 > `gemini-2.5-computer-use-preview` still answers, and this one accepts the
 > same tool while being the model everything else already uses.
 
-## `Settings`, [line 168](../../../../../backend/src/sro/config.py#L168): Note on the line above
+## `Settings`, [line 174](../../../../../backend/src/sro/config.py#L174): Note on the line above
 
 Code: `gemini_intent_model: str = "gemini-3.8-flash"`
 
@@ -565,7 +565,7 @@ Code: `gemini_intent_model: str = "gemini-3.8-flash"`
 > this is the fast one -- measured at ~2.3s against ~4.8s for the pro model,
 > for a job where the answer is checked against the skills that exist anyway.
 
-## `Settings`, [line 170](../../../../../backend/src/sro/config.py#L170): Note on the line above
+## `Settings`, [line 176](../../../../../backend/src/sro/config.py#L176): Note on the line above
 
 Code: `gemini_interpreter_model: str = "gemini-3.1-pro-preview"`
 
@@ -574,7 +574,7 @@ Code: `gemini_interpreter_model: str = "gemini-3.1-pro-preview"`
 > what an operator will see for the life of the skill -- so this is the
 > reasoning model. It cannot enable computer use, and does not need to.
 
-## `Settings`, [line 172](../../../../../backend/src/sro/config.py#L172): Note on the line above
+## `Settings`, [line 178](../../../../../backend/src/sro/config.py#L178): Note on the line above
 
 Code: `gemini_mine_model: str = "gemini-3.8-flash"`
 
@@ -631,7 +631,7 @@ Code: `gemini_mine_model: str = "gemini-3.8-flash"`
 > `domain/skill/umbrella.py:23` -- cited and not copied, because a
 > measurement kept in two places is one that drifts.
 
-## `Settings`, [line 174](../../../../../backend/src/sro/config.py#L174): Note on the line above
+## `Settings`, [line 180](../../../../../backend/src/sro/config.py#L180): Note on the line above
 
 Code: `gemini_plan_model: str = "gemini-3.8-flash"`
 
@@ -646,7 +646,7 @@ Code: `gemini_plan_model: str = "gemini-3.8-flash"`
 > (`config.py:41`). Deliberately the fast model: a run plans once per step and
 > a slow plan is felt by an operator standing at a screen.
 
-## `Settings`, [line 176](../../../../../backend/src/sro/config.py#L176): Note on the line above
+## `Settings`, [line 182](../../../../../backend/src/sro/config.py#L182): Note on the line above
 
 Code: `gemini_rescue_model: str = "gemini-3.1-pro-preview"`
 
@@ -654,7 +654,7 @@ Code: `gemini_rescue_model: str = "gemini-3.1-pro-preview"`
 > (`config.py:45`). The expensive model earns its price here and not above:
 > it is asked once per failure, not once per step.
 
-## `Settings`, [line 178](../../../../../backend/src/sro/config.py#L178): Note on the line above
+## `Settings`, [line 184](../../../../../backend/src/sro/config.py#L184): Note on the line above
 
 Code: `gemini_read_model: str = "gemini-3.8-flash"`
 
@@ -676,7 +676,7 @@ Code: `gemini_read_model: str = "gemini-3.8-flash"`
 > the thin-gesture picture are live in production: both were missing when
 > that bake-off ran.
 
-## `Settings`, [line 180](../../../../../backend/src/sro/config.py#L180): Note on the line above
+## `Settings`, [line 186](../../../../../backend/src/sro/config.py#L186): Note on the line above
 
 Code: `interpretation_enabled: bool = False`
 
@@ -686,7 +686,7 @@ Code: `interpretation_enabled: bool = False`
 > becomes a skill -- with mechanical step descriptions and no proposed
 > parameters.
 
-## `Settings`, [line 182](../../../../../backend/src/sro/config.py#L182): Note on the line above
+## `Settings`, [line 188](../../../../../backend/src/sro/config.py#L188): Note on the line above
 
 Code: `vision_enabled: bool = False`
 
@@ -704,7 +704,7 @@ Code: `vision_enabled: bool = False`
 > `keycloak_client_secret`, documenting nothing -- a second orphan of the same
 > move this docstring already records.)
 
-## `Settings`, [line 184](../../../../../backend/src/sro/config.py#L184): Note on the line above
+## `Settings`, [line 190](../../../../../backend/src/sro/config.py#L190): Note on the line above
 
 Code: `keycloak_realm_url: str = ""`
 
@@ -713,7 +713,7 @@ Code: `keycloak_realm_url: str = ""`
 > Empty means no token source: runs authenticate with the session cookies,
 > which work and expire on the identity provider's schedule.
 
-## `Settings`, [line 188](../../../../../backend/src/sro/config.py#L188): Note on the line above
+## `Settings`, [line 194](../../../../../backend/src/sro/config.py#L194): Note on the line above
 
 Code: `keycloak_client_secret: str = ""`
 
@@ -722,7 +722,7 @@ Code: `keycloak_client_secret: str = ""`
 > -- so this is set when the realm says the client is confidential rather
 > than guessed at.
 
-## `Settings`, [line 189](../../../../../backend/src/sro/config.py#L189): Note on the line above
+## `Settings`, [line 195](../../../../../backend/src/sro/config.py#L195): Note on the line above
 
 Code: `knowledge_embeddings_enabled: bool = False`
 
@@ -730,7 +730,7 @@ Code: `knowledge_embeddings_enabled: bool = False`
 > retrieval works without them, and turning them on sends the knowledge base's
 > titles to a hosted model.
 
-## `Settings.our_own_origins`, [line 101](../../../../../backend/src/sro/config.py#L101): Docstring
+## `Settings.our_own_origins`, [line 107](../../../../../backend/src/sro/config.py#L107): Docstring
 
 > This deployment itself, as (host:port, path prefix) pairs.
 >

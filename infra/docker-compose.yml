@@ -12,6 +12,30 @@
 
 name: ai-sro
 
+# One Steel container per tenant; the POC has one tenant and starts with one
+# container, but `steel-2` below shows the shape a second one takes -- the
+# anchor keeps both containers' bodies identical except the ports and the
+# `DOMAIN`/`CDP_DOMAIN` each answers CDP's Host-header check with.
+x-steel: &steel
+  image: ghcr.io/steel-dev/steel-browser:latest
+  # Steel exits 1 when Chrome dies under it -- the fingerprint injector opens
+  # a CDP session against a browser that has already gone, and the failure is
+  # not caught. Left stopped, every teaching session and every repair after
+  # that reports "could not start a Steel session" and an operator has no way
+  # to tell a crashed browser from a broken feature.
+  restart: unless-stopped
+  # Node is PID 1 in this image, and PID 1 that is not an init does not reap
+  # the orphans it adopts. Chrome forks a lot and dies a lot here, so the
+  # container accumulated 4,000 zombie processes in 42 hours and Steel got
+  # slower and flakier the whole way. tini reaps them.
+  init: true
+  shm_size: "2gb"   # Chrome crashes with the 64MB default; see docs/05-testing.md
+  healthcheck:
+    test: ["CMD-SHELL", "curl -fsS http://localhost:3000/v1/health || exit 1"]
+    interval: 10s
+    timeout: 5s
+    retries: 20
+
 services:
   # ---------------------------------------------------------------------------
   # Postgres + pgvector. Two logical databases: `sro` (ours) and `temporal`
@@ -109,34 +133,31 @@ services:
   # See docs/07-adr/003-steel-for-browser-sessions.md
   # ---------------------------------------------------------------------------
   steel:
-    image: ghcr.io/steel-dev/steel-browser:latest
-    # Steel exits 1 when Chrome dies under it -- the fingerprint injector opens
-    # a CDP session against a browser that has already gone, and the failure is
-    # not caught. Left stopped, every teaching session and every repair after
-    # that reports "could not start a Steel session" and an operator has no way
-    # to tell a crashed browser from a broken feature.
-    restart: unless-stopped
-    # Node is PID 1 in this image, and PID 1 that is not an init does not reap
-    # the orphans it adopts. Chrome forks a lot and dies a lot here, so the
-    # container accumulated 4,000 zombie processes in 42 hours and Steel got
-    # slower and flakier the whole way. tini reaps them.
-    init: true
+    <<: *steel
     environment:
       # Steel builds every URL it hands out from this: the session viewer, the
       # player's websocket, the CDP endpoint. Unset, it uses its own inside-the-
       # container address (0.0.0.0:3000), and the live view sits on "Session
       # connecting..." forever because a browser on the host cannot dial that.
+      # "localhost" also satisfies CDP's own Host-header check (QA-0: a
+      # non-IP, non-"localhost" Host is refused).
       DOMAIN: "localhost:3010"
       CDP_DOMAIN: "localhost:9223"
     ports:
       - "3010:3000"   # sessions API + debug UI  -> http://localhost:3010/ui
       - "9223:9223"   # chrome devtools protocol
-    shm_size: "2gb"   # Chrome crashes with the 64MB default; see docs/05-testing.md
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/v1/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
+
+  # Second container for the same tenant -- `SRO_STEEL_URLS` (unset locally
+  # by default, so a lone `steel` is what a fresh checkout gets) is how the
+  # backend is told about it; see backend/.env.example.
+  steel-2:
+    <<: *steel
+    environment:
+      DOMAIN: "localhost:3011"
+      CDP_DOMAIN: "localhost:9224"
+    ports:
+      - "3011:3000"
+      - "9224:9223"
 
   # ---------------------------------------------------------------------------
   # OpenTelemetry collector. Backend exports OTLP here; it prints to stdout in

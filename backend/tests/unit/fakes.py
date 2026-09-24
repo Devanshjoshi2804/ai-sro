@@ -10,7 +10,8 @@ import asyncio
 import re
 import sys
 from collections import Counter
-from collections.abc import AsyncIterator, Callable, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
+from contextlib import asynccontextmanager
 from copy import deepcopy
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -32,7 +33,9 @@ from sro.application.ports.http import (
     TargetUnreachable,
 )
 from sro.application.ports.intent import Extraction, Reading
+from sro.application.ports.locks import AccountBusy
 from sro.application.ports.model import Asker
+from sro.application.ports.pool import PoolFull
 from sro.application.ports.repositories import (
     AttemptRepository,
     BrowserSessionRepository,
@@ -80,6 +83,7 @@ from sro.application.ports.vision import (
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import MessageId, Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
+from sro.domain.execution.account import K_LEASE_TTL, LIVE, Account, Lease, LeaseState
 from sro.domain.execution.belts import RunProof, state_verified
 from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
 from sro.domain.execution.model_call import ModelCall
@@ -913,6 +917,7 @@ class FakeBrowserSessionRepository:
 
     def __init__(self) -> None:
         self.rows: dict[str, tuple[str, datetime]] = {}
+        self.leases: dict[str, Lease] = {}
 
     async def claim(
         self,
@@ -937,6 +942,83 @@ class FakeBrowserSessionRepository:
 
     async def release(self, session_id: BrowserSessionId) -> None:
         self.rows.pop(str(session_id), None)
+
+    async def lease(self, tenant_id: TenantId, lease: Lease) -> Lease:
+        current = await self.current_lease(tenant_id, lease.account)
+        if current is not None:
+            return current
+        self.leases[lease.id] = lease
+        return lease
+
+    async def current_lease(self, tenant_id: TenantId, account: Account) -> Lease | None:
+        for held in self.leases.values():
+            if (
+                held.account.tenant == str(tenant_id)
+                and held.account.key == account.key
+                and held.state in LIVE
+            ):
+                return held
+        return None
+
+    async def get_lease(self, tenant_id: TenantId, lease_id: str) -> Lease | None:
+        found = self.leases.get(lease_id)
+        if found is None or found.account.tenant != str(tenant_id):
+            return None
+        return found
+
+    async def settle(self, tenant_id: TenantId, lease_id: str, *, state: LeaseState) -> bool:
+        if state is LeaseState.EXPIRED:
+            raise ValueError("settle cannot move a lease to expired; use expire")
+        found = self.leases.get(lease_id)
+        if found is None or found.account.tenant != str(tenant_id) or found.state not in LIVE:
+            return False
+        self.leases[lease_id] = replace(found, state=state)
+        return True
+
+    async def expire(self, tenant_id: TenantId, lease_id: str, *, now: datetime) -> bool:
+        found = self.leases.get(lease_id)
+        if (
+            found is None
+            or found.account.tenant != str(tenant_id)
+            or found.state not in LIVE
+            or found.expires_at > now
+        ):
+            return False
+        self.leases[lease_id] = replace(found, state=LeaseState.EXPIRED)
+        return True
+
+    async def beat(
+        self, tenant_id: TenantId, lease_id: str, *, now: datetime, holder: str | None = None
+    ) -> bool:
+        found = self.leases.get(lease_id)
+        if found is None or found.account.tenant != str(tenant_id) or found.state not in LIVE:
+            return False
+        self.leases[lease_id] = replace(
+            found,
+            heartbeat_at=now,
+            expires_at=now + K_LEASE_TTL,
+            holder=found.holder if holder is None else holder,
+        )
+        return True
+
+    async def expired(self, *, now: datetime) -> tuple[Lease, ...]:
+        return tuple(
+            held for held in self.leases.values() if held.state in LIVE and held.expires_at <= now
+        )
+
+    async def busy_containers(self, tenant_id: TenantId, *, now: datetime) -> tuple[str, ...]:
+        return tuple(
+            held.container_url
+            for held in self.leases.values()
+            if held.account.tenant == str(tenant_id)
+            and held.state in LIVE
+            and held.expires_at > now
+        )
+
+    async def leased_sessions(self) -> frozenset[str]:
+        return frozenset(
+            held.steel_session_id for held in self.leases.values() if held.state in LIVE
+        )
 
 
 class FakeDeviceRepository:
@@ -1271,6 +1353,78 @@ class FakeTriggerRepository:
     async def find(self, trigger_id: TriggerId) -> Trigger | None:
         trigger = self.rows.get(trigger_id.value)
         return trigger if trigger is not None and self._live(trigger) else None
+
+
+async def _no_op_on_wait() -> None:
+    return None
+
+
+class FakeBrowserPool:
+    """`containers` maps a container url to its context capacity. `open`
+    picks the least-loaded container of the given tenant (`by_tenant`, empty
+    unless a test needs tenant isolation, falling back to every container)
+    that `busy` (supplied by the caller) has not filled, and hands back a
+    fresh `context_id`; `dead` names context ids a test has killed, so
+    `alive` can answer without a real Steel container behind it."""
+
+    def __init__(
+        self,
+        containers: Mapping[str, int],
+        *,
+        by_tenant: Mapping[str, Sequence[str]] | None = None,
+    ) -> None:
+        self._containers = dict(containers)
+        self._by_tenant = dict(by_tenant or {})
+        self.opened: list[tuple[str, str]] = []
+        self.closed: list[tuple[str, str]] = []
+        self.dead: set[str] = set()
+        self._next = count(1)
+
+    async def open(self, tenant: str, busy: Mapping[str, int]) -> tuple[str, str]:
+        urls = self._by_tenant.get(tenant, tuple(self._containers))
+        candidates = [
+            (busy.get(url, 0), url) for url in urls if busy.get(url, 0) < self._containers[url]
+        ]
+        if not candidates:
+            raise PoolFull(f"all {len(urls)} container(s) for tenant {tenant!r} are full")
+        _, url = min(candidates, key=lambda pair: pair[0])
+        context_id = f"ctx_{next(self._next)}"
+        self.opened.append((url, context_id))
+        return url, context_id
+
+    async def close(self, container_url: str, context_id: str) -> None:
+        self.closed.append((container_url, context_id))
+
+    async def alive(self, container_url: str, context_id: str) -> bool:
+        return context_id not in self.dead
+
+    async def cdp_url(self, container_url: str) -> str:
+        return f"ws://{container_url}"
+
+
+class FakeAccountLocks:
+    """One `asyncio.Lock` per `Account.key`, keyed the same way the real
+    advisory lock is: two accounts that normalise to the same key share a
+    lock, and nothing here is a process boundary the way Postgres is.
+
+    `busy` names accounts this fake refuses instead of queuing behind, the
+    way a real hold eventually raises `AccountBusy` -- a caller under test
+    puts a key there to see that path without waiting out a real timeout."""
+
+    def __init__(self) -> None:
+        self._locks: dict[str, asyncio.Lock] = {}
+        self.busy: set[str] = set()
+
+    @asynccontextmanager
+    async def hold(
+        self, account: Account, *, on_wait: Callable[[], Awaitable[None]] = _no_op_on_wait
+    ) -> AsyncIterator[None]:
+        if account.key in self.busy:
+            await on_wait()
+            raise AccountBusy(f"{account.key} is held by another session")
+        lock = self._locks.setdefault(account.key, asyncio.Lock())
+        async with lock:
+            yield
 
 
 class FakeScheduler:

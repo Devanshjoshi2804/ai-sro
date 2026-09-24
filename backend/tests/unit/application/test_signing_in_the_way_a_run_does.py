@@ -9,7 +9,7 @@ nothing, or a different password than the one the operator last stored.
 
 So the use case signs in the way the run does: the tagged sign-in job's
 recorded username, the password under the login origin's key. The connection's
-own keys are a fallback for a tenant with no such job, which is today's
+own keys are for a system no such job lands on, which is today's
 behaviour unchanged.
 """
 
@@ -32,7 +32,7 @@ from sro.application.context import RequestContext
 from sro.application.ports.sign_in import CredentialsRefused
 from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.execution.secrets import secret_key_of
-from sro.domain.observation.gesture import Action, Gesture, Target
+from sro.domain.observation.gesture import Action, Gesture, PageMark, Target
 from sro.domain.shared.errors import Conflict
 from sro.domain.skill.workflow import Step, Workflow
 from tests import factories as f
@@ -53,36 +53,54 @@ COOKIE: tuple[dict[str, object], ...] = (
 )
 
 
-def _typed(gesture_id: str, at: float, *, value: str | None, secret: bool) -> Gesture:
+def _at(gesture_id: str, at: float, origin: str, action: Action, stream: str) -> Gesture:
     return Gesture(
         id=gesture_id,
         tenant=f.TENANT.value,
-        stream_id="s",
+        stream_id=stream,
         batch_id="b",
         at=at,
-        url=f"{LOGIN}/auth",
-        system=LOGIN,
+        url=f"{origin}/auth",
+        system=origin,
         tab_id=1,
         frame_url=None,
-        action=Action(
-            kind="type",
-            at=at,
-            value=value,
-            url=f"{LOGIN}/auth",
-            target=Target(tag="input", name="password" if secret else "username", secret=secret),
-        ),
+        action=action,
     )
 
 
-def _login_job(*, signs_in: bool = True) -> Workflow:
+def _recorded(
+    name: str,
+    *,
+    login: str = LOGIN,
+    lands: str = SYSTEM,
+    username: str | None = "operator-7",
+    at: float = 1.0,
+) -> tuple[Gesture, ...]:
+    """The typing the job cites, and the submit and first look at the landed
+    system that the doing holds right after it, uncited."""
+    submit = _at(f"{name}-go", at + 2, login, Action(kind="click", at=at + 2), name)
+    submit.page_events.append(PageMark(at=at + 2.5, page_kind="load", url=f"{lands}/home"))
+    user = Target(tag="input", name="username")
+    secret = Target(tag="input", name="password", secret=True)
+    return (
+        _at(
+            f"{name}-user", at, login, Action(kind="type", at=at, value=username, target=user), name
+        ),
+        _at(f"{name}-pass", at + 1, login, Action(kind="type", at=at + 1, target=secret), name),
+        submit,
+        _at(f"{name}-there", at + 3, lands, Action(kind="click", at=at + 3), name),
+    )
+
+
+def _login_job(*, signs_in: bool = True, name: str = "g") -> Workflow:
     return Workflow(
-        id="wfl_login",
+        id=f"wfl_{name}",
         tenant=f.TENANT.value,
         title="Log in",
         narrative="n",
         steps=[
-            Step(order=0, says="type the username", system=None, cites=["g-user"]),
-            Step(order=1, says="type the password", system=None, cites=["g-pass"]),
+            Step(order=0, says="type the username", system=None, cites=[f"{name}-user"]),
+            Step(order=1, says="type the password", system=None, cites=[f"{name}-pass"]),
         ],
         signs_in=signs_in,
     )
@@ -112,12 +130,7 @@ class _World:
         async with self.uow:
             await self.uow.connections.add(connection)
             await self.uow.commit()
-        await self.uow.gestures.add_gestures(
-            (
-                _typed("g-user", 1.0, value=username, secret=False),
-                _typed("g-pass", 2.0, value=None, secret=True),
-            )
-        )
+        await self.uow.gestures.add_gestures(_recorded("g", username=username))
         if job is not None:
             await self.uow.workflows.save(job)
         return connection
@@ -271,3 +284,74 @@ async def test_a_standing_refusal_names_the_login_that_needs_a_new_password() ->
     with pytest.raises(CredentialsRefused, match=r"login\.example\.com") as raised:
         await world.sign_in().execute(CTX, target_system="wms")
     assert "wrong" not in str(raised.value)
+
+
+YARD = "https://yard.example.com"
+YARD_LOGIN = "https://login.yard.example.com"
+YARD_KEY = secret_key_of(f.TENANT.value, "login.yard.example.com", "password")
+
+
+async def _yard(world: _World, *, recorded: bool) -> Connection:
+    connection = Connection(
+        id=ConnectionId("con_2"),
+        tenant_id=f.TENANT,
+        name="Yard",
+        target_system="yard",
+        base_url=f"{YARD}/portal",
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    connection.authenticated(datetime(2026, 1, 2, tzinfo=UTC))
+    async with world.uow:
+        await world.uow.connections.add(connection)
+        await world.uow.commit()
+    if recorded:
+        await world.uow.gestures.add_gestures(
+            _recorded("y", login=YARD_LOGIN, lands=YARD, username="yard-user", at=5000.0)
+        )
+        await world.uow.workflows.save(_login_job(name="y"))
+    return connection
+
+
+async def test_two_systems_each_sign_in_with_their_own_recorded_login() -> None:
+    world = _World()
+    await world.connect(job=_login_job())
+    await _yard(world, recorded=True)
+    await world.vault.store(LOGIN_KEY, "the wms password")
+    await world.vault.store(YARD_KEY, "the yard password")
+
+    await world.sign_in().execute(CTX, target_system="wms")
+    assert world.driver.given == ("operator-7", "the wms password")
+    await world.sign_in().execute(CTX, target_system="yard")
+    assert world.driver.given == ("yard-user", "the yard password")
+
+
+async def test_a_system_no_recorded_sign_in_lands_on_is_not_given_another_systems() -> None:
+    world = _World()
+    await world.connect(job=_login_job())
+    await _yard(world, recorded=False)
+    await world.vault.store(LOGIN_KEY, "the wms password")
+
+    with pytest.raises(NoCredentials, match="yard"):
+        await world.sign_in().execute(CTX, target_system="yard")
+    assert world.driver.calls == 0
+
+
+async def test_one_systems_refusal_never_latches_the_others_password() -> None:
+    world = _World()
+    await world.connect(job=_login_job())
+    yard = await _yard(world, recorded=False)
+    await world.vault.store(LOGIN_KEY, "the wms password")
+    await world.vault.store(yard.credential_key(USERNAME), "yard-user")
+    await world.vault.store(yard.credential_key(PASSWORD), "wrong for the yard")
+    world.driver.refuses = "the credentials were refused"
+
+    with pytest.raises(CredentialsRefused):
+        await world.sign_in().execute(CTX, target_system="yard")
+    assert world.driver.given == ("yard-user", "wrong for the yard")
+
+    refusals = RefusedCredentials(world.vault)
+    assert await refusals.standing(yard.credential_key(PASSWORD)) is not None
+    assert await refusals.standing(LOGIN_KEY) is None
+    world.driver.refuses = ""
+    await world.sign_in().execute(CTX, target_system="wms")
+    assert world.driver.given == ("operator-7", "the wms password")

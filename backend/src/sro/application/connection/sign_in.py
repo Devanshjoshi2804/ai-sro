@@ -17,6 +17,7 @@ from sro.application.ports.vault import CredentialVault
 from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.execution.secrets import secret_key_of
 from sro.domain.shared.errors import Conflict, DomainError
+from sro.domain.skill.checks import K_SITTING_GAP_S
 from sro.domain.skill.signing_in import RecordedLogin, recorded_login
 from sro.domain.skill.skill import Skill
 from sro.domain.skill.workflow import ordered_cites
@@ -241,8 +242,18 @@ async def _recorded(
         known = await uow.workflows.known(ctx.tenant_id)
         tagged = [job for job in known if job.signs_in]
         cited = tuple(sorted({one for job in tagged for one in ordered_cites(job)}))
-        seen = await uow.gestures.gestures_for(ctx.tenant_id, ids=cited) if cited else ()
-    return recorded_login(connection.base_url, tagged, {one.id: one for one in seen})
+        seen = {
+            one.id: one
+            for one in (await uow.gestures.gestures_for(ctx.tenant_id, ids=cited) if cited else ())
+        }
+        for job in tagged:
+            times = [seen[one].at for one in ordered_cites(job) if one in seen]
+            if times:
+                after = await uow.gestures.gestures_for(
+                    ctx.tenant_id, after=min(times), before=max(times) + K_SITTING_GAP_S
+                )
+                seen.update({one.id: one for one in after})
+    return recorded_login(connection.base_url, tagged, seen)
 
 
 def _key(ctx: RequestContext, recorded: RecordedLogin, field: str) -> str:

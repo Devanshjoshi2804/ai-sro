@@ -161,11 +161,19 @@ Code: `_SIGN_IN_PATHS = ("/oauth2/", "/protocol/openid-connect/", "/login-action
 
 ## `recorded_login`, [line 130](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L130): Docstring
 
-> The job that starts on the system's own page, when there is one
-> (`signs_in_at`); otherwise the only tagged sign-in job that carries a
-> credential at all. On the deployed tenant the credential-carrying job starts
-> on the identity provider's host, not the system's, so the second rule is the
-> one that finds it. Two candidates with nothing to tell them apart is None:
+> The tagged sign-in job that lands on the connection's own system: the
+> `worked` half of `checks.signs_in_to`, the same key the mining pass folds
+> sign-ins by. A system no job lands on has no recorded login, and its own
+> connection keys (or the operator) answer instead.
+>
+> Until the final review of audit wave 1 (2026-09-24, C-1) a lone
+> credential-carrying job was lent to every connection. It starts on the
+> identity provider's host, so the start-host match almost never held and
+> the lone job won by default: system A's password was typed into system
+> B's form, and B's refusal latched A's key. The landing is where the
+> credential is good for; nothing else picks the job.
+>
+> Two jobs landing on one system with nothing to tell them apart is None:
 > guessing whose account to sign in with is not a choice to make.
 >
 > The username is the last non-secret value typed at or before the

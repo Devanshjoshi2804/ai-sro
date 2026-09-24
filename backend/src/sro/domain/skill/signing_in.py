@@ -6,6 +6,7 @@ from urllib.parse import urlsplit
 
 from sro.domain.observation.gesture import Gesture, Target, passed_through
 from sro.domain.shared.hosts import origin_of
+from sro.domain.skill.checks import signs_in_to
 from sro.domain.skill.workflow import Step, Workflow, ordered_cites
 
 
@@ -130,11 +131,13 @@ class RecordedLogin:
 def recorded_login(
     where: str, among: Sequence[Workflow], by_id: Mapping[str, Gesture]
 ) -> RecordedLogin | None:
-    carrying = [job for job in among if job.signs_in and _credential(job, by_id) is not None]
-    chosen = signs_in_at(where, carrying, by_id)
-    job = next((one for one in carrying if one.id == chosen), None)
-    if job is None and len(carrying) == 1:
-        job = carrying[0]
+    system = origin_of(where)
+    landing = [
+        job
+        for job in among
+        if job.signs_in and (lands := signs_in_to(job, by_id)) is not None and lands[1] == system
+    ]
+    job = landing[0] if len(landing) == 1 else None
     credential = _credential(job, by_id) if job is not None else None
     if job is None or credential is None:
         return None

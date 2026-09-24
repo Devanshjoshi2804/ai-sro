@@ -185,7 +185,7 @@ Code: `except CredentialsRefused as refused:`
 > only stored password was under the login origin.
 >
 > The connection's own keys are the fallback only when the job knows nothing
-> (no tagged job, or neither a username nor a password for it). A job that
+> (no tagged job lands on this system, or neither a username nor a password for it). A job that
 > knows half names the missing half rather than borrowing a different
 > credential from the connection. A job that recorded no username (a sensitive
 > field redacted it) reads the one `StoreCredentials` kept beside the
@@ -198,6 +198,11 @@ Code: `except CredentialsRefused as refused:`
 > The recorded login for this connection, read from the tenant's tagged
 > sign-in jobs and their evidence. See `recorded_login` for which one. A
 > module function so `StoreCredentials` and `SignIn` resolve the same login.
+>
+> The evidence is each job's cited gestures plus the tenant's gestures from
+> its first cite to `K_SITTING_GAP_S` after its last: where a sign-in landed
+> is read off the doing right after it, which the job itself leaves uncited
+> (`checks.signs_in_to`).
 
 ## `_key`, [line 248](../../../../../../../backend/src/sro/application/connection/sign_in.py#L248): Docstring
 

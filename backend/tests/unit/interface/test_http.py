@@ -44,6 +44,7 @@ from sro.interface.http.app import create_app
 from sro.interface.http.deps import get_container
 from tests import factories as f
 from tests.unit.fakes import (
+    FakeAccountLocks,
     FakeBlobStore,
     FakeBrowserProvider,
     FakeClock,
@@ -101,6 +102,7 @@ class _FakeContainer(Container):
         self.tools = FakeToolCaller(available=False)
         self.http.unreachable = True
         self.sign_in_driver = FakeSignInDriver()
+        self.locks = FakeAccountLocks()
         # Real credential checking, with a key that lives for the length of the
         # test: the wiring under test includes who is allowed to ask.
         self.credentials = SignedTokens(TEST_SECRET)

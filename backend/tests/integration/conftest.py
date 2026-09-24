@@ -111,3 +111,12 @@ async def engine(postgres_url: str) -> AsyncIterator[AsyncEngine]:
 @pytest.fixture
 def session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
     return create_session_factory(engine)
+
+
+@pytest.fixture
+async def session(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> AsyncIterator[AsyncSession]:
+    async with session_factory() as opened:
+        yield opened
+        await opened.commit()

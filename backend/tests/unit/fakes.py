@@ -80,6 +80,7 @@ from sro.application.ports.vision import (
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import MessageId, Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
+from sro.domain.execution.account import K_LEASE_TTL, LIVE, Account, Lease, LeaseState
 from sro.domain.execution.belts import RunProof, state_verified
 from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
 from sro.domain.execution.model_call import ModelCall
@@ -913,6 +914,7 @@ class FakeBrowserSessionRepository:
 
     def __init__(self) -> None:
         self.rows: dict[str, tuple[str, datetime]] = {}
+        self.leases: dict[str, Lease] = {}
 
     async def claim(
         self,
@@ -937,6 +939,65 @@ class FakeBrowserSessionRepository:
 
     async def release(self, session_id: BrowserSessionId) -> None:
         self.rows.pop(str(session_id), None)
+
+    async def lease(self, tenant_id: TenantId, lease: Lease) -> Lease:
+        current = await self.current_lease(tenant_id, lease.account)
+        if current is not None:
+            return current
+        self.leases[lease.id] = lease
+        return lease
+
+    async def current_lease(self, tenant_id: TenantId, account: Account) -> Lease | None:
+        for held in self.leases.values():
+            if (
+                held.account.tenant == str(tenant_id)
+                and held.account.origin == account.origin
+                and held.account.username == account.username
+                and held.state in LIVE
+            ):
+                return held
+        return None
+
+    async def get_lease(self, tenant_id: TenantId, lease_id: str) -> Lease | None:
+        found = self.leases.get(lease_id)
+        if found is None or found.account.tenant != str(tenant_id):
+            return None
+        return found
+
+    async def settle(self, tenant_id: TenantId, lease_id: str, *, state: LeaseState) -> None:
+        found = self.leases.get(lease_id)
+        if found is not None and found.account.tenant == str(tenant_id):
+            self.leases[lease_id] = replace(found, state=state)
+
+    async def beat(
+        self, tenant_id: TenantId, lease_id: str, *, now: datetime, holder: str | None = None
+    ) -> None:
+        found = self.leases.get(lease_id)
+        if found is None or found.account.tenant != str(tenant_id) or found.state not in LIVE:
+            return
+        self.leases[lease_id] = replace(
+            found,
+            heartbeat_at=now,
+            expires_at=now + K_LEASE_TTL,
+            holder=found.holder if holder is None else holder,
+        )
+
+    async def expired(self, *, now: datetime) -> tuple[Lease, ...]:
+        return tuple(
+            held for held in self.leases.values() if held.state in LIVE and held.expires_at <= now
+        )
+
+    async def busy_containers(self, *, now: datetime) -> tuple[str, ...]:
+        return tuple(
+            held.container_url
+            for held in self.leases.values()
+            if held.state in LIVE and held.expires_at > now
+        )
+
+    async def leased_sessions(self) -> frozenset[str]:
+        return frozenset(
+            held.steel_session_id for held in self.leases.values() if held.state in LIVE
+        )
 
 
 class FakeDeviceRepository:

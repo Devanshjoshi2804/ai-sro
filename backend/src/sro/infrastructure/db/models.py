@@ -252,7 +252,27 @@ class BrowserSessionRow(Base):
     opened_by: Mapped[str] = mapped_column(String(64), nullable=False)
     opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    __table_args__ = (Index("ix_browser_sessions_tenant", "tenant_id"),)
+    origin: Mapped[str | None] = mapped_column(Text)
+    username: Mapped[str | None] = mapped_column(Text)
+    container_url: Mapped[str | None] = mapped_column(Text)
+    steel_session_id: Mapped[str | None] = mapped_column(String(128))
+    context_id: Mapped[str | None] = mapped_column(String(128))
+    holder: Mapped[str | None] = mapped_column(String(128))
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    state: Mapped[str | None] = mapped_column(String(16))
+
+    __table_args__ = (
+        Index("ix_browser_sessions_tenant", "tenant_id"),
+        Index(
+            "uq_browser_sessions_one_live_lease",
+            "tenant_id",
+            "origin",
+            "username",
+            unique=True,
+            postgresql_where=text("state IN ('signing_in', 'ready')"),
+        ),
+    )
 
 
 class AgentDeviceRow(Base):

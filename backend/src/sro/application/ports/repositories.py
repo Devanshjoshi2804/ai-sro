@@ -7,6 +7,7 @@ from typing import Protocol
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId
+from sro.domain.execution.account import Account, Lease, LeaseState
 from sro.domain.execution.belts import RunProof
 from sro.domain.execution.learned_step import LearnedStep, Taught
 from sro.domain.execution.model_call import ModelCall
@@ -189,6 +190,29 @@ class BrowserSessionRepository(Protocol):
     async def all_held(self) -> tuple[tuple[BrowserSessionId, datetime], ...]: ...
 
     async def release(self, session_id: BrowserSessionId) -> None: ...
+
+    async def lease(self, tenant_id: TenantId, lease: Lease) -> Lease: ...
+
+    async def current_lease(self, tenant_id: TenantId, account: Account) -> Lease | None: ...
+
+    async def get_lease(self, tenant_id: TenantId, lease_id: str) -> Lease | None: ...
+
+    async def settle(self, tenant_id: TenantId, lease_id: str, *, state: LeaseState) -> None: ...
+
+    async def beat(
+        self,
+        tenant_id: TenantId,
+        lease_id: str,
+        *,
+        now: datetime,
+        holder: str | None = None,
+    ) -> None: ...
+
+    async def expired(self, *, now: datetime) -> tuple[Lease, ...]: ...
+
+    async def busy_containers(self, *, now: datetime) -> tuple[str, ...]: ...
+
+    async def leased_sessions(self) -> frozenset[str]: ...
 
 
 class DeviceRepository(Protocol):

@@ -36,13 +36,17 @@
           "panel#clients",
           "textfield#clientCode"
         ]
-      }
+      },
+      "landmarks": []
     },
     "modifiers": [],
-    "at": 1790242908.578,
-    "url": "http://127.0.0.1:55773/"
+    "detail": 1,
+    "trusted": true,
+    "frame_path": [],
+    "at": 1790276680.372,
+    "url": "http://127.0.0.1:61742/"
   },
-  "tab_id": 170716789,
-  "frame_url": "http://127.0.0.1:55773/",
-  "page_url": "http://127.0.0.1:55773/"
+  "tab_id": 921728413,
+  "frame_url": "http://127.0.0.1:61742/",
+  "page_url": "http://127.0.0.1:61742/"
 }

@@ -23,14 +23,16 @@
         "name": "manifest",
         "type": "file"
       },
-      "component": null
+      "component": null,
+      "landmarks": []
     },
     "value": "manifest.csv",
     "modifiers": [],
-    "at": 1790242908.532,
-    "url": "http://127.0.0.1:55773/"
+    "frame_path": [],
+    "at": 1790276680.323,
+    "url": "http://127.0.0.1:61742/"
   },
-  "tab_id": 170716789,
-  "frame_url": "http://127.0.0.1:55773/",
-  "page_url": "http://127.0.0.1:55773/"
+  "tab_id": 921728413,
+  "frame_url": "http://127.0.0.1:61742/",
+  "page_url": "http://127.0.0.1:61742/"
 }

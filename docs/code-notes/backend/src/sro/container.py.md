@@ -165,6 +165,12 @@ Code: `driving_runs: AsyncConnection | None = None`
 ## `_build_interpreter`, [line 850](../../../../../backend/src/sro/container.py#L850): Docstring
 
 > Reading a demonstration sends its calls and bodies to a hosted model.
+>
+> Through the metered client like every other adapter, so its calls are
+> capped and billed: a pursue still reaches it (`pursue_goal` ->
+> `understand_recording`), on a pro model. The earlier ruling that skipped it
+> assumed Task 6 deleted its callers; it did not (final review I-1,
+> 2026-09-24).
 
 ## `_patient_asker_for`, [line 856](../../../../../backend/src/sro/container.py#L856): Docstring
 

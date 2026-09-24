@@ -847,9 +847,12 @@ def _build_intent_parser(settings: Settings, meter: Meter) -> IntentParser:
     return NoIntentParser()
 
 
-def _build_interpreter(settings: Settings) -> WorkflowInterpreter:
+def _build_interpreter(settings: Settings, meter: Meter) -> WorkflowInterpreter:
     if settings.interpretation_enabled and settings.gemini_api_key:
-        return GeminiInterpreter(settings.gemini_api_key, settings.gemini_interpreter_model)
+        return GeminiInterpreter(
+            settings.gemini_interpreter_model,
+            client=metered_client(settings.gemini_api_key, meter),
+        )
     return NoInterpreter()
 
 
@@ -952,7 +955,7 @@ def build_container(settings: Settings | None = None) -> Container:
         transcriber=_build_transcriber(settings, meter),
         embedder=_build_embedder(settings, meter),
         vision=_build_vision(settings, meter),
-        interpreter=_build_interpreter(settings),
+        interpreter=_build_interpreter(settings, meter),
         asker=_build_asker(settings, meter),
         intent_parser=_build_intent_parser(settings, meter),
         vault=(built_vault := ForgetsRefusalOnWrite(_build_vault(settings))),

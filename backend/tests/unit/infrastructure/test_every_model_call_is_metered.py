@@ -24,6 +24,7 @@ from sro.domain.shared.prices import ModelSpend, price
 from sro.infrastructure.gemini.asker import GeminiAsker
 from sro.infrastructure.gemini.computer_use import GeminiVisionDriver
 from sro.infrastructure.gemini.intent import GeminiIntentParser
+from sro.infrastructure.gemini.interpreter import GeminiInterpreter
 from sro.infrastructure.gemini.metered import Meter, Metered, Unattributed
 from sro.infrastructure.knowledge.embedding import GeminiEmbedder
 from sro.infrastructure.transcription.gemini import GeminiTranscriber
@@ -104,6 +105,26 @@ async def test_the_intent_parser_is_billed() -> None:
         await parser.extract("adjust sku 1", parameters=("sku",))
 
     assert [row.in_tokens for row in _rows(uow)] == [100, 100]
+
+
+async def test_the_interpreter_is_capped_and_billed() -> None:
+    """A pursue reaches it (pursue_goal -> understand_recording), on a pro model."""
+    models = _Models('{"steps": []}')
+    client, uow = _metered(models)
+    interpreter = GeminiInterpreter(MODEL, client=client)
+
+    with about(tenant="acme"):
+        await interpreter.read("evidence")
+        await interpreter.name_task("evidence")
+
+    assert [(row.tenant, row.in_tokens) for row in _rows(uow)] == [("acme", 100)] * 2
+
+    capped = FakeUnitOfWork()
+    await capped.spend.record(_spent("acme", 6.0))
+    over, _ = _metered(models, cap_usd=5.0, uow=capped)
+    with about(tenant="acme"):
+        await GeminiInterpreter(MODEL, client=over).read("evidence")
+    assert models.called == 2
 
 
 async def test_the_vision_driver_is_billed() -> None:

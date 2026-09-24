@@ -107,8 +107,10 @@ Measured by C0 (local Steel, 2026-09-24): one self-hosted Steel container runs o
 Chrome that holds many isolated browser contexts; a context survives a dropped CDP
 connection; releasing a Steel session kills the whole browser. So:
 
-- **One Steel container per tenant, one browser context per account.** The POC runs
-  one container.
+- **Steel containers per tenant (N ≥ 1), one browser context per account.** Tenants
+  never share a container. Each account is pinned to one container of its tenant
+  (recorded on the lease, sticky); a new account goes to the tenant's least-loaded
+  container. Scaling adds a container to the tenant's list. The POC runs one.
 - **The broker never releases the Steel session.** It closes an account's context
   only, and closing one context must leave its siblings alive (tested).
 - A container crash restores every account of that tenant from saved state (§5.5).

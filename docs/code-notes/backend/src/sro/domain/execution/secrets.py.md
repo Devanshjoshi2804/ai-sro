@@ -52,7 +52,7 @@ Code: `SECRET_MARK = "«from the vault»"  # noqa: S105 - a marker written INSTE
 > half of a vault key and a key with a space in it is a key somebody types
 > wrong once and then cannot find.
 
-## `_as_key`, [line 26](../../../../../../../backend/src/sro/domain/execution/secrets.py#L26): Docstring
+## `as_key`, [line 26](../../../../../../../backend/src/sro/domain/execution/secrets.py#L26): Docstring
 
 > A field's name as half a vault key: lowercase, letters, digits, dashes.
 >
@@ -94,14 +94,14 @@ Code: `SECRET_MARK = "«from the vault»"  # noqa: S105 - a marker written INSTE
 > everybody in the tenant, which is the same bug one scope smaller.
 >
 > The principal is HASHED into the field rather than spelled, and that is the
-> whole care of this function. `_as_key` collapses every run of punctuation
+> whole care of this function. `as_key` collapses every run of punctuation
 > to a single dash, so `devansh.j` and `devansh_j` and `devansh j` are one
 > key -- and `PrincipalId` constrains nothing but blankness, so all three are
 > ids somebody can be issued. A collision here is one operator reading
 > another's mail, which is precisely what `secret_manager`'s own docstring
 > warns about one segment to the left.
 >
-> Hex, so `_as_key` passes it through untouched and there is still exactly
+> Hex, so `as_key` passes it through untouched and there is still exactly
 > one function shaping vault keys. Unreadable on purpose, and answered by the
 > connector printing the key beside the bearer it mints.
 

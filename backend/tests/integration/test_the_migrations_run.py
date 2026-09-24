@@ -1,10 +1,11 @@
 """Every migration, applied to an empty database, in order.
 
-The integration suite builds its schema with `Base.metadata.create_all`, which
-proves the models agree with themselves and says nothing about the migrations
-that actually run in a deployment. A migration with a typo in it therefore
-passed the whole suite and failed at deploy, on the one path where failing is
-expensive.
+`conftest.postgres_url` already runs `alembic upgrade head` once per session,
+against a fresh database, so every other test in this directory runs against
+a real migration and never against `Base.metadata.create_all`. This file
+drops the schema and migrates again, on that same database, so it can assert
+what the session setup does not: specific tables and indexes exist, and the
+migrated shape agrees with what `models.py` declares.
 """
 
 from __future__ import annotations
@@ -66,16 +67,14 @@ async def test_upgrading_from_nothing_builds_the_schema(postgres_url: str) -> No
     assert "uq_workflow_runs_one_running_per_device" in indexes
 
 
-# The migrated schema is not just A schema -- it is the one every test after
-# this file uses.
-#
-# This test drops `public` and rebuilds it with alembic. `conftest`'s engine
-# fixture then calls `Base.metadata.create_all`, which does nothing to a table
-# that already exists, so every later test in the directory silently runs
-# against the MIGRATED schema and never against the models'. That is why
-# deleting `uq_workflow_runs_one_running_per_device` from `models.py` left
-# `make check` green: the index was still there, put there by migration 0043,
-# and the suite that was supposed to notice was reading the wrong schema.
+# Every test in this directory already runs against the migrated schema --
+# `conftest.postgres_url` builds it with `alembic upgrade head` before the
+# session's first test. Before that fixture ran migrations itself, this test
+# was the only thing standing between `models.py` and a deploy that never
+# noticed the two had drifted: deleting `uq_workflow_runs_one_running_per_device`
+# from `models.py` left `make check` green, because the rest of the suite
+# still built its tables with `Base.metadata.create_all` and the index came
+# from migration 0043 either way.
 #
 # So the two are compared, once, here: what a deployment runs against what the
 # code declares.

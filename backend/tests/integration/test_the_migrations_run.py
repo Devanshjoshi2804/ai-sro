@@ -58,12 +58,35 @@ async def test_upgrading_from_nothing_builds_the_schema(postgres_url: str) -> No
             .scalars()
             .all()
         )
+        # `compare_metadata` does not read `postgresql_where`, and `create_all`
+        # is not what a deployment runs -- so nothing else here would notice a
+        # 0073 that forgot to narrow the index to `executor = 'extension'`, or
+        # that skipped `ck_workflow_runs_executor` entirely.
+        one_running_def = (
+            await connection.execute(
+                text(
+                    "SELECT indexdef FROM pg_indexes "
+                    "WHERE indexname = 'uq_workflow_runs_one_running_per_device'"
+                )
+            )
+        ).scalar_one()
+        executor_check = (
+            await connection.execute(
+                text(
+                    "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+                    "WHERE conname = 'ck_workflow_runs_executor'"
+                )
+            )
+        ).scalar_one()
     await engine.dispose()
 
     assert upgrade.returncode == 0, upgrade.stderr
     assert "browser_sessions" in tables, "the ownership record a browser is claimed in"
     assert {"skills", "runs", "recordings", "connections"} <= tables
     assert "uq_workflow_runs_one_running_per_device" in indexes
+    assert "outcome" in one_running_def and "'running'" in one_running_def, one_running_def
+    assert "executor" in one_running_def and "'extension'" in one_running_def, one_running_def
+    assert "'extension'" in executor_check and "'steel'" in executor_check, executor_check
 
 
 # The migrated schema is not just A schema -- it is the one every test after

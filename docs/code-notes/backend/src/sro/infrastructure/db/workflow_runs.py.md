@@ -28,6 +28,17 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/db/workflo
 > repository's mapping belongs with the repository, and these three shapes are
 > read by nothing else.
 
+## module, [line 150](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L150): Note on the line above
+
+Code: `executor=cast(Executor, row.executor),`
+
+> Trusted because `ck_workflow_runs_executor` is: the column reads back as a
+> bare `str` from SQLAlchemy, and `WorkflowRun.executor` is the narrower
+> `Literal["extension", "steel"]` the rest of this task's rules are keyed on.
+> Nothing else can be in this column -- a value outside those two was refused
+> at INSERT -- so the cast trusts the constraint rather than re-checking it
+> in Python on every read.
+
 ## module, [line 154](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L154): Note on the line above
 
 Code: `_ONE_RUNNING = "uq_workflow_runs_one_running_per_device"`
@@ -37,7 +48,7 @@ Code: `_ONE_RUNNING = "uq_workflow_runs_one_running_per_device"`
 > psycopg both name the index there, and `orig.diag.constraint_name` is spelled
 > differently on each.
 
-## `SqlWorkflowRunRepository.driving_windows`, [line 292](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L292): Docstring
+## `SqlWorkflowRunRepository.driving_windows`, [line 299](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L299): Docstring
 
 > Three columns rather than whole runs.
 >
@@ -47,7 +58,7 @@ Code: `_ONE_RUNNING = "uq_workflow_runs_one_running_per_device"`
 > timestamps would make a check that exists to be cheap the most
 > expensive thing in a mining pass.
 
-## `SqlWorkflowRunRepository.waiting_on`, [line 318](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L318): Docstring
+## `SqlWorkflowRunRepository.waiting_on`, [line 326](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L326): Docstring
 
 > Against the expression index 0062 adds, and never on a blank.
 >
@@ -58,7 +69,7 @@ Code: `_ONE_RUNNING = "uq_workflow_runs_one_running_per_device"`
 > to something else entirely, which is a warehouse record written from
 > somebody's unrelated sentence.
 
-## `SqlWorkflowRunRepository._with_steps`, [line 398](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L398): Docstring
+## `SqlWorkflowRunRepository._with_steps`, [line 406](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L406): Docstring
 
 > One query for every run's steps rather than one per run.
 
@@ -78,9 +89,14 @@ Code: `index_elements=["id"],`
 
 Code: `set_={`
 
-> Every column but the key takes the new value, which is
-> what INSERT OR REPLACE did: a run is written whole after
-> every step, so the later write supersedes the earlier one.
+> Every column but the key and `progress` takes the new value, which is what
+> INSERT OR REPLACE did before this task: a run was written whole after every
+> step, so the later write superseded the earlier one. `progress` is the one
+> exception, because the run it is written whole FROM is not always the run
+> that last touched `progress` -- an API path can load a run, wait on a mail
+> reply, and save its copy back long after a worker settled a step on the
+> same row. Excluded from this `UPDATE SET`, it is left exactly as the row
+> already has it; `record_progress` is the only path that ever changes it.
 
 ## `SqlWorkflowRunRepository.save`, [line 176](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L176): Comment
 
@@ -116,7 +132,17 @@ Code: `await self._session.execute(`
 > upsert would leave it behind -- and this is the rule the second save
 > of a run depends on to not double its first step.
 
-## `SqlWorkflowRunRepository.for_workflow`, [line 205](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L205): Comment
+## `SqlWorkflowRunRepository.record_progress`, [line 190](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L190): Docstring
+
+> A bare `UPDATE ... SET progress`, and the only place this column is
+> written after a run's first insert. `save` takes a whole in-memory
+> `WorkflowRun` and can be built from a copy loaded before a worker last
+> touched this row's progress; writing that copy back through `save` must
+> never carry a stale `progress` over the worker's own writes. This method
+> is how a worker settles a step -- load, mark, `record_progress` -- without
+> going through the whole-row path at all.
+
+## `SqlWorkflowRunRepository.for_workflow`, [line 212](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L212): Comment
 
 Code: `query.order_by(WorkflowRunRow.started_at, WorkflowRunRow.id)`
 
@@ -126,7 +152,7 @@ Code: `query.order_by(WorkflowRunRow.started_at, WorkflowRunRow.id)`
 > return them in heap order, which is an order that changes
 > between reads. `proofs` has always broken the tie this way.
 
-## `SqlWorkflowRunRepository.recent`, [line 218](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L218): Comment
+## `SqlWorkflowRunRepository.recent`, [line 225](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L225): Comment
 
 Code: `query = self._rows().where(WorkflowRunRow.tenant_id == tenant_id.value)`
 
@@ -135,21 +161,21 @@ Code: `query = self._rows().where(WorkflowRunRow.tenant_id == tenant_id.value)`
 > to -- and the cap last, after every predicate, because a cap applied
 > before them answers "nothing is waiting" out of a busy tenant.
 
-## `SqlWorkflowRunRepository.recent`, [line 222](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L222): Comment
+## `SqlWorkflowRunRepository.recent`, [line 229](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L229): Comment
 
 Code: `query = query.where(WorkflowRunRow.id.in_(sorted(ids)))`
 
 > An empty set is not "no filter": it is "nothing matches", and
 > `in_` of nothing is exactly that.
 
-## `SqlWorkflowRunRepository.recent`, [line 225](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L225): Comment
+## `SqlWorkflowRunRepository.recent`, [line 232](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L232): Comment
 
 Code: `query.order_by(WorkflowRunRow.started_at.desc(), WorkflowRunRow.id.desc()).limit(`
 
 > `since`'s order, and for `for_workflow`'s reason: reversed,
 > id and all, so a page boundary falls in the same place twice.
 
-## `SqlWorkflowRunRepository.taken_back_by`, [line 233](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L233): Comment
+## `SqlWorkflowRunRepository.taken_back_by`, [line 240](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L240): Comment
 
 Code: `found = await self._session.scalar(`
 
@@ -157,7 +183,7 @@ Code: `found = await self._session.scalar(`
 > and refusing a second attempt because the first did not work is
 > refusing the one attempt that might.
 
-## `SqlWorkflowRunRepository.failures`, [line 243](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L243): Comment
+## `SqlWorkflowRunRepository.failures`, [line 250](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L250): Comment
 
 Code: `query = (`
 
@@ -166,7 +192,7 @@ Code: `query = (`
 > that stopped to ask is the job asking, and one a person aborted is a
 > person changing their mind.
 
-## `SqlWorkflowRunRepository.tallies`, [line 255](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L255): Comment
+## `SqlWorkflowRunRepository.tallies`, [line 262](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L262): Comment
 
 Code: `query = (`
 
@@ -178,7 +204,7 @@ Code: `query = (`
 > NULL. No ``ORDER BY``: the answer is a mapping and the caller looks
 > each workflow up by id.
 
-## `SqlWorkflowRunRepository.since`, [line 268](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L268): Comment
+## `SqlWorkflowRunRepository.since`, [line 275](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L275): Comment
 
 Code: `query = self._rows().where(`
 
@@ -186,7 +212,7 @@ Code: `query = self._rows().where(`
 > a person reading what happened reads back from now. No limit --
 > paging belongs to the route, which is where the rig's was.
 
-## `SqlWorkflowRunRepository.since`, [line 274](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L274): Comment
+## `SqlWorkflowRunRepository.since`, [line 281](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L281): Comment
 
 Code: `query.order_by(WorkflowRunRow.started_at.desc(), WorkflowRunRow.id.desc())`
 
@@ -195,7 +221,7 @@ Code: `query.order_by(WorkflowRunRow.started_at.desc(), WorkflowRunRow.id.desc()
 > here breaks its tie the same way -- `offers.since` on
 > `seq DESC`, `known` on the id.
 
-## `SqlWorkflowRunRepository.in_flight`, [line 306](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L306): Comment
+## `SqlWorkflowRunRepository.in_flight`, [line 313](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L313): Comment
 
 Code: `busy: str | None = await self._session.scalar(`
 
@@ -210,7 +236,7 @@ Code: `busy: str | None = await self._session.scalar(`
 > awaits between it and the commit, and two gathered presses against
 > real Postgres both claimed the browser before it existed.
 
-## `SqlWorkflowRunRepository.in_flight`, [line 313](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L313): Comment
+## `SqlWorkflowRunRepository.in_flight`, [line 321](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L321): Comment
 
 Code: `.order_by(WorkflowRunRow.started_at, WorkflowRunRow.id)`
 
@@ -227,13 +253,25 @@ Code: `.order_by(WorkflowRunRow.started_at, WorkflowRunRow.id)`
 > "whichever" in that state is worse than one that returns the same
 > one twice.
 
-## `SqlWorkflowRunRepository.waiting_on`, [line 331](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L331): Comment
+## `SqlWorkflowRunRepository.in_flight`, [line 319](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L319): Comment
+
+Code: `WorkflowRunRow.executor == "extension",`
+
+> The one-device rule was written three ways -- this read, the unique index,
+> and the startup sweep -- and only two of them were narrowed to Steel when
+> `executor` arrived. A Steel run has no device, so without this a caller
+> asking "is `dev_1` busy" could be answered by a Steel run that happens to
+> have been saved with `device_id = "dev_1"` by a bug elsewhere, when the
+> index and the sweep would both already treat that row as none of their
+> concern.
+
+## `SqlWorkflowRunRepository.waiting_on`, [line 339](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L339): Comment
 
 Code: `.order_by(WorkflowRunRow.started_at.desc(), WorkflowRunRow.id.desc())`
 
 > The last question asked about this conversation is the live one.
 
-## `SqlWorkflowRunRepository.awaiting`, [line 344](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L344): Comment
+## `SqlWorkflowRunRepository.awaiting`, [line 352](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L352): Comment
 
 Code: `WorkflowRunRow.outcome == "running",`
 
@@ -244,7 +282,7 @@ Code: `WorkflowRunRow.outcome == "running",`
 > sits in the supervisor's queue forever, asking for a tap that
 > can no longer let anything out.
 
-## `SqlWorkflowRunRepository.awaiting`, [line 347](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L347): Comment
+## `SqlWorkflowRunRepository.awaiting`, [line 355](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L355): Comment
 
 Code: `.order_by(WorkflowRunRow.started_at, WorkflowRunRow.id, WorkflowRunStepRow.ord)`
 
@@ -254,7 +292,7 @@ Code: `.order_by(WorkflowRunRow.started_at, WorkflowRunRow.id, WorkflowRunStepRo
 > be started in the same instant and their parked steps would
 > otherwise interleave differently on every read.
 
-## `SqlWorkflowRunRepository.approve`, [line 353](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L353): Comment
+## `SqlWorkflowRunRepository.approve`, [line 361](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L361): Comment
 
 Code: `tapped = await self._session.execute(`
 
@@ -264,7 +302,7 @@ Code: `tapped = await self._session.execute(`
 > RETURNING rather than a rowcount, because whether this tap was the
 > one that authorised the step is the answer the caller wants.
 
-## `SqlWorkflowRunRepository.fail_orphans`, [line 373](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L373): Comment
+## `SqlWorkflowRunRepository.fail_orphans`, [line 381](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L381): Comment
 
 Code: `WorkflowRunRow.outcome == "running", WorkflowRunRow.executor == "extension"`
 
@@ -276,14 +314,14 @@ Code: `WorkflowRunRow.outcome == "running", WorkflowRunRow.executor == "extensio
 > that is still actually running. Narrowed to `executor == "extension"` so
 > only the runs this sweep was ever about are touched.
 
-## `SqlWorkflowRunRepository.fail_orphans`, [line 386](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L386): Comment
+## `SqlWorkflowRunRepository.fail_orphans`, [line 394](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L394): Comment
 
 Code: `run.steps.append(`
 
 > The reason has to land somewhere the panel shows it, and a
 > run that died before its first step has nowhere.
 
-## `SqlWorkflowRunRepository._rows`, [line 396](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L396): Comment
+## `SqlWorkflowRunRepository._rows`, [line 404](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L404): Comment
 
 Code: `return select(WorkflowRunRow).execution_options(populate_existing=True)`
 

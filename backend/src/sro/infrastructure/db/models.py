@@ -7,6 +7,7 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     Float,
     Identity,
@@ -627,6 +628,7 @@ class WorkflowRunRow(Base):
             text("(awaiting ->> 'thread')"),
             postgresql_where=text("awaiting IS NOT NULL"),
         ),
+        CheckConstraint("executor IN ('extension', 'steel')", name="ck_workflow_runs_executor"),
     )
 
 

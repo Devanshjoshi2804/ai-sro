@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
-from typing import Literal
+from typing import Literal, cast, get_args
 
 from sro.domain.observation.gesture import Gesture
 from sro.domain.skill.workflow import Workflow, ordered_cites
@@ -17,6 +17,8 @@ K_BUDGET_PER_STEP_S = 60
 K_BUDGET_FACTOR = 4
 
 Wrote = Literal["", "sending", "done", "unknown"]
+
+_ACCOUNT_KEYS = frozenset({"origin", "username"})
 
 
 @dataclass
@@ -35,7 +37,6 @@ class Progress:
     lease: str = ""
     account: dict[str, str] = field(default_factory=dict)
     start_url: str = ""
-    asking: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def of(cls, raw: Mapping[str, object] | None) -> Progress:
@@ -47,9 +48,8 @@ class Progress:
             read=_strings(raw.get("read")),
             tabs=_strings(raw.get("tabs")),
             lease=str(raw.get("lease") or ""),
-            account=_strings(raw.get("account")),
+            account=_account(raw.get("account")),
             start_url=str(raw.get("start_url") or ""),
-            asking=_strings(raw.get("asking")),
         )
 
     def as_json(self) -> dict[str, object]:
@@ -58,7 +58,10 @@ class Progress:
         return out
 
     def sending(self, order: int) -> None:
-        self.marks.setdefault(order, StepMark()).wrote = "sending"
+        mark = self.marks.setdefault(order, StepMark())
+        if mark.wrote == "done":
+            return
+        mark.wrote = "sending"
 
     def written(self, order: int) -> bool:
         return self.marks.get(order, StepMark()).wrote == "done"
@@ -66,20 +69,29 @@ class Progress:
     def in_doubt(self, order: int) -> bool:
         return self.marks.get(order, StepMark()).wrote in ("sending", "unknown")
 
-    def settle(self, order: int, *, lane: str, verdict: str) -> None:
+    def settle(self, order: int, *, lane: str, verdict: str, never_left: bool = False) -> None:
         mark = self.marks.setdefault(order, StepMark())
+        if mark.wrote == "done":
+            return
         mark.lane, mark.verdict = lane, verdict
-        if mark.wrote:
-            mark.wrote = "done" if verdict == "done" else "unknown" if verdict == "unknown" else ""
-
-
-_WROTE: dict[str, Wrote] = {"": "", "sending": "sending", "done": "done", "unknown": "unknown"}
+        if not mark.wrote:
+            return
+        if verdict == "done":
+            mark.wrote = "done"
+        elif verdict == "failed" and never_left:
+            mark.wrote = ""
+        else:
+            mark.wrote = "unknown"
 
 
 def _strings(value: object) -> dict[str, str]:
     if not isinstance(value, Mapping):
         return {}
     return {str(key): str(one) for key, one in value.items()}
+
+
+def _account(value: object) -> dict[str, str]:
+    return {key: one for key, one in _strings(value).items() if key in _ACCOUNT_KEYS}
 
 
 def _marks(value: object) -> dict[int, StepMark]:
@@ -89,11 +101,15 @@ def _marks(value: object) -> dict[int, StepMark]:
         int(key): StepMark(
             lane=str(one.get("lane") or ""),
             verdict=str(one.get("verdict") or ""),
-            wrote=_WROTE.get(str(one.get("wrote") or ""), ""),
+            wrote=_wrote(str(one.get("wrote") or "")),
         )
         for key, one in value.items()
         if isinstance(one, Mapping)
     }
+
+
+def _wrote(value: str) -> Wrote:
+    return cast(Wrote, value) if value in get_args(Wrote) else ""
 
 
 def run_budget(workflow: Workflow, by_id: Mapping[str, Gesture]) -> float:

@@ -3,15 +3,15 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
-from sqlalchemy import Select, delete, func, select
+from sqlalchemy import Select, delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sro.application.ports.repositories import WorkflowRunRepository
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
+from sro.domain.execution.workflow_run import Executor, RunStep, WorkflowRun, already_running
 from sro.domain.observation.driving import Driving
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import DeviceId, TenantId
@@ -147,7 +147,7 @@ def _row_to_run(row: WorkflowRunRow, steps: list[RunStep]) -> WorkflowRun:
         cost_usd=row.cost_usd,
         unpriced=row.unpriced,
         progress=dict(row.progress or {}),
-        executor=row.executor,
+        executor=cast(Executor, row.executor),
     )
 
 
@@ -167,7 +167,7 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
                     set_={
                         column.name: statement.excluded[column.name]
                         for column in WorkflowRunRow.__table__.columns
-                        if column.name != "id"
+                        if column.name not in ("id", "progress")
                     },
                 )
             )
@@ -186,6 +186,13 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
                     [_step_values(run.id, step) for step in run.steps]
                 )
             )
+
+    async def record_progress(self, run_id: str, progress: dict[str, object]) -> None:
+        await self._session.execute(
+            update(WorkflowRunRow)
+            .where(WorkflowRunRow.id == run_id)
+            .values(progress=dict(progress))
+        )
 
     async def get(self, tenant_id: TenantId, run_id: str) -> WorkflowRun | None:
         query = self._rows().where(
@@ -309,6 +316,7 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
                 WorkflowRunRow.tenant_id == tenant_id.value,
                 WorkflowRunRow.device_id == device_id.value,
                 WorkflowRunRow.outcome == "running",
+                WorkflowRunRow.executor == "extension",
             )
             .order_by(WorkflowRunRow.started_at, WorkflowRunRow.id)
             .limit(1)

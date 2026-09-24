@@ -56,7 +56,38 @@ Code: `K_BUDGET_FACTOR = 4`
 > practised operator's click-through, so the budget scales the demonstrated
 > span by four rather than taking it at face value.
 
-## `run_budget`, [line 99](../../../../../../../backend/src/sro/domain/execution/progress.py#L99): Docstring
+## `Progress.account`, [line 38](../../../../../../../backend/src/sro/domain/execution/progress.py#L38): Comment
+
+Code: `account: dict[str, str] = field(default_factory=dict)`
+
+> Which account is driving the run, never what proves it: `_account` keeps
+> only `origin` and `username` on the way in from JSONB, so a caller that
+> hands it a password or a session cookie loses that key at the boundary
+> rather than carrying it into a `workflow_runs` row, a log, or evidence.
+> Global constraint 10 -- a credential lives in the vault only.
+
+## `Progress.of`, [line 42](../../../../../../../backend/src/sro/domain/execution/progress.py#L42): Docstring
+
+> Raises on a malformed row rather than reading it as empty. `step` that is
+> not an integer, or a mark keyed by something that is not a step order,
+> fails loudly here -- because reading either as "no progress yet" would
+> restart a retried activity from step zero and resend every write it had
+> already made. An unrecognised `wrote` value is the one exception: `_wrote`
+> drops it to `""` rather than raising, since it names a state this code
+> never wrote and the safest reading of an unknown mark is "not sent".
+
+## `Progress.settle`, [line 72](../../../../../../../backend/src/sro/domain/execution/progress.py#L72): Docstring
+
+> `done` is sticky: both `sending` and `settle` return before touching a mark
+> already `done`, so nothing after the write was confirmed -- a retried
+> activity, a late `failed` from an abandoned verification read -- can un-send
+> it. A verdict of `failed` on a write that was `sending` is never read as
+> "safe to retry" on its own: the lane may have submitted the form before it
+> lost the page, so the mark becomes `unknown` unless the caller can say,
+> with `never_left=True`, that this specific attempt is confirmed never to
+> have left -- the one case narrow enough to clear it outright.
+
+## `run_budget`, [line 115](../../../../../../../backend/src/sro/domain/execution/progress.py#L115): Docstring
 
 > Derived from the demonstration because nothing else in a `Workflow` carries
 > a duration -- it is a sequence of steps and cited gestures, not a timing.
@@ -65,3 +96,8 @@ Code: `K_BUDGET_FACTOR = 4`
 > earliest and latest cited gesture, in the order the steps use them, and
 > never off a single constant that would starve a long job or over-allow a
 > short one.
+>
+> ponytail: `shown` is the raw span, idle time included -- a recording with a
+> multi-hour pause between two cited gestures yields a budget of the same
+> order. Trim idle gaps out of `shown`, or cap it outright, once a real job's
+> demonstrated pause makes a run's budget meaningless.

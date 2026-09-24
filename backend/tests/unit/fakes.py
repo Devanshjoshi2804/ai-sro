@@ -1722,7 +1722,19 @@ class FakeWorkflowRunRepository:
         kept.started_at = _stored(kept.started_at)
         if kept.finished_at is not None:
             kept.finished_at = _stored(kept.finished_at)
+        # `progress` is written by `save` only on the row's first insert, same
+        # as the real store's INSERT columns; every later `save` leaves it
+        # exactly as the row already has it, so a caller that loaded the run
+        # before a worker settled a step and now saves its stale copy cannot
+        # roll that mark back -- only `record_progress` ever changes it again.
+        existing = self.rows.get(run.id)
+        kept.progress = dict(run.progress) if existing is None else dict(existing.progress)
         self.rows[run.id] = kept
+
+    async def record_progress(self, run_id: str, progress: dict[str, object]) -> None:
+        found = self.rows.get(run_id)
+        if found is not None:
+            found.progress = dict(progress)
 
     async def get(self, tenant_id: TenantId, run_id: str) -> WorkflowRun | None:
         run = self.rows.get(run_id)
@@ -1845,6 +1857,7 @@ class FakeWorkflowRunRepository:
             if run.tenant == tenant_id.value
             and run.device_id == device_id.value
             and run.outcome == "running"
+            and run.executor == "extension"
         ]
         driving.sort(key=lambda run: (when(run.started_at), run.id))
         return driving[0].id if driving else None

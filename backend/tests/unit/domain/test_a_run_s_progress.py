@@ -1,3 +1,5 @@
+import pytest
+
 from sro.domain.execution.progress import K_BUDGET_FLOOR_S, Progress, run_budget
 from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.skill.workflow import Step, Workflow
@@ -30,7 +32,14 @@ def timed_job(*, seconds: float, steps: int) -> tuple[Workflow, dict[str, Gestur
 
 
 def test_progress_survives_its_row() -> None:
-    progress = Progress(step=2, read={"id": "ct-9"}, tabs={"main": "T1"}, lease="lse_1")
+    progress = Progress(
+        step=2,
+        read={"id": "ct-9"},
+        tabs={"main": "T1"},
+        lease="lse_1",
+        account={"origin": "https://example.com", "username": "op"},
+        start_url="https://example.com/start",
+    )
     progress.sending(1)
     progress.settle(0, lane="ui", verdict="done")
 
@@ -52,6 +61,62 @@ def test_a_settled_write_is_written_once() -> None:
     progress.settle(3, lane="api", verdict="done")
 
     assert progress.written(3) and not progress.in_doubt(3)
+
+
+def test_a_done_mark_is_never_overwritten() -> None:
+    progress = Progress()
+    progress.sending(3)
+    progress.settle(3, lane="api", verdict="done")
+
+    progress.sending(3)
+    progress.settle(3, lane="ui", verdict="failed", never_left=True)
+
+    assert progress.written(3) and not progress.in_doubt(3)
+    assert progress.marks[3].lane == "api" and progress.marks[3].verdict == "done"
+
+
+def test_settle_unknown_leaves_the_write_in_doubt() -> None:
+    progress = Progress()
+    progress.sending(3)
+    progress.settle(3, lane="ui", verdict="unknown")
+
+    assert progress.in_doubt(3) and not progress.written(3)
+
+
+def test_settle_failed_without_confirmation_is_still_in_doubt() -> None:
+    """A lane that fails after its write may already have sent it -- so a bare
+    `failed` must never read as "safe to retry"."""
+    progress = Progress()
+    progress.sending(3)
+    progress.settle(3, lane="ui", verdict="failed")
+
+    assert progress.in_doubt(3) and not progress.written(3)
+
+
+def test_settle_failed_that_never_left_clears_the_mark() -> None:
+    progress = Progress()
+    progress.sending(3)
+    progress.settle(3, lane="ui", verdict="failed", never_left=True)
+
+    assert not progress.in_doubt(3) and not progress.written(3)
+
+
+def test_a_malformed_row_raises_rather_than_reading_as_empty() -> None:
+    """Reading a malformed row as empty would restart a run from zero and
+    repeat every write it already made -- so it must raise instead."""
+    with pytest.raises(ValueError):
+        Progress.of({"step": "not-a-number"})
+
+    with pytest.raises(ValueError):
+        Progress.of({"marks": {"not-a-number": {"wrote": "done"}}})
+
+
+def test_account_never_carries_a_secret() -> None:
+    raw = {"account": {"origin": "https://example.com", "username": "op", "password": "hunter2"}}
+
+    progress = Progress.of(raw)
+
+    assert progress.account == {"origin": "https://example.com", "username": "op"}
 
 
 def test_the_budget_grows_with_what_the_operator_took() -> None:

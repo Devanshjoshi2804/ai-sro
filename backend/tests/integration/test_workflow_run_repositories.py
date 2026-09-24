@@ -537,6 +537,71 @@ class TestWorkflowRuns:
         assert "workflow_run_steps" not in asked[0], "nothing is loaded, so no step is either"
 
 
+class TestProgressWrittenOnlyByRecordProgress:
+    """§7.3: "a write already recorded as done is never sent again, even when
+    Temporal retries." `save` upserts a whole in-memory copy of a run, and an
+    API path (a mail reply, a stop, a close) routinely loads a run, does
+    something unrelated to `progress`, and saves it back -- possibly after a
+    worker has since marked a later step `done` on the same row. If `save`
+    ever wrote `progress`, that stale copy would rewind it, and a retried
+    activity would resend a write already made."""
+
+    async def test_a_stale_whole_row_save_does_not_roll_progress_back(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        run = _run(executor="steel", device_id="")
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+
+        # The worker's view: loaded once, then it marks step 0 done.
+        async with SqlUnitOfWork(session_factory) as uow:
+            worker_copy = await uow.workflow_runs.get(TENANT, run.id)
+            assert worker_copy is not None
+            await uow.workflow_runs.record_progress(
+                run.id, {"step": 1, "marks": {"0": {"wrote": "done"}}}
+            )
+            await uow.commit()
+
+        # A concurrent API path's view: loaded BEFORE the worker's write above,
+        # touches something that has nothing to do with progress, and saves
+        # its now-stale whole copy back.
+        async with SqlUnitOfWork(session_factory) as uow:
+            stale_copy = await uow.workflow_runs.get(TENANT, run.id)
+            assert stale_copy is not None
+            stale_copy.watched = True
+            await uow.workflow_runs.save(stale_copy)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            back = await uow.workflow_runs.get(TENANT, run.id)
+
+        assert back is not None
+        assert back.watched is True, "the stale save's own change still landed"
+        assert back.progress == {
+            "step": 1,
+            "marks": {"0": {"wrote": "done"}},
+        }, "the worker's done mark must survive a stale whole-row save"
+
+    async def test_the_first_save_still_writes_the_initial_progress(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """`record_progress` is the only path that CHANGES progress -- the
+        first `save` still has to write whatever progress the caller starts
+        the row with, since nothing else has inserted the row yet."""
+        run = _run(executor="steel", device_id="", progress={"step": 0, "lease": "lse_1"})
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            back = await uow.workflow_runs.get(TENANT, run.id)
+
+        assert back is not None and back.progress == {"step": 0, "lease": "lse_1"}
+
+
 class TestOrphans:
     async def test_a_run_still_running_when_the_rig_starts_is_failed_and_says_why(
         self, session_factory: async_sessionmaker[AsyncSession]
@@ -881,6 +946,35 @@ class TestOneRunningRunPerBrowser:
             "step": 2,
             "lease": "lse_2",
         }
+
+
+class TestExecutorIsConstrained:
+    """I1: the one-device rule is written three ways -- the index, the
+    startup sweep, and `in_flight` -- and all three read `executor` as a
+    bare string. A CHECK constraint is the one place a mistyped value
+    (`"Extension"`, `""`) cannot slip past all three at once."""
+
+    async def test_postgres_refuses_an_unknown_executor_value(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        bad = _run(id="run_bad_executor", executor="Extension")
+
+        with pytest.raises(IntegrityError):
+            async with SqlUnitOfWork(session_factory) as uow:
+                await uow.workflow_runs.save(bad)
+                await uow.commit()
+
+    async def test_in_flight_ignores_a_steel_run_even_if_it_names_a_device(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        odd = _run(id="run_steel_odd_device", device_id="dev_1", executor="steel")
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(odd)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.workflow_runs.in_flight(TENANT, DeviceId("dev_1")) is None
 
 
 class TestOneSkillRunPerBrowser:

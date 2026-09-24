@@ -5,10 +5,12 @@ whose context is not open is `PageGone`, whatever else the browser holds."""
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from typing import Any
 
 import httpx
 import pytest
+from playwright.async_api import async_playwright
 
 from sro.application.ports.page import PageGone, SessionRef
 from sro.config import get_settings
@@ -199,3 +201,87 @@ async def test_a_listener_hears_only_its_own_account(
     await driver.open_tab(one, rig.url("/public?one"))
     assert any(url.endswith("/public?one") for url in heard)
     assert not any("two" in url for url in heard)
+
+
+async def test_a_tab_closed_mid_evaluate_is_page_gone_not_a_raw_playwright_error(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/public"))
+
+    async def close_soon() -> None:
+        await asyncio.sleep(0.1)
+        await driver.close_tab(one, target)
+
+    closer = asyncio.create_task(close_soon())
+    try:
+        with pytest.raises(PageGone):
+            await driver.evaluate(one, target, "new Promise(() => {})")
+    finally:
+        await closer
+
+
+async def test_goto_on_a_disposed_context_is_page_gone_within_a_bound_not_a_30s_hang(
+    monkeypatch: pytest.MonkeyPatch,
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    monkeypatch.setattr(driver_module, "K_ACTION_TIMEOUT_S", 1.0)
+    target = await driver.open_tab(one, rig.url("/public"))
+
+    stall = await asyncio.start_server(lambda *_: None, "127.0.0.1", 0)
+    async with stall:
+        host, port = stall.sockets[0].getsockname()[:2]
+        serving = asyncio.create_task(stall.serve_forever())
+        try:
+            await close_account(one)
+
+            loop = asyncio.get_running_loop()
+            started = loop.time()
+            with pytest.raises(PageGone):
+                await driver.goto(one, target, f"http://{host}:{port}/")
+            assert loop.time() - started < 10, "goto hung instead of respecting the deadline"
+        finally:
+            serving.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await serving
+
+
+async def test_a_listener_survives_a_reconnect_while_the_context_stays_alive(
+    rig: Rig,  # noqa: F811
+    cdp_url: str,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    heard: list[str] = []
+    await driver.on(one, "request", lambda request: heard.append(request.url))
+
+    target = await driver.open_tab(one, rig.url("/public?before"))
+    assert any(url.endswith("/public?before") for url in heard)
+
+    await driver._links[cdp_url].browser.close()
+
+    await driver.goto(one, target, rig.url("/public?after"))
+    assert any(url.endswith("/public?after") for url in heard)
+
+
+async def test_the_default_context_id_never_reaches_a_default_tab(
+    rig: Rig,  # noqa: F811
+    cdp_url: str,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    async with httpx.AsyncClient() as client:
+        endpoint = await websocket_debugger_url(cdp_url, client)
+    async with async_playwright() as p:
+        browser = await p.chromium.connect_over_cdp(endpoint)
+        raw = await browser.new_browser_cdp_session()
+        made = await raw.send("Target.createTarget", {"url": rig.url("/public")})
+        default_target = str(made["targetId"])
+        found = await raw.send("Target.getBrowserContexts")
+        default_context = str(found["defaultBrowserContextId"])
+        await browser.close()
+
+    with pytest.raises(PageGone):
+        await driver.url_of(SessionRef(default_context, cdp_url), default_target)

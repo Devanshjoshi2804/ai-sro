@@ -3,10 +3,10 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 from urllib.parse import urlsplit
 
 import httpx
@@ -15,9 +15,10 @@ from playwright.async_api import Error as PlaywrightError
 
 from sro.application.ports.page import PageGone, SessionRef
 from sro.infrastructure.steel.capture import addressed
-from sro.infrastructure.steel.client import websocket_debugger_url
+from sro.infrastructure.steel.client import cdp_origin, websocket_debugger_url
 
 K_ATTACH_TIMEOUT_S = 10
+K_ACTION_TIMEOUT_S = 15
 
 _SEED_STORAGE = """(items) => {
   for (const { name, value } of items) {
@@ -25,26 +26,39 @@ _SEED_STORAGE = """(items) => {
   }
 }"""
 
+T = TypeVar("T")
+
 
 @dataclass
 class _Link:
+    cdp_url: str
+    authority: str
     browser: Browser
     raw: CDPSession
     pages: dict[str, Page] = field(default_factory=dict)
     owners: dict[str, str] = field(default_factory=dict)
     waiting: dict[str, asyncio.Future[Page]] = field(default_factory=dict)
-    listeners: dict[str, list[tuple[str, Callable[..., Any]]]] = field(default_factory=dict)
 
 
 class SteelDriver:
     def __init__(self, page_code_path: str) -> None:
         self._page_code = Path(page_code_path).read_text(encoding="utf-8")
         self._playwright: Playwright | None = None
-        self._lock = asyncio.Lock()
+        self._locks: dict[str, asyncio.Lock] = {}
+        self._locks_guard = asyncio.Lock()
         self._links: dict[str, _Link] = {}
+        self._listeners: dict[tuple[str, str], list[tuple[str, Callable[..., Any]]]] = {}
+
+    async def _lock_for(self, cdp_url: str) -> asyncio.Lock:
+        async with self._locks_guard:
+            found = self._locks.get(cdp_url)
+            if found is None:
+                found = self._locks[cdp_url] = asyncio.Lock()
+            return found
 
     async def _link(self, cdp_url: str) -> _Link:
-        async with self._lock:
+        lock = await self._lock_for(cdp_url)
+        async with lock:
             link = self._links.get(cdp_url)
             if link is not None and link.browser.is_connected():
                 return link
@@ -53,13 +67,20 @@ class SteelDriver:
                 self._playwright = await async_playwright().start()
             try:
                 async with httpx.AsyncClient(timeout=K_ATTACH_TIMEOUT_S) as client:
+                    authority = await cdp_origin(cdp_url)
                     endpoint = await websocket_debugger_url(cdp_url, client)
                 browser = await self._playwright.chromium.connect_over_cdp(
                     endpoint, timeout=K_ATTACH_TIMEOUT_S * 1000
                 )
-                link = _Link(browser, await browser.new_browser_cdp_session())
+                link = _Link(cdp_url, authority, browser, await browser.new_browser_cdp_session())
             except (httpx.HTTPError, PlaywrightError) as why:
                 raise PageGone(f"could not attach to the browser at {cdp_url}: {why}") from why
+            for stale_url, stale in list(self._links.items()):
+                if stale_url != cdp_url and stale.authority == authority:
+                    del self._links[stale_url]
+                    self._locks.pop(stale_url, None)
+                    with contextlib.suppress(PlaywrightError):
+                        await stale.browser.close()
             context = browser.contexts[0]
             already = list(context.pages)
             context.on("page", lambda page: self._arrived(link, page))
@@ -75,10 +96,6 @@ class SteelDriver:
                 info = (await cdp.send("Target.getTargetInfo"))["targetInfo"]
             finally:
                 await cdp.detach()
-            await page.add_init_script(script=self._page_code)
-            for frame in page.frames:
-                with contextlib.suppress(PlaywrightError):
-                    await frame.evaluate(self._page_code)
         except PlaywrightError:
             return
         target_id, owner = str(info["targetId"]), str(info.get("browserContextId", ""))
@@ -88,10 +105,20 @@ class SteelDriver:
             link.owners.pop(target_id, None)
 
         page.once("close", gone)
-        link.pages[target_id] = page
         link.owners[target_id] = owner
-        for event, handler in link.listeners.get(owner, []):
+        for event, handler in self._listeners.get((link.cdp_url, owner), []):
             page.on(event, handler)  # type: ignore[call-overload]
+
+        try:
+            await page.add_init_script(script=self._page_code)
+            for frame in page.frames:
+                with contextlib.suppress(PlaywrightError):
+                    await frame.evaluate(self._page_code)
+        except PlaywrightError:
+            link.owners.pop(target_id, None)
+            return
+
+        link.pages[target_id] = page
         waiter = link.waiting.pop(target_id, None)
         if waiter is not None and not waiter.done():
             waiter.set_result(page)
@@ -110,11 +137,33 @@ class SteelDriver:
         return link
 
     async def _page(self, session: SessionRef, target_id: str) -> Page:
-        link = await self._link(session.cdp_url)
+        link = await self._context(session)
         page = link.pages.get(target_id)
         if page is None or page.is_closed() or link.owners.get(target_id) != session.context_id:
             raise PageGone(f"tab {target_id} is not open in context {session.context_id}")
         return page
+
+    async def _target_alive(self, session: SessionRef, target_id: str) -> bool:
+        link = self._links.get(session.cdp_url)
+        if link is None:
+            return False
+        try:
+            await self._send(link, "Target.getTargetInfo", {"targetId": target_id})
+        except PageGone:
+            return False
+        return True
+
+    async def _call(
+        self, session: SessionRef, target_id: str, page: Page, action: Callable[[], Awaitable[T]]
+    ) -> T:
+        try:
+            return await action()
+        except PlaywrightError as why:
+            if page.is_closed() or not await self._target_alive(session, target_id):
+                raise PageGone(
+                    f"tab {target_id} in context {session.context_id} is gone: {why}"
+                ) from why
+            raise
 
     async def open_tab(self, session: SessionRef, url: str) -> str:
         link = await self._context(session)
@@ -141,20 +190,31 @@ class SteelDriver:
         return target_id
 
     async def close_tab(self, session: SessionRef, target_id: str) -> None:
-        await (await self._page(session, target_id)).close()
+        page = await self._page(session, target_id)
+        await self._call(session, target_id, page, page.close)
 
     async def goto(self, session: SessionRef, target_id: str, url: str) -> None:
-        await (await self._page(session, target_id)).goto(url, wait_until="domcontentloaded")
+        page = await self._page(session, target_id)
+        await self._call(
+            session,
+            target_id,
+            page,
+            lambda: page.goto(
+                url, wait_until="domcontentloaded", timeout=K_ACTION_TIMEOUT_S * 1000
+            ),
+        )
 
     async def url_of(self, session: SessionRef, target_id: str) -> str:
         return (await self._page(session, target_id)).url
 
     async def evaluate(self, session: SessionRef, target_id: str, expression: str) -> object:
-        return await (await self._page(session, target_id)).evaluate(expression)
+        page = await self._page(session, target_id)
+        return await self._call(session, target_id, page, lambda: page.evaluate(expression))
 
     async def on(self, session: SessionRef, event: str, handler: Callable[..., Any]) -> None:
         link = await self._context(session)
-        link.listeners.setdefault(session.context_id, []).append((event, handler))
+        key = (session.cdp_url, session.context_id)
+        self._listeners.setdefault(key, []).append((event, handler))
         for target_id, page in list(link.pages.items()):
             if link.owners.get(target_id) == session.context_id:
                 page.on(event, handler)  # type: ignore[call-overload]
@@ -219,10 +279,12 @@ class SteelDriver:
                 await page.close()
 
     async def forget(self, session: SessionRef) -> None:
+        key = (session.cdp_url, session.context_id)
+        handlers = self._listeners.pop(key, [])
         link = self._links.get(session.cdp_url)
-        if link is None:
+        if link is None or not handlers:
             return
-        for event, handler in link.listeners.pop(session.context_id, []):
+        for event, handler in handlers:
             for target_id, page in list(link.pages.items()):
                 if link.owners.get(target_id) == session.context_id:
                     page.remove_listener(event, handler)

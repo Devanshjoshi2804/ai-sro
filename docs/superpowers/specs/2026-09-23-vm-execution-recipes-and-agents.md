@@ -13,6 +13,7 @@ Status: agreed direction, 2026-09-23. Nothing below is built yet unless marked *
 | D5 | Allowlists belong to the extension (which hosts it watches) and the panel. There is no mail-sender allowlist; the VM is one unified executor. Mail and page text are **untrusted data** to every agent, and that is enforced in the prompts. | Operator lead |
 | D6 | Jobs are compiled into **recipes** and run **without a model or a screenshot**. A model is called only when a recipe step fails, and the fix is written back so the same failure is not repeated. | Operator lead |
 | D7 | Agents and their prompts are first-class: each prompt is versioned, and is measured on real cases before it ships. | Operator lead |
+| D8 | **Runs go in parallel**, as many as the Steel pool can hold; a request beyond capacity queues rather than being refused. Runs for the same account run as **tabs of one Steel browser session** that holds that account's login, so they share cookies and CSRF token and one login serves them all. Steps that change session-wide context (for example the current facility) take a per-account lock; each browser has a tab cap, and runs beyond it queue. Steps on a system with a connector (Gmail today) are **tool calls, not tabs**: the runner's order is connector tool, proven API call, then UI. | Operator lead |
 
 ## 2. Why: measured latency
 
@@ -151,6 +152,15 @@ steps:
 - **Medium:** `api` when the write is in `learned_writes` and its body can be re-aimed (`write_plan_for`); otherwise `ui`; `tool` for mail steps (**done** on main: `e5ca64a8`, `ec42ef39` send mail through the mailbox, not the composer).
 - A recipe compiles only if every required parameter is bound, every write step has a proof, and every UI step has at least one locator. A job that fails to compile is reported in the console, not run.
 
+### 5.4 Jobs that span tabs
+
+Measured 2026-09-23: 5 of 59 learned jobs (local) were done across more than one tab. Today the tab is captured on every gesture (`tab_id`) but lost afterwards: the mining evidence does not show it, steps do not store it, and the run engine has no tab concept (the extension picks one tab per origin, `tabForRun`). A job that needs two tabs of one system, or a popup, is flattened into one tab.
+
+- **Learning:** each step gets a **tab role** ("tab 1", "tab 2", "opened from tab 1" when a click opened a popup or new tab), derived in code from the cited gestures' `tab_id` and `popup_opened` page events, not by the model. It is stored on the step (additive column). The mining evidence shows the role, so a two-tab doing reads as one job.
+- **Recipe:** every step carries `tab: <role>`; a step that opens one says `opens_tab: <role>`.
+- **Runner:** each run holds a map from role to page inside its account's browser (D8). A step for a new role opens a tab, or catches the popup its own click opened; later steps switch to their role's page. Values cross tabs through `Step.uses`. Tool steps (Gmail) take no tab.
+- **Parallel runs:** roles are per run, so runs never share or steal each other's tabs.
+
 ## 6. Execution
 
 ### 6.1 Fast path
@@ -170,6 +180,25 @@ In order: the status of the page's own call (CDP network events in Steel), then 
 5. **Last resort:** a screenshot and the sight rung (`plan_by_sight`) for pages the DOM does not describe (canvas, some dialogs). If that also fails, ask in the panel (§4.2 item 4).
 
 Recipes that keep failing after repair are flagged for re-learning from the operator's next demonstration.
+
+### 6.4 Sessions: sign-in, expiry and recovery
+
+**Credentials.** A session signs in with the **username recorded in the job's sign-in evidence** and the **password from the vault** under the run-time key `{tenant}/{login origin}/password`, which is the key the panel's password box writes and the run engine reads. The connection-level keys (`{tenant}/{system}/username|password`) are empty in real data and must be retired in favour of that one scheme. On the deployed QA box (tenant `greyorange`, checked 2026-09-23) the `connections` table is empty and the vault is the file vault; sign-in happens by running the mined job "Log in to Keycloak" through the run engine (9 held, 5 stopped runs since 2026-09-20). The session broker must build on that path, not on the unused connection-based sign-in. After the POC, a service account replaces the operator's credentials (D9).
+
+**Edge cases the runner must handle**, each learned from what the extension observes the operator doing, never hardcoded per system:
+
+| Situation | How it shows | Handling |
+| --- | --- | --- |
+| Session expired between runs | First navigation lands on the identity provider | Session broker signs in (§3), then the run starts |
+| Session expired mid-run | A step's page is the identity provider, or a call answers 401 | Sign in, return to the step's page, **resume that step** (never from step 0) |
+| Stale CSRF token | A call answers 403/419, or the app says the request was rejected | Re-read the token from the page (or reload once), retry **reads** once; a **write** with an unknown outcome is never retried (§4.3) |
+| App state stale after a long idle | Controls missing, masks stuck, "loading" that never ends | Reload the page once, re-locate the step, then repair (§6.3) |
+| Bad request from a replayed call | 400 with a validation message | Stop the step, report the server's message, try the UI path once if the step has one |
+| Credentials refused | The credential form reappears after one submit | Stop; latch "credentials refused" on that vault key; ask the operator in the panel; no retries until a new password is stored |
+| MFA or a new prompt | Unknown form after sign-in | Stop and ask in the panel (D4) |
+| Account busy elsewhere | (measured not to happen on QA) | Parallel logins are allowed; re-measure per customer |
+
+**Monitoring feeds recovery.** When the operator recovers from one of these by hand in their own browser, the extension captures it, and the miner learns the recovery the same way it learns jobs, so the next run handles it without asking.
 
 ## 7. Agents and prompts
 
@@ -226,7 +255,7 @@ Per run step, record: `started_at`, `finished_at`, `model_ms`, `browser_ms`, `wa
 | --- | --- | --- |
 | 1 | Timing per step (§9) | Baseline table for today's runs, locally and on QA |
 | 2 | Evaluation harness (§8) with the three suites | Baseline accuracy and cost for today's prompts |
-| 3 | Recipe compiler and YAML export (§5); read-only | Every learned job compiles, or has a listed reason why not |
+| 3 | Recipe compiler and YAML export (§5), including tab roles (§5.4); read-only | Every learned job compiles, or has a listed reason why not; the 5 multi-tab jobs carry correct roles |
 | 4 | Recipe rung before the model rung in today's engine | Measured drop in model calls and step time, with no loss of verified runs |
 | 5 | Verification from the page's own calls (§6.2) | Screen-model verifications fall to screen-only steps |
 | 6 | Remove the approval gates; autonomy switch; stop-don't-ask rails (§4) | A mined job runs end to end with no panel interaction |
@@ -249,12 +278,53 @@ Each phase is its own branch and review, merged only on the operator lead's word
 ## 12. Risks and open questions
 
 - **MFA:** automated sign-in refuses MFA today (`infrastructure/steel/sign_in.py`). Needs a per-account policy: an exempt service account, or MFA handed to the panel.
-- **One session per account:** a VM login with an operator's account signs out their own browser.
+- **One session per account: tested false on QA (2026-09-23).** A second login for the same account in a separate Steel context (Azure chooser, then Keycloak, vault password, no MFA, 50 s) left the first session working: both read `GET /data/WM/wm/clients` from the server (200, 34 rows), and the first was still valid 20 s later. The code notes claiming a server login signs the operator out are wrong for this environment; re-check once from the VM's IP.
+- **Server-side API calls with a Steel session work:** cookies plus the page's CSRF token, 625 ms per call, no browser needed after login.
+- **The production sign-in driver crashes on this login chain** (`infrastructure/steel/sign_in.py`: `_settle` gives up after 1.5 s while the portal is still redirecting through Azure and Keycloak, then `query_selector` hits a destroyed page). Fixed in audit wave 1, Task 8.
 - **Account model:** a service account (Blue Yonder's audit shows the bot) or per-operator logins (the vault holds each operator's credentials).
 - **Learning source:** learning stays in the operator's browser (D2). If it moves to Steel later, capture must move with it.
 - **Locator parity:** today the extension's locator code (`in-page.js`) and the backend driver differ. The Steel runner must inject the same code.
 - **Duplicate jobs:** four defects in `identity.py` still create duplicates (see the architecture doc, L7). Fix them before recipes multiply them.
 - **Wrong job, full autonomy:** with no approval, a mis-mined job writes wrong data. The mitigation is compile-time checks (§5.3), stopping on any unconfirmed write, audit and undo.
+
+## 13. The panel design (Ember & Glass) under this direction
+
+The panel hand-off (`designof-panel/`, 2026-09-22, not in git) predates decisions D1–D7. **The decisions are firm; the design is adjusted to fit them, never the reverse.** Measured against `main` at `4d7ef474`, about 57% of the design is built (36 of 63 product screens), and about 90% of what was agreed for the reskin and passive learning. This section says what still holds, what the new decisions overturn, and which backend work the design needs.
+
+### 13.1 Overturned
+
+| Design element | Why it changes | Becomes |
+| --- | --- | --- |
+| Approve a write; Waiting confirmations; "Rehearse → Approve → On its own" ladder (`07` Runs; `08` #11) | D3: no approvals | A report on each learned job ("learned from 6 doings · 3 verified runs") and one control per job: "Stop doing this on its own" |
+| WMS in-page band, screen 57 (built, `background/showing.js`) | D1: no operator tab is driven | The panel run card, plus an optional live view of the Steel session (`steel/screencast.py`) |
+| Learning cards from `/v1/candidates`; "Two halves of one job" joins (`07` GAP 1) | That pipeline is dead and is removed in audit wave 1 (Task 6) | Learned cards read `/v1/workflows` (already used by `panel/learned.js`). **"Not a job" (screen 10) calls the retire route added in wave 1 Task 7**, so a dismissed job is never re-mined |
+| Password "Save for this job" typed into the operator's page | D1 | The password goes to the vault or the single-use hold; the session broker types it in Steel |
+
+### 13.2 Needed backend work (reasonable, and fits "the panel is for decisions only")
+
+| # | Need | Design reference | Where it comes from |
+| --- | --- | --- | --- |
+| P1 | Thread list with status (running, parked, waiting on a reply, needs you, done), last activity, origin (mail or chat, and the sender), unread | `07` GAPS 2–3; screen list shows no thread switcher yet | Extend `ThreadSummary` from the thread's open run, its wait and unanswered offers or questions |
+| P2 | Each optional field's class before a run: learned, will set and check, can't set | `07` GAP 5 | Produced by the recipe compiler (§5.3) |
+| P3 | Per step, where each written value came from (request, mail, recipe default) | `07` GAP 7 | Recorded by the recipe runner (§6) on each run step |
+| P4 | A field's maximum length before the press (`ZZAUDIT` saved as `ZZAU`) | `07` GAP 9; `08` #5 | Knowledge-base field dictionary where known, else the learned `holds` limit; shown on the offer card |
+| P5 | "Reading your mailbox · checked N s ago" | `07` Offers; §12 of the screen audit | The server mail poll (§3) reports its last look |
+| P6 | Recording only half (screen 13); pause, excluded host and grant states | `07` Strip | Extension monitoring status, unchanged by D1 |
+
+### 13.3 Future scope: compose a job
+
+The design's compose case (screens 42–54, 60, 62–64) is reasonable once recipes exist. It becomes a **composer agent** that chains proven recipes through their data links (`Step.uses`), with a validator that marks each piece Proven, Seen once, Built-in or New. It needs, first: recipes (§5), recorded `uses` edges, and a catalog endpoint of proven recipes. Two design questions must be answered before it is built:
+
+- `08` #19: under full autonomy (D3), may a step the system has never seen run on its own, and does a supervised first run count as a demonstration?
+- `08` #18: who pays for live model use in compose, and does the operator consent per use?
+
+### 13.4 Still open from the design (owner's call)
+
+Brand font (Geist in the design, Inter in the brand), primary-button and muted-text contrast (both fail AA), the blue info tint, whether pending threads raise the Waiting badge, stale mail requests (swept after a day vs never), deadline wording for 7-day waits, and whether "Never watch this site" stops a run in progress (moot under D1: no run uses that tab).
+
+### 13.5 Build order impact
+
+P1 and the "Not a job" wiring can start now (they need no Steel). P2 and P3 land with phases 3–4 (recipe compiler and runner). P4 lands with phase 3. P5 lands with the server mail poll. The run card changes (13.1) land with phase 6 (approval gates removed) and phase 10 (Steel runner).
 
 ## Related
 

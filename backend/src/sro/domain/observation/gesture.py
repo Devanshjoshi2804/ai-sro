@@ -21,6 +21,7 @@ class Component:
     name: str | None = None
     xtype: str | None = None
     required: bool | None = None
+    chain: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +37,8 @@ class Target:
     required: bool | None = None
 
     component: Component | None = None
+    bounds: dict[str, float] = field(default_factory=dict, hash=False)
+    attributes: dict[str, object] = field(default_factory=dict, hash=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +49,7 @@ class Action:
     secret: bool = False
     url: str | None = None
     target: Target | None = None
+    modifiers: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

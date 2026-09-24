@@ -11,6 +11,7 @@ from typing import Any, cast
 
 from sro.application.capture.rig_wire import Batch
 from sro.application.observation.correlate import ATTRIBUTION_SECONDS, correlate, system_of
+from sro.infrastructure.db.evidence import _gesture_to_row, _row_to_gesture
 from tests.unit.domain.rig.conftest import BATCH
 
 TENANT = "new"
@@ -290,3 +291,28 @@ def test_a_popup_mark_keeps_the_tab_that_opened_it() -> None:
     _, _, marks, _ = correlate(_batch([popup]), TENANT)
 
     assert marks[0].opener_tab_id == 7
+
+
+def test_every_captured_detail_of_the_control_is_kept_and_stored() -> None:
+    event = copy.deepcopy(GESTURE_TYPE)
+    target = event["gesture"]["target"]
+    target["bounds"] = {"x": 10.0, "y": 20.0, "width": 80.0, "height": 24.0}
+    target["attributes"] = {"name": "clientCode", "autocomplete": "off"}
+    target["component"] = {
+        "xtype": "textfield",
+        "itemId": "clientCode",
+        "query": "panel#clients textfield#clientCode",
+        "chain": ["panel#clients", "textfield#clientCode"],
+    }
+    event["gesture"]["modifiers"] = ["shift"]
+
+    gestures, _, _, _ = correlate(_batch([event]), TENANT)
+    stored = _row_to_gesture(_gesture_to_row(gestures[0]))
+
+    action = stored.action
+    assert action.target is not None and action.target.component is not None
+    assert action.target.bounds == {"x": 10.0, "y": 20.0, "width": 80.0, "height": 24.0}
+    assert action.target.attributes == {"name": "clientCode", "autocomplete": "off"}
+    assert action.target.component.chain == ("panel#clients", "textfield#clientCode")
+    assert action.modifiers == ("shift",)
+    assert hash(action)

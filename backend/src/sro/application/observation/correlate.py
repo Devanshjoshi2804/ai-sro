@@ -148,8 +148,12 @@ def as_action(wire: WireGesture) -> Action:
                 name=component.name,
                 xtype=component.xtype,
                 required=component.required,
+                chain=tuple(component.chain),
             ),
+            bounds=dict(target.bounds),
+            attributes=dict(target.attributes),
         ),
+        modifiers=tuple(wire.modifiers),
     )
 
 

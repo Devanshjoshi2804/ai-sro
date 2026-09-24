@@ -32,8 +32,13 @@ Comments and docstrings moved out of [`backend/scripts/smoke.py`](../../../../ba
 > on the HOST -- `sha256sum new-chrome-extension/src/page/page-code.js` --
 > and handed in. It has to be: run inside the api container, `page_code_path`
 > names the very file `/health` hashes, so a hash taken in there compares the
-> deployed image with itself and can never fail. Left off entirely, that one
-> check is skipped rather than guessed at.
+> deployed image with itself and can never fail. Left off entirely,
+> `check_page_code` fails loudly rather than skipping -- a run that could not
+> compute the host's own hash (no `python3`, the file missing) does not get
+> to print "matches the repository's file" by saying nothing about it. The
+> Makefile chains the two commands with `&&` for the same reason: a failed
+> host hash has to fail `make smoke`, not run the container's half with an
+> empty argument and a green exit code.
 >
 > Exits non-zero if anything is wrong, and says which thing. Safe to run against
 > a live deployment: it writes one small blob and deletes it, opens one browser
@@ -80,12 +85,12 @@ Comments and docstrings moved out of [`backend/scripts/smoke.py`](../../../../ba
 
 > The API through whatever is in front of it, with and without a token.
 
-## `check_worker`, [line 183](../../../../backend/scripts/smoke.py#L183): Docstring
+## `check_worker`, [line 184](../../../../backend/scripts/smoke.py#L184): Docstring
 
 > Whether a worker is polling. Its container status cannot say: one image
 > serves the API and the worker, and the worker serves no HTTP.
 
-## `check_ledger`, [line 209](../../../../backend/scripts/smoke.py#L209): Docstring
+## `check_ledger`, [line 210](../../../../backend/scripts/smoke.py#L210): Docstring
 
 > Whether this deployment can tell a watched write from an unwatched one.
 >

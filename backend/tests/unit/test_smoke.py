@@ -48,3 +48,15 @@ def test_a_page_code_match_is_not_a_failure() -> None:
     smoke.check_page_code(deployed="deadbeef", wanted="deadbeef")
 
     assert "page code" not in smoke._failures
+
+
+def test_no_repository_hash_given_fails_loudly_rather_than_skipping() -> None:
+    # `check_api` used to call this only `if page_code_sha256:` -- a `make
+    # smoke` invocation that could not compute the host hash (no `python3`,
+    # the file missing) passed nothing, the check was skipped in silence, and
+    # `main()` still printed "every edge ... is reachable and correct".
+    smoke._failures.clear()
+
+    smoke.check_page_code(deployed="deadbeef", wanted=None)
+
+    assert "page code" in smoke._failures

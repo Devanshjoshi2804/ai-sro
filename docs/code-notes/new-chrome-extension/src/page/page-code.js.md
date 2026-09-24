@@ -23,34 +23,43 @@ Comments and docstrings moved out of [`new-chrome-extension/src/page/page-code.j
 > the page's patched `fetch` is not the one it calls, so a replayed request
 > never enters the evidence plane as though the operator had made it.
 
-## module, [line 633](../../../../../new-chrome-extension/src/page/page-code.js#L633): Comment
+## module, [line 632](../../../../../new-chrome-extension/src/page/page-code.js#L632): Comment
 
-Code: `Object.defineProperty(globalThis, "sroPage", { value: sroPage, writable: false, configurable: false });`
+Code: `globalThis.sroPage = sroPage;`
 
-> Not a plain assignment. In MAIN world this sits on the page's own `window`,
-> which every script the page runs -- including a third party's -- can see
-> and, with a plain writable property, replace: `Object.defineProperty(window,
-> "sroPage", {get:()=>fake,set(){}})` would make the assignment a silent
-> no-op and hand every later call whatever the page chooses to answer with.
-> `writable: false` stops an ordinary overwrite (silently, in the sloppy mode
-> this file runs in when injected); `configurable: false` stops
-> `Object.defineProperty` from installing a trap over it. Not a defence
-> against a page that got there first -- only against one that runs after
-> this file does, which is every one of them, since nothing here is a
-> persistent content script and injection always happens after the page's
-> own scripts have run once already.
+> A plain assignment, deliberately, and not `Object.defineProperty` with
+> `writable: false, configurable: false`. That was tried: it stopped a bare
+> `window.sroPage = fake`, and nothing else -- the page can still write
+> `window.sroPage.perform = fake`, since only the property holding the
+> object was frozen, never the object itself; a page that defines `sroPage`
+> first, non-configurable, makes THIS assignment throw (caught, silently,
+> by the `try`/`catch` re-injection needed anyway), and its object answers
+> every later command with no sign anything is wrong. The one thing frozen
+> actually stopped -- a plain overwrite, after this file has already run --
+> is the least likely of the three.
 >
-> The `try`/`catch` is for the extension's own re-injection, not the page's:
-> `sroCall` injects this file again on every command, into whatever document
-> the tab is currently showing and whichever world the command runs in, and
-> a `configurable: false` property throws if defined twice in the same
-> world's realm. Caught and dropped rather than left to fail the second
-> command of a run -- the cost is that an extension reload mid-session no
-> longer replaces a document's `sroPage` until that document navigates,
-> where before the reassignment on every injection kept it current. The
-> worker's own copy, loaded once by the static `import` in `commands.js`,
-> never sees a second definition to begin with: a module's top level runs
-> once per process, not once per call.
+> It also cost more than it bought. `sroCall` re-injects this file on every
+> command, into whatever document the tab is currently showing, and a
+> non-configurable `sroPage` cannot be replaced by a second injection into
+> the same document -- only left in place, via the same `try`/`catch`. An
+> ordinary BY tab stays open for hours; an extension reload or update
+> mid-shift left that tab answering with the sroPage it loaded an hour
+> ago, silently out of step with the worker sending it payloads shaped for
+> the version that replaced it -- exactly the two-versions-at-once state
+> "one page-code source" (spec §6.4) exists to rule out. A plain assignment
+> replaces `sroPage` on every injection, which is what keeps a document
+> current and is worth more than a protection that does not protect.
+>
+> MAIN world is the page's own `window`, so this line is inherently
+> tamperable by whatever else runs there -- a third party's script,
+> including one that runs before this one ever does, which injection always
+> risks since nothing here is a persistent content script. That is not
+> hardened here and is not meant to be: no property on a page's own global
+> can be defended against the page it belongs to. What holds instead is
+> downstream of this line entirely -- `repair_drift`, the lane ladder and
+> the verified-write ledger judge a step by whether the WMS actually changed
+> the way the run expected, not by trusting whatever answered `sroPage`'s
+> name.
 
 ## `perform`, [line 3](../../../../../new-chrome-extension/src/page/page-code.js#L3): Docstring
 

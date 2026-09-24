@@ -163,8 +163,7 @@ async def check_api(public: str, page_code_sha256: str | None) -> None:
             bad("api health", f"{health.status_code}")
         else:
             ok("api health", f"revision {health.json().get('revision', '?')}")
-            if page_code_sha256:
-                check_page_code(health.json().get("page_code", ""), page_code_sha256)
+            check_page_code(health.json().get("page_code", ""), page_code_sha256)
 
         unauthorised = await web.get(f"{public}/api/v1/workflows")
         if unauthorised.status_code == httpx.codes.UNAUTHORIZED:
@@ -173,8 +172,10 @@ async def check_api(public: str, page_code_sha256: str | None) -> None:
             bad("api auth", f"an unauthenticated call answered {unauthorised.status_code}")
 
 
-def check_page_code(deployed: str, wanted: str) -> None:
-    if deployed == wanted:
+def check_page_code(deployed: str, wanted: str | None) -> None:
+    if not wanted:
+        bad("page code", "no repository hash given -- run this through make smoke")
+    elif deployed == wanted:
         ok("page code", f"{deployed[:12]} matches the repository's file")
     else:
         bad("page code", f"deployed {deployed[:12] or '(none)'}, repository has {wanted[:12]}")

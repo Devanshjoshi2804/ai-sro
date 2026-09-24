@@ -21,31 +21,27 @@ test("evaluated alone, it defines every function the worker calls", () => {
   }
 });
 
-test("a page cannot replace sroPage with an assignment or a redefinition", () => {
-  const realm = {};
-  const original = loadSroPage(realm);
-
-  // A page's own script, sloppy mode -- the same mode this file itself runs
-  // in when injected into a page -- assigning over a non-writable property
-  // is a silent no-op, not a throw.
-  new Function("globalThis", "globalThis.sroPage = { fake: true };")(realm);
-  assert.equal(realm.sroPage, original, "a plain assignment replaced sroPage");
-
-  // `Object.defineProperty` bypasses `writable` but not `configurable`.
-  assert.throws(() => {
-    Object.defineProperty(realm, "sroPage", { value: { fake: true }, configurable: true });
-  });
-  assert.equal(realm.sroPage, original, "defineProperty replaced sroPage");
-});
-
-test("re-evaluating the file in the same realm does not throw", () => {
+test("re-evaluating the file in the same realm does not throw, and replaces sroPage", () => {
   // The extension re-injects on every command, into whatever document the
   // tab is currently showing -- which is the same document, most of the
   // time. A `sroPage` that could only ever be defined once would break the
-  // second command of any run.
+  // second command of any run, so a re-evaluation must not throw.
+  //
+  // It must also actually REPLACE the object, not keep the first one: after
+  // an extension reload or update, a document that has been open for hours
+  // (an ordinary BY tab) is re-injected with today's page-code.js, and it
+  // has to start running that version rather than the one it loaded an hour
+  // ago. Two open documents running two different versions of the page code
+  // is exactly the drift "one page-code source" (spec §6.4) exists to rule
+  // out.
   const realm = {};
-  loadSroPage(realm);
-  assert.doesNotThrow(() => loadSroPage(realm));
+  const first = loadSroPage(realm);
+  let second;
+  assert.doesNotThrow(() => {
+    second = loadSroPage(realm);
+  });
+  assert.notEqual(realm.sroPage, first, "the second evaluation kept the first sroPage");
+  assert.equal(realm.sroPage, second);
 });
 
 class FakeEvent {

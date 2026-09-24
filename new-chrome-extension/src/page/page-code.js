@@ -629,7 +629,5 @@
     },
   };
 
-  try {
-    Object.defineProperty(globalThis, "sroPage", { value: sroPage, writable: false, configurable: false });
-  } catch {}
+  globalThis.sroPage = sroPage;
 })();

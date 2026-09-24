@@ -1084,40 +1084,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/recordings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Start Recording */
-        post: operations["start_recording_v1_recordings_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/recordings/{recording_id}/finish": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Finish Recording */
-        post: operations["finish_recording_v1_recordings__recording_id__finish_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/skills/{skill_id}/choices/{parameter}": {
         parameters: {
             query?: never;
@@ -2424,7 +2390,7 @@ export interface components {
          * CaptureMode
          * @enum {string}
          */
-        CaptureMode: "passive" | "teaching";
+        CaptureMode: "passive";
         /** ChangeTriggerRequest */
         ChangeTriggerRequest: {
             /** Enabled */
@@ -2730,16 +2696,6 @@ export interface components {
             shots: {
                 [key: string]: components["schemas"]["ShotModel"];
             };
-        };
-        /** FinishRecordingRequest */
-        FinishRecordingRequest: {
-            /**
-             * Abandon Reason
-             * @description Present means abandon; absent means seal.
-             */
-            abandon_reason?: string | null;
-            /** @description Only for a demonstration whose evidence cannot name it, or the second run of a pair. Otherwise the task names itself. */
-            objective_key?: components["schemas"]["ObjectiveKeyModel"] | null;
         };
         /** FiredModel */
         FiredModel: {
@@ -3313,8 +3269,6 @@ export interface components {
             ended_at: string;
             /** @default passive */
             mode: components["schemas"]["CaptureMode"];
-            /** Recording Id */
-            recording_id?: string | null;
             /** Events */
             events: {
                 [key: string]: unknown;
@@ -3520,29 +3474,6 @@ export interface components {
             run_id?: string | null;
             /** At */
             at?: string | null;
-        };
-        /** RecordingSummary */
-        RecordingSummary: {
-            /** Id */
-            id: string;
-            objective_key: components["schemas"]["ObjectiveKeyModel"] | null;
-            /** Label */
-            label: string | null;
-            /** Status */
-            status: string;
-            /** Demonstrator */
-            demonstrator: string;
-            /**
-             * Started At
-             * Format: date-time
-             */
-            started_at: string;
-            /** Ended At */
-            ended_at: string | null;
-            /** Frame Count */
-            frame_count: number;
-            /** Has Narration */
-            has_narration: boolean;
         };
         /** RegisterDeviceRequest */
         RegisterDeviceRequest: {
@@ -3944,23 +3875,6 @@ export interface components {
             unpriced: number;
             /** Cap Usd */
             cap_usd: number;
-        };
-        /** StartRecordingRequest */
-        StartRecordingRequest: {
-            objective_key?: components["schemas"]["ObjectiveKeyModel"] | null;
-            /** Start Url */
-            start_url?: string | null;
-            /** Label */
-            label?: string | null;
-            /** Attach To */
-            attach_to?: string | null;
-        };
-        /** StartRecordingResponse */
-        StartRecordingResponse: {
-            /** Recording Id */
-            recording_id: string;
-            /** Live View Url */
-            live_view_url: string;
         };
         /**
          * StartWorkflowRunRequest
@@ -10037,260 +9951,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OfferRecordedResponse"];
-                };
-            };
-            /** @description No credential, or one this deployment rejects. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-            /** @description No such thing, or not yours. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-            /** @description The system's state says no, not the request. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-            /** @description The request cannot be processed as asked. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-            /** @description Something this depends on is unavailable. */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-        };
-    };
-    start_recording_v1_recordings_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StartRecordingRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StartRecordingResponse"];
-                };
-            };
-            /** @description No credential, or one this deployment rejects. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-            /** @description No such thing, or not yours. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-            /** @description The system's state says no, not the request. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-            /** @description The request cannot be processed as asked. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-            /** @description Something this depends on is unavailable. */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-        };
-    };
-    finish_recording_v1_recordings__recording_id__finish_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                recording_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["FinishRecordingRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecordingSummary"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

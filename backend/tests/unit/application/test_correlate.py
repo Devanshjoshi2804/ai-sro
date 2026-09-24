@@ -329,3 +329,31 @@ def test_the_labelled_ancestors_reach_the_stored_target() -> None:
     target = gestures[0].action.target
     assert target is not None
     assert [(one.role, one.name) for one in target.landmarks] == [("dialog", "New Customer")]
+
+
+def test_the_frame_path_reaches_the_stored_action() -> None:
+    event = copy.deepcopy(GESTURE_TYPE)
+    event["gesture"]["frame_path"] = [{"index": 1, "url": "https://wms.example/shell"}]
+
+    gestures, _, _, _ = correlate(_batch([event]), TENANT)
+
+    hop = gestures[0].action.frame_path[0]
+    assert (hop.index, hop.url) == (1, "https://wms.example/shell")
+
+
+def test_evidence_recorded_before_frame_identity_stores_no_frame_path() -> None:
+    event = copy.deepcopy(GESTURE_TYPE)
+    assert "frame_path" not in event["gesture"]
+
+    gestures, _, _, _ = correlate(_batch([event]), TENANT)
+
+    assert gestures[0].action.frame_path is None
+
+
+def test_a_gesture_on_the_top_document_stores_an_empty_frame_path() -> None:
+    event = copy.deepcopy(GESTURE_TYPE)
+    event["gesture"]["frame_path"] = []
+
+    gestures, _, _, _ = correlate(_batch([event]), TENANT)
+
+    assert gestures[0].action.frame_path == ()

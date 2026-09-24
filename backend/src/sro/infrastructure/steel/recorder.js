@@ -358,9 +358,49 @@
     return mods;
   };
 
+  // The index chain from the top document down to this frame, with each
+  // hop's own URL where it can be read. `parent.frames[i] === here` is how a
+  // same-origin ancestor is asked which child this frame is -- `frameElement`
+  // does the same job one level up, but only within the parent's own origin,
+  // and a cross-origin parent throws reading it. A cross-origin ancestor's
+  // `location.href` throws too, by the same-origin policy the browser
+  // enforces on every frame here, same-origin or not: this frame can read the
+  // parent's frame LIST (that much is exposed everywhere), but not the
+  // parent's own URL unless they share an origin. `ancestorOrigins`, indexed
+  // from the immediate parent outward, is the one thing a cross-origin
+  // ancestor still exposes -- an origin, not a full URL, but the driver only
+  // needs it to tell one frame from a sibling, and an origin does that.
+  const framePathOf = (win) => {
+    const hops = [];
+    const origins = (win.location && win.location.ancestorOrigins) || [];
+    let depth = 0;
+    for (let here = win; here.parent && here !== here.parent; here = here.parent, depth += 1) {
+      const parent = here.parent;
+      let index = -1;
+      for (let i = 0; i < parent.frames.length; i += 1) {
+        if (parent.frames[i] === here) index = i;
+      }
+      let url = null;
+      try {
+        url = here.location.href;
+      } catch {
+        url = depth > 0 ? origins[depth - 1] || null : null;
+      }
+      hops.unshift({ index, url });
+    }
+    return hops;
+  };
+
   const emit = (record) => {
     try {
-      window.__sroRecord(JSON.stringify({ ...record, at: Date.now() / 1000, url: location.href }));
+      window.__sroRecord(
+        JSON.stringify({
+          ...record,
+          frame_path: framePathOf(window),
+          at: Date.now() / 1000,
+          url: location.href,
+        }),
+      );
     } catch {
       // The binding is not installed yet, or the frame is being torn down.
       // Losing a gesture is preferable to breaking the page the operator is using.

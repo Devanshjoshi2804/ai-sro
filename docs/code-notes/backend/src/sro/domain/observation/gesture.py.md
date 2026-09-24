@@ -65,11 +65,11 @@ Code: `attributes: dict[str, object] = field(default_factory=dict, hash=False)`
 > when `query` alone
 > is ambiguous (§4.1).
 
-## `Action`, [line 52](../../../../../../../backend/src/sro/domain/observation/gesture.py#L52): Docstring
+## `Action`, [line 58](../../../../../../../backend/src/sro/domain/observation/gesture.py#L58): Docstring
 
 > The gesture itself: what was done, to what, with what typed.
 
-## `Action`, [line 59](../../../../../../../backend/src/sro/domain/observation/gesture.py#L59): Note on the line above
+## `Action`, [line 65](../../../../../../../backend/src/sro/domain/observation/gesture.py#L65): Note on the line above
 
 Code: `modifiers: tuple[str, ...] = ()`
 
@@ -77,12 +77,12 @@ Code: `modifiers: tuple[str, ...] = ()`
 > captured and this used to drop. A run replaying the gesture needs them to
 > reproduce a modified click or keypress rather than a bare one (§4.1).
 
-## `Call`, [line 72](../../../../../../../backend/src/sro/domain/observation/gesture.py#L72): Docstring
+## `Call`, [line 79](../../../../../../../backend/src/sro/domain/observation/gesture.py#L79): Docstring
 
 > A recorded exchange, the part of it the belts read: never a response
 > body's text beyond what `confirming_read` compares.
 
-## `GestureBatch`, [line 114](../../../../../../../backend/src/sro/domain/observation/gesture.py#L114): Docstring
+## `GestureBatch`, [line 121](../../../../../../../backend/src/sro/domain/observation/gesture.py#L121): Docstring
 
 > What one upload said about itself.
 >
@@ -97,7 +97,7 @@ Code: `modifiers: tuple[str, ...] = ()`
 > separate tables. Both may describe one upload; neither is derived from the
 > other.
 
-## `passed_through`, [line 153](../../../../../../../backend/src/sro/domain/observation/gesture.py#L153): Docstring
+## `passed_through`, [line 160](../../../../../../../backend/src/sro/domain/observation/gesture.py#L160): Docstring
 
 > Whether this gesture ended on a different system from the one it
 > happened on -- the browser moved the operator, the operator did not.
@@ -107,7 +107,7 @@ Code: `modifiers: tuple[str, ...] = ()`
 > `values.worked_in_both` reads it for the same distinction: a browser
 > bouncing through an identity provider is not somebody using two tabs.
 
-## `Call`, [line 75](../../../../../../../backend/src/sro/domain/observation/gesture.py#L75): Comment
+## `Call`, [line 82](../../../../../../../backend/src/sro/domain/observation/gesture.py#L82): Comment
 
 Code: `request_id: str = ""`
 

@@ -110,6 +110,17 @@ class Target(BaseModel):
         return self
 
 
+class FrameHop(BaseModel):
+    index: int
+    url: str | None = None
+
+    @model_validator(mode="after")
+    def a_credential_in_a_frame_url_is_dropped_here(self) -> "FrameHop":
+        if self.url:
+            self.url = redact_url(self.url)
+        return self
+
+
 class Gesture(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
@@ -118,6 +129,7 @@ class Gesture(BaseModel):
     value: str | None = None
     secret: bool = False
     modifiers: list[str] = Field(default_factory=list)
+    frame_path: list[FrameHop] | None = None
     at: float
     url: str | None = None
 

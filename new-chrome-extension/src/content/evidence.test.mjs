@@ -48,3 +48,24 @@ test("the labelled ancestors are recorded outermost first", () => {
     { role: "form", name: "Customer" },
   ]);
 });
+
+test("a frame records where it sits, from the top down", () => {
+  const { framePathOf } = lift(["framePathOf"]);
+  const top = { frames: [] };
+  top.parent = top;
+  const shell = { parent: top, frames: [], location: { href: "https://wms.example/shell" } };
+  const other = { parent: top, frames: [] };
+  top.frames.push(other, shell);
+  const screen = {
+    parent: shell,
+    frames: [],
+    location: { href: "https://wms.example/screen?id=4", ancestorOrigins: ["https://wms.example"] },
+  };
+  shell.frames.push(screen);
+
+  assert.deepEqual(framePathOf(screen), [
+    { index: 1, url: "https://wms.example/shell" },
+    { index: 0, url: "https://wms.example/screen?id=4" },
+  ]);
+  assert.deepEqual(framePathOf(top), []);
+});

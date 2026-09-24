@@ -64,6 +64,8 @@ class Action:
     target: Target | None = None
     modifiers: tuple[str, ...] = ()
     frame_path: tuple[FrameHop, ...] | None = None
+    detail: int | None = None
+    trusted: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)

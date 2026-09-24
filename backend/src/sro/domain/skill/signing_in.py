@@ -49,6 +49,9 @@ def sign_in_chain(job: Workflow, by_id: Mapping[str, Gesture]) -> list[Step]:
         return steps
     cut = landed[0]
     fields = [one for one in cited if one.action.kind == "type" and one.at <= cut.at]
+    before_cut = max(
+        (one for one in cited if one.at < cut.at), key=lambda one: one.at, default=None
+    )
 
     def refused(gesture: Gesture) -> bool:
         if gesture.at < min(typed) or passed_through(gesture):
@@ -57,7 +60,7 @@ def sign_in_chain(job: Workflow, by_id: Mapping[str, Gesture]) -> list[Step]:
             return False
         if not _submits(gesture, fields):
             return False
-        if gesture.action.kind == "press" and cut.at - gesture.at <= K_ONE_SUBMIT_S:
+        if gesture.action.kind == "press" and _same_submit(cut, gesture, before_cut):
             return True
         return any(
             before.at <= gesture.at
@@ -102,6 +105,12 @@ def _submits(gesture: Gesture, typed: Sequence[Gesture]) -> bool:
     return gesture.action.kind == "click" and not any(
         _same_field(gesture.action.target, field.action.target) for field in typed
     )
+
+
+def _same_submit(cut: Gesture, press: Gesture, before_cut: Gesture | None) -> bool:
+    if cut.action.detail is not None:
+        return cut.action.detail == 0 and press is before_cut
+    return cut.at - press.at <= K_ONE_SUBMIT_S
 
 
 def _same_field(one: Target | None, other: Target | None) -> bool:

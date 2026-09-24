@@ -44,18 +44,18 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/c
 > The wire gesture as the domain sees it: the fields the arithmetic
 > reads, and nothing the recorder might add next week.
 
-## `as_body`, [line 166](../../../../../../../backend/src/sro/application/observation/correlate.py#L166): Docstring
+## `as_body`, [line 168](../../../../../../../backend/src/sro/application/observation/correlate.py#L168): Docstring
 
 > A wire body as the domain sees it: no encoding field, nothing the
 > belts don't read.
 
-## `as_call`, [line 178](../../../../../../../backend/src/sro/application/observation/correlate.py#L178): Docstring
+## `as_call`, [line 180](../../../../../../../backend/src/sro/application/observation/correlate.py#L180): Docstring
 
 > A wire request as the domain sees it. The tab is not on the request:
 > it is on the enclosing `RequestEvent`, so the caller passes it in — an
 > orphan call's tab is a fact worth keeping.
 
-## `as_mark`, [line 194](../../../../../../../backend/src/sro/application/observation/correlate.py#L194): Docstring
+## `as_mark`, [line 196](../../../../../../../backend/src/sro/application/observation/correlate.py#L196): Docstring
 
 > A wire page event as the domain sees it.
 

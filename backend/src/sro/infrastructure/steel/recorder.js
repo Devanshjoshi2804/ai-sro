@@ -408,7 +408,13 @@
   };
 
   listen('click', (e) =>
-    emit({ kind: 'click', target: describe(e.target), modifiers: modifiers(e) }),
+    emit({
+      kind: 'click',
+      target: describe(e.target),
+      modifiers: modifiers(e),
+      detail: e.detail,
+      trusted: e.isTrusted,
+    }),
   );
 
   // One event per completed edit rather than per keystroke: `change` fires on

@@ -44,16 +44,28 @@ Code: `Verdict = Literal["done", "read", "failed", "unknown"]`
 
 Code: `never_left: bool = False`
 
-> D1's `Progress.settle(..., never_left=True)` clears a `sending` mark back
-> to unsent only when the caller can say the write is confirmed never to
-> have reached the far side; otherwise a `failed` verdict becomes `unknown`,
-> never "safe to retry". Only the lane that attempted the write knows which
-> case it was in -- a UI lane that never found the submit control never
-> left; one that clicked it and then lost the page might not have -- so
-> `StepResult` is where that knowledge has to travel from the lane that
-> made the attempt to the runtime that settles `Progress` from its verdict.
-> Defaults to `False`, the safe reading: a lane that says nothing about
-> whether its write left is treated as one that might have.
+> Whether this one attempt at the step left at all: `True` means no request
+> for the step's write ever reached the target from this lane -- a UI lane
+> that never found the submit control never left; one that clicked it and
+> then lost the page might have. Defaults to `False`, the safe reading: a
+> lane that says nothing about whether its write left is treated as one
+> that might have. D1's `Progress.settle(..., never_left=True)` clears a
+> `sending` mark back to unsent only when the caller can say the write is
+> confirmed never to have reached the far side; otherwise a `failed`
+> verdict becomes `unknown`, never "safe to retry". A step tries more than
+> one lane, so a single attempt's flag is not the answer for the step --
+> `never_left_step` combines every attempt tried for the step (X8's job)
+> before it reaches `settle`.
+
+## `never_left_step`, [line 101](../../../../../../../backend/src/sro/domain/execution/lanes.py#L101): Docstring
+
+> ANDs `never_left` across every lane tried for one step: the step itself
+> never left only if none of its attempts did. One lane that reached the
+> target (API 5xx, say) makes the step's own write uncertain even if a
+> later lane in the same step gave up before trying -- the step's
+> `never_left` cannot be truer than its least certain attempt. Vacuously
+> `True` on no attempts, which never happens through `RunSteps.step` (a
+> step always tries at least one lane) but keeps the function total.
 
 ## `fingerprint_of`, [line 62](../../../../../../../backend/src/sro/domain/execution/lanes.py#L62): Docstring
 
@@ -72,7 +84,10 @@ Code: `never_left: bool = False`
 > §3's ladder, walked once per step per run: tool if the step uses one,
 > else API before UI before sight for a browser step, and never more than
 > one of tool or the browser pair -- a mail step is a tool call and never a
-> tab. The lane a step starts on is the first one on that ladder not
-> already on `broken` for this step and this run; every lane at or after it
-> is still offered, in order, as the run's own retry path if an earlier one
-> fails without settling the step.
+> tab. Every entry drops out once it is on `broken` for this step and this
+> run, except the ladder's own last entry (sight for a browser step, the
+> only lane for a tool step), which is always offered even broken: it is
+> the one lane whose failures are per run rather than sticky (§3), and a
+> step with every lane dropped would never be tried again until someone
+> re-recorded the job. What is left, in order, is the run's own retry
+> path if an earlier lane fails without settling the step.

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
 from sro.application.context import RequestContext
@@ -47,15 +47,13 @@ async def _nothing() -> None:
 class LaneContext:
     tenant_id: TenantId
     principal_id: PrincipalId
-    run_id: str
     workflow: Workflow
     by_id: Mapping[str, Gesture]
     learned: Mapping[int, LearnedStep]
     ledger: tuple[VerifiedWrite, ...]
     held: Held | None
     stop: asyncio.Event
-    live: bool = True
-    secret: str | None = None
+    secret: str | None = field(default=None, repr=False)
     thread: str = ""
     about_to_write: Callable[[], Awaitable[None]] = _nothing
 
@@ -80,7 +78,6 @@ class LaneContext:
         return cls(
             tenant_id=ctx.tenant_id,
             principal_id=ctx.principal_id,
-            run_id="",
             workflow=job,
             by_id=by_id,
             learned={},

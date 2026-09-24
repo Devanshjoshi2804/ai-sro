@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Literal
 
-from sro.domain.observation.gesture import AfterState, Call
+from sro.domain.observation.gesture import Call
 from sro.domain.observation.trim import path_shape
 from sro.domain.skill.workflow import Step
 
@@ -72,7 +72,8 @@ def lanes_for(
         else ((Lane.API,) if api else ()) + ((Lane.UI, Lane.SIGHT) if browser else ())
     )
     dead = {one.lane for one in broken if one.step == order}
-    return tuple(lane for lane in ladder if lane not in dead)
+    last = ladder[-1]
+    return (*(lane for lane in ladder[:-1] if lane not in dead), last)
 
 
 def write_confirmed(
@@ -81,24 +82,21 @@ def write_confirmed(
     if recorded is None:
         return None
     method, shape = recorded.method.upper(), path_shape(recorded.url)
-    for call in reversed(tuple(calls)):
-        if call.status is None or call.method.upper() != method or path_shape(call.url) != shape:
-            continue
-        if call.status >= 400:
-            return "failed"
-        if call.status in wanted or (not wanted and 200 <= call.status < 300):
-            return "done"
+    statuses = [
+        call.status
+        for call in calls
+        if call.status is not None
+        and call.method.upper() == method
+        and path_shape(call.url) == shape
+    ]
+    if any(status in wanted or (not wanted and 200 <= status < 300) for status in statuses):
+        return "done"
+    if any(status >= 500 for status in statuses):
+        return "unknown"
+    if any(400 <= status < 500 for status in statuses):
+        return "failed"
     return None
 
 
-def after_matches(
-    expected: AfterState | None, seen: AfterState | None, *, value: str | None
-) -> bool:
-    if expected is None or seen is None:
-        return False
-    want = value if value is not None else expected.value
-    return (
-        (expected.visible is None or seen.visible == expected.visible)
-        and (expected.enabled is None or seen.enabled == expected.enabled)
-        and (want is None or seen.value == want)
-    )
+def never_left_step(tried: Collection[StepResult]) -> bool:
+    return all(result.never_left for result in tried)

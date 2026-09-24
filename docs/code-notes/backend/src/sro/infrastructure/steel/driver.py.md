@@ -177,7 +177,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > closed -- otherwise it would sit in the account's context forever -- and
 > the call is `PageGone`, never a raw timeout.
 
-## `SteelDriver.on`, [line 214](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L214): Docstring
+## `SteelDriver.on`, [line 226](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L226): Docstring
 
 > A listener for one account: attached to each tab of that account's
 > context -- the tabs it has now and every tab `_arrived` sees for it later,
@@ -197,7 +197,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > re-review N2). `_arrived` re-applies this account's listeners to every
 > tab it (re)adopts.
 
-## `SteelDriver.storage_state`, [line 222](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L222): Docstring
+## `SteelDriver.storage_state`, [line 234](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L234): Docstring
 
 > Cookies come from the account's own jar (`Storage.getCookies` with its
 > `browserContextId`). `localStorage` is read from the account's open
@@ -205,7 +205,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > with no open tab is not in the state. Sign-in reads the state with the
 > signed-in tab open, the only place this plan calls it.
 
-## `SteelDriver.restore_state`, [line 251](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L251): Docstring
+## `SteelDriver.restore_state`, [line 263](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L263): Docstring
 
 > Cookies go into the account's jar directly. `localStorage` is written now,
 > into the context itself, through a short-lived tab whose every request is
@@ -216,14 +216,14 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > review M5). This is how Playwright restores storage state into a context
 > it made; here the context is Steel's, so it is done by hand.
 
-## `SteelDriver.forget`, [line 281](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L281): Docstring
+## `SteelDriver.forget`, [line 293](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L293): Docstring
 
 > Drops this account's listeners from `SteelDriver._listeners` and from
 > every tab of theirs the driver currently knows about. It closes nothing:
 > the connection is shared by every account on the container, and the
 > context belongs to the pool (S4, S7's lease), which closes it.
 
-## `SteelDriver.aclose`, [line 292](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L292): Docstring
+## `SteelDriver.aclose`, [line 304](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L304): Docstring
 
 > Closes every connection and stops Playwright; the API lifespan and the
 > worker call it on the way down (S5 review I6). Closing a

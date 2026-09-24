@@ -186,7 +186,19 @@ class SteelDriver:
                 raise PageGone(
                     f"tab {target_id} did not attach within {K_ATTACH_TIMEOUT_S} s"
                 ) from None
-        await page.goto(url, wait_until="domcontentloaded")
+        try:
+            await self._call(
+                session,
+                target_id,
+                page,
+                lambda: page.goto(
+                    url, wait_until="domcontentloaded", timeout=K_ACTION_TIMEOUT_S * 1000
+                ),
+            )
+        except PageGone:
+            with contextlib.suppress(PageGone):
+                await self._send(link, "Target.closeTarget", {"targetId": target_id})
+            raise
         return target_id
 
     async def close_tab(self, session: SessionRef, target_id: str) -> None:

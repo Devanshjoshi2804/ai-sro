@@ -249,6 +249,32 @@ async def test_goto_on_a_disposed_context_is_page_gone_within_a_bound_not_a_30s_
                 await serving
 
 
+async def test_open_tab_closes_the_orphan_tab_when_it_is_gone_mid_navigation(
+    monkeypatch: pytest.MonkeyPatch,
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    monkeypatch.setattr(driver_module, "K_ACTION_TIMEOUT_S", 1.0)
+    original_call = driver._call
+
+    async def call_after_the_tab_is_gone(
+        session: SessionRef, target_id: str, page: Any, action: Any
+    ) -> Any:
+        await page.close()
+        return await original_call(session, target_id, page, action)
+
+    monkeypatch.setattr(driver, "_call", call_after_the_tab_is_gone)
+
+    loop = asyncio.get_running_loop()
+    started = loop.time()
+    with pytest.raises(PageGone):
+        await driver.open_tab(one, rig.url("/public"))
+    assert loop.time() - started < 10, "open_tab hung instead of respecting the deadline"
+
+    assert await pages_in(one) == [], "the orphan tab was left behind"
+
+
 async def test_a_listener_survives_a_reconnect_while_the_context_stays_alive(
     rig: Rig,  # noqa: F811
     cdp_url: str,  # noqa: F811

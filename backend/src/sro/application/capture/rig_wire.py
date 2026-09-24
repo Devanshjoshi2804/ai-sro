@@ -130,6 +130,8 @@ class Gesture(BaseModel):
     secret: bool = False
     modifiers: list[str] = Field(default_factory=list)
     frame_path: list[FrameHop] | None = None
+    detail: int | None = None
+    trusted: bool | None = None
     at: float
     url: str | None = None
 

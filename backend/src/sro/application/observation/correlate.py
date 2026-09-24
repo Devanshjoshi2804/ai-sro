@@ -160,6 +160,8 @@ def as_action(wire: WireGesture) -> Action:
         frame_path=None
         if wire.frame_path is None
         else tuple(FrameHop(index=hop.index, url=hop.url) for hop in wire.frame_path),
+        detail=wire.detail,
+        trusted=wire.trusted,
     )
 
 

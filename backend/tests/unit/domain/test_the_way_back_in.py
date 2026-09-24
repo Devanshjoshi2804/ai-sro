@@ -356,6 +356,21 @@ def test_an_accepted_enter_followed_by_a_same_host_page_is_kept() -> None:
     assert ["sign-in"] in [step.cites for step in sign_in_chain(job, gestures)]
 
 
+@pytest.mark.parametrize(("detail", "kept"), [(0, False), (1, True), (None, True)])
+def test_an_enter_that_made_the_submit_click_is_the_same_submit(
+    detail: int | None, kept: bool
+) -> None:
+    job, gestures = _azure()
+    gestures["enter"] = _did("enter", KEYCLOAK, 4.5, "press", field="input#password")
+    job.steps[2].cites = ["password", "enter"]
+    submit = gestures["submit"]
+    gestures["submit"] = replace(submit, action=replace(submit.action, detail=detail))
+
+    replayed = {one for step in sign_in_chain(job, gestures) for one in step.cites}
+
+    assert ("enter" in replayed) is kept
+
+
 def test_a_gesture_cited_by_two_steps_is_replayed_once() -> None:
     """The deployed job cites its first password typing in both `Focus the
     Password field...` and `Type the password.`"""

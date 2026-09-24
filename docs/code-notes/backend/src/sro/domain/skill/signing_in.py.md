@@ -111,14 +111,20 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/signing_in.p
 >   one-time-code or update-password page, or a consent screen, and dropping
 >   that `Sign in` would click Yes on a password page never submitted.
 >   Typing and focusing always stay.
-> - **An Enter that is the leaving submit.** A press within
->   `K_ONE_SUBMIT_S` (50 ms) before the leaving submit is the same submit: the
->   browser turns Enter in a form into a click on its submit button, and the
->   recorder logs both (the deployed job: press at .074, the leaving Sign In
->   at .075). The coordinator's ruling said "later or equal"; it is bounded
->   to 50 ms because an accepted Enter followed seconds later by a same-host
->   "Yes" that leaves must be kept (tested). No person presses Enter and then
->   clicks within 50 ms.
+> - **An Enter that is the leaving submit.** §4.4 (2026-09-24): a click the
+>   browser synthesises from Enter carries `detail == 0` on a real
+>   `MouseEvent` (a person's own click is `detail >= 1`), so the recorder's
+>   own `e.detail` says which submit this was, structurally, rather than the
+>   two gestures merely landing close together in time. Where the leaving
+>   submit carries a `detail` (evidence recorded after this change), the
+>   press immediately before it in citation order -- `before_cut`, not
+>   merely the nearest in time -- is the same submit exactly when
+>   `detail == 0`; a press elsewhere in the chain, or a leaving click a
+>   person actually made (`detail >= 1`), is never folded in this way.
+>   `K_ONE_SUBMIT_S` (50 ms) is consulted only where the cut carries no
+>   `detail` at all: evidence recorded before this change, or a cut that is
+>   itself a key press (a press has no `detail`). The deployed job measured
+>   for the timing window: press at .074, the leaving Sign In at .075.
 > - **A gesture cited twice replays once.** The deployed job cites its first
 >   password typing in two steps; the later-replayed step loses it, and a
 >   step left with nothing is dropped. The deployed job's
@@ -135,12 +141,12 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/signing_in.p
 > they still hold. Before, the order was fixed first, so a step that lost the
 > submit to dedupe still sorted last and replayed its other gestures (a focus
 > on the password box) on the landed page.
-## `RecordedLogin`, [line 116](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L116): Class
+## `RecordedLogin`, [line 125](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L125): Class
 
 > What a recorded sign-in says about credentials: the origin the password was
 > typed on, which names its vault key, and the username typed before it.
 
-## `recorded_login`, [line 122](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L122): Docstring
+## `recorded_login`, [line 131](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L131): Docstring
 
 > The tagged sign-in job that lands on the connection's own system: the
 > `worked` half of `checks.signs_in_to`, the same key the mining pass folds

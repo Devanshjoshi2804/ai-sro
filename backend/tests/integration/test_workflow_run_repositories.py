@@ -622,6 +622,33 @@ class TestOrphans:
         assert failed is not None and len(failed.steps) == 1
         assert (failed.steps[0].verdict, failed.steps[0].verdict_by) == ("failed", "none")
 
+    async def test_a_steel_run_is_never_an_orphan(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A Steel run lives in the worker, not the API process it starts
+        beside -- an API restart is not its process dying, so the startup
+        sweep must never fail one."""
+        extension = _run(id="run_extension", steps=[RunStep(order=0, says="s", verdict="held")])
+        steel = _run(id="run_steel", device_id="", executor="steel")
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(extension)
+            await uow.workflow_runs.save(steel)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            swept = await uow.workflow_runs.fail_orphans("the rig restarted")
+            await uow.commit()
+
+        assert swept == 1
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            failed = await uow.workflow_runs.get(TENANT, extension.id)
+            untouched = await uow.workflow_runs.get(TENANT, steel.id)
+
+        assert failed is not None and failed.outcome == "failed"
+        assert untouched is not None and untouched.outcome == "running"
+
 
 class TestApprovals:
     async def test_the_first_tap_wins_and_a_second_on_the_same_step_is_not_a_second_authorisation(
@@ -813,6 +840,47 @@ class TestOneRunningRunPerBrowser:
         assert "CREATE UNIQUE INDEX" in said, said
         assert "tenant_id" in said and "device_id" in said, said
         assert "outcome" in said and "'running'" in said and "WHERE" in said, said
+        assert "executor" in said and "'extension'" in said, said
+
+    async def test_two_steel_runs_name_no_device_and_never_collide(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A Steel run has its own browser, not the operator's -- the index is
+        narrowed to `executor = 'extension'` for exactly this: two Steel runs
+        of one tenant, both `running`, both `device_id = ""`, save without a
+        conflict and read back with their own progress."""
+        first = _run(
+            id="run_steel_first",
+            device_id="",
+            executor="steel",
+            progress={"step": 1, "lease": "lse_1"},
+        )
+        second = _run(
+            id="run_steel_second",
+            device_id="",
+            executor="steel",
+            progress={"step": 2, "lease": "lse_2"},
+        )
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(first)
+            await uow.workflow_runs.save(second)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            back_first = await uow.workflow_runs.get(TENANT, first.id)
+            back_second = await uow.workflow_runs.get(TENANT, second.id)
+
+        assert back_first is not None and back_first.outcome == "running"
+        assert back_first.executor == "steel" and back_first.progress == {
+            "step": 1,
+            "lease": "lse_1",
+        }
+        assert back_second is not None and back_second.outcome == "running"
+        assert back_second.executor == "steel" and back_second.progress == {
+            "step": 2,
+            "lease": "lse_2",
+        }
 
 
 class TestOneSkillRunPerBrowser:

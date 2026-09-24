@@ -49,6 +49,8 @@ def _run_values(run: WorkflowRun) -> dict[str, Any]:
         "asked_the_asker": run.asked_the_asker,
         "undoes_run": run.undoes_run,
         "unpriced": run.unpriced,
+        "progress": dict(run.progress),
+        "executor": run.executor,
     }
 
 
@@ -144,6 +146,8 @@ def _row_to_run(row: WorkflowRunRow, steps: list[RunStep]) -> WorkflowRun:
         thought_tokens=row.thought_tokens,
         cost_usd=row.cost_usd,
         unpriced=row.unpriced,
+        progress=dict(row.progress or {}),
+        executor=row.executor,
     )
 
 
@@ -365,7 +369,9 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
 
     async def fail_orphans(self, reason: str) -> int:
         now = datetime.now(tz=UTC).isoformat()
-        query = self._rows().where(WorkflowRunRow.outcome == "running")
+        query = self._rows().where(
+            WorkflowRunRow.outcome == "running", WorkflowRunRow.executor == "extension"
+        )
         rows = (
             await self._session.execute(
                 query.order_by(WorkflowRunRow.started_at, WorkflowRunRow.id)

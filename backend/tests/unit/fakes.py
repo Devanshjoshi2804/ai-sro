@@ -1698,7 +1698,10 @@ class FakeWorkflowRunRepository:
         # It cannot reproduce the RACE -- nothing here yields, which is exactly
         # why the concurrent-press test is an integration test -- but it can
         # refuse the state.
-        if run.outcome == "running":
+        # Narrowed to `executor == "extension"`, same as the index's predicate:
+        # a Steel run has no device and may sit beside others on one account,
+        # so it is never the run this rule is about.
+        if run.outcome == "running" and run.executor == "extension":
             clash = next(
                 (
                     held
@@ -1707,6 +1710,7 @@ class FakeWorkflowRunRepository:
                     and held.tenant == run.tenant
                     and held.device_id == run.device_id
                     and held.outcome == "running"
+                    and held.executor == "extension"
                 ),
                 None,
             )
@@ -1889,10 +1893,16 @@ class FakeWorkflowRunRepository:
 
     async def fail_orphans(self, reason: str) -> int:
         # Every tenant, as at startup: nobody is making the request, and a run
-        # left running in one tenant goes on 409-ing its browser.
+        # left running in one tenant goes on 409-ing its browser. Steel runs
+        # live in the worker, not the API process, so an API restart loses
+        # nothing of theirs -- only `executor == "extension"` is swept.
         now = datetime.now(tz=UTC).isoformat()
         orphans = sorted(
-            (run for run in self.rows.values() if run.outcome == "running"),
+            (
+                run
+                for run in self.rows.values()
+                if run.outcome == "running" and run.executor == "extension"
+            ),
             key=lambda run: (when(run.started_at), run.id),
         )
         for run in orphans:

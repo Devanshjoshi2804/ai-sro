@@ -100,3 +100,7 @@ class WorkflowRun:
     awaiting: dict[str, str] | None = None
 
     wrong_because: str | None = None
+
+    progress: dict[str, object] = field(default_factory=dict)
+
+    executor: str = "extension"

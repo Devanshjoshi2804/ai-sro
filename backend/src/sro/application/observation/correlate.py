@@ -13,6 +13,7 @@ from sro.domain.observation.gesture import (
     Call,
     Component,
     Gesture,
+    Landmark,
     PageMark,
     Target,
     new_gesture_id,
@@ -152,6 +153,7 @@ def as_action(wire: WireGesture) -> Action:
             ),
             bounds=dict(target.bounds),
             attributes=dict(target.attributes),
+            landmarks=tuple(Landmark(role=one.role, name=one.name) for one in target.landmarks),
         ),
         modifiers=tuple(wire.modifiers),
     )

@@ -31,7 +31,7 @@ Code: `chain: tuple[str, ...] = ()`
 > page-code payload and snapshot repair read this to re-find a control by
 > ancestor rather than by the query string alone (§4.1).
 
-## `Target`, [line 37](../../../../../../../backend/src/sro/domain/observation/gesture.py#L37): Note on the line above
+## `Target`, [line 43](../../../../../../../backend/src/sro/domain/observation/gesture.py#L43): Note on the line above
 
 Code: `required: bool | None = None`
 
@@ -41,7 +41,7 @@ Code: `required: bool | None = None`
 > fields by colour alone tells this system nothing, and guessing from a
 > colour is how a run stops for a field nobody has to fill.
 
-## `Target`, [line 40](../../../../../../../backend/src/sro/domain/observation/gesture.py#L40): Note on the line above
+## `Target`, [line 46](../../../../../../../backend/src/sro/domain/observation/gesture.py#L46): Note on the line above
 
 Code: `bounds: dict[str, float] = field(default_factory=dict, hash=False)`
 
@@ -50,7 +50,7 @@ Code: `bounds: dict[str, float] = field(default_factory=dict, hash=False)`
 > captured, which is what a snapshot repair matches against once the DOM it
 > was captured from is gone (§4.1).
 
-## `Target`, [line 41](../../../../../../../backend/src/sro/domain/observation/gesture.py#L41): Note on the line above
+## `Target`, [line 47](../../../../../../../backend/src/sro/domain/observation/gesture.py#L47): Note on the line above
 
 Code: `attributes: dict[str, object] = field(default_factory=dict, hash=False)`
 
@@ -65,11 +65,11 @@ Code: `attributes: dict[str, object] = field(default_factory=dict, hash=False)`
 > when `query` alone
 > is ambiguous (§4.1).
 
-## `Action`, [line 45](../../../../../../../backend/src/sro/domain/observation/gesture.py#L45): Docstring
+## `Action`, [line 52](../../../../../../../backend/src/sro/domain/observation/gesture.py#L52): Docstring
 
 > The gesture itself: what was done, to what, with what typed.
 
-## `Action`, [line 52](../../../../../../../backend/src/sro/domain/observation/gesture.py#L52): Note on the line above
+## `Action`, [line 59](../../../../../../../backend/src/sro/domain/observation/gesture.py#L59): Note on the line above
 
 Code: `modifiers: tuple[str, ...] = ()`
 
@@ -77,12 +77,12 @@ Code: `modifiers: tuple[str, ...] = ()`
 > captured and this used to drop. A run replaying the gesture needs them to
 > reproduce a modified click or keypress rather than a bare one (§4.1).
 
-## `Call`, [line 65](../../../../../../../backend/src/sro/domain/observation/gesture.py#L65): Docstring
+## `Call`, [line 72](../../../../../../../backend/src/sro/domain/observation/gesture.py#L72): Docstring
 
 > A recorded exchange, the part of it the belts read: never a response
 > body's text beyond what `confirming_read` compares.
 
-## `GestureBatch`, [line 107](../../../../../../../backend/src/sro/domain/observation/gesture.py#L107): Docstring
+## `GestureBatch`, [line 114](../../../../../../../backend/src/sro/domain/observation/gesture.py#L114): Docstring
 
 > What one upload said about itself.
 >
@@ -97,7 +97,7 @@ Code: `modifiers: tuple[str, ...] = ()`
 > separate tables. Both may describe one upload; neither is derived from the
 > other.
 
-## `passed_through`, [line 146](../../../../../../../backend/src/sro/domain/observation/gesture.py#L146): Docstring
+## `passed_through`, [line 153](../../../../../../../backend/src/sro/domain/observation/gesture.py#L153): Docstring
 
 > Whether this gesture ended on a different system from the one it
 > happened on -- the browser moved the operator, the operator did not.
@@ -107,7 +107,7 @@ Code: `modifiers: tuple[str, ...] = ()`
 > `values.worked_in_both` reads it for the same distinction: a browser
 > bouncing through an identity provider is not somebody using two tabs.
 
-## `Call`, [line 68](../../../../../../../backend/src/sro/domain/observation/gesture.py#L68): Comment
+## `Call`, [line 75](../../../../../../../backend/src/sro/domain/observation/gesture.py#L75): Comment
 
 Code: `request_id: str = ""`
 

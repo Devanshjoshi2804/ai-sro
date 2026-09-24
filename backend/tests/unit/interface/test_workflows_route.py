@@ -641,6 +641,7 @@ async def test_a_cited_gesture_reaches_the_bridge_whole(
                 },
                 "bounds": {},
                 "attributes": {},
+                "landmarks": [],
             },
             "modifiers": [],
         },

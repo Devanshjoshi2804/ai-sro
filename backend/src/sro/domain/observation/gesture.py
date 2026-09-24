@@ -25,6 +25,12 @@ class Component:
 
 
 @dataclass(frozen=True, slots=True)
+class Landmark:
+    role: str
+    name: str
+
+
+@dataclass(frozen=True, slots=True)
 class Target:
     tag: str | None = None
     role: str | None = None
@@ -39,6 +45,7 @@ class Target:
     component: Component | None = None
     bounds: dict[str, float] = field(default_factory=dict, hash=False)
     attributes: dict[str, object] = field(default_factory=dict, hash=False)
+    landmarks: tuple[Landmark, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

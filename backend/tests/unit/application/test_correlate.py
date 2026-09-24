@@ -316,3 +316,14 @@ def test_every_captured_detail_of_the_control_is_kept_and_stored() -> None:
     assert action.target.component.chain == ("panel#clients", "textfield#clientCode")
     assert action.modifiers == ("shift",)
     assert hash(action)
+
+
+def test_the_labelled_ancestors_reach_the_stored_target() -> None:
+    event = copy.deepcopy(GESTURE_TYPE)
+    event["gesture"]["target"]["landmarks"] = [{"role": "dialog", "name": "New Customer"}]
+
+    gestures, _, _, _ = correlate(_batch([event]), TENANT)
+
+    target = gestures[0].action.target
+    assert target is not None
+    assert [(one.role, one.name) for one in target.landmarks] == [("dialog", "New Customer")]

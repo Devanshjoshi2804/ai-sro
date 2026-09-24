@@ -1,6 +1,8 @@
 (() => {
   const REPAIR_THRESHOLD = 3;
   const REPAIR_MARGIN = 2;
+  const REPAIRABLE_ACTIONS = new Set(["click", "hover", "scroll"]);
+  const UNREPAIRABLE_ROLES = new Set(["checkbox", "radio", "switch", "option", "combobox"]);
   const NEAR_PX = 50;
   const GENERATED_ID = /^(ext-|gen)|\d{3,}/;
   const CANDIDATES = "input, select, textarea, button, a, [role], [tabindex]";
@@ -260,7 +262,11 @@
       const found = run(t, payload).filter(shown);
       if (found.length) return { el: nearest(found, t.bounds), strategy, candidates: found.length, score: null };
     }
-    const fixed = payload.write === false ? repair(t) : null;
+    const repairable =
+      payload.write === false &&
+      REPAIRABLE_ACTIONS.has(payload.action) &&
+      !UNREPAIRABLE_ROLES.has(t.role);
+    const fixed = repairable ? repair(t) : null;
     return fixed
       ? { el: fixed.el, strategy: "repair", candidates: 1, score: fixed.score }
       : { el: null, strategy: null, candidates: 0, score: null };

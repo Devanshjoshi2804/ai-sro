@@ -636,7 +636,7 @@ test("a read repairs a renamed control when its kind, its scope and more of it a
     node("input", { attrs: { "aria-label": "Notes" }, box: { x: 600, y: 600, width: 40, height: 20 } }),
   );
 
-  const found = resolve({ write: false, target: RENAMED });
+  const found = resolve({ write: false, action: "click", target: RENAMED });
 
   assert.equal(found.strategy, "repair");
   assert.equal(found.xpath, "/body/form[1]/input[1]");
@@ -708,9 +708,49 @@ test("a near tie is refused and a clear lead is taken", () => {
   assert.equal(resolve({ write: false, target: RENAMED }).found, false, "3 against 2 was taken");
 
   customerForm(node("input", best), node("input", { attrs: { "aria-label": "Notes", placeholder: "Enter code" }, box: far }));
-  const found = resolve({ write: false, target: RENAMED });
+  const found = resolve({ write: false, action: "click", target: RENAMED });
   assert.equal(found.strategy, "repair", "3 against 1 was refused");
   assert.equal(found.xpath, "/body/form[1]/input[1]");
+});
+
+test("repair never types: a renamed Quantity field is left alone on a type action", () => {
+  const { resolve, act } = loadSroPage();
+  const qty = { attrs: { "aria-label": "Quantity to cancel", placeholder: "0" }, box: { x: 10, y: 10, width: 40, height: 20 } };
+  const form = () => node("form", { attrs: { "aria-label": "Order" }, children: [node("input", qty)] });
+  mount(node("body", { children: [form()] }));
+  const target = {
+    role: "textbox",
+    name: "Quantity",
+    attributes: { placeholder: "0" },
+    landmarks: [{ role: "form", name: "Order" }],
+    bounds: { x: 10, y: 10, width: 40, height: 20 },
+  };
+
+  const found = resolve({ write: false, action: "type", target });
+  assert.equal(found.found, false, `repair chose ${found.xpath}`);
+
+  const answer = act({ action: "type", value: "50", write: false, target });
+  assert.equal(answer.ok, false);
+  assert.equal(answer.error.kind, "control_not_found");
+});
+
+test("repair never selects or toggles a checkbox", () => {
+  const { resolve } = loadSroPage();
+  const box = node("input", {
+    attrs: { type: "checkbox", "aria-label": "Include cancelled orders", placeholder: "cancelled" },
+    box: { x: 10, y: 10, width: 16, height: 16 },
+  });
+  mount(node("body", { children: [box] }));
+  const target = {
+    role: "checkbox",
+    name: "Include",
+    attributes: { placeholder: "cancelled" },
+    bounds: { x: 10, y: 10, width: 16, height: 16 },
+  };
+
+  const found = resolve({ write: false, action: "click", target });
+
+  assert.equal(found.found, false, `repair chose ${found.xpath}`);
 });
 
 // --- act pins what it touched, and holds checks exactly that -----------------

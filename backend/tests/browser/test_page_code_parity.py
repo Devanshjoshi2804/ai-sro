@@ -64,6 +64,18 @@ RENAMED_PAGE = """<!doctype html><html><body>
 </form>
 </body></html>"""
 
+QUANTITY_PAGE = """<!doctype html><html><body>
+<form aria-label="Order">
+<input aria-label="Quantity to cancel" placeholder="0"
+  style="position:absolute;left:10px;top:10px;width:80px;height:20px">
+</form>
+</body></html>"""
+
+CHECKBOX_PAGE = """<!doctype html><html><body>
+<input type="checkbox" aria-label="Include cancelled orders" placeholder="cancelled"
+  style="position:absolute;left:10px;top:10px;width:16px;height:16px">
+</body></html>"""
+
 SCROLLED_PAGE = """<!doctype html><html><body style="margin:0;height:3000px">
 <button style="position:absolute;left:10px;top:100px;width:60px;height:20px">Save</button>
 <button style="position:absolute;left:10px;top:1800px;width:60px;height:20px">Save</button>
@@ -104,6 +116,8 @@ class _Pages(BaseHTTPRequestHandler):
         "/stale": STALE_PAGE,
         "/duplicate": DUPLICATE_PAGE,
         "/renamed": RENAMED_PAGE,
+        "/quantity": QUANTITY_PAGE,
+        "/checkbox": CHECKBOX_PAGE,
         "/scrolled": SCROLLED_PAGE,
         "/hit-top": HIT_TOP_PAGE,
         "/hit-inner": HIT_INNER_PAGE,
@@ -368,6 +382,7 @@ def test_a_renamed_control_repairs_to_the_same_control_in_both_engines_at_two_vi
     url = f"http://127.0.0.1:{port}/renamed"
     payload = {
         "write": False,
+        "action": "click",
         "target": {
             "role": "textbox",
             "name": "Client",
@@ -392,6 +407,54 @@ def test_a_renamed_control_repairs_to_the_same_control_in_both_engines_at_two_vi
     _same_answer(extension_found, playwright_found)
     as_a_write = _resolve_in_plain_chromium(url, {**payload, "write": True})
     assert as_a_write["found"] is False, as_a_write
+
+
+def test_repair_never_types(pages: Any) -> None:
+    """The reviewer's probe: a renamed "Quantity" field's replacement, "Quantity
+    to cancel", sits in the same spot and scores 3 -- at threshold -- but a
+    `type` action is never repaired, so nothing is typed into it."""
+    port = pages.server_address[1]
+    url = f"http://127.0.0.1:{port}/quantity"
+    payload = {
+        "write": False,
+        "action": "type",
+        "value": "50",
+        "target": {
+            "role": "textbox",
+            "name": "Quantity",
+            "attributes": {"placeholder": "0"},
+            "landmarks": [{"role": "form", "name": "Order"}],
+            "bounds": {"x": 10, "y": 10, "width": 80, "height": 20},
+        },
+    }
+
+    found = _resolve_in_plain_chromium(url, payload)
+
+    assert found["found"] is False, found
+    assert found["strategy"] is None, found
+
+
+def test_repair_never_selects_or_toggles_a_checkbox(pages: Any) -> None:
+    """The role gate is independent of the action gate: a checkbox toggle is
+    performed with a `click` action, which is otherwise repairable, but its
+    role is not."""
+    port = pages.server_address[1]
+    url = f"http://127.0.0.1:{port}/checkbox"
+    payload = {
+        "write": False,
+        "action": "click",
+        "target": {
+            "role": "checkbox",
+            "name": "Include",
+            "attributes": {"placeholder": "cancelled"},
+            "bounds": {"x": 10, "y": 10, "width": 16, "height": 16},
+        },
+    }
+
+    found = _resolve_in_plain_chromium(url, payload)
+
+    assert found["found"] is False, found
+    assert found["strategy"] is None, found
 
 
 def _record_a_click_while_scrolled(url: str) -> dict[str, Any]:

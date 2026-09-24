@@ -41,7 +41,7 @@ Code: `required: bool | None = None`
 > A recorded exchange, the part of it the belts read: never a response
 > body's text beyond what `confirming_read` compares.
 
-## `GestureBatch`, [line 102](../../../../../../../backend/src/sro/domain/observation/gesture.py#L102): Docstring
+## `GestureBatch`, [line 103](../../../../../../../backend/src/sro/domain/observation/gesture.py#L103): Docstring
 
 > What one upload said about itself.
 >
@@ -56,7 +56,7 @@ Code: `required: bool | None = None`
 > separate tables. Both may describe one upload; neither is derived from the
 > other.
 
-## `passed_through`, [line 141](../../../../../../../backend/src/sro/domain/observation/gesture.py#L141): Docstring
+## `passed_through`, [line 142](../../../../../../../backend/src/sro/domain/observation/gesture.py#L142): Docstring
 
 > Whether this gesture ended on a different system from the one it
 > happened on -- the browser moved the operator, the operator did not.

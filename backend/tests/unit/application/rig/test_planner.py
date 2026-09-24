@@ -20,8 +20,16 @@ from collections.abc import Mapping
 from dataclasses import replace
 from urllib.parse import urlsplit
 
-from sro.application.execution.plan_step import ACTIONS, plan_by_sight, plan_step
+from sro.application.execution.plan_step import (
+    ACTIONS,
+    _a_cascade,
+    _option_named,
+    _point_on,
+    plan_by_sight,
+    plan_step,
+)
 from sro.domain.execution.evidence import locators_for
+from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.planning import (
     PLAN_INSTRUCTIONS,
     PLAN_SCHEMA,
@@ -32,7 +40,7 @@ from sro.domain.execution.planning import (
 )
 from sro.domain.execution.secrets import secret_key_for
 from sro.domain.execution.verified_writes import VerifiedWrite
-from sro.domain.observation.gesture import Body, Call, Component, Gesture
+from sro.domain.observation.gesture import Body, Call, Component, Gesture, Target
 from sro.domain.observation.trim import trim
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.shared.prices import Answer, Effort
@@ -179,6 +187,84 @@ async def test_a_ui_plan_carries_the_evidence_locators_not_the_models() -> None:
     assert planned.payload["origin"] == "http://127.0.0.1:63319"
     assert planned.payload["allow_focus"] is True
     assert planned.answer.cost_usd == 0.0003
+
+
+async def test_a_learned_locator_leads_the_ladder_and_is_still_visible_only() -> None:
+    """A control this skill has already found once by a strategy that worked
+    is tried before the evidence's own ladder -- and still constrained to
+    what is visible, the same as every other rung."""
+    gesture = _typed()
+    planned = await plan_step(
+        step=Step(
+            order=0,
+            says="type the code",
+            system=None,
+            cites=[gesture.id],
+            parameters=["clientCode"],
+        ),
+        learned=LearnedStep(ord=0, strategy="css_path", query="input#clientCode", found_by="sight"),
+        cited=[gesture],
+        values={"clientCode": "THIRD"},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=FakeAsker(_answer(action="type", value="THIRD")),
+        model="m",
+    )
+
+    locators = planned.payload["locators"]
+    assert isinstance(locators, list)
+    assert locators[0] == {
+        "strategy": "css_path",
+        "query": "input#clientCode",
+        "within": None,
+        "visible_only": True,
+    }
+
+
+async def test_an_unusable_learned_locator_is_not_tried_at_all() -> None:
+    """`usable` is the gate: a learned step with no strategy or no query is
+    nothing to lead the ladder with, and the evidence's own ladder is used as
+    if nothing had been learned."""
+    gesture = _typed()
+    without_learning = await plan_step(
+        step=Step(
+            order=0,
+            says="type the code",
+            system=None,
+            cites=[gesture.id],
+            parameters=["clientCode"],
+        ),
+        cited=[gesture],
+        values={"clientCode": "THIRD"},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=FakeAsker(_answer(action="type", value="THIRD")),
+        model="m",
+    )
+    with_unusable_learning = await plan_step(
+        step=Step(
+            order=0,
+            says="type the code",
+            system=None,
+            cites=[gesture.id],
+            parameters=["clientCode"],
+        ),
+        learned=LearnedStep(ord=0, strategy="", query="", found_by="sight"),
+        cited=[gesture],
+        values={"clientCode": "THIRD"},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=FakeAsker(_answer(action="type", value="THIRD")),
+        model="m",
+    )
+
+    assert with_unusable_learning.payload["locators"] == without_learning.payload["locators"]
 
 
 async def test_a_step_declaring_nothing_is_aimed_at_the_box_the_run_has_a_value_for() -> None:
@@ -705,6 +791,7 @@ async def test_a_navigate_with_nowhere_to_go_is_not_a_navigate() -> None:
     for url in (None, "", 7):
         planned, _ = await _planned(cited=[gesture], answer=_answer(kind="navigate", url=url))
         assert (planned.kind, planned.payload) == ("none", {}), url
+        assert planned.why == "navigate with no url", url
 
 
 async def test_the_why_on_the_plan_is_the_models_own_and_empty_when_it_gave_none() -> None:
@@ -819,6 +906,9 @@ async def test_an_http_plan_aims_the_operators_body_at_this_runs_values() -> Non
 
     assert planned.kind == "http.send"
     assert json.loads(str(planned.payload["body"]))["clientCode"] == "THIRD"
+    assert planned.rewrote is True
+    assert planned.filled == {"clientCode": "clientCode"}
+    assert planned.confirm == {}
 
 
 async def test_a_body_that_cannot_be_aimed_downgrades_to_clicking_save() -> None:
@@ -845,10 +935,53 @@ async def test_a_body_that_cannot_be_aimed_downgrades_to_clicking_save() -> None
     assert "cannot be re-aimed" in planned.why
 
 
+async def test_a_value_that_would_pick_a_row_is_refused_when_the_step_also_writes() -> None:
+    """Opening the list first would perform this step's own write to find out
+    what is on it, and performing the recorded choice instead of the one
+    asked for would write the wrong thing -- so this step is refused by name."""
+    gesture = _saver()
+    planned, _ = await _planned(
+        cited=[gesture],
+        answer=_answer(action="click"),
+        step=Step(
+            order=3, says="pick the depot", system=None, cites=[gesture.id], parameters=["depot"]
+        ),
+        values={"depot": "D3"},
+    )
+
+    assert planned.kind == "none"
+    assert planned.why == (
+        "step 3 was given depot and a click cannot carry a value: this step also writes, so the "
+        "list cannot be opened first, and performing it would use the "
+        "recorded choice instead of the one asked for"
+    )
+    assert planned.answer is not None
+
+
+async def test_a_run_given_no_values_at_all_does_not_claim_a_body_could_not_be_aimed() -> None:
+    """Nothing to aim is not the same failure as a value that cannot be found
+    in the body -- the second message is reserved for the second case."""
+    first, second = _twice_over(sent="ACME", then="WIDGET")
+    step = Step(order=0, says="save", system=None, cites=[first.id, second.id])
+
+    planned, _ = await _planned(
+        cited=[first, second],
+        answer=_answer(kind="http.send"),
+        step=step,
+        values={},
+        verified_writes=(VerifiedWrite(method="POST", path_pattern="/api/orders"),),
+        seen={"clientCode": frozenset({"ACME", "WIDGET"})},
+    )
+
+    assert "cannot be re-aimed" not in planned.why
+
+
 async def test_an_http_plan_for_a_step_whose_evidence_made_no_call_plans_nothing() -> None:
     gesture = _typed()  # a typed field; the recorder heard no traffic from it
     planned, _ = await _planned(cited=[gesture], answer=_answer(kind="http.send"))
     assert (planned.kind, planned.payload) == ("none", {})
+    assert planned.why == "http.send planned for a step whose evidence carries no call"
+    assert planned.answer is not None
 
 
 async def test_the_model_is_told_where_the_step_was_demonstrated_and_under_what_effort() -> None:
@@ -921,10 +1054,12 @@ async def test_a_rescue_is_shown_the_page_the_failed_attempt_left_behind() -> No
     assert asked["image"] == b"now-png", "the page as it is now is the first picture"
     assert asked["images"] == (b"left-png",), "the page the failed attempt left is the second"
     assert isinstance(asked["evidence"], str)
+    assert asked["evidence"].splitlines()[1] == '  "step": {', "pretty-printed at two spaces"
     evidence = json.loads(asked["evidence"])
     assert evidence["previous_attempt_failed"] == "the code was not typed"
     assert evidence["previous_attempt_left"]["screenshot"] == "the second image"
     assert evidence["previous_attempt_left"]["url"].endswith("?after")
+    assert evidence["previous_attempt_left"]["screen_text"] == "still empty"
 
 
 async def test_a_first_attempt_carries_no_second_picture() -> None:
@@ -1244,6 +1379,7 @@ async def test_a_value_a_click_cannot_carry_opens_the_list_first() -> None:
     assert planned.payload["starts_on"] == "http://127.0.0.1:63319/form"
     locators = planned.payload["locators"]
     assert isinstance(locators, list) and locators, "the evidence's own ladder opens it"
+    assert planned.answer is not None
 
 
 async def test_the_second_click_is_the_row_named_by_the_value_asked_for() -> None:
@@ -1258,6 +1394,10 @@ async def test_the_second_click_is_the_row_named_by_the_value_asked_for() -> Non
         {"strategy": "text", "query": "THIRD", "within": None, "visible_only": True}
     ]
     assert planned.payload["action"] == "click" and planned.payload["value"] is None
+    assert planned.payload["origin"] == "http://127.0.0.1:63319"
+    assert planned.payload["allow_focus"] is True
+    assert planned.payload["starts_on"] == "http://127.0.0.1:63319/form"
+    assert planned.answer is not None
 
 
 async def test_a_pick_that_may_not_take_the_screen_says_nothing_about_focus() -> None:
@@ -1510,6 +1650,7 @@ async def test_a_step_that_needs_a_password_nobody_stored_refuses_by_name() -> N
 
     assert planned.kind == "none"
     assert secret_key_for("new", field) in planned.why
+    assert planned.answer is not None
 
 
 async def test_a_run_with_no_vault_says_so_rather_than_typing_nothing() -> None:
@@ -1528,7 +1669,64 @@ async def test_a_run_with_no_vault_says_so_rather_than_typing_nothing() -> None:
     )
 
     assert planned.kind == "none"
+    assert planned.payload == {}
     assert "vault" in planned.why
+    assert planned.answer is not None
+
+
+async def test_a_password_key_defaults_to_no_tenant_when_none_is_given() -> None:
+    """A run with no tenant of its own still keys the vault lookup by
+    something -- an empty tenant segment, not a placeholder."""
+    field = _secret_field()
+    asked: list[str] = []
+
+    async def vault(key: str) -> str | None:
+        asked.append(key)
+        return "kept"
+
+    await plan_step(
+        step=Step(order=0, says="sign in", system=None, cites=[field.id]),
+        cited=[field],
+        values={},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=_says_type(),
+        model="m",
+        secret_for=vault,
+    )
+
+    assert asked == [secret_key_for("", field)]
+
+
+async def test_the_secret_key_falls_back_to_the_gestures_system_with_no_url() -> None:
+    """A step with no url of its own -- nothing the browser navigated to --
+    still has to be keyed by wherever it was demonstrated."""
+    field = copy.deepcopy(_secret_field())
+    field.url = None
+    field.page_url = None
+    asked: list[str] = []
+
+    async def vault(key: str) -> str | None:
+        asked.append(key)
+        return "kept"
+
+    await plan_step(
+        step=Step(order=0, says="sign in", system=None, cites=[field.id]),
+        cited=[field],
+        values={},
+        look=Look(None, None, ""),
+        origin=None,
+        starts_on=None,
+        allow_focus=False,
+        asker=_says_type(),
+        model="m",
+        tenant_id="new",
+        secret_for=vault,
+    )
+
+    assert asked == [secret_key_for("new", field)]
 
 
 async def test_a_step_that_needs_a_password_says_which_one_as_structure() -> None:
@@ -1812,3 +2010,121 @@ async def test_a_replayed_delete_goes_to_the_record_this_run_named() -> None:
 
     assert planned is not None
     assert planned.payload["url"] == "http://127.0.0.1:63319/api/customerTypes/MRN1?siteId=SG"
+
+
+# -- `_option_named`, `_point_on` and `_a_cascade`: private helpers no test here
+# called directly, found only by mutating an argument the caller could never
+# supply the way the mutant did. --------------------------------------------
+
+
+def _typed_value(value: str, gesture_id: str = "ges_typed") -> Gesture:
+    one = copy.deepcopy(_typed())
+    one.id = gesture_id
+    one.action = replace(one.action, kind="type", value=value)
+    return one
+
+
+def _click(
+    *,
+    gesture_id: str,
+    xtype: str | None = "boundlist",
+    name: str | None = None,
+    text: str | None = None,
+    no_component: bool = False,
+) -> Gesture:
+    one = copy.deepcopy(_typed())
+    one.id = gesture_id
+    target = Target(
+        name=name, text=text, component=None if no_component else Component(xtype=xtype)
+    )
+    one.action = replace(one.action, kind="click", value=None, target=target)
+    return one
+
+
+def test_option_named_wants_a_typed_value_not_any_gesture_that_carries_one() -> None:
+    """The filter is `kind in VALUED and value`, not `or`: a click that happens
+    to carry a leftover `.value` must not stand in for what was actually
+    typed."""
+    faux = _click(gesture_id="ges_faux", xtype=None, name=None)
+    faux.action = replace(faux.action, value="off")
+    real = _typed_value("ACME")
+    boundlist = _click(gesture_id="ges_list", name="ACME option")
+
+    assert _option_named([faux, real, boundlist], "NEW") == "NEW option"
+
+
+def test_option_named_with_no_typed_value_returns_nothing() -> None:
+    """Both the `next()` default and the early return are the empty string, not
+    a placeholder that could accidentally be found `in` a label."""
+    assert _option_named([], "NEW") == ""
+    trap = _click(gesture_id="ges_trap", name="the XXXX one")
+    assert _option_named([trap], "NEW") == "", "nothing was typed; a default must not stand in"
+
+
+def test_option_named_skips_a_click_with_no_component_and_keeps_looking() -> None:
+    """A click with no component is not a boundlist row -- it is skipped, not
+    treated as one (which would read `.xtype` off `None`), and the search goes
+    on to the row that follows."""
+    real = _typed_value("ACME")
+    bare = _click(gesture_id="ges_bare", no_component=True, name="ACME bare")
+    boundlist = _click(gesture_id="ges_list", name="ACME option")
+
+    assert _option_named([real, bare, boundlist], "NEW") == "NEW option"
+
+
+def test_option_named_skips_a_click_whose_target_never_resolved_at_all() -> None:
+    """Not every click carries a target -- a raw coordinate click resolves
+    nothing on the page. It is skipped like any other non-boundlist row, not
+    read as one (which would ask a target of `None` for its component)."""
+    real = _typed_value("ACME")
+    untargeted = copy.deepcopy(_typed())
+    untargeted.id = "ges_untargeted"
+    untargeted.action = replace(untargeted.action, kind="click", value=None, target=None)
+    boundlist = _click(gesture_id="ges_list", name="ACME option")
+
+    assert _option_named([real, untargeted, boundlist], "NEW") == "NEW option"
+
+
+def test_option_named_keeps_looking_past_a_row_that_is_not_a_boundlist() -> None:
+    real = _typed_value("ACME")
+    other = _click(gesture_id="ges_other", xtype="combobox", name="ACME other")
+    boundlist = _click(gesture_id="ges_list", name="ACME option")
+
+    assert _option_named([real, other, boundlist], "NEW") == "NEW option"
+
+
+def test_option_named_prefers_the_label_over_the_text_and_falls_back_in_order() -> None:
+    named = _click(gesture_id="ges_named", name="ACME by name", text="ignored")
+    assert _option_named([_typed_value("ACME"), named], "NEW") == "NEW by name"
+
+    texted = _click(gesture_id="ges_texted", name=None, text="ACME by text")
+    assert _option_named([_typed_value("ACME"), texted], "NEW") == "NEW by text"
+
+    blank = _click(gesture_id="ges_blank", name=None, text=None)
+    assert _option_named([_typed_value("XX"), blank], "NEW") == "", (
+        "no label at all is nothing to match against, whatever the wanted value is"
+    )
+
+
+def test_point_on_refuses_anything_that_is_not_a_dict() -> None:
+    look = Look(None, None, "", width=10, height=10)
+    assert _point_on(None, look) is None
+    assert _point_on([1, 2], look) is None
+
+
+def test_point_on_wants_both_coordinates_as_ints() -> None:
+    look = Look(None, None, "", width=10, height=10)
+    assert _point_on({"x": 5, "y": "nope"}, look) is None
+    assert _point_on({"x": "nope", "y": 5}, look) is None
+
+
+def test_point_on_the_edges_of_the_viewport() -> None:
+    look = Look(None, None, "", width=10, height=10)
+    assert _point_on({"x": 0, "y": 0}, look) == (0, 0), "the near edge is on the screen"
+    assert _point_on({"x": 10, "y": 5}, look) is None, "width itself is one past the last column"
+    assert _point_on({"x": 5, "y": 10}, look) is None, "height itself is one past the last row"
+
+
+def test_a_cascade_with_no_gesture_behind_the_call_is_not_a_cascade() -> None:
+    lone = Call(method="POST", url="http://127.0.0.1:63319/nowhere")
+    assert _a_cascade(lone, [], ()) is False

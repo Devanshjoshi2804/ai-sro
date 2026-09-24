@@ -81,7 +81,7 @@ def learned_from(ord_: int, matched_by: str | None, result: object) -> LearnedSt
     control = result.get("control")
     matched = result.get("matched")
     if isinstance(matched, dict) and matched.get("strategy") in WORTH_KEEPING:
-        strategy, query = str(matched.get("strategy") or ""), str(matched.get("query") or "")
+        strategy, query = str(matched.get("strategy")), str(matched.get("query") or "")
         if strategy and query:
             return LearnedStep(ord_, strategy, query[:K_NAME], str(matched_by))
     if isinstance(control, dict):

@@ -34,10 +34,11 @@ class Shape:
 
 
 def _all_in_a_mailbox(gestures: Sequence[Gesture]) -> bool:
-    return bool(gestures) and all(
-        urlsplit(one.url or one.system or "").netloc.split(":")[0] in K_MAILBOXES
-        for one in gestures
-    )
+    for one in gestures:
+        source = one.url or one.system
+        if not source or urlsplit(source).netloc.split(":")[0] not in K_MAILBOXES:
+            return False
+    return True
 
 
 def in_time_order(workflow: Workflow, by_id: Mapping[str, Gesture]) -> list[Gesture]:

@@ -26,6 +26,7 @@ def test_a_control_a_picture_found_becomes_a_locator() -> None:
     assert learned is not None
     assert (learned.strategy, learned.query) == ("text", "Customer Types")
     assert learned.found_by == "sight"
+    assert learned.ord == 2
 
 
 def test_the_page_s_own_name_for_it_wins_over_the_words_on_it() -> None:
@@ -38,6 +39,8 @@ def test_the_page_s_own_name_for_it_wins_over_the_words_on_it() -> None:
 
     assert learned is not None
     assert (learned.strategy, learned.query) == ("component", "tabItem-9")
+    assert learned.found_by == "sight"
+    assert learned.ord == 2
 
 
 def test_the_locator_that_matched_is_kept_as_it_was() -> None:
@@ -47,6 +50,8 @@ def test_the_locator_that_matched_is_kept_as_it_was() -> None:
 
     assert learned is not None
     assert (learned.strategy, learned.query) == ("css_path", "span#save-1067")
+    assert learned.found_by == "css_path"
+    assert learned.ord == 3
 
 
 def test_nothing_is_kept_where_the_job_was_already_right() -> None:
@@ -62,6 +67,17 @@ def test_nothing_is_kept_from_a_reply_that_named_nothing() -> None:
     assert learned_from(1, "sight", None) is None
     assert learned_from(1, None, {"control": {"name": "Save"}}) is None
     assert learned_from(1, "sight", {"control": {"name": "   "}}) is None
+
+
+def test_a_matched_locator_with_no_query_is_not_kept() -> None:
+    """The strategy alone is not a locator -- a match the wire named without a
+    query is nothing to write down."""
+    assert learned_from(3, "css_path", {"matched": {"strategy": "css_path"}}) is None
+
+
+def test_a_control_that_names_nothing_at_all_is_not_kept() -> None:
+    """Neither an itemId nor a name -- an empty control is nothing to learn."""
+    assert learned_from(1, "sight", {"control": {}}) is None
 
 
 def test_a_limit_learnt_about_a_step_is_readable_by_the_name_it_was_typed_into() -> None:

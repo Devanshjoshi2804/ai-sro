@@ -89,10 +89,21 @@ Why the code in [`backend/src/sro/domain/execution/account.py`](../../../../../.
 
 ## `Account.lock_id`, [line 45](../../../../../../../backend/src/sro/domain/execution/account.py#L45): Note
 
-> `pg_advisory_lock` takes a signed 64-bit integer, not a string, so the
+> `pg_advisory_xact_lock` takes a signed 64-bit integer, not a string, so the
 > account's key is hashed (SHA-256, first 8 bytes, big-endian, signed) into
-> one. Two accounts collide only if two distinct keys hash to the same 8
-> bytes -- not a risk this deployment's account count reaches.
+> one -- the single-`bigint` form, not the two-`int4` form, because splitting
+> the hash in half to add a class id would cut it to 32 bits and make the
+> birthday risk real (about 1% at 10,000 accounts); kept whole, it stays
+> negligible (about 2.7e-12 at 10,000 accounts).
+>
+> That single-`bigint` space is also `RUNS_LOCK`'s
+> (`container.py:179`, `pg_try_advisory_lock`, one process claiming the
+> right to drive runs) -- the two are never split into separate class ids,
+> so an account's `lock_id` landing on `5721966` is a real, just
+> astronomically unlikely, possibility (about 5e-20 per account). If it ever
+> happened, `claim_the_runs` would believe another API process was already
+> driving runs. Worth naming if a third advisory lock is ever added here:
+> the space is shared by convention, not by a partition the code enforces.
 
 ## `Lease.context_id`, [line 70](../../../../../../../backend/src/sro/domain/execution/account.py#L70): Note
 

@@ -10,7 +10,7 @@ import asyncio
 import re
 import sys
 from collections import Counter
-from collections.abc import AsyncIterator, Callable, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from dataclasses import replace
@@ -33,6 +33,7 @@ from sro.application.ports.http import (
     TargetUnreachable,
 )
 from sro.application.ports.intent import Extraction, Reading
+from sro.application.ports.locks import AccountBusy
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import (
     AttemptRepository,
@@ -1275,20 +1276,32 @@ class FakeTriggerRepository:
         return trigger if trigger is not None and self._live(trigger) else None
 
 
+async def _no_op_on_wait() -> None:
+    return None
+
+
 class FakeAccountLocks:
     """One `asyncio.Lock` per `Account.key`, keyed the same way the real
     advisory lock is: two accounts that normalise to the same key share a
-    lock, and nothing here is a process boundary the way Postgres is."""
+    lock, and nothing here is a process boundary the way Postgres is.
+
+    `busy` names accounts this fake refuses instead of queuing behind, the
+    way a real hold eventually raises `AccountBusy` -- a caller under test
+    puts a key there to see that path without waiting out a real timeout."""
 
     def __init__(self) -> None:
         self._locks: dict[str, asyncio.Lock] = {}
-        self.taken: list[str] = []
+        self.busy: set[str] = set()
 
     @asynccontextmanager
-    async def hold(self, account: Account) -> AsyncIterator[None]:
+    async def hold(
+        self, account: Account, *, on_wait: Callable[[], Awaitable[None]] = _no_op_on_wait
+    ) -> AsyncIterator[None]:
+        if account.key in self.busy:
+            await on_wait()
+            raise AccountBusy(f"{account.key} is held by another session")
         lock = self._locks.setdefault(account.key, asyncio.Lock())
         async with lock:
-            self.taken.append(account.key)
             yield
 
 

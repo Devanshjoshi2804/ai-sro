@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, async_sessionmaker
+from sqlalchemy.pool import NullPool
 
 from sro.application.analytics.audit import ReadAudit
 from sro.application.analytics.summary import ReadSummary
@@ -942,7 +943,7 @@ def build_container(settings: Settings | None = None) -> Container:
         tools=McpToolCaller(_servers(settings.mcp_servers), vault=built_vault),
         ui=PlaywrightUiDriver(settings.ui_debugger_url),
         sign_in_driver=PlaywrightSignIn(),
-        locks=PostgresAccountLocks(engine),
+        locks=PostgresAccountLocks(create_engine(settings.database_url, poolclass=NullPool)),
         tokens=(
             KeycloakTokens(
                 built_vault,

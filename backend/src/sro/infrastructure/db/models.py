@@ -250,10 +250,39 @@ class BrowserSessionRow(Base):
 
     session_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    opened_by: Mapped[str] = mapped_column(String(64), nullable=False)
+    opened_by: Mapped[str | None] = mapped_column(String(64))
     opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    __table_args__ = (Index("ix_browser_sessions_tenant", "tenant_id"),)
+    account_key: Mapped[str | None] = mapped_column(Text)
+    origin: Mapped[str | None] = mapped_column(Text)
+    username: Mapped[str | None] = mapped_column(Text)
+    container_url: Mapped[str | None] = mapped_column(Text)
+    steel_session_id: Mapped[str | None] = mapped_column(String(128))
+    context_id: Mapped[str | None] = mapped_column(String(128))
+    holder: Mapped[str | None] = mapped_column(String(128))
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    state: Mapped[str | None] = mapped_column(String(16))
+
+    __table_args__ = (
+        Index("ix_browser_sessions_tenant", "tenant_id"),
+        Index(
+            "uq_browser_sessions_one_live_lease",
+            "tenant_id",
+            "account_key",
+            unique=True,
+            postgresql_where=text("state IN ('signing_in', 'ready')"),
+        ),
+        CheckConstraint(
+            "(state IS NULL OR ("
+            "account_key IS NOT NULL AND origin IS NOT NULL AND username IS NOT NULL AND "
+            "container_url IS NOT NULL AND steel_session_id IS NOT NULL AND "
+            "context_id IS NOT NULL AND holder IS NOT NULL AND "
+            "heartbeat_at IS NOT NULL AND expires_at IS NOT NULL"
+            ")) AND (state IS NOT NULL OR opened_by IS NOT NULL)",
+            name="ck_browser_sessions_row_is_whole",
+        ),
+    )
 
 
 class AgentDeviceRow(Base):

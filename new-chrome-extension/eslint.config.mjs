@@ -60,6 +60,7 @@ const browser = {
   CSS: "readonly",
   Node: "readonly",
   NodeFilter: "readonly",
+  XPathResult: "readonly",
   Image: "readonly",
   HTMLElement: "readonly",
   getComputedStyle: "readonly",

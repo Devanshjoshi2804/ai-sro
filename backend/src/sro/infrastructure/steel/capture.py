@@ -28,6 +28,7 @@ from sro.application.capture.decode import (
 )
 from sro.application.capture.events import CaptureEvent, InputEvent, RequestEvent, SnapshotEvent
 from sro.application.ports.blob import BlobStore
+from sro.config import get_settings
 from sro.domain.recording.artifact import ArtifactKind
 from sro.domain.recording.network import Body, CapturedRequest, Cookie, RedirectHop
 from sro.domain.recording.redaction import REDACTED, redact_body
@@ -40,11 +41,28 @@ logger = logging.getLogger(__name__)
 _RECORDER_JS = Path(__file__).with_name("recorder.js")
 
 
+_READERS_START = "  const readers = "
+_READERS_END = "\n  })();\n"
+
+
+def _page_readers() -> str:
+    source = Path(get_settings().page_code_path).read_text(encoding="utf-8")
+    start = source.find(_READERS_START + "(() => {")
+    end = source.find(_READERS_END, start)
+    if start == -1 or end == -1:
+        raise RuntimeError("page-code.js has no readers block to share with the recorder")
+    return source[start + len(_READERS_START) : end + len(_READERS_END) - 2]
+
+
 def _recorder_script() -> str:
     source = _RECORDER_JS.read_text(encoding="utf-8")
     if "__SECRET_WORDS__" not in source:
         raise RuntimeError("recorder.js has no place to put the credential word list")
-    return source.replace("__SECRET_WORDS__", json.dumps(sorted(SECRET_TOKENS)))
+    if "__PAGE_READERS__" not in source:
+        raise RuntimeError("recorder.js has no place to put page-code.js's readers")
+    return source.replace("__SECRET_WORDS__", json.dumps(sorted(SECRET_TOKENS))).replace(
+        "__PAGE_READERS__", _page_readers()
+    )
 
 
 @dataclass(frozen=True, slots=True)

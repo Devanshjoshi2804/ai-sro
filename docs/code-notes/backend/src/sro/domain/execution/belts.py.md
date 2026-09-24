@@ -144,7 +144,7 @@ Code: `called: Mapping[str, str] = field(default_factory=dict)`
 > replayed as a call could ever prove an endpoint, which is a bootstrap that
 > never starts. See `effects._remember_the_write`.
 
-## module, [line 59](../../../../../../../backend/src/sro/domain/execution/belts.py#L59): Note on the line above
+## `StepVerdict`, [line 59](../../../../../../../backend/src/sro/domain/execution/belts.py#L59): Note on the line above
 
 Code: `@dataclass(frozen=True, slots=True)`
 

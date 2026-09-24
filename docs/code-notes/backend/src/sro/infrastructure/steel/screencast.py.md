@@ -36,7 +36,7 @@ Code: `_QUEUE = 2`
 > The last page rather than the first: a sign-in that opened a tab leaves the
 > original behind, and screencasting that one shows a screen nobody is on.
 
-## `stream_frames`, [line 32](../../../../../../../backend/src/sro/infrastructure/steel/screencast.py#L32): Comment
+## `stream_frames._on_frame`, [line 32](../../../../../../../backend/src/sro/infrastructure/steel/screencast.py#L32): Comment
 
 Code: `task = asyncio.create_task(`
 

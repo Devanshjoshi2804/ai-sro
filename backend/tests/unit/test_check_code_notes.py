@@ -172,5 +172,64 @@ def test_check_then_fix_over_a_tiny_tree(tmp_path: Path) -> None:
     assert settled.dead == report.dead  # the truly dead ones are still dead, unrenumbered
 
 
+def test_decorator_line_is_inside_its_class(tmp_path: Path) -> None:
+    # A decorated class/function's own `.lineno` is the `class`/`def` line,
+    # not the decorator above it, so a note anchored to the decorator --
+    # `@dataclass(frozen=True, slots=True)` is a common one to explain --
+    # sat just outside the symbol's resolved span and was reported dead.
+    repo = tmp_path
+
+    _write(
+        repo / "backend/src/sro/pkg/boxed.py",
+        "from dataclasses import dataclass\n\n\n"
+        "@dataclass(frozen=True, slots=True)\n"
+        "class Boxed:\n"
+        "    value: int\n",
+    )
+    _write(
+        repo / "docs/code-notes/backend/src/sro/pkg/boxed.py.md",
+        "# Notes for `backend/src/sro/pkg/boxed.py`\n\n"
+        "## `Boxed`, [line 4](../../../../../backend/src/sro/pkg/boxed.py#L4): Comment\n\n"
+        "Code: `@dataclass(frozen=True, slots=True)`\n\n"
+        "> Frozen so a boxed value cannot be mutated after construction.\n",
+    )
+
+    report = check_code_notes.run(repo, fix=False)
+
+    assert not any("boxed.py.md" in entry for entry in report.dead)
+    assert not any("boxed.py.md" in entry for entry in report.stale)
+
+
+def test_function_nested_in_with_and_try_resolves(tmp_path: Path) -> None:
+    # `_find_in_body` only ever looked at a scope's immediate statement
+    # list, so a closure declared inside a `with`/`try` (a very ordinary
+    # place to put one) was invisible to it -- "missing", even though the
+    # code was never touched.
+    repo = tmp_path
+
+    _write(
+        repo / "backend/src/sro/pkg/nested.py",
+        "def outer():\n"
+        "    with open('x') as fh:\n"
+        "        try:\n"
+        "            def inner():\n"
+        "                return 1\n"
+        "        finally:\n"
+        "            fh.close()\n"
+        "    return inner\n",
+    )
+    _write(
+        repo / "docs/code-notes/backend/src/sro/pkg/nested.py.md",
+        "# Notes for `backend/src/sro/pkg/nested.py`\n\n"
+        "## `outer.inner`, [line 4](../../../../../backend/src/sro/pkg/nested.py#L4): Function\n\n"
+        "> The nested closure, still reachable through a `with`/`try`.\n",
+    )
+
+    report = check_code_notes.run(repo, fix=False)
+
+    assert not any("nested.py.md" in entry for entry in report.dead)
+    assert not any("nested.py.md" in entry for entry in report.stale)
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

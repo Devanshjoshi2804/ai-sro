@@ -6,7 +6,7 @@ from typing import Protocol
 
 @dataclass(frozen=True, slots=True)
 class SessionRef:
-    steel_session_id: str
+    context_id: str
     cdp_url: str
 
 
@@ -28,3 +28,5 @@ class PageDriver(Protocol):
     async def restore_state(self, session: SessionRef, state: str) -> None: ...
 
     async def forget(self, session: SessionRef) -> None: ...
+
+    async def aclose(self) -> None: ...

@@ -146,6 +146,7 @@ async def run() -> None:
         keeper.cancel()
         rig_miner.cancel()
         retainer.cancel()
+        await container.driver.aclose()
 
 
 def main() -> None:

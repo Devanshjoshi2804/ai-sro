@@ -17,7 +17,9 @@ from __future__ import annotations
 
 from urllib.parse import urlsplit
 
-from sro.infrastructure.steel.client import SteelClient
+import httpx
+
+from sro.infrastructure.steel.client import SteelClient, cdp_origin, websocket_debugger_url
 
 INSIDE = "http://steel:3000"
 OUTSIDE = "http://10.11.9.25:8088"
@@ -73,9 +75,7 @@ async def test_the_cdp_authority_is_an_address_because_chrome_refuses_a_name() -
     nothing noticed until the first browser session was opened, because
     `localhost:9223` on a laptop has an IP for a host and walks past the check.
     """
-    steel = SteelClient(INSIDE, "http://localhost:9223")
-
-    authority = await steel._cdp_origin()
+    authority = await cdp_origin("http://localhost:9223")
 
     host, _, port = authority.rpartition(":")
     assert host == "127.0.0.1", "a name here is a 500 from Chrome"
@@ -85,6 +85,36 @@ async def test_the_cdp_authority_is_an_address_because_chrome_refuses_a_name() -
 async def test_a_host_that_does_not_resolve_is_left_as_it_was_written() -> None:
     """The connection that follows fails on its own and names what it could
     not reach, which is a better error than one about DNS."""
-    steel = SteelClient(INSIDE, "http://nothing.invalid:9223")
+    assert await cdp_origin("http://nothing.invalid:9223") == "nothing.invalid:9223"
 
-    assert await steel._cdp_origin() == "nothing.invalid:9223"
+
+async def test_an_http_cdp_url_becomes_chrome_s_websocket_on_an_address() -> None:
+    """Chrome's `webSocketDebuggerUrl` has no port (`ws://localhost/devtools/...`),
+    so following it verbatim dialled port 80 and failed with ECONNREFUSED
+    (S5 review I5). The path is Chrome's; the authority is the resolved one."""
+    asked: list[str] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        asked.append(request.url.host)
+        return httpx.Response(
+            200, json={"webSocketDebuggerUrl": "ws://localhost/devtools/browser/g"}
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
+        url = await websocket_debugger_url("http://localhost:9223", client)
+
+    assert url == "ws://127.0.0.1:9223/devtools/browser/g"
+    assert asked == ["127.0.0.1"], "a name in the Host header is a 500 from Chrome"
+
+
+async def test_a_websocket_cdp_url_keeps_its_path_and_gets_an_address() -> None:
+    """What the pool hands out is already a websocket url; only its host is
+    resolved, so the same function serves both shapes."""
+
+    def refuse(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("a websocket url needs no /json/version")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(refuse)) as client:
+        url = await websocket_debugger_url("ws://localhost:9223/devtools/browser/g", client)
+
+    assert url == "ws://127.0.0.1:9223/devtools/browser/g"

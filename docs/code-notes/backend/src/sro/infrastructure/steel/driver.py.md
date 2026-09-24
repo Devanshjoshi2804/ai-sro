@@ -2,70 +2,153 @@
 
 Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driver.py`](../../../../../../../backend/src/sro/infrastructure/steel/driver.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `SteelDriver`, [line 24](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L24): Docstring
+## `K_ATTACH_TIMEOUT_S`, [line 20](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L20): Note
+
+> How long a tab `Target.createTarget` just made may take to surface as a
+> Playwright `Page`, and the bound on attaching to a browser at all. Ten
+> seconds is S4's `K_CONTEXT_PAGE_TIMEOUT_S` for the same wait; a healthy
+> Steel surfaces a tab in well under one.
+
+## `_SEED_STORAGE`, [line 22](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L22): Note
+
+> Restored `localStorage` is seeded, never forced: `if (localStorage.getItem(name)
+> === null)` only fills a key the context does not already hold. A context
+> the application has already written to keeps the application's value.
+
+## `_Link`, [line 30](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L30): Note
+
+> Everything this process knows about one browser connection, and nothing
+> that outlives it: the tabs it has seen (`pages`, by CDP target id), the
+> browser context each one belongs to (`owners`), the `open_tab` calls
+> waiting for their tab to surface (`waiting`), and the per-account
+> listeners (`listeners`, by context id). Keyed by `cdp_url` in
+> `SteelDriver._links`, so a Steel restart -- which hands out a new
+> websocket url -- starts from nothing instead of trusting a cache built
+> against a browser that is gone (S5 review M3).
+
+## `SteelDriver`, [line 39](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L39): Docstring
 
 > `ui_driver.py`'s `_AttachedPage.__aenter__` opened a new CDP connection for
 > every call, measured at about 630 ms each (spec §2). `SteelDriver` connects
 > once per Steel container (keyed by `cdp_url`, since a container's one Steel
 > session is shared by every account's context on it -- QA-0's "contexts"
-> verdict) and keeps that `Browser` for as long as it stays connected, so
-> every call after the first `open_tab` pays no reconnect cost.
-
-## `SteelDriver._scoped`, [line 47](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L47): Docstring
-
-> Playwright's `connect_over_cdp` cannot see a browser context it did not
-> create itself, so every driver call that must land in one account's
-> isolated context goes through raw CDP (`Target.createTarget`,
-> `Storage.getCookies`/`setCookies` with a `browserContextId`) rather than
-> Playwright's `browser.contexts[0]` -- the same approach S4's `SteelClient`
-> uses for the same reason.
+> verdict) and keeps that connection for as long as it stays up.
 >
-> `Target.getBrowserContexts` empty means this connection has never had an
-> account context created on it at all -- the driver's own browser tests,
-> which run against a bare local Chromium with no Steel in front of it -- so
-> `session.steel_session_id` is treated as an opaque connection key and every
-> operation lands on the connection's one default context. A non-empty list
-> that does not contain the session's id means the opposite: this container
-> has real account contexts, and this one is gone -- released mid-call, the
-> race a `createTarget` against a just-released lease crashed local Steel
-> with once -- so the call raises `PageGone` instead of silently opening (or
-> reading storage for) the wrong account's context.
+> Every account is a browser context (`SessionRef.context_id`) and every
+> call is scoped to it. There is no "no contexts" mode: the first version
+> treated an empty `Target.getBrowserContexts` as a test rig and fell back to
+> Chrome's default context, which is exactly what production sees after a
+> Steel restart or once the last lease closes -- and it restored one
+> account's cookies into, and read another sign-in's cookies out of, that
+> shared default jar (S5 review C1). An unknown context is `PageGone`, always.
 >
-> The ceiling this leaves: a container that has legitimately emptied out to
-> zero live contexts is indistinguishable from the bare-Chromium test rig,
-> and would be treated as unscoped instead of raising. Nothing in this plan
-> calls `open_tab` for a lease whose context is not already live, so it has
-> not been observed; the fix, if it ever is, is a boolean on `SessionRef`
-> once S6/S7 can set one.
+> The page code is read once, here: it is the same file for the life of the
+> process.
 
-## `SteelDriver.open_tab`, [line 100](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L100): Docstring
+## `SteelDriver._link`, [line 46](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L46): Docstring
+
+> One connection per `cdp_url`, made under the lock so two first calls do
+> not open two. The url goes through `client.websocket_debugger_url`, the
+> same resolution S4's client uses, so an `http://` url and a hostname both
+> work (Chrome refuses a named Host header, and its `webSocketDebuggerUrl`
+> has no port). A browser that cannot be reached -- a stale websocket url
+> after a Steel restart, a container that is down -- is `PageGone`, which
+> is what S7's reattach acts on, never a raw Playwright or httpx error.
+>
+> The `page` listener is registered before this connection can make a
+> single tab, and the tabs already open are snapshotted in the same
+> synchronous step, so no tab can arrive unseen between the two (S5 review
+> I2: a listener registered after the snapshot missed 4 of 6 concurrent
+> tabs). Tabs that were open before the connection -- a worker that
+> restarted -- are adopted once, here, not searched for on every lookup.
+
+## `SteelDriver._arrived`, [line 71](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L71): Docstring
+
+> Every tab the connection sees, once: which target and which browser
+> context it is, the page code as an init script for its next documents,
+> and the page code evaluated into the documents it already has.
+>
+> The evaluation is what a restarted worker needs. An init script belongs
+> to the CDP session that registered it and dies with that connection, so a
+> tab adopted by a new process had no page code in any later document (S5
+> review I3: `typeof sroPage` was `"undefined"` after a reattach). A frame
+> that is mid-navigation rejects the evaluation; the init script covers the
+> document it is navigating to. The page code only assigns
+> `globalThis.sroPage`, so a document that gets it twice is unchanged.
+>
+> Only then is the tab visible to lookups and its waiter resolved, so
+> `open_tab` never navigates a tab whose init script is not yet in place.
+> A tab that closes while this runs is dropped.
+
+## `SteelDriver._context`, [line 105](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L105): Docstring
+
+> The account's context must be open in this browser before anything is
+> created or read in it -- the same check S4's `_require_context` makes. It
+> is also what keeps a stale `SessionRef` from ever landing in Chrome's
+> default context: that context is never in `Target.getBrowserContexts`.
+
+## `SteelDriver._page`, [line 112](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L112): Docstring
+
+> A tab is the account's only when its target belongs to the account's
+> context. Playwright puts every foreign context's pages into one default
+> context, so a bare target-id lookup found another account's tab and let a
+> stale target id drive it (S5 review I1).
+
+## `SteelDriver.open_tab`, [line 119](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L119): Docstring
 
 > Tabs are addressed by their CDP target id, not by position in `pages[0]`,
 > so a worker that restarts finds the tabs a previous process opened (spec
-> §5.5) -- `_page` re-discovers a target id it has not cached by asking the
-> connection for it again, the same way `open_tab` on a brand new
-> `SteelDriver` does.
+> §5.5).
 >
-> The target opens on `about:blank` and only navigates to `url` after both
-> init scripts are registered, so the very first document a script would see
-> already has the page code and any restored `localStorage` -- registering
-> them after a direct navigation to `url` would miss whichever race won.
+> The target opens on `about:blank` and navigates to `url` only after
+> `_arrived` has registered the page code, so the first real document
+> already has it. A tab that does not surface in `K_ATTACH_TIMEOUT_S` is
+> closed -- otherwise it would sit in the account's context forever -- and
+> the call is `PageGone`, never a raw timeout.
 
-## `SteelDriver._install`, [line 67](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L67): Docstring
+## `SteelDriver.on`, [line 155](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L155): Docstring
 
-> `add_init_script` covers every document this page navigates to *next*; it
-> cannot retroactively run on the document already loaded when it is
-> registered. This best-effort `evaluate` covers that one document. A
-> `PlaywrightError` here means the frame navigated again between `goto`
-> returning and this call running -- the init script already registered
-> covers whatever it navigated to, so there is nothing to repair.
+> A listener for one account: attached to each tab of that account's
+> context -- the tabs it has now and every tab `_arrived` sees for it later,
+> popups included -- and never to the Playwright context, which with
+> `connect_over_cdp` holds every account's tabs in the container. A
+> listener there heard account B's requests in account A's handler (S5
+> review I7). Page events are carried by each tab's own CDP target
+> session, so this is the per-context scope S10's headers, X4's responses
+> and S6's navigations build on. `event` and `handler` are Playwright's
+> page event names and callbacks.
+>
+> The listeners belong to this connection: a reconnect (Steel restart)
+> starts without them, the same as it starts without its tabs.
 
-## module, [line 16](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L16): Note on the line above
+## `SteelDriver.storage_state`, [line 162](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L162): Docstring
 
-Code: `_KEEP_STORAGE = """(() => {`
+> Cookies come from the account's own jar (`Storage.getCookies` with its
+> `browserContextId`). `localStorage` is read from the account's open
+> tabs, which after a restart includes the tabs `_link` adopted; an origin
+> with no open tab is not in the state. Sign-in reads the state with the
+> signed-in tab open, the only place this plan calls it.
 
-> Restored `localStorage` is seeded, never forced: `if (localStorage.getItem(name)
-> === null)` only fills a key the page has not already written. A saved sign-in
-> writes this once at restore time, before the application's own script has run
-> on this origin at all -- if it ever ran after, it must not clobber a value the
-> running application just set.
+## `SteelDriver.restore_state`, [line 191](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L191): Docstring
+
+> Cookies go into the account's jar directly. `localStorage` is written now,
+> into the context itself, through a short-lived tab whose every request is
+> answered with an empty page: the tab stands on each saved origin without
+> loading the application, seeds its keys and closes. It used to be held in
+> this process as an init script for later tabs, so a worker that restarted
+> between restore and open lost it, and every later tab re-seeded it (S5
+> review M5). This is how Playwright restores storage state into a context
+> it made; here the context is Steel's, so it is done by hand.
+
+## `SteelDriver.forget`, [line 221](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L221): Docstring
+
+> Drops this account's listeners. It closes nothing: the connection is
+> shared by every account on the container, and the context belongs to the
+> pool (S4, S7's lease), which closes it.
+
+## `SteelDriver.aclose`, [line 230](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L230): Docstring
+
+> Closes every connection and stops Playwright; the API lifespan and the
+> worker call it on the way down (S5 review I6). Closing a
+> `connect_over_cdp` browser disconnects it and leaves Steel's contexts and
+> tabs as they are.

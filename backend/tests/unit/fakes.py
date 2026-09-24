@@ -1405,61 +1405,70 @@ class FakeBrowserPool:
 
 class FakePageDriver:
     """`tabs` maps a target id (`tab-1`, `tab-2`, ...) to the url it was last
-    sent to. `states` holds the saved storage-state JSON per session id, and
-    `dead` names session ids whose calls raise `PageGone`, the way a session
-    a lease no longer holds would. `calls` logs every call as a tuple
+    sent to, and `owners` maps it to the context id that opened it: a tab
+    asked for under another account's context is `PageGone`, as the real
+    driver answers. `states` holds the saved storage-state JSON per context
+    id, and `dead` names context ids whose calls raise `PageGone`, the way a
+    context a lease no longer holds would. `calls` logs every call as a tuple
     starting with the method name, for tests that check what was asked of
     the driver rather than only its answers."""
 
     def __init__(self) -> None:
         self.tabs: dict[str, str] = {}
+        self.owners: dict[str, str] = {}
         self.states: dict[str, str] = {}
         self.dead: set[str] = set()
         self.calls: list[tuple[str, ...]] = []
+        self.closed = False
         self._next = count(1)
 
     def _live(self, session: SessionRef) -> None:
-        if session.steel_session_id in self.dead:
-            raise PageGone(f"session {session.steel_session_id} is gone")
+        if session.context_id in self.dead:
+            raise PageGone(f"context {session.context_id} is gone")
+
+    def _tab(self, session: SessionRef, target_id: str) -> None:
+        self._live(session)
+        if self.owners.get(target_id) != session.context_id:
+            raise PageGone(f"tab {target_id} is not open in context {session.context_id}")
 
     async def open_tab(self, session: SessionRef, url: str) -> str:
         self._live(session)
         target_id = f"tab-{next(self._next)}"
         self.tabs[target_id] = url
-        self.calls.append(("open_tab", session.steel_session_id, url))
+        self.owners[target_id] = session.context_id
+        self.calls.append(("open_tab", session.context_id, url))
         return target_id
 
     async def close_tab(self, session: SessionRef, target_id: str) -> None:
-        self._live(session)
-        self.tabs.pop(target_id, None)
-        self.calls.append(("close_tab", session.steel_session_id, target_id))
+        self._tab(session, target_id)
+        del self.tabs[target_id], self.owners[target_id]
+        self.calls.append(("close_tab", session.context_id, target_id))
 
     async def goto(self, session: SessionRef, target_id: str, url: str) -> None:
-        self._live(session)
-        if target_id not in self.tabs:
-            raise PageGone(f"tab {target_id} is not open in session {session.steel_session_id}")
+        self._tab(session, target_id)
         self.tabs[target_id] = url
-        self.calls.append(("goto", session.steel_session_id, target_id, url))
+        self.calls.append(("goto", session.context_id, target_id, url))
 
     async def url_of(self, session: SessionRef, target_id: str) -> str:
-        self._live(session)
-        if target_id not in self.tabs:
-            raise PageGone(f"tab {target_id} is not open in session {session.steel_session_id}")
-        self.calls.append(("url_of", session.steel_session_id, target_id))
+        self._tab(session, target_id)
+        self.calls.append(("url_of", session.context_id, target_id))
         return self.tabs[target_id]
 
     async def storage_state(self, session: SessionRef) -> str:
         self._live(session)
-        self.calls.append(("storage_state", session.steel_session_id))
-        return self.states.get(session.steel_session_id, "{}")
+        self.calls.append(("storage_state", session.context_id))
+        return self.states.get(session.context_id, "{}")
 
     async def restore_state(self, session: SessionRef, state: str) -> None:
         self._live(session)
-        self.states[session.steel_session_id] = state
-        self.calls.append(("restore_state", session.steel_session_id, state))
+        self.states[session.context_id] = state
+        self.calls.append(("restore_state", session.context_id, state))
 
     async def forget(self, session: SessionRef) -> None:
-        self.calls.append(("forget", session.steel_session_id))
+        self.calls.append(("forget", session.context_id))
+
+    async def aclose(self) -> None:
+        self.closed = True
 
 
 class FakeAccountLocks:

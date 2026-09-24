@@ -8,14 +8,19 @@ import secrets
 import socket
 import threading
 from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlsplit
 
+import httpx
 import pytest
+from playwright.async_api import CDPSession, async_playwright
 from playwright.async_api import Error as PlaywrightError
 
 from sro.application.ports.page import SessionRef
+from sro.config import get_settings
+from sro.infrastructure.steel.client import websocket_debugger_url
 from sro.infrastructure.steel.driver import SteelDriver
 
 _PUBLIC_PAGE = "<!doctype html><html><body><h1>public</h1></body></html>"
@@ -259,3 +264,75 @@ async def cdp_url() -> AsyncIterator[str]:
 async def cdp_url_2() -> AsyncIterator[str]:
     async for url in _chromium():
         yield url
+
+
+@asynccontextmanager
+async def _browser_session(cdp_url: str) -> AsyncIterator[CDPSession]:
+    async with httpx.AsyncClient() as client:
+        endpoint = await websocket_debugger_url(cdp_url, client)
+    async with async_playwright() as p:
+        browser = await p.chromium.connect_over_cdp(endpoint)
+        try:
+            yield await browser.new_browser_cdp_session()
+        finally:
+            await browser.close()
+
+
+async def open_account(cdp_url: str) -> SessionRef:
+    """A real browser context, made the way S4's `SteelClient._new_context`
+    makes one, so every test drives the production path."""
+    async with _browser_session(cdp_url) as raw:
+        made = await raw.send("Target.createBrowserContext", {"disposeOnDetach": False})
+    return SessionRef(str(made["browserContextId"]), cdp_url)
+
+
+async def close_account(session: SessionRef) -> None:
+    async with _browser_session(session.cdp_url) as raw:
+        known = (await raw.send("Target.getBrowserContexts"))["browserContextIds"]
+        if session.context_id in known:
+            await raw.send("Target.disposeBrowserContext", {"browserContextId": session.context_id})
+
+
+async def pages_in(session: SessionRef) -> list[str]:
+    async with _browser_session(session.cdp_url) as raw:
+        found = (await raw.send("Target.getTargets"))["targetInfos"]
+    return [
+        str(one["targetId"])
+        for one in found
+        if one.get("type") == "page" and one.get("browserContextId") == session.context_id
+    ]
+
+
+async def _account(cdp_url: str) -> AsyncIterator[SessionRef]:
+    session = await open_account(cdp_url)
+    try:
+        yield session
+    finally:
+        await close_account(session)
+
+
+@pytest.fixture
+async def one(cdp_url: str) -> AsyncIterator[SessionRef]:
+    async for session in _account(cdp_url):
+        yield session
+
+
+@pytest.fixture
+async def two(cdp_url: str) -> AsyncIterator[SessionRef]:
+    async for session in _account(cdp_url):
+        yield session
+
+
+@pytest.fixture
+async def elsewhere(cdp_url_2: str) -> AsyncIterator[SessionRef]:
+    async for session in _account(cdp_url_2):
+        yield session
+
+
+@pytest.fixture
+async def driver() -> AsyncIterator[SteelDriver]:
+    made = SteelDriver(get_settings().page_code_path)
+    try:
+        yield made
+    finally:
+        await made.aclose()

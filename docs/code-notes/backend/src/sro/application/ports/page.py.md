@@ -4,9 +4,15 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/page.py
 
 ## `SessionRef`, [line 8](../../../../../../../backend/src/sro/application/ports/page.py#L8): Docstring
 
-> Pre-created for X3's `application.runtime.step.Held`, which names one on
-> every lease it holds. S5 owns this file and this type -- the shape here
-> (`steel_session_id`, `cdp_url`) is copied verbatim from S5's own brief, not
-> designed here, so S5 lands the rest of it (`PageDriver`, `PageGone`) on
-> top of a type already in its final shape rather than choosing between two
-> definitions.
+> One account's browser: \`context_id\` is the browser context the pool made
+> for the account (the lease's \`context_id\`), and \`cdp_url\` is the CDP
+> endpoint of the container that holds it (the pool's \`cdp_url\`). The first
+> version named the first field \`steel_session_id\`; S7 filled it with the
+> lease's Steel session id, which is shared by every account on the
+> container and is not a browser context, so every call was \`PageGone\`
+> (S5 review I4).
+
+## \`PageDriver.aclose\`, [line 32](../../../../../../../backend/src/sro/application/ports/page.py#L32): Docstring
+
+> The driver holds connections for the life of the process; whoever built
+> the container closes them on the way down.

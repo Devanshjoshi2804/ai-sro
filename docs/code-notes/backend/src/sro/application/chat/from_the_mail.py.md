@@ -291,25 +291,6 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > mailbox to decide one thing, and `ChatReading` has no field for them
 > for the same reason.
 
-## `FromTheMail.execute`, [line 118](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L118): Comment
-
-Code: `why = await over_cap(`
-
-> A look spends the tenant's model budget -- a reading per mail, and a gather
-> for what the mail did not carry -- so a spent day refuses it before the first
-> mail is fetched, as every other door that starts model work does. The metered
-> client would refuse each call anyway; asking here gives the operator the 429
-> and the reason instead of a look that quietly read nothing.
-
-## `FromTheMail.execute`: Comment
-
-Code: `except OverCap as reached:`
-
-> The cap crossed partway through a look is a refusal, not a mail that asks
-> for nothing. The look stops, keeps the offers it already made, says why, and
-> forgets the claim on the mail it was reading, so the next look reads it;
-> the mails after it were never claimed.
-
 ## `FromTheMail._answering`, [line 265](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L265): Docstring
 
 > The run still waiting to hear back on this conversation, if any.
@@ -490,6 +471,16 @@ Code: `asker = asker_or_refuse(self._asker)`
 > factory that raised would make a deployment with no key unbuildable
 > instead of refusing at the one call that actually needs a model.
 
+## `FromTheMail.execute`, [line 118](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L118): Comment
+
+Code: `why = await over_cap(`
+
+> A look spends the tenant's model budget -- a reading per mail, and a gather
+> for what the mail did not carry -- so a spent day refuses it before the first
+> mail is fetched, as every other door that starts model work does. The metered
+> client would refuse each call anyway; asking here gives the operator the 429
+> and the reason instead of a look that quietly read nothing.
+
 ## `FromTheMail.execute`, [line 136](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L136): Comment
 
 Code: `unsure = 0`
@@ -542,6 +533,13 @@ Code: `unsure += 1`
 > the job the rig had otherwise learned to do. Nothing anywhere
 > said so.
 
+## `FromTheMail.execute`, [line 169](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L169): Comment
+
+Code: `logger.info(`
+
+> A thread that wandered onto another subject is not
+> more evidence about this one.
+
 ## `FromTheMail.execute`, [line 176](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L176): Comment
 
 Code: `values, missing = dict(got.values), list(got.missing)`
@@ -591,21 +589,17 @@ Code: `job_ = titles.get(got.workflow_id, got.workflow_id)`
 > is a step nobody can debug -- which is the lesson the
 > execution ladder already learned, in the same week.
 
-## `FromTheMail.execute`, [line 169](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L169): Comment
+## `FromTheMail.execute`, [line 205](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L205): Comment
 
 Code: `logger.info(`
 
-> A thread that wandered onto another subject is not
-> more evidence about this one.
-
-## `FromTheMail.execute`, [line 202](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L202): Comment
-
-Code: `asked_for_too.update(again.unasked)`
-
-> The whole conversation names fields the first
-> sentence did not -- "and put it in Inbound" two
-> mails up is still something the request asked for
-> and this job cannot write.
+> What the look CAME TO, not only what it threw away.
+>
+> The drops have been logged since the sentence was fixed, and nothing
+> logged a kept offer -- so "no line for that message" was the only
+> evidence an offer had been made, and absence of evidence is not it.
+> Twice on 2026-09-17 that reading sent me looking for a card in a
+> panel when I had no idea whether one had ever been offered.
 
 ## `FromTheMail.execute`, [line 193](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L193): Comment
 
@@ -615,6 +609,15 @@ Code: `logger.info(`
 > nothing and an offer that was never gathered for look the
 > same from outside. Names and counts, never a value: this line
 > is about whether the mechanism worked.
+
+## `FromTheMail.execute`, [line 202](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L202): Comment
+
+Code: `asked_for_too.update(again.unasked)`
+
+> The whole conversation names fields the first
+> sentence did not -- "and put it in Inbound" two
+> mails up is still something the request asked for
+> and this job cannot write.
 
 ## `FromTheMail.execute`, [line 239](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L239): Comment
 
@@ -634,17 +637,14 @@ Code: `aside={**got.aside, **said_besides},`
 > card say what this job cannot set; the values are what
 > make it sometimes untrue.
 
-## `FromTheMail.execute`, [line 205](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L205): Comment
+## `FromTheMail.execute`, [line 269](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L269): Comment
 
-Code: `logger.info(`
+Code: `except OverCap as reached:`
 
-> What the look CAME TO, not only what it threw away.
->
-> The drops have been logged since the sentence was fixed, and nothing
-> logged a kept offer -- so "no line for that message" was the only
-> evidence an offer had been made, and absence of evidence is not it.
-> Twice on 2026-09-17 that reading sent me looking for a card in a
-> panel when I had no idea whether one had ever been offered.
+> The cap crossed partway through a look is a refusal, not a mail that asks
+> for nothing. The look stops, keeps the offers it already made, says why, and
+> forgets the claim on the mail it was reading, so the next look reads it;
+> the mails after it were never claimed.
 
 ## `FromTheMail._answered_by_mail`, [line 362](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L362): Comment
 

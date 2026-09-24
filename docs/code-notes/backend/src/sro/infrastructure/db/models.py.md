@@ -289,7 +289,7 @@ Code: `values_: Mapped[Any] = mapped_column(`
 
 ## `WorkflowRunRow`, [line 569](../../../../../../../backend/src/sro/infrastructure/db/models.py#L569): Note on the line above
 
-Code: `items: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, server_default="[]`
+Code: `items: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")`
 
 > What this run was asked to do the repeated block for: one set of values
 > per thing on the list. Empty for every run of a job that does one thing
@@ -330,14 +330,14 @@ Code: `unpriced: Mapped[bool] = mapped_column(Boolean, nullable=False, default=F
 
 ## `WorkflowRunRow`, [line 595](../../../../../../../backend/src/sro/infrastructure/db/models.py#L595): Note on the line above
 
-Code: `needs: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, server_default="[]`
+Code: `needs: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")`
 
 > Where each value came from, for values nobody typed. Empty for a run
 > whose values came from a person.
 
 ## `WorkflowRunRow`, [line 596](../../../../../../../backend/src/sro/infrastructure/db/models.py#L596): Note on the line above
 
-Code: `unasked: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, server_default="`
+Code: `unasked: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")`
 
 > Names the request asked for that this job declares no parameter for.
 >
@@ -395,14 +395,14 @@ Code: `wrong_because: Mapped[str | None] = mapped_column(Text)`
 
 ## `WorkflowRunStepRow`, [line 636](../../../../../../../backend/src/sro/infrastructure/db/models.py#L636): Note on the line above
 
-Code: `made: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}"`
+Code: `made: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")`
 
 > What the warehouse called the record this step created, where it made
 > one. `{}` for every step that created nothing, which is most of them.
 
 ## `WorkflowRunStepRow`, [line 638](../../../../../../../backend/src/sro/infrastructure/db/models.py#L638): Note on the line above
 
-Code: `of_step: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0`
+Code: `of_step: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")`
 
 > Which step of the JOB this row is. `ord` is where in the RUN it happened,
 > and the two are the same number until a job repeats its middle.
@@ -431,7 +431,7 @@ Code: `result: Mapped[Any | None] = mapped_column(JSONB(none_as_null=True), null
 
 ## `WorkflowRunStepRow`, [line 656](../../../../../../../backend/src/sro/infrastructure/db/models.py#L656): Note on the line above
 
-Code: `notes: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, server_default="[]`
+Code: `notes: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")`
 
 > What is already known about the values this step writes, read off the
 > knowledge base's field claims and shown beside the write a person is asked
@@ -972,7 +972,7 @@ Code: `joins: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)`
 
 ## `ConfirmationRow`, [line 439](../../../../../../../backend/src/sro/infrastructure/db/models.py#L439): Comment
 
-Code: `__table_args__ = (Index("ix_confirmations_tenant_answer", "tenant_id", "answer", "asked_at`
+Code: `__table_args__ = (Index("ix_confirmations_tenant_answer", "tenant_id", "answer", "asked_at"),)`
 
 > What the console asks for: this tenant's, oldest first, waiting ones.
 

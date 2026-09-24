@@ -55,7 +55,7 @@ Code: `STATE_BELTS = ("status", "read")`
 
 ## module, [line 25](../../../../../../../backend/src/sro/domain/execution/belts.py#L25): Note on the line above
 
-Code: `SCREEN_INSTRUCTIONS = """You are checking whether one step of a warehouse job was actually`
+Code: `SCREEN_INSTRUCTIONS = """You are checking whether one step of a warehouse job was actually done.`
 
 > What a picture can settle about a step that DID something.
 >
@@ -144,7 +144,7 @@ Code: `called: Mapping[str, str] = field(default_factory=dict)`
 > replayed as a call could ever prove an endpoint, which is a bootstrap that
 > never starts. See `effects._remember_the_write`.
 
-## `StepVerdict`, [line 59](../../../../../../../backend/src/sro/domain/execution/belts.py#L59): Note on the line above
+## module, [line 59](../../../../../../../backend/src/sro/domain/execution/belts.py#L59): Note on the line above
 
 Code: `@dataclass(frozen=True, slots=True)`
 

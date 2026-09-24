@@ -38,7 +38,7 @@ Comments and docstrings for [`backend/src/sro/infrastructure/gemini/metered.py`]
 > knowledge CLIs. A negative cap -- the shipped default -- is then answered
 > without a query.
 
-## `_caller`: Docstring
+## `_caller`, [line 128](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L128): Docstring
 
 > Who wanted the refused call: the nearest frame outside the adapters, the
 > metered client and asyncio -- the use case, as `module.function`. The refusal

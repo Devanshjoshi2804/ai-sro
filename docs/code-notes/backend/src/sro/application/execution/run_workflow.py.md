@@ -40,9 +40,9 @@ Comments and docstrings moved out of [`backend/src/sro/application/execution/run
 > from a warehouse. It is checked once more on the way out of an approval wait,
 > because a release says only that the wait ended and a stop releases it too.
 
-## module, [line 82](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L82): Note on the line above
+## module, [line 83](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L83): Note on the line above
 
-Code: `KnownFields = Callable[[tuple[str, ...], str], Awaitable[Mapping[str, Mapping[str, object]`
+Code: `KnownFields = Callable[[tuple[str, ...], str], Awaitable[Mapping[str, Mapping[str, object]]]]`
 
 > What the knowledge base says about these body keys, by key.
 >
@@ -3008,6 +3008,14 @@ Code: `if run.steps and all(one.verdict == "not_needed" for one in run.steps):`
 
 ## `run_workflow`, [line 2036](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2036): Comment
 
+Code: `except OverCap as reached:`
+
+> The meter refusing a step's own call is the day running out between two leg
+> checks -- the same condition the leg check records as `stopped`. One outcome
+> for one condition, and no traceback: it is the cap working, not a failure.
+
+## `run_workflow`, [line 2036](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2036): Comment
+
 Code: `_fell_over(run, in_flight, f"{type(broke).__name__}: {broke}")`
 
 > Not handled, and not silently a run that says `running` forever
@@ -3036,11 +3044,3 @@ Code: `await forget_effects(uow.workflows, run)`
 > because the step body is not reached when a browser goes away
 > mid-write -- and that run wrote, was never shown to have held, and
 > would have kept its autonomy.
-
-## `run_workflow`: Comment
-
-Code: `except OverCap as reached:`
-
-> The meter refusing a step's own call is the day running out between two leg
-> checks -- the same condition the leg check records as `stopped`. One outcome
-> for one condition, and no traceback: it is the cap working, not a failure.

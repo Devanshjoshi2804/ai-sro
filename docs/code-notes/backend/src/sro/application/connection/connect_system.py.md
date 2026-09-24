@@ -149,7 +149,7 @@ Code: `await self._browser.navigate(session.id, connection.base_url)`
 
 ## `_system_from`, [line 97](../../../../../../../backend/src/sro/application/connection/connect_system.py#L97): Comment
 
-Code: `parts = [part for part in host.split(".") if part not in {"www", "com", "co", "uk", "net"}`
+Code: `parts = [part for part in host.split(".") if part not in {"www", "com", "co", "uk", "net"}]`
 
 > Otherwise the registrable-looking part, without the environment prefix:
 > wms.acme.com and wms.acme.co.uk both become "acme".

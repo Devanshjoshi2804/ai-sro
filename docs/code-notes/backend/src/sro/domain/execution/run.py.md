@@ -195,7 +195,7 @@ Code: `found_labels: tuple[str, ...] = ()`
 > object's keys by length, so the field ranking does not survive being
 > stored.
 
-## `StepOutcome`, [line 50](../../../../../../../backend/src/sro/domain/execution/run.py#L50): Note on the line above
+## module, [line 50](../../../../../../../backend/src/sro/domain/execution/run.py#L50): Note on the line above
 
 Code: `@dataclass(frozen=True, slots=True)`
 

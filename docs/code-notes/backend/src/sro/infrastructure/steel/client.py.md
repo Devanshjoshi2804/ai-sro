@@ -241,7 +241,7 @@ Code: `return f"{found[0][4][0]!s}:{port}"`
 > `sockaddr[0]` for AF_INET is the dotted address. `str()` rather than
 > a cast because the annotation admits shapes this family never has.
 
-## `SteelClient.session_headers.observe`, [line 223](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L223): Comment
+## `SteelClient.session_headers`, [line 223](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L223): Comment
 
 Code: `if "/data/" not in str(request.get("url", "")):`
 

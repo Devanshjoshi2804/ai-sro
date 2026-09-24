@@ -26768,6 +26768,19 @@
             "minLength": 1,
             "title": "Value"
           },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 254,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
           "run_id": {
             "type": "string",
             "title": "Run Id"
@@ -26798,6 +26811,19 @@
             "maxLength": 512,
             "minLength": 1,
             "title": "Value"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 254,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
           }
         },
         "type": "object",

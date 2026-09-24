@@ -13,6 +13,7 @@ from sro.domain.observation.gesture import (
     Call,
     Component,
     Gesture,
+    Landmark,
     PageMark,
     Target,
     new_gesture_id,
@@ -148,8 +149,13 @@ def as_action(wire: WireGesture) -> Action:
                 name=component.name,
                 xtype=component.xtype,
                 required=component.required,
+                chain=tuple(component.chain),
             ),
+            bounds=dict(target.bounds),
+            attributes=dict(target.attributes),
+            landmarks=tuple(Landmark(role=one.role, name=one.name) for one in target.landmarks),
         ),
+        modifiers=tuple(wire.modifiers),
     )
 
 
@@ -188,4 +194,5 @@ def as_mark(event: WirePageEvent) -> PageMark:
         url=event.url,
         detail=event.detail,
         tab_id=event.tab_id,
+        opener_tab_id=event.opener_tab_id,
     )

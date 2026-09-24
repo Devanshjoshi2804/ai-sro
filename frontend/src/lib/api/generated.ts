@@ -3140,6 +3140,8 @@ export interface components {
             field: string;
             /** Value */
             value: string;
+            /** Username */
+            username?: string | null;
             /** Run Id */
             run_id: string;
         };
@@ -3157,6 +3159,8 @@ export interface components {
             field: string;
             /** Value */
             value: string;
+            /** Username */
+            username?: string | null;
         };
         /** NewTriggerRequest */
         NewTriggerRequest: {

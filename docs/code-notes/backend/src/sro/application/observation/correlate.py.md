@@ -11,7 +11,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/c
 > gesture at all is an orphan. Orphans are stored, not discarded — a background
 > poll is evidence that a background poll happened.
 
-## `correlate`, [line 39](../../../../../../../backend/src/sro/application/observation/correlate.py#L39): Docstring
+## `correlate`, [line 40](../../../../../../../backend/src/sro/application/observation/correlate.py#L40): Docstring
 
 > Returns (gestures, orphan requests, orphan pages, snapshots ignored).
 >
@@ -20,7 +20,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/c
 > them is not the same as never having received them. The count is the
 > difference: it says a batch had snapshots even though nothing stores them.
 
-## `_owner`, [line 93](../../../../../../../backend/src/sro/application/observation/correlate.py#L93): Docstring
+## `_owner`, [line 94](../../../../../../../backend/src/sro/application/observation/correlate.py#L94): Docstring
 
 > The last gesture in the same tab, within the attribution window.
 >
@@ -29,7 +29,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/c
 > evidence means "I cannot prove this belongs to that gesture", not
 > "attach it to the nearest one".
 
-## `_nearest_owner`, [line 106](../../../../../../../backend/src/sro/application/observation/correlate.py#L106): Docstring
+## `_nearest_owner`, [line 107](../../../../../../../backend/src/sro/application/observation/correlate.py#L107): Docstring
 
 > The closest gesture in time, in the same tab, within the window.
 >
@@ -39,27 +39,27 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/c
 > acts) — so it may attach to a gesture on either side, whichever is
 > nearer in time.
 
-## `as_action`, [line 121](../../../../../../../backend/src/sro/application/observation/correlate.py#L121): Docstring
+## `as_action`, [line 122](../../../../../../../backend/src/sro/application/observation/correlate.py#L122): Docstring
 
 > The wire gesture as the domain sees it: the fields the arithmetic
 > reads, and nothing the recorder might add next week.
 
-## `as_body`, [line 156](../../../../../../../backend/src/sro/application/observation/correlate.py#L156): Docstring
+## `as_body`, [line 162](../../../../../../../backend/src/sro/application/observation/correlate.py#L162): Docstring
 
 > A wire body as the domain sees it: no encoding field, nothing the
 > belts don't read.
 
-## `as_call`, [line 168](../../../../../../../backend/src/sro/application/observation/correlate.py#L168): Docstring
+## `as_call`, [line 174](../../../../../../../backend/src/sro/application/observation/correlate.py#L174): Docstring
 
 > A wire request as the domain sees it. The tab is not on the request:
 > it is on the enclosing `RequestEvent`, so the caller passes it in — an
 > orphan call's tab is a fact worth keeping.
 
-## `as_mark`, [line 184](../../../../../../../backend/src/sro/application/observation/correlate.py#L184): Docstring
+## `as_mark`, [line 190](../../../../../../../backend/src/sro/application/observation/correlate.py#L190): Docstring
 
 > A wire page event as the domain sees it.
 
-## `as_action`, [line 141](../../../../../../../backend/src/sro/application/observation/correlate.py#L141): Comment
+## `as_action`, [line 142](../../../../../../../backend/src/sro/application/observation/correlate.py#L142): Comment
 
 Code: `required=target.required,`
 

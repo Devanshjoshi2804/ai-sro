@@ -637,8 +637,13 @@ async def test_a_cited_gesture_reaches_the_bridge_whole(
                     "name": "clientCode",
                     "xtype": "textfield",
                     "required": None,
+                    "chain": [],
                 },
+                "bounds": {},
+                "attributes": {},
+                "landmarks": [],
             },
+            "modifiers": [],
         },
     }
 

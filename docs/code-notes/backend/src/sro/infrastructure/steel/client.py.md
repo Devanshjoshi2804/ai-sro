@@ -202,6 +202,51 @@ Code: `self._viewer_base = (public_base_url or base_url).rstrip("/")`
 > Everything this client does itself goes to `_base_url`. The one
 > string it builds for somebody else's browser uses this.
 
+## `SteelClient.open`, [line 49](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L49): Note
+
+> Task C0 (spec §5.1, §12 risk 1), measured against local Steel
+> (`ai-sro-steel-1`, `docker ps` mapped `3010->3000` and `9223->9223`) with
+> `backend/scripts/steel_sessions.py http://localhost:3010 http://localhost:9223`,
+> run twice for repeatability, both times identical:
+>
+> ```json
+> {
+>   "verdict": "contexts",
+>   "second_session_live": true,
+>   "same_cdp_endpoint": true,
+>   "contexts_isolated": true,
+>   "context_survives_disconnect": true,
+>   "other_survives_release": false
+> }
+> ```
+>
+> One shared Chrome process backs every Steel session in this container:
+> both sessions' `websocketUrl` (and the `/json/version` debugger URL) are
+> identical, and releasing the first session took the second one's
+> liveness down with it (`other_survives_release: false`) -- confirming,
+> from the CDP side, the same fact this function's own refusal below is
+> written against ("does not add a browser, it *takes* the one there
+> is"). Steel's own `/v1/sessions` bookkeeping does not multiply past
+> one; the refusal in `open` stays correct and nothing about it changes.
+>
+> But a `Target.createBrowserContext` with `disposeOnDetach: false`,
+> dialled directly over CDP rather than through another `/v1/sessions`
+> call, produces a context that is cookie-isolated from another one
+> (`contexts_isolated: true`) and survives the CDP connection that made
+> it being closed and reconnected (`context_survives_disconnect: true`)
+> -- which is what a worker restart does. `verdict()`
+> (`backend/scripts/steel_sessions.py`) reads this as `"contexts"`: the
+> container holds several accounts, not as several Steel sessions, but as
+> several browser contexts inside the one session/browser Steel gives
+> out. S4's broker should hand out contexts, addressed by
+> `browserContextId`, within one Steel session per container -- not
+> `steel_urls` = one container per account (spec §5.1's stated baseline),
+> and not a naive "ask Steel for N sessions".
+>
+> QA-0 (the live Blue Yonder QA box) had not been run as of this note;
+> its JSON goes here once it has, per
+> `.superpowers/sdd/2026-09-24-execution-runtime/task-C0-report.md`.
+
 ## `SteelClient.open`, [line 50](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L50): Comment
 
 Code: `holding = [`

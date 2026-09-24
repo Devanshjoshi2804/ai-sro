@@ -90,7 +90,7 @@ globalThis.chrome = {
   webNavigation: {
     onCommitted: { addListener: (fn) => (globalThis.__committed = fn) },
     onCompleted: { addListener: () => {} },
-    onCreatedNavigationTarget: { addListener: () => {} },
+    onCreatedNavigationTarget: { addListener: (fn) => (globalThis.__popup = fn) },
   },
   tabs: {
     onRemoved: { addListener: () => {} },
@@ -3079,4 +3079,31 @@ test("a question the reply still holds is put where the panel draws it", async (
   assert.equal(held.get("sro.question")?.workflowId, "wfl_ct");
   assert.deepEqual(held.get("sro.question")?.missing, ["Manufacturer"]);
   threadSaid = null;
+});
+
+test("a popup says which tab opened it", async () => {
+  ready();
+  await queue.clear();
+
+  // `popupEvent` is fired and forgotten from the listener, same as every
+  // other `webNavigation` handler here, so the test waits for the row rather
+  // than assuming one await landed it.
+  const findMark = async () => {
+    const rows = await queue.peek(20);
+    return rows
+      .map((row) => row.event)
+      .find((event) => event.kind === "page" && event.page_kind === "popup_opened");
+  };
+
+  await globalThis.__popup({
+    sourceTabId: TAB,
+    tabId: 2,
+    url: `${H}/picker`,
+    timeStamp: Date.now(),
+  });
+
+  await until(async () => Boolean(await findMark()), "the popup was never recorded");
+  const mark = await findMark();
+  assert.equal(mark.tab_id, 2);
+  assert.equal(mark.opener_tab_id, TAB);
 });

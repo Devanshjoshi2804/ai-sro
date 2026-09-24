@@ -11,6 +11,8 @@ _DEFAULT_PORTS = {"http": "80", "https": "443"}
 
 def origin_of(url: str) -> str:
     parsed = urlsplit(url)
+    if not parsed.netloc:
+        parsed = urlsplit(f"//{url}")
     host = (parsed.hostname or "").rstrip(".")
     if not host:
         return ""

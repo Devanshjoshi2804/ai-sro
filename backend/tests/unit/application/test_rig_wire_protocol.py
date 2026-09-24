@@ -642,3 +642,59 @@ def test_a_control_named_for_a_credential_keeps_its_name() -> None:
     assert element.component.fieldLabel == "Password"
     assert element.component.itemId == "passwordField"
     assert element.component.query == "panel#login textfield#passwordField"
+
+
+def test_a_secret_targets_dom_value_attribute_is_dropped_server_side() -> None:
+    """The extension redacts `value` client-side, but the server does not get
+    to trust that: `attributes.value` is where a password input's live DOM
+    value would land if a page-code change or a bug ever sent one, and
+    `is_secret_name("value")` is False -- the word carries no signal, so the
+    name rule and the shape rule (a plain password rarely has a secret shape)
+    both let it through. `secret` on the target is the one signal that is
+    never wrong here, so it drops the key outright rather than redacting it.
+    """
+    target = GESTURE_SECRET["gesture"]["target"]
+    poisoned = {**GESTURE_SECRET}
+    poisoned["gesture"] = {
+        **GESTURE_SECRET["gesture"],
+        "target": {
+            **target,
+            "attributes": {**target["attributes"], "value": "hunter2"},
+        },
+    }
+
+    event = GestureEvent.model_validate(poisoned)
+
+    assert event.gesture.target is not None
+    assert "value" not in event.gesture.target.attributes
+    assert "hunter2" not in event.model_dump_json()
+    assert event.gesture.target.attributes["name"] == "password"
+
+
+def test_a_shaped_credential_that_defeats_url_parsing_is_still_redacted() -> None:
+    """`redact_attributes` ran every string attribute through `redact_url`
+    alone, which returns a string byte-identical when `urlparse` raises --
+    an escape hatch meant for a URL nobody could parse, not for arbitrary
+    attribute text. A `data-*` attribute is not a URL and need not parse as
+    one, so a JWT sitting next to an unbalanced `[` (a stray template
+    delimiter, a broken interpolation) rode straight through untouched. The
+    shape rule alone -- `redact_shapes`, the same one `text`/`name` get --
+    does not parse anything, so it still catches it.
+    """
+    target = GESTURE_TYPE["gesture"]["target"]
+    poisoned = {**GESTURE_TYPE}
+    poisoned["gesture"] = {
+        **GESTURE_TYPE["gesture"],
+        "target": {
+            **target,
+            "attributes": {
+                **target["attributes"],
+                "data-config": f"http://user:pa[ss@host/{FAKE_JWT}",
+            },
+        },
+    }
+
+    event = GestureEvent.model_validate(poisoned)
+
+    assert event.gesture.target is not None
+    assert "eyJ" not in event.gesture.target.attributes["data-config"]

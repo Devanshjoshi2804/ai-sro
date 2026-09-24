@@ -189,7 +189,7 @@ async function key(tabId, name, type) {
 
 /** Do one thing at one point, through the browser.
  *
- * `{ ok: true, result }` in the shape `performAtInPage` returns, so a caller
+ * `{ ok: true, result }` in the shape `sroPage.performAt` returns, so a caller
  * can use either. `{ ok: false, error }` where the browser would not let this
  * drive the tab at all -- which is the caller's cue to try the page instead,
  * not to give up.

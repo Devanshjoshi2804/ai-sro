@@ -15,7 +15,8 @@ export interface paths {
          * Health
          * @description Liveness: the process answers, and says which code it is answering with.
          *
-         *     Still touches no dependency: the revision was resolved once at startup.
+         *     Still touches no live dependency: the revision was resolved once at
+         *     startup and the page code's hash is cached on first read.
          */
         get: operations["health_health_get"];
         put?: never;
@@ -2778,6 +2779,11 @@ export interface components {
             status: string;
             /** Revision */
             revision: string;
+            /**
+             * Page Code
+             * @default
+             */
+            page_code: string;
             /** Checks */
             checks: {
                 [key: string]: boolean;

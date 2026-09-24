@@ -1,6 +1,6 @@
 # Code notes
 
-The backend's comments and docstrings live here instead of in the code. There is one file per source file, at the same path plus `.md`. Each note names the function or class and the line it explains, and keeps the original wording.
+The backend's comments and docstrings live here instead of in the code, and so does `new-chrome-extension/src/page/page-code.js` (spec §6.4: the one file the extension, Steel and the backend image all load). There is one file per source file, at the same path plus `.md`. Each note names the function or class and the line it explains, and keeps the original wording.
 
 Kept in the code: tool directives (`# noqa`, `# type: ignore`, `# pragma`), and docstrings that become runtime text: HTTP routers and schemas (`backend/src/sro/interface/http/`, which feed `frontend/openapi.json`) and pydantic model classes.
 
@@ -361,6 +361,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/observability.py`](backend/src/sro/observability.py.md) | 10 |
 | [`backend/src/sro/whose.py`](backend/src/sro/whose.py.md) | 10 |
 | [`backend/tests/unit/interface/test_no_router_touches_the_unit_of_work.py`](backend/tests/unit/interface/test_no_router_touches_the_unit_of_work.py.md) | 1 |
+| [`new-chrome-extension/src/page/page-code.js`](new-chrome-extension/src/page/page-code.js.md) | 12 |
 
 ## Known shortcuts (`ponytail:` notes)
 

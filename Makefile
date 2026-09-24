@@ -111,7 +111,8 @@ images: ## Build both deployment images, tagged with this commit: make images [a
 	@# build -- so an image is per environment until the console is proxied.
 	@# See docs/18-deployment.md.
 	@rev=$$(git rev-parse --short HEAD); \
-	docker build -t ai-sro-backend:$$rev --build-arg REVISION=$$rev backend/ && \
+	docker build --build-context page=new-chrome-extension/src/page \
+		-t ai-sro-backend:$$rev --build-arg REVISION=$$rev backend/ && \
 	docker build -t ai-sro-web:$$rev \
 		--build-arg NEXT_PUBLIC_API_URL=$(or $(api),http://localhost:8000) \
 		--build-arg NEXT_PUBLIC_EXTENSION_ORIGINS=$(or $(origins),chrome-extension://onfmljaebeipeiinflhgdochbcjeoehl) \

@@ -949,6 +949,42 @@ def test_a_request_is_sent_with_the_operator_s_own_session(
     assert body["body"] == '{"code":"TESTSRO"}'
 
 
+def test_a_request_with_no_tab_open_goes_out_from_the_worker_itself(
+    browser: Any, stub: Any, channel: Any
+) -> None:
+    """No page on the origin, no `live_headers` -- so `httpSend` runs
+    `sroPage.send` in the worker's own realm rather than a page's.
+
+    A service worker cannot `eval` a fetched string (no `unsafe-eval` in its
+    default CSP) or dynamically `import()` (disallowed for a
+    `ServiceWorkerGlobalScope` by spec), so the only way `globalThis.sroPage`
+    can exist here at all is the static `import "../page/page-code.js"` at
+    the top of `commands.js` having run when the worker started. This is the
+    one path in the whole extension that proves that happened.
+    """
+    api_url, _ = stub
+    worker = _service_worker(browser)
+    status = _sign_in(browser, worker, api_url)
+    assert status["capturing"] is True, f"the extension did not start capturing: {status}"
+    open_channel = channel()
+
+    open_channel.command(
+        "cmd_no_tab",
+        "http.send",
+        {
+            "method": "POST",
+            "url": f"{api_url}/api/echo",
+            "headers": {"content-type": "application/json"},
+            "body": '{"code":"NOTAB"}',
+        },
+    )
+    answer = open_channel.answer("cmd_no_tab")
+
+    assert answer["ok"] is True, answer
+    assert answer["result"]["status"] == 200
+    assert json.loads(answer["result"]["body"])["body"] == '{"code":"NOTAB"}'
+
+
 def test_a_session_the_backend_supplies_is_not_what_goes_out(
     browser: Any, stub: Any, channel: Any
 ) -> None:

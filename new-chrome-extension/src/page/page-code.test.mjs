@@ -1,12 +1,36 @@
-// Self-check for `performAtInPage`: the half of the sight rung that runs
-// inside the page. It is handed to `executeScript` as source, so it reaches
-// only what a page has -- `document.elementFromPoint`, the event classes, the
-// input prototypes -- and every one of those is faked here, minimally, so the
-// question the test asks is "which events reach which element", not "does a
-// DOM exist". Run with `node src/background/in-page.test.mjs`.
+// Self-check for `page-code.js`: the file the extension injects with
+// `executeScript({files})` and Steel injects with `add_init_script(path=…)`.
+// It is loaded here the way both of them load it -- as a classic script's own
+// source, evaluated with nothing else in scope -- so what these tests exercise
+// is `globalThis.sroPage`, never an import.
+//
+// Run with `node src/page/page-code.test.mjs`.
 
 import assert from "node:assert/strict";
-import test from "node:test";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { test } from "node:test";
+
+const source = readFileSync(fileURLToPath(new URL("./page-code.js", import.meta.url)), "utf8");
+
+test("the file is a classic script: no import, no export", () => {
+  assert.doesNotMatch(source, /^\s*(import|export)\s/m);
+});
+
+test("evaluated alone, it defines every function the worker calls", () => {
+  const realm = {};
+  new Function("globalThis", source)(realm);
+  for (const name of ["perform", "performAt", "screenSize", "viewport", "csrfToken", "requestedWith", "send"]) {
+    assert.equal(typeof realm.sroPage[name], "function", name);
+  }
+});
+
+/** A fresh `sroPage`, the way each of chrome's own injections gets one: a new
+ * evaluation of the same source, into whatever globals this test has set up. */
+function loadSroPage() {
+  new Function("globalThis", source)(globalThis);
+  return globalThis.sroPage;
+}
 
 class FakeEvent {
   constructor(type, init = {}) {
@@ -19,10 +43,7 @@ globalThis.MouseEvent = FakeEvent;
 globalThis.PointerEvent = FakeEvent;
 globalThis.KeyboardEvent = FakeEvent;
 globalThis.FocusEvent = FakeEvent;
-globalThis.window = { scrollBy: () => {} };
 
-// The two input prototypes `type` writes through. A `value` accessor on the
-// prototype is what the page code looks up; the fake keeps the field itself.
 class HTMLInputElement {
   get value() {
     return this._value ?? "";
@@ -40,34 +61,18 @@ function element({ tagName = "BUTTON", typeable = false, src, box, name = "" } =
   el.tagName = tagName;
   el.innerText = name;
   el.id = "";
-  // Every element a page script touches can be asked about its attributes;
-  // the naming a successful command reports back reads three of them.
   el.getAttribute = () => null;
   if (src !== undefined) el.src = src;
-  // Only a frame is measured, and only by the branch that hands its position
-  // to the worker.
   el.getBoundingClientRect = () => box || { left: 0, top: 0, width: 0, height: 0 };
   el.events = [];
   el.focused = 0;
   el.dispatchEvent = (event) => el.events.push(event.type);
   if (typeable) el.focus = () => (el.focused += 1);
-  // Left as well as entered: a field commits its value to the framework behind
-  // it when it is blurred, and nothing here did that until 2026-09-17.
   el.blurred = 0;
   if (typeable) el.blur = () => (el.blurred += 1);
   return el;
 }
 
-let at = null;
-let onScreen = [];
-globalThis.document = {
-  elementFromPoint: () => at,
-  querySelectorAll: () => onScreen,
-};
-
-const { performAtInPage, performInPage } = await import("./in-page.js");
-
-/** A control on the page, as `nearMisses` reads one. */
 function control(tagName, name) {
   return {
     tagName,
@@ -78,29 +83,31 @@ function control(tagName, name) {
   };
 }
 
+let at = null;
+let onScreen = [];
+globalThis.document = {
+  elementFromPoint: () => at,
+  querySelectorAll: () => onScreen,
+};
+globalThis.window = { scrollBy: () => {} };
+
 test("nothing at the point is a control that was not found", () => {
+  const { performAt } = loadSroPage();
   at = null;
-  const answer = performAtInPage({ x: 5, y: 5, action: "click" });
+  const answer = performAt({ x: 5, y: 5, action: "click" });
   assert.equal(answer.ok, false);
   assert.equal(answer.error.kind, "control_not_found");
 });
 
 test("a point inside a frame says where the frame is, so it can be asked", () => {
-  // The picture the model is shown is the top document's viewport, and a
-  // warehouse application inside an iframe puts every control in another
-  // document: the point is right and the document is wrong. Firing here would
-  // hit the frame element, reach nothing, and report `performed`.
-  //
-  // Measured on the deployment, 2026-09-17: the rung that looks at a picture
-  // finally pointed at a control and got "that point is inside a frame", which
-  // made it useless on the one system it exists for.
+  const { performAt } = loadSroPage();
   for (const tagName of ["IFRAME", "FRAME"]) {
     at = element({
       tagName,
       src: "https://wms.example/portal/app",
       box: { left: 12, top: 80, width: 900, height: 600 },
     });
-    const answer = performAtInPage({ x: 5, y: 5, action: "click" });
+    const answer = performAt({ x: 5, y: 5, action: "click" });
     assert.equal(answer.ok, false, tagName);
     assert.equal(answer.error.kind, "point_in_a_frame");
     assert.equal(answer.error.frame.src, "https://wms.example/portal/app");
@@ -111,16 +118,9 @@ test("a point inside a frame says where the frame is, so it can be asked", () =>
 });
 
 test("what worked is named, so the job can keep it", () => {
-  // A step whose recorded identity has rotted is found by a rung further down
-  // -- text, a css path, a point on a picture -- and that discovery used to
-  // live for exactly one command. Measured on the deployment, 2026-09-17: the
-  // rung that looks at a picture worked out "Customer Types is under Partners"
-  // three times in one afternoon, and the job knew no more at the end of it.
-  // Through the point, which is the expensive rung: a model looked at a
-  // picture to find this control, and naming it is what lets the next run
-  // find it with a locator instead of another picture.
+  const { performAt } = loadSroPage();
   at = element({ tagName: "BUTTON", name: "Customer Types" });
-  const answer = performAtInPage({ x: 40, y: 30, action: "click" });
+  const answer = performAt({ x: 40, y: 30, action: "click" });
 
   assert.equal(answer.ok, true);
   assert.equal(answer.result.control.tag, "button");
@@ -128,27 +128,21 @@ test("what worked is named, so the job can keep it", () => {
 });
 
 test("a click is the whole pointer sequence, on the element at the point", () => {
+  const { performAt } = loadSroPage();
   at = element();
-  const answer = performAtInPage({ x: 40, y: 30, action: "click" });
+  const answer = performAt({ x: 40, y: 30, action: "click" });
   assert.equal(answer.ok, true);
   assert.equal(answer.result.performed, true);
   assert.deepEqual(at.events, ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]);
 });
 
 test("typing focuses the element at the point and puts the value through its setter", () => {
+  const { performAt } = loadSroPage();
   at = element({ typeable: true });
-  const answer = performAtInPage({ x: 40, y: 30, action: "type", value: "ab" });
+  const answer = performAt({ x: 40, y: 30, action: "type", value: "ab" });
   assert.equal(answer.ok, true);
   assert.equal(at.focused, 1, "focused explicitly: a synthetic click moves no focus");
   assert.equal(at.value, "ab");
-  // click, cleared (input), then per character keydown/input/keyup, then
-  // change -- and then LEFT, which is when a field commits its value to the
-  // framework behind it. Measured on the deployment, 2026-09-17 at 23:40:
-  // `run_6ddc89d5` typed GT2, the screen showed GT2, and the Save came back
-  // "a validation error on Customer Type" because ExtJS still held the empty
-  // value it had never been told to replace. A person never hits this: their
-  // click on the next control blurs the last one, and a synthetic click moves
-  // no focus.
   assert.deepEqual(at.events, [
     "click", "input",
     "keydown", "input", "keyup",
@@ -159,37 +153,37 @@ test("typing focuses the element at the point and puts the value through its set
 });
 
 test("typing into something that cannot be typed into says so rather than performing", () => {
+  const { performAt } = loadSroPage();
   at = element();
-  const answer = performAtInPage({ x: 40, y: 30, action: "type", value: "ab" });
+  const answer = performAt({ x: 40, y: 30, action: "type", value: "ab" });
   assert.equal(answer.ok, false);
   assert.equal(answer.error.kind, "not_actionable");
   assert.deepEqual(at.events, ["click"], "the click went; the keystrokes did not");
 });
 
 test("a press lands on the element at the point, Enter by default", () => {
+  const { performAt } = loadSroPage();
   at = element({ typeable: true });
-  const answer = performAtInPage({ x: 40, y: 30, action: "press" });
+  const answer = performAt({ x: 40, y: 30, action: "press" });
   assert.equal(answer.ok, true);
   assert.equal(at.focused, 1);
   assert.deepEqual(at.events, ["keydown", "keyup"]);
 });
 
 test("an action a point cannot take is refused", () => {
+  const { performAt } = loadSroPage();
   at = element();
-  const answer = performAtInPage({ x: 40, y: 30, action: "select", value: "D3" });
+  const answer = performAt({ x: 40, y: 30, action: "select", value: "D3" });
   assert.equal(answer.ok, false);
   assert.equal(answer.error.kind, "not_actionable");
 });
 
 test("a control that was not found says what the page does have", () => {
-  // "no control matched: role_and_name=button|Save, css_path=..." says what
-  // was tried and nothing about what is there. A screen whose Save became
-  // "Save and close" read as a screen with no Save at all -- to the person
-  // reading the run, and to the model asked to rescue the step.
+  const { perform } = loadSroPage();
   onScreen = [control("BUTTON", "Save and close"), control("BUTTON", "Cancel")];
   globalThis.document.querySelectorAll = () => onScreen;
 
-  const answer = performInPage({
+  const answer = perform({
     action: "click",
     locators: [{ strategy: "role_and_name", query: "button|Save" }],
   });
@@ -208,9 +202,10 @@ test("a control that was not found says what the page does have", () => {
 });
 
 test("a page with nothing like it says so with an empty list, not a catalogue", () => {
+  const { perform } = loadSroPage();
   onScreen = [control("BUTTON", "Cancel"), control("A", "Help")];
 
-  const answer = performInPage({
+  const answer = perform({
     action: "click",
     locators: [{ strategy: "role_and_name", query: "button|Save" }],
   });
@@ -219,12 +214,7 @@ test("a page with nothing like it says so with an empty list, not a catalogue", 
 });
 
 test("the locator path leaves the field too, not only the point path", () => {
-  // The path a run actually takes. `run_6ddc89d5`, the deployment,
-  // 2026-09-17 at 23:40, matched `component` -- which is `performInPage`, not
-  // `performAtInPage` -- typed GT2, showed GT2 on the screen, and had the Save
-  // refused with "a validation error on Customer Type". The framework behind
-  // the box keeps its own value and takes the DOM's when the field is LEFT,
-  // and nothing here ever left it.
+  const { perform } = loadSroPage();
   const field = new HTMLInputElement();
   Object.assign(field, {
     tagName: "INPUT",
@@ -244,7 +234,7 @@ test("the locator path leaves the field too, not only the point path", () => {
   onScreen = [field];
   globalThis.document.querySelectorAll = () => onScreen;
 
-  const answer = performInPage({
+  const answer = perform({
     action: "type",
     value: "GT2",
     locators: [{ strategy: "css_path", query: "#customerType" }],
@@ -257,12 +247,7 @@ test("the locator path leaves the field too, not only the point path", () => {
 });
 
 test("a box that would not take what it was given says how much it kept", () => {
-  // The browser truncates silently and BEFORE the request. On the deployment
-  // `Warehouse.Description` stops at about 28 characters with no error and no
-  // warning, so the shortened value is what goes into the body, comes back
-  // from the read, and appears in the photograph. Every belt the run has
-  // agrees, because every one of them compares the record to itself. This is
-  // the only moment the difference exists.
+  const { perform } = loadSroPage();
   const field = new HTMLInputElement();
   Object.assign(field, {
     tagName: "INPUT",
@@ -279,11 +264,6 @@ test("a box that would not take what it was given says how much it kept", () => 
   field.dispatchEvent = () => {};
   field.focus = () => (field.focused += 1);
   field.blur = () => (field.blurred += 1);
-  // A field with a maxlength keeps a prefix and drops the rest, exactly as a
-  // real one does. Modelled on the READ rather than the write, because the
-  // page code assigns through the PROTOTYPE's setter -- deliberately, so a
-  // framework watching the property sees the change -- and an instance setter
-  // would never be called.
   Object.defineProperty(field, "value", {
     get() {
       return String(this._value ?? "").slice(0, 8);
@@ -293,7 +273,7 @@ test("a box that would not take what it was given says how much it kept", () => 
   onScreen = [field];
   globalThis.document.querySelectorAll = () => onScreen;
 
-  const answer = performInPage({
+  const answer = perform({
     action: "type",
     value: "a description far longer than the box",
     locators: [{ strategy: "css_path", query: "#longDescription" }],
@@ -306,6 +286,7 @@ test("a box that would not take what it was given says how much it kept", () => 
 });
 
 test("a box that took what it was given says nothing", () => {
+  const { perform } = loadSroPage();
   const field = new HTMLInputElement();
   Object.assign(field, {
     tagName: "INPUT",
@@ -322,7 +303,7 @@ test("a box that took what it was given says nothing", () => {
   onScreen = [field];
   globalThis.document.querySelectorAll = () => onScreen;
 
-  const answer = performInPage({
+  const answer = perform({
     action: "type",
     value: "GV3",
     locators: [{ strategy: "css_path", query: "#customerType" }],
@@ -333,11 +314,8 @@ test("a box that took what it was given says nothing", () => {
 
 // --- which part of a component a click lands on ------------------------------
 
-/** An Ext field, as `ComponentQuery` hands one back. */
 function field({ trigger = null, composite = false, named = false } = {}) {
   const input = element({ tagName: "INPUT", typeable: true });
-  // `act` scrolls a control into view before it touches it; the point-path
-  // fixtures above never reach that line, so the fake has no such method.
   input.scrollIntoView = () => {};
   if (trigger) trigger.scrollIntoView = () => {};
   const c = { isVisible: () => true, inputEl: { dom: input }, el: { dom: input } };
@@ -352,17 +330,12 @@ function withExt(components) {
 }
 
 test("a click on a dropdown lands on its trigger, not on its text box", () => {
-  // Measured on the deployment 2026-09-22. `Click the Create Shipment By
-  // dropdown` landed every time -- ok: true, matched_by: component -- and the
-  // list never opened, so the step after it had no option to select and the
-  // job could not finish. A combobox's `inputEl` is its text box; the list
-  // opens from the arrow beside it. The operator's own recording of that click
-  // names the trigger: div#ext-gen2855, xtype combobox.
+  const { perform } = loadSroPage();
   const arrow = element({ tagName: "DIV" });
   const { c, input } = field({ trigger: arrow });
   withExt([c]);
 
-  const answer = performInPage({
+  const answer = perform({
     action: "click",
     locators: [{ strategy: "component", query: "combobox#createShipmentBy" }],
   });
@@ -373,12 +346,13 @@ test("a click on a dropdown lands on its trigger, not on its text box", () => {
 });
 
 test("the trigger is found whichever shape this Ext keeps it in", () => {
+  const { perform } = loadSroPage();
   for (const shape of [{ composite: true }, { named: true }]) {
     const arrow = element({ tagName: "DIV" });
     const { c } = field({ trigger: arrow, ...shape });
     withExt([c]);
 
-    performInPage({
+    perform({
       action: "click",
       locators: [{ strategy: "component", query: "combobox#x" }],
     });
@@ -388,10 +362,11 @@ test("the trigger is found whichever shape this Ext keeps it in", () => {
 });
 
 test("a field with no trigger is still clicked where it always was", () => {
+  const { perform } = loadSroPage();
   const { c, input } = field();
   withExt([c]);
 
-  const answer = performInPage({
+  const answer = perform({
     action: "click",
     locators: [{ strategy: "component", query: "textfield#code" }],
   });
@@ -401,13 +376,12 @@ test("a field with no trigger is still clicked where it always was", () => {
 });
 
 test("typing still goes to the text box, never to the trigger", () => {
-  // `type` and `select` want the input they always wanted. Sending them to the
-  // arrow would break every field that works today to fix one that does not.
+  const { perform } = loadSroPage();
   const arrow = element({ tagName: "DIV" });
   const { c, input } = field({ trigger: arrow });
   withExt([c]);
 
-  performInPage({
+  perform({
     action: "type",
     value: "NRT2",
     locators: [{ strategy: "component", query: "combobox#createShipmentBy" }],
@@ -418,10 +392,7 @@ test("typing still goes to the text box, never to the trigger", () => {
 });
 
 test("a rung scoped to a view clicks inside that view, not the first match on the page", () => {
-  // Measured on the deployment 2026-09-22 at 13:54: selecting a grid row is a
-  // click on `div.x-grid-row-checker`, and a page can hold more than one grid.
-  // Every locator carries `within`, and until now only the command's own was
-  // read -- so a rung's scope was a field nothing looked at.
+  const { perform } = loadSroPage();
   const elsewhere = element({ tagName: "DIV" });
   const inside = element({ tagName: "DIV" });
   for (const one of [elsewhere, inside]) one.scrollIntoView = () => {};
@@ -429,7 +400,7 @@ test("a rung scoped to a view clicks inside that view, not the first match on th
   const view = { el: { dom: { contains: (el) => el === inside } } };
   withExt([view]);
 
-  const answer = performInPage({
+  const answer = perform({
     action: "click",
     locators: [
       {
@@ -443,4 +414,57 @@ test("a rung scoped to a view clicks inside that view, not the first match on th
   assert.equal(answer.ok, true);
   assert.ok(inside.events.includes("click"), "the row inside the view was never clicked");
   assert.ok(!elsewhere.events.includes("click"), "a match outside the view was clicked");
+});
+
+// --- every function survives being handed to `executeScript` alone -----------
+
+/** Barely a page: enough for a function to run and find nothing. */
+function aPage() {
+  const el = {
+    getAttribute: () => null,
+    getBoundingClientRect: () => ({ width: 0, height: 0, top: 0, left: 0 }),
+    innerText: "",
+    tagName: "BUTTON",
+    focus() {},
+    click() {},
+    dispatchEvent: () => true,
+    closest: () => null,
+    ownerDocument: null,
+  };
+  return {
+    querySelectorAll: () => [el],
+    querySelector: () => null,
+    elementFromPoint: () => null,
+    documentElement: { scrollTop: 0, clientWidth: 800, clientHeight: 600 },
+    body: { innerText: "" },
+    title: "",
+    cookie: "",
+  };
+}
+
+const PAYLOADS = {
+  perform: { action: "click", locators: [{ strategy: "text", query: "Save" }] },
+  performAt: { action: "click", x: 10, y: 10 },
+  screenSize: undefined,
+  viewport: undefined,
+  csrfToken: { names: ["CSRF-TOKEN"] },
+  requestedWith: undefined,
+};
+
+test("every sroPage function runs with nothing but the page around it", () => {
+  for (const name of Object.keys(PAYLOADS)) {
+    const realm = {};
+    globalThis.document = aPage();
+    globalThis.window = { getComputedStyle: () => ({ visibility: "visible", display: "block" }) };
+    globalThis.location = { href: "https://wms.example/portal" };
+    new Function("globalThis", source)(realm);
+    try {
+      realm.sroPage[name](PAYLOADS[name]);
+    } catch (error) {
+      assert.fail(
+        `sroPage.${name} cannot run in a page: ${error.message}` +
+          " — it refers to something that only exists outside the injected script",
+      );
+    }
+  }
 });

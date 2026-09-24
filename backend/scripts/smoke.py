@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import ipaddress
 import sys
 from datetime import timedelta
+from pathlib import Path
 from urllib.parse import urlsplit
 
 import httpx
@@ -163,12 +165,21 @@ async def check_api(public: str) -> None:
             bad("api health", f"{health.status_code}")
         else:
             ok("api health", f"revision {health.json().get('revision', '?')}")
+            check_page_code(health.json().get("page_code", ""))
 
         unauthorised = await web.get(f"{public}/api/v1/workflows")
         if unauthorised.status_code == httpx.codes.UNAUTHORIZED:
             ok("api auth", "no credential is refused")
         else:
             bad("api auth", f"an unauthenticated call answered {unauthorised.status_code}")
+
+
+def check_page_code(deployed: str) -> None:
+    wanted = hashlib.sha256(Path(get_settings().page_code_path).read_bytes()).hexdigest()
+    if deployed == wanted:
+        ok("page code", f"{deployed[:12]} matches the repository's file")
+    else:
+        bad("page code", f"deployed {deployed[:12] or '(none)'}, repository has {wanted[:12]}")
 
 
 async def check_worker(container: object) -> None:

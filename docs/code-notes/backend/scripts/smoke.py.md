@@ -32,14 +32,14 @@ Comments and docstrings moved out of [`backend/scripts/smoke.py`](../../../../ba
 > a live deployment: it writes one small blob and deletes it, opens one browser
 > session and releases it, and touches nothing else.
 
-## `_is_private_name`, [line 30](../../../../backend/scripts/smoke.py#L30): Docstring
+## `_is_private_name`, [line 32](../../../../backend/scripts/smoke.py#L32): Docstring
 
 > Whether this url names something only the compose network can resolve.
 >
 > A single label with no dot -- `minio`, `steel`, `api` -- is a container
 > name. That is the whole bug class this script exists for.
 
-## `check_addresses`, [line 41](../../../../backend/scripts/smoke.py#L41): Docstring
+## `check_addresses`, [line 43](../../../../backend/scripts/smoke.py#L43): Docstring
 
 > What this deployment believes its own addresses are.
 >
@@ -48,20 +48,20 @@ Comments and docstrings moved out of [`backend/scripts/smoke.py`](../../../../ba
 > their defaults, the console's own calls are captured and mined as
 > warehouse work -- which has happened.
 
-## `check_artifact`, [line 57](../../../../backend/scripts/smoke.py#L57): Docstring
+## `check_artifact`, [line 59](../../../../backend/scripts/smoke.py#L59): Docstring
 
 > A presigned url, fetched the way the console fetches a screenshot.
 
-## `check_browser`, [line 83](../../../../backend/scripts/smoke.py#L83): Docstring
+## `check_browser`, [line 85](../../../../backend/scripts/smoke.py#L85): Docstring
 
 > A real session, its live view, and the screencast socket behind it.
 
-## `_check_cast`, [line 118](../../../../backend/scripts/smoke.py#L118): Docstring
+## `_check_cast`, [line 120](../../../../backend/scripts/smoke.py#L120): Docstring
 
 > The screencast socket the live view opens. An iframe that loads and
 > never paints is what a broken one looks like.
 
-## `check_console`, [line 139](../../../../backend/scripts/smoke.py#L139): Docstring
+## `check_console`, [line 141](../../../../backend/scripts/smoke.py#L141): Docstring
 
 > The console, and what its bundle was built to talk to.
 >
@@ -69,16 +69,16 @@ Comments and docstrings moved out of [`backend/scripts/smoke.py`](../../../../ba
 > absolute hostname is one image that serves one environment, and a bundle
 > carrying a private name is a console that loads and fails every request.
 
-## `check_api`, [line 159](../../../../backend/scripts/smoke.py#L159): Docstring
+## `check_api`, [line 161](../../../../backend/scripts/smoke.py#L161): Docstring
 
 > The API through whatever is in front of it, with and without a token.
 
-## `check_worker`, [line 174](../../../../backend/scripts/smoke.py#L174): Docstring
+## `check_worker`, [line 185](../../../../backend/scripts/smoke.py#L185): Docstring
 
 > Whether a worker is polling. Its container status cannot say: one image
 > serves the API and the worker, and the worker serves no HTTP.
 
-## `check_ledger`, [line 200](../../../../backend/scripts/smoke.py#L200): Docstring
+## `check_ledger`, [line 211](../../../../backend/scripts/smoke.py#L211): Docstring
 
 > Whether this deployment can tell a watched write from an unwatched one.
 >
@@ -94,7 +94,7 @@ Comments and docstrings moved out of [`backend/scripts/smoke.py`](../../../../ba
 > compose file mounts it there. Every test passes either way. Measured on QA
 > 2026-09-16, after a clean deploy and a green suite: `ledger rows: 0`.
 
-## `check_artifact`, [line 74](../../../../backend/scripts/smoke.py#L74): Comment
+## `check_artifact`, [line 76](../../../../backend/scripts/smoke.py#L76): Comment
 
 Code: `tampered = await web.get(url + "X")`
 

@@ -239,5 +239,69 @@ def test_function_nested_in_with_and_try_resolves(tmp_path: Path) -> None:
     assert not any("nested.py.md" in entry for entry in report.stale)
 
 
+def test_a_non_python_source_resolves_by_a_line_scan_not_ast(tmp_path: Path) -> None:
+    # `ast.parse` throws on the first line of any JS -- `page-code.js.md`
+    # (global-constraints.md's "the same rule holds for ... page-code.js")
+    # would be entirely `dead` on that path alone, for every anchor, with no
+    # way to write a real one. A `.py` file's behaviour above is untouched:
+    # this only ever runs for a source whose suffix is not `.py`.
+    repo = tmp_path
+
+    _write(
+        repo / "new-chrome-extension/src/page/page-code.js",
+        "\n"
+        "const sroPage = {\n"
+        "  perform(payload) {\n"
+        "    return null;\n"
+        "  },\n"
+        "  async send(payload) {\n"
+        "    return null;\n"
+        "  },\n"
+        "};\n"
+        "globalThis.sroPage = sroPage;\n",
+    )
+    _write(
+        repo / "docs/code-notes/new-chrome-extension/src/page/page-code.js.md",
+        "# Notes for `new-chrome-extension/src/page/page-code.js`\n\n"
+        "## `perform`, "
+        "[line 99](../../../../../new-chrome-extension/src/page/page-code.js#L99): Docstring\n\n"
+        "> Was line 99, drifted to line 3.\n\n"
+        "## `perform`, [line 1](../../../../../new-chrome-extension/src/page/page-code.js#L1): "
+        "Comment\n\n"
+        "Code: `return null;`\n\n"
+        "> Scoped to `perform`'s own body -- `send`'s identical line is a "
+        "different `return null;`.\n\n"
+        "## `send`, [line 50](../../../../../new-chrome-extension/src/page/page-code.js#L50): "
+        "Docstring\n\n"
+        "> Was line 50, drifted to line 6.\n\n"
+        "## `send`, [line 1](../../../../../new-chrome-extension/src/page/page-code.js#L1): "
+        "Comment\n\n"
+        "Code: `return null;`\n\n"
+        "> The other `return null;` -- resolved inside `send`'s own scope, not "
+        "`perform`'s, even though the quoted line is not unique in the file.\n\n"
+        "## `Ghost`, [line 1](../../../../../new-chrome-extension/src/page/page-code.js#L1): "
+        "Docstring\n\n"
+        "> Names a function that does not exist -- dead.\n",
+    )
+
+    report = check_code_notes.run(repo, fix=False)
+
+    page_stale = {
+        entry.split(":", 2)[-1].strip() for entry in report.stale if "page-code.js.md" in entry
+    }
+    assert page_stale == {
+        "`perform` stated line 99, now at 3",
+        "`perform` stated line 1, now at 4",
+        "`send` stated line 50, now at 6",
+        "`send` stated line 1, now at 7",
+    }
+    assert any("Ghost` -- symbol `Ghost` missing" in entry for entry in report.dead)
+
+    fixed = check_code_notes.run(repo, fix=True)
+    assert fixed.stale == report.stale
+    settled = check_code_notes.run(repo, fix=False)
+    assert settled.stale == []
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

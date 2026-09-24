@@ -51,9 +51,15 @@ globalThis.chrome = {
     },
   },
   scripting: {
-    executeScript: async ({ func, target }) => {
-      // The full measure is the slow one; the cheap probe answers at once.
-      const whole = String(func).includes("querySelectorAll");
+    executeScript: async ({ target, args, files }) => {
+      // `sroCall` injects `page-code.js` itself first, as a plain file with no
+      // `func` -- nothing for this fake to answer beyond an empty result.
+      if (files) return [];
+      // The full measure is the slow one; the cheap probe answers at once. The
+      // dispatcher `commands.js` hands `executeScript` is the same shape for
+      // every call now, so which `sroPage` method was asked for is read off
+      // its own arguments rather than off the function's source text.
+      const whole = args?.[0] === "viewport";
       if (whole && measureDelay) await sleep(measureDelay);
       // As Chrome does it: without `allFrames` only the main frame answers,
       // which is the whole of what this is about.

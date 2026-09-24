@@ -99,7 +99,7 @@ export const state = {
    * nowhere cleverer: `chrome.storage.local` is the extension's own origin and
    * no page can reach it -- a content script runs in the page's world but with
    * the extension's `chrome.storage`, and nothing here is ever handed to one
-   * (`in-page.js` is given locators and gives back values). A page that could
+   * (`page-code.js` is given locators and gives back values). A page that could
    * read this could already read the credential, and the credential is the
    * larger loss: it is the whole tenant, this is one browser.
    *

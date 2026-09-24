@@ -11,6 +11,8 @@
 // Run with `node src/background/viewport.test.mjs`.
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 /** One element, counting every time its geometry is asked for. That count is
@@ -49,7 +51,15 @@ function page(elements, saying = []) {
   };
 }
 
-const { viewportInPage } = await import("./in-page.js");
+const pageCode = readFileSync(
+  fileURLToPath(new URL("../page/page-code.js", import.meta.url)),
+  "utf8",
+);
+const { viewport: viewportInPage } = (() => {
+  const realm = {};
+  new Function("globalThis", pageCode)(realm);
+  return realm.sroPage;
+})();
 
 test("a grid with fifty thousand cells is not measured fifty thousand times", () => {
   // The fault itself. Nothing here asserts a duration -- a timing assertion in

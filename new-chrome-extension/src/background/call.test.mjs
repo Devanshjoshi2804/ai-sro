@@ -14,9 +14,19 @@
 // Run with `node src/background/call.test.mjs`.
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
-const { sendInPage } = await import("./in-page.js");
+const pageCode = readFileSync(
+  fileURLToPath(new URL("../page/page-code.js", import.meta.url)),
+  "utf8",
+);
+const { send: sendInPage } = (() => {
+  const realm = {};
+  new Function("globalThis", pageCode)(realm);
+  return realm.sroPage;
+})();
 
 /** What a browser rejects an aborted fetch with, made without naming
  * `DOMException` -- which node has and eslint's browser globals do not. */

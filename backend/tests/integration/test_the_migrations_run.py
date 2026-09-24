@@ -142,7 +142,11 @@ async def test_downgrading_0073_refuses_when_two_steel_runs_share_a_device(
 
     downgrade = await asyncio.to_thread(
         subprocess.run,
-        [sys.executable, "-m", "alembic", "downgrade", "-1"],
+        # The absolute target, not `-1`: 0073 was the head when this was
+        # written, and a later migration stacked on top (0074, sign-in pages
+        # are watched) would otherwise make `-1` undo that one instead and
+        # never reach 0073's own refusal.
+        [sys.executable, "-m", "alembic", "downgrade", "0072"],
         env={**os.environ, "SRO_DATABASE_URL": postgres_url},
         capture_output=True,
         text=True,

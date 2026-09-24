@@ -3,8 +3,8 @@
 A policy whose exclusions are exactly the old identity-provider default held
 that default, not a choice, so it becomes empty. Any other list stays.
 
-Revision ID: 0073
-Revises: 0072
+Revision ID: 0074
+Revises: 0073
 """
 
 from __future__ import annotations
@@ -14,8 +14,8 @@ import json
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0073"
-down_revision = "0072"
+revision = "0074"
+down_revision = "0073"
 branch_labels = None
 depends_on = None
 

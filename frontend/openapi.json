@@ -25260,13 +25260,6 @@
         ],
         "title": "CalledWrongRequest"
       },
-      "CaptureMode": {
-        "type": "string",
-        "enum": [
-          "passive"
-        ],
-        "title": "CaptureMode"
-      },
       "ChangeTriggerRequest": {
         "properties": {
           "enabled": {
@@ -27091,7 +27084,9 @@
             "title": "Ended At"
           },
           "mode": {
-            "$ref": "#/components/schemas/CaptureMode",
+            "type": "string",
+            "const": "passive",
+            "title": "Mode",
             "default": "passive"
           },
           "events": {

@@ -2386,11 +2386,6 @@ export interface components {
             /** Because */
             because: string;
         };
-        /**
-         * CaptureMode
-         * @enum {string}
-         */
-        CaptureMode: "passive";
         /** ChangeTriggerRequest */
         ChangeTriggerRequest: {
             /** Enabled */
@@ -3267,8 +3262,12 @@ export interface components {
              * Format: date-time
              */
             ended_at: string;
-            /** @default passive */
-            mode: components["schemas"]["CaptureMode"];
+            /**
+             * Mode
+             * @default passive
+             * @constant
+             */
+            mode: "passive";
             /** Events */
             events: {
                 [key: string]: unknown;

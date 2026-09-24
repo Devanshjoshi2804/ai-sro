@@ -61,14 +61,21 @@ const KEYS = {
 
 /** Keys this extension used to write and no longer does.
  *
- * The rig's URL, the tenant's rig bearer and the rig's last refusal. They were
- * in `KEYS`, so `forget()` took them at sign-out; dropped from `KEYS` they
- * would sit in `chrome.storage.local` forever on every browser that ever had a
- * rig configured -- including the tenant's bearer, which is a credential this
- * extension no longer has any door to use. Removed once on update rather than
- * left for a sign-out that may never come; see `service-worker.js`'s
- * `onInstalled`. */
-export const RETIRED_KEYS = ["sro.rigUrl", "sro.rigToken", "sro.rigRefusal"];
+ * The rig's URL, the tenant's rig bearer and the rig's last refusal; the
+ * demonstration a browser was in the middle of; and the per-page mutes
+ * nothing ever wrote. They were in `KEYS`, so `forget()` took them at
+ * sign-out; dropped from `KEYS` they would sit in `chrome.storage.local`
+ * forever on every browser that ever had one -- including the rig's tenant
+ * bearer, which is a credential this extension no longer has any door to
+ * use. Removed once on update rather than left for a sign-out that may
+ * never come; see `service-worker.js`'s `onInstalled`. */
+export const RETIRED_KEYS = [
+  "sro.rigUrl",
+  "sro.rigToken",
+  "sro.rigRefusal",
+  "sro.teaching",
+  "sro.muted",
+];
 
 async function read(key, fallback = null) {
   const held = await chrome.storage.local.get(key);

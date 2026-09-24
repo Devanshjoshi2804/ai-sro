@@ -311,36 +311,34 @@ function render(status) {
   // The newest, because that is the one anybody acts on -- nobody works
   // Tuesday's request on Thursday, and the older ones are a list to go
   // through rather than a thing in the way of the run happening now.
-  {
-    // Not the job that is running right now.
-    //
-    // A card offering to do what is already being done is a card whose Yes
-    // starts it a second time -- and on `Delete a Customer Type` that is two
-    // deletes of one record. Measured on the deployment 2026-09-22 at 15:57:
-    // "Delete a Customer Type — NEX. Want me to do it?" with a live Yes,
-    // directly above "A run is performing here" for that same job.
-    //
-    // The mail path has had this since it was written -- `offer.started`,
-    // "a run is already going for this one, so there is nothing to offer" --
-    // and the rig's own offers never consulted anything. They are drawn from
-    // the same list, so the guard belongs here, where the list is filtered.
-    const running = status.performing?.workflowId || null;
-    const here = (lastStatus?.nudges || status.nudges || []).filter(
-      (nudge) =>
-        nudge.state === "open" &&
-        !nudge.missed &&
-        !(running && nudge.workflowId === running) &&
-        !(nudge.tabId != null && nudge.tabId !== tabHere.tabId),
-    );
-    const [newest, ...rest] = [...here].sort((a, b) => when(b.at) - when(a.at));
-    if (newest) {
-      const one = nudging(newest, answered);
-      if (justArrived(newest)) one.dataset.fresh = "1";
-      offers.push(one);
-    }
-    // And a way to the rest, which is a line rather than ten more cards.
-    if (rest.length) offers.push(theRest(rest));
+  // Not the job that is running right now.
+  //
+  // A card offering to do what is already being done is a card whose Yes
+  // starts it a second time -- and on `Delete a Customer Type` that is two
+  // deletes of one record. Measured on the deployment 2026-09-22 at 15:57:
+  // "Delete a Customer Type — NEX. Want me to do it?" with a live Yes,
+  // directly above "A run is performing here" for that same job.
+  //
+  // The mail path has had this since it was written -- `offer.started`,
+  // "a run is already going for this one, so there is nothing to offer" --
+  // and the rig's own offers never consulted anything. They are drawn from
+  // the same list, so the guard belongs here, where the list is filtered.
+  const running = status.performing?.workflowId || null;
+  const openHere = (lastStatus?.nudges || status.nudges || []).filter(
+    (nudge) =>
+      nudge.state === "open" &&
+      !nudge.missed &&
+      !(running && nudge.workflowId === running) &&
+      !(nudge.tabId != null && nudge.tabId !== tabHere.tabId),
+  );
+  const [newest, ...others] = [...openHere].sort((a, b) => when(b.at) - when(a.at));
+  if (newest) {
+    const one = nudging(newest, answered);
+    if (justArrived(newest)) one.dataset.fresh = "1";
+    offers.push(one);
   }
+  // And a way to the rest, which is a line rather than ten more cards.
+  if (others.length) offers.push(theRest(others));
 
   // A standing rule that fired on THIS page and stopped to ask.
   //
@@ -360,40 +358,38 @@ function render(status) {
   // Only the ones about the page they are on. `page` is the rule's own, put
   // there by the worker, and a card about somewhere else belongs in the list
   // rather than in the way of the page being worked.
-  {
-    const here = page(tabHere.url || "").toLowerCase();
-    // Not one that has already run out.
-    //
-    // A confirmation expires, and the card stayed on screen offering a press
-    // that could not work: "Yes, do it" came back 422 "this expired without
-    // an answer; nothing was run and nothing can be now". Measured on the
-    // deployment 2026-09-22 at 19:17, on cnf_4f2ca91d. The backend serves
-    // `expires_at` and this never read it.
-    const gone = (card) => {
-      const at = Date.parse(card.expires_at || "");
-      return Number.isFinite(at) && at <= Date.now();
-    };
-    const mine = (status.waiting || []).filter(
-      (card) =>
-        card.page && card.page === here && card.still_there !== false && !gone(card),
-    );
-    // One card per rule, however many times it fired.
-    //
-    // A rule that fires twice writes two confirmations, and the panel drew a
-    // card for each: the same sentence, the same two buttons, one under the
-    // other, with no way to tell them apart. Seen on the Keycloak sign-in page
-    // on 2026-09-22 -- "Log in to Keycloak, an arrival trigger fired. Shall
-    // I?" twice. They are one decision to the person reading them, so one
-    // answer settles all of them (`answeredWaiting` carries the rest).
-    const byRule = new Map();
-    for (const card of mine) {
-      const rule = card.trigger_id || card.id;
-      const first = byRule.get(rule);
-      if (first) first.twins.push(card.id);
-      else byRule.set(rule, { ...card, twins: [] });
-    }
-    for (const card of byRule.values()) asks.push(waitingOnYou(card, answered));
+  const thisPage = page(tabHere.url || "").toLowerCase();
+  // Not one that has already run out.
+  //
+  // A confirmation expires, and the card stayed on screen offering a press
+  // that could not work: "Yes, do it" came back 422 "this expired without
+  // an answer; nothing was run and nothing can be now". Measured on the
+  // deployment 2026-09-22 at 19:17, on cnf_4f2ca91d. The backend serves
+  // `expires_at` and this never read it.
+  const gone = (card) => {
+    const at = Date.parse(card.expires_at || "");
+    return Number.isFinite(at) && at <= Date.now();
+  };
+  const mineToAnswer = (status.waiting || []).filter(
+    (card) =>
+      card.page && card.page === thisPage && card.still_there !== false && !gone(card),
+  );
+  // One card per rule, however many times it fired.
+  //
+  // A rule that fires twice writes two confirmations, and the panel drew a
+  // card for each: the same sentence, the same two buttons, one under the
+  // other, with no way to tell them apart. Seen on the Keycloak sign-in page
+  // on 2026-09-22 -- "Log in to Keycloak, an arrival trigger fired. Shall
+  // I?" twice. They are one decision to the person reading them, so one
+  // answer settles all of them (`answeredWaiting` carries the rest).
+  const byRule = new Map();
+  for (const card of mineToAnswer) {
+    const rule = card.trigger_id || card.id;
+    const first = byRule.get(rule);
+    if (first) first.twins.push(card.id);
+    else byRule.set(rule, { ...card, twins: [] });
   }
+  for (const card of byRule.values()) asks.push(waitingOnYou(card, answered));
 
   // A mail that has gone out and not been answered.
   //

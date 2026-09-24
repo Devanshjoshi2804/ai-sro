@@ -338,7 +338,6 @@ async function considerNudge(tabId, url, visit) {
         candidates,
         nudges: swept,
         performing: busy,
-        now,
       });
       if (!fired) {
         await state.setNudges(swept.slice(0, MAX_NUDGES));
@@ -3360,10 +3359,6 @@ async function status(sender = null) {
     channel: channel.status(),
     // Why it is not dialling, when it is not. See `channel.why`.
     channelWhy: channel.why(),
-    // What has been seen but not yet sent. The panel shows it while teaching,
-    // because a demonstration that is recording nothing looks exactly like one
-    // that is recording everything, and the operator finds out at the end.
-    queued: await queue.count(),
     // A question this operator has not answered, off their own conversation.
     // Drawn in the column that cannot be swept, because that is the whole
     // point: the run that asked it is long gone and the question is not.

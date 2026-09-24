@@ -1,21 +1,16 @@
-// Accessibility trees taken while nobody is teaching.
+// Accessibility trees, taken passively, while a tab is being watched.
 //
 // The tree is the one view that says what a control *is* rather than where it
 // happens to sit today. Induction builds a locator from it, so a skill induced
 // without one has only what the DOM offers -- a css path full of ExtJS ids that
 // are assigned in render order and differ on the next page load.
 //
-// Deliberate teaching has always taken them. Passive observation did not, so
-// every skill that arrived the way this product intends -- watch the operator,
-// notice the repetition, offer it back -- got the weaker ladder, and the good
-// locators were reserved for the path an operator has to remember to press.
-//
 // ## The banner
 //
 // Trees come from `chrome.debugger`, and Chrome shows "AI-SRO is debugging this
-// browser" for as long as anything is attached. That is right for teaching: a
-// deliberate act, for a few minutes, that an operator should see start and see
-// stop. It is not right all day.
+// browser" for as long as anything is attached -- which, here, is as long as
+// the tab is watched. That cost is real, so it is off unless the tenant's
+// policy turns it on, below.
 //
 // An extension force-installed by enterprise policy
 // (`ExtensionInstallForcelist`) does not raise the bar at all, which is the
@@ -39,7 +34,7 @@ import { allowsHost } from "./scripts.js";
 const PROTOCOL = "1.3";
 
 /** A tree of any size is worth having, but a page can produce a very large one
- * and it rides in the same queue as everything else. Matches teaching.js. */
+ * and it rides in the same queue as everything else. */
 const MAX_NODES = 4000;
 
 /** Tabs this module holds the debugger on. */
@@ -110,12 +105,7 @@ export async function takeTreeSoon(tabId, url, policy) {
   return taken;
 }
 
-/** Let a tab go: it closed, it stopped being watched, or teaching wants it.
- *
- * Teaching attaches its own debugger and Chrome allows one. Passive trees give
- * way to a deliberate demonstration rather than the other way round -- the
- * operator asked for one of those and did not ask for the other.
- */
+/** Let a tab go: it closed, or it stopped being watched. */
 export async function release(tabId) {
   waiting.delete(tabId);
   refused.delete(tabId);

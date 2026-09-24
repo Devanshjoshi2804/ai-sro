@@ -7,8 +7,10 @@ evidence plane, in a mining prompt, and in whatever a model does with one.
 
 So a password is not recorded. It is STORED, once, deliberately, through this
 door, and fetched by the run at the moment the step types it --
-`domain/execution/secrets` builds the key from the system and the field, and
-`workflow_runs` reads it from the vault and puts it in that one command.
+`domain/execution/secrets` builds the key from the system and the field
+(`domain/execution/account` from the system and the username, when a
+password is given with the account it signs in as), and `workflow_runs`
+reads it from the vault and puts it in that one command.
 
 **There is no GET here, and there will not be one.** The vault's own `get` is
 reached by the runner and by nothing a browser can call. A route that answered
@@ -30,6 +32,7 @@ from __future__ import annotations
 from fastapi import APIRouter, status
 
 from sro.application.ports.vault import VaultUnavailable
+from sro.domain.execution.account import Account
 from sro.domain.execution.secrets import secret_key_of
 from sro.interface.http.asking import TenantOnly
 from sro.interface.http.deps import ContainerDep, ContextDep
@@ -57,7 +60,11 @@ async def store_secret(
     wanted, and still have nothing readable in a browser history or a proxy
     log.
     """
-    key = secret_key_of(ctx.tenant_id.value, body.system, body.field)
+    key = (
+        Account.of(ctx.tenant_id.value, body.system, body.username).vault_key("password")
+        if body.username and body.field == "password"
+        else secret_key_of(ctx.tenant_id.value, body.system, body.field)
+    )
     try:
         await container.vault.store(key, body.value)
     except VaultUnavailable as unusable:

@@ -2022,6 +2022,11 @@ class NewSecretRequest(BaseModel):
     """Written to the vault and nowhere else: never answered with, never
     logged, never in the evidence plane. See `v1/routers/secrets`."""
 
+    username: str | None = None
+    """The account this password signs in as. Given, the password is kept for
+    that account alone, so two operators, or two systems behind one identity
+    provider, never share one."""
+
 
 class NewSecretOnceRequest(NewSecretRequest):
     """`NewSecretRequest`, plus the run this password was given for.

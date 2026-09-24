@@ -100,6 +100,16 @@ async def test_what_is_kept_is_answered_by_its_key_and_never_by_its_value(
     assert await container.vault.get(f"{f.TENANT.value}/{WMS}/password") == KEPT
 
 
+async def test_a_password_given_with_its_username_is_kept_for_that_account(
+    client: httpx.AsyncClient, container: _FakeContainer
+) -> None:
+    stored = await client.put("/v1/secrets", json=_body(system=f"https://{WMS}", username="lena"))
+
+    key = f"{f.TENANT.value}/https://{WMS}/lena/password"
+    assert stored.json() == {"key": key}
+    assert await container.vault.get(key) == KEPT
+
+
 async def test_there_is_no_door_that_reads_one_back(client: httpx.AsyncClient) -> None:
     """The property this design rests on. A route that answered with a stored
     value would put every credential in the deployment one leaked tenant token

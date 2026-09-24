@@ -38,7 +38,6 @@ from sro.domain.observation.attempts import Attempt
 from sro.domain.observation.batch import CaptureMode, RejectedEvent
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
-from sro.domain.recording.recording import Recording
 from sro.domain.shared.objective import Direction, ObjectiveKey
 from sro.domain.shared.prices import DaySpend
 from sro.domain.skill.locator import ControlLocator, LocatorStrategy
@@ -82,26 +81,6 @@ class ObjectiveKeyModel(BaseModel):
             facility=self.facility,
             direction=self.direction,
         )
-
-
-class StartRecordingRequest(BaseModel):
-    objective_key: ObjectiveKeyModel | None = None
-    """Absent for a first demonstration: the evidence names the task at seal.
-    Present for the second run of a pair, so both carry the same key."""
-
-    start_url: str | None = None
-    label: str | None = None
-
-    attach_to: str | None = None
-    """CDP endpoint of a browser the operator already has open.
-
-    When set, no hosted session is created and capture attaches to that browser
-    instead — the operator demonstrates in their own window."""
-
-
-class StartRecordingResponse(BaseModel):
-    recording_id: str
-    live_view_url: str
 
 
 class ConnectSystemRequest(BaseModel):
@@ -257,47 +236,6 @@ class OpenedConnectionResponse(BaseModel):
     name: str
     """What was derived from the address, so the console can show what it
     decided rather than making somebody type it."""
-
-
-class FinishRecordingRequest(BaseModel):
-    abandon_reason: str | None = Field(
-        default=None,
-        description="Present means abandon; absent means seal.",
-    )
-
-    objective_key: ObjectiveKeyModel | None = Field(
-        default=None,
-        description=(
-            "Only for a demonstration whose evidence cannot name it, or the "
-            "second run of a pair. Otherwise the task names itself."
-        ),
-    )
-
-
-class RecordingSummary(BaseModel):
-    id: str
-    objective_key: ObjectiveKeyModel | None
-    label: str | None
-    status: str
-    demonstrator: str
-    started_at: datetime
-    ended_at: datetime | None
-    frame_count: int
-    has_narration: bool
-
-    @classmethod
-    def of(cls, recording: Recording) -> RecordingSummary:
-        return cls(
-            id=recording.id.value,
-            objective_key=ObjectiveKeyModel.of(recording.objective_key),
-            label=recording.label,
-            status=recording.status.value,
-            demonstrator=recording.demonstrator.value,
-            started_at=recording.started_at,
-            ended_at=recording.ended_at,
-            frame_count=len(recording.frames),
-            has_narration=recording.has_narration,
-        )
 
 
 class SkillSummary(BaseModel):
@@ -1907,10 +1845,6 @@ class ObservationBatchRequest(BaseModel):
     started_at: datetime
     ended_at: datetime
     mode: CaptureMode = CaptureMode.PASSIVE
-
-    recording_id: str | None = Field(default=None, max_length=64)
-    """The demonstration this batch belongs to. Set when, and only when, the
-    mode is `teaching`."""
 
     events: list[dict[str, Any]]
     """Screened, not parsed, and stored verbatim. The shapes are in

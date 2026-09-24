@@ -179,8 +179,8 @@ def test_every_mapped_error_is_also_registered_so_its_status_can_fire() -> None:
 
     `_STATUS_BY_ERROR` decides WHAT a refusal answers; `install_error_handlers`
     decides WHETHER anything gets to ask. Writing one half without the other
-    changes nothing observable, which is how `NotYours`, `NotYoursToRevise`,
-    `DispatchFailed` and `UiUnavailable` each spent their whole lives answering
+    changes nothing observable, which is how `NotYours`, `DispatchFailed`
+    and `UiUnavailable` each spent their whole lives answering
     `500 text/plain` with a correct entry sitting in the table above them. This
     walks the MRO the way `_status_for` does, so a subclass registered through
     its base counts -- that is exactly why `DomainError` needs no per-subclass

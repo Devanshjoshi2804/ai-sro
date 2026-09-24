@@ -17,17 +17,13 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/d
 > "Activity task failed". The message worth showing a supervisor is at the
 > bottom: the reason the pair could not be induced.
 
-## `_watch_id`, [line 173](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L173): Docstring
-
-> One deadline per recording, addressable without storing a handle.
-
 ## `TemporalDurableExecution.__init__`, [line 41](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L41): Comment
 
 Code: `self._address = address`
 
-> Queues are overridable so a test can have its own. Two workers on one
+> The queue is overridable so a test can have its own. Two workers on one
 > queue must be looking at the same data; a worker pointed at another
-> database will happily accept the work and fail to find the recording.
+> database will happily accept the work and fail to find the run.
 
 ## `TemporalDurableExecution.execute_skill`, [line 115](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L115): Comment
 
@@ -44,20 +40,6 @@ Code: `return run_id`
 > Started, not finished. The caller named the run before it began
 > precisely so it can watch the steps land instead of holding a
 > request open for as long as the warehouse takes.
-
-## `TemporalDurableExecution.watch_recording`, [line 150](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L150): Comment
-
-Code: `logger.exception("could not start the session deadline for %s", recording_id)`
-
-> Deliberately broad: the demonstration is already durable, and no
-> scheduler problem is worth refusing to record a human's work.
-
-## `TemporalDurableExecution.recording_finished`, [line 160](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L160): Comment
-
-Code: `logger.debug("no session deadline to signal for %s", recording_id)`
-
-> No deadline was running -- it was never started, or it already
-> fired. Either way there is nothing to cancel.
 
 ## `_root_message`, [line 169](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L169): Comment
 

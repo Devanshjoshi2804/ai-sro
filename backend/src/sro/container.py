@@ -117,11 +117,7 @@ from sro.application.ports.vault import CredentialVault, VaultUnavailable
 from sro.application.ports.vision import VisionDriver
 from sro.application.recording.attach_artifact import AttachArtifact
 from sro.application.recording.finish_recording import FinishRecording
-from sro.application.recording.get_recording import GetRecording
 from sro.application.recording.ingest_capture_events import IngestCaptureEvents
-from sro.application.recording.list_recordings import ListRecordings
-from sro.application.recording.live_view import GetLiveView
-from sro.application.recording.media import GetRecordingMedia
 from sro.application.recording.start_recording import StartRecording
 from sro.application.skill.describe_skill import DescribeSkill
 from sro.application.skill.read_skills import GetSkill, ListSkills
@@ -456,9 +452,6 @@ class Container:
     def attach_artifact(self) -> AttachArtifact:
         return AttachArtifact(self.unit_of_work(), self.blobs, self.clock, self.transcriber)
 
-    def list_recordings(self) -> ListRecordings:
-        return ListRecordings(self.unit_of_work())
-
     def connect_system(self) -> ConnectSystem:
         return ConnectSystem(self.unit_of_work(), self.browser, self.clock, self.ids)
 
@@ -532,9 +525,6 @@ class Container:
     def load_session(self) -> LoadSession:
         return LoadSession(self.unit_of_work(), self.vault)
 
-    def get_recording(self) -> GetRecording:
-        return GetRecording(self.unit_of_work())
-
     def list_skills(self) -> ListSkills:
         return ListSkills(self.unit_of_work())
 
@@ -546,12 +536,6 @@ class Container:
 
     def revoke_host(self) -> RevokeHost:
         return RevokeHost(self.unit_of_work())
-
-    def get_live_view(self) -> GetLiveView:
-        return GetLiveView(self.unit_of_work(), self.browser)
-
-    def get_recording_media(self) -> GetRecordingMedia:
-        return GetRecordingMedia(self.unit_of_work(), self.blobs)
 
     def finish_recording(self) -> FinishRecording:
         return FinishRecording(self.unit_of_work(), self.browser, self.clock)

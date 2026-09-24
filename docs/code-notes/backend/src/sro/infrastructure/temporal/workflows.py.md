@@ -10,14 +10,6 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 > directly would replay differently after a restart and lose the durability that
 > is the only reason Temporal is here.
 
-## `RecordingSessionWorkflow`, [line 44](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L44): Docstring
-
-> Watches one demonstration and reaps it if the operator walks away.
->
-> The capture session itself lives in the API process, attached to CDP. What
-> is durable here is the deadline: a browser session left open costs money and
-> holds a scarce slot.
-
 ## `ExecutionWorkflow`, [line 85](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L85): Docstring
 
 > Perform a skill, one step per activity.

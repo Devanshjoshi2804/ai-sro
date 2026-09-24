@@ -235,53 +235,6 @@ async def _connected(uow: FakeUnitOfWork, container: _FakeContainer) -> None:
     )
 
 
-class TestRecordings:
-    async def test_starting_a_recording_returns_a_live_view(
-        self, client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
-    ) -> None:
-        await _connected(uow, container)
-
-        response = await client.post(
-            "/v1/recordings",
-            json={
-                "objective_key": {
-                    "objective_type": "release_wave",
-                    "target_system": "blue_yonder",
-                    "entity_type": "wave",
-                    "facility": "DC01",
-                    "direction": "outbound",
-                },
-                "start_url": "https://wms.test",
-            },
-        )
-
-        assert response.status_code == 201
-        assert response.json()["live_view_url"]
-
-    async def test_teaching_refuses_before_a_login_page_can_appear(
-        self, client: httpx.AsyncClient
-    ) -> None:
-        """Nobody is signed in to this system. Said now, rather than discovered
-        three clicks into a demonstration of the identity provider."""
-        response = await client.post(
-            "/v1/recordings",
-            json={
-                "objective_key": {
-                    "objective_type": "release_wave",
-                    "target_system": "blue_yonder",
-                    "entity_type": "wave",
-                    "facility": "DC01",
-                    "direction": "outbound",
-                },
-                "start_url": "https://wms.test",
-            },
-        )
-
-        assert response.status_code == 409
-        assert "nobody is signed in" in response.json()["detail"]
-        assert "Connect it once" in response.json()["detail"]
-
-
 class TestProblemDocuments:
     async def test_a_malformed_body_is_a_problem_document_like_everything_else(
         self, client: httpx.AsyncClient
@@ -289,13 +242,13 @@ class TestProblemDocuments:
         """FastAPI's default answer is a list of objects, which breaks the
         contract every other failure keeps — and a client that renders `detail`
         crashes on it rather than showing the operator what was wrong."""
-        response = await client.post("/v1/recordings", json={"objective_key": 12})
+        response = await client.post("/v1/ask", json={"said": 12})
 
         assert response.status_code == 422
         assert response.headers["content-type"].startswith("application/problem+json")
         problem = response.json()
         assert isinstance(problem["detail"], str)
-        assert "objective_key" in problem["detail"]
+        assert "said" in problem["detail"]
 
 
 class TestTheDoor:

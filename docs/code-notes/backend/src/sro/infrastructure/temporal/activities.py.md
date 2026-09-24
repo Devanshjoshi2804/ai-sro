@@ -46,13 +46,6 @@ Code: `trigger_id: str`
 
 > Bound to a container so the worker owns exactly one set of adapters.
 
-## `Activities.abandon_stale_recording`, [line 124](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L124): Docstring
-
-> Close a demonstration nobody came back to.
->
-> Returns whether anything was abandoned, so the workflow can say what it
-> did rather than report success either way.
-
 ## `Activities.fire_trigger`, [line 188](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L188): Docstring
 
 > No context argument: a schedule has no caller, and the tenant comes

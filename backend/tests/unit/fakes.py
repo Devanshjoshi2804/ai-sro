@@ -387,8 +387,6 @@ class FakeDurableExecution:
     ) -> None:
         self._execute = execute
         self.available = available
-        self.watching: list[str] = []
-        self.finished: list[str] = []
         self.started: list[str] = []
         self.with_values: list[dict[str, str]] = []
         """One entry per `execute_skill` call, the parameters it was actually
@@ -437,22 +435,6 @@ class FakeDurableExecution:
             ),
         )
         return run.id
-
-    async def watch_recording(
-        self,
-        ctx: RequestContext,
-        *,
-        recording_id: RecordingId,
-        browser_session_id: BrowserSessionId,
-        timeout_seconds: int,
-    ) -> bool:
-        if not self.available:
-            return False
-        self.watching.append(str(recording_id))
-        return True
-
-    async def recording_finished(self, ctx: RequestContext, *, recording_id: RecordingId) -> None:
-        self.finished.append(str(recording_id))
 
 
 class FakeRecordingRepository:
@@ -1059,20 +1041,6 @@ class FakeObservationRepository:
             if batch.tenant_id == tenant_id and batch.received_at <= cutoff
         ]
         return tuple(sorted(found, key=lambda batch: batch.received_at))
-
-    async def for_recording(
-        self, tenant_id: TenantId, recording_id: RecordingId
-    ) -> tuple[ObservationBatch, ...]:
-        return tuple(
-            sorted(
-                (
-                    batch
-                    for batch in self.rows.values()
-                    if batch.tenant_id == tenant_id and batch.recording_id == recording_id
-                ),
-                key=lambda batch: batch.started_at,
-            )
-        )
 
     async def tenants_since(self, since: datetime) -> tuple[TenantId, ...]:
         return tuple({batch.tenant_id for batch in self.rows.values() if batch.ended_at >= since})

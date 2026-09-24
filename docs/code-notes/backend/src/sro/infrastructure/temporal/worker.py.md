@@ -5,10 +5,6 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 ## module, [line 1](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L1): Docstring
 
 > Worker process. ``make worker`` runs this.
->
-> Two task queues: ``browser`` for anything holding a scarce browser slot,
-> ``default`` for everything else. Splitting them now means a slow induction can
-> never starve session reaping.
 
 ## `identity`, [line 30](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L30): Docstring
 

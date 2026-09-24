@@ -4,7 +4,7 @@ from typing import Protocol
 
 from sro.application.context import RequestContext
 from sro.domain.execution.run import RunId
-from sro.domain.shared.identifiers import BrowserSessionId, RecordingId, SkillId
+from sro.domain.shared.identifiers import SkillId
 
 
 class DurableExecution(Protocol):
@@ -20,16 +20,3 @@ class DurableExecution(Protocol):
         run_id: RunId | None = None,
         wait: bool = True,
     ) -> RunId: ...
-
-    async def watch_recording(
-        self,
-        ctx: RequestContext,
-        *,
-        recording_id: RecordingId,
-        browser_session_id: BrowserSessionId,
-        timeout_seconds: int,
-    ) -> bool: ...
-
-    async def recording_finished(
-        self, ctx: RequestContext, *, recording_id: RecordingId
-    ) -> None: ...

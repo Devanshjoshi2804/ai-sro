@@ -110,6 +110,7 @@ from sro.application.ports.intent import IntentParser
 from sro.application.ports.interpretation import WorkflowInterpreter
 from sro.application.ports.locks import AccountLocks
 from sro.application.ports.model import Asker
+from sro.application.ports.pool import BrowserPool
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.schedule import Scheduler
 from sro.application.ports.sign_in import SignInDriver
@@ -149,7 +150,7 @@ from sro.infrastructure.agent.sockets import DeviceSockets
 from sro.infrastructure.auth.keycloak import KeycloakTokens
 from sro.infrastructure.auth.signed_tokens import SignedTokens
 from sro.infrastructure.blob.minio_store import MinioBlobStore
-from sro.infrastructure.db.locks import PostgresAccountLocks
+from sro.infrastructure.db.locks import K_LOCK_CONNECT_TIMEOUT_S, PostgresAccountLocks
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from sro.infrastructure.db.schema_version import SchemaVersion, announce, schema_version
 from sro.infrastructure.db.session import create_engine, create_session_factory
@@ -167,6 +168,7 @@ from sro.infrastructure.knowledge.write_endpoints import load_verified_writes
 from sro.infrastructure.mcp.client import McpServer, McpToolCaller
 from sro.infrastructure.mcp.server import SkillToolServer
 from sro.infrastructure.steel.client import SteelClient
+from sro.infrastructure.steel.pool import SteelPool
 from sro.infrastructure.steel.sign_in import PlaywrightSignIn
 from sro.infrastructure.steel.supervisor import CaptureSupervisor
 from sro.infrastructure.steel.ui_driver import PlaywrightUiDriver
@@ -207,6 +209,7 @@ class Container:
     ui: UiDriver
     sign_in_driver: SignInDriver
     locks: AccountLocks
+    pool: BrowserPool
     tokens: TokenSource | None
     credentials: Credentials
     durable: DurableExecution
@@ -216,6 +219,8 @@ class Container:
     meter: Meter
 
     engine: AsyncEngine | None = None
+
+    lock_engine: AsyncEngine | None = None
 
     agent_sockets: DeviceSockets = field(default_factory=DeviceSockets)
 
@@ -870,6 +875,31 @@ def _build_embedder(settings: Settings, meter: Meter) -> Embedder:
     return NoEmbedder()
 
 
+def _build_pool(settings: Settings) -> SteelPool:
+    pairs = {pair for urls in settings.steel_urls.values() for pair in urls}
+    pairs.add((settings.steel_base_url, settings.steel_cdp_url))
+    clients = {
+        api: SteelClient(
+            api,
+            cdp,
+            capacity=settings.steel_sessions_per_container,
+            public_base_url=settings.steel_public_base_url,
+            session_timeout_seconds=settings.steel_session_timeout_seconds,
+            dimensions=(settings.browser_width, settings.browser_height),
+        )
+        for api, cdp in pairs
+    }
+    containers_by_tenant = {
+        tenant: tuple(api for api, _ in urls) for tenant, urls in settings.steel_urls.items()
+    }
+    return SteelPool(
+        clients,
+        containers_by_tenant=containers_by_tenant,
+        fallback=(settings.steel_base_url,),
+        per_container=settings.steel_sessions_per_container,
+    )
+
+
 def _build_vault(settings: Settings) -> CredentialVault:
     try:
         if settings.vault_project:
@@ -912,6 +942,11 @@ def build_container(settings: Settings | None = None) -> Container:
     sessions = create_session_factory(engine)
     clock = SystemClock()
     meter = Meter(lambda: SqlUnitOfWork(sessions), clock=clock, cap_usd=settings.daily_usd_cap)
+    lock_engine = create_engine(
+        settings.database_url,
+        poolclass=NullPool,
+        connect_args={"timeout": K_LOCK_CONNECT_TIMEOUT_S},
+    )
 
     container = Container(
         settings=settings,
@@ -943,7 +978,8 @@ def build_container(settings: Settings | None = None) -> Container:
         tools=McpToolCaller(_servers(settings.mcp_servers), vault=built_vault),
         ui=PlaywrightUiDriver(settings.ui_debugger_url),
         sign_in_driver=PlaywrightSignIn(),
-        locks=PostgresAccountLocks(create_engine(settings.database_url, poolclass=NullPool)),
+        locks=PostgresAccountLocks(lock_engine),
+        pool=_build_pool(settings),
         tokens=(
             KeycloakTokens(
                 built_vault,
@@ -964,6 +1000,7 @@ def build_container(settings: Settings | None = None) -> Container:
         ),
         session_factory=sessions,
         engine=engine,
+        lock_engine=lock_engine,
         meter=meter,
     )
     container.capture = CaptureSupervisor(

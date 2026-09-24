@@ -505,3 +505,19 @@ def test_the_meter_judges_the_day_on_the_containers_own_clock() -> None:
     built = build_container(Settings(_env_file=None))
 
     assert built.meter._clock is built.clock
+
+
+def test_the_pool_is_built_per_tenant_from_steel_urls() -> None:
+    from sro.config import Settings
+    from sro.container import _build_pool
+
+    settings = Settings(
+        _env_file=None,
+        steel_urls={"acme": (("http://acme-steel:3000", "http://acme-steel:9223"),)},
+    )
+    pool = _build_pool(settings)
+
+    assert pool._containers("acme") == ("http://acme-steel:3000",)
+    assert pool._containers("beta") == (settings.steel_base_url,)
+    assert "http://acme-steel:3000" in pool._clients
+    assert settings.steel_base_url in pool._clients

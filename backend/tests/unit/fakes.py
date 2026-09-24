@@ -10,7 +10,7 @@ import asyncio
 import re
 import sys
 from collections import Counter
-from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from dataclasses import replace
@@ -35,6 +35,7 @@ from sro.application.ports.http import (
 from sro.application.ports.intent import Extraction, Reading
 from sro.application.ports.locks import AccountBusy
 from sro.application.ports.model import Asker
+from sro.application.ports.pool import PoolFull
 from sro.application.ports.repositories import (
     AttemptRepository,
     BrowserSessionRepository,
@@ -1356,6 +1357,49 @@ class FakeTriggerRepository:
 
 async def _no_op_on_wait() -> None:
     return None
+
+
+class FakeBrowserPool:
+    """`containers` maps a container url to its context capacity. `open`
+    picks the least-loaded container of the given tenant (`by_tenant`, empty
+    unless a test needs tenant isolation, falling back to every container)
+    that `busy` (supplied by the caller) has not filled, and hands back a
+    fresh `context_id`; `dead` names context ids a test has killed, so
+    `alive` can answer without a real Steel container behind it."""
+
+    def __init__(
+        self,
+        containers: Mapping[str, int],
+        *,
+        by_tenant: Mapping[str, Sequence[str]] | None = None,
+    ) -> None:
+        self._containers = dict(containers)
+        self._by_tenant = dict(by_tenant or {})
+        self.opened: list[tuple[str, str]] = []
+        self.closed: list[tuple[str, str]] = []
+        self.dead: set[str] = set()
+        self._next = count(1)
+
+    async def open(self, tenant: str, busy: Mapping[str, int]) -> tuple[str, str]:
+        urls = self._by_tenant.get(tenant, tuple(self._containers))
+        candidates = [
+            (busy.get(url, 0), url) for url in urls if busy.get(url, 0) < self._containers[url]
+        ]
+        if not candidates:
+            raise PoolFull(f"all {len(urls)} container(s) for tenant {tenant!r} are full")
+        _, url = min(candidates, key=lambda pair: pair[0])
+        context_id = f"ctx_{next(self._next)}"
+        self.opened.append((url, context_id))
+        return url, context_id
+
+    async def close(self, container_url: str, context_id: str) -> None:
+        self.closed.append((container_url, context_id))
+
+    async def alive(self, container_url: str, context_id: str) -> bool:
+        return context_id not in self.dead
+
+    async def cdp_url(self, container_url: str) -> str:
+        return f"ws://{container_url}"
 
 
 class FakeAccountLocks:

@@ -13,6 +13,7 @@ from sro.domain.execution.account import Account
 
 K_LOCK_ATTEMPT_S = 10
 K_LOCK_WAIT_S = 120
+K_LOCK_CONNECT_TIMEOUT_S = 10
 
 _LOCK_NOT_AVAILABLE = "55P03"
 

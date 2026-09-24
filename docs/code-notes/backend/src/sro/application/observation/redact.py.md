@@ -67,11 +67,11 @@ Code: `_PROSE = ("name", "text", "fieldLabel")`
 > Structure is preserved exactly -- a locator is built from this tree, so a
 > key or a role that changed would change what a skill can find.
 
-## `_element`, [line 121](../../../../../../../backend/src/sro/application/observation/redact.py#L121): Docstring
+## `_element`, [line 124](../../../../../../../backend/src/sro/application/observation/redact.py#L124): Docstring
 
 > A `target` or the `component` hanging off it -- the same three fields.
 
-## `_attributes`, [line 136](../../../../../../../backend/src/sro/application/observation/redact.py#L136): Docstring
+## `_attributes`, [line 139](../../../../../../../backend/src/sro/application/observation/redact.py#L139): Docstring
 
 > Every DOM attribute of the element the operator touched, by all three rules.
 >
@@ -86,7 +86,7 @@ Code: `_PROSE = ("name", "text", "fieldLabel")`
 > `placeholder` whose value is "Password" is a label. The key is kept and the
 > value replaced, so a reviewer still sees what was taken out.
 
-## `_headers`, [line 166](../../../../../../../backend/src/sro/application/observation/redact.py#L166): Docstring
+## `_headers`, [line 169](../../../../../../../backend/src/sro/application/observation/redact.py#L169): Docstring
 
 > The name kept and the value replaced, so a reader still sees the call was
 > authenticated.
@@ -98,7 +98,7 @@ Code: `_PROSE = ("name", "text", "fieldLabel")`
 > the 34 `X-Goog-Api-Key` values in this store are matched by nothing but
 > their shape.
 
-## `_hop`, [line 190](../../../../../../../backend/src/sro/application/observation/redact.py#L190): Docstring
+## `_hop`, [line 193](../../../../../../../backend/src/sro/application/observation/redact.py#L193): Docstring
 
 > One entry of a redirect chain, whose shape the protocol leaves open.
 >
@@ -128,7 +128,7 @@ Code: `out["detail"] = redact_body(detail, content_type=None)[0]`
 > said -- so it gets the body rule with no content type to go on. A
 > `?magic_link_token=` landed here in the rig's audit.
 
-## `_gesture`, [line 89](../../../../../../../backend/src/sro/application/observation/redact.py#L89): Comment
+## `_gesture`, [line 92](../../../../../../../backend/src/sro/application/observation/redact.py#L92): Comment
 
 Code: `out["value"] = None`
 
@@ -136,7 +136,7 @@ Code: `out["value"] = None`
 > marked: `null` is what the extension already sends for one of these,
 > so the stored shape is the same whether or not the browser obeyed.
 
-## `_gesture`, [line 91](../../../../../../../backend/src/sro/application/observation/redact.py#L91): Comment
+## `_gesture`, [line 94](../../../../../../../backend/src/sro/application/observation/redact.py#L94): Comment
 
 Code: `out["value"] = redact_shapes(value)`
 
@@ -144,7 +144,7 @@ Code: `out["value"] = redact_shapes(value)`
 > search box is not typed into an `input[type=password]`, so nothing
 > upstream marks it. The shape does.
 
-## `_body`, [line 184](../../../../../../../backend/src/sro/application/observation/redact.py#L184): Comment
+## `_body`, [line 187](../../../../../../../backend/src/sro/application/observation/redact.py#L187): Comment
 
 Code: `already = out.get("redacted_fields")`
 
@@ -159,7 +159,7 @@ Code: `already = out.get("redacted_fields")`
 > `ref`, as `correlate` joins them. A string key because the values are the
 > client's raw JSON and a hostile one need not be hashable.
 
-## `_state`, [line 97](../../../../../../../backend/src/sro/application/observation/redact.py#L97): Docstring
+## `_state`, [line 100](../../../../../../../backend/src/sro/application/observation/redact.py#L100): Docstring
 
 > What is kept of a gesture's `prior`, the after-state of the gesture before
 > it. Written to the evidence blob before `correlate` runs, so this is where
@@ -167,7 +167,7 @@ Code: `already = out.get("redacted_fields")`
 > `correlate` reads. Only the three fields of an after-state survive, and
 > `visible` / `enabled` only as booleans.
 
-## `_setting`, [line 108](../../../../../../../backend/src/sro/application/observation/redact.py#L108): Docstring
+## `_setting`, [line 111](../../../../../../../backend/src/sro/application/observation/redact.py#L111): Docstring
 
 > The server's half of the E5 ruling (2026-09-25): an after-state never holds
 > free text, whatever the client sent. A value is kept only when the gesture

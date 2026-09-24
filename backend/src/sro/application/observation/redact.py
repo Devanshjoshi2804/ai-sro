@@ -80,6 +80,9 @@ def _gesture(
 ) -> dict[str, object]:
     out = dict(gesture)
     _urls(out)
+    frame_path = out.get("frame_path")
+    if isinstance(frame_path, list):
+        out["frame_path"] = [_hop(hop) if isinstance(hop, Mapping) else hop for hop in frame_path]
     if "prior" in out:
         out["prior"] = _state(out["prior"], before)
     target = out.get("target")

@@ -169,6 +169,28 @@ and every one looked correct in the code and worked on a laptop. Read the
 docstring in `backend/scripts/smoke.py` for the list; it is the argument for
 the script.
 
+## Steel needs a container recreate, once
+
+`steel`'s compose definition now sets `NODE_OPTIONS=--unhandled-rejections=warn`
+(see `.superpowers/sdd/2026-09-24-execution-runtime/task-S5-rereview-1.md`,
+"Second crash path"): a tab that closes before Steel's own new-target handler
+finishes its awaited CDP calls -- a self-closing sign-in popup can trigger
+this the same way our own `close_tab` can -- otherwise leaves an unhandled
+rejection Steel never catches, and Node exits, killing every account sharing
+that container. Docker only applies an environment change to a container it
+recreates, not one it restarts, so QA's `steel` service needs one recreate at
+the next deploy:
+
+```bash
+docker compose -f infra/docker-compose.deploy.yml up -d --no-deps steel
+```
+
+Never add `-f docker-compose.yml` to that command: the QA box uses only the
+deploy file, and the base file's ports collide with the box's own Postgres.
+Every live QA session on that container is lost when it recreates, same as
+any Steel restart; release it and start over once the new container is
+healthy.
+
 ## Five things that are quiet when wrong
 
 1. **`SRO_API_URL` and `SRO_CONSOLE_URL` default to localhost.** They are not

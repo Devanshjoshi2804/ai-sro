@@ -411,18 +411,6 @@ class _Stub(BaseHTTPRequestHandler):
                 "text/html; charset=utf-8",
             )
             return
-        if self.path.startswith("/wide"):
-            # A page whose accessibility tree is the size a real WMS screen
-            # produces. One teaching batch holds 2MB, and a demonstration on a
-            # page like this needs several -- which is the case that used to
-            # lose everything after the first.
-            crowd = "".join(
-                f'<button id="b{index}">Control {index}</button>' for index in range(1200)
-            )
-            self._send(
-                200, PAGE.replace("</form>", f"</form>{crowd}").encode(), "text/html; charset=utf-8"
-            )
-            return
         if self.path.startswith("/console"):
             # Where "Open the console here" and "Console ↗" are supposed to
             # land -- and nothing else, now that neither frames it.
@@ -550,6 +538,11 @@ class _Stub(BaseHTTPRequestHandler):
                             # handful of times must be able to reach it.
                             "capture_screenshots": True,
                             "screenshot_max_per_minute": 3,
+                            # On, so the passive path emits the accessibility
+                            # trees induction reads -- the same event a
+                            # deliberate demonstration used to be the only
+                            # producer of.
+                            "capture_snapshots": True,
                             "capture_response_bodies": True,
                             "max_body_bytes": 262144,
                             "daily_budget_bytes": 524288000,

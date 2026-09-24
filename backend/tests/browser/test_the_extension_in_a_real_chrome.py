@@ -1623,6 +1623,61 @@ def test_pressing_yes_on_the_card_starts_the_run_the_card_described(
     assert "started_by" not in press, press
 
 
+def test_the_tree_a_step_carries_is_the_page_the_operator_acted_on(browser: Any, stub: Any) -> None:
+    """A snapshot is attached to the frame of the gesture before it, and that
+    frame's locator is built from the tree — so the tree has to be the screen
+    the operator was looking at when they decided to act.
+
+    Taken after the click, a step that navigates carries the *destination*
+    page, and induction builds that step's locator from a page where the
+    control it clicked does not exist.
+
+    Passive, not a deliberate demonstration: the accessibility tree is the
+    same event either way (`trees.js`'s `takeTree`/`takeTreeSoon`), gated by
+    the tenant policy's `capture_snapshots` rather than a debugger session
+    somebody pressed a button to start.
+    """
+    api_url, batches = stub
+    worker = _service_worker(browser)
+    _sign_in(browser, worker, api_url)
+
+    page = browser.new_page()
+    page.goto(api_url)
+    page.reload()
+    page.evaluate(
+        """([url]) => {
+             const link = document.createElement('a');
+             link.id = 'go';
+             link.href = url;
+             link.textContent = 'Go elsewhere';
+             document.body.append(link);
+           }""",
+        [f"{api_url}/elsewhere"],
+    )
+    _watch(browser, worker, page)
+
+    # The first gesture has no "before" tree waiting for it; what it does is
+    # schedule one, of this page, for the gesture after it.
+    page.click("#client")
+    page.wait_for_timeout(600)
+
+    page.click("#go")
+    page.wait_for_url(f"{api_url}/elsewhere", timeout=15_000)
+    page.wait_for_timeout(600)
+    _flush(browser, worker)
+    page.close()
+
+    events = [event for batch in batches for event in batch["events"]]
+    snapshots = [event for event in events if event["kind"] == "snapshot"]
+    assert snapshots, "the passive path carried no accessibility tree at all"
+
+    names = [node.get("name", {}).get("value", "") for node in snapshots[0]["snapshot"]["nodes"]]
+    assert any("Go elsewhere" in name for name in names), (
+        "the tree is the page the click produced, not the one the operator clicked on"
+    )
+    assert not any("Only here" in name for name in names)
+
+
 def test_a_tab_nobody_pointed_at_is_not_evidence(browser: Any, stub: Any) -> None:
     """Capture begins where the operator says it does, and nowhere else.
 

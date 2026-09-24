@@ -33,7 +33,13 @@ import json
 from collections.abc import Mapping
 from dataclasses import replace
 
-from sro.application.execution.verify import verify
+from sro.application.execution.verify import (
+    _read_back,
+    already_done,
+    check_on_screen,
+    check_text,
+    verify,
+)
 from sro.application.ports.channel import Reply
 from sro.domain.execution.belts import (
     SCREEN_INSTRUCTIONS,
@@ -42,10 +48,12 @@ from sro.domain.execution.belts import (
     StepVerdict,
 )
 from sro.domain.execution.planning import Look
-from sro.domain.observation.gesture import Gesture
+from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
+from sro.domain.skill.assertion import Assertion, AssertionKind
+from sro.domain.skill.template import Template
 from sro.domain.skill.workflow import Step
 from tests.unit.domain.rig.conftest import gestures as _gestures
 from tests.unit.fakes import FakeAsker, FakeChannel
@@ -1286,3 +1294,114 @@ async def test_a_call_that_answered_200_made_no_record_to_name() -> None:
 
     assert (verdict.state, verdict.by) == ("held", "status")
     assert verdict.made == {}
+
+
+# -- `check_on_screen`, `check_text`, `already_done` and `_read_back`: called
+# directly, since a mutant here changes what an assertion or a probe carries
+# rather than a rule the belts above already pin. -----------------------------
+
+
+async def test_check_on_screen_renders_a_template_from_the_runs_values() -> None:
+    assertion = Assertion(
+        kind=AssertionKind.UI_TEXT_VISIBLE, expected=Template("order ${code} saved")
+    )
+
+    failures, unchecked = check_on_screen(
+        (assertion,), "the form is still blank", values={"code": "ACME-1"}
+    )
+
+    assert failures == ("the screen does not show 'order ACME-1 saved'",)
+    assert unchecked == ()
+
+
+async def test_check_text_renders_a_template_from_the_runs_values() -> None:
+    assertion = Assertion(
+        kind=AssertionKind.RESPONSE_FIELD_EQUALS, expected=Template("${code}"), pointer="/code"
+    )
+
+    failures = check_text((assertion,), '{"code":"ACME"}', values={"code": "ACME"})
+
+    assert failures == ()
+
+
+async def test_check_text_names_the_pointer_the_answer_never_carried() -> None:
+    assertion = Assertion(
+        kind=AssertionKind.RESPONSE_FIELD_EQUALS, expected=Template("ACME"), pointer="/code"
+    )
+
+    failures = check_text((assertion,), "{}", values={})
+
+    assert failures == ("the answer has no /code, expected 'ACME'",)
+
+
+async def test_check_text_names_the_value_that_did_not_match() -> None:
+    assertion = Assertion(
+        kind=AssertionKind.RESPONSE_FIELD_EQUALS, expected=Template("ACME"), pointer="/code"
+    )
+
+    failures = check_text((assertion,), '{"code":"WIDGET"}', values={})
+
+    assert failures == ("/code is 'WIDGET', expected 'ACME'",)
+
+
+async def test_check_text_refuses_an_assertion_a_tools_answer_cannot_settle() -> None:
+    assertion = Assertion(kind=AssertionKind.UI_TEXT_VISIBLE, expected=Template("Saved"))
+
+    failures = check_text((assertion,), "{}", values={})
+
+    assert failures == (
+        "a ui_text_visible assertion cannot be checked against a tool's "
+        "answer, which has no status code and no screen",
+    )
+
+
+async def test_already_done_names_the_probe_that_already_shows_the_value() -> None:
+    saver = _saver()
+
+    said = await already_done(
+        step=_step(saver),
+        cited=[saver],
+        values={"workArea": "THIRD"},
+        channel=_read('{"workArea":"THIRD"}'),
+        tenant_id=_TENANT,
+        device_id=_DEVICE,
+        run_id="run_1",
+    )
+
+    assert said == (
+        f"a read of {_STREAM} already shows the value this run would supply, "
+        "so the step was not performed again"
+    )
+
+
+async def test_already_done_never_reads_a_probe_whose_url_carries_a_marker() -> None:
+    """The same boundary `verify` keeps for its own confirming read: a probe
+    url with the marker in it is never sent, whatever the run's values are."""
+    saver = _saver()
+    stream = next(r for r in saver.requests if r.url == _STREAM)
+    saver.requests[saver.requests.index(stream)] = replace(
+        stream, url=f"{stream.url}?token={REDACTED}"
+    )
+    channel = _read('{"workArea":"THIRD"}')
+
+    said = await already_done(
+        step=_step(saver),
+        cited=[saver],
+        values={"workArea": "THIRD"},
+        channel=channel,
+        tenant_id=_TENANT,
+        device_id=_DEVICE,
+        run_id="run_1",
+    )
+
+    assert said is None
+    assert channel.sent == [], "a probe carrying the marker asks nothing about the state"
+
+
+async def test_read_back_treats_a_bodyless_2xx_as_empty_not_a_placeholder() -> None:
+    channel = FakeChannel({"http.send": [Reply(ok=True, result={"status": 200})]})
+    probe = Call(method="GET", url=_STREAM)
+
+    body = await _read_back(probe, channel, _TENANT, _DEVICE, "run_1")
+
+    assert body == ""

@@ -20,7 +20,14 @@ from collections.abc import Mapping
 from dataclasses import replace
 from urllib.parse import urlsplit
 
-from sro.application.execution.plan_step import ACTIONS, plan_by_sight, plan_step
+from sro.application.execution.plan_step import (
+    ACTIONS,
+    _a_cascade,
+    _option_named,
+    _point_on,
+    plan_by_sight,
+    plan_step,
+)
 from sro.domain.execution.evidence import locators_for
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.planning import (
@@ -33,7 +40,7 @@ from sro.domain.execution.planning import (
 )
 from sro.domain.execution.secrets import secret_key_for
 from sro.domain.execution.verified_writes import VerifiedWrite
-from sro.domain.observation.gesture import Body, Call, Component, Gesture
+from sro.domain.observation.gesture import Body, Call, Component, Gesture, Target
 from sro.domain.observation.trim import trim
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.shared.prices import Answer, Effort
@@ -2003,3 +2010,121 @@ async def test_a_replayed_delete_goes_to_the_record_this_run_named() -> None:
 
     assert planned is not None
     assert planned.payload["url"] == "http://127.0.0.1:63319/api/customerTypes/MRN1?siteId=SG"
+
+
+# -- `_option_named`, `_point_on` and `_a_cascade`: private helpers no test here
+# called directly, found only by mutating an argument the caller could never
+# supply the way the mutant did. --------------------------------------------
+
+
+def _typed_value(value: str, gesture_id: str = "ges_typed") -> Gesture:
+    one = copy.deepcopy(_typed())
+    one.id = gesture_id
+    one.action = replace(one.action, kind="type", value=value)
+    return one
+
+
+def _click(
+    *,
+    gesture_id: str,
+    xtype: str | None = "boundlist",
+    name: str | None = None,
+    text: str | None = None,
+    no_component: bool = False,
+) -> Gesture:
+    one = copy.deepcopy(_typed())
+    one.id = gesture_id
+    target = Target(
+        name=name, text=text, component=None if no_component else Component(xtype=xtype)
+    )
+    one.action = replace(one.action, kind="click", value=None, target=target)
+    return one
+
+
+def test_option_named_wants_a_typed_value_not_any_gesture_that_carries_one() -> None:
+    """The filter is `kind in VALUED and value`, not `or`: a click that happens
+    to carry a leftover `.value` must not stand in for what was actually
+    typed."""
+    faux = _click(gesture_id="ges_faux", xtype=None, name=None)
+    faux.action = replace(faux.action, value="off")
+    real = _typed_value("ACME")
+    boundlist = _click(gesture_id="ges_list", name="ACME option")
+
+    assert _option_named([faux, real, boundlist], "NEW") == "NEW option"
+
+
+def test_option_named_with_no_typed_value_returns_nothing() -> None:
+    """Both the `next()` default and the early return are the empty string, not
+    a placeholder that could accidentally be found `in` a label."""
+    assert _option_named([], "NEW") == ""
+    trap = _click(gesture_id="ges_trap", name="the XXXX one")
+    assert _option_named([trap], "NEW") == "", "nothing was typed; a default must not stand in"
+
+
+def test_option_named_skips_a_click_with_no_component_and_keeps_looking() -> None:
+    """A click with no component is not a boundlist row -- it is skipped, not
+    treated as one (which would read `.xtype` off `None`), and the search goes
+    on to the row that follows."""
+    real = _typed_value("ACME")
+    bare = _click(gesture_id="ges_bare", no_component=True, name="ACME bare")
+    boundlist = _click(gesture_id="ges_list", name="ACME option")
+
+    assert _option_named([real, bare, boundlist], "NEW") == "NEW option"
+
+
+def test_option_named_skips_a_click_whose_target_never_resolved_at_all() -> None:
+    """Not every click carries a target -- a raw coordinate click resolves
+    nothing on the page. It is skipped like any other non-boundlist row, not
+    read as one (which would ask a target of `None` for its component)."""
+    real = _typed_value("ACME")
+    untargeted = copy.deepcopy(_typed())
+    untargeted.id = "ges_untargeted"
+    untargeted.action = replace(untargeted.action, kind="click", value=None, target=None)
+    boundlist = _click(gesture_id="ges_list", name="ACME option")
+
+    assert _option_named([real, untargeted, boundlist], "NEW") == "NEW option"
+
+
+def test_option_named_keeps_looking_past_a_row_that_is_not_a_boundlist() -> None:
+    real = _typed_value("ACME")
+    other = _click(gesture_id="ges_other", xtype="combobox", name="ACME other")
+    boundlist = _click(gesture_id="ges_list", name="ACME option")
+
+    assert _option_named([real, other, boundlist], "NEW") == "NEW option"
+
+
+def test_option_named_prefers_the_label_over_the_text_and_falls_back_in_order() -> None:
+    named = _click(gesture_id="ges_named", name="ACME by name", text="ignored")
+    assert _option_named([_typed_value("ACME"), named], "NEW") == "NEW by name"
+
+    texted = _click(gesture_id="ges_texted", name=None, text="ACME by text")
+    assert _option_named([_typed_value("ACME"), texted], "NEW") == "NEW by text"
+
+    blank = _click(gesture_id="ges_blank", name=None, text=None)
+    assert _option_named([_typed_value("XX"), blank], "NEW") == "", (
+        "no label at all is nothing to match against, whatever the wanted value is"
+    )
+
+
+def test_point_on_refuses_anything_that_is_not_a_dict() -> None:
+    look = Look(None, None, "", width=10, height=10)
+    assert _point_on(None, look) is None
+    assert _point_on([1, 2], look) is None
+
+
+def test_point_on_wants_both_coordinates_as_ints() -> None:
+    look = Look(None, None, "", width=10, height=10)
+    assert _point_on({"x": 5, "y": "nope"}, look) is None
+    assert _point_on({"x": "nope", "y": 5}, look) is None
+
+
+def test_point_on_the_edges_of_the_viewport() -> None:
+    look = Look(None, None, "", width=10, height=10)
+    assert _point_on({"x": 0, "y": 0}, look) == (0, 0), "the near edge is on the screen"
+    assert _point_on({"x": 10, "y": 5}, look) is None, "width itself is one past the last column"
+    assert _point_on({"x": 5, "y": 10}, look) is None, "height itself is one past the last row"
+
+
+def test_a_cascade_with_no_gesture_behind_the_call_is_not_a_cascade() -> None:
+    lone = Call(method="POST", url="http://127.0.0.1:63319/nowhere")
+    assert _a_cascade(lone, [], ()) is False

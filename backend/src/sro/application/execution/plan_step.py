@@ -363,19 +363,18 @@ def _option_named(cited: list[Gesture], wanted: str) -> str:
         return ""
     for gesture in cited:
         target = gesture.action.target
-        component = target.component if target else None
-        if gesture.action.kind != "click" or component is None:
+        if gesture.action.kind != "click" or target is None or target.component is None:
             continue
-        if not str(component.xtype or "").lower().endswith("boundlist"):
+        if not str(target.component.xtype).lower().endswith("boundlist"):
             continue
-        said = (target.name if target else "") or (target.text if target else "") or ""
+        said = target.name or target.text or ""
         if typed in said:
             return said.replace(typed, wanted)
     return ""
 
 
 def _point_on(said: object, look: Look) -> tuple[int, int] | None:
-    if not isinstance(said, dict) or not look.width or not look.height:
+    if not isinstance(said, dict):
         return None
     x, y = said.get("x"), said.get("y")
     if not (isinstance(x, int) and isinstance(y, int)):

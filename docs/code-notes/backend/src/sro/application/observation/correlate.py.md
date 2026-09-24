@@ -11,7 +11,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/c
 > gesture at all is an orphan. Orphans are stored, not discarded — a background
 > poll is evidence that a background poll happened.
 
-## `correlate`, [line 44](../../../../../../../backend/src/sro/application/observation/correlate.py#L44): Docstring
+## `correlate`, [line 45](../../../../../../../backend/src/sro/application/observation/correlate.py#L45): Docstring
 
 > Returns (gestures, orphan requests, orphan pages, snapshots ignored).
 >
@@ -20,7 +20,36 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/c
 > them is not the same as never having received them. The count is the
 > difference: it says a batch had snapshots even though nothing stores them.
 
-## `_owner`, [line 112](../../../../../../../backend/src/sro/application/observation/correlate.py#L112): Docstring
+## `correlate`, [line 83](../../../../../../../backend/src/sro/application/observation/correlate.py#L83): Comment
+
+Code: `for key, after in priors:`
+
+> A gesture's after-state is the state its target was in when the next
+> gesture came (recorder.js, `emit`), so it arrives as that next gesture's
+> `prior`. It is handed back by identity: `prior_of` names the `ref` of the
+> gesture whose target it read, and it attaches to the gesture with that
+> `ref` on the same tab AND the same `frame_path` -- two sibling iframes on
+> one URL share a `frame_url` but never a frame path -- or to nothing. Never
+> to "the previous gesture on this key": when the worker dropped the gesture
+> in between (paused, an unwatched tab, a run's tab) the previous kept
+> gesture is a different control, and joining by position gave it the
+> dropped control's state.
+>
+> The value was already reduced to a state control's setting by
+> `redact._setting` before this runs; this only joins.
+>
+> Ceiling: the last gesture of a batch is followed by the next batch's first,
+> whose `prior_of` names a gesture this batch does not hold, so that gesture
+> keeps no after-state. Batches flush every minute, so that is one gesture
+> per tab and frame per minute. Recording it at flush instead is not
+> possible from where a batch is flushed: the service worker holds no DOM,
+> and the target's state only exists in the page realm of the frame it sits
+> in. Upgrade: persist `ref` with the stored gesture and, at ingest, resolve
+> an unmatched `prior_of` against the stored gestures of the same device, tab
+> and frame -- `redact._setting` needs that stored gesture's target too, to
+> judge the value.
+
+## `_owner`, [line 111](../../../../../../../backend/src/sro/application/observation/correlate.py#L111): Docstring
 
 > The last gesture in the same tab, within the attribution window.
 >
@@ -29,7 +58,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/c
 > evidence means "I cannot prove this belongs to that gesture", not
 > "attach it to the nearest one".
 
-## `_nearest_owner`, [line 125](../../../../../../../backend/src/sro/application/observation/correlate.py#L125): Docstring
+## `_nearest_owner`, [line 124](../../../../../../../backend/src/sro/application/observation/correlate.py#L124): Docstring
 
 > The closest gesture in time, in the same tab, within the window.
 >
@@ -39,44 +68,27 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/c
 > acts) — so it may attach to a gesture on either side, whichever is
 > nearer in time.
 
-## `as_action`, [line 140](../../../../../../../backend/src/sro/application/observation/correlate.py#L140): Docstring
+## `as_action`, [line 139](../../../../../../../backend/src/sro/application/observation/correlate.py#L139): Docstring
 
 > The wire gesture as the domain sees it: the fields the arithmetic
 > reads, and nothing the recorder might add next week.
 
-## `as_body`, [line 185](../../../../../../../backend/src/sro/application/observation/correlate.py#L185): Docstring
+## `as_body`, [line 184](../../../../../../../backend/src/sro/application/observation/correlate.py#L184): Docstring
 
 > A wire body as the domain sees it: no encoding field, nothing the
 > belts don't read.
 
-## `as_call`, [line 197](../../../../../../../backend/src/sro/application/observation/correlate.py#L197): Docstring
+## `as_call`, [line 196](../../../../../../../backend/src/sro/application/observation/correlate.py#L196): Docstring
 
 > A wire request as the domain sees it. The tab is not on the request:
 > it is on the enclosing `RequestEvent`, so the caller passes it in — an
 > orphan call's tab is a fact worth keeping.
 
-## `as_mark`, [line 213](../../../../../../../backend/src/sro/application/observation/correlate.py#L213): Docstring
+## `as_mark`, [line 212](../../../../../../../backend/src/sro/application/observation/correlate.py#L212): Docstring
 
 > A wire page event as the domain sees it.
 
-## `_join_after_states`, [line 102](../../../../../../../backend/src/sro/application/observation/correlate.py#L102): Docstring
-
-> A gesture's target keeps changing after the gesture fires -- a typed value
-> settles, a spinner clears, a field disables -- so there is no single instant
-> during the gesture itself that reads as "the state it left". The next
-> instant that can observe it is the next gesture on the same tab and frame:
-> whatever `stateOf` reads for the previous element right before recording
-> a new one IS the after-state of the gesture before it, which is why the
-> wire carries it as that later gesture's `prior` rather than trying to
-> capture it at the earlier gesture's own moment.
->
-> Ceiling: the last gesture in a batch has no gesture after it, so it never
-> gets an after-state -- there is nothing later in this batch to observe it
-> from. Upgrade: carry the last gesture's target forward and update the
-> previously stored gesture's `after` when the next batch's first gesture's
-> `prior` arrives at ingest, rather than leaving the boundary gesture bare.
-
-## `as_action`, [line 160](../../../../../../../backend/src/sro/application/observation/correlate.py#L160): Comment
+## `as_action`, [line 159](../../../../../../../backend/src/sro/application/observation/correlate.py#L159): Comment
 
 Code: `required=target.required,`
 

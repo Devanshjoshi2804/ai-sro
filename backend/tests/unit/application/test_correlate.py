@@ -285,18 +285,59 @@ def test_a_page_that_said_nothing_about_a_field_stores_nothing() -> None:
     assert target is not None and target.required is None
 
 
+def _select(ref: str, hop: int = 0) -> dict[str, Any]:
+    event = copy.deepcopy(GESTURE_TYPE)
+    event["gesture"].update(kind="select", value="b", ref=ref)
+    event["gesture"]["target"].update(tag="select", role="combobox")
+    event["gesture"]["frame_path"] = [{"index": hop, "url": "https://wms.example/screen"}]
+    return event
+
+
+def _next(
+    before: dict[str, Any], ref: str, prior_of: str | None, value: str | None
+) -> dict[str, Any]:
+    event = copy.deepcopy(before)
+    event["gesture"].update(
+        kind="click",
+        at=before["gesture"]["at"] + 2,
+        ref=ref,
+        prior_of=prior_of,
+        prior={"value": value, "visible": True, "enabled": True},
+    )
+    return event
+
+
 def test_a_gesture_gets_the_state_its_target_was_in_when_the_next_one_came() -> None:
-    first = copy.deepcopy(GESTURE_TYPE)
-    second = copy.deepcopy(GESTURE_TYPE)
-    second["gesture"]["at"] = first["gesture"]["at"] + 2
-    second["gesture"]["prior"] = {"value": "GT2", "visible": True, "enabled": True}
+    first = _select("r.1")
+    second = _next(first, "r.2", "r.1", "Second choice")
 
     gestures, _, _, _ = correlate(_batch([first, second]), TENANT)
 
     after = gestures[0].action.after
     assert after is not None
-    assert (after.value, after.visible, after.enabled) == ("GT2", True, True)
+    assert (after.value, after.visible, after.enabled) == ("Second choice", True, True)
     assert gestures[1].action.after is None
+
+
+def test_a_state_read_off_a_gesture_the_worker_dropped_joins_nothing() -> None:
+    # Paused between them: r.2 was typed and dropped, so r.3's prior is r.2's
+    # target, and r.1 -- the previous gesture that WAS kept -- is not it.
+    first = _select("r.1")
+    after_the_pause = _next(first, "r.3", "r.2", "Second choice")
+
+    gestures, _, _, _ = correlate(_batch([first, after_the_pause]), TENANT)
+
+    assert [one.action.after for one in gestures] == [None, None]
+
+
+def test_two_frames_on_the_same_url_never_hand_each_other_a_state() -> None:
+    in_one = _select("r.1", hop=0)
+    in_the_other = _next(_select("r.1", hop=1), "r.2", "r.1", "OTHER-FRAME")
+    assert in_one["frame_url"] == in_the_other["frame_url"]
+
+    gestures, _, _, _ = correlate(_batch([in_one, in_the_other]), TENANT)
+
+    assert [one.action.after for one in gestures] == [None, None]
 
 
 def test_a_popup_mark_keeps_the_tab_that_opened_it() -> None:
@@ -323,12 +364,17 @@ def test_every_captured_detail_of_the_control_is_kept_and_stored() -> None:
     event["gesture"]["frame_path"] = [{"index": 1, "url": "https://wms.example/shell"}]
     event["gesture"]["detail"] = 0
     event["gesture"]["trusted"] = False
-    next_event = copy.deepcopy(GESTURE_TYPE)
-    next_event["gesture"]["at"] = event["gesture"]["at"] + 2
-    next_event["gesture"]["prior"] = {"value": "GT2", "visible": True, "enabled": True}
+    event["gesture"]["ref"] = "r.1"
+    chosen = _select("r.2", hop=1)
+    chosen["gesture"]["frame_path"] = event["gesture"]["frame_path"]
+    chosen["gesture"]["prior_of"] = "r.1"
+    chosen["gesture"]["prior"] = {"value": None, "visible": True, "enabled": False}
+    chosen["gesture"]["at"] = event["gesture"]["at"] + 2
+    last = _next(chosen, "r.3", "r.2", "Second choice")
 
-    gestures, _, _, _ = correlate(_batch([event, next_event]), TENANT)
+    gestures, _, _, _ = correlate(_batch([event, chosen, last]), TENANT)
     stored = _row_to_gesture(_gesture_to_row(gestures[0]))
+    selected = _row_to_gesture(_gesture_to_row(gestures[1])).action.after
 
     action = stored.action
     assert action.target is not None and action.target.component is not None
@@ -342,7 +388,9 @@ def test_every_captured_detail_of_the_control_is_kept_and_stored() -> None:
     assert action.detail == 0
     assert action.trusted is False
     assert action.after is not None
-    assert (action.after.value, action.after.visible, action.after.enabled) == ("GT2", True, True)
+    assert (action.after.value, action.after.visible, action.after.enabled) == (None, True, False)
+    assert selected is not None
+    assert (selected.value, selected.visible, selected.enabled) == ("Second choice", True, True)
     assert hash(action)
 
 

@@ -331,5 +331,31 @@ def test_js_definitions_excludes_control_flow_and_plain_assignment() -> None:
     assert "y" not in found
 
 
+def test_js_definitions_exclude_a_call() -> None:
+    # A call reads `name(` just as a method shorthand does, so every call site
+    # of a function was a second "definition" of it and its note could not be
+    # anchored by name.
+    lines = [
+        "const emit = (record, el = null) => {",
+        "};",
+        "function send(message) {",
+        "}",
+        "const sroPage = {",
+        "  perform(payload) {",
+        "  },",
+        "  async look(a, b) {",
+        "  },",
+        "};",
+        "listen('click', (e) =>",
+        "  emit(",
+        "    { kind: 'click' },",
+        "  ),",
+        ");",
+        "emit({ kind: 'scroll' });",
+    ]
+    found = [name for _, _, name in check_code_notes._js_definitions(lines, 1, len(lines))]
+    assert found == ["emit", "send", "sroPage", "perform", "look"]
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

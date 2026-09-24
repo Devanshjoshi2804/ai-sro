@@ -146,7 +146,9 @@ class Gesture(BaseModel):
     trusted: bool | None = None
     at: float
     url: str | None = None
+    ref: str | None = None
     prior: AfterState | None = None
+    prior_of: str | None = None
 
     @model_validator(mode="after")
     def a_credential_value_is_dropped_here(self) -> "Gesture":

@@ -28,16 +28,18 @@
     },
     "value": "manifest.csv",
     "modifiers": [],
+    "ref": "bsx4f495038.3",
     "prior": {
-      "value": "D3",
+      "value": "Dock 3",
       "visible": true,
       "enabled": true
     },
+    "prior_of": "bsx4f495038.2",
     "frame_path": [],
-    "at": 1790277096.62,
-    "url": "http://127.0.0.1:63153/"
+    "at": 1790278953.928,
+    "url": "http://127.0.0.1:55199/"
   },
-  "tab_id": 112149762,
-  "frame_url": "http://127.0.0.1:63153/",
-  "page_url": "http://127.0.0.1:63153/"
+  "tab_id": 1470579231,
+  "frame_url": "http://127.0.0.1:55199/",
+  "page_url": "http://127.0.0.1:55199/"
 }

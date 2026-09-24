@@ -70,19 +70,37 @@ test("a frame records where it sits, from the top down", () => {
   assert.deepEqual(framePathOf(top), []);
 });
 
-test("the state a gesture left is read without a credential", () => {
+test("the state a gesture left never holds free text", () => {
   const window = { getComputedStyle: () => ({ visibility: "visible", display: "block" }) };
-  const { stateOf } = lift(["isSecretName", "isSecretField", "stateOf"], {
+  const { stateOf } = lift(["isSecretName", "isSecretField", "roleOf", "settingOf", "stateOf"], {
     window,
     SECRET_WORDS: new Set(["password"]),
     wordsOf: (text) => String(text || "").toLowerCase().split(/[^a-z]+/).filter(Boolean),
   });
   const box = () => ({ width: 10, height: 10 });
-  const field = (attrs, value) => ({
-    nodeType: 1, isConnected: true, value, disabled: false, type: attrs.type || "text",
-    getAttribute: (name) => attrs[name] ?? null, getBoundingClientRect: box,
+  const control = (tag, attrs, props = {}) => ({
+    nodeType: 1, isConnected: true, disabled: false, tagName: tag.toUpperCase(),
+    type: attrs.type || (tag === "input" ? "text" : undefined),
+    getAttribute: (name) => attrs[name] ?? null, getBoundingClientRect: box, ...props,
   });
+  const valueOf = (el) => stateOf(el).value;
 
-  assert.deepEqual(stateOf(field({ name: "code" }, "GT2")), { value: "GT2", visible: true, enabled: true });
-  assert.equal(stateOf(field({ type: "password" }, "hunter2")).value, null);
+  assert.deepEqual(stateOf(control("input", { name: "code" }, { value: "GT2" })), {
+    value: null, visible: true, enabled: true,
+  });
+  for (const type of ["search", "email", "tel", "url", "number", "password", "file"]) {
+    assert.equal(valueOf(control("input", { type }, { value: "typed" })), null, type);
+  }
+  assert.equal(valueOf(control("textarea", {}, { value: "a note" })), null);
+  assert.equal(valueOf(control("div", { contenteditable: "true" }, { innerText: "a note" })), null);
+  for (const role of ["textbox", "searchbox", "combobox"]) {
+    assert.equal(valueOf(control("div", { role }, { value: "typed" })), null, role);
+  }
+  assert.equal(valueOf(control("input", { type: "checkbox" }, { checked: true, value: "on" })), "checked");
+  assert.equal(valueOf(control("input", { type: "radio" }, { checked: false, value: "on" })), "unchecked");
+  assert.equal(valueOf(control("div", { role: "switch", "aria-checked": "true" })), "checked");
+  const select = control("select", { name: "priority" }, {
+    value: "b", selectedOptions: [{ label: "Second choice" }],
+  });
+  assert.equal(valueOf(select), "Second choice");
 });

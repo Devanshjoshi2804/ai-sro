@@ -212,6 +212,20 @@
     return isSecretName(named);
   };
 
+  const settingOf = (el) => {
+    if (isSecretField(el)) return null;
+    if (['checkbox', 'radio', 'switch'].includes(roleOf(el))) {
+      const checked =
+        typeof el.checked === 'boolean' ? el.checked : el.getAttribute('aria-checked') === 'true';
+      return checked ? 'checked' : 'unchecked';
+    }
+    if (el.tagName === 'SELECT') {
+      const chosen = [...(el.selectedOptions || [])].map((option) => option.label).join(', ');
+      return chosen ? chosen.slice(0, MAX_VALUE) : null;
+    }
+    return null;
+  };
+
   const stateOf = (el) => {
     if (!el || el.nodeType !== 1 || el.isConnected === false) {
       return { value: null, visible: false, enabled: null };
@@ -221,14 +235,13 @@
     const visible =
       box.width > 0 && box.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
     const enabled = !(el.disabled === true || el.getAttribute('aria-disabled') === 'true');
-    const value =
-      isSecretField(el) || el.value === undefined || el.value === null
-        ? null
-        : String(el.value).slice(0, MAX_VALUE);
-    return { value, visible, enabled };
+    return { value: settingOf(el), visible, enabled };
   };
 
+  const REALM = Math.random().toString(36).slice(2);
+  let count = 0;
   let last = null;
+  let lastRef = null;
 
   // What the page says about whether this field is mandatory, or null where
   // it says nothing. Read off the control and off the label that names it: a
@@ -367,13 +380,19 @@
   };
 
   const emit = (record, el = null) => {
+    count += 1;
+    const ref = `${REALM}.${count}`;
     const prior = last ? stateOf(last) : null;
+    const prior_of = last ? lastRef : null;
     last = el;
+    lastRef = el ? ref : null;
     try {
       window.__sroRecord(
         JSON.stringify({
           ...record,
+          ref,
           prior,
+          prior_of,
           frame_path: framePathOf(window),
           at: Date.now() / 1000,
           url: location.href,
@@ -384,6 +403,13 @@
       // Losing a gesture is preferable to breaking the page the operator is using.
     }
   };
+
+  listen('sro:dropped', (e) => {
+    if (lastRef !== null && e.detail === lastRef) {
+      last = null;
+      lastRef = null;
+    }
+  });
 
   listen('click', (e) =>
     emit(

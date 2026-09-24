@@ -36,10 +36,11 @@ JS_NOT_A_DEFINITION = (
 )
 JS_DEF_RE = re.compile(
     r"^(?P<indent>[ \t]*)(?:export\s+)?(?:default\s+)?(?:async\s+)?"
-    r"(?:function\s+)?(?:(?P<decl>const|let|var)\s+)?"
+    r"(?P<fn>function\s+)?(?:(?P<decl>const|let|var)\s+)?"
     r"(?!(?:" + "|".join(JS_NOT_A_DEFINITION) + r")\b)"
     r"(?P<name>[A-Za-z_$][\w$]*)\s*(?P<op>[(=])"
 )
+JS_METHOD_TAIL_RE = re.compile(r"\)\s*\{\s*$")
 
 
 @dataclass
@@ -203,6 +204,9 @@ def _js_definitions(lines: list[str], start: int, end: int) -> list[tuple[int, i
         if match is None:
             continue
         if match.group("op") == "=" and match.group("decl") is None:
+            continue
+        declared = match.group("decl") or match.group("fn")
+        if not declared and not JS_METHOD_TAIL_RE.search(lines[line_no - 1]):
             continue
         found.append((line_no, len(match.group("indent")), match.group("name")))
     return found

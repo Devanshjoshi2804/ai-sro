@@ -11,7 +11,7 @@
           "type": "internalRole",
           "value": 144
         },
-        "frameId": "73292086E763FFC68859D721E4235E8F",
+        "frameId": "2BDFDFBE2F67DA55E51EC69A1AF7710C",
         "ignored": false,
         "name": {
           "sources": [
@@ -56,7 +56,7 @@
             "name": "url",
             "value": {
               "type": "string",
-              "value": "http://127.0.0.1:63153/"
+              "value": "http://127.0.0.1:55199/"
             }
           }
         ],
@@ -1486,7 +1486,7 @@
       }
     ]
   },
-  "url": "http://127.0.0.1:63153/",
-  "taken_at": "2026-09-24T19:11:36.587Z",
-  "tab_id": 112149762
+  "url": "http://127.0.0.1:55199/",
+  "taken_at": "2026-09-24T19:42:33.919Z",
+  "tab_id": 1470579231
 }

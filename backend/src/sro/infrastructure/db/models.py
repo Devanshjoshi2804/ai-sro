@@ -274,13 +274,13 @@ class BrowserSessionRow(Base):
             postgresql_where=text("state IN ('signing_in', 'ready')"),
         ),
         CheckConstraint(
-            "state IS NULL OR ("
+            "(state IS NULL OR ("
             "account_key IS NOT NULL AND origin IS NOT NULL AND username IS NOT NULL AND "
             "container_url IS NOT NULL AND steel_session_id IS NOT NULL AND "
             "context_id IS NOT NULL AND holder IS NOT NULL AND "
             "heartbeat_at IS NOT NULL AND expires_at IS NOT NULL"
-            ")",
-            name="ck_browser_sessions_lease_is_whole",
+            ")) AND (state IS NOT NULL OR opened_by IS NOT NULL)",
+            name="ck_browser_sessions_row_is_whole",
         ),
     )
 

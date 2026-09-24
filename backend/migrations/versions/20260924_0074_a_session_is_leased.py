@@ -7,10 +7,12 @@ origin and the casefolded, percent-encoded username S1 already builds for
 the vault) rather than the raw `origin`/`username` columns, which are kept
 for display only. Live meaning `state IN ('signing_in', 'ready')` -- a row
 with no state is still an ordinary capture session, so neither the index
-nor the lease-completeness check touches one.
+nor the row-completeness check touches the other kind: a lease row needs
+every lease column filled in, a capture row needs `opened_by`, and
+`opened_by` itself is nullable now that a lease row leaves it unset.
 
-Revision ID: 0073
-Revises: 0072
+Revision ID: 0074
+Revises: 0073
 """
 
 from __future__ import annotations
@@ -18,8 +20,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0073"
-down_revision = "0072"
+revision = "0074"
+down_revision = "0073"
 branch_labels = None
 depends_on = None
 
@@ -49,22 +51,22 @@ def upgrade() -> None:
         postgresql_where=sa.text("state IN ('signing_in', 'ready')"),
     )
     op.create_check_constraint(
-        "ck_browser_sessions_lease_is_whole",
+        "ck_browser_sessions_row_is_whole",
         "browser_sessions",
         sa.text(
-            "state IS NULL OR ("
+            "(state IS NULL OR ("
             "account_key IS NOT NULL AND origin IS NOT NULL AND username IS NOT NULL AND "
             "container_url IS NOT NULL AND steel_session_id IS NOT NULL AND "
             "context_id IS NOT NULL AND holder IS NOT NULL AND "
             "heartbeat_at IS NOT NULL AND expires_at IS NOT NULL"
-            ")"
+            ")) AND (state IS NOT NULL OR opened_by IS NOT NULL)"
         ),
     )
 
 
 def downgrade() -> None:
     op.execute("DELETE FROM browser_sessions WHERE state IS NOT NULL")
-    op.drop_constraint("ck_browser_sessions_lease_is_whole", "browser_sessions", type_="check")
+    op.drop_constraint("ck_browser_sessions_row_is_whole", "browser_sessions", type_="check")
     op.drop_index("uq_browser_sessions_one_live_lease", table_name="browser_sessions")
     op.drop_column("browser_sessions", "state")
     op.drop_column("browser_sessions", "expires_at")

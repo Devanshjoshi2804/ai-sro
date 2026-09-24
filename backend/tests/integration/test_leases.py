@@ -1,6 +1,9 @@
 import asyncio
+import time
 from datetime import UTC, datetime, timedelta
 
+import pytest
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.domain.execution.account import K_LEASE_TTL, Account, Lease, LeaseState
@@ -10,6 +13,31 @@ from sro.infrastructure.db.repositories import SqlBrowserSessionRepository
 T = TenantId("greyorange")
 NOW = datetime(2026, 9, 24, 9, 0, tzinfo=UTC)
 LENA = Account.of("greyorange", "https://wms.example", "lena")
+
+_LOCK_WAIT_DEADLINE_S = 5.0
+
+
+async def _wait_until_a_racing_insert_blocks(observer: AsyncSession) -> None:
+    """Poll `pg_locks` for a waiter, rather than guessing how long a
+    competing INSERT takes to reach Postgres and block. A fixed sleep here
+    would let the race tests pass whether or not the unique index they are
+    named for still exists.
+
+    The wait is a `transactionid` lock (the second inserter waiting to see
+    whether the first transaction commits or aborts), not a `relation` one
+    -- `ON CONFLICT`'s speculative-insertion check has no relation to name
+    -- so this checks for any not-yet-granted lock from a different
+    backend, which in this test's own throwaway database can only be the
+    other acquirer."""
+    deadline = time.monotonic() + _LOCK_WAIT_DEADLINE_S
+    while time.monotonic() < deadline:
+        waiting = await observer.scalar(
+            text("SELECT count(*) FROM pg_locks WHERE NOT granted AND pid != pg_backend_pid()")
+        )
+        if waiting:
+            return
+        await asyncio.sleep(0.01)
+    raise AssertionError("the competing acquire never showed up blocked in pg_locks")
 
 
 def _lease(
@@ -51,13 +79,17 @@ async def test_casefold_variants_of_a_username_are_one_account(session: AsyncSes
 async def test_two_sessions_racing_to_acquire_the_same_account_agree_on_one_winner(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
-    async with session_factory() as session_a, session_factory() as session_b:
+    async with (
+        session_factory() as session_a,
+        session_factory() as session_b,
+        session_factory() as observer,
+    ):
         repo_a = SqlBrowserSessionRepository(session_a)
         repo_b = SqlBrowserSessionRepository(session_b)
 
         winner_a = await repo_a.lease(T, _lease("lse_a"))
         contender_b = asyncio.create_task(repo_b.lease(T, _lease("lse_b")))
-        await asyncio.sleep(0)
+        await _wait_until_a_racing_insert_blocks(observer)
         await session_a.commit()
         winner_b = await contender_b
         await session_b.commit()
@@ -68,13 +100,17 @@ async def test_two_sessions_racing_to_acquire_the_same_account_agree_on_one_winn
 async def test_a_rolled_back_acquire_lets_the_other_session_win(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
-    async with session_factory() as session_a, session_factory() as session_b:
+    async with (
+        session_factory() as session_a,
+        session_factory() as session_b,
+        session_factory() as observer,
+    ):
         repo_a = SqlBrowserSessionRepository(session_a)
         repo_b = SqlBrowserSessionRepository(session_b)
 
         await repo_a.lease(T, _lease("lse_a"))
         contender_b = asyncio.create_task(repo_b.lease(T, _lease("lse_b")))
-        await asyncio.sleep(0)
+        await _wait_until_a_racing_insert_blocks(observer)
         await session_a.rollback()
         winner_b = await contender_b
         await session_b.commit()
@@ -133,6 +169,27 @@ async def test_a_holder_learns_it_lost_its_lease(session: AsyncSession) -> None:
     assert await repo.expire(T, "lse_a", now=NOW + K_LEASE_TTL)
 
     assert not await repo.beat(T, "lse_a", now=NOW + K_LEASE_TTL + timedelta(seconds=1))
+
+
+async def test_settle_cannot_revive_a_lease_expire_already_killed(session: AsyncSession) -> None:
+    repo = SqlBrowserSessionRepository(session)
+    await repo.lease(T, _lease("lse_a"))
+    await repo.settle(T, "lse_a", state=LeaseState.READY)
+    assert await repo.expire(T, "lse_a", now=NOW + K_LEASE_TTL)
+
+    assert not await repo.settle(T, "lse_a", state=LeaseState.READY)
+
+    still = await repo.get_lease(T, "lse_a")
+    assert still is not None
+    assert still.state == LeaseState.EXPIRED
+
+
+async def test_settle_refuses_to_move_a_lease_to_expired(session: AsyncSession) -> None:
+    repo = SqlBrowserSessionRepository(session)
+    await repo.lease(T, _lease("lse_a"))
+
+    with pytest.raises(ValueError):
+        await repo.settle(T, "lse_a", state=LeaseState.EXPIRED)
 
 
 async def test_capture_sessions_never_see_a_lease(session: AsyncSession) -> None:

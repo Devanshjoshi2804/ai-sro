@@ -653,15 +653,19 @@ class SqlBrowserSessionRepository(BrowserSessionRepository):
             return None
         return _lease_of(row)
 
-    async def settle(self, tenant_id: TenantId, lease_id: str, *, state: LeaseState) -> None:
-        await self._session.execute(
+    async def settle(self, tenant_id: TenantId, lease_id: str, *, state: LeaseState) -> bool:
+        if state is LeaseState.EXPIRED:
+            raise ValueError("settle cannot move a lease to expired; use expire")
+        result = await self._session.execute(
             update(BrowserSessionRow)
             .where(
                 BrowserSessionRow.tenant_id == tenant_id.value,
                 BrowserSessionRow.session_id == lease_id,
+                BrowserSessionRow.state.in_(_LIVE_STATES),
             )
             .values(state=state.value)
         )
+        return cast(CursorResult[Any], result).rowcount > 0
 
     async def expire(self, tenant_id: TenantId, lease_id: str, *, now: datetime) -> bool:
         result = await self._session.execute(

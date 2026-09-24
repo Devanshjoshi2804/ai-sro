@@ -963,10 +963,14 @@ class FakeBrowserSessionRepository:
             return None
         return found
 
-    async def settle(self, tenant_id: TenantId, lease_id: str, *, state: LeaseState) -> None:
+    async def settle(self, tenant_id: TenantId, lease_id: str, *, state: LeaseState) -> bool:
+        if state is LeaseState.EXPIRED:
+            raise ValueError("settle cannot move a lease to expired; use expire")
         found = self.leases.get(lease_id)
-        if found is not None and found.account.tenant == str(tenant_id):
-            self.leases[lease_id] = replace(found, state=state)
+        if found is None or found.account.tenant != str(tenant_id) or found.state not in LIVE:
+            return False
+        self.leases[lease_id] = replace(found, state=state)
+        return True
 
     async def expire(self, tenant_id: TenantId, lease_id: str, *, now: datetime) -> bool:
         found = self.leases.get(lease_id)

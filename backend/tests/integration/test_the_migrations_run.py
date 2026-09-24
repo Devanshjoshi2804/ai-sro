@@ -142,7 +142,11 @@ async def test_downgrading_0073_refuses_when_two_steel_runs_share_a_device(
 
     downgrade = await asyncio.to_thread(
         subprocess.run,
-        [sys.executable, "-m", "alembic", "downgrade", "-1"],
+        # Not "-1": 0073 no longer heads the chain (S2's 0074 does), so one
+        # relative step would only undo 0074 and never reach 0073's own
+        # downgrade -- naming the target revision runs every step down to
+        # it, including the one this test means to exercise.
+        [sys.executable, "-m", "alembic", "downgrade", "0072"],
         env={**os.environ, "SRO_DATABASE_URL": postgres_url},
         capture_output=True,
         text=True,

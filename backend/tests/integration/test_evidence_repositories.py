@@ -148,19 +148,16 @@ class TestGestures:
         assert call.request_body.redacted_fields == ("password",)
         assert loaded.page_events[0].page_kind == "navigated"
 
-    async def test_the_device_clock_and_the_recording_a_batch_belongs_to_are_kept(
+    async def test_the_device_clock_is_kept_against_the_servers_own(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
-        """The device's own window against the server's received_at, and which
-        teaching recording a demonstration batch belongs to. The protocol
-        requires all three and the rig once discarded the first two."""
+        """The device's own window against the server's received_at. The rig
+        once discarded both."""
         async with SqlUnitOfWork(session_factory) as uow:
             await uow.gestures.add_batch(
                 _batch(
-                    mode="teaching",
                     started_at="2026-09-03T10:00:00+05:30",
                     ended_at="2026-09-03T10:00:20+05:30",
-                    recording_id="rec_9",
                     accepted=3,
                     rejected=1,
                 )
@@ -172,7 +169,6 @@ class TestGestures:
 
         assert row.started_at == "2026-09-03T10:00:00+05:30"
         assert row.ended_at == "2026-09-03T10:00:20+05:30"
-        assert row.recording_id == "rec_9"
         assert (row.accepted, row.rejected) == (3, 1)
 
         async with SqlUnitOfWork(session_factory) as uow:

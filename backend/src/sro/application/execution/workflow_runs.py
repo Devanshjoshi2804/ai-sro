@@ -17,8 +17,9 @@ from sro.application.execution.mail_job import (
     send_the_mail,
     write_the_mail,
 )
-from sro.application.execution.one_time_secrets import take as take_once
+from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.read_runs import NOT_IN_A_BROWSER_HERE, CannotStop
+from sro.application.execution.run_secrets import RunSecrets, WatchingChannel
 from sro.application.execution.run_workflow import GatherValues, KnownFields, run_workflow
 from sro.application.execution.stops import Stops
 from sro.application.intent.spend import over_cap
@@ -27,7 +28,7 @@ from sro.application.ports.channel import Channel
 from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
-from sro.application.ports.vault import CredentialVault, VaultUnavailable
+from sro.application.ports.vault import CredentialVault
 from sro.application.shared.refusals import OverCap
 from sro.domain.chat.asking import NEEDS, Pending, also_set, question
 from sro.domain.chat.thread import Speaker
@@ -99,6 +100,7 @@ class StartWorkflowRun:
         cap_usd: float,
         stops: Stops,
         approvals: Approvals,
+        one_time_secrets: OneTimeSecrets,
         verified_writes: tuple[VerifiedWrite, ...] = (),
         vault: CredentialVault | None = None,
         retrieve: Retrieve | None = None,
@@ -109,6 +111,7 @@ class StartWorkflowRun:
         self._uow = uow
         self._asker_drafts: DraftsForTheAsker | None = asker_drafts
         self._vault = vault
+        self._one_time_secrets = one_time_secrets
         self._retrieve = retrieve
         self._gather = gather
         self._ids = ids
@@ -226,17 +229,6 @@ class StartWorkflowRun:
         by_id = {gesture.id: gesture for gesture in cited}
         return workflow if is_mail_only(workflow, by_id) else None
 
-    async def _secret_for(self, key: str) -> str | None:
-        once = take_once(key)
-        if once is not None:
-            return once
-        if self._vault is None:
-            return None
-        try:
-            return await self._vault.get(key)
-        except VaultUnavailable:
-            return None
-
     async def perform(self, ctx: RequestContext, run: WorkflowRun) -> None:
         try:
             asker = asker_or_refuse(self._asker)
@@ -258,13 +250,14 @@ class StartWorkflowRun:
                 workflow = await uow.workflows.get(ctx.tenant_id, run.workflow_id)
                 title = workflow.title
                 learned = await uow.workflows.learned_writes(ctx.tenant_id)
+                secrets = RunSecrets(self._vault, self._one_time_secrets, run_id=run.id)
                 done = await run_workflow(
                     uow,
                     workflow,
                     cap_usd=self._cap_usd,
                     tenant_id=ctx.tenant_id,
                     values=run.values,
-                    channel=self._channel,
+                    channel=WatchingChannel(self._channel, secrets),
                     device_id=DeviceId(run.device_id),
                     asker=asker,
                     plan_model=self._plan_model,
@@ -279,7 +272,7 @@ class StartWorkflowRun:
                     from_step=run.from_step,
                     items=run.items,
                     verified_writes=self._verified_writes + learned,
-                    secret_for=self._secret_for,
+                    secret_for=secrets,
                     known_fields=None if self._retrieve is None else self._known_fields(ctx),
                     gather_values=(
                         None
@@ -287,11 +280,13 @@ class StartWorkflowRun:
                         else self._gathering(ctx, workflow.title, seen_values(workflow))
                     ),
                     mail=self._mail_hand(ctx, asker),
+                    step_ended=secrets.step_ended,
                 )
         except Exception as error:
             logger.exception("a run in an operator's browser could not be finished")
             await self._close(ctx, run.id, f"{type(error).__name__}: {error}")
         else:
+            await secrets.finished()
             await self._settle_the_wait(ctx, done)
             await self._ask_for_values(ctx, done, title)
 

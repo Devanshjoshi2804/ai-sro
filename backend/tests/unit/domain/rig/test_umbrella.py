@@ -551,3 +551,10 @@ def test_a_step_parameter_is_judged_by_the_same_rule() -> None:
 
     assert workflow.steps[0].parameters == ["code"]
     assert [p["name"] for p in workflow.parameters] == ["code"]
+
+
+def test_the_schema_asks_for_nothing_nobody_reads() -> None:
+    """`same_as` was the model's opinion that a proposal was one it had seen
+    before. It decided nothing (identity is arithmetic) and every proposal paid
+    for it; the parser still takes it from an answer that carries it."""
+    assert '"same_as"' not in json.dumps(WORKFLOW_SCHEMA)

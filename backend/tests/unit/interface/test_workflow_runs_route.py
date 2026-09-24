@@ -55,18 +55,18 @@ from httpx import ASGITransport
 from sro.application.execution.approvals import K_APPROVAL_WAIT_S
 from sro.application.execution.pursuits import Pursuits
 from sro.config import Settings
-from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Action, Body, Call, Gesture
 from sro.domain.shared.identifiers import DeviceId, SkillId, TenantId
+from sro.domain.shared.prices import ModelSpend
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.workflow import Step, Workflow
 from sro.interface.http.app import create_app, on_start
 from sro.interface.http.deps import get_container
 from sro.interface.http.schemas import WorkflowRunModel
 from tests import factories as f
-from tests.unit.fakes import FakeAsker, FakeUnitOfWork, FakeWorkflowRepository
+from tests.unit.fakes import FakeAsker, FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer, token_for
 
 TENANT = TenantId("acme")
@@ -443,8 +443,8 @@ async def test_a_tenant_over_its_cap_answers_429(
 ) -> None:
     """The container's cap, not the shipped default: `CAP` is 3.25 and this day
     has spent 3.30, which a door wired to 5.0 lets through."""
-    await uow.chats.record(
-        ChatReading(id="cht_1", tenant=TENANT.value, at=f.T0.isoformat(), cost_usd=3.30)
+    await uow.spend.record(
+        ModelSpend(id="cht_1", tenant=TENANT.value, at=f.T0, cost_usd=3.30, model="m")
     )
 
     landed = await client.post("/v1/workflow-runs", json=_body())
@@ -2124,70 +2124,3 @@ def _run_that_made(workflow_id: str, made: dict[str, str], outcome: str = "held"
 
 
 # --- the operator says it was wrong -----------------------------------------
-
-
-async def test_a_reported_run_keeps_what_was_said_and_takes_the_jobs_autonomy(
-    client: httpx.AsyncClient, uow: FakeUnitOfWork
-) -> None:
-    """The only witness this path has.
-
-    Every step of this run said `held` by a state belt -- which is what the
-    ladder can see, and it is the whole of what it can see. A record created
-    exactly as asked that was not the record the person wanted passes both
-    rungs, so the person is the evidence.
-
-    What it costs is the register of verified effects, emptied for the job and
-    not for this run: the next runs ask for a tap again and it earns its way
-    back from zero. That is the same price a write nobody could show held pays,
-    charged for the worse case of one somebody watched hold and says was wrong.
-    """
-    assert isinstance(uow.workflows, FakeWorkflowRepository)
-    await _plant(uow, _planted("run_bad"))
-    await uow.workflows.record_effect(
-        "wfl_1", run_id="run_bad", ord_=0, verified_by="status", at="2026-03-01T09:00:00+00:00"
-    )
-    assert uow.workflows.effects, "the job had earned something to lose"
-
-    landed = await client.post(
-        "/v1/workflow-runs/run_bad/wrong", json={"because": "it made a customer type, not a client"}
-    )
-
-    assert landed.status_code == 202
-    assert landed.json()["wrong_because"] == "it made a customer type, not a client"
-    assert not uow.workflows.effects, "and the job starts earning again from zero"
-    kept = await uow.workflow_runs.get(TENANT, "run_bad")
-    assert kept is not None and kept.wrong_because, "written down, not only answered"
-
-
-async def test_a_run_still_going_has_no_result_for_anybody_to_call_wrong(
-    client: httpx.AsyncClient, uow: FakeUnitOfWork
-) -> None:
-    """409 and not 202. Stopping a run is `abort` next door; this says the
-    finished thing was wrong, and there is no finished thing yet.
-
-    The reachable run is reported in the same test: a refusal proved on its own
-    passes against a door that refuses everything, and against one that was
-    never registered.
-    """
-    await _plant(uow, _running("run_going"), _planted("run_over"))
-
-    landed = await client.post("/v1/workflow-runs/run_going/wrong", json={"because": "no"})
-
-    assert landed.status_code == 409
-    assert landed.headers["content-type"].startswith("application/problem+json")
-    assert (
-        await client.post("/v1/workflow-runs/run_over/wrong", json={"because": "wrong record"})
-    ).status_code == 202
-
-
-async def test_another_tenants_run_is_no_such_run(
-    client: httpx.AsyncClient, uow: FakeUnitOfWork
-) -> None:
-    """404 and never 403: a refusal that tells them apart confirms the id
-    exists somewhere, which is what every other door on this router refuses to
-    do."""
-    await _plant(uow, _planted("run_theirs", tenant=TenantId("someone-else")))
-
-    landed = await client.post("/v1/workflow-runs/run_theirs/wrong", json={"because": "x"})
-
-    assert landed.status_code == 404

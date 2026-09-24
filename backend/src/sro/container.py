@@ -27,7 +27,10 @@ from sro.application.connection.connect_system import (
     RefreshSession,
     StoreSession,
 )
+from sro.application.connection.establish_token import EstablishToken
 from sro.application.connection.keep_open import KeepSessionsOpen
+from sro.application.connection.list_connections import ListConnections
+from sro.application.connection.refusals import ForgetsRefusalOnWrite
 from sro.application.connection.release_strays import ReleaseStrayBrowsers
 from sro.application.connection.session_headers import StoreSessionHeaders
 from sro.application.connection.session_life import SessionLife
@@ -37,7 +40,6 @@ from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
 from sro.application.execution.batch import RunBatch
 from sro.application.execution.call_run_wrong import CallRunWrong
-from sro.application.execution.call_workflow_run_wrong import CallWorkflowRunWrong
 from sro.application.execution.choices import ListChoices
 from sro.application.execution.derived_read import AskTheSystem
 from sro.application.execution.execute_skill import (
@@ -47,15 +49,15 @@ from sro.application.execution.execute_skill import (
     StartRun,
 )
 from sro.application.execution.gather import GatherContext
+from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.pursue_goal import PursueGoal
 from sro.application.execution.pursuits import Pursuits
 from sro.application.execution.read_runs import GetRun, ListRuns, StopRun
-from sro.application.execution.revise_run import ReviseRun
 from sro.application.execution.run_from_preview import RunFromPreview
+from sro.application.execution.run_workflow import fail_orphans
 from sro.application.execution.self_heal import SelfHeal
 from sro.application.execution.stops import Stops
 from sro.application.execution.vision_step import PerformWithVision
-from sro.application.execution.what_a_job_taught import ReadWhatAJobTaught
 from sro.application.execution.workflow_runs import (
     AbortWorkflowRun,
     ApproveWorkflowStep,
@@ -63,8 +65,6 @@ from sro.application.execution.workflow_runs import (
     ListWorkflowRuns,
     StartWorkflowRun,
 )
-from sro.application.induction.induce_skill import InduceSkill
-from sro.application.induction.seed_from_flow import SeedSkillFromFlow
 from sro.application.induction.understand import UnderstandRecording
 from sro.application.intent.narrow import NarrowARead
 from sro.application.intent.next_steps import SuggestNext
@@ -80,17 +80,12 @@ from sro.application.knowledge.retrieve import Retrieve
 from sro.application.lookup.plan_lookups import PlanLookups
 from sro.application.lookup.run_lookups import RunLookups
 from sro.application.observation.artifacts import StoreObservationArtifact
-from sro.application.observation.demonstrate import AssembleDemonstration
 from sro.application.observation.forget import ForgetObservations
 from sro.application.observation.ingest import IngestObservation
-from sro.application.observation.learn import LearnWhatRepeats
-from sro.application.observation.mine import MineEverything, MineObservations
 from sro.application.observation.mine_lately import MineLately
 from sro.application.observation.mine_pass import MinePass
 from sro.application.observation.policy import ReadObservationPolicy, SetObservationPolicy
-from sro.application.observation.propose import AnswerJoin, ProposeAboutCandidates
 from sro.application.observation.read_gesture import ReadGestures
-from sro.application.observation.read_pool import ReadPool
 from sro.application.observation.read_shots import ReadShots
 from sro.application.observation.record_attempt import RecordAttempt
 from sro.application.observation.register import (
@@ -101,12 +96,6 @@ from sro.application.observation.register import (
     RevokeHost,
 )
 from sro.application.observation.retain import SweepRetention
-from sro.application.observation.teach import (
-    DismissCandidate,
-    ReadCandidates,
-    TeachCandidate,
-    TeachWorkflow,
-)
 from sro.application.ports.agent import AgentDrivers
 from sro.application.ports.auth import Credentials
 from sro.application.ports.blob import BlobStore
@@ -131,22 +120,14 @@ from sro.application.ports.vault import CredentialVault, VaultUnavailable
 from sro.application.ports.vision import VisionDriver
 from sro.application.recording.attach_artifact import AttachArtifact
 from sro.application.recording.finish_recording import FinishRecording
-from sro.application.recording.get_recording import GetRecording
 from sro.application.recording.ingest_capture_events import IngestCaptureEvents
-from sro.application.recording.list_recordings import ListRecordings
-from sro.application.recording.live_view import GetLiveView
-from sro.application.recording.media import GetRecordingMedia
 from sro.application.recording.start_recording import StartRecording
-from sro.application.skill.add_assertion import AddAssertion
-from sro.application.skill.adopt_rig_workflow import AdoptRigWorkflow
 from sro.application.skill.describe_skill import DescribeSkill
-from sro.application.skill.map_step_to_tool import MapStepToTool
-from sro.application.skill.promote_skill import PromoteSkill
-from sro.application.skill.read_doings import ReadDoings
 from sro.application.skill.read_skills import GetSkill, ListSkills
 from sro.application.skill.read_workflows import ReadEvidence, ReadWorkflows
 from sro.application.skill.record_offer import RecordOffer
 from sro.application.skill.repair_drift import RepairDrift
+from sro.application.skill.retire_workflow import RetireWorkflow
 from sro.application.skill.serve_shapes import ServeShapes
 from sro.application.trigger.answer_confirmation import (
     AnswerConfirmation,
@@ -173,6 +154,7 @@ from sro.infrastructure.gemini.asker import GeminiAsker
 from sro.infrastructure.gemini.computer_use import GeminiVisionDriver
 from sro.infrastructure.gemini.intent import GeminiIntentParser
 from sro.infrastructure.gemini.interpreter import GeminiInterpreter
+from sro.infrastructure.gemini.metered import Meter, metered_client
 from sro.infrastructure.gemini.null_intent import NoIntentParser
 from sro.infrastructure.gemini.null_interpreter import NoInterpreter
 from sro.infrastructure.http.api_runs import ApiRunDispatcher
@@ -227,12 +209,15 @@ class Container:
     scheduler: Scheduler
     dispatcher: RunDispatcher
     session_factory: async_sessionmaker[AsyncSession]
+    meter: Meter
 
     engine: AsyncEngine | None = None
 
     agent_sockets: DeviceSockets = field(default_factory=DeviceSockets)
 
     stops: Stops = field(default_factory=Stops)
+
+    one_time_secrets: OneTimeSecrets = field(default_factory=OneTimeSecrets)
 
     approvals: Approvals = field(default_factory=Approvals)
 
@@ -258,6 +243,10 @@ class Container:
             return False
         self.driving_runs = connection
         return True
+
+    async def sweep_orphaned_runs(self, reason: str) -> int:
+        async with self.unit_of_work() as uow:
+            return await fail_orphans(uow, reason)
 
     async def readiness(self) -> dict[str, bool]:
         try:
@@ -296,14 +285,14 @@ class Container:
     def read_workflows(self) -> ReadWorkflows:
         return ReadWorkflows(self.unit_of_work())
 
+    def retire_workflow(self) -> RetireWorkflow:
+        return RetireWorkflow(self.unit_of_work(), self.clock)
+
     def read_evidence(self) -> ReadEvidence:
         return ReadEvidence(self.unit_of_work())
 
     def read_shots(self) -> ReadShots:
         return ReadShots(self.unit_of_work(), self.blobs)
-
-    def read_pool(self) -> ReadPool:
-        return ReadPool(self.unit_of_work())
 
     async def read_spend(self, ctx: RequestContext) -> DaySpend:
         async with self.unit_of_work() as uow:
@@ -312,16 +301,10 @@ class Container:
     def record_offer(self) -> RecordOffer:
         return RecordOffer(self.unit_of_work(), self.clock)
 
-    def adopt_rig_workflow(self) -> AdoptRigWorkflow:
-        return AdoptRigWorkflow(self.unit_of_work(), self.clock, self.ids)
-
-    def mine_observations(self) -> MineObservations:
-        return MineObservations(self.unit_of_work(), self.blobs, self.ids)
-
     def _patient_asker(self) -> Asker | None:
         if self._mining_asker is None or self._mining_asker_from is not self.asker:
             self._mining_asker_from = self.asker
-            self._mining_asker = _patient_asker_for(self.settings, self.asker)
+            self._mining_asker = _patient_asker_for(self.settings, self.asker, self.meter)
         return self._mining_asker
 
     def mine_pass(self) -> MinePass:
@@ -375,46 +358,6 @@ class Container:
 
     def run_lookups(self) -> RunLookups:
         return RunLookups(self.unit_of_work(), SocketChannel(self.agent_sockets))
-
-    def mine_everything(self) -> MineEverything:
-        return MineEverything(
-            self.unit_of_work(), self.mine_observations(), self.propose_about_candidates()
-        )
-
-    def answer_join(self) -> AnswerJoin:
-        return AnswerJoin(self.unit_of_work())
-
-    def propose_about_candidates(self) -> ProposeAboutCandidates:
-        return ProposeAboutCandidates(self.unit_of_work(), self.interpreter, self.clock, self.ids)
-
-    def read_candidates(self) -> ReadCandidates:
-        return ReadCandidates(self.unit_of_work())
-
-    def teach_candidate(self) -> TeachCandidate:
-        return TeachCandidate(
-            self.unit_of_work(),
-            self.blobs,
-            self.clock,
-            self.ids,
-            self.understand_recording(),
-            self.induce_skill(),
-        )
-
-    def learn_what_repeats(self) -> LearnWhatRepeats:
-        return LearnWhatRepeats(self.unit_of_work(), self.teach_candidate())
-
-    def teach_workflow(self) -> TeachWorkflow:
-        return TeachWorkflow(
-            self.unit_of_work(),
-            self.blobs,
-            self.clock,
-            self.ids,
-            self.induce_skill(),
-            self.interpreter,
-        )
-
-    def dismiss_candidate(self) -> DismissCandidate:
-        return DismissCandidate(self.unit_of_work(), self.clock, self.ids)
 
     def create_trigger(self) -> CreateTrigger:
         return CreateTrigger(
@@ -509,9 +452,6 @@ class Container:
     def store_observation_artifact(self) -> StoreObservationArtifact:
         return StoreObservationArtifact(self.unit_of_work(), self.blobs, self.clock)
 
-    def assemble_demonstration(self) -> AssembleDemonstration:
-        return AssembleDemonstration(self.unit_of_work(), self.blobs)
-
     def forget_observations(self) -> ForgetObservations:
         return ForgetObservations(self.unit_of_work(), self.blobs, self.clock)
 
@@ -520,9 +460,6 @@ class Container:
 
     def attach_artifact(self) -> AttachArtifact:
         return AttachArtifact(self.unit_of_work(), self.blobs, self.clock, self.transcriber)
-
-    def list_recordings(self) -> ListRecordings:
-        return ListRecordings(self.unit_of_work())
 
     def connect_system(self) -> ConnectSystem:
         return ConnectSystem(self.unit_of_work(), self.browser, self.clock, self.ids)
@@ -534,6 +471,12 @@ class Container:
 
     def store_credentials(self) -> StoreCredentials:
         return StoreCredentials(self.unit_of_work(), self.vault)
+
+    def establish_token(self) -> EstablishToken:
+        return EstablishToken(self.unit_of_work(), self.tokens)
+
+    def list_connections(self) -> ListConnections:
+        return ListConnections(self.unit_of_work())
 
     def session_life(self) -> SessionLife:
         return SessionLife(self.unit_of_work(), self.record_claims())
@@ -597,23 +540,11 @@ class Container:
     def load_session(self) -> LoadSession:
         return LoadSession(self.unit_of_work(), self.vault)
 
-    def get_recording(self) -> GetRecording:
-        return GetRecording(self.unit_of_work())
-
     def list_skills(self) -> ListSkills:
         return ListSkills(self.unit_of_work())
 
     def get_skill(self) -> GetSkill:
         return GetSkill(self.unit_of_work())
-
-    def read_doings(self) -> ReadDoings:
-        return ReadDoings(self.unit_of_work())
-
-    def map_step_to_tool(self) -> MapStepToTool:
-        return MapStepToTool(self.unit_of_work(), self.clock, self.tools)
-
-    def add_assertion(self) -> AddAssertion:
-        return AddAssertion(self.unit_of_work(), self.clock)
 
     def grant_host(self) -> GrantHost:
         return GrantHost(self.unit_of_work(), self.clock)
@@ -621,30 +552,11 @@ class Container:
     def revoke_host(self) -> RevokeHost:
         return RevokeHost(self.unit_of_work())
 
-    def get_live_view(self) -> GetLiveView:
-        return GetLiveView(self.unit_of_work(), self.browser)
-
-    def get_recording_media(self) -> GetRecordingMedia:
-        return GetRecordingMedia(self.unit_of_work(), self.blobs)
-
     def finish_recording(self) -> FinishRecording:
         return FinishRecording(self.unit_of_work(), self.browser, self.clock)
 
-    def induce_skill(self) -> InduceSkill:
-        return InduceSkill(
-            self.unit_of_work(), self.clock, self.ids, self.ask_about(), self.interpreter
-        )
-
     def understand_recording(self) -> UnderstandRecording:
         return UnderstandRecording(self.unit_of_work(), self.interpreter, self.clock, self.ids)
-
-    def seed_skill_from_flow(self) -> SeedSkillFromFlow:
-        return SeedSkillFromFlow(
-            self.unit_of_work(), self.clock, self.ids, self.understand_recording()
-        )
-
-    def promote_skill(self) -> PromoteSkill:
-        return PromoteSkill(self.unit_of_work(), self.clock)
 
     def describe_skill(self) -> DescribeSkill:
         return DescribeSkill(self.unit_of_work())
@@ -771,9 +683,6 @@ class Container:
             answers=IsItAnAnswer(self.asker, model=self.settings.gemini_plan_model),
         )
 
-    def read_what_a_job_taught(self) -> ReadWhatAJobTaught:
-        return ReadWhatAJobTaught(self.unit_of_work())
-
     def ask_about_the_offer(self) -> AskAboutTheOffer:
         return AskAboutTheOffer(self.unit_of_work(), self.clock, self.ids, self._drafting_for)
 
@@ -794,6 +703,7 @@ class Container:
             model=self.settings.gemini_plan_model,
             clock=self.clock,
             ids=self.ids,
+            cap_usd=self.settings.daily_usd_cap,
             gather=GatherContext(
                 tools=self.tools, asker=self.asker, model=self.settings.gemini_plan_model
             )
@@ -848,6 +758,7 @@ class Container:
             cap_usd=self.settings.daily_usd_cap,
             stops=self.stops,
             approvals=self.approvals,
+            one_time_secrets=self.one_time_secrets,
             verified_writes=load_verified_writes(),
             vault=self.vault,
             retrieve=self.retrieve_knowledge(),
@@ -881,12 +792,6 @@ class Container:
     def call_run_wrong(self) -> CallRunWrong:
         return CallRunWrong(self.unit_of_work(), self.clock)
 
-    def call_workflow_run_wrong(self) -> CallWorkflowRunWrong:
-        return CallWorkflowRunWrong(self.unit_of_work())
-
-    def revise_run(self) -> ReviseRun:
-        return ReviseRun(self.unit_of_work(), self.clock)
-
     def mcp_server(self) -> SkillToolServer:
         return SkillToolServer(
             credentials=self.credentials,
@@ -900,45 +805,64 @@ class Container:
         return ListRuns(self.unit_of_work())
 
 
-def _build_transcriber(settings: Settings) -> Transcriber:
+def _build_transcriber(settings: Settings, meter: Meter) -> Transcriber:
     if settings.transcription_enabled and settings.gemini_api_key:
-        return GeminiTranscriber(settings.gemini_api_key, settings.gemini_transcription_model)
+        return GeminiTranscriber(
+            settings.gemini_transcription_model,
+            client=metered_client(settings.gemini_api_key, meter),
+        )
     return NullTranscriber()
 
 
-def _build_intent_parser(settings: Settings) -> IntentParser:
+def _build_intent_parser(settings: Settings, meter: Meter) -> IntentParser:
     if settings.interpretation_enabled and settings.gemini_api_key:
-        return GeminiIntentParser(settings.gemini_api_key, settings.gemini_intent_model)
+        return GeminiIntentParser(
+            settings.gemini_intent_model,
+            client=metered_client(settings.gemini_api_key, meter),
+        )
     return NoIntentParser()
 
 
-def _build_interpreter(settings: Settings) -> WorkflowInterpreter:
+def _build_interpreter(settings: Settings, meter: Meter) -> WorkflowInterpreter:
     if settings.interpretation_enabled and settings.gemini_api_key:
-        return GeminiInterpreter(settings.gemini_api_key, settings.gemini_interpreter_model)
+        return GeminiInterpreter(
+            settings.gemini_interpreter_model,
+            client=metered_client(settings.gemini_api_key, meter),
+        )
     return NoInterpreter()
 
 
-def _patient_asker_for(settings: Settings, asker: Asker | None) -> Asker | None:
+def _patient_asker_for(settings: Settings, asker: Asker | None, meter: Meter) -> Asker | None:
     if not isinstance(asker, GeminiAsker):
         return asker
-    return GeminiAsker(settings.gemini_api_key, timeout_ms=settings.gemini_mine_timeout_ms)
+    return _gemini_asker(settings, meter, timeout_ms=settings.gemini_mine_timeout_ms)
 
 
-def _build_asker(settings: Settings) -> Asker | None:
+def _gemini_asker(settings: Settings, meter: Meter, *, timeout_ms: int) -> GeminiAsker:
+    return GeminiAsker(client=metered_client(settings.gemini_api_key, meter, timeout_ms=timeout_ms))
+
+
+def _build_asker(settings: Settings, meter: Meter) -> Asker | None:
     if settings.interpretation_enabled and settings.gemini_api_key:
-        return GeminiAsker(settings.gemini_api_key, timeout_ms=settings.gemini_timeout_ms)
+        return _gemini_asker(settings, meter, timeout_ms=settings.gemini_timeout_ms)
     return None
 
 
-def _build_vision(settings: Settings) -> VisionDriver | None:
+def _build_vision(settings: Settings, meter: Meter) -> VisionDriver | None:
     if settings.vision_enabled and settings.gemini_api_key:
-        return GeminiVisionDriver(settings.gemini_api_key, settings.gemini_vision_model)
+        return GeminiVisionDriver(
+            settings.gemini_vision_model,
+            client=metered_client(settings.gemini_api_key, meter),
+        )
     return None
 
 
-def _build_embedder(settings: Settings) -> Embedder:
+def _build_embedder(settings: Settings, meter: Meter) -> Embedder:
     if settings.knowledge_embeddings_enabled and settings.gemini_api_key:
-        return GeminiEmbedder(settings.gemini_api_key, settings.gemini_embedding_model)
+        return GeminiEmbedder(
+            settings.gemini_embedding_model,
+            client=metered_client(settings.gemini_api_key, meter),
+        )
     return NoEmbedder()
 
 
@@ -981,10 +905,13 @@ def build_container(settings: Settings | None = None) -> Container:
     if settings.otlp_endpoint:
         watch_queries(engine)
     credentials = SignedTokens(settings.auth_secret)
+    sessions = create_session_factory(engine)
+    clock = SystemClock()
+    meter = Meter(lambda: SqlUnitOfWork(sessions), clock=clock, cap_usd=settings.daily_usd_cap)
 
     container = Container(
         settings=settings,
-        clock=SystemClock(),
+        clock=clock,
         ids=UuidFactory(),
         blobs=MinioBlobStore(
             endpoint_url=settings.s3_endpoint_url,
@@ -1001,13 +928,13 @@ def build_container(settings: Settings | None = None) -> Container:
             session_timeout_seconds=settings.steel_session_timeout_seconds,
             dimensions=(settings.browser_width, settings.browser_height),
         ),
-        transcriber=_build_transcriber(settings),
-        embedder=_build_embedder(settings),
-        vision=_build_vision(settings),
-        interpreter=_build_interpreter(settings),
-        asker=_build_asker(settings),
-        intent_parser=_build_intent_parser(settings),
-        vault=(built_vault := _build_vault(settings)),
+        transcriber=_build_transcriber(settings, meter),
+        embedder=_build_embedder(settings, meter),
+        vision=_build_vision(settings, meter),
+        interpreter=_build_interpreter(settings, meter),
+        asker=_build_asker(settings, meter),
+        intent_parser=_build_intent_parser(settings, meter),
+        vault=(built_vault := ForgetsRefusalOnWrite(_build_vault(settings))),
         http=HttpxCaller(),
         tools=McpToolCaller(_servers(settings.mcp_servers), vault=built_vault),
         ui=PlaywrightUiDriver(settings.ui_debugger_url),
@@ -1030,8 +957,9 @@ def build_container(settings: Settings | None = None) -> Container:
         durable=TemporalDurableExecution(
             address=settings.temporal_address, namespace=settings.temporal_namespace
         ),
-        session_factory=create_session_factory(engine),
+        session_factory=sessions,
         engine=engine,
+        meter=meter,
     )
     container.capture = CaptureSupervisor(
         blobs=container.blobs,

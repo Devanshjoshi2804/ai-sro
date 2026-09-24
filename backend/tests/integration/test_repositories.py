@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from sro.application.observation.retain import SweepRetention
 from sro.domain.execution.run import Medium, Run, RunId, StepDisposition, StepOutcome
 from sro.domain.observation.batch import CaptureMode, ObservationBatch, RejectedEvent
 from sro.domain.observation.candidate import Episode, TaskCandidate
@@ -26,10 +27,13 @@ from sro.domain.shared.identifiers import (
 from sro.domain.skill.locator import ControlLocator, LocatorStrategy
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.template import Template
+from sro.domain.skill.workflow import Workflow
 from sro.domain.trigger.trigger import Trigger, TriggerKind
 from sro.domain.trigger.watch import Term, TermField, ValueAt, Watch
+from sro.infrastructure.db.models import ObservationBatchRow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from tests import factories as f
+from tests.unit.fakes import FakeBlobStore, FakeClock
 
 OTHER_TENANT = TenantId("other-corp")
 
@@ -389,6 +393,65 @@ class TestObservation:
             with pytest.raises(Conflict):
                 await uow.observations.add(_batch())
 
+    async def test_a_teaching_row_is_read_and_swept_without_crashing(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A row a deployment received before the device-teaching path was
+        removed still says ``mode = 'teaching'`` -- Global Constraint 6 kept
+        the column and nothing rewrote the data. Both the retention sweep
+        and every gesture/shot read load a batch through this same
+        ``get``/``received_before``, so ``CaptureMode`` has to go on reading
+        the value even though nothing can produce it any more.
+        """
+        old_at = datetime(2026, 1, 1, 9, 0, tzinfo=UTC)
+        fresh_at = datetime(2026, 5, 1, 9, 0, tzinfo=UTC)
+
+        def _row(batch_id: str, recording_id: str, at: datetime) -> ObservationBatchRow:
+            return ObservationBatchRow(
+                id=batch_id,
+                tenant_id=f.TENANT.value,
+                device_id="dev-1",
+                principal_id=f.OPERATOR.value,
+                mode="teaching",
+                recording_id=recording_id,
+                started_at=at,
+                ended_at=at,
+                received_at=at,
+                uri=f"s3://sro-artifacts/{f.TENANT.value}/{f.OPERATOR.value}/{at.date()}/{batch_id}.ndjson",
+                event_count=1,
+                byte_count=10,
+                rejected=[],
+            )
+
+        async with session_factory() as session:
+            session.add_all(
+                [
+                    _row("bat-teaching-old", "rec-1", old_at),
+                    _row("bat-teaching-fresh", "rec-2", fresh_at),
+                ]
+            )
+            await session.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            # The exact read read_gesture.py, read_shots.py and artifacts.py
+            # do: load one batch by id. This is what raised ValueError
+            # before CaptureMode could read the legacy value.
+            loaded = await uow.observations.get(f.TENANT, BatchId("bat-teaching-fresh"))
+            assert loaded is not None
+            assert loaded.mode is CaptureMode.TEACHING
+            assert loaded.recording_id == RecordingId("rec-2")
+
+        forgotten = await SweepRetention(
+            SqlUnitOfWork(session_factory),
+            FakeBlobStore(),
+            FakeClock(datetime(2026, 5, 2, 9, 0, tzinfo=UTC)),
+        ).execute()
+
+        assert forgotten[f.TENANT.value].batches == 1, "the sweep did not run to completion"
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.observations.get(f.TENANT, BatchId("bat-teaching-old")) is None
+            assert await uow.observations.get(f.TENANT, BatchId("bat-teaching-fresh")) is not None
+
     async def test_a_window_finds_a_batch_that_began_before_it(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
@@ -528,6 +591,47 @@ class TestTriggers:
         assert found is not None
         assert found.tenant_id == trigger.tenant_id
         assert missing is None
+
+    async def test_a_retired_jobs_trigger_is_never_chosen(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A schedule fires by id; watches and arrivals are chosen from the
+        tenant's list. Neither sees a trigger whose job was retired."""
+        tenant = TenantId("acme")
+        jobs = [
+            Workflow(id=one, tenant=tenant.value, title=one, narrative="n")
+            for one in ("wfl_live", "wfl_gone")
+        ]
+        triggers = [
+            Trigger(
+                id=TriggerId(f"trg-{job.id}"),
+                tenant_id=tenant,
+                kind=TriggerKind.SCHEDULE,
+                created_by=f.OPERATOR,
+                created_at=datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+                workflow_id=job.id,
+                cron="0 7 * * 1-5",
+            )
+            for job in jobs
+        ]
+        async with SqlUnitOfWork(session_factory) as uow:
+            for job in jobs:
+                await uow.workflows.save(job)
+            for trigger in triggers:
+                await uow.triggers.add(trigger)
+            await uow.commit()
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.retire(tenant, "wfl_gone", at=datetime(2026, 3, 2, tzinfo=UTC))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            live = await uow.triggers.find(TriggerId("trg-wfl_live"))
+            gone = await uow.triggers.find(TriggerId("trg-wfl_gone"))
+            listed = await uow.triggers.list_for_tenant(tenant)
+
+        assert live is not None
+        assert gone is None
+        assert [one.id.value for one in listed] == ["trg-wfl_live"]
 
     async def test_a_watch_comes_back_with_its_terms_and_its_places_to_read(
         self, session_factory: async_sessionmaker[AsyncSession]

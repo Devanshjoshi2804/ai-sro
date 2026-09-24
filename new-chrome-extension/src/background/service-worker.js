@@ -4,7 +4,7 @@
 // it is idle and every wake-up starts from storage.
 
 import { api, ApiError } from "./api.js";
-import { alsoWatch, alwaysWatched, hostOf, stopWatching } from "./always.js";
+import { alsoWatch, alwaysWatched, hostOf } from "./always.js";
 import { questionIn } from "./asking.js";
 import { waitBeforeLooking } from "./looking.js";
 import * as channel from "./channel.js";
@@ -32,7 +32,6 @@ import {
   LIFETIME_MS,
   endOfDay,
   fire,
-  mute,
   onCall,
   page as pageOf,
   shouldFire,
@@ -52,7 +51,6 @@ import {
   RETIRED_KEYS,
   state,
 } from "./state.js";
-import * as teaching from "./teaching.js";
 import {
   release as releaseTree,
   releaseAll,
@@ -144,9 +142,6 @@ async function landTheUpdate() {
   if (!updateWaiting) return false;
   // A run is a form being filled in a warehouse, a step at a time.
   if ((await state.activeRun())?.runId) return false;
-  // And a demonstration is the one thing here that cannot be repeated: the
-  // operator did it once, in front of the browser.
-  if (await state.teaching()) return false;
   // Said before the restart, not after: there is no after.
   await narrate(
     `version ${updateWaiting} was installed while nothing was in flight`,
@@ -270,8 +265,8 @@ async function candidatesFor(host) {
   // which offered to TEACH a skill from recordings. That is not the system
   // this browser drives: an operator pressed one of those offers for work the
   // rig already held as a seven-step job and got "the doings differ too much
-  // for me to be sure". Dropped where it is read, so the backend goes on
-  // mining candidates and the console goes on reviewing them.
+  // for me to be sure". That pipeline has since been removed from the
+  // backend as well.
   const held = knownHere.get(host);
   if (held && Date.now() - held.at < CANDIDATES_FRESH_MS) return held.list;
   const proven = rigArrivals(await shapesFor(), host);
@@ -326,7 +321,6 @@ async function considerNudge(tabId, url, visit) {
     // and the gesture path queues behind the same lock. Everything after this
     // is arithmetic over storage.
     const candidates = await candidatesFor(host);
-    const muted = await state.muted();
     const busy = performing();
     // Read, decide and write as one. Two navigations landing together each read
     // a list without the other's nudge in it and each wrote it back, and the
@@ -343,9 +337,7 @@ async function considerNudge(tabId, url, visit) {
         visit,
         candidates,
         nudges: swept,
-        muted,
         performing: busy,
-        now,
       });
       if (!fired) {
         await state.setNudges(swept.slice(0, MAX_NUDGES));
@@ -1020,8 +1012,6 @@ async function considerOffer(tabId, gesture) {
       });
       if (end && open) return endOffer(open, end, held);
       if (!replace) return;
-      const muted = await state.muted();
-      if (muted[replace.startsOn] && muted[replace.startsOn] > now) return;
       // A longer prefix is the same offer knowing more, not a second one. The
       // id and the moment it was made stay put -- so nothing ended, nothing is
       // reported, and the ledger has one offer that got further rather than a
@@ -1670,11 +1660,6 @@ async function handle(message, sender) {
       // Same rule as page events, at the same one point: a gesture carries the
       // page's own `location.href` and every event carries the frame it
       // happened in, and either can be the callback URL with the token in it.
-      const demonstrating = await teaching.current();
-      const recordingId =
-        demonstrating && demonstrating.tabId === tab_id
-          ? demonstrating.recordingId
-          : null;
 
       if (message.kind === "gesture") {
         // Taken before the row is written so the picture and the gesture are
@@ -1701,48 +1686,27 @@ async function handle(message, sender) {
             page_url,
           },
           shot,
-          recordingId,
         );
 
-        if (recordingId) {
-          // The tree taken *before* this gesture, enqueued after it: the
-          // assembler attaches a snapshot to the frame of the gesture before
-          // it, and that frame's locator is built from the tree. A tree taken
-          // after the click describes the page the click produced -- for a
-          // step that navigates, a page where the control it clicked does not
-          // exist at all.
-          const before = teaching.takeSnapshot();
-          if (before) await queue.enqueue(before, null, recordingId);
-          // And one for whatever they do next.
-          void teaching.snapshot(tab_id, redactUrl(frameUrl)).catch(() => null);
-        } else {
-          // The same thing for work nobody is deliberately demonstrating, so a
-          // skill that arrived the way this product intends -- watch, notice
-          // the repetition, offer it back -- gets the same locators as one
-          // somebody remembered to press a button for. Same ordering, because
-          // the assembler's rule is the same on both paths.
-          //
-          // Only ever `else`: Chrome allows one debugger per tab, and a
-          // deliberate demonstration is the one that asked for it.
-          const before = takeTree(tab_id);
-          if (before) await queue.enqueue(before, null, null);
-          void takeTreeSoon(tab_id, page_url, policy).catch(() => null);
-        }
+        // The screen the operator was looking at when they decided to act,
+        // for whatever induction later builds a locator from. Taken before
+        // the click, not after: a step that navigates would otherwise carry
+        // the destination page, and induction would build that step's
+        // locator from a page where the control it clicked does not exist.
+        const before = takeTree(tab_id);
+        if (before) await queue.enqueue(before, null);
+        void takeTreeSoon(tab_id, page_url, policy).catch(() => null);
         return { ok: true, screenshot: Boolean(shot) };
       }
-      await queue.enqueue(
-        {
-          kind: "request",
-          request: {
-            ...underPolicy(message.request, policy),
-            url: redactUrl(message.request?.url),
-          },
-          tab_id,
-          frame_url: redactUrl(frameUrl),
+      await queue.enqueue({
+        kind: "request",
+        request: {
+          ...underPolicy(message.request, policy),
+          url: redactUrl(message.request?.url),
         },
-        null,
-        recordingId,
-      );
+        tab_id,
+        frame_url: redactUrl(frameUrl),
+      });
       return { ok: true };
     }
     case "sign-in":
@@ -1779,7 +1743,6 @@ async function handle(message, sender) {
       await badge();
       return register(message.label);
     case "sign-out":
-      await teaching.stop();
       await unregister();
       // Before the credential goes: a socket authenticated as the operator
       // who is leaving must not still be open for the next one.
@@ -1854,103 +1817,10 @@ async function handle(message, sender) {
       void channel.settle();
       return status();
     case "flush":
-      // Upload now rather than on the next tick, and all of it: the options
-      // page offers this so an operator about to close the laptop can watch the
-      // queue go, and "it went" has to mean the queue is empty.
+      // Upload now rather than on the next tick, and all of it: "it went" has
+      // to mean the queue is empty. No screen sends this any more; the
+      // real-Chrome suite and `make fixtures` drain through it.
       return drain();
-    case "teach-start": {
-      // Everything captured so far goes up as ordinary work before the
-      // demonstration starts, so no batch straddles the moment it began.
-      await flushQueue();
-      const deviceId = await state.deviceId();
-      // Named by the caller where the caller knows: the side panel is docked
-      // beside the tab being taught and can say which it is. Where nobody says
-      // -- the options page, which cannot be the tab you mean -- fall back to
-      // the last ordinary page the operator was on.
-      const tab = message.tabId
-        ? await chrome.tabs.get(message.tabId).catch(() => null)
-        : (await chrome.tabs.query({ windowType: "normal" }))
-            .filter((each) => /^https?:/.test(each.url || ""))
-            .sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0];
-      if (!tab?.id || !/^https?:/.test(tab.url || "")) {
-        return { error: "open the system you want to teach in a tab first" };
-      }
-      // A tab that can no longer record calls cannot be taught in.
-      //
-      // It would record every gesture and no call at all, which induces to a
-      // skill that checks nothing: no status to assert, no response field to
-      // compare, so it can never be verified and never earns a rung above
-      // assisted. Worse, it looks like a successful demonstration. An operator
-      // found this out by teaching the same task twice into a tab that had
-      // outlived an extension reload.
-      if (halfDeaf.has(tab.id)) {
-        return {
-          error:
-            "this tab stopped recording network calls when the extension reloaded. " +
-            "Reload the page and teach again -- a demonstration without its calls " +
-            "makes a skill that can never check its own work.",
-        };
-      }
-      // Pressing "teach" in a tab is the same sentence as "watch this tab",
-      // said more strongly. An operator who demonstrates in an unwatched tab
-      // and gets an empty recording learns nothing except not to trust this.
-      await watch(tab.id, tab.url);
-      await injectHere(tab.id, tab.url);
-      const started = await api.startRecording(
-        deviceId,
-        message.label || tab.title || null,
-      );
-      try {
-        // Chrome allows one debugger per tab, so passive trees let go before a
-        // deliberate demonstration asks for it. That way round because the
-        // operator asked for this one and did not ask for the other.
-        await releaseTree(tab.id);
-        await teaching.start(started.recording_id, tab.id);
-        // The first "before": the screen as it was when the operator pressed
-        // start, which is what the first gesture will be judged against.
-        await teaching.snapshot(tab.id, tab.url).catch(() => null);
-      } catch (error) {
-        // Chrome refuses a second debugger on a tab, so DevTools being open is
-        // enough to land here. Without this the recording stays open on the
-        // server with nothing on this device that could ever seal it -- an
-        // empty demonstration nobody can finish or find.
-        await api.finishRecording(started.recording_id).catch(() => {});
-        return {
-          error:
-            `${error}. If DevTools is open on that tab, close it: Chrome allows ` +
-            "one debugger at a time.",
-        };
-      }
-      return { ok: true, teaching: await teaching.current() };
-    }
-    case "teach-stop": {
-      const was = await teaching.stop();
-      if (!was) return { ok: true, was: null };
-      // *All* of the demonstration's evidence goes up before anything is
-      // sealed. One flush is one batch -- 500 events or 2MB -- and a teaching
-      // batch carries an accessibility tree per gesture, so a demonstration of
-      // any length is several. Sealing after the first one left the rest in
-      // the queue, and the next tick met a sealed recording: the backend
-      // refuses that permanently, and a permanent refusal deletes the rows.
-      // The back half of the demonstration disappeared without a word.
-      if (message.discard) {
-        // Nothing more is uploaded: what is queued belongs to a demonstration
-        // the operator has just said they did not mean. The recording is
-        // abandoned rather than deleted, because it is still evidence of what
-        // happened in this browser -- it is simply never induced from.
-        await queue.clear();
-        await api.finishRecording(was.recordingId, "the operator discarded it");
-        return { ok: true, was, summary: null, discarded: true };
-      }
-      const sent = await drain();
-      if (sent.error) {
-        return {
-          error: `not sealed, because the last of it did not upload: ${sent.error}`,
-        };
-      }
-      const summary = await api.finishRecording(was.recordingId);
-      return { ok: true, was, summary };
-    }
     case "run":
       // The panel says what a run driving this browser is doing. The worker
       // holds the credential, so it does the asking.
@@ -1985,44 +1855,7 @@ async function handle(message, sender) {
     case "skill":
       return api.skill(message.skillId);
     case "summary":
-      return api.summary(message.since);
-    case "nudge-answer": {
-      // Answering ends it either way. What "do it" starts is the same path a
-      // candidate row has always taken -- taught if it needs teaching, run if
-      // it is already a skill -- and the panel drives that, because the press
-      // that authorises a run belongs where somebody can read what it says.
-      // Read and written under the same lock as every other writer of the
-      // list: this was the one whole-list write left outside it, and a stale
-      // snapshot written back here would undo a claim `start-rig-run` had just
-      // made -- an offer shown open behind a live run, and a second fate.
-      const was = await serially(async () => {
-        const held = await state.nudges();
-        await state.setNudges(
-          held.map((nudge) =>
-            nudge.id === message.id
-              ? {
-                  ...nudge,
-                  state: "answered",
-                  answer: message.answer,
-                  endedAt: Date.now(),
-                }
-              : nudge,
-          ),
-        );
-        return held.find((nudge) => nudge.id === message.id);
-      });
-      if (was) void hideNudge(was.tabId);
-      if (was && message.answer === "not-here") {
-        await state.setMuted(
-          mute(await state.muted(), was.startsOn, Date.now()),
-        );
-        // Only if the answer is what ended it. A nudge already swept or
-        // dropped has reported its fate, and an offer with two fates is one
-        // the rig cannot count.
-        if (was.state === "open") void report(was, "dismissed");
-      }
-      return { ok: true, nudge: was || null };
-    }
+      return api.summary(message.days);
     case "what-this-browser-said": {
       // What is waiting to go up on the next beat, for the operator standing
       // in front of the browser that refused. Read only: the heartbeat still
@@ -2054,6 +1887,7 @@ async function handle(message, sender) {
           system: message.system,
           field: message.field,
           value: message.value,
+          runId: message.runId,
         });
         return { ok: true, key: held.key, until: held.until };
       } catch (error) {
@@ -2436,17 +2270,14 @@ async function handle(message, sender) {
       if (sender?.tab?.id !== undefined)
         await chrome.sidePanel.open({ tabId: sender.tab.id });
       return { ok: true };
-    case "revise-run":
-      return api.reviseRun(message.runId, message.values);
-    case "say-to-run":
-      return api.sayToRun(message.threadId, message.runId, message.text);
     // `candidates`, `teach-candidate`, `teach-together`, `answer-join`,
     // `dismiss-candidate` and `resolve-intent` were here, and are not any
     // more: every one of them served the mining pipeline's offer -- a card
     // that proposed teaching a skill from recordings, and a box that resolved
     // a sentence against the skills it had taught. This deployment runs the
-    // rig, whose jobs come with their steps already. The routes still exist on
-    // the backend for the console.
+    // rig, whose jobs come with their steps already. `nudge-answer`,
+    // `never-watch-site`, `revise-run`, `say-to-run`, `look-in-the-mail` and
+    // `panel-open` went the same way: nothing sent them.
     case "thread":
       return api.currentThread();
     case "new-thread":
@@ -2503,8 +2334,6 @@ async function handle(message, sender) {
         title: titles.get(run.workflow_id) || run.workflow_id,
       }));
     }
-    case "look-in-the-mail":
-      return lookInTheMail();
     case "thread-say": {
       const said = await api.say(message.threadId, message.text);
       // What the thread is waiting on NOW, off the reply that just changed it.
@@ -2696,11 +2525,6 @@ async function handle(message, sender) {
       }
       return { always: await state.alwaysWatch() };
     }
-    case "never-watch-site": {
-      const host = hostOf(message.url || "") || message.host || "";
-      await state.setAlwaysWatch(stopWatching(host, await state.alwaysWatch()));
-      return { always: await state.alwaysWatch() };
-    }
     case "unwatch-tab": {
       const tabId = message.tabId ?? sender?.tab?.id ?? null;
       if (tabId === null) return { error: "no tab to stop watching" };
@@ -2857,11 +2681,6 @@ async function handle(message, sender) {
     }
     case "status":
       return status(sender);
-    case "panel-open":
-      // The panel saying it is there, for a worker that was evicted while it
-      // was open. Answered with the status like any poll -- what this changes
-      // is that the push below knows somebody is listening.
-      return status(null);
     default:
       return { error: `no such message: ${message?.kind}` };
   }
@@ -2985,7 +2804,7 @@ chrome.storage.onChanged?.addListener(() => {
  */
 let readingTheMail = null;
 
-async function lookInTheMail() {
+export async function lookInTheMail() {
   const last = await state.mailLooked();
   const since = Date.now() - (last?.at || 0);
   const wait = waitBeforeLooking(last);
@@ -3540,11 +3359,6 @@ async function status(sender = null) {
     channel: channel.status(),
     // Why it is not dialling, when it is not. See `channel.why`.
     channelWhy: channel.why(),
-    // What has been seen but not yet sent. The panel shows it while teaching,
-    // because a demonstration that is recording nothing looks exactly like one
-    // that is recording everything, and the operator finds out at the end.
-    queued: await queue.count(),
-    teaching: await state.teaching(),
     // A question this operator has not answered, off their own conversation.
     // Drawn in the column that cannot be swept, because that is the whole
     // point: the run that asked it is long gone and the question is not.

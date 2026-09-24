@@ -5,12 +5,8 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 ## module, [line 1](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L1): Docstring
 
 > Worker process. ``make worker`` runs this.
->
-> Two task queues: ``browser`` for anything holding a scarce browser slot,
-> ``default`` for everything else. Splitting them now means a slow induction can
-> never starve session reaping.
 
-## `identity`, [line 30](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L30): Docstring
+## `identity`, [line 23](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L23): Docstring
 
 > How this worker names itself to Temporal: ``pid@host@revision``.
 >
@@ -21,7 +17,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 > reports it live, which a row written at startup by a process since killed
 > would not. `make status` reads the last ``@``-separated field.
 
-## `keep_sessions_open`, [line 38](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L38): Docstring
+## `keep_sessions_open`, [line 31](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L31): Docstring
 
 > Sign systems back in before they expire, for as long as this runs.
 >
@@ -30,21 +26,21 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 > cheapest thing that keeps a connection alive over a weekend is the right
 > amount of machinery for it.
 
-## `mine_lately`, [line 56](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L56): Docstring
+## `keep_sessions_open`, [line 35](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L35): Note
 
-> Notice what somebody keeps doing, for as long as this runs.
->
-> A loop for the same reasons as the keeper above: nothing to replay, and a
-> missed sweep costs nothing because the next one reads the same window. Every
-> episode already recorded is skipped, so running it often is only the price
-> of reading the evidence again.
+Code: `expired = await container.expire_confirmations().execute()`
 
-## `mine_the_rig_lately`, [line 90](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L90): Docstring
+> Confirmations nobody answered inside their window are expired here, once a
+> pass, for every tenant. Before this `ExpireConfirmations` had no caller and
+> an expired card stayed in the waiting list for good. It rides on this loop
+> because the loop already wakes every few minutes for the whole deployment;
+> a failure is logged and the session sweep still runs.
+
+## `mine_the_rig_lately`, [line 56](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L56): Docstring
 
 > Read each recorded tenant's day, for as long as this runs.
 >
-> The rig's whole learning cycle, where `mine_lately` above is the pre-rig
-> miner. Both halves had a person in them: `mine_pass` was reachable from a
+> The rig's whole learning cycle. Both halves had a person in them: `mine_pass` was reachable from a
 > door and a script, `read_gestures` from a door and the crontab line in
 > `sro.cli.read_cron`'s own docstring. Every mining result this project has
 > measured came from somebody running a script.
@@ -58,7 +54,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 > Sleeps first. A worker restarting in a crash loop would otherwise fire the
 > most expensive call in the system on every start.
 
-## `retain_lately`, [line 116](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L116): Docstring
+## `retain_lately`, [line 82](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L82): Docstring
 
 > Delete evidence that has aged out of its tenant's own window.
 >
@@ -66,7 +62,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 > replaying, and a missed sweep costs one more day of storage rather than a
 > broken promise -- the next sweep finds the same rows and removes them.
 
-## `rekey_everything`, [line 131](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L131): Docstring
+## `rekey_everything`, [line 97](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L97): Docstring
 
 > Recompute every stored workflow's shape key, once, at startup.
 >
@@ -90,7 +86,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 >     A fix that ships without its migration is a fix for new rows only.
 >     
 
-## module, [line 27](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L27): Comment
+## module, [line 20](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L20): Comment
 
 Code: `logger = logging.getLogger("sro.infrastructure.temporal.worker")`
 
@@ -108,26 +104,7 @@ Code: `logger.exception("the session keeper could not finish its sweep")`
 > A keeper that dies quietly is worse than no keeper: the sessions
 > look fine until the morning somebody needs one.
 
-## `mine_lately`, [line 58](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L58): Comment
-
-Code: `logger.info("the observation miner is off (mining_sweep_seconds=0)")`
-
-> The pre-rig miner, left to a deliberate call. `Settings`' own field
-> carries the whole argument; the short of it is that this sweep
-> teaches what it notices without asking anybody, and four of the nine
-> skills it has taught are Gmail's sync endpoint or this console's own
-> Learn button. Returning rather than looping so the task finishes and
-> the worker is not holding a coroutine that will never do anything.
-
-## `mine_lately`, [line 77](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L77): Comment
-
-Code: `for tenant in mined:`
-
-> And anything now done often enough is learned, without waiting for
-> somebody to press a button. What comes out sits at the bottom of the
-> promotion ladder; nothing here lets anything run.
-
-## `run`, [line 175](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L175): Comment
+## `run`, [line 132](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L132): Comment
 
 Code: `try:`
 

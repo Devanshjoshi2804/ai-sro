@@ -454,7 +454,7 @@ function stepRow({
         if (!value) return;
         button.disabled = true;
         const kept = await onSecret(
-          { system: wants.system, field: wants.field, value, once },
+          { system: wants.system, field: wants.field, value, once, runId: run.id },
           button,
         );
         button.disabled = false;

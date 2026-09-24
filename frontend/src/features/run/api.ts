@@ -1,14 +1,11 @@
 import { api, type Schemas } from "@/lib/api/client";
 
 export type RunModel = Schemas["RunModel"];
-export type StepOutcomeModel = Schemas["StepOutcomeModel"];
 
 export const runKeys = {
   all: ["runs"] as const,
   detail: (id: string) => ["runs", id] as const,
 };
-
-export const listRuns = () => api.get<RunModel[]>("/v1/runs");
 
 export const getRun = (id: string) => api.get<RunModel>(`/v1/runs/${id}`);
 

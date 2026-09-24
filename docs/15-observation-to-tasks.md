@@ -1,5 +1,12 @@
 # From a day of tabs to a named task
 
+> **Historical (2026-09-24).** The candidate pipeline this describes --
+> `mine`, `segment`, `propose`, `teach`, `learn`, `/v1/candidates` and
+> `TeachWorkflow` -- was removed: its sweep was off by default and nothing
+> called its routes. What runs now is the rig miner (`mine_lately`,
+> `mining_pass`), which writes `workflows` rows. The `task_candidates` table is
+> still in the schema.
+
 How continuous observation becomes a task somebody can be offered, and exactly
 which parts of that a model is allowed to decide.
 

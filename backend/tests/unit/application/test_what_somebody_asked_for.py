@@ -172,5 +172,4 @@ def test_every_way_a_person_can_ask_this_system_for_something() -> None:
         "take back a run",  # the undo
         "stop a run",
         "approve a step",  # the tap that lets one write out
-        "call a run's result wrong",
     }, asked

@@ -129,6 +129,106 @@ class TestWorkflows:
         assert back[0].systems == ["https://wms.example", "https://sap.example"]
         assert one == workflow
 
+    async def test_a_job_that_signs_in_is_read_back_as_one(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Decided once by the mining pass and read by every run after it, so
+        it has to survive the store -- and a re-save must be able to clear it
+        when the healing pass reads the evidence differently."""
+        workflow = _workflow(signs_in=True)
+        ordinary = _workflow()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(workflow)
+            await uow.workflows.save(ordinary)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert (await uow.workflows.get(TENANT, workflow.id)).signs_in is True
+            assert (await uow.workflows.get(TENANT, ordinary.id)).signs_in is False
+            workflow.signs_in = False
+            await uow.workflows.save(workflow)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert (await uow.workflows.get(TENANT, workflow.id)).signs_in is False
+
+    async def test_a_retired_job_stays_retired_and_its_evidence_stays_placed(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Retired is gone from everything that offers or runs a job -- the
+        known list and a lookup by id -- and it survives a re-save of the same
+        row. Its citations are still placed, so its gestures are never mined
+        into a fresh copy of it."""
+        retired = _workflow()
+        kept = _workflow(
+            steps=[Step(order=0, says="x", system="https://wms.example", cites=["ges_9"])]
+        )
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(retired)
+            await uow.workflows.save(kept)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.retire(TENANT, retired.id, at=datetime(2026, 9, 23, tzinfo=UTC))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert [one.id for one in await uow.workflows.known(TENANT)] == [kept.id]
+            with pytest.raises(NotFound):
+                await uow.workflows.get(TENANT, retired.id)
+            assert await uow.workflows.placed(TENANT) == {"ges_1", "ges_2", "ges_3", "ges_9"}
+            assert await uow.workflows.placed(OTHER_TENANT) == frozenset()
+            await uow.workflows.save(retired)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert [one.id for one in await uow.workflows.known(TENANT)] == [kept.id]
+
+    async def test_a_doing_folded_into_a_job_stays_placed(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A second doing recognised as a stored job is not a row of its own,
+        and a growth replaces the steps that cited the first. Both doings stay
+        placed, once each, for the tenant that did them and no other."""
+        workflow = _workflow()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(workflow)
+            await uow.workflows.place(TENANT, workflow.id, ("ges_7", "ges_8"))
+            await uow.workflows.place(TENANT, workflow.id, ("ges_8", "ges_9"))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.workflows.placed(TENANT) == {
+                "ges_1",
+                "ges_2",
+                "ges_3",
+                "ges_7",
+                "ges_8",
+                "ges_9",
+            }
+            assert await uow.workflows.placed(OTHER_TENANT) == frozenset()
+
+    async def test_only_the_tenants_own_job_can_be_retired(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        workflow = _workflow()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(workflow)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            with pytest.raises(NotFound):
+                await uow.workflows.retire(OTHER_TENANT, workflow.id, at=datetime.now(tz=UTC))
+            with pytest.raises(NotFound):
+                await uow.workflows.retire(TENANT, "wfl_nobody", at=datetime.now(tz=UTC))
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert [one.id for one in await uow.workflows.known(TENANT)] == [workflow.id]
+
     async def test_a_workflow_names_the_pass_that_found_it(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
@@ -181,15 +281,15 @@ class TestWorkflows:
         assert len(back) == 1
         assert len(back[0].steps) == 2
 
-    async def test_known_is_oldest_first_and_a_re_saved_workflow_is_the_newest(
+    async def test_known_is_oldest_first_and_a_re_saved_workflow_keeps_its_place(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
         """The order is load-bearing, not cosmetic: ``resolve`` breaks a tie
         with a strict ``>``, so the first workflow at the top score wins and
         this order decides which job a proposal is resolved into.
 
-        Re-saving rewrites ``created_at``, which is what INSERT OR REPLACE did
-        in the rig and is why a merged workflow moves to the end.
+        A re-save keeps ``created_at``: a job's creation time never changes,
+        so a merge or a learnt parameter does not move it.
         """
         first, second = _workflow(), _workflow()
 
@@ -201,7 +301,7 @@ class TestWorkflows:
         async with SqlUnitOfWork(session_factory) as uow:
             back = await uow.workflows.known(TENANT)
 
-        assert [row.id for row in back] == [second.id, first.id]
+        assert [row.id for row in back] == [first.id, second.id]
 
     async def test_a_workflow_that_lost_a_step_loses_it_in_the_store_too(
         self, session_factory: async_sessionmaker[AsyncSession]

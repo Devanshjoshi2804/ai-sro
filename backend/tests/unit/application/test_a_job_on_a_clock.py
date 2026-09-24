@@ -25,6 +25,7 @@ import pytest
 
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
+from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.pursuits import Pursuits
 from sro.application.execution.stops import Stops
 from sro.application.execution.workflow_runs import StartWorkflowRun
@@ -131,6 +132,7 @@ def _starter(uow: FakeUnitOfWork) -> StartWorkflowRun:
         cap_usd=5.0,
         stops=Stops(),
         approvals=Approvals(),
+        one_time_secrets=OneTimeSecrets(),
     )
 
 
@@ -542,3 +544,27 @@ async def test_a_question_that_also_names_a_job_is_refused_as_a_sentence_not_a_5
         await _create(uow, scheduler).execute(CTX, replace(_asking(), workflow_id="wfl_1"))
 
     assert uow.triggers.rows == {}
+
+
+async def test_a_retired_jobs_schedule_is_taken_down_rather_than_failing_every_period() -> None:
+    """Final review M-4, 2026-09-24: a retired job's schedule fired into
+    NotFound every period, and nobody was told. A trigger on a retired job is
+    not chosen, so the fire finds none and removes the schedule."""
+    uow, scheduler = await _held(), FakeScheduler()
+    trigger = await _create(uow, scheduler).execute(CTX, _new(auto_approve=True))
+    await uow.workflows.retire(f.TENANT, "wfl_1", at=NOW)
+    fire = FireTrigger(
+        uow,
+        FakeClock(NOW),
+        FakeDurableExecution(),
+        ids=FakeIdFactory(),
+        scheduler=scheduler,
+        start_run=_starter(uow),
+        pursuits=_Dropped(),
+    )
+
+    fired = await fire.execute(trigger.id)
+
+    assert (fired.run_id, fired.skipped) == (None, "no such trigger")
+    assert scheduler.unschedule_calls == [trigger.id.value]
+    assert await uow.triggers.list_for_tenant(f.TENANT) == ()

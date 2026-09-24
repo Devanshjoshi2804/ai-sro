@@ -6,13 +6,12 @@ from urllib.parse import urlsplit
 from sro.application.capture.identity import host_of, system_of
 from sro.application.connection.browsers import Browsers
 from sro.application.context import RequestContext
-from sro.application.observation.register import refuse_unless_itself
 from sro.application.ports.browser import BrowserProvider
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.errors import DomainError
-from sro.domain.shared.identifiers import BrowserSessionId, DeviceId, RecordingId
+from sro.domain.shared.identifiers import BrowserSessionId, RecordingId
 from sro.domain.shared.objective import ObjectiveKey
 
 
@@ -61,19 +60,9 @@ class StartRecording:
         start_url: str | None = None,
         label: str | None = None,
         attach_to: str | None = None,
-        device_id: DeviceId | None = None,
-        device_secret: str = "",
     ) -> StartedRecording:
         if attach_to:
             self._refuse_unless_allowed(attach_to)
-        if device_id is not None:
-            return await self._in_their_own_browser(
-                ctx,
-                device_id=device_id,
-                secret=device_secret,
-                objective_key=objective_key,
-                label=label,
-            )
 
         async with self._uow as uow:
             connections = await uow.connections.list_for_tenant(ctx.tenant_id)
@@ -109,40 +98,6 @@ class StartRecording:
             debugger_url=session.debugger_url,
             browser_session_id=session.id,
             target_system=system,
-        )
-
-    async def _in_their_own_browser(
-        self,
-        ctx: RequestContext,
-        *,
-        device_id: DeviceId,
-        secret: str,
-        objective_key: ObjectiveKey | None,
-        label: str | None,
-    ) -> StartedRecording:
-        async with self._uow as uow:
-            device = await uow.devices.get(ctx.tenant_id, device_id)
-        refuse_unless_itself(device, secret, device_id)
-
-        recording = Recording(
-            id=self._ids.new_recording_id(),
-            tenant_id=ctx.tenant_id,
-            objective_key=objective_key,
-            demonstrator=ctx.principal_id,
-            started_at=self._clock.now(),
-            label=label,
-            device_id=device.id,
-        )
-
-        async with self._uow as uow:
-            await uow.recordings.add(recording)
-            await uow.commit()
-
-        return StartedRecording(
-            recording_id=recording.id,
-            live_view_url="",
-            browser_session_id=None,
-            target_system=objective_key.target_system if objective_key else "",
         )
 
     def _refuse_unless_allowed(self, attach_to: str) -> None:

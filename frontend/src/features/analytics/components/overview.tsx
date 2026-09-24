@@ -17,24 +17,7 @@ import {
 
 const WINDOWS = [1, 7, 30] as const;
 
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  taught: "outline",
-  new: "secondary",
-  dismissed: "outline",
-};
-
-// Taught is a settled good outcome, not something happening now, so it takes the
-// clean colour rather than the accent -- otherwise orange means both "recording"
-// and "done", and a live capture stops being the thing that catches the eye.
-const STATUS_TONE: Record<string, string> = {
-  taught: "bg-good/15 text-good border-good/40",
-};
-
-/**
- * Everything here is derived from rows somebody can open. The one estimate is
- * labelled as one: time saved is what the task used to take, times the number
- * of times the system did it instead.
- */
+/** Everything here is derived from rows somebody can open. */
 export function Overview() {
   const [days, setDays] = useState<number>(7);
   const summary = useQuery({
@@ -85,12 +68,13 @@ export function Overview() {
           {watching.devices === 1 ? "browser" : "browsers"}
         </Figure>
         <Figure label="Tasks noticed" value={noticing.tasks.toString()}>
-          {noticing.worth_offering} worth offering · {noticing.taught} taught · {noticing.dismissed}{" "}
-          dismissed
+          jobs the miner found in what was watched
         </Figure>
-        <Figure label="Minutes saved" value={doing.minutes_saved.toString()} estimate>
-          {doing.clean} clean · {doing.degraded} degraded · {doing.failed} failed · {doing.withheld}{" "}
-          rehearsed · {doing.unreachable} never reached
+        <Figure label="Runs" value={doing.runs.toString()}>
+          {Object.entries(doing.outcomes)
+            .map(([outcome, count]) => `${count} ${outcome}`)
+            .join(" · ") || "none yet"}
+          {doing.rehearsed > 0 && ` · ${doing.rehearsed} rehearsed`}
         </Figure>
       </section>
 
@@ -112,50 +96,31 @@ export function Overview() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-sm font-medium">Tasks, by what they are worth</h2>
+        <h2 className="text-sm font-medium">Tasks</h2>
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Task</TableHead>
-              <TableHead>Seen</TableHead>
-              <TableHead>Each takes</TableHead>
-              <TableHead>Spent by hand</TableHead>
-              <TableHead>Run for them</TableHead>
-              <TableHead>Saved</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Kind</TableHead>
+              <TableHead>Steps</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {tasks.map((task: TaskLineModel) => (
               <TableRow key={task.id}>
                 <TableCell className="font-medium">
-                  {task.skill_id ? (
-                    <Link href={`/skills/${task.skill_id}`} className="underline">
-                      {task.title}
-                    </Link>
-                  ) : (
-                    task.title
-                  )}
+                  <Link href={`/jobs/${task.id}`} className="underline">
+                    {task.title}
+                  </Link>
                   <span className="text-muted-foreground block text-xs">{task.host}</span>
                 </TableCell>
-                <TableCell>{task.times_seen}×</TableCell>
-                <TableCell>{task.median_seconds}s</TableCell>
-                <TableCell>{task.minutes_spent} min</TableCell>
-                <TableCell>{task.runs}</TableCell>
-                <TableCell>{task.minutes_saved} min</TableCell>
-                <TableCell>
-                  <Badge
-                    variant={STATUS_VARIANT[task.status] ?? "outline"}
-                    className={STATUS_TONE[task.status]}
-                  >
-                    {task.status}
-                  </Badge>
-                </TableCell>
+                <TableCell>{task.kind}</TableCell>
+                <TableCell>{task.steps}</TableCell>
               </TableRow>
             ))}
             {tasks.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-muted-foreground">
+                <TableCell colSpan={3} className="text-muted-foreground">
                   None yet — the system has nothing matching that.
                 </TableCell>
               </TableRow>
@@ -163,12 +128,6 @@ export function Overview() {
           </TableBody>
         </Table>
       </section>
-
-      <p className="text-muted-foreground text-xs">
-        Minutes saved is an estimate built from one measurement: how long the task took the
-        operator, times the number of runs that actually sent something. A rehearsal saved nobody
-        anything and is not counted.
-      </p>
     </div>
   );
 }
@@ -176,20 +135,15 @@ export function Overview() {
 function Figure({
   label,
   value,
-  estimate = false,
   children,
 }: {
   label: string;
   value: string;
-  estimate?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="rounded-lg border p-4">
-      <p className="text-muted-foreground text-xs">
-        {label}
-        {estimate && <span className="ml-1">(estimated)</span>}
-      </p>
+      <p className="text-muted-foreground text-xs">{label}</p>
       <p className="text-2xl font-semibold tabular-nums">{value}</p>
       <p className="text-muted-foreground mt-1 text-xs">{children}</p>
     </div>

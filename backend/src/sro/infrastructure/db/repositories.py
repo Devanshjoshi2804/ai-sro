@@ -4,7 +4,7 @@ import re
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import case, delete, literal, or_, select, text
+from sqlalchemy import ColumnElement, case, delete, exists, literal, or_, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -113,6 +113,7 @@ from sro.infrastructure.db.models import (
     ThreadRow,
     ToolCallRow,
     TriggerRow,
+    WorkflowRow,
 )
 from sro.infrastructure.db.offers import SqlChatRepository, SqlOfferRepository
 from sro.infrastructure.db.spend import SqlSpendRepository
@@ -699,20 +700,6 @@ class SqlObservationRepository(ObservationRepository):
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(row_to_batch(row) for row in rows)
 
-    async def for_recording(
-        self, tenant_id: TenantId, recording_id: RecordingId
-    ) -> tuple[ObservationBatch, ...]:
-        query = (
-            select(ObservationBatchRow)
-            .where(
-                ObservationBatchRow.tenant_id == tenant_id.value,
-                ObservationBatchRow.recording_id == recording_id.value,
-            )
-            .order_by(ObservationBatchRow.started_at)
-        )
-        rows = (await self._session.execute(query)).scalars().all()
-        return tuple(row_to_batch(row) for row in rows)
-
     async def tenants_since(self, since: datetime) -> tuple[TenantId, ...]:
         rows = await self._session.execute(
             select(ObservationBatchRow.tenant_id)
@@ -828,6 +815,14 @@ class SqlConfirmationRepository(ConfirmationRepository):
         ).scalars()
         return tuple(row_to_confirmation(row) for row in rows)
 
+    async def tenants_waiting(self) -> tuple[TenantId, ...]:
+        rows = await self._session.execute(
+            select(ConfirmationRow.tenant_id)
+            .where(ConfirmationRow.answer == Answer.WAITING.value)
+            .distinct()
+        )
+        return tuple(TenantId(tenant) for tenant in rows.scalars())
+
     async def _row(self, tenant_id: TenantId, confirmation_id: ConfirmationId) -> ConfirmationRow:
         row = (
             await self._session.execute(
@@ -906,14 +901,15 @@ class SqlTriggerRepository(TriggerRepository):
     async def list_for_tenant(
         self, tenant_id: TenantId, *, skill_id: SkillId | None = None
     ) -> tuple[Trigger, ...]:
-        query = select(TriggerRow).where(TriggerRow.tenant_id == tenant_id.value)
+        query = select(TriggerRow).where(TriggerRow.tenant_id == tenant_id.value, _job_live())
         if skill_id is not None:
             query = query.where(TriggerRow.skill_id == skill_id.value)
         rows = (await self._session.execute(query.order_by(TriggerRow.created_at.desc()))).scalars()
         return tuple(row_to_trigger(row) for row in rows.all())
 
     async def find(self, trigger_id: TriggerId) -> Trigger | None:
-        row = await self._session.get(TriggerRow, trigger_id.value)
+        query = select(TriggerRow).where(TriggerRow.id == trigger_id.value, _job_live())
+        row = (await self._session.execute(query)).scalar_one_or_none()
         return None if row is None else row_to_trigger(row)
 
     async def _row(self, tenant_id: TenantId, trigger_id: TriggerId) -> TriggerRow:
@@ -924,6 +920,14 @@ class SqlTriggerRepository(TriggerRepository):
         if row is None:
             raise NotFound(f"trigger {trigger_id} was not found")
         return row
+
+
+def _job_live() -> ColumnElement[bool]:
+    return ~exists().where(
+        WorkflowRow.tenant_id == TriggerRow.tenant_id,
+        WorkflowRow.id == TriggerRow.workflow_id,
+        WorkflowRow.retired_at.is_not(None),
+    )
 
 
 class SqlUnitOfWork(UnitOfWork):

@@ -445,7 +445,9 @@ reason rather than quietly reaching for a model.
 
 ## Retrieval decides what; the ladder decides how
 
-`POST /v1/intent/resolve` turns a sentence into a decision. It starts no run.
+`ResolveIntent` turns a sentence into a decision. It starts no run. It is
+reached through the conversation; its own route, `POST /v1/intent/resolve`, had
+no client and was removed on 2026-09-24.
 
 **Structural before semantic.** A skill is a candidate only if something on its
 objective key matches — system, entity, facility or verb — and wording only

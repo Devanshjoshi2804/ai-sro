@@ -9,7 +9,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/shared/prices.py`]
 > The prices are dollars per million tokens; a model missing from the table is
 > unpriced, never free.
 
-## `DaySpend`, [line 41](../../../../../../../backend/src/sro/domain/shared/prices.py#L41): Docstring
+## `DaySpend`, [line 42](../../../../../../../backend/src/sro/domain/shared/prices.py#L42): Docstring
 
 > What one tenant has been billed for since midnight UTC.
 >
@@ -20,7 +20,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/shared/prices.py`]
 > whose cost cannot be established is not a cheap day, and the rule that
 > judges this pair says so.
 
-## `Answer`, [line 53](../../../../../../../backend/src/sro/domain/shared/prices.py#L53): Note on the line above
+## `Answer`, [line 67](../../../../../../../backend/src/sro/domain/shared/prices.py#L67): Note on the line above
 
 Code: `truncated: bool = False`
 
@@ -34,25 +34,25 @@ Code: `truncated: bool = False`
 > than parsed back out of it, for the reason every sentence in this system
 > is: a name read out of prose breaks the first time the prose is reworded.
 
-## module, [line 4](../../../../../../../backend/src/sro/domain/shared/prices.py#L4): Comment
+## module, [line 5](../../../../../../../backend/src/sro/domain/shared/prices.py#L5): Comment
 
 Code: `PRICES: dict[str, tuple[float, float]] = {`
 
 > Dollars per million tokens, (input, output).
 
-## module, [line 5](../../../../../../../backend/src/sro/domain/shared/prices.py#L5): Inline
+## module, [line 6](../../../../../../../backend/src/sro/domain/shared/prices.py#L6): Inline
 
 Code: `"gemini-3.8-flash": (0.75, 3.75),`
 
 > introductory, to 2026-12-31
 
-## module, [line 8](../../../../../../../backend/src/sro/domain/shared/prices.py#L8): Inline
+## module, [line 9](../../../../../../../backend/src/sro/domain/shared/prices.py#L9): Inline
 
 Code: `"gemini-3.1-pro": (2.00, 12.00),`
 
 > doubles to (4, 18) above 200K
 
-## module, [line 9](../../../../../../../backend/src/sro/domain/shared/prices.py#L9): Comment
+## module, [line 10](../../../../../../../backend/src/sro/domain/shared/prices.py#L10): Comment
 
 Code: `"gemini-3.1-pro-preview": (2.00, 12.00),`
 
@@ -63,7 +63,7 @@ Code: `"gemini-3.1-pro-preview": (2.00, 12.00),`
 > is the one failure mode `unpriced` cannot fix, because nothing downstream
 > can price a call the table never knew about.
 
-## module, [line 12](../../../../../../../backend/src/sro/domain/shared/prices.py#L12): Comment
+## module, [line 13](../../../../../../../backend/src/sro/domain/shared/prices.py#L13): Comment
 
 Code: `"gemini-embedding-001": (0.15, 0.00),`
 
@@ -72,7 +72,7 @@ Code: `"gemini-embedding-001": (0.15, 0.00),`
 > absent from this table records the whole call as unpriced, and the
 > embedder runs on every reading of the knowledge store.
 
-## module, [line 13](../../../../../../../backend/src/sro/domain/shared/prices.py#L13): Comment
+## module, [line 14](../../../../../../../backend/src/sro/domain/shared/prices.py#L14): Comment
 
 Code: `"gemini-embedding-2": (0.20, 0.00),`
 
@@ -83,13 +83,13 @@ Code: `"gemini-embedding-2": (0.20, 0.00),`
 > image $0.45/M, audio $6.50/M, video $12.00/M, and nothing here sends any
 > of those yet.
 
-## module, [line 18](../../../../../../../backend/src/sro/domain/shared/prices.py#L18): Comment
+## module, [line 19](../../../../../../../backend/src/sro/domain/shared/prices.py#L19): Comment
 
 Code: `LONG_PROMPT_PRICES: dict[str, tuple[float, float]] = {`
 
 > Above a 200K-token prompt, Gemini 3.1 Pro's rates double.
 
-## module, [line 37](../../../../../../../backend/src/sro/domain/shared/prices.py#L37): Comment
+## module, [line 38](../../../../../../../backend/src/sro/domain/shared/prices.py#L38): Comment
 
 Code: `Effort = Literal["minimal", "low", "medium", "high"]`
 
@@ -99,14 +99,14 @@ Code: `Effort = Literal["minimal", "low", "medium", "high"]`
 > constant that silently means "model default" is the exact failure wiring
 > K_EFFORT was meant to close, one layer down, so mypy catches it instead.
 
-## `Answer`, [line 51](../../../../../../../backend/src/sro/domain/shared/prices.py#L51): Comment
+## `Answer`, [line 65](../../../../../../../backend/src/sro/domain/shared/prices.py#L65): Comment
 
 Code: `thought_tokens: int = 0`
 
 > Part of out_tokens for pricing, kept separately so a reader can see how
 > much of the bill was reasoning nobody ever read.
 
-## `Answer`, [line 53](../../../../../../../backend/src/sro/domain/shared/prices.py#L53): Comment
+## `Answer`, [line 67](../../../../../../../backend/src/sro/domain/shared/prices.py#L67): Comment
 
 Code: `truncated: bool = False`
 

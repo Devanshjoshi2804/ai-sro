@@ -23,7 +23,6 @@ from sro.application.observation.read_gesture import (
 )
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
-from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.observation.batch import CaptureMode, ObservationBatch
 from sro.domain.observation.driving import was_our_own_driving
@@ -41,7 +40,7 @@ from sro.domain.observation.redaction import is_secret_name
 from sro.domain.observation.trim import is_secret
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.shared.identifiers import BatchId, DeviceId, PrincipalId, TenantId
-from sro.domain.shared.prices import Answer
+from sro.domain.shared.prices import Answer, ModelSpend
 from tests.unit.domain.rig.conftest import gestures as _gestures
 from tests.unit.fakes import FakeAsker, FakeBlobStore, FakeClock, FakeUnitOfWork
 
@@ -293,17 +292,15 @@ async def test_the_model_is_told_what_to_do_and_given_a_response_schema() -> Non
         "act",
         "object",
         "values_seen",
-        "continues",
         "confidence",
         "why",
     }
 
 
 async def test_an_empty_continues_is_not_a_continuation() -> None:
-    """The schema itself says "empty unless it continues the last doing", so
-    `""` is what a model returns for most gestures. Stored verbatim it is
-    neither a link nor an absence, and `continues` is what the mining pass
-    walks to join gestures into a workflow."""
+    """No longer asked for, and still read tolerantly: an answer that carries
+    it anyway -- `""` for most gestures, as the old schema invited -- is
+    stored as no link rather than as an empty one."""
     asker = FakeAsker(_answer(continues=""))
 
     intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
@@ -1189,7 +1186,7 @@ async def test_with_no_blob_store_a_thin_gesture_is_asked_about_without_a_pictur
     assert all(asked["image"] is None for asked in asker.asked)
 
 
-# --- the door: ReadGestures, POST /v1/gestures/read -------------------------
+# --- the use case: ReadGestures ---------------------------------------------
 
 
 def _ctx(tenant: TenantId = TENANT) -> RequestContext:
@@ -1213,8 +1210,9 @@ def _door(
 
 
 async def _billed(uow: FakeUnitOfWork, *, cost_usd: float, at: datetime) -> None:
-    await uow.chats.record(
-        ChatReading(id=f"cht_{cost_usd}", tenant=TENANT.value, at=at.isoformat(), cost_usd=cost_usd)
+    """A day with a model call on it, as the metered client bills one."""
+    await uow.spend.record(
+        ModelSpend(id=f"cht_{cost_usd}", tenant=TENANT.value, model="m", at=at, cost_usd=cost_usd)
     )
 
 

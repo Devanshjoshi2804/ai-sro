@@ -36,6 +36,7 @@ from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Channel, Reply
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.shared.refusals import OverCap
 from sro.domain.chat.asked_by import only_reads_the_mail
 from sro.domain.execution.belts import K_WEAK_LOCATORS, StepVerdict
 from sro.domain.execution.evidence import (
@@ -72,9 +73,10 @@ from sro.domain.shared.hosts import (
 from sro.domain.shared.hosts import same_screen, screen_of, system_of
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
+from sro.domain.skill.checks import is_sign_in_step
 from sro.domain.skill.learned import demanded
 from sro.domain.skill.repeats import K_MOST_ITEMS, Repeat
-from sro.domain.skill.signing_in import is_a_way_in, is_sign_in_page, signs_in_at
+from sro.domain.skill.signing_in import sign_in_chain, signs_in_at
 from sro.domain.skill.workflow import Step, Workflow
 from sro.whose import attribute
 
@@ -116,6 +118,7 @@ class _Leg:
     item: int | None = None
 
     rescue: bool = False
+    of: Workflow | None = None
 
 
 def _itinerary(
@@ -212,15 +215,12 @@ async def _the_way_back_in(
     job = next((one for one in known if one.id == back), None)
     if job is None or not job.steps:
         return None, []
+    chain = sign_in_chain(job, seen)
     by_id.update({one: seen[one] for step in job.steps for one in step.cites if one in seen})
-    if not all(any(one in by_id for one in step.cites) for step in job.steps):
+    if not all(any(one in by_id for one in step.cites) for step in chain):
         return None, []
     logger.info("%s signing back in at %s with %s", workflow.id, where, job.title)
-    legs = [
-        _Leg(step, dict(values), rescue=True)
-        for step in sorted(job.steps, key=lambda one: one.order)
-    ]
-    return job, legs
+    return job, [_Leg(step, dict(values), rescue=True, of=job) for step in chain]
 
 
 def _target_origin(planned: Planned) -> str | None:
@@ -862,6 +862,7 @@ async def run_workflow(
     known_fields: KnownFields | None = None,
     gather_values: GatherValues | None = None,
     mail: MailHand | None = None,
+    step_ended: Callable[[bool, str | None], Awaitable[None]] | None = None,
     cap_usd: float,
 ) -> WorkflowRun:
     saved = await uow.workflow_runs.get(tenant_id, run_id) if run_id else None
@@ -1192,9 +1193,11 @@ async def run_workflow(
             in_flight = record
             run.steps.append(record)
             origin = origin_of(primary) if primary is not None else None
-            mutates = writes(step, by_id)
+            of_job = leg.of or workflow
+            sign_in_step = of_job.signs_in and is_sign_in_step(of_job, step, by_id)
+            mutates = not sign_in_step and writes(step, by_id)
             writes_ahead = any(
-                later.order > step.order and writes(later, by_id) for later in ordered
+                later.order > step.order and writes(later, by_id) for later in of_job.steps
             )
 
             if live and leg.item == 1 and not proved_the_first:
@@ -1517,21 +1520,14 @@ async def run_workflow(
                     break
 
                 pressing = planned.payload.get("action") in ("click", "press")
-                signing_in = is_sign_in_page(primary.url if primary is not None else None)
-                may_write = (not leg.rescue) and (
+                may_write = not sign_in_step and (
                     mutates
-                    or (
-                        pressing
-                        and planned.kind == "ui.perform_at"
-                        and how != "look"
-                        and not signing_in
-                    )
+                    or (pressing and planned.kind == "ui.perform_at" and how != "look")
                     or (
                         pressing
                         and planned.kind == "ui.perform"
                         and _saw_nothing(step, by_id)
                         and not writes_ahead
-                        and not signing_in
                     )
                 )
 
@@ -1711,7 +1707,7 @@ async def run_workflow(
                     if reply.ok
                     else f"FAILED {reply.detail[:120]}",
                 )
-                if not reply.ok and reply.error_kind in K_NOT_HERE and is_a_way_in(workflow, by_id):
+                if not reply.ok and reply.error_kind in K_NOT_HERE and workflow.signs_in:
                     went = await _where(channel, tenant_id, device_id, run.id, origin)
                     if went.elsewhere_is_ours and not went.signed_out:
                         record.verdict, record.verdict_by = "skipped", "none"
@@ -1960,6 +1956,8 @@ async def run_workflow(
             if record.verdict == "skipped" and verdict is not None:
                 record.verdict, record.verdict_by = verdict.state, verdict.by
                 record.reason = verdict.reason
+            if step_ended is not None:
+                await step_ended(record.verdict == "held" and not of_job.signs_in, origin)
 
             in_flight = None
             await _save(uow, run)
@@ -1991,7 +1989,7 @@ async def run_workflow(
             if record.verdict not in ("held", "withheld"):
                 _signing_in, back = (
                     (None, [])
-                    if signed_back_in or is_sign_in_page(primary.url if primary else None)
+                    if signed_back_in or of_job.signs_in
                     else await _the_way_back_in(
                         uow, tenant_id, workflow, after_failed, values, by_id
                     )
@@ -2028,6 +2026,9 @@ async def run_workflow(
                 run.outcome = "held"
     except DeviceUnreachable as gone:
         _fell_over(run, in_flight, str(gone))
+    except OverCap as reached:
+        _fell_over(run, in_flight, str(reached))
+        run.outcome = "stopped"
     except Exception as broke:
         _fell_over(run, in_flight, f"{type(broke).__name__}: {broke}")
         raise

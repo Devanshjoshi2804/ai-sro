@@ -11,33 +11,61 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/reading_
 > reading a decision that is already made is how a settled question gets
 > re-opened by two words.
 >
-> Refuses by saying "this is an answer", never by silence. A deployment with no
-> model, a day's cap spent, a door that raised -- all of them mean this system
-> behaves exactly as it did before this existed, which is a question that takes
-> the next sentence. That is the wrong default and it is the SAFE one to fall
-> back to: the alternative is a panel that silently stops accepting answers the
-> moment a model is unreachable.
+> An unreadable answer is not an answer. No model configured, the call
+> raising, a reply with no data in it -- none of those says whether what was
+> typed answers the question, and taking the raw text as the value the moment
+> reading becomes unavailable is how `HAS REPLY ARRIVED` reached a
+> four-character box: the model was down and nothing sat between an
+> operator's sentence and the warehouse system. `answers` is a third thing
+> here, not `True` -- `None` for "could not tell" -- so the caller re-asks
+> under the standing question rather than write down a guess.
 
-## `Read`, [line 21](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L21): Docstring
+## `Read`, [line 20](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L20): Docstring
 
 > What the sentence turned out to be.
 
-## `Read`, [line 25](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L25): Note on the line above
+## `Read`, [line 24](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L24): Note on the line above
 
 Code: `about: str = ""`
 
 > What it was instead, where it was not an answer: `the_wait`,
 > `another_task`, or `something_else`. Empty where nothing read it.
 
-## `IsItAnAnswer`, [line 30](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L30): Docstring
+## `IsItAnAnswer`, [line 27](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L27): Docstring
 
 > Whether to take this sentence as the value the conversation asked for.
 
-## `IsItAnAnswer.execute`, [line 35](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L35): Docstring
+## `IsItAnAnswer.execute`, [line 32](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L32): Docstring
 
 > Read it, or say it plainly is one without spending anything.
 
-## `IsItAnAnswer.execute`, [line 58](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L58): Comment
+## `IsItAnAnswer.execute`, [line 35](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L35): Comment
+
+Code: `if self._asker is None:`
+
+> Could not tell, not "this is an answer". A deployment with no model behaves
+> as one whose model is down: the question stands and is asked again, rather
+> than the sentence typed while nobody could read it going straight into the
+> warehouse system.
+
+## `IsItAnAnswer.execute`, [line 48](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L48): Comment
+
+Code: `except Exception:`
+
+> The safe fallback used to be "take the sentence" -- exactly the outage
+> `HAS REPLY ARRIVED` happened in. Could not tell is the safe one now: the
+> question is re-asked, not answered with whatever was said while the model
+> was unreachable.
+
+## `IsItAnAnswer.execute`, [line 52](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L52): Comment
+
+Code: `if data is None:`
+
+> A reply that spent a call and came back with nothing to read is still a
+> spend -- the metered client billed it when it answered -- but it is not a
+> reading, so it is not taken as one either.
+
+## `IsItAnAnswer.execute`, [line 55](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L55): Comment
 
 Code: `value = str(data.get("value") or "").strip() or said.strip()`
 
@@ -45,7 +73,7 @@ Code: `value = str(data.get("value") or "").strip() or said.strip()`
 > named none. A reading that says "this answers" and then hands back
 > nothing has not read anything, and the sentence is what was said.
 
-## `IsItAnAnswer.execute`, [line 63](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L63): Comment
+## `IsItAnAnswer.execute`, [line 60](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L60): Comment
 
 Code: `about=str(data.get("about") or "") or "the_wait",`
 

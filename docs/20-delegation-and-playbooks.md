@@ -514,8 +514,8 @@ needs to tell a slot from a constant.
 After that the piece with a real instance to test against is the executor: send
 the cascade in order, take the id out of each answer, substitute it into the
 next body — instead of `plan_step`'s present refusal, which hands such a step
-to the interface and is right until this exists. `TeachWorkflow` composes two joined candidates into one
-skill on the older plane, and the mined-workflow plane has no equivalent.
+to the interface and is right until this exists. `TeachWorkflow` composed two joined candidates into one
+skill on the older plane (removed 2026-09-24), and the mined-workflow plane has no equivalent.
 
 **Measured 2026-09-19, over every workflow this machine's store holds.** The
 question asked of the evidence directly: does any job take a value another job

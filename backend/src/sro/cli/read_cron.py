@@ -8,6 +8,7 @@ from sro.application.context import RequestContext
 from sro.application.shared.refusals import OverCap
 from sro.container import build_container
 from sro.domain.shared.identifiers import PrincipalId, TenantId
+from sro.whose import about
 
 MAX_PASSES = 25
 
@@ -28,11 +29,12 @@ async def _run(tenants: list[str]) -> int:
         ctx = RequestContext(tenant_id=TenantId(tenant), principal_id=PrincipalId("cron"))
         read = 0
         try:
-            for _ in range(MAX_PASSES):
-                got = await container.read_gestures().execute(ctx)
-                read += got
-                if got == 0:
-                    break
+            with about(tenant=tenant, principal="cron"):
+                for _ in range(MAX_PASSES):
+                    got = await container.read_gestures().execute(ctx)
+                    read += got
+                    if got == 0:
+                        break
         except OverCap as stopped:
             report[tenant] = {"read": read, "stopped": str(stopped)}
         except Exception as problem:

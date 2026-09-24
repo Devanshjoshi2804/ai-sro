@@ -21,7 +21,7 @@ from typing import Annotated
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 
 from sro.domain.recording.artifact import ArtifactKind
-from sro.domain.shared.identifiers import BatchId, DeviceId, RecordingId
+from sro.domain.shared.identifiers import BatchId, DeviceId
 from sro.interface.http.deps import ContainerDep, ContextDep, DeviceSecretDep
 from sro.interface.http.schemas import (
     TOO_LARGE,
@@ -66,7 +66,6 @@ async def ingest_observations(
         ended_at=body.ended_at,
         mode=body.mode,
         events=body.events,
-        recording_id=RecordingId(body.recording_id) if body.recording_id else None,
     )
     return ObservationAcceptedResponse(
         batch_id=ingested.batch_id.value,

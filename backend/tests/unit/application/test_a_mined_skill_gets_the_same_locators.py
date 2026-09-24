@@ -16,8 +16,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sro.application.capture.events import SnapshotEvent
-from sro.application.observation.teach import _capture
 from sro.domain.observation.candidate import Episode
 from sro.domain.shared.identifiers import BatchId
 
@@ -39,41 +37,6 @@ TREE = {
         }
     ]
 }
-
-
-def _snapshot(**over: object) -> dict[str, object]:
-    return {
-        "kind": "snapshot",
-        "snapshot": TREE,
-        "taken_at": "2026-08-31T07:10:00+00:00",
-        "url": "https://wms.example/portal#work.operations",
-        **over,
-    }
-
-
-def test_a_tree_captured_without_a_demonstration_is_still_read() -> None:
-    """This is the whole point. The teach-from-a-candidate path passed over
-    every snapshot it was given, so a task could be watched a hundred times,
-    have a tree for every gesture, and still induce to css paths."""
-    read = _capture(_snapshot(), DURING)
-
-    assert isinstance(read, SnapshotEvent)
-    assert read.snapshot.nodes
-
-
-def test_a_tree_from_outside_the_episode_belongs_to_other_work() -> None:
-    """The same rule gestures and calls go by. A window holds a day of somebody
-    working; the episode is the doing of this one task, and a tree of the screen
-    they were on twenty minutes later describes a different page."""
-    assert _capture(_snapshot(taken_at="2026-08-31T09:00:00+00:00"), DURING) is None
-
-
-def test_a_snapshot_the_browser_mangled_is_skipped_not_fatal() -> None:
-    """One malformed event out of forty is not a reason to make somebody do the
-    task again -- the same judgement the call path already makes."""
-    assert _capture(_snapshot(snapshot="not a tree"), DURING) is None
-    assert _capture(_snapshot(taken_at=None), DURING) is None
-    assert _capture(_snapshot(taken_at="halfway through tuesday"), DURING) is None
 
 
 def test_watching_does_not_debug_a_browser_nobody_agreed_to() -> None:

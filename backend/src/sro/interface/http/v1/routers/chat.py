@@ -1,17 +1,6 @@
-"""One sentence, read against the jobs this tenant was seen doing.
-
-Ported from `new_agent_arch/src/rig/api.py:1495`. Tenant-only, as it is there
-(`dependencies=[Depends(tenant_only)]`): reading a sentence is a model call
-against the tenant's day, and a browser proving itself with its own secret must
-not be able to spend the tenant's budget by typing into a box.
-
-**Not `POST /v1/intent/resolve`.** That one resolves an utterance over this
-tenant's *skills*, with no model call in it at all. This one resolves over the
-*workflows* a mining pass read out of what an operator was seen doing, and it
-bills for the reading. Two resolvers, two vocabularies, one verb between them.
-
-Offers, never starts. What comes back is a form the operator confirms; the
-press that authorises a run is a different door.
+"""The rest of a conversation, once `POST /v1/ask` has named a job or a mail
+has offered one: asking what an offer still needs, sending a drafted reply,
+saying which run an offer became, and looking for what the mail asks for.
 
 Nothing here catches a refusal: `sro.interface.http.errors` maps
 `AskerUnavailable` to 503 and `OverCap` to 429 once, for every route.
@@ -23,14 +12,11 @@ from fastapi import APIRouter, status
 
 from sro.domain.chat.asking import Pending
 from sro.domain.chat.thread import ThreadId
-from sro.domain.observation.attempts import DONE, NOTHING
 from sro.interface.http.asking import TenantOnly
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
     AskAboutOfferRequest,
     AskAboutOfferResponse,
-    ChatRequest,
-    ChatResponse,
     FromTheMailResponse,
     RunStartedRequest,
     SendTheDraftRequest,
@@ -38,25 +24,6 @@ from sro.interface.http.schemas import (
 )
 
 router = APIRouter(tags=["chat"], dependencies=[TenantOnly])
-
-
-@router.post("/chat", status_code=status.HTTP_200_OK)
-async def read_chat(body: ChatRequest, container: ContainerDep, ctx: ContextDep) -> ChatResponse:
-    """Which job the operator meant, with what values, missing what.
-
-    200 rather than 201: nothing is created. The reading leaves a `chats` row
-    behind because the tenant was billed for it, but the answer is an offer and
-    the operator may walk away from it.
-    """
-    read = await container.read_chat().execute(ctx, utterance=body.utterance)
-    await container.record_attempt().execute(
-        ctx,
-        asked_for="ask for a job in words",
-        came_of=DONE if read.workflow_id else NOTHING,
-        why="" if read.workflow_id else "no job of this tenant's matched what was asked for",
-        about={"workflow": read.workflow_id or ""},
-    )
-    return ChatResponse.of(read)
 
 
 @router.post("/chat/about-an-offer", status_code=status.HTTP_200_OK)

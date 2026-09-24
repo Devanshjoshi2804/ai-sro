@@ -70,14 +70,13 @@ export function page(url) {
  * means an operator who comes back in the afternoon is asked again, and one who
  * is standing on the page is asked once.
  */
-export function shouldFire({ url, visit, candidates, nudges, muted, performing, now }) {
+export function shouldFire({ url, visit, candidates, nudges, performing }) {
   // The browser is already being driven. Offering to drive it again is the
   // panel talking over itself.
   if (performing) return null;
 
   const here = page(url);
   if (!here) return null;
-  if (muted[here] && muted[here] > now) return null;
   // One at a time, anywhere. Two open at once is a queue, and a queue of
   // prompts is the thing this design exists to not be.
   if (nudges.some((nudge) => nudge.state === "open")) return null;
@@ -240,17 +239,4 @@ export function sweep(nudges, { url, now, tabId }) {
     const left = here !== null && thisTab && here !== nudge.startsOn;
     return old || left ? { ...nudge, state: "expired", endedAt: now } : nudge;
   });
-}
-
-/**
- * "Not for this page", until the end of the day.
- *
- * A day rather than for ever: the page may matter to them next week even if it
- * did not this afternoon, and a permanent no taken from one press is a decision
- * nobody knew they were making.
- */
-export function mute(muted, startsOn, now) {
-  const midnight = new Date(now);
-  midnight.setHours(24, 0, 0, 0);
-  return { ...muted, [startsOn]: midnight.getTime() };
 }

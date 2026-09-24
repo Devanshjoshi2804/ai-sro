@@ -24,12 +24,13 @@ Code: `TAIL = 8`
 
 > How many previous readings a gesture is read against.
 >
-> `continues` is decided from these lines, so this is the whole memory one
-> reading has of the doing it belongs to. Eight is what the measured day's
+> `continues` was decided from these lines until the schema stopped asking
+> for it (2026-09-23), so this is the whole memory one reading has of the
+> doing it belongs to. Eight is what the measured day's
 > longest job fits inside; every reading pays for them in prompt tokens, once per
 > gesture, thousands of times a day.
 
-## module, [line 30](../../../../../../../backend/src/sro/domain/observation/reading.py#L30): Note on the line above
+## module, [line 29](../../../../../../../backend/src/sro/domain/observation/reading.py#L29): Note on the line above
 
 Code: `_CONFIDENCE = ["high", "medium", "low"]`
 
@@ -38,14 +39,14 @@ Code: `_CONFIDENCE = ["high", "medium", "low"]`
 > a word the schema offers that the guard has never heard of is nulled on the way
 > in -- indistinguishable from a model that declined to give one.
 
-## `_string_field`, [line 72](../../../../../../../backend/src/sro/domain/observation/reading.py#L72): Docstring
+## `_string_field`, [line 69](../../../../../../../backend/src/sro/domain/observation/reading.py#L69): Docstring
 
 > The schema is advisory, not enforced. A model can return `"act": [...]`
 > and nothing here validates it before it reaches `Intent`. Treating a
 > wrong-typed field as unusable is what stops that field poisoning `one_line`
 > the next time this intent is pulled into somebody else's tail context.
 
-## `intent_from`, [line 77](../../../../../../../backend/src/sro/domain/observation/reading.py#L77): Docstring
+## `intent_from`, [line 74](../../../../../../../backend/src/sro/domain/observation/reading.py#L74): Docstring
 
 > One reading, as it will be stored -- whatever came back in it.
 >
@@ -55,7 +56,7 @@ Code: `_CONFIDENCE = ["high", "medium", "low"]`
 > but not the name it was run up against -- which is the one thing a reader of
 > a $0.00 row needs.
 
-## `_values_seen`, [line 105](../../../../../../../backend/src/sro/domain/observation/reading.py#L105): Docstring
+## `_values_seen`, [line 102](../../../../../../../backend/src/sro/domain/observation/reading.py#L102): Docstring
 
 > What the model reported the operator entering, with credentials blanked.
 >
@@ -67,7 +68,7 @@ Code: `_CONFIDENCE = ["high", "medium", "low"]`
 > typed a password is worth reading, what they typed is not. This is the
 > single point every stored values_seen passes through.
 
-## `is_write`, [line 129](../../../../../../../backend/src/sro/domain/observation/reading.py#L129): Docstring
+## `is_write`, [line 126](../../../../../../../backend/src/sro/domain/observation/reading.py#L126): Docstring
 
 > Whether this gesture's own calls actually wrote something.
 >
@@ -75,7 +76,7 @@ Code: `_CONFIDENCE = ["high", "medium", "low"]`
 > what it typed -- and it typed nothing: the click itself carries no value,
 > only the calls it caused prove a write happened at all.
 
-## `field_of`, [line 138](../../../../../../../backend/src/sro/domain/observation/reading.py#L138): Docstring
+## `field_of`, [line 135](../../../../../../../backend/src/sro/domain/observation/reading.py#L135): Docstring
 
 > What to call the box this value was typed into.
 >
@@ -86,7 +87,7 @@ Code: `_CONFIDENCE = ["high", "medium", "low"]`
 > is the typed value itself, so a fold built on it would name every field
 > after its own contents.
 
-## `_typed_before`, [line 150](../../../../../../../backend/src/sro/domain/observation/reading.py#L150): Docstring
+## `_typed_before`, [line 147](../../../../../../../backend/src/sro/domain/observation/reading.py#L147): Docstring
 
 > (field, value) for every value RECORDED as typed just before this one.
 >
@@ -98,7 +99,7 @@ Code: `_CONFIDENCE = ["high", "medium", "low"]`
 > lives, and a secret gesture contributes nothing rather than contributing a
 > blanked value that would then be matched against a request body.
 
-## `_carried_any`, [line 162](../../../../../../../backend/src/sro/domain/observation/reading.py#L162): Docstring
+## `_carried_any`, [line 159](../../../../../../../backend/src/sro/domain/observation/reading.py#L159): Docstring
 
 > Whether this gesture's writes actually sent something just typed.
 >
@@ -111,7 +112,7 @@ Code: `_CONFIDENCE = ["high", "medium", "low"]`
 > so matching on one would hand the fold back to the telemetry post this
 > guard exists to refuse.
 
-## `with_recent_values`, [line 177](../../../../../../../backend/src/sro/domain/observation/reading.py#L177): Docstring
+## `with_recent_values`, [line 174](../../../../../../../backend/src/sro/domain/observation/reading.py#L174): Docstring
 
 > A write's reading folds in what was typed just before it.
 >
@@ -162,7 +163,7 @@ Code: `_CONFIDENCE = ["high", "medium", "low"]`
 > holds the reading it just built, and a `with_` that quietly rewrites its
 > argument is the kind of surprise that costs an afternoon.
 
-## module, [line 34](../../../../../../../backend/src/sro/domain/observation/reading.py#L34): Comment
+## module, [line 33](../../../../../../../backend/src/sro/domain/observation/reading.py#L33): Comment
 
 Code: `"properties": {`
 
@@ -176,7 +177,7 @@ Code: `"properties": {`
 > this sequence, and a prompt that asks for one order while the schema
 > imposes another is a prompt arguing with itself.
 
-## module, [line 50](../../../../../../../backend/src/sro/domain/observation/reading.py#L50): Comment
+## module, [line 48](../../../../../../../backend/src/sro/domain/observation/reading.py#L48): Comment
 
 Code: `"propertyOrdering": [`
 
@@ -186,12 +187,16 @@ Code: `"propertyOrdering": [`
 > ordering a promise of the schema rather than an accident of how Python
 > happens to preserve insertion order through the SDK's conversion.
 
-## `intent_from`, [line 97](../../../../../../../backend/src/sro/domain/observation/reading.py#L97): Comment
+## `intent_from`, [line 94](../../../../../../../backend/src/sro/domain/observation/reading.py#L94): Comment
 
 Code: `intent.continues = _string_field(data, "continues") or None`
 
-> `or None`: the schema says "empty unless it continues the last doing", so
-> "" is what a model returns for most gestures. Stored verbatim it is
+> No longer asked for (2026-09-23): nothing read it, and every reading paid
+> for the model to write it. Still read here, tolerantly, from an answer that
+> carries it anyway, and the column stays.
+>
+> `or None`: the old schema said "empty unless it continues the last doing",
+> so "" is what a model returned for most gestures. Stored verbatim it is
 > neither a link nor an absence.
 >
 > This comment used to end "and `continues` is what the mining pass walks
@@ -204,7 +209,7 @@ Code: `intent.continues = _string_field(data, "continues") or None`
 > join a doing it will want it; it is not load-bearing today, and `TAIL`
 > above should not be defended on its account.
 
-## `_values_seen`, [line 108](../../../../../../../backend/src/sro/domain/observation/reading.py#L108): Comment
+## `_values_seen`, [line 105](../../../../../../../backend/src/sro/domain/observation/reading.py#L105): Comment
 
 Code: `for seen in seen_list if isinstance(seen_list, list) else []:`
 
@@ -212,7 +217,7 @@ Code: `for seen in seen_list if isinstance(seen_list, list) else []:`
 > as its own keys and a string as its characters, so an outer guard alone
 > walks a `{"clientCode": "ACME-4471"}` straight into the per-entry code.
 
-## `_values_seen`, [line 112](../../../../../../../backend/src/sro/domain/observation/reading.py#L112): Comment
+## `_values_seen`, [line 109](../../../../../../../backend/src/sro/domain/observation/reading.py#L109): Comment
 
 Code: `if not isinstance(field, str) or not field:`
 

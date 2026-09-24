@@ -42,11 +42,9 @@ _EXCLUDED = [
 
 
 class GeminiVisionDriver:
-    def __init__(self, api_key: str, model: str) -> None:
-        from google import genai
-
-        self._client = genai.Client(api_key=api_key)
+    def __init__(self, model: str, *, client: Any) -> None:
         self._model = model
+        self._client = client
 
     @property
     def destination(self) -> str:

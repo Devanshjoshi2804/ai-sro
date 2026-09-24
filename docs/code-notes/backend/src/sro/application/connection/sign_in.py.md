@@ -20,28 +20,58 @@ Comments and docstrings moved out of [`backend/src/sro/application/connection/si
 > are never logged, never returned by any endpoint, never written into a
 > recording, and never sent to any host but the one the connection names.
 
-## `NoCredentials`, [line 23](../../../../../../../backend/src/sro/application/connection/sign_in.py#L23): Docstring
+## `NoCredentials`, [line 29](../../../../../../../backend/src/sro/application/connection/sign_in.py#L29): Docstring
 
 > Nothing stored to sign in with, so nothing can be done unattended.
 
-## `StoreCredentials`, [line 34](../../../../../../../backend/src/sro/application/connection/sign_in.py#L34): Docstring
+## `StoreCredentials`, [line 40](../../../../../../../backend/src/sro/application/connection/sign_in.py#L40): Docstring
 
 > Keep what a human typed once, so nothing has to ask them again.
+>
+> One key per password (review round 4, 2026-09-23). When a tagged sign-in job
+> records where this system logs in, the password goes to
+> `<tenant>/<login origin>/password` -- the key `SignIn` and a run's password
+> step read and a refusal is latched on -- so storing here is used, and lifts
+> that refusal. Before, it went to the connection's own key, which a recorded
+> login never reads. The username is stored under the login origin only when
+> the job recorded none; the job's own username wins, as it does in a run. With
+> no recorded login, the connection's keys, as before.
 
-## `SignIn`, [line 50](../../../../../../../backend/src/sro/application/connection/sign_in.py#L50): Docstring
+## `StoreCredentials.execute`, [line 58](../../../../../../../backend/src/sro/application/connection/sign_in.py#L58): Note on the line above
+
+Code: `raise Conflict(`
+
+> A different username than the job recorded is refused, not ignored (fix
+> round 5, 2026-09-23). A run types the job's recorded username; silently
+> keeping the password while dropping the given username would pair another
+> account's password with it -- a refused sign-in on the next run, typed by
+> nobody who could see why. Nothing is stored, and the message names the job
+> and login origin but neither username nor password. The same username, or a
+> job that recorded none, proceeds. The comparison ignores case (task 10,
+> 2026-09-24): identity providers match usernames case-insensitively, so
+> `OPERATOR-7` against a recorded `operator-7` is the same account, not a 409.
+> `SignIn.execute` checks and writes refusals with the password's
+> fingerprint (fix round 2), so a refusal only stands for the password it
+> refused.
+
+## `SignIn`, [line 69](../../../../../../../backend/src/sro/application/connection/sign_in.py#L69): Docstring
 
 > Open a browser, sign in with what is stored, keep the session it produced.
 
-## `EnsureSignedIn`, [line 128](../../../../../../../backend/src/sro/application/connection/sign_in.py#L128): Docstring
+## `EnsureSignedIn`, [line 184](../../../../../../../backend/src/sro/application/connection/sign_in.py#L184): Docstring
 
 > A session, whatever it takes -- and nothing more than it takes.
 >
 > Called before anything that needs the system open. If the stored session
 > still works it does nothing at all, because signing in again would throw
-> away a working session and, on a system that permits one at a time, would
-> sign the operator's own browser out.
+> away a working session and spend a login and a browser for nothing.
+>
+> This also used to cite a system that permits one session at a time, where a
+> second login would sign the operator's own browser out. Measured on QA on
+> 2026-09-23, two logins for the same account in separate browser contexts
+> both stayed valid; the behaviour stands on the reasons above without it.
 
-## `_is_a_login`, [line 177](../../../../../../../backend/src/sro/application/connection/sign_in.py#L177): Docstring
+## `_is_a_login`, [line 233](../../../../../../../backend/src/sro/application/connection/sign_in.py#L233): Docstring
 
 > Whether this skill is somebody signing in.
 >
@@ -49,7 +79,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/connection/si
 > the system name was derived properly is still a demonstration of this
 > login.
 
-## `SignIn._chooser`, [line 102](../../../../../../../backend/src/sro/application/connection/sign_in.py#L102): Docstring
+## `SignIn._chooser`, [line 138](../../../../../../../backend/src/sro/application/connection/sign_in.py#L138): Docstring
 
 > What a demonstration of this login clicked before the form appeared.
 >
@@ -59,7 +89,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/connection/si
 > choosing rather than guessed at -- and where nobody has demonstrated a
 > login, nothing is chosen and the driver behaves as before.
 
-## `EnsureSignedIn.for_url`, [line 143](../../../../../../../backend/src/sro/application/connection/sign_in.py#L143): Docstring
+## `EnsureSignedIn.for_url`, [line 199](../../../../../../../backend/src/sro/application/connection/sign_in.py#L199): Docstring
 
 > Same, for a caller that knows an address and not a system name.
 >
@@ -67,11 +97,11 @@ Comments and docstrings moved out of [`backend/src/sro/application/connection/si
 > connected system that belongs to is ours to work out, not theirs to
 > declare.
 
-## `EnsureSignedIn.execute`, [line 149](../../../../../../../backend/src/sro/application/connection/sign_in.py#L149): Docstring
+## `EnsureSignedIn.execute`, [line 205](../../../../../../../backend/src/sro/application/connection/sign_in.py#L205): Docstring
 
 > True if the system is open. False only when nobody can be asked.
 
-## `SignIn.execute`, [line 87](../../../../../../../backend/src/sro/application/connection/sign_in.py#L87): Comment
+## `SignIn.execute`, [line 120](../../../../../../../backend/src/sro/application/connection/sign_in.py#L120): Comment
 
 Code: `await self._browser.close(session.id)`
 
@@ -79,13 +109,13 @@ Code: `await self._browser.close(session.id)`
 > it open would hold the provider's only slot against the next
 > demonstration.
 
-## `SignIn.execute`, [line 94](../../../../../../../backend/src/sro/application/connection/sign_in.py#L94): Comment
+## `SignIn.execute`, [line 127](../../../../../../../backend/src/sro/application/connection/sign_in.py#L127): Comment
 
 Code: `if self._life is not None and self._clock is not None:`
 
 > The clock this session is measured against starts here.
 
-## `SignIn._chooser`, [line 106](../../../../../../../backend/src/sro/application/connection/sign_in.py#L106): Comment
+## `SignIn._chooser`, [line 142](../../../../../../../backend/src/sro/application/connection/sign_in.py#L142): Comment
 
 Code: `matching = [s for s in skills if _is_a_login(s)]`
 
@@ -95,14 +125,14 @@ Code: `matching = [s for s in skills if _is_a_login(s)]`
 > belongs to another system costs nothing -- the driver clicks only text
 > that is actually on the page in front of it.
 
-## `EnsureSignedIn.execute`, [line 152](../../../../../../../backend/src/sro/application/connection/sign_in.py#L152): Comment
+## `EnsureSignedIn.execute`, [line 208](../../../../../../../backend/src/sro/application/connection/sign_in.py#L208): Comment
 
 Code: `return False`
 
 > An outage is not a login problem, and signing in during one only
 > burns the credentials against a system that cannot answer.
 
-## `EnsureSignedIn.execute`, [line 154](../../../../../../../backend/src/sro/application/connection/sign_in.py#L154): Comment
+## `EnsureSignedIn.execute`, [line 210](../../../../../../../backend/src/sro/application/connection/sign_in.py#L210): Comment
 
 Code: `if await self._ageing(ctx, target_system):`
 
@@ -110,15 +140,70 @@ Code: `if await self._ageing(ctx, target_system):`
 > about to be asked of it. Replacing it here costs one login;
 > finding out halfway through a batch costs the batch.
 
-## `EnsureSignedIn.execute`, [line 158](../../../../../../../backend/src/sro/application/connection/sign_in.py#L158): Inline
+## `EnsureSignedIn.execute`, [line 214](../../../../../../../backend/src/sro/application/connection/sign_in.py#L214): Inline
 
 Code: `return True`
 
 > the session we have still works
 
-## `EnsureSignedIn.execute`, [line 164](../../../../../../../backend/src/sro/application/connection/sign_in.py#L164): Comment
+## `EnsureSignedIn.execute`, [line 220](../../../../../../../backend/src/sro/application/connection/sign_in.py#L220): Comment
 
 Code: `await self._life.died(ctx, system=target_system, at=self._clock.now())`
 
 > It used to work and does not now, which is the only way anybody
 > learns how long these last.
+
+## `SignIn.execute`, [line 96](../../../../../../../backend/src/sro/application/connection/sign_in.py#L96): Comment
+
+Code: `if (standing := await refusals.standing(key, password)) is not None:`
+
+> A password already refused is not submitted again -- not by the keeper's
+> next pass, not by `EnsureSignedIn`, not by anyone -- until that vault key is
+> written again (see `ForgetsRefusalOnWrite`). Checked before a browser is
+> opened, so a latched connection costs nothing.
+>
+> The key is the one `_credentials` actually read the password from, so the
+> latch lands on the same key the run engine and the panel use.
+>
+> The message names the system, the login host that needs a new password and
+> its vault key -- never the password -- so the operator knows where to store
+> a new one (review round 4).
+
+## `SignIn.execute`, [line 114](../../../../../../../backend/src/sro/application/connection/sign_in.py#L114): Comment
+
+Code: `except CredentialsRefused as refused:`
+
+> Only a refusal is latched. Any other failure leaves the password usable.
+
+## `SignIn._credentials`, [line 153](../../../../../../../backend/src/sro/application/connection/sign_in.py#L153): Docstring
+
+> Sign in the way the deployed tenant does (review round 3, 2026-09-23): the
+> username the tagged sign-in job recorded, and the password stored under that
+> job's login origin, `<tenant>/<login origin>/password` -- the key a run's
+> password step reads and the panel's password box writes. Measured on the
+> deployed tenant the same day: the connection-level keys were empty, and the
+> only stored password was under the login origin.
+>
+> The connection's own keys are the fallback only when the job knows nothing
+> (no tagged job lands on this system, or neither a username nor a password for it). A job that
+> knows half names the missing half rather than borrowing a different
+> credential from the connection. A job that recorded no username (a sensitive
+> field redacted it) reads the one `StoreCredentials` kept beside the
+> password, under the login origin.
+>
+> Returns the login host too, for the refusal message.
+
+## `_recorded`, [line 238](../../../../../../../backend/src/sro/application/connection/sign_in.py#L238): Docstring
+
+> The recorded login for this connection, read from the tenant's tagged
+> sign-in jobs and their evidence. See `recorded_login` for which one. A
+> module function so `StoreCredentials` and `SignIn` resolve the same login.
+>
+> The evidence is each job's cited gestures plus the tenant's gestures from
+> its first cite to `K_SITTING_GAP_S` after its last: where a sign-in landed
+> is read off the doing right after it, which the job itself leaves uncited
+> (`checks.signs_in_to`).
+
+## `_key`, [line 259](../../../../../../../backend/src/sro/application/connection/sign_in.py#L259): Docstring
+
+> The vault key a recorded login keeps a field under -- the one a run reads.

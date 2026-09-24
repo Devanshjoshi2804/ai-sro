@@ -10,7 +10,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/transcript
 > configured and transcription is switched on. See docs/12-execution-and-agents.md
 > on egress: capture stays in the customer's infrastructure, sending does not.
 
-## `GeminiTranscriber`, [line 36](../../../../../../../backend/src/sro/infrastructure/transcription/gemini.py#L36): Docstring
+## `GeminiTranscriber`, [line 37](../../../../../../../backend/src/sro/infrastructure/transcription/gemini.py#L37): Docstring
 
 > The SDK is imported here rather than at module scope.
 >
@@ -18,7 +18,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/transcript
 > hosted model's client to boot, and the composition root imports this module
 > either way.
 
-## `_parse`, [line 66](../../../../../../../backend/src/sro/infrastructure/transcription/gemini.py#L66): Docstring
+## `_parse`, [line 65](../../../../../../../backend/src/sro/infrastructure/transcription/gemini.py#L65): Docstring
 
 > Model output is data crossing a trust boundary; a bad shape is silence.
 >

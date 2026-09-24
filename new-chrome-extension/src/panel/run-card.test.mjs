@@ -501,6 +501,7 @@ test("a step refused for want of a password asks the person watching for it", as
       field: "password",
       value: "not-in-any-fixture-9c41",
       once: false,
+      runId: "run_1",
     },
   ]);
   assert.equal(field.value, "", "the password was left sitting in the panel");
@@ -525,6 +526,7 @@ test("a step refused for want of a password asks the person watching for it", as
     field: "password",
     value: "lent-9c41",
     once: true,
+    runId: "run_1",
   });
   assert.equal(field.value, "", "the password was left sitting in the panel");
   assert.match(words(row), /next run only/, "it did not say what it did with it");

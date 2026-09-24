@@ -7,10 +7,10 @@ behind them stay free to change.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import asdict
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, StrictInt, StringConstraints
 
@@ -23,42 +23,25 @@ from sro.application.execution.effects import can_try_again
 from sro.application.execution.pursuits import PursuitProgress
 from sro.application.execution.reversal import Reversal
 from sro.application.intent.match import Candidate
-from sro.application.intent.resolve import Resolution
 from sro.application.lookup.answer import as_seen
 from sro.application.lookup.plan_lookups import Planned
 from sro.application.lookup.run_lookups import Answers, Looked
-from sro.application.observation.mining_pass import MineResult
-from sro.application.observation.read_pool import Pool
 from sro.application.observation.read_shots import PlayableShot
 from sro.application.skill.read_workflows import CitedEvidence, KnownWorkflow
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread
 from sro.domain.execution.belts import K_EARNED_RUNS
-from sro.domain.execution.learned_step import Taught
 from sro.domain.execution.run import Medium, Run, StepOutcome
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.lookup.plan import Asked, Lookup
 from sro.domain.observation.attempts import Attempt
 from sro.domain.observation.batch import CaptureMode, RejectedEvent
-from sro.domain.observation.candidate import (
-    Episode,
-    Join,
-    JoinAnswer,
-    JoinKind,
-    TaskCandidate,
-)
 from sro.domain.observation.device import AgentDevice
-from sro.domain.observation.identity import Resolution as MinedResolution
 from sro.domain.observation.policy import ObservationPolicy
-from sro.domain.observation.pool import PoolEntry
-from sro.domain.recording.recording import Recording
 from sro.domain.shared.objective import Direction, ObjectiveKey
 from sro.domain.shared.prices import DaySpend
-from sro.domain.skill.assertion import AssertionKind
-from sro.domain.skill.checks import Coverage, Rejection
 from sro.domain.skill.locator import ControlLocator, LocatorStrategy
 from sro.domain.skill.offers import Offer
-from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill, SkillVersion
 from sro.domain.skill.template import Template
 from sro.domain.skill.track_record import (
@@ -98,35 +81,6 @@ class ObjectiveKeyModel(BaseModel):
             facility=self.facility,
             direction=self.direction,
         )
-
-
-class StartRecordingRequest(BaseModel):
-    objective_key: ObjectiveKeyModel | None = None
-    """Absent for a first demonstration: the evidence names the task at seal.
-    Present for the second run of a pair, so both carry the same key."""
-
-    start_url: str | None = None
-    label: str | None = None
-
-    attach_to: str | None = None
-    """CDP endpoint of a browser the operator already has open.
-
-    When set, no hosted session is created and capture attaches to that browser
-    instead — the operator demonstrates in their own window."""
-
-    device_id: str | None = None
-    """Demonstrated through the extension, in the operator's own Chrome.
-
-    Different from `attach_to` in the direction the evidence flows: an attached
-    browser is driven by this deployment over CDP, and a device uploads what it
-    saw afterwards, as teaching-mode observation batches. Nothing is opened,
-    nothing is signed in, and there is no live view — the operator is already
-    looking at the only screen involved."""
-
-
-class StartRecordingResponse(BaseModel):
-    recording_id: str
-    live_view_url: str
 
 
 class ConnectSystemRequest(BaseModel):
@@ -284,162 +238,6 @@ class OpenedConnectionResponse(BaseModel):
     decided rather than making somebody type it."""
 
 
-class MediaModel(BaseModel):
-    kind: str
-    url: str
-    content_type: str
-    size_bytes: int
-    duration_ms: int | None
-    frame_index: int | None
-
-
-class LiveViewResponse(BaseModel):
-    live_view_url: str | None
-
-
-class FinishRecordingRequest(BaseModel):
-    abandon_reason: str | None = Field(
-        default=None,
-        description="Present means abandon; absent means seal.",
-    )
-
-    objective_key: ObjectiveKeyModel | None = Field(
-        default=None,
-        description=(
-            "Only for a demonstration whose evidence cannot name it, or the "
-            "second run of a pair. Otherwise the task names itself."
-        ),
-    )
-
-
-class RecordingSummary(BaseModel):
-    id: str
-    objective_key: ObjectiveKeyModel | None
-    label: str | None
-    status: str
-    demonstrator: str
-    started_at: datetime
-    ended_at: datetime | None
-    frame_count: int
-    has_narration: bool
-
-    @classmethod
-    def of(cls, recording: Recording) -> RecordingSummary:
-        return cls(
-            id=recording.id.value,
-            objective_key=ObjectiveKeyModel.of(recording.objective_key),
-            label=recording.label,
-            status=recording.status.value,
-            demonstrator=recording.demonstrator.value,
-            started_at=recording.started_at,
-            ended_at=recording.ended_at,
-            frame_count=len(recording.frames),
-            has_narration=recording.has_narration,
-        )
-
-
-class FrameSummary(BaseModel):
-    """Enough to render the timeline. The full frame is fetched per frame."""
-
-    index: int
-    occurred_at: datetime
-    action_kind: str
-    target: str | None
-    request_count: int
-    primary_request: str | None
-    primary_status: int | None
-    error_count: int
-
-    applied: bool
-    """The action caused a mutating call the system accepted.
-
-    How a teaching session knows the task actually happened rather than asking
-    the operator to say so. It means something was applied, not that the task is
-    finished -- a task can apply several things.
-    """
-
-
-class RecordingDetail(RecordingSummary):
-    frames: list[FrameSummary]
-    artifacts: list[ArtifactModel]
-
-    @classmethod
-    def of_recording(cls, recording: Recording) -> RecordingDetail:
-        summary = RecordingSummary.of(recording)
-        return cls(
-            **summary.model_dump(),
-            frames=[
-                FrameSummary(
-                    index=frame.index,
-                    occurred_at=frame.occurred_at,
-                    action_kind=frame.action.kind.value,
-                    target=frame.action.target.describe() if frame.action.target else None,
-                    request_count=len(frame.requests),
-                    primary_request=(
-                        f"{frame.primary_request.method} {frame.primary_request.url}"
-                        if frame.primary_request
-                        else None
-                    ),
-                    primary_status=(
-                        frame.primary_request.status if frame.primary_request else None
-                    ),
-                    applied=(
-                        frame.primary_request is not None
-                        and frame.primary_request.is_mutation
-                        and frame.primary_request.succeeded
-                    ),
-                    error_count=len(frame.errors),
-                )
-                for frame in recording.frames
-            ],
-            artifacts=[ArtifactModel.of(a) for a in recording.artifacts],
-        )
-
-
-class ArtifactModel(BaseModel):
-    kind: str
-    uri: str
-    content_type: str
-    size_bytes: int
-    frame_index: int | None
-    label: str | None
-
-    @classmethod
-    def of(cls, artifact: Any) -> ArtifactModel:
-        return cls(
-            kind=artifact.kind.value,
-            uri=artifact.uri,
-            content_type=artifact.content_type,
-            size_bytes=artifact.size_bytes,
-            frame_index=artifact.frame_index,
-            label=artifact.label,
-        )
-
-
-class UnderstandRequest(BaseModel):
-    recording_id: str
-    name: str | None = None
-
-
-class UnderstoodResponse(BaseModel):
-    skill_id: str
-    version: int
-    step_count: int
-    proposed_parameter_count: int
-    caveat: str
-    """What the reading could not account for. Kept, because "I did not
-    understand step 4" is the most useful thing it can say."""
-
-
-class InduceSkillRequest(BaseModel):
-    first_recording_id: str
-    second_recording_id: str | None = None
-    """Absent when the operator asked for a skill from one demonstration. What
-    that costs is on the skill itself: with nothing to diff against, every value
-    stays exactly as it was demonstrated and the skill takes no parameters."""
-    name: str | None = None
-
-
 class SkillSummary(BaseModel):
     id: str
     name: str
@@ -548,24 +346,6 @@ class GrantsResponse(BaseModel):
         )
 
 
-class DemonstrationModel(BaseModel):
-    """One demonstration behind a version, and what it put in each field.
-
-    ``values`` holds a name only where this doing answers for it: a null is
-    "sent holding nothing", which is the evidence behind an optional field,
-    and a name absent from the mapping is a field this doing does not answer
-    for at all. The two are different facts and the screen shows them
-    differently.
-    """
-
-    recording_id: str
-    started_at: datetime
-    demonstrator: str
-    frames: int
-    diffed: bool
-    values: dict[str, str | None]
-
-
 class AssertionModel(BaseModel):
     kind: str
     expected: str
@@ -593,12 +373,6 @@ class UiPlanModel(BaseModel):
     target_path: str | None
     value: str | None
     wait_for: str | None
-
-
-class ToolOfferedModel(BaseModel):
-    name: str
-    description: str
-    arguments: list[str]
 
 
 class ConfirmationModel(BaseModel):
@@ -641,26 +415,6 @@ class AnsweredModel(BaseModel):
     confirmation_id: str
     answer: str
     run_id: str | None = None
-
-
-class AssertRequest(BaseModel):
-    version: int
-    step_index: int
-    kind: AssertionKind
-    expected: str
-    pointer: str | None = None
-
-
-class MapStepRequest(BaseModel):
-    version: int
-    step_index: int
-    server: str
-    tool: str
-    arguments: dict[str, str] = {}
-    writes: bool = False
-    """Whether calling this changes something outside this system. Said by the
-    person mapping it, because nothing else can: MCP declares no such thing,
-    and a tool named `send_message` is a name rather than a promise."""
 
 
 class ToolPlanModel(BaseModel):
@@ -938,40 +692,10 @@ class ChoiceModel(BaseModel):
     label: str
 
 
-class PromoteRequest(BaseModel):
-    """A person, in the console, choosing to move a version up a rung.
-
-    Carries no `from_where`: this endpoint is answered by `PromoteSkill`, which
-    always tells the version it was `"console"`. A press on the panel's preview
-    promotes through a different call, because it is a different review -- see
-    ADR 014 -- and this request never stands in for it."""
-
-    version: int
-    to: PromotionStage
-    """The rung to move to, checked here rather than in the router: coercing an
-    unknown name inside the handler raised a bare ValueError, so asking to
-    promote something to "wizard" answered 500 — an internal fault for a typo."""
-
-    acknowledging_fixed_values: bool = False
-    """Yes, I have read what this sends and I mean it.
-
-    Only consulted for a version induced from one demonstration that writes:
-    with nothing to diff against, every value it sends is the one that run
-    happened to carry, and above shadow it is sent for real."""
-
-
 class DescribeRequest(BaseModel):
     version: int
     summary: str
     when_to_use: str = ""
-
-
-class InductionResponse(BaseModel):
-    skill_id: str
-    version: int
-    step_count: int
-    input_parameter_count: int
-    derived_parameter_count: int
 
 
 class BatchRequest(BaseModel):
@@ -1240,12 +964,6 @@ class SessionHeadersResponse(BaseModel):
     """Key names only. A credential is never echoed back."""
 
 
-class ResolveIntentRequest(BaseModel):
-    utterance: str
-    system: str | None = None
-    parameters: dict[str, str] = Field(default_factory=dict)
-
-
 class CandidateModel(BaseModel):
     skill_id: str
     name: str
@@ -1255,77 +973,6 @@ class CandidateModel(BaseModel):
     score: int
     why: list[str]
     unexplained: list[str]
-
-
-class ProposedStepModel(BaseModel):
-    what: str
-    detail: str
-    source: str
-    evidence: str
-
-
-class ProposalModel(BaseModel):
-    steps: list[ProposedStepModel]
-    sources: list[str]
-    caveat: str
-
-
-class ResolutionModel(BaseModel):
-    """What the system decided a sentence asked for.
-
-    `matched` absent with `choices` present means two skills were too close to
-    separate; `proposal` present means nothing was taught and this is what the
-    knowledge base says. Neither is a run.
-    """
-
-    utterance: str
-    matched: CandidateModel | None
-    choices: list[CandidateModel]
-    missing_parameters: list[str]
-    runnable: bool
-    confident: bool
-    question: str | None
-    why: list[str]
-    proposal: ProposalModel | None
-
-    items: list[dict[str, str]] = []
-    """Values the parser read out of the sentence for the matched skill, one
-    set per thing to do -- "these six SKUs" is six. Sent so a caller that asks
-    in a sentence rather than a form can actually use what typing the sentence
-    was for; without this a matched skill whose parameters the sentence
-    supplied was refused at the press for values nobody was ever asked to
-    give twice."""
-
-    @classmethod
-    def of(cls, resolution: Resolution) -> ResolutionModel:
-        return cls(
-            utterance=resolution.utterance,
-            matched=_candidate(resolution.matched),
-            choices=[model for c in resolution.choices if (model := _candidate(c))],
-            missing_parameters=list(resolution.missing_parameters),
-            runnable=resolution.runnable,
-            confident=resolution.confident,
-            question=resolution.question,
-            why=list(resolution.why),
-            items=[dict(item) for item in resolution.items],
-            proposal=(
-                ProposalModel(
-                    steps=[
-                        ProposedStepModel(
-                            what=step.what,
-                            detail=step.detail,
-                            source=step.source,
-                            evidence=step.evidence.value,
-                        )
-                        for step in resolution.proposal.steps
-                    ],
-                    sources=list(resolution.proposal.sources),
-                    caveat=resolution.proposal.caveat,
-                )
-                if resolution.proposal is not None
-                else None
-            ),
-        )
 
 
 def _candidate(candidate: Candidate | None) -> CandidateModel | None:
@@ -1447,7 +1094,7 @@ class ProblemModel(BaseModel):
 
     Declared so the generated client knows the shape. It did not: every failure
     reached the browser as whatever the success model said it should be, and a
-    404 was read as a RecordingDetail with every field missing.
+    404 was read as a SkillDetail with every field missing.
     """
 
     type: str
@@ -1979,63 +1626,6 @@ class AuditResponse(BaseModel):
         )
 
 
-class PoolEntryModel(BaseModel):
-    """One gesture waiting for a better reading, and how long it has waited."""
-
-    gesture_id: str
-
-    age: int
-    """Readings this entry was SHOWN and not cited. Runs out at `K_POOL_AGE`."""
-
-    waited: int
-    """Passes it was PASSED OVER. The other clock, and the one that drives
-    priority so the day rotates -- an entry read six times outranking one never
-    seen at all is what happened when age did both jobs."""
-
-    entered_at: str
-
-    reason: str
-    """Why it retired, empty while it is still live.
-
-    There is no `retired` field, here or on the entry: `reason != ""` IS
-    retirement, so the flag and its cause cannot drift apart. Carried on both
-    lists rather than only on the retired one, so a reader that concatenates
-    them can still tell which is which.
-    """
-
-    @classmethod
-    def of(cls, entry: PoolEntry) -> PoolEntryModel:
-        return cls(
-            gesture_id=entry.gesture_id,
-            age=entry.age,
-            waited=entry.waited,
-            entered_at=entry.entered_at,
-            reason=entry.reason,
-        )
-
-
-class PoolResponse(BaseModel):
-    """What the next pass will be offered first, and what it will not."""
-
-    waiting: list[PoolEntryModel]
-    """Live entries, oldest first."""
-
-    retired: list[PoolEntryModel]
-    """What stopped being privileged, and under which cap.
-
-    A second list rather than a flag on the first, because a retired entry is
-    not a deleted one: it goes on being packed at its own strength, and the two
-    lists are the two reads the repository promises.
-    """
-
-    @classmethod
-    def of(cls, pool: Pool) -> PoolResponse:
-        return cls(
-            waiting=[PoolEntryModel.of(entry) for entry in pool.waiting],
-            retired=[PoolEntryModel.of(entry) for entry in pool.retired],
-        )
-
-
 class SpendResponse(BaseModel):
     """What the day has cost, whether that figure can be trusted, and the cap.
 
@@ -2187,7 +1777,7 @@ class EvidenceResponse(BaseModel):
     """Everything a workflow cites, in the shape a runner's bridge consumes.
 
     Three maps and not one. `gestures` is the extension's own wire shape --
-    what `application.skill.from_rig` reads a replayable plan out of -- and a
+    what a runner's bridge reads a replayable plan out of -- and a
     gesture on the wire never carried its calls, so folding them in would give
     the bridge a shape neither side speaks. `requests` is keyed by gesture id
     beside it, as the rig served it and as the two are stored.
@@ -2208,8 +1798,8 @@ class EvidenceResponse(BaseModel):
     missing: list[str]
     """Cited gesture ids the store no longer holds, in cited order.
 
-    The rig served this and the port dropped it. `from_rig.plans_for_step`
-    skips a citation with no gesture, so a caller building a runnable job out
+    The rig served this and the port dropped it. A bridge skips a citation
+    with no gesture, so a caller building a runnable job out
     of this body gets one silently missing a step -- and is entitled to know
     before it runs it. Normally empty: the proposal that became this workflow
     was refused if it cited evidence that did not exist, so a non-empty
@@ -2254,11 +1844,10 @@ class ObservationBatchRequest(BaseModel):
     device_id: str = Field(max_length=64)
     started_at: datetime
     ended_at: datetime
-    mode: CaptureMode = CaptureMode.PASSIVE
-
-    recording_id: str | None = Field(default=None, max_length=64)
-    """The demonstration this batch belongs to. Set when, and only when, the
-    mode is `teaching`."""
+    mode: Literal[CaptureMode.PASSIVE] = CaptureMode.PASSIVE
+    """The only value this door accepts. `CaptureMode.TEACHING` still exists
+    for reading rows a deployment received before the device-teaching path
+    was removed -- see its own note -- but no wire input may carry it."""
 
     events: list[dict[str, Any]]
     """Screened, not parsed, and stored verbatim. The shapes are in
@@ -2432,6 +2021,18 @@ class NewSecretRequest(BaseModel):
     value: Annotated[str, StringConstraints(min_length=1, max_length=512)]
     """Written to the vault and nowhere else: never answered with, never
     logged, never in the evidence plane. See `v1/routers/secrets`."""
+
+
+class NewSecretOnceRequest(NewSecretRequest):
+    """`NewSecretRequest`, plus the run this password was given for.
+
+    `PUT /v1/secrets` has no run: what it stores outlives every run that will
+    ever read it. What `POST /v1/secrets/once` holds does not -- it is handed
+    to one run and refused to every other, so the run has to be named here
+    rather than guessed at the moment a step asks for it.
+    """
+
+    run_id: str
 
 
 class SecretStoredModel(BaseModel):
@@ -2632,178 +2233,6 @@ class WatchMatchModel(BaseModel):
     says what it needs."""
 
 
-class EpisodeModel(BaseModel):
-    started_at: datetime
-    ended_at: datetime
-    duration_ms: int
-    gestures: int
-    calls: int
-
-    @classmethod
-    def of(cls, episode: Episode) -> EpisodeModel:
-        return cls(
-            started_at=episode.started_at,
-            ended_at=episode.ended_at,
-            duration_ms=episode.duration_ms,
-            gestures=episode.gestures,
-            calls=episode.calls,
-        )
-
-
-class JoinModel(BaseModel):
-    """A suggestion that this candidate and another are one piece of work.
-
-    `variant` is the same task done two ways; `workflow` is two halves of one
-    task in two systems. Suggestions, with the reason attached: nothing merges
-    on them, and `by_model` says who is doing the suggesting.
-    """
-
-    other_id: str
-    kind: str
-    because: str
-    by_model: bool
-
-    answered: str | None = None
-    """`same` or `different`, once somebody has looked. Absent means it is
-    still a question, and a screen should be asking it rather than stating it."""
-
-    answered_by: str | None = None
-
-    @classmethod
-    def of(cls, join: Join) -> JoinModel:
-        return cls(
-            other_id=join.other_id.value,
-            kind=join.kind.value,
-            because=join.because,
-            by_model=join.by_model,
-            answered=join.answered.value if join.answered else None,
-            answered_by=join.answered_by.value if join.answered_by else None,
-        )
-
-
-class AnswerJoinRequest(BaseModel):
-    """What a person says two candidates are to each other."""
-
-    other_id: str
-    kind: JoinKind
-    answer: JoinAnswer
-
-
-class TaskCandidateModel(BaseModel):
-    """A task somebody keeps doing, offered rather than acted on."""
-
-    id: str
-    title: str
-    host: str
-    signature: str
-    """The calls it makes, in order, with the identifiers taken out. On the wire
-    because it is the whole argument that two doings are the same task, and an
-    operator who disagrees should be able to see why."""
-
-    status: str
-    times_seen: int
-    median_duration_ms: int
-    minutes_so_far: float
-    first_seen: datetime | None
-    last_seen: datetime | None
-    skill_id: str | None
-    dismissed_reason: str | None
-    named_by_model: bool
-    """Whether the title is a model's sentence rather than one derived from the
-    calls. On the wire so a screen can say so: a name is not a fact."""
-
-    offered_at: datetime | None
-    """When this was said out loud in the operator's conversation, if it has
-    been. On the wire so the panel's list can stop drawing what the thread is
-    already showing: an offer belongs in one place, and two surfaces carrying
-    the same two buttons is how they come to disagree about whether it was
-    answered."""
-
-    starts_on: str = ""
-    """Host and path of the page this task begins on, no query string.
-
-    On the wire so the extension can recognise that page the moment the operator
-    lands on it, against the candidate list it already holds -- without asking
-    the server on every navigation what the tab in front of somebody is for.
-    """
-
-    joins: list[JoinModel]
-    episodes: list[EpisodeModel]
-
-    @classmethod
-    def of(cls, candidate: TaskCandidate) -> TaskCandidateModel:
-        return cls(
-            id=candidate.id.value,
-            title=candidate.title,
-            host=candidate.host,
-            starts_on=candidate.starts_on,
-            signature=candidate.signature,
-            status=candidate.status.value,
-            times_seen=candidate.times_seen,
-            median_duration_ms=candidate.median_duration_ms,
-            minutes_so_far=round(candidate.minutes_so_far, 1),
-            first_seen=candidate.first_seen,
-            last_seen=candidate.last_seen,
-            skill_id=candidate.skill_id.value if candidate.skill_id else None,
-            dismissed_reason=candidate.dismissed_reason,
-            named_by_model=candidate.named_by_model,
-            offered_at=candidate.offered_at,
-            joins=[JoinModel.of(join) for join in candidate.joins],
-            episodes=[EpisodeModel.of(episode) for episode in candidate.episodes],
-        )
-
-
-class ReviseRunRequest(BaseModel):
-    """What the operator changed while the run was going.
-
-    Names the skill declares and nothing else -- a name outside them reaches no
-    step, and the run refuses it rather than recording a decision with no
-    effect.
-    """
-
-    values: dict[str, str] = Field(min_length=1)
-
-
-class DismissCandidateRequest(BaseModel):
-    reason: str
-
-
-class TaughtModel(BaseModel):
-    candidate_id: str
-    recording_id: str | None
-    skill_id: str | None
-    needs_demonstration: bool
-    because: str | None
-    """Why one more doing of it is needed. Passive capture sees no accessibility
-    tree and only the response bodies the page could see, so some tasks cannot
-    be induced from it -- and being told which, and why, is better than a skill
-    nobody can trust."""
-
-
-class TeachTogetherRequest(BaseModel):
-    """The other half of a job a person has said is one job."""
-
-    other_id: str
-
-
-class TaughtTogetherModel(BaseModel):
-    """One skill out of two candidates. Both ids, because both were spent."""
-
-    first_id: str
-    second_id: str
-    recording_ids: list[str]
-    skill_id: str | None
-    needs_demonstration: bool
-    because: str | None
-
-
-class MinedModel(BaseModel):
-    episodes: int
-    candidates_seen: int
-    candidates_new: int
-    occurrences_new: int
-
-
 class WatchingModel(BaseModel):
     devices: int
     batches: int
@@ -2813,21 +2242,20 @@ class WatchingModel(BaseModel):
 
 class NoticingModel(BaseModel):
     tasks: int
-    worth_offering: int
-    taught: int
-    dismissed: int
     by_kind: dict[str, int]
 
 
 class DoingModel(BaseModel):
+    """The mined jobs' runs started in the window.
+
+    `outcomes` counts each run by the outcome it ended with (`held`,
+    `stopped`, `refused`, `aborted`, `failed`, or `running` while it still
+    is). `rehearsed` is the held runs that were dry and sent nothing.
+    """
+
     runs: int
-    clean: int
-    degraded: int
-    failed: int
-    withheld: int
-    unreachable: int
-    writes_sent: int
-    minutes_saved: float
+    rehearsed: int
+    outcomes: dict[str, int]
 
 
 class TaskLineModel(BaseModel):
@@ -2835,13 +2263,7 @@ class TaskLineModel(BaseModel):
     title: str
     host: str
     kind: str
-    status: str
-    times_seen: int
-    median_seconds: float
-    minutes_spent: float
-    skill_id: str | None
-    runs: int
-    minutes_saved: float
+    steps: int
 
 
 class SummaryModel(BaseModel):
@@ -2864,155 +2286,12 @@ class SummaryModel(BaseModel):
         )
 
 
-class MineRejectionModel(BaseModel):
-    """A proposal the checker would not let through, and why.
-
-    `Mine...` rather than `RejectionModel` for the same reason as the two
-    below: the names without the prefix are taken in this file by models over
-    entirely different domain classes.
-    """
-
-    workflow_title: str
-    reason: str
-    detail: str
-
-    @classmethod
-    def of(cls, rejection: Rejection) -> MineRejectionModel:
-        return cls(**asdict(rejection))
-
-
-class MineResolutionModel(BaseModel):
-    """Where a proposed workflow went when it was not kept.
-
-    `kind` is "new", "same_occurrence" or "same_job". Named `Mine...` because
-    `ResolutionModel` further up already belongs to the intent resolver, over
-    a different `Resolution` class entirely -- there are two classes of that
-    name and this one is `observation.identity.Resolution`.
-    """
-
-    kind: str
-    workflow_id: str | None
-    score: float
-    contains: bool
-
-    @classmethod
-    def of(cls, resolution: MinedResolution) -> MineResolutionModel:
-        return cls(**asdict(resolution))
-
-
-class MineCoverageModel(BaseModel):
-    """How much of the window the kept proposals actually accounted for."""
-
-    coverage: float
-    skew: float
-    gini: float
-
-    lopsided: bool
-    """The reading was concentrated in part of the window.
-
-    Which of the three numbers beside it broke its threshold is readable from
-    them; that one did is the verdict, and long-context citation bias is real
-    and model-specific enough that a pass saying so is worth a field. Carried
-    on this object rather than at the top level, matching the rig -- on
-    `MineResult` it sits at the top, which is why this is assembled rather
-    than mapped straight across.
-    """
-
-    @classmethod
-    def of(cls, coverage: Coverage, *, lopsided: bool) -> MineCoverageModel:
-        return cls(**asdict(coverage), lopsided=lopsided)
-
-
-class MinePassResponse(BaseModel):
-    """What one reading of a day cost and found.
-
-    `rejections` and `resolutions` are both here and neither is optional. The
-    rig's reason, kept: without resolutions, `proposed: 3, kept: 0,
-    rejections: []` is three jobs that vanished with no account of where they
-    went.
-
-    `learned_parameters` is the one figure that says whether parameter
-    learning is getting better, and until migration 0041 every pass computed
-    it and the persistence layer discarded it. A pass that recognises nothing
-    new and widens two parameters did real work.
-
-    `left_out` and `lost_pool` are counted rather than inferred: `left_out`
-    did not fit the token budget and is offered again next pass, `lost_pool`
-    is a pooled id with no gesture row that no pass can ever read. Neither is
-    derivable from `window_size` alone.
-
-    Three deliberate divergences from the rig. It names the window field
-    `window` and this keeps `window_size`, matching `MineResult`; it names a
-    rejection's job `title` (`api.py:766`) and this says `workflow_title`, so
-    that a rejection read beside a workflow cannot be mistaken for one; and it
-    rounds `cost_usd` to six places in the route while this does not --
-    rounding for display is the reader's job, and a bill rounded on the way
-    out cannot be summed against the row it came from.
-    """
-
-    pass_id: str
-    error: str | None
-    """What the model said went wrong, when something did. A pass that failed
-    and a pass that honestly found nothing are the same body without it."""
-
-    proposed: int
-    kept: int
-    learned_parameters: int
-    window_size: int
-    left_out: int
-    lost_pool: list[str]
-    rejections: list[MineRejectionModel]
-    resolutions: list[MineResolutionModel]
-    coverage: MineCoverageModel
-    in_tokens: int
-    out_tokens: int
-    thought_tokens: int
-    """Inside `out_tokens`, not beside them. Added to them, a reader reports a
-    number no invoice will match."""
-
-    cost_usd: float
-    unpriced: bool
-
-    @classmethod
-    def of(cls, result: MineResult) -> MinePassResponse:
-        return cls(
-            pass_id=result.pass_id,
-            error=result.error,
-            proposed=result.proposed,
-            kept=result.kept,
-            learned_parameters=result.learned_parameters,
-            window_size=result.window_size,
-            left_out=result.left_out,
-            lost_pool=list(result.lost_pool),
-            rejections=[MineRejectionModel.of(one) for one in result.rejections],
-            resolutions=[MineResolutionModel.of(one) for one in result.resolutions],
-            coverage=MineCoverageModel.of(result.coverage, lopsided=result.lopsided),
-            in_tokens=result.in_tokens,
-            out_tokens=result.out_tokens,
-            thought_tokens=result.thought_tokens,
-            cost_usd=result.cost_usd,
-            unpriced=result.unpriced,
-        )
-
-
-class ReadGesturesResponse(BaseModel):
-    """How many of this tenant's unread gestures this reading picked up.
-
-    A bare count, not a per-gesture list: `POST /v1/mine` already answers what
-    each stored reading amounts to, and re-serving the readings themselves
-    here would be a second, narrower door onto the same rows the gestures
-    route -- not yet ported -- exists to open properly.
-    """
-
-    read: int
-
-
 class LookupRequest(BaseModel):
     """A question, and whether to go and answer it.
 
-    The same two bounds `ChatRequest` carries and for the same reason: this
-    door spends a model call, so the one part of the prompt a caller controls
-    is bounded at both ends before anything is asked.
+    The same two bounds a sentence to `POST /v1/ask` carries and for the same
+    reason: this door spends a model call, so the one part of the prompt a
+    caller controls is bounded at both ends before anything is asked.
     """
 
     question: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
@@ -3182,37 +2461,6 @@ class LookupResponse(BaseModel):
             cost_usd=bill.cost_usd if bill else 0.0,
             unpriced=bill.unpriced if bill else False,
         )
-
-
-class ChatRequest(BaseModel):
-    """What an operator said, and nothing else.
-
-    No tenant and no day: both come off the credential and the container's
-    clock. A body naming either would be a request to read somebody else's jobs
-    or to bill a day the cap was not measured against.
-
-    All three constraints are about the same thing: this is the door whose
-    entire premise is refusing before it spends, so the one part of the prompt
-    a caller controls is bounded at both ends before a model is asked.
-
-    * `strip_whitespace` FIRST, so `min_length` judges what will actually be
-      sent. Without it `"   "` validates, and three spaces is a paid model call
-      about nothing.
-    * `min_length=1` because the rig took `str(body.get("utterance") or "")`
-      and asked the model that: a missing field there spent money on a prompt
-      containing nothing. This is the one refusal that costs nothing to make.
-    * `max_length=500` because without a ceiling a 200,000-character body is a
-      valid request and one caller's spend is unbounded. 500 is not a new
-      number -- it is `CalledWrongRequest.because`'s, the only other free-text
-      sentence in this file that a person types by hand, and one number for
-      "one sentence a human wrote" is worth more here than a bound tuned to
-      this door alone. It is roughly eighty words; the sentences this door was
-      built for are "create a work area for zone 4".
-    """
-
-    utterance: Annotated[
-        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)
-    ]
 
 
 class ChatResponse(BaseModel):
@@ -3679,41 +2927,6 @@ class WorkflowStepApprovedModel(BaseModel):
     Not a refusal. The row naming who let the write out is committed either
     way, and answering 409 would be claiming the authorisation did not happen.
     What this says is narrower and truer: nobody was listening."""
-
-
-class LearnedChangeModel(BaseModel):
-    """One thing a job changed its mind about.
-
-    `was` empty is the job learning something it never knew, which is the row
-    somebody reads to find out where a locator nobody demonstrated came from.
-    """
-
-    ord: int
-    about: str
-    was: str
-    now: str
-    by_run: str
-    found_by: str
-
-
-class LearnedChangesResponse(BaseModel):
-    changes: list[TaughtModel]
-
-    @classmethod
-    def of(cls, changes: Sequence[Taught]) -> LearnedChangesResponse:
-        return cls(
-            changes=[
-                LearnedChangeModel(
-                    ord=one.ord,
-                    about=one.about,
-                    was=one.was,
-                    now=one.now,
-                    by_run=one.by_run,
-                    found_by=one.found_by,
-                )
-                for one in changes
-            ]
-        )
 
 
 class MailOfferModel(BaseModel):

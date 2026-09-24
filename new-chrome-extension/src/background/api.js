@@ -255,24 +255,6 @@ export const api = {
       { method: "POST", body: values },
     ),
 
-  /** Start a demonstration this browser will fill. Nothing is opened on the
-   * server: the operator is already in front of the system. */
-  startRecording: (deviceId, label) =>
-    call("/v1/recordings", {
-      method: "POST",
-      body: { device_id: deviceId, label },
-    }),
-
-  /** Seal it. The backend assembles the frames from what this browser
-   * uploaded, so everything must have gone up before this is called. */
-  finishRecording: (recordingId, abandonReason = null) =>
-    call(`/v1/recordings/${encodeURIComponent(recordingId)}/finish`, {
-      method: "POST",
-      // A reason means abandon rather than seal. The evidence is kept either
-      // way -- what changes is that nothing will be induced from it.
-      body: abandonReason ? { abandon_reason: abandonReason } : {},
-    }),
-
   /** One run, for the panel to say what is happening in this browser.
    *
    * The worker knows a run is driving a tab and knows its id; what it is called,
@@ -540,20 +522,6 @@ export const api = {
   /** This operator's running conversation, started if they have none. */
   currentThread: () => call("/v1/threads/current"),
 
-  /** One sentence, read against the jobs this tenant has been seen doing.
-   *
-   * Answers `{workflow_id, values, missing}` and starts nothing: the backend's
-   * own words are "an offer, never a start; pressing start is a different
-   * door". It spends a model call doing it -- about a fifth of a cent -- and
-   * the backend bills and caps that per tenant.
-   *
-   * The rig's resolver, and now the only one this extension has. The other
-   * read an utterance over the tenant's taught SKILLS; it went with the rest
-   * of the mining pipeline's offers.
-   */
-  readChat: (utterance) =>
-    call("/v1/chat", { method: "POST", body: { utterance } }),
-
   /** One sentence, through the one door that decides what kind it is.
    *
    * The backend answers `{kind: "job"|"lookup"}` -- an instruction becomes an
@@ -588,11 +556,15 @@ export const api = {
    * to rotate and nothing to delete. The operator signing into a system whose
    * credential does not belong in this deployment gives it this way.
    *
-   * Nothing keeps it on this side either, exactly as above. */
-  holdSecretOnce: ({ system, field, value }) =>
+   * Nothing keeps it on this side either, exactly as above.
+   *
+   * `run_id` is the run the card was drawn for: the backend binds the hold
+   * to it, so a password lent here can only ever reach that run and not a
+   * different one racing to ask first. */
+  holdSecretOnce: ({ system, field, value, runId }) =>
     call("/v1/secrets/once", {
       method: "POST",
-      body: { system, field, value },
+      body: { system, field, value, run_id: runId },
       asDevice: false,
     }),
 
@@ -723,37 +695,14 @@ export const api = {
     }
   },
 
-  /** Change what the steps still to come will run with.
+  /** What this tenant has watched, noticed and done over the last `days`.
    *
-   * Only names the skill declares; the run refuses anything else rather than
-   * recording a decision that reaches nothing. Answers with the run as it
-   * stands, which is not the effect of the change -- the next step is a fresh
-   * read and renders from what this saved. */
-  reviseRun: (runId, values) =>
-    call(`/v1/runs/${encodeURIComponent(runId)}/values`, {
-      method: "POST",
-      body: { values },
-    }),
-
-  /** Say something to a run that is happening.
-   *
-   * Kept beside it and resolved against nothing: an operator watching a run who
-   * types "use the north yard address" is talking about the thing in front of
-   * them, and putting that through intent matching finds some other skill and
-   * offers to run it. */
-  sayToRun: (threadId, runId, text) =>
-    call(`/v1/threads/${encodeURIComponent(threadId)}/messages`, {
-      method: "POST",
-      body: { text, run_id: runId },
-    }),
-
-  /** What this tenant has watched, noticed and done since a moment.
-   *
-   * The panel asks for today, to say three numbers over the ledger. Counted
+   * The panel asks for one day, to say what was done over the ledger. The
+   * route reads `days` and nothing else: a `since` sent here was ignored and
+   * the line counted a week. Counted
    * from rows somebody can open rather than tallied in the browser: a figure a
    * person repeats to their manager has to be one an auditor can reach. */
-  summary: (since) =>
-    call(`/v1/analytics/summary?since=${encodeURIComponent(since)}`),
+  summary: (days) => call(`/v1/analytics/summary?days=${Number(days) || 1}`),
 
   /** The operator deleting their own evidence, from their own devices, for the
    * tenant on their credential. Answers with what went. */

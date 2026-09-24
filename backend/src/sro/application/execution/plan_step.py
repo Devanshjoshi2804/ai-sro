@@ -255,7 +255,6 @@ async def plan_step(
     said = data.get("value")
     if action not in VALUED:
         asked = sorted(name for name in step.parameters if name in values)
-        wanted = values[asked[0]] if asked else ""
         if asked and not writes(step, {gesture.id: gesture for gesture in cited}):
             if not opened:
                 return Planned(
@@ -265,11 +264,10 @@ async def plan_step(
                     answer,
                     opens=True,
                 )
+            wanted = values[asked[0]]
             return Planned(
                 "ui.perform",
-                _clicking(
-                    [Locator("text", wanted, visible_only=True)], origin, allow_focus, starts_on
-                ),
+                _clicking([Locator("text", wanted)], origin, allow_focus, starts_on),
                 f"choosing {wanted} from the open list",
                 answer,
             )
@@ -345,7 +343,7 @@ async def plan_step(
             return Planned(
                 "ui.perform",
                 _clicking(
-                    [Locator("role_and_name", f"option|{option}", visible_only=True)],
+                    [Locator("role_and_name", f"option|{option}")],
                     origin,
                     allow_focus,
                     starts_on,
@@ -365,19 +363,18 @@ def _option_named(cited: list[Gesture], wanted: str) -> str:
         return ""
     for gesture in cited:
         target = gesture.action.target
-        component = target.component if target else None
-        if gesture.action.kind != "click" or component is None:
+        if gesture.action.kind != "click" or target is None or target.component is None:
             continue
-        if not str(component.xtype or "").lower().endswith("boundlist"):
+        if not str(target.component.xtype).lower().endswith("boundlist"):
             continue
-        said = (target.name if target else "") or (target.text if target else "") or ""
+        said = target.name or target.text or ""
         if typed in said:
             return said.replace(typed, wanted)
     return ""
 
 
 def _point_on(said: object, look: Look) -> tuple[int, int] | None:
-    if not isinstance(said, dict) or not look.width or not look.height:
+    if not isinstance(said, dict):
         return None
     x, y = said.get("x"), said.get("y")
     if not (isinstance(x, int) and isinstance(y, int)):

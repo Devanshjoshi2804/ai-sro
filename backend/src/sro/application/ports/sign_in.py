@@ -26,3 +26,7 @@ class SignInDriver(Protocol):
 
 class SignInFailed(Exception):
     code = "sign_in_failed"
+
+
+class CredentialsRefused(SignInFailed):
+    code = "credentials_refused"

@@ -19,7 +19,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/trigger/fire_
 > verified before the next one starts. So the workflow path here is plumbing
 > rather than a second ladder: what it must not do is invent a weaker one.
 
-## `Fired`, [line 30](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L30): Note on the line above
+## `Fired`, [line 31](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L31): Note on the line above
 
 Code: `confirmation_id: ConfirmationId | None = None`
 
@@ -29,7 +29,7 @@ Code: `confirmation_id: ConfirmationId | None = None`
 > fire that became a card is the trigger working exactly as its author asked
 > it to.
 
-## `Fired`, [line 32](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L32): Note on the line above
+## `Fired`, [line 33](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L33): Note on the line above
 
 Code: `skipped: str | None = None`
 
@@ -37,7 +37,7 @@ Code: `skipped: str | None = None`
 > that has stopped being runnable are both ordinary, and a scheduler that
 > treated them as failures would retry them all night.
 
-## `FireTrigger`, [line 35](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L35): Docstring
+## `FireTrigger`, [line 36](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L36): Docstring
 
 > The only thing a schedule calls.
 >
@@ -45,7 +45,7 @@ Code: `skipped: str | None = None`
 > and the principal come off the trigger, which is why the repository's
 > ``find`` is the one tenant-blind read in the system.
 
-## `start_for`, [line 214](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L214): Docstring
+## `start_for`, [line 216](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L216): Docstring
 
 > Start the run a trigger asks for, at the rung it asks for.
 >
@@ -60,7 +60,7 @@ Code: `skipped: str | None = None`
 > under the name of whoever pressed the button rather than whoever made the
 > trigger.
 
-## `start_job_for`, [line 257](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L257): Docstring
+## `start_job_for`, [line 259](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L259): Docstring
 
 > Start the mined job a trigger asks for, in the browser it names.
 >
@@ -91,7 +91,7 @@ Code: `skipped: str | None = None`
 > "not connected". `start_run` remains the path for a deployment with no
 > dispatcher at all.
 
-## `blank_inputs`, [line 300](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L300): Docstring
+## `blank_inputs`, [line 302](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L302): Docstring
 
 > The values this skill needs that nothing supplied.
 >
@@ -109,7 +109,7 @@ Code: `skipped: str | None = None`
 > a mail that named no Delta Priority is not a mail that named nothing --
 > it is one doing what the operator who skipped that box did.
 
-## `_because`, [line 304](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L304): Docstring
+## `_because`, [line 306](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L306): Docstring
 
 > The one sentence somebody reads before deciding.
 >
@@ -118,7 +118,7 @@ Code: `skipped: str | None = None`
 > which is thin, and thin is better than a sentence this code invented about
 > a message it did not read.
 
-## `FireTrigger.execute`, [line 57](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L57): Docstring
+## `FireTrigger.execute`, [line 58](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L58): Docstring
 
 > Fire it.
 >
@@ -126,7 +126,7 @@ Code: `skipped: str | None = None`
 > names this trigger declared it would take are read from it; everything
 > else it runs with is what it was created with.
 
-## `FireTrigger._ask_a_person`, [line 111](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L111): Docstring
+## `FireTrigger._ask_a_person`, [line 113](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L113): Docstring
 
 > The fire becomes a card instead of a run.
 >
@@ -155,7 +155,7 @@ Code: `skipped: str | None = None`
 > orders are two questions however much of the rule they share. Same
 > values and same sentence is the same question, whoever asks it.
 
-## `FireTrigger._fire_a_job`, [line 153](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L153): Docstring
+## `FireTrigger._fire_a_job`, [line 155](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L155): Docstring
 
 > A mined job, started in the operator's own browser.
 >
@@ -175,7 +175,7 @@ Code: `skipped: str | None = None`
 > a workflow is a recording of somebody's own window, and `device_id` is
 > how the run reaches it.
 
-## `FireTrigger.__init__`, [line 54](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L54): Comment
+## `FireTrigger.__init__`, [line 55](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L55): Comment
 
 Code: `self._start_run = start_run`
 
@@ -183,14 +183,14 @@ Code: `self._start_run = start_run`
 > `dispatcher` already has: a worker with no channel to an extension
 > skips the fire rather than failing to construct.
 
-## `FireTrigger.execute`, [line 63](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L63): Comment
+## `FireTrigger.execute`, [line 64](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L64): Comment
 
 Code: `await self._forget(trigger_id)`
 
 > A schedule that outlived its trigger. It removes itself rather
 > than firing into nothing every hour until somebody notices.
 
-## `FireTrigger.execute`, [line 85](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L85): Comment
+## `FireTrigger.execute`, [line 87](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L87): Comment
 
 Code: `trigger.disable("the skill now changes the system; authorise this trigger again")`
 
@@ -198,7 +198,7 @@ Code: `trigger.disable("the skill now changes the system; authorise this trigger
 > authorisation on this trigger was given for a task that did
 > not, and it does not carry over.
 
-## `FireTrigger.execute`, [line 91](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L91): Comment
+## `FireTrigger.execute`, [line 93](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L93): Comment
 
 Code: `return Fired(trigger_id, skipped="nothing said " + ", ".join(blank))`
 
@@ -208,20 +208,20 @@ Code: `return Fired(trigger_id, skipped="nothing said " + ", ".join(blank))`
 > run that starts, asks the warehouse for nothing, and fails.
 > Skipped here, where the reason is still legible.
 
-## `FireTrigger.execute`, [line 94](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L94): Comment
+## `FireTrigger.execute`, [line 96](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L96): Comment
 
 Code: `asked = await self._ask_a_person(`
 
 > Nobody is here.
 
-## `FireTrigger.execute`, [line 102](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L102): Comment
+## `FireTrigger.execute`, [line 104](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L104): Comment
 
 Code: `logger.info("trigger %s could not reach its browser: %s", trigger_id, unreachable)`
 
 > A laptop that is closed. Ordinary, and not a reason to stop
 > the trigger: it will be open again before the next one.
 
-## `FireTrigger._ask_a_person`, [line 127](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L127): Comment
+## `FireTrigger._ask_a_person`, [line 129](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L129): Comment
 
 Code: `logger.info(`
 
@@ -229,14 +229,14 @@ Code: `logger.info(`
 > and a rule that looks like it stopped firing is a rule
 > somebody goes looking for a fault in.
 
-## `FireTrigger._fire_a_job`, [line 166](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L166): Comment
+## `FireTrigger._fire_a_job`, [line 168](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L168): Comment
 
 Code: `trigger.disable("a job runs in a browser: name a device")`
 
 > Refused at creation too. Belt and braces, because a row written
 > before that check existed is still a row.
 
-## `FireTrigger._fire_a_job`, [line 171](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L171): Comment
+## `FireTrigger._fire_a_job`, [line 173](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L173): Comment
 
 Code: `await uow.workflows.get(ctx.tenant_id, str(trigger.workflow_id))`
 
@@ -245,7 +245,7 @@ Code: `await uow.workflows.get(ctx.tenant_id, str(trigger.workflow_id))`
 > a run of it, and the confirmation path returns before anything else
 > would look. `start_job_for` reads it again for what it contains.
 
-## `FireTrigger._fire_a_job`, [line 187](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L187): Comment
+## `FireTrigger._fire_a_job`, [line 189](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L189): Comment
 
 Code: `logger.info("trigger %s did not start its job: %s", trigger.id, refused)`
 
@@ -260,7 +260,7 @@ Code: `logger.info("trigger %s did not start its job: %s", trigger.id, refused)`
 > cited evidence has aged out is refused today and proven again by
 > the next pass that reads those gestures back.
 
-## `FireTrigger._fire_a_job`, [line 189](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L189): Comment
+## `FireTrigger._fire_a_job`, [line 191](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L191): Comment
 
 Code: `trigger.fired(now, run_id)`
 
@@ -279,7 +279,7 @@ Code: `trigger.fired(now, run_id)`
 > one of them is an arrival trigger that silently drops the mail it
 > was fired for.
 
-## `start_for`, [line 227](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L227): Comment
+## `start_for`, [line 229](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L229): Comment
 
 Code: `raise DispatchFailed("this trigger runs a job, not a skill")`
 
@@ -287,7 +287,7 @@ Code: `raise DispatchFailed("this trigger runs a job, not a skill")`
 > goes to `start_job_for` above, which is not this function's business
 > to reach into -- `FireTrigger` routes on the same field.
 
-## `start_for`, [line 230](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L230): Comment
+## `start_for`, [line 232](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L232): Comment
 
 Code: `run_id = ids.new_run_id()`
 
@@ -297,14 +297,14 @@ Code: `run_id = ids.new_run_id()`
 > return, and without one every fire blocked a worker activity
 > slot for the run's full duration regardless of the flag.
 
-## `start_for`, [line 243](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L243): Comment
+## `start_for`, [line 245](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L245): Comment
 
 Code: `if dispatcher is None:`
 
 > The channel to that browser is held by whichever process the extension
 > connected to, and this is not that process.
 
-## `start_for`, [line 253](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L253): Comment
+## `start_for`, [line 255](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L255): Comment
 
 Code: `may_take_focus=trigger.may_take_focus,`
 
@@ -312,7 +312,7 @@ Code: `may_take_focus=trigger.may_take_focus,`
 > at 3am has no business taking a screen, and a trigger the operator
 > set up to watch may.
 
-## `start_job_for`, [line 267](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L267): Comment
+## `start_job_for`, [line 269](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L269): Comment
 
 Code: `named = authorized_by or (trigger.authorized_by.value if trigger.authorized_by else None)`
 
@@ -320,14 +320,14 @@ Code: `named = authorized_by or (trigger.authorized_by.value if trigger.authoriz
 > context's principal, which for a fire is the trigger's author and for an
 > approved card is whoever pressed it.
 
-## `start_job_for`, [line 269](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L269): Comment
+## `start_job_for`, [line 271](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L271): Comment
 
 Code: `raise DispatchFailed("this trigger writes and names nobody who authorised it")`
 
 > `Trigger` refuses this at creation. A row written before that check
 > existed is still a row, and this is the last place to notice.
 
-## `start_job_for`, [line 294](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L294): Comment
+## `start_job_for`, [line 296](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L296): Comment
 
 Code: `await performing`
 
@@ -335,7 +335,7 @@ Code: `await performing`
 > coroutine created and discarded is a run that never happens, and
 > "the trigger fired" would be a lie told with a run id.
 
-## `_because`, [line 309](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L309): Comment
+## `_because`, [line 311](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L311): Comment
 
 Code: `article = "an" if trigger.kind.value[0] in "aeiou" else "a"`
 

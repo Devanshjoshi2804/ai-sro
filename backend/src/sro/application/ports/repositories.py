@@ -38,10 +38,10 @@ from sro.domain.shared.identifiers import (
     TriggerId,
 )
 from sro.domain.shared.objective import ObjectiveKey
-from sro.domain.shared.prices import DaySpend
+from sro.domain.shared.prices import DaySpend, ModelSpend
 from sro.domain.skill.offers import Offer, OfferRow
 from sro.domain.skill.skill import Skill
-from sro.domain.skill.workflow import Workflow
+from sro.domain.skill.workflow import Noticed, Workflow
 from sro.domain.trigger.confirmation import Confirmation
 from sro.domain.trigger.trigger import Trigger
 
@@ -229,10 +229,6 @@ class ObservationRepository(Protocol):
         self, tenant_id: TenantId, cutoff: datetime
     ) -> tuple[ObservationBatch, ...]: ...
 
-    async def for_recording(
-        self, tenant_id: TenantId, recording_id: RecordingId
-    ) -> tuple[ObservationBatch, ...]: ...
-
     async def tenants_since(self, since: datetime) -> tuple[TenantId, ...]: ...
 
     async def forget(self, tenant_id: TenantId, ids: tuple[BatchId, ...]) -> None: ...
@@ -286,6 +282,8 @@ class ConfirmationRepository(Protocol):
     async def save(self, confirmation: Confirmation) -> None: ...
 
     async def waiting(self, tenant_id: TenantId) -> tuple[Confirmation, ...]: ...
+
+    async def tenants_waiting(self) -> tuple[TenantId, ...]: ...
 
 
 class ToolCallRepository(Protocol):
@@ -392,6 +390,10 @@ class WorkflowRunRepository(Protocol):
 
     async def since(self, tenant_id: TenantId, *, since: str) -> tuple[WorkflowRun, ...]: ...
 
+    async def outcomes_since(
+        self, tenant_id: TenantId, *, since: str
+    ) -> tuple[tuple[str, bool, int], ...]: ...
+
     async def driving_windows(self, tenant_id: TenantId) -> tuple[Driving, ...]: ...
 
     async def in_flight(self, tenant_id: TenantId, device_id: DeviceId) -> str | None: ...
@@ -414,7 +416,19 @@ class WorkflowRepository(Protocol):
 
     async def known(self, tenant_id: TenantId) -> tuple[Workflow, ...]: ...
 
+    async def noticed_since(
+        self, tenant_id: TenantId, *, since: datetime
+    ) -> tuple[Noticed, ...]: ...
+
     async def get(self, tenant_id: TenantId, workflow_id: str) -> Workflow: ...
+
+    async def retire(self, tenant_id: TenantId, workflow_id: str, *, at: datetime) -> None: ...
+
+    async def place(
+        self, tenant_id: TenantId, workflow_id: str, gesture_ids: tuple[str, ...]
+    ) -> None: ...
+
+    async def placed(self, tenant_id: TenantId) -> frozenset[str]: ...
 
     async def rekey(self, tenant_id: TenantId, workflow_id: str, key: ShapeKey) -> None: ...
 
@@ -499,6 +513,8 @@ class ChatRepository(Protocol):
 
 
 class SpendRepository(Protocol):
+    async def record(self, spent: ModelSpend) -> None: ...
+
     async def today(self, tenant_id: TenantId, *, now: datetime) -> DaySpend: ...
 
 

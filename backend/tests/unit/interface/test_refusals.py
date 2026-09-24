@@ -7,7 +7,6 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.testclient import TestClient
 
 from sro.application.execution.call_run_wrong import NotYours as _WrongNotYours
-from sro.application.execution.revise_run import NotYours as _ReviseNotYours
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
 from sro.interface.http.errors import _problem, install_error_handlers
@@ -108,34 +107,25 @@ def test_the_mine_model_is_not_the_interpreters() -> None:
 
 
 def test_a_run_that_is_not_yours_is_a_403_and_not_a_500() -> None:
-    """Both classes named `NotYours`, on both doors that raise one.
+    """`call_run_wrong.NotYours`, on `POST /v1/runs/{run_id}/wrong`.
 
-    Neither is a `DomainError`, so `install_error_handlers`'s blanket line does
-    not reach them and neither did anything else: `NotYours` sat in
-    `_STATUS_BY_ERROR` at 403 while no handler was registered for it, and
-    `revise_run.NotYours` was in neither. Measured before the fix -- both
+    Not a `DomainError`, so `install_error_handlers`'s blanket line does not
+    reach it, and nothing else did either: it sat in `_STATUS_BY_ERROR` at 403
+    while no handler was registered for it. Measured before the fix -- it
     answered **500 in text/plain**, so a caller who is simply not the person a
-    run was performed for was told the server broke, on
-    `POST /v1/runs/{run_id}/wrong` and `POST /v1/runs/{run_id}/values`.
+    run was performed for was told the server broke.
 
-    Parametrised over both on purpose: they are separate classes with one name
-    in two modules, and fixing the one that was already in the table would have
-    left the other exactly as broken.
-
-    And the `type` as well as the status. Neither class carried a `code`, so
-    `_problem` fell back to `error` and the 403 they were finally given was
+    And the `type` as well as the status. The class carried no `code`, so
+    `_problem` fell back to `error` and the 403 it was finally given was
     untellable from every other refusal in the system -- which is the failure
-    `_SLUGS` exists to have removed once already. One `code`, shared: two doors,
-    one refusal to the same person, and a console matching on `problem.type`
-    should not have to learn two spellings of it.
+    `_SLUGS` exists to have removed once already.
     """
-    for raised in (_WrongNotYours, _ReviseNotYours):
-        response = _app_that_raises(raised("that run is not yours")).get("/boom")
+    response = _app_that_raises(_WrongNotYours("that run is not yours")).get("/boom")
 
-        assert response.status_code == status.HTTP_403_FORBIDDEN, raised.__module__
-        assert response.headers["content-type"].startswith("application/problem+json")
-        assert response.json()["detail"] == "that run is not yours"
-        assert response.json()["type"].endswith("/not_yours"), raised.__module__
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["detail"] == "that run is not yours"
+    assert response.json()["type"].endswith("/not_yours")
 
 
 def test_every_mapped_error_names_a_problem_type_a_reader_could_look_up() -> None:
@@ -189,8 +179,8 @@ def test_every_mapped_error_is_also_registered_so_its_status_can_fire() -> None:
 
     `_STATUS_BY_ERROR` decides WHAT a refusal answers; `install_error_handlers`
     decides WHETHER anything gets to ask. Writing one half without the other
-    changes nothing observable, which is how `NotYours`, `NotYoursToRevise`,
-    `DispatchFailed` and `UiUnavailable` each spent their whole lives answering
+    changes nothing observable, which is how `NotYours`, `DispatchFailed`
+    and `UiUnavailable` each spent their whole lives answering
     `500 text/plain` with a correct entry sitting in the table above them. This
     walks the MRO the way `_status_for` does, so a subclass registered through
     its base counts -- that is exactly why `DomainError` needs no per-subclass

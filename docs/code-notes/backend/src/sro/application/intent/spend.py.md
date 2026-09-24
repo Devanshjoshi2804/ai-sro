@@ -7,9 +7,10 @@ Comments and docstrings moved out of [`backend/src/sro/application/intent/spend.
 > What a tenant's day of model calls may cost before the rig stops asking.
 >
 > The rule is the rig's ``over_cap`` in ``new_agent_arch/src/rig/api.py``, and
-> the number it judges comes from ``SpendRepository.today`` -- four billable
-> tables summed since midnight UTC, with the blind rows counted beside the sum.
-> This file judges; it queries nothing itself.
+> the number it judges comes from ``SpendRepository.today`` -- the ledger the
+> metered client writes one row per model call into, summed since midnight UTC,
+> with the blind rows counted beside the sum. This file judges; it queries
+> nothing itself.
 >
 > Three things about the rule, each of them a decision rather than an accident:
 >
@@ -30,13 +31,8 @@ Comments and docstrings moved out of [`backend/src/sro/application/intent/spend.
 >   alone reads zero. This deployment lived that once -- the run that proved the
 >   architecture billed $1.12 and every row said free.
 >
-> The rig's ``SPENT_IN`` has no counterpart here on purpose. It is the list of
-> tables, clock columns and blind-row predicates that ``spent_today`` queried
-> with, and plan 2 landed it as ``_BILLED`` in
-> ``sro/infrastructure/db/spend.py``, where the schema it names lives. The
-> application layer may not import infrastructure, and a second copy of that
-> table over here would be a second answer to "what bills" -- which is the exact
-> failure its docstring is about.
+> What bills is answered once, by the metered client every Gemini adapter is
+> handed in ``container.py``; this file never names a table.
 
 ## `spent_today`, [line 10](../../../../../../../backend/src/sro/application/intent/spend.py#L10): Docstring
 

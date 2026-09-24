@@ -173,7 +173,7 @@ async def test_a_secret_with_no_device_named_is_the_tenant(
     -- it goes to the same backend either way, and a list of which endpoints
     may see it is a list that goes stale -- so `/v1/ask` answered "device  was
     not found" for every sentence an operator typed into the panel, with
-    `/v1/chat`, `/v1/mine` and `/v1/spend` behind it.
+    `/v1/chat` and `/v1/spend` behind it.
 
     The other half-pair still refuses: a caller NAMING a browser without
     proving it is a caller asking whether that browser exists.

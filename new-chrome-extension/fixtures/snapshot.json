@@ -11,7 +11,7 @@
           "type": "internalRole",
           "value": 144
         },
-        "frameId": "53BD09BF3B2B4830320C976A6BD9EE39",
+        "frameId": "D99A4509728F1D50770F783B041F9B07",
         "ignored": false,
         "name": {
           "sources": [
@@ -56,7 +56,7 @@
             "name": "url",
             "value": {
               "type": "string",
-              "value": "http://127.0.0.1:51729/"
+              "value": "http://127.0.0.1:50290/"
             }
           }
         ],
@@ -531,6 +531,13 @@
             }
           },
           {
+            "name": "focused",
+            "value": {
+              "type": "booleanOrUndefined",
+              "value": true
+            }
+          },
+          {
             "name": "editable",
             "value": {
               "type": "token",
@@ -719,7 +726,7 @@
         },
         "value": {
           "type": "string",
-          "value": "Dock 3"
+          "value": "choose"
         }
       },
       {
@@ -851,7 +858,7 @@
         },
         "value": {
           "type": "string",
-          "value": "manifest.csv"
+          "value": "No file chosen"
         }
       },
       {
@@ -906,13 +913,6 @@
           },
           {
             "name": "focusable",
-            "value": {
-              "type": "booleanOrUndefined",
-              "value": true
-            }
-          },
-          {
-            "name": "focused",
             "value": {
               "type": "booleanOrUndefined",
               "value": true
@@ -1398,7 +1398,7 @@
             "name": "selected",
             "value": {
               "type": "booleanOrUndefined",
-              "value": false
+              "value": true
             }
           }
         ],
@@ -1455,7 +1455,7 @@
             "name": "selected",
             "value": {
               "type": "booleanOrUndefined",
-              "value": true
+              "value": false
             }
           }
         ],
@@ -1558,7 +1558,7 @@
       }
     ]
   },
-  "url": "http://127.0.0.1:51729/",
-  "taken_at": "2026-09-20T14:50:22.587Z",
-  "tab_id": 247501454
+  "url": "http://127.0.0.1:50290/",
+  "taken_at": "2026-09-24T05:58:55.931Z",
+  "tab_id": 1667170966
 }

@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/interface/http/v1/routers/workflow_runs.py`](../../../../../../../../../backend/src/sro/interface/http/v1/routers/workflow_runs.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `start_workflow_run`, [line 140](../../../../../../../../../backend/src/sro/interface/http/v1/routers/workflow_runs.py#L140): Comment
+## `start_workflow_run`, [line 139](../../../../../../../../../backend/src/sro/interface/http/v1/routers/workflow_runs.py#L139): Comment
 
 Code: `await container.record_attempt().execute(`
 
@@ -11,7 +11,7 @@ Code: `await container.record_attempt().execute(`
 > and `undoes_run` is what makes an undo legible as the press it is rather
 > than as another run of a delete.
 
-## `get_workflow_run`, [line 209](../../../../../../../../../backend/src/sro/interface/http/v1/routers/workflow_runs.py#L209): Comment
+## `get_workflow_run`, [line 208](../../../../../../../../../backend/src/sro/interface/http/v1/routers/workflow_runs.py#L208): Comment
 
 Code: `return WorkflowRunModel.of(run, await reader.undo_for(ctx, run))`
 
@@ -20,14 +20,7 @@ Code: `return WorkflowRunModel.of(run, await reader.undo_for(ctx, run))`
 > their evidence, and a response model that went to a repository would be a
 > response model with a session.
 
-## `called_wrong`, [line 278](../../../../../../../../../backend/src/sro/interface/http/v1/routers/workflow_runs.py#L278): Comment
-
-Code: `await container.record_attempt().execute(`
-
-> The operator's own verdict, in their own words. Not a refusal by this
-> system: they asked to say it was wrong, and they said it.
-
-## `approve_workflow_step`, [line 339](../../../../../../../../../backend/src/sro/interface/http/v1/routers/workflow_runs.py#L339): Comment
+## `approve_workflow_step`, [line 297](../../../../../../../../../backend/src/sro/interface/http/v1/routers/workflow_runs.py#L297): Comment
 
 Code: `await container.record_attempt().execute(`
 

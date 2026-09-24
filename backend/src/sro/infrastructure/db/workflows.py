@@ -20,7 +20,7 @@ from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.skill.repeats import Repeat
-from sro.domain.skill.workflow import Step, Workflow
+from sro.domain.skill.workflow import Noticed, Step, Workflow
 from sro.infrastructure.db.codec import when
 from sro.infrastructure.db.models import (
     LearnedWriteRow,
@@ -28,6 +28,7 @@ from sro.infrastructure.db.models import (
     WorkflowEffectRow,
     WorkflowLearnedHistoryRow,
     WorkflowLearnedRow,
+    WorkflowPlacementRow,
     WorkflowRow,
     WorkflowRunRow,
     WorkflowRunStepRow,
@@ -55,6 +56,7 @@ def _workflow_values(workflow: Workflow) -> dict[str, Any]:
                 "last_step": workflow.repeat.last_step,
             }
         ),
+        "signs_in": workflow.signs_in,
         "created_at": datetime.now(tz=UTC),
     }
 
@@ -102,6 +104,7 @@ def _row_to_workflow(row: WorkflowRow, steps: list[Step]) -> Workflow:
             if isinstance(row.repeat, dict)
             else None
         ),
+        signs_in=row.signs_in,
     )
 
 
@@ -144,7 +147,7 @@ class SqlWorkflowRepository(WorkflowRepository):
                 set_={
                     column.name: statement.excluded[column.name]
                     for column in WorkflowRow.__table__.columns
-                    if column.name != "id"
+                    if column.name not in ("id", "retired_at", "created_at")
                 },
             )
         )
@@ -161,7 +164,7 @@ class SqlWorkflowRepository(WorkflowRepository):
     async def known(self, tenant_id: TenantId) -> tuple[Workflow, ...]:
         query = (
             select(WorkflowRow)
-            .where(WorkflowRow.tenant_id == tenant_id.value)
+            .where(WorkflowRow.tenant_id == tenant_id.value, WorkflowRow.retired_at.is_(None))
             .order_by(WorkflowRow.created_at, WorkflowRow.id)
             .execution_options(populate_existing=True)
         )
@@ -171,10 +174,45 @@ class SqlWorkflowRepository(WorkflowRepository):
         steps = await self._steps_of([row.id for row in rows])
         return tuple(_row_to_workflow(row, steps[row.id]) for row in rows)
 
+    async def noticed_since(self, tenant_id: TenantId, *, since: datetime) -> tuple[Noticed, ...]:
+        steps = (
+            select(func.count())
+            .select_from(WorkflowStepRow)
+            .where(WorkflowStepRow.workflow_id == WorkflowRow.id)
+            .scalar_subquery()
+        )
+        query = (
+            select(
+                WorkflowRow.id,
+                WorkflowRow.title,
+                WorkflowRow.systems,
+                steps,
+            )
+            .where(
+                WorkflowRow.tenant_id == tenant_id.value,
+                WorkflowRow.retired_at.is_(None),
+                WorkflowRow.created_at >= since,
+            )
+            .order_by(WorkflowRow.created_at.desc(), WorkflowRow.id.desc())
+        )
+        return tuple(
+            Noticed(
+                id=row[0],
+                title=row[1],
+                systems=tuple(str(one) for one in row[2] or ()),
+                steps=int(row[3]),
+            )
+            for row in (await self._session.execute(query)).all()
+        )
+
     async def get(self, tenant_id: TenantId, workflow_id: str) -> Workflow:
         query = (
             select(WorkflowRow)
-            .where(WorkflowRow.tenant_id == tenant_id.value, WorkflowRow.id == workflow_id)
+            .where(
+                WorkflowRow.tenant_id == tenant_id.value,
+                WorkflowRow.id == workflow_id,
+                WorkflowRow.retired_at.is_(None),
+            )
             .execution_options(populate_existing=True)
         )
         row = (await self._session.execute(query)).scalar_one_or_none()
@@ -182,6 +220,51 @@ class SqlWorkflowRepository(WorkflowRepository):
             raise NotFound(f"workflow {workflow_id} was not found")
         steps = await self._steps_of([row.id])
         return _row_to_workflow(row, steps[row.id])
+
+    async def retire(self, tenant_id: TenantId, workflow_id: str, *, at: datetime) -> None:
+        done = await self._session.execute(
+            update(WorkflowRow)
+            .where(
+                WorkflowRow.tenant_id == tenant_id.value,
+                WorkflowRow.id == workflow_id,
+                WorkflowRow.retired_at.is_(None),
+            )
+            .values(retired_at=at)
+            .returning(WorkflowRow.id)
+        )
+        if done.first() is None:
+            raise NotFound(f"workflow {workflow_id} was not found")
+
+    async def place(
+        self, tenant_id: TenantId, workflow_id: str, gesture_ids: tuple[str, ...]
+    ) -> None:
+        if not gesture_ids:
+            return
+        await self._session.execute(
+            pg_insert(WorkflowPlacementRow)
+            .values(
+                [
+                    {"tenant_id": tenant_id.value, "gesture_id": one, "workflow_id": workflow_id}
+                    for one in dict.fromkeys(gesture_ids)
+                ]
+            )
+            .on_conflict_do_nothing(index_elements=["tenant_id", "gesture_id"])
+        )
+
+    async def placed(self, tenant_id: TenantId) -> frozenset[str]:
+        rows = await self._session.execute(
+            select(WorkflowStepRow.cites)
+            .join(WorkflowRow, WorkflowRow.id == WorkflowStepRow.workflow_id)
+            .where(WorkflowRow.tenant_id == tenant_id.value)
+        )
+        folded = await self._session.execute(
+            select(WorkflowPlacementRow.gesture_id).where(
+                WorkflowPlacementRow.tenant_id == tenant_id.value
+            )
+        )
+        return frozenset(str(one) for (cites,) in rows for one in cites or ()) | frozenset(
+            folded.scalars()
+        )
 
     async def rekey(self, tenant_id: TenantId, workflow_id: str, key: ShapeKey) -> None:
         await self._session.execute(

@@ -287,7 +287,7 @@ const offersSent = () =>
     .filter((call) => call.path === "/v1/offers")
     .map((call) => JSON.parse(call.body));
 
-await import("./service-worker.js");
+const { lookInTheMail } = await import("./service-worker.js");
 const { perform, abort } = await import("./commands.js");
 
 // -- driving it ---------------------------------------------------------------
@@ -639,6 +639,7 @@ test("just this once sends a password to the door that keeps nothing", async () 
     system: "keycloak.test",
     field: "password",
     value: "lent-33f1",
+    runId: "run_g33f1",
   });
 
   const kept = calls.find((call) => call.path === "/v1/secrets");
@@ -650,6 +651,7 @@ test("just this once sends a password to the door that keeps nothing", async () 
     system: "keycloak.test",
     field: "password",
     value: "lent-33f1",
+    run_id: "run_g33f1",
   });
 });
 
@@ -952,6 +954,16 @@ test("marking accepted does not write back a list read before the run started", 
   assert.equal(nudges().find((n) => n.id === offer.id).state, "accepted");
 });
 
+test("the day's summary asks for the window the backend reads", async () => {
+  // The route reads `days`. It used to be sent `since`, which it ignored, so
+  // the panel's "today" line counted the last seven days.
+  ready();
+  await send({ kind: "summary", days: 1 });
+  const asked = calls.find((call) => call.path === "/v1/analytics/summary");
+  assert.ok(asked, "the summary was never asked for");
+  assert.equal(asked.query, "days=1");
+});
+
 test("dropping an offer ends it and says so once", async () => {
   ready();
   await gesture("a", "NEW");
@@ -969,10 +981,8 @@ test("dropping an offer ends it and says so once", async () => {
   );
   assert.equal(offersSent()[0].fate, "dismissed");
 
-  // Dropping it again, or answering it after it was dropped: an offer with two
-  // fates is one the rig cannot count.
+  // Dropping it again: an offer with two fates is one the rig cannot count.
   await send({ kind: "drop-nudge", nudgeId: offer.id });
-  await send({ kind: "nudge-answer", id: offer.id, answer: "not-here" });
   await new Promise((resolve) => setTimeout(resolve, 30));
   assert.equal(offersSent().length, 1, "one offer reported two fates");
 });
@@ -1003,25 +1013,6 @@ test("an update waits for the end of a run, and installs itself in the gap", asy
   await until(
     () => reloadedForUpdate.length === 1,
     "the update was still waiting with nothing in flight",
-  );
-});
-
-test("and for the end of a demonstration, which cannot be done twice", async () => {
-  // A demonstration loses its `chrome.debugger` attachment when the worker
-  // restarts: the banner goes, the events stop, and the recording is never
-  // sealed. The operator did it once, in front of the browser.
-  ready();
-  held.set("sro.teaching", { recordingId: "rec_1", tabId: TAB });
-
-  globalThis.__updateReady({ version: "1.4.0" });
-  await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.deepEqual(reloadedForUpdate, [], "an update landed mid-demonstration");
-
-  held.set("sro.teaching", null);
-  await globalThis.__beat({ name: "sro-heartbeat" });
-  await until(
-    () => reloadedForUpdate.length === 1,
-    "the update was still waiting after the demonstration ended",
   );
 });
 
@@ -2184,8 +2175,8 @@ test("the panel's tick reads the mailbox, and not on every tick", async () => {
     why: "offered Create a Customer Type",
   };
 
-  const first = await send({ kind: "look-in-the-mail" });
-  const second = await send({ kind: "look-in-the-mail" });
+  const first = await lookInTheMail();
+  const second = await lookInTheMail();
 
   assert.deepEqual(first, { ok: true, offered: 1, read: 4 });
   assert.equal(second.skipped, "looked recently");
@@ -2216,7 +2207,7 @@ test("a mail becomes a card that waits, not a line in the conversation", async (
     why: "offered Create a Customer Type",
   };
 
-  await send({ kind: "look-in-the-mail" });
+  await lookInTheMail();
 
   const [card] = held.get("sro.nudges") || [];
   assert.ok(card, "a mail that asked for a job produced no card");
@@ -2281,7 +2272,7 @@ test("the icon counts what is waiting, and recording still wins it", async () =>
     why: "offered Create a Customer Type",
   };
 
-  await send({ kind: "look-in-the-mail" });
+  await lookInTheMail();
 
   // Observing, so the badge stays REC -- and the count is still not invisible.
   assert.equal(badges.at(-1).text, "REC");
@@ -2313,8 +2304,8 @@ test("a browser with no mailbox behind it stops asking rather than calling all d
     why: "the mailbox could not be reached: no grant",
   };
 
-  await send({ kind: "look-in-the-mail" });
-  const again = await send({ kind: "look-in-the-mail" });
+  await lookInTheMail();
+  const again = await lookInTheMail();
 
   assert.equal(again.skipped, "looked recently");
   assert.deepEqual(mailLooks, ["POST"]);
@@ -2327,7 +2318,7 @@ test("a look that fails is not a red line in the panel", async () => {
   ready();
   mailLooked = null;
 
-  const looked = await send({ kind: "look-in-the-mail" });
+  const looked = await lookInTheMail();
 
   assert.equal(looked.ok, true);
   assert.match(looked.skipped, /no model/);
@@ -2409,13 +2400,13 @@ test("one request arriving as two mails makes one card", async () => {
   });
 
   mailLooked = asked("m-100", { "Customer Type": "GV2" });
-  await send({ kind: "look-in-the-mail" });
+  await lookInTheMail();
   await until(() => openOnes().length === 1, "the request made no card");
 
   // The confirmation, a minute later: a new message id, the same conversation.
   held.set("sro.mailLooked", null);
   mailLooked = asked("m-101", { "Customer Type": "GV2" });
-  await send({ kind: "look-in-the-mail" });
+  await lookInTheMail();
   await new Promise((done) => setTimeout(done, 30));
 
   assert.equal(openOnes().length, 1, "one request drew two cards");
@@ -2441,12 +2432,12 @@ test("the same job asked for on another thread is another request", async () => 
   });
 
   mailLooked = asked("m-200", "t-one");
-  await send({ kind: "look-in-the-mail" });
+  await lookInTheMail();
   await until(() => openOnes().length === 1, "the first request made no card");
 
   held.set("sro.mailLooked", null);
   mailLooked = asked("m-201", "t-two");
-  await send({ kind: "look-in-the-mail" });
+  await lookInTheMail();
   await until(
     () => openOnes().length === 2,
     "a second request was folded into the first",
@@ -2480,12 +2471,12 @@ test("two different jobs on one thread are two requests", async () => {
   });
 
   mailLooked = asked("m-300", "wfl_wa");
-  await send({ kind: "look-in-the-mail" });
+  await lookInTheMail();
   await until(() => openOnes().length === 1, "the first request made no card");
 
   held.set("sro.mailLooked", null);
   mailLooked = asked("m-301", "wfl_other");
-  await send({ kind: "look-in-the-mail" });
+  await lookInTheMail();
   await until(
     () => openOnes().length === 2,
     "a different job on the same thread was folded into the first",
@@ -2513,7 +2504,7 @@ test("a request answered on a thread does not block the next one", async () => {
   });
 
   mailLooked = asked("m-400");
-  await send({ kind: "look-in-the-mail" });
+  await lookInTheMail();
   await until(() => openOnes().length === 1, "the first request made no card");
   const [first] = openOnes();
   await send({ kind: "drop-nudge", nudgeId: first.id });
@@ -2521,7 +2512,7 @@ test("a request answered on a thread does not block the next one", async () => {
 
   held.set("sro.mailLooked", null);
   mailLooked = asked("m-401");
-  await send({ kind: "look-in-the-mail" });
+  await lookInTheMail();
   await until(
     () => openOnes().length === 1,
     "a new request was refused because an answered one had the same thread",
@@ -2737,7 +2728,7 @@ test("taking an offer up into the conversation ends the card", async () => {
       },
     ],
   };
-  await send({ kind: "look-in-the-mail" });
+  await lookInTheMail();
   await until(() => openOnes().length === 1, "the mail made no card");
   const [card] = openOnes();
 
@@ -2781,7 +2772,7 @@ test("an asking that fails leaves the offer theirs to answer", async () => {
       },
     ],
   };
-  await send({ kind: "look-in-the-mail" });
+  await lookInTheMail();
   await until(() => openOnes().length === 1, "the mail made no card");
   const [card] = openOnes();
   askedAbout = { detail: "no model" };
@@ -2830,7 +2821,7 @@ test("a mail offer this browser cannot keep is said out loud, not swallowed", as
     return set(pairs);
   };
 
-  const looked = await send({ kind: "look-in-the-mail" });
+  const looked = await lookInTheMail();
   globalThis.chrome.storage.local.set = set;
 
   assert.equal(
@@ -2873,7 +2864,7 @@ test("what this browser decided rides out on the next beat", async () => {
     ],
   };
 
-  await send({ kind: "look-in-the-mail" });
+  await lookInTheMail();
   await globalThis.__beat({ name: "sro-heartbeat" });
   // The alarm's work is fired and not awaited, so the beat lands next turn.
   await new Promise((resolve) => setTimeout(resolve, 20));
@@ -3000,7 +2991,7 @@ test("what a mail's job could also set reaches the card", async () => {
     why: "offered Create a Customer Type",
   };
 
-  await send({ kind: "look-in-the-mail" });
+  await lookInTheMail();
 
   const [card] = held.get("sro.nudges") || [];
   assert.ok(card, "a mail that asked for a job produced no card");

@@ -42,8 +42,7 @@
 // documents at length: invisible under `ExtensionInstallForcelist`, which is
 // the deployment this is for, and visible on an unpacked development copy.
 // Unlike trees this is not policy-gated -- a run acting on a page is a
-// deliberate act somebody asked for, like teaching, not a background
-// convenience.
+// deliberate act somebody asked for, not a background convenience.
 //
 // Chrome allows one debugger client per tab, so an operator with DevTools open
 // takes it. `pointAt` says so rather than pretending, and the caller falls back

@@ -114,10 +114,13 @@ Temporal owns anything that outlives a request:
 | Workflow | Responsibility |
 |---|---|
 | `RecordingWorkflow` | Session lifecycle, stop signal, reaper timer for abandoned browsers |
-| `InductionWorkflow` | Pair → diff → emit → assert, retried per activity |
+| `ExecutionWorkflow` | One skill run, a step per activity |
+| `TriggerWorkflow` | One trigger's fire, started by its schedule |
 
 Task queues split by resource: `browser` (stateful, scarce, crash-prone) and
-`default`. A browser worker crash must not stall induction.
+`default`. A browser worker crash must not stall a run. Induction
+(`InductionWorkflow`, `POST /v1/skills/induct`) was removed on 2026-09-24: it
+had no production caller.
 
 ## Where things are
 

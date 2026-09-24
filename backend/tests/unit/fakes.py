@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import re
 import sys
+from collections import Counter
 from collections.abc import AsyncIterator, Callable, Mapping
 from copy import deepcopy
 from dataclasses import replace
@@ -18,7 +19,6 @@ from types import MappingProxyType
 
 from sro.application.context import RequestContext
 from sro.application.execution.execute_skill import ExecuteSkill, ExecutionRequest
-from sro.application.induction.induce_skill import InducedSkill, InduceSkill
 from sro.application.ports.agent import AgentDrivers
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.browser import BrowserProvider, BrowserSession, BrowserUnavailable
@@ -60,7 +60,12 @@ from sro.application.ports.repositories import (
     WorkflowRunRepository,
 )
 from sro.application.ports.schedule import Scheduler, SchedulerUnavailable
-from sro.application.ports.sign_in import SignInDriver, SignInFailed, SignInResult
+from sro.application.ports.sign_in import (
+    CredentialsRefused,
+    SignInDriver,
+    SignInFailed,
+    SignInResult,
+)
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.tools import ToolOffered, ToolResult, ToolsUnavailable
 from sro.application.ports.transcription import TranscribedSegment, Transcriber
@@ -122,11 +127,11 @@ from sro.domain.shared.objective import ObjectiveKey
 
 # `Answer` is already the trigger confirmation's; this one is a model's reply.
 from sro.domain.shared.prices import Answer as ModelAnswer
-from sro.domain.shared.prices import DaySpend, Effort
+from sro.domain.shared.prices import DaySpend, Effort, ModelSpend
 from sro.domain.skill.locator import LocatorStrategy
 from sro.domain.skill.offers import Offer, OfferRow
 from sro.domain.skill.skill import Skill
-from sro.domain.skill.workflow import Workflow
+from sro.domain.skill.workflow import Noticed, Workflow
 from sro.domain.trigger.confirmation import Answer, Confirmation
 from sro.domain.trigger.trigger import Trigger
 from sro.infrastructure.db.codec import when
@@ -208,12 +213,18 @@ class FakeSignInDriver:
     """Types what it is given, and remembers only that it was asked."""
 
     def __init__(
-        self, *, lands_at: str = "https://wms.example.com/portal", fails: str = ""
+        self,
+        *,
+        lands_at: str = "https://wms.example.com/portal",
+        fails: str = "",
+        refuses: str = "",
     ) -> None:
         self.lands_at = lands_at
         self.fails = fails
+        self.refuses = refuses
         self.calls = 0
         self.chose: tuple[str, ...] = ()
+        self.given: tuple[str, str] | None = None
 
     async def sign_in(
         self,
@@ -227,6 +238,9 @@ class FakeSignInDriver:
     ) -> SignInResult:
         self.calls += 1
         self.chose = choose
+        self.given = (username, password)
+        if self.refuses:
+            raise CredentialsRefused(self.refuses)
         if self.fails:
             raise SignInFailed(self.fails)
         return SignInResult(landed_at=self.lands_at, steps=("entered the username",))
@@ -361,24 +375,19 @@ class FakeTranscriber:
 
 
 class FakeDurableExecution:
-    """Runs induction inline and records the deadlines it was asked for.
+    """Runs execution inline and records the deadlines it was asked for.
 
-    Keeping the real use case behind it means the HTTP tests still exercise
-    induction; what they skip is the scheduler, not the behaviour.
+    What the HTTP tests skip is the scheduler, not the behaviour.
     """
 
     def __init__(
         self,
-        induce: InduceSkill | None = None,
         *,
         execute: ExecuteSkill | None = None,
         available: bool = True,
     ) -> None:
-        self._induce = induce
         self._execute = execute
         self.available = available
-        self.watching: list[str] = []
-        self.finished: list[str] = []
         self.started: list[str] = []
         self.with_values: list[dict[str, str]] = []
         """One entry per `execute_skill` call, the parameters it was actually
@@ -394,18 +403,6 @@ class FakeDurableExecution:
         """One entry per call, whose name is on the write. A trigger's author
         and the person who approved one of its fires are different people, and
         which of them a run carries is the point of the confirmation queue."""
-
-    async def induce_skill(
-        self,
-        ctx: RequestContext,
-        *,
-        first: RecordingId,
-        second: RecordingId | None = None,
-        name: str | None = None,
-    ) -> InducedSkill:
-        if self._induce is None:
-            raise NotImplementedError("this fake was not given induction")
-        return await self._induce.execute(ctx, first=first, second=second, name=name)
 
     async def execute_skill(
         self,
@@ -439,22 +436,6 @@ class FakeDurableExecution:
             ),
         )
         return run.id
-
-    async def watch_recording(
-        self,
-        ctx: RequestContext,
-        *,
-        recording_id: RecordingId,
-        browser_session_id: BrowserSessionId,
-        timeout_seconds: int,
-    ) -> bool:
-        if not self.available:
-            return False
-        self.watching.append(str(recording_id))
-        return True
-
-    async def recording_finished(self, ctx: RequestContext, *, recording_id: RecordingId) -> None:
-        self.finished.append(str(recording_id))
 
 
 class FakeRecordingRepository:
@@ -760,6 +741,18 @@ class FakeCredentialVault:
         self.secrets.pop(key, None)
 
 
+class FakeTokenSource:
+    def __init__(self) -> None:
+        self.established: list[tuple[str, str, str, str]] = []
+
+    async def establish(self, *, tenant: str, system: str, username: str, password: str) -> str:
+        self.established.append((tenant, system, username, password))
+        return f"token-for-{system}"
+
+    async def access_token(self, *, tenant: str, system: str) -> str | None:
+        return f"token-for-{system}" if any(e[1] == system for e in self.established) else None
+
+
 def _terms(text: str) -> list[str]:
     """Mirrors SqlKnowledgeRepository: any word, not the whole phrase."""
     skip = {"a", "an", "the", "at", "in", "on", "of", "to", "for", "and"}
@@ -1062,20 +1055,6 @@ class FakeObservationRepository:
         ]
         return tuple(sorted(found, key=lambda batch: batch.received_at))
 
-    async def for_recording(
-        self, tenant_id: TenantId, recording_id: RecordingId
-    ) -> tuple[ObservationBatch, ...]:
-        return tuple(
-            sorted(
-                (
-                    batch
-                    for batch in self.rows.values()
-                    if batch.tenant_id == tenant_id and batch.recording_id == recording_id
-                ),
-                key=lambda batch: batch.started_at,
-            )
-        )
-
     async def tenants_since(self, since: datetime) -> tuple[TenantId, ...]:
         return tuple({batch.tenant_id for batch in self.rows.values() if batch.ended_at >= since})
 
@@ -1252,8 +1231,13 @@ class FakeChannel:
 
 
 class FakeTriggerRepository:
-    def __init__(self) -> None:
+    def __init__(self, retired: Mapping[str, datetime] | None = None) -> None:
         self.rows: dict[str, Trigger] = {}
+        self._retired = retired if retired is not None else {}
+        """The workflow store's retired jobs: a trigger on one is never chosen."""
+
+    def _live(self, trigger: Trigger) -> bool:
+        return trigger.workflow_id is None or trigger.workflow_id not in self._retired
 
     async def add(self, trigger: Trigger) -> None:
         self.rows[trigger.id.value] = trigger
@@ -1278,12 +1262,15 @@ class FakeTriggerRepository:
         mine = [
             trigger
             for trigger in self.rows.values()
-            if trigger.tenant_id == tenant_id and (skill_id is None or trigger.skill_id == skill_id)
+            if trigger.tenant_id == tenant_id
+            and (skill_id is None or trigger.skill_id == skill_id)
+            and self._live(trigger)
         ]
         return tuple(sorted(mine, key=lambda trigger: trigger.created_at, reverse=True))
 
     async def find(self, trigger_id: TriggerId) -> Trigger | None:
-        return self.rows.get(trigger_id.value)
+        trigger = self.rows.get(trigger_id.value)
+        return trigger if trigger is not None and self._live(trigger) else None
 
 
 class FakeScheduler:
@@ -1380,6 +1367,13 @@ class FakeConfirmationRepository:
             )
         )
 
+    async def tenants_waiting(self) -> tuple[TenantId, ...]:
+        return tuple(
+            dict.fromkeys(
+                row.tenant_id for row in self.rows.values() if row.answer is Answer.WAITING
+            )
+        )
+
 
 class FakeToolCallRepository:
     """A set, which is what the real one is: a key is claimed or it is not."""
@@ -1441,6 +1435,7 @@ class FakeGestureRepository:
 
         self.orphan_requests: dict[tuple[str, str], Mapping[str, object]] = {}
         self.orphan_pages: list[tuple[str, str, str, Mapping[str, object]]] = []
+        self.gestures_for_calls = 0
 
     async def add_batch(self, batch: GestureBatch) -> None:
         if batch.batch_id in self.batches:
@@ -1469,6 +1464,7 @@ class FakeGestureRepository:
         after: float | None = None,
         before: float | None = None,
     ) -> tuple[Gesture, ...]:
+        self.gestures_for_calls += 1
         found = [
             gesture
             for gesture in self.rows.values()
@@ -1811,6 +1807,17 @@ class FakeWorkflowRunRepository:
             for run in sorted(found, key=lambda run: (when(run.started_at), run.id), reverse=True)
         )
 
+    async def outcomes_since(
+        self, tenant_id: TenantId, *, since: str
+    ) -> tuple[tuple[str, bool, int], ...]:
+        at = when(since)
+        counted = Counter(
+            (run.outcome, run.live)
+            for run in self.rows.values()
+            if run.tenant == tenant_id.value and when(run.started_at) >= at
+        )
+        return tuple((outcome, live, n) for (outcome, live), n in counted.items())
+
     async def driving_windows(self, tenant_id: TenantId) -> tuple[Driving, ...]:
         """Off the same rows `in_flight` reads, with the clock parsed.
 
@@ -1906,8 +1913,8 @@ class FakeWorkflowRepository:
 
     Faithful rather than convenient, because the mining and runner suites will
     be built on it. Workflows are stored and returned as copies, so "steps are
-    replaced, not appended" is real here. ``known`` is oldest first and a
-    re-save moves a workflow to the end, which is what the store's ``created_at``
+    replaced, not appended" is real here. ``known`` is oldest first by
+    creation, and a re-save keeps its place, as the store's ``created_at``
     does. ``record_effect`` keeps the state-belt gate -- a picture is not an
     effect -- and asks the domain rather than holding a second copy of the belt
     list. ``proofs`` reads the runs from the run repository, because in the
@@ -1944,8 +1951,14 @@ class FakeWorkflowRepository:
         """What this deployment has watched succeed and may now replay,
         keyed as the store keys it: (tenant, method, path pattern)."""
         self.runs = runs if runs is not None else FakeWorkflowRunRepository()
+        self.retired: dict[str, datetime] = {}
+        self.placements: dict[tuple[str, str], str] = {}
+        """(tenant, gesture) -> the job a folded doing was placed against."""
+        """Retired jobs by id, as the store's ``retired_at``: the row stays,
+        and a re-save does not bring it back."""
         self._saved = count()
         self._created: dict[str, int] = {}
+        self.created_at: dict[str, datetime] = {}
 
     def _alive(self) -> None:
         if self.poisoned:
@@ -1954,12 +1967,32 @@ class FakeWorkflowRepository:
     async def save(self, workflow: Workflow) -> None:
         self._alive()
         self.rows[workflow.id] = deepcopy(workflow)
-        # The store rewrites ``created_at`` on a re-save, as INSERT OR REPLACE
-        # did, so a re-saved workflow moves to the end of ``known``.
-        self._created[workflow.id] = next(self._saved)
+        # A re-save keeps the creation time, as the store's upsert does.
+        if workflow.id not in self._created:
+            self._created[workflow.id] = next(self._saved)
+            self.created_at[workflow.id] = datetime.now(tz=UTC)
+
+    async def noticed_since(self, tenant_id: TenantId, *, since: datetime) -> tuple[Noticed, ...]:
+        found = [
+            Noticed(
+                id=row.id,
+                title=row.title,
+                systems=tuple(row.systems),
+                steps=len(row.steps),
+            )
+            for row in self.rows.values()
+            if row.tenant == tenant_id.value
+            and row.id not in self.retired
+            and self.created_at[row.id] >= since
+        ]
+        return tuple(sorted(found, key=lambda one: (self.created_at[one.id], one.id), reverse=True))
 
     async def known(self, tenant_id: TenantId) -> tuple[Workflow, ...]:
-        found = [row for row in self.rows.values() if row.tenant == tenant_id.value]
+        found = [
+            row
+            for row in self.rows.values()
+            if row.tenant == tenant_id.value and row.id not in self.retired
+        ]
         # (created_at, id), as the store orders it. The counter stands in for
         # the clock, and the id is the same tiebreak -- two workflows of one
         # pass can share an instant in Postgres, and the fake and the store
@@ -1970,9 +2003,28 @@ class FakeWorkflowRepository:
 
     async def get(self, tenant_id: TenantId, workflow_id: str) -> Workflow:
         row = self.rows.get(workflow_id)
-        if row is None or row.tenant != tenant_id.value:
+        if row is None or row.tenant != tenant_id.value or workflow_id in self.retired:
             raise NotFound(f"workflow {workflow_id} was not found")
         return deepcopy(row)
+
+    async def retire(self, tenant_id: TenantId, workflow_id: str, *, at: datetime) -> None:
+        await self.get(tenant_id, workflow_id)
+        self.retired[workflow_id] = at
+
+    async def place(
+        self, tenant_id: TenantId, workflow_id: str, gesture_ids: tuple[str, ...]
+    ) -> None:
+        for one in gesture_ids:
+            self.placements.setdefault((tenant_id.value, one), workflow_id)
+
+    async def placed(self, tenant_id: TenantId) -> frozenset[str]:
+        return frozenset(
+            cited
+            for row in self.rows.values()
+            if row.tenant == tenant_id.value
+            for step in row.steps
+            for cited in step.cites
+        ) | frozenset(one for tenant, one in self.placements if tenant == tenant_id.value)
 
     async def rekey(self, tenant_id: TenantId, workflow_id: str, key: ShapeKey) -> None:
         row = self.rows.get(workflow_id)
@@ -2257,56 +2309,22 @@ class FakeChatRepository:
 
 
 class FakeSpendRepository:
-    """The day's bill, summed off the other fakes rather than out of a dict.
+    """The day's bill: one row per model call, as the metered client writes it."""
 
-    The four tables are four repositories here, so this holds none of its own
-    rows: it reads theirs, with the rig's predicates. A fake that could be
-    handed a total nobody spent would prove nothing about a cap.
-    """
+    def __init__(self) -> None:
+        self.rows: list[ModelSpend] = []
 
-    def __init__(
-        self,
-        gestures: FakeGestureRepository,
-        workflows: FakeWorkflowRepository,
-        workflow_runs: FakeWorkflowRunRepository,
-        chats: FakeChatRepository,
-    ) -> None:
-        self._gestures = gestures
-        self._workflows = workflows
-        self._workflow_runs = workflow_runs
-        self._chats = chats
+    async def record(self, spent: ModelSpend) -> None:
+        self.rows.append(spent)
 
     async def today(self, tenant_id: TenantId, *, now: datetime) -> DaySpend:
         aware = now if now.tzinfo is not None else now.replace(tzinfo=UTC)
         midnight = aware.astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
-        since = midnight.isoformat()
-
-        readings = await self._gestures.intents_since(tenant_id, since=since)
-        passes = [
-            one
-            for one in await self._workflows.passes(tenant_id)
-            if when(one.started_at) >= midnight
-        ]
-        runs = await self._workflow_runs.since(tenant_id, since=since)
-        chats = await self._chats.since(tenant_id, since=since)
-
-        usd = (
-            sum(one.cost_usd for one in readings)
-            + sum(one.cost_usd for one in passes)
-            + sum(one.cost_usd for one in runs)
-            + sum(one.cost_usd for one in chats)
+        mine = [one for one in self.rows if one.tenant == tenant_id.value and one.at >= midnight]
+        return DaySpend(
+            cost_usd=sum(one.cost_usd for one in mine),
+            blind=sum(1 for one in mine if one.unpriced),
         )
-        # A call that errored was never billed, so it is unpriced without being
-        # blind; a run carries no error column, so its blind row is the one
-        # that billed nothing at all. The rig's `SPENT_IN`, predicate for
-        # predicate.
-        blind = (
-            sum(1 for one in readings if one.unpriced and one.error is None)
-            + sum(1 for one in passes if one.unpriced and one.error is None)
-            + sum(1 for one in runs if one.unpriced and one.cost_usd == 0.0)
-            + sum(1 for one in chats if one.unpriced and one.error is None)
-        )
-        return DaySpend(cost_usd=usd, blind=blind)
 
 
 _REPOSITORIES = frozenset(
@@ -2392,15 +2410,11 @@ class FakeUnitOfWork:
         self.attempts = FakeAttemptRepository()
         self.offers = FakeOfferRepository()
         self.chats = FakeChatRepository()
-        # One database in the store: the day's bill is summed over the same
-        # four repositories the rest of the unit of work writes to.
-        self.spend = FakeSpendRepository(
-            self.gestures, self._workflows, self.workflow_runs, self.chats
-        )
+        self.spend = FakeSpendRepository()
         self.pool = FakePoolRepository()
         self.observation_policies = FakeObservationPolicyRepository()
         self.candidates = FakeCandidateRepository()
-        self.triggers = FakeTriggerRepository()
+        self.triggers = FakeTriggerRepository(self._workflows.retired)
         self.tool_calls = FakeToolCallRepository()
         self.confirmations = FakeConfirmationRepository()
         self.commits = 0
@@ -2434,11 +2448,9 @@ class FakeUnitOfWork:
     same 500 by another route.
 
     Do not close it by resetting `_entered` in `__aexit__`. That is the
-    obvious move and it is a trap: `InduceSkill.execute` runs `AskAbout`'s
-    whole block from inside its own on this shared instance, and the
-    stickiness is what lets it. Adding the reset fails five
-    `test_the_whole_way_through` journey tests on `'skills' before
-    __aenter__`. Closing it properly means handing each use case its own
+    obvious move and it is a trap: a use case that runs another's whole block
+    from inside its own on this shared instance relies on the stickiness.
+    Closing it properly means handing each use case its own
     instance over one shared store, which is more change than the gap is
     worth."""
 

@@ -16,7 +16,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/chat/reading.py`](
 
 ## module, [line 49](../../../../../../../backend/src/sro/domain/chat/reading.py#L49): Note on the line above
 
-Code: `INSTRUCTIONS = """An operator has said what they want done. You are given the jobs this sy`
+Code: `INSTRUCTIONS = """An operator has said what they want done. You are given the jobs this system`
 
 > The second paragraph is the product.
 >

@@ -103,6 +103,43 @@ def _flush(context: Any, worker: Any) -> None:
     page.close()
 
 
+def _wait_for_a_tree(worker: Any, deadline_seconds: float = 5.0) -> None:
+    """Block until `trees.js` has captured at least one tree.
+
+    `noteTree()` writes `sro.treeTimes` the moment `takeTreeSoon` succeeds --
+    the real signal that the "before" tree the next gesture will pick up is
+    actually waiting, rather than a guess at how long a debugger attach and
+    an `Accessibility.getFullAXTree` command take under whatever load the
+    machine is under. The deadline is only a bound; a run where nothing is
+    ever captured fails on the assertion that follows, not here.
+    """
+    until = time.time() + deadline_seconds
+    while time.time() < until:
+        times = worker.evaluate(
+            """async () =>
+                 (await chrome.storage.local.get("sro.treeTimes"))["sro.treeTimes"] || []"""
+        )
+        if times:
+            return
+        time.sleep(0.1)
+
+
+def _flush_until_a_snapshot_arrives(
+    context: Any, worker: Any, batches: list[dict[str, Any]], deadline_seconds: float = 8.0
+) -> None:
+    """The same shape as `capture_fixtures.py`'s fix for I5: flush, check what
+    actually arrived, and only sleep between attempts -- never instead of
+    checking."""
+    until = time.time() + deadline_seconds
+    while True:
+        _flush(context, worker)
+        if any(event["kind"] == "snapshot" for batch in batches for event in batch["events"]):
+            return
+        if time.time() >= until:
+            return
+        time.sleep(0.25)
+
+
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 SHOTS_PER_MINUTE = 3
 """What the stub's policy allows. Low enough for a test to reach it."""
@@ -1423,74 +1460,6 @@ def test_the_operator_can_delete_the_last_hour_from_their_own_screen(
     assert not batches, "the queue survived the purge and uploaded the deleted hour"
 
 
-def test_a_task_demonstrated_in_the_operator_s_own_browser(
-    browser: Any, stub: Any, demonstrations: tuple[list[str], list[str]]
-) -> None:
-    """The teaching tier, end to end and in a real Chrome.
-
-    What passive capture cannot give induction is what a control *is*: the DOM
-    ids on this WMS are assigned in render order, so a locator built from them
-    is wrong after a reload. The accessibility tree is the view that survives,
-    and only `chrome.debugger` can read it — which is why this tier is
-    deliberate, visible (Chrome banners the tab), and short.
-
-    The batch is the other half. Teaching evidence names the demonstration it
-    belongs to and ordinary browsing does not, and the backend refuses either
-    one wearing the other's clothes.
-    """
-    api_url, batches = stub
-    started, sealed = demonstrations
-    worker = _service_worker(browser)
-    status = _sign_in(browser, worker, api_url)
-    assert status["capturing"] is True, f"the extension did not start capturing: {status}"
-
-    page = browser.new_page()
-    page.goto(api_url)
-    page.reload()
-    page.bring_to_front()
-
-    # Started from the extension's own page, because an ordinary page cannot
-    # talk to it -- which is also why the worker picks the system's tab rather
-    # than the tab that asked for the demonstration.
-    options = browser.new_page()
-    options.goto(f"{worker.url.rsplit('/src/', 1)[0]}/src/options/options.html")
-    began = options.evaluate(
-        """async () => await chrome.runtime.sendMessage({kind: "teach-start"})"""
-    )
-    assert began.get("ok"), f"the demonstration did not start: {began}"
-    assert started, "no recording was opened for the demonstration"
-
-    # The task itself.
-    page.fill("#client", CLIENT_CODE)
-    page.click("#save")
-    page.wait_for_function("() => window.__done === true", timeout=15_000)
-
-    ended = options.evaluate(
-        """async () => await chrome.runtime.sendMessage({kind: "teach-stop"})"""
-    )
-    options.close()
-    page.close()
-
-    assert ended.get("ok"), f"the demonstration did not stop cleanly: {ended}"
-    assert sealed == started, "the demonstration was never sealed"
-
-    teaching = [batch for batch in batches if batch["mode"] == "teaching"]
-    assert teaching, "the demonstration uploaded nothing as teaching evidence"
-    assert all(batch["recording_id"] == started[0] for batch in teaching), (
-        "teaching evidence arrived unattributable"
-    )
-    assert all(batch["recording_id"] is None for batch in batches if batch["mode"] == "passive"), (
-        "ordinary browsing was filed as a demonstration"
-    )
-
-    snapshots = [e for b in teaching for e in b["events"] if e["kind"] == "snapshot"]
-    assert snapshots, "no accessibility tree was captured, which is the whole point of this tier"
-    nodes = snapshots[0]["snapshot"]["nodes"]
-    assert any(node.get("role", {}).get("value") == "button" for node in nodes), (
-        f"the tree carries no roles, so it says no more than the DOM did: {nodes[:2]}"
-    )
-
-
 def _panel(context: Any, worker: Any) -> Any:
     """The side panel, opened as a page. Chrome docks it beside a tab in real
     use; a test cannot dock it, and the panel is written to find the ordinary
@@ -1500,12 +1469,22 @@ def _panel(context: Any, worker: Any) -> Any:
     return page
 
 
-def test_the_panel_hands_the_console_the_credential_it_cannot_see(browser: Any, stub: Any) -> None:
-    """The console keeps its token in localStorage and Chrome partitions storage
-    for framed contexts, so a console inside the panel cannot see the one from
-    its own tab. It has to be handed across, addressed to one origin, and the
-    console's reply is the only health check available — a cross-origin frame
-    does not report its own failures to the page that framed it.
+def test_the_panel_trades_the_operators_tab_for_the_console(browser: Any, stub: Any) -> None:
+    """The console used to be framed inside the panel, behind a credential
+    handshake (`sro.ready` / `sro.credential` / `sro.credential.ok`) needed
+    because Chrome partitions storage for framed contexts and the console
+    could not otherwise see its own token. That frame is gone -- a 360-pixel
+    console behind a handshake, for a screen that is a full-width application
+    -- and `service-worker.js`'s `panel-console` handler says why in its own
+    comment: "the token no longer leaves this worker for the panel at all".
+
+    So there is no credential left to prove arrived. What is left of the
+    contract is that pressing the menu item really trades a real tab for the
+    console's real address, through the extension's own sign-in and a real
+    `chrome.tabs` call -- `panel.test.mjs`'s "Open the console here puts the
+    console in this tab, and Console ↗ in a new one" already proves the press
+    dispatches the right action against a double for `chrome.tabs`; this is
+    the other half, that Chrome actually obeys it.
     """
     api_url, _ = stub
     worker = _service_worker(browser)
@@ -1516,78 +1495,43 @@ def test_the_panel_hands_the_console_the_credential_it_cannot_see(browser: Any, 
     system.goto(api_url)
 
     panel = _panel(browser, worker)
-    # Asked for, because the panel no longer frames the console unasked: a
-    # screen full of other work is not what somebody docked this beside their
-    # WMS for. The handshake it protects is the same either way.
-    #
-    # Under the profile rather than beside the composer. What used to open it
-    # was a button reading "Ask for a task", which was a second copy of the box
-    # you type in -- and framing a whole console is not what asking for a task
-    # means now that the panel can be asked directly.
     panel.locator(".disc").click()
     panel.get_by_role("button", name="Open the console here").click()
-    frame = panel.frame_locator("#frame")
-    frame.locator("h1").wait_for(timeout=15_000)
 
-    # The h1 is there as soon as the document parses, and the handshake is
-    # three message hops AFTER that: the console announces `sro.ready`, the
-    # panel posts the credential back, the console replies `sro.credential.ok`.
-    # Reading the frame on the h1 raced all three and failed about one in two
-    # runs, on a handshake that was working -- so this waits for the product's
-    # own health signal, which is the note clearing on that last reply.
-    panel.wait_for_function(
-        "() => document.getElementById('console-note').textContent === ''",
-        timeout=15_000,
+    system.wait_for_url(f"{api_url}/console", timeout=15_000)
+    assert system.locator("h1").text_content() == "Console", (
+        "the tab beside the panel was not traded for the console"
     )
-    handed = panel.frames[1].evaluate("() => window.__handed")
-    note = panel.text_content("#console-note")
     panel.close()
     system.close()
 
-    assert handed is not None, "the console was framed but never handed a credential"
-    assert handed.count(".") == 2, f"what arrived is not a token: {handed!r}"
-    assert note == "", f"the panel did not see the console accept it: {note!r}"
 
-
-def test_the_panel_teaches_the_tab_it_is_beside(browser: Any, stub: Any) -> None:
-    """The reason teaching moved here from the options page: a settings screen
-    cannot be the tab you mean, and the panel can name it exactly.
-
-    Two ordinary pages are open and the *older* one is named. The fallback the
-    options page relies on would take the newer, so this fails if `tabId` is
-    ignored rather than obeyed.
+def test_the_panel_opens_the_console_in_a_new_tab_when_asked_there(browser: Any, stub: Any) -> None:
+    """The other half of the same menu: "Console ↗" leaves the operator's tab
+    alone and opens a tab of its own, real `chrome.tabs.create` and all.
     """
     api_url, _ = stub
     worker = _service_worker(browser)
-    _sign_in(browser, worker, api_url)
+    status = _sign_in(browser, worker, api_url, console_url=api_url)
+    assert status["capturing"] is True, f"the extension did not start capturing: {status}"
 
-    older = browser.new_page()
-    older.goto(f"{api_url}/older")
-    newer = browser.new_page()
-    newer.goto(f"{api_url}/newer")
+    system = browser.new_page()
+    system.goto(api_url)
+
     panel = _panel(browser, worker)
+    panel.locator(".disc").click()
+    with browser.expect_page(timeout=15_000) as opened:
+        panel.get_by_role("button", name="Console ↗").click()
+    console_tab = opened.value
+    console_tab.wait_for_url(f"{api_url}/console", timeout=15_000)
 
-    began = panel.evaluate(
-        """async () => {
-             const open_ = await chrome.tabs.query({url: "http://127.0.0.1/*"});
-             const oldest = open_.sort((a, b) => a.id - b.id)[0];
-             const answer = await chrome.runtime.sendMessage(
-               {kind: "teach-start", tabId: oldest.id, label: "beside me"});
-             return {answer, asked: oldest.id, newest: open_[open_.length - 1].id};
-           }"""
+    assert console_tab.locator("h1").text_content() == "Console", (
+        "Console ↗ did not open the console in a new tab"
     )
-    assert began["answer"].get("ok"), f"the demonstration did not start: {began}"
-
-    taught = panel.evaluate("""async () => await chrome.runtime.sendMessage({kind: "status"})""")
-    panel.evaluate("""async () => await chrome.runtime.sendMessage({kind: "teach-stop"})""")
+    assert system.url.rstrip("/") == api_url, "the operator's own tab was navigated away from"
+    console_tab.close()
     panel.close()
-    newer.close()
-    older.close()
-
-    assert taught["teaching"]["tabId"] == began["asked"], (
-        "the demonstration attached to a tab other than the one it was told to"
-    )
-    assert began["asked"] != began["newest"], "the fixture did not set up two tabs"
+    system.close()
 
 
 def test_the_panel_can_stop_a_run_that_is_driving_this_browser(
@@ -1716,63 +1660,6 @@ def test_pressing_yes_on_the_card_starts_the_run_the_card_described(
     assert "started_by" not in press, press
 
 
-def test_a_demonstration_bigger_than_one_batch_is_uploaded_whole(
-    browser: Any, stub: Any, demonstrations: tuple[list[str], list[str]]
-) -> None:
-    """Sealing is the end of the road for the evidence behind it.
-
-    One flush is one batch — 500 events or 2MB — and a teaching batch carries an
-    accessibility tree per gesture, so any real demonstration is several. Sealing
-    after the first left the rest queued, and the next tick met a recording that
-    was already sealed: the backend refuses that permanently, and a permanent
-    refusal deletes the rows. The back half went missing without a word.
-    """
-    api_url, batches = stub
-    started, sealed = demonstrations
-    worker = _service_worker(browser)
-    status = _sign_in(browser, worker, api_url)
-    assert status["capturing"] is True, f"the extension did not start capturing: {status}"
-
-    page = browser.new_page()
-    page.goto(f"{api_url}/wide")
-    page.reload()
-
-    options = browser.new_page()
-    options.goto(f"{worker.url.rsplit('/src/', 1)[0]}/src/options/options.html")
-    began = options.evaluate(
-        """async () => await chrome.runtime.sendMessage({kind: "teach-start"})"""
-    )
-    assert began.get("ok"), f"the demonstration did not start: {began}"
-
-    # Enough gestures that their trees cannot fit in one 2MB batch.
-    for _ in range(12):
-        page.click("#client")
-        page.click("h1")
-    page.wait_for_timeout(1000)
-
-    ended = options.evaluate(
-        """async () => await chrome.runtime.sendMessage({kind: "teach-stop"})"""
-    )
-    assert ended.get("ok"), f"the demonstration did not stop cleanly: {ended}"
-
-    left = options.evaluate("""async () => (await chrome.runtime.sendMessage({kind: "status"}))""")
-    options.close()
-    page.close()
-
-    assert sealed == started, "the demonstration was never sealed"
-    teaching = [batch for batch in batches if batch["mode"] == "teaching"]
-    assert len(teaching) > 1, (
-        "the fixture did not produce more than one batch, so this proves nothing"
-    )
-    # Nothing of it was still on the device when it was sealed, which is the
-    # only moment at which the backend will still accept it.
-    assert not left["lastError"], f"the tail of the demonstration did not go: {left['lastError']}"
-    gestures = sum(
-        1 for batch in teaching for event in batch["events"] if event["kind"] == "gesture"
-    )
-    assert gestures >= 12, f"only {gestures} of the demonstration's gestures arrived"
-
-
 def test_the_tree_a_step_carries_is_the_page_the_operator_acted_on(browser: Any, stub: Any) -> None:
     """A snapshot is attached to the frame of the gesture before it, and that
     frame's locator is built from the tree — so the tree has to be the screen
@@ -1781,6 +1668,11 @@ def test_the_tree_a_step_carries_is_the_page_the_operator_acted_on(browser: Any,
     Taken after the click, a step that navigates carries the *destination*
     page, and induction builds that step's locator from a page where the
     control it clicked does not exist.
+
+    Passive, not a deliberate demonstration: the accessibility tree is the
+    same event either way (`trees.js`'s `takeTree`/`takeTreeSoon`), gated by
+    the tenant policy's `capture_snapshots` rather than a debugger session
+    somebody pressed a button to start.
     """
     api_url, batches = stub
     worker = _service_worker(browser)
@@ -1799,24 +1691,23 @@ def test_the_tree_a_step_carries_is_the_page_the_operator_acted_on(browser: Any,
            }""",
         [f"{api_url}/elsewhere"],
     )
+    _watch(browser, worker, page)
 
-    options = browser.new_page()
-    options.goto(f"{worker.url.rsplit('/src/', 1)[0]}/src/options/options.html")
-    began = options.evaluate(
-        """async () => await chrome.runtime.sendMessage({kind: "teach-start"})"""
-    )
-    assert began.get("ok"), f"the demonstration did not start: {began}"
+    # The first gesture has no "before" tree waiting for it; what it does is
+    # schedule one, of this page, for the gesture after it. Waited for by the
+    # signal that says it landed, not by guessing how long a debugger attach
+    # takes.
+    page.click("#client")
+    _wait_for_a_tree(worker)
 
     page.click("#go")
     page.wait_for_url(f"{api_url}/elsewhere", timeout=15_000)
-    page.wait_for_timeout(600)
-    options.evaluate("""async () => await chrome.runtime.sendMessage({kind: "teach-stop"})""")
-    options.close()
+    _flush_until_a_snapshot_arrives(browser, worker, batches)
     page.close()
 
     events = [event for batch in batches for event in batch["events"]]
     snapshots = [event for event in events if event["kind"] == "snapshot"]
-    assert snapshots, "the demonstration carried no accessibility tree at all"
+    assert snapshots, "the passive path carried no accessibility tree at all"
 
     names = [node.get("name", {}).get("value", "") for node in snapshots[0]["snapshot"]["nodes"]]
     assert any("Go elsewhere" in name for name in names), (

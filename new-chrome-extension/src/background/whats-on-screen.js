@@ -74,8 +74,15 @@ export function whatIsOnThisPage(said) {
   const seen = (css) => [...document.querySelectorAll(css)].filter(shown);
 
   const dialog = seen(said.dialog)[0];
+  const logins = seen(said.login);
   return {
-    signed_out: seen(said.login).length > 0,
+    signed_out: logins.length > 0,
+    // Whether a login box on screen is EMPTY -- the fact, never the value. A
+    // form that comes back empty right after a password was submitted is the
+    // system refusing it; one still holding what was typed is a submit still
+    // in flight. The run engine latches the password on the first and waits
+    // on the second, so a refused password is never typed twice.
+    credential_empty: logins.some((box) => !box.value),
     // Still coming, which is the one of these a run can do something about
     // other than stop: what a half-drawn screen needs is a moment, and every
     // rung of the ladder spent on it is a model call answering a question

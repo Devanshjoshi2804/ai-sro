@@ -28,7 +28,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/trigger/answe
 > into "nobody looked", which is a different thing to read a month later and
 > the only one worth changing how a team works over.
 
-## `_refuse_unless_still_askable`, [line 142](../../../../../../../backend/src/sro/application/trigger/answer_confirmation.py#L142): Docstring
+## `_refuse_unless_still_askable`, [line 143](../../../../../../../backend/src/sro/application/trigger/answer_confirmation.py#L143): Docstring
 
 > The domain object holds both rules; this is where they are asked.
 >

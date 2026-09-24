@@ -39,13 +39,12 @@ list, which would tell them their bridge is fine and their job is empty.
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, status
 
 from sro.interface.http.asking import AskingDeviceDep, TenantOnly
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
     EvidenceResponse,
-    LearnedChangesResponse,
     WorkflowsResponse,
 )
 
@@ -67,31 +66,23 @@ async def workflows(
     return WorkflowsResponse.of(await container.read_workflows().execute(ctx))
 
 
-@router.get("/workflows/{workflow_id}/taught", dependencies=[TenantOnly])
-async def what_the_job_taught_itself(
-    container: ContainerDep, ctx: ContextDep, workflow_id: str
-) -> LearnedChangesResponse:
-    """What this job has changed its mind about, newest first.
+@router.post(
+    "/workflows/{workflow_id}/retire",
+    dependencies=[TenantOnly],
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def retire_workflow(container: ContainerDep, ctx: ContextDep, workflow_id: str) -> None:
+    """Retire a job: it stops being offered, listed or run, for good.
 
-    A job rewrites its own behaviour: a locator the recorded one could not find
-    is replaced by the one a run did, and a box's limit is written down the
-    first time a value would not fit. Every one of those is stored as the
-    CURRENT answer, one row per step, the last winning -- which is right for
-    the run asking what to try first, and leaves a job drifting with nothing
-    anybody can read.
+    The row and its citations stay. Deleting it would hand its gestures back
+    to the miner, which would read them into a fresh copy of the job the
+    operator just dropped -- so a retired job's evidence stays placed, and the
+    job stays retired.
 
-    This is the reviewable half. Not an approval gate: what a run found is
-    already what the next run will try, and holding that behind a person would
-    mean a job that healed itself on Friday waits until Monday to say so. What
-    it is for is somebody being able to ask "why is this step looking for a css
-    path" and get an answer with a run id in it.
-
-    Tenant-only, like the evidence beside it. A locator is a fact about the
-    inside of somebody's warehouse system.
+    A job this tenant does not have, or has already retired, is a 404.
+    Tenant-only: which jobs a deployment keeps is not a browser's decision.
     """
-    return LearnedChangesResponse.of(
-        await container.read_what_a_job_taught().execute(ctx, workflow_id=workflow_id)
-    )
+    await container.retire_workflow().execute(ctx, workflow_id=workflow_id)
 
 
 @router.get("/workflows/{workflow_id}/evidence", dependencies=[TenantOnly])

@@ -85,16 +85,8 @@ def test_every_captured_payload_parses_into_the_domain(path: Path) -> None:
 
     if path.stem.startswith("batch"):
         assert payload["batch_id"].startswith("bat_"), "a batch id the backend cannot key on"
-        assert payload["mode"] in ("passive", "teaching")
+        assert payload["mode"] == "passive"
         assert payload["events"], "a batch worth uploading has events in it"
-        # The one rule that makes teaching evidence evidence: it names the
-        # demonstration it belongs to, and ordinary browsing does not. Either
-        # one wearing the other's clothes is refused at ingest, and a fixture
-        # that got it wrong would be a fixture proving the wrong contract.
-        teaching = payload["mode"] == "teaching"
-        assert bool(payload.get("recording_id")) is teaching, (
-            f"a {payload['mode']} batch with recording_id={payload.get('recording_id')!r}"
-        )
         for event in payload["events"]:
             _parse_event(event)
         return

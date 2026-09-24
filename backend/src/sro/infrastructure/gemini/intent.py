@@ -52,11 +52,9 @@ confidence: 0 to 1, how sure you are. Be honest; a low number costs a
 
 
 class GeminiIntentParser:
-    def __init__(self, api_key: str, model: str) -> None:
-        from google import genai
-
-        self._client = genai.Client(api_key=api_key)
+    def __init__(self, model: str, *, client: Any) -> None:
         self._model = model
+        self._client = client
 
     @property
     def available(self) -> bool:

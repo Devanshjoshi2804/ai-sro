@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/interface/http/app.py`](../../../../../../../backend/src/sro/interface/http/app.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `on_start`, [line 91](../../../../../../../backend/src/sro/interface/http/app.py#L91): Comment
+## `on_start`, [line 84](../../../../../../../backend/src/sro/interface/http/app.py#L84): Comment
 
 Code: `logging.getLogger(__name__).warning(`
 
@@ -21,7 +21,7 @@ Code: `logging.getLogger(__name__).warning(`
 > and a boot that refuses over a price is a boot that refuses over
 > bookkeeping.
 
-## `on_start`, [line 96](../../../../../../../backend/src/sro/interface/http/app.py#L96): Comment
+## `on_start`, [line 89](../../../../../../../backend/src/sro/interface/http/app.py#L89): Comment
 
 Code: `if not await container.claim_the_runs():`
 
@@ -32,14 +32,14 @@ Code: `if not await container.claim_the_runs():`
 > runs and freed the browser for a second run to claim while the first was
 > still driving it. `Dockerfile` pins `--workers 1`; nothing enforced it.
 
-## `lifespan`, [line 131](../../../../../../../backend/src/sro/interface/http/app.py#L131): Comment
+## `lifespan`, [line 123](../../../../../../../backend/src/sro/interface/http/app.py#L123): Comment
 
 Code: `configure_logging(`
 
 > JSON off a laptop and on everywhere else: a deployment's logs are
 > collected and queried, and a developer's are read.
 
-## `lifespan`, [line 143](../../../../../../../backend/src/sro/interface/http/app.py#L143): Comment
+## `lifespan`, [line 135](../../../../../../../backend/src/sro/interface/http/app.py#L135): Comment
 
 Code: `async with mcp_server.session_manager.run():`
 
@@ -48,7 +48,7 @@ Code: `async with mcp_server.session_manager.run():`
 > walk that would trigger it -- so its session manager's task group is
 > started explicitly, in this one instead.
 
-## `lifespan`, [line 148](../../../../../../../backend/src/sro/interface/http/app.py#L148): Comment
+## `lifespan`, [line 140](../../../../../../../backend/src/sro/interface/http/app.py#L140): Comment
 
 Code: `if container.driving_runs is not None:`
 
@@ -62,7 +62,7 @@ Code: `if container.driving_runs is not None:`
 > down cleanly and started again -- a dev reload -- would find its
 > own lock still held and skip the sweep it exists to do.
 
-## `create_app`, [line 240](../../../../../../../backend/src/sro/interface/http/app.py#L240): Comment
+## `create_app`, [line 232](../../../../../../../backend/src/sro/interface/http/app.py#L232): Comment
 
 Code: `origins = list(settings.cors_origins)`
 
@@ -71,7 +71,7 @@ Code: `origins = list(settings.cors_origins)`
 > configurable at all, and it cannot be defaulted because the id is per
 > build.
 
-## `create_app`, [line 252](../../../../../../../backend/src/sro/interface/http/app.py#L252): Comment
+## `create_app`, [line 244](../../../../../../../backend/src/sro/interface/http/app.py#L244): Comment
 
 Code: `app.add_middleware(Attributing)`
 

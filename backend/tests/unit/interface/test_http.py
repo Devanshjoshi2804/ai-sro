@@ -6,6 +6,10 @@ the error mapping, all of which break independently of any infrastructure.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import socket
+import threading
 from collections.abc import AsyncIterator
 
 import httpx
@@ -14,16 +18,16 @@ from httpx import ASGITransport
 
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
+from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.pursuits import Pursuits
 from sro.application.execution.stops import Stops
 from sro.application.ports.auth import Caller
 from sro.application.ports.capture import CaptureController
 from sro.application.ports.repositories import UnitOfWork
 from sro.config import Settings, get_settings
-from sro.container import Container
+from sro.container import Container, build_container
 from sro.domain.execution.run import Medium, Run, RunId, StepDisposition, StepOutcome
 from sro.domain.shared.identifiers import (
-    BrowserSessionId,
     PrincipalId,
     RecordingId,
     SkillId,
@@ -34,6 +38,7 @@ from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.template import Template
 from sro.infrastructure.agent.sockets import DeviceSockets
 from sro.infrastructure.auth.signed_tokens import SignedTokens
+from sro.infrastructure.gemini.metered import Meter
 from sro.infrastructure.gemini.null_interpreter import NoInterpreter
 from sro.interface.http.app import create_app
 from sro.interface.http.deps import get_container
@@ -69,6 +74,7 @@ class _FakeContainer(Container):
         self._uow = uow
         self.settings = Settings()
         self.clock = FakeClock()
+        self.meter = Meter(lambda: uow, clock=self.clock, cap_usd=-1.0)
         self.ids = FakeIdFactory()
         self.blobs = FakeBlobStore()
         self.browser = FakeBrowserProvider()
@@ -113,12 +119,16 @@ class _FakeContainer(Container):
         # waits on an event in this process, so a container with a register of
         # its own is a tap nothing is waiting on.
         self.approvals = Approvals()
+        # Beside the stops and the approvals, for the same reason: a one-time
+        # password is held in this process's memory, and a container that
+        # writes its own `__init__` needs its own store.
+        self.one_time_secrets = OneTimeSecrets()
         self.agent_sockets = DeviceSockets()
         self.scheduler = FakeScheduler()
         self.dispatcher = FakeRunDispatcher()
         # Last: the executor it wraps reaches for the http caller and the
         # driver above, so the fakes have to exist before it is built.
-        self.durable = FakeDurableExecution(self.induce_skill(), execute=self.execute_skill())
+        self.durable = FakeDurableExecution(execute=self.execute_skill())
 
     def unit_of_work(self) -> UnitOfWork:
         # `hand_out`, not the bare instance: the real container returns a
@@ -208,6 +218,36 @@ class TestHealth:
         assert response.json()["revision"] == get_settings().revision
         assert response.json()["revision"]
 
+    async def test_the_app_starts_and_answers_while_the_collector_never_answers(
+        self,
+    ) -> None:
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind(("127.0.0.1", 0))
+        server.listen(1)
+        host, port = server.getsockname()
+
+        def accept_and_freeze() -> None:
+            with contextlib.suppress(OSError):
+                server.accept()
+
+        threading.Thread(target=accept_and_freeze, daemon=True).start()
+
+        try:
+            built = build_container(Settings(_env_file=None, otlp_endpoint=f"http://{host}:{port}"))
+            app = create_app()
+            app.dependency_overrides[get_container] = lambda: built
+            async with httpx.AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers={"Authorization": f"Bearer {token_for()}"},
+            ) as http:
+                response = await asyncio.wait_for(http.get("/health"), timeout=2)
+        finally:
+            server.close()
+
+        assert response.status_code == 200
+
 
 async def _connected(uow: FakeUnitOfWork, container: _FakeContainer) -> None:
     """A system somebody has already signed in to."""
@@ -231,138 +271,6 @@ async def _connected(uow: FakeUnitOfWork, container: _FakeContainer) -> None:
     )
 
 
-class TestRecordings:
-    async def test_starting_a_recording_returns_a_live_view(
-        self, client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
-    ) -> None:
-        await _connected(uow, container)
-
-        response = await client.post(
-            "/v1/recordings",
-            json={
-                "objective_key": {
-                    "objective_type": "release_wave",
-                    "target_system": "blue_yonder",
-                    "entity_type": "wave",
-                    "facility": "DC01",
-                    "direction": "outbound",
-                },
-                "start_url": "https://wms.test",
-            },
-        )
-
-        assert response.status_code == 201
-        assert response.json()["live_view_url"]
-
-    async def test_teaching_refuses_before_a_login_page_can_appear(
-        self, client: httpx.AsyncClient
-    ) -> None:
-        """Nobody is signed in to this system. Said now, rather than discovered
-        three clicks into a demonstration of the identity provider."""
-        response = await client.post(
-            "/v1/recordings",
-            json={
-                "objective_key": {
-                    "objective_type": "release_wave",
-                    "target_system": "blue_yonder",
-                    "entity_type": "wave",
-                    "facility": "DC01",
-                    "direction": "outbound",
-                },
-                "start_url": "https://wms.test",
-            },
-        )
-
-        assert response.status_code == 409
-        assert "nobody is signed in" in response.json()["detail"]
-        assert "Connect it once" in response.json()["detail"]
-
-    async def test_an_unknown_recording_is_a_problem_document(
-        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
-    ) -> None:
-        """A real recording is read through the same door on purpose: a path
-        nobody registered answers 404 with this exact problem document, so
-        without it this proves the route absent rather than well-mannered."""
-        real = f.recording(frames=0)
-        await uow.recordings.add(real)
-
-        response = await client.get("/v1/recordings/nope")
-
-        assert response.status_code == 404
-        assert response.headers["content-type"].startswith("application/problem+json")
-        assert response.json()["status"] == 404
-        assert (await client.get(f"/v1/recordings/{real.id}")).status_code == 200
-
-    async def test_a_recording_renders_its_frames(
-        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
-    ) -> None:
-        recording = f.recording(frames=0)
-        recording.append_frame(f.frame(requests=(f.request(),)))
-        await uow.recordings.add(recording)
-
-        response = await client.get(f"/v1/recordings/{recording.id}")
-        body = response.json()
-
-        assert response.status_code == 200
-        assert body["frame_count"] == 1
-        assert body["frames"][0]["primary_request"].startswith("POST ")
-
-
-class TestLiveView:
-    async def test_an_open_recording_points_at_its_session(
-        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
-    ) -> None:
-        recording = f.recording(frames=0)
-        recording.attach_browser_session(BrowserSessionId("sess-9"))
-        await uow.recordings.add(recording)
-
-        response = await client.get(f"/v1/recordings/{recording.id}/live-view")
-
-        assert response.status_code == 200
-        assert "sess-9" in response.json()["live_view_url"]
-
-    async def test_a_sealed_recording_has_no_live_view(
-        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
-    ) -> None:
-        recording = f.recording(frames=1, sealed=True)
-        await uow.recordings.add(recording)
-
-        response = await client.get(f"/v1/recordings/{recording.id}/live-view")
-
-        assert response.status_code == 200
-        assert response.json()["live_view_url"] is None
-
-
-class TestSkills:
-    async def test_promoting_past_the_permitted_stage_is_refused(
-        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
-    ) -> None:
-        skill = f.skill()
-        await uow.skills.add(skill)
-
-        response = await client.post(
-            f"/v1/skills/{skill.id}/promote",
-            json={"version": 1, "to": "autonomous"},
-        )
-
-        assert response.status_code == 422
-        assert "autonomous" in response.json()["detail"]
-
-    async def test_promotion_to_shadow_is_allowed(
-        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
-    ) -> None:
-        skill = f.skill()
-        await uow.skills.add(skill)
-
-        response = await client.post(
-            f"/v1/skills/{skill.id}/promote",
-            json={"version": 1, "to": "shadow"},
-        )
-
-        assert response.status_code == 200
-        assert response.json()["stage"] == "shadow"
-
-
 class TestProblemDocuments:
     async def test_a_malformed_body_is_a_problem_document_like_everything_else(
         self, client: httpx.AsyncClient
@@ -370,13 +278,13 @@ class TestProblemDocuments:
         """FastAPI's default answer is a list of objects, which breaks the
         contract every other failure keeps — and a client that renders `detail`
         crashes on it rather than showing the operator what was wrong."""
-        response = await client.post("/v1/recordings", json={"objective_key": 12})
+        response = await client.post("/v1/ask", json={"said": 12})
 
         assert response.status_code == 422
         assert response.headers["content-type"].startswith("application/problem+json")
         problem = response.json()
         assert isinstance(problem["detail"], str)
-        assert "objective_key" in problem["detail"]
+        assert "said" in problem["detail"]
 
 
 class TestTheDoor:

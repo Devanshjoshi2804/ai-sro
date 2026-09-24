@@ -5,7 +5,6 @@ export type WorkflowStepModel = Schemas["WorkflowStepModel"];
 export type WorkflowRunModel = Schemas["WorkflowRunModel"];
 export type WorkflowRunStepModel = Schemas["WorkflowRunStepModel"];
 export type DeviceLineModel = Schemas["DeviceLineModel"];
-export type AuditResponse = Schemas["AuditResponse"];
 
 export type EvidenceResponse = Schemas["EvidenceResponse"];
 
@@ -22,7 +21,6 @@ export const workflowRunKeys = {
 };
 
 export const rosterKeys = { all: ["roster"] as const };
-export const auditKeys = { since: (iso: string) => ["audit", iso] as const };
 
 export const listWorkflows = () =>
   api.get<{ workflows: WorkflowModel[] }>("/v1/workflows").then((r) => r.workflows);
@@ -38,10 +36,6 @@ export const listWorkflows = () =>
  */
 export const readEvidence = (workflowId: string) =>
   api.get<EvidenceResponse>(`/v1/workflows/${encodeURIComponent(workflowId)}/evidence`);
-
-/** The parked runs, whichever browser is driving them. */
-export const listAwaitingRuns = () =>
-  api.get<WorkflowRunModel[]>("/v1/workflow-runs?awaiting=true&limit=50");
 
 export const listRunsOfWorkflow = (workflowId: string) =>
   api.get<WorkflowRunModel[]>(
@@ -77,16 +71,3 @@ export const abortWorkflowRun = (runId: string) =>
 
 export const listBrowsers = () =>
   api.get<{ devices: DeviceLineModel[] }>("/v1/devices").then((r) => r.devices);
-
-export const revokeBrowser = (deviceId: string) =>
-  api.post<{ device_id: string; moved: boolean }>(
-    `/v1/devices/${encodeURIComponent(deviceId)}/revoke`,
-  );
-
-export const restoreBrowser = (deviceId: string) =>
-  api.post<{ device_id: string; moved: boolean }>(
-    `/v1/devices/${encodeURIComponent(deviceId)}/restore`,
-  );
-
-export const readAudit = (sinceIso: string) =>
-  api.get<AuditResponse>(`/v1/audit?since=${encodeURIComponent(sinceIso)}`);

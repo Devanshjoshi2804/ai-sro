@@ -74,42 +74,37 @@ failed attempts and the picture is dropped, loudly — the options page says so.
 
 Clicking the toolbar button opens a panel docked beside the tab. It is not a
 second console: it renders natively only what needs `chrome.*` or the current
-tab -- the REC state, pause, teaching start/stop for *this* tab, a run
-performing in this browser with a way to stop it, purge, and "tasks you keep
-doing here" narrowed to the tab's host -- and frames the console for everything
-else, so no review screen exists twice.
+tab -- the REC state, pause, a run performing in this browser with a way to
+stop it, purge, and "tasks you keep doing here" narrowed to the tab's host --
+and links out to the console for everything else, so no review screen exists
+twice.
 
-The console keeps its credential in `localStorage` and Chrome partitions
-storage for framed contexts, so the framed console cannot see the token from
-its own tab. The panel hands it across: the console announces itself with
-`sro.ready` once its listener exists, the panel answers with the credential
-addressed to that one origin, and the console confirms. Silence means refused,
-and the panel says so with the extension's own id, because a cross-origin frame
-never reports its own failures to the page that framed it.
+The console used to be framed inside the panel, behind a credential handshake:
+the console announced itself with `sro.ready`, the panel answered with the
+token addressed to that one origin, and the console confirmed. That frame is
+gone -- a 360-pixel console behind a per-extension line of configuration, for
+a screen that is a full-width application. "Open the console here" now trades
+the tab beside the panel for the console's address; "Console ↗" opens it in a
+new tab. Either way the token never leaves the worker for the panel: the
+console is on its own now for authenticating itself.
 
 Set the console's address in Settings; leave it empty and the panel still does
-everything only it can do. The console must name this extension in
-`NEXT_PUBLIC_EXTENSION_ORIGINS` or it accepts nothing and refuses to be framed.
+everything only it can do, and says so rather than opening nothing when asked
+for a console with no address set.
 
-## Teaching a task
+## Accessibility trees
 
-Passive capture is cheap and invisible on purpose. The teaching tier is the
-opposite: the operator opens the system, presses **Start teaching** on the
-options page, does the task once, and presses stop. While it runs, the extension
-attaches `chrome.debugger` to that tab and takes an accessibility tree at every
-gesture — the one view that says what a control *is* rather than where it sits
-today, and what induction needs to build a locator that survives a re-render.
+Passive capture is cheap and invisible on purpose, and by default it sees only
+what the DOM offers. A tenant may turn on `capture_snapshots` in its policy, and
+when it does, `trees.js` attaches `chrome.debugger` to a watched tab and takes
+an accessibility tree at every gesture -- the one view that says what a control
+*is* rather than where it sits today, and what induction needs to build a
+locator that survives a re-render.
 
-Chrome banners the tab for as long as it is attached, which is right: this is
-deliberate, it is short, and the operator should be able to see it stop.
-
-The tab taught in is the one the panel is docked beside, which it names exactly.
-Started from anywhere that cannot name a tab -- the options page -- it falls back
-to the last ordinary page the operator was on. Start flushes everything captured so far as passive
-work, stop uploads the demonstration's own evidence and only then seals the
-recording — a batch never straddles the moment teaching began or ended, because
-the backend refuses teaching evidence that names no demonstration and passive
-evidence that names one.
+Chrome banners the tab for as long as it is attached, which here is as long as
+the tab stays watched, so this is off unless a tenant's policy turns it on --
+the cost is real and belongs to an administrator's decision, not an operator's
+surprise.
 
 ## Deleting your own evidence
 

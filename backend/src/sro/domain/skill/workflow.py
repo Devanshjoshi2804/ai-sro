@@ -45,6 +45,8 @@ class Workflow:
 
     repeat: Repeat | None = None
 
+    signs_in: bool = False
+
     def generalise_title(self) -> None:
         seen: list[str] = []
         for parameter in self.parameters:
@@ -64,6 +66,14 @@ class Workflow:
         tidied = " ".join(words).strip(" -:,")
         if tidied:
             self.title = tidied
+
+
+@dataclass(frozen=True, slots=True)
+class Noticed:
+    id: str
+    title: str
+    systems: tuple[str, ...]
+    steps: int
 
 
 def cited_ids(workflow: Workflow) -> set[str]:

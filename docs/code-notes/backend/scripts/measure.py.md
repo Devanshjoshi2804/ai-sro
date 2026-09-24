@@ -67,7 +67,7 @@ Code: `MINE = "(cast(:tenant as text) is null or tenant_id = cast(:tenant as tex
 
 > One measured thing, and what it rests on.
 
-## `unmeasured`, [line 406](../../../../backend/scripts/measure.py#L406): Docstring
+## `unmeasured`, [line 405](../../../../backend/scripts/measure.py#L405): Docstring
 
 > The list this whole script exists to print.
 >
@@ -75,7 +75,7 @@ Code: `MINE = "(cast(:tenant as text) is null or tenant_id = cast(:tenant as tex
 > Written by hand and kept in the report on purpose: a gap that is only
 > visible as a missing section is a gap the next reader will not see.
 
-## `running`, [line 291](../../../../backend/scripts/measure.py#L291): Comment
+## `running`, [line 290](../../../../backend/scripts/measure.py#L290): Comment
 
 Code: `for belt in ("status", "read", "screen"):`
 
@@ -85,7 +85,7 @@ Code: `for belt in ("status", "read", "screen"):`
 > about reality, so each one is asked about by name even when the answer is
 > zero. A rung that has never run is the most useful line on this page.
 
-## `main`, [line 514](../../../../backend/scripts/measure.py#L514): Comment
+## `main`, [line 513](../../../../backend/scripts/measure.py#L513): Comment
 
 Code: `asked = (`
 

@@ -588,7 +588,7 @@ async def test_the_fields_this_listing_leaves_out_have_doors_of_their_own(
 async def test_a_cited_gesture_reaches_the_bridge_whole(
     client: httpx.AsyncClient, mined: list[Gesture]
 ) -> None:
-    """The shape `application.skill.from_rig` reads a replayable plan out of.
+    """The shape a runner's bridge reads a replayable plan out of.
 
     Every field of the planted gesture, down to the component query that is
     the strongest locator rung there is: a bridge handed a gesture with its
@@ -787,7 +787,7 @@ async def test_a_citation_the_store_no_longer_holds_is_reported(
 ) -> None:
     """The rig served `missing` and this port dropped it.
 
-    `from_rig.plans_for_step` skips a citation with no gesture, so the bridge
+    A bridge skips a citation with no gesture, so it
     builds a plan quietly short a step. A caller is entitled to know that
     before it runs one, and `gestures` alone cannot tell it: a job citing six
     and served three looks exactly like a job citing three.
@@ -948,3 +948,44 @@ async def test_no_credential_reaches_neither_door(
     assert (
         await client.get(f"/v1/workflows/{JOB}/evidence", headers={"Authorization": ""})
     ).status_code == 401
+
+
+# --- retiring a job ----------------------------------------------------------
+
+
+async def test_a_retired_job_leaves_the_menu(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, mined: list[Gesture]
+) -> None:
+    """Retired is gone from everything that offers or runs a job: the listing
+    and a lookup by id -- and so the shapes and the runs, which read the same
+    two. The row stays."""
+    answered = await client.post(f"/v1/workflows/{JOB}/retire")
+
+    assert answered.status_code == 204, answered.text
+    assert [row["id"] for row in (await _listed(client)).json()["workflows"]] == [SIBLING, THIRD]
+    assert (await _evidence(client)).status_code == 404
+    assert JOB in uow.workflows.retired
+
+
+async def test_a_job_is_retired_once_and_only_by_its_own_tenant(
+    client: httpx.AsyncClient, rival: httpx.AsyncClient, mined: list[Gesture]
+) -> None:
+    assert (await rival.post(f"/v1/workflows/{JOB}/retire")).status_code == 404
+    assert (await client.post("/v1/workflows/wfl_nobody/retire")).status_code == 404
+    assert (await client.post(f"/v1/workflows/{JOB}/retire")).status_code == 204
+    assert (await client.post(f"/v1/workflows/{JOB}/retire")).status_code == 404
+
+
+async def test_a_browser_may_not_retire_a_job(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, mined: list[Gesture]
+) -> None:
+    await uow.devices.add(f.device(id=LAPTOP, secret=HERS))
+
+    answered = await client.post(
+        f"/v1/workflows/{JOB}/retire",
+        params={"device_id": LAPTOP.value},
+        headers={"X-Device-Secret": HERS},
+    )
+
+    assert answered.status_code == 403
+    assert (await _listed(client)).json()["workflows"][0]["id"] == JOB

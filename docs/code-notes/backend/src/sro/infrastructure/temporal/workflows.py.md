@@ -10,22 +10,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 > directly would replay differently after a restart and lose the durability that
 > is the only reason Temporal is here.
 
-## `InductionWorkflow`, [line 31](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L31): Docstring
-
-> Two sealed recordings to a skill version.
->
-> Durable so a failed induction never costs the demonstrations: the recordings
-> are already sealed, and a retry starts from them rather than from a session.
-
-## `RecordingSessionWorkflow`, [line 44](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L44): Docstring
-
-> Watches one demonstration and reaps it if the operator walks away.
->
-> The capture session itself lives in the API process, attached to CDP. What
-> is durable here is the deadline: a browser session left open costs money and
-> holds a scarce slot.
-
-## `ExecutionWorkflow`, [line 85](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L85): Docstring
+## `ExecutionWorkflow`, [line 28](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L28): Docstring
 
 > Perform a skill, one step per activity.
 >
@@ -34,7 +19,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 > run already records step 7, an activity asked to repeat it returns what
 > happened rather than doing it again.
 
-## `TriggerWorkflow`, [line 133](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L133): Docstring
+## `TriggerWorkflow`, [line 76](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L76): Docstring
 
 > One firing of one trigger.
 >
@@ -43,39 +28,32 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 > fact about now, and a workflow replays. It asks once and reports what it was
 > told.
 
-## `ExecutionWorkflow.run`, [line 87](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L87): Docstring
+## `ExecutionWorkflow.run`, [line 30](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L30): Docstring
 
 > Returns the run id. What happened is on the run itself, which is the
 > record everything else reads.
 
-## module, [line 26](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L26): Comment
-
-Code: `non_retryable_error_types=["InductionFailed"],`
-
-> A malformed pair fails the same way every time; retrying it wastes the
-> supervisor's attention rather than fixing anything.
-
-## module, [line 76](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L76): Comment
+## module, [line 19](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L19): Comment
 
 Code: `_READ_RETRY = RetryPolicy(`
 
 > A read that failed to connect is worth another attempt. A write is not: the
 > first attempt may have arrived, and the target system has no way to tell us.
 
-## module, [line 79](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L79): Comment
+## module, [line 22](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L22): Comment
 
 Code: `non_retryable_error_types=["NotRunnable"],`
 
 > A skill that may not be run is refused the same way every time.
 
-## `ExecutionWorkflow.run`, [line 91](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L91): Comment
+## `ExecutionWorkflow.run`, [line 34](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L34): Comment
 
 Code: `result_type=StartedRun,`
 
 > Named activities carry no type information, so the converter
 > hands back a dict unless the shape is stated here.
 
-## `ExecutionWorkflow.run`, [line 102](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L102): Comment
+## `ExecutionWorkflow.run`, [line 45](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L45): Comment
 
 Code: `index = 0`
 
@@ -85,7 +63,7 @@ Code: `index = 0`
 > here. Determinism is unaffected -- what the activity answered is in
 > the history, and a replay reads the same answers.
 
-## `ExecutionWorkflow.run`, [line 114](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L114): Comment
+## `ExecutionWorkflow.run`, [line 57](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L57): Comment
 
 Code: `retry_policy=_WRITE_RETRY,`
 
@@ -93,14 +71,14 @@ Code: `retry_policy=_WRITE_RETRY,`
 > the first attempt, so the conservative policy applies to every
 > step and the read-only ones lose a retry they rarely need.
 
-## `ExecutionWorkflow.run`, [line 117](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L117): Comment
+## `ExecutionWorkflow.run`, [line 60](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L60): Comment
 
 Code: `break`
 
 > Later steps depend on this one having worked. Continuing would
 > send calls built from values the system never returned.
 
-## `TriggerWorkflow.run`, [line 140](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L140): Comment
+## `TriggerWorkflow.run`, [line 83](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L83): Comment
 
 Code: `retry_policy=RetryPolicy(maximum_attempts=1),`
 

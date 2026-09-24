@@ -27,7 +27,7 @@ def test_the_worker_recomputes_shape_keys_before_it_mines() -> None:
     )
     # Before the miner, because a pass run against stale keys is a pass that
     # proposes a duplicate of a job the rig already holds.
-    assert source.index("rekey_everything") < source.index("mine_lately"), source
+    assert source.index("rekey_everything") < source.index("mine_the_rig_lately"), source
 
 
 def test_the_rekey_covers_every_tenant_that_has_ever_recorded_anything() -> None:

@@ -26,8 +26,8 @@
 #     process never serves a schema it has not been migrated to.
 #   * **The worker is restarted by every deploy**, because it is in the same
 #     `up -d` as the API. `CONTEXT.md` §8 opens with what happens otherwise:
-#     induction runs in the worker, and an API-only restart silently keeps
-#     running the old code.
+#     skill runs, trigger fires and the sweeps run in the worker, and an
+#     API-only restart silently keeps running the old code.
 #
 # Still to decide for a real deployment, and named rather than pretended:
 # TLS terminates in front of this (a reverse proxy or the load balancer the
@@ -340,7 +340,8 @@ services:
     environment: *backend-env
     volumes:
       - vault-data:/var/lib/sro
-      # Same ledger, same reason: induction and the mining sweeps run here.
+      # Same ledger, same reason: a trigger fired here starts a mined job, and
+      # `StartWorkflowRun` loads the ledger when the worker builds it.
       - ../knowledge-base:/knowledge-base:ro
     command: ["python", "-m", "sro.infrastructure.temporal.worker"]
     # The image's healthcheck curls the API's port, and this container serves

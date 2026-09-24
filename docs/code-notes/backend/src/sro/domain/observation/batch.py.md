@@ -16,9 +16,14 @@ Code: `PASSIVE = "passive"`
 
 Code: `TEACHING = "teaching"`
 
-> An operator asked to be recorded, with the debugger attached. Richer
-> evidence, and the tier a candidate falls back to when passive evidence is
-> too thin to induce from.
+> ponytail: storage-only. The device-teaching path that used to produce this
+> is gone -- `IngestObservation.execute` refuses it and
+> `ObservationBatchRequest.mode` cannot carry it on the wire -- but rows this
+> deployment received before that removal still say `mode = 'teaching'`
+> (Global Constraint 6 keeps the column, and rewriting the data would
+> falsify what those rows actually were). This member exists only so
+> `CaptureMode(row.mode)` can read them back without raising; upgrade path
+> if the column is ever migrated to `'passive'` for good: drop this member.
 
 ## `check_times`, [line 29](../../../../../../../backend/src/sro/domain/observation/batch.py#L29): Docstring
 
@@ -50,9 +55,6 @@ Code: `TEACHING = "teaching"`
 
 Code: `recording_id: RecordingId | None = None`
 
-> The demonstration this batch is part of, for teaching capture.
->
-> A teaching batch without one is evidence nobody can attribute: the operator
-> was asked to show the system a task, and what came back cannot be told from
-> an ordinary morning's browsing. A passive batch with one would be the
-> opposite mistake -- ordinary work filed as a deliberate demonstration.
+> Kept for the mapped column (Global Constraint 6): nothing sets it any more,
+> now that the device-teaching path that used to name a batch's demonstration
+> is gone.

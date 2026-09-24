@@ -10,26 +10,20 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/a
 > Domain objects stay behind the use case, so a change to an aggregate never
 > invalidates a workflow history.
 
-## `InductionRequest`, [line 29](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L29): Note on the line above
-
-Code: `second_recording_id: str = ""`
-
-> Empty when the operator induced from a single demonstration.
-
-## `StartRunRequest`, [line 51](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L51): Note on the line above
+## `StartRunRequest`, [line 32](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L32): Note on the line above
 
 Code: `run_id: str = ""`
 
 > Chosen before the workflow starts, so whoever asked can watch it.
 
-## `StepResult`, [line 73](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L73): Note on the line above
+## `StepResult`, [line 54](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L54): Note on the line above
 
 Code: `mutating: bool`
 
 > Whether this step changed the target system. The workflow uses it to
 > decide that a failure must not be retried.
 
-## `StepResult`, [line 75](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L75): Note on the line above
+## `StepResult`, [line 56](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L56): Note on the line above
 
 Code: `more: bool = False`
 
@@ -40,7 +34,7 @@ Code: `more: bool = False`
 > workflow that counted up front would stop after the first line of a
 > twelve-line order.
 
-## `TriggerRequest`, [line 87](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L87): Note on the line above
+## `TriggerRequest`, [line 61](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L61): Note on the line above
 
 Code: `trigger_id: str`
 
@@ -48,23 +42,16 @@ Code: `trigger_id: str`
 > principal come off the trigger itself rather than being carried here where
 > they could disagree with it.
 
-## `Activities`, [line 97](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L97): Docstring
+## `Activities`, [line 71](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L71): Docstring
 
 > Bound to a container so the worker owns exactly one set of adapters.
 
-## `Activities.abandon_stale_recording`, [line 124](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L124): Docstring
-
-> Close a demonstration nobody came back to.
->
-> Returns whether anything was abandoned, so the workflow can say what it
-> did rather than report success either way.
-
-## `Activities.fire_trigger`, [line 188](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L188): Docstring
+## `Activities.fire_trigger`, [line 117](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L117): Docstring
 
 > No context argument: a schedule has no caller, and the tenant comes
 > off the trigger.
 
-## module, [line 11](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L11): Comment
+## module, [line 12](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L12): Comment
 
 Code: `from sro.container import Container`
 

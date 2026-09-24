@@ -27,17 +27,18 @@ import pytest
 from sro.application.context import RequestContext
 from sro.application.execution import workflow_runs as door
 from sro.application.execution.approvals import Approvals
+from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.run_workflow import run_workflow
 from sro.application.execution.stops import Stops
 from sro.application.execution.workflow_runs import RunRefused, StartWorkflowRun
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
-from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.waiting import K_PATIENCE, read_wait, still_waiting
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
+from sro.domain.shared.prices import ModelSpend
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.fakes import (
     FakeAsker,
@@ -182,6 +183,7 @@ def _starter(
         cap_usd=cap_usd,
         stops=stops or Stops(),
         approvals=approvals or Approvals(),
+        one_time_secrets=OneTimeSecrets(),
     )
 
 
@@ -216,11 +218,12 @@ async def _press(
 
 
 async def _billed(uow: FakeUnitOfWork, *, cost_usd: float, tenant: TenantId = TENANT) -> None:
-    await uow.chats.record(
-        ChatReading(
+    await uow.spend.record(
+        ModelSpend(
             id=f"cht_{tenant.value}_{cost_usd}",
             tenant=tenant.value,
-            at=NOW.replace(hour=10).isoformat(),
+            model="m",
+            at=NOW.replace(hour=10),
             cost_usd=cost_usd,
         )
     )
@@ -861,6 +864,30 @@ async def test_perform_plans_on_the_plan_model_and_rescues_on_the_other(
     assert seen["started_by"] == WHO.value
 
 
+async def test_perform_tells_the_runs_credentials_the_run_ended(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A sign-in whose last submit left the form's host is a success only once
+    nothing brought the form back -- which is known when the run is over."""
+    uow = await _held()
+    starter = _starter(uow)
+    claimed = await _press(starter, from_step=4, live=True, allow_focus=False)
+    ended: list[object] = []
+
+    async def _recorded(_uow: object, workflow: Workflow, **given: object) -> WorkflowRun:
+        return claimed
+
+    async def _finished(secrets: object) -> None:
+        ended.append(secrets)
+
+    monkeypatch.setattr(door, "run_workflow", _recorded)
+    monkeypatch.setattr(door.RunSecrets, "finished", _finished)
+
+    await starter.perform(_ctx(), claimed)
+
+    assert len(ended) == 1
+
+
 async def test_a_run_that_could_not_be_driven_at_all_does_not_stay_running() -> None:
     """Nobody is awaiting `perform`, so nobody would see it raise. A row left
     `running` is swept only by `fail_orphans` at the next process start -- a
@@ -1001,6 +1028,7 @@ async def test_the_question_says_which_step_the_run_had_reached() -> None:
         cap_usd=CAP,
         stops=Stops(),
         approvals=Approvals(),
+        one_time_secrets=OneTimeSecrets(),
         ids=FakeIdFactory(),
     )
     await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
@@ -1056,6 +1084,7 @@ async def test_the_question_offers_the_fields_the_page_does_not_ask_for() -> Non
         cap_usd=CAP,
         stops=Stops(),
         approvals=Approvals(),
+        one_time_secrets=OneTimeSecrets(),
         ids=FakeIdFactory(),
     )
     await starter._ask_for_values(_ctx(), run, "Create a Customer Type")

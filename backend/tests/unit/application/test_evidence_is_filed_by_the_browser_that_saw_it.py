@@ -21,7 +21,6 @@ from sro.application.context import RequestContext
 from sro.application.observation.artifacts import StoreObservationArtifact
 from sro.application.observation.ingest import IngestObservation
 from sro.application.observation.policy import SetObservationPolicy
-from sro.application.recording.start_recording import StartRecording
 from sro.domain.observation.batch import CaptureMode
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
@@ -29,7 +28,7 @@ from sro.domain.recording.artifact import ArtifactKind
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import BatchId, DeviceId
 from tests import factories as f
-from tests.unit.fakes import FakeBlobStore, FakeClock, FakeIdFactory, FakeUnitOfWork
+from tests.unit.fakes import FakeBlobStore, FakeClock, FakeUnitOfWork
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
 COLLEAGUE = RequestContext(tenant_id=f.TENANT, principal_id="other@acme.test")
@@ -161,17 +160,3 @@ async def test_a_screenshot_cannot_be_stored_against_a_browser_you_cannot_prove(
         )
 
     assert blobs.objects == {}
-
-
-async def test_a_demonstration_cannot_be_started_in_a_browser_you_cannot_prove() -> None:
-    # A demonstration is the strongest evidence here -- it is what a skill is
-    # induced from -- so naming somebody else's browser to perform it is
-    # refused before the recording exists.
-    uow = FakeUnitOfWork()
-    await _ready(uow)
-    start = StartRecording(uow, None, FakeClock(), FakeIdFactory(), None)
-
-    with pytest.raises(NotFound):
-        await start.execute(CTX, device_id=MINE, device_secret=A_GUESS, label="teaching")
-
-    assert uow.recordings.rows == {}

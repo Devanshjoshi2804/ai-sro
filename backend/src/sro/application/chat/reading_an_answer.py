@@ -12,19 +12,16 @@ from sro.domain.chat.is_it_an_answer import (
     IS_IT_AN_ANSWER_SCHEMA,
     plainly_a_value,
 )
-from sro.domain.shared.prices import Answer
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
 class Read:
-    answers: bool
+    answers: bool | None
     value: str = ""
     why: str = ""
     about: str = ""
-
-    spent: Answer | None = None
 
 
 class IsItAnAnswer:
@@ -36,7 +33,7 @@ class IsItAnAnswer:
         if plainly_a_value(pending, said):
             return Read(answers=True, value=said.strip(), why="one word, and it fits")
         if self._asker is None:
-            return Read(answers=True, value=said.strip(), why="no model to ask")
+            return Read(answers=None, why="no model to ask")
         try:
             answer = await self._asker.ask(
                 model=self._model,
@@ -49,11 +46,11 @@ class IsItAnAnswer:
                 schema=IS_IT_AN_ANSWER_SCHEMA,
             )
         except Exception:
-            logger.info("%s: the answer could not be read; taking it", ctx.tenant_id.value)
-            return Read(answers=True, value=said.strip(), why="the reading failed")
+            logger.info("%s: the answer could not be read; asking again", ctx.tenant_id.value)
+            return Read(answers=None, why="the reading failed")
         data = answer.data if isinstance(answer.data, dict) else None
         if data is None:
-            return Read(answers=True, value=said.strip(), why="nothing came back", spent=answer)
+            return Read(answers=None, why="nothing came back")
         answers = bool(data.get("answers"))
         value = str(data.get("value") or "").strip() or said.strip()
         return Read(
@@ -61,7 +58,6 @@ class IsItAnAnswer:
             value=value if answers else "",
             why=str(data.get("why") or ""),
             about=str(data.get("about") or "") or "the_wait",
-            spent=answer,
         )
 
 

@@ -3,12 +3,15 @@
 This is the narrowest surface in the system and the one worth the most tests.
 An operator asked for their browser to sign in for them; the answer is not to
 record the password -- the recorder strikes it out and always will -- but to
-keep it once, deliberately, and fetch it at the moment the step types it.
+keep it once, deliberately, bound to the run it was given for, and fetch it
+at the moment that run's step types it.
 
-Four properties, and every one of them is a way this could have gone wrong:
-the value never comes back, the tenant comes from the credential and never
-from the body, a browser's own secret does not open the tenant's vault, and the
-key a person stores under is the key the run asks for.
+Properties, and every one of them is a way this could have gone wrong: the
+value never comes back, the tenant comes from the credential and never from
+the body, a browser's own secret does not open the tenant's vault, the key a
+person stores under is the key the run asks for, a run from another tenant is
+refused before anything is held, and a secret held for one run is never given
+to another.
 """
 
 from __future__ import annotations
@@ -20,8 +23,9 @@ import pytest
 from httpx import ASGITransport
 
 from sro.domain.execution.secrets import secret_key_of
+from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.observation.device import AgentDevice
-from sro.domain.shared.identifiers import DeviceId
+from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.interface.http.app import create_app
 from sro.interface.http.deps import get_container
 from tests import factories as f
@@ -32,6 +36,21 @@ WMS = "keycloak-service-exec-wms-keycloak-prod.us.live.external.byp.ai"
 LAPTOP = DeviceId("dev-lena-laptop")
 HERS = "secret-for-dev-lena-laptop"
 KEPT = "not-in-any-test-fixture-8f21"
+RUN_A = "run_a_8f21"
+
+
+def _run(run_id: str = RUN_A, *, tenant: TenantId = f.TENANT) -> WorkflowRun:
+    return WorkflowRun(
+        id=run_id,
+        tenant=tenant.value,
+        workflow_id="wfl_test",
+        device_id=LAPTOP.value,
+        values={},
+        started_by=f.OPERATOR.value,
+        live=True,
+        allow_focus=False,
+        started_at="2026-03-01T09:00:00+00:00",
+    )
 
 
 @pytest.fixture
@@ -62,6 +81,10 @@ def _body(**over: object) -> dict[str, object]:
     asked: dict[str, object] = {"system": WMS, "field": "password", "value": KEPT}
     asked.update(over)
     return asked
+
+
+def _once_body(**over: object) -> dict[str, object]:
+    return _body(run_id=RUN_A, **over)
 
 
 async def test_what_is_kept_is_answered_by_its_key_and_never_by_its_value(
@@ -159,15 +182,14 @@ async def test_a_value_with_nothing_in_it_is_refused_before_the_vault_is_touched
 
 
 async def test_a_password_given_for_one_run_never_reaches_the_vault(
-    client: httpx.AsyncClient, container: _FakeContainer
+    client: httpx.AsyncClient, container: _FakeContainer, uow: FakeUnitOfWork
 ) -> None:
     """ "Just this once" is the other answer to the question this door asks.
-    It is held for the next step that types it and written nowhere -- so a
-    deployment keeps no copy, and there is nothing to rotate or delete."""
-    from sro.application.execution.one_time_secrets import forget_everything, take
+    It is held for the run that asked and written nowhere -- so a deployment
+    keeps no copy, and there is nothing to rotate or delete."""
+    uow.workflow_runs.rows[RUN_A] = _run()
 
-    forget_everything()
-    held = await client.post("/v1/secrets/once", json=_body())
+    held = await client.post("/v1/secrets/once", json=_once_body())
 
     assert held.status_code == 202, held.text
     key = f"{f.TENANT.value}/{WMS}/password"
@@ -176,17 +198,55 @@ async def test_a_password_given_for_one_run_never_reaches_the_vault(
     # The value, nowhere in the answer and nowhere in the vault.
     assert KEPT not in held.text
     assert await container.vault.get(key) is None
-    # And it is there for the run that asks next, once.
-    assert take(key) == KEPT
-    assert take(key) is None
+    # And it is there for the run that asked, once.
+    assert container.one_time_secrets.take(key, run_id=RUN_A) == KEPT
+    assert container.one_time_secrets.take(key, run_id=RUN_A) is None
 
 
 async def test_a_one_run_password_lands_in_the_caller_s_own_key(
-    client: httpx.AsyncClient,
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
 ) -> None:
-    from sro.application.execution.one_time_secrets import forget_everything
+    uow.workflow_runs.rows[RUN_A] = _run()
 
-    forget_everything()
-    held = await client.post("/v1/secrets/once", json=_body(tenant_id="somebody-else"))
+    held = await client.post("/v1/secrets/once", json=_once_body(tenant_id="somebody-else"))
 
     assert held.json()["key"].startswith(f"{f.TENANT.value}/")
+
+
+async def test_a_secret_held_for_one_run_is_not_given_to_another(
+    client: httpx.AsyncClient, container: _FakeContainer, uow: FakeUnitOfWork
+) -> None:
+    """The property the run id exists to buy: a run in the same tenant that
+    was not given the password does not get it either."""
+    uow.workflow_runs.rows[RUN_A] = _run()
+
+    held = await client.post("/v1/secrets/once", json=_once_body())
+
+    assert held.status_code == 202, held.text
+    key = held.json()["key"]
+    assert container.one_time_secrets.take(key, run_id="run_b_never_asked") is None
+    assert container.one_time_secrets.take(key, run_id=RUN_A) == KEPT
+
+
+async def test_the_route_rejects_a_run_from_another_tenant(
+    client: httpx.AsyncClient, container: _FakeContainer, uow: FakeUnitOfWork
+) -> None:
+    """A run id is only useful as a binding if it is checked. A run that
+    belongs to somebody else's tenant is refused before anything is held --
+    the same "no such run" a caller gets for a run id that does not exist at
+    all, so a probe learns nothing about who else is running jobs."""
+    uow.workflow_runs.rows[RUN_A] = _run(tenant=TenantId("somebody-else"))
+
+    held = await client.post("/v1/secrets/once", json=_once_body())
+
+    assert held.status_code == 404, held.text
+    key = f"{f.TENANT.value}/{WMS}/password"
+    assert container.one_time_secrets.take(key, run_id=RUN_A) is None
+
+
+async def test_the_route_rejects_a_run_id_that_does_not_exist(
+    client: httpx.AsyncClient,
+) -> None:
+    held = await client.post("/v1/secrets/once", json=_once_body())
+
+    assert held.status_code == 404, held.text

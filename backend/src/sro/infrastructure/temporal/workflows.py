@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import asyncio
-import contextlib
 from datetime import timedelta
 
 from temporalio import workflow
@@ -9,9 +7,6 @@ from temporalio.common import RetryPolicy
 
 with workflow.unsafe.imports_passed_through():
     from sro.infrastructure.temporal.activities import (
-        InductionRequest,
-        InductionResult,
-        ReapRequest,
         StartedRun,
         StartRunRequest,
         StepRequest,
@@ -19,58 +14,6 @@ with workflow.unsafe.imports_passed_through():
         TriggerRequest,
         TriggerResult,
     )
-
-_INDUCTION_RETRY = RetryPolicy(
-    initial_interval=timedelta(seconds=2),
-    maximum_attempts=3,
-    non_retryable_error_types=["InductionFailed"],
-)
-
-
-@workflow.defn
-class InductionWorkflow:
-    @workflow.run
-    async def run(self, request: InductionRequest) -> InductionResult:
-        result: InductionResult = await workflow.execute_activity(
-            "induce_skill",
-            request,
-            start_to_close_timeout=timedelta(minutes=5),
-            retry_policy=_INDUCTION_RETRY,
-        )
-        return result
-
-
-@workflow.defn
-class RecordingSessionWorkflow:
-    def __init__(self) -> None:
-        self._finished = False
-
-    @workflow.signal
-    def finished(self) -> None:
-        self._finished = True
-
-    @workflow.run
-    async def run(self, request: ReapRequest, timeout_seconds: int = 3600) -> bool:
-        with contextlib.suppress(asyncio.TimeoutError):
-            await workflow.wait_condition(
-                lambda: self._finished, timeout=timedelta(seconds=timeout_seconds)
-            )
-        if self._finished:
-            return False
-
-        abandoned: bool = await workflow.execute_activity(
-            "abandon_stale_recording",
-            request,
-            start_to_close_timeout=timedelta(seconds=30),
-            retry_policy=RetryPolicy(maximum_attempts=3),
-        )
-        await workflow.execute_activity(
-            "close_browser_session",
-            request.browser_session_id,
-            start_to_close_timeout=timedelta(seconds=30),
-            retry_policy=RetryPolicy(maximum_attempts=3),
-        )
-        return abandoned
 
 
 _READ_RETRY = RetryPolicy(

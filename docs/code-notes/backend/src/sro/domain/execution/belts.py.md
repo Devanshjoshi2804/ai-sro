@@ -55,7 +55,7 @@ Code: `STATE_BELTS = ("status", "read")`
 
 ## module, [line 25](../../../../../../../backend/src/sro/domain/execution/belts.py#L25): Note on the line above
 
-Code: `SCREEN_INSTRUCTIONS = """You are checking whether one step of a warehouse job was actually`
+Code: `SCREEN_INSTRUCTIONS = """You are checking whether one step of a warehouse job was actually done.`
 
 > What a picture can settle about a step that DID something.
 >

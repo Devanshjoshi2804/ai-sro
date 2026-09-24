@@ -25,7 +25,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/m
 > `workflows`. Neither reads the other's tables, and this deployment runs on this
 > one.
 
-## module, [line 17](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L17): Note on the line above
+## module, [line 18](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L18): Note on the line above
 
 Code: `MAX_READS = 25`
 
@@ -44,7 +44,7 @@ Code: `MAX_READS = 25`
 > number and the same argument as `sro.cli.read_cron.MAX_PASSES`, which is the
 > hand-run version of this.
 
-## module, [line 30](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L30): Note on the line above
+## module, [line 31](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L31): Note on the line above
 
 Code: `K_SETTLE_S = 120.0`
 
@@ -62,14 +62,14 @@ Code: `K_SETTLE_S = 120.0`
 > stopped, not a person thinking -- and the cost of being wrong is one more
 > interval, because nothing is thrown away by waiting.
 
-## `_when`, [line 22](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L22): Docstring
+## `_when`, [line 23](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L23): Docstring
 
 > A pass's `started_at`, which is an ISO string on the record and a real
 > timestamp in the column. An unreadable one reads as the beginning of time,
 > which makes the sweep pay for a pass it might not have needed -- the safe
 > direction, since the other one is a tenant that silently stops learning.
 
-## `MineLately`, [line 33](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L33): Docstring
+## `MineLately`, [line 34](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L34): Docstring
 
 > One pass for each tenant whose browsers uploaded in the window.
 >
@@ -87,7 +87,7 @@ Code: `K_SETTLE_S = 120.0`
 > there is nothing to iterate and the caller's loop logs it and waits for the
 > next interval.
 
-## `MineLately._read`, [line 51](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L51): Docstring
+## `MineLately._read`, [line 52](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L52): Docstring
 
 > Everything unread, up to the bound. One `ReadGestures` call reads at
 > most `READING_LIMIT` gestures, so a sweep that made one pass would leave
@@ -96,7 +96,7 @@ Code: `K_SETTLE_S = 120.0`
 > A fresh door per pass: each opens, commits and closes its own unit of
 > work, and re-entering a spent one is not a thing the container promises.
 
-## `MineLately._worth_a_pass`, [line 60](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L60): Docstring
+## `MineLately._worth_a_pass`, [line 61](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L61): Docstring
 
 > Whether another pass over this tenant has anything new to read.
 >
@@ -132,28 +132,36 @@ Code: `K_SETTLE_S = 120.0`
 >
 > A tenant that has never been mined is always worth a pass.
 
-## `MineLately._worth_a_pass`, [line 64](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L64): Comment
+## `MineLately._worth_a_pass`, [line 65](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L65): Comment
 
 Code: `last = passes[-1]`
 
 > `passes` is oldest first, by `started_at` then id.
 
-## `MineLately._worth_a_pass`, [line 65](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L65): Comment
+## `MineLately._worth_a_pass`, [line 67](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L67): Comment
 
-Code: `if await uow.gestures.tenants_since(_when(last.started_at)):`
+Code: `if newest is not None and newest >= _when(last.started_at):`
 
 > The pass's own clock, against the server's `received_at` on a batch.
 > A pass that was refused before it read anything still wrote its row,
 > so this is "since anything last looked", which is what it should be.
+>
+> `newest_arrival(tenant_id)`, not `tenants_since`. `tenants_since` answers
+> for every tenant with a batch since the given time, so reading it here
+> asked "has anybody's evidence changed" and answered it for THIS tenant --
+> any tenant's new gestures made every other tenant worth a pass, and on a
+> minute-by-minute sweep that is every tenant re-read on every other
+> tenant's work. `newest_arrival` is the same `received_at` column, scoped
+> to `tenant_id` the way the question actually is.
 
-## `MineLately._worth_a_pass`, [line 68](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L68): Comment
+## `MineLately._worth_a_pass`, [line 70](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L70): Comment
 
 Code: `return False`
 
 > Evidence this tenant no longer has, or never had by this route.
 > Nothing to sweep and nothing to count passes against.
 
-## `MineLately._worth_a_pass`, [line 72](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L72): Comment
+## `MineLately._worth_a_pass`, [line 73](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L73): Comment
 
 Code: `held = max(1, last.window_size)`
 
@@ -161,7 +169,7 @@ Code: `held = max(1, last.window_size)`
 > saw rather than from a count of the table: the window is what the
 > budget allowed, and `left_out` is what would not fit beside it.
 
-## `MineLately.execute`, [line 81](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L81): Comment
+## `MineLately.execute`, [line 82](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L82): Comment
 
 Code: `still_going = set(`
 
@@ -170,7 +178,7 @@ Code: `still_going = set(`
 > column, because the port already answers that question and a
 > second way to ask it is a second thing to keep true.
 
-## `MineLately.execute`, [line 91](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L91): Comment
+## `MineLately.execute`, [line 92](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L92): Comment
 
 Code: `logger.info("%s: still working; leaving this one to settle", tenant_id.value)`
 
@@ -181,7 +189,7 @@ Code: `logger.info("%s: still working; leaving this one to settle", tenant_id.va
 > half done. Waiting costs one interval and nothing else: the
 > evidence does not go anywhere.
 
-## `MineLately.execute`, [line 102](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L102): Comment
+## `MineLately.execute`, [line 104](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L104): Comment
 
 Code: `logger.info("%s: %s", tenant_id.value, reached)`
 

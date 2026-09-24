@@ -60,7 +60,7 @@ Code: `LOOKING = frozenset(`
 
 ## `is_a_question`, [line 84](../../../../../../../backend/src/sro/domain/lookup/asking.py#L84): Comment
 
-Code: `if first in ("please", "could", "would", "can", "pls", "plz", "hey", "ok") and len(words) `
+Code: `if first in ("please", "could", "would", "can", "pls", "plz", "hey", "ok") and len(words) > 1:`
 
 > "please check the supplier list", "could you find out how many" -- the
 > courtesy is not the sentence, so it is stepped over before the rule runs.

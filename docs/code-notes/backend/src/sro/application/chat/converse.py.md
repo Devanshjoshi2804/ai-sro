@@ -356,7 +356,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > transcript beside the step it arrived during, and so the surface can say
 > honestly that it was heard -- what reads it is the planner, when there
 > is one. A note that silently changed a run would be worse than one that
-> does nothing: the values a run uses are changed by `ReviseRun`, where
+> does nothing: changing the values a run uses is `Run.revise`'s job, where
 > the change is checked against the names the skill declares.
 
 ## `Converse.started`, [line 634](../../../../../../../backend/src/sro/application/chat/converse.py#L634): Docstring
@@ -711,6 +711,20 @@ Code: `named = said_as_the_value(pending, text)`
 > it is unsure, which is the right default and leaves an operator who
 > typed a real value with no move except typing it again -- so the
 > re-ask below tells them this form exists, and this takes it.
+
+## `Converse._is_it_an_answer`, [line 339](../../../../../../../backend/src/sro/application/chat/converse.py#L339): Comment
+
+Code: `return None, read.about`
+
+> Could not tell is its own thing, not a reading that said `another_task`.
+> `read.answers` is `None` on every path nothing could actually read -- no
+> model, a call that raised, a reply with nothing in it -- and `read.about`
+> is `""` on every one of them, which `if about != "another_task":` in
+> `execute` reads as `the_wait` does: re-ask under the standing question,
+> never carry on as though a sentence had been placed against the jobs.
+> Taking the unreadable sentence as the value is how `HAS REPLY ARRIVED`
+> reached a four-character box; this is the same question asked in
+> reverse, at the door that decides what a refusal means.
 
 ## `Converse._answer_the_question`, [line 364](../../../../../../../backend/src/sro/application/chat/converse.py#L364): Comment
 

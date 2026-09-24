@@ -15,12 +15,18 @@ Comments and docstrings moved out of [`backend/src/sro/application/connection/ke
 > and how old it is, and replaces the ones that are past half their measured
 > life. What "half their life" means is learned per system rather than set here.
 >
-> Two things it will not do. It never signs in while somebody is demonstrating,
-> because this WMS permits one session and taking it would sign the operator out
-> mid-task. And it never signs in during an outage, because burning credentials
-> against a system that cannot answer is how an account gets locked.
+> It never signs in during an outage, because burning credentials against a
+> system that cannot answer is how an account gets locked.
+>
+> It used to refuse a second thing: signing in while somebody was demonstrating,
+> on the premise that this WMS permits one session per account and a server
+> login would sign the operator out mid-task. Measured on QA on 2026-09-23
+> against the real login chain, two logins for the same account in separate
+> browser contexts both stayed valid, so that refusal protected a limit that does
+> not exist and was removed. What does exist is a finite browser pool, which is
+> why a system can still be left alone (see `Swept.left_alone`).
 
-## module, [line 22](../../../../../../../backend/src/sro/application/connection/keep_open.py#L22): Note on the line above
+## module, [line 23](../../../../../../../backend/src/sro/application/connection/keep_open.py#L23): Note on the line above
 
 Code: `KEEPER = PrincipalId("session-keeper")`
 
@@ -28,36 +34,62 @@ Code: `KEEPER = PrincipalId("session-keeper")`
 > to whoever happened to ask last, and an audit trail that says so is worth the
 > one extra constant.
 
-## `Swept`, [line 16](../../../../../../../backend/src/sro/application/connection/keep_open.py#L16): Note on the line above
+## `Swept`, [line 17](../../../../../../../backend/src/sro/application/connection/keep_open.py#L17): Note on the line above
 
 Code: `left_alone: tuple[str, ...] = ()`
 
-> Systems somebody is demonstrating against, and why nothing was touched.
+> Systems not signed in this pass because no browser was free to sign in
+> with. Until 2026-09-23 this held systems somebody was demonstrating against,
+> under the one-session premise; that premise was measured false (see the
+> module note) and the field kept its name for the worker's log line.
 
-## `Swept`, [line 19](../../../../../../../backend/src/sro/application/connection/keep_open.py#L19): Note on the line above
+## `Swept`, [line 20](../../../../../../../backend/src/sro/application/connection/keep_open.py#L20): Note on the line above
 
 Code: `released: tuple[str, ...] = ()`
 
 > Browsers given back because nothing claimed them. This deployment has
 > one, and a session that outlived whatever opened it holds it forever.
 
-## `KeepSessionsOpen.sweep`, [line 36](../../../../../../../backend/src/sro/application/connection/keep_open.py#L36): Docstring
+## `KeepSessionsOpen.sweep`, [line 37](../../../../../../../backend/src/sro/application/connection/keep_open.py#L37): Docstring
 
 > One pass over every connected system, in every tenant.
 >
 > Nobody is making this request, so there is no tenant to scope it to --
 > the keeper reads the connection list itself and acts for each tenant in
 > turn, which is the one place in this codebase that crosses that line.
+>
+> Each tenant's turn is attributed to it (`about`), as `MineLately` does:
+> the meter bills a model call to the attributed tenant and refuses one
+> nobody is named for, so without it every session-life claim the sweep
+> writes lost its embedding (final review I-2, 2026-09-24).
 
-## `KeepSessionsOpen._demonstrating`, [line 55](../../../../../../../backend/src/sro/application/connection/keep_open.py#L55): Docstring
+## `KeepSessionsOpen._demonstrating`, [line 60](../../../../../../../backend/src/sro/application/connection/keep_open.py#L60): Docstring
 
-> Whether anybody is teaching right now. Their browser holds the
-> session this would otherwise replace.
+> Whether anybody is teaching right now, anywhere in the deployment.
+>
+> Only reaping waits for this now. It used to be asked per tenant, of the
+> tenants with a connection, and to stop sign-ins too; the browser pool is
+> deployment-wide, so the question is too, the same one `ReleaseStrayBrowsers`
+> asks before it releases anything.
 
-## `KeepSessionsOpen.sweep`, [line 52](../../../../../../../backend/src/sro/application/connection/keep_open.py#L52): Comment
+## `KeepSessionsOpen.sweep`, [line 53](../../../../../../../backend/src/sro/application/connection/keep_open.py#L53): Comment
 
-Code: `released = () if busy or self._strays is None else await self._strays.execute()`
+Code: `released = (`
 
 > Last, and only when nobody is demonstrating: a sign-in opens a
 > browser of its own, and reaping between opening and using it would
 > take the slot out from under the thing that just asked for it.
+>
+> Kept on 2026-09-23 when the demonstration check stopped gating
+> sign-ins. Whether it is still needed is an open question:
+> `ReleaseStrayBrowsers` already spares a capturing recording's browser
+> and gives every claimed browser a grace period, and nothing here
+> depends on how many sessions an account may hold.
+
+## `KeepSessionsOpen.sweep`, [line 49](../../../../../../../backend/src/sro/application/connection/keep_open.py#L49): Note on the line above
+
+Code: `except BrowserUnavailable:`
+
+> A demonstration or a run may hold every browser in the pool. That is not
+> an outage and not a failed login, and it must not end the sweep for the
+> tenants after this one -- the keeper tries again next pass.

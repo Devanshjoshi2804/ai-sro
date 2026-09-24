@@ -292,7 +292,9 @@ async def test_a_gesture_whose_system_is_unknown_cannot_prove_a_step_that_names_
 
 
 async def test_a_second_pass_over_the_same_evidence_adds_no_second_workflow() -> None:
-    """Mining re-runs over evidence it has already read."""
+    """Mining re-runs over a day it has already read. What the stored job
+    cites is not shown again, so a model that re-proposes it anyway cites
+    gestures the pass never saw, and is refused for it."""
     uow, ids = await _day()
     proposal = _proposal(ids[:2])
     asker = FakeAsker(_found(proposal), _found(proposal))
@@ -300,7 +302,7 @@ async def test_a_second_pass_over_the_same_evidence_adds_no_second_workflow() ->
     await _mine(uow, asker)
     second = await _mine(uow, asker)
 
-    assert second.resolutions[0].kind == "same_occurrence"
+    assert [one.reason for one in second.rejections] == ["unknown gesture"]
     assert len(await uow.workflows.known(TENANT)) == 1
 
 
@@ -408,13 +410,18 @@ async def test_a_pass_that_keeps_nothing_still_says_it_read_the_window() -> None
     first = await _mine(uow, FakeAsker(_found(_proposal(ids))))
     assert first.kept == 1
 
-    again = await _mine(uow, FakeAsker(_found(_proposal(ids))))
+    rows = _rows(uow)
+    again_ids = [f"{one}_again" for one in ids]
+    await uow.gestures.add_gestures(
+        tuple(replace(rows[one], id=f"{one}_again", at=rows[one].at + 3600) for one in ids)
+    )
+    again = await _mine(uow, FakeAsker(_found(_proposal(again_ids))))
 
     assert again.kept == 0, "the same job again is not a new workflow"
     assert again.rejections == [], "it was not refused, it was recognised"
     assert again.coverage.coverage > 0.0, "it read the window; coverage must say so"
     assert not again.lopsided, "a correct pass that keeps nothing is not lopsided"
-    assert set(ids).isdisjoint(await _pool_ids(uow)), (
+    assert set(ids + again_ids).isdisjoint(await _pool_ids(uow)), (
         "evidence a stored workflow already explains must not be re-pooled"
     )
 
@@ -678,10 +685,10 @@ async def test_a_gesture_the_budget_left_out_is_read_by_the_next_pass() -> None:
     # went uncited, and a tail still outside the window would have been refused
     # above for citing gestures the pass never saw.
     assert second.unplaced == 0
-    # The window is the same size; the bonus changed who is in it. The fresh
-    # weak gestures that displaced the tail last pass are this pass's tail.
-    assert second.window_size == 25
-    assert second.left_out == len(tail)
+    # What the first pass placed is not read again, so the window is the tail
+    # the budget left out, and nothing else.
+    assert second.window_size == len(tail)
+    assert second.left_out == 0
 
 
 async def test_a_retired_gesture_loses_its_bonus_and_not_its_place() -> None:
@@ -911,6 +918,37 @@ async def test_a_day_over_its_cap_is_not_mined_and_is_not_billed() -> None:
     assert await uow.workflows.known(TENANT) == ()
     assert await _pool_ids(uow) == set()
     assert uow.commits == 0, "a pass that wrote nothing must not commit the caller's session"
+
+
+async def test_a_capped_tenant_does_no_work_at_all() -> None:
+    """The cap was read inside `_one_pass`, after `fill_in_passwords` had
+    already read the store and (had there been anything to fix) written to
+    it. A capped tenant must do no work, not just skip the model call."""
+    uow, ids = await _day()
+    secret = next(g for g in await uow.gestures.gestures_for(TENANT) if is_secret(g))
+    stored = Workflow(
+        id="wfl_stored",
+        tenant=TENANT.value,
+        title="Sign in",
+        narrative="n",
+        systems=[HOST],
+        steps=[
+            Step(order=0, says="type the code", system=HOST, cites=[ids[0]]),
+            Step(order=1, says="save", system=HOST, cites=[ids[-1]]),
+        ],
+        parameters=[],
+    )
+    await uow.workflows.save(stored)
+    asker = FakeAsker(_found(_proposal(ids[:2])))
+
+    result = await _mine(uow, asker, cap_usd=0.0)
+
+    assert result.error is not None and "daily cap" in result.error
+    back = await uow.workflows.get(TENANT, "wfl_stored")
+    assert [step.cites for step in back.steps].count([secret.id]) == 0, (
+        "a capped tenant still got its stored jobs healed"
+    )
+    assert uow.commits == 0
 
 
 # --------------------------------------------------------------------------
@@ -1348,7 +1386,7 @@ def _redone_both(rows: list[Gesture], value: str, suffix: str, offset: float) ->
 
 
 async def test_a_pass_that_widens_two_parameters_says_two_and_not_one() -> None:
-    """The sentence `MinePassResponse.learned_parameters` ships with, as a test:
+    """The sentence `MineResult.learned_parameters` stands for, as a test:
     "a pass that recognises nothing new and widens TWO parameters did real
     work".
 
@@ -1820,6 +1858,19 @@ async def test_filling_the_same_job_twice_changes_nothing_the_second_time() -> N
     assert await fill_in_passwords(uow, tenant_id=TENANT) == 0
 
 
+async def test_fill_in_passwords_reads_the_tenants_gestures_once_for_the_whole_pass() -> None:
+    """The whole store was read inside the loop over workflows, so a tenant
+    with N stored jobs paid for the same read N times."""
+    uow = FakeUnitOfWork()
+    by_id = _evidence()
+    await _plant(uow, by_id, _keyed(by_id, "wfl_1"), _keyed(by_id, "wfl_2"), _keyed(by_id, "wfl_3"))
+    assert isinstance(uow.gestures, FakeGestureRepository)
+
+    await fill_in_passwords(uow, tenant_id=TENANT)
+
+    assert uow.gestures.gestures_for_calls == 1
+
+
 async def test_a_refused_proposal_says_which_gate_refused_it(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -1921,3 +1972,51 @@ async def test_a_proposal_is_not_repointed_at_a_gesture_nobody_read() -> None:
     assert [(r.reason, r.detail) for r in result.rejections] == [], (
         "a citation the pass added itself was refused as one the model invented"
     )
+
+
+async def test_a_pass_marks_a_job_that_types_a_credential_and_writes_nothing() -> None:
+    """Whether a job signs in is decided here, once, from what the operator
+    did -- a credential typed and nothing written back -- and kept on the job,
+    so a run never has to guess it from where the gestures happened."""
+    uow, ids = await _day()
+
+    # The credential alone: the measured day's only press after it stays on
+    # its host, which is the shape of a PIN approval and not a sign-in.
+    result = await _mine(uow, FakeAsker(_found(_proposal([ids[3]], title="Sign in"))))
+
+    assert result.kept == 1, result.rejections
+    (kept,) = await uow.workflows.known(TENANT)
+    assert kept.signs_in is True
+
+
+async def test_a_pass_does_not_mark_a_job_that_types_a_credential_and_then_writes() -> None:
+    uow, ids = await _day()
+
+    result = await _mine(uow, FakeAsker(_found(_proposal([ids[3], ids[6]]))))
+
+    assert result.kept == 1, result.rejections
+    (kept,) = await uow.workflows.known(TENANT)
+    assert kept.signs_in is False
+
+
+async def test_a_job_already_stored_is_marked_as_signing_in_by_the_healing_pass() -> None:
+    """Jobs mined before the mark existed are healed onto it, from the same
+    evidence and by the same rule."""
+    uow, ids = await _day()
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_stored",
+            tenant=TENANT.value,
+            title="Sign in",
+            narrative="n",
+            systems=[HOST],
+            steps=[
+                Step(order=0, says="upload the badge", system=HOST, cites=[ids[2]]),
+                Step(order=1, says="type the password", system=HOST, cites=[ids[3]]),
+            ],
+        )
+    )
+
+    assert await fill_in_passwords(uow, tenant_id=TENANT) == 1
+    assert (await uow.workflows.get(TENANT, "wfl_stored")).signs_in is True
+    assert await fill_in_passwords(uow, tenant_id=TENANT) == 0

@@ -207,12 +207,13 @@ disable_error_code = [
 # of the architecture; see docs/01-architecture.md.
 # =============================================================================
 [tool.mutmut]
-# The BRIDGE only, not the whole backend. These six files turn a model's reading
-# of a captured day into a Skill the runner will execute, they parse untrusted
-# JSON out of a column at every step, and they are the newest code here -- so
-# they are where a surviving mutant is most likely to name a path nothing walks.
-# The same sweep on the rig found three real defects in three rounds, including
-# a budget branch that was unreachable in every test that claimed to cover it.
+# Chosen areas, not the whole backend. `application/skill/` is what serves the
+# offer shapes, records offers and repairs drift; `domain/execution/` and the
+# two execution files below decide what a run sends and whether it landed.
+# The bridge that once lived in `application/skill/` (a model's reading turned
+# into a Skill) was removed on 2026-09-24 with no production caller. The same
+# sweep on the rig found three real defects in three rounds, including a budget
+# branch that was unreachable in every test that claimed to cover it.
 #
 # Widening this to `src/sro/` would mutate 297 files against a 30-second suite.
 # That is a different tool with a different cost; this one has to stay cheap
@@ -246,7 +247,7 @@ source_paths = [
 # the copy rather than for any mutant, and one failure ends stats collection
 # for the whole sweep. Copied rather than deselected: a contract nothing checks
 # during a sweep is a contract that can rot between sweeps.
-also_copy = ["tests", "src/sro", "migrations", "gmail-connector"]
+also_copy = ["tests", "src/sro", "migrations", "gmail-connector", "scripts"]
 # The whole unit suite, not just the bridge's own tests. Narrowing it to
 # `tests/unit/application/skill` made every OTHER module in the package read
 # 100%, because their real tests live elsewhere and never ran -- a number that

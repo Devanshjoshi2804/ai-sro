@@ -144,19 +144,10 @@ operator may add to the list locally; they may not remove a server entry.
 
 `Content-Type: application/json`. One batch per request.
 
-A batch is one demonstration's evidence or none at all. A teaching batch that
-names no recording is refused, and so is a passive one that names one: the first
-cannot be told from an ordinary morning's browsing, and the second would teach a
-skill from work nobody meant to show. The extension therefore never lets a batch
-straddle the moment teaching started or stopped.
-
-The teaching flow is three calls: `POST /v1/recordings` with `device_id` opens a
-recording this browser fills (nothing is opened server-side, and there is no
-live view — the operator is already looking at the only screen involved), the
-batches upload naming it, and `POST /v1/recordings/{id}/finish` seals it. The
-frames are assembled at that seal from every batch at once rather than per
-upload: a click and the call it caused routinely land in different uploads, and
-a frame split across that seam is a step that lost its evidence.
+Every batch is passive: the wire's `mode` accepts only `"passive"`. A
+deployment's store can still hold `mode = "teaching"` rows from before the
+device-teaching path was removed — nothing rewrote that data — but nothing
+can produce that value any more, on this door or any other.
 
 ```jsonc
 {
@@ -164,8 +155,7 @@ a frame split across that seam is a step that lost its evidence.
   "device_id": "dev_…",
   "started_at": "2026-08-23T09:14:02.113+05:30",
   "ended_at":   "2026-08-23T09:19:02.550+05:30",
-  "mode": "passive",            // "passive" | "teaching"
-  "recording_id": null,         // set when, and only when, mode == "teaching"
+  "mode": "passive",
   "events": [ /* Event, below */ ]
 }
 // 202
@@ -248,13 +238,14 @@ holds it.
 ```
 
 Fields the passive tier cannot obtain (`initiator`, `timing`, `protocol`,
-`remote_address`, `cookies_sent`, `cookies_set`) are omitted, not faked. The
-teaching tier, which attaches `chrome.debugger`, supplies them.
+`remote_address`, `cookies_sent`, `cookies_set`) are omitted, not faked. Nothing
+supplies them now: the tier that attached `chrome.debugger` was removed.
 
 A body larger than `max_body_bytes` is uploaded as an artifact and referenced by
 `{"blob_uri": "…", "size_bytes": N}` instead of `text`.
 
-**`snapshot`** — an accessibility tree, teaching tier only. The payload is CDP's
+**`snapshot`** — an accessibility tree, taken by the passive tier when the tenant's
+policy sets `capture_snapshots`. The payload is CDP's
 `Accessibility.getFullAXTree` result plus `url` and `taken_at`; the backend
 parses it with `capture.decode.to_ax_graph`. One per gesture, taken after it:
 the assembler attaches it to the frame that gesture opened, which is the state
@@ -468,23 +459,10 @@ the two differ by the display's scale factor.
 ## 4. Candidates, triggers, analytics
 
 Read-mostly, consumed by the side panel. Full schemas come from the generated
-OpenAPI; the shapes the extension depends on are:
+OpenAPI; the shapes the extension depends on are below. The `/v1/candidates`
+routes, and the miner behind them, were removed on 2026-09-24. The extension offers the mined jobs from `/v1/shapes` instead.
 
 ```jsonc
-// GET /v1/candidates?status=new&limit=20
-[{ "id": "cnd_…", "title": "Create a warehouse equipment type",
-   "target_system": "blue_yonder", "occurrences": 11,
-   "median_duration_ms": 232000, "first_seen": "…", "last_seen": "…",
-   "status": "new", "skill_id": null,
-   "evidence": [{"episode_id": "epi_…", "at": "…"}] }]
-
-// POST /v1/candidates/{id}/teach  → 202
-{ "recording_id": "rec_…", "needs_demonstration": false }
-// needs_demonstration true = the passive evidence is too thin; the panel asks the
-// operator to do it once more with the teaching tier on.
-
-// POST /v1/candidates/{id}/dismiss → 204   { "reason": "not worth automating" }
-
 // GET /v1/triggers  ·  POST /v1/triggers  ·  PATCH /v1/triggers/{id}
 { "id": "trg_…", "skill_id": "skl_…", "kind": "schedule",
   "spec": {"cron": "0 */2 * * 1-5", "timezone": "Asia/Kolkata"},
@@ -492,10 +470,11 @@ OpenAPI; the shapes the extension depends on are:
   "enabled": true, "requires_confirmation": true,
   "may_take_focus": false, "authorized_by": "devansh", "next_fire_at": "…" }
 
-// GET /v1/analytics/summary?since=…
-{ "tasks_observed": 41, "candidates": 9, "skills_taught": 3,
-  "runs": {"clean": 22, "degraded": 3, "failed": 1, "withheld": 6},
-  "estimated_minutes_saved": 148 }
+// GET /v1/analytics/summary?days=1   (1, 7 or 30)
+{ "since": "…", "watching": {…}, "noticing": {…},
+  "doing": { "runs": 12, "rehearsed": 2,
+             "outcomes": {"held": 9, "stopped": 1, "failed": 2} },
+  "tasks": [ … ] }
 ```
 
 Existing endpoints the panel uses unchanged: `/v1/threads*` (chat),
@@ -580,11 +559,9 @@ The extension commits golden payloads to `new-chrome-extension/fixtures/`:
 | `request-with-body.json` | an XHR carrying a body each way — the other transport |
 | `request-uninspectable-body.json` | a response nothing read: an event stream has no "the body" to wait for |
 | `page-navigated.json` | one `page` event |
+| `snapshot.json` | one `snapshot` event — an accessibility tree, from the passive path |
 | `batch.json` | a complete `POST /v1/observations` body |
 | `command-ui-perform-reply.json` · `command-http-send-reply.json` | extension → server replies |
-
-| `snapshot.json` | one `snapshot` event — an accessibility tree, teaching tier |
-| `batch-teaching.json` | a teaching batch: `mode: "teaching"` and the demonstration it names |
 
 Regenerated with `make fixtures`, which drives a real Chrome with the extension
 loaded and writes whatever it actually emitted. It exits non-zero naming

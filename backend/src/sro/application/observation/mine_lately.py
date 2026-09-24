@@ -11,6 +11,7 @@ from sro.application.observation.read_gesture import ReadGestures
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.shared.refusals import OverCap
 from sro.domain.shared.identifiers import PrincipalId, TenantId
+from sro.whose import about
 
 __all__ = ["MAX_READS", "MineLately"]
 
@@ -62,11 +63,11 @@ class MineLately:
         if not passes:
             return True
         last = passes[-1]
-        if await uow.gestures.tenants_since(_when(last.started_at)):
+        newest = await uow.gestures.newest_arrival(tenant_id)
+        if newest is not None and newest >= _when(last.started_at):
             return True
         if not last.left_out:
             return False
-        newest = await uow.gestures.newest_arrival(tenant_id)
         if newest is None:
             return False
         held = max(1, last.window_size)
@@ -95,8 +96,9 @@ class MineLately:
                 continue
             ctx = RequestContext(tenant_id=tenant_id, principal_id=PrincipalId("miner"))
             try:
-                read = await self._read(ctx)
-                result = await self._pass.execute(ctx)
+                with about(tenant=tenant_id.value, principal="miner"):
+                    read = await self._read(ctx)
+                    result = await self._pass.execute(ctx)
                 mined[tenant_id.value] = replace(result, read=read)
             except OverCap as reached:
                 logger.info("%s: %s", tenant_id.value, reached)

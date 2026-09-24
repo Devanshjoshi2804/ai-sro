@@ -37,7 +37,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/gene
 > the build when either file drifts from its source, so a forgotten regenerate
 > cannot ship a stale credential list.
 
-## `_shape_source`, [line 47](../../../../../../../backend/src/sro/infrastructure/steel/generate_extension_recorder.py#L47): Docstring
+## `_shape_source`, [line 50](../../../../../../../backend/src/sro/infrastructure/steel/generate_extension_recorder.py#L50): Docstring
 
 > One alternation, as a JSON string for `new RegExp`.
 >
@@ -48,11 +48,11 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/gene
 > character is the whole difference, and `test_the_copied_secret_shapes...`
 > on the rig side re-derives these from this file to prove it.
 
-## `_rules`, [line 51](../../../../../../../backend/src/sro/infrastructure/steel/generate_extension_recorder.py#L51): Docstring
+## `_rules`, [line 54](../../../../../../../backend/src/sro/infrastructure/steel/generate_extension_recorder.py#L54): Docstring
 
 > The rules themselves, as plain declarations both realms can wrap.
 
-## `sensitivity_source`, [line 221](../../../../../../../backend/src/sro/infrastructure/steel/generate_extension_recorder.py#L221): Docstring
+## `sensitivity_source`, [line 299](../../../../../../../backend/src/sro/infrastructure/steel/generate_extension_recorder.py#L299): Docstring
 
 > The isolated world's copy: an IIFE that publishes onto that world's window.
 >
@@ -61,7 +61,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/gene
 > on the Python side, and a copy kept by hand under `new-chrome-extension/`
 > would drift the moment somebody added a word to only one of them.
 
-## `sensitivity_module_source`, [line 238](../../../../../../../backend/src/sro/infrastructure/steel/generate_extension_recorder.py#L238): Docstring
+## `sensitivity_module_source`, [line 317](../../../../../../../backend/src/sro/infrastructure/steel/generate_extension_recorder.py#L317): Docstring
 
 > The service worker's copy: the same rules as an ES module.
 >
@@ -69,7 +69,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/gene
 > with no page involved -- so it cannot borrow the isolated world's copy, and
 > a hand-written second list is the drift this whole file exists to prevent.
 
-## `shape_source`, [line 249](../../../../../../../backend/src/sro/infrastructure/steel/generate_extension_recorder.py#L249): Docstring
+## `shape_source`, [line 329](../../../../../../../backend/src/sro/infrastructure/steel/generate_extension_recorder.py#L329): Docstring
 
 > The rig's `target_identity`, as an ES module.
 >

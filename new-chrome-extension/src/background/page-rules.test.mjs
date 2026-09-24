@@ -29,6 +29,7 @@ globalThis.chrome = {
     onUpdated: { addListener: () => {} }, onActivated: { addListener: () => {} },
     sendMessage: async () => {}, get: async () => ({ id: 7, url: PAGE_URL }) },
   webNavigation: {
+    onBeforeNavigate: { addListener: () => {} },
     onCommitted: { addListener: (fn) => (globalThis.__navigated = fn) },
     onCompleted: { addListener: () => {} },
     onCreatedNavigationTarget: { addListener: () => {} },

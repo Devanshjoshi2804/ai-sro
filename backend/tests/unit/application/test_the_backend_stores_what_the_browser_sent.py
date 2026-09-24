@@ -122,9 +122,10 @@ def test_the_identity_fields_a_workflow_is_recognised_by_are_not_touched() -> No
     assert password["gesture"]["target"]["attributes"]["name"] == "password"
     assert password["gesture"]["target"]["attributes"]["type"] == "password"
     assert signin["gesture"]["target"]["name"] == "Sign In"
-    # The operator's typed value survives where the control was not a secret
-    # one; only the gesture the browser marked loses it.
-    assert after[1]["gesture"]["value"] == "NOBODY01"
+    # Spec §5.6: this page holds a password field, so it is a sign-in page and
+    # is stored structure-only -- the username typed into it goes the way the
+    # password does, and what was acted on stays.
+    assert after[1]["gesture"]["value"] is None
     assert password["gesture"]["value"] is None
 
 

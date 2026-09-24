@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from sro.application.context import RequestContext
+from sro.application.observation.evidence import numbered
 from sro.application.observation.register import refuse_unless_itself
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.repositories import UnitOfWork
@@ -61,6 +62,15 @@ class StoreObservationArtifact:
             refuse_unless_itself(device, secret, device_id)
             batch = await uow.observations.get(ctx.tenant_id, batch_id)
 
+        if (
+            batch is not None
+            and kind is ArtifactKind.SCREENSHOT
+            and _pictures_a_sign_in(
+                await self._blobs.read(batch.uri), frame_index, anywhere=bool(batch.rejected)
+            )
+        ):
+            raise InvariantViolation("a picture of a sign-in page is never stored")
+
         day = (at or (batch.started_at if batch else self._clock.now())).date().isoformat()
         name = f"{frame_index:05d}" if frame_index is not None else (label or "artifact")
         key = (
@@ -69,3 +79,12 @@ class StoreObservationArtifact:
         )
         uri = await self._blobs.put(key, data, content_type=content_type)
         return Stored(uri=uri, size_bytes=len(data))
+
+
+def _pictures_a_sign_in(payload: bytes, frame_index: int | None, *, anywhere: bool) -> bool:
+    for ordinal, event in numbered(payload):
+        if event.get("sign_in") is not True:
+            continue
+        if anywhere or (ordinal is not None and frame_index in (None, ordinal)):
+            return True
+    return False

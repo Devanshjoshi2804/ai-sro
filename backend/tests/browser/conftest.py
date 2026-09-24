@@ -40,7 +40,10 @@ PAGE = """<!doctype html>
     <label for="client">Client Code</label>
     <input id="client" name="clientCode" type="text">
     <label for="pw">Password</label>
-    <input id="pw" name="password" type="password">
+    <!-- Credential by NAME, not by structure: an app page, which a
+         type="password" field would make a sign-in page (spec 5.6), captured
+         structure-only -- and this page exists to prove what is kept. -->
+    <input id="pw" name="password" type="text">
     <button id="save" type="button">Save</button>
   </form>
   <script>
@@ -147,21 +150,111 @@ in an attachment. The rule matches, the mark finds nothing, and the offer is a
 run that would start and be skipped a moment later.
 """
 
+SIGN_IN_CODE = "135791"
+"""Typed into the Microsoft-shaped code box inside the OAuth flow."""
+
+MIRRORED_CODE = "246802"
+"""Typed into a one-time-code box whose page echoes it into a div and into the
+label of the button that submits it."""
+
+AUTHORIZE_PATH = "/authorize?response_type=code&client_id=app&redirect_uri={base}/callback&state=s1"
+"""The start of an OAuth/OIDC flow: all four parameters §5.6 names. The
+`redirect_uri` is filled in with the stub's own address by whoever opens it."""
+
+CODE_PAGE = """<!doctype html><html><body>
+  <h1>Enter code</h1>
+  <input id="otc" name="otc" type="tel" autocomplete="off" aria-label="Code" maxlength="8">
+  <button id="verify" type="button">Verify</button>
+  <script>
+    // Echoed into the button's label: nothing on this page marks a credential,
+    // so only the flow, told to the recorder, keeps the code out of the
+    // target the click on it is described by.
+    const otc = document.getElementById('otc');
+    otc.addEventListener('input', () => {
+      document.getElementById('verify').textContent = 'Verify ' + otc.value;
+    });
+    document.getElementById('verify').addEventListener('click', async () => {
+      const otc = document.getElementById('otc').value;
+      await fetch('/idp/verify', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({otc}),
+      });
+      location.href = '/mirror';
+    });
+  </script>
+</body></html>"""
+"""Microsoft's code box, structurally: `name=otc type=tel autocomplete=off`,
+nothing on it that says "credential". Only the flow it sits in does -- and it
+echoes the code into its own button's label, so the flow has to reach the
+recorder, not only the worker."""
+
+MIRROR_PAGE = """<!doctype html><html><body>
+  <label id="l2">Verify <input id="m" autocomplete="one-time-code"></label>
+  <div id="echo"></div>
+  <button id="confirm" aria-labelledby="l2" type="button">Confirm</button>
+  <script>
+    const box = document.getElementById('m');
+    box.addEventListener('input', () => {
+      document.getElementById('echo').textContent = box.value;
+      document.getElementById('confirm').textContent = 'Confirm ' + box.value;
+    });
+    document.getElementById('confirm').addEventListener('click', () => {
+      location.href = '/sign-in';
+    });
+  </script>
+</body></html>"""
+"""A one-time-code page that repeats what is typed: into a div, and into the
+label of the button that submits it -- where a gesture's target is read."""
+
 SIGN_IN_PAGE = """<!doctype html><html><body>
-  <form method="get" action="/callback">
+  <form method="post" action="/idp/login">
     <input id="u" name="username" autocomplete="username">
     <input id="p" name="password" type="password" autocomplete="current-password">
     <input id="o" name="otp" autocomplete="one-time-code">
     <input type="hidden" name="state" value="s1">
-    <input type="hidden" name="code" value="AUTHCODE-NOT-A-SECRET">
     <button id="go" type="submit">Sign in</button>
   </form>
 </body></html>"""
-"""An identity provider's own form, structurally: a password input, the three
-`autocomplete` values §5.6 names, and an OAuth `code` beside its `state`
-companion -- so a job's redaction is proved against the same signals the
-capture side reads, not against a stand-in shaped like one vendor's markup.
-"""
+"""An identity provider's own form, structurally: a password input and the
+`autocomplete` values §5.6 names. It posts to the provider, which answers with
+the redirect back to the app carrying the `code` -- the end of the flow."""
+
+SIGNED_IN_PAGE = """<!doctype html><html><body>
+  <p>signed in</p>
+  <input id="note" name="note" type="text">
+  <button id="home" type="button">Home</button>
+</body></html>"""
+"""The app, on the far side of the flow: watched like any other page."""
+
+SIGN_IN_USER = "signin-user-7c1e"
+SIGN_IN_PASSWORD = "hunter2-not-real"  # noqa: S105 -- the thing under test
+SIGN_IN_OTP = "424242"
+SIGN_IN_PATHS = ("/authorize", "/mirror", "/sign-in")
+"""Where the flow's sign-in pages are, for telling their events apart."""
+
+
+def walk_a_sign_in(page: Any, base: str) -> None:
+    """From the app, through an OAuth/OIDC flow and back, the way a person does.
+
+    The Microsoft-shaped code page (inside the flow, nothing on it naming a
+    credential), the page that echoes a one-time code into a div and a button
+    label, and the provider's password form -- which posts, and is answered
+    with the redirect back to the app carrying `code`.
+    """
+    page.goto(base + AUTHORIZE_PATH.format(base=base))
+    page.fill("#otc", SIGN_IN_CODE)
+    page.click("#verify")
+    page.wait_for_url("**/mirror")
+    page.fill("#m", MIRRORED_CODE)
+    page.click("#echo")
+    page.click("#confirm")
+    page.wait_for_url("**/sign-in")
+    page.fill("#u", SIGN_IN_USER)
+    page.fill("#p", SIGN_IN_PASSWORD)
+    page.fill("#o", SIGN_IN_OTP)
+    page.click("#go")
+    page.wait_for_url("**/callback?code=*")
 
 
 _SHAPES: list[dict[str, object]] = [
@@ -346,11 +439,17 @@ class _Stub(BaseHTTPRequestHandler):
         if self.path.startswith("/v1/agents/") and self.path.endswith("/watches"):
             self._send(200, json.dumps(_Stub.watches).encode())
             return
+        if self.path.startswith("/authorize"):
+            self._send(200, CODE_PAGE.encode(), "text/html; charset=utf-8")
+            return
+        if self.path.startswith("/mirror"):
+            self._send(200, MIRROR_PAGE.encode(), "text/html; charset=utf-8")
+            return
         if self.path.startswith("/sign-in"):
             self._send(200, SIGN_IN_PAGE.encode(), "text/html; charset=utf-8")
             return
         if self.path.startswith("/callback"):
-            self._send(200, b"<!doctype html><p>signed in</p>", "text/html; charset=utf-8")
+            self._send(200, SIGNED_IN_PAGE.encode(), "text/html; charset=utf-8")
             return
         if self.path.startswith("/mail-vague"):
             self._send(200, MAIL_WITH_NO_REFERENCE.encode(), "text/html; charset=utf-8")
@@ -663,6 +762,17 @@ class _Stub(BaseHTTPRequestHandler):
             run = _Stub.runs.setdefault(run_id, {})
             run["wrong_because"] = body.get("because")
             self._send(202, json.dumps(run).encode())
+            return
+        if self.path == "/idp/verify":
+            # What a provider answers a code with. Not credential-named, so
+            # only the structure-only rule keeps it out of the evidence.
+            self._send(200, json.dumps({"ticket": "IDP-TICKET-7788"}).encode())
+            return
+        if self.path == "/idp/login":
+            self.send_response(302)
+            self.send_header("Location", "/callback?code=AUTHCODE-NOT-A-SECRET&state=s1")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
             return
         if self.path == "/api/echo":
             # Says back what reached it, so the test can prove the call carried

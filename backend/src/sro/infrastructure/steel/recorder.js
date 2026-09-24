@@ -349,6 +349,86 @@
     };
   };
 
+  // Spec 5.6: a sign-in page is captured structure-only. What was acted on
+  // stays, so the sign-in chain can still be learned; every typed value goes,
+  // secret-looking or not. A page is one when it holds a password or
+  // one-time-code field (substituted from sensitivity.SIGN_IN_FIELDS, like the
+  // words above), or when whoever injected this says the tab is inside an
+  // OAuth/OIDC flow -- which only the tab's history can tell, so it is told:
+  // the extension dispatches `sro:sign-in`, Steel sets the flag directly.
+  // Asked per gesture rather than once: a login form that a single-page app
+  // replaces with the app itself is a sign-in page and then is not.
+  const SIGN_IN_FIELDS = __SIGN_IN_FIELDS__;
+  const REDACTED = '\u00abredacted\u00bb';
+  listen('sro:sign-in', () => {
+    window.__sroSignIn = true;
+  });
+  const signingIn = () => {
+    if (window.__sroSignIn === true) return true;
+    try {
+      return Boolean(document.querySelector(SIGN_IN_FIELDS));
+    } catch {
+      return false;
+    }
+  };
+
+  // What is typed on this page right now, longest first. A page can echo a
+  // code anywhere -- into a div, into the label of the button that submits
+  // it -- and the gesture's own target is read off that page, so the values
+  // are taken out of the target's prose wherever they landed. The join of
+  // every value is in the list too: a code typed one digit per box is echoed
+  // whole. A single character on its own is not, because taking every "a"
+  // out of a label says nothing and breaks the label.
+  const typedHere = () => {
+    const values = [...document.querySelectorAll('input, textarea')]
+      .filter(
+        (el) =>
+          !['hidden', 'checkbox', 'radio', 'submit', 'button', 'reset', 'image', 'file'].includes(
+            (el.type || '').toLowerCase(),
+          ),
+      )
+      .map((el) => el.value || '')
+      .filter(Boolean);
+    return [...new Set([...values, values.join('')])]
+      .filter((value) => value.length > 1)
+      .sort((a, b) => b.length - a.length);
+  };
+  const without = (text, typed) =>
+    typeof text === 'string' && text
+      ? typed.reduce((kept, value) => kept.split(value).join(REDACTED), text)
+      : text;
+  // Prose only. `cssPath` and `xpath` are how the control is found again,
+  // built from ids and tags rather than from anything typed.
+  const structureOf = (target, typed) => {
+    if (!target) return target;
+    const attributes = {};
+    for (const [name, value] of Object.entries(target.attributes || {})) {
+      if (name !== 'value') attributes[name] = without(value, typed);
+    }
+    const component = target.component && {
+      ...target.component,
+      name: without(target.component.name, typed),
+      fieldLabel: without(target.component.fieldLabel, typed),
+      text: without(target.component.text, typed),
+    };
+    return {
+      ...target,
+      name: without(target.name, typed),
+      text: without(target.text, typed),
+      attributes,
+      component,
+      landmarks: (target.landmarks || []).map((mark) => ({ ...mark, name: without(mark.name, typed) })),
+    };
+  };
+  // A key's name is not something typed: `press` keeps Enter, Tab, Escape,
+  // and a scroll keeps where it scrolled to.
+  const structureOnly = (record) => ({
+    ...record,
+    target: structureOf(record.target, typedHere()),
+    value: ['press', 'scroll'].includes(record.kind) ? record.value : null,
+    sign_in: true,
+  });
+
   const modifiers = (e) => {
     const mods = [];
     if (e.ctrlKey) mods.push('ctrl');
@@ -395,7 +475,7 @@
     try {
       window.__sroRecord(
         JSON.stringify({
-          ...record,
+          ...(signingIn() ? structureOnly(record) : record),
           frame_path: framePathOf(window),
           at: Date.now() / 1000,
           url: location.href,

@@ -75,6 +75,9 @@ ABSOLUTE = (
     # Fragments, which is how an implicit flow hands a token back.
     "https://wms.example/callback#access_token=ya29.abc&token_type=bearer",
     "https://wms.example/app?facility=BLR%201&api_key=k#id_token=j.w.t&v=1",
+    # A hash router's own query, where the first pair's key is the route.
+    "https://wms.example/callback#/done?code=FRAGCODE77&state=s1",
+    "https://wms.example/#/orders?facility=BLR1",
     # Shapes, where no parameter name exists to judge the value by.
     f"https://wms.example/reset/{FAKE_JWT}?facility=BLR1",
     "https://wms.example/app?k=AKIAIOSFODNN7EXAMPLE",
@@ -147,3 +150,57 @@ def test_the_one_deliberate_difference_is_the_relative_url_and_only_that() -> No
     assert redact_url("/v1/orders?api_key=k") == f"/v1/orders?api_key={REDACTED}"
     assert redact_url("/v1/orders#access_token=x") == f"/v1/orders#access_token={REDACTED}"
     assert redact_url("/v1/orders?facility=BLR1") == "/v1/orders?facility=BLR1"
+
+
+FLOW = (
+    "https://wms.example/orders",
+    "https://login.idp.example/common/oauth2/v2.0/authorize?client_id=app&response_type=code"
+    "&redirect_uri=https%3A%2F%2Fwms.example%2Fcallback&state=s1",
+    "https://login.idp.example/common/login",
+    "https://wms.example:443/callback?code=AUTHCODE&state=s1",
+    "https://wms.example/orders",
+    "https://wms.example/authorize?response_type=code&client_id=app"
+    "&redirect_uri=https://wms.example/callback&state=s2",
+    "https://wms.example/sign-in",
+    "https://wms.example/home",
+    "https://wms.example/callback#/done?id_token=j.w.t&state=s2",
+    "https://wms.example/x?response_type=code&client_id=app&redirect_uri=nowhere&state=s1",
+    "not a url",
+)
+
+_FLOW_DRIVER = """
+import {{ signInFlowAfter }} from "{module}";
+const chunks = [];
+for await (const chunk of process.stdin) chunks.push(chunk);
+let flow = null;
+process.stdout.write(JSON.stringify(JSON.parse(chunks.join("")).map((url) => {{
+  flow = signInFlowAfter(flow, url);
+  return Boolean(flow);
+}})));
+"""
+
+
+def test_the_two_copies_of_the_sign_in_flow_rule_answer_identically() -> None:
+    from sro.domain.recording.sensitivity import SignInFlow
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed; `make test-extension` needs it too")
+    done = subprocess.run(  # noqa: S603 -- node, found on PATH, on a generated file in this repo
+        [
+            node,
+            "--input-type=module",
+            "-e",
+            _FLOW_DRIVER.format(module=SENSITIVITY_MODULE_OUT.as_uri()),
+        ],
+        input=json.dumps(list(FLOW)),
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=60,
+    )
+    flow = SignInFlow()
+    ours = [flow.navigated(url) for url in FLOW]
+
+    assert ours == [False, True, True, False, False, True, True, True, False, False, False]
+    assert json.loads(done.stdout) == ours

@@ -16,6 +16,7 @@ from sro.domain.recording.network import (
     ResourceTiming,
     StackFrame,
 )
+from sro.domain.recording.sensitivity import redact_url
 from sro.domain.recording.state import (
     ConsoleLevel,
     ConsoleMessage,
@@ -204,7 +205,7 @@ def to_ax_graph(
                 value=value,
                 states=states,
                 attributes={
-                    key: str(val)
+                    key: redact_url(str(val)) if key == "url" else str(val)
                     for key, val in properties.items()
                     if key not in _AX_STATE_PROPERTIES and val is not None
                 },
@@ -212,7 +213,11 @@ def to_ax_graph(
         )
 
     return AxGraph(
-        taken_at=taken_at, url=url, frame_url=frame_url, nodes=tuple(nodes), root_id=root_id
+        taken_at=taken_at,
+        url=redact_url(url),
+        frame_url=redact_url(frame_url) if frame_url else frame_url,
+        nodes=tuple(nodes),
+        root_id=root_id,
     )
 
 
@@ -271,9 +276,11 @@ def to_page_event(method: str, payload: CdpPayload, *, at: datetime) -> PageEven
 def to_input_action(payload: CdpPayload) -> InputAction:
     target = payload.get("target")
     fingerprint = _to_dom_fingerprint(target) if target else None
-    secret = bool(payload.get("secret"))
+    kind = ActionKind(str(payload.get("kind", "click")))
+    withheld = payload.get("sign_in") is True and kind not in (ActionKind.PRESS, ActionKind.SCROLL)
+    secret = bool(payload.get("secret")) or withheld
     return InputAction(
-        kind=ActionKind(str(payload.get("kind", "click"))),
+        kind=kind,
         target=fingerprint,
         value=(
             None

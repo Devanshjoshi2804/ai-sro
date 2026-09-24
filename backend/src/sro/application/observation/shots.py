@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import json
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
 from sro.application.capture.events import InputEvent
 from sro.application.observation.artifacts import artifact_prefixes
+from sro.application.observation.evidence import numbered
 from sro.application.ports.blob import BlobStore
 from sro.domain.observation.batch import ObservationBatch
 from sro.domain.recording.artifact import ArtifactKind, MediaArtifact
@@ -26,24 +26,6 @@ class Shot:
     uri: str
     content_type: str
     size_bytes: int
-
-
-def numbered(payload: bytes) -> Iterator[tuple[int | None, Mapping[str, object]]]:
-    ordinal = -1
-    for line in payload.splitlines():
-        if not line.strip():
-            continue
-        try:
-            event = json.loads(line)
-        except ValueError:
-            continue
-        if not isinstance(event, Mapping):
-            continue
-        if event.get("kind") == "gesture":
-            ordinal += 1
-            yield ordinal, event
-        else:
-            yield None, event
 
 
 def frames_by_instant(payload: bytes) -> Mapping[float, int]:

@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 
 from sro.application.observation.admit import Event
 from sro.domain.recording.redaction import redact_body
 from sro.domain.recording.sensitivity import (
     REDACTED,
+    SignInFlow,
     classify_header,
     is_secret,
     is_secret_field,
+    is_sign_in_field,
     redact_shapes,
     redact_url,
 )
@@ -17,9 +19,123 @@ _URL_KEYS = ("url", "frame_url", "page_url", "location")
 
 _PROSE = ("name", "text", "fieldLabel")
 
+_KEEPS_ITS_VALUE = ("press", "scroll")
+
+_PATHS = frozenset({"cssPath", "xpath", "query", "chain"})
+
+_ABSOLUTE = ("http://", "https://")
+
 
 def redact_events(events: Sequence[Event]) -> tuple[Event, ...]:
-    return tuple(_event(event) for event in events)
+    signing_in = _signing_in(events)
+    typed = _typed(event for index, event in enumerate(events) if index in signing_in)
+    return tuple(
+        _structure_only(_event(event), typed) if index in signing_in else _event(event)
+        for index, event in enumerate(events)
+    )
+
+
+def _signing_in(events: Sequence[Event]) -> set[int]:
+    flows: dict[object, SignInFlow] = {}
+    visits: dict[object, int] = {}
+    pages: list[tuple[object, int, str | None]] = []
+    found: set[int] = set()
+    for index, event in enumerate(events):
+        tab = event.get("tab_id")
+        page = _page_of(event)
+        flow = flows.setdefault(tab, SignInFlow())
+        if event.get("kind") == "page" and event.get("page_kind") == "navigated":
+            visits[tab] = visits.get(tab, 0) + 1
+        inside = flow.navigated(page) if event.get("kind") == "page" and page else False
+        pages.append((tab, visits.get(tab, 0), page))
+        if inside or flow.redirect is not None or _marked(event) or _on_a_sign_in_field(event):
+            found.add(index)
+    seen = {pages[index] for index in found}
+    return found | {index for index, where in enumerate(pages) if where in seen}
+
+
+def _page_of(event: Event) -> str | None:
+    gesture = event.get("gesture")
+    for value in (
+        event.get("page_url"),
+        event.get("frame_url"),
+        event.get("url"),
+        gesture.get("url") if isinstance(gesture, Mapping) else None,
+    ):
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+def _marked(event: Event) -> bool:
+    gesture = event.get("gesture")
+    return event.get("sign_in") is True or (
+        isinstance(gesture, Mapping) and gesture.get("sign_in") is True
+    )
+
+
+def _on_a_sign_in_field(event: Event) -> bool:
+    gesture = event.get("gesture")
+    target = gesture.get("target") if isinstance(gesture, Mapping) else None
+    attributes = target.get("attributes") if isinstance(target, Mapping) else None
+    return isinstance(attributes, Mapping) and is_sign_in_field(attributes)
+
+
+def _typed(events: Iterable[Event]) -> tuple[str, ...]:
+    values = [
+        value
+        for event in events
+        if isinstance(gesture := event.get("gesture"), Mapping)
+        and gesture.get("kind") not in _KEEPS_ITS_VALUE
+        and isinstance(value := gesture.get("value"), str)
+        and value
+    ]
+    joined = "".join(values)
+    return tuple(
+        sorted({value for value in (*values, joined) if len(value) > 1}, key=len, reverse=True)
+    )
+
+
+def _structure_only(event: Event, typed: tuple[str, ...]) -> Event:
+    out = dict(event)
+    out["sign_in"] = True
+    gesture = out.get("gesture")
+    if isinstance(gesture, Mapping):
+        kept = dict(gesture) | {"sign_in": True}
+        if kept.get("kind") not in _KEEPS_ITS_VALUE:
+            kept["value"] = None
+        target = kept.get("target")
+        if isinstance(target, Mapping):
+            kept["target"] = _without(
+                {**target, "attributes": _valueless(target.get("attributes"))}, typed
+            )
+        out["gesture"] = kept
+    request = out.get("request")
+    if isinstance(request, Mapping):
+        out["request"] = {**request, "request_body": None, "response_body": None}
+    if out.get("kind") == "snapshot":
+        out["snapshot"] = {}
+    return out
+
+
+def _valueless(attributes: object) -> dict[str, object]:
+    if not isinstance(attributes, Mapping):
+        return {}
+    return {str(key): value for key, value in attributes.items() if key != "value"}
+
+
+def _without(node: object, typed: tuple[str, ...]) -> object:
+    if isinstance(node, str):
+        for value in typed:
+            node = node.replace(value, REDACTED)
+        return node
+    if isinstance(node, Mapping):
+        return {
+            key: value if key in _PATHS else _without(value, typed) for key, value in node.items()
+        }
+    if isinstance(node, list):
+        return [_without(value, typed) for value in node]
+    return node
 
 
 def _event(event: Event) -> Event:
@@ -43,7 +159,7 @@ def _event(event: Event) -> Event:
 
 def _shapes_only(node: object) -> object:
     if isinstance(node, str):
-        return redact_shapes(node)
+        return redact_url(node) if node.startswith(_ABSOLUTE) else redact_shapes(node)
     if isinstance(node, Mapping):
         return {key: _shapes_only(value) for key, value in node.items()}
     if isinstance(node, list):

@@ -52,6 +52,7 @@ const KEYS = {
   nearMisses: "sro.nearMisses",
   said: "sro.said",
   repaired: "sro.repaired",
+  signInFlows: "sro.signInFlows",
 };
 
 // Whichever deployment this build belongs to. `make gen-deployment` writes it;
@@ -192,6 +193,11 @@ export const state = {
    * Here rather than in a module variable because MV3 evicts the worker between
    * events: a tail held in memory would be empty again by the second keystroke,
    * which is the exact moment a job becomes recognisable. */
+  /** Tabs inside an OAuth/OIDC sign-in, `{ [tabId]: { redirect, provider } }`.
+   * See `signing-in.js`. */
+  signInFlows: () => read(KEYS.signInFlows, {}),
+  setSignInFlows: (flows) => write(KEYS.signInFlows, flows),
+
   tails: () => read(KEYS.tails, {}),
   setTails: (tails) => write(KEYS.tails, tails),
 

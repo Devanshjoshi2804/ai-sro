@@ -6,14 +6,14 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/a
 
 > Screenshots and oversized bodies, stored beside the batch they belong to.
 
-## module, [line 18](../../../../../../../backend/src/sro/application/observation/artifacts.py#L18): Note on the line above
+## module, [line 19](../../../../../../../backend/src/sro/application/observation/artifacts.py#L19): Note on the line above
 
 Code: `_ALLOWED = (ArtifactKind.SCREENSHOT, ArtifactKind.PAYLOAD, ArtifactKind.VIDEO)`
 
 > A recording's other kinds -- raw events, audio, transcript -- belong to a
 > demonstration somebody started. An observation stream has no narration.
 
-## `artifact_prefixes`, [line 27](../../../../../../../backend/src/sro/application/observation/artifacts.py#L27): Docstring
+## `artifact_prefixes`, [line 28](../../../../../../../backend/src/sro/application/observation/artifacts.py#L28): Docstring
 
 > Every key prefix a purge of this batch's artifacts has to sweep.
 >
@@ -31,13 +31,13 @@ Code: `_ALLOWED = (ArtifactKind.SCREENSHOT, ArtifactKind.PAYLOAD, ArtifactKind.V
 > -- leaves a prefix nobody ever sweeps: `forget_prefix` returns 0, the
 > operator is told "0 artifacts", and the pictures stay.
 
-## `StoreObservationArtifact`, [line 34](../../../../../../../backend/src/sro/application/observation/artifacts.py#L34): Docstring
+## `StoreObservationArtifact`, [line 35](../../../../../../../backend/src/sro/application/observation/artifacts.py#L35): Docstring
 
 > No row. The key says which batch and which frame it belongs to, so a
 > miner reading a batch finds its screenshots by prefix, and a retention rule
 > expires them with the evidence they illustrate.
 
-## `StoreObservationArtifact.execute`, [line 60](../../../../../../../backend/src/sro/application/observation/artifacts.py#L60): Comment
+## `StoreObservationArtifact.execute`, [line 61](../../../../../../../backend/src/sro/application/observation/artifacts.py#L61): Comment
 
 Code: `device = await uow.devices.get(ctx.tenant_id, device_id)`
 
@@ -46,7 +46,7 @@ Code: `device = await uow.devices.get(ctx.tenant_id, device_id)`
 > a screenshot is a picture of somebody's screen filed under their
 > name.
 
-## `StoreObservationArtifact.execute`, [line 64](../../../../../../../backend/src/sro/application/observation/artifacts.py#L64): Comment
+## `StoreObservationArtifact.execute`, [line 74](../../../../../../../backend/src/sro/application/observation/artifacts.py#L74): Comment
 
 Code: `day = (at or (batch.started_at if batch else self._clock.now())).date().isoformat()`
 
@@ -55,3 +55,21 @@ Code: `day = (at or (batch.started_at if batch else self._clock.now())).date().i
 > server's day only when there is no batch to ask -- a picture that
 > arrived before the evidence it illustrates -- and
 > `artifact_prefixes` carries `received_at` to cover that case.
+
+## `StoreObservationArtifact.execute`, [line 72](../../../../../../../backend/src/sro/application/observation/artifacts.py#L72): Comment
+
+Code: `raise InvariantViolation("a picture of a sign-in page is never stored")`
+
+> Spec §5.6: no screenshot of a sign-in page is stored, whatever the browser
+> sent. The batch the picture illustrates was stored first (the extension stages
+> pictures only once their batch is accepted), with its sign-in events marked by
+> `redact_events`, so the picture's gesture is read back from it the way
+> `read_shots` does. Refused as an invariant, which the extension treats as
+> permanent and drops.
+
+## `_pictures_a_sign_in`, [line 84](../../../../../../../backend/src/sro/application/observation/artifacts.py#L84): Docstring
+
+> Whether the picture numbered `frame_index` in this stored batch is of a
+> sign-in gesture. When the batch had events refused, stored ordinals no longer
+> line up with the browser's frame numbers (`stored_shots` gives up on such a
+> batch for the same reason), so any sign-in event in it refuses every picture.

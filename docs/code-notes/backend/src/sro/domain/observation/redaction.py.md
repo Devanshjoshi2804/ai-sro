@@ -105,19 +105,19 @@ Comments and docstrings moved out of [`backend/src/sro/domain/observation/redact
 >
 > An unparseable URL is still left alone rather than guessed at.
 
-## `redact_data`, [line 226](../../../../../../../backend/src/sro/domain/observation/redaction.py#L226): Docstring
+## `redact_data`, [line 231](../../../../../../../backend/src/sro/domain/observation/redaction.py#L231): Docstring
 
 > The same rule at every depth, through dicts and lists alike.
 >
 > The flat version of this guarded the top level of a JSON object and
 > nothing else, so `{"auth": {"password": ...}}` walked straight past it.
 
-## `_redact_multipart`, [line 271](../../../../../../../backend/src/sro/domain/observation/redaction.py#L271): Docstring
+## `_redact_multipart`, [line 276](../../../../../../../backend/src/sro/domain/observation/redaction.py#L276): Docstring
 
 > A part names its field on one line and carries the value on another, so
 > the pair scanner never sees the two together and cannot act on the name.
 
-## `_redact_named`, [line 289](../../../../../../../backend/src/sro/domain/observation/redaction.py#L289): Docstring
+## `_redact_named`, [line 294](../../../../../../../backend/src/sro/domain/observation/redaction.py#L294): Docstring
 
 > One body, whatever shape it is, with every credential-named value gone.
 >
@@ -131,7 +131,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/observation/redact
 > replaced wholesale. An unparsed body that might hold a credential is the
 > failure; a body replaced entirely is legible and safe.
 
-## `redact_body`, [line 305](../../../../../../../backend/src/sro/domain/observation/redaction.py#L305): Docstring
+## `redact_body`, [line 310](../../../../../../../backend/src/sro/domain/observation/redaction.py#L310): Docstring
 
 > The name rule above, then the shape rule over whatever it produced.
 >
@@ -242,9 +242,9 @@ Code: `OAUTH_COMPANIONS = frozenset(`
 > (areaCode, operationCode, barCodeTemplateId) are untouched by an exact match.
 > This costs no live evidence and closes the last row of the audit's table.
 
-## `redact_url`, [line 214](../../../../../../../backend/src/sro/domain/observation/redaction.py#L214): Comment
+## `redact_url`, [line 212](../../../../../../../backend/src/sro/domain/observation/redaction.py#L212): Comment
 
-Code: `return redact_shapes(head if hash_at == -1 else f"{head}#{fragment}")`
+Code: `return redact_shapes(head if hash_at == -1 else f"{head}#{_redact_fragment(fragment)}")`
 
 > The shape pass runs over the whole rebuilt URL rather than only the
 > query, because a token can sit in a path segment where there is no
@@ -252,7 +252,7 @@ Code: `return redact_shapes(head if hash_at == -1 else f"{head}#{fragment}")`
 > credential comes back byte-identical -- the property the hand-splicing
 > above exists to keep.
 
-## module, [line 219](../../../../../../../backend/src/sro/domain/observation/redaction.py#L219): Comment
+## module, [line 224](../../../../../../../backend/src/sro/domain/observation/redaction.py#L224): Comment
 
 Code: `_PAIR = re.compile(r"([A-Za-z_][\w.-]*)(\s*[=:]\s*)([^\s&;,]*)")`
 
@@ -261,21 +261,21 @@ Code: `_PAIR = re.compile(r"([A-Za-z_][\w.-]*)(\s*[=:]\s*)([^\s&;,]*)")`
 > this wants only a field name next to a field value, which is all a
 > name-based rule needs to act -- and is what catches a graphql mutation.
 
-## `_redact_json`, [line 248](../../../../../../../backend/src/sro/domain/observation/redaction.py#L248): Comment
+## `_redact_json`, [line 253](../../../../../../../backend/src/sro/domain/observation/redaction.py#L253): Comment
 
 Code: `return UNINSPECTABLE`
 
 > Not the document it claimed to be: truncated, or never JSON at all.
 > Replaced whole rather than stored unexamined -- see redact_body.
 
-## `_redact_json`, [line 250](../../../../../../../backend/src/sro/domain/observation/redaction.py#L250): Comment
+## `_redact_json`, [line 255](../../../../../../../backend/src/sro/domain/observation/redaction.py#L255): Comment
 
 Code: `return json.dumps(_redact_pairs(document), ensure_ascii=False)`
 
 > A bare JSON string is a document too, and `"password=hunter2"` is
 > what one looks like when it carries a credential.
 
-## `_redact_json`, [line 252](../../../../../../../backend/src/sro/domain/observation/redaction.py#L252): Comment
+## `_redact_json`, [line 257](../../../../../../../backend/src/sro/domain/observation/redaction.py#L257): Comment
 
 Code: `return text if cleaned == document else json.dumps(cleaned, ensure_ascii=False)`
 
@@ -285,3 +285,8 @@ Code: `return text if cleaned == document else json.dumps(cleaned, ensure_ascii=
 > extension's JSON.stringify writes it literally; so does this.
 >
 > Unchanged means unchanged: the original bytes, not a reserialisation.
+
+## `_redact_fragment`, [line 215](../../../../../../../backend/src/sro/domain/observation/redaction.py#L215): Docstring
+
+> The same fragment rule as `recording/sensitivity.py`'s `_redact_fragment`: a
+> hash router's own query (`#/done?code=...`) is judged as a query. See there.

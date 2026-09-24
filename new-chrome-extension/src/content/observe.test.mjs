@@ -153,6 +153,57 @@ test("it announces itself on arrival", () => {
   ]);
 });
 
+test("a gesture says whether its page is a sign-in page", () => {
+  // Spec 5.6, asked of the DOM from the isolated world: the page realm the
+  // recorder runs in is the page's own.
+  const world = aWorld();
+  let signIn = false;
+  world.window.__sroIsSignInDocument = () => signIn;
+  world.document = {};
+  run(world);
+  world.sent.length = 0;
+
+  gesture(world, JSON.stringify({ kind: "click" }));
+  signIn = true;
+  gesture(world, JSON.stringify({ kind: "click" }));
+
+  assert.deepEqual(
+    world.sent.map((message) => message.signIn),
+    [false, true],
+  );
+});
+
+test("with no rules loaded, every page is a sign-in page", () => {
+  const world = aWorld();
+  run(world);
+  world.sent.length = 0;
+
+  gesture(world, JSON.stringify({ kind: "click" }));
+
+  assert.equal(world.sent[0].signIn, true);
+});
+
+test("a tab inside a sign-in flow is told to the recorder", async () => {
+  // Only the worker knows where the tab has been; the recorder in the page
+  // realm hears it as a DOM event.
+  const world = aWorld();
+  world.chrome.runtime.sendMessage = (message) => {
+    world.sent.push(message);
+    return Promise.resolve(message.kind === "content-ready" ? { signIn: true } : undefined);
+  };
+  world.CustomEvent = class {
+    constructor(type) {
+      this.type = type;
+    }
+  };
+  const heard = [];
+  world.window.addEventListener("sro:sign-in", () => heard.push(true));
+  run(world);
+  await new Promise((done) => setTimeout(done, 0));
+
+  assert.deepEqual(heard, [true]);
+});
+
 test("nothing the page dispatches is trusted", () => {
   // Any script in the page can fire this event.
   const world = aWorld();

@@ -21,7 +21,12 @@ const NONCE = "test-realm-nonce";
  * with the page-realm patch on load; `answerHandshake` plays that half. With
  * it left out, nothing has ever proved it came from us, which is the whole
  * point of the exchange. */
-function makeSandbox({ withRules = true, answerHandshake = true, fields = [] } = {}) {
+function makeSandbox({
+  withRules = true,
+  answerHandshake = true,
+  fields = [],
+  signInPage = false,
+} = {}) {
   const sent = [];
   const listeners = {};
   const sandbox = {
@@ -48,7 +53,11 @@ function makeSandbox({ withRules = true, answerHandshake = true, fields = [] } =
     // Enough of a document for the one question `holdingSomething` asks of it:
     // has anybody typed into this page. A tab that has is never reloaded to
     // repair the recorder.
-    document: { querySelectorAll: () => fields },
+    document: {
+      querySelectorAll: () => fields,
+      // Spec 5.6: whether the page holds a password or one-time-code field.
+      querySelector: () => (signInPage ? {} : null),
+    },
     URL,
     URLSearchParams,
     TextEncoder,
@@ -213,6 +222,18 @@ const FAKE_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJub2JvZHkifQ.no
   );
   assert.strictEqual(sent.request.request_body.text, null, "fails closed with no rules loaded");
   assert.ok(!JSON.stringify(sent).includes("hunter2"));
+}
+
+// Spec 5.6: a call from a page holding a password or one-time-code field says
+// so, and the worker keeps only its method, URL and status. A page without
+// one says it is not.
+{
+  const [ordinary] = run(base);
+  assert.strictEqual(ordinary.signIn, false);
+  const [signingIn] = run(base, { signInPage: true });
+  assert.strictEqual(signingIn.signIn, true);
+  const [blind] = run(base, { withRules: false });
+  assert.strictEqual(blind.signIn, true, "with no rules loaded, every page is a sign-in page");
 }
 
 // Credential headers lose their values and keep their names.

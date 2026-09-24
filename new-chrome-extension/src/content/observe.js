@@ -38,6 +38,11 @@
 
   const MAX_GESTURE_CHARS = 128 * 1024;
 
+  /** From sensitivity.generated.js, which runs first in this world. Missing,
+   * this cannot tell a sign-in page from any other, and the safe answer is
+   * that every page is one (spec 5.6). */
+  const isSignInDocument = window.__sroIsSignInDocument;
+
   /** Whether this copy can still talk to the worker.
    *
    * An orphaned content script -- one whose extension was reloaded under it --
@@ -80,8 +85,30 @@
     )
       return;
 
-    tell({ kind: "gesture", gesture, frameUrl: location.href });
+    tell({
+      kind: "gesture",
+      gesture,
+      frameUrl: location.href,
+      // Spec 5.6, asked of the DOM from this side too: the page realm the
+      // recorder runs in is the page's own, and whatever it says about itself
+      // is the page speaking.
+      signIn: typeof isSignInDocument !== "function" || isSignInDocument(document),
+    });
   });
 
-  tell({ kind: "content-ready", url: location.href });
+  // Whether this tab is inside an OAuth/OIDC sign-in, which only the worker
+  // knows. Told to the recorder by the one channel that crosses into the page
+  // realm, a DOM event; see `recorder.js`, `sro:sign-in`.
+  if (alive()) {
+    try {
+      chrome.runtime
+        .sendMessage({ kind: "content-ready", url: location.href })
+        .then((answer) => {
+          if (answer?.signIn) window.dispatchEvent(new CustomEvent("sro:sign-in"));
+        })
+        .catch(() => {});
+    } catch {
+      // The context died between the check and the call.
+    }
+  }
 })();

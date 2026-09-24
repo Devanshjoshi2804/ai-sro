@@ -12,8 +12,19 @@ import base64
 import json
 import time
 from typing import Any
+from urllib.parse import urlsplit
 
 import pytest
+
+from tests.browser.conftest import (
+    MIRRORED_CODE,
+    SIGN_IN_CODE,
+    SIGN_IN_OTP,
+    SIGN_IN_PASSWORD,
+    SIGN_IN_PATHS,
+    SIGN_IN_USER,
+    walk_a_sign_in,
+)
 
 pytestmark = pytest.mark.browser
 
@@ -1874,30 +1885,99 @@ def test_watching_a_tab_that_was_already_open_needs_no_reload(browser: Any, stub
     assert len(ids) == len(set(ids)), "watching twice recorded the same call twice"
 
 
-def test_a_sign_in_page_is_recorded_without_a_credential(browser: Any, stub: Any) -> None:
-    """§5.6: the observation policy no longer excludes identity-provider hosts
-    by default, so a sign-in page is captured like any other -- under the
-    same redaction every other page gets, never by not looking.
+def _on_a_sign_in_page(url: object) -> bool:
+    return isinstance(url, str) and urlsplit(url).path in SIGN_IN_PATHS
 
-    `_drive` fills `#client`/`#pw` and clicks `#save`, none of which exist on
-    a sign-in form, so this drives the page itself rather than through it.
+
+def test_a_sign_in_is_captured_structure_only(
+    browser: Any, stub: Any, artifacts: list[dict[str, Any]]
+) -> None:
+    """Spec §5.6: a sign-in page is captured structure-only.
+
+    What was acted on, the redacted URLs, the page marks and each call's
+    method, URL and status are kept, so the sign-in chain can still be
+    learned. Nothing typed -- secret-looking or not -- no screenshot, no tree
+    and no body. Proved on three pages of one real OAuth flow: a Microsoft-
+    shaped code box that only the flow marks, a one-time-code page that echoes
+    the code into a div and into a button's label, and a password form.
+
+    The app on either side is watched as before, and the checks are made so
+    they cannot pass by nothing having been captured: a screenshot and a tree
+    of the app are required to have arrived.
     """
     base, batches = stub
     worker = _service_worker(browser)
     _sign_in(browser, worker, base)
+    # Room under the per-minute caps, so a sign-in gesture that leaked a
+    # picture or a tree would have been allowed to take one.
+    worker.evaluate(
+        """async () => await chrome.storage.local.set(
+             {"sro.shotTimes": [], "sro.treeTimes": []})"""
+    )
 
     page = browser.new_page()
-    page.goto(f"{base}/sign-in")
+    page.goto(f"{base}/callback")
     _watch(browser, worker, page)
-    page.fill("#u", "operator")
-    page.fill("#p", "hunter2-not-real")
-    page.fill("#o", "424242")
-    page.click("#go")
-    page.wait_for_url("**/callback**")
-    _flush(browser, worker)
+    page.click("#home")
+    walk_a_sign_in(page, base)
+    worker.evaluate("""async () => await chrome.storage.local.set({"sro.treeTimes": []})""")
+    page.fill("#note", CLIENT_CODE)
+    page.click("#home")
+    _wait_for_a_tree(worker)
+    page.click("#home")
+    _flush_until_a_snapshot_arrives(browser, worker, batches)
     page.close()
 
     sent = json.dumps(batches)
-    assert "operator" in sent
-    for secret in ("hunter2-not-real", "424242", "AUTHCODE-NOT-A-SECRET"):
-        assert secret not in sent
+    for secret in (
+        SIGN_IN_CODE,
+        MIRRORED_CODE,
+        SIGN_IN_USER,
+        SIGN_IN_PASSWORD,
+        SIGN_IN_OTP,
+        "IDP-TICKET-7788",
+        "AUTHCODE-NOT-A-SECRET",
+    ):
+        assert secret not in sent, f"{secret} reached the evidence plane"
+
+    events = [event for batch in batches for event in batch["events"]]
+    signing_in = [
+        e for e in events if e["kind"] == "gesture" and _on_a_sign_in_page(e.get("page_url"))
+    ]
+    # What was acted on is kept: every control of the flow, found again by path.
+    acted_on = {e["gesture"]["target"]["cssPath"] for e in signing_in}
+    for control in ("#otc", "#verify", "#m", "#echo", "#confirm", "#u", "#p", "#o", "#go"):
+        assert any(path.endswith(control) for path in acted_on), f"{control} was not kept"
+    for event in signing_in:
+        assert event["sign_in"] is True
+        if event["gesture"]["kind"] != "press":
+            assert event["gesture"]["value"] is None, event["gesture"]
+    # The URLs and the marks are kept.
+    marked = {urlsplit(e["url"]).path for e in events if e["kind"] == "page"}
+    assert set(SIGN_IN_PATHS) <= marked, marked
+    # A call keeps its method, URL and status, and nothing it carried.
+    verify = [
+        e["request"]
+        for e in events
+        if e["kind"] == "request" and e["request"]["url"].endswith("/idp/verify")
+    ]
+    assert verify, "the call the code page made was not kept"
+    assert verify[0]["method"] == "POST"
+    assert verify[0]["status"] == 200
+    assert verify[0]["request_body"] is None
+    assert verify[0]["response_body"] is None
+    # No tree of a sign-in page -- and one of the app, so this is not vacuous.
+    trees = [e for e in events if e["kind"] == "snapshot"]
+    assert trees, "no tree arrived at all, so the check below proves nothing"
+    assert not [e for e in trees if _on_a_sign_in_page(e.get("url"))]
+    # No picture of a sign-in gesture -- and one of the app, likewise.
+    assert artifacts, "no screenshot arrived at all, so the check below proves nothing"
+    gestures = {
+        batch["batch_id"]: [e for e in batch["events"] if e["kind"] == "gesture"]
+        for batch in batches
+    }
+    for shot in artifacts:
+        pictured = gestures[shot["batch_id"]][int(shot["frame_index"])]
+        assert not _on_a_sign_in_page(pictured.get("page_url")), pictured
+    # And the app on the far side is watched as before.
+    assert CLIENT_CODE in sent

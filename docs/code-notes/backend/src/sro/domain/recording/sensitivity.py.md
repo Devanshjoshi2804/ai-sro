@@ -10,7 +10,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/recording/sensitiv
 > decides only which plane a value may travel to -- evidence keeps all of it,
 > skills keep a vault reference instead of a secret, telemetry keeps neither.
 
-## module, [line 26](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L26): Note on the line above
+## module, [line 28](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L28): Note on the line above
 
 Code: `_CSRF_HINTS = ("csrf", "xsrf")`
 
@@ -20,7 +20,7 @@ Code: `_CSRF_HINTS = ("csrf", "xsrf")`
 > was written into a skill as a literal value -- a live session secret in the
 > plane that is meant to hold none, and stale by the time anything replayed it.
 
-## module, [line 34](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L34): Note on the line above
+## module, [line 36](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L36): Note on the line above
 
 Code: `_TRACE_HINTS = ("trace", "nonce", "request-id", "correlation", "idempotency", "-ts", "timestamp")`
 
@@ -31,7 +31,7 @@ Code: `_TRACE_HINTS = ("trace", "nonce", "request-id", "correlation", "idempoten
 > apart from a value the task actually varies. Left unclassified it becomes a
 > parameter the operator is asked to supply, which is nonsense.
 
-## module, [line 93](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L93): Note on the line above
+## module, [line 95](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L95): Note on the line above
 
 Code: `SECRET_TOKENS = frozenset(`
 
@@ -42,7 +42,7 @@ Code: `SECRET_TOKENS = frozenset(`
 > generated from this one, so a word added here reaches the page that does the
 > redacting rather than only the code that checks it afterwards.
 
-## module, [line 173](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L173): Note on the line above
+## module, [line 175](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L175): Note on the line above
 
 Code: `REDACTED = "«redacted»"`
 
@@ -51,7 +51,7 @@ Code: `REDACTED = "«redacted»"`
 > extension all write these exact characters, and a second convention would mean
 > a reviewer grepping stored evidence for it found only some of the holes.
 
-## module, [line 176](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L176): Note on the line above
+## module, [line 178](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L178): Note on the line above
 
 Code: `SECRET_SHAPES: tuple[tuple[str, str], ...] = (`
 
@@ -77,7 +77,7 @@ Code: `SECRET_SHAPES: tuple[tuple[str, str], ...] = (`
 > `self_uri` URLs, not credentials. There is no threshold between "useless" and
 > "destroys the evidence": 5.0 blanks nothing at all. It stays out.
 
-## module, [line 192](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L192): Note on the line above
+## module, [line 194](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L194): Note on the line above
 
 Code: `SECRET_SHAPES_ANY_CASE: tuple[tuple[str, str], ...] = (`
 
@@ -89,43 +89,43 @@ Code: `SECRET_SHAPES_ANY_CASE: tuple[tuple[str, str], ...] = (`
 > expressions, one of each kind, is what both engines read the same way --
 > JavaScript's inline `(?i:...)` is too new to rely on in a content script.
 
-## `Sensitivity`, [line 61](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L61): Note on the line above
+## `Sensitivity`, [line 63](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L63): Note on the line above
 
 Code: `AUTH = "auth"`
 
 > Credential. Replay needs a live one, so the skill holds a vault reference.
 
-## `Sensitivity`, [line 63](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L63): Note on the line above
+## `Sensitivity`, [line 65](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L65): Note on the line above
 
 Code: `CSRF = "csrf"`
 
 > Single-use token. Minted per session -- a replayed value is always stale.
 
-## `Sensitivity`, [line 65](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L65): Note on the line above
+## `Sensitivity`, [line 67](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L67): Note on the line above
 
 Code: `SESSION = "session"`
 
 > Session cookie. Same handling as AUTH.
 
-## `Sensitivity`, [line 67](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L67): Note on the line above
+## `Sensitivity`, [line 69](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L69): Note on the line above
 
 Code: `TRACE = "trace"`
 
 > Correlation id. Regenerate rather than replay, or traces collide.
 
-## `Sensitivity`, [line 69](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L69): Note on the line above
+## `Sensitivity`, [line 71](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L71): Note on the line above
 
 Code: `TRANSPORT = "transport"`
 
 > Set by the HTTP client. Replaying is pointless and sometimes harmful.
 
-## `Sensitivity`, [line 71](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L71): Note on the line above
+## `Sensitivity`, [line 73](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L73): Note on the line above
 
 Code: `SEMANTIC = "semantic"`
 
 > Carries meaning the call needs: tenant, facility, warehouse, content-type.
 
-## `shapes_in`, [line 206](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L206): Docstring
+## `shapes_in`, [line 208](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L208): Docstring
 
 > Which credential shapes appear in this text, in the order first seen.
 >
@@ -135,7 +135,7 @@ Code: `SEMANTIC = "semantic"`
 > tell them apart -- while the marker left behind stays the same either way,
 > so nothing downstream has to learn a second convention.
 
-## `redact_shapes`, [line 216](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L216): Docstring
+## `redact_shapes`, [line 218](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L218): Docstring
 
 > The same text with every credential-shaped run replaced.
 >
@@ -145,7 +145,7 @@ Code: `SEMANTIC = "semantic"`
 > no credential in it comes back identical, which is what lets this run on a
 > URL that must not be re-encoded.
 
-## `is_secret_field`, [line 236](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L236): Docstring
+## `is_secret_field`, [line 238](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L238): Docstring
 
 > Whether a form or JSON field holds a credential.
 >
@@ -161,7 +161,7 @@ Code: `SEMANTIC = "semantic"`
 > An all-caps acronym stuck to a word counts as two words, so ``SAMLResponse``
 > matches ``saml``. See ``_words`` for the measurement that says this is free.
 
-## `_redact_query`, [line 258](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L258): Docstring
+## `_redact_query`, [line 260](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L260): Docstring
 
 > An ``a=b&c=d`` run with every credential-named value replaced.
 >
@@ -178,7 +178,7 @@ Code: `SEMANTIC = "semantic"`
 > A pair with no ``=`` is given one, as the JavaScript does: the name alone is
 > what matched, and there is no value to leave in place.
 
-## `redact_url`, [line 271](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L271): Docstring
+## `redact_url`, [line 273](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L273): Docstring
 
 > A URL with credential-named query and fragment values replaced.
 >
@@ -209,11 +209,11 @@ Code: `SEMANTIC = "semantic"`
 > guard: every one of the 611 distinct URLs in its captured knowledge base is
 > relative, so a guard meant to be careful excluded 100% of real evidence.
 
-## `is_secret`, [line 292](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L292): Docstring
+## `is_secret`, [line 372](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L372): Docstring
 
 > Whether the *value* must be held by reference outside the evidence plane.
 
-## `is_replayable`, [line 296](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L296): Docstring
+## `is_replayable`, [line 376](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L376): Docstring
 
 > Whether the captured value can be sent again verbatim.
 >
@@ -221,7 +221,7 @@ Code: `SEMANTIC = "semantic"`
 > headers are the client's to set, and secrets are resolved from the vault at
 > run time rather than copied.
 
-## `classify_header`, [line 77](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L77): Comment
+## `classify_header`, [line 79](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L79): Comment
 
 Code: `return Sensitivity.TRANSPORT`
 
@@ -234,7 +234,7 @@ Code: `return Sensitivity.TRANSPORT`
 > host -- contains "auth". A pseudo-header is a structural fact about the
 > frame; a hint is a guess about a name, and the fact wins.
 
-## `classify_header`, [line 79](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L79): Comment
+## `classify_header`, [line 81](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L81): Comment
 
 Code: `return Sensitivity.AUTH`
 
@@ -255,7 +255,7 @@ Code: `return Sensitivity.AUTH`
 > since it was generated; this makes the two agree rather than
 > introducing anything new.
 
-## module, [line 98](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L98): Comment
+## module, [line 100](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L100): Comment
 
 Code: `"pass",`
 
@@ -274,7 +274,7 @@ Code: `"pass",`
 > trade. Revisit only with a measurement showing a `*_pass` credential
 > shape does not occur in the deployments this ships to.
 
-## module, [line 113](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L113): Comment
+## module, [line 115](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L115): Comment
 
 Code: `"passcode",`
 
@@ -283,7 +283,7 @@ Code: `"passcode",`
 > "Verification Code", the recorder kept it verbatim, and induction then
 > offered it as a parameter to be stored, displayed and replayed.
 
-## module, [line 118](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L118): Comment
+## module, [line 120](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L120): Comment
 
 Code: `"cookie",`
 
@@ -311,7 +311,7 @@ Code: `"cookie",`
 > something longer, `mySessionId`, matches neither the words nor the
 > joined form. That is the same ceiling `apiKey` has always had.
 
-## module, [line 123](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L123): Comment
+## module, [line 125](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L125): Comment
 
 Code: `"accesskey",`
 
@@ -326,7 +326,7 @@ Code: `"accesskey",`
 > `accessKey`, `privateKey`, `sshKey` and `encryptionKey` -- an
 > AWS-shaped body -- reached the store and the prompt verbatim.
 
-## module, [line 177](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L177): Comment
+## module, [line 179](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L179): Comment
 
 Code: `("jwt", r"eyJ[A-Za-z0-9_-]{10,}(?:\.[A-Za-z0-9_-]*){2,4}"),`
 
@@ -339,7 +339,7 @@ Code: `("jwt", r"eyJ[A-Za-z0-9_-]{10,}(?:\.[A-Za-z0-9_-]*){2,4}"),`
 > which is worse than not matching at all, because the marker is what a
 > reader greps for to decide the store is clean.
 
-## module, [line 183](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L183): Comment
+## module, [line 185](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L185): Comment
 
 Code: `(`
 
@@ -348,7 +348,7 @@ Code: `(`
 > a marker that says it was removed. The END clause is optional so a
 > truncated capture still loses its opening line.
 
-## module, [line 222](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L222): Comment
+## module, [line 224](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L224): Comment
 
 Code: `_ACRONYM_BOUNDARY = (`
 
@@ -370,13 +370,13 @@ Code: `_ACRONYM_BOUNDARY = (`
 > changes nothing at all, the naive rule wrongly blanks two, and this file's
 > previous findall wrongly blanked those same two.
 
-## `is_secret_field`, [line 240](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L240): Comment
+## `is_secret_field`, [line 242](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L242): Comment
 
 Code: `return "".join(words) in _SECRET_TOKENS`
 
 > Compounds that only read as credentials when joined: apiKey, api_key.
 
-## module, [line 243](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L243): Comment
+## module, [line 245](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L245): Comment
 
 Code: `OAUTH_COMPANIONS = frozenset(`
 
@@ -395,10 +395,99 @@ Code: `OAUTH_COMPANIONS = frozenset(`
 > store was caught only because Okta happens to emit a JWE; an opaque
 > authorization code, which is the common case, had no rule on this side at all.
 
-## `_redact_query`, [line 266](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L266): Comment
+## `_redact_query`, [line 268](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L268): Comment
 
 Code: `if is_secret_field(unquote_plus(key)) or (oauth and names[index] == "code"):`
 
 > The raw key is judged decoded and written back raw: `api%5Fkey` names
 > the same credential as `api_key`, and re-encoding the ones that did
 > not match is the round-trip this splicing exists to avoid.
+
+## `_redact_fragment`, [line 285](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L285): Docstring
+
+> A fragment judged by the query rule, including a hash router's own query.
+>
+> `#/done?code=...&state=...` is how a single-page app routes an OAuth return, and
+> split on `&` alone the first pair's key is `/done?code` -- which names nothing,
+> so the code stayed on disk. The part after the `?` is a query and is judged as
+> one; a fragment with no `?` and no `=` is a `#section` and is left alone. The
+> extension's `redactFragment` (generated) and `domain/observation/redaction.py`
+> apply the same rule; `test_the_url_rule_is_one_rule.py` holds the JS to this.
+
+## `is_sign_in_field`, [line 311](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L311): Docstring
+
+> Whether an element's own attributes make its page a sign-in page (§5.6).
+>
+> The backend's reading of a gesture's target, for a browser that did not mark
+> the gesture itself: `type=password`, or an `autocomplete` token from
+> `SIGN_IN_AUTOCOMPLETE`. By structure only -- never by the field's name, which
+> is `is_secret_field`'s job and a different question.
+
+## `_origin`, [line 321](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L321): Docstring
+
+> `scheme://host[:port]`, the way a browser's `URL.origin` says it: lowercase,
+> and the default port left out, so `https://app:443` and `https://app` are one
+> origin on both sides. `None` for anything that is not an absolute URL.
+
+## `SignInFlow`, [line 335](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L335): Docstring
+
+> Whether a tab is inside an OAuth/OIDC sign-in, followed one navigation at a
+> time (spec §5.6).
+>
+> Held per tab by whoever watches one: Steel's `CaptureSession` for its own
+> page, and the ingest for each tab in a batch. The extension's service worker
+> runs the generated twin, `signInFlowAfter`; `test_the_url_rule_is_one_rule.py`
+> runs both over the same URLs and demands the same answers.
+>
+> `redirect` is the `redirect_uri`'s origin and `provider` the authorize
+> request's. The flow starts at a URL carrying all four `OAUTH_AUTHORIZE`
+> parameters. It ends at the navigation back to `redirect`'s origin carrying
+> `code` or `id_token`, or -- when the provider is not on that same origin -- at
+> any navigation back to it, which is the tab leaving the flow for the app
+> (a cancel, an error, a "back to the app" link). A provider on the app's own
+> origin ends only on the return with a code, or every one of its own pages
+> would end the flow it is in.
+
+## `SignInFlow.navigated`, [line 339](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L339): Docstring
+
+> The tab went to `url`: whether the page it lands on is inside the flow. The
+> page that starts the flow is inside it; the page that ends it is not -- it is
+> the app, and watched like any other page.
+
+## module, [line 297](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L297): Note on the line above
+
+Code: `SIGN_IN_AUTOCOMPLETE = frozenset({"current-password", "new-password", "one-time-code"})`
+
+> Spec §5.6: the `autocomplete` values that make a page a sign-in page.
+>
+> What the page itself declares, which is a decision rather than a guess: a
+> field that says it holds the current or a new password, or a one-time code.
+> `username` is deliberately not one -- it is on every registration and profile
+> form, and a page is a sign-in page by the secret it asks for, not by the name.
+
+## module, [line 299](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L299): Note on the line above
+
+Code: `SIGN_IN_FIELDS = ", ".join(`
+
+> The same rule as a CSS selector, for the two places that can see a DOM: the
+> page-side recorder (`recorder.js`, substituted in by `_recorder_script`) and the
+> extension's content scripts (`sensitivity.generated.js`). One list here, so the
+> three cannot drift. `~=` because `autocomplete` is a token list
+> (`section-login current-password`), and `i` because HTML attribute values here
+> are case-insensitive.
+
+## module, [line 306](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L306): Note on the line above
+
+Code: `OAUTH_AUTHORIZE = frozenset({"response_type", "client_id", "redirect_uri", "state"})`
+
+> Spec §5.6: the four parameters of an OAuth/OIDC authorize request. A URL
+> carrying all four starts a sign-in flow; one carrying fewer is not one --
+> `state` and `client_id` alone appear on plenty of ordinary app URLs.
+
+## module, [line 308](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L308): Note on the line above
+
+Code: `OAUTH_RETURN = frozenset({"code", "id_token"})`
+
+> What the navigation back to the app carries when the flow succeeded: an
+> authorization `code`, or an `id_token` from an implicit or hybrid flow. Read
+> from the query and from the fragment, and from a hash router's own query.

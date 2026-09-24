@@ -1,0 +1,474 @@
+{
+  "batch_id": "bat_browsertest_b0779ebd_19",
+  "device_id": "dev_browsertest",
+  "started_at": "2026-09-24T15:24:22.951Z",
+  "ended_at": "2026-09-24T15:24:23.623Z",
+  "mode": "passive",
+  "events": [
+    {
+      "kind": "page",
+      "sign_in": true,
+      "at": "2026-09-24T15:24:22.933Z",
+      "page_kind": "navigated",
+      "url": "http://127.0.0.1:59332/authorize?response_type=code&client_id=app&redirect_uri=http://127.0.0.1:59332/callback&state=s1",
+      "detail": null,
+      "tab_id": 1667808088,
+      "opener_tab_id": null
+    },
+    {
+      "kind": "page",
+      "sign_in": true,
+      "at": "2026-09-24T15:24:22.938Z",
+      "page_kind": "loaded",
+      "url": "http://127.0.0.1:59332/authorize?response_type=code&client_id=app&redirect_uri=http://127.0.0.1:59332/callback&state=s1",
+      "detail": null,
+      "tab_id": 1667808088,
+      "opener_tab_id": null
+    },
+    {
+      "kind": "gesture",
+      "sign_in": true,
+      "gesture": {
+        "kind": "type",
+        "target": {
+          "tag": "input",
+          "role": "textbox",
+          "name": "Code",
+          "secret": false,
+          "text": null,
+          "testId": null,
+          "required": null,
+          "cssPath": "input#otc",
+          "xpath": "/html/body[1]/input[1]",
+          "bounds": {
+            "x": 8,
+            "y": 79.875,
+            "width": 153,
+            "height": 21
+          },
+          "attributes": {
+            "id": "otc",
+            "name": "otc",
+            "type": "tel",
+            "autocomplete": "off",
+            "aria-label": "Code",
+            "maxlength": "8"
+          },
+          "component": null,
+          "landmarks": []
+        },
+        "value": null,
+        "secret": false,
+        "modifiers": [],
+        "sign_in": true,
+        "frame_path": [],
+        "at": 1790263462.998,
+        "url": "http://127.0.0.1:59332/authorize?response_type=code&client_id=app&redirect_uri=http://127.0.0.1:59332/callback&state=s1"
+      },
+      "tab_id": 1667808088,
+      "frame_url": "http://127.0.0.1:59332/authorize?response_type=code&client_id=app&redirect_uri=http://127.0.0.1:59332/callback&state=s1",
+      "page_url": "http://127.0.0.1:59332/authorize?response_type=code&client_id=app&redirect_uri=http://127.0.0.1:59332/callback&state=s1"
+    },
+    {
+      "kind": "gesture",
+      "sign_in": true,
+      "gesture": {
+        "kind": "click",
+        "target": {
+          "tag": "button",
+          "role": "button",
+          "name": "Verify \u00abredacted\u00bb",
+          "secret": false,
+          "text": "Verify \u00abredacted\u00bb",
+          "testId": null,
+          "required": null,
+          "cssPath": "button#verify",
+          "xpath": "/html/body[1]/button[1]",
+          "bounds": {
+            "x": 165,
+            "y": 79.875,
+            "width": 97.53125,
+            "height": 21
+          },
+          "attributes": {
+            "id": "verify",
+            "type": "button"
+          },
+          "component": null,
+          "landmarks": []
+        },
+        "modifiers": [],
+        "detail": 1,
+        "trusted": true,
+        "value": null,
+        "sign_in": true,
+        "frame_path": [],
+        "at": 1790263462.999,
+        "url": "http://127.0.0.1:59332/authorize?response_type=code&client_id=app&redirect_uri=http://127.0.0.1:59332/callback&state=s1"
+      },
+      "tab_id": 1667808088,
+      "frame_url": "http://127.0.0.1:59332/authorize?response_type=code&client_id=app&redirect_uri=http://127.0.0.1:59332/callback&state=s1",
+      "page_url": "http://127.0.0.1:59332/authorize?response_type=code&client_id=app&redirect_uri=http://127.0.0.1:59332/callback&state=s1"
+    },
+    {
+      "kind": "request",
+      "sign_in": true,
+      "request": {
+        "request_id": "req_c7ba27ed_0",
+        "method": "POST",
+        "url": "http://127.0.0.1:59332/idp/verify",
+        "resource_type": "fetch",
+        "started_at": "2026-09-24T15:24:22.999Z",
+        "request_headers": {
+          "content-type": "application/json"
+        },
+        "request_body": null,
+        "status": 200,
+        "status_text": "OK",
+        "response_headers": {
+          "access-control-allow-headers": "*",
+          "access-control-allow-origin": "*",
+          "content-length": "29",
+          "content-type": "application/json",
+          "date": "Thu, 24 Sep 2026 15:24:23 GMT",
+          "server": "BaseHTTP/0.6 Python/3.14.7"
+        },
+        "response_body": null,
+        "redirect_chain": [],
+        "duration_ms": 6,
+        "from_cache": false,
+        "failure_reason": null,
+        "blocked_reason": null
+      },
+      "tab_id": 1667808088,
+      "frame_url": "http://127.0.0.1:59332/authorize?response_type=code&client_id=app&redirect_uri=http://127.0.0.1:59332/callback&state=s1"
+    },
+    {
+      "kind": "page",
+      "sign_in": true,
+      "at": "2026-09-24T15:24:23.081Z",
+      "page_kind": "navigated",
+      "url": "http://127.0.0.1:59332/mirror",
+      "detail": null,
+      "tab_id": 1667808088,
+      "opener_tab_id": null
+    },
+    {
+      "kind": "page",
+      "sign_in": true,
+      "at": "2026-09-24T15:24:23.082Z",
+      "page_kind": "loaded",
+      "url": "http://127.0.0.1:59332/mirror",
+      "detail": null,
+      "tab_id": 1667808088,
+      "opener_tab_id": null
+    },
+    {
+      "kind": "gesture",
+      "sign_in": true,
+      "gesture": {
+        "kind": "type",
+        "target": {
+          "tag": "input",
+          "role": "textbox",
+          "name": null,
+          "secret": true,
+          "text": null,
+          "testId": null,
+          "required": null,
+          "cssPath": "input#m",
+          "xpath": "/html/body[1]/label[1]/input[1]",
+          "bounds": {
+            "x": 51.984375,
+            "y": 8,
+            "width": 153,
+            "height": 21
+          },
+          "attributes": {
+            "id": "m",
+            "autocomplete": "one-time-code"
+          },
+          "component": null,
+          "landmarks": []
+        },
+        "value": null,
+        "secret": true,
+        "modifiers": [],
+        "sign_in": true,
+        "frame_path": [],
+        "at": 1790263463.129,
+        "url": "http://127.0.0.1:59332/mirror"
+      },
+      "tab_id": 1667808088,
+      "frame_url": "http://127.0.0.1:59332/mirror",
+      "page_url": "http://127.0.0.1:59332/mirror"
+    },
+    {
+      "kind": "gesture",
+      "sign_in": true,
+      "gesture": {
+        "kind": "click",
+        "target": {
+          "tag": "div",
+          "role": null,
+          "name": "\u00abredacted\u00bb",
+          "secret": false,
+          "text": "\u00abredacted\u00bb",
+          "testId": null,
+          "required": null,
+          "cssPath": "div#echo",
+          "xpath": "/html/body[1]/div[1]",
+          "bounds": {
+            "x": 8,
+            "y": 29,
+            "width": 1264,
+            "height": 18
+          },
+          "attributes": {
+            "id": "echo"
+          },
+          "component": null,
+          "landmarks": []
+        },
+        "modifiers": [],
+        "detail": 1,
+        "trusted": true,
+        "value": null,
+        "sign_in": true,
+        "frame_path": [],
+        "at": 1790263463.13,
+        "url": "http://127.0.0.1:59332/mirror"
+      },
+      "tab_id": 1667808088,
+      "frame_url": "http://127.0.0.1:59332/mirror",
+      "page_url": "http://127.0.0.1:59332/mirror"
+    },
+    {
+      "kind": "gesture",
+      "sign_in": true,
+      "gesture": {
+        "kind": "click",
+        "target": {
+          "tag": "button",
+          "role": "button",
+          "name": "Verify",
+          "secret": false,
+          "text": "Confirm \u00abredacted\u00bb",
+          "testId": null,
+          "required": null,
+          "cssPath": "button#confirm",
+          "xpath": "/html/body[1]/button[1]",
+          "bounds": {
+            "x": 8,
+            "y": 47,
+            "width": 110.859375,
+            "height": 21
+          },
+          "attributes": {
+            "id": "confirm",
+            "aria-labelledby": "l2",
+            "type": "button"
+          },
+          "component": null,
+          "landmarks": []
+        },
+        "modifiers": [],
+        "detail": 1,
+        "trusted": true,
+        "value": null,
+        "sign_in": true,
+        "frame_path": [],
+        "at": 1790263463.162,
+        "url": "http://127.0.0.1:59332/mirror"
+      },
+      "tab_id": 1667808088,
+      "frame_url": "http://127.0.0.1:59332/mirror",
+      "page_url": "http://127.0.0.1:59332/mirror"
+    },
+    {
+      "kind": "page",
+      "sign_in": true,
+      "at": "2026-09-24T15:24:23.225Z",
+      "page_kind": "navigated",
+      "url": "http://127.0.0.1:59332/sign-in",
+      "detail": null,
+      "tab_id": 1667808088,
+      "opener_tab_id": null
+    },
+    {
+      "kind": "page",
+      "sign_in": true,
+      "at": "2026-09-24T15:24:23.228Z",
+      "page_kind": "loaded",
+      "url": "http://127.0.0.1:59332/sign-in",
+      "detail": null,
+      "tab_id": 1667808088,
+      "opener_tab_id": null
+    },
+    {
+      "kind": "gesture",
+      "sign_in": true,
+      "gesture": {
+        "kind": "type",
+        "target": {
+          "tag": "input",
+          "role": "textbox",
+          "name": "\u00abredacted\u00bb",
+          "secret": false,
+          "text": null,
+          "testId": null,
+          "required": null,
+          "cssPath": "input#u",
+          "xpath": "/html/body[1]/form[1]/input[1]",
+          "bounds": {
+            "x": 8,
+            "y": 8,
+            "width": 153,
+            "height": 21
+          },
+          "attributes": {
+            "id": "u",
+            "name": "username",
+            "autocomplete": "username"
+          },
+          "component": null,
+          "landmarks": []
+        },
+        "value": null,
+        "secret": false,
+        "modifiers": [],
+        "sign_in": true,
+        "frame_path": [],
+        "at": 1790263463.253,
+        "url": "http://127.0.0.1:59332/sign-in"
+      },
+      "tab_id": 1667808088,
+      "frame_url": "http://127.0.0.1:59332/sign-in",
+      "page_url": "http://127.0.0.1:59332/sign-in"
+    },
+    {
+      "kind": "gesture",
+      "sign_in": true,
+      "gesture": {
+        "kind": "type",
+        "target": {
+          "tag": "input",
+          "role": "textbox",
+          "name": null,
+          "secret": true,
+          "text": null,
+          "testId": null,
+          "required": null,
+          "cssPath": "input#p",
+          "xpath": "/html/body[1]/form[1]/input[2]",
+          "bounds": {
+            "x": 165,
+            "y": 8,
+            "width": 153,
+            "height": 21
+          },
+          "attributes": {
+            "id": "p",
+            "name": "password",
+            "type": "password",
+            "autocomplete": "current-password"
+          },
+          "component": null,
+          "landmarks": []
+        },
+        "value": null,
+        "secret": true,
+        "modifiers": [],
+        "sign_in": true,
+        "frame_path": [],
+        "at": 1790263463.298,
+        "url": "http://127.0.0.1:59332/sign-in"
+      },
+      "tab_id": 1667808088,
+      "frame_url": "http://127.0.0.1:59332/sign-in",
+      "page_url": "http://127.0.0.1:59332/sign-in"
+    },
+    {
+      "kind": "gesture",
+      "sign_in": true,
+      "gesture": {
+        "kind": "type",
+        "target": {
+          "tag": "input",
+          "role": "textbox",
+          "name": null,
+          "secret": true,
+          "text": null,
+          "testId": null,
+          "required": null,
+          "cssPath": "input#o",
+          "xpath": "/html/body[1]/form[1]/input[3]",
+          "bounds": {
+            "x": 322,
+            "y": 8,
+            "width": 153,
+            "height": 21
+          },
+          "attributes": {
+            "id": "o",
+            "name": "otp",
+            "autocomplete": "one-time-code"
+          },
+          "component": null,
+          "landmarks": []
+        },
+        "value": null,
+        "secret": true,
+        "modifiers": [],
+        "sign_in": true,
+        "frame_path": [],
+        "at": 1790263463.33,
+        "url": "http://127.0.0.1:59332/sign-in"
+      },
+      "tab_id": 1667808088,
+      "frame_url": "http://127.0.0.1:59332/sign-in",
+      "page_url": "http://127.0.0.1:59332/sign-in"
+    },
+    {
+      "kind": "gesture",
+      "sign_in": true,
+      "gesture": {
+        "kind": "click",
+        "target": {
+          "tag": "button",
+          "role": "button",
+          "name": "Sign in",
+          "secret": false,
+          "text": "Sign in",
+          "testId": null,
+          "required": null,
+          "cssPath": "button#go",
+          "xpath": "/html/body[1]/form[1]/button[1]",
+          "bounds": {
+            "x": 479,
+            "y": 8,
+            "width": 56.765625,
+            "height": 21
+          },
+          "attributes": {
+            "id": "go",
+            "type": "submit"
+          },
+          "component": null,
+          "landmarks": []
+        },
+        "modifiers": [],
+        "detail": 1,
+        "trusted": true,
+        "value": null,
+        "sign_in": true,
+        "frame_path": [],
+        "at": 1790263463.33,
+        "url": "http://127.0.0.1:59332/sign-in"
+      },
+      "tab_id": 1667808088,
+      "frame_url": "http://127.0.0.1:59332/sign-in",
+      "page_url": "http://127.0.0.1:59332/sign-in"
+    }
+  ]
+}

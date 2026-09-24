@@ -26,7 +26,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/r
 > what a person could read on the screen -- gets the shape rule, because that is
 > where a page can render a credential.
 
-## module, [line 16](../../../../../../../backend/src/sro/application/observation/redact.py#L16): Note on the line above
+## module, [line 18](../../../../../../../backend/src/sro/application/observation/redact.py#L18): Note on the line above
 
 Code: `_URL_KEYS = ("url", "frame_url", "page_url", "location")`
 
@@ -38,7 +38,7 @@ Code: `_URL_KEYS = ("url", "frame_url", "page_url", "location")`
 > `location`. Naming them once is what stops the next kind of event from
 > arriving with a URL nobody redacts.
 
-## module, [line 18](../../../../../../../backend/src/sro/application/observation/redact.py#L18): Note on the line above
+## module, [line 20](../../../../../../../backend/src/sro/application/observation/redact.py#L20): Note on the line above
 
 Code: `_PROSE = ("name", "text", "fieldLabel")`
 
@@ -53,25 +53,25 @@ Code: `_PROSE = ("name", "text", "fieldLabel")`
 > for telling a model what the operator was doing. Measured over the 926 distinct
 > URLs and 5,422 events in this store: no label moves.
 
-## `redact_events`, [line 21](../../../../../../../backend/src/sro/application/observation/redact.py#L21): Docstring
+## `redact_events`, [line 29](../../../../../../../backend/src/sro/application/observation/redact.py#L29): Docstring
 
 > The same events with every credential-shaped or credential-named value gone.
 >
 > Copies rather than mutates: the caller's events came off an HTTP request
 > body and the rejection report beside them refers to positions in it.
 
-## `_shapes_only`, [line 44](../../../../../../../backend/src/sro/application/observation/redact.py#L44): Docstring
+## `_shapes_only`, [line 160](../../../../../../../backend/src/sro/application/observation/redact.py#L160): Docstring
 
 > Every string under here through `redact_shapes`, and nothing else.
 >
 > Structure is preserved exactly -- a locator is built from this tree, so a
 > key or a role that changed would change what a skill can find.
 
-## `_element`, [line 76](../../../../../../../backend/src/sro/application/observation/redact.py#L76): Docstring
+## `_element`, [line 192](../../../../../../../backend/src/sro/application/observation/redact.py#L192): Docstring
 
 > A `target` or the `component` hanging off it -- the same three fields.
 
-## `_attributes`, [line 91](../../../../../../../backend/src/sro/application/observation/redact.py#L91): Docstring
+## `_attributes`, [line 207](../../../../../../../backend/src/sro/application/observation/redact.py#L207): Docstring
 
 > Every DOM attribute of the element the operator touched, by all three rules.
 >
@@ -86,7 +86,7 @@ Code: `_PROSE = ("name", "text", "fieldLabel")`
 > `placeholder` whose value is "Password" is a label. The key is kept and the
 > value replaced, so a reviewer still sees what was taken out.
 
-## `_headers`, [line 121](../../../../../../../backend/src/sro/application/observation/redact.py#L121): Docstring
+## `_headers`, [line 237](../../../../../../../backend/src/sro/application/observation/redact.py#L237): Docstring
 
 > The name kept and the value replaced, so a reader still sees the call was
 > authenticated.
@@ -98,7 +98,7 @@ Code: `_PROSE = ("name", "text", "fieldLabel")`
 > the 34 `X-Goog-Api-Key` values in this store are matched by nothing but
 > their shape.
 
-## `_hop`, [line 145](../../../../../../../backend/src/sro/application/observation/redact.py#L145): Docstring
+## `_hop`, [line 261](../../../../../../../backend/src/sro/application/observation/redact.py#L261): Docstring
 
 > One entry of a redirect chain, whose shape the protocol leaves open.
 >
@@ -108,7 +108,7 @@ Code: `_PROSE = ("name", "text", "fieldLabel")`
 > audit put both a `?code=` URL and an `Authorization` header on disk through
 > it.
 
-## `_event`, [line 36](../../../../../../../backend/src/sro/application/observation/redact.py#L36): Comment
+## `_event`, [line 152](../../../../../../../backend/src/sro/application/observation/redact.py#L152): Comment
 
 Code: `out["snapshot"] = _shapes_only(snapshot)`
 
@@ -120,7 +120,7 @@ Code: `out["snapshot"] = _shapes_only(snapshot)`
 > protection at all. Measured across 70,636 real nodes: zero shapes,
 > so this costs nothing today and covers the day a page renders one.
 
-## `_event`, [line 40](../../../../../../../backend/src/sro/application/observation/redact.py#L40): Comment
+## `_event`, [line 156](../../../../../../../backend/src/sro/application/observation/redact.py#L156): Comment
 
 Code: `out["detail"] = redact_body(detail, content_type=None)[0]`
 
@@ -128,7 +128,7 @@ Code: `out["detail"] = redact_body(detail, content_type=None)[0]`
 > said -- so it gets the body rule with no content type to go on. A
 > `?magic_link_token=` landed here in the rig's audit.
 
-## `_gesture`, [line 68](../../../../../../../backend/src/sro/application/observation/redact.py#L68): Comment
+## `_gesture`, [line 184](../../../../../../../backend/src/sro/application/observation/redact.py#L184): Comment
 
 Code: `out["value"] = None`
 
@@ -136,7 +136,7 @@ Code: `out["value"] = None`
 > marked: `null` is what the extension already sends for one of these,
 > so the stored shape is the same whether or not the browser obeyed.
 
-## `_gesture`, [line 70](../../../../../../../backend/src/sro/application/observation/redact.py#L70): Comment
+## `_gesture`, [line 186](../../../../../../../backend/src/sro/application/observation/redact.py#L186): Comment
 
 Code: `out["value"] = redact_shapes(value)`
 
@@ -144,7 +144,7 @@ Code: `out["value"] = redact_shapes(value)`
 > search box is not typed into an `input[type=password]`, so nothing
 > upstream marks it. The shape does.
 
-## `_body`, [line 139](../../../../../../../backend/src/sro/application/observation/redact.py#L139): Comment
+## `_body`, [line 255](../../../../../../../backend/src/sro/application/observation/redact.py#L255): Comment
 
 Code: `already = out.get("redacted_fields")`
 
@@ -152,3 +152,71 @@ Code: `already = out.get("redacted_fields")`
 > reports a shape as `«shape: jwt»` rather than as a field name,
 > because "this went because it looked like a JWT" is a different fact
 > from "this went because it was called password".
+
+## module, [line 22](../../../../../../../backend/src/sro/application/observation/redact.py#L22): Note on the line above
+
+Code: `_KEEPS_ITS_VALUE = ("press", "scroll")`
+
+> The gesture kinds whose `value` is not something typed: a key's name (Enter,
+> Tab, Escape) and a scroll offset. On a sign-in page every other value goes.
+
+## module, [line 24](../../../../../../../backend/src/sro/application/observation/redact.py#L24): Note on the line above
+
+Code: `_PATHS = frozenset({"cssPath", "xpath", "query", "chain"})`
+
+> The parts of a target that find it again rather than describe it. Built from
+> ids, tags and component names, never from anything typed, so a typed value is
+> never looked for in them -- a username that happens to be a substring of an id
+> would otherwise break the path the sign-in chain is learned from.
+
+## module, [line 26](../../../../../../../backend/src/sro/application/observation/redact.py#L26): Note on the line above
+
+Code: `_ABSOLUTE = ("http://", "https://")`
+
+> A string in a tree that is an absolute URL gets the URL rule, not only the
+> shape rule. Chrome writes a page's own URL on the tree's root and a link's on
+> the link, and the page an OAuth flow returns to has its `code` in exactly
+> that -- found by the real-Chrome proof of §5.6.
+
+## `redact_events`, [line 29](../../../../../../../backend/src/sro/application/observation/redact.py#L29): Docstring
+
+> Spec §5.6, enforced again at the one door every upload comes through. The
+> extension decides first, so the values never leave the browser; this does not
+> trust it to have. A sign-in event is stored structure-only (`_structure_only`)
+> and everything else gets the ordinary redaction.
+
+## `_signing_in`, [line 38](../../../../../../../backend/src/sro/application/observation/redact.py#L38): Docstring
+
+> Which events of a batch are on a sign-in page.
+>
+> Marked by the browser (`sign_in` on the event or its gesture), or detected
+> here: a gesture on a password or one-time-code field (`is_sign_in_field`), or
+> anything on a tab inside an OAuth/OIDC flow, followed over the batch's page
+> marks with the same `SignInFlow` Steel uses. Then everything else on the same
+> page as one of those -- same tab, same visit (page marks of kind `navigated`
+> count them) and same URL -- because a browser that did not mark its gestures
+> did not mark that page's tree or its calls either.
+>
+> ponytail: per batch. A sign-in page split across two uploads is judged half by
+> half; the browser's own marks carry the other half. The ceiling is a browser
+> that marks nothing AND splits a sign-in page across batches; the upgrade is
+> remembering open flows per device between batches.
+
+## `_typed`, [line 84](../../../../../../../backend/src/sro/application/observation/redact.py#L84): Docstring
+
+> What was typed on the batch's sign-in pages, longest first, for taking out of
+> whatever else those pages rendered it into -- a code echoed into a div, into
+> the label of the button that submits it. The join of every value too: a code
+> typed one digit per box is echoed whole.
+>
+> ponytail: a value of one character on its own is not looked for, because
+> taking every "a" out of a label says nothing and breaks the label. The
+> recorder applies the same floor in the page.
+
+## `_structure_only`, [line 99](../../../../../../../backend/src/sro/application/observation/redact.py#L99): Docstring
+
+> One event of a sign-in page, as §5.6 keeps it: marked `sign_in`; a gesture's
+> target and kind, with no typed value and nothing typed left in its prose or
+> attributes (and no `value` attribute at all); a call's method, URL, headers
+> and status with no body either way; a tree emptied to `{}` -- kept as an
+> event, so the batch's counts stay what the browser sent, with nothing in it.

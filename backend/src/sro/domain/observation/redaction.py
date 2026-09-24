@@ -209,9 +209,14 @@ def redact_url(url: str) -> str:
     query_at = head.find("?")
     if query_at != -1:
         head = head[: query_at + 1] + _redact_query(head[query_at + 1 :])
-    if "=" in fragment:
-        fragment = _redact_query(fragment)
-    return redact_shapes(head if hash_at == -1 else f"{head}#{fragment}")
+    return redact_shapes(head if hash_at == -1 else f"{head}#{_redact_fragment(fragment)}")
+
+
+def _redact_fragment(fragment: str) -> str:
+    route, mark, query = fragment.partition("?")
+    if mark:
+        return f"{route}?{_redact_query(query)}"
+    return _redact_query(fragment) if "=" in fragment else fragment
 
 
 _XML_FIELD = re.compile(r"<([A-Za-z_][\w.:-]*)([^>]*)>([^<]*)</\1>")

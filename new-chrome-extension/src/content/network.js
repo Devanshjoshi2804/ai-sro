@@ -52,6 +52,10 @@
    * an open vocabulary chosen by whoever wrote the vendor's API. */
   const redactShapes = window.__sroRedactShapes;
   const shapesIn = window.__sroShapesIn;
+  /** Spec 5.6. Missing, every page is a sign-in page: its calls keep their
+   * method, URL and status and lose their bodies, which is where no rules at
+   * all already leaves them. */
+  const isSignInDocument = window.__sroIsSignInDocument;
   /** All four come from sensitivity.generated.js. If that file did not run,
    * this one has no idea what a credential looks like, and the safe answer to
    * "is this clean?" is no -- not "nothing matched". */
@@ -440,7 +444,15 @@
     };
 
     chrome.runtime
-      .sendMessage({ kind: "request", request, frameUrl: location.href })
+      .sendMessage({
+        kind: "request",
+        request,
+        frameUrl: location.href,
+        // Spec 5.6: a call made from a page holding a password or one-time-code
+        // field keeps its method, URL and status, and the worker drops its
+        // bodies.
+        signIn: typeof isSignInDocument !== "function" || isSignInDocument(document),
+      })
       .catch(() => {});
   });
 })();

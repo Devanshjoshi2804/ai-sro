@@ -31,7 +31,7 @@ from sro.application.ports.blob import BlobStore
 from sro.domain.recording.artifact import ArtifactKind
 from sro.domain.recording.network import Body, CapturedRequest, Cookie, RedirectHop
 from sro.domain.recording.redaction import REDACTED, redact_body
-from sro.domain.recording.sensitivity import SECRET_TOKENS
+from sro.domain.recording.sensitivity import SECRET_TOKENS, SIGN_IN_FIELDS, SignInFlow
 from sro.domain.recording.state import ConsoleMessage, PageEvent
 from sro.infrastructure.steel.video import Recorded, ScreencastRecorder
 
@@ -42,9 +42,11 @@ _RECORDER_JS = Path(__file__).with_name("recorder.js")
 
 def _recorder_script() -> str:
     source = _RECORDER_JS.read_text(encoding="utf-8")
-    if "__SECRET_WORDS__" not in source:
-        raise RuntimeError("recorder.js has no place to put the credential word list")
-    return source.replace("__SECRET_WORDS__", json.dumps(sorted(SECRET_TOKENS)))
+    if "__SECRET_WORDS__" not in source or "__SIGN_IN_FIELDS__" not in source:
+        raise RuntimeError("recorder.js has no place to put the credential rules")
+    return source.replace("__SECRET_WORDS__", json.dumps(sorted(SECRET_TOKENS))).replace(
+        "__SIGN_IN_FIELDS__", json.dumps(SIGN_IN_FIELDS)
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,6 +88,7 @@ class _PendingRequest:
     remote_address: str | None = None
     from_cache: bool = False
     mime_type: str | None = None
+    sign_in: bool = False
 
 
 class CaptureSession:
@@ -116,6 +119,9 @@ class CaptureSession:
         self._tasks: set[asyncio.Task[None]] = set()
         self._gesture_count = 0
         self._recorder_source = ""
+        self._flow = SignInFlow()
+        self._page_signs_in = False
+        self._main_frame: str | None = None
 
         self._driver: PlaywrightDriver | None = None
         self._context: BrowserContext | None = None
@@ -154,6 +160,8 @@ class CaptureSession:
     async def _install_in(self, frame: Frame) -> None:
         try:
             await frame.evaluate(self._recorder_source)
+            if self._flow.redirect is not None:
+                await frame.evaluate("window.__sroSignIn = true")
         except Exception:
             logger.debug("no recorder in frame %s", frame.url[:80], exc_info=True)
 
@@ -162,6 +170,8 @@ class CaptureSession:
         self._cdp = cdp
         for domain in ("Network", "Page", "Runtime", "DOM", "Accessibility"):
             await cdp.send(f"{domain}.enable")
+        tree = await cdp.send("Page.getFrameTree")
+        self._main_frame = str(tree.get("frameTree", {}).get("frame", {}).get("id") or "") or None
 
         cdp.on("Network.requestWillBeSent", self._on_request)
         cdp.on("Network.requestWillBeSentExtraInfo", self._on_request_extra)
@@ -289,6 +299,12 @@ class CaptureSession:
         url = str(payload.get("url", ""))
         index = self._gesture_count
         self._gesture_count += 1
+        if payload.get("sign_in") is True:
+            self._page_signs_in = True
+        if self._signing_in():
+            payload["sign_in"] = True
+            self._events.append(InputEvent(at=at, action=to_input_action(payload)))
+            return
 
         self._events.append(InputEvent(at=at, action=to_input_action(payload)))
 
@@ -330,9 +346,21 @@ class CaptureSession:
             )
         )
 
+    def _signing_in(self) -> bool:
+        return self._page_signs_in or self._flow.redirect is not None
+
+    def _navigating(self, payload: CdpPayload, url: str) -> None:
+        if payload.get("type") != "Document" or payload.get("frameId") != self._main_frame:
+            return
+        self._page_signs_in = False
+        self._flow.navigated(url)
+
     def _on_request(self, payload: CdpPayload) -> None:
         request = payload.get("request", {})
         request_id = str(payload.get("requestId"))
+        signing_in = self._signing_in()
+        self._navigating(payload, str(request.get("url", "")))
+        signing_in = signing_in or self._signing_in()
 
         redirect = payload.get("redirectResponse")
         if redirect and request_id in self._pending:
@@ -344,7 +372,7 @@ class CaptureSession:
                 )
             )
 
-        post_data = request.get("postData")
+        post_data = None if signing_in else request.get("postData")
         body = None
         if post_data:
             raw = str(post_data)
@@ -371,6 +399,7 @@ class CaptureSession:
             redirect_chain=(
                 self._pending[request_id].redirect_chain if request_id in self._pending else []
             ),
+            sign_in=signing_in,
         )
 
     def _on_request_extra(self, payload: CdpPayload) -> None:
@@ -413,6 +442,9 @@ class CaptureSession:
         request_id = str(payload.get("requestId"))
         pending = self._pending.pop(request_id, None)
         if pending is None:
+            return
+        if pending.sign_in or self._signing_in():
+            self._emit(pending, response_body=None)
             return
         body = await self._response_body(request_id, pending)
         self._emit(pending, response_body=body)
@@ -512,22 +544,28 @@ class CaptureSession:
         interval = 1 / max(self._video_fps, 1)
         while True:
             await asyncio.sleep(interval)
-            recorder, cdp = self._recorder, self._cdp
-            if recorder is None or cdp is None:
+            recorder = self._recorder
+            if recorder is None or self._cdp is None:
                 return
-            try:
-                shot = await cdp.send(
-                    "Page.captureScreenshot",
-                    {"format": "jpeg", "quality": 55, "optimizeForSpeed": True},
-                )
-            except Exception:
-                logger.debug("skipped a video frame", exc_info=True)
-                continue
-            data = shot.get("data")
-            if data:
-                recorder.add_frame(
-                    base64.b64decode(str(data)), at_ms=datetime.now(UTC).timestamp() * 1000
-                )
+            await self._video_frame(recorder)
+
+    async def _video_frame(self, recorder: ScreencastRecorder) -> None:
+        cdp = self._cdp
+        if cdp is None or self._signing_in():
+            return
+        try:
+            shot = await cdp.send(
+                "Page.captureScreenshot",
+                {"format": "jpeg", "quality": 55, "optimizeForSpeed": True},
+            )
+        except Exception:
+            logger.debug("skipped a video frame", exc_info=True)
+            return
+        data = shot.get("data")
+        if data:
+            recorder.add_frame(
+                base64.b64decode(str(data)), at_ms=datetime.now(UTC).timestamp() * 1000
+            )
 
     def stop_video(self) -> Recorded | None:
         recorder, self._recorder = self._recorder, None

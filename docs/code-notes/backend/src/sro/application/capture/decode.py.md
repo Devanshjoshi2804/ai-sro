@@ -17,41 +17,41 @@ Comments and docstrings moved out of [`backend/src/sro/application/capture/decod
 > what it translates is this system's own protocol (docs/14-extension-protocol.md)
 > rather than anything Steel decides.
 
-## `epoch_to_datetime`, [line 74](../../../../../../../backend/src/sro/application/capture/decode.py#L74): Docstring
+## `epoch_to_datetime`, [line 75](../../../../../../../backend/src/sro/application/capture/decode.py#L75): Docstring
 
 > CDP wall-clock timestamps are Unix seconds as a float.
 
-## `to_headers`, [line 78](../../../../../../../backend/src/sro/application/capture/decode.py#L78): Docstring
+## `to_headers`, [line 79](../../../../../../../backend/src/sro/application/capture/decode.py#L79): Docstring
 
 > Every header, verbatim. Nothing filtered -- see docs/11-capture-completeness.md.
 
-## `to_initiator`, [line 84](../../../../../../../backend/src/sro/application/capture/decode.py#L84): Docstring
+## `to_initiator`, [line 85](../../../../../../../backend/src/sro/application/capture/decode.py#L85): Docstring
 
 > The 'why' of a request: what caused the browser to make it.
 
-## `to_timing`, [line 111](../../../../../../../backend/src/sro/application/capture/decode.py#L111): Docstring
+## `to_timing`, [line 112](../../../../../../../backend/src/sro/application/capture/decode.py#L112): Docstring
 
 > CDP timings are offsets in milliseconds from ``requestTime``.
 >
 > Negative offsets mean the phase did not happen -- a reused connection has no
 > DNS or TLS -- so they collapse to ``None`` rather than to a bogus zero.
 
-## `to_cookies`, [line 139](../../../../../../../backend/src/sro/application/capture/decode.py#L139): Docstring
+## `to_cookies`, [line 140](../../../../../../../backend/src/sro/application/capture/decode.py#L140): Docstring
 
 > All cookie attributes, including the ones that decide replayability.
 
-## `to_ax_graph`, [line 165](../../../../../../../backend/src/sro/application/capture/decode.py#L165): Docstring
+## `to_ax_graph`, [line 166](../../../../../../../backend/src/sro/application/capture/decode.py#L166): Docstring
 
 > ``Accessibility.getFullAXTree`` to a graph with its edges intact.
 >
 > Ignored nodes are kept: an element becoming ignored is itself a state change,
 > and dropping them would break the parent chain for everything beneath.
 
-## `to_console_message`, [line 226](../../../../../../../backend/src/sro/application/capture/decode.py#L226): Docstring
+## `to_console_message`, [line 231](../../../../../../../backend/src/sro/application/capture/decode.py#L231): Docstring
 
 > ``Runtime.consoleAPICalled``. A logged validation failure is a branch reason.
 
-## `to_input_action`, [line 271](../../../../../../../backend/src/sro/application/capture/decode.py#L271): Docstring
+## `to_input_action`, [line 276](../../../../../../../backend/src/sro/application/capture/decode.py#L276): Docstring
 
 > A record emitted by the injected page recorder.
 >
@@ -59,7 +59,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/capture/decod
 > accessible names come from the AX tree taken at the same instant, which is
 > authoritative. This carries the selectors the AX tree cannot give.
 
-## `_said`, [line 334](../../../../../../../backend/src/sro/application/capture/decode.py#L334): Docstring
+## `_said`, [line 341](../../../../../../../backend/src/sro/application/capture/decode.py#L341): Docstring
 
 > A three-state answer kept as three states.
 >
@@ -69,7 +69,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/capture/decod
 > coercing the second to the first would be this system claiming a form said
 > something it never said.
 
-## `to_captured_request`, [line 341](../../../../../../../backend/src/sro/application/capture/decode.py#L341): Docstring
+## `to_captured_request`, [line 348](../../../../../../../backend/src/sro/application/capture/decode.py#L348): Docstring
 
 > A network exchange in the shape this system's own protocol uses.
 >
@@ -77,9 +77,26 @@ Comments and docstrings moved out of [`backend/src/sro/application/capture/decod
 > browser, so what arrives is the domain's field names. Validated rather than
 > trusted -- the invariants are the same ones a recording made here obeys.
 
-## `to_input_action`, [line 278](../../../../../../../backend/src/sro/application/capture/decode.py#L278): Comment
+## `to_input_action`, [line 285](../../../../../../../backend/src/sro/application/capture/decode.py#L285): Comment
 
 Code: `value=(`
 
 > Belt and braces: the page already dropped it, and a page is not a
 > trustworthy place to enforce this.
+
+## `to_input_action`, [line 280](../../../../../../../backend/src/sro/application/capture/decode.py#L280): Comment
+
+Code: `withheld = payload.get("sign_in") is True and kind not in (ActionKind.PRESS, ActionKind.SCROLL)`
+
+> A gesture marked `sign_in` (spec §5.6) carries no typed value, and says so the
+> way a credential field does: `secret`, so `InputAction` knows the missing
+> value was withheld rather than never there. A key press and a scroll keep
+> theirs -- neither is typed text.
+
+## `to_ax_graph`, [line 208](../../../../../../../backend/src/sro/application/capture/decode.py#L208): Comment
+
+Code: `key: redact_url(str(val)) if key == "url" else str(val)`
+
+> Chrome writes the page's own URL on a tree's root node and a link's target on
+> the link; the page an OAuth flow returns to has its `code` in the first. The
+> URL rule, as on every other URL that is stored.

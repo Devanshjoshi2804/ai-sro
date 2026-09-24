@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
+from dataclasses import dataclass
 from enum import StrEnum
-from urllib.parse import unquote_plus
+from urllib.parse import unquote_plus, urlsplit
 
 _AUTH_HEADERS = frozenset(
     {
@@ -277,9 +279,87 @@ def redact_url(url: str) -> str:
     query_at = head.find("?")
     if query_at != -1:
         head = head[: query_at + 1] + _redact_query(head[query_at + 1 :])
-    if "=" in fragment:
-        fragment = _redact_query(fragment)
-    return redact_shapes(head if hash_at == -1 else f"{head}#{fragment}")
+    return redact_shapes(head if hash_at == -1 else f"{head}#{_redact_fragment(fragment)}")
+
+
+def _redact_fragment(fragment: str) -> str:
+    route, mark, query = fragment.partition("?")
+    if mark:
+        return f"{route}?{_redact_query(query)}"
+    return _redact_query(fragment) if "=" in fragment else fragment
+
+
+def _fragment_query(fragment: str) -> str:
+    route, mark, query = fragment.partition("?")
+    return query if mark else route
+
+
+SIGN_IN_AUTOCOMPLETE = frozenset({"current-password", "new-password", "one-time-code"})
+
+SIGN_IN_FIELDS = ", ".join(
+    (
+        'input[type="password" i]',
+        *(f'[autocomplete~="{token}" i]' for token in sorted(SIGN_IN_AUTOCOMPLETE)),
+    )
+)
+
+OAUTH_AUTHORIZE = frozenset({"response_type", "client_id", "redirect_uri", "state"})
+
+OAUTH_RETURN = frozenset({"code", "id_token"})
+
+
+def is_sign_in_field(attributes: Mapping[str, object]) -> bool:
+    kind = str(attributes.get("type") or "").lower()
+    tokens = str(attributes.get("autocomplete") or "").lower().split()
+    return kind == "password" or not SIGN_IN_AUTOCOMPLETE.isdisjoint(tokens)
+
+
+def _names(raw: str) -> set[str]:
+    return {unquote_plus(pair.partition("=")[0]) for pair in raw.split("&") if pair}
+
+
+def _origin(url: str) -> str | None:
+    try:
+        parts = urlsplit(url)
+        port = parts.port
+    except ValueError:
+        return None
+    if not parts.scheme or not parts.hostname:
+        return None
+    default = {"http": 80, "https": 443}.get(parts.scheme.lower())
+    shown = "" if port is None or port == default else f":{port}"
+    return f"{parts.scheme.lower()}://{parts.hostname}{shown}"
+
+
+@dataclass(slots=True)
+class SignInFlow:
+    redirect: str | None = None
+    provider: str | None = None
+
+    def navigated(self, url: str) -> bool:
+        origin = _origin(url)
+        parts = urlsplit(url) if origin else None
+        if self.redirect is not None:
+            returned = parts is not None and not OAUTH_RETURN.isdisjoint(
+                _names(parts.query) | _names(_fragment_query(parts.fragment))
+            )
+            if origin == self.redirect and (returned or self.redirect != self.provider):
+                self.redirect = self.provider = None
+                return False
+            return True
+        if parts is None:
+            return False
+        pairs = {
+            unquote_plus(name): unquote_plus(value)
+            for name, _, value in (pair.partition("=") for pair in parts.query.split("&"))
+        }
+        if not pairs.keys() >= OAUTH_AUTHORIZE:
+            return False
+        back = _origin(pairs["redirect_uri"])
+        if back is None:
+            return False
+        self.redirect, self.provider = back, origin
+        return True
 
 
 def classify_cookie(name: str) -> Sensitivity:

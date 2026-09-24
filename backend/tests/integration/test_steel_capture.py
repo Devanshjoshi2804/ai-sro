@@ -314,11 +314,14 @@ function send() {
 
 
 async def test_a_password_never_reaches_the_recording(steel: SteelClient) -> None:
-    """The one thing capture does not keep.
+    """A sign-in page is recorded structure-only (spec §5.6).
 
-    Teaching a WMS task starts with logging in. Everything else in the session
-    is evidence; the password is a key to the customer's system, and an evidence
-    store holding keys is a credential store nobody agreed to run.
+    Teaching a WMS task starts with logging in. The password is a key to the
+    customer's system, and an evidence store holding keys is a credential store
+    nobody agreed to run -- so on a page holding a password field nothing typed
+    is kept, not even the username, and no tree, picture or body. What was
+    acted on and the call it made, its method, URL and status, are kept: the
+    sign-in chain is learned from those.
     """
     session = await steel.open()
     capture = CaptureSession(blob_store=FakeBlobStore(), key_prefix="acme/rec-login", video=False)
@@ -349,14 +352,15 @@ async def test_a_password_never_reaches_the_recording(steel: SteelClient) -> Non
         await steel.close(session.id)
 
     everything = repr(batch.events)
-    assert "hunter2-very-secret" not in everything, "the password reached the evidence plane"
-    # The username is ordinary business data and must survive.
-    assert "clerk" in everything
+    for typed_value in ("hunter2-very-secret", "clerk"):
+        assert typed_value not in everything, f"{typed_value} reached the evidence plane"
 
     typed = [event for event in batch.events if isinstance(event, InputEvent)]
-    secret_inputs = [event for event in typed if event.action.secret]
-    assert secret_inputs, "the password field was not recognised as a credential"
-    assert all(event.action.value is None for event in secret_inputs)
+    acted_on = {event.action.target.css_path for event in typed if event.action.target}
+    assert {"input#user", "input#pw", "button#go"} <= acted_on, acted_on
+    assert all(event.action.value is None for event in typed)
+    assert not [event for event in batch.events if isinstance(event, SnapshotEvent)]
+    assert not batch.artifacts, "a screenshot of the sign-in page was written"
 
     login = next(
         (
@@ -366,9 +370,11 @@ async def test_a_password_never_reaches_the_recording(steel: SteelClient) -> Non
         ),
         None,
     )
-    assert login is not None and login.request.request_body is not None
-    assert "password" in login.request.request_body.redacted_fields
-    assert "clerk" in (login.request.request_body.text or "")
+    assert login is not None, "the call the sign-in made was not kept"
+    assert login.request.method == "POST"
+    assert login.request.status == 200
+    assert login.request.request_body is None
+    assert login.request.response_body is None
 
 
 async def test_the_session_api_shape_is_what_the_adapter_expects(steel: SteelClient) -> None:

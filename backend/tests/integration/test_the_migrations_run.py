@@ -11,10 +11,13 @@ migrated shape agrees with what `models.py` declares.
 from __future__ import annotations
 
 import asyncio
+import importlib.util
+import json
 import os
 import subprocess
 import sys
 from datetime import UTC, datetime
+from pathlib import Path
 
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
@@ -143,9 +146,9 @@ async def test_downgrading_0073_refuses_when_two_steel_runs_share_a_device(
     downgrade = await asyncio.to_thread(
         subprocess.run,
         # The absolute target, not `-1`: 0073 was the head when this was
-        # written, and a later migration stacked on top (0074, sign-in pages
-        # are watched) would otherwise make `-1` undo that one instead and
-        # never reach 0073's own refusal.
+        # written, and later migrations stacked on top (0074, then 0075 --
+        # sign-in pages are watched) would otherwise make `-1` undo one of
+        # those instead and never reach 0073's own refusal.
         [sys.executable, "-m", "alembic", "downgrade", "0072"],
         env={**os.environ, "SRO_DATABASE_URL": postgres_url},
         capture_output=True,
@@ -234,3 +237,103 @@ def _drift(connection: Connection) -> set[tuple[str, str]]:
             )
             differences.add((kind, str(named)))
     return differences
+
+
+_SIGN_IN_MIGRATION = next(
+    Path(__file__).resolve().parents[2].glob("migrations/versions/*_sign_in_pages_are_watched.py")
+)
+
+# Every default exclusion list a tenant's stored policy can hold: the 8-host
+# list 0022 left (the first five plus the three mailboxes it appended), the
+# 9-host one 47672b14 wrote for new tenants, and the 3-host one b94e2830 did.
+# Order is whatever wrote it, so each is stored here in an order nobody chose.
+_OLD_DEFAULTS = {
+    "eight": [
+        "mail.google.com",
+        "outlook.live.com",
+        "mail.yahoo.com",
+        "accounts.google.com",
+        "login.microsoftonline.com",
+        "outlook.office.com",
+        "outlook.office365.com",
+        "outlook.cloud.microsoft",
+    ],
+    "nine": [
+        "mail.google.com",
+        "outlook.live.com",
+        "outlook.office.com",
+        "outlook.office365.com",
+        "outlook.cloud.microsoft",
+        "mail.yahoo.com",
+        "accounts.google.com",
+        "login.microsoftonline.com",
+        "b2clogin.com",
+    ],
+    "three": ["b2clogin.com", "accounts.google.com", "login.microsoftonline.com"],
+}
+
+
+def _revision_before_sign_in() -> str:
+    spec = importlib.util.spec_from_file_location("sign_in_migration", _SIGN_IN_MIGRATION)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return str(module.down_revision)
+
+
+async def _alembic(postgres_url: str, *args: str) -> None:
+    done = await asyncio.to_thread(
+        subprocess.run,
+        [sys.executable, "-m", "alembic", *args],
+        env={**os.environ, "SRO_DATABASE_URL": postgres_url},
+        capture_output=True,
+        text=True,
+    )
+    assert done.returncode == 0, done.stderr
+
+
+async def test_every_old_default_exclusion_list_is_healed_and_the_policy_moves_on(
+    postgres_url: str,
+) -> None:
+    """Spec §5.6: identity providers are watched, structure-only.
+
+    A stored list equal (as a set) to any default the code ever wrote is that
+    default, not a choice, so it becomes empty -- and the version moves, both
+    the row's and the policy's own, or a signed-in extension would go on
+    holding the old list until somebody signed it out (the heartbeat sends a
+    policy only when the version differs; 0022 is the precedent). A list an
+    owner wrote stays exactly as it was.
+    """
+    await _alembic(postgres_url, "downgrade", _revision_before_sign_in())
+    engine = create_async_engine(postgres_url)
+    chosen = ["accounts.google.com", "login.microsoftonline.com", "hr.acme.example"]
+    async with engine.begin() as connection:
+        await connection.execute(text("DELETE FROM observation_policies"))
+        for tenant, hosts in (*_OLD_DEFAULTS.items(), ("chosen", chosen)):
+            await connection.execute(
+                text(
+                    "INSERT INTO observation_policies (tenant_id, version, policy) "
+                    "VALUES (:tenant, 4, CAST(:policy AS jsonb))"
+                ),
+                {"tenant": tenant, "policy": json.dumps({"version": 4, "exclude_hosts": hosts})},
+            )
+
+    await _alembic(postgres_url, "upgrade", "head")
+
+    async with engine.connect() as connection:
+        rows = {
+            tenant: (version, policy)
+            for tenant, version, policy in (
+                await connection.execute(
+                    text("SELECT tenant_id, version, policy FROM observation_policies")
+                )
+            ).all()
+        }
+    await engine.dispose()
+
+    for tenant in _OLD_DEFAULTS:
+        version, policy = rows[tenant]
+        assert policy["exclude_hosts"] == [], tenant
+        assert version == 5, tenant
+        assert policy["version"] == 5, tenant
+    assert rows["chosen"] == (4, {"version": 4, "exclude_hosts": chosen})

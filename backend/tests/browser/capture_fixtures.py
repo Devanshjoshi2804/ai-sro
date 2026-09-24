@@ -21,8 +21,9 @@ import time
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
-from tests.browser.conftest import EXTENSION, _Stub
+from tests.browser.conftest import EXTENSION, SIGN_IN_PATHS, _Stub, walk_a_sign_in
 from tests.browser.ws import Channel
 
 FIXTURES = EXTENSION / "fixtures"
@@ -37,7 +38,10 @@ PAGE = """<!doctype html>
     <label for="client">Client Code</label>
     <input id="client" name="clientCode" type="text">
     <label for="pw">Password</label>
-    <input id="pw" name="password" type="password">
+    <!-- Credential by name, so it is the `gesture-secret` fixture; not a
+         type="password" field, which would make this a sign-in page (spec
+         5.6) whose values, bodies and trees are not captured at all. -->
+    <input id="pw" name="password" type="text">
     <label for="dock">Dock</label>
     <select id="dock" name="dock">
       <option value="">choose</option>
@@ -109,6 +113,8 @@ class _Fixtures(_Stub):
             return None
         if self.path.startswith("/api/"):
             return self._send(200, json.dumps({"orders": [{"id": "ORD-1"}]}).encode())
+        if self.path.startswith(("/authorize", "/mirror", "/sign-in", "/callback")):
+            return super().do_GET()
         return self._send(200, PAGE.encode(), "text/html; charset=utf-8")
 
 
@@ -281,6 +287,52 @@ def _flush_until_everything_wanted_has_arrived(
         flushing.wait_for_timeout(250)
 
 
+def _sign_in_batch(context: Any, api_url: str, batches: list[dict[str, Any]]) -> dict[str, Any]:
+    """One real OAuth/OIDC sign-in, as the batch the extension uploaded for it.
+
+    Every event on the flow's pages, gathered into one envelope: what spec
+    §5.6 says a sign-in leaves behind, captured rather than written.
+    """
+    worker = _worker(context)
+    already = len(batches)
+    page = context.new_page()
+    page.goto(f"{api_url}/callback")
+    watching = _options(context, worker)
+    watching.evaluate(
+        """async (wanted) => {
+             const tabs = await chrome.tabs.query({});
+             const tab = tabs.find((each) => (each.url || "").startsWith(wanted));
+             return await chrome.runtime.sendMessage(
+               {kind: "watch-tab", tabId: tab.id, url: tab.url},
+             );
+           }""",
+        f"{api_url}/callback",
+    )
+    watching.close()
+    walk_a_sign_in(page, api_url)
+    flushing = _options(context, worker)
+    deadline = time.monotonic() + 8.0
+    while True:
+        flushing.evaluate("""async () => await chrome.runtime.sendMessage({kind: "flush"})""")
+        events = [
+            event for batch in batches[already:] for event in batch["events"] if _on_the_flow(event)
+        ]
+        arrived = any(e["kind"] == "request" for e in events) and any(
+            e["kind"] == "gesture" and urlsplit(e["page_url"]).path == "/sign-in" for e in events
+        )
+        if arrived or time.monotonic() >= deadline:
+            break
+        flushing.wait_for_timeout(250)
+    flushing.close()
+    page.close()
+    return {**batches[already], "events": events} if len(batches) > already else {}
+
+
+def _on_the_flow(event: dict[str, Any]) -> bool:
+    url = event.get("page_url") or event.get("frame_url") or event.get("url") or ""
+    return urlsplit(str(url)).path in SIGN_IN_PATHS
+
+
 def _replies(context: Any, api_url: str, into: Path) -> None:
     """The other direction: what this extension answers a command with."""
     channel: Channel = _Stub.channels.get(timeout=20)
@@ -352,6 +404,7 @@ def main(into: Path = FIXTURES) -> int:
             )
             try:
                 events = _capture(context, api_url, _Stub.batches)
+                signing_in = _sign_in_batch(context, api_url, _Stub.batches)
                 _replies(context, api_url, into)
             finally:
                 context.close()
@@ -369,6 +422,10 @@ def main(into: Path = FIXTURES) -> int:
 
     if _Stub.batches:
         _write("batch", _Stub.batches[0], into)
+    if signing_in.get("events"):
+        _write("batch-sign-in", signing_in, into)
+    else:
+        missing.append("batch-sign-in")
 
     if missing:
         # Loudly, and with a failing exit: a fixture silently not regenerated is

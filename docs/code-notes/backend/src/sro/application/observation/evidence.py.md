@@ -46,3 +46,14 @@ Code: `return b"\n".join(kept) if dropped else payload`
 
 > The bytes themselves when there was nothing to do, which is every batch
 > an extension carrying the fix ever sends.
+
+## `numbered`, [line 36](../../../../../../../backend/src/sro/application/observation/evidence.py#L36): Docstring
+
+> Every readable line of a stored batch, each gesture carrying its frame
+> number and everything else carrying ``None``.
+>
+> The counter walks every gesture line, including the ones the caller then
+> drops -- out of the episode, unreadable, a scroll -- because that is what
+> the recorder counted when it numbered the pictures (`upload.js`,
+> ``framesOf``). Counting only the surviving gestures slides every later
+> picture onto the wrong one.

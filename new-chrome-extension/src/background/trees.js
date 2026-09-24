@@ -28,6 +28,7 @@
 // round -- their tab, their tools -- so a refused attach is recorded and
 // forgotten, not retried in a loop, and capture carries on without trees.
 
+import { redactUrl } from "../content/sensitivity.module.js";
 import { state } from "./state.js";
 import { allowsHost } from "./scripts.js";
 
@@ -95,12 +96,31 @@ function withoutTypedText(nodes) {
     }
   };
   for (const nodeId of editable) collect(nodeId);
+  // Only an editable control's own `value`: a select's chosen option and a
+  // slider's position are what the page shows, not what somebody typed.
   return nodes
     .filter((node) => !dropped.has(node.nodeId))
-    .map(({ value: _value, ...node }) => ({
-      ...node,
-      childIds: editable.has(node.nodeId) ? [] : node.childIds,
-    }));
+    .map(withRedactedUrls)
+    .map((node) => {
+      if (!editable.has(node.nodeId)) return node;
+      const { value: _value, ...kept } = node;
+      return { ...kept, childIds: [] };
+    });
+}
+
+/** A node whose `url` property -- the root's own page, a link's target --
+ * has been through the same rule as every other URL this extension stores.
+ * The page an OAuth flow returns to carries its `code` in exactly that. */
+function withRedactedUrls(node) {
+  if (!(node.properties || []).some((prop) => prop.name === "url")) return node;
+  return {
+    ...node,
+    properties: node.properties.map((prop) =>
+      prop.name === "url" && typeof prop.value?.value === "string"
+        ? { ...prop, value: { ...prop.value, value: redactUrl(prop.value.value) } }
+        : prop,
+    ),
+  };
 }
 
 /** Photograph the tree now, for whatever the operator does next.

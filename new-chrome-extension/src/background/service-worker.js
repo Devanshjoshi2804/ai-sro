@@ -42,6 +42,7 @@ import { chosen, resting, tailWith } from "./recognise.js";
 import { tripleOf } from "./shape.generated.js";
 import { hideNudge, showNudge } from "./showing.js";
 import { capture } from "./shots.js";
+import { forgetSignIn, inSignInFlow, navigated } from "./signing-in.js";
 import { noteFinished } from "./finishing.js";
 import {
   activeRunAge,
@@ -209,8 +210,17 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 // Page lifecycle, straight from the platform -- no content script needed for
 // this, and nothing rides on a page having one registered at all.
 // ponytail: main frame only; add per-iframe navigation if a miner needs it.
+// Where a tab goes decides whether it is inside a sign-in flow (spec 5.6,
+// `signing-in.js`). Noted before anything else here awaits, so a gesture or a
+// page event asking about the tab is answered after the navigation, not
+// before it. `onBeforeNavigate` as well as `onCommitted`: an authorize request
+// the provider answers with a redirect never commits at its own URL.
+chrome.webNavigation.onBeforeNavigate.addListener((d) => {
+  if (d.frameId === 0) void navigated(d.tabId, d.url);
+});
 chrome.webNavigation.onCommitted.addListener((d) => {
   if (d.frameId !== 0) return;
+  void navigated(d.tabId, d.url);
   // A fresh document gets a fresh patch and a handshake at `document_start`,
   // which is the only moment one can safely happen -- so whatever was wrong
   // with the last document is not wrong with this one.
@@ -1326,6 +1336,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   void forgetTail(tabId);
   void releaseTree(tabId);
   void unwatch(tabId);
+  void forgetSignIn(tabId);
 });
 
 /** A popup is two hosts, so it is two policy checks.
@@ -1364,6 +1375,10 @@ async function pageEvent(page_kind, tab_id, url, timeStamp, opener_tab_id = null
     if (!allowed.on || !watching || !(await admits(url, policy))) return;
     await queue.enqueue({
       kind: "page",
+      // A page mark is kept on a sign-in page -- it is how the sign-in chain
+      // is learned at all -- and says what it is, so the backend can hold
+      // everything else on that page to structure-only too.
+      ...((await inSignInFlow(tab_id)) ? { sign_in: true } : {}),
       at: new Date(timeStamp).toISOString(),
       page_kind,
       // Every stored URL goes through this. An SSO or magic-link callback
@@ -1526,7 +1541,10 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
 async function handle(message, sender) {
   switch (message?.kind) {
     case "content-ready":
-      return { ok: true };
+      // A fresh document asking whether its tab is inside a sign-in flow,
+      // which it cannot see from where it is. The recorder then keeps every
+      // typed value out of the targets it describes (spec 5.6).
+      return { ok: true, signIn: await inSignInFlow(sender?.tab?.id ?? null) };
     case "calls-not-recordable": {
       // A tab whose page-realm patch outlived the extension that installed it.
       // It is still emitting and nothing can accept what it emits, and the tab
@@ -1662,6 +1680,18 @@ async function handle(message, sender) {
       // page's own `location.href` and every event carries the frame it
       // happened in, and either can be the callback URL with the token in it.
 
+      // Spec 5.6: a sign-in page is captured structure-only -- what was acted
+      // on, the URLs, and each call's method, URL and status; no typed value,
+      // no screenshot, no tree, no body. Decided here, where every event
+      // passes, from three answers: the frame's own DOM holds a password or
+      // one-time-code field (asked by the content script, which can see it),
+      // the page-realm recorder said so, or the tab is inside an OAuth/OIDC
+      // flow. Any one is enough; none of them is trusted to be the only one.
+      const signingIn =
+        message.signIn === true ||
+        message.gesture?.sign_in === true ||
+        (await inSignInFlow(tab_id));
+
       if (message.kind === "gesture") {
         // Taken before the row is written so the picture and the gesture are
         // one row: nothing to key together afterwards, and nothing left
@@ -1674,14 +1704,21 @@ async function handle(message, sender) {
         // chrome.storage read, a data URL that will not decode -- and an
         // exception here would leave the queue untouched, so the one event
         // this system refuses to drop would be lost to a failed picture of it.
-        const shot = await capture(tab_id, policy).catch(() => null);
+        const shot = signingIn ? null : await capture(tab_id, policy).catch(() => null);
+        const gesture = { ...message.gesture, url: redactUrl(message.gesture?.url) };
         await queue.enqueue(
           {
             kind: "gesture",
-            gesture: {
-              ...message.gesture,
-              url: redactUrl(message.gesture?.url),
-            },
+            ...(signingIn ? { sign_in: true } : {}),
+            gesture: signingIn
+              ? {
+                  ...gesture,
+                  // A key's name is not something typed, and a scroll's
+                  // offset is not either.
+                  value: ["press", "scroll"].includes(gesture.kind) ? gesture.value : null,
+                  sign_in: true,
+                }
+              : gesture,
             tab_id,
             frame_url: redactUrl(frameUrl),
             page_url,
@@ -1694,16 +1731,24 @@ async function handle(message, sender) {
         // the click, not after: a step that navigates would otherwise carry
         // the destination page, and induction would build that step's
         // locator from a page where the control it clicked does not exist.
+        //
+        // Not on a sign-in page: a tree there is the page as the person was
+        // typing into it, so the one waiting is thrown away and none is taken.
         const before = takeTree(tab_id);
+        if (signingIn) return { ok: true, screenshot: false };
         if (before) await queue.enqueue(before, null);
         void takeTreeSoon(tab_id, page_url, policy).catch(() => null);
         return { ok: true, screenshot: Boolean(shot) };
       }
       await queue.enqueue({
         kind: "request",
+        ...(signingIn ? { sign_in: true } : {}),
         request: {
           ...underPolicy(message.request, policy),
           url: redactUrl(message.request?.url),
+          // Method, URL and status are how a sign-in chain is learned; what
+          // went back and forth is the credential and what it bought.
+          ...(signingIn ? { request_body: null, response_body: null } : {}),
         },
         tab_id,
         frame_url: redactUrl(frameUrl),

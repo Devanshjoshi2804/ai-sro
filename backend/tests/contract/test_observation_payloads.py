@@ -133,3 +133,40 @@ def test_a_credential_field_reaches_the_backend_with_nothing_in_it() -> None:
     assert "«redacted»" not in json.dumps(payload), (
         "the value was redacted downstream rather than never captured"
     )
+
+
+@pytest.mark.skipif(
+    not (FIXTURES / "batch-sign-in.json").is_file(),
+    reason="the extension has captured no sign-in yet",
+)
+def test_a_sign_in_reaches_the_backend_as_structure_only() -> None:
+    """Spec §5.6, against the bytes a real Chrome uploaded for a real OAuth flow:
+    a Microsoft-shaped code box, a page echoing its code into a div and a
+    button's label, and a password form.
+
+    What was acted on, the URLs, the page marks and each call's method, URL
+    and status are there -- the sign-in chain can still be learned from it.
+    No typed value, no tree and no body is.
+    """
+    batch = json.loads((FIXTURES / "batch-sign-in.json").read_text(encoding="utf-8"))
+    events = batch["events"]
+    kinds = {event["kind"] for event in events}
+
+    assert all(event.get("sign_in") is True for event in events)
+    assert "snapshot" not in kinds, "a tree of a sign-in page was uploaded"
+    assert {"gesture", "request", "page"} <= kinds
+    for event in events:
+        if event["kind"] == "gesture":
+            gesture = event["gesture"]
+            if gesture["kind"] != "press":
+                assert gesture["value"] is None, gesture
+            assert gesture["target"]["cssPath"], "what was acted on was not kept"
+            assert "value" not in gesture["target"]["attributes"]
+        if event["kind"] == "request":
+            request = event["request"]
+            assert request["request_body"] is None and request["response_body"] is None
+            assert request["method"] and request["url"] and request["status"]
+        if event["kind"] == "page":
+            assert event["url"], "a page mark lost its URL"
+    for typed in ("135791", "246802", "424242", "hunter2-not-real", "signin-user-7c1e"):
+        assert typed not in json.dumps(batch)

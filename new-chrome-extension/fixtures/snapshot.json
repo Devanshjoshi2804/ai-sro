@@ -11,7 +11,7 @@
           "type": "internalRole",
           "value": 144
         },
-        "frameId": "FB0CC3244ECEEC3DE6C96B252CF13D8C",
+        "frameId": "A5D4B74467590427F3B6FAB0D926CE26",
         "ignored": false,
         "name": {
           "sources": [
@@ -56,7 +56,7 @@
             "name": "url",
             "value": {
               "type": "string",
-              "value": "http://127.0.0.1:64379/"
+              "value": "http://127.0.0.1:59332/"
             }
           }
         ],
@@ -711,6 +711,10 @@
         "role": {
           "type": "role",
           "value": "combobox"
+        },
+        "value": {
+          "type": "string",
+          "value": "Dock 3"
         }
       },
       {
@@ -839,6 +843,10 @@
         "role": {
           "type": "role",
           "value": "button"
+        },
+        "value": {
+          "type": "string",
+          "value": "manifest.csv"
         }
       },
       {
@@ -1220,7 +1228,7 @@
             "name": "selected",
             "value": {
               "type": "booleanOrUndefined",
-              "value": true
+              "value": false
             }
           }
         ],
@@ -1277,7 +1285,7 @@
             "name": "selected",
             "value": {
               "type": "booleanOrUndefined",
-              "value": false
+              "value": true
             }
           }
         ],
@@ -1326,7 +1334,7 @@
       }
     ]
   },
-  "url": "http://127.0.0.1:64379/",
-  "taken_at": "2026-09-24T14:42:56.668Z",
-  "tab_id": 372458457
+  "url": "http://127.0.0.1:59332/",
+  "taken_at": "2026-09-24T15:24:22.118Z",
+  "tab_id": 1667808082
 }

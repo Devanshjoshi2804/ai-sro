@@ -134,6 +134,7 @@ nextTree = {
     },
     { nodeId: "2", role: { value: "StaticText" }, name: { value: "424242" }, childIds: [] },
     { nodeId: "3", role: { value: "heading" }, name: { value: "Sign in" }, childIds: [] },
+    { nodeId: "4", role: { value: "combobox" }, value: { value: "Dock 3" }, childIds: [] },
   ],
 };
 const scrubbed = await takeTreeSoon(3, PAGE, ON);
@@ -143,11 +144,33 @@ const serialized = JSON.stringify(scrubbed.snapshot.nodes);
 assert.ok(!serialized.includes("424242"), "a typed value survived scrubbing");
 assert.deepEqual(
   scrubbed.snapshot.nodes.map((node) => node.nodeId),
-  ["1", "3"],
+  ["1", "3", "4"],
   "the StaticText child that rendered the typed value was not dropped",
 );
 assert.deepEqual(scrubbed.snapshot.nodes[0].childIds, [], "the editable node kept its child");
 assert.equal(scrubbed.snapshot.nodes[1].name.value, "Sign in", "ordinary page text was scrubbed too");
+assert.equal(scrubbed.snapshot.nodes[2].value.value, "Dock 3", "a select lost the option it shows");
+
+// The page's own URL rides in the tree -- Chrome writes it on the root, and
+// every link carries one -- and the page an OAuth flow returns to has the
+// `code` in it. The real-Chrome proof of spec 5.6 found it there.
+nextTree = {
+  nodes: [
+    {
+      nodeId: "1",
+      role: { value: "RootWebArea" },
+      properties: [
+        { name: "url", value: { type: "string", value: "https://wms.example/cb?code=AUTHCODE&state=s1" } },
+      ],
+      childIds: [],
+    },
+  ],
+};
+const rooted = await takeTreeSoon(5, PAGE, ON);
+nextTree = null;
+await release(5);
+assert.ok(!JSON.stringify(rooted.snapshot).includes("AUTHCODE"), "the code in the root's url survived");
+assert.ok(JSON.stringify(rooted.snapshot).includes("cb?code="), "the url itself was dropped");
 
 // Stop watching, stop debugging. An operator left with the banner up after
 // pressing "stop watching" would have every reason to disbelieve the panel

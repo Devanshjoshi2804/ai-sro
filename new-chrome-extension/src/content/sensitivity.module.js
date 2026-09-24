@@ -163,11 +163,91 @@ const redactUrl = (url) => {
   // it by. It substitutes rather than replaces, so a URL with no credential in
   // it comes back byte-identical -- the property the hand-splicing above
   // exists to keep.
-  return redactShapes(
-    hashStart === -1
-      ? redacted
-      : `${redacted}#${fragment.includes('=') ? redactPairs(fragment) : fragment}`,
-  );
+  return redactShapes(hashStart === -1 ? redacted : `${redacted}#${redactFragment(fragment)}`);
 };
 
-export { isSecretName, isSecretHeader, redactUrl, redactShapes, shapesIn };
+// A hash router keeps its own query after the route -- `#/done?code=...` --
+// and the first pair's key there is `/done?code`, which names nothing. So the
+// part after the `?` is judged as a query, and a fragment with no `?` and no
+// `=` is a `#section`, left alone rather than split into pairs it never had.
+function redactFragment(fragment) {
+  const at = fragment.indexOf('?');
+  if (at !== -1) return `${fragment.slice(0, at + 1)}${redactPairs(fragment.slice(at + 1))}`;
+  return fragment.includes('=') ? redactPairs(fragment) : fragment;
+}
+
+// Spec 5.6: a sign-in page is known by its structure, never by its host. A
+// page holding a password or one-time-code field is one, and so is every page
+// a tab passes through inside an OAuth/OIDC flow. A sign-in page is captured
+// structure-only: what was acted on, redacted URLs, page marks, and each
+// call's method, URL and status -- no typed value, no screenshot, no tree and
+// no body. The Python twin of the flow is `SignInFlow` in sensitivity.py;
+// `test_the_url_rule_is_one_rule.py` runs both over the same URLs.
+const SIGN_IN_FIELDS = "input[type=\"password\" i], [autocomplete~=\"current-password\" i], [autocomplete~=\"new-password\" i], [autocomplete~=\"one-time-code\" i]";
+const OAUTH_AUTHORIZE = ["client_id", "redirect_uri", "response_type", "state"];
+const OAUTH_RETURN = ["code", "id_token"];
+
+const isSignInDocument = (doc) => {
+  try {
+    return Boolean(doc.querySelector(SIGN_IN_FIELDS));
+  } catch {
+    return false;
+  }
+};
+
+const namesIn = (raw) =>
+  raw
+    .split('&')
+    .filter(Boolean)
+    .map((pair) => {
+      const key = pair.split('=')[0];
+      try {
+        return decodeURIComponent(key.replace(/\+/g, ' '));
+      } catch {
+        return key;
+      }
+    });
+
+// The flow a tab is in after navigating to `url`, given the one it was in:
+// `null`, or `{ redirect, provider }` -- two origins. It starts at a URL
+// carrying all four authorize parameters, and ends at the navigation back to
+// the `redirect_uri`'s origin with `code` or `id_token`, or at any navigation
+// back to that origin when it is not the provider's own. Unchanged, it is
+// handed back as the same object, so a caller can tell nothing moved.
+const signInFlowAfter = (flow, url) => {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return flow;
+  }
+  if (flow) {
+    const hash = parsed.hash.slice(1);
+    const at = hash.indexOf('?');
+    const names = [
+      ...namesIn(parsed.search.slice(1)),
+      ...namesIn(at === -1 ? hash : hash.slice(at + 1)),
+    ];
+    const returned = names.some((name) => OAUTH_RETURN.includes(name));
+    const back = parsed.origin === flow.redirect;
+    if (back && (returned || flow.redirect !== flow.provider)) return null;
+    return flow;
+  }
+  if (!OAUTH_AUTHORIZE.every((name) => parsed.searchParams.has(name))) return null;
+  try {
+    const redirect = new URL(parsed.searchParams.get('redirect_uri')).origin;
+    return { redirect, provider: parsed.origin };
+  } catch {
+    return null;
+  }
+};
+
+export {
+  isSecretName,
+  isSecretHeader,
+  redactUrl,
+  redactShapes,
+  shapesIn,
+  isSignInDocument,
+  signInFlowAfter,
+};

@@ -42,18 +42,7 @@ Code: `ordinal: int`
 
 > One picture the store actually holds.
 
-## `numbered`, [line 31](../../../../../../../backend/src/sro/application/observation/shots.py#L31): Docstring
-
-> Every readable line of a stored batch, each gesture carrying its frame
-> number and everything else carrying ``None``.
->
-> The counter walks every gesture line, including the ones the caller then
-> drops -- out of the episode, unreadable, a scroll -- because that is what
-> the recorder counted when it numbered the pictures (`upload.js`,
-> ``framesOf``). Counting only the surviving gestures slides every later
-> picture onto the wrong one.
-
-## `frames_by_instant`, [line 49](../../../../../../../backend/src/sro/application/observation/shots.py#L49): Docstring
+## `frames_by_instant`, [line 31](../../../../../../../backend/src/sro/application/observation/shots.py#L31): Docstring
 
 > Each gesture's frame number in this batch, keyed by the instant it
 > happened.
@@ -66,7 +55,7 @@ Code: `ordinal: int`
 > this module's rule everywhere: a picture hung on the wrong gesture is
 > worse evidence than no picture, because nothing about it looks wrong.
 
-## `stored_shots`, [line 69](../../../../../../../backend/src/sro/application/observation/shots.py#L69): Docstring
+## `stored_shots`, [line 51](../../../../../../../backend/src/sro/application/observation/shots.py#L51): Docstring
 
 > Every screenshot the store holds for one batch, by URI, with its size.
 >
@@ -77,14 +66,14 @@ Code: `ordinal: int`
 > pictures are left behind rather than hung on whichever gesture the shifted
 > count lands on.
 
-## `frame_of`, [line 78](../../../../../../../backend/src/sro/application/observation/shots.py#L78): Docstring
+## `frame_of`, [line 60](../../../../../../../backend/src/sro/application/observation/shots.py#L60): Docstring
 
 > The picture numbered for this gesture, or ``None`` when none was taken.
 >
 > Absent is the ordinary answer: the per-minute cap, a background tab, a
 > trim for the byte budget.
 
-## `pictures`, [line 90](../../../../../../../backend/src/sro/application/observation/shots.py#L90): Docstring
+## `pictures`, [line 72](../../../../../../../backend/src/sro/application/observation/shots.py#L72): Docstring
 
 > The screenshots for an assembled recording, in frame order.
 >

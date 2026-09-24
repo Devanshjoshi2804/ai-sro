@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 
 
 def once_each(payload: bytes) -> bytes:
@@ -31,3 +31,21 @@ def _request_id(line: bytes) -> str | None:
         return None
     call = request.get("request_id")
     return call if isinstance(call, str) and call else None
+
+
+def numbered(payload: bytes) -> Iterator[tuple[int | None, Mapping[str, object]]]:
+    ordinal = -1
+    for line in payload.splitlines():
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(event, Mapping):
+            continue
+        if event.get("kind") == "gesture":
+            ordinal += 1
+            yield ordinal, event
+        else:
+            yield None, event

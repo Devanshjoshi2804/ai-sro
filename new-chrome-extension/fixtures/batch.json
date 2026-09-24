@@ -1,26 +1,26 @@
 {
-  "batch_id": "bat_browsertest_b8ec8312_1",
+  "batch_id": "bat_browsertest_b0779ebd_1",
   "device_id": "dev_browsertest",
-  "started_at": "2026-09-24T14:42:56.522Z",
-  "ended_at": "2026-09-24T14:42:56.862Z",
+  "started_at": "2026-09-24T15:24:21.800Z",
+  "ended_at": "2026-09-24T15:24:22.264Z",
   "mode": "passive",
   "events": [
     {
       "kind": "page",
-      "at": "2026-09-24T14:42:56.507Z",
+      "at": "2026-09-24T15:24:21.792Z",
       "page_kind": "navigated",
-      "url": "http://127.0.0.1:64379/",
+      "url": "http://127.0.0.1:59332/",
       "detail": null,
-      "tab_id": 372458457,
+      "tab_id": 1667808082,
       "opener_tab_id": null
     },
     {
       "kind": "page",
-      "at": "2026-09-24T14:42:56.511Z",
+      "at": "2026-09-24T15:24:21.794Z",
       "page_kind": "loaded",
-      "url": "http://127.0.0.1:64379/",
+      "url": "http://127.0.0.1:59332/",
       "detail": null,
-      "tab_id": 372458457,
+      "tab_id": 1667808082,
       "opener_tab_id": null
     },
     {
@@ -68,12 +68,12 @@
         "secret": false,
         "modifiers": [],
         "frame_path": [],
-        "at": 1790260976.562,
-        "url": "http://127.0.0.1:64379/"
+        "at": 1790263462.012,
+        "url": "http://127.0.0.1:59332/"
       },
-      "tab_id": 372458457,
-      "frame_url": "http://127.0.0.1:64379/",
-      "page_url": "http://127.0.0.1:64379/"
+      "tab_id": 1667808082,
+      "frame_url": "http://127.0.0.1:59332/",
+      "page_url": "http://127.0.0.1:59332/"
     },
     {
       "kind": "gesture",
@@ -106,12 +106,50 @@
         "secret": false,
         "modifiers": [],
         "frame_path": [],
-        "at": 1790260976.671,
-        "url": "http://127.0.0.1:64379/"
+        "at": 1790263462.041,
+        "url": "http://127.0.0.1:59332/"
       },
-      "tab_id": 372458457,
-      "frame_url": "http://127.0.0.1:64379/",
-      "page_url": "http://127.0.0.1:64379/"
+      "tab_id": 1667808082,
+      "frame_url": "http://127.0.0.1:59332/",
+      "page_url": "http://127.0.0.1:59332/"
+    },
+    {
+      "kind": "gesture",
+      "gesture": {
+        "kind": "upload",
+        "target": {
+          "tag": "input",
+          "role": null,
+          "name": "Manifest",
+          "secret": false,
+          "text": null,
+          "testId": null,
+          "required": null,
+          "cssPath": "input#manifest",
+          "xpath": "/html/body[1]/form[1]/input[3]",
+          "bounds": {
+            "x": 636.765625,
+            "y": 79.875,
+            "width": 253,
+            "height": 21
+          },
+          "attributes": {
+            "id": "manifest",
+            "name": "manifest",
+            "type": "file"
+          },
+          "component": null,
+          "landmarks": []
+        },
+        "value": "manifest.csv",
+        "modifiers": [],
+        "frame_path": [],
+        "at": 1790263462.067,
+        "url": "http://127.0.0.1:59332/"
+      },
+      "tab_id": 1667808082,
+      "frame_url": "http://127.0.0.1:59332/",
+      "page_url": "http://127.0.0.1:59332/"
     },
     {
       "kind": "snapshot",
@@ -126,7 +164,7 @@
               "type": "internalRole",
               "value": 144
             },
-            "frameId": "FB0CC3244ECEEC3DE6C96B252CF13D8C",
+            "frameId": "A5D4B74467590427F3B6FAB0D926CE26",
             "ignored": false,
             "name": {
               "sources": [
@@ -171,7 +209,7 @@
                 "name": "url",
                 "value": {
                   "type": "string",
-                  "value": "http://127.0.0.1:64379/"
+                  "value": "http://127.0.0.1:59332/"
                 }
               }
             ],
@@ -826,6 +864,10 @@
             "role": {
               "type": "role",
               "value": "combobox"
+            },
+            "value": {
+              "type": "string",
+              "value": "Dock 3"
             }
           },
           {
@@ -954,6 +996,10 @@
             "role": {
               "type": "role",
               "value": "button"
+            },
+            "value": {
+              "type": "string",
+              "value": "manifest.csv"
             }
           },
           {
@@ -1335,7 +1381,7 @@
                 "name": "selected",
                 "value": {
                   "type": "booleanOrUndefined",
-                  "value": true
+                  "value": false
                 }
               }
             ],
@@ -1392,7 +1438,7 @@
                 "name": "selected",
                 "value": {
                   "type": "booleanOrUndefined",
-                  "value": false
+                  "value": true
                 }
               }
             ],
@@ -1441,47 +1487,9 @@
           }
         ]
       },
-      "url": "http://127.0.0.1:64379/",
-      "taken_at": "2026-09-24T14:42:56.668Z",
-      "tab_id": 372458457
-    },
-    {
-      "kind": "gesture",
-      "gesture": {
-        "kind": "upload",
-        "target": {
-          "tag": "input",
-          "role": null,
-          "name": "Manifest",
-          "secret": false,
-          "text": null,
-          "testId": null,
-          "required": null,
-          "cssPath": "input#manifest",
-          "xpath": "/html/body[1]/form[1]/input[3]",
-          "bounds": {
-            "x": 636.765625,
-            "y": 79.875,
-            "width": 253,
-            "height": 21
-          },
-          "attributes": {
-            "id": "manifest",
-            "name": "manifest",
-            "type": "file"
-          },
-          "component": null,
-          "landmarks": []
-        },
-        "value": "manifest.csv",
-        "modifiers": [],
-        "frame_path": [],
-        "at": 1790260976.688,
-        "url": "http://127.0.0.1:64379/"
-      },
-      "tab_id": 372458457,
-      "frame_url": "http://127.0.0.1:64379/",
-      "page_url": "http://127.0.0.1:64379/"
+      "url": "http://127.0.0.1:59332/",
+      "taken_at": "2026-09-24T15:24:22.118Z",
+      "tab_id": 1667808082
     },
     {
       "kind": "gesture",
@@ -1506,7 +1514,7 @@
           "attributes": {
             "id": "pw",
             "name": "password",
-            "type": "password"
+            "type": "text"
           },
           "component": null,
           "landmarks": []
@@ -1515,64 +1523,12 @@
         "secret": true,
         "modifiers": [],
         "frame_path": [],
-        "at": 1790260976.744,
-        "url": "http://127.0.0.1:64379/"
+        "at": 1790263462.142,
+        "url": "http://127.0.0.1:59332/"
       },
-      "tab_id": 372458457,
-      "frame_url": "http://127.0.0.1:64379/",
-      "page_url": "http://127.0.0.1:64379/"
-    },
-    {
-      "kind": "gesture",
-      "gesture": {
-        "kind": "click",
-        "target": {
-          "tag": "input",
-          "role": "textbox",
-          "name": "Client Code",
-          "secret": false,
-          "text": null,
-          "testId": null,
-          "required": null,
-          "cssPath": "input#client",
-          "xpath": "/html/body[1]/form[1]/input[1]",
-          "bounds": {
-            "x": 88.890625,
-            "y": 79.875,
-            "width": 153,
-            "height": 21
-          },
-          "attributes": {
-            "id": "client",
-            "name": "clientCode",
-            "type": "text"
-          },
-          "component": {
-            "framework": "extjs",
-            "xtype": "textfield",
-            "itemId": "clientCode",
-            "name": "clientCode",
-            "fieldLabel": "Client Code",
-            "required": null,
-            "text": null,
-            "query": "panel#clients textfield#clientCode",
-            "chain": [
-              "panel#clients",
-              "textfield#clientCode"
-            ]
-          },
-          "landmarks": []
-        },
-        "modifiers": [],
-        "detail": 1,
-        "trusted": true,
-        "frame_path": [],
-        "at": 1790260976.746,
-        "url": "http://127.0.0.1:64379/"
-      },
-      "tab_id": 372458457,
-      "frame_url": "http://127.0.0.1:64379/",
-      "page_url": "http://127.0.0.1:64379/"
+      "tab_id": 1667808082,
+      "frame_url": "http://127.0.0.1:59332/",
+      "page_url": "http://127.0.0.1:59332/"
     },
     {
       "kind": "snapshot",
@@ -1587,7 +1543,7 @@
               "type": "internalRole",
               "value": 144
             },
-            "frameId": "FB0CC3244ECEEC3DE6C96B252CF13D8C",
+            "frameId": "A5D4B74467590427F3B6FAB0D926CE26",
             "ignored": false,
             "name": {
               "sources": [
@@ -1632,7 +1588,7 @@
                 "name": "url",
                 "value": {
                   "type": "string",
-                  "value": "http://127.0.0.1:64379/"
+                  "value": "http://127.0.0.1:59332/"
                 }
               }
             ],
@@ -2287,6 +2243,10 @@
             "role": {
               "type": "role",
               "value": "combobox"
+            },
+            "value": {
+              "type": "string",
+              "value": "Dock 3"
             }
           },
           {
@@ -2415,6 +2375,10 @@
             "role": {
               "type": "role",
               "value": "button"
+            },
+            "value": {
+              "type": "string",
+              "value": "manifest.csv"
             }
           },
           {
@@ -2502,7 +2466,7 @@
           {
             "backendDOMNodeId": 44,
             "childIds": [
-              "-1000000014"
+              "-1000000003"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -2533,7 +2497,7 @@
           {
             "backendDOMNodeId": 46,
             "childIds": [
-              "-1000000015"
+              "-1000000005"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -2564,7 +2528,7 @@
           {
             "backendDOMNodeId": 48,
             "childIds": [
-              "-1000000016"
+              "-1000000007"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -2632,7 +2596,7 @@
           {
             "backendDOMNodeId": 49,
             "childIds": [
-              "-1000000017"
+              "-1000000008"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -2702,7 +2666,7 @@
               "type": "computedString",
               "value": "Client Code"
             },
-            "nodeId": "-1000000014",
+            "nodeId": "-1000000003",
             "parentId": "44",
             "properties": [],
             "role": {
@@ -2721,7 +2685,7 @@
               "type": "computedString",
               "value": "Password"
             },
-            "nodeId": "-1000000015",
+            "nodeId": "-1000000005",
             "parentId": "46",
             "properties": [],
             "role": {
@@ -2740,7 +2704,7 @@
               "type": "computedString",
               "value": "Dock"
             },
-            "nodeId": "-1000000016",
+            "nodeId": "-1000000007",
             "parentId": "48",
             "properties": [],
             "role": {
@@ -2873,7 +2837,7 @@
               "type": "computedString",
               "value": "Manifest"
             },
-            "nodeId": "-1000000017",
+            "nodeId": "-1000000008",
             "parentId": "49",
             "properties": [],
             "role": {
@@ -2902,9 +2866,61 @@
           }
         ]
       },
-      "url": "http://127.0.0.1:64379/",
-      "taken_at": "2026-09-24T14:42:56.719Z",
-      "tab_id": 372458457
+      "url": "http://127.0.0.1:59332/",
+      "taken_at": "2026-09-24T15:24:22.131Z",
+      "tab_id": 1667808082
+    },
+    {
+      "kind": "gesture",
+      "gesture": {
+        "kind": "click",
+        "target": {
+          "tag": "input",
+          "role": "textbox",
+          "name": "Client Code",
+          "secret": false,
+          "text": null,
+          "testId": null,
+          "required": null,
+          "cssPath": "input#client",
+          "xpath": "/html/body[1]/form[1]/input[1]",
+          "bounds": {
+            "x": 88.890625,
+            "y": 79.875,
+            "width": 153,
+            "height": 21
+          },
+          "attributes": {
+            "id": "client",
+            "name": "clientCode",
+            "type": "text"
+          },
+          "component": {
+            "framework": "extjs",
+            "xtype": "textfield",
+            "itemId": "clientCode",
+            "name": "clientCode",
+            "fieldLabel": "Client Code",
+            "required": null,
+            "text": null,
+            "query": "panel#clients textfield#clientCode",
+            "chain": [
+              "panel#clients",
+              "textfield#clientCode"
+            ]
+          },
+          "landmarks": []
+        },
+        "modifiers": [],
+        "detail": 1,
+        "trusted": true,
+        "frame_path": [],
+        "at": 1790263462.143,
+        "url": "http://127.0.0.1:59332/"
+      },
+      "tab_id": 1667808082,
+      "frame_url": "http://127.0.0.1:59332/",
+      "page_url": "http://127.0.0.1:59332/"
     },
     {
       "kind": "gesture",
@@ -2950,12 +2966,12 @@
         "value": "Enter",
         "modifiers": [],
         "frame_path": [],
-        "at": 1790260976.773,
-        "url": "http://127.0.0.1:64379/"
+        "at": 1790263462.164,
+        "url": "http://127.0.0.1:59332/"
       },
-      "tab_id": 372458457,
-      "frame_url": "http://127.0.0.1:64379/",
-      "page_url": "http://127.0.0.1:64379/"
+      "tab_id": 1667808082,
+      "frame_url": "http://127.0.0.1:59332/",
+      "page_url": "http://127.0.0.1:59332/"
     },
     {
       "kind": "snapshot",
@@ -2970,7 +2986,7 @@
               "type": "internalRole",
               "value": 144
             },
-            "frameId": "FB0CC3244ECEEC3DE6C96B252CF13D8C",
+            "frameId": "A5D4B74467590427F3B6FAB0D926CE26",
             "ignored": false,
             "name": {
               "sources": [
@@ -3015,7 +3031,7 @@
                 "name": "url",
                 "value": {
                   "type": "string",
-                  "value": "http://127.0.0.1:64379/"
+                  "value": "http://127.0.0.1:59332/"
                 }
               }
             ],
@@ -3670,6 +3686,10 @@
             "role": {
               "type": "role",
               "value": "combobox"
+            },
+            "value": {
+              "type": "string",
+              "value": "Dock 3"
             }
           },
           {
@@ -3798,6 +3818,10 @@
             "role": {
               "type": "role",
               "value": "button"
+            },
+            "value": {
+              "type": "string",
+              "value": "manifest.csv"
             }
           },
           {
@@ -3885,7 +3909,7 @@
           {
             "backendDOMNodeId": 44,
             "childIds": [
-              "-1000000014"
+              "-1000000003"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -3916,7 +3940,7 @@
           {
             "backendDOMNodeId": 46,
             "childIds": [
-              "-1000000015"
+              "-1000000005"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -3947,7 +3971,7 @@
           {
             "backendDOMNodeId": 48,
             "childIds": [
-              "-1000000016"
+              "-1000000007"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -4015,7 +4039,7 @@
           {
             "backendDOMNodeId": 49,
             "childIds": [
-              "-1000000017"
+              "-1000000008"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -4085,7 +4109,7 @@
               "type": "computedString",
               "value": "Client Code"
             },
-            "nodeId": "-1000000014",
+            "nodeId": "-1000000003",
             "parentId": "44",
             "properties": [],
             "role": {
@@ -4104,7 +4128,7 @@
               "type": "computedString",
               "value": "Password"
             },
-            "nodeId": "-1000000015",
+            "nodeId": "-1000000005",
             "parentId": "46",
             "properties": [],
             "role": {
@@ -4123,7 +4147,7 @@
               "type": "computedString",
               "value": "Dock"
             },
-            "nodeId": "-1000000016",
+            "nodeId": "-1000000007",
             "parentId": "48",
             "properties": [],
             "role": {
@@ -4256,7 +4280,7 @@
               "type": "computedString",
               "value": "Manifest"
             },
-            "nodeId": "-1000000017",
+            "nodeId": "-1000000008",
             "parentId": "49",
             "properties": [],
             "role": {
@@ -4285,9 +4309,9 @@
           }
         ]
       },
-      "url": "http://127.0.0.1:64379/",
-      "taken_at": "2026-09-24T14:42:56.772Z",
-      "tab_id": 372458457
+      "url": "http://127.0.0.1:59332/",
+      "taken_at": "2026-09-24T15:24:22.162Z",
+      "tab_id": 1667808082
     },
     {
       "kind": "gesture",
@@ -4333,12 +4357,12 @@
         "detail": 1,
         "trusted": true,
         "frame_path": [],
-        "at": 1790260976.814,
-        "url": "http://127.0.0.1:64379/"
+        "at": 1790263462.218,
+        "url": "http://127.0.0.1:59332/"
       },
-      "tab_id": 372458457,
-      "frame_url": "http://127.0.0.1:64379/",
-      "page_url": "http://127.0.0.1:64379/"
+      "tab_id": 1667808082,
+      "frame_url": "http://127.0.0.1:59332/",
+      "page_url": "http://127.0.0.1:59332/"
     },
     {
       "kind": "snapshot",
@@ -4353,7 +4377,7 @@
               "type": "internalRole",
               "value": 144
             },
-            "frameId": "FB0CC3244ECEEC3DE6C96B252CF13D8C",
+            "frameId": "A5D4B74467590427F3B6FAB0D926CE26",
             "ignored": false,
             "name": {
               "sources": [
@@ -4398,7 +4422,7 @@
                 "name": "url",
                 "value": {
                   "type": "string",
-                  "value": "http://127.0.0.1:64379/"
+                  "value": "http://127.0.0.1:59332/"
                 }
               }
             ],
@@ -5053,6 +5077,10 @@
             "role": {
               "type": "role",
               "value": "combobox"
+            },
+            "value": {
+              "type": "string",
+              "value": "Dock 3"
             }
           },
           {
@@ -5181,6 +5209,10 @@
             "role": {
               "type": "role",
               "value": "button"
+            },
+            "value": {
+              "type": "string",
+              "value": "manifest.csv"
             }
           },
           {
@@ -5268,7 +5300,7 @@
           {
             "backendDOMNodeId": 44,
             "childIds": [
-              "-1000000014"
+              "-1000000003"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -5299,7 +5331,7 @@
           {
             "backendDOMNodeId": 46,
             "childIds": [
-              "-1000000015"
+              "-1000000005"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -5330,7 +5362,7 @@
           {
             "backendDOMNodeId": 48,
             "childIds": [
-              "-1000000016"
+              "-1000000007"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -5398,7 +5430,7 @@
           {
             "backendDOMNodeId": 49,
             "childIds": [
-              "-1000000017"
+              "-1000000008"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -5468,7 +5500,7 @@
               "type": "computedString",
               "value": "Client Code"
             },
-            "nodeId": "-1000000014",
+            "nodeId": "-1000000003",
             "parentId": "44",
             "properties": [],
             "role": {
@@ -5487,7 +5519,7 @@
               "type": "computedString",
               "value": "Password"
             },
-            "nodeId": "-1000000015",
+            "nodeId": "-1000000005",
             "parentId": "46",
             "properties": [],
             "role": {
@@ -5506,7 +5538,7 @@
               "type": "computedString",
               "value": "Dock"
             },
-            "nodeId": "-1000000016",
+            "nodeId": "-1000000007",
             "parentId": "48",
             "properties": [],
             "role": {
@@ -5639,7 +5671,7 @@
               "type": "computedString",
               "value": "Manifest"
             },
-            "nodeId": "-1000000017",
+            "nodeId": "-1000000008",
             "parentId": "49",
             "properties": [],
             "role": {
@@ -5668,18 +5700,18 @@
           }
         ]
       },
-      "url": "http://127.0.0.1:64379/",
-      "taken_at": "2026-09-24T14:42:56.783Z",
-      "tab_id": 372458457
+      "url": "http://127.0.0.1:59332/",
+      "taken_at": "2026-09-24T15:24:22.179Z",
+      "tab_id": 1667808082
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_911e3284_0",
+        "request_id": "req_fda54e7d_0",
         "method": "GET",
-        "url": "http://127.0.0.1:64379/api/orders?facility=DC1",
+        "url": "http://127.0.0.1:59332/api/orders?facility=DC1",
         "resource_type": "fetch",
-        "started_at": "2026-09-24T14:42:56.815Z",
+        "started_at": "2026-09-24T15:24:22.218Z",
         "request_headers": {},
         "request_body": null,
         "status": 200,
@@ -5689,7 +5721,7 @@
           "access-control-allow-origin": "*",
           "content-length": "29",
           "content-type": "application/json",
-          "date": "Thu, 24 Sep 2026 14:42:56 GMT",
+          "date": "Thu, 24 Sep 2026 15:24:22 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": {
@@ -5700,22 +5732,22 @@
           "redacted_fields": []
         },
         "redirect_chain": [],
-        "duration_ms": 12,
+        "duration_ms": 7,
         "from_cache": false,
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 372458457,
-      "frame_url": "http://127.0.0.1:64379/"
+      "tab_id": 1667808082,
+      "frame_url": "http://127.0.0.1:59332/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_911e3284_1",
+        "request_id": "req_fda54e7d_1",
         "method": "POST",
-        "url": "http://127.0.0.1:64379/api/orders",
+        "url": "http://127.0.0.1:59332/api/orders",
         "resource_type": "fetch",
-        "started_at": "2026-09-24T14:42:56.830Z",
+        "started_at": "2026-09-24T15:24:22.228Z",
         "request_headers": {
           "content-type": "application/json"
         },
@@ -5733,7 +5765,7 @@
           "access-control-allow-origin": "*",
           "content-length": "12",
           "content-type": "application/json",
-          "date": "Thu, 24 Sep 2026 14:42:56 GMT",
+          "date": "Thu, 24 Sep 2026 15:24:22 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": {
@@ -5744,22 +5776,22 @@
           "redacted_fields": []
         },
         "redirect_chain": [],
-        "duration_ms": 14,
+        "duration_ms": 5,
         "from_cache": false,
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 372458457,
-      "frame_url": "http://127.0.0.1:64379/"
+      "tab_id": 1667808082,
+      "frame_url": "http://127.0.0.1:59332/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_911e3284_2",
+        "request_id": "req_fda54e7d_2",
         "method": "GET",
         "url": "http://127.0.0.1:1/never",
         "resource_type": "fetch",
-        "started_at": "2026-09-24T14:42:56.844Z",
+        "started_at": "2026-09-24T15:24:22.232Z",
         "request_headers": {},
         "request_body": null,
         "status": null,
@@ -5767,22 +5799,22 @@
         "response_headers": {},
         "response_body": null,
         "redirect_chain": [],
-        "duration_ms": 5,
+        "duration_ms": 3,
         "from_cache": false,
         "failure_reason": "Failed to fetch",
         "blocked_reason": null
       },
-      "tab_id": 372458457,
-      "frame_url": "http://127.0.0.1:64379/"
+      "tab_id": 1667808082,
+      "frame_url": "http://127.0.0.1:59332/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_911e3284_3",
+        "request_id": "req_fda54e7d_3",
         "method": "POST",
-        "url": "http://127.0.0.1:64379/api/legacy",
+        "url": "http://127.0.0.1:59332/api/legacy",
         "resource_type": "xhr",
-        "started_at": "2026-09-24T14:42:56.850Z",
+        "started_at": "2026-09-24T15:24:22.236Z",
         "request_headers": {
           "content-type": "application/x-www-form-urlencoded"
         },
@@ -5800,7 +5832,7 @@
           "access-control-allow-origin": "*",
           "content-length": "12",
           "content-type": "application/json",
-          "date": "Thu, 24 Sep 2026 14:42:56 GMT",
+          "date": "Thu, 24 Sep 2026 15:24:22 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": {
@@ -5811,40 +5843,40 @@
           "redacted_fields": []
         },
         "redirect_chain": [],
-        "duration_ms": 5,
+        "duration_ms": 2,
         "from_cache": false,
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 372458457,
-      "frame_url": "http://127.0.0.1:64379/"
+      "tab_id": 1667808082,
+      "frame_url": "http://127.0.0.1:59332/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_911e3284_4",
+        "request_id": "req_fda54e7d_4",
         "method": "GET",
-        "url": "http://127.0.0.1:64379/api/stream",
+        "url": "http://127.0.0.1:59332/api/stream",
         "resource_type": "fetch",
-        "started_at": "2026-09-24T14:42:56.855Z",
+        "started_at": "2026-09-24T15:24:22.239Z",
         "request_headers": {},
         "request_body": null,
         "status": 200,
         "status_text": "OK",
         "response_headers": {
           "content-type": "text/event-stream",
-          "date": "Thu, 24 Sep 2026 14:42:56 GMT",
+          "date": "Thu, 24 Sep 2026 15:24:22 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": null,
         "redirect_chain": [],
-        "duration_ms": 3,
+        "duration_ms": 5,
         "from_cache": false,
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 372458457,
-      "frame_url": "http://127.0.0.1:64379/"
+      "tab_id": 1667808082,
+      "frame_url": "http://127.0.0.1:59332/"
     }
   ]
 }

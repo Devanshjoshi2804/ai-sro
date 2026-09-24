@@ -62,7 +62,7 @@ Code: `required: bool | None = None`
 > `placeholder` whose value is "Password" is a LABEL. Measured over the acme
 > capture -- 13 distinct attribute names, 95 distinct values -- none move.
 
-## `parse_batch`, [line 301](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L301): Docstring
+## `parse_batch`, [line 302](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L302): Docstring
 
 > Parse a batch, keeping every event that parses and naming those that do not.
 >
@@ -140,7 +140,7 @@ Code: `required: bool | None = None`
 
 > An orphan request is stored as the whole event, frame_url included.
 
-## `PageEvent.a_credential_on_a_page_event_is_dropped_here`, [line 265](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L265): Docstring
+## `PageEvent.a_credential_on_a_page_event_is_dropped_here`, [line 266](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L266): Docstring
 
 > A page event is stored whole -- attached to a gesture, or in
 > orphan_pages -- and the audit landed a `?magic_link_token=` in url and
@@ -266,7 +266,7 @@ Code: `shaped = shapes_in(body.text)`
 > the ones that went by name. Same marker in the text either
 > way; different fact about why.
 
-## `parse_batch`, [line 303](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L303): Comment
+## `parse_batch`, [line 304](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L304): Comment
 
 Code: `return Batch.model_validate(raw), ()`
 
@@ -278,7 +278,7 @@ Code: `return Batch.model_validate(raw), ()`
 > Let the envelope model refuse it and say why; the route turns that
 > into a 422.
 
-## `parse_batch`, [line 314](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L314): Comment
+## `parse_batch`, [line 315](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L315): Comment
 
 Code: `where = ".".join(str(part) for part in first.get("loc", ()))`
 

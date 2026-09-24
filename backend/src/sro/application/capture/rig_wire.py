@@ -260,6 +260,7 @@ class PageEvent(BaseModel):
     url: str | None = None
     detail: str | None = None
     tab_id: int | None = None
+    opener_tab_id: int | None = None
 
     @model_validator(mode="after")
     def a_credential_on_a_page_event_is_dropped_here(self) -> "PageEvent":

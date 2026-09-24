@@ -188,4 +188,5 @@ def as_mark(event: WirePageEvent) -> PageMark:
         url=event.url,
         detail=event.detail,
         tab_id=event.tab_id,
+        opener_tab_id=event.opener_tab_id,
     )

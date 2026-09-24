@@ -282,3 +282,11 @@ def test_a_page_that_said_nothing_about_a_field_stores_nothing() -> None:
 
     target = gestures[0].action.target
     assert target is not None and target.required is None
+
+
+def test_a_popup_mark_keeps_the_tab_that_opened_it() -> None:
+    popup = {**copy.deepcopy(PAGE_NAVIGATED), "page_kind": "popup_opened", "opener_tab_id": 7}
+
+    _, _, marks, _ = correlate(_batch([popup]), TENANT)
+
+    assert marks[0].opener_tab_id == 7

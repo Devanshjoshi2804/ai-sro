@@ -1351,10 +1351,10 @@ async function popupEvent(d) {
   if (await isWatched(d.sourceTabId)) await watch(d.tabId, d.url);
   // The new tab's id, not the opener's: `url` is the new tab's, and the two
   // together used to name one tab while describing another's page.
-  await pageEvent("popup_opened", d.tabId, d.url, d.timeStamp);
+  await pageEvent("popup_opened", d.tabId, d.url, d.timeStamp, d.sourceTabId);
 }
 
-async function pageEvent(page_kind, tab_id, url, timeStamp) {
+async function pageEvent(page_kind, tab_id, url, timeStamp, opener_tab_id = null) {
   try {
     const [policy, allowed, watching] = await Promise.all([
       state.policy(),
@@ -1373,6 +1373,7 @@ async function pageEvent(page_kind, tab_id, url, timeStamp) {
       url: redactUrl(url),
       detail: null,
       tab_id,
+      opener_tab_id,
     });
   } catch (error) {
     // A full or broken queue is the one failure that must not be silent:

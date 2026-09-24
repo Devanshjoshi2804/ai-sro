@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -50,6 +51,7 @@ from sro.application.execution.execute_skill import (
     StartRun,
 )
 from sro.application.execution.gather import GatherContext
+from sro.application.execution.mail_job import MailHand, Written, send_the_mail, write_the_mail
 from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.pursue_goal import PursueGoal
 from sro.application.execution.pursuits import Pursuits
@@ -109,7 +111,7 @@ from sro.application.ports.http import HttpCaller
 from sro.application.ports.intent import IntentParser
 from sro.application.ports.interpretation import WorkflowInterpreter
 from sro.application.ports.locks import AccountLocks
-from sro.application.ports.model import Asker
+from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.pool import BrowserPool
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.schedule import Scheduler
@@ -125,6 +127,7 @@ from sro.application.recording.attach_artifact import AttachArtifact
 from sro.application.recording.finish_recording import FinishRecording
 from sro.application.recording.ingest_capture_events import IngestCaptureEvents
 from sro.application.recording.start_recording import StartRecording
+from sro.application.runtime.tool_lane import ToolLane
 from sro.application.skill.describe_skill import DescribeSkill
 from sro.application.skill.read_skills import GetSkill, ListSkills
 from sro.application.skill.read_workflows import ReadEvidence, ReadWorkflows
@@ -144,6 +147,7 @@ from sro.application.trigger.receive_inbound import ReceiveInbound
 from sro.config import Settings, get_settings
 from sro.domain.chat.asking import Pending
 from sro.domain.shared.prices import DaySpend
+from sro.domain.skill.workflow import Workflow
 from sro.infrastructure.agent.channel import SocketChannel
 from sro.infrastructure.agent.drivers import RemoteAgents
 from sro.infrastructure.agent.sockets import DeviceSockets
@@ -779,6 +783,30 @@ class Container:
             ids=self.ids,
             asker_drafts=self._drafting,
         )
+
+    def tool_lane(self) -> ToolLane:
+        return ToolLane(self._mail_hand)
+
+    def _mail_hand(self, ctx: RequestContext) -> MailHand:
+        asker = asker_or_refuse(self.asker)
+
+        async def write(
+            workflow: Workflow, values: Mapping[str, str], thread: str
+        ) -> Written | str:
+            return await write_the_mail(
+                ctx,
+                workflow,
+                values,
+                thread,
+                tools=self.tools,
+                asker=asker,
+                model=self.settings.gemini_plan_model,
+            )
+
+        async def send(mail: Written) -> tuple[str, str]:
+            return await send_the_mail(ctx, self.unit_of_work(), self.tools, mail, clock=self.clock)
+
+        return MailHand(write=write, send=send)
 
     async def _drafting(self, ctx: RequestContext, run_id: str, pending: Pending) -> bool:
         return await self.draft_for_the_asker().execute(ctx, pending, run_id=run_id)

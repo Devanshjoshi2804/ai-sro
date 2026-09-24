@@ -362,6 +362,8 @@ def test_every_door_that_needs_a_model_refuses_through_the_one_guard() -> None:
         # the plan is built and read before anything executes it, and the seam
         # that runs one is the next slice.
         "sro/application/lookup/plan_lookups.py",
+        # The tool lane's mail hand -- writing the mail a mailbox step sends.
+        "sro/container.py",
     }
 
 

@@ -98,9 +98,9 @@ def _billed_rows(uow: FakeUnitOfWork) -> list[ChatReading]:
     """The bills this store holds, typed.
 
     `FakeUnitOfWork.chats` is annotated as the `ChatRepository` port and the
-    port has no `rows`: the narrowing is `test_mine_route.py`'s own `_rows`
-    idiom, and it is an assertion rather than an ignore so that a fake swapped
-    for one without a row list fails here instead of at the read.
+    port has no `rows`: the narrowing is an assertion rather than an ignore so
+    that a fake swapped for one without a row list fails here instead of at
+    the read.
     """
     assert isinstance(uow.chats, FakeChatRepository)
     return uow.chats.rows

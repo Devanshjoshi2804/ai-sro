@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/interface/http/v1/routers/secrets.py`](../../../../../../../../../backend/src/sro/interface/http/v1/routers/secrets.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `store_secret`, [line 71](../../../../../../../../../backend/src/sro/interface/http/v1/routers/secrets.py#L71): Comment
+## `store_secret`, [line 75](../../../../../../../../../backend/src/sro/interface/http/v1/routers/secrets.py#L75): Comment
 
 Code: `raise unusable`
 

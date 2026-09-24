@@ -8,8 +8,8 @@ evidence plane, in a mining prompt, and in whatever a model does with one.
 So a password is not recorded. It is STORED, once, deliberately, through this
 door, and fetched by the run at the moment the step types it --
 `domain/execution/secrets` builds the key from the system and the field
-(`domain/execution/account` from the system and the username, when a
-password is given with the account it signs in as), and `workflow_runs`
+(`domain/execution/account` from the system, the field and the username,
+when a value is given with the account it belongs to), and `workflow_runs`
 reads it from the vault and puts it in that one command.
 
 **There is no GET here, and there will not be one.** The vault's own `get` is
@@ -46,6 +46,14 @@ from sro.interface.http.schemas import (
 router = APIRouter(tags=["secrets"], dependencies=[TenantOnly])
 
 
+def _key_for(tenant: str, body: NewSecretRequest) -> str:
+    return (
+        Account.of(tenant, body.system, body.username).vault_key(body.field)
+        if body.username
+        else secret_key_of(tenant, body.system, body.field)
+    )
+
+
 @router.put("/secrets", status_code=status.HTTP_200_OK)
 async def store_secret(
     body: NewSecretRequest, container: ContainerDep, ctx: ContextDep
@@ -60,11 +68,7 @@ async def store_secret(
     wanted, and still have nothing readable in a browser history or a proxy
     log.
     """
-    key = (
-        Account.of(ctx.tenant_id.value, body.system, body.username).vault_key("password")
-        if body.username and body.field == "password"
-        else secret_key_of(ctx.tenant_id.value, body.system, body.field)
-    )
+    key = _key_for(ctx.tenant_id.value, body)
     try:
         await container.vault.store(key, body.value)
     except VaultUnavailable as unusable:
@@ -93,6 +97,6 @@ async def hold_secret_for_one_run(
     value, for the reason the door above has no GET.
     """
     await container.get_workflow_run().execute(ctx, run_id=body.run_id)
-    key = secret_key_of(ctx.tenant_id.value, body.system, body.field)
+    key = _key_for(ctx.tenant_id.value, body)
     until = container.one_time_secrets.hold(key, body.value, run_id=body.run_id)
     return SecretHeldModel(key=key, until=until)

@@ -26766,7 +26766,9 @@
           "username": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 254,
+                "minLength": 1
               },
               {
                 "type": "null"
@@ -26808,7 +26810,9 @@
           "username": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 254,
+                "minLength": 1
               },
               {
                 "type": "null"

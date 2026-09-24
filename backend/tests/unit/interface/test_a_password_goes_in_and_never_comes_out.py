@@ -105,9 +105,28 @@ async def test_a_password_given_with_its_username_is_kept_for_that_account(
 ) -> None:
     stored = await client.put("/v1/secrets", json=_body(system=f"https://{WMS}", username="lena"))
 
-    key = f"{f.TENANT.value}/https://{WMS}/lena/password"
+    key = f"{f.TENANT.value}/{WMS}/lena/password"
     assert stored.json() == {"key": key}
     assert await container.vault.get(key) == KEPT
+
+
+async def test_a_non_password_field_with_a_username_still_gets_the_account_key(
+    client: httpx.AsyncClient, container: _FakeContainer
+) -> None:
+    stored = await client.put("/v1/secrets", json=_body(field="One-Time Code", username="lena"))
+
+    key = f"{f.TENANT.value}/{WMS}/lena/one-time-code"
+    assert stored.json() == {"key": key}
+    assert await container.vault.get(key) == KEPT
+
+
+async def test_a_blank_username_is_refused_before_the_vault_is_touched(
+    client: httpx.AsyncClient, container: _FakeContainer
+) -> None:
+    refused = await client.put("/v1/secrets", json=_body(username="   "))
+
+    assert refused.status_code == 422
+    assert await container.vault.get(f"{f.TENANT.value}/{WMS}/password") is None
 
 
 async def test_there_is_no_door_that_reads_one_back(client: httpx.AsyncClient) -> None:
@@ -189,6 +208,21 @@ async def test_a_value_with_nothing_in_it_is_refused_before_the_vault_is_touched
 
     assert refused.status_code == 422
     assert await container.vault.get(f"{f.TENANT.value}/{WMS}/password") is None
+
+
+async def test_a_one_run_password_given_with_its_username_is_held_under_the_account_key(
+    client: httpx.AsyncClient, container: _FakeContainer, uow: FakeUnitOfWork
+) -> None:
+    uow.workflow_runs.rows[RUN_A] = _run()
+
+    held = await client.post(
+        "/v1/secrets/once", json=_once_body(system=f"https://{WMS}", username="lena")
+    )
+
+    assert held.status_code == 202, held.text
+    key = f"{f.TENANT.value}/{WMS}/lena/password"
+    assert held.json()["key"] == key
+    assert container.one_time_secrets.take(key, run_id=RUN_A) == KEPT
 
 
 async def test_a_password_given_for_one_run_never_reaches_the_vault(

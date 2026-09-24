@@ -30,6 +30,7 @@ from sro.application.observation.read_shots import PlayableShot
 from sro.application.skill.read_workflows import CitedEvidence, KnownWorkflow
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread
+from sro.domain.execution.account import K_USERNAME_MAX_LEN
 from sro.domain.execution.belts import K_EARNED_RUNS
 from sro.domain.execution.run import Medium, Run, StepOutcome
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
@@ -2022,10 +2023,17 @@ class NewSecretRequest(BaseModel):
     """Written to the vault and nowhere else: never answered with, never
     logged, never in the evidence plane. See `v1/routers/secrets`."""
 
-    username: str | None = None
-    """The account this password signs in as. Given, the password is kept for
-    that account alone, so two operators, or two systems behind one identity
-    provider, never share one."""
+    username: (
+        Annotated[
+            str,
+            StringConstraints(strip_whitespace=True, min_length=1, max_length=K_USERNAME_MAX_LEN),
+        ]
+        | None
+    ) = None
+    """The account this value signs in as. Given, it is kept for that account
+    alone, so two operators, or two systems behind one identity provider,
+    never share one. Blank or whitespace-only is refused rather than silently
+    dropped."""
 
 
 class NewSecretOnceRequest(NewSecretRequest):

@@ -19,11 +19,11 @@ def field_of(gesture: Gesture) -> str:
         component.item_id if component else None,
     ):
         if name and name.strip():
-            return _as_key(name)
+            return as_key(name)
     return "password"
 
 
-def _as_key(name: str) -> str:
+def as_key(name: str) -> str:
     return re.sub(r"[^a-z0-9-]+", "-", name.strip().lower()).strip("-")
 
 
@@ -33,7 +33,7 @@ def secret_key_for(tenant_id: str, gesture: Gesture) -> str:
 
 
 def secret_key_of(tenant_id: str, system: str, field: str) -> str:
-    return f"{tenant_id}/{origin_of(system) or system.strip().lower()}/{_as_key(field)}"
+    return f"{tenant_id}/{origin_of(system) or system.strip().lower()}/{as_key(field)}"
 
 
 def connector_key(tenant_id: str, server: str, principal_id: str) -> str:

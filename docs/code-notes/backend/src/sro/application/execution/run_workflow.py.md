@@ -792,6 +792,12 @@ Code: `chain = sign_in_chain(job, seen)`
 > planning, the locator ladder, the belts -- reads a step's evidence from
 > there, and only the chain's steps must have evidence: a post-landing step
 > whose gestures aged out no longer blocks the way back in.
+>
+> The whole job's evidence goes into the map, not only the chain's: the
+> engine asks `is_sign_in_step` of the job, and where it landed is read off
+> the click after the leave, which the chain cuts. With the chain alone the
+> deployed chain's Sign In redirect ends on the chooser's host, and the
+> chooser would be judged a write (final re-review N-1, 2026-09-24).
 
 ## `_let_in`, [line 252](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L252): Comment
 

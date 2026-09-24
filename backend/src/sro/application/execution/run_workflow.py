@@ -216,7 +216,7 @@ async def _the_way_back_in(
     if job is None or not job.steps:
         return None, []
     chain = sign_in_chain(job, seen)
-    by_id.update({one: seen[one] for step in chain for one in step.cites if one in seen})
+    by_id.update({one: seen[one] for step in job.steps for one in step.cites if one in seen})
     if not all(any(one in by_id for one in step.cites) for step in chain):
         return None, []
     logger.info("%s signing back in at %s with %s", workflow.id, where, job.title)

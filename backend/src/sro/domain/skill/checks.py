@@ -257,6 +257,13 @@ def _split(
 
 def _only_signs_in(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
     chain, left, after = _split(workflow, gestures)
+    lands = _lands_on(workflow, gestures)
+    if chain and any(
+        _acts(one) and origin_of(one.system or "") == lands
+        for one in _in_time(workflow, gestures)
+        if one.at < chain[0].at
+    ):
+        return False
     typed_on = {origin_of(gesture.system or "") for gesture in chain if _signed_in_here(gesture)}
     if any(_acts(one) and origin_of(one.system or "") in typed_on for one in after):
         return False
@@ -268,6 +275,11 @@ def _only_signs_in(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
             continue
         return False
     return True
+
+
+def _lands_on(workflow: Workflow, gestures: Mapping[str, Gesture]) -> str | None:
+    where = signs_in_to(workflow, gestures)
+    return where[1] if where is not None else None
 
 
 def _leaves_at(workflow: Workflow, gestures: Mapping[str, Gesture]) -> float | None:
@@ -295,7 +307,13 @@ def is_sign_in_step(workflow: Workflow, step: Step, gestures: Mapping[str, Gestu
     if not cited or any(_did_business(gesture) for gesture in cited):
         return False
     typed = [one.at for one in _in_time(workflow, gestures) if _typed_the_credential(one)]
-    if typed and not writes(step, gestures) and all(one.at < min(typed) for one in cited):
+    lands = _lands_on(workflow, gestures)
+    if (
+        typed
+        and lands is not None
+        and not writes(step, gestures)
+        and all(one.at < min(typed) and origin_of(one.system or "") != lands for one in cited)
+    ):
         return True
     leaves = _leaves_at(workflow, gestures)
     if leaves is not None and any(gesture.at > leaves for gesture in cited):

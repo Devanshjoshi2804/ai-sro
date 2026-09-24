@@ -322,6 +322,47 @@ def test_what_is_done_before_the_credential_is_typed_is_part_of_signing_in() -> 
     assert [is_sign_in_step(job, step, store) for step in job.steps[:3]] == [True, True, False]
 
 
+def test_the_azure_chain_keeps_its_sign_in_steps_and_its_tag() -> None:
+    job, store = _azure_job(), _azure_store()
+
+    assert [is_sign_in_step(job, step, store) for step in job.steps] == [
+        True,
+        True,
+        False,
+        True,
+        False,
+    ]
+    assert signs_in(job, store) is True
+
+
+def test_a_silent_press_on_the_landing_system_before_the_credential_is_not_signing_in() -> None:
+    """Final re-review N-1, 2026-09-24: "Release wave" pressed in the WMS (a
+    full-page post the recorder never hears), the session had lapsed, the
+    operator signed in and landed back in the WMS. Mined as one job, the
+    release is not part of signing in, and the job is not a sign-in."""
+    store = {
+        "release": _did("release", WMS, 1.0),
+        "pw": _typed_secret("pw", KEYCLOAK, 2.0),
+        "go": _left(_did("go", KEYCLOAK, 3.0), WMS),
+    }
+    job = _job("release", "pw", "go")
+
+    assert is_sign_in_step(job, job.steps[0], store) is False
+    assert signs_in(job, store) is False
+
+
+def test_a_keycloak_sign_in_stays_a_sign_in() -> None:
+    store = {
+        "user": replace(_at("user", KEYCLOAK, 1), action=Action(kind="type", at=1, value="u")),
+        "pw": _typed_secret("pw", KEYCLOAK, 2),
+        "go": _left(_did("go", KEYCLOAK, 3), WMS),
+    }
+    job = _job("user", "pw", "go")
+
+    assert [is_sign_in_step(job, step, store) for step in job.steps] == [True, True, True]
+    assert signs_in(job, store) is True
+
+
 def test_a_recorded_write_before_the_credential_is_still_a_write() -> None:
     store = {"a": _wrote("a", KEYCLOAK, 1, 302), "b": _secret("b", KEYCLOAK, 2)}
     job = _job("a", "b")

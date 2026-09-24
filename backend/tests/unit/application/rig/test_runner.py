@@ -1950,8 +1950,10 @@ async def _a_way_back_in(
 
     `in_order` spreads it out the way the deployment's chain happened, a
     minute after the measured batch: the doors a second apart, then a step
-    that types the password and presses a Sign In that leaves for the
-    system."""
+    that types the password on the form's own host and presses a Sign In,
+    then a click on the system. As on the deployment (`wfl_5873ec01`), the
+    Sign In's recorded redirect ends on the chooser's host on its way back;
+    where the sign-in landed is the click after it, which the chain cuts."""
     doors = [
         replace(
             _evidence(uow)[0],
@@ -1982,23 +1984,38 @@ async def _a_way_back_in(
             for n, one in enumerate(doors)
         ]
         typed = start + how_many
+        form = "https://kc.test"
         password = replace(
             _password_beside(doors[-1]),
             at=typed,
+            url=f"{form}/auth",
+            page_url=f"{form}/auth",
+            system=form,
             action=Action(kind="type", at=typed, secret=True),
             page_events=[],
         )
         leaves = replace(
-            doors[-1],
+            password,
             id="ges_sign_in",
             at=typed + 1,
             action=Action(kind="click", at=typed + 1),
-            page_events=[PageMark(at=typed + 1, page_kind="load", url=f"{landed}/home")],
+            page_events=[PageMark(at=typed + 1, page_kind="navigated", url=f"{LOGIN}/back")],
         )
-        await uow.gestures.add_gestures((*doors, password, leaves))
-        steps.append(
-            Step(order=how_many, says="Sign in", system=None, cites=[password.id, leaves.id])
+        there = replace(
+            _evidence(uow)[0],
+            id="ges_landed",
+            at=typed + 20,
+            action=Action(kind="click", at=typed + 20),
+            url=f"{landed}/home",
+            page_url=f"{landed}/home",
+            requests=[],
+            page_events=[],
         )
+        await uow.gestures.add_gestures((*doors, password, leaves, there))
+        steps += [
+            Step(order=how_many, says="Sign in", system=None, cites=[password.id, leaves.id]),
+            Step(order=how_many + 1, says="Open the portal", system=None, cites=[there.id]),
+        ]
     await uow.workflows.save(
         Workflow(
             id="wfl_sso",

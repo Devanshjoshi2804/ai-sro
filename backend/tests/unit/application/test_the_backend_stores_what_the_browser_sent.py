@@ -284,6 +284,56 @@ def test_a_key_rendered_on_screen_does_not_survive_the_snapshot_tree() -> None:
     assert out["snapshot"]["nodes"][1]["name"] == "Service Level", "real page text is untouched"
 
 
+async def test_a_token_in_an_iframe_hop_does_not_survive_ingest() -> None:
+    """E3 added `gesture.frame_path[].url`, the chain of iframe URLs a gesture
+    was found through, and `_gesture` never ran it through `redact_url`: a
+    token in an iframe URL's query string or fragment went to the blob store
+    raw. Both a `?access_token=` and a `#id_token=` hop are checked, since
+    `redact_url` treats the query and the fragment separately."""
+    events = _events()
+    click = copy.deepcopy(events[3])
+    click["gesture"]["frame_path"] = [
+        {"index": 0, "url": "https://top.example/shell"},
+        {
+            "index": 1,
+            "url": (
+                "https://embed.example/widget"
+                "?access_token=live-secret-token"
+                "#id_token=live-secret-id-token"
+            ),
+        },
+    ]
+
+    uow = FakeUnitOfWork()
+    blobs = FakeBlobStore()
+    await SetObservationPolicy(uow).execute(ACME, policy=ObservationPolicy().enabled())
+    registered = await RegisterDevice(uow, FakeClock(), FakeIdFactory()).execute(
+        ACME, label="laptop", extension_version="0.1.0"
+    )
+
+    stored = await IngestObservation(uow, blobs, FakeClock()).execute(
+        ACME,
+        device_id=registered.device_id,
+        secret=registered.secret,
+        batch_id=BatchId("bat_with_a_token_in_a_frame_hop"),
+        started_at=datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+        ended_at=datetime(2026, 3, 1, 9, 5, tzinfo=UTC),
+        mode=CaptureMode.PASSIVE,
+        events=[click],
+    )
+
+    assert stored.stored_at is not None
+    written = (await blobs.read(stored.stored_at)).decode("utf-8")
+    assert "live-secret-token" not in written, "an access_token in a frame hop reached the blob"
+    assert "live-secret-id-token" not in written, "an id_token in a frame hop reached the blob"
+    assert "https://embed.example/widget" in written, "the hop's host and path are still evidence"
+
+    (correlated,) = uow.gestures.rows.values()
+    hops = repr(correlated.action.frame_path)
+    assert "live-secret-token" not in hops, "the correlated gesture kept the raw access_token"
+    assert "live-secret-id-token" not in hops, "the correlated gesture kept the raw id_token"
+
+
 def test_the_snapshot_tree_keeps_its_own_vocabulary() -> None:
     """`token` and `tokenList` are CDP AXValue TYPE descriptors and this corpus
     holds 2,573 of them. A name rule here would blank the tree's structure for

@@ -717,9 +717,13 @@ class TestWorkflowRuns:
             found = await work.workflow_runs.outcomes_since(TENANT, since=_at(9))
         assert sorted(found) == [("held", False, 1), ("held", True, 2), ("stopped", False, 1)]
 
-    async def test_save_replaces_a_runs_steps_rather_than_appending(
+    async def test_save_upserts_a_runs_steps_and_never_deletes_the_rest(
         self, store: UnitOfWork
     ) -> None:
+        """D1: `save` upserts the steps it carries by `order`, changing a step
+        already there and adding a step that is new, but never deletes a step
+        it does not carry -- a stale save (fewer steps than the row already
+        has) must not erase a step another writer has since added."""
         async with store as work:
             await work.workflow_runs.save(
                 _run(
@@ -734,14 +738,17 @@ class TestWorkflowRuns:
 
         async with store as work:
             await work.workflow_runs.save(
-                _run("run_1", steps=[RunStep(order=0, says="scan", verdict="held")])
+                _run("run_1", steps=[RunStep(order=0, says="scanned", verdict="read")])
             )
             await work.commit()
 
         async with store as work:
             kept = await work.workflow_runs.get(TENANT, "run_1")
         assert kept is not None
-        assert [step.says for step in kept.steps] == ["scan"]
+        by_order = {step.order: step for step in kept.steps}
+        assert by_order[0].says == "scanned"
+        assert by_order[0].verdict == "read"
+        assert by_order[1].says == "place"
 
     async def test_a_run_carries_back_the_step_it_was_saved_at(self, store: UnitOfWork) -> None:
         """Both repositories, one assertion. The fake keeps a dataclass and the

@@ -23,6 +23,7 @@ import pytest
 from fastapi.routing import APIRoute
 from starlette.routing import BaseRoute
 
+from sro.config import get_settings
 from sro.interface.http.app import create_app
 
 app = create_app()
@@ -74,7 +75,9 @@ class TestFuzz:
     # About the test harness, not about the app.
     @pytest.mark.filterwarnings("ignore::ResourceWarning")
     @pytest.mark.filterwarnings("ignore::pytest.PytestUnraisableExceptionWarning")
-    def test_every_operation_answers_within_its_contract(self) -> None:
+    def test_every_operation_answers_within_its_contract(
+        self, postgres_url: str, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """It used to assert that the list of operations was non-empty and send
         no request, so nothing was driven and nothing was checked. Driving them
         found that every 401 answered `{"detail": ...}` rather than the problem
@@ -84,14 +87,27 @@ class TestFuzz:
         exercise the success paths, and what it is checking is that a failure
         is shaped the way the document says it is -- which is exactly what a
         generated client breaks on.
-        """
-        schemathesis = pytest.importorskip("schemathesis")
-        schema = schemathesis.openapi.from_dict(schema_dict)
-        schema.app = app
 
-        for operation in schema.get_all_operations():
-            ready = operation.ok()
-            case = ready.Case(
-                path_parameters=dict.fromkeys(re.findall(r"{(\w+)}", ready.path), "no-such-thing")
-            )
-            case.validate_response(case.call(app=app))
+        Calling the app still runs its ASGI lifespan, and the lifespan's
+        startup sweep (``on_start``) queries the database ``SRO_DATABASE_URL``
+        names -- the developer's own, unmigrated ``sro`` by default. Pointed
+        at the same per-session migrated database the integration suite uses
+        instead, with the settings cache cleared so the app picks the change up.
+        """
+        monkeypatch.setenv("SRO_DATABASE_URL", postgres_url)
+        get_settings.cache_clear()
+        try:
+            schemathesis = pytest.importorskip("schemathesis")
+            schema = schemathesis.openapi.from_dict(schema_dict)
+            schema.app = app
+
+            for operation in schema.get_all_operations():
+                ready = operation.ok()
+                case = ready.Case(
+                    path_parameters=dict.fromkeys(
+                        re.findall(r"{(\w+)}", ready.path), "no-such-thing"
+                    )
+                )
+                case.validate_response(case.call(app=app))
+        finally:
+            get_settings.cache_clear()

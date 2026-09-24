@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+from dataclasses import replace
 from datetime import datetime
 
 from sro.application.capture.rig_wire import Batch, GestureEvent, RequestEvent, SnapshotEvent
@@ -9,6 +11,7 @@ from sro.application.capture.rig_wire import PageEvent as WirePageEvent
 from sro.application.capture.rig_wire import Request as WireRequest
 from sro.domain.observation.gesture import (
     Action,
+    AfterState,
     Body,
     Call,
     Component,
@@ -43,32 +46,36 @@ def correlate(batch: Batch, tenant: str) -> tuple[list[Gesture], list[Call], lis
     requests: list[RequestEvent] = []
     pages: list[tuple[float, WirePageEvent]] = []
     snapshots_ignored = 0
+    priors: dict[str, AfterState] = {}
 
     for event in batch.events:
         if isinstance(event, SnapshotEvent):
             snapshots_ignored += 1
         elif isinstance(event, GestureEvent):
-            gestures.append(
-                Gesture(
-                    id=new_gesture_id(),
-                    tenant=tenant,
-                    stream_id=batch.device_id,
-                    batch_id=batch.batch_id,
-                    at=event.gesture.at,
-                    url=event.gesture.url,
-                    system=system_of(event.gesture.url),
-                    tab_id=event.tab_id,
-                    frame_url=event.frame_url,
-                    action=as_action(event.gesture),
-                    page_url=event.page_url,
-                )
+            gesture = Gesture(
+                id=new_gesture_id(),
+                tenant=tenant,
+                stream_id=batch.device_id,
+                batch_id=batch.batch_id,
+                at=event.gesture.at,
+                url=event.gesture.url,
+                system=system_of(event.gesture.url),
+                tab_id=event.tab_id,
+                frame_url=event.frame_url,
+                action=as_action(event.gesture),
+                page_url=event.page_url,
             )
+            gestures.append(gesture)
+            if event.gesture.prior is not None:
+                prior = event.gesture.prior
+                priors[gesture.id] = AfterState(prior.value, prior.visible, prior.enabled)
         elif isinstance(event, RequestEvent):
             requests.append(event)
         elif isinstance(event, WirePageEvent):
             pages.append((_epoch(event.at), event))
 
     gestures.sort(key=lambda gesture: gesture.at)
+    _join_after_states(gestures, priors)
 
     orphan_requests: list[Call] = []
     for request_event in sorted(requests, key=lambda e: _epoch(e.request.started_at)):
@@ -90,6 +97,16 @@ def correlate(batch: Batch, tenant: str) -> tuple[list[Gesture], list[Call], lis
             owner.page_events.append(mark)
 
     return gestures, orphan_requests, orphan_pages, snapshots_ignored
+
+
+def _join_after_states(gestures: list[Gesture], priors: Mapping[str, AfterState]) -> None:
+    last: dict[tuple[int | None, str | None], Gesture] = {}
+    for gesture in gestures:
+        key = (gesture.tab_id, gesture.frame_url)
+        before = last.get(key)
+        if before is not None and gesture.id in priors:
+            before.action = replace(before.action, after=priors[gesture.id])
+        last[key] = gesture
 
 
 def _owner(gestures: list[Gesture], when: float, tab_id: int | None) -> Gesture | None:

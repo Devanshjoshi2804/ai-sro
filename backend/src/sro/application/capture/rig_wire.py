@@ -121,6 +121,18 @@ class FrameHop(BaseModel):
         return self
 
 
+class AfterState(BaseModel):
+    value: str | None = None
+    visible: bool | None = None
+    enabled: bool | None = None
+
+    @model_validator(mode="after")
+    def a_credential_in_a_state_is_dropped_here(self) -> "AfterState":
+        if self.value:
+            self.value = redact_shapes(self.value)
+        return self
+
+
 class Gesture(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
@@ -134,6 +146,7 @@ class Gesture(BaseModel):
     trusted: bool | None = None
     at: float
     url: str | None = None
+    prior: AfterState | None = None
 
     @model_validator(mode="after")
     def a_credential_value_is_dropped_here(self) -> "Gesture":

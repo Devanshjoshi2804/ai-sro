@@ -11,7 +11,7 @@
           "type": "internalRole",
           "value": 144
         },
-        "frameId": "29171EE3A45C0D3DED2C55B42C4E6DC8",
+        "frameId": "73292086E763FFC68859D721E4235E8F",
         "ignored": false,
         "name": {
           "sources": [
@@ -56,7 +56,7 @@
             "name": "url",
             "value": {
               "type": "string",
-              "value": "http://127.0.0.1:61742/"
+              "value": "http://127.0.0.1:63153/"
             }
           }
         ],
@@ -588,16 +588,12 @@
         "role": {
           "type": "role",
           "value": "textbox"
-        },
-        "value": {
-          "type": "string",
-          "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
         }
       },
       {
         "backendDOMNodeId": 26,
         "childIds": [
-          "48"
+          "47"
         ],
         "chromeRole": {
           "type": "internalRole",
@@ -732,7 +728,7 @@
       {
         "backendDOMNodeId": 39,
         "childIds": [
-          "49"
+          "48"
         ],
         "chromeRole": {
           "type": "internalRole",
@@ -864,7 +860,7 @@
       {
         "backendDOMNodeId": 15,
         "childIds": [
-          "50"
+          "49"
         ],
         "chromeRole": {
           "type": "internalRole",
@@ -1047,9 +1043,7 @@
       },
       {
         "backendDOMNodeId": 25,
-        "childIds": [
-          "47"
-        ],
+        "childIds": [],
         "chromeRole": {
           "type": "internalRole",
           "value": 88
@@ -1086,9 +1080,9 @@
         }
       },
       {
-        "backendDOMNodeId": 48,
+        "backendDOMNodeId": 47,
         "childIds": [
-          "-1000000007"
+          "-1000000006"
         ],
         "chromeRole": {
           "type": "internalRole",
@@ -1108,7 +1102,7 @@
           "type": "computedString",
           "value": "Dock"
         },
-        "nodeId": "48",
+        "nodeId": "47",
         "parentId": "26",
         "properties": [],
         "role": {
@@ -1154,9 +1148,9 @@
         }
       },
       {
-        "backendDOMNodeId": 49,
+        "backendDOMNodeId": 48,
         "childIds": [
-          "-1000000008"
+          "-1000000007"
         ],
         "chromeRole": {
           "type": "internalRole",
@@ -1176,7 +1170,7 @@
           "type": "computedString",
           "value": "Manifest"
         },
-        "nodeId": "49",
+        "nodeId": "48",
         "parentId": "39",
         "properties": [],
         "role": {
@@ -1185,9 +1179,9 @@
         }
       },
       {
-        "backendDOMNodeId": 50,
+        "backendDOMNodeId": 49,
         "childIds": [
-          "-1000000009"
+          "-1000000008"
         ],
         "chromeRole": {
           "type": "internalRole",
@@ -1207,7 +1201,7 @@
           "type": "computedString",
           "value": "Save"
         },
-        "nodeId": "50",
+        "nodeId": "49",
         "parentId": "15",
         "properties": [],
         "role": {
@@ -1293,45 +1287,6 @@
         }
       },
       {
-        "backendDOMNodeId": 47,
-        "childIds": [
-          "-1000000006"
-        ],
-        "chromeRole": {
-          "type": "internalRole",
-          "value": 158
-        },
-        "ignored": false,
-        "name": {
-          "sources": [
-            {
-              "type": "contents",
-              "value": {
-                "type": "computedString",
-                "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-              }
-            }
-          ],
-          "type": "computedString",
-          "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-        },
-        "nodeId": "47",
-        "parentId": "25",
-        "properties": [
-          {
-            "name": "editable",
-            "value": {
-              "type": "token",
-              "value": "plaintext"
-            }
-          }
-        ],
-        "role": {
-          "type": "internalRole",
-          "value": "StaticText"
-        }
-      },
-      {
         "childIds": [],
         "chromeRole": {
           "type": "internalRole",
@@ -1342,8 +1297,8 @@
           "type": "computedString",
           "value": "Dock"
         },
-        "nodeId": "-1000000007",
-        "parentId": "48",
+        "nodeId": "-1000000006",
+        "parentId": "47",
         "properties": [],
         "role": {
           "type": "internalRole",
@@ -1475,8 +1430,8 @@
           "type": "computedString",
           "value": "Manifest"
         },
-        "nodeId": "-1000000008",
-        "parentId": "49",
+        "nodeId": "-1000000007",
+        "parentId": "48",
         "properties": [],
         "role": {
           "type": "internalRole",
@@ -1494,8 +1449,8 @@
           "type": "computedString",
           "value": "Save"
         },
-        "nodeId": "-1000000009",
-        "parentId": "50",
+        "nodeId": "-1000000008",
+        "parentId": "49",
         "properties": [],
         "role": {
           "type": "internalRole",
@@ -1528,37 +1483,10 @@
           "type": "internalRole",
           "value": "InlineTextBox"
         }
-      },
-      {
-        "childIds": [],
-        "chromeRole": {
-          "type": "internalRole",
-          "value": 101
-        },
-        "ignored": false,
-        "name": {
-          "type": "computedString",
-          "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-        },
-        "nodeId": "-1000000006",
-        "parentId": "47",
-        "properties": [
-          {
-            "name": "editable",
-            "value": {
-              "type": "token",
-              "value": "plaintext"
-            }
-          }
-        ],
-        "role": {
-          "type": "internalRole",
-          "value": "InlineTextBox"
-        }
       }
     ]
   },
-  "url": "http://127.0.0.1:61742/",
-  "taken_at": "2026-09-24T19:04:40.306Z",
-  "tab_id": 921728413
+  "url": "http://127.0.0.1:63153/",
+  "taken_at": "2026-09-24T19:11:36.587Z",
+  "tab_id": 112149762
 }

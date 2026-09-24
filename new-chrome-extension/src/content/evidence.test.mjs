@@ -69,3 +69,20 @@ test("a frame records where it sits, from the top down", () => {
   ]);
   assert.deepEqual(framePathOf(top), []);
 });
+
+test("the state a gesture left is read without a credential", () => {
+  const window = { getComputedStyle: () => ({ visibility: "visible", display: "block" }) };
+  const { stateOf } = lift(["isSecretName", "isSecretField", "stateOf"], {
+    window,
+    SECRET_WORDS: new Set(["password"]),
+    wordsOf: (text) => String(text || "").toLowerCase().split(/[^a-z]+/).filter(Boolean),
+  });
+  const box = () => ({ width: 10, height: 10 });
+  const field = (attrs, value) => ({
+    nodeType: 1, isConnected: true, value, disabled: false, type: attrs.type || "text",
+    getAttribute: (name) => attrs[name] ?? null, getBoundingClientRect: box,
+  });
+
+  assert.deepEqual(stateOf(field({ name: "code" }, "GT2")), { value: "GT2", visible: true, enabled: true });
+  assert.equal(stateOf(field({ type: "password" }, "hunter2")).value, null);
+});

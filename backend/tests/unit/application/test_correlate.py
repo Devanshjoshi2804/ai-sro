@@ -285,6 +285,20 @@ def test_a_page_that_said_nothing_about_a_field_stores_nothing() -> None:
     assert target is not None and target.required is None
 
 
+def test_a_gesture_gets_the_state_its_target_was_in_when_the_next_one_came() -> None:
+    first = copy.deepcopy(GESTURE_TYPE)
+    second = copy.deepcopy(GESTURE_TYPE)
+    second["gesture"]["at"] = first["gesture"]["at"] + 2
+    second["gesture"]["prior"] = {"value": "GT2", "visible": True, "enabled": True}
+
+    gestures, _, _, _ = correlate(_batch([first, second]), TENANT)
+
+    after = gestures[0].action.after
+    assert after is not None
+    assert (after.value, after.visible, after.enabled) == ("GT2", True, True)
+    assert gestures[1].action.after is None
+
+
 def test_a_popup_mark_keeps_the_tab_that_opened_it() -> None:
     popup = {**copy.deepcopy(PAGE_NAVIGATED), "page_kind": "popup_opened", "opener_tab_id": 7}
 
@@ -309,8 +323,11 @@ def test_every_captured_detail_of_the_control_is_kept_and_stored() -> None:
     event["gesture"]["frame_path"] = [{"index": 1, "url": "https://wms.example/shell"}]
     event["gesture"]["detail"] = 0
     event["gesture"]["trusted"] = False
+    next_event = copy.deepcopy(GESTURE_TYPE)
+    next_event["gesture"]["at"] = event["gesture"]["at"] + 2
+    next_event["gesture"]["prior"] = {"value": "GT2", "visible": True, "enabled": True}
 
-    gestures, _, _, _ = correlate(_batch([event]), TENANT)
+    gestures, _, _, _ = correlate(_batch([event, next_event]), TENANT)
     stored = _row_to_gesture(_gesture_to_row(gestures[0]))
 
     action = stored.action
@@ -324,6 +341,8 @@ def test_every_captured_detail_of_the_control_is_kept_and_stored() -> None:
     assert [(hop.index, hop.url) for hop in action.frame_path] == [(1, "https://wms.example/shell")]
     assert action.detail == 0
     assert action.trusted is False
+    assert action.after is not None
+    assert (action.after.value, action.after.visible, action.after.enabled) == ("GT2", True, True)
     assert hash(action)
 
 

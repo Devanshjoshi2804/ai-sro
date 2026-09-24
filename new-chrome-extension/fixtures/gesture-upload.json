@@ -28,11 +28,16 @@
     },
     "value": "manifest.csv",
     "modifiers": [],
+    "prior": {
+      "value": "D3",
+      "visible": true,
+      "enabled": true
+    },
     "frame_path": [],
-    "at": 1790276680.323,
-    "url": "http://127.0.0.1:61742/"
+    "at": 1790277096.62,
+    "url": "http://127.0.0.1:63153/"
   },
-  "tab_id": 921728413,
-  "frame_url": "http://127.0.0.1:61742/",
-  "page_url": "http://127.0.0.1:61742/"
+  "tab_id": 112149762,
+  "frame_url": "http://127.0.0.1:63153/",
+  "page_url": "http://127.0.0.1:63153/"
 }

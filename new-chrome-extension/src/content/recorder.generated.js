@@ -212,6 +212,24 @@
     return isSecretName(named);
   };
 
+  const stateOf = (el) => {
+    if (!el || el.nodeType !== 1 || el.isConnected === false) {
+      return { value: null, visible: false, enabled: null };
+    }
+    const box = el.getBoundingClientRect();
+    const style = window.getComputedStyle(el);
+    const visible =
+      box.width > 0 && box.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+    const enabled = !(el.disabled === true || el.getAttribute('aria-disabled') === 'true');
+    const value =
+      isSecretField(el) || el.value === undefined || el.value === null
+        ? null
+        : String(el.value).slice(0, MAX_VALUE);
+    return { value, visible, enabled };
+  };
+
+  let last = null;
+
   // What the page says about whether this field is mandatory, or null where
   // it says nothing. Read off the control and off the label that names it: a
   // form marks the star on the label, not on the input.
@@ -348,11 +366,14 @@
     return mods;
   };
 
-  const emit = (record) => {
+  const emit = (record, el = null) => {
+    const prior = last ? stateOf(last) : null;
+    last = el;
     try {
       window.__sroRecord(
         JSON.stringify({
           ...record,
+          prior,
           frame_path: framePathOf(window),
           at: Date.now() / 1000,
           url: location.href,
@@ -365,13 +386,16 @@
   };
 
   listen('click', (e) =>
-    emit({
-      kind: 'click',
-      target: describe(e.target),
-      modifiers: modifiers(e),
-      detail: e.detail,
-      trusted: e.isTrusted,
-    }),
+    emit(
+      {
+        kind: 'click',
+        target: describe(e.target),
+        modifiers: modifiers(e),
+        detail: e.detail,
+        trusted: e.isTrusted,
+      },
+      e.target,
+    ),
   );
 
   // One event per completed edit rather than per keystroke: `change` fires on
@@ -380,30 +404,39 @@
     const el = e.target;
     if (!el) return;
     if (el.type === 'file' && el.files) {
-      emit({
-        kind: 'upload',
-        target: describe(el),
-        value: [...el.files].map((file) => file.name).join(', ').slice(0, MAX_VALUE),
-        modifiers: [],
-      });
+      emit(
+        {
+          kind: 'upload',
+          target: describe(el),
+          value: [...el.files].map((file) => file.name).join(', ').slice(0, MAX_VALUE),
+          modifiers: [],
+        },
+        el,
+      );
       return;
     }
     const kind = el.tagName === 'SELECT' ? 'select' : 'type';
     const secret = isSecretField(el);
-    emit({
-      kind,
-      target: describe(el),
-      value: secret ? null : (el.value == null ? null : String(el.value).slice(0, MAX_VALUE)),
-      secret,
-      modifiers: [],
-    });
+    emit(
+      {
+        kind,
+        target: describe(el),
+        value: secret ? null : (el.value == null ? null : String(el.value).slice(0, MAX_VALUE)),
+        secret,
+        modifiers: [],
+      },
+      el,
+    );
   });
 
   listen('keydown', (e) => {
     // Only keys that commit or cancel. Every other keystroke arrives as the
     // `change` value above.
     if (!['Enter', 'Escape', 'Tab'].includes(e.key)) return;
-    emit({ kind: 'press', target: describe(e.target), value: e.key, modifiers: modifiers(e) });
+    emit(
+      { kind: 'press', target: describe(e.target), value: e.key, modifiers: modifiers(e) },
+      e.target,
+    );
   });
 
   let scrollTimer = null;

@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, async_sessionmaker
+from sqlalchemy.pool import NullPool
 
 from sro.application.analytics.audit import ReadAudit
 from sro.application.analytics.summary import ReadSummary
@@ -107,6 +108,7 @@ from sro.application.ports.embedding import Embedder
 from sro.application.ports.http import HttpCaller
 from sro.application.ports.intent import IntentParser
 from sro.application.ports.interpretation import WorkflowInterpreter
+from sro.application.ports.locks import AccountLocks
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.schedule import Scheduler
@@ -147,6 +149,7 @@ from sro.infrastructure.agent.sockets import DeviceSockets
 from sro.infrastructure.auth.keycloak import KeycloakTokens
 from sro.infrastructure.auth.signed_tokens import SignedTokens
 from sro.infrastructure.blob.minio_store import MinioBlobStore
+from sro.infrastructure.db.locks import PostgresAccountLocks
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from sro.infrastructure.db.schema_version import SchemaVersion, announce, schema_version
 from sro.infrastructure.db.session import create_engine, create_session_factory
@@ -203,6 +206,7 @@ class Container:
     tools: ToolCaller
     ui: UiDriver
     sign_in_driver: SignInDriver
+    locks: AccountLocks
     tokens: TokenSource | None
     credentials: Credentials
     durable: DurableExecution
@@ -939,6 +943,7 @@ def build_container(settings: Settings | None = None) -> Container:
         tools=McpToolCaller(_servers(settings.mcp_servers), vault=built_vault),
         ui=PlaywrightUiDriver(settings.ui_debugger_url),
         sign_in_driver=PlaywrightSignIn(),
+        locks=PostgresAccountLocks(create_engine(settings.database_url, poolclass=NullPool)),
         tokens=(
             KeycloakTokens(
                 built_vault,

@@ -5,10 +5,8 @@ Ported from `new_agent_arch/src/rig/api.py:1495`. Tenant-only, as it is there
 against the tenant's day, and a browser proving itself with its own secret must
 not be able to spend the tenant's budget by typing into a box.
 
-**Not `POST /v1/intent/resolve`.** That one resolves an utterance over this
-tenant's *skills*, with no model call in it at all. This one resolves over the
-*workflows* a mining pass read out of what an operator was seen doing, and it
-bills for the reading. Two resolvers, two vocabularies, one verb between them.
+It resolves over the *workflows* a mining pass read out of what an operator
+was seen doing, and it bills for the reading.
 
 Offers, never starts. What comes back is a form the operator confirms; the
 press that authorises a run is a different door.

@@ -69,7 +69,7 @@ async def store_secret(
 async def hold_secret_for_one_run(
     body: NewSecretOnceRequest, container: ContainerDep, ctx: ContextDep
 ) -> SecretHeldModel:
-    """Keep one password for the next run that types it, and nowhere else.
+    """Keep one password for the run named in the body, and nowhere else.
 
     The other answer to the question `PUT /v1/secrets` asks. An operator
     signing into a system whose credential does not belong in this
@@ -77,8 +77,9 @@ async def hold_secret_for_one_run(
     memory, handed to that run and nothing else, and forgotten -- there is
     nothing to rotate and nothing to delete afterwards.
 
-    `POST` and not `PUT`: this stores nothing. It is a value handed to the
-    next step that asks, which is an action rather than a resource.
+    `POST` and not `PUT`: this stores nothing. It is a value handed to that
+    run's steps for as long as the run lasts, which is an action rather than
+    a resource.
 
     No vault, so a deployment with none configured can still sign in by hand.
     What comes back is the key and when the value is forgotten -- never the

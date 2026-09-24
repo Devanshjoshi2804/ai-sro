@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/interface/http/v1/routers/chat.py`](../../../../../../../../../backend/src/sro/interface/http/v1/routers/chat.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `read_chat`, [line 52](../../../../../../../../../backend/src/sro/interface/http/v1/routers/chat.py#L52): Comment
+## `read_chat`, [line 50](../../../../../../../../../backend/src/sro/interface/http/v1/routers/chat.py#L50): Comment
 
 Code: `await container.record_attempt().execute(`
 

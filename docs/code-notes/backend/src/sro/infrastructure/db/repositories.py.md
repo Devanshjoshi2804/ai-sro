@@ -46,12 +46,12 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/db/reposit
 > id: the two-predicate check is ``held_by``, and ``release`` is untenanted on
 > purpose -- the sweep and crash recovery are not anybody's request.
 
-## `SqlToolCallRepository`, [line 845](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L845): Docstring
+## `SqlToolCallRepository`, [line 853](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L853): Docstring
 
 > The claim is the insert. Two writers racing for one key both try it, the
 > primary key refuses one of them, and that refusal is the answer.
 
-## `SqlUnitOfWork`, [line 929](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L929): Docstring
+## `SqlUnitOfWork`, [line 937](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L937): Docstring
 
 > One session per block. The session opens on entry, not on construction,
 > so a unit of work can be built once and used per request.
@@ -75,7 +75,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/db/reposit
 > commits, as it did before; an exception inside a nested block rolls the
 > whole thing back at the outermost exit rather than half of it.
 
-## `SqlToolCallRepository.forget`, [line 877](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L877): Docstring
+## `SqlToolCallRepository.forget`, [line 885](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L885): Docstring
 
 > Delete the claim. Tenant-scoped, unlike the session sweep next door:
 > this is somebody's run giving back its own key, not crash recovery.
@@ -298,7 +298,7 @@ Code: `query = query.where(TaskCandidateRow.host == host.lower())`
 > Stored lowercased by the segmenter, so the caller's spelling of a
 > hostname does not decide whether their own tasks come back.
 
-## `SqlToolCallRepository.remember`, [line 858](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L858): Comment
+## `SqlToolCallRepository.remember`, [line 866](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L866): Comment
 
 Code: `insert = pg_insert(ToolCallRow).values(`
 
@@ -312,7 +312,7 @@ Code: `insert = pg_insert(ToolCallRow).values(`
 > statement, because a read-then-decide here is the race this class
 > exists to lose.
 
-## `SqlToolCallRepository.remember`, [line 873](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L873): Comment
+## `SqlToolCallRepository.remember`, [line 881](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L881): Comment
 
 Code: `).returning(ToolCallRow.idempotency_key)`
 
@@ -320,14 +320,14 @@ Code: `).returning(ToolCallRow.idempotency_key)`
 > driver's, and asking the statement to return the key it wrote
 > answers the same question in one shape everywhere.
 
-## `SqlUnitOfWork.__aexit__`, [line 969](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L969): Comment
+## `SqlUnitOfWork.__aexit__`, [line 977](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L977): Comment
 
 Code: `await session.rollback()`
 
 > At every depth: an inner block that raised must not leave its
 > half-written rows for the outer block to commit.
 
-## `SqlUnitOfWork.commit`, [line 981](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L981): Comment
+## `SqlUnitOfWork.commit`, [line 989](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L989): Comment
 
 Code: `await self._require_session().rollback()`
 

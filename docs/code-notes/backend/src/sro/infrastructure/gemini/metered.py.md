@@ -22,7 +22,7 @@ Comments and docstrings for [`backend/src/sro/infrastructure/gemini/metered.py`]
 > `GeminiInterpreter` is deliberately not metered: its callers (induction and
 > the old candidate naming) are being deleted.
 
-## `Meter.check`, [line 29](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L29): Docstring
+## `Meter.check`, [line 37](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L37): Docstring
 
 > The cap, asked before every call, for the tenant the work is attributed to
 > (`sro.whose`). Over it, `OverCap` is raised in place of the call, which every
@@ -45,7 +45,7 @@ Comments and docstrings for [`backend/src/sro/infrastructure/gemini/metered.py`]
 > and over-cap lines carry it with the model, so a log line says which part of
 > the system hit the cap on which model.
 
-## `Meter.record`, [line 40](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L40): Docstring
+## `Meter.record`, [line 52](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L52): Docstring
 
 > One `model_spend` row per answered call, in its own unit of work: the money
 > was spent whether or not the caller's transaction commits.
@@ -60,21 +60,21 @@ Comments and docstrings for [`backend/src/sro/infrastructure/gemini/metered.py`]
 > A write that fails is logged and swallowed: the caller already has an answer
 > that was paid for, and losing it as well would be the worse outcome.
 
-## `Metered`, [line 75](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L75): Docstring
+## `Metered`, [line 85](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L85): Docstring
 
 > Stands where `genai.Client` stood, exposing the two methods the adapters use
 > under the same path: `client.aio.models.generate_content` and
 > `client.aio.models.embed_content`. Failed calls are not billed -- they raise
 > before `record` -- and a retry that answers is billed once for that answer.
 
-## `Metered.generate_content`, [line 86](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L86): Comment
+## `Metered.generate_content`, [line 96](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L96): Comment
 
 Code: `tools = getattr(usage, "tool_use_prompt_token_count", None) or 0`
 
 > The computer-use driver's tool prompt is input the model is billed for, and
 > it is reported beside the prompt, not inside it.
 
-## `Metered.embed_content`, [line 99](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L99): Comment (debt)
+## `Metered.embed_content`, [line 108](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L108): Comment (debt)
 
 Code: `sent = sum(len(str(one)) for one in contents)`
 

@@ -180,7 +180,7 @@ Code: `VALUED = ("type", "select", "upload", "press")`
 
 > A click on the control this ladder names, carrying no value.
 
-## `_option_named`, [line 359](../../../../../../../backend/src/sro/application/execution/plan_step.py#L359): Docstring
+## `_option_named`, [line 357](../../../../../../../backend/src/sro/application/execution/plan_step.py#L357): Docstring
 
 > The row this step's demonstration chose, said for THIS run's value.
 >
@@ -207,14 +207,14 @@ Code: `VALUED = ("type", "select", "upload", "press")`
 > ending so both answer, and on the component rather than the DOM, because a
 > bound list renders as anonymous divs with generated ids.
 
-## `_point_on`, [line 379](../../../../../../../backend/src/sro/application/execution/plan_step.py#L379): Docstring
+## `_point_on`, [line 376](../../../../../../../backend/src/sro/application/execution/plan_step.py#L376): Docstring
 
 > A point the model gave, if it is inside the picture it was shown.
 >
 > Off the viewport is a guess, and this rung's whole rule is that it does not
 > guess: the picture IS the viewport, so a point outside it was not seen.
 
-## `plan_by_sight`, [line 388](../../../../../../../backend/src/sro/application/execution/plan_step.py#L388): Docstring
+## `plan_by_sight`, [line 385](../../../../../../../backend/src/sro/application/execution/plan_step.py#L385): Docstring
 
 > The rung below the locator ladder: find the control by looking.
 >
@@ -434,7 +434,7 @@ Code: `if action not in VALUED:`
 > sends from, and safe there for the same reason: opening a list, like
 > going to a page, is not the writing.
 
-## `plan_step`, [line 286](../../../../../../../backend/src/sro/application/execution/plan_step.py#L286): Comment
+## `plan_step`, [line 284](../../../../../../../backend/src/sro/application/execution/plan_step.py#L284): Comment
 
 Code: `secret = None`
 
@@ -447,7 +447,7 @@ Code: `secret = None`
 > a login form: a blank submits, fails, and looks to everybody like the job
 > being broken.
 
-## `plan_step`, [line 295](../../../../../../../backend/src/sro/application/execution/plan_step.py#L295): Comment
+## `plan_step`, [line 293](../../../../../../../backend/src/sro/application/execution/plan_step.py#L293): Comment
 
 Code: `here = look.url or (look.elsewhere if look.elsewhere_is_ours else "")`
 
@@ -484,14 +484,14 @@ Code: `return Planned(`
 > able to draw "this job needs your password for <system>" and a
 > box -- which it cannot do by parsing a sentence.
 
-## `plan_step`, [line 316](../../../../../../../backend/src/sro/application/execution/plan_step.py#L316): Comment
+## `plan_step`, [line 314](../../../../../../../backend/src/sro/application/execution/plan_step.py#L314): Comment
 
 Code: `"value": secret`
 
 > str(), because nothing validates the model's answer against the
 > schema: a `"value": 123` otherwise reaches the extension as an int.
 
-## `plan_step`, [line 321](../../../../../../../backend/src/sro/application/execution/plan_step.py#L321): Comment
+## `plan_step`, [line 319](../../../../../../../backend/src/sro/application/execution/plan_step.py#L319): Comment
 
 Code: `"locators": [rung.as_payload() for rung in _ladder(primary, learned)],`
 
@@ -506,7 +506,7 @@ Code: `"locators": [rung.as_payload() for rung in _ladder(primary, learned)],`
 > afternoon each spent two model calls and a screenshot re-deriving
 > that the control is called "Customer Types".
 
-## `plan_step`, [line 328](../../../../../../../backend/src/sro/application/execution/plan_step.py#L328): Comment
+## `plan_step`, [line 326](../../../../../../../backend/src/sro/application/execution/plan_step.py#L326): Comment
 
 Code: `chosen = str(payload["value"]) if action in VALUED and payload.get("value") else ""`
 
@@ -540,7 +540,7 @@ Code: `chosen = str(payload["value"]) if action in VALUED and payload.get("value
 > chose is known either way; the value is the run's own, under whatever
 > name the box answers to.
 
-## `plan_by_sight`, [line 402](../../../../../../../backend/src/sro/application/execution/plan_step.py#L402): Comment
+## `plan_by_sight`, [line 399](../../../../../../../backend/src/sro/application/execution/plan_step.py#L399): Comment
 
 Code: `why = f"no screen to look at: {look.refused}" if look.refused else "no screen to look at"`
 
@@ -549,7 +549,7 @@ Code: `why = f"no screen to look at: {look.refused}" if look.refused else "no sc
 > away and a picture of zero size, and a step that fails for a reason
 > nobody can read is a step nobody can fix.
 
-## `plan_by_sight`, [line 430](../../../../../../../backend/src/sro/application/execution/plan_step.py#L430): Comment
+## `plan_by_sight`, [line 427](../../../../../../../backend/src/sro/application/execution/plan_step.py#L427): Comment
 
 Code: `found = points_at == "the_control" if points_at else bool(data.get("found"))`
 
@@ -558,7 +558,7 @@ Code: `found = points_at == "the_control" if points_at else bool(data.get("found
 > answers without `points_at` at all, and its answers still mean what they
 > always did.
 
-## `plan_by_sight`, [line 432](../../../../../../../backend/src/sro/application/execution/plan_step.py#L432): Comment
+## `plan_by_sight`, [line 429](../../../../../../../backend/src/sro/application/execution/plan_step.py#L429): Comment
 
 Code: `clearing = points_at in ("what_reveals_it", "what_is_in_the_way")`
 
@@ -584,7 +584,7 @@ Code: `clearing = points_at in ("what_reveals_it", "what_is_in_the_way")`
 > click it and look again. A menu to open is the control being
 > somewhere else; a dialog to dismiss is something on top of it.
 
-## `plan_by_sight`, [line 448](../../../../../../../backend/src/sro/application/execution/plan_step.py#L448): Comment
+## `plan_by_sight`, [line 445](../../../../../../../backend/src/sro/application/execution/plan_step.py#L445): Comment
 
 Code: `offered = {"x": data.get("x"), "y": data.get("y")} if clearing else None`
 
@@ -592,13 +592,13 @@ Code: `offered = {"x": data.get("x"), "y": data.get("y")} if clearing else None`
 > alternative is reading the same prose twice and not knowing whether
 > the model would not point or pointed off the picture.
 
-## `plan_by_sight`, [line 456](../../../../../../../backend/src/sro/application/execution/plan_step.py#L456): Comment
+## `plan_by_sight`, [line 453](../../../../../../../backend/src/sro/application/execution/plan_step.py#L453): Comment
 
 Code: `if not (`
 
 > Inside the picture, or nowhere: a point off the viewport is a guess.
 
-## `plan_by_sight`, [line 460](../../../../../../../backend/src/sro/application/execution/plan_step.py#L460): Comment
+## `plan_by_sight`, [line 457](../../../../../../../backend/src/sro/application/execution/plan_step.py#L457): Comment
 
 Code: `action = data.get("action")`
 

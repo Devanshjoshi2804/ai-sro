@@ -39,7 +39,7 @@ Comments and docstrings moved out of [`backend/scripts/check_code_notes.py`](../
 > them; `parse_anchors` below is what turns that non-match into a reported
 > finding instead of a silent skip.
 
-## `resolve_symbol`, [line 112](../../../../backend/scripts/check_code_notes.py#L112): Function
+## `resolve_symbol`, [line 154](../../../../backend/scripts/check_code_notes.py#L154): Function
 
 > A dotted name (`Container`, `Container.claim_the_runs`, a bare module-level
 > constant like `LATCH_AT`) walked one segment at a time through direct
@@ -54,7 +54,7 @@ Comments and docstrings moved out of [`backend/scripts/check_code_notes.py`](../
 > to a name-only lookup, and both get reported rather than resolved to
 > whichever match happened to come first.
 
-## `evaluate_anchor`, [line 134](../../../../backend/scripts/check_code_notes.py#L134): Function
+## `evaluate_anchor`, [line 176](../../../../backend/scripts/check_code_notes.py#L176): Function
 
 > Where one anchor's line should be, without yet trusting position to settle
 > a tie -- that needs every anchor's `"certain"` result gathered first (see
@@ -71,7 +71,7 @@ Comments and docstrings moved out of [`backend/scripts/check_code_notes.py`](../
 > in one function from resolving a note written about `import json` in
 > another.
 
-## `order_violations`, [line 175](../../../../backend/scripts/check_code_notes.py#L175): Function
+## `order_violations`, [line 217](../../../../backend/scripts/check_code_notes.py#L217): Function
 
 > The rule `resolve_note_file` relies on to break an `"ambiguous"` tie --
 > the notes for one symbol are written in source order, so the next one's
@@ -90,7 +90,7 @@ Comments and docstrings moved out of [`backend/scripts/check_code_notes.py`](../
 > no finding at all, which is most of them, measured on this repository --
 > a fact worth nothing to `check` until it actually blocks something.
 
-## `resolve_note_file`, [line 194](../../../../backend/scripts/check_code_notes.py#L194): Function
+## `resolve_note_file`, [line 236](../../../../backend/scripts/check_code_notes.py#L236): Function
 
 > One note file, anchor by anchor, in heading order. `"certain"` results
 > feed `last_resolved` outright; an `"ambiguous"` one is resolved the same
@@ -107,7 +107,7 @@ Comments and docstrings moved out of [`backend/scripts/check_code_notes.py`](../
 > next-note-after-previous-note -- does not care which way a line was
 > confirmed, only that it was.
 
-## `run`, [line 257](../../../../backend/scripts/check_code_notes.py#L257): Function
+## `run`, [line 299](../../../../backend/scripts/check_code_notes.py#L299): Function
 
 > One pass over every note file. A note file is rewritten once, in place,
 > only if at least one of its anchors resolved to a line different from the

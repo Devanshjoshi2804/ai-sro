@@ -710,7 +710,7 @@ Code: `k: Mapped[int] = mapped_column(Integer, nullable=False)`
 > arrival nudge -- "you have been here before", nothing typed -- which is
 > neither kind of evidence and is filtered out of the counsel window.
 
-## `ChatRow`, [line 853](../../../../../../../backend/src/sro/infrastructure/db/models.py#L853): Docstring
+## `ChatRow`, [line 871](../../../../../../../backend/src/sro/infrastructure/db/models.py#L871): Docstring
 
 > One sentence the chat door read, and what the reading cost.
 >
@@ -718,19 +718,19 @@ Code: `k: Mapped[int] = mapped_column(Integer, nullable=False)`
 > words about their warehouse, and the row exists for the cap and the spend
 > line, neither of which needs them.
 
-## `ChatRow`, [line 858](../../../../../../../backend/src/sro/infrastructure/db/models.py#L858): Note on the line above
+## `ChatRow`, [line 876](../../../../../../../backend/src/sro/infrastructure/db/models.py#L876): Note on the line above
 
 Code: `workflow_id: Mapped[str | None] = mapped_column(String(64))`
 
 > The job the sentence turned out to be about, when it was about one.
 
-## `ChatRow`, [line 862](../../../../../../../backend/src/sro/infrastructure/db/models.py#L862): Note on the line above
+## `ChatRow`, [line 880](../../../../../../../backend/src/sro/infrastructure/db/models.py#L880): Note on the line above
 
 Code: `thought_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)`
 
 > Inside out_tokens, not beside them.
 
-## `ChatRow`, [line 865](../../../../../../../backend/src/sro/infrastructure/db/models.py#L865): Note on the line above
+## `ChatRow`, [line 883](../../../../../../../backend/src/sro/infrastructure/db/models.py#L883): Note on the line above
 
 Code: `unpriced: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)`
 

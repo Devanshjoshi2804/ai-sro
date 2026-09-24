@@ -15,28 +15,28 @@ Comments and docstrings moved out of [`backend/src/sro/application/analytics/sum
 > judgement made here. The old engine's `runs` table was read until 2026-09-24,
 > and on a deployment whose work is all mined jobs it read zero.
 
-## module, [line 14](../../../../../../../backend/src/sro/application/analytics/summary.py#L14): Note on the line above
+## module, [line 11](../../../../../../../backend/src/sro/application/analytics/summary.py#L11): Note on the line above
 
 Code: `MOST = 10`
 
 > How many tasks the summary names. A list nobody scrolls is a list nobody
 > reads.
 
-## `Watching`, [line 22](../../../../../../../backend/src/sro/application/analytics/summary.py#L22): Note on the line above
+## `Watching`, [line 19](../../../../../../../backend/src/sro/application/analytics/summary.py#L19): Note on the line above
 
 Code: `hours: float`
 
 > Hours of work observed. The span of the batches, not their number: an
 > extension that uploads every minute would otherwise look like more work.
 
-## `Noticing`, [line 31](../../../../../../../backend/src/sro/application/analytics/summary.py#L31): Note on the line above
+## `Noticing`, [line 25](../../../../../../../backend/src/sro/application/analytics/summary.py#L25): Note on the line above
 
 Code: `by_kind: dict[str, int]`
 
 > Create, Update, Read, Remove -- taken from the calls each task makes, not
 > from anything a person filled in.
 
-## `ReadSummary.execute`, [line 62](../../../../../../../backend/src/sro/application/analytics/summary.py#L62): Note
+## `ReadSummary.execute`, [line 61](../../../../../../../backend/src/sro/application/analytics/summary.py#L61): Note
 
 Code: `noticed = await uow.workflows.noticed_since(ctx.tenant_id, since=since)`
 
@@ -44,12 +44,12 @@ Code: `noticed = await uow.workflows.noticed_since(ctx.tenant_id, since=since)`
 > (a count comes back instead). A job mined before the window is not "noticed"
 > in it, and the list shows the latest jobs rather than the oldest ten.
 
-## `kind_of`, [line 165](../../../../../../../backend/src/sro/application/analytics/summary.py#L165): Docstring
+## `kind_of`, [line 107](../../../../../../../backend/src/sro/application/analytics/summary.py#L107): Docstring
 
 > The verb a mined title starts with. Any other title falls back to "other"
 > rather than being guessed at.
 
-## `TaskLine`, [line 49](../../../../../../../backend/src/sro/application/analytics/summary.py#L49): Comment
+## `TaskLine`, [line 37](../../../../../../../backend/src/sro/application/analytics/summary.py#L37): Comment
 
 Code: `id: str`
 

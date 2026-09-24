@@ -10,7 +10,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/knowledge/
 > body have not changed is judged unchanged and nothing is written, so the second
 > run reports zero and costs one read per claim.
 
-## module, [line 16](../../../../../../../backend/src/sro/infrastructure/knowledge/ingest.py#L16): Note on the line above
+## module, [line 17](../../../../../../../backend/src/sro/infrastructure/knowledge/ingest.py#L17): Note on the line above
 
 Code: `_DEFAULT_ROOT = Path(__file__).resolve().parents[5] / "knowledge-base"`
 
@@ -20,7 +20,7 @@ Code: `_DEFAULT_ROOT = Path(__file__).resolve().parents[5] / "knowledge-base"`
 > anybody noticing, because the module also logs a clean warning per missing
 > file first, which reads as "an empty knowledge base" rather than as broken.
 
-## module, [line 14](../../../../../../../backend/src/sro/infrastructure/knowledge/ingest.py#L14): Comment
+## module, [line 15](../../../../../../../backend/src/sro/infrastructure/knowledge/ingest.py#L15): Comment
 
 Code: `logger = logging.getLogger("sro.knowledge.ingest")`
 
@@ -28,7 +28,7 @@ Code: `logger = logging.getLogger("sro.knowledge.ingest")`
 > which is outside the `sro` tree the log configuration raises to INFO -- so
 > every line of the job's own progress would go nowhere.
 
-## `ingest`, [line 37](../../../../../../../backend/src/sro/infrastructure/knowledge/ingest.py#L37): Comment
+## `ingest`, [line 39](../../../../../../../backend/src/sro/infrastructure/knowledge/ingest.py#L39): Comment
 
 Code: `filled = await container.backfill_embeddings().execute(ctx)`
 

@@ -16,7 +16,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/converse
 > separate request the operator makes — which is what makes their confirmation
 > the authorisation an assisted run records.
 
-## module, [line 1025](../../../../../../../backend/src/sro/application/chat/converse.py#L1025): Note on the line above
+## module, [line 1003](../../../../../../../backend/src/sro/application/chat/converse.py#L1003): Note on the line above
 
 Code: `LOOKED = "looked"`
 
@@ -27,7 +27,7 @@ Code: `LOOKED = "looked"`
 > sentence, and a sentence about fifty records is the raw-JSON preview this
 > replaced.
 
-## module, [line 1028](../../../../../../../backend/src/sro/application/chat/converse.py#L1028): Note on the line above
+## module, [line 1006](../../../../../../../backend/src/sro/application/chat/converse.py#L1006): Note on the line above
 
 Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 
@@ -35,7 +35,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > words, matched here rather than translated -- `unreachable` is a browser that
 > said no and this is one that said nothing, and they want different sentences.
 
-## `_NotAsked`, [line 72](../../../../../../../backend/src/sro/application/chat/converse.py#L72): Docstring
+## `_NotAsked`, [line 70](../../../../../../../backend/src/sro/application/chat/converse.py#L70): Docstring
 
 > Nobody has placed this sentence against the jobs yet.
 >
@@ -44,7 +44,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > no job, which is exactly the case that must not be confused with "not
 > looked at".
 
-## `_why_it_failed`, [line 879](../../../../../../../backend/src/sro/application/chat/converse.py#L879): Docstring
+## `_why_it_failed`, [line 857](../../../../../../../backend/src/sro/application/chat/converse.py#L857): Docstring
 
 > Say what actually went wrong, in the words of the thing that went wrong.
 >
@@ -53,16 +53,16 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > want three different people to do three different things. The step already
 > knows which; it was just not being read.
 
-## `_what_happened`, [line 893](../../../../../../../backend/src/sro/application/chat/converse.py#L893): Docstring
+## `_what_happened`, [line 871](../../../../../../../backend/src/sro/application/chat/converse.py#L871): Docstring
 
 > One line about a run, in the words of what it did.
 
-## `_reply`, [line 909](../../../../../../../backend/src/sro/application/chat/converse.py#L909): Docstring
+## `_reply`, [line 887](../../../../../../../backend/src/sro/application/chat/converse.py#L887): Docstring
 
 > What to say. Every branch says what happens next, because a reply that
 > only reports a state leaves the operator to guess at the next move.
 
-## `_last_time`, [line 943](../../../../../../../backend/src/sro/application/chat/converse.py#L943): Docstring
+## `_last_time`, [line 921](../../../../../../../backend/src/sro/application/chat/converse.py#L921): Docstring
 
 > What the demonstrations used, where that is all anybody has to go on.
 >
@@ -70,22 +70,22 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > a constant a moment ago, and saying what it was is the difference between a
 > question somebody can answer and one they have to go and look up.
 
-## `_what_it_found`, [line 954](../../../../../../../backend/src/sro/application/chat/converse.py#L954): Docstring
+## `_what_it_found`, [line 932](../../../../../../../backend/src/sro/application/chat/converse.py#L932): Docstring
 
 > What a composed read found, in the words of the question.
 
-## `_derived`, [line 966](../../../../../../../backend/src/sro/application/chat/converse.py#L966): Docstring
+## `_derived`, [line 944](../../../../../../../backend/src/sro/application/chat/converse.py#L944): Docstring
 
 > A composed read, as the console renders any other answer.
 >
 > Carried with where it came from: a request this system wrote is only
 > trustworthy if the operator can see what it was built out of.
 
-## `_decision`, [line 982](../../../../../../../backend/src/sro/application/chat/converse.py#L982): Docstring
+## `_decision`, [line 960](../../../../../../../backend/src/sro/application/chat/converse.py#L960): Docstring
 
 > The structured half of the reply, kept for the audit trail.
 
-## `_last_asked`, [line 1006](../../../../../../../backend/src/sro/application/chat/converse.py#L1006): Docstring
+## `_last_asked`, [line 984](../../../../../../../backend/src/sro/application/chat/converse.py#L984): Docstring
 
 > The operator's previous sentence, which is where a follow-up's subject is.
 >
@@ -93,17 +93,17 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > chose, and letting those steer the next match would have the console
 > talking to itself.
 
-## `_awaiting`, [line 1013](../../../../../../../backend/src/sro/application/chat/converse.py#L1013): Docstring
+## `_awaiting`, [line 991](../../../../../../../backend/src/sro/application/chat/converse.py#L991): Docstring
 
 > The skill the last reply asked for values for, if it is still waiting.
 
-## `_seen`, [line 1036](../../../../../../../backend/src/sro/application/chat/converse.py#L1036): Docstring
+## `_seen`, [line 1014](../../../../../../../backend/src/sro/application/chat/converse.py#L1014): Docstring
 
 > One answer, in the shape every surface draws it from. See
 > `application.lookup.answer.as_seen` -- the trimming is there so the card, the
 > conversation and a model asked to read it all get the same answer.
 
-## `_what_was_found`, [line 1048](../../../../../../../backend/src/sro/application/chat/converse.py#L1048): Docstring
+## `_what_was_found`, [line 1026](../../../../../../../backend/src/sro/application/chat/converse.py#L1026): Docstring
 
 > The sentence above the table, for a surface that draws no table.
 >
@@ -111,7 +111,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > claiming to summarise them would be this system inventing a number: the
 > table is the answer and this is its label.
 
-## `_nothing_back`, [line 1069](../../../../../../../backend/src/sro/application/chat/converse.py#L1069): Docstring
+## `_nothing_back`, [line 1047](../../../../../../../backend/src/sro/application/chat/converse.py#L1047): Docstring
 
 > "Nothing back from them yet" -- where a mail is what is being waited on.
 >
@@ -123,7 +123,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > Empty for a question nobody was mailed about, which is most of them: a run
 > that came up short in front of a person asks the person.
 
-## `_the_way_out`, [line 1081](../../../../../../../backend/src/sro/application/chat/converse.py#L1081): Docstring
+## `_the_way_out`, [line 1059](../../../../../../../backend/src/sro/application/chat/converse.py#L1059): Docstring
 
 > How to be taken at your word, said where it is needed.
 >
@@ -136,7 +136,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > the person named themselves without asking anybody, and this is the only
 > place they are ever told so.
 
-## `_gathered`, [line 1086](../../../../../../../backend/src/sro/application/chat/converse.py#L1086): Docstring
+## `_gathered`, [line 1064](../../../../../../../backend/src/sro/application/chat/converse.py#L1064): Docstring
 
 > Every value established so far **for this skill**.
 >
@@ -154,7 +154,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > Nothing is gathered when nothing is being waited on. A fresh sentence brings
 > its own values; the thread's older ones belong to whatever they were for.
 
-## `Converse.note`, [line 111](../../../../../../../backend/src/sro/application/chat/converse.py#L111): Docstring
+## `Converse.note`, [line 109](../../../../../../../backend/src/sro/application/chat/converse.py#L109): Docstring
 
 > Write something into the thread that nobody asked a question for.
 >
@@ -162,7 +162,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > background task, and its progress lives only in this process. What it
 > did has to end up somewhere an operator can read tomorrow.
 
-## `Converse._carry_on`, [line 168](../../../../../../../backend/src/sro/application/chat/converse.py#L168): Docstring
+## `Converse._carry_on`, [line 166](../../../../../../../backend/src/sro/application/chat/converse.py#L166): Docstring
 
 > Everything this door does with a sentence that answers no question.
 >
@@ -171,7 +171,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > handled the ordinary way rather than being dropped for not fitting a
 > box it was never about.
 
-## `Converse._still_wanted`, [line 247](../../../../../../../backend/src/sro/application/chat/converse.py#L247): Docstring
+## `Converse._still_wanted`, [line 245](../../../../../../../backend/src/sro/application/chat/converse.py#L245): Docstring
 
 > The standing question, minus anything the job no longer asks for.
 >
@@ -198,7 +198,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > One read, and only where a question is standing. A thread with nothing
 > waiting pays nothing.
 
-## `Converse._question_stands`, [line 267](../../../../../../../backend/src/sro/application/chat/converse.py#L267): Docstring
+## `Converse._question_stands`, [line 265](../../../../../../../backend/src/sro/application/chat/converse.py#L265): Docstring
 
 > Whether a question is standing NOW, rather than when this request
 > began.
@@ -230,7 +230,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > every case where the question was already written by the time this door
 > decided, which is the case that was measured.
 
-## `Converse._also_said`, [line 272](../../../../../../../backend/src/sro/application/chat/converse.py#L272): Docstring
+## `Converse._also_said`, [line 270](../../../../../../../backend/src/sro/application/chat/converse.py#L270): Docstring
 
 > Write down what they said, without acting on it.
 >
@@ -238,7 +238,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > person without showing what they asked reads, a minute later, as the
 > system talking to itself.
 
-## `Converse._ask_it_again`, [line 287](../../../../../../../backend/src/sro/application/chat/converse.py#L287): Docstring
+## `Converse._ask_it_again`, [line 285](../../../../../../../backend/src/sro/application/chat/converse.py#L285): Docstring
 
 > Put the standing question back, under whatever was just said.
 >
@@ -247,7 +247,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > A question re-asked with a thinner decision than the one it replaces is
 > a question that loses an answer somebody already gave.
 
-## `Converse._is_it_an_answer`, [line 323](../../../../../../../backend/src/sro/application/chat/converse.py#L323): Docstring
+## `Converse._is_it_an_answer`, [line 321](../../../../../../../backend/src/sro/application/chat/converse.py#L321): Docstring
 
 > The value to take, or None where that sentence was not an answer.
 >
@@ -261,7 +261,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > the question, and a reading asked whether "no" answers "what should
 > Customer Type be" has been given a question with no good answer.
 
-## `Converse._answer_the_question`, [line 363](../../../../../../../backend/src/sro/application/chat/converse.py#L363): Docstring
+## `Converse._answer_the_question`, [line 341](../../../../../../../backend/src/sro/application/chat/converse.py#L341): Docstring
 
 > Take that sentence as the value it was asked for, and go on.
 >
@@ -282,7 +282,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > the same permission is how a system teaches somebody to stop reading
 > what it asks.
 
-## `Converse._say_yes_to_it`, [line 441](../../../../../../../backend/src/sro/application/chat/converse.py#L441): Docstring
+## `Converse._say_yes_to_it`, [line 419](../../../../../../../backend/src/sro/application/chat/converse.py#L419): Docstring
 
 > Start the job that was just offered, or ask for what it still needs.
 >
@@ -293,7 +293,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > one question. A deployment that cannot asks here, one value at a time,
 > and `_answer_the_question` takes it from there.
 
-## `Converse._placed_by_the_rig`, [line 485](../../../../../../../backend/src/sro/application/chat/converse.py#L485): Docstring
+## `Converse._placed_by_the_rig`, [line 463](../../../../../../../backend/src/sro/application/chat/converse.py#L463): Docstring
 
 > Which mined job this sentence is about, or None to ask the skills.
 >
@@ -302,11 +302,11 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > conversation still happens -- it happens the way it did before this
 > existed, which is the behaviour the console has always had.
 
-## `Converse._say_the_job`, [line 495](../../../../../../../backend/src/sro/application/chat/converse.py#L495): Docstring
+## `Converse._say_the_job`, [line 473](../../../../../../../backend/src/sro/application/chat/converse.py#L473): Docstring
 
 > The rig's answer, in the thread, with what a press would need.
 
-## `Converse._ask_which`, [line 559](../../../../../../../backend/src/sro/application/chat/converse.py#L559): Docstring
+## `Converse._ask_which`, [line 537](../../../../../../../backend/src/sro/application/chat/converse.py#L537): Docstring
 
 > A question with the jobs it was choosing between, and no press.
 >
@@ -314,7 +314,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > offer out of a job decision, and a decision it cannot act on must not
 > look like one it can.
 
-## `Converse.matched`, [line 597](../../../../../../../backend/src/sro/application/chat/converse.py#L597): Docstring
+## `Converse.matched`, [line 575](../../../../../../../backend/src/sro/application/chat/converse.py#L575): Docstring
 
 > A watched mailbox recognised a task. Said once, by name.
 >
@@ -337,7 +337,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > older extension, which is why nothing is written without one: there
 > would be no way to tell the second report from the first.
 
-## `Converse._said_to_a_run`, [line 638](../../../../../../../backend/src/sro/application/chat/converse.py#L638): Docstring
+## `Converse._said_to_a_run`, [line 616](../../../../../../../backend/src/sro/application/chat/converse.py#L616): Docstring
 
 > Something said to a run that is happening, rather than a request.
 >
@@ -359,7 +359,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > does nothing: the values a run uses are changed by `ReviseRun`, where
 > the change is checked against the names the skill declares.
 
-## `Converse.started`, [line 656](../../../../../../../backend/src/sro/application/chat/converse.py#L656): Docstring
+## `Converse.started`, [line 634](../../../../../../../backend/src/sro/application/chat/converse.py#L634): Docstring
 
 > Put a run into the conversation the moment it starts.
 >
@@ -369,7 +369,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > streams the steps into it as they land, and it is already in the
 > transcript if the browser is closed halfway.
 
-## `Converse.performed`, [line 693](../../../../../../../backend/src/sro/application/chat/converse.py#L693): Docstring
+## `Converse.performed`, [line 671](../../../../../../../backend/src/sro/application/chat/converse.py#L671): Docstring
 
 > Write a run the operator started into the conversation that asked for it.
 >
@@ -380,7 +380,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > reading this thread tomorrow needs to see that a supplier was created,
 > by whom, and what came back.
 
-## `Converse._narrowed`, [line 733](../../../../../../../backend/src/sro/application/chat/converse.py#L733): Docstring
+## `Converse._narrowed`, [line 711](../../../../../../../backend/src/sro/application/chat/converse.py#L711): Docstring
 
 > The question that was actually asked, where the taught skill answers
 > a wider one.
@@ -391,11 +391,11 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > the field dictionary says what that value is called, the taught call
 > proves the filter dialect, and the request is composed from both.
 
-## `Converse._next_steps`, [line 765](../../../../../../../backend/src/sro/application/chat/converse.py#L765): Docstring
+## `Converse._next_steps`, [line 743](../../../../../../../backend/src/sro/application/chat/converse.py#L743): Docstring
 
 > What can be asked next, from what this answer actually contains.
 
-## `Converse._write_down`, [line 793](../../../../../../../backend/src/sro/application/chat/converse.py#L793): Docstring
+## `Converse._write_down`, [line 771](../../../../../../../backend/src/sro/application/chat/converse.py#L771): Docstring
 
 > Keep the question, so answering it once teaches it for everybody.
 >
@@ -403,7 +403,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > the same question, because what an operator says a word means is
 > knowledge like anything else here.
 
-## `Converse._look_it_up`, [line 807](../../../../../../../backend/src/sro/application/chat/converse.py#L807): Docstring
+## `Converse._look_it_up`, [line 785](../../../../../../../backend/src/sro/application/chat/converse.py#L785): Docstring
 
 > The lookup door's answer to this question, or None if it is not one.
 >
@@ -413,7 +413,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > Each of those falls through to what this door did before, which is
 > still the right answer for them.
 
-## `Converse._say_what_was_found`, [line 825](../../../../../../../backend/src/sro/application/chat/converse.py#L825): Docstring
+## `Converse._say_what_was_found`, [line 803](../../../../../../../backend/src/sro/application/chat/converse.py#L803): Docstring
 
 > The answer, in the thread, carried as structure rather than prose.
 >
@@ -424,11 +424,11 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > the screen walk. So the decision carries the same shape that card is
 > built from and the thread draws it the same way.
 
-## `Converse._answer_now`, [line 856](../../../../../../../backend/src/sro/application/chat/converse.py#L856): Docstring
+## `Converse._answer_now`, [line 834](../../../../../../../backend/src/sro/application/chat/converse.py#L834): Docstring
 
 > Run a read the moment it is asked for, and answer with what came back.
 
-## `Converse.__init__`, [line 99](../../../../../../../backend/src/sro/application/chat/converse.py#L99): Comment
+## `Converse.__init__`, [line 97](../../../../../../../backend/src/sro/application/chat/converse.py#L97): Comment
 
 Code: `self._answers = answers`
 
@@ -436,7 +436,7 @@ Code: `self._answers = answers`
 > Optional: a deployment without one takes every sentence, exactly as
 > this door did before the reading existed.
 
-## `Converse.__init__`, [line 107](../../../../../../../backend/src/sro/application/chat/converse.py#L107): Comment
+## `Converse.__init__`, [line 105](../../../../../../../backend/src/sro/application/chat/converse.py#L105): Comment
 
 Code: `self._can_gather = can_gather`
 
@@ -448,7 +448,7 @@ Code: `self._can_gather = can_gather`
 > the connector is a deployment's, and a browser cannot know whether
 > this one has a mailbox it may read.
 
-## `Converse.__init__`, [line 108](../../../../../../../backend/src/sro/application/chat/converse.py#L108): Comment
+## `Converse.__init__`, [line 106](../../../../../../../backend/src/sro/application/chat/converse.py#L106): Comment
 
 Code: `self._plan_lookups = plan_lookups`
 
@@ -465,7 +465,7 @@ Code: `self._plan_lookups = plan_lookups`
 > Optional, like every other model-backed service here: a deployment
 > without one behaves exactly as this door did before.
 
-## `Converse.execute`, [line 137](../../../../../../../backend/src/sro/application/chat/converse.py#L137): Comment
+## `Converse.execute`, [line 135](../../../../../../../backend/src/sro/application/chat/converse.py#L135): Comment
 
 Code: `async with self._uow as uow:`
 
@@ -480,7 +480,7 @@ Code: `async with self._uow as uow:`
 > also saves the model call: the reading that matters already happened
 > when the job was placed.
 
-## `Converse.execute`, [line 141](../../../../../../../backend/src/sro/application/chat/converse.py#L141): Comment
+## `Converse.execute`, [line 139](../../../../../../../backend/src/sro/application/chat/converse.py#L139): Comment
 
 Code: `answered_it, about = await self._is_it_an_answer(ctx, waiting, text)`
 
@@ -499,7 +499,7 @@ Code: `answered_it, about = await self._is_it_an_answer(ctx, waiting, text)`
 > below and is treated as what it is. The question is not consumed,
 > so it is still standing when they do answer it.
 
-## `Converse.execute`, [line 146](../../../../../../../backend/src/sro/application/chat/converse.py#L146): Comment
+## `Converse.execute`, [line 144](../../../../../../../backend/src/sro/application/chat/converse.py#L144): Comment
 
 Code: `if about != "another_task":`
 
@@ -512,7 +512,7 @@ Code: `if about != "another_task":`
 > Check Out screens nobody had mentioned. Seen on the deployment
 > 2026-09-18, 16:42.
 
-## `Converse.execute`, [line 151](../../../../../../../backend/src/sro/application/chat/converse.py#L151): Comment
+## `Converse.execute`, [line 149](../../../../../../../backend/src/sro/application/chat/converse.py#L149): Comment
 
 Code: `placed = await self._placed_by_the_rig(ctx, text)`
 
@@ -549,7 +549,7 @@ Code: `placed = await self._placed_by_the_rig(ctx, text)`
 > The placement is handed down, so this costs no extra model call
 > on the path that does turn out to be another task.
 
-## `Converse.execute`, [line 152](../../../../../../../backend/src/sro/application/chat/converse.py#L152): Comment
+## `Converse.execute`, [line 150](../../../../../../../backend/src/sro/application/chat/converse.py#L150): Comment
 
 Code: `await self._carry_on(`
 
@@ -562,7 +562,7 @@ Code: `await self._carry_on(`
 > road. Repeating it is also what a person does: they answer what
 > they were asked, and then say what they are still waiting for.
 
-## `Converse._carry_on`, [line 181](../../../../../../../backend/src/sro/application/chat/converse.py#L181): Comment
+## `Converse._carry_on`, [line 179](../../../../../../../backend/src/sro/application/chat/converse.py#L179): Comment
 
 Code: `offered = offered_job(said_before)`
 
@@ -579,7 +579,7 @@ Code: `offered = offered_job(said_before)`
 > same fault as the boxes on the offer card: it asks, and then ignores
 > the answer.
 
-## `Converse._carry_on`, [line 184](../../../../../../../backend/src/sro/application/chat/converse.py#L184): Comment
+## `Converse._carry_on`, [line 182](../../../../../../../backend/src/sro/application/chat/converse.py#L182): Comment
 
 Code: `if isinstance(placed, _NotAsked):`
 
@@ -601,7 +601,7 @@ Code: `if isinstance(placed, _NotAsked):`
 > question is abandoned, and asking a second time would be a second
 > model call for an answer this already has.
 
-## `Converse._carry_on`, [line 195](../../../../../../../backend/src/sro/application/chat/converse.py#L195): Comment
+## `Converse._carry_on`, [line 193](../../../../../../../backend/src/sro/application/chat/converse.py#L193): Comment
 
 Code: `parameters={**_gathered(thread, _awaiting(thread)), **(parameters or {})},`
 
@@ -609,14 +609,14 @@ Code: `parameters={**_gathered(thread, _awaiting(thread)), **(parameters or {})}
 > who answers one question at a time should not lose the first
 > answer when they give the second.
 
-## `Converse._carry_on`, [line 196](../../../../../../../backend/src/sro/application/chat/converse.py#L196): Comment
+## `Converse._carry_on`, [line 194](../../../../../../../backend/src/sro/application/chat/converse.py#L194): Comment
 
 Code: `after=_last_asked(thread),`
 
 > What was being talked about a moment ago. A conversation whose
 > every sentence is resolved alone is not a conversation.
 
-## `Converse._carry_on`, [line 200](../../../../../../../backend/src/sro/application/chat/converse.py#L200): Comment
+## `Converse._carry_on`, [line 198](../../../../../../../backend/src/sro/application/chat/converse.py#L198): Comment
 
 Code: `looked = await self._look_it_up(ctx, text, resolution)`
 
@@ -643,7 +643,7 @@ Code: `looked = await self._look_it_up(ctx, text, resolution)`
 > `is_a_question` is the same word rule `/v1/ask` decides by, with no
 > model, so the two doors cannot disagree about what a question is.
 
-## `Converse._carry_on`, [line 204](../../../../../../../backend/src/sro/application/chat/converse.py#L204): Comment
+## `Converse._carry_on`, [line 202](../../../../../../../backend/src/sro/application/chat/converse.py#L202): Comment
 
 Code: `narrowed = await self._narrowed(ctx, resolution)`
 
@@ -659,7 +659,7 @@ Code: `narrowed = await self._narrowed(ctx, resolution)`
 > a taught read that answers something wider is how "show me supplier
 > X" came back as every supplier there is.
 
-## `Converse._carry_on`, [line 205](../../../../../../../backend/src/sro/application/chat/converse.py#L205): Comment
+## `Converse._carry_on`, [line 203](../../../../../../../backend/src/sro/application/chat/converse.py#L203): Comment
 
 Code: `run = None if narrowed else await self._answer_now(ctx, resolution)`
 
@@ -667,7 +667,7 @@ Code: `run = None if narrowed else await self._answer_now(ctx, resolution)`
 > nobody asked, because the thing they did ask could not be placed, is
 > the confident wrong answer wearing a table.
 
-## `Converse._carry_on`, [line 207](../../../../../../../backend/src/sro/application/chat/converse.py#L207): Comment
+## `Converse._carry_on`, [line 205](../../../../../../../backend/src/sro/application/chat/converse.py#L205): Comment
 
 Code: `if resolution.proposal is not None and (`
 
@@ -683,7 +683,7 @@ Code: `if resolution.proposal is not None and (`
 > at. What they are not owed is a plan this door invented because it
 > had nothing.
 
-## `Converse._still_wanted`, [line 252](../../../../../../../backend/src/sro/application/chat/converse.py#L252): Comment
+## `Converse._still_wanted`, [line 250](../../../../../../../backend/src/sro/application/chat/converse.py#L250): Comment
 
 Code: `if job is None or not job.parameters:`
 
@@ -693,7 +693,7 @@ Code: `if job is None or not job.parameters:`
 > dropping its questions on that basis would silence every question a
 > young job ever asks.
 
-## `Converse._still_wanted`, [line 265](../../../../../../../backend/src/sro/application/chat/converse.py#L265): Comment
+## `Converse._still_wanted`, [line 263](../../../../../../../backend/src/sro/application/chat/converse.py#L263): Comment
 
 Code: `return replace(waiting, missing=still) if still else None`
 
@@ -701,7 +701,7 @@ Code: `return replace(waiting, missing=still) if still else None`
 > is an ordinary sentence rather than an answer to something nobody
 > needs.
 
-## `Converse._is_it_an_answer`, [line 328](../../../../../../../backend/src/sro/application/chat/converse.py#L328): Comment
+## `Converse._is_it_an_answer`, [line 326](../../../../../../../backend/src/sro/application/chat/converse.py#L326): Comment
 
 Code: `named = said_as_the_value(pending, text)`
 
@@ -712,7 +712,7 @@ Code: `named = said_as_the_value(pending, text)`
 > typed a real value with no move except typing it again -- so the
 > re-ask below tells them this form exists, and this takes it.
 
-## `Converse._is_it_an_answer`, [line 343](../../../../../../../backend/src/sro/application/chat/converse.py#L343): Comment
+## `Converse._is_it_an_answer`, [line 339](../../../../../../../backend/src/sro/application/chat/converse.py#L339): Comment
 
 Code: `return None, read.about`
 
@@ -726,7 +726,7 @@ Code: `return None, read.about`
 > reached a four-character box; this is the same question asked in
 > reverse, at the door that decides what a refusal means.
 
-## `Converse._answer_the_question`, [line 386](../../../../../../../backend/src/sro/application/chat/converse.py#L386): Comment
+## `Converse._answer_the_question`, [line 364](../../../../../../../backend/src/sro/application/chat/converse.py#L364): Comment
 
 Code: `refused = too_long_for(pending, text)`
 
@@ -735,7 +735,7 @@ Code: `refused = too_long_for(pending, text)`
 > can get out of and one they cannot. Silently re-asking the
 > same question reads as a system that ignored them.
 
-## `Converse._answer_the_question`, [line 398](../../../../../../../backend/src/sro/application/chat/converse.py#L398): Comment
+## `Converse._answer_the_question`, [line 376](../../../../../../../backend/src/sro/application/chat/converse.py#L376): Comment
 
 Code: `"from_step": filled.from_step,`
 
@@ -744,28 +744,28 @@ Code: `"from_step": filled.from_step,`
 > re-walks every step the first run performed, to
 > arrive back at the box it stopped in front of.
 
-## `Converse._answer_the_question`, [line 399](../../../../../../../backend/src/sro/application/chat/converse.py#L399): Comment
+## `Converse._answer_the_question`, [line 377](../../../../../../../backend/src/sro/application/chat/converse.py#L377): Comment
 
 Code: `"mail_thread": filled.mail_thread,`
 
 > So the run this answer starts answers to the same
 > mail a run the card started would have.
 
-## `Converse._answer_the_question`, [line 401](../../../../../../../backend/src/sro/application/chat/converse.py#L401): Comment
+## `Converse._answer_the_question`, [line 379](../../../../../../../backend/src/sro/application/chat/converse.py#L379): Comment
 
 Code: `"resume": True,`
 
 > They already pressed yes. This is the same press
 > arriving late, not a second one to ask for.
 
-## `Converse._say_yes_to_it`, [line 469](../../../../../../../backend/src/sro/application/chat/converse.py#L469): Comment
+## `Converse._say_yes_to_it`, [line 447](../../../../../../../backend/src/sro/application/chat/converse.py#L447): Comment
 
 Code: `decision["resume"] = True`
 
 > The press, arriving as a sentence. `resume` is what tells the
 > panel this is the yes and not another offer to answer.
 
-## `Converse._say_the_job`, [line 502](../../../../../../../backend/src/sro/application/chat/converse.py#L502): Comment
+## `Converse._say_the_job`, [line 480](../../../../../../../backend/src/sro/application/chat/converse.py#L480): Comment
 
 Code: `if not placed.sure:`
 
@@ -778,7 +778,7 @@ Code: `if not placed.sure:`
 > twenty is twenty wrong records in a warehouse, and the cost of
 > asking is one sentence.
 
-## `Converse._say_the_job`, [line 514](../../../../../../../backend/src/sro/application/chat/converse.py#L514): Comment
+## `Converse._say_the_job`, [line 492](../../../../../../../backend/src/sro/application/chat/converse.py#L492): Comment
 
 Code: `said = (`
 
@@ -788,7 +788,7 @@ Code: `said = (`
 > keys a form posts, which nobody has ever typed -- for values
 > sitting in the mail that asked for the job.
 
-## `Converse._say_the_job`, [line 544](../../../../../../../backend/src/sro/application/chat/converse.py#L544): Comment
+## `Converse._say_the_job`, [line 522](../../../../../../../backend/src/sro/application/chat/converse.py#L522): Comment
 
 Code: `decision={`
 
@@ -796,7 +796,7 @@ Code: `decision={`
 > the browser makes its offer out of this rather than
 > spending a second reading of the same sentence.
 
-## `Converse._say_the_job`, [line 551](../../../../../../../backend/src/sro/application/chat/converse.py#L551): Comment
+## `Converse._say_the_job`, [line 529](../../../../../../../backend/src/sro/application/chat/converse.py#L529): Comment
 
 Code: `"can_find": self._can_gather,`
 
@@ -806,7 +806,7 @@ Code: `"can_find": self._can_gather,`
 > can, and a blank that reaches the door is refused as
 > a typed blank either way.
 
-## `Converse._ask_which`, [line 589](../../../../../../../backend/src/sro/application/chat/converse.py#L589): Comment
+## `Converse._ask_which`, [line 567](../../../../../../../backend/src/sro/application/chat/converse.py#L567): Comment
 
 Code: `"titles": titles,`
 
@@ -814,7 +814,7 @@ Code: `"titles": titles,`
 > a panel drawing two buttons reading `wfl_c79d02bb`
 > asks nobody anything.
 
-## `Converse.matched`, [line 630](../../../../../../../backend/src/sro/application/chat/converse.py#L630): Comment
+## `Converse.matched`, [line 608](../../../../../../../backend/src/sro/application/chat/converse.py#L608): Comment
 
 Code: `"missing": list(missing),`
 
@@ -825,7 +825,7 @@ Code: `"missing": list(missing),`
 > and `can_find` is what decides whether the button is
 > a demand or a plan.
 
-## `Converse.performed`, [line 711](../../../../../../../backend/src/sro/application/chat/converse.py#L711): Comment
+## `Converse.performed`, [line 689](../../../../../../../backend/src/sro/application/chat/converse.py#L689): Comment
 
 Code: `"next": ("open" if any(step.unreachable for step in run.steps) else "ask")`
 
@@ -834,7 +834,7 @@ Code: `"next": ("open" if any(step.unreachable for step in run.steps) else "ask"
 > A step nothing could reach is a page to open; every
 > other failure is somebody's to look at.
 
-## `Converse._narrowed`, [line 749](../../../../../../../backend/src/sro/application/chat/converse.py#L749): Comment
+## `Converse._narrowed`, [line 727](../../../../../../../backend/src/sro/application/chat/converse.py#L727): Comment
 
 Code: `verb=resolution.verb,`
 
@@ -842,14 +842,14 @@ Code: `verb=resolution.verb,`
 > "count the addresses" asked which field the word "count" names,
 > because two fields are called Count something.
 
-## `Converse._narrowed`, [line 754](../../../../../../../backend/src/sro/application/chat/converse.py#L754): Comment
+## `Converse._narrowed`, [line 732](../../../../../../../backend/src/sro/application/chat/converse.py#L732): Comment
 
 Code: `if narrowed.options:`
 
 > Only a real choice becomes a question. A statement that this read
 > cannot answer the sentence is not something to ask anybody.
 
-## `Converse._narrowed`, [line 761](../../../../../../../backend/src/sro/application/chat/converse.py#L761): Comment
+## `Converse._narrowed`, [line 739](../../../../../../../backend/src/sro/application/chat/converse.py#L739): Comment
 
 Code: `logger.info("the narrowed read did not answer: %s", asked.detail)`
 
@@ -858,7 +858,7 @@ Code: `logger.info("the narrowed read did not answer: %s", asked.detail)`
 > to the taught read answers a wider question, but answering
 > nothing at all because a composed request failed is worse.
 
-## `Converse._look_it_up`, [line 811](../../../../../../../backend/src/sro/application/chat/converse.py#L811): Comment
+## `Converse._look_it_up`, [line 789](../../../../../../../backend/src/sro/application/chat/converse.py#L789): Comment
 
 Code: `return None`
 
@@ -866,7 +866,7 @@ Code: `return None`
 > proposal below is genuinely for: it says what the knowledge base
 > has and offers to work the screen out once.
 
-## `Converse._look_it_up`, [line 821](../../../../../../../backend/src/sro/application/chat/converse.py#L821): Comment
+## `Converse._look_it_up`, [line 799](../../../../../../../backend/src/sro/application/chat/converse.py#L799): Comment
 
 Code: `return await self._run_lookups.execute(`
 
@@ -883,7 +883,7 @@ Code: `return await self._run_lookups.execute(`
 > thread reply wait on a browser at all; this is what stops it waiting
 > on one that is not answering.
 
-## `Converse._answer_now`, [line 875](../../../../../../../backend/src/sro/application/chat/converse.py#L875): Comment
+## `Converse._answer_now`, [line 853](../../../../../../../backend/src/sro/application/chat/converse.py#L853): Comment
 
 Code: `logger.info("could not answer from the system: %s", refusal)`
 
@@ -891,7 +891,7 @@ Code: `logger.info("could not answer from the system: %s", refusal)`
 > reply rather than as an empty answer: the breaker being open is a
 > fact about the system, not an absence of transport modes.
 
-## `_reply`, [line 914](../../../../../../../backend/src/sro/application/chat/converse.py#L914): Comment
+## `_reply`, [line 892](../../../../../../../backend/src/sro/application/chat/converse.py#L892): Comment
 
 Code: `wanted = ", ".join(resolution.missing_parameters)`
 
@@ -899,14 +899,14 @@ Code: `wanted = ", ".join(resolution.missing_parameters)`
 > go" when the run cannot start is how a system trains people to
 > ignore what it says.
 
-## `_decision`, [line 996](../../../../../../../backend/src/sro/application/chat/converse.py#L996): Comment
+## `_decision`, [line 974](../../../../../../../backend/src/sro/application/chat/converse.py#L974): Comment
 
 Code: `"items": [dict(item) for item in resolution.items],`
 
 > The table the operator confirms. Rendered rather than acted on: their
 > confirmation is what an assisted run records as its authorisation.
 
-## `_decision`, [line 998](../../../../../../../backend/src/sro/application/chat/converse.py#L998): Comment
+## `_decision`, [line 976](../../../../../../../backend/src/sro/application/chat/converse.py#L976): Comment
 
 Code: `"suggestions": list(suggestions),`
 
@@ -914,20 +914,20 @@ Code: `"suggestions": list(suggestions),`
 > entity. Never a fixed list: the console used to offer "which X are
 > used for parcel" under every result in the system.
 
-## `_decision`, [line 1001](../../../../../../../backend/src/sro/application/chat/converse.py#L1001): Comment
+## `_decision`, [line 979](../../../../../../../backend/src/sro/application/chat/converse.py#L979): Comment
 
 Code: `"run_id": run.id.value if run else None,`
 
 > The answer, from the system, at the moment it was asked.
 
-## `_decision`, [line 1002](../../../../../../../backend/src/sro/application/chat/converse.py#L1002): Comment
+## `_decision`, [line 980](../../../../../../../backend/src/sro/application/chat/converse.py#L980): Comment
 
 Code: `"matched_skill_name": resolution.matched.skill.name if resolution.matched else None,`
 
 > The name, not only the id: a sidebar reading "ran skl_a6f7b33c" tells
 > nobody anything.
 
-## `_what_was_found`, [line 1052](../../../../../../../backend/src/sro/application/chat/converse.py#L1052): Comment
+## `_what_was_found`, [line 1030](../../../../../../../backend/src/sro/application/chat/converse.py#L1030): Comment
 
 Code: `if any(_ran_out(one.detail) for one in found.looked):`
 
@@ -936,7 +936,7 @@ Code: `if any(_ran_out(one.detail) for one in found.looked):`
 > the person reading it can see their own browser and can do something
 > about it.
 
-## `_what_was_found`, [line 1058](../../../../../../../backend/src/sro/application/chat/converse.py#L1058): Comment
+## `_what_was_found`, [line 1036](../../../../../../../backend/src/sro/application/chat/converse.py#L1036): Comment
 
 Code: `said = [`
 

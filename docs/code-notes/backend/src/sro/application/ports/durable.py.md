@@ -15,7 +15,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/durable
 >   notice that an operator walked away, so if this is not durable the recording
 >   stays open forever.
 
-## `DurableExecution.execute_skill`, [line 21](../../../../../../../backend/src/sro/application/ports/durable.py#L21): Docstring
+## `DurableExecution.execute_skill`, [line 11](../../../../../../../backend/src/sro/application/ports/durable.py#L11): Docstring
 
 > Perform a skill durably and wait for it to finish.
 >
@@ -23,7 +23,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/durable
 > step at a time, and a process that dies halfway must be resumable
 > without repeating the step that may already have landed.
 
-## `DurableExecution.watch_recording`, [line 34](../../../../../../../backend/src/sro/application/ports/durable.py#L34): Docstring
+## `DurableExecution.watch_recording`, [line 24](../../../../../../../backend/src/sro/application/ports/durable.py#L24): Docstring
 
 > Start the deadline that reaps this demonstration if it is abandoned.
 >
@@ -31,6 +31,6 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/durable
 > the recording is already durable by the time this is called, so a
 > scheduler outage must cost a deadline, never the demonstration.
 
-## `DurableExecution.recording_finished`, [line 43](../../../../../../../backend/src/sro/application/ports/durable.py#L43): Docstring
+## `DurableExecution.recording_finished`, [line 33](../../../../../../../backend/src/sro/application/ports/durable.py#L33): Docstring
 
 > Tell the deadline it is no longer needed. Never raises.

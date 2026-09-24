@@ -20,11 +20,11 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/reading_
 > here, not `True` -- `None` for "could not tell" -- so the caller re-asks
 > under the standing question rather than write down a guess.
 
-## `Read`, [line 19](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L19): Docstring
+## `Read`, [line 20](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L20): Docstring
 
 > What the sentence turned out to be.
 
-## `Read`, [line 23](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L23): Note on the line above
+## `Read`, [line 24](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L24): Note on the line above
 
 Code: `about: str = ""`
 

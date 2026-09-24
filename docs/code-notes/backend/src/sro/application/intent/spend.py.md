@@ -34,7 +34,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/intent/spend.
 > What bills is answered once, by the metered client every Gemini adapter is
 > handed in ``container.py``; this file never names a table.
 
-## `spent_today`, [line 11](../../../../../../../backend/src/sro/application/intent/spend.py#L11): Docstring
+## `spent_today`, [line 10](../../../../../../../backend/src/sro/application/intent/spend.py#L10): Docstring
 
 > The dollars and the blind calls this tenant has run up since midnight.
 >
@@ -43,7 +43,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/intent/spend.
 > what lets a caller's clock -- not the server's -- decide which day is being
 > asked about.
 
-## `over_cap`, [line 15](../../../../../../../backend/src/sro/application/intent/spend.py#L15): Docstring
+## `over_cap`, [line 14](../../../../../../../backend/src/sro/application/intent/spend.py#L14): Docstring
 
 > Why the rig will not make another model call today, or ``None``.
 >
@@ -51,7 +51,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/intent/spend.
 > so whoever reads it knows whether to raise the cap or to go and find the
 > unpriced call.
 
-## `over_cap`, [line 22](../../../../../../../backend/src/sro/application/intent/spend.py#L22): Comment
+## `over_cap`, [line 20](../../../../../../../backend/src/sro/application/intent/spend.py#L20): Comment
 
 Code: `if day.cost_usd >= cap_usd or day.blind:`
 

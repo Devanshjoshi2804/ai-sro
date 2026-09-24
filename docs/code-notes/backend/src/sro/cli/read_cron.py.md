@@ -31,7 +31,7 @@ Comments and docstrings moved out of [`backend/src/sro/cli/read_cron.py`](../../
 >
 >     0 3 * * * cd /path/to/backend && .venv/bin/python -m sro.cli.read_cron acme new >> cron.log 2>&1
 
-## module, [line 12](../../../../../../backend/src/sro/cli/read_cron.py#L12): Note on the line above
+## module, [line 13](../../../../../../backend/src/sro/cli/read_cron.py#L13): Note on the line above
 
 Code: `MAX_PASSES = 25`
 
@@ -49,7 +49,7 @@ Code: `MAX_PASSES = 25`
 > progress it is not making, so a broken pass costs one night rather than
 > every night at once.
 
-## `_run`, [line 22](../../../../../../backend/src/sro/cli/read_cron.py#L22): Docstring
+## `_run`, [line 23](../../../../../../backend/src/sro/cli/read_cron.py#L23): Docstring
 
 > Every tenant gets its own reading, whatever the tenant before it did.
 >
@@ -64,7 +64,7 @@ Code: `MAX_PASSES = 25`
 > reported beside whatever was read before the budget ran out, and the run
 > still ends 0.
 
-## `_run`, [line 32](../../../../../../backend/src/sro/cli/read_cron.py#L32): Comment
+## `_run`, [line 34](../../../../../../backend/src/sro/cli/read_cron.py#L34): Comment
 
 Code: `got = await container.read_gestures().execute(ctx)`
 
@@ -72,7 +72,7 @@ Code: `got = await container.read_gestures().execute(ctx)`
 > own unit of work, and re-entering a spent one is not a thing
 > this container promises.
 
-## `_run`, [line 38](../../../../../../backend/src/sro/cli/read_cron.py#L38): Comment
+## `_run`, [line 40](../../../../../../backend/src/sro/cli/read_cron.py#L40): Comment
 
 Code: `except Exception as problem:`
 

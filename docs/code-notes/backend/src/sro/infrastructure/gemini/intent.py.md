@@ -10,7 +10,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/gemini/int
 > declared; what comes back is checked against that list, so a value for a
 > parameter the skill does not have is dropped rather than sent.
 
-## `_answered`, [line 150](../../../../../../../backend/src/sro/infrastructure/gemini/intent.py#L150): Docstring
+## `_answered`, [line 148](../../../../../../../backend/src/sro/infrastructure/gemini/intent.py#L148): Docstring
 
 > The model's answer, or ``None`` when it did not give one.
 >
@@ -22,6 +22,6 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/gemini/int
 > So a model failure is an absent opinion, not an error. Everything here has
 > a deterministic path underneath it, which is exactly why this is safe.
 
-## `GeminiIntentParser.read`, [line 65](../../../../../../../backend/src/sro/infrastructure/gemini/intent.py#L65): Docstring
+## `GeminiIntentParser.read`, [line 63](../../../../../../../backend/src/sro/infrastructure/gemini/intent.py#L63): Docstring
 
 > What the sentence means. Never what to run.

@@ -6,27 +6,27 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/knowledge/
 
 > Embeddings, through Gemini, and the no-op that stands in without a key.
 
-## module, [line 7](../../../../../../../backend/src/sro/infrastructure/knowledge/embedding.py#L7): Note on the line above
+## module, [line 8](../../../../../../../backend/src/sro/infrastructure/knowledge/embedding.py#L8): Note on the line above
 
 Code: `DIMENSIONS = 768`
 
 > Matches the column. `gemini-embedding-001` is asked for this size rather than
 > its default, because the store cannot mix two geometries in one index.
 
-## module, [line 9](../../../../../../../backend/src/sro/infrastructure/knowledge/embedding.py#L9): Note on the line above
+## module, [line 10](../../../../../../../backend/src/sro/infrastructure/knowledge/embedding.py#L10): Note on the line above
 
 Code: `_BATCH = 100`
 
 > Requests are capped server-side; a catalogue is thousands of claims.
 
-## `NoEmbedder`, [line 12](../../../../../../../backend/src/sro/infrastructure/knowledge/embedding.py#L12): Docstring
+## `NoEmbedder`, [line 13](../../../../../../../backend/src/sro/infrastructure/knowledge/embedding.py#L13): Docstring
 
 > Retrieval still works: structured filters narrow, terms order.
 >
 > Worse at synonyms, no worse at anything else — and it is never what decides
 > which system or entity a request is about.
 
-## `GeminiEmbedder.embed`, [line 52](../../../../../../../backend/src/sro/infrastructure/knowledge/embedding.py#L52): Comment
+## `GeminiEmbedder.embed`, [line 51](../../../../../../../backend/src/sro/infrastructure/knowledge/embedding.py#L51): Comment
 
 Code: `if len(returned) != len(batch):`
 

@@ -43,7 +43,7 @@ Code: `_EXCLUDED = [`
 > The SDK is imported inside the adapter: a deployment that sends nothing
 > to a hosted model should not load one in order to boot.
 
-## `_from_response`, [line 101](../../../../../../../backend/src/sro/infrastructure/gemini/computer_use.py#L101): Docstring
+## `_from_response`, [line 99](../../../../../../../backend/src/sro/infrastructure/gemini/computer_use.py#L99): Docstring
 
 > The model answers with a function call, or with prose meaning it did not act.
 >
@@ -51,11 +51,11 @@ Code: `_EXCLUDED = [`
 > is not a call is the model declining to name a gesture, and guessing one out
 > of it is exactly the confident-wrong-action this rung is bounded against.
 
-## `_gesture`, [line 127](../../../../../../../backend/src/sro/infrastructure/gemini/computer_use.py#L127): Docstring
+## `_gesture`, [line 125](../../../../../../../backend/src/sro/infrastructure/gemini/computer_use.py#L125): Docstring
 
 > A named call becomes a gesture, or a refusal. Never an approximation.
 
-## `_from_response`, [line 113](../../../../../../../backend/src/sro/infrastructure/gemini/computer_use.py#L113): Comment
+## `_from_response`, [line 111](../../../../../../../backend/src/sro/infrastructure/gemini/computer_use.py#L111): Comment
 
 Code: `said = " ".join(`
 

@@ -60,7 +60,7 @@ def container(session_factory: async_sessionmaker[AsyncSession]) -> Container:
     of time.
     """
     return replace(
-        build_container(Settings(otlp_endpoint=None)),
+        build_container(Settings()),
         browser=FakeBrowserProvider(),
         transcriber=NullTranscriber(),
         vault=FakeCredentialVault(),

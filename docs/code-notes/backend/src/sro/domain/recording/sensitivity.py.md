@@ -22,7 +22,7 @@ Code: `_CSRF_HINTS = ("csrf", "xsrf")`
 
 ## module, [line 34](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L34): Note on the line above
 
-Code: `_TRACE_HINTS = ("trace", "nonce", "request-id", "correlation", "idempotency", "-ts", "time`
+Code: `_TRACE_HINTS = ("trace", "nonce", "request-id", "correlation", "idempotency", "-ts", "timestamp")`
 
 > Substrings, because every system names these differently.
 >

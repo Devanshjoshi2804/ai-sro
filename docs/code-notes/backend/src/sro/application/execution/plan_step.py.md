@@ -226,7 +226,7 @@ Code: `VALUED = ("type", "select", "upload", "press")`
 
 ## `_replay_of`, [line 64](../../../../../../../backend/src/sro/application/execution/plan_step.py#L64): Comment
 
-Code: `if verified and any(not values.get(name, "").strip() for name in wanted_by(step, by_id, se`
+Code: `if verified and any(not values.get(name, "").strip() for name in wanted_by(step, by_id, seen)):`
 
 > And the same refusal for a run that was given NOTHING.
 >

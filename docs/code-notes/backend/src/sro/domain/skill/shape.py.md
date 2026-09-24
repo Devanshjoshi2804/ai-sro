@@ -194,7 +194,7 @@ Code: `quiet_until: str | None = None`
 
 ## `in_time_order`, [line 44](../../../../../../../backend/src/sro/domain/skill/shape.py#L44): Comment
 
-Code: `return sorted((by_id[cited] for cited in ordered_cites(workflow) if cited in by_id), key=_`
+Code: `return sorted((by_id[cited] for cited in ordered_cites(workflow) if cited in by_id), key=_when)`
 
 > `ordered_cites` and not `cited_ids`: the second is a SET, and a gesture
 > two steps both stand on is two rungs of the key -- dropping the duplicate

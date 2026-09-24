@@ -29,9 +29,9 @@ Code: `K_MAX_OUTPUT_TOKENS = 65536`
 > ceiling needs a lower one. Anthropic bills thinking outside its ceiling and is
 > unaffected.
 
-## module, [line 17](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L17): Note on the line above
+## module, [line 18](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L18): Note on the line above
 
-Code: `LESS_THINKING: dict[Effort, Effort] = {"high": "medium", "medium": "low", "low": "minimal"`
+Code: `LESS_THINKING: dict[Effort, Effort] = {"high": "medium", "medium": "low", "low": "minimal"}`
 
 > One step down the only knob there is.
 >

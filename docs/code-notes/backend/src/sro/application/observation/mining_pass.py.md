@@ -533,7 +533,7 @@ Code: `gestures = list(await uow.gestures.gestures_for(tenant_id))`
 
 ## `_one_pass`, [line 357](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L357): Comment
 
-Code: `driven = {gesture_id for gesture_id, intent in intents.items() if was_our_own_driving(inte`
+Code: `driven = {gesture_id for gesture_id, intent in intents.items() if was_our_own_driving(intent)}`
 
 > What this browser did while it was driving a run of its own is not
 > somebody working, and the reading loop marked it rather than hiding it

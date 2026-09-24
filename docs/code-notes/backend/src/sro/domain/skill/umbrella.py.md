@@ -184,7 +184,7 @@ Code: `in_window = {item.gesture_id for item in window.items}`
 
 ## module, [line 153](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L153): Comment
 
-Code: `_PROBE = [Packed(gesture_id=name, at=0.0, evidence={}, strength=0.0, tokens=0) for name in`
+Code: `_PROBE = [Packed(gesture_id=name, at=0.0, evidence={}, strength=0.0, tokens=0) for name in "yz"]`
 
 > What window.pack has to subtract from K_WINDOW_TOKENS before it fills anything,
 > because none of it is evidence and all of it is billed as input: the task

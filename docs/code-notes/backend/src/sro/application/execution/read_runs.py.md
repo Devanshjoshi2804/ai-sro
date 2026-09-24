@@ -10,7 +10,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/execution/rea
 
 ## module, [line 42](../../../../../../../backend/src/sro/application/execution/read_runs.py#L42): Note on the line above
 
-Code: `NOT_IN_A_BROWSER_HERE = "that run is not being performed in a browser this process is driv`
+Code: `NOT_IN_A_BROWSER_HERE = "that run is not being performed in a browser this process is driving"`
 
 > Said by both stop buttons, so it is said once.
 >

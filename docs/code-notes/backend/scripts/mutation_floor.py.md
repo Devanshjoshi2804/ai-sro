@@ -108,7 +108,7 @@ Code: `FLOORS = {`
 
 ## module, [line 11](../../../../backend/scripts/mutation_floor.py#L11): Comment
 
-Code: `"sro.application.execution": (92.8, "the step -- what this run sends, and what settles it"`
+Code: `"sro.application.execution": (92.8, "the step -- what this run sends, and what settles it"),`
 
 > `plan_step` and `verify` only, not the 7,184-line package around them.
 > These two are the ladder's other half: the rules say what may be sent and

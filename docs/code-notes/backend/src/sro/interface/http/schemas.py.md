@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/interface/http/schemas.py`](../../../../../../../backend/src/sro/interface/http/schemas.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `TrackRecordModel`, [line 447](../../../../../../../backend/src/sro/interface/http/schemas.py#L447): Comment
+## `TrackRecordModel`, [line 448](../../../../../../../backend/src/sro/interface/http/schemas.py#L448): Comment
 
 Code: `clean_runs_needed: int = REQUIRED_CLEAN_RUNS`
 
@@ -11,7 +11,7 @@ Code: `clean_runs_needed: int = REQUIRED_CLEAN_RUNS`
 > would go on saying 10 the day `REQUIRED_CLEAN_RUNS` moved, and the bar
 > would disagree with the rule that actually refuses the promotion.
 
-## `SpendResponse.of`, [line 1658](../../../../../../../backend/src/sro/interface/http/schemas.py#L1658): Comment
+## `SpendResponse.of`, [line 1659](../../../../../../../backend/src/sro/interface/http/schemas.py#L1659): Comment
 
 Code: `return cls(cost_usd=round(day.cost_usd, 6), unpriced=day.blind, cap_usd=cap_usd)`
 
@@ -28,7 +28,7 @@ Code: `return cls(cost_usd=round(day.cost_usd, 6), unpriced=day.blind, cap_usd=c
 > resolution a dollar cap has -- so the rounding belongs on the way
 > out, where it is a display decision, and nowhere else.
 
-## `WorkflowModel.of`, [line 1732](../../../../../../../backend/src/sro/interface/http/schemas.py#L1732): Comment
+## `WorkflowModel.of`, [line 1733](../../../../../../../backend/src/sro/interface/http/schemas.py#L1733): Comment
 
 Code: `steps=[`
 
@@ -37,7 +37,7 @@ Code: `steps=[`
 > step list served in storage order is a job served in the wrong
 > order, and it reads as a plausible one.
 
-## `EvidenceResponse.of`, [line 1824](../../../../../../../backend/src/sro/interface/http/schemas.py#L1824): Comment
+## `EvidenceResponse.of`, [line 1825](../../../../../../../backend/src/sro/interface/http/schemas.py#L1825): Comment
 
 Code: `calls[gesture.id] = whole.pop("requests")`
 
@@ -45,7 +45,7 @@ Code: `calls[gesture.id] = whole.pop("requests")`
 > with them -- the caller proved which tenant it is to get here,
 > and echoing it back is one more field to keep true.
 
-## `LookupResponse.of`, [line 2453](../../../../../../../backend/src/sro/interface/http/schemas.py#L2453): Comment
+## `LookupResponse.of`, [line 2466](../../../../../../../backend/src/sro/interface/http/schemas.py#L2466): Comment
 
 Code: `answers=[`
 

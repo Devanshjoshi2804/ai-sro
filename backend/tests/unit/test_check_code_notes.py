@@ -179,6 +179,7 @@ def test_decorator_line_is_inside_its_class(tmp_path: Path) -> None:
     # sat just outside the symbol's resolved span and was reported dead.
     repo = tmp_path
 
+    # `class Boxed:` is line 5; its decorator is line 4.
     _write(
         repo / "backend/src/sro/pkg/boxed.py",
         "from dataclasses import dataclass\n\n\n"
@@ -189,6 +190,13 @@ def test_decorator_line_is_inside_its_class(tmp_path: Path) -> None:
     _write(
         repo / "docs/code-notes/backend/src/sro/pkg/boxed.py.md",
         "# Notes for `backend/src/sro/pkg/boxed.py`\n\n"
+        # A name anchor with no quote still means the `class` line itself --
+        # widening the search span for quoted code must not also drag this
+        # one back onto the decorator.
+        "## `Boxed`, [line 5](../../../../../backend/src/sro/pkg/boxed.py#L5): Docstring\n\n"
+        "> A value nothing else may change once built.\n\n"
+        # A quote that names the decorator itself must still resolve, since
+        # the decorator is quotable code that belongs to this symbol.
         "## `Boxed`, [line 4](../../../../../backend/src/sro/pkg/boxed.py#L4): Comment\n\n"
         "Code: `@dataclass(frozen=True, slots=True)`\n\n"
         "> Frozen so a boxed value cannot be mutated after construction.\n",

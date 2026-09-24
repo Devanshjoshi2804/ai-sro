@@ -137,11 +137,12 @@ def _find_in_body(body: list[ast.stmt], name: str) -> list[ast.stmt]:
     return [node for node in _flatten(body) if _defines_name(node, name)]
 
 
-def _effective_lineno(node: ast.stmt) -> int:
-    """A decorated `def`/`class`'s own `.lineno` is the `def`/`class` line,
-    not the decorator above it -- so a note anchored to the decorator (a
-    common thing to comment on: `@dataclass(frozen=True)`) would otherwise
-    sit just outside the symbol's own span."""
+def _quote_search_start(node: ast.stmt) -> int:
+    """Where a symbol's quoted code may start being searched for. A name
+    anchor with no quote still means the `def`/`class` line itself (that is
+    `node.lineno`, untouched) -- but the decorator above it (a common thing
+    to comment on: `@dataclass(frozen=True)`) is quotable code that belongs
+    to this symbol too, so the search span widens to include it."""
     if (
         isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef)
         and node.decorator_list
@@ -189,10 +190,10 @@ def evaluate_anchor(anchor: Anchor, source: SourceInfo) -> AnchorEval:
             return AnchorEval(
                 anchor, anchor.name, "dead", None, dead_reason=f"symbol `{anchor.name}` {error}"
             )
-        floor_default = _effective_lineno(node)
+        floor_default = _quote_search_start(node)
         if anchor.code is None:
             return AnchorEval(
-                anchor, anchor.name, "certain", floor_default, floor_default=floor_default
+                anchor, anchor.name, "certain", node.lineno, floor_default=floor_default
             )
         scope_start = floor_default
         scope_end = getattr(node, "end_lineno", scope_start)

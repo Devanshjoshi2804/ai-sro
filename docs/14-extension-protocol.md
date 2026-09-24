@@ -144,19 +144,10 @@ operator may add to the list locally; they may not remove a server entry.
 
 `Content-Type: application/json`. One batch per request.
 
-A batch is one demonstration's evidence or none at all. A teaching batch that
-names no recording is refused, and so is a passive one that names one: the first
-cannot be told from an ordinary morning's browsing, and the second would teach a
-skill from work nobody meant to show. The extension therefore never lets a batch
-straddle the moment teaching started or stopped.
-
-The teaching flow is three calls: `POST /v1/recordings` with `device_id` opens a
-recording this browser fills (nothing is opened server-side, and there is no
-live view — the operator is already looking at the only screen involved), the
-batches upload naming it, and `POST /v1/recordings/{id}/finish` seals it. The
-frames are assembled at that seal from every batch at once rather than per
-upload: a click and the call it caused routinely land in different uploads, and
-a frame split across that seam is a step that lost its evidence.
+Every batch is passive: the wire's `mode` accepts only `"passive"`. A
+deployment's store can still hold `mode = "teaching"` rows from before the
+device-teaching path was removed — nothing rewrote that data — but nothing
+can produce that value any more, on this door or any other.
 
 ```jsonc
 {
@@ -164,8 +155,7 @@ a frame split across that seam is a step that lost its evidence.
   "device_id": "dev_…",
   "started_at": "2026-08-23T09:14:02.113+05:30",
   "ended_at":   "2026-08-23T09:19:02.550+05:30",
-  "mode": "passive",            // "passive" | "teaching"
-  "recording_id": null,         // set when, and only when, mode == "teaching"
+  "mode": "passive",
   "events": [ /* Event, below */ ]
 }
 // 202

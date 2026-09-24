@@ -61,9 +61,8 @@ Code: `gestures = await uow.gestures.gestures_for(ctx.tenant_id, ids=cited) if c
 
 Code: `shots: dict[str, PlayableShot] = {}`
 
-> Outside the transaction, as `GetRecordingMedia` mints its links
-> outside one: what is left is object storage, and a database
-> connection held open across it is held for nothing.
+> Outside the transaction: what is left is object storage, and a
+> database connection held open across it is held for nothing.
 
 ## `ReadShots.execute`, [line 43](../../../../../../../backend/src/sro/application/observation/read_shots.py#L43): Comment
 

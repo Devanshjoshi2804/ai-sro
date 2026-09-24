@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import secrets
 from dataclasses import dataclass, field
+from typing import Literal
 
 OUTCOMES = ("running", "held", "stopped", "refused", "aborted", "failed")
+
+Executor = Literal["extension", "steel"]
 
 VERDICTS = (
     "held",
@@ -100,3 +103,7 @@ class WorkflowRun:
     awaiting: dict[str, str] | None = None
 
     wrong_because: str | None = None
+
+    progress: dict[str, object] = field(default_factory=dict)
+
+    executor: Executor = "extension"

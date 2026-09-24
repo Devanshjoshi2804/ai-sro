@@ -18,12 +18,23 @@ a Steel browser on our VM. The operator sees only the result, and is asked only 
 a person is genuinely needed (D4). Nothing in the runtime is specific to one job,
 system or identity provider.
 
+The runtime covers three ways a run begins: a press, trigger or mail starts a job
+from its first step; the server reads each operator's mailbox itself (§2, "Mail
+poll"); and a job the operator started by hand in their own tab is finished on Steel
+from where they stopped (mid-job takeover, §7.6). Lookups, the questions answered by
+reading a system (`/v1/ask`, `/v1/lookups`, chat), read through Steel too, never through
+the operator's browser (§6.5).
+
 The POC is accepted when all of these hold, and each is proven by a live QA run (§8):
 
 - a mined Blue Yonder job runs on Steel, signed in from the vault;
 - a job that arrives by mail replies by mail through the Gmail MCP connector, with no UI;
 - two jobs run in parallel on one account as tabs of one browser;
-- a run recovers when its session expires mid-job, and a worker restart repeats no write.
+- a run recovers when its session expires mid-job, and a worker restart repeats no write;
+- a job the operator started by hand finishes on Steel from where they stopped, and no
+  write they already made is sent again;
+- a request mail is read and its run started by the server, with the extension closed;
+- a lookup answers with the operator's Chrome closed.
 
 Scale: one tenant, a few operator accounts (2–5), each with its own browser. Deployed
 with one account first.
@@ -31,8 +42,8 @@ with one account first.
 ## 2. Architecture
 
 ```
- mail / panel / trigger
-          │  start_run(job, values, account)
+ mail poll (worker) / panel / trigger / takeover (§7.6)
+          │  start_run(job, values, account[, from step k, carried values])
           ▼
   Temporal RunWorkflow (one per run; progress on the run row)
           │  for each step of the compiled recipe
@@ -47,11 +58,40 @@ with one account first.
                    SessionBroker (one lease per account, in Postgres)
                                  │  restore saved state, else sign in from the vault
                                  ▼
-               Steel container per account ── one browser; runs are tabs
+               Steel containers per tenant ── a browser context per account; runs are tabs
 ```
 
-The worker process runs every activity. The API process only starts, stops and
-answers runs; no run lives in it.
+The worker process runs every activity and the mail poll. The API process only
+starts, stops and answers runs; no run lives in it. A lookup is not a run: it reads
+through Steel inside the request that asked (§6.5).
+
+**Mail poll.** Today a mailbox is read only when the extension's heartbeat calls the
+mail door (`POST /v1/chat/from-the-mail`, from `lookInTheMail` in
+`service-worker.js`). The server reads it itself instead:
+
+- **Where.** A loop in the worker beside the session keeper, the rig miner and the
+  retention sweep (`infrastructure/temporal/worker.py`). That is the repository's
+  pattern for recurring platform work; Temporal schedules are kept for operators'
+  own triggers (`infrastructure/temporal/schedules.py`).
+- **Whose mailbox.** For each tenant on Steel (§9), each operator with a registered,
+  unrevoked browser. The door runs as that operator, because the Gmail grant and the
+  claim on each message are per operator (`connector_key`, `_mail_key`). An operator
+  who never connected Gmail answers "not connected" and costs nothing.
+- **What it feeds.** The existing door and use case (`FromTheMail`), unchanged in what
+  it decides. A sure request carrying every value starts its run through §7.1. A
+  request missing values becomes a question in the operator's thread
+  (`AskAboutTheOffer`, the `needs_values` decision the panel already draws). A reply
+  on a thread a run is waiting on answers that run (§7.4).
+- **Once per message.** The door claims each message before reading it
+  (`tool_calls.remember`, an insert that does nothing on conflict). Whichever caller
+  claims a message first reads it; the other skips it. So the heartbeat look and the
+  poll run side by side during rollout without reading any mail twice. The heartbeat
+  call is removed in §9 step 3, not before.
+- **Metered and capped.** The tenant's cap is checked before any model call. A cap
+  refusal, including one raised while starting a run, releases the message's claim,
+  so the mail is read again once the cap allows. Every model call runs inside the
+  tenant's and operator's attribution (`whose.about`), which the metered client
+  requires.
 
 ## 3. The ladder
 
@@ -264,13 +304,43 @@ and bounds. It acts only when the best score clears a threshold; otherwise the s
 drops to sight. The threshold is a named constant, with its reasoning in the code
 notes.
 
+### 6.5 Lookups
+
+A lookup answers a question by reading a system. `PlanLookups` chooses where to look;
+`RunLookups` reads there. Today it sends `http.send`, `navigate`, `screenshot` and
+`tab.open` to the operator's browser through `SocketChannel`. It moves onto the broker
+and the lanes, like a run:
+
+- **Account.** The lookup finds the account the way a run does (`account_for` on the
+  page the read was seen from), reuses that account's lease, and opens its own tab. The
+  tab is closed when the lookup ends, whatever happened. A lookup is not a durable run:
+  it lives inside the request that asked, bounded by the caller's deadline.
+- **API lane first.** A `call` lookup is the GET this deployment saw answer 2xx
+  (`address_for`), replayed through httpx with the session's cookies and headers
+  (§5.7). A 401, 403 or refused CSRF token re-signs the account in once (§5.5), and the
+  read is tried once more.
+- **Then a Steel tab.** A `screen` lookup, or a `call` that failed for any other reason,
+  is answered from the Steel tab on the page the read was seen from: the page is put up
+  and photographed, as the operator's browser did before. A lookup never clicks, types
+  or runs the sight model's actions; it only navigates and looks.
+- **Never the operator's browser.** `RunLookups` holds no channel to any device.
+- **Only reads.** A lookup can reach nothing that writes. `address_for` addresses only
+  GETs that answered 2xx. The API lane sends the literal method `GET`. The tab path uses
+  only navigation and a screenshot. So there is no write to verify. A lookup whose
+  target was seen only as a write gets no address, and it is refused by name ("nothing
+  here has been to …") before anything is sent.
+- **Gaps are per system.** A sign-in that needs a person, a full pool or a timeout makes
+  that one lookup a named gap. The rest of the plan still answers. A lookup never waits
+  on a person.
+
 ## 7. Durable runs
 
 ### 7.1 Start
 
 `start_run` writes a `workflow_runs` row with an empty `progress` and starts
 `RunWorkflow(run_id)`. The server starts runs itself (D3); the extension never
-executes.
+executes. A takeover (§7.6) is the one start whose `progress` is not empty: it holds
+the operator's writes and the step the run begins at.
 
 ### 7.2 Workflow
 
@@ -317,6 +387,48 @@ again, even when Temporal retries.
 
 All are named constants.
 
+### 7.6 Mid-job takeover
+
+**The case.** The operator is partway through a known job in their own tab, and the
+panel offers to finish it. Steel cannot see the operator's tab.
+
+**What already exists.** The extension recognises the job from the shape of the
+operator's last gestures (`recognise.js` `match`, over shapes served by
+`ServeShapes`). It knows how far in the operator is (`k`, shape entries matched) and
+what they typed (`valuesFrom`). The offer's press sends both
+(`StartWorkflowRunRequest.matched` and `values`). `StartWorkflowRun.execute` turns
+`matched` into a step with `resumes_at`. Today the extension's own run then carries on
+in the operator's tab, where the state already is.
+
+**On Steel.**
+
+1. **Start.** The press also names the operator's tab and the time span its matched
+   gestures cover (`took_over`: tab id, first and last gesture time). The press flushes
+   the capture queue before it is sent. `start_run` is called with
+   `from_step = resumes_at(k)` and the carried values.
+2. **The operator's writes.** At start, the server reads that tab's uploaded gestures
+   in that span and their captured network calls. For each write step whose recorded
+   call is made by a gesture the operator has reached (shape entry `< k`), it matches
+   their calls against the recorded write with the same rule the runtime uses for its
+   own writes (`write_confirmed`: method and path shape, expected status):
+   - **Seen and confirmed:** the step is recorded `done` in `Progress`, lane
+     `operator`. A `done` mark is immutable, so it is never sent again.
+   - **Anything else** (no matching call, a refusal, no status yet, or uploads not yet
+     reaching the last matched gesture): the step is recorded in doubt (`sending`).
+3. **Bring the tab to step k.** The run starts after the last confirmed write that
+   comes before any doubt, or at step 0 if there is none. Steps before that point are
+   the operator's. From there Steel replays only the non-write steps up to `k`
+   (navigation, opening the form, filling the carried values) on the ordinary ladder.
+   A write marked `done` is skipped.
+4. **Continue.** From step `k` the run is an ordinary run: same ladder, same
+   verification.
+5. **Never guess.** A write in doubt is settled as §7.3 settles any write in doubt:
+   by a read-back, or by asking the operator in the panel (§7.4, D5), who answers
+   `done` or `redo`. No write is sent while its status is unknown.
+
+The operator's own tab is left alone. Their unsaved form is theirs to discard; the
+panel says so (design 3).
+
 ## 8. Testing
 
 1. **Unit.** Each lane, the ladder, the broker, promotion and the known-broken list,
@@ -332,7 +444,9 @@ All are named constants.
    - a worker restart mid-run with no repeated write;
    - a stop during a step;
    - two runs as tabs on one account;
-   - expiry mid-step followed by re-sign-in.
+   - expiry mid-step followed by re-sign-in;
+   - a takeover after the operator's own save, which sends that save no second time;
+   - a lookup read through the account's session, then from a Steel tab when the call is refused.
 4. **Live QA proofs.** Each is run once by the operator.
 
 | # | Proves |
@@ -343,6 +457,9 @@ All are named constants.
 | QA-3 | a mail job replying through the Gmail connector (tool lane) |
 | QA-4 | two parallel jobs on one account; a container restart restores saved state |
 | QA-5 | expiry mid-run recovers; a worker restart mid-run repeats no write |
+| QA-6 | a job the operator started by hand is finished on Steel from their step; their save is not repeated |
+| QA-7 | the server reads the mailbox with the extension closed; a request mail starts its run; no mail is read twice |
+| QA-8 | a lookup answers with the operator's Chrome closed, read through the account's Steel session |
 
 ## 9. Rollout
 
@@ -350,13 +467,29 @@ A per-tenant setting, `executor: extension | steel`, controls the rollout:
 
 1. Shadow on QA: Steel runs alongside the extension, and the verdicts are compared.
 2. `greyorange` switches to `steel`. The extension stops executing but keeps capturing.
-3. After QA-1 to QA-5 pass, `steel` becomes the only executor and the setting is
-   removed.
+   The server mail poll (§2) starts reading that tenant's mailboxes. The extension's
+   heartbeat look keeps running beside it; the per-message claim keeps them from
+   reading any mail twice.
+3. After QA-1 to QA-8 pass, `steel` becomes the only executor and the setting is
+   removed. The extension becomes watch-only (§10): it captures, recognises and asks,
+   and it can no longer act on a page or send a request for a run.
 
 ## 10. Removed when live
 
-- Extension execution: the `ui.*` handling in `commands.js`, and the execution in
-  `in-page.js` (which moves into `page-code.js`).
+- Extension execution: every executing command kind in `commands.js` (`ui.*`,
+  `navigate`, `screenshot`, `sign_in`, `tab.open`, `calls.since`), and the execution
+  in `in-page.js` (which moves into `page-code.js`).
+- `httpSend`: the `http.send` command, which sends a request from the operator's
+  browser with their cookies, and the page code's `send`, `csrfToken` and
+  `requestedWith` that serve it.
+- The command socket (`channel.js`), whose only job is to carry commands to
+  `commands.perform`, and the in-page driving band (`showing.js`).
+- The heartbeat's mail call: `lookInTheMail` and `api.fromTheMail`, with the throttle
+  in `looking.js` and `offerFromMail`. The server poll (§2) replaces them.
+- A test proves the extension is watch-only: no code the extension can load acts on a
+  page or sends a request for a run.
+- The backend's command socket (`agent_channel.py`, `SocketChannel`), once lookups read
+  through Steel (§6.5) and nothing sends a command any more.
 - `pursuits.spawn` and the in-memory `Stops`.
 - The grace timer in `release_strays.py`.
 - The resolution and fixed waits in `ui_driver.py`.
@@ -382,3 +515,8 @@ A per-tenant setting, `executor: extension | steel`, controls the rollout:
 | Snapshot repair acts on the wrong element | Confidence threshold; only a write verified by after-state counts as done |
 | Sight cost | Metered, capped and bounded per step; every success is learned into the UI lane |
 | Evidence recorded before §4 lacks the new fields | Older gestures use the existing strategies; new doings add the fields |
+| A takeover reads the operator's evidence before it is uploaded | The press flushes the capture queue; a write not proven by an uploaded call is in doubt and settled by read-back or asked (§7.6) |
+| The operator saves their own form after a takeover | The panel says the form is theirs to discard (design 3); the run's own write is still verified (§6.2) |
+| A lookup competes with runs for an account's browser | It takes a tab, never the account lock unless it must sign in, and closes the tab in `finally`; a full pool or a sign-in that needs a person is a named gap for that system, not a wait |
+| A lookup could reach a write | Structurally impossible: only 2xx GETs are addressed, the API lane sends `GET`, the tab path only navigates and photographs; tested |
+| The mail poll and the heartbeat look read one mail twice | One claim per message, an insert that does nothing on conflict; proven by a concurrent test on Postgres |

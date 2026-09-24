@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Every mined job runs end to end on a Steel browser on our VM, as a durable Temporal run that walks the tool → API → UI → sight ladder per step, and the extension stops executing.
+**Goal:** Every mined job runs end to end on a Steel browser on our VM, as a durable Temporal run that walks the tool → API → UI → sight ladder per step; the server reads each operator's mailbox and can take over a job the operator started by hand; and the extension becomes watch-only.
 
 **Architecture:** A `RunWorkflow` per run (Temporal, worker process only) calls idempotent activities that load the job and the run's `progress` row, lease the account's Steel session through a Postgres-backed `SessionBroker`, and hand each step to a `StepExecutor` that tries the first lane not on the step's known-broken list. The UI lane and the extension share one page-code file (`globalThis.sroPage`); the recorder captures the evidence the UI lane needs (§4), and every lane success teaches the lane above it.
 
@@ -57,6 +57,7 @@ Clean architecture, enforced by import-linter: `domain` (pure), `application` (u
 | `backend/src/sro/domain/execution/account.py` | `Account` (tenant, origin, username), vault keys, advisory-lock key; `Lease`, `LeaseState`, `K_LEASE_TTL`, `K_VAULT_VALUE_BYTES` | S1 |
 | `backend/src/sro/domain/execution/lanes.py` | `Lane`, `Verdict`, `StepResult`, `Broken`, the ladder `lanes_for`, failure fingerprints, write-confirmation rules, `after_matches`, `K_SIGHT_ACTIONS` | X3 |
 | `backend/src/sro/domain/execution/progress.py` | `Progress` / `StepMark` (the `workflow_runs.progress` JSONB), write idempotency, `run_budget`, step-activity limits | D1 |
+| `backend/src/sro/domain/execution/takeover.py` | `Took`, `Takeover`, `take_over`: which of the job's writes the operator's own captured calls prove, and where a takeover run begins | D7 |
 | `backend/src/sro/application/ports/locks.py` | `AccountLocks` port: the per-account session lock | S3 |
 | `backend/src/sro/application/ports/pool.py` | `BrowserPool` port: open/close a Steel session in a container with free capacity | S4 |
 | `backend/src/sro/application/ports/page.py` | `PageDriver` port and its value types: tabs, state, page code calls, calls seen, headers, screenshots, points | S5 (grown by S6, S10, X4, X7) |
@@ -71,6 +72,7 @@ Clean architecture, enforced by import-linter: `domain` (pure), `application` (u
 | `backend/src/sro/application/runtime/teach.py` | `Teach`: known-broken list, mending, sight → locator, UI → API promotion | X9 |
 | `backend/src/sro/application/runtime/run_steps.py` | `RunSteps`: the activity bodies (prepare, acquire, step, finish, release, stopped, answered) | D2, D4, D5, D6 |
 | `backend/src/sro/application/runtime/answer_run.py` | `AnswerRun` use case: validate an answer and signal the workflow | D5 |
+| `backend/src/sro/application/chat/look_lately.py` | `LookInTheMailLately`: the server mail poll, each Steel tenant's operators through the existing mail door | D8 |
 | `backend/src/sro/infrastructure/db/locks.py` | `PostgresAccountLocks`: `pg_advisory_lock` on a dedicated connection | S3 |
 | `backend/src/sro/infrastructure/steel/pool.py` | `SteelPool`: containers from `steel_urls`, capacity from QA-0 | S4 |
 | `backend/src/sro/infrastructure/steel/driver.py` | `SteelDriver`: one CDP connection per session, tabs by target id, page code injected, network log | S5 (grown by S6, S10, X4, X7) |
@@ -82,7 +84,10 @@ Clean architecture, enforced by import-linter: `domain` (pure), `application` (u
 | `backend/tests/browser/test_page_code_parity.py` | §8.2 parity suite: extension injection vs `add_init_script` choose the same element | X2 |
 | `backend/tests/integration/test_leases.py` | Lease SQL: unique live lease, beat, expiry | S2 |
 | `backend/tests/integration/test_account_locks.py` | Advisory lock excludes a second holder across connections | S3 |
-| `backend/tests/integration/test_runs_on_local_steel.py` | §8.3 scenarios against local Steel + Temporal test server | S7, S8, D2, D4, D6 |
+| `backend/tests/integration/test_runs_on_local_steel.py` | §8.3 scenarios against local Steel + Temporal test server | S7, S8, D2, D4, D6, D7 |
+| `backend/tests/unit/domain/test_a_takeover.py` | The operator's writes, proven or in doubt; where a takeover begins | D7 |
+| `backend/tests/integration/test_mail_is_read_once.py` | The heartbeat look and the server poll, concurrently on Postgres, read one mail once | D8 |
+| `new-chrome-extension/src/watch-only.test.mjs` | The extension can load no code that acts on a page or sends a request for a run | R2 |
 | `backend/scripts/shadow.py` | Rollout step 1: dry Steel runs beside extension runs, verdicts compared | R1 |
 | `backend/migrations/versions/2026xxxx_0073_a_gesture_keeps_its_tree.py` | `gestures.tree` JSONB | E6 |
 | `backend/migrations/versions/2026xxxx_0074_sign_in_pages_are_watched.py` | Heal stored policies whose `exclude_hosts` is exactly the old default | E7 |
@@ -107,7 +112,7 @@ Clean architecture, enforced by import-linter: `domain` (pure), `application` (u
 | `backend/src/sro/infrastructure/db/repositories.py`, `workflows.py`, `workflow_runs.py` | SQL for leases, known-broken, progress/executor, `fail_orphans` narrowed | S2, X8, D1 |
 | `backend/tests/unit/fakes.py` | Fakes for leases, locks, pool, page driver, known-broken, durable runs | S2–S5, X8, D2 |
 | `backend/src/sro/interface/http/v1/routers/secrets.py`, `schemas.py` | Password stored under the account key when a username is given | S1 |
-| `backend/src/sro/config.py` | `steel_urls`, `steel_sessions_per_container`, `page_code_path`, `steel_tenants` | S4, X1, D3 |
+| `backend/src/sro/config.py` | `steel_urls`, `steel_sessions_per_container`, `page_code_path`, `steel_tenants`, `mail_sweep_seconds` | S4, X1, D3, D8 |
 | `infra/docker-compose.yml`, `infra/docker-compose.deploy.yml` | `steel-1…steel-N` services | S4 |
 | `backend/src/sro/infrastructure/steel/client.py` | One-browser refusal becomes per-container capacity | S4 |
 | `backend/src/sro/application/connection/release_strays.py` | Releases only expired leases; `GRACE` and `Pursuits.sessions()` gone | S9 |
@@ -118,19 +123,24 @@ Clean architecture, enforced by import-linter: `domain` (pure), `application` (u
 | `backend/src/sro/interface/http/v1/routers/health.py`, `backend/scripts/smoke.py` | `/health` reports the page code's sha256; smoke compares it | X1 |
 | `backend/src/sro/domain/execution/workflow_run.py` | `WorkflowRun.progress`, `WorkflowRun.executor` | D1 |
 | `backend/src/sro/application/ports/durable.py`, `infrastructure/temporal/{workflows,activities,durable,worker,queues}.py` | `RunWorkflow` on the `runs` queue; `start_run`, `cancel_run`, `answer_run` | D2, D4, D5 |
-| `backend/src/sro/application/execution/workflow_runs.py` | `StartWorkflowRun` starts Steel tenants' runs durably; `AbortWorkflowRun` cancels them | D3, D4 |
-| `backend/src/sro/application/chat/from_the_mail.py` | A sure mail with all required values starts the run (Steel tenants) | D3 |
+| `backend/src/sro/application/execution/workflow_runs.py` | `StartWorkflowRun` starts Steel tenants' runs durably, and a takeover with the operator's writes in its first `progress`; `AbortWorkflowRun` cancels them | D3, D4, D7 |
+| `backend/src/sro/application/chat/from_the_mail.py` | A sure mail with all required values starts the run (Steel tenants); a cap refusal while starting releases the message's claim | D3, D8 |
+| `backend/src/sro/infrastructure/temporal/worker.py` | `look_in_the_mail_lately` loop beside the session keeper | D8 |
+| `backend/src/sro/application/lookup/run_lookups.py`, `domain/lookup/address.py` (`Address.page`), `routers/ask.py`, `routers/lookups.py`, `application/chat/converse.py`, `schemas.py` (`allow_focus` gone from `LookupRequest`/`AskRequest`) | Lookups read through the broker: the account's session first, then a Steel tab; no `SocketChannel` | L1 |
+| `backend/src/sro/interface/http/schemas.py` (`StartWorkflowRunRequest.took_over`), `routers/workflow_runs.py` (pass-through) | The press names the operator's tab and the span its matched gestures cover | D7 |
+| `new-chrome-extension/src/background/recognise.js`, `service-worker.js` | `match` returns `since`/`through`; the press flushes the capture queue, then sends `took_over` | D7 |
 | `backend/src/sro/interface/http/v1/routers/workflow_runs.py` | `POST /v1/workflow-runs/{id}/answer` | D5 |
-| `backend/src/sro/container.py` | Factories for everything above | S3–D5 |
+| `backend/src/sro/container.py` | Factories for everything above | S3–D5, D8 |
 | `backend/src/sro/interface/http/app.py` | Startup sweep leaves Steel runs alone | D1 |
-| `new-chrome-extension/src/background/commands.js`, `service-worker.js`, `showing.js` | Executing kinds removed | R2 |
+| `new-chrome-extension/src/background/commands.js`, `channel.js`, `showing.js`, `pointing.js`, `sign-in.js`, `whats-on-screen.js` | Deleted: every executing kind including `http.send` (`httpSend`), the command socket, the driving band | R2 |
+| `new-chrome-extension/src/background/service-worker.js`, `api.js`, `looking.js` | The heartbeat's mail call (`lookInTheMail`, `api.fromTheMail`, `offerFromMail`, the throttle) and the command handler removed | R2 |
 | `backend/src/sro/infrastructure/steel/ui_driver.py` and the old skill engine | Removed after measurement | R3 |
 
 ---
 
 ## Streams and order
 
-Five streams, one implementer each, plus the probe that comes first. Within a stream, tasks run in the order listed; a task starts from the latest merged tip.
+Six streams, one implementer each, plus the probe that comes first. Within a stream, tasks run in the order listed; a task starts from the latest merged tip.
 
 | Stream | Spec | Tasks |
 |---|---|---|
@@ -138,7 +148,8 @@ Five streams, one implementer each, plus the probe that comes first. Within a st
 | **E** evidence contract | §4, §5.6 (capture), parent §5.4 | A0, E1, E2, E3, E4, E5, E6, E7 |
 | **S** session broker and pool | §5 | S1, S2, S3, S4, S5, S6, S7, S8, S9, S10 |
 | **X** executors, lanes, page code | §3, §6 | X1, X2, X3, X4, X5, X6, X7, X8, X9 |
-| **D** durable runs | §7 | D1, D2, D3, D4, D5, D6 |
+| **D** durable runs | §7, §2 (mail poll) | D1, D2, D3, D4, D5, D6, D7, D8 |
+| **L** lookups | §6.5 | L1 |
 | **R** rollout and removals | §9, §10 | R1, R2, R3 |
 
 ### Dependency graph
@@ -160,8 +171,11 @@ X4, X5, X6, X7 → X8 → X9              │
 D1 ─┐                                 │
 S7, S8, X9 ──► D2 → D3 ──► (QA-1, QA-3)
                D2 → D4, D5, D6 ──► (QA-4, QA-5)
+X3, D3, D5, D6 ──► D7 (takeover) ──► QA-6
+D3 ──► D8 (server mail poll) ──► QA-7
+S7, S8, S10, X5, X7 ──► L1 (lookups on Steel) ──► QA-8
 X5 + X9 on QA ──► QA-2
-D3 → R1 (shadow) ;  QA-1…QA-5 = POC ──► R2 ; R3 measure-first after R2
+D3 → R1 (shadow) ;  QA-1…QA-8 = POC ──► R2 (also after D7, D8, L1) ; R3 measure-first after R2
 ```
 
 Parallel start (no shared files): **C0, A0, E1, E7, S1, S3, X1, X3, D1**. C0 blocks only S4.
@@ -171,7 +185,7 @@ Parallel start (no shared files): **C0, A0, E1, E7, S1, S3, X1, X3, D1**. C0 blo
 - `PageDriver` + `SessionRef` (S5) → S6, S7, S10, X4, X7.
 - `Held`, `NeedsAPerson`, `SessionBroker.acquire/reattach/reauth/headers/release` (S7, S10) → X4, X5, X7, D2.
 - `Lane`, `Verdict`, `StepResult`, `Broken`, `LaneContext`, `StepLane` (X3) → X4–X9, D2.
-- `Progress`, `StepMark` (D1) → D2, D4–D6.
+- `Progress`, `StepMark` (D1) → D2, D4–D7.
 - `page-code.js` `sroPage` API (X1, X2, S6) → S5, X4, X7, parity suite.
 
 ---
@@ -5714,6 +5728,840 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 
 **LIVE QA: QA-4** and **QA-5** follow (Proof points).
 
+## D7: Mid-job takeover — Steel finishes a job the operator started, and sends none of their writes again (§7.6)
+
+Depends on: X3 (`SeenCall`, `write_confirmed`), D3, D5, D6.
+
+The recognition half exists and stays in the extension. `recognise.js` `match` finds the one job the operator's last gestures are a unique prefix of, `covered` says how far in they are (`k`), and `valuesFrom` reads what they typed. The press (`service-worker.js` `start-rig-run`, ~line 2141) sends `matched: nudge.k` and the values to `POST /v1/workflow-runs` (`routers/workflow_runs.py:123-137`), and `StartWorkflowRun.execute` turns `matched` into a step with `resumes_at` (`application/execution/workflow_runs.py:189-190`; `domain/skill/shape.py:52,89,93` — `cited_pairs`, `walkable`, `resumes_at`). The extension's run then carries on in the operator's own tab. A Steel tab is fresh, so what the operator already did must be read from evidence.
+
+The evidence half has no seam today: nothing on the server reads an operator's progress inside a job. What exists: uploaded gestures carry `stream_id` = the device (`correlate.py:54`), `tab_id`, `at` and their joined network calls (`domain/observation/gesture.py:72-110`), stored at upload (`ingest.py:162-177`) and read by time (`GestureRepository.gestures_for(tenant, after=, before=)`, `ports/repositories.py:308`). The recorded writes are `recorded_call`/`writes` (`domain/execution/evidence.py:137,164`) with `expected_statuses` (`domain/execution/belts.py:73`), and X3's `write_confirmed` is the one rule for "the page's own call matches the recorded write" (the rule `verify.py:211` `by_what_the_page_called` applies today). Only the extension's tail knows which gestures belong to this doing, so the press sends their span (`took_over`).
+
+A write the evidence cannot prove is recorded in doubt, and D2's `step` already settles doubt: a read-back (X5 `ApiLane.read_back`), else a question (D5). D5 as written clears a `step` question without settling the mark it asked about, so `step` would ask again forever; this task closes that for D6's doubts too.
+
+**Files:**
+- Create: `backend/src/sro/domain/execution/takeover.py`
+- Create: `backend/tests/unit/domain/test_a_takeover.py`
+- Modify: `backend/src/sro/application/execution/workflow_runs.py:128-230` (`StartWorkflowRun.execute(took_over=…)`: a Steel takeover is inserted with its first `progress`)
+- Modify: `backend/src/sro/interface/http/schemas.py` (`TookOverModel`; `StartWorkflowRunRequest.took_over`), `backend/src/sro/interface/http/v1/routers/workflow_runs.py:123-137` (pass it through)
+- Modify: `backend/src/sro/application/runtime/run_steps.py` (`prepare`: the start page is the first browser step at or after `progress.step`; `step`: the already-written branch keeps the mark's lane as text, because `operator` is not a `Lane`; `answered`: a `step` answer settles the mark it was about)
+- Modify: `backend/src/sro/application/runtime/answer_run.py` (a `step` answer is `done` or `redo`)
+- Modify: `backend/tests/unit/runtime_support.py` (`SAVE_URL`; `two_writes_job(uow, workflow_id)` — type, save, type, save, each save citing a gesture with `POST SAVE_URL` → 201; `operator_did(uow, *, device, tab, at, calls)` saves one uploaded gesture from that browser tab carrying those calls; `steel_run(..., progress=None)` seeds the run's first `progress`; `type_step_evidence(page=…)`)
+- Modify: `backend/tests/unit/application/rig/test_start_workflow_run.py`, `backend/tests/unit/application/runtime/test_run_steps.py`, `backend/tests/unit/application/runtime/test_asking.py`
+- Modify: `backend/tests/integration/test_runs_on_local_steel.py` (scenario: a takeover after the operator's own save)
+- Modify: `new-chrome-extension/src/background/recognise.js` (`match` returns `since`, `through`), `recognise.test.mjs`
+- Modify: `new-chrome-extension/src/background/service-worker.js` (a nudge made from a match keeps `since` and `through`; `start-rig-run` awaits `flushQueue()`, then sends `took_over`)
+- Run: `make types`
+
+**Interfaces:**
+- Consumes: `SeenCall`, `write_confirmed` (X3); `Progress.sending/settle/written/in_doubt`, `record_progress` (D1 as merged: a `done` mark is immutable; `settle(..., never_left=True)` clears a `sending` mark); `cited_pairs`, `walkable`, `resumes_at`, `recorded_call`, `writes`, `expected_statuses` (existing); D2's in-doubt branch; D5's `answer` signal.
+- Produces:
+  - `OPERATOR = "operator"` — the lane recorded for a write the operator made.
+  - `Took(tab_id: int, since: float, through: float)` — the operator's tab and the recorder times of the first and last gesture the match used; `InvariantViolation` when `since > through`.
+  - `Takeover(replay_from: int, done: tuple[int, ...] = (), in_doubt: tuple[int, ...] = ())` — `replay_from` indexes the job's steps ordered by `order`; `.progress() -> Progress` (`step = replay_from`; each `done` order `sending` then `settle(lane=OPERATOR, verdict="done")`; each `in_doubt` order `sending`).
+  - `take_over(workflow, by_id, *, matched: int, took: Took, seen: Sequence[Gesture]) -> Takeover`. A write step counts only when the gesture that made its recorded call is among the first `matched` walkable entries (what the operator has reached). It is `done` when uploads reach `took.through` on that tab and `write_confirmed` over that tab's calls in `[since, …]` says `done`; otherwise it is in doubt. `replay_from` is one past the last `done` write that precedes every doubt, else 0.
+  - `StartWorkflowRun.execute(..., took_over: Took | None = None)`: for a Steel run with `matched` and `took_over`, it reads the gestures after `took.since` whose `stream_id` is the pressing device, inserts the run with `progress = take_over(...).progress().as_json()`, and checks `unperformable` from the replay step. Extension runs ignore it.
+  - Wire: `StartWorkflowRunRequest.took_over: TookOverModel | None = None`; `TookOverModel(tab_id: StrictInt = Field(ge=0), since: float = Field(ge=0), through: float = Field(ge=0))`.
+  - Extension: `match(...)` also returns `since` and `through`.
+  - `AnswerRun`: a `step` question's value is `done` or `redo`, else `Conflict`. `RunSteps.answered` for it: `done` → `settle(order, lane=OPERATOR, verdict="done")`; `redo` → `settle(order, lane=OPERATOR, verdict="failed", never_left=True)`, so the step runs.
+
+- [ ] **Step 1: Write the failing tests**
+
+```python
+# backend/tests/unit/domain/test_a_takeover.py
+from sro.domain.execution.takeover import OPERATOR, Takeover, Took, take_over
+from sro.domain.observation.gesture import Action, Call, Gesture
+from sro.domain.skill.workflow import Step, Workflow
+
+APP = "https://wms.example/app"
+SAVE = "https://wms.example/api/customer-types"
+TOOK = Took(tab_id=7, since=90.0, through=100.0)
+
+
+def gesture(gid: str, at: float, kind: str, *, calls: tuple[Call, ...] = (),
+            stream: str = "rec", tab: int = 1) -> Gesture:
+    return Gesture(id=gid, tenant="t", stream_id=stream, batch_id="b", at=at, url=APP, system=APP,
+                   tab_id=tab, frame_url=None, action=Action(kind=kind, at=at), requests=list(calls))
+
+
+def job() -> tuple[Workflow, dict[str, Gesture]]:
+    recorded = [
+        gesture("g0", 1.0, "input"),
+        gesture("g1", 2.0, "click", calls=(Call("POST", SAVE, started_at=2.0, status=201),)),
+        gesture("g2", 3.0, "input"),
+        gesture("g3", 4.0, "click", calls=(Call("POST", SAVE, started_at=4.0, status=201),)),
+    ]
+    steps = [Step(order=n, says=f"s{n}", system=APP, cites=[f"g{n}"]) for n in range(4)]
+    return Workflow(id="wfl", tenant="t", title="Two saves", narrative="n", steps=steps), {
+        one.id: one for one in recorded
+    }
+
+
+def operator_saved(at: float, *, status: int | None = 201, tab: int = 7) -> Gesture:
+    return gesture(f"op{at}", at, "click", stream="dev-1", tab=tab,
+                   calls=(Call("POST", SAVE, started_at=at, status=status),))
+
+
+def test_a_save_the_operator_s_own_call_confirms_is_done_and_the_run_begins_after_it() -> None:
+    workflow, by_id = job()
+
+    took = take_over(workflow, by_id, matched=3, took=TOOK, seen=[operator_saved(100.0)])
+
+    assert took == Takeover(replay_from=2, done=(1,), in_doubt=())
+
+
+def test_a_form_the_operator_only_filled_is_replayed_from_the_start() -> None:
+    workflow, by_id = job()
+    typed = gesture("t", 95.0, "input", stream="dev-1", tab=7)
+
+    took = take_over(workflow, by_id, matched=1, took=Took(7, 90.0, 95.0), seen=[typed])
+
+    assert took == Takeover(replay_from=0)
+
+
+def test_a_save_not_yet_uploaded_is_in_doubt_never_assumed() -> None:
+    workflow, by_id = job()
+
+    took = take_over(workflow, by_id, matched=3, took=Took(7, 90.0, 105.0), seen=[operator_saved(100.0)])
+
+    assert took == Takeover(replay_from=0, in_doubt=(1,))
+
+
+def test_a_refused_or_unanswered_save_is_in_doubt() -> None:
+    workflow, by_id = job()
+
+    for status in (409, None):
+        took = take_over(workflow, by_id, matched=3, took=TOOK, seen=[operator_saved(100.0, status=status)])
+        assert (took.done, took.in_doubt) == ((), (1,)), status
+
+
+def test_another_tab_s_save_proves_nothing() -> None:
+    workflow, by_id = job()
+
+    took = take_over(workflow, by_id, matched=3, took=TOOK, seen=[operator_saved(100.0, tab=8)])
+
+    assert took.in_doubt == (1,)
+
+
+def test_a_takeover_s_progress_never_sends_the_operator_s_write_again() -> None:
+    progress = Takeover(replay_from=2, done=(1,), in_doubt=(3,)).progress()
+
+    assert progress.step == 2
+    assert progress.written(1) and progress.marks[1].lane == OPERATOR
+    assert progress.in_doubt(3)
+    progress.settle(1, lane="ui", verdict="failed")
+    assert progress.written(1)
+```
+
+In `test_start_workflow_run.py`:
+
+```python
+async def test_a_takeover_starts_after_the_operator_s_own_save() -> None:
+    uow, durable = FakeUnitOfWork(), FakeDurableExecution()
+    await two_writes_job(uow, "wfl_two")
+    await operator_did(uow, device="dev-1", tab=7, at=100.0, calls=[("POST", SAVE_URL, 201)])
+    starter = _starter(uow, durable=durable, steel_tenants=frozenset({TENANT.value}))
+
+    run = await starter.execute(
+        CTX, workflow_id="wfl_two", device_id=DeviceId("dev-1"), values={"Customer Type": "GT2"},
+        live=True, allow_focus=False, matched=3, took_over=Took(tab_id=7, since=90.0, through=100.0),
+    )
+
+    progress = Progress.of(run.progress)
+    assert progress.step == 2 and progress.written(1)
+
+
+async def test_another_browser_s_save_is_not_the_operator_s() -> None:
+    uow, durable = FakeUnitOfWork(), FakeDurableExecution()
+    await two_writes_job(uow, "wfl_two")
+    await operator_did(uow, device="dev-2", tab=7, at=100.0, calls=[("POST", SAVE_URL, 201)])
+    starter = _starter(uow, durable=durable, steel_tenants=frozenset({TENANT.value}))
+
+    run = await starter.execute(
+        CTX, workflow_id="wfl_two", device_id=DeviceId("dev-1"), values={"Customer Type": "GT2"},
+        live=True, allow_focus=False, matched=3, took_over=Took(tab_id=7, since=90.0, through=100.0),
+    )
+
+    assert Progress.of(run.progress).in_doubt(1)
+```
+
+In `test_run_steps.py`:
+
+```python
+FORM = "https://wms.example/app/customer-types/new"
+
+
+async def test_a_taken_over_run_skips_the_operator_s_save_and_replays_only_what_leads_on() -> None:
+    world = await steel_run(
+        steps=[type_step_evidence(), save_step_evidence(status=201),
+               type_step_evidence(page=FORM), save_step_evidence(status=201)],
+        progress=Takeover(replay_from=2, done=(1,)).progress(),
+    )
+    world.lanes.ui.answers(StepResult("done", Lane.UI), StepResult("done", Lane.UI))
+
+    while (await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())).more:
+        pass
+
+    assert world.lanes.ui.calls == 2
+    assert Progress.of((await world.saved_run()).progress).marks[1].lane == OPERATOR
+
+
+async def test_a_write_the_operator_made_is_passed_over_as_theirs() -> None:
+    world = await steel_run(steps=[save_step_evidence(status=201)],
+                            progress=Takeover(replay_from=0, done=(0,)).progress())
+
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert outcome.more is False and world.lanes.ui.calls == 0
+    assert (await world.saved_run()).steps[-1].verdict_by == OPERATOR
+
+
+async def test_a_takeover_opens_steel_on_the_page_of_its_first_replayed_step() -> None:
+    world = await steel_run(
+        steps=[type_step_evidence(), save_step_evidence(status=201),
+               type_step_evidence(page=FORM), save_step_evidence(status=201)],
+        progress=Takeover(replay_from=2, done=(1,)).progress(),
+    )
+
+    await world.run_steps.prepare(CTX, world.run_id)
+
+    assert Progress.of((await world.saved_run()).progress).start_url == FORM
+```
+
+In `test_asking.py`:
+
+```python
+async def test_a_step_question_is_answered_done_or_redo() -> None:
+    uow, durable = FakeUnitOfWork(), FakeDurableExecution()
+    run = await asking_steel_run(uow, kind="step")
+
+    with pytest.raises(Conflict):
+        await AnswerRun(uow, durable).execute(CTX, run_id=run.id, question_id=QID, value="maybe")
+    await AnswerRun(uow, durable).execute(CTX, run_id=run.id, question_id=QID, value="redo")
+
+    assert durable.answered == [(run.id, QID, "redo")]
+
+
+async def test_done_settles_a_doubt_and_redo_lets_the_write_run() -> None:
+    for value, written in (("done", True), ("redo", False)):
+        world = await steel_run(steps=[save_step_evidence(status=201, read_back=None)])
+        await world.mark_sending(order=0)
+        asked = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+        await world.run_steps.answered(CTX, world.run_id, asked.asking, value)
+
+        progress = Progress.of((await world.saved_run()).progress)
+        assert (progress.written(0), progress.in_doubt(0)) == (written, False), value
+```
+
+In `recognise.test.mjs`:
+
+```js
+test("a match says when the gestures it used began and ended, so a takeover reads only this doing", () => {
+  let tail = tailWith([], typed("wm.workAreas.code", "NEWTESTS", { at: 100 }));
+  tail = tailWith(tail, { triple: [H, "grid|Customers", "click"], value: null, secret: false, at: 101 });
+  tail = tailWith(tail, typed("wm.workAreas.desc", "north dock", { at: 102 }));
+
+  const got = match(tail, [workArea]);
+
+  assert.equal(got.since, 100);
+  assert.equal(got.through, 102);
+});
+```
+
+Local Steel (`test_runs_on_local_steel.py`): the rig's two-save job; the test makes the first save itself (`rig.posts == 1`) and stores the gesture carrying that POST on device `dev-1`, tab 7; a Steel run is started with `matched` past that save and `took_over` spanning it; the run completes, `rig.posts == 2`, and the run's first `workflow_run_steps` row is the second form's typing.
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `cd backend && uv run pytest tests/unit/domain/test_a_takeover.py -q -o faulthandler_timeout=120`
+Expected: FAIL, `ModuleNotFoundError: No module named 'sro.domain.execution.takeover'`.
+Run: `make test-extension`
+Expected: FAIL in `recognise.test.mjs`: `undefined !== 100`.
+
+- [ ] **Step 3: Implement**
+
+```python
+# backend/src/sro/domain/execution/takeover.py
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+
+from sro.domain.execution.belts import expected_statuses
+from sro.domain.execution.evidence import recorded_call, writes
+from sro.domain.execution.lanes import SeenCall, write_confirmed
+from sro.domain.execution.progress import Progress
+from sro.domain.observation.gesture import Gesture
+from sro.domain.shared.errors import InvariantViolation
+from sro.domain.skill.shape import cited_pairs, walkable
+from sro.domain.skill.workflow import Step, Workflow
+
+OPERATOR = "operator"
+
+
+@dataclass(frozen=True, slots=True)
+class Took:
+    tab_id: int
+    since: float
+    through: float
+
+    def __post_init__(self) -> None:
+        if self.since > self.through:
+            raise InvariantViolation("a takeover's gestures cannot end before they begin")
+
+
+@dataclass(frozen=True, slots=True)
+class Takeover:
+    replay_from: int
+    done: tuple[int, ...] = ()
+    in_doubt: tuple[int, ...] = ()
+
+    def progress(self) -> Progress:
+        progress = Progress(step=self.replay_from)
+        for order in self.done:
+            progress.sending(order)
+            progress.settle(order, lane=OPERATOR, verdict="done")
+        for order in self.in_doubt:
+            progress.sending(order)
+        return progress
+
+
+def take_over(
+    workflow: Workflow, by_id: Mapping[str, Gesture], *, matched: int, took: Took,
+    seen: Sequence[Gesture],
+) -> Takeover:
+    reached = {gesture.id for gesture, _ in walkable(cited_pairs(workflow, by_id))[:matched]}
+    theirs = [one for one in seen if one.tab_id == took.tab_id and one.at >= took.since]
+    uploaded = any(one.at >= took.through for one in theirs)
+    calls = [SeenCall(call.method, call.url, call.status) for one in theirs for call in one.requests]
+    ordered = sorted(workflow.steps, key=lambda step: step.order)
+    done: list[int] = []
+    doubt: list[int] = []
+    for step in ordered:
+        writer = _writer(step, by_id)
+        if writer is None or writer.id not in reached:
+            continue
+        verdict = (
+            write_confirmed(recorded=recorded_call(step, by_id),
+                            wanted=expected_statuses(step, by_id), calls=calls)
+            if uploaded else None
+        )
+        (done if verdict == "done" else doubt).append(step.order)
+    before_doubt = [order for order in done if all(order < one for one in doubt)]
+    replay_from = (
+        1 + next(n for n, step in enumerate(ordered) if step.order == max(before_doubt))
+        if before_doubt else 0
+    )
+    return Takeover(replay_from, tuple(done), tuple(doubt))
+
+
+def _writer(step: Step, by_id: Mapping[str, Gesture]) -> Gesture | None:
+    if not writes(step, by_id):
+        return None
+    call = recorded_call(step, by_id)
+    return next(
+        (by_id[one] for one in step.cites if one in by_id and call in by_id[one].requests), None
+    )
+```
+
+`StartWorkflowRun.execute`, after `from_step` is resolved and only when `steel and took_over is not None and matched`:
+
+```python
+            seen = [one for one in await uow.gestures.gestures_for(ctx.tenant_id, after=took_over.since)
+                    if one.stream_id == device_id.value]
+            took = take_over(workflow, by_id, matched=matched, took=took_over, seen=seen)
+            first_progress = took.progress().as_json()
+            check_from = sorted(workflow.steps, key=lambda s: s.order)[took.replay_from].order
+```
+
+`unperformable(workflow, by_id, from_step=check_from)` replaces the `from_step` check for a takeover (the replayed steps must be performable too), and the `WorkflowRun` is built with `progress=first_progress`. The router passes `took_over=Took(**body.took_over.model_dump()) if body.took_over else None`.
+
+`RunSteps.prepare`: `browser = [s for s in ordered[progress.step:] if …]` in place of the whole job, so the start page and the account are those of the first step still to run. `RunSteps.step`, already-written branch: `StepResult` is built with the lane only when the mark's lane is a `Lane` value; otherwise the `RunStep` row is written with `verdict="held"`, `verdict_by=planned_by=` the mark's lane (`operator`) and reason "done by the operator before the takeover". `RunSteps.answered` and `AnswerRun` as in the interfaces; the step order comes from the standing question D5 records.
+
+`recognise.js` `match`, in the returned object: `const used = [...best.at.values()];` then `since: tail[Math.min(...used)].at, through: tail[Math.max(...used)].at`. `service-worker.js`: the nudge made from a match keeps `since` and `through`; in `start-rig-run`, before `api.rigStart`, `await flushQueue();` and the body gains
+`took_over: nudge.tabId != null && nudge.since != null ? { tab_id: nudge.tabId, since: nudge.since, through: nudge.through } : undefined`.
+A mail offer has no `since`, so it sends none.
+
+Code notes: why a write counts only when its recorded call's gesture was reached (a typed-but-unsaved form is not a save); why the uploads must reach `through` before anything is `done` (an upload still on its way is not evidence of absence); why a refusal is doubt and not "not written" (a 409 can mean the record exists); why the replay starts after the last proven write (the steps before it fed that write, and replaying them would leave a second unsaved form); why the operator's tab is never touched.
+
+- [ ] **Step 4: Run them and see them pass**
+
+Run: `cd backend && uv run pytest tests/unit -q -o faulthandler_timeout=120 && cd .. && make types && make test-extension && make lint-extension && cd backend && uv run pytest tests/contract -q`
+Run (with `make up`): `cd backend && SRO_INTEGRATION_DATABASE_URL="postgresql+asyncpg://sro:sro@localhost:5432/sro_test" uv run pytest tests/integration/test_runs_on_local_steel.py -q -o faulthandler_timeout=120 -k takeover`
+Expected: all pass; the takeover scenario ends with `rig.posts == 2`.
+
+- [ ] **Step 5: Commit, then LIVE QA**
+
+```bash
+git add backend/src/sro backend/tests new-chrome-extension/src/background/recognise.js new-chrome-extension/src/background/recognise.test.mjs new-chrome-extension/src/background/service-worker.js frontend/openapi.json frontend/src/lib/api/generated.ts docs/code-notes
+git commit -m "feat(runs): Steel takes over a job mid-way and never repeats the operator's own writes
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
+```
+
+A code change is live only after the worker restarts (the activities changed). **LIVE QA: QA-6** follows (Proof points).
+
+## D8: The server reads each operator's mailbox; with the heartbeat look beside it, no mail is read twice (§2 "Mail poll", §9 step 2)
+
+Depends on: D3.
+
+Today a mailbox is read only when the extension's `sro-heartbeat` alarm (`service-worker.js:158-200`) calls `lookInTheMail` (`:2808`) → `api.fromTheMail` (`api.js:230`) → `POST /v1/chat/from-the-mail` (`routers/chat.py:86-104`) → `FromTheMail.execute` (`application/chat/from_the_mail.py:112`). The pieces the poll needs are already there:
+
+- **Once per message.** `_first_time` (`from_the_mail.py:592-603`) claims `mail:{principal}:{message}` through `uow.tool_calls.remember`, an insert with `on_conflict_do_nothing` on `(tenant_id, idempotency_key)` (`infrastructure/db/repositories.py:844-870`). Two callers racing on one message get one `True`.
+- **Cap.** `over_cap` runs before the mailbox or the model is touched (`:118-126`); an `OverCap` inside the loop releases the current claim (`_forget`, `:260-270`). The asker is `Metered` (`infrastructure/gemini/metered.py`, audit wave Task 5): it checks the cap per call, records spend, and refuses a call with no tenant in `whose()` (`Unattributed`).
+- **Recurring work.** Platform sweeps are worker loops — `keep_sessions_open`, `mine_the_rig_lately`, `retain_lately` (`infrastructure/temporal/worker.py:31-95`) — each tenant run under `whose.about` (`mine_lately.py:99`, `keep_open.py:47`). Temporal schedules exist only for operators' triggers (`temporal/schedules.py`); `cli/read_cron.py` is a one-shot CLI. The poll is a loop.
+- **Whose mailbox.** The Gmail grant is per operator (`connector_key`, `domain/execution/secrets.py:39`, read by `McpToolCaller._bearer`), and nothing lists who holds one. The operators with a registered, unrevoked browser (`uow.devices.list_for_tenant`) are the ones whose heartbeat reads mail today; one who never connected Gmail answers `NotConnected`, which the door turns into a sentence at no model cost.
+
+Two gaps close here:
+
+1. A request missing values reaches the operator today only as a card the extension builds from the look's answer (`offerFromMail`, `service-worker.js:725`). With no browser asking, the poll turns it into a `needs_values` question in the operator's thread with `AskAboutTheOffer` (`application/chat/about_an_offer.py:65`). The panel draws that question, and the heartbeat's `lookForAQuestion` finds it.
+2. D3's `_started` runs after the loop, outside its `except OverCap`. A cap refusal from `StartWorkflowRun.execute` (`workflow_runs.py:148`) would leave the message claimed and the request lost. Each offer whose start the cap refuses now has its claim released and is dropped from the answer.
+
+Only tenants on Steel are polled. For an extension tenant, `_started` returns a sure, complete request unchanged, and only the extension turns it into a card. A poll that claimed it would lose it. R2 removes the gate together with the setting.
+
+**Files:**
+- Create: `backend/src/sro/application/chat/look_lately.py`
+- Modify: `backend/src/sro/application/chat/from_the_mail.py` (the `_started` pass: an `OverCap` releases that message's claim and drops the offer)
+- Modify: `backend/src/sro/infrastructure/temporal/worker.py` (`look_in_the_mail_lately`, started and cancelled beside `keeper`)
+- Modify: `backend/src/sro/config.py` (`mail_sweep_seconds: float = 60.0`; `0` turns the poll off)
+- Modify: `backend/src/sro/container.py` (`look_in_the_mail_lately()`)
+- Modify: `backend/tests/unit/application/rig/test_from_the_mail.py` (`_Reads.tenants` records `whose().get("tenant")` on each call; D3's `mail_world` gains a registered browser for `CTX.principal_id`, a capture batch for the tenant, `start_refuses: Exception | None = None`, `world.start` and `world.poll`; `EVERY_VALUE`)
+- Create: `backend/tests/integration/test_mail_is_read_once.py`
+
+**Interfaces:**
+- Consumes: `FromTheMail.execute`; `StartWorkflowRun.runs_on_steel` and `FromTheMail._started` (D3); `AskAboutTheOffer.execute(ctx, pending, *, about, mail_thread)`; `uow.gestures.tenants_since`; `uow.devices.list_for_tenant`; `whose.about`.
+- Produces: `LookInTheMailLately(uow, look: FromTheMail, asks: AskAboutTheOffer, start: StartWorkflowRun).execute() -> dict[str, LookedInTheMail]`, keyed `"{tenant}/{principal}"`; `Settings.mail_sweep_seconds`; `worker.look_in_the_mail_lately(container, every_seconds)`.
+
+- [ ] **Step 1: Write the failing tests**
+
+In `test_from_the_mail.py`:
+
+```python
+EVERY_VALUE = {"Customer Type": "GT2", "Customer Type Description": "north dock"}
+
+
+async def test_the_poll_reads_as_each_operator_and_starts_a_sure_complete_request() -> None:
+    world = mail_world(sure=True, values=EVERY_VALUE, steel=True)
+
+    await world.poll.execute()
+
+    assert {who for who, _, _ in world.mailbox.asked} == {CTX.principal_id.value}
+    assert len(world.durable.runs_started) == 1
+
+
+async def test_a_mail_the_heartbeat_already_read_is_not_read_again_by_the_poll() -> None:
+    world = mail_world(sure=True, values=EVERY_VALUE, steel=True)
+
+    await world.from_the_mail.execute(CTX)
+    await world.poll.execute()
+
+    assert len(world.reads.saw) == 1
+    assert len(world.durable.runs_started) == 1
+
+
+async def test_a_request_missing_a_value_becomes_a_question_in_the_operator_s_thread() -> None:
+    world = mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+
+    await world.poll.execute()
+
+    last = (await _thread(world.uow)).messages[-1]
+    assert last.decision["kind"] == NEEDS
+    assert last.decision["missing"] == ["Customer Type Description"]
+    assert world.durable.runs_started == []
+
+
+async def test_the_poll_leaves_an_extension_tenant_s_mail_to_its_browser() -> None:
+    world = mail_world(sure=True, values=EVERY_VALUE, steel=False)
+
+    await world.poll.execute()
+
+    assert world.mailbox.asked == [] and world.uow.tool_calls.claimed == {}
+
+
+async def test_every_model_call_the_poll_makes_is_the_tenant_s() -> None:
+    world = mail_world(sure=True, values=EVERY_VALUE, steel=True)
+
+    await world.poll.execute()
+
+    assert world.reads.tenants == [f.TENANT.value]
+
+
+async def test_a_cap_reached_while_starting_the_run_leaves_the_mail_unread() -> None:
+    world = mail_world(sure=True, values=EVERY_VALUE, steel=True,
+                       start_refuses=OverCap("today's model budget is spent"))
+
+    await world.poll.execute()
+
+    assert world.uow.tool_calls.claimed == {}
+    assert world.durable.runs_started == []
+```
+
+```python
+# backend/tests/integration/test_mail_is_read_once.py
+import asyncio
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from sro.application.chat.from_the_mail import FromTheMail
+from sro.infrastructure.db.repositories import SqlUnitOfWork
+from tests.unit.application.rig.test_from_the_mail import (
+    CTX, JOB, _found, _held_in, _Mailbox, _mail, _Reads, _reading,
+)
+from tests.unit.fakes import FakeClock, FakeIdFactory
+
+
+async def test_the_heartbeat_look_and_the_poll_racing_read_one_mail_once(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    await _held_in(SqlUnitOfWork(session_factory))
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("please create customer type GT2")})
+    reads = _Reads(_reading(JOB), _reading(JOB))
+    heartbeat, poll = (
+        FromTheMail(SqlUnitOfWork(session_factory), mailbox, reads, model="m",
+                    clock=FakeClock(), ids=FakeIdFactory())
+        for _ in range(2)
+    )
+
+    one, other = await asyncio.gather(heartbeat.execute(CTX), poll.execute(CTX))
+
+    assert one.read + other.read == 1
+    assert len(reads.saw) == 1
+```
+
+(`_held_in(uow)` is `_held()`'s body taking the unit of work, saving inside `async with uow` and committing, so the integration test saves the same job into Postgres; `_held()` becomes `return await _held_in(FakeUnitOfWork())`.)
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `cd backend && uv run pytest tests/unit/application/rig/test_from_the_mail.py -q -o faulthandler_timeout=120 -k "poll or cap_reached_while_starting"`
+Expected: FAIL, `ModuleNotFoundError: No module named 'sro.application.chat.look_lately'`.
+
+- [ ] **Step 3: Implement**
+
+```python
+# backend/src/sro/application/chat/look_lately.py
+from __future__ import annotations
+
+import logging
+from datetime import UTC, datetime
+
+from sro.application.chat.about_an_offer import AskAboutTheOffer
+from sro.application.chat.from_the_mail import FromTheMail, LookedInTheMail
+from sro.application.context import RequestContext
+from sro.application.execution.workflow_runs import StartWorkflowRun
+from sro.application.ports.repositories import UnitOfWork
+from sro.application.shared.refusals import OverCap
+from sro.domain.chat.asking import Pending
+from sro.domain.shared.identifiers import PrincipalId
+from sro.whose import about
+
+logger = logging.getLogger(__name__)
+
+K_EVER = datetime(1970, 1, 1, tzinfo=UTC)
+
+
+class LookInTheMailLately:
+    def __init__(self, uow: UnitOfWork, look: FromTheMail, asks: AskAboutTheOffer,
+                 start: StartWorkflowRun) -> None:
+        self._uow, self._look, self._asks, self._start = uow, look, asks, start
+
+    async def execute(self) -> dict[str, LookedInTheMail]:
+        async with self._uow as uow:
+            tenants = await uow.gestures.tenants_since(K_EVER)
+            operators = {
+                tenant: sorted({
+                    one.principal_id.value
+                    for one in await uow.devices.list_for_tenant(tenant)
+                    if not one.revoked
+                })
+                for tenant in tenants
+            }
+        looked: dict[str, LookedInTheMail] = {}
+        for tenant, principals in operators.items():
+            for principal in principals:
+                ctx = RequestContext(tenant_id=tenant, principal_id=PrincipalId(principal))
+                if not self._start.runs_on_steel(ctx):
+                    break
+                with about(tenant=tenant.value, principal=principal):
+                    try:
+                        found = await self._look.execute(ctx)
+                    except OverCap as reached:
+                        logger.info("%s: the mail poll stopped at the cap -- %s", tenant.value, reached)
+                        break
+                    for one in found.offered:
+                        if one.missing and not one.started:
+                            await self._asks.execute(
+                                ctx,
+                                Pending(workflow_id=one.workflow_id, title=one.title,
+                                        values=dict(one.values), missing=tuple(one.missing),
+                                        mail_thread=one.thread),
+                                about=one.subject,
+                                mail_thread=one.thread,
+                            )
+                looked[f"{tenant.value}/{principal}"] = found
+        return looked
+```
+
+`FromTheMail.execute`, D3's start pass becomes:
+
+```python
+        started: list[Offered] = []
+        for one in offered:
+            try:
+                started.append(await self._started(ctx, one))
+            except OverCap as reached:
+                await self._forget(ctx, one.message)
+                logger.info("%s: %s left unread -- %s", tenant, one.message, reached)
+        offered = started
+```
+
+`worker.py`:
+
+```python
+async def look_in_the_mail_lately(container: Container, every_seconds: float) -> None:
+    if every_seconds <= 0:
+        logger.info("the mail poll is off (mail_sweep_seconds=0)")
+        return
+    while True:
+        await asyncio.sleep(every_seconds)
+        try:
+            looked = await container.look_in_the_mail_lately().execute()
+        except Exception:
+            logger.exception("the mail poll could not finish")
+            continue
+        for who, one in looked.items():
+            if one.read:
+                logger.info("%s: %s mail(s) read -- %s", who, one.read, one.why)
+```
+
+started in `run()` as `mailer = asyncio.create_task(look_in_the_mail_lately(container, settings.mail_sweep_seconds))` and cancelled in the `finally` with the others. `container.py`: `LookInTheMailLately(self.unit_of_work(), self.from_the_mail(), self.ask_about_the_offer(), self.start_workflow_run())`.
+
+Code notes: why a loop and not a Temporal schedule (the repository's pattern for platform sweeps; schedules are operators' triggers); why each operator and not each tenant (grant and claim are per operator); why only Steel tenants until R2 (an extension tenant's complete request becomes a card only in its browser); why the claim alone keeps the two callers apart (one insert wins, no lock and no timing window); why a refused start releases the claim (a cap refusal must not cost a request); `mail_sweep_seconds` and why 60 (the heartbeat's own look is once a minute, so the operator sees no change in latency).
+
+- [ ] **Step 4: Run them and see them pass**
+
+Run: `cd backend && uv run pytest tests/unit -q -o faulthandler_timeout=120 && SRO_INTEGRATION_DATABASE_URL="postgresql+asyncpg://sro:sro@localhost:5432/sro_test" uv run pytest tests/integration/test_mail_is_read_once.py -q -o faulthandler_timeout=120`
+Expected: all pass.
+
+- [ ] **Step 5: Commit, then LIVE QA**
+
+```bash
+git add backend/src/sro/application/chat backend/src/sro/infrastructure/temporal/worker.py backend/src/sro/config.py backend/src/sro/container.py backend/tests docs/code-notes
+git commit -m "feat(mail): the worker reads each operator's mailbox; one claim per message keeps the heartbeat look and the poll apart
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
+```
+
+A code change is live only after the worker restarts (the poll is a worker loop). **LIVE QA: QA-7** follows (Proof points).
+
+---
+
+# Stream L — lookups (spec §6.5)
+
+## L1: Lookups run on Steel — the account's session first, then a Steel tab, never the operator's browser (§6.5)
+
+Depends on: S7 (`account_for`, `acquire`, `release`), S8 (`reauth`), S10 (`headers`), X5 (`K_AUTH_REFUSED`, the API lane's refusal rule), X7 (`PageDriver.screenshot`, `Screen`). It does not need X4. A lookup has no recorded gesture to act on and never acts: it navigates to an address and looks, which S7's `acquire` (a tab opened on the page) and X7's `screenshot` cover.
+
+Today `RunLookups` (`application/lookup/run_lookups.py:47-160`) serves three doors: `/v1/ask` (`routers/ask.py:56`), `/v1/lookups` (`routers/lookups.py:53`) and chat (`application/chat/converse.py:785-801`, `K_WHILE_TALKING`). It picks any online device (`:66`) and sends it commands through `SocketChannel` (`container.py:359-360`):
+- a `call` goes out as `http.send` (`:106`), which is a GET in the operator's own browser with their cookies;
+- a `screen` is `navigate` then `screenshot` (`:118-125`);
+- a shut system gets `tab.open` and one retry (`:128-141`).
+
+The address half stays unchanged. `address_for` (`domain/lookup/address.py:24-70`) turns a plan's knowledge key into a place this deployment has already been: the newest GET to that path that answered 2xx, with its recorded headers and the names of the ones to fetch live, or the page somebody was on for a screen route. It already refuses a write: a path seen only as a POST addresses nothing (`tests/unit/application/test_going_and_looking.py:112-130`, id "a write").
+
+**Files:**
+- Modify: `backend/src/sro/domain/lookup/address.py`: `Address.page`, the page the addressed GET was made from, taken from its gesture's `page_url` or else `url`. `_call_address` keeps the gesture beside the call it chooses.
+- Modify: `backend/src/sro/application/lookup/run_lookups.py`:
+  - `RunLookups(uow, broker, http)` replaces `RunLookups(uow, channel)`;
+  - `execute(ctx, *, plan, within)` no longer takes `device_id` or `allow_focus`;
+  - `_reopened`, `_send`, `_shut`, `NO_TAB` and `_call_payload` are deleted.
+- Modify: `backend/src/sro/container.py:359-360`: `run_lookups()` builds `RunLookups(self.unit_of_work(), self.session_broker(), self.http)`.
+- Modify: `backend/src/sro/application/runtime/broker.py`: `SessionBroker.screenshot(ctx, held) -> Screen`, one line over `driver.screenshot`.
+- Modify: `backend/src/sro/interface/http/v1/routers/ask.py:56-58`, `routers/lookups.py:53-55` and `application/chat/converse.py:799-801`: stop passing `allow_focus`.
+- Modify: `backend/src/sro/interface/http/schemas.py`: delete `LookupRequest.allow_focus` and `AskRequest.allow_focus`, which meant "bring the operator's tab forward", after `grep -rn allow_focus new-chrome-extension/src frontend/src` shows their senders; the senders are edited in the same commit.
+- Modify: `application/chat/converse.py` `_what_was_found`: "I could not reach your browser in time" becomes "I could not read that in time".
+- Modify: `backend/tests/unit/application/test_going_and_looking.py`. The address tests (`:77-170`) stay. The run tests (`:173-460`) are rewritten against `lookup_world`; the ones about a shut tab, `tab.open` and "no browser connected" are deleted with the path they tested.
+- Modify: `backend/tests/unit/runtime_support.py`: `lookup_world(*gestures) -> LookupWorld`, which saves the gestures and a recorded sign-in for the system (`with_a_recorded_sign_in(uow, lands_on=WMS, username="lena")`, from S7) into a `FakeUnitOfWork` and builds `SessionBroker` over the fakes (S7's `_broker` shape) with a `FakeHttpCaller` and a `FakePageDriver`; `world.reauths` counts `reauth` calls.
+- Modify: `backend/tests/unit/test_container_wiring.py`.
+- Modify: `backend/tests/integration/test_runs_on_local_steel.py` (scenario: a lookup on local Steel).
+- Run: `make types`.
+
+**Interfaces:**
+- Consumes: `SessionBroker.account_for/acquire/release/reauth/headers` (S7, S8, S10); `K_AUTH_REFUSED` (X5); `PageDriver.screenshot -> Screen(image, mime_type, width, height)` (X7); `HttpCaller` (`ports/http.py`); `address_for`, `read_answer` (existing).
+- Produces:
+  - `Address.page: str = ""`.
+  - `RunLookups(uow: UnitOfWork, broker: SessionBroker, http: HttpCaller)`.
+  - `.execute(ctx, *, plan: Plan, within: float = K_DEADLINE_S) -> Answers`. `Answers` and `Looked` are unchanged on the wire. A `call` answer is `{"status", "body"}`, as before. A `screen` answer is `{"image_base64", "mime_type", "width", "height"}`, as the extension's `screenshot` answered, without `text_digest`.
+  - The lease holder for a lookup is `lookup-<hex>`.
+- Refusal: a lookup can reach nothing that writes.
+  - `address_for` returns only GETs that answered 2xx.
+  - The API lane sends the literal method `"GET"`.
+  - The tab path calls only `acquire` (open a tab on the page), `screenshot` and `release`. Never `act`, `point` or the sight model.
+  - A target seen only as a write gets `Looked(ok=False, detail="nothing here has been to <target>")`, and nothing is sent.
+- Gaps: a `DomainError` (`NeedsAPerson` for a sign-in that needs a password; an account with no recorded username), `PoolFull`, `PageGone`, `TargetUnreachable` and running out of `within` each make that one lookup `Looked(ok=False, detail=…)`. The rest of the plan still runs. A lookup never waits on a person.
+
+- [ ] **Step 1: Write the failing tests**
+
+In `test_going_and_looking.py` (`CALL`, `SCREEN`, `SCREEN_URL`, `_call`, `_gesture` are the file's own):
+
+```python
+async def test_a_call_goes_out_as_a_get_with_the_account_s_steel_session() -> None:
+    world = await lookup_world(_gesture(_call(headers={"X-Requested-With": REDACTED})))
+    world.driver.cookie = "sid=abc"
+    world.driver.headers = {"x-requested-with": "XMLHttpRequest"}
+    world.http.answer(200, '{"rows": 5}')
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    (sent,) = world.http.sent
+    assert sent["method"] == "GET"
+    assert sent["headers"]["cookie"] == "sid=abc"
+    assert sent["headers"]["x-requested-with"] == "XMLHttpRequest"
+    assert answers.any_answered
+    assert world.driver.tabs == {}
+
+
+async def test_an_expired_session_signs_in_again_once_and_the_read_is_tried_again() -> None:
+    world = await lookup_world(_gesture(_call()))
+    world.http.answer(401, "")
+    world.http.answer(200, '{"rows": 1}')
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    assert world.reauths == 1 and len(world.http.sent) == 2 and answers.any_answered
+
+
+async def test_a_call_refused_otherwise_is_read_off_the_page_it_was_seen_on() -> None:
+    world = await lookup_world(_gesture(_call(), url=SCREEN_URL))
+    world.http.answer(500, "")
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    assert answers.looked[0].ok and answers.looked[0].answer["mime_type"] == "image/png"
+    assert ("open_tab", SCREEN_URL) in {call[:2] for call in world.driver.calls}
+
+
+async def test_a_screen_is_put_up_in_a_steel_tab_and_nothing_on_it_is_pressed() -> None:
+    world = await lookup_world(_gesture(url=SCREEN_URL))
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(SCREEN,)))
+
+    assert answers.looked[0].ok
+    assert not {call[0] for call in world.driver.calls} & {"act", "point", "type", "press"}
+    assert world.http.sent == []
+
+
+async def test_an_endpoint_seen_only_as_a_write_is_refused_before_anything_is_sent() -> None:
+    world = await lookup_world(_gesture(_call(method="POST")))
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    assert world.http.sent == [] and world.driver.calls == []
+    assert answers.looked[0].detail.startswith("nothing here has been to")
+
+
+async def test_a_system_that_needs_a_person_is_one_named_gap() -> None:
+    world = await lookup_world(_gesture(_call()), _gesture(url=SCREEN_URL, at=200.0))
+    world.driver.refuses = True
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL, SCREEN)))
+
+    assert [one.ok for one in answers.looked] == [False, False]
+    assert all(one.detail for one in answers.looked)
+```
+
+In `test_container_wiring.py`:
+
+```python
+def test_a_lookup_reaches_no_browser_socket(container: Container) -> None:
+    assert not any(isinstance(one, SocketChannel) for one in vars(container.run_lookups()).values())
+```
+
+Local Steel (`test_runs_on_local_steel.py`): the rig serves `GET /api/customer-types` (JSON rows) behind its identity-provider chain; a gesture recording that GET from `/app` is saved; `RunLookups` over the real broker answers the plan with the rig's rows, the rig saw one sign-in, and the account's tab count is back to what it was.
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `cd backend && uv run pytest tests/unit/application/test_going_and_looking.py tests/unit/test_container_wiring.py -q -o faulthandler_timeout=120`
+Expected: FAIL, `ImportError: cannot import name 'lookup_world'` (and the wiring test: the lookup holds a `SocketChannel`).
+
+- [ ] **Step 3: Implement**
+
+```python
+# backend/src/sro/application/lookup/run_lookups.py (the class; Looked, Answers, K_DEADLINE_S, K_WHILE_TALKING unchanged)
+class RunLookups:
+    def __init__(self, uow: UnitOfWork, broker: SessionBroker, http: HttpCaller) -> None:
+        self._uow, self._broker, self._http = uow, broker, http
+
+    async def execute(self, ctx: RequestContext, *, plan: Plan, within: float = K_DEADLINE_S) -> Answers:
+        if not plan.lookups:
+            return Answers(plan=plan)
+        async with self._uow as uow:
+            gestures = list(await uow.gestures.gestures_for(ctx.tenant_id))
+        looked: list[Looked] = []
+        for lookup in plan.lookups:
+            address = address_for(lookup, gestures)
+            if address is None:
+                looked.append(Looked(lookup=lookup, ok=False,
+                                     detail=f"nothing here has been to {lookup.target}"))
+                continue
+            try:
+                async with asyncio.timeout(within):
+                    looked.append(await self._one(ctx, lookup, address))
+            except TimeoutError:
+                looked.append(Looked(lookup=lookup, ok=False, url=address.url,
+                                     detail=f"timed out after {within:.0f} s"))
+            except (DomainError, PoolFull, PageGone, TargetUnreachable) as gap:
+                looked.append(Looked(lookup=lookup, ok=False, url=address.url, detail=str(gap)))
+        return Answers(plan=plan, looked=tuple(looked))
+
+    async def _one(self, ctx: RequestContext, lookup: Lookup, address: Address) -> Looked:
+        page = address.page or address.url
+        account = await self._broker.account_for(ctx, page)
+        held = await self._broker.acquire(ctx, account, page, holder=f"lookup-{uuid4().hex}")
+        try:
+            if lookup.how == "call":
+                got = await self._get(ctx, held, address, page)
+                if got.succeeded:
+                    return _looked(lookup, address, {"status": got.status_code, "body": got.text})
+            shot = await self._broker.screenshot(ctx, held)
+            return _looked(lookup, address, {
+                "image_base64": b64encode(shot.image).decode(), "mime_type": shot.mime_type,
+                "width": shot.width, "height": shot.height,
+            })
+        finally:
+            await self._broker.release(ctx, held)
+
+    async def _get(self, ctx: RequestContext, held: Held, address: Address, page: str) -> HttpResponse:
+        got = await self._send(ctx, held, address)
+        if got.status_code in K_AUTH_REFUSED:
+            await self._broker.reauth(ctx, held, page)
+            got = await self._send(ctx, held, address)
+        return got
+
+    async def _send(self, ctx: RequestContext, held: Held, address: Address) -> HttpResponse:
+        session = await self._broker.headers(ctx, held, system_of(address.url))
+        return await self._http.send("GET", address.url, headers={**address.headers, **session})
+```
+
+`_looked(lookup, address, result: Mapping[str, object])` is the existing helper, taking the result instead of a `Reply`. `SessionBroker.screenshot(ctx, held) -> Screen` is one line over `driver.screenshot(held.session, held.target_id)`, so `RunLookups` needs the broker and no driver of its own. The screenshot needs no navigation, because `acquire` opened the tab on `page` and `reauth` returns it there.
+
+Code notes: why a lookup takes a tab and not a durable run (it lives inside the request that asked, bounded by the caller's deadline); why an auth refusal re-signs in and anything else falls to the screen (§3's rule, applied to a read); why nothing here can write (the three structural facts under Interfaces, one test each); why a sign-in that needs a person is a gap and not a question (nothing is waiting to resume a lookup).
+
+- [ ] **Step 4: Run them and see them pass**
+
+Run: `cd backend && uv run pytest tests/unit -q -o faulthandler_timeout=120 && uv run lint-imports && cd .. && make types && cd backend && uv run pytest tests/contract -q`
+Run (with `make up`): `cd backend && SRO_INTEGRATION_DATABASE_URL="postgresql+asyncpg://sro:sro@localhost:5432/sro_test" uv run pytest tests/integration/test_runs_on_local_steel.py -q -o faulthandler_timeout=120 -k lookup`
+Expected: all pass; `grep -n "SocketChannel\|channel" backend/src/sro/application/lookup/run_lookups.py` prints nothing.
+
+- [ ] **Step 5: Commit, then LIVE QA**
+
+```bash
+git add backend/src/sro backend/tests frontend/openapi.json frontend/src/lib/api/generated.ts new-chrome-extension/src frontend/src docs/code-notes
+git commit -m "feat(lookups): a lookup reads through the account's Steel session, never the operator's browser
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
+```
+
+`RunLookups` runs in the API process (lookups answer inside a request), so this is live after the API restarts. **LIVE QA: QA-8** follows (Proof points).
+
 ---
 
 # Stream R — rollout and removals (spec §9, §10)
@@ -5790,23 +6638,39 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 
 The user runs `python scripts/shadow.py --tenant greyorange --runs 10` on QA and reads the table. On the user's word, set `SRO_STEEL_TENANTS='["greyorange"]'` in the deploy file (its own commit, `chore(rollout): greyorange runs on Steel`); the extension then receives no command for that tenant and keeps capturing.
 
-## R2: Steel is the only executor; the extension stops executing (§9 step 3, §10) — after the POC milestone
+## R2: Steel is the only executor; the extension becomes watch-only (§9 step 3, §10) — after the POC milestone
 
-Depends on: QA-1 … QA-5 passed (the POC milestone).
+**What R2 is, plainly: the step that makes the extension watch-only.** After it, the extension captures what the operator does, recognises the jobs they start, and asks and answers in the panel. It can no longer act on a page. It can no longer send a request for a run — including `httpSend`, which today sends a request from the operator's own browser with their cookies. Its heartbeat no longer calls the mail door; the server reads the mailbox (D8).
+
+Depends on:
+- QA-1 … QA-8 passed (the POC milestone): takeover (QA-6) because after R2 no run can carry on in the operator's tab, the server mail poll (QA-7) because R2 removes the only other reader, and lookups on Steel (QA-8) because R2 deletes the kinds lookups used to send.
+- D7, D8, L1.
 
 **Files:**
-- Modify: `new-chrome-extension/src/background/commands.js` (delete the executing kinds: every `ui.*`, `navigate`, `screenshot`, `sign_in`, `tab.open`, `calls.since`, `http.send` handler and their helpers), `service-worker.js` (the command handler), `showing.js` (the in-page driving band) and their tests
-- Modify: `new-chrome-extension/src/page/page-code.js` (delete `perform`, `performAt`, `screenSize`, `viewport`, `csrfToken`, `requestedWith`, `send` — extension-only; `resolve`/`act`/`holds`/`hitTest`/`signals` stay, Steel loads them)
-- Modify: `backend/src/sro/application/execution/workflow_runs.py` (`StartWorkflowRun`: the extension path — `run_workflow`, `WatchingChannel`, the device checks, `Stops` — deleted; every run is Steel)
-- Modify: `backend/src/sro/config.py` (`steel_tenants` deleted), `infra/docker-compose.deploy.yml`
-- Modify: `backend/src/sro/interface/http/v1/routers/workflow_runs.py:99-150` (`await starter.perform(...)` instead of `container.pursuits.spawn(...)`), `application/trigger/fire_trigger.py:264-298`, `application/trigger/answer_confirmation.py` (same)
-- Modify: `backend/src/sro/application/execution/workflow_runs.py:550-567` (`AbortWorkflowRun` only cancels; `Stops` and `Approvals` leave it)
-- Modify: `docs/14-extension-protocol.md` (the command kinds are gone)
-- Test: `backend/tests/unit/test_container_wiring.py` (no `SocketChannel` is built for runs), extension test that no command kind is handled, `make test-browser`
+- Delete: `new-chrome-extension/src/background/commands.js` — every executing kind: `ui.perform`, `ui.perform_at`, `ui.url`, `screenshot`, `navigate`, `sign_in`, `tab.open`, `calls.since`, `http.send` (`httpSend`, `commands.js:1451`) and `abort`.
+- Delete: `channel.js`. Its only job is to carry backend commands to `commands.perform` (`channel.js:12,61`).
+- Delete: `showing.js` (the in-page driving band), and `pointing.js`, `sign-in.js`, `whats-on-screen.js` (imported only by `commands.js`).
+- Delete: every test file whose only subject is one of the deleted files. Grep each `*.test.mjs`'s imports first; a mixed file is edited, not deleted.
+- Modify: `new-chrome-extension/src/background/service-worker.js`:
+  - the command handler, and the `channel.*` calls (`:206, 1641, 1722, 1750, 1818, 3258, 3360-3362`);
+  - the band;
+  - the heartbeat's mail call: `void lookInTheMail()` on the `sro-heartbeat` alarm (`:200`), `lookInTheMail` (`:2808`), `readingTheMail` and `offerFromMail` (`:725`).
+- Modify: `api.js`: delete `fromTheMail` (`:230`).
+- Delete: `looking.js` and `looking.test.mjs`, the look's throttle.
+- Modify: the panel strip's "reading your mailbox" state, which only the look fed. The server's "checked N s ago" (P5) is design 3.
+- Modify: `new-chrome-extension/src/page/page-code.js`: delete `perform`, `performAt`, `screenSize`, `viewport`, `csrfToken`, `requestedWith` and `send`, which are extension-only. `resolve`, `act`, `holds`, `hitTest` and `signals` stay: Steel loads them, and after R2 nothing in the extension injects this file.
+- Create: `new-chrome-extension/src/watch-only.test.mjs`.
+- Modify: `new-chrome-extension/src/background/offering-worker.test.mjs`: drop its import of `perform`.
+- Modify: `backend/src/sro/application/execution/workflow_runs.py`. In `StartWorkflowRun`, delete the extension path: `run_workflow`, `WatchingChannel`, the device checks and `Stops`; every run is Steel. `AbortWorkflowRun` (`:550-567`) only cancels; `Stops` and `Approvals` leave it.
+- Modify: `backend/src/sro/config.py` (delete `steel_tenants`) and `infra/docker-compose.deploy.yml`. Also delete the `runs_on_steel` gate in `LookInTheMailLately` (D8) and `FromTheMail._started` (D3); every tenant is polled.
+- Modify: `backend/src/sro/interface/http/v1/routers/workflow_runs.py:99-150`: `await starter.perform(...)` instead of `container.pursuits.spawn(...)`. The same change goes in `application/trigger/fire_trigger.py:264-298` and `application/trigger/answer_confirmation.py`.
+- Delete: the backend's command socket (`interface/http/v1/routers/agent_channel.py`, `infrastructure/agent/channel.py` `SocketChannel`, `container.agent_sockets`). L1 moved lookups off it, and this task removes its last sender, `StartWorkflowRun`'s extension branch (`container.py:753`).
+- Modify: `docs/14-extension-protocol.md` (the command kinds are gone).
+- Test: `backend/tests/unit/test_container_wiring.py`, `new-chrome-extension/src/watch-only.test.mjs`, `make test-browser`.
 
 **Interfaces:**
-- Removes: `Settings.steel_tenants`; the extension's executing command kinds; `StartWorkflowRun`'s extension branch; `pursuits.spawn` on the workflow-run path.
-- Keeps: capture (`recorder.generated.js`, `upload.js`, `queue.js`), the panel, `page-code.js`.
+- Removes: `Settings.steel_tenants`; every executing command kind, `httpSend` among them; the command socket, on both ends; the heartbeat's mail call; `StartWorkflowRun`'s extension branch; `pursuits.spawn` on the workflow-run path.
+- Keeps: capture (`recorder.generated.js`, `network*.js`, `observe.js`, `upload.js`, `queue.js`, `trees.js`, `shots.js`); recognition (`recognise.js`, served shapes) and the offer press, which calls the backend and acts on no page; the panel; `api.js` requests to the deployment; `page-code.js` as Steel's file.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -5819,26 +6683,199 @@ def test_no_run_is_ever_sent_to_a_browser_socket(container: Container) -> None:
     assert not hasattr(starter, "_channel")
 ```
 
-In `new-chrome-extension/src/background/offering-worker.test.mjs` (it already imports `perform` from `./commands.js`):
+The extension test. It is AST-based and uses the parser `make lint-extension` already runs (espree, from the frontend's `node_modules`):
 
 ```js
-test("the extension executes no command kind", async () => {
-  for (const kind of ["ui.perform", "ui.perform_at", "navigate", "screenshot", "sign_in", "tab.open", "calls.since", "http.send"]) {
-    const answer = await perform({ kind, payload: {} });
-    assert.equal(answer.ok, false, kind);
-    assert.equal(answer.error.kind, "not_actionable", kind);
+// new-chrome-extension/src/watch-only.test.mjs
+import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join, relative, resolve } from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+
+const espree = createRequire(import.meta.url)("../../frontend/node_modules/espree");
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const manifest = JSON.parse(readFileSync(join(ROOT, "manifest.json"), "utf8"));
+
+const UI_EVENTS = new Set(["MouseEvent", "PointerEvent", "KeyboardEvent", "InputEvent", "FocusEvent",
+  "TouchEvent", "SubmitEvent", "DragEvent", "ClipboardEvent"]);
+const UI_EVENT_NAMES = new Set(["click", "input", "change", "submit", "keydown", "keyup", "mousedown", "mouseup"]);
+const ELEMENT_ACTS = new Set(["click", "submit", "requestSubmit", "execCommand", "setRangeText"]);
+const CONTROL_WRITES = new Set(["value", "checked", "selectedIndex"]);
+const SAVED_ORIGINALS = new Set(["fetch", "open", "send", "setRequestHeader"]);
+const NO_WAY_IN = new Set(["chrome.runtime.connectNative", "chrome.runtime.onMessageExternal.addListener",
+  "chrome.runtime.onConnectExternal.addListener"]);
+
+const name = (n) =>
+  n?.type === "Identifier" ? n.name
+    : n?.type === "MemberExpression" ? `${name(n.object)}.${n.property.name ?? n.property.value}` : "";
+
+function parse(file) {
+  const code = readFileSync(file, "utf8");
+  for (const sourceType of ["module", "script"]) {
+    try { return espree.parse(code, { ecmaVersion: "latest", sourceType, loc: true }); } catch {}
+  }
+  throw new Error(`${relative(ROOT, file)} does not parse`);
+}
+
+function* nodes(node, parents = []) {
+  yield [node, parents];
+  for (const value of Object.values(node))
+    for (const child of Array.isArray(value) ? value : [value])
+      if (child && typeof child.type === "string") yield* nodes(child, [...parents, node]);
+}
+
+// Everything Chrome can load for this extension, and the realm it runs in: modules reachable by
+// static import from the manifest's entry points ("extension"), and files it names for
+// injection or registration ("page").
+function loadable() {
+  const pages = [manifest.side_panel?.default_path, manifest.options_page].filter(Boolean);
+  const queue = [
+    [resolve(ROOT, manifest.background.service_worker), "extension"],
+    ...pages.flatMap((page) =>
+      [...readFileSync(join(ROOT, page), "utf8").matchAll(/<script[^>]*\ssrc="([^"]+)"/g)]
+        .map((m) => [resolve(ROOT, dirname(page), m[1]), "extension"])),
+    ...(manifest.content_scripts || []).flatMap((one) => one.js.map((js) => [resolve(ROOT, js), "page"])),
+  ];
+  const seen = new Map();
+  while (queue.length) {
+    const [file, realm] = queue.pop();
+    if (seen.has(file)) continue;
+    const ast = parse(file);
+    seen.set(file, { file: relative(ROOT, file), realm, ast });
+    for (const [node] of nodes(ast)) {
+      if (["ImportDeclaration", "ExportNamedDeclaration", "ExportAllDeclaration"].includes(node.type) && node.source)
+        queue.push([resolve(dirname(file), node.source.value), realm]);
+      if (node.type === "Literal" && typeof node.value === "string" && node.value.endsWith(".js")
+          && existsSync(join(ROOT, node.value)))
+        queue.push([resolve(ROOT, node.value), "page"]);
+    }
+  }
+  return [...seen.values()];
+}
+
+const loaded = loadable();
+const everyNode = (realm) =>
+  loaded.filter((one) => !realm || one.realm === realm).flatMap(({ file, ast }) =>
+    [...nodes(ast)].map(([node, parents]) => ({ file, node, parents })));
+const at = ({ file, node }) => `${file}:${node.loc.start.line}`;
+
+test("the extension loads no code this test cannot see", () => {
+  for (const one of everyNode()) {
+    const { node } = one;
+    const hidden = node.type === "ImportExpression"
+      || (node.type === "CallExpression" && ["eval", "importScripts", "Function"].includes(name(node.callee)))
+      || (node.type === "NewExpression" && name(node.callee) === "Function")
+      || (node.type === "CallExpression" && ["setTimeout", "setInterval"].includes(name(node.callee))
+          && node.arguments[0]?.type === "Literal");
+    assert.ok(!hidden, `${at(one)} loads code at run time`);
+  }
+});
+
+test("nothing outside the extension can reach it: no socket, no external message", () => {
+  for (const one of everyNode()) {
+    const { node } = one;
+    const door = (node.type === "NewExpression" && ["WebSocket", "EventSource"].includes(name(node.callee)))
+      || (node.type === "CallExpression" && NO_WAY_IN.has(name(node.callee)));
+    assert.ok(!door, `${at(one)} opens a way in`);
+  }
+});
+
+test("code enters a page only as a named file, never as a function", () => {
+  for (const one of everyNode("extension")) {
+    const { node } = one;
+    if (node.type !== "CallExpression" || name(node.callee) !== "chrome.scripting.executeScript") continue;
+    const keys = (node.arguments[0]?.properties || []).map((p) => p.key?.name);
+    assert.ok(keys.includes("files") && !keys.includes("func"), `${at(one)} injects a function`);
+  }
+});
+
+test("the debugger is only read through", () => {
+  for (const one of everyNode("extension")) {
+    const { node } = one;
+    if (node.type !== "CallExpression" || name(node.callee) !== "chrome.debugger.sendCommand") continue;
+    const method = node.arguments[1];
+    assert.ok(method?.type === "Literal" && /^Accessibility\./.test(method.value), `${at(one)} sends ${method?.value}`);
+  }
+});
+
+test("the extension's own requests go to the deployment and nowhere else", () => {
+  for (const one of everyNode("extension")) {
+    const { node, parents } = one;
+    assert.ok(!(node.type === "NewExpression" && name(node.callee) === "XMLHttpRequest"), `${at(one)} opens an XHR`);
+    if (node.type !== "CallExpression" || !["fetch", "self.fetch", "globalThis.fetch", "navigator.sendBeacon"].includes(name(node.callee))) continue;
+    const url = node.arguments[0];
+    const base = url?.type === "TemplateLiteral" && url.quasis[0].value.cooked === "" ? url.expressions[0] : null;
+    const fn = parents.findLast((p) => p.type.includes("Function"));
+    const fromTheSettings = base?.type === "Identifier" && fn
+      && [...nodes(fn)].some(([n]) => n.type === "CallExpression" && name(n.callee) === "state.apiUrl");
+    assert.ok(fromTheSettings, `${at(one)} sends a request whose address is not the deployment's`);
+  }
+});
+
+test("page code dispatches no input, presses nothing and writes no control", () => {
+  for (const one of everyNode("page")) {
+    const { node } = one;
+    const acts =
+      (node.type === "NewExpression" && UI_EVENTS.has(name(node.callee)))
+      || (node.type === "NewExpression" && name(node.callee) === "Event" && UI_EVENT_NAMES.has(node.arguments[0]?.value))
+      || (node.type === "CallExpression" && node.callee.type === "MemberExpression" && ELEMENT_ACTS.has(node.callee.property.name))
+      || (node.type === "AssignmentExpression" && node.left.type === "MemberExpression" && CONTROL_WRITES.has(node.left.property.name))
+      || (node.type === "CallExpression" && ["fetch", "window.fetch", "navigator.sendBeacon"].includes(name(node.callee)))
+      || (node.type === "NewExpression" && ["XMLHttpRequest", "WebSocket", "EventSource"].includes(name(node.callee)));
+    assert.ok(!acts, `${at(one)} acts on the page`);
+  }
+});
+
+test("the page's network wrapper only passes on the page's own calls", () => {
+  for (const { file, ast } of loaded.filter((one) => one.realm === "page")) {
+    const saved = new Set([...nodes(ast)].filter(([n]) => n.type === "VariableDeclarator"
+      && n.id.type === "Identifier" && SAVED_ORIGINALS.has(n.init?.property?.name)).map(([n]) => n.id.name));
+    for (const [node, parents] of nodes(ast)) {
+      if (node.type !== "CallExpression") continue;
+      const forwarding = node.callee.type === "MemberExpression" && ["call", "apply"].includes(node.callee.property.name);
+      const target = forwarding ? node.callee.object : node.callee;
+      if (target.type !== "Identifier" || !saved.has(target.name)) continue;
+      const fn = parents.findLast((p) => p.type.includes("Function"));
+      const own = new Set((fn?.params || []).map((p) => (p.type === "RestElement" ? p.argument.name : p.name)));
+      const passed = forwarding ? node.arguments.slice(1) : node.arguments;
+      assert.ok(passed.every((a) => own.has(a.type === "SpreadElement" ? a.argument.name : a.name)),
+        `${file}:${node.loc.start.line} calls the page's ${target.name} with arguments the page did not pass`);
+    }
   }
 });
 ```
 
+**What this test proves, precisely.** It takes the set of code Chrome can load for this extension: every module statically imported from `manifest.json`'s service worker, side panel and options page ("extension" realm), and every `.js` file under the extension that any of that code names as a string, which is how capture files are injected and registered ("page" realm). The first check forbids the ways to load code outside that set (dynamic `import()`, `eval`, `importScripts`, `new Function`, string timers), so the set is complete. Over that set it proves:
+
+1. No way in: no socket, no `EventSource`, no external message or native port. No backend or foreign message can start anything.
+2. Code enters a page only as one of those named files, never as a function.
+3. The debugger is used only for `Accessibility.*` reads.
+4. Every request the extension makes is `fetch` to a template that starts with a value, in a function that reads `state.apiUrl()`; no XHR and no beacon.
+5. Code in the page constructs no UI event, calls no `click`/`submit`/`requestSubmit`/`execCommand`/`setRangeText`, writes no form control's `value`/`checked`/`selectedIndex`, and originates no request.
+6. The network wrapper calls the page's saved `fetch` and XHR methods only with the arguments the page's own call gave it.
+
+It does not prove:
+- that `state.apiUrl()` holds the deployment's address. That is a setting, and the test proves only that every request goes through it;
+- anything about `chrome.tabs.create`, `update` and `reload`, which stay: the panel's "open the console" and the reload that repairs a half-deaf tab navigate or reload a tab, but carry no run, and by check 1 no message from outside can reach them;
+- anything about the backend. There, `grep -rn "SocketChannel(" backend/src` printing nothing, `test_no_run_is_ever_sent_to_a_browser_socket` and L1's `test_a_lookup_reaches_no_browser_socket` are the proof.
+
 - [ ] **Step 2: Run them and see them fail**
 
 Run: `make test-extension; cd backend && uv run pytest tests/unit/test_container_wiring.py -q -o faulthandler_timeout=120`
-Expected: FAIL (the kinds are handled; the starter holds a channel).
+Expected: FAIL.
+- `watch-only.test.mjs` names `background/channel.js` (a `WebSocket`), `background/commands.js` (`executeScript` with `func`), `background/pointing.js` (`Input.dispatchMouseEvent`) and the injected `src/page/page-code.js` (`.click()`, `send`).
+- The container test fails because the starter holds a channel.
 
 - [ ] **Step 3: Delete the paths**
 
-Delete, grep every caller first, and edit mixed tests rather than deleting them wholesale (audit wave 1 Task 6's method). `grep -rn "pursuits.spawn(starter" backend/src` and `grep -rn "steel_tenants" backend/src` print nothing afterwards.
+Grep every caller first, and edit mixed tests rather than deleting them wholesale (audit wave 1 Task 6's method). Afterwards each of these prints nothing:
+- `grep -rn "pursuits.spawn(starter" backend/src`
+- `grep -rn "steel_tenants" backend/src`
+- `grep -rn "fromTheMail\|lookInTheMail\|http.send\|httpSend" new-chrome-extension/src`
+
+A failure of the watch-only test is fixed by deleting the path it names, never by narrowing the test.
 
 - [ ] **Step 4: Run everything**
 
@@ -5922,9 +6959,12 @@ Each live QA point is run once by the user on the QA box (`infra/docker-compose.
 | **QA-3** | D3, X6 | Sends a request mail naming the job and its values to the operator's mailbox; touches nothing else. A run starts (`started_by` the operator, `awaiting.thread` the mail's thread); its mail step reads `verdict_by = tool`; the reply is in the Gmail thread. | A mail job replies by mail through the Gmail connector, with no UI. |
 | **QA-4** | D2, S7, S8 | Presses two jobs on one account at once: one lease, two target ids, both runs `held`. Then `docker restart` of that account's Steel container and a third press: the lease is new, the state restored, and the identity provider shows no new sign-in. Notes the container's RSS with one and two tabs open. | Two parallel jobs on one account as tabs of one browser; a container restart restores saved state; memory per browser measured (spec §12). |
 | **QA-5** | S8, D6 | During a run, signs the account out elsewhere (or lets the session lapse): the run signs back in once and finishes. During another run, `docker compose restart worker` mid-step: the run resumes and the Blue Yonder audit (or a read-back) shows the write once. | Expiry mid-run recovers; a worker restart repeats no write. |
-| **POC milestone** | QA-1 … QA-5 all passed | The four acceptance lines of spec §1 hold. R2 may start. | Spec §1 accepted. |
+| **QA-6** | D7, R1's switch | (a) In their own tab the user starts a mined Blue Yonder job by hand (Create a Customer Type): opens the screen, presses Add, types the code, and stops before saving. The offer appears; they press it. The run's `workflow_run_steps` begin with the replayed typing on Steel (`verdict_by = ui`), the save is the run's own, and Blue Yonder holds one new customer type. (b) On a mined job with two saves, they make the first save by hand and press the offer. The run's `progress.marks` show that save `wrote = done`, `lane = operator`; the run starts after it; the Blue Yonder audit shows the first record once. If QA holds no two-save job, (b) is proven only by D7's local Steel scenario, and the report says so. (c) They press an offer within a second of their own save: the run either shows that save `done` by `operator` or asks in the panel "may already have been done". It never sends it again. | A job the operator started by hand finishes on Steel from their step; their writes are never repeated; doubt is asked, never guessed. |
+| **QA-7** | D8, R1's switch | With the operator's Chrome closed, the user sends two request mails to the operator's mailbox: one with every value, one missing a value. Within one `mail_sweep_seconds` the first has a run (`started_by` the operator, `awaiting.thread` the mail's thread) with no press, and the second is a `needs_values` question in the operator's thread. `docker compose logs worker` shows the poll's lines under the tenant, and the reading's `model_spend` rows carry the tenant. They open Chrome and wait for a heartbeat: no card and no second run for either mail, and `tool_calls` holds one `mail:` row per message id. | The server reads the mailbox with the extension closed; the poll and the heartbeat look never read one mail twice; tenant-attributed and metered. |
+| **QA-8** | L1, R1's switch | With the operator's Chrome closed, the user asks in the console (`/v1/ask`) and in chat a question a recorded read answers (which suppliers site SG has). The answer comes back with the records. `docker compose logs api` shows no command sent to any extension socket, the account's lease is the one runs use (or a new `ready` one, signed in from the vault), and after the answer the account's browser has no extra tab. Then a `screen` question returns a picture taken on Steel. | A lookup answers with the operator's Chrome closed, through the account's Steel session. |
+| **POC milestone** | QA-1 … QA-8 all passed | The seven acceptance lines of spec §1 hold. R2 may start. | Spec §1 accepted. |
 
-Local proofs (implementer): §8.2 parity suite green (X2); §8.3 scenarios green on local Steel (S7: leases and restore, two tabs; S8: container crash, expiry then re-sign-in; D2: two runs as tabs; D4: stop during a step; D6: worker restart, no repeated write).
+Local proofs (implementer): §8.2 parity suite green (X2); §8.3 scenarios green on local Steel (S7: leases and restore, two tabs; S8: container crash, expiry then re-sign-in; D2: two runs as tabs; D4: stop during a step; D6: worker restart, no repeated write; D7: a takeover after the operator's own save, `rig.posts == 2`); D8's concurrent read-once test on Postgres; L1: a lookup read on local Steel; R2's watch-only test.
 
 # Pre-flight conflict table
 
@@ -5943,14 +6983,24 @@ Local proofs (implementer): §8.2 parity suite green (X2); §8.3 scenarios green
 | S5 → S6, S7, S10, X4, X7 | *interface:* `PageDriver`, `SessionRef`, `PageGone` | Owned by S5; later tasks only add methods. |
 | S1 → S2, S7, D2 | *interface:* `Account`, `Lease`, `LeaseState`, vault keys | Owned by S1. |
 | D1 → D2, D4, D5, D6 | *interface:* `Progress`, `StepMark`, `MAIN`, the step limits | Owned by D1. |
-| D2 × D4 × D5 × D6 | `application/runtime/run_steps.py`, `infrastructure/temporal/{workflows,activities,durable}.py`, `ports/durable.py`, `tests/integration/test_run_workflow.py`, `test_run_steps.py` | Serial: D2, D4, D5, D6. |
-| D3 × D4 × R2 | `application/execution/workflow_runs.py` (`StartWorkflowRun`, `AbortWorkflowRun`) | Serial: D3, D4, R2. |
-| D3 × D5 | `application/chat/from_the_mail.py` | D3 (start) then D5 (answer from a reply). |
+| D2 × D4 × D5 × D6 × D7 | `application/runtime/run_steps.py`, `infrastructure/temporal/{workflows,activities,durable}.py`, `ports/durable.py`, `tests/integration/test_run_workflow.py`, `test_run_steps.py` | Serial: D2, D4, D5, D6, D7. |
+| D5 × D7 | `application/runtime/answer_run.py`, `tests/unit/application/runtime/test_asking.py` | D5 then D7 (`step` answers are `done`/`redo`). |
+| D1 → D7 | *interface:* `Progress.sending/settle(never_left)/written/in_doubt`, `done` immutable, `record_progress` | D7 codes against D1 as merged (rt/d `9a0fb66c`), not the plan's first D1 text: no `Progress.asking`, `account` is an `Account`. |
+| X3 → D7 | *interface:* `SeenCall`, `write_confirmed` | Owned by X3; D7 only calls them. |
+| D3 × D4 × D7 × R2 | `application/execution/workflow_runs.py` (`StartWorkflowRun`, `AbortWorkflowRun`) | Serial: D3, D4, D7, R2. D8 only reads `runs_on_steel`. |
+| D3 × D5 × D8 × R2 | `application/chat/from_the_mail.py`, `tests/unit/application/rig/test_from_the_mail.py` (`mail_world`) | Serial: D3 (start), D5 (answer from a reply), D8 (claim released on a refused start; poll), R2 (gate removed). |
+| D2 × D8 | `infrastructure/temporal/worker.py` | D2 adds the `runs` `Worker`; D8 adds a loop beside the keeper. Merge by union. |
+| L1 × R2 | `backend/src/sro/container.py` (`run_lookups`, `SocketChannel`), `tests/unit/test_container_wiring.py` | L1 moves lookups off the socket; R2 deletes the socket. L1 first. |
+| S7 × S8 × S10 × L1 | `application/runtime/broker.py` | L1 adds one method (`screenshot`) after S10; merge by union. |
+| L1 × D2 … D8 | `backend/src/sro/interface/http/schemas.py` / `make types` | Regenerate on conflict. |
+| D7 × R2 | `new-chrome-extension/src/background/service-worker.js`, `recognise.js` | D7 adds `took_over` to the offer press; R2 deletes the command handler, the band and the mail look around it. D7 first. |
+| D8 → R2 | the heartbeat's mail call | R2 deletes it only after QA-7; before that the two callers run side by side, kept apart by the claim (D8's tests). |
 | E6 × E7 × S2 × X8 × D1 | `infrastructure/db/models.py`, the Alembic head (`backend/migrations/versions`, head `0072`) | Take the next number at merge, repoint `down_revision`, keep one head. |
-| S1 × X1 × D5 | `interface/http/schemas.py`, `frontend/openapi.json`, `frontend/src/lib/api/generated.ts` | Each runs `make types`; regenerate on conflict, never hand-merge. |
-| S3 × S4 × S5 × S7 × S9 × X4 … X9 × D2 … D5 × R2 × R3 | `backend/src/sro/container.py` and its code-notes | Each adds or removes one factory or field: merge by union; re-anchor the notes once after R3. |
-| S2 … D6 | `backend/tests/unit/fakes.py`, `backend/tests/unit/runtime_support.py` | Additions only; merge by union. |
-| S7 × S8 × D2 × D4 × D6 | `backend/tests/integration/test_runs_on_local_steel.py` | One scenario per task, appended; serial. |
+| S1 × X1 × D5 × D7 × L1 | `interface/http/schemas.py`, `frontend/openapi.json`, `frontend/src/lib/api/generated.ts` | Each runs `make types`; regenerate on conflict, never hand-merge. |
+| S3 × S4 × S5 × S7 × S9 × X4 … X9 × D2 … D5 × D8 × L1 × R2 × R3 | `backend/src/sro/container.py` and its code-notes | Each adds or removes one factory or field: merge by union; re-anchor the notes once after R3. |
+| S2 … D7, L1 | `backend/tests/unit/fakes.py`, `backend/tests/unit/runtime_support.py` | Additions only; merge by union. |
+| S7 × S8 × D2 × D4 × D6 × D7 × L1 | `backend/tests/integration/test_runs_on_local_steel.py` | One scenario per task, appended; serial. |
+| D3 × D8 × R2 | `backend/src/sro/config.py` | Different keys (`steel_tenants`, `mail_sweep_seconds`); R2 deletes `steel_tenants` only. Merge by union. |
 | S4 × D3 × R1 × R2 | `infra/docker-compose.deploy.yml` | Different keys (Steel services, `SRO_STEEL_URLS`, `SRO_STEEL_TENANTS`); merge by union. |
 | C0 → S4 | *interface:* QA-0's verdict | S4's capacity and variant follow it. |
 
@@ -5958,8 +7008,9 @@ Local proofs (implementer): §8.2 parity suite green (X2); §8.3 scenarios green
 
 | Spec section | Tasks |
 |---|---|
-| §1 Goal and acceptance | POC milestone (QA-1 … QA-5); D2, D3, S7, S8, D6 |
+| §1 Goal and acceptance | POC milestone (QA-1 … QA-8); D2, D3, S7, S8, D6, D7 (takeover), D8 (server mail poll), L1 (lookups) |
 | §2 Architecture (worker runs activities; API only starts, stops, answers) | D2, D3, D4, D5 |
+| §2 Mail poll (worker loop, per operator, once per message, metered, tenant-attributed, side by side with the heartbeat) | D8; R2 removes the heartbeat call |
 | §3 The ladder; API-lane failures; ask after sight; no blind repeats | X3, X8, X5, D2 (`_ask`, settle), D1 (`sending`) |
 | §4.1 Keep what is captured | E1 |
 | §4.2 Semantic path | E2 |
@@ -5978,19 +7029,21 @@ Local proofs (implementer): §8.2 parity suite green (X2); §8.3 scenarios green
 | §6.2 Verification; unknown writes | X3, X4, X5, X7, D2 |
 | §6.3 Each lane teaches the one above; known-broken list | X8, X9 |
 | §6.4 Shared page code; strategy order; snapshot repair | X1, X2, S6 |
+| §6.5 Lookups (account's session first, then a Steel tab; reads only; gaps per system) | L1 |
 | §7.1 Start | D3 |
 | §7.2 Workflow | D2 |
 | §7.3 Progress and idempotency | D1, D2, D6 |
 | §7.4 Stop, ask, restart | D4, D5, D6, D1 |
 | §7.5 Limits | D1, D2, X7 |
+| §7.6 Mid-job takeover | D7 (and D5's `done`/`redo` for a doubt) |
 | §8.1 Unit | every task |
 | §8.2 Page-code parity | X2 |
-| §8.3 Integration on local Steel | S7, S8, D2, D4, D6 |
-| §8.4 Live QA | C0 (QA-0), Proof points QA-1 … QA-5 |
-| §9 Rollout | D3 (setting), R1 (shadow, switch), R2 (setting removed) |
-| §10 Removed when live | X1 (`in-page.js`), S9 (grace timer), R2 (extension execution, `pursuits.spawn`, `Stops` on the run path), R3 (`ui_driver.py`, old engine) |
+| §8.3 Integration on local Steel | S7, S8, D2, D4, D6, D7, L1 |
+| §8.4 Live QA | C0 (QA-0), Proof points QA-1 … QA-8 |
+| §9 Rollout | D3 (setting), R1 (shadow, switch), D8 (poll beside the heartbeat from step 2), R2 (setting removed; watch-only) |
+| §10 Removed when live | X1 (`in-page.js`), S9 (grace timer), R2 (every executing kind including `httpSend`, the command socket, the heartbeat mail call, `pursuits.spawn`, `Stops` on the run path; the watch-only test), R3 (`ui_driver.py`, old engine). the backend command socket after L1 |
 | §11 Out of scope | nothing planned (live view, service account, shadow DOM, more tenants, design 2/3 work) |
-| §12 Risks | QA-0 (C0); QA-4 (restore, memory); X1 CI hash + X2 parity; X2 threshold + write verification (X4); X7 cap and metering; X2 falls back to existing strategies for older evidence |
+| §12 Risks | QA-0 (C0); QA-4 (restore, memory); X1 CI hash + X2 parity; X2 threshold + write verification (X4); X7 cap and metering; X2 falls back to existing strategies for older evidence; D7 (flush before the press, doubt when uploads lag); D8 (concurrent read-once test); L1 (tab per lookup, closed in `finally`; reads only, tested) |
 
 # Deferred to design 2, "Learning and agents"
 
@@ -6006,4 +7059,4 @@ From the steel-migration plan's stream A (A0 stays here). No tasks are written f
 - **A8** Mail agent guards (the mail body the tool lane sends is written by this agent).
 - **A9** Repair eval suite.
 
-Superseded tasks of streams B and C not carried into this plan, and where they belong: B1, B2 (step timing and its console view) and B13–B16 (value sources, thread list, "Not a job", the per-job report) go to design 3 or its measurement work; B12 (a server-side mail poll) is the mail door, design 3 — until then the extension's beat keeps calling `POST /v1/chat/from-the-mail`, and D3 starts the run server-side; B8 (a lock for session-wide steps) is dropped by spec §5.4 (only session changes take the lock); C16 (a live view) is out of scope (§11). B3, B4, B5, B6, B7a/b, B9–B11 and C1–C15 are replaced by the tasks above (C9/C10's `SteelChannel` is not built: the lanes call `PageDriver` directly).
+Superseded tasks of streams B and C not carried into this plan, and where they belong: B1, B2 (step timing and its console view) and B13–B16 (value sources, thread list, "Not a job", the per-job report) go to design 3 or its measurement work; B12 (a server-side mail poll) is D8 here — the worker reads each operator's mailbox, beside the extension's heartbeat look until R2 removes it — and only its panel half, "checked N s ago" (P5), stays with design 3; B8 (a lock for session-wide steps) is dropped by spec §5.4 (only session changes take the lock); C16 (a live view) is out of scope (§11). B3, B4, B5, B6, B7a/b, B9–B11 and C1–C15 are replaced by the tasks above (C9/C10's `SteelChannel` is not built: the lanes call `PageDriver` directly).

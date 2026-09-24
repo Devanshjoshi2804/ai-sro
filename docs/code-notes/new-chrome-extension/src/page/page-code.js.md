@@ -23,7 +23,172 @@ Comments and docstrings moved out of [`new-chrome-extension/src/page/page-code.j
 > the page's patched `fetch` is not the one it calls, so a replayed request
 > never enters the evidence plane as though the operator had made it.
 
-## module, [line 632](../../../../../new-chrome-extension/src/page/page-code.js#L632): Comment
+## `REPAIR_THRESHOLD`, [line 2](../../../../../new-chrome-extension/src/page/page-code.js#L2): Constant
+
+> The score a live control has to clear before `repair` (below) will act on
+> it sight unseen. `score` hands out 3 for a role match, 3 for an exact name
+> (1 for a partial one), 1 each for up to four matching attributes, 2 for an
+> identical component chain, 2 for identical landmarks, 1 for sitting within
+> `NEAR_PX` of where the control used to be -- eleven points on offer, and 6
+> is roughly "two independent signals agree, not one": role alone (3) or
+> position alone (1) never clears it, role plus one matching attribute (4)
+> does not either, but role plus a landmark match (5) is one point short and
+> role plus a landmark plus one attribute (6) is exactly the case X2's own
+> test proves at the boundary. Set here rather than derived, because the
+> alternative -- tuning it from a false-positive rate this deployment has
+> not measured yet -- is a number nobody can defend until the parity suite
+> and a live run have both run against it. Raise it if repair ever acts on
+> the wrong control; the failure mode of raising it too high is only ever
+> "drops to sight", never a wrong write, because `act`'s caller still
+> verifies the outcome afterward.
+
+## `NEAR_PX`, [line 3](../../../../../new-chrome-extension/src/page/page-code.js#L3): Constant
+
+> How close, in CSS pixels, a live control's centre has to sit to the
+> recorded `bounds` centre to earn the one "still roughly where it was"
+> point in `score`. Wide enough that a control nudged by a responsive
+> layout or a sidebar toggling still counts as "there" -- narrower, and an
+> ordinary re-render would cost the one point that, combined with a role
+> and a landmark match, is what clears `REPAIR_THRESHOLD`.
+
+## `GENERATED_ID`, [line 4](../../../../../new-chrome-extension/src/page/page-code.js#L4): Constant
+
+> What `attributeSelector` refuses to build a selector out of: an id ExtJS
+> assigned rather than one the page's own author wrote. `ext-gen4443` is a
+> different control after every reload -- render order, not identity --
+> and a component library that names its own generated ids differently
+> tomorrow is still caught by the SHAPE (a vendor prefix, or three digits
+> in a row) rather than by a list of prefixes this deployment happens to
+> have seen. A list is a per-vendor branch waiting to be wrong the first
+> time this runs against a second WMS; the shape is the actual rule ExtJS
+> ids follow, stated once.
+
+## `roleOf`, [line 21](../../../../../new-chrome-extension/src/page/page-code.js#L21): Function
+
+> Copied from `backend/src/sro/infrastructure/steel/recorder.js`'s own
+> `roleOf`, not imported: this file may reference nothing outside
+> `globalThis` (see the module docstring), and the recorder runs in a
+> different injection entirely, on Steel's own capture path. The two must
+> still answer identically -- a control this file resolves by
+> `within_role_name` has to be the same one the recorder would have RECORDED
+> the role of -- so `page-code.test.mjs` lifts both copies out of their
+> shipped files by matching braces and runs the same table of cases against
+> each, which fails the day the two are edited only once.
+
+## `ext`, [line 63](../../../../../new-chrome-extension/src/page/page-code.js#L63): Function
+
+> ponytail: always the input, button or plain element behind a component,
+> never the trigger arrow beside a combobox that `perform`'s own
+> `triggerOf`/`partOf` pick out for a click. That nuance stays where it
+> already works, in `perform`'s locator path, rather than being duplicated
+> here on the strength of a resemblance; if a recorded `ui.perform`
+> replayed through `resolve`/`act` ever needs to open a dropdown by its
+> trigger rather than its text box, teach `ext` `partOf`'s rule then,
+> against a real failure rather than a guess at one.
+
+## `chainOf`, [line 68](../../../../../new-chrome-extension/src/page/page-code.js#L68): Function
+
+> The scoring half of `recorder.js`'s `component()`: given an element,
+> find the Ext component it belongs to (walking up from an id Ext
+> registered, since Ext's own ids are render-order and not identity) and
+> return the `ownerCt`/`floatParent` chain of xtypes, outermost first --
+> the same array `component.chain` in the evidence carries, so `score` can
+> compare the two directly with one `.join(" ") ===`. Everything else
+> `component()` records (`fieldLabel`, `required`, `text`) is not needed
+> here: this file only ever asks "is this the same component", never "what
+> does this component say about itself".
+
+## `xpathOf`, [line 191](../../../../../new-chrome-extension/src/page/page-code.js#L191): Function
+
+> Copied from `recorder.js`'s `xpath`, for the same reason `roleOf` is:
+> what `resolve` reports back as the control it found has to be expressible
+> the same way the evidence that will judge a future run against it was
+> recorded, and a locally-reinvented xpath function that drifted from the
+> recorder's would make every `resolve().xpath` a small lie about which
+> control was actually meant.
+
+## `CANDIDATES`, [line 5](../../../../../new-chrome-extension/src/page/page-code.js#L5): Constant
+
+> What `repair` scores when every named strategy has missed: every element
+> a person could plausibly act on, cast as wide as the interactive HTML
+> elements plus anything that says `role` or `tabindex` -- an ARIA widget
+> built out of `<div>`s, which this deployment's ExtJS grids are. Not
+> `document.querySelectorAll("*")`: scoring every node on a warehouse grid
+> against the evidence is the same unbounded-walk mistake `viewport`'s own
+> code note already tells the story of, paid again here.
+
+## `LANDMARKS`, [line 6](../../../../../new-chrome-extension/src/page/page-code.js#L6): Constant
+
+> The same named list `landmarkRole` and the recorder's own copy both read
+> from -- `region`, `dialog`, `alertdialog`, `grid`, `treegrid`, `form` --
+> never every ancestor `<div>`. An unnamed wrapper says nothing about scope;
+> recording or matching on one would give `within_role_name` a path of
+> unlabelled boxes that changes with every unrelated markup refactor, which
+> is the opposite of what a landmark is for.
+
+## `STRATEGIES`, [line 125](../../../../../new-chrome-extension/src/page/page-code.js#L125): Constant
+
+> The one order, spec §6.4, with `learned` prepended. `learned` is not one
+> of the eight: it is a locator a VERIFIED run already proved finds this
+> control, on this build of this page, which is a stronger claim than any
+> of the eight can make about themselves -- they are guesses about what
+> will still be true, `learned` is a fact about what was. Trying it first
+> costs nothing when it is absent (`p.learned` is `null` until a run has
+> verified one) and saves seven guesses when it is there.
+>
+> After it, the eight in the order the spec names: a framework's own
+> component identity survives a rebuild that a css path does not
+> (`component_chain`, `component`); a scoped role and name survives a
+> reorder that an unscoped one does not (`within_role_name`); an author's
+> own test id is the most deliberate identity a page can offer
+> (`test_id`); the attributes a form control is functionally built from
+> outlive a class name (`attributes`); visible text outlives an attribute a
+> refactor renamed (`text`); a structural path outlives nothing much, but
+> outlives less than a css class list does (`xpath`); the exact selector
+> recorded is tried last because it is the most literal, and the most
+> literal is what render-order ids like ExtJS's break first (`css_path`).
+
+## `score`, [line 150](../../../../../new-chrome-extension/src/page/page-code.js#L150): Function
+
+> Every weight is a claim about how much one kind of agreement is worth,
+> not a probability: 3 for role (a control's kind rarely changes across a
+> rename), 3 for an exact accessible name and 1 for a partial one (a
+> renamed control often keeps a word of its old name, a moved one keeps
+> none of its old name at all), 1 apiece for up to four attributes that
+> outlive a class name, 2 for an identical component chain (this
+> deployment's strongest structural fact, worth as much as two attributes),
+> 2 for identical landmarks (scope survives a reorder inside it), 1 for
+> sitting within `NEAR_PX` of where it was. See `REPAIR_THRESHOLD` for what
+> the total has to clear.
+
+## `repair`, [line 166](../../../../../new-chrome-extension/src/page/page-code.js#L166): Function
+
+> Ranked once, best two kept. A tie at the best score is refused rather
+> than guessed at -- `ranked[0]` and `ranked[1]` scoring the same means two
+> live controls resemble the recorded evidence equally well, and acting on
+> whichever happened to sort first is a coin flip wearing a threshold's
+> confidence. The step drops to sight instead, which asks a model to look
+> rather than a script to guess between two candidates neither the
+> evidence nor the score can tell apart.
+
+## `actOn`, [line 215](../../../../../new-chrome-extension/src/page/page-code.js#L215): Function
+
+> `perform`'s own acting half, moved out to module scope: the same click,
+> type, select, press, hover, scroll and upload-refusal, on whatever
+> element the caller already resolved, unchanged in every particular. X2
+> gives it a second caller -- `sroPage.act` -- that resolves through the
+> strategy ladder instead of `perform`'s locator list, and the two must not
+> answer differently for the same action on the same element, which one
+> shared function guarantees and two copies would not. `short` (what a
+> field would not take -- see `landed`) is this call's own local now,
+> returned rather than left on a variable the caller has to know to read;
+> nothing about that was unsafe before, since `perform` already gave each
+> of its own calls a fresh `short`, but a function with a return value is
+> the ordinary shape and the old one was an artefact of `type`/`act` having
+> been inner closures of `perform` rather than functions in their own
+> right.
+
+## module, [line 862](../../../../../new-chrome-extension/src/page/page-code.js#L862): Comment
 
 Code: `globalThis.sroPage = sroPage;`
 
@@ -61,7 +226,7 @@ Code: `globalThis.sroPage = sroPage;`
 > the way the run expected, not by trusting whatever answered `sroPage`'s
 > name.
 
-## `perform`, [line 3](../../../../../new-chrome-extension/src/page/page-code.js#L3): Docstring
+## `perform`, [line 315](../../../../../new-chrome-extension/src/page/page-code.js#L315): Docstring
 
 > Find a control by the first locator that resolves, act on it, and say which
 > one worked.
@@ -70,7 +235,7 @@ Code: `globalThis.sroPage = sroPage;`
 > same skill, replayed on the server or in the operator's own browser, has to
 > find the same control or the two mediums are not interchangeable.
 
-## `perform`, [line 3](../../../../../new-chrome-extension/src/page/page-code.js#L3): Comment
+## `perform`, [line 315](../../../../../new-chrome-extension/src/page/page-code.js#L315): Comment
 
 > The rung's own scope first, then the command's.
 >
@@ -250,7 +415,7 @@ Code: `globalThis.sroPage = sroPage;`
 > settles that question from verified runs that agree more than once,
 > and never from one page's guess. (`nearby`, in the error)
 
-## `performAt`, [line 316](../../../../../new-chrome-extension/src/page/page-code.js#L316): Docstring
+## `performAt`, [line 508](../../../../../new-chrome-extension/src/page/page-code.js#L508): Docstring
 
 > Act at a point, because the gesture came from pixels rather than from a
 > control the demonstration identified. Coordinates are CSS pixels in the
@@ -260,7 +425,7 @@ Code: `globalThis.sroPage = sroPage;`
 > What the field would not take. See `landed` in `perform`: the same
 > rule, and the same reason it can only be known here. (`shortAt`)
 
-## `performAt`, [line 316](../../../../../new-chrome-extension/src/page/page-code.js#L316): Comment
+## `performAt`, [line 508](../../../../../new-chrome-extension/src/page/page-code.js#L508): Comment
 
 > A point inside a frame lands on the `<iframe>` itself from this document:
 > the events below would fire on the frame element and reach nothing, and
@@ -309,7 +474,7 @@ Code: `globalThis.sroPage = sroPage;`
 > a model looked at a picture to find it -- and naming it is what lets
 > the next run find it with a locator instead. (`control`, in the reply)
 
-## `screenSize`, [line 457](../../../../../new-chrome-extension/src/page/page-code.js#L457): Docstring
+## `screenSize`, [line 649](../../../../../new-chrome-extension/src/page/page-code.js#L649): Docstring
 
 > How big the screen is and where it is, and nothing else.
 >
@@ -318,7 +483,7 @@ Code: `globalThis.sroPage = sroPage;`
 > that looks actually needs -- the digest beside it is a help, and a help that
 > costs the command its deadline is not one.
 
-## `viewport`, [line 466](../../../../../new-chrome-extension/src/page/page-code.js#L466): Docstring
+## `viewport`, [line 658](../../../../../new-chrome-extension/src/page/page-code.js#L658): Docstring
 
 > The visible controls and where they are, plus the size of the space those
 > coordinates are in.
@@ -329,7 +494,7 @@ Code: `globalThis.sroPage = sroPage;`
 > are out by the display's scale factor, which on any retina screen is a click
 > halfway up the page.
 
-## `viewport`, [line 466](../../../../../new-chrome-extension/src/page/page-code.js#L466): Comment
+## `viewport`, [line 658](../../../../../new-chrome-extension/src/page/page-code.js#L658): Comment
 
 > Bounded, because this used to walk the whole document and the document is
 > a warehouse grid.
@@ -415,7 +580,7 @@ Code: `globalThis.sroPage = sroPage;`
 > was being described at `y: 4300` in a space that ends at 1000. Wrong as
 > well as slow. (the `rect.bottom < 0 || ...` guard)
 
-## `csrfToken`, [line 542](../../../../../new-chrome-extension/src/page/page-code.js#L542): Docstring
+## `csrfToken`, [line 734](../../../../../new-chrome-extension/src/page/page-code.js#L734): Docstring
 
 > The one header this extension knows how to read live: Blue Yonder keeps
 > its write token in a page-level JS global, never in a cookie, so a
@@ -424,7 +589,7 @@ Code: `globalThis.sroPage = sroPage;`
 > reachable from the isolated world `send` runs in -- and answers
 > `null`, never throws, when the page has no such global to read.
 
-## `requestedWith`, [line 546](../../../../../new-chrome-extension/src/page/page-code.js#L546): Docstring
+## `requestedWith`, [line 738](../../../../../new-chrome-extension/src/page/page-code.js#L738): Docstring
 
 > What this page marks its own XHRs with.
 >
@@ -442,7 +607,7 @@ Code: `globalThis.sroPage = sroPage;`
 > routed. Nothing is carried from the backend either way: the name is asked
 > for, the value is found here.
 
-## `send`, [line 552](../../../../../new-chrome-extension/src/page/page-code.js#L552): Docstring
+## `send`, [line 744](../../../../../new-chrome-extension/src/page/page-code.js#L744): Docstring
 
 > Send a request from a tab that is already on that origin, so the operator's
 > own session applies -- which is why a skill can be replayed against a system
@@ -452,7 +617,7 @@ Code: `globalThis.sroPage = sroPage;`
 > patched `fetch` is not the one called here: a replayed request must not
 > arrive in the evidence plane looking like something the operator did.
 
-## `send`, [line 552](../../../../../new-chrome-extension/src/page/page-code.js#L552): Comment
+## `send`, [line 744](../../../../../new-chrome-extension/src/page/page-code.js#L744): Comment
 
 > Bounded, and it says how long it took either way.
 >
@@ -505,3 +670,21 @@ Code: `globalThis.sroPage = sroPage;`
 > The elapsed time and whether the browser thinks it has a network at
 > all: the two facts that tell a refusal from a stall, and neither of
 > them costs anything to collect. (the final `unreachable` detail)
+
+## `hitTest`, [line 840](../../../../../new-chrome-extension/src/page/page-code.js#L840): Function
+
+> Sight's other half: `viewport` tells the model where things are, and a
+> model's answer is a point, which is only useful to a future run if it
+> becomes a locator strong enough to skip sight next time. Descends into
+> nested `IFRAME`s first (`elementFromPoint` never crosses a frame
+> boundary on its own) because the warehouse application this exists for
+> runs inside one, adjusting the point into each frame's own coordinates
+> the same way `performAt` already had to learn to.
+>
+> The strongest identity that resolves to EXACTLY this element and nothing
+> else, in the same preference order teaching would want: a component
+> (Ext's own identity survives a rebuild), then a scoped role and name
+> (survives a reorder), then a test id (deliberate, but not every element
+> has one), and only then xpath -- structural, and the one strategy that
+> is never ambiguous, so it is also the only one never checked with
+> `only`: it can only ever answer with the element it was built from.

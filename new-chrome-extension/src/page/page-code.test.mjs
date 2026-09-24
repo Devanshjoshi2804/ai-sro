@@ -9,6 +9,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { loadSroPage, pageCodeSource as source } from "./load-sro-page.mjs";
+import { lift } from "../content/evidence.test.mjs";
 
 test("the file is a classic script: no import, no export", () => {
   assert.doesNotMatch(source, /^\s*(import|export)\s/m);
@@ -477,5 +478,198 @@ test("every sroPage function runs with nothing but the page around it", () => {
           " — it refers to something that only exists outside the injected script",
       );
     }
+  }
+});
+
+// --- resolve/act/holds/hitTest: the strategy order, bounds, snapshot repair -
+
+globalThis.getComputedStyle = () => ({ visibility: "visible", display: "block" });
+globalThis.CSS = { escape: (value) => String(value) };
+
+/** A bare element for the strategy ladder: enough shape for `roleOf`, `nameOf`,
+ * `landmarksOf`, `xpathOf` and `shown` to read, with nothing pre-wired to any
+ * particular strategy. */
+function elem(tag, { attrs = {}, box = { x: 0, y: 0, width: 20, height: 20 }, text = "" } = {}) {
+  return {
+    nodeType: 1,
+    tagName: tag.toUpperCase(),
+    parentElement: null,
+    children: [],
+    innerText: text,
+    disabled: false,
+    getAttribute: (name) => (name in attrs ? attrs[name] : null),
+    hasAttribute: (name) => name in attrs,
+    getBoundingClientRect: () => ({ x: box.x, y: box.y, width: box.width, height: box.height, top: box.y, left: box.x }),
+  };
+}
+
+function button(name, box) {
+  return elem("button", { text: name, box });
+}
+
+/** A page whose `document.querySelectorAll` answers every selector with the
+ * same flat list -- enough where only strategy ORDER is under test, since a
+ * strategy earlier in the ladder that finds nothing never calls this at all.
+ * Also gives every element a shared parent, so two elements of one tag get
+ * two different `xpathOf` answers rather than the same one. */
+function page(elements) {
+  const root = elem("div", { box: { x: 0, y: 0, width: 2000, height: 2000 } });
+  root.children = elements;
+  for (const one of elements) one.parentElement = root;
+  globalThis.document.querySelectorAll = () => elements;
+}
+
+test("a component chain wins over a css path when both match different elements", () => {
+  const { resolve } = loadSroPage();
+  const byChain = elem("input", { box: { x: 0, y: 0, width: 40, height: 20 } });
+  const byCssPath = elem("input", { box: { x: 400, y: 0, width: 40, height: 20 } });
+  page([byCssPath]);
+  withExt([{ isVisible: () => true, inputEl: { dom: byChain }, el: { dom: byChain } }]);
+
+  const found = resolve({
+    target: {
+      component: { chain: ["panel#clients", "textfield#code"] },
+      css_path: "#stale-id-4821",
+    },
+  });
+
+  assert.equal(found.strategy, "component_chain");
+  assert.equal(found.candidates, 1);
+});
+
+test("the recorded bounds pick between two controls of one name", () => {
+  const { resolve } = loadSroPage();
+  const left = button("Save", { x: 10, y: 10, width: 60, height: 20 });
+  const right = button("Save", { x: 400, y: 10, width: 60, height: 20 });
+  page([left, right]);
+
+  const found = resolve({
+    target: { role: "button", name: "Save", bounds: { x: 395, y: 12, width: 60, height: 20 } },
+  });
+
+  const xpathOf = liftFromPageCode("xpathOf");
+  assert.equal(found.strategy, "within_role_name");
+  assert.equal(found.candidates, 2);
+  assert.equal(found.xpath, xpathOf(right));
+});
+
+test("a stale css_path with a surviving name attribute resolves by attributes", () => {
+  const { resolve } = loadSroPage();
+  const field = elem("input", {
+    attrs: { name: "clientCode" },
+    box: { x: 0, y: 0, width: 80, height: 20 },
+  });
+  globalThis.document.querySelectorAll = (selector) =>
+    selector === 'input[name="clientCode"]' ? [field] : [];
+
+  const found = resolve({
+    target: { tag: "input", attributes: { name: "clientCode" }, css_path: "#gen4821" },
+  });
+
+  assert.equal(found.strategy, "attributes");
+  assert.equal(found.candidates, 1);
+});
+
+test("a control renamed and moved still resolves by repair when its role, attributes and landmarks match", () => {
+  const { resolve } = loadSroPage();
+  const dialog = elem("div", { attrs: { role: "dialog", "aria-label": "Customer" } });
+  const liveButton = elem("button", {
+    attrs: { name: "saveBtn" },
+    box: { x: 900, y: 900, width: 40, height: 20 },
+    text: "Save",
+  });
+  liveButton.parentElement = dialog;
+  const CANDIDATES = "input, select, textarea, button, a, [role], [tabindex]";
+  globalThis.document.querySelectorAll = (selector) => (selector === CANDIDATES ? [liveButton] : []);
+
+  const found = resolve({
+    target: {
+      role: "button",
+      name: "Save Changes",
+      attributes: { name: "saveBtn", autocomplete: "off" },
+      landmarks: [{ role: "dialog", name: "Customer" }],
+      bounds: { x: 10, y: 10, width: 40, height: 20 },
+    },
+  });
+
+  assert.equal(found.strategy, "repair");
+  assert.equal(found.found, true);
+  assert.ok(found.score >= 6, `score ${found.score} did not clear the threshold`);
+});
+
+test("a lone weak resemblance resolves nothing", () => {
+  const { resolve } = loadSroPage();
+  const decoy = elem("button", {
+    box: { x: 900, y: 900, width: 40, height: 20 },
+    text: "Something Else Entirely",
+  });
+  const CANDIDATES = "input, select, textarea, button, a, [role], [tabindex]";
+  globalThis.document.querySelectorAll = (selector) => (selector === CANDIDATES ? [decoy] : []);
+
+  const found = resolve({
+    target: {
+      role: "button",
+      name: "Save Changes",
+      attributes: { name: "saveBtn" },
+      landmarks: [{ role: "dialog", name: "Customer" }],
+      bounds: { x: 10, y: 10, width: 40, height: 20 },
+    },
+  });
+
+  assert.equal(found.found, false);
+  assert.equal(found.strategy, null);
+  assert.equal(found.candidates, 0);
+});
+
+/** `roleOf`, lifted out of `page-code.js` by matching its braces -- the same
+ * trick `roles.test.mjs` uses on the generated recorder, because this file
+ * has no export either. */
+function liftFromPageCode(name) {
+  const at = source.indexOf(`const ${name} = (el) => {`);
+  assert.notEqual(at, -1, `${name} is not in page-code.js`);
+  let depth = 0;
+  for (let i = source.indexOf("{", at); i < source.length; i += 1) {
+    if (source[i] === "{") depth += 1;
+    else if (source[i] === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return new Function(`${source.slice(at, i + 1)}; return ${name};`)();
+      }
+    }
+  }
+  throw new Error(`${name} never closes`);
+}
+
+test("the recorder's roleOf and page code's role function agree", () => {
+  // The table `roles.test.mjs` checks the recorder against, run a second time
+  // against `page-code.js`'s own copy -- so the two cannot drift apart
+  // without a test going red on the day they do.
+  const { roleOf: recorderRoleOf } = lift(["roleOf"]);
+  const pageRoleOf = liftFromPageCode("roleOf");
+  const el = (tag, attrs = {}) => ({
+    tagName: tag.toUpperCase(),
+    getAttribute: (name) => (name in attrs ? attrs[name] : null),
+    hasAttribute: (name) => name in attrs,
+  });
+  const cases = [
+    ["div", { role: "alert" }],
+    ["input", { role: "combobox" }],
+    ["button", {}],
+    ["a", { href: "/x" }],
+    ["select", {}],
+    ["textarea", {}],
+    ["input", {}],
+    ["input", { type: "email" }],
+    ["input", { type: "checkbox" }],
+    ["input", { type: "submit" }],
+    ["input", { type: "password" }],
+    ["div", { "aria-label": "Devansh Joshi" }],
+    ["span", {}],
+    ["td", {}],
+    ["a", {}],
+  ];
+  for (const [tag, attrs] of cases) {
+    const fake = el(tag, attrs);
+    assert.equal(pageRoleOf(fake), recorderRoleOf(fake), `${tag} ${JSON.stringify(attrs)}`);
   }
 });

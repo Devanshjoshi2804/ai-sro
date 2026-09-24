@@ -305,15 +305,6 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > a machine whose clock is wrong. Counted on that, a batch that arrived
 > this morning can be a day old on arrival and be swept the same day.
 
-## `ObservationRepository.for_recording`, [line 232](../../../../../../../backend/src/sro/application/ports/repositories.py#L232): Docstring
-
-> Every teaching batch of one demonstration, oldest first.
->
-> Asked once, when the demonstration is sealed: the frames are assembled
-> from all of it at once rather than per upload, because a click and the
-> call it caused routinely land in different batches and a frame split
-> across that seam is a step that lost its evidence.
-
 ## `ObservationRepository.tenants_since`, [line 236](../../../../../../../backend/src/sro/application/ports/repositories.py#L236): Docstring
 
 > Every tenant with evidence in the window.

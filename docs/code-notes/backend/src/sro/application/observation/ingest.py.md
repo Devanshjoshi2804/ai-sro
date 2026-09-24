@@ -80,15 +80,6 @@ Code: `snapshots_ignored: int = 0`
 > The same round-trip argument as `_redact_query` -- a marker a reviewer
 > cannot grep for is a hole nobody can count.
 
-## `IngestObservation.execute`, [line 103](../../../../../../../backend/src/sro/application/observation/ingest.py#L103): Comment
-
-Code: `raise ObservationRefused(`
-
-> Both directions are refusals. Teaching evidence with no
-> demonstration named cannot be told from an ordinary morning, and
-> ordinary browsing filed against a demonstration would be taught
-> as though somebody had meant to show it.
-
 ## `IngestObservation.execute`, [line 109](../../../../../../../backend/src/sro/application/observation/ingest.py#L109): Comment
 
 Code: `refuse_unless_itself(device, secret, device_id)`
@@ -97,15 +88,6 @@ Code: `refuse_unless_itself(device, secret, device_id)`
 > browser. Without this, a colleague holding a valid token could
 > file a day of their own browsing against somebody else's device,
 > and every candidate mined from it would name the wrong operator.
-
-## `IngestObservation.execute`, [line 120](../../../../../../../backend/src/sro/application/observation/ingest.py#L120): Comment
-
-Code: `recording = await uow.recordings.get(ctx.tenant_id, recording_id)`
-
-> Read, not trusted: the demonstration has to exist, be this
-> tenant's, be the one this browser was asked to perform, and
-> still be open. A sealed recording that could still be added
-> to is a skill whose provenance changes after it was reviewed.
 
 ## `IngestObservation.execute`, [line 138](../../../../../../../backend/src/sro/application/observation/ingest.py#L138): Comment
 

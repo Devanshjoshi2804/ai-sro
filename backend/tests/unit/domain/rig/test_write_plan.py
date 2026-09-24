@@ -111,9 +111,9 @@ def _answered(
 ) -> Gesture:
     """One doing of the save whose reply the recorder also kept.
 
-    The real capture keeps response bodies -- 4 of the 4 writes in the
-    extension's own `fixtures/batch-teaching.json` carry one -- and they are
-    what says which slots the server hands back unchanged.
+    The real capture keeps response bodies -- the writes in the extension's
+    own `fixtures/batch.json` carry one -- and they are what says which
+    slots the server hands back unchanged.
     """
     gesture = _saving(gesture_id, body)
     text = json.dumps(answer, ensure_ascii=False)

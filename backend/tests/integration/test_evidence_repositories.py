@@ -151,13 +151,12 @@ class TestGestures:
     async def test_the_device_clock_and_the_recording_a_batch_belongs_to_are_kept(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
-        """The device's own window against the server's received_at, and which
-        teaching recording a demonstration batch belongs to. The protocol
-        requires all three and the rig once discarded the first two."""
+        """The device's own window against the server's received_at, and the
+        recording_id column: kept for Global Constraint 6 though nothing writes
+        it any more. The rig once discarded the first two."""
         async with SqlUnitOfWork(session_factory) as uow:
             await uow.gestures.add_batch(
                 _batch(
-                    mode="teaching",
                     started_at="2026-09-03T10:00:00+05:30",
                     ended_at="2026-09-03T10:00:20+05:30",
                     recording_id="rec_9",

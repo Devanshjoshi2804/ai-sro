@@ -12,14 +12,6 @@ Code: `PASSIVE = "passive"`
 
 > Nobody said "watch this". The stream an operator's ordinary day produces.
 
-## `CaptureMode`, [line 14](../../../../../../../backend/src/sro/domain/observation/batch.py#L14): Note on the line above
-
-Code: `TEACHING = "teaching"`
-
-> An operator asked to be recorded, with the debugger attached. Richer
-> evidence, and the tier a candidate falls back to when passive evidence is
-> too thin to induce from.
-
 ## `check_times`, [line 29](../../../../../../../backend/src/sro/domain/observation/batch.py#L29): Docstring
 
 > The two rules about a batch's clock, asked before the evidence is
@@ -50,9 +42,6 @@ Code: `TEACHING = "teaching"`
 
 Code: `recording_id: RecordingId | None = None`
 
-> The demonstration this batch is part of, for teaching capture.
->
-> A teaching batch without one is evidence nobody can attribute: the operator
-> was asked to show the system a task, and what came back cannot be told from
-> an ordinary morning's browsing. A passive batch with one would be the
-> opposite mistake -- ordinary work filed as a deliberate demonstration.
+> Kept for the mapped column (Global Constraint 6): nothing sets it any more,
+> now that the device-teaching path that used to name a batch's demonstration
+> is gone.

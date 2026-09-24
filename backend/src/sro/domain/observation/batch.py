@@ -11,8 +11,6 @@ from sro.domain.shared.identifiers import BatchId, DeviceId, PrincipalId, Record
 class CaptureMode(StrEnum):
     PASSIVE = "passive"
 
-    TEACHING = "teaching"
-
 
 @dataclass(frozen=True, slots=True)
 class RejectedEvent:
@@ -59,12 +57,6 @@ class ObservationBatch:
         check_times(self.started_at, self.ended_at, self.received_at)
         if not self.uri.strip():
             raise InvariantViolation("a batch whose evidence has no address is not evidence")
-        if self.mode is CaptureMode.TEACHING and self.recording_id is None:
-            raise InvariantViolation("a teaching batch must name the demonstration it belongs to")
-        if self.mode is not CaptureMode.TEACHING and self.recording_id is not None:
-            raise InvariantViolation(
-                "a passive batch is ordinary work and cannot name a demonstration"
-            )
         for name, count in (
             ("event_count", self.event_count),
             ("byte_count", self.byte_count),

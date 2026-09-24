@@ -26,20 +26,27 @@ Comments and docstrings moved out of [`backend/scripts/smoke.py`](../../../../ba
 > and then it uses those urls the way a browser would: over the public address,
 > through the proxy, from end to end.
 >
->     docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa         exec -T api python scripts/smoke.py http://10.11.9.25:8088
+>     docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa         exec -T api python scripts/smoke.py http://10.11.9.25:8088 <page-code-sha256>
+>
+> `make smoke at=...` is this same command, with the third argument computed
+> on the HOST -- `sha256sum new-chrome-extension/src/page/page-code.js` --
+> and handed in. It has to be: run inside the api container, `page_code_path`
+> names the very file `/health` hashes, so a hash taken in there compares the
+> deployed image with itself and can never fail. Left off entirely, that one
+> check is skipped rather than guessed at.
 >
 > Exits non-zero if anything is wrong, and says which thing. Safe to run against
 > a live deployment: it writes one small blob and deletes it, opens one browser
 > session and releases it, and touches nothing else.
 
-## `_is_private_name`, [line 32](../../../../backend/scripts/smoke.py#L32): Docstring
+## `_is_private_name`, [line 30](../../../../backend/scripts/smoke.py#L30): Docstring
 
 > Whether this url names something only the compose network can resolve.
 >
 > A single label with no dot -- `minio`, `steel`, `api` -- is a container
 > name. That is the whole bug class this script exists for.
 
-## `check_addresses`, [line 43](../../../../backend/scripts/smoke.py#L43): Docstring
+## `check_addresses`, [line 41](../../../../backend/scripts/smoke.py#L41): Docstring
 
 > What this deployment believes its own addresses are.
 >
@@ -48,20 +55,20 @@ Comments and docstrings moved out of [`backend/scripts/smoke.py`](../../../../ba
 > their defaults, the console's own calls are captured and mined as
 > warehouse work -- which has happened.
 
-## `check_artifact`, [line 59](../../../../backend/scripts/smoke.py#L59): Docstring
+## `check_artifact`, [line 57](../../../../backend/scripts/smoke.py#L57): Docstring
 
 > A presigned url, fetched the way the console fetches a screenshot.
 
-## `check_browser`, [line 85](../../../../backend/scripts/smoke.py#L85): Docstring
+## `check_browser`, [line 83](../../../../backend/scripts/smoke.py#L83): Docstring
 
 > A real session, its live view, and the screencast socket behind it.
 
-## `_check_cast`, [line 120](../../../../backend/scripts/smoke.py#L120): Docstring
+## `_check_cast`, [line 118](../../../../backend/scripts/smoke.py#L118): Docstring
 
 > The screencast socket the live view opens. An iframe that loads and
 > never paints is what a broken one looks like.
 
-## `check_console`, [line 141](../../../../backend/scripts/smoke.py#L141): Docstring
+## `check_console`, [line 139](../../../../backend/scripts/smoke.py#L139): Docstring
 
 > The console, and what its bundle was built to talk to.
 >
@@ -69,16 +76,16 @@ Comments and docstrings moved out of [`backend/scripts/smoke.py`](../../../../ba
 > absolute hostname is one image that serves one environment, and a bundle
 > carrying a private name is a console that loads and fails every request.
 
-## `check_api`, [line 161](../../../../backend/scripts/smoke.py#L161): Docstring
+## `check_api`, [line 159](../../../../backend/scripts/smoke.py#L159): Docstring
 
 > The API through whatever is in front of it, with and without a token.
 
-## `check_worker`, [line 185](../../../../backend/scripts/smoke.py#L185): Docstring
+## `check_worker`, [line 183](../../../../backend/scripts/smoke.py#L183): Docstring
 
 > Whether a worker is polling. Its container status cannot say: one image
 > serves the API and the worker, and the worker serves no HTTP.
 
-## `check_ledger`, [line 211](../../../../backend/scripts/smoke.py#L211): Docstring
+## `check_ledger`, [line 209](../../../../backend/scripts/smoke.py#L209): Docstring
 
 > Whether this deployment can tell a watched write from an unwatched one.
 >
@@ -94,7 +101,7 @@ Comments and docstrings moved out of [`backend/scripts/smoke.py`](../../../../ba
 > compose file mounts it there. Every test passes either way. Measured on QA
 > 2026-09-16, after a clean deploy and a green suite: `ledger rows: 0`.
 
-## `check_artifact`, [line 76](../../../../backend/scripts/smoke.py#L76): Comment
+## `check_artifact`, [line 74](../../../../backend/scripts/smoke.py#L74): Comment
 
 Code: `tampered = await web.get(url + "X")`
 

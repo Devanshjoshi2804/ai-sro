@@ -23,6 +23,35 @@ Comments and docstrings moved out of [`new-chrome-extension/src/page/page-code.j
 > the page's patched `fetch` is not the one it calls, so a replayed request
 > never enters the evidence plane as though the operator had made it.
 
+## module, [line 633](../../../../../new-chrome-extension/src/page/page-code.js#L633): Comment
+
+Code: `Object.defineProperty(globalThis, "sroPage", { value: sroPage, writable: false, configurable: false });`
+
+> Not a plain assignment. In MAIN world this sits on the page's own `window`,
+> which every script the page runs -- including a third party's -- can see
+> and, with a plain writable property, replace: `Object.defineProperty(window,
+> "sroPage", {get:()=>fake,set(){}})` would make the assignment a silent
+> no-op and hand every later call whatever the page chooses to answer with.
+> `writable: false` stops an ordinary overwrite (silently, in the sloppy mode
+> this file runs in when injected); `configurable: false` stops
+> `Object.defineProperty` from installing a trap over it. Not a defence
+> against a page that got there first -- only against one that runs after
+> this file does, which is every one of them, since nothing here is a
+> persistent content script and injection always happens after the page's
+> own scripts have run once already.
+>
+> The `try`/`catch` is for the extension's own re-injection, not the page's:
+> `sroCall` injects this file again on every command, into whatever document
+> the tab is currently showing and whichever world the command runs in, and
+> a `configurable: false` property throws if defined twice in the same
+> world's realm. Caught and dropped rather than left to fail the second
+> command of a run -- the cost is that an extension reload mid-session no
+> longer replaces a document's `sroPage` until that document navigates,
+> where before the reassignment on every injection kept it current. The
+> worker's own copy, loaded once by the static `import` in `commands.js`,
+> never sees a second definition to begin with: a module's top level runs
+> once per process, not once per call.
+
 ## `perform`, [line 3](../../../../../new-chrome-extension/src/page/page-code.js#L3): Docstring
 
 > Find a control by the first locator that resolves, act on it, and say which

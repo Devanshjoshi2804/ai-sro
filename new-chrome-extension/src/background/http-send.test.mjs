@@ -5,26 +5,20 @@
 // Run with `node src/background/http-send.test.mjs`.
 
 import assert from "node:assert";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { test } from "node:test";
+import { loadSroPage } from "../page/load-sro-page.mjs";
 
 const TAB = { id: 7, url: "https://wms.example/app" };
-
-/** The same source `sroCall` injects with `files: [PAGE_CODE]`, loaded here the
- * way Chrome loads it: as a classic script's own text, defining
- * `globalThis.sroPage` and nothing else. */
-const PAGE_CODE_SOURCE = readFileSync(
-  fileURLToPath(new URL("../page/page-code.js", import.meta.url)),
-  "utf8",
-);
 
 globalThis.chrome = {
   tabs: { query: async () => [TAB] },
   scripting: {
     executeScript: async ({ func, args, files }) => {
+      // `sroCall`'s real injection call, answered by actually loading
+      // `page-code.js` into the real `globalThis` -- the same one `func`
+      // (also real, from `commands.js`) reads `globalThis.sroPage` off.
       if (files) {
-        new Function("globalThis", PAGE_CODE_SOURCE)(globalThis);
+        loadSroPage(globalThis);
         return [];
       }
       return [{ result: await func(...(args || [])) }];
@@ -201,7 +195,7 @@ test("a page that sets none still sends the marker every XHR library sends", asy
 function framesAre(windows) {
   globalThis.chrome.scripting.executeScript = async ({ target, func, args, files }) => {
     if (files) {
-      new Function("globalThis", PAGE_CODE_SOURCE)(globalThis);
+      loadSroPage(globalThis);
       return [];
     }
     const realms = target?.allFrames ? windows : windows.slice(0, 1);

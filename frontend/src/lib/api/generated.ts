@@ -2779,10 +2779,7 @@ export interface components {
             status: string;
             /** Revision */
             revision: string;
-            /**
-             * Page Code
-             * @default
-             */
+            /** Page Code */
             page_code: string;
             /** Checks */
             checks: {

@@ -124,7 +124,7 @@ def test_a_call_with_no_body_at_all_is_replayable() -> None:
 
 
 def test_the_sight_schema_offers_only_the_actions_a_point_can_take() -> None:
-    """No select: `performAtInPage` has no way to choose an option at a point,
+    """No select: `sroPage.performAt` has no way to choose an option at a point,
     and an action the browser cannot take is a step that stops. SIGHT_ACTIONS
     is what the answer is checked against, so it has to be the same three."""
     properties = SIGHT_SCHEMA["properties"]

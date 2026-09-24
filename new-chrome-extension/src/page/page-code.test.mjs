@@ -7,30 +7,46 @@
 // Run with `node src/page/page-code.test.mjs`.
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-
-const source = readFileSync(fileURLToPath(new URL("./page-code.js", import.meta.url)), "utf8");
+import { loadSroPage, pageCodeSource as source } from "./load-sro-page.mjs";
 
 test("the file is a classic script: no import, no export", () => {
   assert.doesNotMatch(source, /^\s*(import|export)\s/m);
 });
 
 test("evaluated alone, it defines every function the worker calls", () => {
-  const realm = {};
-  new Function("globalThis", source)(realm);
+  const sroPage = loadSroPage();
   for (const name of ["perform", "performAt", "screenSize", "viewport", "csrfToken", "requestedWith", "send"]) {
-    assert.equal(typeof realm.sroPage[name], "function", name);
+    assert.equal(typeof sroPage[name], "function", name);
   }
 });
 
-/** A fresh `sroPage`, the way each of chrome's own injections gets one: a new
- * evaluation of the same source, into whatever globals this test has set up. */
-function loadSroPage() {
-  new Function("globalThis", source)(globalThis);
-  return globalThis.sroPage;
-}
+test("a page cannot replace sroPage with an assignment or a redefinition", () => {
+  const realm = {};
+  const original = loadSroPage(realm);
+
+  // A page's own script, sloppy mode -- the same mode this file itself runs
+  // in when injected into a page -- assigning over a non-writable property
+  // is a silent no-op, not a throw.
+  new Function("globalThis", "globalThis.sroPage = { fake: true };")(realm);
+  assert.equal(realm.sroPage, original, "a plain assignment replaced sroPage");
+
+  // `Object.defineProperty` bypasses `writable` but not `configurable`.
+  assert.throws(() => {
+    Object.defineProperty(realm, "sroPage", { value: { fake: true }, configurable: true });
+  });
+  assert.equal(realm.sroPage, original, "defineProperty replaced sroPage");
+});
+
+test("re-evaluating the file in the same realm does not throw", () => {
+  // The extension re-injects on every command, into whatever document the
+  // tab is currently showing -- which is the same document, most of the
+  // time. A `sroPage` that could only ever be defined once would break the
+  // second command of any run.
+  const realm = {};
+  loadSroPage(realm);
+  assert.doesNotThrow(() => loadSroPage(realm));
+});
 
 class FakeEvent {
   constructor(type, init = {}) {
@@ -453,13 +469,12 @@ const PAYLOADS = {
 
 test("every sroPage function runs with nothing but the page around it", () => {
   for (const name of Object.keys(PAYLOADS)) {
-    const realm = {};
     globalThis.document = aPage();
     globalThis.window = { getComputedStyle: () => ({ visibility: "visible", display: "block" }) };
     globalThis.location = { href: "https://wms.example/portal" };
-    new Function("globalThis", source)(realm);
+    const sroPage = loadSroPage();
     try {
-      realm.sroPage[name](PAYLOADS[name]);
+      sroPage[name](PAYLOADS[name]);
     } catch (error) {
       assert.fail(
         `sroPage.${name} cannot run in a page: ${error.message}` +

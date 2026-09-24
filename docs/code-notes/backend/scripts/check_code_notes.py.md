@@ -42,7 +42,7 @@ Comments and docstrings moved out of [`backend/scripts/check_code_notes.py`](../
 > them; `parse_anchors` below is what turns that non-match into a reported
 > finding instead of a silent skip.
 
-## `JS_DEF_RE`, [line 19](../../../../backend/scripts/check_code_notes.py#L19): Constant
+## `JS_DEF_RE`, [line 37](../../../../backend/scripts/check_code_notes.py#L37): Constant
 
 > `ast.parse` throws on the first line of any JS source, so a note file
 > whose source is `new-chrome-extension/src/page/page-code.js` (global
@@ -55,8 +55,20 @@ Comments and docstrings moved out of [`backend/scripts/check_code_notes.py`](../
 > comments, because `page-code.js` itself carries none of the last and the
 > two-first do not collide with this pattern in practice. `resolve_symbol_js`
 > below is what turns a list of matches into a symbol's line and scope.
+>
+> `if (`, `for (`, `return (` and the rest of `JS_NOT_A_DEFINITION` match the
+> same shape a definition does and are excluded by name, in the one negative
+> lookahead right before `name` -- without it, `if` was a "definition" named
+> `if`, on every line one starts. `op` and `decl` (named groups, read in
+> `_js_definitions`) are the other half: `x = 5` is not a `const`/`let`/`var`
+> and matches only because `=` also follows a real declaration's name, so a
+> plain assignment is dropped unless `decl` matched too. Both were harmless
+> in this file's own note -- every real anchor sits at a shallower indent
+> than any control flow or assignment near it -- but harmless is not the
+> same as correct, and a future note anchored at the same indent as one of
+> these would have resolved to the wrong line, or to nothing at all.
 
-## `resolve_symbol`, [line 166](../../../../backend/scripts/check_code_notes.py#L166): Function
+## `resolve_symbol`, [line 186](../../../../backend/scripts/check_code_notes.py#L186): Function
 
 > A dotted name (`Container`, `Container.claim_the_runs`, a bare module-level
 > constant like `LATCH_AT`) walked one segment at a time through direct
@@ -71,7 +83,7 @@ Comments and docstrings moved out of [`backend/scripts/check_code_notes.py`](../
 > to a name-only lookup, and both get reported rather than resolved to
 > whichever match happened to come first.
 
-## `_js_definitions`, [line 179](../../../../backend/scripts/check_code_notes.py#L179): Function
+## `_js_definitions`, [line 199](../../../../backend/scripts/check_code_notes.py#L199): Function
 
 > Every line in `[start, end]` that looks like a definition site, as
 > `(line, indent, name)`. `resolve_symbol_js` below uses indent alone to
@@ -81,7 +93,7 @@ Comments and docstrings moved out of [`backend/scripts/check_code_notes.py`](../
 > a callback body) never becomes a wrong boundary, because it is never
 > shallower than the definition it sits inside.
 
-## `resolve_symbol_js`, [line 188](../../../../backend/scripts/check_code_notes.py#L188): Function
+## `resolve_symbol_js`, [line 211](../../../../backend/scripts/check_code_notes.py#L211): Function
 
 > `resolve_symbol`'s JS counterpart, walking a dotted name the same way --
 > one part at a time, each narrowing the scope the next part is searched in
@@ -92,7 +104,7 @@ Comments and docstrings moved out of [`backend/scripts/check_code_notes.py`](../
 > is ever asked to explain something nested, e.g. a helper closure inside a
 > method) resolves the same way `Class.method` does for Python.
 
-## `evaluate_anchor`, [line 217](../../../../backend/scripts/check_code_notes.py#L217): Function
+## `evaluate_anchor`, [line 240](../../../../backend/scripts/check_code_notes.py#L240): Function
 
 > Where one anchor's line should be, without yet trusting position to settle
 > a tie -- that needs every anchor's `"certain"` result gathered first (see
@@ -109,7 +121,7 @@ Comments and docstrings moved out of [`backend/scripts/check_code_notes.py`](../
 > in one function from resolving a note written about `import json` in
 > another.
 
-## `order_violations`, [line 271](../../../../backend/scripts/check_code_notes.py#L271): Function
+## `order_violations`, [line 294](../../../../backend/scripts/check_code_notes.py#L294): Function
 
 > The rule `resolve_note_file` relies on to break an `"ambiguous"` tie --
 > the notes for one symbol are written in source order, so the next one's
@@ -128,7 +140,7 @@ Comments and docstrings moved out of [`backend/scripts/check_code_notes.py`](../
 > no finding at all, which is most of them, measured on this repository --
 > a fact worth nothing to `check` until it actually blocks something.
 
-## `resolve_note_file`, [line 290](../../../../backend/scripts/check_code_notes.py#L290): Function
+## `resolve_note_file`, [line 313](../../../../backend/scripts/check_code_notes.py#L313): Function
 
 > One note file, anchor by anchor, in heading order. `"certain"` results
 > feed `last_resolved` outright; an `"ambiguous"` one is resolved the same
@@ -145,7 +157,7 @@ Comments and docstrings moved out of [`backend/scripts/check_code_notes.py`](../
 > next-note-after-previous-note -- does not care which way a line was
 > confirmed, only that it was.
 
-## `run`, [line 353](../../../../backend/scripts/check_code_notes.py#L353): Function
+## `run`, [line 376](../../../../backend/scripts/check_code_notes.py#L376): Function
 
 > One pass over every note file. A note file is rewritten once, in place,
 > only if at least one of its anchors resolved to a line different from the

@@ -26013,8 +26013,7 @@
           },
           "page_code": {
             "type": "string",
-            "title": "Page Code",
-            "default": ""
+            "title": "Page Code"
           },
           "checks": {
             "additionalProperties": {
@@ -26028,6 +26027,7 @@
         "required": [
           "status",
           "revision",
+          "page_code",
           "checks"
         ],
         "title": "Health"

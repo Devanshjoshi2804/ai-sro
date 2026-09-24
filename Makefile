@@ -276,6 +276,10 @@ smoke: ## Does a DEPLOYMENT work from outside itself: make smoke at=http://host:
 	@# browser name anything a browser can reach. Every defect on the first day
 	@# of deploying was on one of those edges. See backend/scripts/smoke.py.
 	@test -n "$(at)" || { echo "at= is required: make smoke at=http://<host>:<port>"; exit 2; }
-	@$(DEPLOY) exec -T api python scripts/smoke.py $(at)
+	@# Hashed here, on the host, and handed in -- smoke.py runs inside the api
+	@# container, where the "repository" it would otherwise read is the very
+	@# file /health hashes, so a check computed in there could never fail.
+	@page_code=$$(python3 -c "import hashlib; print(hashlib.sha256(open('new-chrome-extension/src/page/page-code.js','rb').read()).hexdigest())"); \
+	$(DEPLOY) exec -T api python scripts/smoke.py $(at) $$page_code
 
 check: lint test test-contract test-frontend test-extension test-browser ## What CI runs

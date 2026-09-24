@@ -303,5 +303,33 @@ def test_a_non_python_source_resolves_by_a_line_scan_not_ast(tmp_path: Path) -> 
     assert settled.stale == []
 
 
+def test_js_definitions_excludes_control_flow_and_plain_assignment() -> None:
+    # `if (`, `for (` and a bare `y = 5;` (no `const`/`let`/`var`) all matched
+    # the old pattern as though they declared something named `if`, `for` or
+    # `y` -- harmless while every anchor in this repository's one JS note file
+    # is a method name at a shallower indent than any control flow, but a
+    # false "definition" at the SAME indent as a real one would cut that
+    # symbol's scope short, or worse, let `if`/`for` resolve as a real symbol.
+    lines = [
+        "const sroPage = {",
+        "  perform(payload) {",
+        "    if (payload) {",
+        "      return null;",
+        "    }",
+        "    for (const one of []) {",
+        "      return null;",
+        "    }",
+        "    y = 5;",
+        "    return null;",
+        "  },",
+        "};",
+    ]
+    found = {name for _, _, name in check_code_notes._js_definitions(lines, 1, len(lines))}
+    assert "perform" in found
+    assert "if" not in found
+    assert "for" not in found
+    assert "y" not in found
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

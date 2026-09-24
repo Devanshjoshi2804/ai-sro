@@ -35,7 +35,7 @@ class Health(BaseModel):
     Here because the expensive failure is not a process that is down, it is a
     process that is up and old: the answer it gives is a rule that was fixed
     hours ago, and nothing about the answer says so. `make status` reads this."""
-    page_code: str = ""
+    page_code: str
     """The sha256 of the page code this process injects into Steel. CI and
     `make smoke` compare it with the repository's file."""
     checks: dict[str, bool]

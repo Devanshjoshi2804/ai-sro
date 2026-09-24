@@ -59,7 +59,7 @@ Code: `K_SCREEN_SAID = 600`
 >
 > Enough for a dialog and the controls around it; short enough that a run record
 > cannot become a copy of the page. The digest is names and positions, which is
-> what `viewportInPage` collects -- no values, because a form's contents are the
+> what `sroPage.viewport` collects -- no values, because a form's contents are the
 > operator's and a record outlives the run.
 
 ## `_was_watched`, [line 38](../../../../../../../backend/src/sro/application/execution/verify.py#L38): Docstring

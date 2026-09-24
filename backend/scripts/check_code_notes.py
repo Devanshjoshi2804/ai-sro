@@ -16,9 +16,29 @@ HEADING_RE = re.compile(
     r"(?P<suffix>\):.*)$"
 )
 CODE_RE = re.compile(r"^Code: `(?P<code>.*)`\s*$")
+JS_NOT_A_DEFINITION = (
+    "if",
+    "for",
+    "while",
+    "switch",
+    "catch",
+    "return",
+    "do",
+    "else",
+    "case",
+    "with",
+    "throw",
+    "yield",
+    "await",
+    "delete",
+    "void",
+    "typeof",
+)
 JS_DEF_RE = re.compile(
     r"^(?P<indent>[ \t]*)(?:export\s+)?(?:default\s+)?(?:async\s+)?"
-    r"(?:function\s+)?(?:const\s+|let\s+|var\s+)?(?P<name>[A-Za-z_$][\w$]*)\s*[(=]"
+    r"(?:function\s+)?(?:(?P<decl>const|let|var)\s+)?"
+    r"(?!(?:" + "|".join(JS_NOT_A_DEFINITION) + r")\b)"
+    r"(?P<name>[A-Za-z_$][\w$]*)\s*(?P<op>[(=])"
 )
 
 
@@ -180,8 +200,11 @@ def _js_definitions(lines: list[str], start: int, end: int) -> list[tuple[int, i
     found: list[tuple[int, int, str]] = []
     for line_no in range(start, min(end, len(lines)) + 1):
         match = JS_DEF_RE.match(lines[line_no - 1])
-        if match is not None:
-            found.append((line_no, len(match.group("indent")), match.group("name")))
+        if match is None:
+            continue
+        if match.group("op") == "=" and match.group("decl") is None:
+            continue
+        found.append((line_no, len(match.group("indent")), match.group("name")))
     return found
 
 

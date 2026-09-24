@@ -330,13 +330,24 @@ const PAGE_CODE = "src/page/page-code.js";
 
 /** Load `page-code.js` into the target, then call the named `globalThis.sroPage`
  * function there and hand back the injection's raw answer(s), one per frame the
- * target matched. */
+ * target matched.
+ *
+ * `?.` and not a plain index: the two calls are separate round trips, and a
+ * document that navigates between them -- a click that navigates, a frame
+ * reloading under `allFrames` -- lands the second one in a realm the first
+ * never reached. `globalThis.sroPage` is undefined there, and `[called]` on
+ * undefined throws, which since Chrome 117 does not reject this promise: it
+ * resolves with `{result: undefined, error}`, and `whatItSaid` below turns
+ * that into "the injected command threw in the page" -- blaming a bug in
+ * page-code.js for what is a navigation. Optional chaining answers `undefined`
+ * instead, the same no-result `inPage`/`inFrame` already hand to the honest
+ * diagnosis at `didNotAnswer`. */
 async function sroCall(target, name, args, world = "MAIN") {
   await chrome.scripting.executeScript({ target, world, files: [PAGE_CODE] });
   return chrome.scripting.executeScript({
     target,
     world,
-    func: (called, given) => globalThis.sroPage[called](...given),
+    func: (called, given) => globalThis.sroPage?.[called](...given),
     args: [name, args],
   });
 }

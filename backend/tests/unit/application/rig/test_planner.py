@@ -1279,7 +1279,7 @@ async def test_nothing_to_type_is_no_plan_and_a_press_carries_no_value() -> None
 
 async def test_an_action_a_point_cannot_take_is_no_plan() -> None:
     """`SIGHT_SCHEMA` offers click, type and press and no select, because
-    `performAtInPage` has no way to choose an option at a point -- and nothing
+    `sroPage.performAt` has no way to choose an option at a point -- and nothing
     validates the model's answer against that schema, so the enum is checked
     again here. Not in the rig's suite: with the check deleted, a select
     answered by sight became a `ui.perform_at` the extension cannot perform.

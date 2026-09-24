@@ -317,7 +317,7 @@ Code: `width: int = 0`
 
 Code: `"action": {"type": "string", "enum": ["click", "type", "press"]},`
 
-> No select: `performAtInPage` has no way to choose an option at a
+> No select: `sroPage.performAt` has no way to choose an option at a
 > point, and an action the browser cannot take is a step that stops.
 
 ## module, [line 133](../../../../../../../backend/src/sro/domain/execution/planning.py#L133): Comment

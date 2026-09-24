@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import ipaddress
 import sys
 from datetime import timedelta
-from pathlib import Path
 from urllib.parse import urlsplit
 
 import httpx
@@ -158,14 +156,15 @@ async def check_console(public: str) -> None:
         ok("console bundle", f"{len(set(chunks))} chunks, no private hostname in any of them")
 
 
-async def check_api(public: str) -> None:
+async def check_api(public: str, page_code_sha256: str | None) -> None:
     async with httpx.AsyncClient(timeout=20.0) as web:
         health = await web.get(f"{public}/api/health")
         if health.status_code != httpx.codes.OK:
             bad("api health", f"{health.status_code}")
         else:
             ok("api health", f"revision {health.json().get('revision', '?')}")
-            check_page_code(health.json().get("page_code", ""))
+            if page_code_sha256:
+                check_page_code(health.json().get("page_code", ""), page_code_sha256)
 
         unauthorised = await web.get(f"{public}/api/v1/workflows")
         if unauthorised.status_code == httpx.codes.UNAUTHORIZED:
@@ -174,8 +173,7 @@ async def check_api(public: str) -> None:
             bad("api auth", f"an unauthenticated call answered {unauthorised.status_code}")
 
 
-def check_page_code(deployed: str) -> None:
-    wanted = hashlib.sha256(Path(get_settings().page_code_path).read_bytes()).hexdigest()
+def check_page_code(deployed: str, wanted: str) -> None:
     if deployed == wanted:
         ok("page code", f"{deployed[:12]} matches the repository's file")
     else:
@@ -231,11 +229,12 @@ async def main() -> int:
         print(__doc__)
         return 2
     public = sys.argv[1].rstrip("/")
+    page_code_sha256 = sys.argv[2] if len(sys.argv) > 2 else None
     print(f"smoke test against {public}\n")
 
     container = build_container()
     await check_addresses(public)
-    await check_api(public)
+    await check_api(public, page_code_sha256)
     await check_console(public)
     await check_artifact(container, public)
     await check_browser(container, public)

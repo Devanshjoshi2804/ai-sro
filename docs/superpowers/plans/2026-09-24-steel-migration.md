@@ -1,5 +1,7 @@
 # Steel migration: recipes, prompted agents, and runs on the VM
 
+> **Superseded in part (2026-09-24).** Streams B (the run engine) and C (Steel and the locator port) are superseded by [`2026-09-24-execution-runtime.md`](2026-09-24-execution-runtime.md), which implements the approved execution-runtime design. Stream A moves to design 2, "Learning and agents"; task A0 (the popup opener tab id) lives in the new plan.
+
 Spec (binding): `docs/superpowers/specs/2026-09-23-vm-execution-recipes-and-agents.md`. Every task cites the section it comes from. A task that cannot cite one is not in this plan.
 
 Code base: `AI-SRO-audit-fixes`, branch `fix/audit-wave-1` at `0fb769e7`. This plan assumes Task 6b (`fix/audit-wave-1-t6b`, `fb2360e4`, teaching tier removed) is merged first. Every file, function and line named below was checked against that tree on 2026-09-24. Alembic head is `0072`.

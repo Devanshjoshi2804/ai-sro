@@ -1872,3 +1872,32 @@ def test_watching_a_tab_that_was_already_open_needs_no_reload(browser: Any, stub
         if event["kind"] == "request"
     ]
     assert len(ids) == len(set(ids)), "watching twice recorded the same call twice"
+
+
+def test_a_sign_in_page_is_recorded_without_a_credential(browser: Any, stub: Any) -> None:
+    """§5.6: the observation policy no longer excludes identity-provider hosts
+    by default, so a sign-in page is captured like any other -- under the
+    same redaction every other page gets, never by not looking.
+
+    `_drive` fills `#client`/`#pw` and clicks `#save`, none of which exist on
+    a sign-in form, so this drives the page itself rather than through it.
+    """
+    base, batches = stub
+    worker = _service_worker(browser)
+    _sign_in(browser, worker, base)
+
+    page = browser.new_page()
+    page.goto(f"{base}/sign-in")
+    _watch(browser, worker, page)
+    page.fill("#u", "operator")
+    page.fill("#p", "hunter2-not-real")
+    page.fill("#o", "424242")
+    page.click("#go")
+    page.wait_for_url("**/callback**")
+    _flush(browser, worker)
+    page.close()
+
+    sent = json.dumps(batches)
+    assert "operator" in sent
+    for secret in ("hunter2-not-real", "424242", "AUTHCODE-NOT-A-SECRET"):
+        assert secret not in sent

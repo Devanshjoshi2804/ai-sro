@@ -63,6 +63,46 @@ export function takeTree(tabId) {
   return taken;
 }
 
+/** What a person typed, wherever it landed in this tree.
+ *
+ * Nothing downstream reads an AX node's `value` -- a locator is built from
+ * role, name and structure, never from what happened to be typed when the
+ * tree was taken -- so it is dropped outright rather than redacted. It has
+ * to be found twice: an editable control exposes its own current text both
+ * as its `value` and, again, as the `name` of a `StaticText`/`InlineTextBox`
+ * child CDP renders for it. Neither carries an attribute a name rule could
+ * judge -- a one-time-code box is ordinary AX text unless the page marked it
+ * `type="password"`, which Chrome itself already masks here -- so this drops
+ * every editable control's rendered text unconditionally rather than
+ * guessing which one is a credential. What was actually typed is still
+ * evidence: it reaches the gesture's own `value`, gated by that field's own
+ * `secret` (`isSecretField`), which the DOM access this tree does not have.
+ */
+function withoutTypedText(nodes) {
+  const byId = new Map(nodes.map((node) => [node.nodeId, node]));
+  const editable = new Set(
+    nodes
+      .filter((node) =>
+        (node.properties || []).some((prop) => prop.name === "editable" && prop.value?.value),
+      )
+      .map((node) => node.nodeId),
+  );
+  const dropped = new Set();
+  const collect = (nodeId) => {
+    for (const childId of byId.get(nodeId)?.childIds || []) {
+      dropped.add(childId);
+      collect(childId);
+    }
+  };
+  for (const nodeId of editable) collect(nodeId);
+  return nodes
+    .filter((node) => !dropped.has(node.nodeId))
+    .map(({ value: _value, ...node }) => ({
+      ...node,
+      childIds: editable.has(node.nodeId) ? [] : node.childIds,
+    }));
+}
+
 /** Photograph the tree now, for whatever the operator does next.
  *
  * `null` is the ordinary answer, not a failure: the policy has it off, the cap
@@ -94,9 +134,9 @@ export async function takeTreeSoon(tabId, url, policy) {
   await noteTree();
   const taken = {
     kind: "snapshot",
-    // CDP's own shape, unreshaped: the server parses exactly this, through the
-    // same parser a deliberate demonstration's trees go through.
-    snapshot: { nodes: nodes.slice(0, MAX_NODES) },
+    // CDP's own shape, unreshaped -- except what a person typed, which this
+    // strips rather than redacts. See `withoutTypedText`.
+    snapshot: { nodes: withoutTypedText(nodes.slice(0, MAX_NODES)) },
     url,
     taken_at: new Date().toISOString(),
     tab_id: tabId,

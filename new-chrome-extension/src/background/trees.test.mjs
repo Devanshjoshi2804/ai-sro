@@ -21,6 +21,7 @@ const detached = [];
 const commands = [];
 let attachFails = false;
 let times = [];
+let nextTree = null;
 
 globalThis.chrome = {
   debugger: {
@@ -35,6 +36,7 @@ globalThis.chrome = {
     sendCommand: async ({ tabId }, method) => {
       commands.push([tabId, method]);
       if (method === "Accessibility.enable") return {};
+      if (nextTree) return nextTree;
       return { nodes: [{ nodeId: "1", role: { value: "button" }, name: { value: "Add" } }] };
     },
   },
@@ -115,6 +117,37 @@ assert.equal(await takeTreeSoon(2, PAGE, ON), null, "a tab that refused was aske
 // next time anything releases it -- a navigation, a re-watch.
 await release(2);
 assert.ok(await takeTreeSoon(2, PAGE, ON), "a released tab was still treated as refused");
+
+// What a person typed is gone from the tree, wherever CDP put it: the box's
+// own `value`, and the `name` of the StaticText child it renders that text
+// into -- an OTP box leaked exactly this way, with no attribute in either
+// place a name rule could have judged it by. An ordinary heading survives.
+nextTree = {
+  nodes: [
+    {
+      nodeId: "1",
+      role: { value: "textbox" },
+      name: { value: "" },
+      value: { value: "424242" },
+      properties: [{ name: "editable", value: { value: "plaintext" } }],
+      childIds: ["2"],
+    },
+    { nodeId: "2", role: { value: "StaticText" }, name: { value: "424242" }, childIds: [] },
+    { nodeId: "3", role: { value: "heading" }, name: { value: "Sign in" }, childIds: [] },
+  ],
+};
+const scrubbed = await takeTreeSoon(3, PAGE, ON);
+nextTree = null;
+await release(3);
+const serialized = JSON.stringify(scrubbed.snapshot.nodes);
+assert.ok(!serialized.includes("424242"), "a typed value survived scrubbing");
+assert.deepEqual(
+  scrubbed.snapshot.nodes.map((node) => node.nodeId),
+  ["1", "3"],
+  "the StaticText child that rendered the typed value was not dropped",
+);
+assert.deepEqual(scrubbed.snapshot.nodes[0].childIds, [], "the editable node kept its child");
+assert.equal(scrubbed.snapshot.nodes[1].name.value, "Sign in", "ordinary page text was scrubbed too");
 
 // Stop watching, stop debugging. An operator left with the banner up after
 // pressing "stop watching" would have every reason to disbelieve the panel

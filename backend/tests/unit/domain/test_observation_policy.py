@@ -43,17 +43,11 @@ def test_naming_hosts_narrows_capture_to_those_and_nothing_else() -> None:
     assert policy.allows("https://intranet.acme.com/news") is False
 
 
-def test_a_sign_in_page_is_excluded_before_anybody_configures_anything() -> None:
-    # The default list is now sign-in pages and nothing else. There is no task
-    # to learn on one and nothing on it anybody wants in evidence, and unlike a
-    # mailbox no tenant has ever asked for the opposite.
+def test_an_identity_provider_is_watched_like_any_other_host() -> None:
     policy = ObservationPolicy().enabled()
 
-    assert policy.allows("https://accounts.google.com/signin") is False
-    assert policy.allows("https://login.microsoftonline.com/common/oauth2") is False
-    # A host-or-subdomain test, which is what makes one entry cover Azure AD
-    # B2C: the host is always `<tenant>.b2clogin.com`.
-    assert policy.allows("https://blueyonderalphaus.b2clogin.com/oauth2/v2.0") is False
+    assert policy.allows("https://login.microsoftonline.com/common/oauth2/v2.0/authorize")
+    assert policy.allows("https://blueyonderalphaus.b2clogin.com/x")
 
 
 def test_webmail_is_observable_by_default_and_only_in_a_watched_tab() -> None:

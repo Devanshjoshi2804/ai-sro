@@ -229,17 +229,15 @@ def test_a_url_with_an_unreadable_port_is_left_to_the_tenants_policy() -> None:
     assert ours == frozenset(), "nothing, rather than a portless `localhost`"
 
 
-def test_the_sign_in_a_warehouse_actually_used_is_excluded_by_default() -> None:
-    """`login.microsoftonline.com` was in the defaults and `b2clogin.com` was
-    not, which is the same half-covered shape the Microsoft 365 mailbox hosts
-    were in. Azure AD B2C is always `<tenant>.b2clogin.com` and serves nothing
-    but sign-in; this deployment captured a real one on
-    `blueyonderalphaus.b2clogin.com` and closed it by editing that tenant's
-    stored policy, which left the next tenant where this one started."""
+def test_the_sign_in_a_warehouse_actually_used_is_admitted_by_default() -> None:
+    """§5.6 (2026-09-24): a sign-in page is captured like any other, under
+    redaction, not excluded by a guessed identity-provider list. Azure AD B2C
+    is always `<tenant>.b2clogin.com`; this deployment's real sign-in was on
+    `blueyonderalphaus.b2clogin.com`, once the page this system had no reason
+    to see at all."""
     admission = admit([_at("https://blueyonderalphaus.b2clogin.com/oauth2/authorize")], ON)
 
-    assert admission.accepted == ()
-    assert admission.rejected[0].reason == "this page is outside what the tenant agreed to observe"
+    assert admission.accepted_count == 1
 
 
 def test_a_customers_own_identity_host_is_not_guessed_at() -> None:

@@ -6,11 +6,7 @@ from urllib.parse import urlsplit
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.hosts import domain_matches
 
-DEFAULT_EXCLUSIONS: tuple[str, ...] = (
-    "accounts.google.com",
-    "login.microsoftonline.com",
-    "b2clogin.com",
-)
+DEFAULT_EXCLUSIONS: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

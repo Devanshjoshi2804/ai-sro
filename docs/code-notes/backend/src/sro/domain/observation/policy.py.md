@@ -12,14 +12,44 @@ Comments and docstrings moved out of [`backend/src/sro/domain/observation/policy
 
 ## module, [line 9](../../../../../../../backend/src/sro/domain/observation/policy.py#L9): Note on the line above
 
-Code: `DEFAULT_EXCLUSIONS: tuple[str, ...] = (`
+Code: `DEFAULT_EXCLUSIONS: tuple[str, ...] = ()`
 
-> The identity providers. Sign-in pages, and nothing else.
+> Empty. §5.6 (2026-09-24): a sign-in page is no longer excluded, it is
+> captured like any other page, under the same redaction every other page
+> gets.
 >
-> Deliberately short. Finance, health and HR are the categories that matter most
-> and they are named differently at every customer, so they are supplied by the
-> tenant when observation is switched on. A guessed list would read as coverage
-> and provide none.
+> **Why this used to be here.** A sign-in page is where somebody types a
+> password, and the identity hosts (`accounts.google.com`,
+> `login.microsoftonline.com`, `b2clogin.com` -- Azure AD B2C's own domain,
+> always `<tenant>.b2clogin.com`) were excluded wholesale rather than trust
+> redaction to catch a credential there. That trust was misplaced the other
+> way: `domain_matches` is a host-or-subdomain test, so excluding
+> `login.microsoftonline.com` protected the sign-in page and not a mailbox
+> behind the same identity provider -- the same shape of cost webmail's own
+> exclusion paid, below.
+>
+> **Why it is safe now.** Nothing about a sign-in page is special to this
+> system's redaction, which runs on every page: `is_secret_field` (recorder
+> side) drops a credential field's value at the point of capture, whatever
+> page it is on; `_redact_query` (server side, `domain/recording/sensitivity`)
+> takes an OAuth `code` out beside its `state` companion; and E7
+> (2026-09-24) found and closed the one path that had never been asked the
+> question -- `trees.js`'s accessibility-tree snapshot carried a text
+> field's live value verbatim, with no field name to redact by, because
+> CDP's `Accessibility.getFullAXTree` exposes an editable control's typed
+> content twice (its own `value`, and again as a child `StaticText`/
+> `InlineTextBox` node's `name`) and offers no HTML attribute to judge
+> either occurrence by. `withoutTypedText` now drops both, for every
+> editable control, on every page -- not only a sign-in one.
+>
+> **The migration.** A stored policy whose `exclude_hosts` was exactly this
+> old default held the default, not a tenant's own choice, so it is healed
+> to `[]`. Any other list -- narrower, wider, reordered -- is a choice and
+> stays. A customer's own identity host (this deployment also excluded a
+> Keycloak at `keycloak-…-wms-keycloak-prod.us.live.external.byp.ai`) was
+> never in this list to begin with; that name belongs to one warehouse, not
+> to a vendor, and guessing at those is the "coverage that provides none"
+> this list existed to avoid even when it had entries.
 >
 > **Webmail was here and is not any more, deliberately.** `mail.google.com`, the
 > four Outlook hosts and `mail.yahoo.com` were excluded by default; the work that
@@ -31,47 +61,29 @@ Code: `DEFAULT_EXCLUSIONS: tuple[str, ...] = (`
 > Watch on, only while `capture_enabled`, and only until they close it.
 >
 > What that costs is written down rather than argued away, because it happened.
-> `domain_matches` is a host-or-subdomain test, so excluding
-> `login.microsoftonline.com` protected the sign-in page and not the mailbox
-> behind it -- and a tenant that switched observation on with the older defaults
-> was recording message bodies, recipients and a screenshot of the open message
-> every gesture, for thirty days. That is now the documented consequence of
+> A tenant that switched observation on with the older defaults was recording
+> message bodies, recipients and a screenshot of the open message every
+> gesture, for thirty days. That is now the documented consequence of
 > pressing Watch on a mailbox, not an accident of a list being wrong. A tenant
 > that does not want it says so: `excluding(...)` puts any of these back for that
 > tenant alone, and `only()` turns the policy into an allow-list, which is the
 > form that survives a mail client this file has never heard of.
->
-> The identity hosts stay, and they are a different question from mail. A
-> sign-in page is where somebody types a password; there is no task to learn
-> there and nothing on it anybody wants in evidence. `b2clogin.com` is the same
-> family as `login.microsoftonline.com`: Azure AD B2C, where the host is always
-> `<tenant>.b2clogin.com`. It is here rather than in one customer's policy
-> because it is Microsoft's host, not theirs -- this deployment captured a real
-> sign-in on `blueyonderalphaus.b2clogin.com` and closed it by editing that
-> tenant's stored list, which left the next tenant exactly where this one
-> started. Nothing but sign-in is served from b2clogin.com, so excluding the
-> domain costs no evidence anybody wanted.
->
-> A customer's OWN identity host stays out. This deployment also excluded a
-> Keycloak at `keycloak-…-wms-keycloak-prod.us.live.external.byp.ai`, and that
-> name belongs to one warehouse rather than to a vendor -- guessing at those is
-> the "coverage that provides none" this list exists to avoid.
 
-## `ObservationPolicy`, [line 18](../../../../../../../backend/src/sro/domain/observation/policy.py#L18): Note on the line above
+## `ObservationPolicy`, [line 14](../../../../../../../backend/src/sro/domain/observation/policy.py#L14): Note on the line above
 
 Code: `version: int = 0`
 
 > Bumped on every change. The extension holds it and asks for a new policy
 > only when the number moves, so a heartbeat costs one integer.
 
-## `ObservationPolicy`, [line 22](../../../../../../../backend/src/sro/domain/observation/policy.py#L22): Note on the line above
+## `ObservationPolicy`, [line 18](../../../../../../../backend/src/sro/domain/observation/policy.py#L18): Note on the line above
 
 Code: `include_hosts: tuple[str, ...] = ()`
 
 > Empty means everything not excluded. A non-empty list narrows capture to
 > those hosts and their subdomains.
 
-## `ObservationPolicy`, [line 27](../../../../../../../backend/src/sro/domain/observation/policy.py#L27): Note on the line above
+## `ObservationPolicy`, [line 23](../../../../../../../backend/src/sro/domain/observation/policy.py#L23): Note on the line above
 
 Code: `capture_snapshots: bool = False`
 
@@ -99,7 +111,7 @@ Code: `capture_snapshots: bool = False`
 > opens DevTools takes it and keeps it until they close them; capture carries
 > on without trees rather than fighting them for it.
 
-## `ObservationPolicy`, [line 29](../../../../../../../backend/src/sro/domain/observation/policy.py#L29): Note on the line above
+## `ObservationPolicy`, [line 25](../../../../../../../backend/src/sro/domain/observation/policy.py#L25): Note on the line above
 
 Code: `snapshot_max_per_minute: int = 20`
 
@@ -107,7 +119,7 @@ Code: `snapshot_max_per_minute: int = 20`
 > JSON, a picture is a PNG, and one shared counter would have whichever
 > happened first spend the other's allowance.
 
-## `ObservationPolicy.allows`, [line 49](../../../../../../../backend/src/sro/domain/observation/policy.py#L49): Docstring
+## `ObservationPolicy.allows`, [line 45](../../../../../../../backend/src/sro/domain/observation/policy.py#L45): Docstring
 
 > Whether a page at this URL may be observed.
 >
@@ -130,17 +142,17 @@ Code: `snapshot_max_per_minute: int = 20`
 >   ever be observed. That is not a default, and an operator does not get
 >   to widen it from a side panel.
 
-## `ObservationPolicy.enabled`, [line 62](../../../../../../../backend/src/sro/domain/observation/policy.py#L62): Docstring
+## `ObservationPolicy.enabled`, [line 58](../../../../../../../backend/src/sro/domain/observation/policy.py#L58): Docstring
 
 > Observation on for this tenant. A contract conversation happened;
 > this is where it is recorded.
 
-## `ObservationPolicy.excluding`, [line 68](../../../../../../../backend/src/sro/domain/observation/policy.py#L68): Docstring
+## `ObservationPolicy.excluding`, [line 64](../../../../../../../backend/src/sro/domain/observation/policy.py#L64): Docstring
 
 > Replaces the list rather than adding to it: an exclusion somebody
 > thought they had removed is worse than one they have to retype.
 
-## `ObservationPolicy.reading_structure`, [line 77](../../../../../../../backend/src/sro/domain/observation/policy.py#L77): Docstring
+## `ObservationPolicy.reading_structure`, [line 73](../../../../../../../backend/src/sro/domain/observation/policy.py#L73): Docstring
 
 > Accessibility trees while nobody is deliberately teaching.
 >
@@ -149,7 +161,7 @@ Code: `snapshot_max_per_minute: int = 20`
 > that is not force-installed by policy, Chrome puts a debugging banner on
 > every watched tab for as long as this is on.
 
-## `ObservationPolicy.allows`, [line 56](../../../../../../../backend/src/sro/domain/observation/policy.py#L56): Comment
+## `ObservationPolicy.allows`, [line 52](../../../../../../../backend/src/sro/domain/observation/policy.py#L52): Comment
 
 Code: `if excluded_by_default and host not in granted:`
 

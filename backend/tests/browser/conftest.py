@@ -147,6 +147,22 @@ in an attachment. The rule matches, the mark finds nothing, and the offer is a
 run that would start and be skipped a moment later.
 """
 
+SIGN_IN_PAGE = """<!doctype html><html><body>
+  <form method="get" action="/callback">
+    <input id="u" name="username" autocomplete="username">
+    <input id="p" name="password" type="password" autocomplete="current-password">
+    <input id="o" name="otp" autocomplete="one-time-code">
+    <input type="hidden" name="state" value="s1">
+    <input type="hidden" name="code" value="AUTHCODE-NOT-A-SECRET">
+    <button id="go" type="submit">Sign in</button>
+  </form>
+</body></html>"""
+"""An identity provider's own form, structurally: a password input, the three
+`autocomplete` values §5.6 names, and an OAuth `code` beside its `state`
+companion -- so a job's redaction is proved against the same signals the
+capture side reads, not against a stand-in shaped like one vendor's markup.
+"""
+
 
 _SHAPES: list[dict[str, object]] = [
     {
@@ -329,6 +345,12 @@ class _Stub(BaseHTTPRequestHandler):
             return None
         if self.path.startswith("/v1/agents/") and self.path.endswith("/watches"):
             self._send(200, json.dumps(_Stub.watches).encode())
+            return
+        if self.path.startswith("/sign-in"):
+            self._send(200, SIGN_IN_PAGE.encode(), "text/html; charset=utf-8")
+            return
+        if self.path.startswith("/callback"):
+            self._send(200, b"<!doctype html><p>signed in</p>", "text/html; charset=utf-8")
             return
         if self.path.startswith("/mail-vague"):
             self._send(200, MAIL_WITH_NO_REFERENCE.encode(), "text/html; charset=utf-8")

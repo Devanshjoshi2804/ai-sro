@@ -56,7 +56,7 @@ WATCH = {
     "values": [
         {
             "name": "shipment_id",
-            # The four fields `in-page.js` already reads off a locator handed
+            # The four fields `page-code.js` already reads off a locator handed
             # down the command channel. A fifth name here would be a second
             # resolver in the extension.
             "where": {

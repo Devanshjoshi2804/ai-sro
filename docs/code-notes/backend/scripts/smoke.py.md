@@ -26,7 +26,19 @@ Comments and docstrings moved out of [`backend/scripts/smoke.py`](../../../../ba
 > and then it uses those urls the way a browser would: over the public address,
 > through the proxy, from end to end.
 >
->     docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa         exec -T api python scripts/smoke.py http://10.11.9.25:8088
+>     docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa         exec -T api python scripts/smoke.py http://10.11.9.25:8088 <page-code-sha256>
+>
+> `make smoke at=...` is this same command, with the third argument computed
+> on the HOST -- `sha256sum new-chrome-extension/src/page/page-code.js` --
+> and handed in. It has to be: run inside the api container, `page_code_path`
+> names the very file `/health` hashes, so a hash taken in there compares the
+> deployed image with itself and can never fail. Left off entirely,
+> `check_page_code` fails loudly rather than skipping -- a run that could not
+> compute the host's own hash (no `python3`, the file missing) does not get
+> to print "matches the repository's file" by saying nothing about it. The
+> Makefile chains the two commands with `&&` for the same reason: a failed
+> host hash has to fail `make smoke`, not run the container's half with an
+> empty argument and a green exit code.
 >
 > Exits non-zero if anything is wrong, and says which thing. Safe to run against
 > a live deployment: it writes one small blob and deletes it, opens one browser
@@ -73,12 +85,12 @@ Comments and docstrings moved out of [`backend/scripts/smoke.py`](../../../../ba
 
 > The API through whatever is in front of it, with and without a token.
 
-## `check_worker`, [line 174](../../../../backend/scripts/smoke.py#L174): Docstring
+## `check_worker`, [line 184](../../../../backend/scripts/smoke.py#L184): Docstring
 
 > Whether a worker is polling. Its container status cannot say: one image
 > serves the API and the worker, and the worker serves no HTTP.
 
-## `check_ledger`, [line 200](../../../../backend/scripts/smoke.py#L200): Docstring
+## `check_ledger`, [line 210](../../../../backend/scripts/smoke.py#L210): Docstring
 
 > Whether this deployment can tell a watched write from an unwatched one.
 >

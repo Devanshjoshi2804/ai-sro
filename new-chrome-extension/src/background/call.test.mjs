@@ -15,8 +15,9 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { loadSroPage } from "../page/load-sro-page.mjs";
 
-const { sendInPage } = await import("./in-page.js");
+const { send: sendInPage } = loadSroPage();
 
 /** What a browser rejects an aborted fetch with, made without naming
  * `DOMException` -- which node has and eslint's browser globals do not. */

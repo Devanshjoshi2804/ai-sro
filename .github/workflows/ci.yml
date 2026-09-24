@@ -183,6 +183,23 @@ jobs:
       - run: make lint-extension
       - run: make test-extension
 
+  page-code-image:
+    name: Image — the page code is the repository's
+    needs: changed
+    if: needs.changed.outputs.backend == 'true' || needs.changed.outputs.extension == 'true' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # `--build-context page=...` is the same context `make images` builds
+      # with: the backend image is built from `backend/` alone (spec §6.4),
+      # so this is the only way the page code the extension ships and the
+      # page code the image ships can be proved to be the same file.
+      - run: docker build --build-context page=new-chrome-extension/src/page -t sro-ci backend/
+      - run: |
+          want=$(sha256sum new-chrome-extension/src/page/page-code.js | cut -d' ' -f1)
+          got=$(docker run --rm sro-ci sha256sum /app/page-code/page-code.js | cut -d' ' -f1)
+          test "$want" = "$got"
+
   backend-mutation:
     name: Backend — mutation score floor
     needs: changed

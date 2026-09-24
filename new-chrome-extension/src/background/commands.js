@@ -13,15 +13,15 @@
 // going to lunch.
 
 import { pointAt } from "./pointing.js";
-import {
-  csrfTokenInPage,
-  requestedWithInPage,
-  performAtInPage,
-  screenSizeInPage,
-  performInPage,
-  sendInPage,
-  viewportInPage,
-} from "./in-page.js";
+// Side effects only: `page-code.js` exports nothing (it is a classic script,
+// loaded into a page as `executeScript({files})` and into Steel with
+// `add_init_script`), but a `"type": "module"` service worker can `import` any
+// valid module for what running it does -- here, `globalThis.sroPage = ...`.
+// `import()` and `new Function` cannot stand in for this: a service worker's
+// own `ServiceWorkerGlobalScope` forbids dynamic `import()` by spec, and its
+// default CSP has no `unsafe-eval`, so a `new Function(source)` this worker
+// built from a fetched string throws before it runs a single line.
+import "../page/page-code.js";
 import { hideDriving, showDriving } from "./showing.js";
 import { SIGN_IN, fillTheLoginForm, whatTheSignInCameTo } from "./sign-in.js";
 import {
@@ -324,6 +324,34 @@ async function tabOnOrigin(url) {
   return tabs.find((tab) => /^https?:/.test(tab.url || "")) || null;
 }
 
+/** Where the extension and Steel load the same code from (spec §6.4): the one
+ * file that is given locators and gives back values. */
+const PAGE_CODE = "src/page/page-code.js";
+
+/** Load `page-code.js` into the target, then call the named `globalThis.sroPage`
+ * function there and hand back the injection's raw answer(s), one per frame the
+ * target matched.
+ *
+ * `?.` and not a plain index: the two calls are separate round trips, and a
+ * document that navigates between them -- a click that navigates, a frame
+ * reloading under `allFrames` -- lands the second one in a realm the first
+ * never reached. `globalThis.sroPage` is undefined there, and `[called]` on
+ * undefined throws, which since Chrome 117 does not reject this promise: it
+ * resolves with `{result: undefined, error}`, and `whatItSaid` below turns
+ * that into "the injected command threw in the page" -- blaming a bug in
+ * page-code.js for what is a navigation. Optional chaining answers `undefined`
+ * instead, the same no-result `inPage`/`inFrame` already hand to the honest
+ * diagnosis at `didNotAnswer`. */
+async function sroCall(target, name, args, world = "MAIN") {
+  await chrome.scripting.executeScript({ target, world, files: [PAGE_CODE] });
+  return chrome.scripting.executeScript({
+    target,
+    world,
+    func: (called, given) => globalThis.sroPage?.[called](...given),
+    args: [name, args],
+  });
+}
+
 /** Run one of the page-realm functions in EVERY frame, and take the first
  * frame that answered with something.
  *
@@ -341,13 +369,8 @@ async function tabOnOrigin(url) {
  * come back in the order Chrome enumerates them, top first, so a page that
  * does put it on the shell keeps behaving exactly as it did.
  */
-async function inEveryFrame(tabId, func, args, world = "MAIN") {
-  const answers = await chrome.scripting.executeScript({
-    target: { tabId, allFrames: true },
-    world,
-    func,
-    args,
-  });
+async function inEveryFrame(tabId, name, args, world = "MAIN") {
+  const answers = await sroCall({ tabId, allFrames: true }, name, args, world);
   // A frame that threw is worth saying out loud even when another frame
   // answers: a page where the injected code is broken is a page every later
   // step will fail on, and the first sign of it was three hours of silence.
@@ -376,13 +399,8 @@ async function inEveryFrame(tabId, func, args, world = "MAIN") {
  * The top document's size is the answer's size, because that is the picture's
  * space and what `ui.perform_at` acts in. The names come from every frame.
  */
-async function lookAcrossFrames(tabId, func, args, world = "ISOLATED") {
-  const answers = await chrome.scripting.executeScript({
-    target: { tabId, allFrames: true },
-    world,
-    func,
-    args,
-  });
+async function lookAcrossFrames(tabId, name, args, world = "ISOLATED") {
+  const answers = await sroCall({ tabId, allFrames: true }, name, args, world);
   // A frame that threw answers `{result: undefined, error}` since Chrome 117,
   // so refusing what is not an object is the whole of the guard: a page whose
   // top document blocks injection is still described by the frame the
@@ -404,13 +422,8 @@ async function lookAcrossFrames(tabId, func, args, world = "ISOLATED") {
 }
 
 /** Run one of the page-realm functions and hand back what it answered. */
-async function inPage(tabId, func, args, world = "MAIN") {
-  const [answer] = await chrome.scripting.executeScript({
-    target: { tabId },
-    world,
-    func,
-    args,
-  });
+async function inPage(tabId, name, args, world = "MAIN") {
+  const [answer] = await sroCall({ tabId }, name, args, world);
   return whatItSaid(answer);
 }
 
@@ -460,8 +473,8 @@ async function uiPerform(payload, runId) {
   const { frameId, claims } = await frameHolding(tab.id, payload);
   const answer =
     frameId === undefined
-      ? await inPage(tab.id, performInPage, [payload])
-      : await inFrame(tab.id, frameId, performInPage, [payload]);
+      ? await inPage(tab.id, "perform", [payload])
+      : await inFrame(tab.id, frameId, "perform", [payload]);
   hold(tab.id);
   if (answer?.ok) await reacted(tab.id, payload.action);
   // Where it looked, on the path where that is the question.
@@ -481,7 +494,7 @@ async function uiPerform(payload, runId) {
   //
   // It means the injection produced no result: the frame is gone, the tab was
   // asleep, the page went somewhere else mid-command. It does NOT mean the
-  // control was missing -- `performInPage` answers that itself, by name. The
+  // control was missing -- `sroPage.perform` answers that itself, by name. The
   // two read identically on a run card, and on 2026-09-16 three runs failed
   // this way while an operator and I read it as "the locator did not match"
   // and went looking at the wrong thing. So the tab says who it was.
@@ -800,12 +813,12 @@ function reacted(tabId, action) {
 async function frameHolding(tabId, payload) {
   let answers;
   try {
-    answers = await chrome.scripting.executeScript({
-      target: { tabId, allFrames: true },
-      world: "MAIN",
-      func: performInPage,
-      args: [{ ...payload, probe: true }],
-    });
+    answers = await sroCall(
+      { tabId, allFrames: true },
+      "perform",
+      [{ ...payload, probe: true }],
+      "MAIN",
+    );
   } catch {
     // A page that cannot be scripted at all. The single-frame attempt below
     // fails the same way and says so in the language the run already reads.
@@ -841,13 +854,8 @@ export function frameOf(answers) {
   return holding.length === 1 ? holding[0].frameId : undefined;
 }
 
-async function inFrame(tabId, frameId, func, args, world = "MAIN") {
-  const [answer] = await chrome.scripting.executeScript({
-    target: { tabId, frameIds: [frameId] },
-    world,
-    func,
-    args,
-  });
+async function inFrame(tabId, frameId, name, args, world = "MAIN") {
+  const [answer] = await sroCall({ tabId, frameIds: [frameId] }, name, args, world);
   return whatItSaid(answer);
 }
 
@@ -870,7 +878,7 @@ async function uiPerformAt(payload, runId) {
   // Chrome allows one debugger per tab and somebody else has it -- DevTools,
   // almost always. The synthetic path is worse -- untrusted events, and a
   // frame lookup that is a guess -- and it is not nothing.
-  let answer = await inPage(tab.id, performAtInPage, [payload]);
+  let answer = await inPage(tab.id, "performAt", [payload]);
   // The point landed on a frame, so ask the frame.
   //
   // The picture the model was shown is the top document's viewport, and a
@@ -892,7 +900,7 @@ async function uiPerformAt(payload, runId) {
         `that point is inside a frame this browser cannot reach (${frame.src || "no src"})`,
       );
     }
-    answer = await inFrame(tab.id, inside, performAtInPage, [
+    answer = await inFrame(tab.id, inside, "performAt", [
       { ...payload, x: payload.x - frame.left, y: payload.y - frame.top },
     ]);
   }
@@ -1203,11 +1211,11 @@ async function screenshot(payload, runId) {
   // which part of itself was slow.
   //
   // So the measuring gets a budget, and missing it costs the digest rather
-  // than the picture. `screenSizeInPage` is three property reads -- the
+  // than the picture. `sroPage.screenSize` is three property reads -- the
   // viewport the model answers in, which is the part that is not optional.
   let seen = await within(
     K_MEASURE_MS,
-    lookAcrossFrames(visible.id, viewportInPage, []),
+    lookAcrossFrames(visible.id, "viewport", []),
   );
   let slow = "";
   if (!seen) {
@@ -1215,7 +1223,7 @@ async function screenshot(payload, runId) {
     seen =
       (await within(
         K_MEASURE_MS,
-        inPage(visible.id, screenSizeInPage, [], "ISOLATED"),
+        inPage(visible.id, "screenSize", [], "ISOLATED"),
       )) || {};
   }
 
@@ -1444,8 +1452,8 @@ async function arrived(tabId, ms = LOADS_WITHIN_MS) {
  * for that is not here is `unreachable`, never silently dropped, because that
  * gap is a deployment the two sides disagree about, not a normal miss. */
 const LIVE_HEADER_SOURCES = {
-  "csrf-encrypt-token": csrfTokenInPage,
-  "x-requested-with": requestedWithInPage,
+  "csrf-encrypt-token": "csrfToken",
+  "x-requested-with": "requestedWith",
 };
 
 async function httpSend(payload) {
@@ -1483,11 +1491,13 @@ async function httpSend(payload) {
     // is read out of `Ext.Ajax.defaultHeaders` in the page's MAIN world, and
     // there is no page here to read it from, so a call naming one still fails.
     if ((payload.live_headers || []).length === 0) {
-      // The same function the page runs, run here instead: same request, same
-      // answer shape, and no page realm at all -- so it is no more visible to
-      // the recorder's MAIN-world patch than the isolated-world send is.
+      // The same `sroPage.send` the page runs, run here in the worker instead:
+      // same request, same answer shape, and no page realm at all -- so it is
+      // no more visible to the recorder's MAIN-world patch than the
+      // isolated-world send is. `globalThis.sroPage` is set by the static
+      // `import "../page/page-code.js"` above, once, at worker start.
       return (
-        (await sendInPage(payload)) ||
+        (await globalThis.sroPage.send(payload)) ||
         failure("unreachable", "the call went nowhere")
       );
     }
@@ -1525,7 +1535,7 @@ async function httpSend(payload) {
   // patched fetch, so a replayed call is not captured as the operator's own.
   const answer = await inPage(
     tab.id,
-    sendInPage,
+    "send",
     [{ ...payload, headers }],
     "ISOLATED",
   );

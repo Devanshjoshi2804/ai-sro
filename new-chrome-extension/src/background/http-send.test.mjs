@@ -6,13 +6,23 @@
 
 import assert from "node:assert";
 import { test } from "node:test";
+import { loadSroPage } from "../page/load-sro-page.mjs";
 
 const TAB = { id: 7, url: "https://wms.example/app" };
 
 globalThis.chrome = {
   tabs: { query: async () => [TAB] },
   scripting: {
-    executeScript: async ({ func, args }) => [{ result: await func(...(args || [])) }],
+    executeScript: async ({ func, args, files }) => {
+      // `sroCall`'s real injection call, answered by actually loading
+      // `page-code.js` into the real `globalThis` -- the same one `func`
+      // (also real, from `commands.js`) reads `globalThis.sroPage` off.
+      if (files) {
+        loadSroPage(globalThis);
+        return [];
+      }
+      return [{ result: await func(...(args || [])) }];
+    },
   },
 };
 
@@ -183,7 +193,11 @@ test("a page that sets none still sends the marker every XHR library sends", asy
  * window and so cannot tell a page with frames from a page without.
  */
 function framesAre(windows) {
-  globalThis.chrome.scripting.executeScript = async ({ target, func, args }) => {
+  globalThis.chrome.scripting.executeScript = async ({ target, func, args, files }) => {
+    if (files) {
+      loadSroPage(globalThis);
+      return [];
+    }
     const realms = target?.allFrames ? windows : windows.slice(0, 1);
     const answers = [];
     for (const realm of realms) {

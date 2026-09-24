@@ -12,6 +12,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
+import { loadSroPage } from "../page/load-sro-page.mjs";
 
 /** One element, counting every time its geometry is asked for. That count is
  * the thing under test: it is what costs the time on a real grid. */
@@ -49,7 +50,7 @@ function page(elements, saying = []) {
   };
 }
 
-const { viewportInPage } = await import("./in-page.js");
+const { viewport: viewportInPage } = loadSroPage();
 
 test("a grid with fifty thousand cells is not measured fifty thousand times", () => {
   // The fault itself. Nothing here asserts a duration -- a timing assertion in

@@ -12,7 +12,7 @@
           "health"
         ],
         "summary": "Health",
-        "description": "Liveness: the process answers, and says which code it is answering with.\n\nStill touches no dependency: the revision was resolved once at startup.",
+        "description": "Liveness: the process answers, and says which code it is answering with.\n\nStill touches no live dependency: the revision was resolved once at\nstartup and the page code's hash is cached on first read.",
         "operationId": "health_health_get",
         "responses": {
           "200": {
@@ -26011,6 +26011,10 @@
             "type": "string",
             "title": "Revision"
           },
+          "page_code": {
+            "type": "string",
+            "title": "Page Code"
+          },
           "checks": {
             "additionalProperties": {
               "type": "boolean"
@@ -26023,6 +26027,7 @@
         "required": [
           "status",
           "revision",
+          "page_code",
           "checks"
         ],
         "title": "Health"

@@ -36,7 +36,8 @@ Both images are built from the repo root, tagged with the commit:
 ```bash
 REV=$(git rev-parse --short HEAD)
 
-docker build -t ai-sro-backend:$REV --build-arg REVISION=$REV backend/
+docker build --build-context page=new-chrome-extension/src/page \
+  -t ai-sro-backend:$REV --build-arg REVISION=$REV backend/
 
 docker build -t ai-sro-web:$REV \
   --build-arg NEXT_PUBLIC_API_URL=http://10.11.9.25:8000 \

@@ -120,7 +120,7 @@ def test_the_extension_answers_with_every_field_this_backend_reads() -> None:
         read |= set(re.findall(r'result\["([a-z_]+)"\]', body))
     assert "status" in read and "body" in read, "the two the state belts stand on"
 
-    answers = _extension("commands.js") + _extension("in-page.js")
+    answers = _extension("commands.js") + _extension("page-code.js", where="src/page")
     named = set(re.findall(r"\b([a-z_]+):", answers))
     assert read <= named, f"the extension names no {sorted(read - named)} in any reply"
 
@@ -203,7 +203,10 @@ def test_the_extension_has_a_source_for_every_header_this_backend_asks_for() -> 
     dropping the header. Loud is still only loud at run time, in front of
     somebody, on a call that was about to write to a warehouse.
     """
-    menu = set(re.findall(r'"([a-z-]+)":\s*\w+InPage', _extension("commands.js")))
+    body = _extension("commands.js")
+    block = re.search(r"const LIVE_HEADER_SOURCES = \{(.*?)\n\};", body, re.DOTALL)
+    assert block, "the header source menu moved"
+    menu = set(re.findall(r'"([a-z-]+)":', block.group(1)))
     assert menu == set(LIVE_FETCHABLE_HEADERS), (
         "one side asks for a header the other cannot find: "
         f"backend {sorted(LIVE_FETCHABLE_HEADERS)}, extension {sorted(menu)}"

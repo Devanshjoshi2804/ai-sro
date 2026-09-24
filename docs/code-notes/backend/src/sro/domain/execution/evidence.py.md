@@ -73,7 +73,7 @@ Code: `PUTS_A_VALUE = frozenset({"type", "select", "upload"})`
 ## `Locator`, [line 22](../../../../../../../backend/src/sro/domain/execution/evidence.py#L22): Docstring
 
 > One rung of the ladder. `within` and `visible_only` are read by the
-> extension (`new-chrome-extension/src/background/in-page.js`) to scope and
+> extension (`new-chrome-extension/src/page/page-code.js`) to scope and
 > filter the match at the wire -- dropping them would let a hidden control
 > through.
 

@@ -232,8 +232,14 @@ test("a point that lands on a frame is asked again inside it", async () => {
     { frameId: 0, url: "https://wms.example/portal" },
     { frameId: 9, url: "https://wms.example/portal/app" },
   ];
-  globalThis.chrome.scripting.executeScript = async ({ target, args }) => {
-    asked.push({ frames: target.frameIds, point: args && { x: args[0].x, y: args[0].y } });
+  globalThis.chrome.scripting.executeScript = async ({ target, args, files }) => {
+    // `sroCall` loads `page-code.js` into the target before every dispatch --
+    // nothing for this fake to answer, and not one of the asks under test.
+    if (files) return [];
+    // `sroCall`'s dispatcher takes `(name, args)`, so the payload this test
+    // cares about is the second element, not the first.
+    const payload = args && args[1][0];
+    asked.push({ frames: target.frameIds, point: payload && { x: payload.x, y: payload.y } });
     // The top document answers "that is a frame, and here it is"; the frame
     // itself does the click.
     return target.frameIds
@@ -307,8 +313,10 @@ test("a frame that has routed since it loaded is still the frame", async () => {
     // session token in the query.
     { frameId: 9, url: "https://wms.example/portal/page?libraryContext=b2&siteId=SG#customers" },
   ];
-  globalThis.chrome.scripting.executeScript = async ({ target, args }) => {
-    asked.push({ frames: target.frameIds, point: args && { x: args[0].x, y: args[0].y } });
+  globalThis.chrome.scripting.executeScript = async ({ target, args, files }) => {
+    if (files) return [];
+    const payload = args && args[1][0];
+    asked.push({ frames: target.frameIds, point: payload && { x: payload.x, y: payload.y } });
     return target.frameIds
       ? [{ result: { ok: true, result: { performed: true } } }]
       : [

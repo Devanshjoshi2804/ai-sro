@@ -84,6 +84,14 @@ class Settings(BaseSettings):
 
     steel_session_timeout_seconds: int = 3600
 
+    page_code_path: str = str(
+        Path(__file__).resolve().parents[3]
+        / "new-chrome-extension"
+        / "src"
+        / "page"
+        / "page-code.js"
+    )
+
     attach_hosts: tuple[str, ...] = ("127.0.0.1", "localhost", "[::1]")
 
     api_url: str = "http://localhost:8000"

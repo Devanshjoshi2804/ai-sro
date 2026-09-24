@@ -37,11 +37,11 @@ Code: `required: bool | None = None`
 > is a page that said nothing, and coercing it to False would be this system
 > claiming a form said something it never said.
 
-## `is_secret_header`, [line 164](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L164): Docstring
+## `is_secret_header`, [line 176](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L176): Docstring
 
 > Whether a header called this carries a credential.
 
-## `redact_attributes`, [line 171](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L171): Docstring
+## `redact_attributes`, [line 183](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L183): Docstring
 
 > Every DOM attribute of the element the operator touched, by all three rules.
 >
@@ -65,7 +65,7 @@ Code: `required: bool | None = None`
 > `placeholder` whose value is "Password" is a LABEL. Measured over the acme
 > capture -- 13 distinct attribute names, 95 distinct values -- none move.
 
-## `parse_batch`, [line 315](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L315): Docstring
+## `parse_batch`, [line 327](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L327): Docstring
 
 > Parse a batch, keeping every event that parses and naming those that do not.
 >
@@ -113,22 +113,22 @@ Code: `if self.secret:`
 > whatever a page-code change or a bug sends here, a secret target keeps no
 > `value` attribute at all.
 
-## `Gesture.a_credential_value_is_dropped_here`, [line 125](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L125): Docstring
+## `Gesture.a_credential_value_is_dropped_here`, [line 137](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L137): Docstring
 
 > AGENTS.md: credential values never reach storage. This is the boundary.
 
-## `Gesture.a_credential_in_the_url_is_dropped_here`, [line 133](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L133): Docstring
+## `Gesture.a_credential_in_the_url_is_dropped_here`, [line 145](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L145): Docstring
 
 > The same boundary, one field over. `#access_token=...` on a gesture
 > url reached disk while the typed value beside it was guarded -- which
 > is the shape of every credential defect this codebase has had: a rule
 > applied at one field is a rule the next field walks past.
 
-## `GestureEvent.a_credential_in_a_url_is_dropped_here`, [line 147](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L147): Docstring
+## `GestureEvent.a_credential_in_a_url_is_dropped_here`, [line 159](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L159): Docstring
 
 > frame_url has its own column on `gestures`; both are stored.
 
-## `Request.a_credential_header_is_dropped_here`, [line 236](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L236): Docstring
+## `Request.a_credential_header_is_dropped_here`, [line 248](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L248): Docstring
 
 > Same boundary, same reason, as the typed credential above.
 >
@@ -142,7 +142,7 @@ Code: `if self.secret:`
 > The name is kept and the value replaced, so a reader can still see that
 > a call was authenticated.
 
-## `Request.a_credential_elsewhere_on_the_call_is_dropped_here`, [line 246](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L246): Docstring
+## `Request.a_credential_elsewhere_on_the_call_is_dropped_here`, [line 258](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L258): Docstring
 
 > The header rule above covered one field of this model's eight.
 >
@@ -153,11 +153,11 @@ Code: `if self.secret:`
 > because a rule that runs at a call site is a rule the next caller does
 > not run.
 
-## `RequestEvent.a_credential_in_a_url_is_dropped_here`, [line 263](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L263): Docstring
+## `RequestEvent.a_credential_in_a_url_is_dropped_here`, [line 275](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L275): Docstring
 
 > An orphan request is stored as the whole event, frame_url included.
 
-## `PageEvent.a_credential_on_a_page_event_is_dropped_here`, [line 279](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L279): Docstring
+## `PageEvent.a_credential_on_a_page_event_is_dropped_here`, [line 291](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L291): Docstring
 
 > A page event is stored whole -- attached to a gesture, or in
 > orphan_pages -- and the audit landed a `?magic_link_token=` in url and
@@ -216,7 +216,7 @@ Code: `component: Component | None = None`
 
 > null on plain HTML; only ExtJS has one
 
-## `Gesture`, [line 117](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L117): Comment
+## `Gesture`, [line 128](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L128): Comment
 
 Code: `target: Target | None = None`
 
@@ -224,25 +224,25 @@ Code: `target: Target | None = None`
 > from the acme tenant carries scrolls with the key absent entirely, and
 > requiring it rejected every one of them -- 15% of that sample's gestures.
 
-## `Gesture`, [line 118](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L118): Inline
+## `Gesture`, [line 129](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L129): Inline
 
 Code: `value: str | None = None`
 
 > absent on click and press
 
-## `Gesture`, [line 119](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L119): Inline
+## `Gesture`, [line 130](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L130): Inline
 
 Code: `secret: bool = False`
 
 > absent on everything but a credential field
 
-## `Gesture`, [line 121](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L121): Inline
+## `Gesture`, [line 133](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L133): Inline
 
 Code: `at: float`
 
 > Unix seconds, float — recorder.js's format
 
-## `Gesture.a_credential_value_is_dropped_here`, [line 129](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L129): Comment
+## `Gesture.a_credential_value_is_dropped_here`, [line 141](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L141): Comment
 
 Code: `object.__setattr__(self, "value", redact_shapes(self.value))`
 
@@ -250,7 +250,7 @@ Code: `object.__setattr__(self, "value", redact_shapes(self.value))`
 > ordinary search box is not typed into an input[type=password],
 > so nothing upstream marks it. The shape does.
 
-## `is_secret_header`, [line 166](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L166): Comment
+## `is_secret_header`, [line 178](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L178): Comment
 
 Code: `if lowered.startswith(":"):`
 
@@ -259,13 +259,13 @@ Code: `if lowered.startswith(":"):`
 > hints below redacted it and the stored request lost its host. Mirrors the
 > same first check in the extension's isSecretHeader.
 
-## `Request`, [line 225](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L225): Inline
+## `Request`, [line 237](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L237): Inline
 
 Code: `status: int | None = None`
 
 > null on a failed request
 
-## `Request.a_credential_header_is_dropped_here`, [line 239](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L239): Comment
+## `Request.a_credential_header_is_dropped_here`, [line 251](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L251): Comment
 
 Code: `if is_secret_header(name):`
 
@@ -273,7 +273,7 @@ Code: `if is_secret_header(name):`
 > `X-Acme-Ticket` holding a JWT is the same secret as an
 > Authorization holding it, and only the value says so.
 
-## `Request.a_credential_elsewhere_on_the_call_is_dropped_here`, [line 250](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L250): Comment
+## `Request.a_credential_elsewhere_on_the_call_is_dropped_here`, [line 262](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L262): Comment
 
 Code: `shaped = shapes_in(body.text)`
 
@@ -283,7 +283,7 @@ Code: `shaped = shapes_in(body.text)`
 > the ones that went by name. Same marker in the text either
 > way; different fact about why.
 
-## `parse_batch`, [line 317](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L317): Comment
+## `parse_batch`, [line 329](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L329): Comment
 
 Code: `return Batch.model_validate(raw), ()`
 
@@ -295,7 +295,7 @@ Code: `return Batch.model_validate(raw), ()`
 > Let the envelope model refuse it and say why; the route turns that
 > into a 422.
 
-## `parse_batch`, [line 328](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L328): Comment
+## `parse_batch`, [line 340](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L340): Comment
 
 Code: `where = ".".join(str(part) for part in first.get("loc", ()))`
 

@@ -49,6 +49,12 @@ class Target:
 
 
 @dataclass(frozen=True, slots=True)
+class FrameHop:
+    index: int
+    url: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class Action:
     kind: Kind
     at: float
@@ -57,6 +63,7 @@ class Action:
     url: str | None = None
     target: Target | None = None
     modifiers: tuple[str, ...] = ()
+    frame_path: tuple[FrameHop, ...] | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -12,6 +12,7 @@ from sro.domain.observation.gesture import (
     Body,
     Call,
     Component,
+    FrameHop,
     Gesture,
     Landmark,
     PageMark,
@@ -156,6 +157,9 @@ def as_action(wire: WireGesture) -> Action:
             landmarks=tuple(Landmark(role=one.role, name=one.name) for one in target.landmarks),
         ),
         modifiers=tuple(wire.modifiers),
+        frame_path=None
+        if wire.frame_path is None
+        else tuple(FrameHop(index=hop.index, url=hop.url) for hop in wire.frame_path),
     )
 
 

@@ -16,8 +16,15 @@ from typing import Any
 
 import pytest
 
+from sro.application.connection.check_session import CheckSession
+from sro.application.connection.connect_system import RefreshSession
+from sro.application.connection.keep_open import KeepSessionsOpen
+from sro.application.connection.session_life import SessionLife
+from sro.application.connection.sign_in import EnsureSignedIn, SignIn
+from sro.application.knowledge.record_claim import RecordClaims
 from sro.application.ports.vision import Screen
 from sro.application.shared.refusals import OverCap
+from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.recording.events import ActionKind
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import ModelSpend, price
@@ -29,7 +36,15 @@ from sro.infrastructure.gemini.metered import Meter, Metered, Unattributed
 from sro.infrastructure.knowledge.embedding import GeminiEmbedder
 from sro.infrastructure.transcription.gemini import GeminiTranscriber
 from sro.whose import about
-from tests.unit.fakes import FakeClock, FakeUnitOfWork
+from tests.unit.fakes import (
+    FakeBrowserProvider,
+    FakeClock,
+    FakeCredentialVault,
+    FakeHttpCaller,
+    FakeIdFactory,
+    FakeSignInDriver,
+    FakeUnitOfWork,
+)
 
 NOW = datetime(2026, 9, 24, 10, 0, tzinfo=UTC)
 MODEL = "gemini-3-flash"
@@ -384,3 +399,34 @@ async def test_a_refusal_names_the_model_and_who_asked(caplog: pytest.LogCapture
     assert len(lines) == 2, lines
     for line in lines:
         assert "gemini-embedding-001" in line and "_wanting_a_vector" in line, line
+
+
+async def test_a_keeper_sweep_embeds_its_session_claim_and_bills_the_connections_tenant() -> None:
+    """The keeper runs outside any request: it names each connection's tenant
+    itself, or every sweep's session-life claim is refused its embedding."""
+    client, uow = _metered(_Models())
+    vault, http, clock = FakeCredentialVault(), FakeHttpCaller(), FakeClock(NOW)
+    http.answer(status_code=200, text="<main>waves</main>")
+    connection = Connection(
+        id=ConnectionId("con_1"),
+        tenant_id=TenantId("acme"),
+        name="WMS",
+        target_system="wms",
+        base_url="https://wms.example.com/portal",
+        created_at=NOW,
+    )
+    connection.authenticated(NOW)
+    async with uow:
+        await uow.connections.add(connection)
+        await uow.commit()
+    await vault.store(connection.cookie_key, "SESSIONID=live")
+    embedder = GeminiEmbedder("gemini-embedding-001", client=client)
+    life = SessionLife(uow, RecordClaims(uow, clock, FakeIdFactory(), embedder))
+    refresh = RefreshSession(uow, vault, clock)
+    sign_in = SignIn(uow, vault, FakeBrowserProvider(), FakeSignInDriver(), refresh)
+    check = CheckSession(uow, vault, http)
+
+    await KeepSessionsOpen(uow, EnsureSignedIn(sign_in, check, uow, life, clock)).sweep()
+
+    assert [row.tenant for row in _rows(uow)] == ["acme"]
+    assert [bool(entry.embedding) for entry in uow.knowledge.rows.values()] == [True]

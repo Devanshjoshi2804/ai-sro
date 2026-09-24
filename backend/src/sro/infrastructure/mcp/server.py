@@ -19,6 +19,7 @@ from sro.domain.execution.run import Run
 from sro.domain.execution.verdict import judge
 from sro.domain.shared.identifiers import SkillId
 from sro.domain.skill.skill import Skill
+from sro.whose import about
 
 _AUTHENTICATED_METHODS = frozenset({"tools/list", "tools/call"})
 
@@ -50,7 +51,8 @@ def _authenticator(credentials: Credentials) -> ServerMiddleware[Any]:
             RequestContext(tenant_id=caller.tenant_id, principal_id=caller.principal_id)
         )
         try:
-            return await call_next(ctx)
+            with about(tenant=caller.tenant_id.value, principal=caller.principal_id.value):
+                return await call_next(ctx)
         finally:
             _ctx_var.reset(token)
 

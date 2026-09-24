@@ -8,6 +8,7 @@ from sro.application.context import RequestContext
 from sro.application.ports.browser import BrowserUnavailable
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.shared.identifiers import PrincipalId
+from sro.whose import about
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,7 +44,8 @@ class KeepSessionsOpen:
         for connection in connections:
             ctx = RequestContext(tenant_id=connection.tenant_id, principal_id=KEEPER)
             try:
-                opened = await self._ensure.execute(ctx, target_system=connection.target_system)
+                with about(tenant=connection.tenant_id.value, principal=KEEPER.value):
+                    opened = await self._ensure.execute(ctx, target_system=connection.target_system)
             except BrowserUnavailable:
                 waiting.append(connection.target_system)
                 continue

@@ -57,6 +57,11 @@ Code: `released: tuple[str, ...] = ()`
 > Nobody is making this request, so there is no tenant to scope it to --
 > the keeper reads the connection list itself and acts for each tenant in
 > turn, which is the one place in this codebase that crosses that line.
+>
+> Each tenant's turn is attributed to it (`about`), as `MineLately` does:
+> the meter bills a model call to the attributed tenant and refuses one
+> nobody is named for, so without it every session-life claim the sweep
+> writes lost its embedding (final review I-2, 2026-09-24).
 
 ## `KeepSessionsOpen._demonstrating`, [line 58](../../../../../../../backend/src/sro/application/connection/keep_open.py#L58): Docstring
 

@@ -247,7 +247,7 @@ source_paths = [
 # the copy rather than for any mutant, and one failure ends stats collection
 # for the whole sweep. Copied rather than deselected: a contract nothing checks
 # during a sweep is a contract that can rot between sweeps.
-also_copy = ["tests", "src/sro", "migrations", "gmail-connector"]
+also_copy = ["tests", "src/sro", "migrations", "gmail-connector", "scripts"]
 # The whole unit suite, not just the bridge's own tests. Narrowing it to
 # `tests/unit/application/skill` made every OTHER module in the package read
 # 100%, because their real tests live elsewhere and never ran -- a number that

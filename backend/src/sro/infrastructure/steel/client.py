@@ -10,7 +10,8 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import httpx
-from playwright.async_api import Browser, async_playwright
+from playwright.async_api import Browser, BrowserContext, CDPSession, Page, async_playwright
+from playwright.async_api import Error as PlaywrightError
 
 from sro.application.ports.browser import BrowserSession, BrowserUnavailable
 from sro.domain.recording.sensitivity import Sensitivity, classify_header
@@ -28,6 +29,8 @@ _LIVE_ATTEMPTS = 4
 _LIVE_POLL_SECONDS = 0.5
 
 K_MAX_CONTEXTS_PER_CONTAINER = 20
+
+K_CONTEXT_PAGE_TIMEOUT_S = 10
 
 
 class SteelClient:
@@ -225,9 +228,58 @@ class SteelClient:
 
     async def navigate(self, session_id: BrowserSessionId, url: str) -> None:
         async with self._attached() as browser:
-            context = browser.contexts[0] if browser.contexts else await browser.new_context()
-            page = context.pages[0] if context.pages else await context.new_page()
-            await page.goto(url, wait_until="domcontentloaded")
+            if self._capacity == 1:
+                context = browser.contexts[0] if browser.contexts else await browser.new_context()
+                page = context.pages[0] if context.pages else await context.new_page()
+                await page.goto(url, wait_until="domcontentloaded")
+                return
+
+            sid = str(session_id)
+            raw = await browser.new_browser_cdp_session()
+            await self._require_context(raw, sid)
+            page = await self._own_page(browser, raw, sid, url)
+            await page.wait_for_load_state("domcontentloaded")
+            await raw.detach()
+
+    async def _require_context(self, raw: CDPSession, sid: str) -> None:
+        try:
+            ids = (await raw.send("Target.getBrowserContexts"))["browserContextIds"]
+        except PlaywrightError as why:
+            raise BrowserUnavailable(f"could not verify context {sid}: {why}") from why
+        if sid not in ids:
+            raise BrowserUnavailable(f"context {sid} no longer exists in this container")
+
+    async def _own_page(self, browser: Browser, raw: CDPSession, sid: str, url: str) -> Page:
+        for target in (await raw.send("Target.getTargets"))["targetInfos"]:
+            if target.get("browserContextId") == sid and target.get("type") == "page":
+                await raw.send("Target.closeTarget", {"targetId": target["targetId"]})
+
+        default_context: BrowserContext = (
+            browser.contexts[0] if browser.contexts else await browser.new_context()
+        )
+        try:
+            made = await raw.send("Target.createTarget", {"url": url, "browserContextId": sid})
+        except PlaywrightError as why:
+            raise BrowserUnavailable(f"could not open a page in context {sid}: {why}") from why
+        target_id = str(made["targetId"])
+
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + K_CONTEXT_PAGE_TIMEOUT_S
+        while True:
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                raise BrowserUnavailable(f"context {sid} did not surface its page in time")
+            try:
+                page = await default_context.wait_for_event("page", timeout=remaining * 1000)
+            except PlaywrightError as why:
+                raise BrowserUnavailable(
+                    f"context {sid} did not surface its page in time: {why}"
+                ) from why
+            info_session = await default_context.new_cdp_session(page)
+            info = await info_session.send("Target.getTargetInfo")
+            await info_session.detach()
+            if str(info["targetInfo"]["targetId"]) == target_id:
+                return page
 
     @asynccontextmanager
     async def _attached(self) -> AsyncIterator[Browser]:
@@ -241,36 +293,71 @@ class SteelClient:
 
     async def session_cookies(self, session_id: BrowserSessionId) -> tuple[dict[str, object], ...]:
         async with self._attached() as browser:
-            context = browser.contexts[0] if browser.contexts else None
-            cookies = await context.cookies() if context else []
-        return tuple(dict(cookie) for cookie in cookies)
+            if self._capacity == 1:
+                context = browser.contexts[0] if browser.contexts else None
+                cookies = list(await context.cookies()) if context else []
+                return tuple(dict(cookie) for cookie in cookies)
+
+            sid = str(session_id)
+            raw = await browser.new_browser_cdp_session()
+            await self._require_context(raw, sid)
+            found = (await raw.send("Storage.getCookies", {"browserContextId": sid}))["cookies"]
+            await raw.detach()
+            return tuple(dict(cookie) for cookie in found)
 
     async def forget_everything(self, session_id: BrowserSessionId) -> None:
         async with self._attached() as browser:
-            context = browser.contexts[0] if browser.contexts else await browser.new_context()
-            page = context.pages[0] if context.pages else await context.new_page()
-            cdp = await context.new_cdp_session(page)
-            await cdp.send("Network.clearBrowserCookies")
-            await cdp.detach()
+            if self._capacity == 1:
+                context = browser.contexts[0] if browser.contexts else await browser.new_context()
+                page = context.pages[0] if context.pages else await context.new_page()
+                cdp = await context.new_cdp_session(page)
+                await cdp.send("Network.clearBrowserCookies")
+                await cdp.detach()
+                return
+
+            sid = str(session_id)
+            raw = await browser.new_browser_cdp_session()
+            await self._require_context(raw, sid)
+            await raw.send("Storage.clearCookies", {"browserContextId": sid})
+            await raw.detach()
 
     async def restore(self, session_id: BrowserSessionId, cookies: list[dict[str, object]]) -> None:
         if not cookies:
             return
         async with self._attached() as browser:
-            context = browser.contexts[0] if browser.contexts else await browser.new_context()
-            page = context.pages[0] if context.pages else await context.new_page()
-            cdp = await context.new_cdp_session(page)
-            await cdp.send("Network.setCookies", {"cookies": [_addressed(c) for c in cookies]})
-            await cdp.detach()
+            if self._capacity == 1:
+                context = browser.contexts[0] if browser.contexts else await browser.new_context()
+                page = context.pages[0] if context.pages else await context.new_page()
+                cdp = await context.new_cdp_session(page)
+                await cdp.send("Network.setCookies", {"cookies": [_addressed(c) for c in cookies]})
+                await cdp.detach()
+                return
+
+            sid = str(session_id)
+            raw = await browser.new_browser_cdp_session()
+            await self._require_context(raw, sid)
+            await raw.send(
+                "Storage.setCookies",
+                {"cookies": [_addressed(c) for c in cookies], "browserContextId": sid},
+            )
+            await raw.detach()
 
     async def session_headers(self, session_id: BrowserSessionId, url: str) -> dict[str, str]:
         host = urlsplit(url).hostname or ""
         found: dict[str, str] = {}
 
         async with self._attached() as browser:
-            context = browser.contexts[0] if browser.contexts else await browser.new_context()
-            page = context.pages[0] if context.pages else await context.new_page()
-            cdp = await context.new_cdp_session(page)
+            if self._capacity == 1:
+                context = browser.contexts[0] if browser.contexts else await browser.new_context()
+                page = context.pages[0] if context.pages else await context.new_page()
+            else:
+                sid = str(session_id)
+                raw = await browser.new_browser_cdp_session()
+                await self._require_context(raw, sid)
+                page = await self._own_page(browser, raw, sid, "about:blank")
+                await raw.detach()
+
+            cdp = await page.context.new_cdp_session(page)
 
             def observe(event: dict[str, Any]) -> None:
                 request = event.get("request") or {}

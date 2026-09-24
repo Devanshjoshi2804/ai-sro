@@ -875,6 +875,31 @@ def _build_embedder(settings: Settings, meter: Meter) -> Embedder:
     return NoEmbedder()
 
 
+def _build_pool(settings: Settings) -> SteelPool:
+    pairs = {pair for urls in settings.steel_urls.values() for pair in urls}
+    pairs.add((settings.steel_base_url, settings.steel_cdp_url))
+    clients = {
+        api: SteelClient(
+            api,
+            cdp,
+            capacity=settings.steel_sessions_per_container,
+            public_base_url=settings.steel_public_base_url,
+            session_timeout_seconds=settings.steel_session_timeout_seconds,
+            dimensions=(settings.browser_width, settings.browser_height),
+        )
+        for api, cdp in pairs
+    }
+    containers_by_tenant = {
+        tenant: tuple(api for api, _ in urls) for tenant, urls in settings.steel_urls.items()
+    }
+    return SteelPool(
+        clients,
+        containers_by_tenant=containers_by_tenant,
+        fallback=(settings.steel_base_url,),
+        per_container=settings.steel_sessions_per_container,
+    )
+
+
 def _build_vault(settings: Settings) -> CredentialVault:
     try:
         if settings.vault_project:
@@ -954,20 +979,7 @@ def build_container(settings: Settings | None = None) -> Container:
         ui=PlaywrightUiDriver(settings.ui_debugger_url),
         sign_in_driver=PlaywrightSignIn(),
         locks=PostgresAccountLocks(lock_engine),
-        pool=SteelPool(
-            {
-                api: SteelClient(
-                    api,
-                    cdp,
-                    capacity=settings.steel_sessions_per_container,
-                    public_base_url=settings.steel_public_base_url,
-                    session_timeout_seconds=settings.steel_session_timeout_seconds,
-                    dimensions=(settings.browser_width, settings.browser_height),
-                )
-                for api, cdp in settings.steel_containers()
-            },
-            per_container=settings.steel_sessions_per_container,
-        ),
+        pool=_build_pool(settings),
         tokens=(
             KeycloakTokens(
                 built_vault,

@@ -84,11 +84,11 @@ class Settings(BaseSettings):
 
     steel_session_timeout_seconds: int = 3600
 
-    steel_urls: tuple[tuple[str, str], ...] = ()
+    steel_urls: dict[str, tuple[tuple[str, str], ...]] = Field(default_factory=dict)
     steel_sessions_per_container: int = 20
 
-    def steel_containers(self) -> tuple[tuple[str, str], ...]:
-        return self.steel_urls or ((self.steel_base_url, self.steel_cdp_url),)
+    def steel_containers(self, tenant: str) -> tuple[tuple[str, str], ...]:
+        return self.steel_urls.get(tenant) or ((self.steel_base_url, self.steel_cdp_url),)
 
     page_code_path: str = str(
         Path(__file__).resolve().parents[3]

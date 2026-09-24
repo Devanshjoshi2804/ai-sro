@@ -15,6 +15,7 @@ from collections.abc import AsyncIterator
 
 import pytest
 
+from sro.domain.shared.identifiers import BrowserSessionId
 from sro.infrastructure.steel.client import SteelClient
 from sro.infrastructure.steel.pool import SteelPool
 
@@ -45,8 +46,8 @@ async def test_closing_one_accounts_context_leaves_a_sibling_context_alive(
 ) -> None:
     pool = SteelPool({STEEL_URL: client}, per_container=2)
 
-    url, first = await pool.open({})
-    _, second = await pool.open({STEEL_URL: 1})
+    url, first = await pool.open("greyorange", {})
+    _, second = await pool.open("greyorange", {STEEL_URL: 1})
 
     assert first != second
     assert await pool.alive(url, first)
@@ -61,3 +62,28 @@ async def test_closing_one_accounts_context_leaves_a_sibling_context_alive(
     # that list the same call would use to attach a tab to it.
     assert await pool.alive(url, first)
     assert not await pool.alive(url, second)
+
+
+async def test_navigating_reading_cookies_or_clearing_one_account_never_touches_the_other(
+    client: SteelClient,
+) -> None:
+    pool = SteelPool({STEEL_URL: client}, per_container=2)
+
+    _, first = await pool.open("greyorange", {})
+    _, second = await pool.open("greyorange", {STEEL_URL: 1})
+
+    await client.navigate(BrowserSessionId(first), "data:text/html,first")
+    await client.navigate(BrowserSessionId(second), "data:text/html,second")
+
+    await client.restore(
+        BrowserSessionId(first),
+        [{"name": "acct", "value": "first", "domain": "example.com", "path": "/"}],
+    )
+
+    first_cookies = await client.session_cookies(BrowserSessionId(first))
+    second_cookies = await client.session_cookies(BrowserSessionId(second))
+    assert any(c["value"] == "first" for c in first_cookies)
+    assert not any(c["value"] == "first" for c in second_cookies)
+
+    await client.forget_everything(BrowserSessionId(first))
+    assert not await client.session_cookies(BrowserSessionId(first))

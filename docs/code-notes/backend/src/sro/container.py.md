@@ -203,7 +203,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 
 > Same two-switch rule as transcription: a key is not consent to send.
 
-## `_build_vault`, [line 878](../../../../../backend/src/sro/container.py#L878): Docstring
+## `_build_vault`, [line 903](../../../../../backend/src/sro/container.py#L903): Docstring
 
 > A vault that refuses to start beats one that writes plaintext.
 >
@@ -212,7 +212,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > nobody has generated a key yet is worse than one that says so when a
 > connection is attempted.
 
-## `instrument`, [line 901](../../../../../backend/src/sro/container.py#L901): Docstring
+## `instrument`, [line 926](../../../../../backend/src/sro/container.py#L926): Docstring
 
 > Make the API's requests produce spans.
 >
@@ -224,7 +224,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > Guarded on the endpoint by the caller, so a deployment that has not asked
 > for telemetry installs nothing.
 
-## `_servers`, [line 1008](../../../../../backend/src/sro/container.py#L1008): Docstring
+## `_servers`, [line 1020](../../../../../backend/src/sro/container.py#L1020): Docstring
 
 > `name=url, name=url` into connectors.
 >
@@ -675,7 +675,7 @@ Code: `asker_drafts=self._drafting,`
 > request's own tenant and operator, and the runner has no
 > `RequestContext` to give it.
 
-## `_build_vault`, [line 880](../../../../../backend/src/sro/container.py#L880): Comment
+## `_build_vault`, [line 905](../../../../../backend/src/sro/container.py#L905): Comment
 
 Code: `if settings.vault_project:`
 
@@ -685,7 +685,7 @@ Code: `if settings.vault_project:`
 > an environment name, so a developer pointing at a real project gets
 > the real thing and nobody has to remember a second switch.
 
-## `build_container`, [line 953](../../../../../backend/src/sro/container.py#L953): Comment
+## `build_container`, [line 978](../../../../../backend/src/sro/container.py#L978): Comment
 
 Code: `tools=McpToolCaller(_servers(settings.mcp_servers), vault=built_vault),`
 
@@ -693,14 +693,14 @@ Code: `tools=McpToolCaller(_servers(settings.mcp_servers), vault=built_vault),`
 > there. Without it `McpToolCaller` refuses rather than calling with
 > no credential.
 
-## `build_container`, [line 985](../../../../../backend/src/sro/container.py#L985): Comment
+## `build_container`, [line 997](../../../../../backend/src/sro/container.py#L997): Comment
 
 Code: `dispatcher=ApiRunDispatcher(settings.api_url, credentials),`
 
 > Mints its own short-lived credential for the trigger's principal, so
 > a scheduled run is asked for by the person who put it on the clock.
 
-## `build_container`, [line 951](../../../../../backend/src/sro/container.py#L951): Comment
+## `build_container`, [line 976](../../../../../backend/src/sro/container.py#L976): Comment
 
 Code: `vault=(built_vault := ForgetsRefusalOnWrite(_build_vault(settings))),`
 

@@ -103,6 +103,43 @@ def _flush(context: Any, worker: Any) -> None:
     page.close()
 
 
+def _wait_for_a_tree(worker: Any, deadline_seconds: float = 5.0) -> None:
+    """Block until `trees.js` has captured at least one tree.
+
+    `noteTree()` writes `sro.treeTimes` the moment `takeTreeSoon` succeeds --
+    the real signal that the "before" tree the next gesture will pick up is
+    actually waiting, rather than a guess at how long a debugger attach and
+    an `Accessibility.getFullAXTree` command take under whatever load the
+    machine is under. The deadline is only a bound; a run where nothing is
+    ever captured fails on the assertion that follows, not here.
+    """
+    until = time.time() + deadline_seconds
+    while time.time() < until:
+        times = worker.evaluate(
+            """async () =>
+                 (await chrome.storage.local.get("sro.treeTimes"))["sro.treeTimes"] || []"""
+        )
+        if times:
+            return
+        time.sleep(0.1)
+
+
+def _flush_until_a_snapshot_arrives(
+    context: Any, worker: Any, batches: list[dict[str, Any]], deadline_seconds: float = 8.0
+) -> None:
+    """The same shape as `capture_fixtures.py`'s fix for I5: flush, check what
+    actually arrived, and only sleep between attempts -- never instead of
+    checking."""
+    until = time.time() + deadline_seconds
+    while True:
+        _flush(context, worker)
+        if any(event["kind"] == "snapshot" for batch in batches for event in batch["events"]):
+            return
+        if time.time() >= until:
+            return
+        time.sleep(0.25)
+
+
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 SHOTS_PER_MINUTE = 3
 """What the stub's policy allows. Low enough for a test to reach it."""
@@ -1657,14 +1694,15 @@ def test_the_tree_a_step_carries_is_the_page_the_operator_acted_on(browser: Any,
     _watch(browser, worker, page)
 
     # The first gesture has no "before" tree waiting for it; what it does is
-    # schedule one, of this page, for the gesture after it.
+    # schedule one, of this page, for the gesture after it. Waited for by the
+    # signal that says it landed, not by guessing how long a debugger attach
+    # takes.
     page.click("#client")
-    page.wait_for_timeout(600)
+    _wait_for_a_tree(worker)
 
     page.click("#go")
     page.wait_for_url(f"{api_url}/elsewhere", timeout=15_000)
-    page.wait_for_timeout(600)
-    _flush(browser, worker)
+    _flush_until_a_snapshot_arrives(browser, worker, batches)
     page.close()
 
     events = [event for batch in batches for event in batch["events"]]

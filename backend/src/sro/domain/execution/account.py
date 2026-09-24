@@ -29,14 +29,17 @@ class Account:
         trimmed = username.strip()
         if not trimmed or len(trimmed) > K_USERNAME_MAX_LEN:
             raise InvariantViolation("an account needs a username")
-        return cls(tenant, origin_of(system) or system.strip().lower(), trimmed)
+        return cls(tenant, origin_of(system), trimmed)
 
     @property
     def key(self) -> str:
         return f"{self.tenant}/{self.origin}/{_encoded(self.username)}"
 
     def vault_key(self, field: str) -> str:
-        return f"{self.key}/{as_key(field)}"
+        normalized = as_key(field)
+        if not normalized:
+            raise InvariantViolation("a field needs a name")
+        return f"{self.key}/{normalized}"
 
     @property
     def lock_id(self) -> int:

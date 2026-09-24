@@ -129,6 +129,14 @@ async def test_a_blank_username_is_refused_before_the_vault_is_touched(
     assert await container.vault.get(f"{f.TENANT.value}/{WMS}/password") is None
 
 
+async def test_a_field_that_is_only_punctuation_is_refused_with_a_username(
+    client: httpx.AsyncClient,
+) -> None:
+    refused = await client.put("/v1/secrets", json=_body(field="!!!", username="lena"))
+
+    assert refused.status_code == 422
+
+
 async def test_there_is_no_door_that_reads_one_back(client: httpx.AsyncClient) -> None:
     """The property this design rests on. A route that answered with a stored
     value would put every credential in the deployment one leaked tenant token

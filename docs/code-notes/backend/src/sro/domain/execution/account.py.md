@@ -14,6 +14,13 @@ Why the code in [`backend/src/sro/domain/execution/account.py`](../../../../../.
 > and the run asking for the password the operator just stored would find
 > nothing there.
 >
+> There is no local fallback for a schemeless system any more (there was
+> one, `origin_of(system) or system.strip().lower()`, and it is gone):
+> `origin_of` itself now retries a schemeless input as `//` + the input, so
+> `wms.example`, `WMS.example:443` and `bob:pw@wms.example` all go through
+> the one function, the one path, and userinfo is dropped rather than
+> lowercased and kept.
+>
 > A blank or whitespace-only username is refused here, not just at the API:
 > `Account.of` is the one door every caller uses, HTTP or not, and a caller
 > that let a blank one through would build `{tenant}/{origin}//{field}` --
@@ -27,15 +34,22 @@ Why the code in [`backend/src/sro/domain/execution/account.py`](../../../../../.
 > `lena@example.com` and `Lena@Example.com` are one account, not two, so the
 > username is casefolded before it goes in the key.
 >
-> `_encoded` percent-encodes with the same safe set the vault's own Secret
-> Manager adapter allows (`secret_id_for`, `infrastructure/vault/secret_manager.py`
-> -- letters, digits, `_` and `-`, checked against its `_ALLOWED` pattern
-> without importing it, since domain code may not depend on infrastructure).
-> Everything else -- `/`, `.`, `~`, punctuation -- is escaped, including the
-> two characters `urllib.parse.quote` always treats as unreserved and will
-> not encode on request. A username can therefore never split into more than
-> one path segment: `a/../b` becomes one segment, `a%2F%2E%2E%2Fb`, and
-> cannot reach another account's key.
+> `_encoded` percent-encodes with `safe=""`, then also escapes `.` and `~`
+> -- the two characters `urllib.parse.quote` always treats as unreserved and
+> will not encode on request -- so every character except a letter, a digit,
+> `_` or `-` is escaped, `%` included. That makes the encoding injective
+> after casefolding: two different usernames can never fold to the same
+> key, and a username can never split into more than one path segment --
+> `a/../b` becomes one segment, `a%2F%2E%2E%2Fb`, and cannot reach another
+> account's key.
+>
+> This is NOT the Secret Manager adapter's own safe set: `secret_id_for`
+> (`infrastructure/vault/secret_manager.py`) rejects `%` too and rewrites it
+> to `-`, so two different logical keys can share a physical id's readable
+> prefix (`a.b` and the literal username `a-2Eb` both read `a-2eb` there).
+> Uniqueness at that layer comes from `secret_id_for`'s own trailing SHA-256
+> digest of the full logical key, not from the readable prefix -- the
+> logical key only has to be injective, which it is.
 >
 > ponytail: `casefold` is a ceiling, not a guarantee -- it also joins
 > `Straße`/`strasse`, and would join `Lena`/`lena` on a system whose own
@@ -43,6 +57,13 @@ Why the code in [`backend/src/sro/domain/execution/account.py`](../../../../../.
 > accounts: key on the recorded login's exact spelling instead of a folded
 > one, and accept that two spellings of the same account then need their
 > own migration.
+
+## `Account.vault_key`, [line 38](../../../../../../../backend/src/sro/domain/execution/account.py#L38): Note
+
+> `as_key` can normalise a field that is only punctuation (`"!!!"`) down to
+> the empty string, the same way a blank username would, and for the same
+> reason it is refused here rather than silently accepted: a key ending in
+> `/` is not one anybody else could ask for on purpose.
 
 ## `K_LEASE_TTL`, [line 14](../../../../../../../backend/src/sro/domain/execution/account.py#L14): Constant
 
@@ -66,14 +87,14 @@ Why the code in [`backend/src/sro/domain/execution/account.py`](../../../../../.
 > belongs) is refused with a reason rather than accepted and hashed into a
 > key nobody chose on purpose.
 
-## `Account.lock_id`, [line 42](../../../../../../../backend/src/sro/domain/execution/account.py#L42): Note
+## `Account.lock_id`, [line 45](../../../../../../../backend/src/sro/domain/execution/account.py#L45): Note
 
 > `pg_advisory_lock` takes a signed 64-bit integer, not a string, so the
 > account's key is hashed (SHA-256, first 8 bytes, big-endian, signed) into
 > one. Two accounts collide only if two distinct keys hash to the same 8
 > bytes -- not a risk this deployment's account count reaches.
 
-## `Lease.context_id`, [line 67](../../../../../../../backend/src/sro/domain/execution/account.py#L67): Note
+## `Lease.context_id`, [line 70](../../../../../../../backend/src/sro/domain/execution/account.py#L70): Note
 
 > Under the one-container-per-tenant, one-context-per-account ruling,
 > `steel_session_id` names the tenant's shared session and is the same for

@@ -19,8 +19,17 @@ Comments and docstrings moved out of [`backend/src/sro/domain/shared/hosts.py`](
 > evidence plane needs the same idea of what one system is: the rule that
 > links two systems by TIME has to agree with the rule that strikes a
 > system from a job about whether a port makes two of them.
+>
+> A system given with no scheme at all (`wms.example`, `wms.example:443`,
+> `bob:pw@wms.example`) has no `//`, so `urlsplit` alone reads the part
+> before its first `:` as a scheme and everything else as a path -- the
+> host never lands in `.hostname`. Retried once as `//` + the input, it
+> parses as an authority instead, the same way a scheme-carrying URL
+> always did, so every caller building a system key from operator-typed
+> text (`secret_key_of`, `Account.of`) needs no fallback of its own and
+> a URL's userinfo cannot hide from this function by dropping the scheme.
 
-## `page_of`, [line 37](../../../../../../../backend/src/sro/domain/shared/hosts.py#L37): Docstring
+## `page_of`, [line 39](../../../../../../../backend/src/sro/domain/shared/hosts.py#L39): Docstring
 
 > The screen a url names, without what identifies one visit to it.
 >
@@ -44,7 +53,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/shared/hosts.py`](
 > -- so a run opening this would land on the portal root and plan against the
 > wrong page. `run_workflow` keeps the whole url for that, deliberately.
 
-## `same_screen`, [line 46](../../../../../../../backend/src/sro/domain/shared/hosts.py#L46): Docstring
+## `same_screen`, [line 48](../../../../../../../backend/src/sro/domain/shared/hosts.py#L48): Docstring
 
 > Whether two urls are the same screen of the same application.
 >
@@ -63,7 +72,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/shared/hosts.py`](
 > The query stays dropped, for `page_of`'s reason: it is where a session
 > token and one visit's particulars live.
 
-## `screen_of`, [line 58](../../../../../../../backend/src/sro/domain/shared/hosts.py#L58): Docstring
+## `screen_of`, [line 60](../../../../../../../backend/src/sro/domain/shared/hosts.py#L60): Docstring
 
 > The screen these visits have in common: what every one of them agrees on.
 >
@@ -95,7 +104,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/shared/hosts.py`](
 > is the honest answer and not a fallback -- with one doing there is nothing
 > that says which half of it was the job.
 
-## `domain_matches`, [line 78](../../../../../../../backend/src/sro/domain/shared/hosts.py#L78): Docstring
+## `domain_matches`, [line 80](../../../../../../../backend/src/sro/domain/shared/hosts.py#L80): Docstring
 
 > RFC 6265 domain-match: the host itself, or a subdomain of it.
 >
@@ -103,7 +112,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/shared/hosts.py`](
 > is true, and that is how a lookalike host reaches a cookie -- or, here, past
 > an exclusion.
 
-## `headers_without_markers`, [line 85](../../../../../../../backend/src/sro/domain/shared/hosts.py#L85): Docstring
+## `headers_without_markers`, [line 87](../../../../../../../backend/src/sro/domain/shared/hosts.py#L87): Docstring
 
 > The headers that can still be sent: a value the boundary struck out is
 > not a credential the browser can use, it is the marker's own text. Beside

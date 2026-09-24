@@ -33,7 +33,7 @@ def secret_key_for(tenant_id: str, gesture: Gesture) -> str:
 
 
 def secret_key_of(tenant_id: str, system: str, field: str) -> str:
-    return f"{tenant_id}/{origin_of(system) or system.strip().lower()}/{as_key(field)}"
+    return f"{tenant_id}/{origin_of(system)}/{as_key(field)}"
 
 
 def connector_key(tenant_id: str, server: str, principal_id: str) -> str:

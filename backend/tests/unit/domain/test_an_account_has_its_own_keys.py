@@ -39,6 +39,26 @@ def test_the_key_the_panel_stores_is_the_key_the_broker_reads() -> None:
     assert panel.vault_key("password") == "greyorange/wms.example/lena/password"
 
 
+def test_a_schemeless_system_with_a_port_still_normalises() -> None:
+    schemeless = Account.of("greyorange", "WMS.example:443", "lena")
+
+    assert schemeless.origin == "wms.example:443"
+
+
+def test_a_schemeless_system_does_not_leak_its_userinfo_into_the_key() -> None:
+    creds = Account.of("greyorange", "bob:hunter2@wms.example", "lena")
+
+    assert creds.origin == "wms.example"
+    assert "hunter2" not in creds.vault_key("password")
+
+
+def test_a_field_that_normalises_to_nothing_is_refused() -> None:
+    lena = Account.of("greyorange", "https://wms.example", "lena")
+
+    with pytest.raises(InvariantViolation):
+        lena.vault_key("!!!")
+
+
 def test_a_username_cannot_reach_into_another_key() -> None:
     sly = Account.of("greyorange", "https://wms.example", "a/../b")
 

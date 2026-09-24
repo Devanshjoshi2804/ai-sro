@@ -99,6 +99,13 @@ def test_a_person_storing_one_does_not_have_to_type_it_perfectly(system: str, fi
     assert secret_key_of("new", system, field) == secret_key_for("new", _typed())
 
 
+def test_a_schemeless_system_does_not_leak_its_userinfo_into_the_key() -> None:
+    key = secret_key_of("new", "bob:hunter2@wms.example", "password")
+
+    assert key == "new/wms.example/password"
+    assert "hunter2" not in key
+
+
 # -- where the system half of the key comes from -------------------------------
 #
 # Three sources in order -- the gesture's url, the gesture's system, then

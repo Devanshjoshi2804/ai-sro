@@ -26,7 +26,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/connection/ke
 > not exist and was removed. What does exist is a finite browser pool, which is
 > why a system can still be left alone (see `Swept.left_alone`).
 
-## module, [line 22](../../../../../../../backend/src/sro/application/connection/keep_open.py#L22): Note on the line above
+## module, [line 23](../../../../../../../backend/src/sro/application/connection/keep_open.py#L23): Note on the line above
 
 Code: `KEEPER = PrincipalId("session-keeper")`
 
@@ -34,7 +34,7 @@ Code: `KEEPER = PrincipalId("session-keeper")`
 > to whoever happened to ask last, and an audit trail that says so is worth the
 > one extra constant.
 
-## `Swept`, [line 16](../../../../../../../backend/src/sro/application/connection/keep_open.py#L16): Note on the line above
+## `Swept`, [line 17](../../../../../../../backend/src/sro/application/connection/keep_open.py#L17): Note on the line above
 
 Code: `left_alone: tuple[str, ...] = ()`
 
@@ -43,14 +43,14 @@ Code: `left_alone: tuple[str, ...] = ()`
 > under the one-session premise; that premise was measured false (see the
 > module note) and the field kept its name for the worker's log line.
 
-## `Swept`, [line 19](../../../../../../../backend/src/sro/application/connection/keep_open.py#L19): Note on the line above
+## `Swept`, [line 20](../../../../../../../backend/src/sro/application/connection/keep_open.py#L20): Note on the line above
 
 Code: `released: tuple[str, ...] = ()`
 
 > Browsers given back because nothing claimed them. This deployment has
 > one, and a session that outlived whatever opened it holds it forever.
 
-## `KeepSessionsOpen.sweep`, [line 36](../../../../../../../backend/src/sro/application/connection/keep_open.py#L36): Docstring
+## `KeepSessionsOpen.sweep`, [line 37](../../../../../../../backend/src/sro/application/connection/keep_open.py#L37): Docstring
 
 > One pass over every connected system, in every tenant.
 >
@@ -63,7 +63,7 @@ Code: `released: tuple[str, ...] = ()`
 > nobody is named for, so without it every session-life claim the sweep
 > writes lost its embedding (final review I-2, 2026-09-24).
 
-## `KeepSessionsOpen._demonstrating`, [line 58](../../../../../../../backend/src/sro/application/connection/keep_open.py#L58): Docstring
+## `KeepSessionsOpen._demonstrating`, [line 60](../../../../../../../backend/src/sro/application/connection/keep_open.py#L60): Docstring
 
 > Whether anybody is teaching right now, anywhere in the deployment.
 >
@@ -72,7 +72,7 @@ Code: `released: tuple[str, ...] = ()`
 > deployment-wide, so the question is too, the same one `ReleaseStrayBrowsers`
 > asks before it releases anything.
 
-## `KeepSessionsOpen.sweep`, [line 51](../../../../../../../backend/src/sro/application/connection/keep_open.py#L51): Comment
+## `KeepSessionsOpen.sweep`, [line 53](../../../../../../../backend/src/sro/application/connection/keep_open.py#L53): Comment
 
 Code: `released = (`
 
@@ -86,7 +86,7 @@ Code: `released = (`
 > and gives every claimed browser a grace period, and nothing here
 > depends on how many sessions an account may hold.
 
-## `KeepSessionsOpen.sweep`, [line 47](../../../../../../../backend/src/sro/application/connection/keep_open.py#L47): Note on the line above
+## `KeepSessionsOpen.sweep`, [line 49](../../../../../../../backend/src/sro/application/connection/keep_open.py#L49): Note on the line above
 
 Code: `except BrowserUnavailable:`
 

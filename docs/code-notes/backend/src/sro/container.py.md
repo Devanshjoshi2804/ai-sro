@@ -172,7 +172,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > assumed Task 6 deleted its callers; it did not (final review I-1,
 > 2026-09-24).
 
-## `_patient_asker_for`, [line 856](../../../../../backend/src/sro/container.py#L856): Docstring
+## `_patient_asker_for`, [line 859](../../../../../backend/src/sro/container.py#L859): Docstring
 
 > The same asker, given the mining call's own patience.
 >
@@ -186,7 +186,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > asker a future deployment injects -- is handed back untouched, because
 > only this one has a timeout to set.
 
-## `_build_asker`, [line 866](../../../../../backend/src/sro/container.py#L866): Docstring
+## `_build_asker`, [line 869](../../../../../backend/src/sro/container.py#L869): Docstring
 
 > The same two switches as its neighbours: a key is not consent to send.
 >
@@ -194,16 +194,16 @@ Code: `driving_runs: AsyncConnection | None = None`
 > that switch is about -- a tenant's captured gestures and the bodies of
 > their calls, read by a hosted model.
 
-## `_build_vision`, [line 872](../../../../../backend/src/sro/container.py#L872): Docstring
+## `_build_vision`, [line 875](../../../../../backend/src/sro/container.py#L875): Docstring
 
 > Two switches again, and the more consequential pair: this one sends a
 > picture of a customer's live warehouse system.
 
-## `_build_embedder`, [line 881](../../../../../backend/src/sro/container.py#L881): Docstring
+## `_build_embedder`, [line 884](../../../../../backend/src/sro/container.py#L884): Docstring
 
 > Same two-switch rule as transcription: a key is not consent to send.
 
-## `_build_vault`, [line 890](../../../../../backend/src/sro/container.py#L890): Docstring
+## `_build_vault`, [line 893](../../../../../backend/src/sro/container.py#L893): Docstring
 
 > A vault that refuses to start beats one that writes plaintext.
 >
@@ -212,7 +212,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > nobody has generated a key yet is worse than one that says so when a
 > connection is attempted.
 
-## `instrument`, [line 913](../../../../../backend/src/sro/container.py#L913): Docstring
+## `instrument`, [line 916](../../../../../backend/src/sro/container.py#L916): Docstring
 
 > Make the API's requests produce spans.
 >
@@ -224,7 +224,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > Guarded on the endpoint by the caller, so a deployment that has not asked
 > for telemetry installs nothing.
 
-## `_servers`, [line 999](../../../../../backend/src/sro/container.py#L999): Docstring
+## `_servers`, [line 1002](../../../../../backend/src/sro/container.py#L1002): Docstring
 
 > `name=url, name=url` into connectors.
 >
@@ -675,7 +675,7 @@ Code: `asker_drafts=self._drafting,`
 > request's own tenant and operator, and the runner has no
 > `RequestContext` to give it.
 
-## `_build_vault`, [line 892](../../../../../backend/src/sro/container.py#L892): Comment
+## `_build_vault`, [line 895](../../../../../backend/src/sro/container.py#L895): Comment
 
 Code: `if settings.vault_project:`
 
@@ -685,7 +685,7 @@ Code: `if settings.vault_project:`
 > an environment name, so a developer pointing at a real project gets
 > the real thing and nobody has to remember a second switch.
 
-## `build_container`, [line 960](../../../../../backend/src/sro/container.py#L960): Comment
+## `build_container`, [line 963](../../../../../backend/src/sro/container.py#L963): Comment
 
 Code: `tools=McpToolCaller(_servers(settings.mcp_servers), vault=built_vault),`
 
@@ -693,14 +693,14 @@ Code: `tools=McpToolCaller(_servers(settings.mcp_servers), vault=built_vault),`
 > there. Without it `McpToolCaller` refuses rather than calling with
 > no credential.
 
-## `build_container`, [line 977](../../../../../backend/src/sro/container.py#L977): Comment
+## `build_container`, [line 980](../../../../../backend/src/sro/container.py#L980): Comment
 
 Code: `dispatcher=ApiRunDispatcher(settings.api_url, credentials),`
 
 > Mints its own short-lived credential for the trigger's principal, so
 > a scheduled run is asked for by the person who put it on the clock.
 
-## `build_container`, [line 958](../../../../../backend/src/sro/container.py#L958): Comment
+## `build_container`, [line 961](../../../../../backend/src/sro/container.py#L961): Comment
 
 Code: `vault=(built_vault := ForgetsRefusalOnWrite(_build_vault(settings))),`
 

@@ -2098,7 +2098,7 @@ Code: `or (`
 > Except a `look` move, which is judged by what it sent
 > rather than by what it might have: see `K_LOOKS`.
 
-## `run_workflow`, [line 1532](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1532): Comment
+## `run_workflow`, [line 1526](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1526): Comment
 
 Code: `or (`
 
@@ -2108,7 +2108,7 @@ Code: `or (`
 > scaffolding, opening a dropdown or a form, on the way to
 > a call it recorded somewhere later.
 
-## `run_workflow`, [line 1541](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1541): Comment
+## `run_workflow`, [line 1534](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1534): Comment
 
 Code: `if live and may_write:`
 
@@ -2129,7 +2129,7 @@ Code: `if live and may_write:`
 > form or picks a row has no read and is done the way it always
 > was.
 
-## `run_workflow`, [line 1554](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1554): Comment
+## `run_workflow`, [line 1547](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1547): Comment
 
 Code: `record.result = {"skipped": True, "already": True}`
 
@@ -2138,7 +2138,7 @@ Code: `record.result = {"skipped": True, "already": True}`
 > that sent nothing has not demonstrated anything about
 > this job's ability to write correctly.
 
-## `run_workflow`, [line 1558](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1558): Comment
+## `run_workflow`, [line 1551](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1551): Comment
 
 Code: `key = write_key(workflow.id, step, values) if live and mutates else ""`
 
@@ -2164,13 +2164,13 @@ Code: `key = write_key(workflow.id, step, values) if live and mutates else ""`
 > evidence carries a real mutating call is the one that can
 > leave a second record behind.
 
-## `run_workflow`, [line 1561](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1561): Comment
+## `run_workflow`, [line 1554](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1554): Comment
 
 Code: `claimed = await uow.tool_calls.remember(`
 
 > Not `first`: that name is a gesture in this function.
 
-## `run_workflow`, [line 1569](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1569): Comment
+## `run_workflow`, [line 1562](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1562): Comment
 
 Code: `claimed_here.add(key)`
 
@@ -2180,7 +2180,7 @@ Code: `claimed_here.add(key)`
 > attempt must not refuse the second -- that is this run
 > colliding with itself.
 
-## `run_workflow`, [line 1580](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1580): Comment
+## `run_workflow`, [line 1573](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1573): Comment
 
 Code: `if known_fields is not None and planned.filled:`
 
@@ -2204,7 +2204,7 @@ Code: `if known_fields is not None and planned.filled:`
 > documented one would stop correct runs against a system that
 > behaves differently from its manual.
 
-## `run_workflow`, [line 1586](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1586): Comment
+## `run_workflow`, [line 1579](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1579): Comment
 
 Code: `record.notes = list(`
 
@@ -2214,7 +2214,7 @@ Code: `record.notes = list(`
 > by key alone would lend one screen's required fields to
 > another screen's write.
 
-## `run_workflow`, [line 1595](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1595): Comment
+## `run_workflow`, [line 1588](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1588): Comment
 
 Code: `approved_here = leg.item is not None and step.order in approved_for_the_list`
 
@@ -2238,7 +2238,7 @@ Code: `approved_here = leg.item is not None and step.order in approved_for_the_l
 > a job proving itself over runs, and this is one person
 > answering about one list they have in front of them.
 
-## `run_workflow`, [line 1596](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1596): Comment
+## `run_workflow`, [line 1589](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1589): Comment
 
 Code: `opening_the_form = not leg.rescue and step.order in in_reserve`
 
@@ -2259,7 +2259,7 @@ Code: `opening_the_form = not leg.rescue and step.order in in_reserve`
 > comes BEFORE it -- so this narrows the question to the one
 > step that changes the warehouse.
 
-## `run_workflow`, [line 1613](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1613): Comment
+## `run_workflow`, [line 1606](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1606): Comment
 
 Code: `record.sent = {`
 
@@ -2268,7 +2268,7 @@ Code: `record.sent = {`
 > to rescue a failed step. A password typed from the vault
 > would otherwise reach all three and outlive the run.
 
-## `run_workflow`, [line 1617](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1617): Comment
+## `run_workflow`, [line 1610](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1610): Comment
 
 Code: `approvals.register(run.id)`
 
@@ -2277,7 +2277,7 @@ Code: `approvals.register(run.id)`
 > tap that lands before the wait starts must find an event
 > to set rather than a 409.
 
-## `run_workflow`, [line 1625](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1625): Comment
+## `run_workflow`, [line 1618](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1618): Comment
 
 Code: `if stops.asked(run.id):`
 
@@ -2285,7 +2285,7 @@ Code: `if stops.asked(run.id):`
 > as well as setting the flag, so a person who pressed Stop
 > rather than Approve gets an aborted run and not a write.
 
-## `run_workflow`, [line 1629](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1629): Comment
+## `run_workflow`, [line 1622](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1622): Comment
 
 Code: `with suppress(DeviceUnreachable):`
 
@@ -2310,7 +2310,7 @@ Code: `with suppress(DeviceUnreachable):`
 > A browser that has gone is also the commonest reason
 > to press Stop.
 
-## `run_workflow`, [line 1638](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1638): Comment
+## `run_workflow`, [line 1631](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1631): Comment
 
 Code: `if leg.item is not None:`
 
@@ -2318,7 +2318,7 @@ Code: `if leg.item is not None:`
 > list. Recorded after both refusals above, so a wait that
 > timed out or a Stop cannot be mistaken for a tap.
 
-## `run_workflow`, [line 1641](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1641): Comment
+## `run_workflow`, [line 1634](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1634): Comment
 
 Code: `if record.verdict == "awaiting":`
 
@@ -2343,7 +2343,7 @@ Code: `if record.verdict == "awaiting":`
 > a state that exists only between two statements of the same
 > function is not a disposition anybody needs to read about.
 
-## `run_workflow`, [line 1645](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1645): Comment
+## `run_workflow`, [line 1638](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1638): Comment
 
 Code: `assert before is not None  # noqa: S101 -- see the comment above`
 
@@ -2351,7 +2351,7 @@ Code: `assert before is not None  # noqa: S101 -- see the comment above`
 > above: a command to send is a command something was looked at
 > before planning.
 
-## `run_workflow`, [line 1646](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1646): Comment
+## `run_workflow`, [line 1639](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1639): Comment
 
 Code: `holds = (learned.get(step.order) or LearnedStep(step.order, "", "", "")).holds`
 
@@ -2372,7 +2372,7 @@ Code: `holds = (learned.get(step.order) or LearnedStep(step.order, "", "", "")).
 > a step is not known until it is planned: a run may supply it,
 > a mailbox may, and a body may carry it.
 
-## `run_workflow`, [line 1649](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1649): Comment
+## `run_workflow`, [line 1642](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1642): Comment
 
 Code: `run.needs = _too_long_for(step, values, holds)`
 
@@ -2384,7 +2384,7 @@ Code: `run.needs = _too_long_for(step, values, holds)`
 > once and got a dead card, which is the thing
 > `_ask_for_values` was built to end.
 
-## `run_workflow`, [line 1666](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1666): Comment
+## `run_workflow`, [line 1659](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1659): Comment
 
 Code: `sent_nothing_yet = False`
 
@@ -2392,7 +2392,7 @@ Code: `sent_nothing_yet = False`
 > pinned to this run: `starts_on` has done its one job and the
 > next step is driven by its own origin.
 
-## `run_workflow`, [line 1668](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1668): Comment
+## `run_workflow`, [line 1661](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1661): Comment
 
 Code: `if how == "look" and reply.ok:`
 
@@ -2400,7 +2400,7 @@ Code: `if how == "look" and reply.ok:`
 > before any belt looks -- a read-back is itself a command, and
 > the browser answers `calls.since` from the last one.
 
-## `run_workflow`, [line 1686](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1686): Comment
+## `run_workflow`, [line 1679](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1679): Comment
 
 Code: `cut = record.result.get("short")`
 
@@ -2428,7 +2428,7 @@ Code: `cut = record.result.get("short")`
 > and stopping for that would stop correct runs on a hundred
 > ordinary forms.
 
-## `run_workflow`, [line 1688](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1688): Comment
+## `run_workflow`, [line 1681](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1681): Comment
 
 Code: `kept = cut.get("kept")`
 
@@ -2438,7 +2438,7 @@ Code: `kept = cut.get("kept")`
 > rather than learning, and it says what that cost when
 > the fact was a locator.
 
-## `run_workflow`, [line 1717](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1717): Comment
+## `run_workflow`, [line 1710](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1710): Comment
 
 Code: `if not reply.ok and reply.error_kind in K_NOT_HERE and workflow.signs_in:`
 
@@ -2526,7 +2526,7 @@ Code: `if not reply.ok and reply.error_kind in K_NOT_HERE and workflow.signs_in:
 > never pressed. An ordinary job here goes on to the failure
 > path below, which asks for the browser.
 
-## `run_workflow`, [line 1728](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1728): Comment
+## `run_workflow`, [line 1721](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1721): Comment
 
 Code: `if live and not reply.ok and reply.error_kind in K_MIGHT_BE_BEHIND:`
 
@@ -2543,14 +2543,14 @@ Code: `if live and not reply.ok and reply.error_kind in K_MIGHT_BE_BEHIND:`
 > wanted, so a run that is where it should be sends nothing
 > extra and its first command is still its own.
 
-## `run_workflow`, [line 1755](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1755): Comment
+## `run_workflow`, [line 1748](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1748): Comment
 
 Code: `if (`
 
 > Otherwise a sign-in that cannot find its page asks. The
 > operator can see the screen and this cannot.
 
-## `run_workflow`, [line 1781](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1781): Comment
+## `run_workflow`, [line 1774](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1774): Comment
 
 Code: `if key and not reply.ok and reply.error_kind in K_NEVER_SENT:`
 
@@ -2558,14 +2558,14 @@ Code: `if key and not reply.ok and reply.error_kind in K_NEVER_SENT:`
 > back. Kept for everything else, including a timeout: see
 > `K_NEVER_SENT`.
 
-## `run_workflow`, [line 1786](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1786): Comment
+## `run_workflow`, [line 1779](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1779): Comment
 
 Code: `if reply.ok and planned.kind == "ui.perform_at":`
 
 > A point has no locator: the record says the control was found
 > by sight, in both places a reader looks.
 
-## `run_workflow`, [line 1790](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1790): Comment
+## `run_workflow`, [line 1783](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1783): Comment
 
 Code: `settled = (`
 
@@ -2593,7 +2593,7 @@ Code: `settled = (`
 > The one belt that can tell a truncated record from the record
 > this run asked for would be bypassed by a coincidence.
 
-## `run_workflow`, [line 1799](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1799): Comment
+## `run_workflow`, [line 1792](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1792): Comment
 
 Code: `aimed_url=(`
 
@@ -2601,7 +2601,7 @@ Code: `aimed_url=(`
 > record is in its path, and the demonstration's url
 > names a record this run was not asked about.
 
-## `run_workflow`, [line 1814](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1814): Comment
+## `run_workflow`, [line 1807](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1807): Comment
 
 Code: `after = (`
 
@@ -2620,7 +2620,7 @@ Code: `after = (`
 > stops the run, which is the honest end for a write nothing
 > could confirm.
 
-## `run_workflow`, [line 1820](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1820): Comment
+## `run_workflow`, [line 1813](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1813): Comment
 
 Code: `after_failed = after`
 
@@ -2628,7 +2628,7 @@ Code: `after_failed = after`
 > rung is shown the page it left behind beside the page as it
 > is when it plans.
 
-## `run_workflow`, [line 1821](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1821): Comment
+## `run_workflow`, [line 1814](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1814): Comment
 
 Code: `arrived = (`
 
@@ -2638,7 +2638,7 @@ Code: `arrived = (`
 > confident about. `page_of` drops the query and the fragment's
 > particulars, so the same screen reached twice compares equal.
 
-## `run_workflow`, [line 1828](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1828): Comment
+## `run_workflow`, [line 1821](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1821): Comment
 
 Code: `else f"the browser is on {after.url}, not {route}"`
 
@@ -2648,7 +2648,7 @@ Code: `else f"the browser is on {after.url}, not {route}"`
 > on the deployment while looking at a sign-in
 > page.
 
-## `run_workflow`, [line 1854](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1854): Comment
+## `run_workflow`, [line 1847](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1847): Comment
 
 Code: `next_says=(`
 
@@ -2656,7 +2656,7 @@ Code: `next_says=(`
 > that changes nothing is judged on whether the job can
 > go on, and the next leg is what going on means.
 
-## `run_workflow`, [line 1861](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1861): Comment
+## `run_workflow`, [line 1854](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1854): Comment
 
 Code: `refused = (`
 
@@ -2676,7 +2676,7 @@ Code: `refused = (`
 > Asked only of a step that failed, and only once: a round
 > trip per failure is cheap, and one per step is not.
 
-## `run_workflow`, [line 1873](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1873): Comment
+## `run_workflow`, [line 1866](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1866): Comment
 
 Code: `if verdict.state == "failed" and after.loading and not waited_here:`
 
@@ -2709,7 +2709,7 @@ Code: `if verdict.state == "failed" and after.loading and not waited_here:`
 > coming after one wait is a screen that is stuck, and a run
 > that waited again would turn a fault into a hang.
 
-## `run_workflow`, [line 1884](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1884): Comment
+## `run_workflow`, [line 1877](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1877): Comment
 
 Code: `here = after.url or (after.elsewhere if after.elsewhere_is_ours else "")`
 
@@ -2751,7 +2751,7 @@ Code: `here = after.url or (after.elsewhere if after.elsewhere_is_ours else "")`
 > and "your password for <whatever window was open>" is a
 > credential prompt for a system nobody named.
 
-## `run_workflow`, [line 1885](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1885): Comment
+## `run_workflow`, [line 1878](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1878): Comment
 
 Code: `if (`
 
@@ -2764,7 +2764,7 @@ Code: `if (`
 > ask rather than to send somebody's password somewhere
 > nothing looked at.
 
-## `run_workflow`, [line 1917](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1917): Comment
+## `run_workflow`, [line 1910](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1910): Comment
 
 Code: `record.made = dict(verdict.made)`
 
@@ -2773,7 +2773,7 @@ Code: `record.made = dict(verdict.made)`
 > says which records a run created, and an undo -- the day
 > the evidence for one exists -- addresses them by it.
 
-## `run_workflow`, [line 1919](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1919): Comment
+## `run_workflow`, [line 1912](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1912): Comment
 
 Code: `record.result = {**(record.result or {}), "called": dict(verdict.called)}`
 
@@ -2784,7 +2784,7 @@ Code: `record.result = {**(record.result or {}), "called": dict(verdict.called)}
 > watched. Nested under `made`, this stored nothing for
 > exactly the writes it exists to learn from.
 
-## `run_workflow`, [line 1921](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1921): Comment
+## `run_workflow`, [line 1914](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1914): Comment
 
 Code: `record.result = {**(record.result or {}), "refuted": True}`
 
@@ -2793,14 +2793,14 @@ Code: `record.result = {**(record.result or {}), "refuted": True}`
 > step is what a later reader has -- the verdict object is
 > gone by then.
 
-## `run_workflow`, [line 1923](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1923): Comment
+## `run_workflow`, [line 1916](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1916): Comment
 
 Code: `if planned.kind == "ui.perform_at" or (`
 
 > Found by sight, or by the last locator: the page moved
 > under the job, and the job is flagged before it breaks.
 
-## `run_workflow`, [line 1933](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1933): Comment
+## `run_workflow`, [line 1926](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1926): Comment
 
 Code: `found = learned_from(`
 
@@ -2815,14 +2815,14 @@ Code: `found = learned_from(`
 > is not one of them -- it is for the job, not for the
 > audit of this run.
 
-## `run_workflow`, [line 1941](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1941): Comment
+## `run_workflow`, [line 1934](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1934): Comment
 
 Code: `await uow.workflows.clear_stale(workflow.id, step.order)`
 
 > The step was found the strong way again: a warning
 > that never clears is a warning nobody reads.
 
-## `run_workflow`, [line 1942](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1942): Comment
+## `run_workflow`, [line 1935](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1935): Comment
 
 Code: `await record_effect(uow.workflows, run, record, at=_now())`
 
@@ -2831,7 +2831,7 @@ Code: `await record_effect(uow.workflows, run, record, at=_now())`
 > `record_effect`'s own, read off the record rather than
 > off these locals so a second caller cannot forget one.
 
-## `run_workflow`, [line 1944](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1944): Comment
+## `run_workflow`, [line 1937](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1937): Comment
 
 Code: `if (`
 
@@ -2842,7 +2842,7 @@ Code: `if (`
 > rescue. A read is always safe. `may_write` above is the same
 > reading of "this may have changed something" the tap uses.
 
-## `run_workflow`, [line 1952](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1952): Comment
+## `run_workflow`, [line 1945](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1945): Comment
 
 Code: `if stepped_over:`
 
@@ -2851,7 +2851,7 @@ Code: `if stepped_over:`
 > would otherwise reasonably ask why it did not just press the
 > button, and the answer is that this run never filled the form.
 
-## `run_workflow`, [line 1963](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1963): Comment
+## `run_workflow`, [line 1956](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1956): Comment
 
 Code: `if record.verdict == "skipped" and verdict is not None:`
 
@@ -2860,7 +2860,7 @@ Code: `if record.verdict == "skipped" and verdict is not None:`
 > and nothing on the record, which then read `skipped` and let the
 > run walk past it.
 
-## `run_workflow`, [line 1967](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1967): Note on the line above
+## `run_workflow`, [line 1960](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1960): Note on the line above
 
 Code: `await step_ended(record.verdict == "held" and not of_job.signs_in, origin)`
 
@@ -2874,7 +2874,7 @@ Code: `await step_ended(record.verdict == "held" and not of_job.signs_in, origin
 > The step's origin goes with it, so a held step clears only the keys that
 > sign into its own system.
 
-## `run_workflow`, [line 1973](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1973): Comment
+## `run_workflow`, [line 1966](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1966): Comment
 
 Code: `took_it = bool(isinstance(record.result, dict) and record.result.get("ok"))`
 
@@ -2900,7 +2900,7 @@ Code: `took_it = bool(isinstance(record.result, dict) and record.result.get("ok"
 > which is a decision for a person, and the reserve is for the case
 > where the page did nothing.
 
-## `run_workflow`, [line 1980](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1980): Comment
+## `run_workflow`, [line 1973](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1973): Comment
 
 Code: `logger.info(`
 
@@ -2928,7 +2928,7 @@ Code: `logger.info(`
 > from the start, and the write goes out as a call. Once --
 > `in_reserve` is emptied -- so a job that fails again fails.
 
-## `run_workflow`, [line 1997](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1997): Comment
+## `run_workflow`, [line 1990](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1990): Comment
 
 Code: `_signing_in, back = (`
 
@@ -2954,7 +2954,7 @@ Code: `_signing_in, back = (`
 > Keycloak` into the middle of itself -- two sign-ins, and a
 > run left asking for a third after the second worked.
 
-## `run_workflow`, [line 2005](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2005): Comment
+## `run_workflow`, [line 1998](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1998): Comment
 
 Code: `record.reason = (`
 
@@ -2964,7 +2964,7 @@ Code: `record.reason = (`
 > locked -- and trying again would spend somebody's
 > attempts on it.
 
-## `run_workflow`, [line 2012](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2012): Comment
+## `run_workflow`, [line 2005](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2005): Comment
 
 Code: `standing = standing | stood_on(_signing_in, by_id)`
 
@@ -2975,14 +2975,14 @@ Code: `standing = standing | stood_on(_signing_in, by_id)`
 > -- which is the right rule for the job and the wrong one
 > for the page it has been bounced to.
 
-## `run_workflow`, [line 2015](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2015): Comment
+## `run_workflow`, [line 2008](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2008): Comment
 
 Code: `budget += len(back) + 1`
 
 > The rescue's own steps, and the retry. Without this the
 > budget below ends the run part way through signing in.
 
-## `run_workflow`, [line 2026](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2026): Comment
+## `run_workflow`, [line 2019](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2019): Comment
 
 Code: `if run.steps and all(one.verdict == "not_needed" for one in run.steps):`
 
@@ -2999,7 +2999,7 @@ Code: `if run.steps and all(one.verdict == "not_needed" for one in run.steps):`
 > deliberately does nothing and says so in its own word, and a run
 > with no steps at all never reaches here.
 
-## `run_workflow`, [line 2036](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2036): Comment
+## `run_workflow`, [line 2029](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2029): Comment
 
 Code: `except OverCap as reached:`
 
@@ -3007,7 +3007,7 @@ Code: `except OverCap as reached:`
 > checks -- the same condition the leg check records as `stopped`. One outcome
 > for one condition, and no traceback: it is the cap working, not a failure.
 
-## `run_workflow`, [line 2040](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2040): Comment
+## `run_workflow`, [line 2033](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2033): Comment
 
 Code: `_fell_over(run, in_flight, f"{type(broke).__name__}: {broke}")`
 
@@ -3015,7 +3015,7 @@ Code: `_fell_over(run, in_flight, f"{type(broke).__name__}: {broke}")`
 > either. The record is finished and saved by the `finally` below, then
 > this goes on up.
 
-## `run_workflow`, [line 2043](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2043): Comment
+## `run_workflow`, [line 2036](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2036): Comment
 
 Code: `if run.outcome == "running":`
 
@@ -3028,7 +3028,7 @@ Code: `if run.outcome == "running":`
 > nobody watched finish, so it says so rather than being read later as
 > one still in flight on a process that no longer exists.
 
-## `run_workflow`, [line 2045](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2045): Comment
+## `run_workflow`, [line 2038](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2038): Comment
 
 Code: `await forget_effects(uow.workflows, run)`
 

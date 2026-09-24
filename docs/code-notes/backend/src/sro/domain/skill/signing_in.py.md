@@ -63,12 +63,12 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/signing_in.p
 >
 > `not_this` is the job being run, which can never be its own way back in.
 
-## `_starts_at`, [line 34](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L34): Docstring
+## `_starts_at`, [line 26](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L26): Docstring
 
 > The origin of the first gesture this job cites, in time; the job's own step
 > order breaks a tie.
 
-## `sign_in_chain`, [line 45](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L45): Function
+## `sign_in_chain`, [line 37](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L37): Function
 
 > The steps a sign-back-in replays: every step, in step order, cut to the
 > gestures made no later than the first act (in time) that left its host
@@ -135,12 +135,12 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/signing_in.p
 > they still hold. Before, the order was fixed first, so a step that lost the
 > submit to dedupe still sorted last and replayed its other gestures (a focus
 > on the password box) on the landed page.
-## `RecordedLogin`, [line 124](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L124): Class
+## `RecordedLogin`, [line 116](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L116): Class
 
 > What a recorded sign-in says about credentials: the origin the password was
 > typed on, which names its vault key, and the username typed before it.
 
-## `recorded_login`, [line 130](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L130): Docstring
+## `recorded_login`, [line 122](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L122): Docstring
 
 > The tagged sign-in job that lands on the connection's own system: the
 > `worked` half of `checks.signs_in_to`, the same key the mining pass folds

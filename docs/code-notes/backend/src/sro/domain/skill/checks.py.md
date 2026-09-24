@@ -30,7 +30,7 @@ Code: `_DEFAULT_PORTS = {"http": "80", "https": "443"}`
 > `config._origins_of` keeps the same map for the same reason and cannot be
 > imported here: the domain reads settings through arguments or not at all.
 
-## module, [line 371](../../../../../../../backend/src/sro/domain/skill/checks.py#L371): Note on the line above
+## module, [line 374](../../../../../../../backend/src/sro/domain/skill/checks.py#L374): Note on the line above
 
 Code: `K_SITTING_GAP_S = 600.0`
 
@@ -325,16 +325,16 @@ Code: `K_SITTING_GAP_S = 600.0`
 > password box, which focuses it: the deployment's operators click into the
 > box before typing, and each of those clicks counted as a possible submit.
 
-## `_carries_the_credential`, [line 314](../../../../../../../backend/src/sro/domain/skill/checks.py#L314): Docstring
+## `_carries_the_credential`, [line 317](../../../../../../../backend/src/sro/domain/skill/checks.py#L317): Docstring
 
 > Whether any gesture this step cites bears the recorder's secret mark.
 
-## `_after_the_credential`, [line 318](../../../../../../../backend/src/sro/domain/skill/checks.py#L318): Docstring
+## `_after_the_credential`, [line 321](../../../../../../../backend/src/sro/domain/skill/checks.py#L321): Docstring
 
 > Whether the step just before this one, in the job's order, typed the
 > credential on the same host this step is on.
 
-## `work_only`, [line 331](../../../../../../../backend/src/sro/domain/skill/checks.py#L331): Docstring
+## `work_only`, [line 334](../../../../../../../backend/src/sro/domain/skill/checks.py#L334): Docstring
 
 > Strike the systems that were never the work, and refuse a job with none
 > left. None when it may be kept, as `validate` answers.
@@ -380,11 +380,11 @@ Code: `K_SITTING_GAP_S = 600.0`
 > somebody has to keep, wrong for every customer running an SSO nobody here
 > has heard of.
 
-## `_sittings`, [line 374](../../../../../../../backend/src/sro/domain/skill/checks.py#L374): Docstring
+## `_sittings`, [line 377](../../../../../../../backend/src/sro/domain/skill/checks.py#L377): Docstring
 
 > Consecutive runs of `times`, split wherever the pause is long enough.
 
-## `one_occurrence`, [line 384](../../../../../../../backend/src/sro/domain/skill/checks.py#L384): Docstring
+## `one_occurrence`, [line 387](../../../../../../../backend/src/sro/domain/skill/checks.py#L387): Docstring
 
 > Strike every citation but one doing's, in place.
 >
@@ -524,14 +524,14 @@ Code: `coverage=sum(1 for d in deciles if d > 0) / min(10, n),`
 > four parts and can only ever land in four deciles, so dividing by ten
 > reported a FULLY cited short window at 0.4 -- under K_MIN_COVERAGE.
 
-## `work_only`, [line 336](../../../../../../../backend/src/sro/domain/skill/checks.py#L336): Comment
+## `work_only`, [line 339](../../../../../../../backend/src/sro/domain/skill/checks.py#L339): Comment
 
 Code: `last = {system: index for index, system in enumerate(order)}`
 
 > Last occurrence per system: what matters is whether the job carried on
 > after this system the LAST time it was on it, not the first.
 
-## `work_only`, [line 344](../../../../../../../backend/src/sro/domain/skill/checks.py#L344): Comment
+## `work_only`, [line 347](../../../../../../../backend/src/sro/domain/skill/checks.py#L347): Comment
 
 Code: `during = _during(workflow, gestures)`
 
@@ -562,7 +562,7 @@ Code: `during = _during(workflow, gestures)`
 > list of identity hostnames -- which this function declined to keep, on
 > the grounds that every customer runs an SSO nobody here has heard of.
 
-## `work_only`, [line 361](../../../../../../../backend/src/sro/domain/skill/checks.py#L361): Comment
+## `work_only`, [line 364](../../../../../../../backend/src/sro/domain/skill/checks.py#L364): Comment
 
 Code: `if workflow.systems and not kept:`
 

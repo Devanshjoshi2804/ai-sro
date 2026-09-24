@@ -17,14 +17,14 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/mcp/server
 > path a schedule fires) and waits for it, because an agent calling a tool wants
 > an answer, not a run id to go poll.
 
-## `_tool_for`, [line 63](../../../../../../../backend/src/sro/infrastructure/mcp/server.py#L63): Comment
+## `_tool_for`, [line 65](../../../../../../../backend/src/sro/infrastructure/mcp/server.py#L65): Comment
 
 Code: `return None`
 
 > Not reviewed by anybody yet. Offering it as a tool would let a run
 > start on a recipe nobody has looked at.
 
-## `SkillToolServer.__init__`, [line 111](../../../../../../../backend/src/sro/infrastructure/mcp/server.py#L111): Comment
+## `SkillToolServer.__init__`, [line 113](../../../../../../../backend/src/sro/infrastructure/mcp/server.py#L113): Comment
 
 Code: `self._list_skills = list_skills`
 

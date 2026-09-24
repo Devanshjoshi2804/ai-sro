@@ -1,6 +1,7 @@
+import asyncio
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.domain.execution.account import K_LEASE_TTL, Account, Lease, LeaseState
 from sro.domain.shared.identifiers import BrowserSessionId, PrincipalId, TenantId
@@ -11,10 +12,12 @@ NOW = datetime(2026, 9, 24, 9, 0, tzinfo=UTC)
 LENA = Account.of("greyorange", "https://wms.example", "lena")
 
 
-def _lease(lease_id: str, container: str = "http://steel:3000") -> Lease:
+def _lease(
+    lease_id: str, container: str = "http://steel:3000", *, account: Account = LENA
+) -> Lease:
     return Lease(
         lease_id,
-        LENA,
+        account,
         container,
         f"s-{lease_id}",
         f"ctx-{lease_id}",
@@ -34,6 +37,51 @@ async def test_an_account_holds_one_live_lease(session: AsyncSession) -> None:
     assert second.id == first.id == "lse_a"
 
 
+async def test_casefold_variants_of_a_username_are_one_account(session: AsyncSession) -> None:
+    repo = SqlBrowserSessionRepository(session)
+    upper = Account.of("greyorange", "https://wms.example", "Lena@Example.com")
+    lower = Account.of("greyorange", "https://wms.example", "lena@example.com")
+
+    first = await repo.lease(T, _lease("lse_a", account=upper))
+    second = await repo.lease(T, _lease("lse_b", account=lower))
+
+    assert second.id == first.id == "lse_a"
+
+
+async def test_two_sessions_racing_to_acquire_the_same_account_agree_on_one_winner(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    async with session_factory() as session_a, session_factory() as session_b:
+        repo_a = SqlBrowserSessionRepository(session_a)
+        repo_b = SqlBrowserSessionRepository(session_b)
+
+        winner_a = await repo_a.lease(T, _lease("lse_a"))
+        contender_b = asyncio.create_task(repo_b.lease(T, _lease("lse_b")))
+        await asyncio.sleep(0)
+        await session_a.commit()
+        winner_b = await contender_b
+        await session_b.commit()
+
+        assert winner_b.id == winner_a.id == "lse_a"
+
+
+async def test_a_rolled_back_acquire_lets_the_other_session_win(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    async with session_factory() as session_a, session_factory() as session_b:
+        repo_a = SqlBrowserSessionRepository(session_a)
+        repo_b = SqlBrowserSessionRepository(session_b)
+
+        await repo_a.lease(T, _lease("lse_a"))
+        contender_b = asyncio.create_task(repo_b.lease(T, _lease("lse_b")))
+        await asyncio.sleep(0)
+        await session_a.rollback()
+        winner_b = await contender_b
+        await session_b.commit()
+
+        assert winner_b.id == "lse_b"
+
+
 async def test_a_beaten_lease_outlives_its_ttl_and_a_silent_one_expires(
     session: AsyncSession,
 ) -> None:
@@ -41,24 +89,50 @@ async def test_a_beaten_lease_outlives_its_ttl_and_a_silent_one_expires(
     await repo.lease(T, _lease("lse_a"))
     await repo.settle(T, "lse_a", state=LeaseState.READY)
 
-    await repo.beat(T, "lse_a", now=NOW + timedelta(minutes=10))
+    assert await repo.beat(T, "lse_a", now=NOW + timedelta(minutes=10))
 
     assert await repo.expired(now=NOW + timedelta(minutes=11)) == ()
     gone = await repo.expired(now=NOW + timedelta(minutes=13))
     assert [one.id for one in gone] == ["lse_a"]
 
 
-async def test_a_settled_lease_frees_the_account_and_its_container(
+async def test_an_expired_lease_frees_the_account_and_its_container(
     session: AsyncSession,
 ) -> None:
     repo = SqlBrowserSessionRepository(session)
     await repo.lease(T, _lease("lse_a"))
-    await repo.settle(T, "lse_a", state=LeaseState.EXPIRED)
+
+    assert await repo.expire(T, "lse_a", now=NOW + K_LEASE_TTL)
 
     fresh = await repo.lease(T, _lease("lse_b", "http://steel-2:3000"))
-
     assert fresh.id == "lse_b"
-    assert await repo.busy_containers(now=NOW) == ("http://steel-2:3000",)
+    assert await repo.busy_containers(T, now=NOW) == ("http://steel-2:3000",)
+
+
+async def test_the_sweeper_cannot_expire_a_lease_that_was_just_beaten(
+    session: AsyncSession,
+) -> None:
+    repo = SqlBrowserSessionRepository(session)
+    await repo.lease(T, _lease("lse_a"))
+    await repo.settle(T, "lse_a", state=LeaseState.READY)
+
+    assert await repo.beat(T, "lse_a", now=NOW + timedelta(minutes=1))
+
+    assert not await repo.expire(T, "lse_a", now=NOW + K_LEASE_TTL)
+    assert await repo.get_lease(T, "lse_a") is not None
+    live = await repo.get_lease(T, "lse_a")
+    assert live is not None
+    assert live.state == LeaseState.READY
+
+
+async def test_a_holder_learns_it_lost_its_lease(session: AsyncSession) -> None:
+    repo = SqlBrowserSessionRepository(session)
+    await repo.lease(T, _lease("lse_a"))
+    await repo.settle(T, "lse_a", state=LeaseState.READY)
+
+    assert await repo.expire(T, "lse_a", now=NOW + K_LEASE_TTL)
+
+    assert not await repo.beat(T, "lse_a", now=NOW + K_LEASE_TTL + timedelta(seconds=1))
 
 
 async def test_capture_sessions_never_see_a_lease(session: AsyncSession) -> None:
@@ -85,7 +159,7 @@ async def test_a_lease_is_read_back_by_id(session: AsyncSession) -> None:
 async def test_only_a_live_lease_answers_current_lease(session: AsyncSession) -> None:
     repo = SqlBrowserSessionRepository(session)
     await repo.lease(T, _lease("lse_a"))
-    await repo.settle(T, "lse_a", state=LeaseState.EXPIRED)
+    await repo.settle(T, "lse_a", state=LeaseState.BROKEN)
 
     assert await repo.current_lease(T, LENA) is None
 

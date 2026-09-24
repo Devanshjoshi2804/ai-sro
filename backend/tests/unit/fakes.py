@@ -951,8 +951,7 @@ class FakeBrowserSessionRepository:
         for held in self.leases.values():
             if (
                 held.account.tenant == str(tenant_id)
-                and held.account.origin == account.origin
-                and held.account.username == account.username
+                and held.account.key == account.key
                 and held.state in LIVE
             ):
                 return held
@@ -969,29 +968,44 @@ class FakeBrowserSessionRepository:
         if found is not None and found.account.tenant == str(tenant_id):
             self.leases[lease_id] = replace(found, state=state)
 
+    async def expire(self, tenant_id: TenantId, lease_id: str, *, now: datetime) -> bool:
+        found = self.leases.get(lease_id)
+        if (
+            found is None
+            or found.account.tenant != str(tenant_id)
+            or found.state not in LIVE
+            or found.expires_at > now
+        ):
+            return False
+        self.leases[lease_id] = replace(found, state=LeaseState.EXPIRED)
+        return True
+
     async def beat(
         self, tenant_id: TenantId, lease_id: str, *, now: datetime, holder: str | None = None
-    ) -> None:
+    ) -> bool:
         found = self.leases.get(lease_id)
         if found is None or found.account.tenant != str(tenant_id) or found.state not in LIVE:
-            return
+            return False
         self.leases[lease_id] = replace(
             found,
             heartbeat_at=now,
             expires_at=now + K_LEASE_TTL,
             holder=found.holder if holder is None else holder,
         )
+        return True
 
     async def expired(self, *, now: datetime) -> tuple[Lease, ...]:
         return tuple(
             held for held in self.leases.values() if held.state in LIVE and held.expires_at <= now
         )
 
-    async def busy_containers(self, *, now: datetime) -> tuple[str, ...]:
+    async def busy_containers(self, tenant_id: TenantId, *, now: datetime) -> tuple[str, ...]:
         return tuple(
             held.container_url
             for held in self.leases.values()
-            if held.state in LIVE and held.expires_at > now
+            if held.account.tenant == str(tenant_id)
+            and held.state in LIVE
+            and held.expires_at > now
         )
 
     async def leased_sessions(self) -> frozenset[str]:

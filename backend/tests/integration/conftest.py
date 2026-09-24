@@ -235,4 +235,3 @@ async def session(
 ) -> AsyncIterator[AsyncSession]:
     async with session_factory() as opened:
         yield opened
-        await opened.commit()

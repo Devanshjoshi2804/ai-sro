@@ -2,9 +2,20 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
-from sqlalchemy import ColumnElement, case, delete, exists, literal, or_, select, text, update
+from sqlalchemy import (
+    ColumnElement,
+    CursorResult,
+    case,
+    delete,
+    exists,
+    literal,
+    or_,
+    select,
+    text,
+    update,
+)
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -526,17 +537,27 @@ _LIVE_STATES = tuple(state.value for state in LIVE)
 
 
 def _lease_of(row: BrowserSessionRow) -> Lease:
-    if row.state is None:
-        raise InvariantViolation(f"browser session {row.session_id} has no lease state")
+    if (
+        row.state is None
+        or row.origin is None
+        or row.username is None
+        or row.container_url is None
+        or row.steel_session_id is None
+        or row.context_id is None
+        or row.holder is None
+        or row.heartbeat_at is None
+        or row.expires_at is None
+    ):
+        raise InvariantViolation(f"browser session {row.session_id} is not a whole lease")
     return Lease(
         id=row.session_id,
-        account=Account(row.tenant_id, row.origin or "", row.username or ""),
-        container_url=row.container_url or "",
-        steel_session_id=row.steel_session_id or "",
-        context_id=row.context_id or "",
-        holder=row.holder or "",
-        heartbeat_at=row.heartbeat_at or row.opened_at,
-        expires_at=row.expires_at or row.opened_at,
+        account=Account(row.tenant_id, row.origin, row.username),
+        container_url=row.container_url,
+        steel_session_id=row.steel_session_id,
+        context_id=row.context_id,
+        holder=row.holder,
+        heartbeat_at=row.heartbeat_at,
+        expires_at=row.expires_at,
         state=LeaseState(row.state),
     )
 
@@ -594,8 +615,8 @@ class SqlBrowserSessionRepository(BrowserSessionRepository):
             .values(
                 session_id=lease.id,
                 tenant_id=tenant_id.value,
-                opened_by=lease.holder,
                 opened_at=lease.heartbeat_at,
+                account_key=lease.account.key,
                 origin=lease.account.origin,
                 username=lease.account.username,
                 container_url=lease.container_url,
@@ -607,21 +628,20 @@ class SqlBrowserSessionRepository(BrowserSessionRepository):
                 state=lease.state.value,
             )
             .on_conflict_do_nothing(
-                index_elements=["tenant_id", "origin", "username"],
+                index_elements=["tenant_id", "account_key"],
                 index_where=BrowserSessionRow.state.in_(_LIVE_STATES),
             )
         )
         current = await self.current_lease(tenant_id, lease.account)
         if current is None:
-            raise InvariantViolation(f"lease {lease.id} vanished immediately after insert")
+            raise Conflict(f"lease {lease.id} lost the race for its account and was settled")
         return current
 
     async def current_lease(self, tenant_id: TenantId, account: Account) -> Lease | None:
         row = await self._session.scalar(
             select(BrowserSessionRow).where(
                 BrowserSessionRow.tenant_id == tenant_id.value,
-                BrowserSessionRow.origin == account.origin,
-                BrowserSessionRow.username == account.username,
+                BrowserSessionRow.account_key == account.key,
                 BrowserSessionRow.state.in_(_LIVE_STATES),
             )
         )
@@ -643,13 +663,26 @@ class SqlBrowserSessionRepository(BrowserSessionRepository):
             .values(state=state.value)
         )
 
+    async def expire(self, tenant_id: TenantId, lease_id: str, *, now: datetime) -> bool:
+        result = await self._session.execute(
+            update(BrowserSessionRow)
+            .where(
+                BrowserSessionRow.tenant_id == tenant_id.value,
+                BrowserSessionRow.session_id == lease_id,
+                BrowserSessionRow.state.in_(_LIVE_STATES),
+                BrowserSessionRow.expires_at <= now,
+            )
+            .values(state=LeaseState.EXPIRED.value)
+        )
+        return cast(CursorResult[Any], result).rowcount > 0
+
     async def beat(
         self, tenant_id: TenantId, lease_id: str, *, now: datetime, holder: str | None = None
-    ) -> None:
+    ) -> bool:
         values: dict[str, object] = {"heartbeat_at": now, "expires_at": now + K_LEASE_TTL}
         if holder is not None:
             values["holder"] = holder
-        await self._session.execute(
+        result = await self._session.execute(
             update(BrowserSessionRow)
             .where(
                 BrowserSessionRow.tenant_id == tenant_id.value,
@@ -658,6 +691,7 @@ class SqlBrowserSessionRepository(BrowserSessionRepository):
             )
             .values(**values)
         )
+        return cast(CursorResult[Any], result).rowcount > 0
 
     async def expired(self, *, now: datetime) -> tuple[Lease, ...]:
         rows = await self._session.scalars(
@@ -667,10 +701,12 @@ class SqlBrowserSessionRepository(BrowserSessionRepository):
         )
         return tuple(_lease_of(row) for row in rows)
 
-    async def busy_containers(self, *, now: datetime) -> tuple[str, ...]:
+    async def busy_containers(self, tenant_id: TenantId, *, now: datetime) -> tuple[str, ...]:
         rows = await self._session.scalars(
             select(BrowserSessionRow.container_url).where(
-                BrowserSessionRow.state.in_(_LIVE_STATES), BrowserSessionRow.expires_at > now
+                BrowserSessionRow.tenant_id == tenant_id.value,
+                BrowserSessionRow.state.in_(_LIVE_STATES),
+                BrowserSessionRow.expires_at > now,
             )
         )
         return tuple(str(url) for url in rows)

@@ -393,6 +393,10 @@ class PoolRepository(Protocol):
 class WorkflowRunRepository(Protocol):
     async def save(self, run: WorkflowRun) -> None: ...
 
+    async def record_progress(
+        self, tenant_id: TenantId, run_id: str, progress: dict[str, object]
+    ) -> bool: ...
+
     async def get(self, tenant_id: TenantId, run_id: str) -> WorkflowRun | None: ...
 
     async def for_workflow(

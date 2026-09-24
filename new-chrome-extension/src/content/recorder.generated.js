@@ -252,6 +252,52 @@
     };
   };
 
+  // Named landmarks only -- `region`, `dialog`, `alertdialog`, `grid`,
+  // `treegrid`, `form` -- never every ancestor. A `<div>` wrapper with no ARIA
+  // role and no landmark tag says nothing about scope; recording it would give
+  // `within` a chain of unnamed boxes that changes with every unrelated markup
+  // refactor, which is the opposite of a stable path.
+  const landmarkRole = (el) => {
+    const written = el.getAttribute('role');
+    const named = ['region', 'dialog', 'alertdialog', 'grid', 'treegrid', 'form'];
+    if (written) return named.includes(written) ? written : null;
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'form') return 'form';
+    if (tag === 'dialog') return 'dialog';
+    if (tag === 'section') return 'region';
+    return null;
+  };
+
+  const ownName = (el) => {
+    const aria = el.getAttribute('aria-label');
+    if (aria && aria.trim()) return aria.trim().slice(0, MAX_TEXT);
+    const by = el.getAttribute('aria-labelledby');
+    if (!by) return null;
+    const said = by
+      .split(/\s+/)
+      .map((id) => (document.getElementById(id) || {}).innerText || '')
+      .join(' ')
+      .trim();
+    return said ? said.slice(0, MAX_TEXT) : null;
+  };
+
+  // Outermost first, walking the DOM from the element up to the document. A
+  // landmark with a role but no accessible name is skipped rather than kept
+  // with a blank name: an unnamed dialog is not a scope a runner could name
+  // back to a person, so it is not recorded as one. This is the whole
+  // `within` scope this design needs, read straight off the DOM the page
+  // already rendered -- no `chrome.debugger`, no debugger banner on the tab,
+  // no walking a 4,000-node accessibility tree to get it.
+  const landmarksOf = (el) => {
+    const found = [];
+    for (let node = el.parentElement; node && node.nodeType === 1; node = node.parentElement) {
+      const role = landmarkRole(node);
+      const name = role ? ownName(node) : null;
+      if (role && name) found.unshift({ role, name });
+    }
+    return found;
+  };
+
   const describe = (el) => {
     if (!el || el.nodeType !== 1) return null;
     const secret = isSecretField(el);
@@ -302,6 +348,7 @@
       bounds: { x: box.x, y: box.y, width: box.width, height: box.height },
       attributes,
       component: component(el),
+      landmarks: landmarksOf(el),
     };
   };
 

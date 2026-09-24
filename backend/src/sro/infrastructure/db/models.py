@@ -634,6 +634,11 @@ class WorkflowRunRow(Base):
 
     wrong_because: Mapped[str | None] = mapped_column(Text)
 
+    progress: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
+    executor: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="extension", server_default="extension"
+    )
+
     __table_args__ = (
         Index("ix_workflow_runs_tenant_workflow", "tenant_id", "workflow_id", "started_at"),
         Index("ix_workflow_runs_undoes", "undoes_run"),
@@ -643,7 +648,7 @@ class WorkflowRunRow(Base):
             "tenant_id",
             "device_id",
             unique=True,
-            postgresql_where=text("outcome = 'running'"),
+            postgresql_where=text("outcome = 'running' AND executor = 'extension'"),
         ),
         Index(
             "ix_workflow_runs_awaiting",
@@ -652,6 +657,7 @@ class WorkflowRunRow(Base):
             text("(awaiting ->> 'thread')"),
             postgresql_where=text("awaiting IS NOT NULL"),
         ),
+        CheckConstraint("executor IN ('extension', 'steel')", name="ck_workflow_runs_executor"),
     )
 
 

@@ -3,15 +3,15 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
-from sqlalchemy import Select, delete, func, select
+from sqlalchemy import Select, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sro.application.ports.repositories import WorkflowRunRepository
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
+from sro.domain.execution.workflow_run import Executor, RunStep, WorkflowRun, already_running
 from sro.domain.observation.driving import Driving
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import DeviceId, TenantId
@@ -49,6 +49,8 @@ def _run_values(run: WorkflowRun) -> dict[str, Any]:
         "asked_the_asker": run.asked_the_asker,
         "undoes_run": run.undoes_run,
         "unpriced": run.unpriced,
+        "progress": dict(run.progress),
+        "executor": run.executor,
     }
 
 
@@ -144,6 +146,8 @@ def _row_to_run(row: WorkflowRunRow, steps: list[RunStep]) -> WorkflowRun:
         thought_tokens=row.thought_tokens,
         cost_usd=row.cost_usd,
         unpriced=row.unpriced,
+        progress=dict(row.progress or {}),
+        executor=cast(Executor, row.executor),
     )
 
 
@@ -163,7 +167,7 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
                     set_={
                         column.name: statement.excluded[column.name]
                         for column in WorkflowRunRow.__table__.columns
-                        if column.name != "id"
+                        if column.name not in ("id", "progress")
                     },
                 )
             )
@@ -173,15 +177,31 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
             await self._session.rollback()
             busy = await self.in_flight(TenantId(run.tenant), DeviceId(run.device_id))
             raise Conflict(already_running(run.device_id, busy)) from clash
-        await self._session.execute(
-            delete(WorkflowRunStepRow).where(WorkflowRunStepRow.run_id == run.id)
-        )
         if run.steps:
+            step_statement = pg_insert(WorkflowRunStepRow).values(
+                [_step_values(run.id, step) for step in run.steps]
+            )
             await self._session.execute(
-                pg_insert(WorkflowRunStepRow).values(
-                    [_step_values(run.id, step) for step in run.steps]
+                step_statement.on_conflict_do_update(
+                    index_elements=["run_id", "ord"],
+                    set_={
+                        column.name: step_statement.excluded[column.name]
+                        for column in WorkflowRunStepRow.__table__.columns
+                        if column.name not in ("run_id", "ord")
+                    },
                 )
             )
+
+    async def record_progress(
+        self, tenant_id: TenantId, run_id: str, progress: dict[str, object]
+    ) -> bool:
+        result = await self._session.execute(
+            update(WorkflowRunRow)
+            .where(WorkflowRunRow.id == run_id, WorkflowRunRow.tenant_id == tenant_id.value)
+            .values(progress=dict(progress))
+            .returning(WorkflowRunRow.id)
+        )
+        return result.first() is not None
 
     async def get(self, tenant_id: TenantId, run_id: str) -> WorkflowRun | None:
         query = self._rows().where(
@@ -305,6 +325,7 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
                 WorkflowRunRow.tenant_id == tenant_id.value,
                 WorkflowRunRow.device_id == device_id.value,
                 WorkflowRunRow.outcome == "running",
+                WorkflowRunRow.executor == "extension",
             )
             .order_by(WorkflowRunRow.started_at, WorkflowRunRow.id)
             .limit(1)
@@ -365,7 +386,9 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
 
     async def fail_orphans(self, reason: str) -> int:
         now = datetime.now(tz=UTC).isoformat()
-        query = self._rows().where(WorkflowRunRow.outcome == "running")
+        query = self._rows().where(
+            WorkflowRunRow.outcome == "running", WorkflowRunRow.executor == "extension"
+        )
         rows = (
             await self._session.execute(
                 query.order_by(WorkflowRunRow.started_at, WorkflowRunRow.id)

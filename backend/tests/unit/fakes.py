@@ -1754,11 +1754,13 @@ class FakePoolRepository:
 class FakeWorkflowRunRepository:
     """Runs, their steps, and the approvals on them, in two dicts.
 
-    Faithful rather than convenient. A run is stored and returned as a copy, so
-    the "steps are replaced, not appended" rule is real here and a caller that
-    mutates what it loaded does not silently rewrite the store. Approvals take
-    the first tap only, and the orphan sweep crosses tenants -- the two rules
-    a caller can actually get wrong.
+    Faithful rather than convenient. A run is stored and returned as a copy,
+    so a caller that mutates what it loaded does not silently rewrite the
+    store. Steps are upserted by `order` and never deleted -- a save that
+    carries fewer steps than the row already has leaves the rest alone, same
+    as the real store's per-step upsert. Approvals take the first tap only,
+    and the orphan sweep crosses tenants -- rules a caller can actually get
+    wrong.
     """
 
     def __init__(self) -> None:
@@ -1773,7 +1775,10 @@ class FakeWorkflowRunRepository:
         # It cannot reproduce the RACE -- nothing here yields, which is exactly
         # why the concurrent-press test is an integration test -- but it can
         # refuse the state.
-        if run.outcome == "running":
+        # Narrowed to `executor == "extension"`, same as the index's predicate:
+        # a Steel run has no device and may sit beside others on one account,
+        # so it is never the run this rule is about.
+        if run.outcome == "running" and run.executor == "extension":
             clash = next(
                 (
                     held
@@ -1782,6 +1787,7 @@ class FakeWorkflowRunRepository:
                     and held.tenant == run.tenant
                     and held.device_id == run.device_id
                     and held.outcome == "running"
+                    and held.executor == "extension"
                 ),
                 None,
             )
@@ -1793,7 +1799,30 @@ class FakeWorkflowRunRepository:
         kept.started_at = _stored(kept.started_at)
         if kept.finished_at is not None:
             kept.finished_at = _stored(kept.finished_at)
+        # `progress` is written by `save` only on the row's first insert, same
+        # as the real store's INSERT columns; every later `save` leaves it
+        # exactly as the row already has it, so a caller that loaded the run
+        # before a worker settled a step and now saves its stale copy cannot
+        # roll that mark back -- only `record_progress` ever changes it again.
+        existing = self.rows.get(run.id)
+        kept.progress = dict(run.progress) if existing is None else dict(existing.progress)
+        # Steps are upserted by `order`, same as the real store's per-step
+        # `ON CONFLICT DO UPDATE`, and never deleted: a step the run being
+        # saved does not carry stays exactly as the row already has it, so a
+        # stale save cannot erase a step a worker has since added.
+        merged = {step.order: step for step in existing.steps} if existing is not None else {}
+        merged.update({step.order: step for step in kept.steps})
+        kept.steps = [merged[order] for order in sorted(merged)]
         self.rows[run.id] = kept
+
+    async def record_progress(
+        self, tenant_id: TenantId, run_id: str, progress: dict[str, object]
+    ) -> bool:
+        found = self.rows.get(run_id)
+        if found is None or found.tenant != tenant_id.value:
+            return False
+        found.progress = dict(progress)
+        return True
 
     async def get(self, tenant_id: TenantId, run_id: str) -> WorkflowRun | None:
         run = self.rows.get(run_id)
@@ -1916,6 +1945,7 @@ class FakeWorkflowRunRepository:
             if run.tenant == tenant_id.value
             and run.device_id == device_id.value
             and run.outcome == "running"
+            and run.executor == "extension"
         ]
         driving.sort(key=lambda run: (when(run.started_at), run.id))
         return driving[0].id if driving else None
@@ -1964,10 +1994,16 @@ class FakeWorkflowRunRepository:
 
     async def fail_orphans(self, reason: str) -> int:
         # Every tenant, as at startup: nobody is making the request, and a run
-        # left running in one tenant goes on 409-ing its browser.
+        # left running in one tenant goes on 409-ing its browser. Steel runs
+        # live in the worker, not the API process, so an API restart loses
+        # nothing of theirs -- only `executor == "extension"` is swept.
         now = datetime.now(tz=UTC).isoformat()
         orphans = sorted(
-            (run for run in self.rows.values() if run.outcome == "running"),
+            (
+                run
+                for run in self.rows.values()
+                if run.outcome == "running" and run.executor == "extension"
+            ),
             key=lambda run: (when(run.started_at), run.id),
         )
         for run in orphans:

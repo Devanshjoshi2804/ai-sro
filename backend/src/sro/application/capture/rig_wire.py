@@ -65,6 +65,16 @@ class Component(BaseModel):
         return self
 
 
+class Landmark(BaseModel):
+    role: str
+    name: str
+
+    @model_validator(mode="after")
+    def a_credential_in_a_landmark_is_dropped_here(self) -> "Landmark":
+        self.name = redact_shapes(self.name)
+        return self
+
+
 class Target(BaseModel):
     tag: str | None = None
     role: str | None = None
@@ -79,6 +89,7 @@ class Target(BaseModel):
     bounds: dict[str, float] = Field(default_factory=dict)
     attributes: dict[str, Any] = Field(default_factory=dict)
     component: Component | None = None
+    landmarks: list[Landmark] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def must_carry_some_signal(self) -> "Target":
@@ -92,6 +103,8 @@ class Target(BaseModel):
             value = getattr(self, prose)
             if value:
                 setattr(self, prose, redact_shapes(value))
+        if self.secret:
+            self.attributes.pop("value", None)
         if self.attributes:
             self.attributes = redact_attributes(self.attributes)
         return self
@@ -164,7 +177,7 @@ def redact_attributes(node: Any) -> Any:
     if isinstance(node, list):
         return [redact_attributes(item) for item in node]
     if isinstance(node, str):
-        return redact_url(node)
+        return redact_shapes(redact_url(node))
     return node
 
 

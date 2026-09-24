@@ -11,7 +11,7 @@
           "type": "internalRole",
           "value": 144
         },
-        "frameId": "D99A4509728F1D50770F783B041F9B07",
+        "frameId": "CFDCC288487CCCE926CFE1878168BE62",
         "ignored": false,
         "name": {
           "sources": [
@@ -56,7 +56,7 @@
             "name": "url",
             "value": {
               "type": "string",
-              "value": "http://127.0.0.1:50290/"
+              "value": "http://127.0.0.1:55773/"
             }
           }
         ],
@@ -726,7 +726,7 @@
         },
         "value": {
           "type": "string",
-          "value": "choose"
+          "value": "Dock 3"
         }
       },
       {
@@ -858,7 +858,7 @@
         },
         "value": {
           "type": "string",
-          "value": "No file chosen"
+          "value": "manifest.csv"
         }
       },
       {
@@ -1398,7 +1398,7 @@
             "name": "selected",
             "value": {
               "type": "booleanOrUndefined",
-              "value": true
+              "value": false
             }
           }
         ],
@@ -1455,7 +1455,7 @@
             "name": "selected",
             "value": {
               "type": "booleanOrUndefined",
-              "value": false
+              "value": true
             }
           }
         ],
@@ -1558,7 +1558,7 @@
       }
     ]
   },
-  "url": "http://127.0.0.1:50290/",
-  "taken_at": "2026-09-24T05:58:55.931Z",
-  "tab_id": 1667170966
+  "url": "http://127.0.0.1:55773/",
+  "taken_at": "2026-09-24T09:41:48.537Z",
+  "tab_id": 170716789
 }

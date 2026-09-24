@@ -27,6 +27,8 @@ logger = logging.getLogger(__name__)
 _LIVE_ATTEMPTS = 4
 _LIVE_POLL_SECONDS = 0.5
 
+K_MAX_CONTEXTS_PER_CONTAINER = 20
+
 
 class SteelClient:
     def __init__(
@@ -34,6 +36,7 @@ class SteelClient:
         base_url: str,
         cdp_url: str,
         *,
+        capacity: int = 1,
         session_timeout_seconds: int = 3600,
         dimensions: tuple[int, int] = (1600, 1000),
         client: httpx.AsyncClient | None = None,
@@ -42,11 +45,27 @@ class SteelClient:
         self._base_url = base_url.rstrip("/")
         self._cdp_url = cdp_url.rstrip("/")
         self._viewer_base = (public_base_url or base_url).rstrip("/")
+        self._capacity = capacity
         self._timeout_seconds = session_timeout_seconds
         self._dimensions = dimensions
         self._client = client or httpx.AsyncClient(timeout=30.0)
+        self._session_id: BrowserSessionId | None = None
+        self._contexts: set[str] = set()
 
     async def open(self, *, start_url: str | None = None) -> BrowserSession:
+        if self._session_id is not None and await self.alive(self._session_id):
+            if self._capacity == 1 or len(self._contexts) >= self._capacity:
+                raise BrowserUnavailable(
+                    f"this container holds {self._capacity} context(s) and all are in use"
+                )
+            context_id = await self._new_context()
+            self._contexts.add(context_id)
+            return BrowserSession(
+                id=BrowserSessionId(context_id),
+                live_view_url=self._viewer_base,
+                debugger_url=await self._websocket_debugger_url(),
+            )
+
         holding = [
             held
             for held in await self._live_sessions()
@@ -54,7 +73,8 @@ class SteelClient:
         ]
         if holding:
             raise BrowserUnavailable(
-                "this deployment has one browser and it is already in use; " + _held_by(holding)
+                f"this container holds {self._capacity} context(s) and all are in "
+                "use; " + _held_by(holding)
             )
 
         payload: dict[str, object] = {
@@ -75,12 +95,29 @@ class SteelClient:
         body = response.json()
         session_id = BrowserSessionId(str(body["id"]))
         await self._require_browser(session_id, str(body.get("status", "")))
+        self._session_id = session_id
+        self._contexts = set()
 
+        if self._capacity == 1:
+            return BrowserSession(
+                id=session_id,
+                live_view_url=self._viewer(body),
+                debugger_url=await self._websocket_debugger_url(),
+            )
+
+        context_id = await self._new_context()
+        self._contexts.add(context_id)
         return BrowserSession(
-            id=session_id,
+            id=BrowserSessionId(context_id),
             live_view_url=self._viewer(body),
             debugger_url=await self._websocket_debugger_url(),
         )
+
+    async def _new_context(self) -> str:
+        async with self._attached() as browser:
+            raw = await browser.new_browser_cdp_session()
+            made = await raw.send("Target.createBrowserContext", {"disposeOnDetach": False})
+            return str(made["browserContextId"])
 
     async def _require_browser(self, session_id: BrowserSessionId, status: str) -> None:
         for attempt in range(_LIVE_ATTEMPTS):
@@ -147,7 +184,26 @@ class SteelClient:
         path = _path_of(response.json().get("webSocketDebuggerUrl"))
         return f"ws://{authority}{path}"
 
+    async def alive(self, session_id: BrowserSessionId) -> bool:
+        sid = str(session_id)
+        if sid in self._contexts:
+            if self._session_id is None or (await self._status(self._session_id)).lower() != "live":
+                return False
+            async with self._attached() as browser:
+                raw = await browser.new_browser_cdp_session()
+                contexts = (await raw.send("Target.getBrowserContexts"))["browserContextIds"]
+            return sid in contexts
+        return (await self._status(session_id)).lower() == "live"
+
     async def close(self, session_id: BrowserSessionId) -> None:
+        sid = str(session_id)
+        if sid in self._contexts:
+            async with self._attached() as browser:
+                raw = await browser.new_browser_cdp_session()
+                await raw.send("Target.disposeBrowserContext", {"browserContextId": sid})
+            self._contexts.discard(sid)
+            return
+
         try:
             response = await self._client.post(f"{self._base_url}/v1/sessions/{session_id}/release")
             if response.status_code == httpx.codes.NOT_FOUND:
@@ -295,8 +351,9 @@ def _held_by(holders: list[dict[str, object]]) -> str:
             f"{held.get('id')} has been {held.get('status')} since {held.get('createdAt')}"
             for held in holders[:3]
         )
-        + " — a self-hosted Steel has one browser, and a session it still calls live "
-        "after its Chrome has gone will hold it forever. Restart the Steel container."
+        + " — a self-hosted Steel container has one browser, and a session it still calls "
+        "live after its Chrome has gone will hold that capacity forever. Restart the "
+        "Steel container."
     )
 
 

@@ -35,6 +35,7 @@ from sro.application.ports.http import (
 from sro.application.ports.intent import Extraction, Reading
 from sro.application.ports.locks import AccountBusy
 from sro.application.ports.model import Asker
+from sro.application.ports.pool import PoolFull
 from sro.application.ports.repositories import (
     AttemptRepository,
     BrowserSessionRepository,
@@ -1356,6 +1357,37 @@ class FakeTriggerRepository:
 
 async def _no_op_on_wait() -> None:
     return None
+
+
+class FakeBrowserPool:
+    """`containers` maps a container url to its context capacity. `open`
+    picks the first container `busy` (supplied by the caller) has not filled,
+    and hands back a fresh `context_id`; `dead` names context ids a test has
+    killed, so `alive` can answer without a real Steel container behind it."""
+
+    def __init__(self, containers: Mapping[str, int]) -> None:
+        self._containers = dict(containers)
+        self.opened: list[tuple[str, str]] = []
+        self.closed: list[tuple[str, str]] = []
+        self.dead: set[str] = set()
+        self._next = count(1)
+
+    async def open(self, busy: Mapping[str, int]) -> tuple[str, str]:
+        for url, capacity in self._containers.items():
+            if busy.get(url, 0) < capacity:
+                context_id = f"ctx_{next(self._next)}"
+                self.opened.append((url, context_id))
+                return url, context_id
+        raise PoolFull(f"all {len(self._containers)} container(s) are full")
+
+    async def close(self, container_url: str, context_id: str) -> None:
+        self.closed.append((container_url, context_id))
+
+    async def alive(self, container_url: str, context_id: str) -> bool:
+        return context_id not in self.dead
+
+    async def cdp_url(self, container_url: str) -> str:
+        return f"ws://{container_url}"
 
 
 class FakeAccountLocks:

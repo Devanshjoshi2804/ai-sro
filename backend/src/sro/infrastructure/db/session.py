@@ -10,9 +10,19 @@ from sqlalchemy.pool import Pool
 
 
 def create_engine(
-    database_url: str, *, echo: bool = False, poolclass: type[Pool] | None = None
+    database_url: str,
+    *,
+    echo: bool = False,
+    poolclass: type[Pool] | None = None,
+    connect_args: dict[str, object] | None = None,
 ) -> AsyncEngine:
-    return create_async_engine(database_url, echo=echo, pool_pre_ping=True, poolclass=poolclass)
+    return create_async_engine(
+        database_url,
+        echo=echo,
+        pool_pre_ping=True,
+        poolclass=poolclass,
+        connect_args=connect_args or {},
+    )
 
 
 def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:

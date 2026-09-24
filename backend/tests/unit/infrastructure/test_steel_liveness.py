@@ -156,6 +156,6 @@ async def test_the_browser_is_never_taken_from_a_session_that_is_using_it() -> N
     with pytest.raises(BrowserUnavailable) as refused:
         await steel.open()
 
-    assert "already in use" in str(refused.value)
+    assert "all are in use" in str(refused.value)
     assert "someone-working" in str(refused.value)
     assert steel.released == [], "nothing was created, so there is nothing to release"

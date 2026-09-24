@@ -33,14 +33,37 @@ Code: `_LIVE_POLL_SECONDS = 0.5`
 > Chrome takes a moment to attach, so `idle` is only a failure once it has had
 > a few seconds to stop being one.
 
-## `SteelClient`, [line 31](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L31): Docstring
+## module, [line 30](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L30): Note on the line above
+
+Code: `K_MAX_CONTEXTS_PER_CONTAINER = 20`
+
+> S4 (spec §5.1, "add-a-container threshold"), measured against local Steel
+> (`ai-sro-steel-1`) with a Chromium already connected over CDP: `docker
+> stats --no-stream ai-sro-steel-1` read 813 MiB with one live session and no
+> extra contexts. Five `Target.createBrowserContext` calls, each opened with
+> one blank tab, cost roughly 30-45 MiB apiece (813 -> 1002 MiB); three more
+> blank tabs added to an existing context cost roughly 25-30 MiB apiece
+> (noisy -- one reading dropped after a GC pass). Local Steel's container
+> limit is 7.8 GiB; the QA box carries 23 GB total, ~6 GB free with Steel
+> *stopped* (`progress.md`, QA-0 finding 3) -- a figure that excludes
+> whatever Steel itself needs once it is the thing running.
+>
+> 20 contexts at ~45 MiB each is under 1 GiB of context growth on top of an
+> ~800 MiB baseline -- comfortable headroom on either box, and generous for
+> a POC where `greyorange` has one tenant and no measured account count yet.
+> Raise it (`SRO_STEEL_SESSIONS_PER_CONTAINER`) once a real account count and
+> a real memory budget exist; the alternative -- add another container URL
+> to `steel_urls` and restart -- is the ruling's intended scaling path and
+> costs nothing in code.
+
+## `SteelClient`, [line 33](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L33): Docstring
 
 > Talks to a self-hosted Steel instance.
 >
 > Steel's REST shape is confined to this module. The application only knows
 > ``BrowserProvider``, so replacing Steel is an adapter change.
 
-## `_held_by`, [line 292](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L292): Docstring
+## `_held_by`, [line 348](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L348): Docstring
 
 > Which sessions are holding the only browser, and since when.
 >
@@ -49,11 +72,11 @@ Code: `_LIVE_POLL_SECONDS = 0.5`
 > needs the same three facts either way -- who has it, how long they have had
 > it, and that a stuck one outlives its own Chrome.
 
-## `_path_of`, [line 303](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L303): Docstring
+## `_path_of`, [line 360](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L360): Docstring
 
 > Path and query of a URL, or "/" when there is nothing useful.
 
-## `SteelClient._require_browser`, [line 85](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L85): Docstring
+## `SteelClient._require_browser`, [line 122](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L122): Docstring
 
 > Refuse a session that has no browser behind it.
 >
@@ -66,11 +89,11 @@ Code: `_LIVE_POLL_SECONDS = 0.5`
 > A brief `idle` is normal while Chrome starts, so this waits before
 > deciding, and then says which session is holding the browser.
 
-## `SteelClient._live_sessions`, [line 115](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L115): Docstring
+## `SteelClient._live_sessions`, [line 152](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L152): Docstring
 
 > Sessions Steel currently believes are using the browser.
 
-## `SteelClient._cdp_origin`, [line 128](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L128): Docstring
+## `SteelClient._cdp_origin`, [line 165](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L165): Docstring
 
 > The CDP endpoint with its host resolved to an address.
 >
@@ -103,7 +126,7 @@ Code: `_LIVE_POLL_SECONDS = 0.5`
 > reach, which is a better error than one about DNS -- and it keeps a
 > made-up hostname in a test from depending on a resolver.
 
-## `SteelClient._websocket_debugger_url`, [line 139](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L139): Docstring
+## `SteelClient._websocket_debugger_url`, [line 176](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L176): Docstring
 
 > Chrome's own websocket endpoint, with the host put back.
 >
@@ -112,7 +135,7 @@ Code: `_LIVE_POLL_SECONDS = 0.5`
 > Following that verbatim dials port 80. The path is right; the authority
 > has to come from configuration.
 
-## `SteelClient.close`, [line 150](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L150): Docstring
+## `SteelClient.close`, [line 198](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L198): Docstring
 
 > Release the session. A 404 is success -- crash recovery calls this on
 > sessions the provider already reaped.
@@ -121,7 +144,7 @@ Code: `_LIVE_POLL_SECONDS = 0.5`
 > releasing a session whose Chrome has already died and leaves it marked
 > live, which reads as success and holds the only browser forever.
 
-## `SteelClient._attached`, [line 177](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L177): Docstring
+## `SteelClient._attached`, [line 233](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L233): Docstring
 
 > A short-lived CDP attachment.
 >
@@ -129,7 +152,7 @@ Code: `_LIVE_POLL_SECONDS = 0.5`
 > using, and an idle connection to it is a way to lose their session
 > rather than keep it.
 
-## `SteelClient.session_cookies`, [line 186](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L186): Docstring
+## `SteelClient.session_cookies`, [line 242](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L242): Docstring
 
 > Read the cookies through a short-lived CDP attachment.
 >
@@ -137,12 +160,12 @@ Code: `_LIVE_POLL_SECONDS = 0.5`
 > finished logging in, and an idle connection to the browser they are
 > using is a way to lose their session rather than keep it.
 
-## `SteelClient.forget_everything`, [line 192](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L192): Docstring
+## `SteelClient.forget_everything`, [line 248](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L248): Docstring
 
 > Clear the cookie jar this deployment's one browser carries between
 > sessions, so what a session is signed into is only what it restored.
 
-## `SteelClient.restore`, [line 200](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L200): Docstring
+## `SteelClient.restore`, [line 256](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L256): Docstring
 
 > Set stored cookies, addressed so the browser will accept them.
 >
@@ -151,7 +174,7 @@ Code: `_LIVE_POLL_SECONDS = 0.5`
 > reports as successful. The identity provider's cookies are exactly the
 > secure ones.
 
-## `SteelClient.session_headers`, [line 210](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L210): Docstring
+## `SteelClient.session_headers`, [line 266](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L266): Docstring
 
 > Watch the application make one request, and keep what authenticates it.
 >
@@ -164,28 +187,28 @@ Code: `_LIVE_POLL_SECONDS = 0.5`
 > theirs, is useless against this system, and has no business in a vault
 > keyed by it.
 
-## `SteelClient.live_sessions`, [line 243](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L243): Docstring
+## `SteelClient.live_sessions`, [line 299](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L299): Docstring
 
 > Every session Steel currently has a browser for.
 
-## `SteelClient.debugger_url`, [line 246](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L246): Docstring
+## `SteelClient.debugger_url`, [line 302](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L302): Docstring
 
 > A self-hosted Steel has one browser, so this is the same endpoint for
 > every session it reports. Asked per session anyway, because that is what
 > the port promises and what a pool would have to honour.
 
-## `SteelClient.frames`, [line 249](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L249): Docstring
+## `SteelClient.frames`, [line 305](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L305): Docstring
 
 > The session's screen off CDP, rather than Steel's own viewer page.
 
-## `SteelClient.live_view_url`, [line 253](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L253): Docstring
+## `SteelClient.live_view_url`, [line 309](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L309): Docstring
 
 > Ask Steel where the session can be driven.
 >
 > A released session still answers, but with a status that says it is over;
 > there is nothing to point an operator at, so that is ``None``.
 
-## `SteelClient._viewer`, [line 267](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L267): Docstring
+## `SteelClient._viewer`, [line 323](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L323): Docstring
 
 > Steel's bare session player rather than its own console.
 >
@@ -195,14 +218,38 @@ Code: `_LIVE_POLL_SECONDS = 0.5`
 > recording that we would never hear about. `debugUrl` is the same
 > screencast with none of it.
 
-## `SteelClient.__init__`, [line 44](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L44): Comment
+## `SteelClient.__init__`, [line 47](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L47): Comment
 
 Code: `self._viewer_base = (public_base_url or base_url).rstrip("/")`
 
 > Everything this client does itself goes to `_base_url`. The one
 > string it builds for somebody else's browser uses this.
 
-## `SteelClient.open`, [line 49](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L49): Note
+## `SteelClient.__init__`, [line 52](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L52): Note on the two lines above
+
+Code: `self._session_id: BrowserSessionId | None = None`
+
+> Two different kinds of id come out of `open`, and `close`/`alive` need to
+> tell them apart without the caller saying which: `_session_id` is the
+> container's one real Steel session, `_contexts` the `browserContextId`s
+> minted on top of it. `close`/`alive` check `_contexts` first and only fall
+> back to the Steel-session path (`/v1/sessions/{id}/release`,
+> `GET /v1/sessions/{id}`) for an id they never minted -- which is exactly
+> the real session id, the one the broker is never supposed to hand back in
+> here (S4 amendment: close only by `context_id`).
+>
+> `capacity == 1` (this client's default, and what every caller other than
+> the pool still constructs) never mints a context at all: `open` hands back
+> the session id itself, unchanged from before this task, so the four
+> methods below that assume `browser.contexts[0]` -- `navigate`,
+> `session_cookies`, `forget_everything`, `restore`, `session_headers` --
+> keep working against Steel's own default context exactly as they did
+> pre-S4. Only a client built with `capacity > 1` (the pool's, one per
+> container) ever creates an explicit context, and it does so for every
+> account including the first -- `contexts[0]` is never handed to a caller
+> that might treat it as one account's alone.
+
+## `SteelClient.open`, [line 55](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L55): Note
 
 > Task C0 (spec §5.1, §12 risk 1), measured against local Steel
 > (`ai-sro-steel-1`, `docker ps` mapped `3010->3000` and `9223->9223`) with
@@ -243,11 +290,19 @@ Code: `self._viewer_base = (public_base_url or base_url).rstrip("/")`
 > `steel_urls` = one container per account (spec §5.1's stated baseline),
 > and not a naive "ask Steel for N sessions".
 >
-> QA-0 (the live Blue Yonder QA box) had not been run as of this note;
-> its JSON goes here once it has, per
-> `.superpowers/sdd/2026-09-24-execution-runtime/task-C0-report.md`.
+> QA-0 (the live Blue Yonder QA box, run by the controller on the user's go,
+> 2026-09-24) printed the identical verdict: `"contexts"`,
+> `second_session_live`/`same_cdp_endpoint`/`contexts_isolated`/
+> `context_survives_disconnect` all `true`, `other_survives_release` `false`
+> (`progress.md`). The container-per-tenant, context-per-account ruling
+> stands, and S4 (this function, plus `SteelPool` and `BrowserPool`) is that
+> implementation: one real Steel session per container, opened once and
+> never released by the broker; every account beyond the first gets its own
+> `Target.createBrowserContext {disposeOnDetach: false}`, closed and checked
+> for liveness by `browserContextId` alone (`close`, `alive` below), never
+> by releasing the session that all of a container's accounts share.
 
-## `SteelClient.open`, [line 50](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L50): Comment
+## `SteelClient.open`, [line 69](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L69): Comment
 
 Code: `holding = [`
 
@@ -262,7 +317,7 @@ Code: `holding = [`
 > can act on. An `idle` session has no browser behind it and is not
 > holding anything, so it does not count.
 
-## `SteelClient.open`, [line 64](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L64): Comment
+## `SteelClient.open`, [line 84](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L84): Comment
 
 Code: `"dimensions": {"width": self._dimensions[0], "height": self._dimensions[1]},`
 
@@ -271,7 +326,7 @@ Code: `"dimensions": {"width": self._dimensions[0], "height": self._dimensions[1
 > captured is the one this viewport produced -- a cramped layout
 > teaches a skill about a layout nobody uses.
 
-## `SteelClient.open`, [line 81](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L81): Comment
+## `SteelClient.open`, [line 104](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L104): Comment
 
 Code: `live_view_url=self._viewer(body),`
 
@@ -279,27 +334,27 @@ Code: `live_view_url=self._viewer(body),`
 > (0.0.0.0:3000). Only the path is usable from out here; the host
 > comes from configuration, which knows the published ports.
 
-## `SteelClient._cdp_origin`, [line 137](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L137): Comment
+## `SteelClient._cdp_origin`, [line 174](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L174): Comment
 
 Code: `return f"{found[0][4][0]!s}:{port}"`
 
 > `sockaddr[0]` for AF_INET is the dotted address. `str()` rather than
 > a cast because the annotation admits shapes this family never has.
 
-## `SteelClient.session_headers.observe`, [line 223](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L223): Comment
+## `SteelClient.session_headers.observe`, [line 279](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L279): Comment
 
 Code: `if "/data/" not in str(request.get("url", "")):`
 
 > Data calls only: the document request carries no token, and
 > its Referer is whatever the operator came from.
 
-## `SteelClient.session_headers`, [line 235](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L235): Comment
+## `SteelClient.session_headers`, [line 291](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L291): Comment
 
 Code: `await page.wait_for_timeout(6000)`
 
 > The data calls follow the document, not the other way round.
 
-## `SteelClient.live_view_url`, [line 263](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L263): Comment
+## `SteelClient.live_view_url`, [line 319](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L319): Comment
 
 Code: `if str(body.get("status", "")).lower() in {"released", "failed", "idle"}:`
 

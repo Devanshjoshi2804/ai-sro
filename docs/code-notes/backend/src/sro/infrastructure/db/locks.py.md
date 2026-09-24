@@ -25,7 +25,18 @@ Code: `K_LOCK_WAIT_S = 120`
 > across several `K_LOCK_ATTEMPT_S`-sized attempts, each one short enough
 > that the caller keeps heartbeating the whole time it waits.
 
-## `PostgresAccountLocks.hold`, [line 39](../../../../../../../backend/src/sro/infrastructure/db/locks.py#L39): Comment
+## module, [line 16](../../../../../../../backend/src/sro/infrastructure/db/locks.py#L16): Note on the line above
+
+Code: `K_LOCK_CONNECT_TIMEOUT_S = 10`
+
+> S3 re-review, folded into S4: `container.py`'s dedicated lock engine passes
+> this as asyncpg's own `timeout` (`connect_args`), so a single connection
+> attempt can never itself run past a third of `K_STEP_HEARTBEAT_S = 30` s --
+> a stalled Postgres backend fails fast enough that the caller still has
+> heartbeats to spare before the activity is presumed dead, rather than the
+> attempt silently eating the whole budget with nothing to show a retry.
+
+## `PostgresAccountLocks.hold`, [line 40](../../../../../../../backend/src/sro/infrastructure/db/locks.py#L40): Comment
 
 Code: `async with self._engine.begin() as connection:`
 
@@ -50,8 +61,16 @@ Code: `async with self._engine.begin() as connection:`
 > `max_connections` (100 by default) rather than against this process's own
 > pool; worth naming now, before a caller holds enough accounts at once to
 > approach it.
+>
+> S3 re-review: that engine used to be built and handed to `PostgresAccountLocks`
+> without ever being kept anywhere else, so nothing ever disposed it --
+> `NullPool` opens a fresh connection per attempt and closes it on release, so
+> this leaked no connections, but it leaked the engine's own background
+> resources across every reload. `container.py` now keeps it as `Container.lock_engine`
+> and `app.py`'s `lifespan` disposes it in the same `finally` block as the
+> main engine, on the same shutdown.
 
-## `PostgresAccountLocks.hold`, [line 53](../../../../../../../backend/src/sro/infrastructure/db/locks.py#L53): Comment
+## `PostgresAccountLocks.hold`, [line 54](../../../../../../../backend/src/sro/infrastructure/db/locks.py#L54): Comment
 
 Code: `except _Retry:`
 

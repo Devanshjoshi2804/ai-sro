@@ -142,6 +142,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 container.driving_runs = None
             if container.engine is not None:
                 await container.engine.dispose()
+            if container.lock_engine is not None:
+                await container.lock_engine.dispose()
 
 
 class Attributing:

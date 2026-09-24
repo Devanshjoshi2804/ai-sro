@@ -306,6 +306,7 @@ def test_every_captured_detail_of_the_control_is_kept_and_stored() -> None:
     }
     target["landmarks"] = [{"role": "dialog", "name": "New Customer"}]
     event["gesture"]["modifiers"] = ["shift"]
+    event["gesture"]["frame_path"] = [{"index": 1, "url": "https://wms.example/shell"}]
 
     gestures, _, _, _ = correlate(_batch([event]), TENANT)
     stored = _row_to_gesture(_gesture_to_row(gestures[0]))
@@ -317,6 +318,8 @@ def test_every_captured_detail_of_the_control_is_kept_and_stored() -> None:
     assert action.target.component.chain == ("panel#clients", "textfield#clientCode")
     assert [(one.role, one.name) for one in action.target.landmarks] == [("dialog", "New Customer")]
     assert action.modifiers == ("shift",)
+    assert action.frame_path is not None
+    assert [(hop.index, hop.url) for hop in action.frame_path] == [(1, "https://wms.example/shell")]
     assert hash(action)
 
 

@@ -6,6 +6,10 @@ the error mapping, all of which break independently of any infrastructure.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import socket
+import threading
 from collections.abc import AsyncIterator
 
 import httpx
@@ -21,7 +25,7 @@ from sro.application.ports.auth import Caller
 from sro.application.ports.capture import CaptureController
 from sro.application.ports.repositories import UnitOfWork
 from sro.config import Settings, get_settings
-from sro.container import Container
+from sro.container import Container, build_container
 from sro.domain.execution.run import Medium, Run, RunId, StepDisposition, StepOutcome
 from sro.domain.shared.identifiers import (
     BrowserSessionId,
@@ -214,6 +218,36 @@ class TestHealth:
 
         assert response.json()["revision"] == get_settings().revision
         assert response.json()["revision"]
+
+    async def test_the_app_starts_and_answers_while_the_collector_never_answers(
+        self,
+    ) -> None:
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind(("127.0.0.1", 0))
+        server.listen(1)
+        host, port = server.getsockname()
+
+        def accept_and_freeze() -> None:
+            with contextlib.suppress(OSError):
+                server.accept()
+
+        threading.Thread(target=accept_and_freeze, daemon=True).start()
+
+        try:
+            built = build_container(Settings(_env_file=None, otlp_endpoint=f"http://{host}:{port}"))
+            app = create_app()
+            app.dependency_overrides[get_container] = lambda: built
+            async with httpx.AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers={"Authorization": f"Bearer {token_for()}"},
+            ) as http:
+                response = await asyncio.wait_for(http.get("/health"), timeout=2)
+        finally:
+            server.close()
+
+        assert response.status_code == 200
 
 
 async def _connected(uow: FakeUnitOfWork, container: _FakeContainer) -> None:

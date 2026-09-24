@@ -5,7 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -102,6 +102,11 @@ class Settings(BaseSettings):
 
     otlp_endpoint: str | None = "http://localhost:4318"
     service_name: str = "sro-backend"
+
+    @field_validator("otlp_endpoint", mode="before")
+    @classmethod
+    def _blank_otlp_endpoint_is_off(cls, value: str | None) -> str | None:
+        return value or None
 
     inline_body_limit_bytes: int = Field(default=256 * 1024)
 

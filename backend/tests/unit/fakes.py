@@ -1263,8 +1263,13 @@ class FakeChannel:
 
 
 class FakeTriggerRepository:
-    def __init__(self) -> None:
+    def __init__(self, retired: Mapping[str, datetime] | None = None) -> None:
         self.rows: dict[str, Trigger] = {}
+        self._retired = retired if retired is not None else {}
+        """The workflow store's retired jobs: a trigger on one is never chosen."""
+
+    def _live(self, trigger: Trigger) -> bool:
+        return trigger.workflow_id is None or trigger.workflow_id not in self._retired
 
     async def add(self, trigger: Trigger) -> None:
         self.rows[trigger.id.value] = trigger
@@ -1289,12 +1294,15 @@ class FakeTriggerRepository:
         mine = [
             trigger
             for trigger in self.rows.values()
-            if trigger.tenant_id == tenant_id and (skill_id is None or trigger.skill_id == skill_id)
+            if trigger.tenant_id == tenant_id
+            and (skill_id is None or trigger.skill_id == skill_id)
+            and self._live(trigger)
         ]
         return tuple(sorted(mine, key=lambda trigger: trigger.created_at, reverse=True))
 
     async def find(self, trigger_id: TriggerId) -> Trigger | None:
-        return self.rows.get(trigger_id.value)
+        trigger = self.rows.get(trigger_id.value)
+        return trigger if trigger is not None and self._live(trigger) else None
 
 
 class FakeScheduler:
@@ -2438,7 +2446,7 @@ class FakeUnitOfWork:
         self.pool = FakePoolRepository()
         self.observation_policies = FakeObservationPolicyRepository()
         self.candidates = FakeCandidateRepository()
-        self.triggers = FakeTriggerRepository()
+        self.triggers = FakeTriggerRepository(self._workflows.retired)
         self.tool_calls = FakeToolCallRepository()
         self.confirmations = FakeConfirmationRepository()
         self.commits = 0

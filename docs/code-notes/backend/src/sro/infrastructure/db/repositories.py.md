@@ -336,3 +336,12 @@ Code: `await self._require_session().rollback()`
 > from what it read. Reported as a conflict rather than a crash
 > because it is one: the caller decides whether to redo the work
 > against what is there now or to leave it to whoever comes next.
+
+## `_job_live`, [line 939](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L939): Note
+
+> A trigger on a retired job is never chosen: `find` (how a schedule fires)
+> and `list_for_tenant` (how watches and arrivals are picked) both leave it
+> out. `FireTrigger` then finds no trigger and takes the schedule down,
+> instead of firing into `NotFound` every period with nobody told (final
+> review M-4, 2026-09-24). `get` still returns it by id, so switching it
+> off or deleting it still works.

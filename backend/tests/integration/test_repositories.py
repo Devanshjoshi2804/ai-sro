@@ -26,6 +26,7 @@ from sro.domain.shared.identifiers import (
 from sro.domain.skill.locator import ControlLocator, LocatorStrategy
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.template import Template
+from sro.domain.skill.workflow import Workflow
 from sro.domain.trigger.trigger import Trigger, TriggerKind
 from sro.domain.trigger.watch import Term, TermField, ValueAt, Watch
 from sro.infrastructure.db.repositories import SqlUnitOfWork
@@ -528,6 +529,47 @@ class TestTriggers:
         assert found is not None
         assert found.tenant_id == trigger.tenant_id
         assert missing is None
+
+    async def test_a_retired_jobs_trigger_is_never_chosen(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A schedule fires by id; watches and arrivals are chosen from the
+        tenant's list. Neither sees a trigger whose job was retired."""
+        tenant = TenantId("acme")
+        jobs = [
+            Workflow(id=one, tenant=tenant.value, title=one, narrative="n")
+            for one in ("wfl_live", "wfl_gone")
+        ]
+        triggers = [
+            Trigger(
+                id=TriggerId(f"trg-{job.id}"),
+                tenant_id=tenant,
+                kind=TriggerKind.SCHEDULE,
+                created_by=f.OPERATOR,
+                created_at=datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+                workflow_id=job.id,
+                cron="0 7 * * 1-5",
+            )
+            for job in jobs
+        ]
+        async with SqlUnitOfWork(session_factory) as uow:
+            for job in jobs:
+                await uow.workflows.save(job)
+            for trigger in triggers:
+                await uow.triggers.add(trigger)
+            await uow.commit()
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.retire(tenant, "wfl_gone", at=datetime(2026, 3, 2, tzinfo=UTC))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            live = await uow.triggers.find(TriggerId("trg-wfl_live"))
+            gone = await uow.triggers.find(TriggerId("trg-wfl_gone"))
+            listed = await uow.triggers.list_for_tenant(tenant)
+
+        assert live is not None
+        assert gone is None
+        assert [one.id.value for one in listed] == ["trg-wfl_live"]
 
     async def test_a_watch_comes_back_with_its_terms_and_its_places_to_read(
         self, session_factory: async_sessionmaker[AsyncSession]

@@ -304,6 +304,7 @@ def test_every_captured_detail_of_the_control_is_kept_and_stored() -> None:
         "query": "panel#clients textfield#clientCode",
         "chain": ["panel#clients", "textfield#clientCode"],
     }
+    target["landmarks"] = [{"role": "dialog", "name": "New Customer"}]
     event["gesture"]["modifiers"] = ["shift"]
 
     gestures, _, _, _ = correlate(_batch([event]), TENANT)
@@ -314,6 +315,7 @@ def test_every_captured_detail_of_the_control_is_kept_and_stored() -> None:
     assert action.target.bounds == {"x": 10.0, "y": 20.0, "width": 80.0, "height": 24.0}
     assert action.target.attributes == {"name": "clientCode", "autocomplete": "off"}
     assert action.target.component.chain == ("panel#clients", "textfield#clientCode")
+    assert [(one.role, one.name) for one in action.target.landmarks] == [("dialog", "New Customer")]
     assert action.modifiers == ("shift",)
     assert hash(action)
 

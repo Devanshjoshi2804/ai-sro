@@ -217,8 +217,13 @@ sign-in page by its structure:
 
 The chain ends at the submit that leaves the host (Task 10). The landing is
 `signs_in_to(...)[1]` (Task 7). The observation policy stops excluding identity
-provider hosts: sign-in pages are captured under redaction, and fixtures prove no
-credential is stored.
+provider hosts, but a sign-in page is captured **structure-only**: the elements acted
+on, redacted URLs, page marks, and each request's method, URL and status. No typed
+value at all, no screenshot, no accessibility tree, no request or response body. A
+page is a sign-in page when it holds a password or one-time-code field, or lies inside
+an OAuth/OIDC flow (between the authorize request and the return with `code`). This
+applies to the extension and to Steel's own capture. Fixtures, screenshots included,
+prove no credential is stored.
 
 ### 5.7 Session headers for the API lane
 

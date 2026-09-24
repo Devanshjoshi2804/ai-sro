@@ -1,26 +1,26 @@
 {
-  "batch_id": "bat_browsertest_16a8e81b_1",
+  "batch_id": "bat_browsertest_b8ec8312_1",
   "device_id": "dev_browsertest",
-  "started_at": "2026-09-24T09:41:48.428Z",
-  "ended_at": "2026-09-24T09:41:48.666Z",
+  "started_at": "2026-09-24T14:42:56.522Z",
+  "ended_at": "2026-09-24T14:42:56.862Z",
   "mode": "passive",
   "events": [
     {
       "kind": "page",
-      "at": "2026-09-24T09:41:48.413Z",
+      "at": "2026-09-24T14:42:56.507Z",
       "page_kind": "navigated",
-      "url": "http://127.0.0.1:55773/",
+      "url": "http://127.0.0.1:64379/",
       "detail": null,
-      "tab_id": 170716789,
+      "tab_id": 372458457,
       "opener_tab_id": null
     },
     {
       "kind": "page",
-      "at": "2026-09-24T09:41:48.418Z",
+      "at": "2026-09-24T14:42:56.511Z",
       "page_kind": "loaded",
-      "url": "http://127.0.0.1:55773/",
+      "url": "http://127.0.0.1:64379/",
       "detail": null,
-      "tab_id": 170716789,
+      "tab_id": 372458457,
       "opener_tab_id": null
     },
     {
@@ -61,17 +61,19 @@
               "panel#clients",
               "textfield#clientCode"
             ]
-          }
+          },
+          "landmarks": []
         },
         "value": "ACME-4471",
         "secret": false,
         "modifiers": [],
-        "at": 1790242908.474,
-        "url": "http://127.0.0.1:55773/"
+        "frame_path": [],
+        "at": 1790260976.562,
+        "url": "http://127.0.0.1:64379/"
       },
-      "tab_id": 170716789,
-      "frame_url": "http://127.0.0.1:55773/",
-      "page_url": "http://127.0.0.1:55773/"
+      "tab_id": 372458457,
+      "frame_url": "http://127.0.0.1:64379/",
+      "page_url": "http://127.0.0.1:64379/"
     },
     {
       "kind": "gesture",
@@ -97,17 +99,19 @@
             "id": "dock",
             "name": "dock"
           },
-          "component": null
+          "component": null,
+          "landmarks": []
         },
         "value": "D3",
         "secret": false,
         "modifiers": [],
-        "at": 1790242908.525,
-        "url": "http://127.0.0.1:55773/"
+        "frame_path": [],
+        "at": 1790260976.671,
+        "url": "http://127.0.0.1:64379/"
       },
-      "tab_id": 170716789,
-      "frame_url": "http://127.0.0.1:55773/",
-      "page_url": "http://127.0.0.1:55773/"
+      "tab_id": 372458457,
+      "frame_url": "http://127.0.0.1:64379/",
+      "page_url": "http://127.0.0.1:64379/"
     },
     {
       "kind": "snapshot",
@@ -122,7 +126,7 @@
               "type": "internalRole",
               "value": 144
             },
-            "frameId": "CFDCC288487CCCE926CFE1878168BE62",
+            "frameId": "FB0CC3244ECEEC3DE6C96B252CF13D8C",
             "ignored": false,
             "name": {
               "sources": [
@@ -167,7 +171,7 @@
                 "name": "url",
                 "value": {
                   "type": "string",
-                  "value": "http://127.0.0.1:55773/"
+                  "value": "http://127.0.0.1:64379/"
                 }
               }
             ],
@@ -394,9 +398,7 @@
           },
           {
             "backendDOMNodeId": 11,
-            "childIds": [
-              "23"
-            ],
+            "childIds": [],
             "chromeRole": {
               "type": "internalRole",
               "value": 170
@@ -521,10 +523,6 @@
             "role": {
               "type": "role",
               "value": "textbox"
-            },
-            "value": {
-              "type": "string",
-              "value": "ACME-4471"
             }
           },
           {
@@ -565,9 +563,7 @@
           },
           {
             "backendDOMNodeId": 12,
-            "childIds": [
-              "25"
-            ],
+            "childIds": [],
             "chromeRole": {
               "type": "internalRole",
               "value": 170
@@ -699,10 +695,6 @@
             "role": {
               "type": "role",
               "value": "textbox"
-            },
-            "value": {
-              "type": "string",
-              "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
             }
           },
           {
@@ -834,10 +826,6 @@
             "role": {
               "type": "role",
               "value": "combobox"
-            },
-            "value": {
-              "type": "string",
-              "value": "Dock 3"
             }
           },
           {
@@ -966,10 +954,6 @@
             "role": {
               "type": "role",
               "value": "button"
-            },
-            "value": {
-              "type": "string",
-              "value": "manifest.csv"
             }
           },
           {
@@ -1086,46 +1070,6 @@
             }
           },
           {
-            "backendDOMNodeId": 23,
-            "childIds": [
-              "45"
-            ],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 88
-            },
-            "ignored": false,
-            "name": {
-              "sources": [
-                {
-                  "attribute": "aria-labelledby",
-                  "type": "relatedElement"
-                },
-                {
-                  "attribute": "aria-label",
-                  "type": "attribute"
-                }
-              ],
-              "type": "computedString",
-              "value": ""
-            },
-            "nodeId": "23",
-            "parentId": "11",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "role",
-              "value": "generic"
-            }
-          },
-          {
             "backendDOMNodeId": 46,
             "childIds": [
               "-1000000005"
@@ -1154,46 +1098,6 @@
             "role": {
               "type": "internalRole",
               "value": "StaticText"
-            }
-          },
-          {
-            "backendDOMNodeId": 25,
-            "childIds": [
-              "47"
-            ],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 88
-            },
-            "ignored": false,
-            "name": {
-              "sources": [
-                {
-                  "attribute": "aria-labelledby",
-                  "type": "relatedElement"
-                },
-                {
-                  "attribute": "aria-label",
-                  "type": "attribute"
-                }
-              ],
-              "type": "computedString",
-              "value": ""
-            },
-            "nodeId": "25",
-            "parentId": "12",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "role",
-              "value": "generic"
             }
           },
           {
@@ -1346,45 +1250,6 @@
             }
           },
           {
-            "backendDOMNodeId": 45,
-            "childIds": [
-              "-1000000004"
-            ],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 158
-            },
-            "ignored": false,
-            "name": {
-              "sources": [
-                {
-                  "type": "contents",
-                  "value": {
-                    "type": "computedString",
-                    "value": "ACME-4471"
-                  }
-                }
-              ],
-              "type": "computedString",
-              "value": "ACME-4471"
-            },
-            "nodeId": "45",
-            "parentId": "23",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "internalRole",
-              "value": "StaticText"
-            }
-          },
-          {
             "childIds": [],
             "chromeRole": {
               "type": "internalRole",
@@ -1401,45 +1266,6 @@
             "role": {
               "type": "internalRole",
               "value": "InlineTextBox"
-            }
-          },
-          {
-            "backendDOMNodeId": 47,
-            "childIds": [
-              "-1000000006"
-            ],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 158
-            },
-            "ignored": false,
-            "name": {
-              "sources": [
-                {
-                  "type": "contents",
-                  "value": {
-                    "type": "computedString",
-                    "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-                  }
-                }
-              ],
-              "type": "computedString",
-              "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-            },
-            "nodeId": "47",
-            "parentId": "25",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "internalRole",
-              "value": "StaticText"
             }
           },
           {
@@ -1509,7 +1335,7 @@
                 "name": "selected",
                 "value": {
                   "type": "booleanOrUndefined",
-                  "value": false
+                  "value": true
                 }
               }
             ],
@@ -1566,7 +1392,7 @@
                 "name": "selected",
                 "value": {
                   "type": "booleanOrUndefined",
-                  "value": true
+                  "value": false
                 }
               }
             ],
@@ -1612,66 +1438,12 @@
               "type": "internalRole",
               "value": "InlineTextBox"
             }
-          },
-          {
-            "childIds": [],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 101
-            },
-            "ignored": false,
-            "name": {
-              "type": "computedString",
-              "value": "ACME-4471"
-            },
-            "nodeId": "-1000000004",
-            "parentId": "45",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "internalRole",
-              "value": "InlineTextBox"
-            }
-          },
-          {
-            "childIds": [],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 101
-            },
-            "ignored": false,
-            "name": {
-              "type": "computedString",
-              "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-            },
-            "nodeId": "-1000000006",
-            "parentId": "47",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "internalRole",
-              "value": "InlineTextBox"
-            }
           }
         ]
       },
-      "url": "http://127.0.0.1:55773/",
-      "taken_at": "2026-09-24T09:41:48.537Z",
-      "tab_id": 170716789
+      "url": "http://127.0.0.1:64379/",
+      "taken_at": "2026-09-24T14:42:56.668Z",
+      "tab_id": 372458457
     },
     {
       "kind": "gesture",
@@ -1698,16 +1470,18 @@
             "name": "manifest",
             "type": "file"
           },
-          "component": null
+          "component": null,
+          "landmarks": []
         },
         "value": "manifest.csv",
         "modifiers": [],
-        "at": 1790242908.532,
-        "url": "http://127.0.0.1:55773/"
+        "frame_path": [],
+        "at": 1790260976.688,
+        "url": "http://127.0.0.1:64379/"
       },
-      "tab_id": 170716789,
-      "frame_url": "http://127.0.0.1:55773/",
-      "page_url": "http://127.0.0.1:55773/"
+      "tab_id": 372458457,
+      "frame_url": "http://127.0.0.1:64379/",
+      "page_url": "http://127.0.0.1:64379/"
     },
     {
       "kind": "gesture",
@@ -1734,17 +1508,19 @@
             "name": "password",
             "type": "password"
           },
-          "component": null
+          "component": null,
+          "landmarks": []
         },
         "value": null,
         "secret": true,
         "modifiers": [],
-        "at": 1790242908.577,
-        "url": "http://127.0.0.1:55773/"
+        "frame_path": [],
+        "at": 1790260976.744,
+        "url": "http://127.0.0.1:64379/"
       },
-      "tab_id": 170716789,
-      "frame_url": "http://127.0.0.1:55773/",
-      "page_url": "http://127.0.0.1:55773/"
+      "tab_id": 372458457,
+      "frame_url": "http://127.0.0.1:64379/",
+      "page_url": "http://127.0.0.1:64379/"
     },
     {
       "kind": "gesture",
@@ -1784,15 +1560,19 @@
               "panel#clients",
               "textfield#clientCode"
             ]
-          }
+          },
+          "landmarks": []
         },
         "modifiers": [],
-        "at": 1790242908.578,
-        "url": "http://127.0.0.1:55773/"
+        "detail": 1,
+        "trusted": true,
+        "frame_path": [],
+        "at": 1790260976.746,
+        "url": "http://127.0.0.1:64379/"
       },
-      "tab_id": 170716789,
-      "frame_url": "http://127.0.0.1:55773/",
-      "page_url": "http://127.0.0.1:55773/"
+      "tab_id": 372458457,
+      "frame_url": "http://127.0.0.1:64379/",
+      "page_url": "http://127.0.0.1:64379/"
     },
     {
       "kind": "snapshot",
@@ -1807,7 +1587,7 @@
               "type": "internalRole",
               "value": 144
             },
-            "frameId": "CFDCC288487CCCE926CFE1878168BE62",
+            "frameId": "FB0CC3244ECEEC3DE6C96B252CF13D8C",
             "ignored": false,
             "name": {
               "sources": [
@@ -1852,7 +1632,7 @@
                 "name": "url",
                 "value": {
                   "type": "string",
-                  "value": "http://127.0.0.1:55773/"
+                  "value": "http://127.0.0.1:64379/"
                 }
               }
             ],
@@ -2079,9 +1859,7 @@
           },
           {
             "backendDOMNodeId": 11,
-            "childIds": [
-              "23"
-            ],
+            "childIds": [],
             "chromeRole": {
               "type": "internalRole",
               "value": 170
@@ -2206,10 +1984,6 @@
             "role": {
               "type": "role",
               "value": "textbox"
-            },
-            "value": {
-              "type": "string",
-              "value": "ACME-4471"
             }
           },
           {
@@ -2250,9 +2024,7 @@
           },
           {
             "backendDOMNodeId": 12,
-            "childIds": [
-              "25"
-            ],
+            "childIds": [],
             "chromeRole": {
               "type": "internalRole",
               "value": 170
@@ -2384,10 +2156,6 @@
             "role": {
               "type": "role",
               "value": "textbox"
-            },
-            "value": {
-              "type": "string",
-              "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
             }
           },
           {
@@ -2519,10 +2287,6 @@
             "role": {
               "type": "role",
               "value": "combobox"
-            },
-            "value": {
-              "type": "string",
-              "value": "Dock 3"
             }
           },
           {
@@ -2651,10 +2415,6 @@
             "role": {
               "type": "role",
               "value": "button"
-            },
-            "value": {
-              "type": "string",
-              "value": "manifest.csv"
             }
           },
           {
@@ -2742,7 +2502,7 @@
           {
             "backendDOMNodeId": 44,
             "childIds": [
-              "-1000000003"
+              "-1000000014"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -2771,49 +2531,9 @@
             }
           },
           {
-            "backendDOMNodeId": 23,
-            "childIds": [
-              "45"
-            ],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 88
-            },
-            "ignored": false,
-            "name": {
-              "sources": [
-                {
-                  "attribute": "aria-labelledby",
-                  "type": "relatedElement"
-                },
-                {
-                  "attribute": "aria-label",
-                  "type": "attribute"
-                }
-              ],
-              "type": "computedString",
-              "value": ""
-            },
-            "nodeId": "23",
-            "parentId": "11",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "role",
-              "value": "generic"
-            }
-          },
-          {
             "backendDOMNodeId": 46,
             "childIds": [
-              "-1000000005"
+              "-1000000015"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -2842,49 +2562,9 @@
             }
           },
           {
-            "backendDOMNodeId": 25,
-            "childIds": [
-              "47"
-            ],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 88
-            },
-            "ignored": false,
-            "name": {
-              "sources": [
-                {
-                  "attribute": "aria-labelledby",
-                  "type": "relatedElement"
-                },
-                {
-                  "attribute": "aria-label",
-                  "type": "attribute"
-                }
-              ],
-              "type": "computedString",
-              "value": ""
-            },
-            "nodeId": "25",
-            "parentId": "12",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "role",
-              "value": "generic"
-            }
-          },
-          {
             "backendDOMNodeId": 48,
             "childIds": [
-              "-1000000007"
+              "-1000000016"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -2952,7 +2632,7 @@
           {
             "backendDOMNodeId": 49,
             "childIds": [
-              "-1000000008"
+              "-1000000017"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -3022,51 +2702,12 @@
               "type": "computedString",
               "value": "Client Code"
             },
-            "nodeId": "-1000000003",
+            "nodeId": "-1000000014",
             "parentId": "44",
             "properties": [],
             "role": {
               "type": "internalRole",
               "value": "InlineTextBox"
-            }
-          },
-          {
-            "backendDOMNodeId": 45,
-            "childIds": [
-              "-1000000004"
-            ],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 158
-            },
-            "ignored": false,
-            "name": {
-              "sources": [
-                {
-                  "type": "contents",
-                  "value": {
-                    "type": "computedString",
-                    "value": "ACME-4471"
-                  }
-                }
-              ],
-              "type": "computedString",
-              "value": "ACME-4471"
-            },
-            "nodeId": "45",
-            "parentId": "23",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "internalRole",
-              "value": "StaticText"
             }
           },
           {
@@ -3080,51 +2721,12 @@
               "type": "computedString",
               "value": "Password"
             },
-            "nodeId": "-1000000005",
+            "nodeId": "-1000000015",
             "parentId": "46",
             "properties": [],
             "role": {
               "type": "internalRole",
               "value": "InlineTextBox"
-            }
-          },
-          {
-            "backendDOMNodeId": 47,
-            "childIds": [
-              "-1000000006"
-            ],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 158
-            },
-            "ignored": false,
-            "name": {
-              "sources": [
-                {
-                  "type": "contents",
-                  "value": {
-                    "type": "computedString",
-                    "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-                  }
-                }
-              ],
-              "type": "computedString",
-              "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-            },
-            "nodeId": "47",
-            "parentId": "25",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "internalRole",
-              "value": "StaticText"
             }
           },
           {
@@ -3138,7 +2740,7 @@
               "type": "computedString",
               "value": "Dock"
             },
-            "nodeId": "-1000000007",
+            "nodeId": "-1000000016",
             "parentId": "48",
             "properties": [],
             "role": {
@@ -3271,7 +2873,7 @@
               "type": "computedString",
               "value": "Manifest"
             },
-            "nodeId": "-1000000008",
+            "nodeId": "-1000000017",
             "parentId": "49",
             "properties": [],
             "role": {
@@ -3297,66 +2899,12 @@
               "type": "internalRole",
               "value": "InlineTextBox"
             }
-          },
-          {
-            "childIds": [],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 101
-            },
-            "ignored": false,
-            "name": {
-              "type": "computedString",
-              "value": "ACME-4471"
-            },
-            "nodeId": "-1000000004",
-            "parentId": "45",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "internalRole",
-              "value": "InlineTextBox"
-            }
-          },
-          {
-            "childIds": [],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 101
-            },
-            "ignored": false,
-            "name": {
-              "type": "computedString",
-              "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-            },
-            "nodeId": "-1000000006",
-            "parentId": "47",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "internalRole",
-              "value": "InlineTextBox"
-            }
           }
         ]
       },
-      "url": "http://127.0.0.1:55773/",
-      "taken_at": "2026-09-24T09:41:48.558Z",
-      "tab_id": 170716789
+      "url": "http://127.0.0.1:64379/",
+      "taken_at": "2026-09-24T14:42:56.719Z",
+      "tab_id": 372458457
     },
     {
       "kind": "gesture",
@@ -3396,16 +2944,18 @@
               "panel#clients",
               "textfield#clientCode"
             ]
-          }
+          },
+          "landmarks": []
         },
         "value": "Enter",
         "modifiers": [],
-        "at": 1790242908.596,
-        "url": "http://127.0.0.1:55773/"
+        "frame_path": [],
+        "at": 1790260976.773,
+        "url": "http://127.0.0.1:64379/"
       },
-      "tab_id": 170716789,
-      "frame_url": "http://127.0.0.1:55773/",
-      "page_url": "http://127.0.0.1:55773/"
+      "tab_id": 372458457,
+      "frame_url": "http://127.0.0.1:64379/",
+      "page_url": "http://127.0.0.1:64379/"
     },
     {
       "kind": "snapshot",
@@ -3420,7 +2970,7 @@
               "type": "internalRole",
               "value": 144
             },
-            "frameId": "CFDCC288487CCCE926CFE1878168BE62",
+            "frameId": "FB0CC3244ECEEC3DE6C96B252CF13D8C",
             "ignored": false,
             "name": {
               "sources": [
@@ -3465,7 +3015,7 @@
                 "name": "url",
                 "value": {
                   "type": "string",
-                  "value": "http://127.0.0.1:55773/"
+                  "value": "http://127.0.0.1:64379/"
                 }
               }
             ],
@@ -3692,9 +3242,7 @@
           },
           {
             "backendDOMNodeId": 11,
-            "childIds": [
-              "23"
-            ],
+            "childIds": [],
             "chromeRole": {
               "type": "internalRole",
               "value": 170
@@ -3826,10 +3374,6 @@
             "role": {
               "type": "role",
               "value": "textbox"
-            },
-            "value": {
-              "type": "string",
-              "value": "ACME-4471"
             }
           },
           {
@@ -3870,9 +3414,7 @@
           },
           {
             "backendDOMNodeId": 12,
-            "childIds": [
-              "25"
-            ],
+            "childIds": [],
             "chromeRole": {
               "type": "internalRole",
               "value": 170
@@ -3997,10 +3539,6 @@
             "role": {
               "type": "role",
               "value": "textbox"
-            },
-            "value": {
-              "type": "string",
-              "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
             }
           },
           {
@@ -4132,10 +3670,6 @@
             "role": {
               "type": "role",
               "value": "combobox"
-            },
-            "value": {
-              "type": "string",
-              "value": "Dock 3"
             }
           },
           {
@@ -4264,10 +3798,6 @@
             "role": {
               "type": "role",
               "value": "button"
-            },
-            "value": {
-              "type": "string",
-              "value": "manifest.csv"
             }
           },
           {
@@ -4355,7 +3885,7 @@
           {
             "backendDOMNodeId": 44,
             "childIds": [
-              "-1000000003"
+              "-1000000014"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -4384,49 +3914,9 @@
             }
           },
           {
-            "backendDOMNodeId": 23,
-            "childIds": [
-              "45"
-            ],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 88
-            },
-            "ignored": false,
-            "name": {
-              "sources": [
-                {
-                  "attribute": "aria-labelledby",
-                  "type": "relatedElement"
-                },
-                {
-                  "attribute": "aria-label",
-                  "type": "attribute"
-                }
-              ],
-              "type": "computedString",
-              "value": ""
-            },
-            "nodeId": "23",
-            "parentId": "11",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "role",
-              "value": "generic"
-            }
-          },
-          {
             "backendDOMNodeId": 46,
             "childIds": [
-              "-1000000005"
+              "-1000000015"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -4455,49 +3945,9 @@
             }
           },
           {
-            "backendDOMNodeId": 25,
-            "childIds": [
-              "47"
-            ],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 88
-            },
-            "ignored": false,
-            "name": {
-              "sources": [
-                {
-                  "attribute": "aria-labelledby",
-                  "type": "relatedElement"
-                },
-                {
-                  "attribute": "aria-label",
-                  "type": "attribute"
-                }
-              ],
-              "type": "computedString",
-              "value": ""
-            },
-            "nodeId": "25",
-            "parentId": "12",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "role",
-              "value": "generic"
-            }
-          },
-          {
             "backendDOMNodeId": 48,
             "childIds": [
-              "-1000000007"
+              "-1000000016"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -4565,7 +4015,7 @@
           {
             "backendDOMNodeId": 49,
             "childIds": [
-              "-1000000008"
+              "-1000000017"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -4635,51 +4085,12 @@
               "type": "computedString",
               "value": "Client Code"
             },
-            "nodeId": "-1000000003",
+            "nodeId": "-1000000014",
             "parentId": "44",
             "properties": [],
             "role": {
               "type": "internalRole",
               "value": "InlineTextBox"
-            }
-          },
-          {
-            "backendDOMNodeId": 45,
-            "childIds": [
-              "-1000000004"
-            ],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 158
-            },
-            "ignored": false,
-            "name": {
-              "sources": [
-                {
-                  "type": "contents",
-                  "value": {
-                    "type": "computedString",
-                    "value": "ACME-4471"
-                  }
-                }
-              ],
-              "type": "computedString",
-              "value": "ACME-4471"
-            },
-            "nodeId": "45",
-            "parentId": "23",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "internalRole",
-              "value": "StaticText"
             }
           },
           {
@@ -4693,51 +4104,12 @@
               "type": "computedString",
               "value": "Password"
             },
-            "nodeId": "-1000000005",
+            "nodeId": "-1000000015",
             "parentId": "46",
             "properties": [],
             "role": {
               "type": "internalRole",
               "value": "InlineTextBox"
-            }
-          },
-          {
-            "backendDOMNodeId": 47,
-            "childIds": [
-              "-1000000006"
-            ],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 158
-            },
-            "ignored": false,
-            "name": {
-              "sources": [
-                {
-                  "type": "contents",
-                  "value": {
-                    "type": "computedString",
-                    "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-                  }
-                }
-              ],
-              "type": "computedString",
-              "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-            },
-            "nodeId": "47",
-            "parentId": "25",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "internalRole",
-              "value": "StaticText"
             }
           },
           {
@@ -4751,7 +4123,7 @@
               "type": "computedString",
               "value": "Dock"
             },
-            "nodeId": "-1000000007",
+            "nodeId": "-1000000016",
             "parentId": "48",
             "properties": [],
             "role": {
@@ -4884,7 +4256,7 @@
               "type": "computedString",
               "value": "Manifest"
             },
-            "nodeId": "-1000000008",
+            "nodeId": "-1000000017",
             "parentId": "49",
             "properties": [],
             "role": {
@@ -4910,66 +4282,12 @@
               "type": "internalRole",
               "value": "InlineTextBox"
             }
-          },
-          {
-            "childIds": [],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 101
-            },
-            "ignored": false,
-            "name": {
-              "type": "computedString",
-              "value": "ACME-4471"
-            },
-            "nodeId": "-1000000004",
-            "parentId": "45",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "internalRole",
-              "value": "InlineTextBox"
-            }
-          },
-          {
-            "childIds": [],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 101
-            },
-            "ignored": false,
-            "name": {
-              "type": "computedString",
-              "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-            },
-            "nodeId": "-1000000006",
-            "parentId": "47",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "internalRole",
-              "value": "InlineTextBox"
-            }
           }
         ]
       },
-      "url": "http://127.0.0.1:55773/",
-      "taken_at": "2026-09-24T09:41:48.592Z",
-      "tab_id": 170716789
+      "url": "http://127.0.0.1:64379/",
+      "taken_at": "2026-09-24T14:42:56.772Z",
+      "tab_id": 372458457
     },
     {
       "kind": "gesture",
@@ -5008,15 +4326,19 @@
               "panel#clients",
               "button#saveButton"
             ]
-          }
+          },
+          "landmarks": []
         },
         "modifiers": [],
-        "at": 1790242908.642,
-        "url": "http://127.0.0.1:55773/"
+        "detail": 1,
+        "trusted": true,
+        "frame_path": [],
+        "at": 1790260976.814,
+        "url": "http://127.0.0.1:64379/"
       },
-      "tab_id": 170716789,
-      "frame_url": "http://127.0.0.1:55773/",
-      "page_url": "http://127.0.0.1:55773/"
+      "tab_id": 372458457,
+      "frame_url": "http://127.0.0.1:64379/",
+      "page_url": "http://127.0.0.1:64379/"
     },
     {
       "kind": "snapshot",
@@ -5031,7 +4353,7 @@
               "type": "internalRole",
               "value": 144
             },
-            "frameId": "CFDCC288487CCCE926CFE1878168BE62",
+            "frameId": "FB0CC3244ECEEC3DE6C96B252CF13D8C",
             "ignored": false,
             "name": {
               "sources": [
@@ -5076,7 +4398,7 @@
                 "name": "url",
                 "value": {
                   "type": "string",
-                  "value": "http://127.0.0.1:55773/"
+                  "value": "http://127.0.0.1:64379/"
                 }
               }
             ],
@@ -5303,9 +4625,7 @@
           },
           {
             "backendDOMNodeId": 11,
-            "childIds": [
-              "23"
-            ],
+            "childIds": [],
             "chromeRole": {
               "type": "internalRole",
               "value": 170
@@ -5437,10 +4757,6 @@
             "role": {
               "type": "role",
               "value": "textbox"
-            },
-            "value": {
-              "type": "string",
-              "value": "ACME-4471"
             }
           },
           {
@@ -5481,9 +4797,7 @@
           },
           {
             "backendDOMNodeId": 12,
-            "childIds": [
-              "25"
-            ],
+            "childIds": [],
             "chromeRole": {
               "type": "internalRole",
               "value": 170
@@ -5608,10 +4922,6 @@
             "role": {
               "type": "role",
               "value": "textbox"
-            },
-            "value": {
-              "type": "string",
-              "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
             }
           },
           {
@@ -5743,10 +5053,6 @@
             "role": {
               "type": "role",
               "value": "combobox"
-            },
-            "value": {
-              "type": "string",
-              "value": "Dock 3"
             }
           },
           {
@@ -5875,10 +5181,6 @@
             "role": {
               "type": "role",
               "value": "button"
-            },
-            "value": {
-              "type": "string",
-              "value": "manifest.csv"
             }
           },
           {
@@ -5966,7 +5268,7 @@
           {
             "backendDOMNodeId": 44,
             "childIds": [
-              "-1000000003"
+              "-1000000014"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -5995,49 +5297,9 @@
             }
           },
           {
-            "backendDOMNodeId": 23,
-            "childIds": [
-              "45"
-            ],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 88
-            },
-            "ignored": false,
-            "name": {
-              "sources": [
-                {
-                  "attribute": "aria-labelledby",
-                  "type": "relatedElement"
-                },
-                {
-                  "attribute": "aria-label",
-                  "type": "attribute"
-                }
-              ],
-              "type": "computedString",
-              "value": ""
-            },
-            "nodeId": "23",
-            "parentId": "11",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "role",
-              "value": "generic"
-            }
-          },
-          {
             "backendDOMNodeId": 46,
             "childIds": [
-              "-1000000005"
+              "-1000000015"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -6066,49 +5328,9 @@
             }
           },
           {
-            "backendDOMNodeId": 25,
-            "childIds": [
-              "47"
-            ],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 88
-            },
-            "ignored": false,
-            "name": {
-              "sources": [
-                {
-                  "attribute": "aria-labelledby",
-                  "type": "relatedElement"
-                },
-                {
-                  "attribute": "aria-label",
-                  "type": "attribute"
-                }
-              ],
-              "type": "computedString",
-              "value": ""
-            },
-            "nodeId": "25",
-            "parentId": "12",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "role",
-              "value": "generic"
-            }
-          },
-          {
             "backendDOMNodeId": 48,
             "childIds": [
-              "-1000000007"
+              "-1000000016"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -6176,7 +5398,7 @@
           {
             "backendDOMNodeId": 49,
             "childIds": [
-              "-1000000008"
+              "-1000000017"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -6246,51 +5468,12 @@
               "type": "computedString",
               "value": "Client Code"
             },
-            "nodeId": "-1000000003",
+            "nodeId": "-1000000014",
             "parentId": "44",
             "properties": [],
             "role": {
               "type": "internalRole",
               "value": "InlineTextBox"
-            }
-          },
-          {
-            "backendDOMNodeId": 45,
-            "childIds": [
-              "-1000000004"
-            ],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 158
-            },
-            "ignored": false,
-            "name": {
-              "sources": [
-                {
-                  "type": "contents",
-                  "value": {
-                    "type": "computedString",
-                    "value": "ACME-4471"
-                  }
-                }
-              ],
-              "type": "computedString",
-              "value": "ACME-4471"
-            },
-            "nodeId": "45",
-            "parentId": "23",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "internalRole",
-              "value": "StaticText"
             }
           },
           {
@@ -6304,51 +5487,12 @@
               "type": "computedString",
               "value": "Password"
             },
-            "nodeId": "-1000000005",
+            "nodeId": "-1000000015",
             "parentId": "46",
             "properties": [],
             "role": {
               "type": "internalRole",
               "value": "InlineTextBox"
-            }
-          },
-          {
-            "backendDOMNodeId": 47,
-            "childIds": [
-              "-1000000006"
-            ],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 158
-            },
-            "ignored": false,
-            "name": {
-              "sources": [
-                {
-                  "type": "contents",
-                  "value": {
-                    "type": "computedString",
-                    "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-                  }
-                }
-              ],
-              "type": "computedString",
-              "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-            },
-            "nodeId": "47",
-            "parentId": "25",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "internalRole",
-              "value": "StaticText"
             }
           },
           {
@@ -6362,7 +5506,7 @@
               "type": "computedString",
               "value": "Dock"
             },
-            "nodeId": "-1000000007",
+            "nodeId": "-1000000016",
             "parentId": "48",
             "properties": [],
             "role": {
@@ -6495,7 +5639,7 @@
               "type": "computedString",
               "value": "Manifest"
             },
-            "nodeId": "-1000000008",
+            "nodeId": "-1000000017",
             "parentId": "49",
             "properties": [],
             "role": {
@@ -6521,75 +5665,21 @@
               "type": "internalRole",
               "value": "InlineTextBox"
             }
-          },
-          {
-            "childIds": [],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 101
-            },
-            "ignored": false,
-            "name": {
-              "type": "computedString",
-              "value": "ACME-4471"
-            },
-            "nodeId": "-1000000004",
-            "parentId": "45",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "internalRole",
-              "value": "InlineTextBox"
-            }
-          },
-          {
-            "childIds": [],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 101
-            },
-            "ignored": false,
-            "name": {
-              "type": "computedString",
-              "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-            },
-            "nodeId": "-1000000006",
-            "parentId": "47",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "internalRole",
-              "value": "InlineTextBox"
-            }
           }
         ]
       },
-      "url": "http://127.0.0.1:55773/",
-      "taken_at": "2026-09-24T09:41:48.603Z",
-      "tab_id": 170716789
+      "url": "http://127.0.0.1:64379/",
+      "taken_at": "2026-09-24T14:42:56.783Z",
+      "tab_id": 372458457
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_4f1264c1_0",
+        "request_id": "req_911e3284_0",
         "method": "GET",
-        "url": "http://127.0.0.1:55773/api/orders?facility=DC1",
+        "url": "http://127.0.0.1:64379/api/orders?facility=DC1",
         "resource_type": "fetch",
-        "started_at": "2026-09-24T09:41:48.642Z",
+        "started_at": "2026-09-24T14:42:56.815Z",
         "request_headers": {},
         "request_body": null,
         "status": 200,
@@ -6599,7 +5689,7 @@
           "access-control-allow-origin": "*",
           "content-length": "29",
           "content-type": "application/json",
-          "date": "Thu, 24 Sep 2026 09:41:48 GMT",
+          "date": "Thu, 24 Sep 2026 14:42:56 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": {
@@ -6610,22 +5700,22 @@
           "redacted_fields": []
         },
         "redirect_chain": [],
-        "duration_ms": 15,
+        "duration_ms": 12,
         "from_cache": false,
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 170716789,
-      "frame_url": "http://127.0.0.1:55773/"
+      "tab_id": 372458457,
+      "frame_url": "http://127.0.0.1:64379/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_4f1264c1_1",
+        "request_id": "req_911e3284_1",
         "method": "POST",
-        "url": "http://127.0.0.1:55773/api/orders",
+        "url": "http://127.0.0.1:64379/api/orders",
         "resource_type": "fetch",
-        "started_at": "2026-09-24T09:41:48.658Z",
+        "started_at": "2026-09-24T14:42:56.830Z",
         "request_headers": {
           "content-type": "application/json"
         },
@@ -6643,7 +5733,7 @@
           "access-control-allow-origin": "*",
           "content-length": "12",
           "content-type": "application/json",
-          "date": "Thu, 24 Sep 2026 09:41:48 GMT",
+          "date": "Thu, 24 Sep 2026 14:42:56 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": {
@@ -6654,22 +5744,22 @@
           "redacted_fields": []
         },
         "redirect_chain": [],
-        "duration_ms": 2,
+        "duration_ms": 14,
         "from_cache": false,
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 170716789,
-      "frame_url": "http://127.0.0.1:55773/"
+      "tab_id": 372458457,
+      "frame_url": "http://127.0.0.1:64379/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_4f1264c1_2",
+        "request_id": "req_911e3284_2",
         "method": "GET",
         "url": "http://127.0.0.1:1/never",
         "resource_type": "fetch",
-        "started_at": "2026-09-24T09:41:48.660Z",
+        "started_at": "2026-09-24T14:42:56.844Z",
         "request_headers": {},
         "request_body": null,
         "status": null,
@@ -6677,22 +5767,22 @@
         "response_headers": {},
         "response_body": null,
         "redirect_chain": [],
-        "duration_ms": 1,
+        "duration_ms": 5,
         "from_cache": false,
         "failure_reason": "Failed to fetch",
         "blocked_reason": null
       },
-      "tab_id": 170716789,
-      "frame_url": "http://127.0.0.1:55773/"
+      "tab_id": 372458457,
+      "frame_url": "http://127.0.0.1:64379/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_4f1264c1_3",
+        "request_id": "req_911e3284_3",
         "method": "POST",
-        "url": "http://127.0.0.1:55773/api/legacy",
+        "url": "http://127.0.0.1:64379/api/legacy",
         "resource_type": "xhr",
-        "started_at": "2026-09-24T09:41:48.660Z",
+        "started_at": "2026-09-24T14:42:56.850Z",
         "request_headers": {
           "content-type": "application/x-www-form-urlencoded"
         },
@@ -6710,7 +5800,7 @@
           "access-control-allow-origin": "*",
           "content-length": "12",
           "content-type": "application/json",
-          "date": "Thu, 24 Sep 2026 09:41:48 GMT",
+          "date": "Thu, 24 Sep 2026 14:42:56 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": {
@@ -6721,40 +5811,40 @@
           "redacted_fields": []
         },
         "redirect_chain": [],
-        "duration_ms": 1,
+        "duration_ms": 5,
         "from_cache": false,
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 170716789,
-      "frame_url": "http://127.0.0.1:55773/"
+      "tab_id": 372458457,
+      "frame_url": "http://127.0.0.1:64379/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_4f1264c1_4",
+        "request_id": "req_911e3284_4",
         "method": "GET",
-        "url": "http://127.0.0.1:55773/api/stream",
+        "url": "http://127.0.0.1:64379/api/stream",
         "resource_type": "fetch",
-        "started_at": "2026-09-24T09:41:48.662Z",
+        "started_at": "2026-09-24T14:42:56.855Z",
         "request_headers": {},
         "request_body": null,
         "status": 200,
         "status_text": "OK",
         "response_headers": {
           "content-type": "text/event-stream",
-          "date": "Thu, 24 Sep 2026 09:41:48 GMT",
+          "date": "Thu, 24 Sep 2026 14:42:56 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": null,
         "redirect_chain": [],
-        "duration_ms": 1,
+        "duration_ms": 3,
         "from_cache": false,
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 170716789,
-      "frame_url": "http://127.0.0.1:55773/"
+      "tab_id": 372458457,
+      "frame_url": "http://127.0.0.1:64379/"
     }
   ]
 }

@@ -22,15 +22,17 @@
         "id": "dock",
         "name": "dock"
       },
-      "component": null
+      "component": null,
+      "landmarks": []
     },
     "value": "D3",
     "secret": false,
     "modifiers": [],
-    "at": 1790242908.525,
-    "url": "http://127.0.0.1:55773/"
+    "frame_path": [],
+    "at": 1790260976.671,
+    "url": "http://127.0.0.1:64379/"
   },
-  "tab_id": 170716789,
-  "frame_url": "http://127.0.0.1:55773/",
-  "page_url": "http://127.0.0.1:55773/"
+  "tab_id": 372458457,
+  "frame_url": "http://127.0.0.1:64379/",
+  "page_url": "http://127.0.0.1:64379/"
 }

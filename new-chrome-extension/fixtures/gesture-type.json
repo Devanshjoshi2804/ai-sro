@@ -36,15 +36,17 @@
           "panel#clients",
           "textfield#clientCode"
         ]
-      }
+      },
+      "landmarks": []
     },
     "value": "ACME-4471",
     "secret": false,
     "modifiers": [],
-    "at": 1790242908.474,
-    "url": "http://127.0.0.1:55773/"
+    "frame_path": [],
+    "at": 1790260976.562,
+    "url": "http://127.0.0.1:64379/"
   },
-  "tab_id": 170716789,
-  "frame_url": "http://127.0.0.1:55773/",
-  "page_url": "http://127.0.0.1:55773/"
+  "tab_id": 372458457,
+  "frame_url": "http://127.0.0.1:64379/",
+  "page_url": "http://127.0.0.1:64379/"
 }

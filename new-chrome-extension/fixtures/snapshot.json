@@ -11,7 +11,7 @@
           "type": "internalRole",
           "value": 144
         },
-        "frameId": "CFDCC288487CCCE926CFE1878168BE62",
+        "frameId": "FB0CC3244ECEEC3DE6C96B252CF13D8C",
         "ignored": false,
         "name": {
           "sources": [
@@ -56,7 +56,7 @@
             "name": "url",
             "value": {
               "type": "string",
-              "value": "http://127.0.0.1:55773/"
+              "value": "http://127.0.0.1:64379/"
             }
           }
         ],
@@ -283,9 +283,7 @@
       },
       {
         "backendDOMNodeId": 11,
-        "childIds": [
-          "23"
-        ],
+        "childIds": [],
         "chromeRole": {
           "type": "internalRole",
           "value": 170
@@ -410,10 +408,6 @@
         "role": {
           "type": "role",
           "value": "textbox"
-        },
-        "value": {
-          "type": "string",
-          "value": "ACME-4471"
         }
       },
       {
@@ -454,9 +448,7 @@
       },
       {
         "backendDOMNodeId": 12,
-        "childIds": [
-          "25"
-        ],
+        "childIds": [],
         "chromeRole": {
           "type": "internalRole",
           "value": 170
@@ -588,10 +580,6 @@
         "role": {
           "type": "role",
           "value": "textbox"
-        },
-        "value": {
-          "type": "string",
-          "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
         }
       },
       {
@@ -723,10 +711,6 @@
         "role": {
           "type": "role",
           "value": "combobox"
-        },
-        "value": {
-          "type": "string",
-          "value": "Dock 3"
         }
       },
       {
@@ -855,10 +839,6 @@
         "role": {
           "type": "role",
           "value": "button"
-        },
-        "value": {
-          "type": "string",
-          "value": "manifest.csv"
         }
       },
       {
@@ -975,46 +955,6 @@
         }
       },
       {
-        "backendDOMNodeId": 23,
-        "childIds": [
-          "45"
-        ],
-        "chromeRole": {
-          "type": "internalRole",
-          "value": 88
-        },
-        "ignored": false,
-        "name": {
-          "sources": [
-            {
-              "attribute": "aria-labelledby",
-              "type": "relatedElement"
-            },
-            {
-              "attribute": "aria-label",
-              "type": "attribute"
-            }
-          ],
-          "type": "computedString",
-          "value": ""
-        },
-        "nodeId": "23",
-        "parentId": "11",
-        "properties": [
-          {
-            "name": "editable",
-            "value": {
-              "type": "token",
-              "value": "plaintext"
-            }
-          }
-        ],
-        "role": {
-          "type": "role",
-          "value": "generic"
-        }
-      },
-      {
         "backendDOMNodeId": 46,
         "childIds": [
           "-1000000005"
@@ -1043,46 +983,6 @@
         "role": {
           "type": "internalRole",
           "value": "StaticText"
-        }
-      },
-      {
-        "backendDOMNodeId": 25,
-        "childIds": [
-          "47"
-        ],
-        "chromeRole": {
-          "type": "internalRole",
-          "value": 88
-        },
-        "ignored": false,
-        "name": {
-          "sources": [
-            {
-              "attribute": "aria-labelledby",
-              "type": "relatedElement"
-            },
-            {
-              "attribute": "aria-label",
-              "type": "attribute"
-            }
-          ],
-          "type": "computedString",
-          "value": ""
-        },
-        "nodeId": "25",
-        "parentId": "12",
-        "properties": [
-          {
-            "name": "editable",
-            "value": {
-              "type": "token",
-              "value": "plaintext"
-            }
-          }
-        ],
-        "role": {
-          "type": "role",
-          "value": "generic"
         }
       },
       {
@@ -1235,45 +1135,6 @@
         }
       },
       {
-        "backendDOMNodeId": 45,
-        "childIds": [
-          "-1000000004"
-        ],
-        "chromeRole": {
-          "type": "internalRole",
-          "value": 158
-        },
-        "ignored": false,
-        "name": {
-          "sources": [
-            {
-              "type": "contents",
-              "value": {
-                "type": "computedString",
-                "value": "ACME-4471"
-              }
-            }
-          ],
-          "type": "computedString",
-          "value": "ACME-4471"
-        },
-        "nodeId": "45",
-        "parentId": "23",
-        "properties": [
-          {
-            "name": "editable",
-            "value": {
-              "type": "token",
-              "value": "plaintext"
-            }
-          }
-        ],
-        "role": {
-          "type": "internalRole",
-          "value": "StaticText"
-        }
-      },
-      {
         "childIds": [],
         "chromeRole": {
           "type": "internalRole",
@@ -1290,45 +1151,6 @@
         "role": {
           "type": "internalRole",
           "value": "InlineTextBox"
-        }
-      },
-      {
-        "backendDOMNodeId": 47,
-        "childIds": [
-          "-1000000006"
-        ],
-        "chromeRole": {
-          "type": "internalRole",
-          "value": 158
-        },
-        "ignored": false,
-        "name": {
-          "sources": [
-            {
-              "type": "contents",
-              "value": {
-                "type": "computedString",
-                "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-              }
-            }
-          ],
-          "type": "computedString",
-          "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-        },
-        "nodeId": "47",
-        "parentId": "25",
-        "properties": [
-          {
-            "name": "editable",
-            "value": {
-              "type": "token",
-              "value": "plaintext"
-            }
-          }
-        ],
-        "role": {
-          "type": "internalRole",
-          "value": "StaticText"
         }
       },
       {
@@ -1398,7 +1220,7 @@
             "name": "selected",
             "value": {
               "type": "booleanOrUndefined",
-              "value": false
+              "value": true
             }
           }
         ],
@@ -1455,7 +1277,7 @@
             "name": "selected",
             "value": {
               "type": "booleanOrUndefined",
-              "value": true
+              "value": false
             }
           }
         ],
@@ -1501,64 +1323,10 @@
           "type": "internalRole",
           "value": "InlineTextBox"
         }
-      },
-      {
-        "childIds": [],
-        "chromeRole": {
-          "type": "internalRole",
-          "value": 101
-        },
-        "ignored": false,
-        "name": {
-          "type": "computedString",
-          "value": "ACME-4471"
-        },
-        "nodeId": "-1000000004",
-        "parentId": "45",
-        "properties": [
-          {
-            "name": "editable",
-            "value": {
-              "type": "token",
-              "value": "plaintext"
-            }
-          }
-        ],
-        "role": {
-          "type": "internalRole",
-          "value": "InlineTextBox"
-        }
-      },
-      {
-        "childIds": [],
-        "chromeRole": {
-          "type": "internalRole",
-          "value": 101
-        },
-        "ignored": false,
-        "name": {
-          "type": "computedString",
-          "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-        },
-        "nodeId": "-1000000006",
-        "parentId": "47",
-        "properties": [
-          {
-            "name": "editable",
-            "value": {
-              "type": "token",
-              "value": "plaintext"
-            }
-          }
-        ],
-        "role": {
-          "type": "internalRole",
-          "value": "InlineTextBox"
-        }
       }
     ]
   },
-  "url": "http://127.0.0.1:55773/",
-  "taken_at": "2026-09-24T09:41:48.537Z",
-  "tab_id": 170716789
+  "url": "http://127.0.0.1:64379/",
+  "taken_at": "2026-09-24T14:42:56.668Z",
+  "tab_id": 372458457
 }

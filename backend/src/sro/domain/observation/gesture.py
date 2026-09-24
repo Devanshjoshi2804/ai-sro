@@ -55,6 +55,13 @@ class FrameHop:
 
 
 @dataclass(frozen=True, slots=True)
+class AfterState:
+    value: str | None = None
+    visible: bool | None = None
+    enabled: bool | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class Action:
     kind: Kind
     at: float

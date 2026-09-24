@@ -55,6 +55,13 @@ class FrameHop:
 
 
 @dataclass(frozen=True, slots=True)
+class AfterState:
+    value: str | None = None
+    visible: bool | None = None
+    enabled: bool | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class Action:
     kind: Kind
     at: float
@@ -66,6 +73,7 @@ class Action:
     frame_path: tuple[FrameHop, ...] | None = None
     detail: int | None = None
     trusted: bool | None = None
+    after: AfterState | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -28,11 +28,18 @@
     "value": "D3",
     "secret": false,
     "modifiers": [],
+    "ref": "bsx4f495038.2",
+    "prior": {
+      "value": null,
+      "visible": true,
+      "enabled": true
+    },
+    "prior_of": "bsx4f495038.1",
     "frame_path": [],
-    "at": 1790276680.31,
-    "url": "http://127.0.0.1:61742/"
+    "at": 1790278953.923,
+    "url": "http://127.0.0.1:55199/"
   },
-  "tab_id": 921728413,
-  "frame_url": "http://127.0.0.1:61742/",
-  "page_url": "http://127.0.0.1:61742/"
+  "tab_id": 1470579231,
+  "frame_url": "http://127.0.0.1:55199/",
+  "page_url": "http://127.0.0.1:55199/"
 }

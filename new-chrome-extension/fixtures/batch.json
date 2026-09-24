@@ -1,26 +1,26 @@
 {
-  "batch_id": "bat_browsertest_174f3107_1",
+  "batch_id": "bat_browsertest_a6db12ff_1",
   "device_id": "dev_browsertest",
-  "started_at": "2026-09-24T19:04:40.197Z",
-  "ended_at": "2026-09-24T19:04:40.437Z",
+  "started_at": "2026-09-24T19:42:33.835Z",
+  "ended_at": "2026-09-24T19:42:34.035Z",
   "mode": "passive",
   "events": [
     {
       "kind": "page",
-      "at": "2026-09-24T19:04:40.187Z",
+      "at": "2026-09-24T19:42:33.826Z",
       "page_kind": "navigated",
-      "url": "http://127.0.0.1:61742/",
+      "url": "http://127.0.0.1:55199/",
       "detail": null,
-      "tab_id": 921728413,
+      "tab_id": 1470579231,
       "opener_tab_id": null
     },
     {
       "kind": "page",
-      "at": "2026-09-24T19:04:40.190Z",
+      "at": "2026-09-24T19:42:33.829Z",
       "page_kind": "loaded",
-      "url": "http://127.0.0.1:61742/",
+      "url": "http://127.0.0.1:55199/",
       "detail": null,
-      "tab_id": 921728413,
+      "tab_id": 1470579231,
       "opener_tab_id": null
     },
     {
@@ -67,13 +67,16 @@
         "value": "ACME-4471",
         "secret": false,
         "modifiers": [],
+        "ref": "bsx4f495038.1",
+        "prior": null,
+        "prior_of": null,
         "frame_path": [],
-        "at": 1790276680.24,
-        "url": "http://127.0.0.1:61742/"
+        "at": 1790278953.873,
+        "url": "http://127.0.0.1:55199/"
       },
-      "tab_id": 921728413,
-      "frame_url": "http://127.0.0.1:61742/",
-      "page_url": "http://127.0.0.1:61742/"
+      "tab_id": 1470579231,
+      "frame_url": "http://127.0.0.1:55199/",
+      "page_url": "http://127.0.0.1:55199/"
     },
     {
       "kind": "gesture",
@@ -105,13 +108,20 @@
         "value": "D3",
         "secret": false,
         "modifiers": [],
+        "ref": "bsx4f495038.2",
+        "prior": {
+          "value": null,
+          "visible": true,
+          "enabled": true
+        },
+        "prior_of": "bsx4f495038.1",
         "frame_path": [],
-        "at": 1790276680.31,
-        "url": "http://127.0.0.1:61742/"
+        "at": 1790278953.923,
+        "url": "http://127.0.0.1:55199/"
       },
-      "tab_id": 921728413,
-      "frame_url": "http://127.0.0.1:61742/",
-      "page_url": "http://127.0.0.1:61742/"
+      "tab_id": 1470579231,
+      "frame_url": "http://127.0.0.1:55199/",
+      "page_url": "http://127.0.0.1:55199/"
     },
     {
       "kind": "gesture",
@@ -143,13 +153,20 @@
         },
         "value": "manifest.csv",
         "modifiers": [],
+        "ref": "bsx4f495038.3",
+        "prior": {
+          "value": "Dock 3",
+          "visible": true,
+          "enabled": true
+        },
+        "prior_of": "bsx4f495038.2",
         "frame_path": [],
-        "at": 1790276680.323,
-        "url": "http://127.0.0.1:61742/"
+        "at": 1790278953.928,
+        "url": "http://127.0.0.1:55199/"
       },
-      "tab_id": 921728413,
-      "frame_url": "http://127.0.0.1:61742/",
-      "page_url": "http://127.0.0.1:61742/"
+      "tab_id": 1470579231,
+      "frame_url": "http://127.0.0.1:55199/",
+      "page_url": "http://127.0.0.1:55199/"
     },
     {
       "kind": "snapshot",
@@ -164,7 +181,7 @@
               "type": "internalRole",
               "value": 144
             },
-            "frameId": "29171EE3A45C0D3DED2C55B42C4E6DC8",
+            "frameId": "2BDFDFBE2F67DA55E51EC69A1AF7710C",
             "ignored": false,
             "name": {
               "sources": [
@@ -209,7 +226,7 @@
                 "name": "url",
                 "value": {
                   "type": "string",
-                  "value": "http://127.0.0.1:61742/"
+                  "value": "http://127.0.0.1:55199/"
                 }
               }
             ],
@@ -741,16 +758,12 @@
             "role": {
               "type": "role",
               "value": "textbox"
-            },
-            "value": {
-              "type": "string",
-              "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
             }
           },
           {
             "backendDOMNodeId": 26,
             "childIds": [
-              "48"
+              "47"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -885,7 +898,7 @@
           {
             "backendDOMNodeId": 39,
             "childIds": [
-              "49"
+              "48"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -1017,7 +1030,7 @@
           {
             "backendDOMNodeId": 15,
             "childIds": [
-              "50"
+              "49"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -1200,9 +1213,7 @@
           },
           {
             "backendDOMNodeId": 25,
-            "childIds": [
-              "47"
-            ],
+            "childIds": [],
             "chromeRole": {
               "type": "internalRole",
               "value": 88
@@ -1239,9 +1250,9 @@
             }
           },
           {
-            "backendDOMNodeId": 48,
+            "backendDOMNodeId": 47,
             "childIds": [
-              "-1000000007"
+              "-1000000006"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -1261,7 +1272,7 @@
               "type": "computedString",
               "value": "Dock"
             },
-            "nodeId": "48",
+            "nodeId": "47",
             "parentId": "26",
             "properties": [],
             "role": {
@@ -1307,9 +1318,9 @@
             }
           },
           {
-            "backendDOMNodeId": 49,
+            "backendDOMNodeId": 48,
             "childIds": [
-              "-1000000008"
+              "-1000000007"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -1329,7 +1340,7 @@
               "type": "computedString",
               "value": "Manifest"
             },
-            "nodeId": "49",
+            "nodeId": "48",
             "parentId": "39",
             "properties": [],
             "role": {
@@ -1338,9 +1349,9 @@
             }
           },
           {
-            "backendDOMNodeId": 50,
+            "backendDOMNodeId": 49,
             "childIds": [
-              "-1000000009"
+              "-1000000008"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -1360,7 +1371,7 @@
               "type": "computedString",
               "value": "Save"
             },
-            "nodeId": "50",
+            "nodeId": "49",
             "parentId": "15",
             "properties": [],
             "role": {
@@ -1446,45 +1457,6 @@
             }
           },
           {
-            "backendDOMNodeId": 47,
-            "childIds": [
-              "-1000000006"
-            ],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 158
-            },
-            "ignored": false,
-            "name": {
-              "sources": [
-                {
-                  "type": "contents",
-                  "value": {
-                    "type": "computedString",
-                    "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-                  }
-                }
-              ],
-              "type": "computedString",
-              "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-            },
-            "nodeId": "47",
-            "parentId": "25",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "internalRole",
-              "value": "StaticText"
-            }
-          },
-          {
             "childIds": [],
             "chromeRole": {
               "type": "internalRole",
@@ -1495,8 +1467,8 @@
               "type": "computedString",
               "value": "Dock"
             },
-            "nodeId": "-1000000007",
-            "parentId": "48",
+            "nodeId": "-1000000006",
+            "parentId": "47",
             "properties": [],
             "role": {
               "type": "internalRole",
@@ -1628,8 +1600,8 @@
               "type": "computedString",
               "value": "Manifest"
             },
-            "nodeId": "-1000000008",
-            "parentId": "49",
+            "nodeId": "-1000000007",
+            "parentId": "48",
             "properties": [],
             "role": {
               "type": "internalRole",
@@ -1647,8 +1619,8 @@
               "type": "computedString",
               "value": "Save"
             },
-            "nodeId": "-1000000009",
-            "parentId": "50",
+            "nodeId": "-1000000008",
+            "parentId": "49",
             "properties": [],
             "role": {
               "type": "internalRole",
@@ -1681,39 +1653,12 @@
               "type": "internalRole",
               "value": "InlineTextBox"
             }
-          },
-          {
-            "childIds": [],
-            "chromeRole": {
-              "type": "internalRole",
-              "value": 101
-            },
-            "ignored": false,
-            "name": {
-              "type": "computedString",
-              "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-            },
-            "nodeId": "-1000000006",
-            "parentId": "47",
-            "properties": [
-              {
-                "name": "editable",
-                "value": {
-                  "type": "token",
-                  "value": "plaintext"
-                }
-              }
-            ],
-            "role": {
-              "type": "internalRole",
-              "value": "InlineTextBox"
-            }
           }
         ]
       },
-      "url": "http://127.0.0.1:61742/",
-      "taken_at": "2026-09-24T19:04:40.306Z",
-      "tab_id": 921728413
+      "url": "http://127.0.0.1:55199/",
+      "taken_at": "2026-09-24T19:42:33.919Z",
+      "tab_id": 1470579231
     },
     {
       "kind": "gesture",
@@ -1746,65 +1691,20 @@
         "value": null,
         "secret": true,
         "modifiers": [],
-        "frame_path": [],
-        "at": 1790276680.371,
-        "url": "http://127.0.0.1:61742/"
-      },
-      "tab_id": 921728413,
-      "frame_url": "http://127.0.0.1:61742/",
-      "page_url": "http://127.0.0.1:61742/"
-    },
-    {
-      "kind": "gesture",
-      "gesture": {
-        "kind": "click",
-        "target": {
-          "tag": "input",
-          "role": "textbox",
-          "name": "Client Code",
-          "secret": false,
-          "text": null,
-          "testId": null,
-          "required": null,
-          "cssPath": "input#client",
-          "xpath": "/html/body[1]/form[1]/input[1]",
-          "bounds": {
-            "x": 88.890625,
-            "y": 79.875,
-            "width": 153,
-            "height": 21
-          },
-          "attributes": {
-            "id": "client",
-            "name": "clientCode",
-            "type": "text"
-          },
-          "component": {
-            "framework": "extjs",
-            "xtype": "textfield",
-            "itemId": "clientCode",
-            "name": "clientCode",
-            "fieldLabel": "Client Code",
-            "required": null,
-            "text": null,
-            "query": "panel#clients textfield#clientCode",
-            "chain": [
-              "panel#clients",
-              "textfield#clientCode"
-            ]
-          },
-          "landmarks": []
+        "ref": "bsx4f495038.4",
+        "prior": {
+          "value": null,
+          "visible": true,
+          "enabled": true
         },
-        "modifiers": [],
-        "detail": 1,
-        "trusted": true,
+        "prior_of": "bsx4f495038.3",
         "frame_path": [],
-        "at": 1790276680.372,
-        "url": "http://127.0.0.1:61742/"
+        "at": 1790278953.969,
+        "url": "http://127.0.0.1:55199/"
       },
-      "tab_id": 921728413,
-      "frame_url": "http://127.0.0.1:61742/",
-      "page_url": "http://127.0.0.1:61742/"
+      "tab_id": 1470579231,
+      "frame_url": "http://127.0.0.1:55199/",
+      "page_url": "http://127.0.0.1:55199/"
     },
     {
       "kind": "snapshot",
@@ -1819,7 +1719,7 @@
               "type": "internalRole",
               "value": 144
             },
-            "frameId": "29171EE3A45C0D3DED2C55B42C4E6DC8",
+            "frameId": "2BDFDFBE2F67DA55E51EC69A1AF7710C",
             "ignored": false,
             "name": {
               "sources": [
@@ -1864,7 +1764,7 @@
                 "name": "url",
                 "value": {
                   "type": "string",
-                  "value": "http://127.0.0.1:61742/"
+                  "value": "http://127.0.0.1:55199/"
                 }
               }
             ],
@@ -2405,7 +2305,7 @@
           {
             "backendDOMNodeId": 26,
             "childIds": [
-              "48"
+              "47"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -2540,7 +2440,7 @@
           {
             "backendDOMNodeId": 39,
             "childIds": [
-              "49"
+              "48"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -2672,7 +2572,7 @@
           {
             "backendDOMNodeId": 15,
             "childIds": [
-              "50"
+              "49"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -2754,7 +2654,7 @@
           {
             "backendDOMNodeId": 44,
             "childIds": [
-              "-1000000014"
+              "-1000000016"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -2825,7 +2725,7 @@
           {
             "backendDOMNodeId": 46,
             "childIds": [
-              "-1000000015"
+              "-1000000017"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -2856,7 +2756,7 @@
           {
             "backendDOMNodeId": 25,
             "childIds": [
-              "47"
+              "50"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -2894,9 +2794,9 @@
             }
           },
           {
-            "backendDOMNodeId": 48,
+            "backendDOMNodeId": 47,
             "childIds": [
-              "-1000000016"
+              "-1000000018"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -2916,7 +2816,7 @@
               "type": "computedString",
               "value": "Dock"
             },
-            "nodeId": "48",
+            "nodeId": "47",
             "parentId": "26",
             "properties": [],
             "role": {
@@ -2962,9 +2862,9 @@
             }
           },
           {
-            "backendDOMNodeId": 49,
+            "backendDOMNodeId": 48,
             "childIds": [
-              "-1000000017"
+              "-1000000019"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -2984,7 +2884,7 @@
               "type": "computedString",
               "value": "Manifest"
             },
-            "nodeId": "49",
+            "nodeId": "48",
             "parentId": "39",
             "properties": [],
             "role": {
@@ -2993,9 +2893,9 @@
             }
           },
           {
-            "backendDOMNodeId": 50,
+            "backendDOMNodeId": 49,
             "childIds": [
-              "-1000000009"
+              "-1000000008"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -3015,7 +2915,7 @@
               "type": "computedString",
               "value": "Save"
             },
-            "nodeId": "50",
+            "nodeId": "49",
             "parentId": "15",
             "properties": [],
             "role": {
@@ -3034,7 +2934,7 @@
               "type": "computedString",
               "value": "Client Code"
             },
-            "nodeId": "-1000000014",
+            "nodeId": "-1000000016",
             "parentId": "44",
             "properties": [],
             "role": {
@@ -3092,7 +2992,7 @@
               "type": "computedString",
               "value": "Password"
             },
-            "nodeId": "-1000000015",
+            "nodeId": "-1000000017",
             "parentId": "46",
             "properties": [],
             "role": {
@@ -3101,9 +3001,9 @@
             }
           },
           {
-            "backendDOMNodeId": 47,
+            "backendDOMNodeId": 50,
             "childIds": [
-              "-1000000006"
+              "-1000000011"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -3123,7 +3023,7 @@
               "type": "computedString",
               "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
             },
-            "nodeId": "47",
+            "nodeId": "50",
             "parentId": "25",
             "properties": [
               {
@@ -3150,8 +3050,8 @@
               "type": "computedString",
               "value": "Dock"
             },
-            "nodeId": "-1000000016",
-            "parentId": "48",
+            "nodeId": "-1000000018",
+            "parentId": "47",
             "properties": [],
             "role": {
               "type": "internalRole",
@@ -3283,8 +3183,8 @@
               "type": "computedString",
               "value": "Manifest"
             },
-            "nodeId": "-1000000017",
-            "parentId": "49",
+            "nodeId": "-1000000019",
+            "parentId": "48",
             "properties": [],
             "role": {
               "type": "internalRole",
@@ -3302,8 +3202,8 @@
               "type": "computedString",
               "value": "Save"
             },
-            "nodeId": "-1000000009",
-            "parentId": "50",
+            "nodeId": "-1000000008",
+            "parentId": "49",
             "properties": [],
             "role": {
               "type": "internalRole",
@@ -3348,8 +3248,8 @@
               "type": "computedString",
               "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
             },
-            "nodeId": "-1000000006",
-            "parentId": "47",
+            "nodeId": "-1000000011",
+            "parentId": "50",
             "properties": [
               {
                 "name": "editable",
@@ -3366,9 +3266,68 @@
           }
         ]
       },
-      "url": "http://127.0.0.1:61742/",
-      "taken_at": "2026-09-24T19:04:40.353Z",
-      "tab_id": 921728413
+      "url": "http://127.0.0.1:55199/",
+      "taken_at": "2026-09-24T19:42:33.948Z",
+      "tab_id": 1470579231
+    },
+    {
+      "kind": "gesture",
+      "gesture": {
+        "kind": "click",
+        "target": {
+          "tag": "input",
+          "role": "textbox",
+          "name": "Client Code",
+          "secret": false,
+          "text": null,
+          "testId": null,
+          "required": null,
+          "cssPath": "input#client",
+          "xpath": "/html/body[1]/form[1]/input[1]",
+          "bounds": {
+            "x": 88.890625,
+            "y": 79.875,
+            "width": 153,
+            "height": 21
+          },
+          "attributes": {
+            "id": "client",
+            "name": "clientCode",
+            "type": "text"
+          },
+          "component": {
+            "framework": "extjs",
+            "xtype": "textfield",
+            "itemId": "clientCode",
+            "name": "clientCode",
+            "fieldLabel": "Client Code",
+            "required": null,
+            "text": null,
+            "query": "panel#clients textfield#clientCode",
+            "chain": [
+              "panel#clients",
+              "textfield#clientCode"
+            ]
+          },
+          "landmarks": []
+        },
+        "modifiers": [],
+        "detail": 1,
+        "trusted": true,
+        "ref": "bsx4f495038.5",
+        "prior": {
+          "value": null,
+          "visible": true,
+          "enabled": true
+        },
+        "prior_of": "bsx4f495038.4",
+        "frame_path": [],
+        "at": 1790278953.97,
+        "url": "http://127.0.0.1:55199/"
+      },
+      "tab_id": 1470579231,
+      "frame_url": "http://127.0.0.1:55199/",
+      "page_url": "http://127.0.0.1:55199/"
     },
     {
       "kind": "gesture",
@@ -3413,13 +3372,20 @@
         },
         "value": "Enter",
         "modifiers": [],
+        "ref": "bsx4f495038.6",
+        "prior": {
+          "value": null,
+          "visible": true,
+          "enabled": true
+        },
+        "prior_of": "bsx4f495038.5",
         "frame_path": [],
-        "at": 1790276680.386,
-        "url": "http://127.0.0.1:61742/"
+        "at": 1790278953.983,
+        "url": "http://127.0.0.1:55199/"
       },
-      "tab_id": 921728413,
-      "frame_url": "http://127.0.0.1:61742/",
-      "page_url": "http://127.0.0.1:61742/"
+      "tab_id": 1470579231,
+      "frame_url": "http://127.0.0.1:55199/",
+      "page_url": "http://127.0.0.1:55199/"
     },
     {
       "kind": "snapshot",
@@ -3434,7 +3400,7 @@
               "type": "internalRole",
               "value": 144
             },
-            "frameId": "29171EE3A45C0D3DED2C55B42C4E6DC8",
+            "frameId": "2BDFDFBE2F67DA55E51EC69A1AF7710C",
             "ignored": false,
             "name": {
               "sources": [
@@ -3479,7 +3445,7 @@
                 "name": "url",
                 "value": {
                   "type": "string",
-                  "value": "http://127.0.0.1:61742/"
+                  "value": "http://127.0.0.1:55199/"
                 }
               }
             ],
@@ -4020,7 +3986,7 @@
           {
             "backendDOMNodeId": 26,
             "childIds": [
-              "48"
+              "47"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -4155,7 +4121,7 @@
           {
             "backendDOMNodeId": 39,
             "childIds": [
-              "49"
+              "48"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -4287,7 +4253,7 @@
           {
             "backendDOMNodeId": 15,
             "childIds": [
-              "50"
+              "49"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -4369,7 +4335,7 @@
           {
             "backendDOMNodeId": 44,
             "childIds": [
-              "-1000000014"
+              "-1000000016"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -4440,7 +4406,7 @@
           {
             "backendDOMNodeId": 46,
             "childIds": [
-              "-1000000015"
+              "-1000000017"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -4471,7 +4437,7 @@
           {
             "backendDOMNodeId": 25,
             "childIds": [
-              "47"
+              "50"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -4509,9 +4475,9 @@
             }
           },
           {
-            "backendDOMNodeId": 48,
+            "backendDOMNodeId": 47,
             "childIds": [
-              "-1000000016"
+              "-1000000018"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -4531,7 +4497,7 @@
               "type": "computedString",
               "value": "Dock"
             },
-            "nodeId": "48",
+            "nodeId": "47",
             "parentId": "26",
             "properties": [],
             "role": {
@@ -4577,9 +4543,9 @@
             }
           },
           {
-            "backendDOMNodeId": 49,
+            "backendDOMNodeId": 48,
             "childIds": [
-              "-1000000017"
+              "-1000000019"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -4599,7 +4565,7 @@
               "type": "computedString",
               "value": "Manifest"
             },
-            "nodeId": "49",
+            "nodeId": "48",
             "parentId": "39",
             "properties": [],
             "role": {
@@ -4608,9 +4574,9 @@
             }
           },
           {
-            "backendDOMNodeId": 50,
+            "backendDOMNodeId": 49,
             "childIds": [
-              "-1000000009"
+              "-1000000008"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -4630,7 +4596,7 @@
               "type": "computedString",
               "value": "Save"
             },
-            "nodeId": "50",
+            "nodeId": "49",
             "parentId": "15",
             "properties": [],
             "role": {
@@ -4649,7 +4615,7 @@
               "type": "computedString",
               "value": "Client Code"
             },
-            "nodeId": "-1000000014",
+            "nodeId": "-1000000016",
             "parentId": "44",
             "properties": [],
             "role": {
@@ -4707,7 +4673,7 @@
               "type": "computedString",
               "value": "Password"
             },
-            "nodeId": "-1000000015",
+            "nodeId": "-1000000017",
             "parentId": "46",
             "properties": [],
             "role": {
@@ -4716,9 +4682,9 @@
             }
           },
           {
-            "backendDOMNodeId": 47,
+            "backendDOMNodeId": 50,
             "childIds": [
-              "-1000000006"
+              "-1000000011"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -4738,7 +4704,7 @@
               "type": "computedString",
               "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
             },
-            "nodeId": "47",
+            "nodeId": "50",
             "parentId": "25",
             "properties": [
               {
@@ -4765,8 +4731,8 @@
               "type": "computedString",
               "value": "Dock"
             },
-            "nodeId": "-1000000016",
-            "parentId": "48",
+            "nodeId": "-1000000018",
+            "parentId": "47",
             "properties": [],
             "role": {
               "type": "internalRole",
@@ -4898,8 +4864,8 @@
               "type": "computedString",
               "value": "Manifest"
             },
-            "nodeId": "-1000000017",
-            "parentId": "49",
+            "nodeId": "-1000000019",
+            "parentId": "48",
             "properties": [],
             "role": {
               "type": "internalRole",
@@ -4917,8 +4883,8 @@
               "type": "computedString",
               "value": "Save"
             },
-            "nodeId": "-1000000009",
-            "parentId": "50",
+            "nodeId": "-1000000008",
+            "parentId": "49",
             "properties": [],
             "role": {
               "type": "internalRole",
@@ -4963,8 +4929,8 @@
               "type": "computedString",
               "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
             },
-            "nodeId": "-1000000006",
-            "parentId": "47",
+            "nodeId": "-1000000011",
+            "parentId": "50",
             "properties": [
               {
                 "name": "editable",
@@ -4981,9 +4947,9 @@
           }
         ]
       },
-      "url": "http://127.0.0.1:61742/",
-      "taken_at": "2026-09-24T19:04:40.384Z",
-      "tab_id": 921728413
+      "url": "http://127.0.0.1:55199/",
+      "taken_at": "2026-09-24T19:42:33.981Z",
+      "tab_id": 1470579231
     },
     {
       "kind": "gesture",
@@ -5028,13 +4994,20 @@
         "modifiers": [],
         "detail": 1,
         "trusted": true,
+        "ref": "bsx4f495038.7",
+        "prior": {
+          "value": null,
+          "visible": true,
+          "enabled": true
+        },
+        "prior_of": "bsx4f495038.6",
         "frame_path": [],
-        "at": 1790276680.413,
-        "url": "http://127.0.0.1:61742/"
+        "at": 1790278954.012,
+        "url": "http://127.0.0.1:55199/"
       },
-      "tab_id": 921728413,
-      "frame_url": "http://127.0.0.1:61742/",
-      "page_url": "http://127.0.0.1:61742/"
+      "tab_id": 1470579231,
+      "frame_url": "http://127.0.0.1:55199/",
+      "page_url": "http://127.0.0.1:55199/"
     },
     {
       "kind": "snapshot",
@@ -5049,7 +5022,7 @@
               "type": "internalRole",
               "value": 144
             },
-            "frameId": "29171EE3A45C0D3DED2C55B42C4E6DC8",
+            "frameId": "2BDFDFBE2F67DA55E51EC69A1AF7710C",
             "ignored": false,
             "name": {
               "sources": [
@@ -5094,7 +5067,7 @@
                 "name": "url",
                 "value": {
                   "type": "string",
-                  "value": "http://127.0.0.1:61742/"
+                  "value": "http://127.0.0.1:55199/"
                 }
               }
             ],
@@ -5635,7 +5608,7 @@
           {
             "backendDOMNodeId": 26,
             "childIds": [
-              "48"
+              "47"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -5770,7 +5743,7 @@
           {
             "backendDOMNodeId": 39,
             "childIds": [
-              "49"
+              "48"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -5902,7 +5875,7 @@
           {
             "backendDOMNodeId": 15,
             "childIds": [
-              "50"
+              "49"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -5984,7 +5957,7 @@
           {
             "backendDOMNodeId": 44,
             "childIds": [
-              "-1000000014"
+              "-1000000016"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -6055,7 +6028,7 @@
           {
             "backendDOMNodeId": 46,
             "childIds": [
-              "-1000000015"
+              "-1000000017"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -6086,7 +6059,7 @@
           {
             "backendDOMNodeId": 25,
             "childIds": [
-              "47"
+              "50"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -6124,9 +6097,9 @@
             }
           },
           {
-            "backendDOMNodeId": 48,
+            "backendDOMNodeId": 47,
             "childIds": [
-              "-1000000016"
+              "-1000000018"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -6146,7 +6119,7 @@
               "type": "computedString",
               "value": "Dock"
             },
-            "nodeId": "48",
+            "nodeId": "47",
             "parentId": "26",
             "properties": [],
             "role": {
@@ -6192,9 +6165,9 @@
             }
           },
           {
-            "backendDOMNodeId": 49,
+            "backendDOMNodeId": 48,
             "childIds": [
-              "-1000000017"
+              "-1000000019"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -6214,7 +6187,7 @@
               "type": "computedString",
               "value": "Manifest"
             },
-            "nodeId": "49",
+            "nodeId": "48",
             "parentId": "39",
             "properties": [],
             "role": {
@@ -6223,9 +6196,9 @@
             }
           },
           {
-            "backendDOMNodeId": 50,
+            "backendDOMNodeId": 49,
             "childIds": [
-              "-1000000009"
+              "-1000000008"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -6245,7 +6218,7 @@
               "type": "computedString",
               "value": "Save"
             },
-            "nodeId": "50",
+            "nodeId": "49",
             "parentId": "15",
             "properties": [],
             "role": {
@@ -6264,7 +6237,7 @@
               "type": "computedString",
               "value": "Client Code"
             },
-            "nodeId": "-1000000014",
+            "nodeId": "-1000000016",
             "parentId": "44",
             "properties": [],
             "role": {
@@ -6322,7 +6295,7 @@
               "type": "computedString",
               "value": "Password"
             },
-            "nodeId": "-1000000015",
+            "nodeId": "-1000000017",
             "parentId": "46",
             "properties": [],
             "role": {
@@ -6331,9 +6304,9 @@
             }
           },
           {
-            "backendDOMNodeId": 47,
+            "backendDOMNodeId": 50,
             "childIds": [
-              "-1000000006"
+              "-1000000011"
             ],
             "chromeRole": {
               "type": "internalRole",
@@ -6353,7 +6326,7 @@
               "type": "computedString",
               "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
             },
-            "nodeId": "47",
+            "nodeId": "50",
             "parentId": "25",
             "properties": [
               {
@@ -6380,8 +6353,8 @@
               "type": "computedString",
               "value": "Dock"
             },
-            "nodeId": "-1000000016",
-            "parentId": "48",
+            "nodeId": "-1000000018",
+            "parentId": "47",
             "properties": [],
             "role": {
               "type": "internalRole",
@@ -6513,8 +6486,8 @@
               "type": "computedString",
               "value": "Manifest"
             },
-            "nodeId": "-1000000017",
-            "parentId": "49",
+            "nodeId": "-1000000019",
+            "parentId": "48",
             "properties": [],
             "role": {
               "type": "internalRole",
@@ -6532,8 +6505,8 @@
               "type": "computedString",
               "value": "Save"
             },
-            "nodeId": "-1000000009",
-            "parentId": "50",
+            "nodeId": "-1000000008",
+            "parentId": "49",
             "properties": [],
             "role": {
               "type": "internalRole",
@@ -6578,8 +6551,8 @@
               "type": "computedString",
               "value": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
             },
-            "nodeId": "-1000000006",
-            "parentId": "47",
+            "nodeId": "-1000000011",
+            "parentId": "50",
             "properties": [
               {
                 "name": "editable",
@@ -6596,18 +6569,18 @@
           }
         ]
       },
-      "url": "http://127.0.0.1:61742/",
-      "taken_at": "2026-09-24T19:04:40.391Z",
-      "tab_id": 921728413
+      "url": "http://127.0.0.1:55199/",
+      "taken_at": "2026-09-24T19:42:33.988Z",
+      "tab_id": 1470579231
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_4ef7386e_0",
+        "request_id": "req_5e2094ed_0",
         "method": "GET",
-        "url": "http://127.0.0.1:61742/api/orders?facility=DC1",
+        "url": "http://127.0.0.1:55199/api/orders?facility=DC1",
         "resource_type": "fetch",
-        "started_at": "2026-09-24T19:04:40.413Z",
+        "started_at": "2026-09-24T19:42:34.013Z",
         "request_headers": {},
         "request_body": null,
         "status": 200,
@@ -6617,7 +6590,7 @@
           "access-control-allow-origin": "*",
           "content-length": "29",
           "content-type": "application/json",
-          "date": "Thu, 24 Sep 2026 19:04:40 GMT",
+          "date": "Thu, 24 Sep 2026 19:42:34 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": {
@@ -6628,22 +6601,22 @@
           "redacted_fields": []
         },
         "redirect_chain": [],
-        "duration_ms": 15,
+        "duration_ms": 14,
         "from_cache": false,
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 921728413,
-      "frame_url": "http://127.0.0.1:61742/"
+      "tab_id": 1470579231,
+      "frame_url": "http://127.0.0.1:55199/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_4ef7386e_1",
+        "request_id": "req_5e2094ed_1",
         "method": "POST",
-        "url": "http://127.0.0.1:61742/api/orders",
+        "url": "http://127.0.0.1:55199/api/orders",
         "resource_type": "fetch",
-        "started_at": "2026-09-24T19:04:40.430Z",
+        "started_at": "2026-09-24T19:42:34.028Z",
         "request_headers": {
           "content-type": "application/json"
         },
@@ -6661,7 +6634,7 @@
           "access-control-allow-origin": "*",
           "content-length": "12",
           "content-type": "application/json",
-          "date": "Thu, 24 Sep 2026 19:04:40 GMT",
+          "date": "Thu, 24 Sep 2026 19:42:34 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": {
@@ -6677,17 +6650,17 @@
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 921728413,
-      "frame_url": "http://127.0.0.1:61742/"
+      "tab_id": 1470579231,
+      "frame_url": "http://127.0.0.1:55199/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_4ef7386e_2",
+        "request_id": "req_5e2094ed_2",
         "method": "GET",
         "url": "http://127.0.0.1:1/never",
         "resource_type": "fetch",
-        "started_at": "2026-09-24T19:04:40.432Z",
+        "started_at": "2026-09-24T19:42:34.031Z",
         "request_headers": {},
         "request_body": null,
         "status": null,
@@ -6700,17 +6673,17 @@
         "failure_reason": "Failed to fetch",
         "blocked_reason": null
       },
-      "tab_id": 921728413,
-      "frame_url": "http://127.0.0.1:61742/"
+      "tab_id": 1470579231,
+      "frame_url": "http://127.0.0.1:55199/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_4ef7386e_3",
+        "request_id": "req_5e2094ed_3",
         "method": "POST",
-        "url": "http://127.0.0.1:61742/api/legacy",
+        "url": "http://127.0.0.1:55199/api/legacy",
         "resource_type": "xhr",
-        "started_at": "2026-09-24T19:04:40.433Z",
+        "started_at": "2026-09-24T19:42:34.031Z",
         "request_headers": {
           "content-type": "application/x-www-form-urlencoded"
         },
@@ -6728,7 +6701,7 @@
           "access-control-allow-origin": "*",
           "content-length": "12",
           "content-type": "application/json",
-          "date": "Thu, 24 Sep 2026 19:04:40 GMT",
+          "date": "Thu, 24 Sep 2026 19:42:34 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": {
@@ -6744,24 +6717,24 @@
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 921728413,
-      "frame_url": "http://127.0.0.1:61742/"
+      "tab_id": 1470579231,
+      "frame_url": "http://127.0.0.1:55199/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_4ef7386e_4",
+        "request_id": "req_5e2094ed_4",
         "method": "GET",
-        "url": "http://127.0.0.1:61742/api/stream",
+        "url": "http://127.0.0.1:55199/api/stream",
         "resource_type": "fetch",
-        "started_at": "2026-09-24T19:04:40.435Z",
+        "started_at": "2026-09-24T19:42:34.033Z",
         "request_headers": {},
         "request_body": null,
         "status": 200,
         "status_text": "OK",
         "response_headers": {
           "content-type": "text/event-stream",
-          "date": "Thu, 24 Sep 2026 19:04:40 GMT",
+          "date": "Thu, 24 Sep 2026 19:42:34 GMT",
           "server": "BaseHTTP/0.6 Python/3.14.7"
         },
         "response_body": null,
@@ -6771,8 +6744,8 @@
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 921728413,
-      "frame_url": "http://127.0.0.1:61742/"
+      "tab_id": 1470579231,
+      "frame_url": "http://127.0.0.1:55199/"
     }
   ]
 }

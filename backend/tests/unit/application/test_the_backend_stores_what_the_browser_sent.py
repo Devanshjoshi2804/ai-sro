@@ -28,6 +28,7 @@ that. So the fixture carries what a browser running no rules would have sent.
 
 from __future__ import annotations
 
+import copy
 import json
 import re
 from datetime import UTC, datetime
@@ -39,6 +40,7 @@ from sro.application.observation.policy import SetObservationPolicy
 from sro.application.observation.redact import redact_events
 from sro.application.observation.register import RegisterDevice
 from sro.domain.observation.batch import CaptureMode
+from sro.domain.observation.gesture import AfterState
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.sensitivity import REDACTED
 from sro.domain.shared.identifiers import BatchId, TenantId
@@ -181,6 +183,85 @@ async def test_nothing_reaches_the_blob_store_without_passing_the_boundary() -> 
     # escaped to `\\u00abredacted\\u00bb` the way `json.dumps` writes it by
     # default -- a hole a reviewer cannot grep for is a hole nobody can count.
     assert REDACTED in written
+
+
+_A_JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJvcGVyYXRvciJ9.c2lnbmF0dXJlLXNpZ25hdHVyZQ"
+_TYPED_AT_SIGN_IN = "correct-horse-battery-staple"
+_A_NOTE = "call the dentist at four"
+
+
+def _hostile() -> list[dict[str, object]]:
+    """What a client that ignores every rule could send: the free text of a
+    text field and of a password field as the state they were left in, joined
+    and unjoined."""
+    events = _events()
+    text, password, click = (copy.deepcopy(events[i]) for i in (1, 2, 3))
+    text["gesture"]["ref"] = "r.1"
+    password["gesture"].update(
+        ref="r.2", prior_of="r.1", prior={"value": _A_JWT, "visible": True, "enabled": True}
+    )
+    click["gesture"].update(
+        ref="r.3",
+        prior_of="r.2",
+        prior={"value": _TYPED_AT_SIGN_IN, "visible": True, "enabled": True},
+    )
+    unjoined = copy.deepcopy(click)
+    unjoined["gesture"].update(
+        ref="r.4", prior_of=None, prior={"value": _A_NOTE, "visible": True, "enabled": True}
+    )
+    unjoined["gesture"]["at"] += 1
+    return [text, password, click, unjoined]
+
+
+async def test_a_client_that_sends_typed_text_as_a_state_stores_none_of_it() -> None:
+    uow = FakeUnitOfWork()
+    blobs = FakeBlobStore()
+    await SetObservationPolicy(uow).execute(ACME, policy=ObservationPolicy().enabled())
+    registered = await RegisterDevice(uow, FakeClock(), FakeIdFactory()).execute(
+        ACME, label="laptop", extension_version="0.1.0"
+    )
+
+    stored = await IngestObservation(uow, blobs, FakeClock()).execute(
+        ACME,
+        device_id=registered.device_id,
+        secret=registered.secret,
+        batch_id=BatchId("bat_hostile_states"),
+        started_at=datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+        ended_at=datetime(2026, 3, 1, 9, 5, tzinfo=UTC),
+        mode=CaptureMode.PASSIVE,
+        events=_hostile(),
+    )
+
+    assert stored.stored_at is not None
+    written = (await blobs.read(stored.stored_at)).decode("utf-8")
+    kept = repr(list(uow.gestures.rows.values()))
+    assert len(uow.gestures.rows) == 4
+    for said in (_A_JWT, _TYPED_AT_SIGN_IN, _A_NOTE):
+        assert said not in written, f"{said!r} reached the evidence blob"
+        assert said not in kept, f"{said!r} reached the gesture store"
+    assert [one.action.after for one in uow.gestures.rows.values() if one.action.after] == [
+        AfterState(None, True, True),
+        AfterState(None, True, True),
+    ]
+
+
+def test_a_state_control_keeps_its_state_and_nothing_else() -> None:
+    events = _events()
+
+    def pair(target: dict[str, object], value: str) -> object:
+        before, after = copy.deepcopy(events[3]), copy.deepcopy(events[3])
+        before["gesture"].update(ref="r.1", target={**before["gesture"]["target"], **target})
+        after["gesture"].update(ref="r.2", prior_of="r.1", prior={"value": value})
+        return redact_events([before, after])[1]["gesture"]["prior"]["value"]
+
+    assert pair({"role": "checkbox"}, "checked") == "checked"
+    assert pair({"role": "switch"}, "unchecked") == "unchecked"
+    assert pair({"role": "checkbox"}, "on") is None
+    assert pair({"tag": "select", "role": "combobox"}, "Second choice") == "Second choice"
+    assert pair({"tag": "select", "role": "combobox"}, _A_JWT) == REDACTED
+    assert pair({"tag": "select", "secret": True}, "Second choice") is None
+    assert pair({"tag": "input", "role": "combobox"}, "typed") is None
+    assert pair({"tag": "input", "role": None}, "typed") is None
 
 
 def test_a_key_rendered_on_screen_does_not_survive_the_snapshot_tree() -> None:

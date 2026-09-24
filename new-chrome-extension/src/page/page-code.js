@@ -1,9 +1,131 @@
 (() => {
-  const REPAIR_THRESHOLD = 6;
+  const REPAIR_THRESHOLD = 3;
+  const REPAIR_MARGIN = 2;
   const NEAR_PX = 50;
   const GENERATED_ID = /^(ext-|gen)|\d{3,}/;
   const CANDIDATES = "input, select, textarea, button, a, [role], [tabindex]";
-  const LANDMARKS = ["region", "dialog", "alertdialog", "grid", "treegrid", "form"];
+
+  const readers = (() => {
+    const MAX_TEXT = 200;
+    const roleOf = (el) => {
+      const written = el.getAttribute("role");
+      if (written) return written;
+      const tag = el.tagName.toLowerCase();
+      if (tag === "button") return "button";
+      if (tag === "a") return el.hasAttribute("href") ? "link" : null;
+      if (tag === "select") return "combobox";
+      if (tag === "textarea") return "textbox";
+      if (tag === "summary") return "button";
+      if (tag !== "input") return null;
+      const type = (el.getAttribute("type") || "text").toLowerCase();
+      if (type === "checkbox") return "checkbox";
+      if (type === "radio") return "radio";
+      if (type === "range") return "slider";
+      if (["button", "submit", "reset", "image"].includes(type)) return "button";
+      if (["text", "search", "email", "tel", "url", "password", "number"].includes(type))
+        return "textbox";
+      return null;
+    };
+    const ownName = (el) => {
+      const aria = (el.getAttribute("aria-label") || "").trim();
+      if (aria) return aria.slice(0, MAX_TEXT);
+      const by = el.getAttribute("aria-labelledby");
+      if (!by) return null;
+      const doc = el.ownerDocument || document;
+      const said = by
+        .split(/\s+/)
+        .map((id) => (doc.getElementById(id) || {}).innerText || "")
+        .join(" ")
+        .trim();
+      return said ? said.slice(0, MAX_TEXT) : null;
+    };
+    const nameOf = (el) => {
+      const own = ownName(el);
+      if (own) return own;
+      if (el.labels && el.labels.length) return (el.labels[0].innerText || "").trim().slice(0, MAX_TEXT);
+      const pressed = el.tagName.toLowerCase() === "input" && roleOf(el) === "button" ? el.value : "";
+      const said = el.getAttribute("placeholder") || el.getAttribute("title") || el.innerText || pressed || "";
+      return said.trim().slice(0, MAX_TEXT);
+    };
+    const landmarkRole = (el) => {
+      const written = el.getAttribute("role");
+      const named = ["region", "dialog", "alertdialog", "grid", "treegrid", "form"];
+      if (written) return named.includes(written) ? written : null;
+      const tag = el.tagName.toLowerCase();
+      if (tag === "form") return "form";
+      if (tag === "dialog") return "dialog";
+      if (tag === "section") return "region";
+      return null;
+    };
+    const landmarksOf = (el) => {
+      const found = [];
+      for (let node = el.parentElement; node && node.nodeType === 1; node = node.parentElement) {
+        const role = landmarkRole(node);
+        const name = role ? ownName(node) : null;
+        if (role && name) found.unshift({ role, name });
+      }
+      return found;
+    };
+    const cmpOf = (el) => {
+      const Ext = (el.ownerDocument?.defaultView || window).Ext;
+      if (!Ext?.getCmp) return null;
+      for (let node = el; node && node.nodeType === 1; node = node.parentElement) {
+        const cmp = node.id && (Ext.getCmp(node.id) || Ext.getCmp(node.id.replace(/-[a-zA-Z]+El$/, "")));
+        if (cmp) return cmp;
+      }
+      return null;
+    };
+    const chainOf = (el) => {
+      const chain = [];
+      for (let k = cmpOf(el); k && chain.length < 10; k = k.ownerCt || k.floatParent) {
+        const xtype = k.getXType ? k.getXType() : k.xtype;
+        if (!xtype) continue;
+        chain.unshift(k.itemId && !/^ext-/.test(k.itemId) ? `${xtype}#${k.itemId}` : xtype);
+      }
+      return chain;
+    };
+    const xpathOf = (el) => {
+      const parts = [];
+      for (let node = el; node && node.nodeType === 1; node = node.parentElement) {
+        const parent = node.parentElement;
+        if (!parent) {
+          parts.unshift(node.tagName.toLowerCase());
+          break;
+        }
+        const siblings = [...parent.children].filter((c) => c.tagName === node.tagName);
+        parts.unshift(`${node.tagName.toLowerCase()}[${siblings.indexOf(node) + 1}]`);
+      }
+      return `/${parts.join("/")}`;
+    };
+    const boundsOf = (el) => {
+      const box = el.getBoundingClientRect();
+      const view = el.ownerDocument?.defaultView || window;
+      return { x: box.x + (view.scrollX || 0), y: box.y + (view.scrollY || 0), width: box.width, height: box.height };
+    };
+    const framePathOf = (win) => {
+      const hops = [];
+      const origins = (win.location && win.location.ancestorOrigins) || [];
+      let depth = 0;
+      for (let here = win; here.parent && here !== here.parent; here = here.parent, depth += 1) {
+        const parent = here.parent;
+        let index = -1;
+        for (let i = 0; i < parent.frames.length; i += 1) {
+          if (parent.frames[i] === here) index = i;
+        }
+        let url = null;
+        try {
+          url = here.location.href;
+        } catch {
+          url = depth > 0 ? origins[depth - 1] || null : null;
+        }
+        hops.unshift({ index, url });
+      }
+      return hops;
+    };
+    return { roleOf, ownName, nameOf, landmarkRole, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf };
+  })();
+  const { roleOf, ownName, nameOf, landmarkRole, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf } =
+    readers;
 
   const shown = (el) => {
     const box = el.getBoundingClientRect();
@@ -18,72 +140,26 @@
       return [];
     }
   };
-  const roleOf = (el) => {
-    const written = el.getAttribute("role");
-    if (written) return written;
-    const tag = el.tagName.toLowerCase();
-    if (tag === "button") return "button";
-    if (tag === "a") return el.hasAttribute("href") ? "link" : null;
-    if (tag === "select") return "combobox";
-    if (tag === "textarea") return "textbox";
-    if (tag === "summary") return "button";
-    if (tag !== "input") return null;
-    const type = (el.getAttribute("type") || "text").toLowerCase();
-    if (type === "checkbox") return "checkbox";
-    if (type === "radio") return "radio";
-    if (type === "range") return "slider";
-    if (["button", "submit", "reset", "image"].includes(type)) return "button";
-    if (["text", "search", "email", "tel", "url", "password", "number"].includes(type))
-      return "textbox";
-    return null;
-  };
-  const nameOf = (el) => {
-    const aria = el.getAttribute("aria-label");
-    if (aria) return aria.trim();
-    const by = el.getAttribute("aria-labelledby");
-    if (by) return by.split(/\s+/).map((id) => document.getElementById(id)?.innerText || "").join(" ").trim();
-    if (el.labels && el.labels.length) return (el.labels[0].innerText || "").trim();
-    return (el.getAttribute("placeholder") || el.getAttribute("title") || el.innerText || "").trim().slice(0, 200);
-  };
-  const landmarkRole = (el) => {
-    const written = el.getAttribute("role");
-    if (written) return LANDMARKS.includes(written) ? written : null;
-    const tag = el.tagName.toLowerCase();
-    return tag === "form" ? "form" : tag === "dialog" ? "dialog" : tag === "section" ? "region" : null;
-  };
-  const landmarksOf = (el) => {
-    const found = [];
-    for (let node = el.parentElement; node; node = node.parentElement) {
-      const role = landmarkRole(node);
-      const name = role ? node.getAttribute("aria-label") || null : null;
-      if (role && name) found.unshift({ role, name });
+  const triggerOf = (c) => {
+    const one = c.triggerEl;
+    if (one?.dom) return one.dom;
+    if (typeof one?.item === "function") {
+      const first = one.item(0);
+      if (first?.dom) return first.dom;
     }
-    return found;
+    const named = c.triggers && Object.values(c.triggers)[0];
+    return named?.el?.dom || null;
   };
-  const ext = (query) =>
-    (window.Ext?.ComponentQuery?.query(query) || [])
-      .filter((c) => c.isVisible?.(true))
-      .map((c) => (c.inputEl || c.btnEl || c.el)?.dom)
-      .filter(Boolean);
-  const chainOf = (el) => {
-    if (!window.Ext?.getCmp) return [];
-    let node = el;
-    let cmp = null;
-    while (node && node.nodeType === 1 && !cmp) {
-      if (node.id) {
-        cmp = window.Ext.getCmp(node.id) || window.Ext.getCmp(node.id.replace(/-[a-zA-Z]+El$/, ""));
-      }
-      node = node.parentElement;
+  const partOf = (c, action) => {
+    if (action === "click") {
+      const arrow = triggerOf(c);
+      if (arrow) return arrow;
     }
-    if (!cmp) return [];
-    const chain = [];
-    for (let k = cmp; k && chain.length < 10; k = k.ownerCt || k.floatParent) {
-      const xtype = k.getXType ? k.getXType() : k.xtype;
-      if (!xtype) continue;
-      chain.unshift(k.itemId && !/^ext-/.test(k.itemId) ? `${xtype}#${k.itemId}` : xtype);
-    }
-    return chain;
+    return (c.inputEl || c.btnEl || c.el)?.dom;
   };
+  const components = (query, win = window) =>
+    (win.Ext?.ComponentQuery?.query(query) || []).filter((c) => c.isVisible?.(true));
+  const ext = (query, action) => components(query).map((c) => partOf(c, action)).filter(Boolean);
   const ownText = (text) =>
     qsa("button, a, label, td, th, li, span, div, option").filter(
       (el) => [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim() === text,
@@ -91,7 +167,7 @@
   const scopes = (landmarks) => {
     const inner = (landmarks || []).at(-1);
     if (!inner) return [document];
-    return qsa("*").filter((el) => landmarkRole(el) === inner.role && nameOf(el) === inner.name);
+    return qsa("*").filter((el) => landmarkRole(el) === inner.role && ownName(el) === inner.name);
   };
   const attributeSelector = (t) => {
     const a = t.attributes || {};
@@ -103,18 +179,20 @@
     if (a.type) parts.push(`[type="${CSS.escape(a.type)}"]`);
     return `${t.tag || ""}${parts.join("")}`;
   };
-  const byXpath = (xpath) => {
+  const byXpath = (xpath, doc = document) => {
     try {
-      const got = document.evaluate(xpath, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+      const got = doc.evaluate(xpath, doc, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
       return Array.from({ length: got.snapshotLength }, (_, i) => got.snapshotItem(i));
     } catch {
       return [];
     }
   };
-  const byLearned = ({ strategy, query }) => {
-    if (strategy === "component") return ext(query.startsWith("#") || query.includes(" ") ? query : `#${query}`);
+  const byLearned = ({ strategy, query }, action) => {
+    if (strategy === "component") return ext(query.startsWith("#") || query.includes(" ") ? query : `#${query}`, action);
     if (strategy === "role_and_name") {
-      const [role, name] = query.split("|");
+      const cut = query.indexOf("|");
+      const role = query.slice(0, cut);
+      const name = query.slice(cut + 1);
       return qsa("*").filter((el) => roleOf(el) === role && nameOf(el) === name);
     }
     if (strategy === "test_id") return qsa(`[data-testid="${CSS.escape(query)}"]`);
@@ -123,9 +201,9 @@
     return qsa(query);
   };
   const STRATEGIES = [
-    ["learned", (t, p) => (p.learned ? byLearned(p.learned) : [])],
-    ["component_chain", (t) => (t.component?.chain?.length > 1 ? ext(t.component.chain.join(" ")) : [])],
-    ["component", (t) => (t.component?.query ? ext(t.component.query) : t.component?.item_id ? ext(`#${t.component.item_id}`) : [])],
+    ["learned", (t, p) => (p.learned ? byLearned(p.learned, p.action) : [])],
+    ["component_chain", (t, p) => (t.component?.chain?.length > 1 ? ext(t.component.chain.join(" "), p.action) : [])],
+    ["component", (t, p) => (t.component?.query ? ext(t.component.query, p.action) : t.component?.item_id ? ext(`#${t.component.item_id}`, p.action) : [])],
     ["within_role_name", (t) => (t.role && t.name
       ? scopes(t.landmarks).flatMap((scope) => qsa("*", scope).filter((el) => roleOf(el) === t.role && nameOf(el) === t.name))
       : [])],
@@ -139,7 +217,7 @@
   ];
   const centre = (b) => ({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
   const distance = (el, c) => {
-    const here = centre(el.getBoundingClientRect());
+    const here = centre(boundsOf(el));
     return Math.hypot(here.x - c.x, here.y - c.y);
   };
   const nearest = (found, bounds) => {
@@ -147,26 +225,33 @@
     const c = centre(bounds);
     return found.slice().sort((a, b) => distance(a, c) - distance(b, c))[0];
   };
+  const samePath = (el, marks) => {
+    const live = landmarksOf(el);
+    return live.length === marks.length && live.every((one, i) => one.role === marks[i].role && one.name === marks[i].name);
+  };
   const score = (el, t) => {
     let total = 0;
-    if (t.role && roleOf(el) === t.role) total += 3;
     const name = nameOf(el);
     if (t.name && name === t.name) total += 3;
     else if (t.name && name && name.includes(t.name)) total += 1;
-    for (const key of ["name", "autocomplete", "type", "placeholder"]) {
+    for (const key of ["name", "autocomplete", "placeholder"]) {
       if (t.attributes?.[key] && el.getAttribute(key) === t.attributes[key]) total += 1;
     }
     const chain = t.component?.chain || [];
     if (chain.length && chainOf(el).join(" ") === chain.join(" ")) total += 2;
-    const marks = t.landmarks || [];
-    if (marks.length && JSON.stringify(landmarksOf(el)) === JSON.stringify(marks)) total += 2;
     if (t.bounds?.width !== undefined && distance(el, centre(t.bounds)) <= NEAR_PX) total += 1;
     return total;
   };
   const repair = (t) => {
-    const ranked = qsa(CANDIDATES).filter(shown).map((el) => [score(el, t), el]).sort((a, b) => b[0] - a[0]);
+    if (!t.role) return null;
+    const marks = t.landmarks || [];
+    const ranked = qsa(CANDIDATES)
+      .filter((el) => shown(el) && roleOf(el) === t.role && samePath(el, marks))
+      .map((el) => [score(el, t), el])
+      .sort((a, b) => b[0] - a[0]);
     const [best, next] = ranked;
-    if (!best || best[0] < REPAIR_THRESHOLD || (next && next[0] === best[0])) return null;
+    if (!best || best[0] < REPAIR_THRESHOLD) return null;
+    if (next && best[0] - next[0] < REPAIR_MARGIN) return null;
     return { el: best[1], score: best[0] };
   };
   const find = (payload) => {
@@ -175,7 +260,7 @@
       const found = run(t, payload).filter(shown);
       if (found.length) return { el: nearest(found, t.bounds), strategy, candidates: found.length, score: null };
     }
-    const fixed = repair(t);
+    const fixed = payload.write === false ? repair(t) : null;
     return fixed
       ? { el: fixed.el, strategy: "repair", candidates: 1, score: fixed.score }
       : { el: null, strategy: null, candidates: 0, score: null };
@@ -187,22 +272,6 @@
       visible: shown(el),
       enabled: !(el.disabled === true || el.getAttribute("aria-disabled") === "true"),
     };
-  };
-  const xpathOf = (el) => {
-    const parts = [];
-    let node = el;
-    while (node && node.nodeType === 1 && parts.length < 12) {
-      const parent = node.parentElement;
-      if (!parent) {
-        parts.unshift(node.tagName.toLowerCase());
-        break;
-      }
-      const siblings = [...parent.children].filter((c) => c.tagName === node.tagName);
-      const index = siblings.indexOf(node) + 1;
-      parts.unshift(`${node.tagName.toLowerCase()}[${index}]`);
-      node = parent;
-    }
-    return `/${parts.join("/")}`;
   };
   const landed = (asked, got) => {
     if (got === asked) return null;
@@ -331,25 +400,6 @@
         }
       };
 
-      const triggerOf = (c) => {
-        const one = c.triggerEl;
-        if (one?.dom) return one.dom;
-        if (typeof one?.item === "function") {
-          const first = one.item(0);
-          if (first?.dom) return first.dom;
-        }
-        const named = c.triggers && Object.values(c.triggers)[0];
-        return named?.el?.dom || null;
-      };
-
-      const partOf = (c) => {
-        if (payload.action === "click") {
-          const arrow = triggerOf(c);
-          if (arrow) return arrow;
-        }
-        return (c.inputEl || c.btnEl || c.el)?.dom;
-      };
-
       const resolve = (locator) => {
         const wanted = locator.query;
         let found = [];
@@ -360,7 +410,7 @@
               .filter(
                 (c) => !locator.visible_only || (c.isVisible && c.isVisible(true)),
               )
-              .map((c) => partOf(c))
+              .map((c) => partOf(c, payload.action))
               .filter(Boolean);
             break;
           }
@@ -826,36 +876,80 @@
     },
     act(payload) {
       const f = find(payload);
-      if (!f.el) return { ok: false, candidates: 0, error: { kind: "control_not_found", detail: "no strategy and no repair matched" } };
-      const done = actOn(f.el, payload);
-      return { ...done, matched_by: f.strategy, candidates: f.candidates, state: stateOf(f.el) };
+      if (!f.el) {
+        const detail = payload.write === false ? "no strategy and no repair matched" : "no strategy matched, and a write is never repaired";
+        return { ok: false, candidates: 0, error: { kind: "control_not_found", detail } };
+      }
+      let done;
+      try {
+        done = actOn(f.el, payload);
+      } catch (error) {
+        done = { ok: false, short: null, error: { kind: "not_actionable", detail: `found the control but ${error.message}` } };
+      }
+      const repaired = f.strategy === "repair";
+      const pin = Math.random().toString(36).slice(2);
+      globalThis.__sroActed = { pin, el: f.el, repaired };
+      return { ...done, matched_by: f.strategy, candidates: f.candidates, repaired, pin, state: stateOf(f.el) };
     },
     holds(payload) {
-      const f = find(payload);
-      if (!f.el) return false;
-      const seen = stateOf(f.el);
+      const acted = globalThis.__sroActed;
+      if (!acted || !payload.pin || acted.pin !== payload.pin || acted.el.isConnected === false) return null;
+      const seen = stateOf(acted.el);
       const want = payload.expect || {};
-      return ["value", "visible", "enabled"].every((key) => want[key] === undefined || want[key] === null || seen[key] === want[key]);
+      const keys = (acted.el.type || "").toLowerCase() === "password" ? ["visible", "enabled"] : ["value", "visible", "enabled"];
+      const held = keys.every((key) => want[key] === undefined || want[key] === null || seen[key] === want[key]);
+      return held ? { repaired: acted.repaired } : null;
     },
     hitTest(x, y) {
-      let el = document.elementFromPoint(x, y);
       let doc = document;
-      while (el && el.tagName === "IFRAME" && el.contentDocument) {
+      let el = doc.elementFromPoint(x, y);
+      while (el && (el.tagName === "IFRAME" || el.tagName === "FRAME")) {
         const box = el.getBoundingClientRect();
-        doc = el.contentDocument;
-        el = doc.elementFromPoint(x - box.left, y - box.top);
+        x -= box.left + (el.clientLeft || 0);
+        y -= box.top + (el.clientTop || 0);
+        let inner = null;
+        try {
+          inner = el.contentDocument;
+        } catch {
+          inner = null;
+        }
+        if (!inner) {
+          const win = doc.defaultView;
+          let index = -1;
+          for (let i = 0; i < win.frames.length; i += 1) {
+            if (win.frames[i] === el.contentWindow) index = i;
+          }
+          const frame_path = [...framePathOf(win), { index, url: el.src || null }];
+          return { strategy: null, query: null, unreachable: "cross_origin_frame", frame_path, x, y };
+        }
+        doc = inner;
+        el = doc.elementFromPoint(x, y);
       }
       if (!el) return null;
+      const win = doc.defaultView || window;
+      const frame_path = framePathOf(win);
       const only = (found) => found.length === 1 && found[0] === el;
-      const item = window.Ext?.getCmp?.(el.id)?.itemId;
-      if (item && only(ext(`#${item}`))) return { strategy: "component", query: `#${item}` };
-      const role = roleOf(el), name = nameOf(el);
+      const cmp = cmpOf(el);
+      if (cmp) {
+        const chain = chainOf(el);
+        const item = cmp.itemId && !/^ext-/.test(cmp.itemId) ? `#${cmp.itemId}` : null;
+        for (const query of [item, chain.slice(-2).join(" "), chain.join(" ")]) {
+          if (!query || !(query.startsWith("#") || query.includes(" "))) continue;
+          const found = components(query, win);
+          if (found.length === 1 && found[0] === cmp) return { strategy: "component", query, frame_path };
+        }
+      }
+      const role = roleOf(el);
+      const name = nameOf(el);
       if (role && name && only(qsa("*", doc).filter((one) => roleOf(one) === role && nameOf(one) === name))) {
-        return { strategy: "role_and_name", query: `${role}|${name}` };
+        return { strategy: "role_and_name", query: `${role}|${name}`, frame_path };
       }
       const testId = el.getAttribute("data-testid");
-      if (testId) return { strategy: "test_id", query: testId };
-      return { strategy: "xpath", query: xpathOf(el) };
+      if (testId && only(qsa(`[data-testid="${CSS.escape(testId)}"]`, doc))) {
+        return { strategy: "test_id", query: testId, frame_path };
+      }
+      const path = xpathOf(el);
+      return only(byXpath(path, doc)) ? { strategy: "xpath", query: path, frame_path } : null;
     },
   };
 

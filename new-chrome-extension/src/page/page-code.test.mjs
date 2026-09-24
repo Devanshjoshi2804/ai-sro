@@ -9,7 +9,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { loadSroPage, pageCodeSource as source } from "./load-sro-page.mjs";
-import { lift } from "../content/evidence.test.mjs";
 
 test("the file is a classic script: no import, no export", () => {
   assert.doesNotMatch(source, /^\s*(import|export)\s/m);
@@ -547,10 +546,9 @@ test("the recorded bounds pick between two controls of one name", () => {
     target: { role: "button", name: "Save", bounds: { x: 395, y: 12, width: 60, height: 20 } },
   });
 
-  const xpathOf = liftFromPageCode("xpathOf");
   assert.equal(found.strategy, "within_role_name");
   assert.equal(found.candidates, 2);
-  assert.equal(found.xpath, xpathOf(right));
+  assert.equal(found.xpath, "/div/button[2]");
 });
 
 test("a stale css_path with a surviving name attribute resolves by attributes", () => {
@@ -570,106 +568,282 @@ test("a stale css_path with a surviving name attribute resolves by attributes", 
   assert.equal(found.candidates, 1);
 });
 
-test("a control renamed and moved still resolves by repair when its role, attributes and landmarks match", () => {
-  const { resolve } = loadSroPage();
-  const dialog = elem("div", { attrs: { role: "dialog", "aria-label": "Customer" } });
-  const liveButton = elem("button", {
-    attrs: { name: "saveBtn" },
-    box: { x: 900, y: 900, width: 40, height: 20 },
-    text: "Save",
-  });
-  liveButton.parentElement = dialog;
-  const CANDIDATES = "input, select, textarea, button, a, [role], [tabindex]";
-  globalThis.document.querySelectorAll = (selector) => (selector === CANDIDATES ? [liveButton] : []);
+// --- snapshot repair: kind and scope are gates, and a write is never repaired -
 
-  const found = resolve({
-    target: {
-      role: "button",
-      name: "Save Changes",
-      attributes: { name: "saveBtn", autocomplete: "off" },
-      landmarks: [{ role: "dialog", name: "Customer" }],
-      bounds: { x: 10, y: 10, width: 40, height: 20 },
-    },
-  });
+const CANDIDATE_SELECTOR = "input, select, textarea, button, a, [role], [tabindex]";
 
-  assert.equal(found.strategy, "repair");
-  assert.equal(found.found, true);
-  assert.ok(found.score >= 6, `score ${found.score} did not clear the threshold`);
-});
-
-test("a lone weak resemblance resolves nothing", () => {
-  const { resolve } = loadSroPage();
-  const decoy = elem("button", {
-    box: { x: 900, y: 900, width: 40, height: 20 },
-    text: "Something Else Entirely",
-  });
-  const CANDIDATES = "input, select, textarea, button, a, [role], [tabindex]";
-  globalThis.document.querySelectorAll = (selector) => (selector === CANDIDATES ? [decoy] : []);
-
-  const found = resolve({
-    target: {
-      role: "button",
-      name: "Save Changes",
-      attributes: { name: "saveBtn" },
-      landmarks: [{ role: "dialog", name: "Customer" }],
-      bounds: { x: 10, y: 10, width: 40, height: 20 },
-    },
-  });
-
-  assert.equal(found.found, false);
-  assert.equal(found.strategy, null);
-  assert.equal(found.candidates, 0);
-});
-
-/** `roleOf`, lifted out of `page-code.js` by matching its braces -- the same
- * trick `roles.test.mjs` uses on the generated recorder, because this file
- * has no export either. */
-function liftFromPageCode(name) {
-  const at = source.indexOf(`const ${name} = (el) => {`);
-  assert.notEqual(at, -1, `${name} is not in page-code.js`);
-  let depth = 0;
-  for (let i = source.indexOf("{", at); i < source.length; i += 1) {
-    if (source[i] === "{") depth += 1;
-    else if (source[i] === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return new Function(`${source.slice(at, i + 1)}; return ${name};`)();
-      }
-    }
-  }
-  throw new Error(`${name} never closes`);
+/** An element that can hold children and be typed into -- enough of a node
+ * for every reader `resolve`, `act` and `holds` use. */
+function node(tag, { attrs = {}, box = { x: 0, y: 0, width: 40, height: 20 }, text = "", children = [] } = {}) {
+  const el = tag === "input" ? new HTMLInputElement() : {};
+  Object.assign(el, elem(tag, { attrs, box, text }));
+  el.children = children;
+  el.type = attrs.type || "";
+  el.focus = () => {};
+  el.blur = () => {};
+  el.scrollIntoView = () => {};
+  el.dispatchEvent = () => true;
+  el.moveTo = (next) => {
+    el.getBoundingClientRect = () => ({ ...next, top: next.y, left: next.x });
+  };
+  return el;
 }
 
-test("the recorder's roleOf and page code's role function agree", () => {
-  // The table `roles.test.mjs` checks the recorder against, run a second time
-  // against `page-code.js`'s own copy -- so the two cannot drift apart
-  // without a test going red on the day they do.
-  const { roleOf: recorderRoleOf } = lift(["roleOf"]);
-  const pageRoleOf = liftFromPageCode("roleOf");
-  const el = (tag, attrs = {}) => ({
-    tagName: tag.toUpperCase(),
-    getAttribute: (name) => (name in attrs ? attrs[name] : null),
-    hasAttribute: (name) => name in attrs,
+const below = (el) => el.children.flatMap((child) => [child, ...below(child)]);
+const candidate = (el) =>
+  ["input", "select", "textarea", "button", "a"].includes(el.tagName.toLowerCase()) ||
+  el.hasAttribute("role") ||
+  el.hasAttribute("tabindex");
+const matching = (els, selector) =>
+  selector === "*" ? els : selector === CANDIDATE_SELECTOR ? els.filter(candidate) : [];
+
+/** A real tree: parents linked, and `querySelectorAll` answering the two
+ * selectors the repair path asks (`*` and the candidate list) from it, and
+ * nothing for any other -- the same answer a real DOM gives these pages,
+ * since none of their elements carries a name, autocomplete, id or test id
+ * an earlier strategy would find. */
+function mount(root) {
+  const link = (el) => {
+    for (const child of el.children) {
+      child.parentElement = el;
+      link(child);
+    }
+  };
+  link(root);
+  for (const el of [root, ...below(root)]) el.querySelectorAll = (s) => matching(below(el), s);
+  globalThis.document.querySelectorAll = (s) => matching([root, ...below(root)], s);
+  globalThis.document.evaluate = undefined;
+}
+
+const RENAMED = {
+  role: "textbox",
+  name: "Client",
+  attributes: { placeholder: "Enter code" },
+  landmarks: [{ role: "form", name: "Customer" }],
+  bounds: { x: 10, y: 10, width: 40, height: 20 },
+};
+
+function customerForm(...fields) {
+  const form = node("form", { attrs: { "aria-label": "Customer" }, children: fields });
+  mount(node("body", { children: [form] }));
+  return form;
+}
+
+test("a read repairs a renamed control when its kind, its scope and more of it agree", () => {
+  const { resolve } = loadSroPage();
+  customerForm(
+    node("input", { attrs: { "aria-label": "Client code", placeholder: "Enter code" }, box: { x: 12, y: 10, width: 40, height: 20 } }),
+    node("input", { attrs: { "aria-label": "Notes" }, box: { x: 600, y: 600, width: 40, height: 20 } }),
+  );
+
+  const found = resolve({ write: false, target: RENAMED });
+
+  assert.equal(found.strategy, "repair");
+  assert.equal(found.xpath, "/body/form[1]/input[1]");
+});
+
+test("a write is never repaired: every strategy missing leaves nothing to act on", () => {
+  const { resolve, act } = loadSroPage();
+  const renamed = node("input", {
+    attrs: { "aria-label": "Client code", placeholder: "Enter code" },
+    box: { x: 12, y: 10, width: 40, height: 20 },
   });
-  const cases = [
-    ["div", { role: "alert" }],
-    ["input", { role: "combobox" }],
-    ["button", {}],
-    ["a", { href: "/x" }],
-    ["select", {}],
-    ["textarea", {}],
-    ["input", {}],
-    ["input", { type: "email" }],
-    ["input", { type: "checkbox" }],
-    ["input", { type: "submit" }],
-    ["input", { type: "password" }],
-    ["div", { "aria-label": "Devansh Joshi" }],
-    ["span", {}],
-    ["td", {}],
-    ["a", {}],
-  ];
-  for (const [tag, attrs] of cases) {
-    const fake = el(tag, attrs);
-    assert.equal(pageRoleOf(fake), recorderRoleOf(fake), `${tag} ${JSON.stringify(attrs)}`);
+  customerForm(renamed);
+
+  assert.equal(resolve({ write: true, target: RENAMED }).found, false);
+  assert.equal(resolve({ target: RENAMED }).found, false, "a payload that does not say it reads is a write");
+  const answer = act({ action: "type", value: "X9", write: true, target: RENAMED });
+  assert.equal(answer.ok, false);
+  assert.equal(answer.error.kind, "control_not_found");
+  assert.equal(renamed.value, "", "the write reached a repaired control");
+});
+
+test("repair never picks a control of another kind", () => {
+  const { resolve } = loadSroPage();
+  customerForm(
+    node("input", { attrs: { "aria-label": "Client" }, box: { x: 600, y: 600, width: 40, height: 20 } }),
+    node("button", { text: "Customer", box: { x: 10, y: 10, width: 40, height: 20 } }),
+  );
+
+  const found = resolve({ write: false, target: { ...RENAMED, name: "Customer" } });
+
+  assert.equal(found.found, false, `repair chose ${found.xpath}`);
+});
+
+test("repair never picks the same name in another landmark: Delete in the Orders section", () => {
+  const { resolve } = loadSroPage();
+  const orders = node("section", {
+    attrs: { "aria-label": "Orders" },
+    children: [node("button", { text: "Delete", box: { x: 10, y: 10, width: 40, height: 20 } })],
+  });
+  mount(node("body", { children: [orders] }));
+
+  const found = resolve({
+    write: false,
+    target: {
+      role: "button",
+      name: "Delete",
+      landmarks: [{ role: "dialog", name: "Confirm delete" }],
+      bounds: { x: 10, y: 10, width: 40, height: 20 },
+    },
+  });
+
+  assert.equal(found.found, false, `repair chose ${found.xpath}`);
+});
+
+test("two controls that resemble the evidence equally are refused, not guessed between", () => {
+  const { resolve } = loadSroPage();
+  const twin = () => node("input", { attrs: { "aria-label": "Client code", placeholder: "Enter code" }, box: { x: 600, y: 600, width: 40, height: 20 } });
+  customerForm(twin(), twin());
+
+  assert.equal(resolve({ write: false, target: RENAMED }).found, false);
+});
+
+test("a near tie is refused and a clear lead is taken", () => {
+  const { resolve } = loadSroPage();
+  const best = { attrs: { "aria-label": "Client code", placeholder: "Enter code" }, box: { x: 12, y: 10, width: 40, height: 20 } };
+  const far = { x: 600, y: 600, width: 40, height: 20 };
+
+  customerForm(node("input", best), node("input", { attrs: { "aria-label": "Client ref", placeholder: "Enter code" }, box: far }));
+  assert.equal(resolve({ write: false, target: RENAMED }).found, false, "3 against 2 was taken");
+
+  customerForm(node("input", best), node("input", { attrs: { "aria-label": "Notes", placeholder: "Enter code" }, box: far }));
+  const found = resolve({ write: false, target: RENAMED });
+  assert.equal(found.strategy, "repair", "3 against 1 was refused");
+  assert.equal(found.xpath, "/body/form[1]/input[1]");
+});
+
+// --- act pins what it touched, and holds checks exactly that -----------------
+
+test("after act scrolls, holds still checks the Qty field it typed into, not the other one", () => {
+  const { act, holds } = loadSroPage();
+  const first = node("input", { attrs: { "aria-label": "Qty" }, box: { x: 10, y: 100, width: 40, height: 20 } });
+  const second = node("input", { attrs: { "aria-label": "Qty" }, box: { x: 10, y: 900, width: 40, height: 20 } });
+  second.value = "7";
+  mount(node("body", { children: [first, second] }));
+  first.scrollIntoView = () => {
+    first.moveTo({ x: 10, y: -700, width: 40, height: 20 });
+    second.moveTo({ x: 10, y: 100, width: 40, height: 20 });
+  };
+  const target = { role: "textbox", name: "Qty", bounds: { x: 10, y: 100, width: 40, height: 20 } };
+
+  const answer = act({ action: "type", value: "9", write: true, target });
+
+  assert.equal(answer.ok, true);
+  assert.equal(first.value, "9");
+  assert.equal(answer.repaired, false);
+  assert.ok(answer.pin, "act handed back nothing to pin the control by");
+  assert.deepEqual(holds({ pin: answer.pin, expect: { value: "9" } }), { repaired: false });
+  assert.equal(holds({ pin: answer.pin, expect: { value: "7" } }), null, "held the other Qty field");
+  assert.equal(holds({ target, expect: { value: "7" } }), null, "re-resolved without a pin");
+});
+
+test("holds says no once the control it pinned has left the page", () => {
+  const { act, holds } = loadSroPage();
+  const field = node("input", { attrs: { "aria-label": "Qty" } });
+  mount(node("body", { children: [field] }));
+  const answer = act({ action: "type", value: "9", target: { role: "textbox", name: "Qty" } });
+
+  field.isConnected = false;
+
+  assert.equal(holds({ pin: answer.pin, expect: { value: "9" } }), null);
+});
+
+test("act never throws: typing into something that is not a field is an answer", () => {
+  const { act } = loadSroPage();
+  const div = node("div", { attrs: { role: "textbox", "aria-label": "Qty" } });
+  div.focus = () => {
+    throw new TypeError("Illegal invocation");
+  };
+  mount(node("body", { children: [div] }));
+
+  const answer = act({ action: "type", value: "9", target: { role: "textbox", name: "Qty" } });
+
+  assert.equal(answer.ok, false);
+  assert.equal(answer.error.kind, "not_actionable");
+});
+
+// --- bounds are page coordinates -----------------------------------------------
+
+test("bounds recorded at the top of the page still pick the top control after a scroll", () => {
+  const { resolve } = loadSroPage();
+  const top = node("button", { text: "Save", box: { x: 10, y: 100 - 1700, width: 60, height: 20 } });
+  const low = node("button", { text: "Save", box: { x: 10, y: 1800 - 1700, width: 60, height: 20 } });
+  mount(node("body", { children: [top, low] }));
+  globalThis.window.scrollX = 0;
+  globalThis.window.scrollY = 1700;
+  try {
+    const found = resolve({
+      target: { role: "button", name: "Save", bounds: { x: 10, y: 100, width: 60, height: 20 } },
+    });
+    assert.equal(found.xpath, "/body/button[1]");
+  } finally {
+    globalThis.window.scrollY = 0;
+  }
+});
+
+// --- an ExtJS combo box opens by its trigger on the strategy ladder too -------
+
+test("the Create Shipment By list opens: a component-chain click lands on its trigger", () => {
+  const { act } = loadSroPage();
+  const arrow = node("div", { box: { x: 60, y: 0, width: 20, height: 20 } });
+  const input = node("input", { box: { x: 0, y: 0, width: 60, height: 20 } });
+  let opened = false;
+  arrow.dispatchEvent = (event) => {
+    if (event.type === "click") opened = true;
+    return true;
+  };
+  const combo = { isVisible: () => true, inputEl: { dom: input }, el: { dom: input }, triggerEl: { dom: arrow } };
+  globalThis.window.Ext = { ComponentQuery: { query: () => [combo] } };
+  try {
+    const answer = act({
+      action: "click",
+      target: { component: { chain: ["form#shipment", "combobox#createShipmentBy"] } },
+    });
+    assert.equal(answer.ok, true);
+    assert.equal(answer.matched_by, "component_chain");
+    assert.ok(opened, "the list's trigger was never clicked");
+  } finally {
+    delete globalThis.window.Ext;
+  }
+});
+
+// --- hitTest teaches only locators that find the element -----------------------
+
+test("hitTest names an ExtJS button by its component, not the span under the point", () => {
+  const { hitTest } = loadSroPage();
+  const inner = node("span", { attrs: {} });
+  inner.id = "button-1012-btnInnerEl";
+  const btn = node("a", { children: [node("span", { children: [inner] })] });
+  btn.id = "button-1012";
+  mount(node("body", { children: [btn] }));
+  const cmp = { itemId: "saveButton", xtype: "button", isVisible: () => true, btnEl: { dom: btn } };
+  globalThis.window.Ext = {
+    getCmp: (id) => (id === "button-1012" ? cmp : undefined),
+    ComponentQuery: { query: (q) => (q === "#saveButton" ? [cmp] : []) },
+  };
+  globalThis.document.elementFromPoint = () => inner;
+  try {
+    const taught = hitTest(5, 5);
+    assert.equal(taught.strategy, "component");
+    assert.equal(taught.query, "#saveButton");
+    assert.deepEqual(taught.frame_path, []);
+  } finally {
+    delete globalThis.window.Ext;
+    globalThis.document.elementFromPoint = () => at;
+  }
+});
+
+test("hitTest refuses to teach an xpath that finds nothing", () => {
+  const { hitTest } = loadSroPage();
+  const lone = node("div", {});
+  mount(node("body", { children: [lone] }));
+  globalThis.document.elementFromPoint = () => lone;
+  globalThis.document.evaluate = () => ({ snapshotLength: 0, snapshotItem: () => null });
+  globalThis.XPathResult = { ORDERED_NODE_SNAPSHOT_TYPE: 7 };
+  try {
+    assert.equal(hitTest(5, 5), null);
+  } finally {
+    globalThis.document.elementFromPoint = () => at;
   }
 });

@@ -19,6 +19,7 @@ from typing import Any, ClassVar
 import pytest
 
 from sro.config import get_settings
+from sro.infrastructure.steel.capture import _recorder_script
 
 pytestmark = pytest.mark.browser
 
@@ -55,6 +56,38 @@ DUPLICATE_PAGE = """<!doctype html><html><body>
 <button style="position:absolute;left:400px;top:10px;width:60px;height:20px">Save</button>
 </body></html>"""
 
+RENAMED_PAGE = """<!doctype html><html><body>
+<form aria-label="Customer">
+<input aria-label="Client code" placeholder="Enter code"
+  style="position:absolute;left:10px;top:10px;width:120px;height:20px">
+<input aria-label="Notes" style="position:absolute;left:10px;top:400px;width:120px;height:20px">
+</form>
+</body></html>"""
+
+SCROLLED_PAGE = """<!doctype html><html><body style="margin:0;height:3000px">
+<button style="position:absolute;left:10px;top:100px;width:60px;height:20px">Save</button>
+<button style="position:absolute;left:10px;top:1800px;width:60px;height:20px">Save</button>
+</body></html>"""
+
+HIT_TOP_PAGE = """<!doctype html><html><body style="margin:0">
+<iframe src="/hit-inner"
+  style="position:absolute;left:0;top:0;width:300px;height:100px;border:0"></iframe>
+<iframe src="{cross}/hit-inner"
+  style="position:absolute;left:0;top:200px;width:300px;height:100px;border:0"></iframe>
+</body></html>"""
+
+HIT_INNER_PAGE = """<!doctype html><html><body style="margin:0">
+<button style="position:absolute;left:10px;top:10px;width:80px;height:30px">Save</button>
+</body></html>"""
+
+DEEP_PAGE = (
+    '<!doctype html><html><body style="margin:0">'
+    + "<div>" * 15
+    + '<span style="position:absolute;left:10px;top:10px;width:80px;height:30px">leaf</span>'
+    + "</div>" * 15
+    + "</body></html>"
+)
+
 
 class _Pages(BaseHTTPRequestHandler):
     """No backend, no registration, no extension protocol -- these pages
@@ -70,6 +103,11 @@ class _Pages(BaseHTTPRequestHandler):
         "/iframe-inner": IFRAME_INNER_PAGE,
         "/stale": STALE_PAGE,
         "/duplicate": DUPLICATE_PAGE,
+        "/renamed": RENAMED_PAGE,
+        "/scrolled": SCROLLED_PAGE,
+        "/hit-top": HIT_TOP_PAGE,
+        "/hit-inner": HIT_INNER_PAGE,
+        "/deep": DEEP_PAGE,
     }
 
     def do_GET(self) -> None:
@@ -78,7 +116,8 @@ class _Pages(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
             return
-        encoded = body.encode()
+        port = self.server.server_address[1]
+        encoded = body.replace("{cross}", f"http://localhost:{port}").encode()
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(encoded)))
@@ -154,12 +193,11 @@ def _resolve_in_extension(
     return answer
 
 
-def _resolve_in_plain_chromium(
-    url: str, payload: dict[str, Any], frame_url_suffix: str | None = None
-) -> dict[str, Any]:
+def _plain_chromium(work: Any, viewport: dict[str, int] | None = None) -> Any:
     """The other loader `page-code.js` has to agree with: `add_init_script`
     is how Steel's own `PlaywrightUiDriver` reads a page, with no extension
-    anywhere in the picture.
+    anywhere in the picture. `work(context)` runs against a fresh context
+    with page-code.js already added.
 
     Run on its own thread, not the main one: `browser` (conftest.py) already
     holds a `sync_playwright()` connection open on the main thread for the
@@ -172,7 +210,7 @@ def _resolve_in_plain_chromium(
     """
     from playwright.sync_api import sync_playwright
 
-    answer: dict[str, Any] = {}
+    answer: list[Any] = []
     failure: list[BaseException] = []
 
     def run() -> None:
@@ -180,16 +218,13 @@ def _resolve_in_plain_chromium(
             with sync_playwright() as p:
                 browser = p.chromium.launch()
                 try:
-                    context = browser.new_context()
-                    context.add_init_script(path=get_settings().page_code_path)
-                    page = context.new_page()
-                    page.goto(url)
-                    frame = (
-                        next(f for f in page.frames if f.url.endswith(frame_url_suffix))
-                        if frame_url_suffix
-                        else page.main_frame
+                    context = (
+                        browser.new_context(viewport=viewport)
+                        if viewport
+                        else browser.new_context()
                     )
-                    answer.update(frame.evaluate("p => globalThis.sroPage.resolve(p)", payload))
+                    context.add_init_script(path=get_settings().page_code_path)
+                    answer.append(work(context))
                 finally:
                     browser.close()
         except BaseException as exc:
@@ -200,7 +235,28 @@ def _resolve_in_plain_chromium(
     thread.join()
     if failure:
         raise failure[0]
-    return answer
+    return answer[0]
+
+
+def _resolve_in_plain_chromium(
+    url: str,
+    payload: dict[str, Any],
+    frame_url_suffix: str | None = None,
+    viewport: dict[str, int] | None = None,
+) -> dict[str, Any]:
+    def work(context: Any) -> dict[str, Any]:
+        page = context.new_page()
+        page.goto(url)
+        frame = (
+            next(f for f in page.frames if f.url.endswith(frame_url_suffix))
+            if frame_url_suffix
+            else page.main_frame
+        )
+        found: dict[str, Any] = frame.evaluate("p => globalThis.sroPage.resolve(p)", payload)
+        return found
+
+    found: dict[str, Any] = _plain_chromium(work, viewport)
+    return found
 
 
 def _same_answer(extension: dict[str, Any], playwright: dict[str, Any]) -> None:
@@ -303,3 +359,121 @@ def test_two_matching_controls_are_told_apart_by_bounds_in_both_engines(
     assert extension_found["strategy"] == "within_role_name"
     assert extension_found["candidates"] == 2
     _same_answer(extension_found, playwright_found)
+
+
+def test_a_renamed_control_repairs_to_the_same_control_in_both_engines_at_two_viewports(
+    browser: Any, pages: Any
+) -> None:
+    port = pages.server_address[1]
+    url = f"http://127.0.0.1:{port}/renamed"
+    payload = {
+        "write": False,
+        "target": {
+            "role": "textbox",
+            "name": "Client",
+            "attributes": {"placeholder": "Enter code"},
+            "landmarks": [{"role": "form", "name": "Customer"}],
+            "bounds": {"x": 10, "y": 10, "width": 126, "height": 26},
+        },
+    }
+
+    worker = _service_worker(browser)
+    page = browser.new_page()
+    page.goto(url)
+    extension_found = _resolve_in_extension(worker, _tab_id(worker, url), 0, payload)
+    page.close()
+
+    playwright_found = _resolve_in_plain_chromium(
+        url, payload, viewport={"width": 700, "height": 500}
+    )
+
+    assert extension_found["strategy"] == "repair", extension_found
+    assert extension_found["xpath"] == "/html/body[1]/form[1]/input[1]"
+    _same_answer(extension_found, playwright_found)
+    as_a_write = _resolve_in_plain_chromium(url, {**payload, "write": True})
+    assert as_a_write["found"] is False, as_a_write
+
+
+def _record_a_click_while_scrolled(url: str) -> dict[str, Any]:
+    """The real recorder, the one Steel injects, in a real page scrolled
+    most of the way down, clicking the lower of two `Save` buttons."""
+
+    def work(context: Any) -> dict[str, Any]:
+        context.add_init_script(
+            "window.__sroRecord = (j) => (window.__got = window.__got || []).push(JSON.parse(j));"
+        )
+        context.add_init_script(_recorder_script())
+        page = context.new_page()
+        page.goto(url)
+        page.evaluate("window.scrollTo(0, 1700)")
+        page.mouse.click(40, 110)
+        got: list[dict[str, Any]] = page.evaluate("window.__got || []")
+        target: dict[str, Any] = next(one for one in got if one["kind"] == "click")["target"]
+        return target
+
+    target: dict[str, Any] = _plain_chromium(work)
+    return target
+
+
+def test_a_recording_made_while_scrolled_replays_onto_the_control_it_clicked(
+    browser: Any, pages: Any
+) -> None:
+    port = pages.server_address[1]
+    url = f"http://127.0.0.1:{port}/scrolled"
+    recorded = _record_a_click_while_scrolled(url)
+    assert recorded["bounds"]["y"] == 1800, recorded["bounds"]
+    payload = {
+        "target": {"role": recorded["role"], "name": recorded["name"], "bounds": recorded["bounds"]}
+    }
+
+    worker = _service_worker(browser)
+    page = browser.new_page()
+    page.goto(url)
+    extension_found = _resolve_in_extension(worker, _tab_id(worker, url), 0, payload)
+    page.close()
+
+    playwright_found = _resolve_in_plain_chromium(url, payload)
+
+    assert extension_found["xpath"] == recorded["xpath"] == "/html/body[1]/button[2]"
+    _same_answer(extension_found, playwright_found)
+
+
+def _hit(url: str, *points: tuple[int, int]) -> list[Any]:
+    def work(context: Any) -> list[Any]:
+        page = context.new_page()
+        page.goto(url)
+        return [
+            page.evaluate("([x, y]) => globalThis.sroPage.hitTest(x, y)", [x, y]) for x, y in points
+        ]
+
+    answers: list[Any] = _plain_chromium(work)
+    return answers
+
+
+def test_hit_test_names_the_frame_it_found_the_control_in_and_says_when_it_cannot_reach(
+    pages: Any,
+) -> None:
+    port = pages.server_address[1]
+    inside, across = _hit(f"http://127.0.0.1:{port}/hit-top", (50, 25), (50, 225))
+
+    assert inside == {
+        "strategy": "role_and_name",
+        "query": "button|Save",
+        "frame_path": [{"index": 0, "url": f"http://127.0.0.1:{port}/hit-inner"}],
+    }
+    assert across["strategy"] is None, across
+    assert across["unreachable"] == "cross_origin_frame"
+    assert across["frame_path"] == [{"index": 1, "url": f"http://localhost:{port}/hit-inner"}]
+    assert (across["x"], across["y"]) == (50, 25)
+
+
+def test_hit_test_teaches_an_xpath_that_finds_an_element_nested_deeper_than_twelve(
+    pages: Any,
+) -> None:
+    port = pages.server_address[1]
+    (taught,) = _hit(f"http://127.0.0.1:{port}/deep", (50, 25))
+
+    assert taught is not None
+    assert taught["strategy"] == "xpath"
+    assert taught["query"].startswith("/html/body[1]/div[1]/"), taught
+    assert taught["query"].count("div[1]") == 15

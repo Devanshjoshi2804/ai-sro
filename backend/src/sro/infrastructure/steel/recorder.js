@@ -40,6 +40,14 @@
   // Losing the tail of one field beats losing the fact that it was edited.
   const MAX_VALUE = 4096;
 
+  // How a control is named, placed, scoped and pathed. Spliced in from
+  // page-code.js's `readers` by `_recorder_script` (capture.py): what this
+  // records and what page-code.js later resolves it against are one text, so
+  // the two cannot disagree about a control. Reasoning lives in
+  // docs/code-notes/new-chrome-extension/src/page/page-code.js.md.
+  const { roleOf, nameOf, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf } =
+    __PAGE_READERS__;
+
   // A credential field is recognised where it is typed, not later. Anything
   // matched here has its value dropped before it leaves the page: the evidence
   // plane keeps everything a demonstration did, and a password is not that --
@@ -119,37 +127,9 @@
     return parts.join(' > ');
   };
 
-  const xpath = (el) => {
-    const parts = [];
-    let node = el;
-    while (node && node.nodeType === 1 && parts.length < 12) {
-      const parent = node.parentElement;
-      if (!parent) { parts.unshift(node.tagName.toLowerCase()); break; }
-      const siblings = [...parent.children].filter((c) => c.tagName === node.tagName);
-      const index = siblings.indexOf(node) + 1;
-      parts.unshift(`${node.tagName.toLowerCase()}[${index}]`);
-      node = parent;
-    }
-    return `/${parts.join('/')}`;
-  };
-
   // Best-effort label. The authoritative accessible name comes from the AX tree.
-  const label = (el) => {
-    // Never for a credential field: the last fallback below is `el.value`, so a
-    // password with no label would become its own accessible name.
-    if (isSecretField(el)) return null;
-    const aria = el.getAttribute('aria-label');
-    if (aria) return aria;
-    const labelledBy = el.getAttribute('aria-labelledby');
-    if (labelledBy) {
-      const target = document.getElementById(labelledBy);
-      if (target) return (target.innerText || '').trim().slice(0, MAX_TEXT);
-    }
-    if (el.labels && el.labels.length) return (el.labels[0].innerText || '').trim().slice(0, MAX_TEXT);
-    if (el.getAttribute('placeholder')) return el.getAttribute('placeholder');
-    if (el.getAttribute('title')) return el.getAttribute('title');
-    return (el.innerText || el.value || '').trim().slice(0, MAX_TEXT) || null;
-  };
+  // Never for a credential field.
+  const label = (el) => (isSecretField(el) ? null : nameOf(el) || null);
 
   // The component behind the element, when the page is built out of components.
   //
@@ -160,74 +140,10 @@
   // payload key. The component model is the only view that survives a reload:
   // `xtype` is what the application calls the control, and `itemId` is what its
   // own code uses to find it.
-  // What kind of control this is, whether or not the page bothered to say.
-  //
-  // `getAttribute('role')` reads only what an author wrote down, and almost
-  // nobody writes `role="button"` on a `<button>` -- the browser knows it
-  // implicitly. So the one identity this system has for a control that carries
-  // no framework component and no test id was `name|<label>`, which reads
-  // exactly the same as an accessible name on a `<div>` -- and a `<div>` in a
-  // mailbox is labelled with the mail.
-  //
-  // Measured on the deployment 2026-09-20 over 732 gestures: 132 identities
-  // came through that branch, and they are two different things wearing one
-  // shape. `Username or email` (30), `Sign In` (14), `Subject` (5) are
-  // controls on an `<input>` or a `<button>`. `Devansh Joshi` (17),
-  // `Tanisha Pradhan` (13), `104` (7), `2,486` are a sender, a subject and a
-  // message count -- content, on a div, changing with every mail, and every
-  // change mints another job. `Reply to Email` reached five rows that way.
-  //
-  // The implicit role separates them at the source: an `<input>` becomes
-  // `textbox|Username or email` and the `<div>` keeps no role at all, so the
-  // identity below falls past `name|` to the text and then to `anon`, which is
-  // what an unidentifiable click honestly is.
-  //
-  // Only the roles this system actually meets. A full implicit-role table is
-  // the ARIA spec's own, it is long, and every row of it that nothing here has
-  // ever seen is a row nobody can check.
-  const roleOf = (el) => {
-    const written = el.getAttribute('role');
-    if (written) return written;
-    const tag = el.tagName.toLowerCase();
-    if (tag === 'button') return 'button';
-    if (tag === 'a') return el.hasAttribute('href') ? 'link' : null;
-    if (tag === 'select') return 'combobox';
-    if (tag === 'textarea') return 'textbox';
-    if (tag === 'summary') return 'button';
-    if (tag !== 'input') return null;
-    const type = (el.getAttribute('type') || 'text').toLowerCase();
-    if (type === 'checkbox') return 'checkbox';
-    if (type === 'radio') return 'radio';
-    if (type === 'range') return 'slider';
-    if (['button', 'submit', 'reset', 'image'].includes(type)) return 'button';
-    // `password` deliberately included: it is a textbox, and what keeps the
-    // secret out is the redaction that already runs over the value, not a
-    // missing role on the element.
-    if (['text', 'search', 'email', 'tel', 'url', 'password', 'number'].includes(type))
-      return 'textbox';
-    return null;
-  };
-
   const component = (el) => {
-    if (!window.Ext || !Ext.getCmp) return null;
-    let node = el;
-    let cmp = null;
-    while (node && node.nodeType === 1 && !cmp) {
-      if (node.id) {
-        // Ext gives sub-elements suffixed ids (`-inputEl`, `-btnIconEl`); the
-        // component is registered under the stem.
-        cmp = Ext.getCmp(node.id) || Ext.getCmp(node.id.replace(/-[a-zA-Z]+El$/, ''));
-      }
-      node = node.parentElement;
-    }
+    const cmp = cmpOf(el);
     if (!cmp) return null;
-
-    const chain = [];
-    for (let k = cmp; k && chain.length < 10; k = k.ownerCt || k.floatParent) {
-      const xtype = k.getXType ? k.getXType() : k.xtype;
-      if (!xtype) continue;
-      chain.unshift(k.itemId && !/^ext-/.test(k.itemId) ? `${xtype}#${k.itemId}` : xtype);
-    }
+    const chain = chainOf(el);
     // Two segments: enough context to disambiguate, short enough to survive a
     // screen being re-parented, which happens whenever a dialog is involved.
     const query = chain.slice(-2).join(' ');
@@ -249,56 +165,9 @@
     };
   };
 
-  // Named landmarks only -- `region`, `dialog`, `alertdialog`, `grid`,
-  // `treegrid`, `form` -- never every ancestor. A `<div>` wrapper with no ARIA
-  // role and no landmark tag says nothing about scope; recording it would give
-  // `within` a chain of unnamed boxes that changes with every unrelated markup
-  // refactor, which is the opposite of a stable path.
-  const landmarkRole = (el) => {
-    const written = el.getAttribute('role');
-    const named = ['region', 'dialog', 'alertdialog', 'grid', 'treegrid', 'form'];
-    if (written) return named.includes(written) ? written : null;
-    const tag = el.tagName.toLowerCase();
-    if (tag === 'form') return 'form';
-    if (tag === 'dialog') return 'dialog';
-    if (tag === 'section') return 'region';
-    return null;
-  };
-
-  const ownName = (el) => {
-    const aria = el.getAttribute('aria-label');
-    if (aria && aria.trim()) return aria.trim().slice(0, MAX_TEXT);
-    const by = el.getAttribute('aria-labelledby');
-    if (!by) return null;
-    const said = by
-      .split(/\s+/)
-      .map((id) => (document.getElementById(id) || {}).innerText || '')
-      .join(' ')
-      .trim();
-    return said ? said.slice(0, MAX_TEXT) : null;
-  };
-
-  // Outermost first, walking the DOM from the element up to the document. A
-  // landmark with a role but no accessible name is skipped rather than kept
-  // with a blank name: an unnamed dialog is not a scope a runner could name
-  // back to a person, so it is not recorded as one. This is the whole
-  // `within` scope this design needs, read straight off the DOM the page
-  // already rendered -- no `chrome.debugger`, no debugger banner on the tab,
-  // no walking a 4,000-node accessibility tree to get it.
-  const landmarksOf = (el) => {
-    const found = [];
-    for (let node = el.parentElement; node && node.nodeType === 1; node = node.parentElement) {
-      const role = landmarkRole(node);
-      const name = role ? ownName(node) : null;
-      if (role && name) found.unshift({ role, name });
-    }
-    return found;
-  };
-
   const describe = (el) => {
     if (!el || el.nodeType !== 1) return null;
     const secret = isSecretField(el);
-    const box = el.getBoundingClientRect();
     const attributes = {};
     for (const attr of el.attributes || []) {
       // Values are captured; nothing here is filtered. Storage-side policy
@@ -341,8 +210,8 @@
       // to fill.
       required: requiredOf(el),
       cssPath: cssPath(el),
-      xpath: xpath(el),
-      bounds: { x: box.x, y: box.y, width: box.width, height: box.height },
+      xpath: xpathOf(el),
+      bounds: boundsOf(el),
       attributes,
       component: component(el),
       landmarks: landmarksOf(el),
@@ -356,39 +225,6 @@
     if (e.altKey) mods.push('alt');
     if (e.metaKey) mods.push('meta');
     return mods;
-  };
-
-  // The index chain from the top document down to this frame, with each
-  // hop's own URL where it can be read. `parent.frames[i] === here` is how a
-  // same-origin ancestor is asked which child this frame is -- `frameElement`
-  // does the same job one level up, but only within the parent's own origin,
-  // and a cross-origin parent throws reading it. A cross-origin ancestor's
-  // `location.href` throws too, by the same-origin policy the browser
-  // enforces on every frame here, same-origin or not: this frame can read the
-  // parent's frame LIST (that much is exposed everywhere), but not the
-  // parent's own URL unless they share an origin. `ancestorOrigins`, indexed
-  // from the immediate parent outward, is the one thing a cross-origin
-  // ancestor still exposes -- an origin, not a full URL, but the driver only
-  // needs it to tell one frame from a sibling, and an origin does that.
-  const framePathOf = (win) => {
-    const hops = [];
-    const origins = (win.location && win.location.ancestorOrigins) || [];
-    let depth = 0;
-    for (let here = win; here.parent && here !== here.parent; here = here.parent, depth += 1) {
-      const parent = here.parent;
-      let index = -1;
-      for (let i = 0; i < parent.frames.length; i += 1) {
-        if (parent.frames[i] === here) index = i;
-      }
-      let url = null;
-      try {
-        url = here.location.href;
-      } catch {
-        url = depth > 0 ? origins[depth - 1] || null : null;
-      }
-      hops.unshift({ index, url });
-    }
-    return hops;
   };
 
   const emit = (record) => {

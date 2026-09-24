@@ -35,6 +35,7 @@ from sro.application.ports.http import (
 from sro.application.ports.intent import Extraction, Reading
 from sro.application.ports.locks import AccountBusy
 from sro.application.ports.model import Asker
+from sro.application.ports.page import PageAnswer, SessionRef
 from sro.application.ports.pool import PoolFull
 from sro.application.ports.repositories import (
     AttemptRepository,
@@ -85,6 +86,7 @@ from sro.domain.chat.thread import MessageId, Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
 from sro.domain.execution.account import K_LEASE_TTL, LIVE, Account, Lease, LeaseState
 from sro.domain.execution.belts import RunProof, state_verified
+from sro.domain.execution.lanes import SeenCall
 from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
@@ -112,6 +114,7 @@ from sro.domain.observation.pool import (
     RETIRED_STALE,
     PoolEntry,
 )
+from sro.domain.observation.trim import path_shape
 from sro.domain.recording.events import ActionKind
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.errors import Conflict, NotFound
@@ -134,6 +137,7 @@ from sro.domain.shared.prices import Answer as ModelAnswer
 from sro.domain.shared.prices import DaySpend, Effort, ModelSpend
 from sro.domain.skill.locator import LocatorStrategy
 from sro.domain.skill.offers import Offer, OfferRow
+from sro.domain.skill.signing_in import PageSignals
 from sro.domain.skill.skill import Skill
 from sro.domain.skill.workflow import Noticed, Workflow
 from sro.domain.trigger.confirmation import Answer, Confirmation
@@ -2843,3 +2847,79 @@ class FakeToolCaller:
         if answer is None:
             raise ToolsUnavailable(f"{server} offers no tool called {tool}")
         return answer
+
+
+class FakePageDriver:
+    """A `PageDriver` (S5's port) whose `act`/`wait_for`/`calls_since` answer
+    exactly what a test scripted, for the runtime lanes that drive a page
+    through it (X4's `UiLane` first).
+
+    `mark`/`calls_since` model S5's per-target response log loosely enough for
+    a lane test: `mark` counts how many times it has been asked, and
+    `calls_since` always serves the same scripted tuple regardless of the mark
+    it is given, since these tests script one exchange at a time rather than a
+    growing log.
+    """
+
+    def __init__(
+        self,
+        *,
+        answer: PageAnswer | None = None,
+        calls: Sequence[SeenCall] = (),
+        holds: bool = False,
+        sign_in: bool = False,
+        url: str = "",
+        hit: object | None = None,
+    ) -> None:
+        self._answer = answer if answer is not None else PageAnswer(ok=True)
+        self._calls = tuple(calls)
+        self._holds = holds
+        self._signals = PageSignals(url or "https://wms.example/app", password=sign_in)
+        self.hit = hit
+        self.acted: list[tuple[SessionRef, str, dict[str, object]]] = []
+        self.waited_for: list[dict[str, object]] = []
+        self.pointed: list[tuple[SessionRef, str]] = []
+        self._marks = 0
+
+    async def act(
+        self, session: SessionRef, target_id: str, payload: Mapping[str, object]
+    ) -> PageAnswer:
+        self.acted.append((session, target_id, dict(payload)))
+        return self._answer
+
+    async def mark(self, session: SessionRef, target_id: str) -> int:
+        self._marks += 1
+        return self._marks
+
+    async def calls_since(
+        self, session: SessionRef, target_id: str, mark: int
+    ) -> tuple[SeenCall, ...]:
+        return self._calls
+
+    async def wait_for_call(
+        self,
+        session: SessionRef,
+        target_id: str,
+        *,
+        method: str,
+        shape: str,
+        since: int,
+        deadline_s: float,
+    ) -> bool:
+        return any(
+            call.method.upper() == method.upper() and path_shape(call.url) == shape
+            for call in self._calls
+        )
+
+    async def wait_for(
+        self,
+        session: SessionRef,
+        target_id: str,
+        payload: Mapping[str, object],
+        deadline_s: float,
+    ) -> bool:
+        self.waited_for.append(dict(payload))
+        return self._holds
+
+    async def signals(self, session: SessionRef, target_id: str) -> PageSignals:
+        return self._signals

@@ -2,11 +2,50 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
+from urllib.parse import parse_qs, urlsplit
 
 from sro.domain.observation.gesture import Gesture, Target, passed_through
 from sro.domain.shared.hosts import origin_of
 from sro.domain.skill.checks import signs_in_to
 from sro.domain.skill.workflow import Step, Workflow, ordered_cites
+
+_AUTHORIZE = frozenset({"response_type", "client_id", "redirect_uri", "state"})
+_RETURN = frozenset({"code", "state"})
+_CREDENTIAL = frozenset({"current-password", "username", "one-time-code"})
+
+
+@dataclass(frozen=True, slots=True)
+class PageSignals:
+    url: str
+    visited: tuple[str, ...] = ()
+    password: bool = False
+    autocomplete: frozenset[str] = frozenset()
+
+
+def _asks(url: str) -> frozenset[str]:
+    return frozenset(parse_qs(urlsplit(url).query, keep_blank_values=True))
+
+
+def _an_authorize_request(url: str) -> bool:
+    return _asks(url) >= _AUTHORIZE
+
+
+def _a_code_return(url: str) -> bool:
+    return _asks(url) >= _RETURN
+
+
+def _in_round_trip(urls: tuple[str, ...]) -> bool:
+    opened = max((n for n, url in enumerate(urls) if _an_authorize_request(url)), default=-1)
+    closed = max((n for n, url in enumerate(urls) if _a_code_return(url)), default=-1)
+    return opened > closed
+
+
+def a_sign_in_page(page: PageSignals) -> bool:
+    return (
+        page.password
+        or bool(page.autocomplete & _CREDENTIAL)
+        or _in_round_trip((*page.visited, page.url))
+    )
 
 
 def signs_in_at(
@@ -171,4 +210,11 @@ def _secret(gesture: Gesture) -> bool:
     return bool(gesture.action.secret or (target is not None and target.secret))
 
 
-__all__ = ["RecordedLogin", "recorded_login", "sign_in_chain", "signs_in_at"]
+__all__ = [
+    "PageSignals",
+    "RecordedLogin",
+    "a_sign_in_page",
+    "recorded_login",
+    "sign_in_chain",
+    "signs_in_at",
+]

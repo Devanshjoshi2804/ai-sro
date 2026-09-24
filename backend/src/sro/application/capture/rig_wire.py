@@ -92,6 +92,8 @@ class Target(BaseModel):
             value = getattr(self, prose)
             if value:
                 setattr(self, prose, redact_shapes(value))
+        if self.secret:
+            self.attributes.pop("value", None)
         if self.attributes:
             self.attributes = redact_attributes(self.attributes)
         return self
@@ -164,7 +166,7 @@ def redact_attributes(node: Any) -> Any:
     if isinstance(node, list):
         return [redact_attributes(item) for item in node]
     if isinstance(node, str):
-        return redact_url(node)
+        return redact_shapes(redact_url(node))
     return node
 
 

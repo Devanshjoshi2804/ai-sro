@@ -15,6 +15,7 @@ from sro.domain.shared.identifiers import TenantId
 from tests.unit.fakes import FakeWorkflowRunRepository
 
 TENANT = TenantId("acme")
+OTHER_TENANT = TenantId("other-corp")
 
 
 def _run(**overrides: Any) -> WorkflowRun:
@@ -52,11 +53,32 @@ async def test_a_stale_save_does_not_roll_progress_back() -> None:
     stale_copy = await runs.get(TENANT, run.id)
     assert stale_copy is not None
 
-    await runs.record_progress(run.id, {"step": 1, "marks": {"0": {"wrote": "done"}}})
+    recorded = await runs.record_progress(
+        TENANT, run.id, {"step": 1, "marks": {"0": {"wrote": "done"}}}
+    )
     stale_copy.watched = True
     await runs.save(stale_copy)
 
     back = await runs.get(TENANT, run.id)
+    assert recorded is True
     assert back is not None
     assert back.watched is True
     assert back.progress == {"step": 1, "marks": {"0": {"wrote": "done"}}}
+
+
+async def test_record_progress_returns_false_for_an_unknown_run() -> None:
+    runs = FakeWorkflowRunRepository()
+
+    assert await runs.record_progress(TENANT, "run_no_such_run", {"step": 1}) is False
+
+
+async def test_record_progress_returns_false_for_the_wrong_tenant() -> None:
+    runs = FakeWorkflowRunRepository()
+    run = _run()
+    await runs.save(run)
+
+    recorded = await runs.record_progress(OTHER_TENANT, run.id, {"step": 1})
+
+    assert recorded is False
+    back = await runs.get(TENANT, run.id)
+    assert back is not None and back.progress == {}

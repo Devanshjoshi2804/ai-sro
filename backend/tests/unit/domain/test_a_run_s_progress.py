@@ -1,6 +1,6 @@
 import pytest
 
-from sro.domain.execution.progress import K_BUDGET_FLOOR_S, Progress, run_budget
+from sro.domain.execution.progress import K_BUDGET_FLOOR_S, Account, Progress, run_budget
 from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.skill.workflow import Step, Workflow
 
@@ -37,7 +37,7 @@ def test_progress_survives_its_row() -> None:
         read={"id": "ct-9"},
         tabs={"main": "T1"},
         lease="lse_1",
-        account={"origin": "https://example.com", "username": "op"},
+        account=Account(origin="https://example.com", username="op"),
         start_url="https://example.com/start",
     )
     progress.sending(1)
@@ -116,7 +116,20 @@ def test_account_never_carries_a_secret() -> None:
 
     progress = Progress.of(raw)
 
-    assert progress.account == {"origin": "https://example.com", "username": "op"}
+    assert progress.account == Account(origin="https://example.com", username="op")
+
+
+def test_account_rejects_extra_keys() -> None:
+    with pytest.raises(TypeError):
+        Progress(account=Account(origin="o", username="u", password="hunter2"))  # type: ignore[call-arg] # noqa: S106
+
+
+def test_as_json_never_carries_a_key_other_than_origin_and_username() -> None:
+    progress = Progress(account=Account(origin="https://example.com", username="op"))
+
+    account = progress.as_json()["account"]
+    assert isinstance(account, dict)
+    assert set(account) == {"origin", "username"}
 
 
 def test_the_budget_grows_with_what_the_operator_took() -> None:

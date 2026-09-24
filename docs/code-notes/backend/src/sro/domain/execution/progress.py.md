@@ -56,17 +56,27 @@ Code: `K_BUDGET_FACTOR = 4`
 > practised operator's click-through, so the budget scales the demonstrated
 > span by four rather than taking it at face value.
 
-## `Progress.account`, [line 38](../../../../../../../backend/src/sro/domain/execution/progress.py#L38): Comment
+## `Account`, [line 30](../../../../../../../backend/src/sro/domain/execution/progress.py#L30): Docstring
 
-Code: `account: dict[str, str] = field(default_factory=dict)`
+> Which account is driving the run, never what proves it. `origin` and
+> `username` are the whole type -- not a `dict[str, str]` filtered at the
+> edges, because a filter checked only on the way OUT (`as_json`, toward the
+> row) can be skipped by whoever builds a `Progress` directly, and a filter
+> checked only on the way IN (`Progress.of`, from the row) does nothing about
+> what a caller writes. `Account` cannot hold a third key at all: the
+> dataclass itself refuses `Account(origin=..., username=..., password=...)`
+> with a `TypeError`, before a value the type disallows is ever assigned to
+> anything, so a password or a session cookie can never reach a
+> `workflow_runs` row, a log, or evidence through this field. Global
+> constraint 10 -- a credential lives in the vault only.
 
-> Which account is driving the run, never what proves it: `_account` keeps
-> only `origin` and `username` on the way in from JSONB, so a caller that
-> hands it a password or a session cookie loses that key at the boundary
-> rather than carrying it into a `workflow_runs` row, a log, or evidence.
-> Global constraint 10 -- a credential lives in the vault only.
+## `Progress.account`, [line 42](../../../../../../../backend/src/sro/domain/execution/progress.py#L42): Comment
 
-## `Progress.of`, [line 42](../../../../../../../backend/src/sro/domain/execution/progress.py#L42): Docstring
+Code: `account: Account = field(default_factory=Account)`
+
+> Typed, not filtered: see `Account`.
+
+## `Progress.of`, [line 46](../../../../../../../backend/src/sro/domain/execution/progress.py#L46): Docstring
 
 > Raises on a malformed row rather than reading it as empty. `step` that is
 > not an integer, or a mark keyed by something that is not a step order,
@@ -76,7 +86,7 @@ Code: `account: dict[str, str] = field(default_factory=dict)`
 > drops it to `""` rather than raising, since it names a state this code
 > never wrote and the safest reading of an unknown mark is "not sent".
 
-## `Progress.settle`, [line 72](../../../../../../../backend/src/sro/domain/execution/progress.py#L72): Docstring
+## `Progress.settle`, [line 76](../../../../../../../backend/src/sro/domain/execution/progress.py#L76): Docstring
 
 > `done` is sticky: both `sending` and `settle` return before touching a mark
 > already `done`, so nothing after the write was confirmed -- a retried
@@ -87,7 +97,7 @@ Code: `account: dict[str, str] = field(default_factory=dict)`
 > with `never_left=True`, that this specific attempt is confirmed never to
 > have left -- the one case narrow enough to clear it outright.
 
-## `run_budget`, [line 115](../../../../../../../backend/src/sro/domain/execution/progress.py#L115): Docstring
+## `run_budget`, [line 120](../../../../../../../backend/src/sro/domain/execution/progress.py#L120): Docstring
 
 > Derived from the demonstration because nothing else in a `Workflow` carries
 > a duration -- it is a sequence of steps and cited gestures, not a timing.

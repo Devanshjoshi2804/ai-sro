@@ -13,13 +13,14 @@ import asyncio
 import os
 import subprocess
 import sys
+from datetime import UTC, datetime
 
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
-from sqlalchemy import Connection, inspect, text
+from sqlalchemy import Connection, insert, inspect, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from sro.infrastructure.db.models import Base
+from sro.infrastructure.db.models import Base, WorkflowRunRow
 
 
 async def test_upgrading_from_nothing_builds_the_schema(postgres_url: str) -> None:
@@ -87,6 +88,69 @@ async def test_upgrading_from_nothing_builds_the_schema(postgres_url: str) -> No
     assert "outcome" in one_running_def and "'running'" in one_running_def, one_running_def
     assert "executor" in one_running_def and "'extension'" in one_running_def, one_running_def
     assert "'extension'" in executor_check and "'steel'" in executor_check, executor_check
+
+
+async def test_downgrading_0073_refuses_when_two_steel_runs_share_a_device(
+    postgres_url: str,
+) -> None:
+    """0073's `downgrade` recreates the wider index --
+    `UNIQUE (tenant_id, device_id) WHERE outcome = 'running'` -- which two
+    running Steel runs with `device_id = ""` cannot both satisfy. It has to
+    refuse before Postgres's own duplicate-key error does, with a message
+    that names the tenant and device rather than a bare constraint name."""
+    engine = create_async_engine(postgres_url)
+    async with engine.begin() as connection:
+        await connection.execute(text("DROP SCHEMA public CASCADE"))
+        await connection.execute(text("CREATE SCHEMA public"))
+        await connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+
+    upgrade = await asyncio.to_thread(
+        subprocess.run,
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        env={**os.environ, "SRO_DATABASE_URL": postgres_url},
+        capture_output=True,
+        text=True,
+    )
+    assert upgrade.returncode == 0, upgrade.stderr
+
+    now = datetime.now(tz=UTC)
+    async with engine.begin() as connection:
+        await connection.execute(
+            insert(WorkflowRunRow.__table__),
+            [
+                {
+                    "id": "run_steel_clash_1",
+                    "tenant_id": "acme",
+                    "workflow_id": "wfl_1",
+                    "device_id": "",
+                    "started_at": now,
+                    "outcome": "running",
+                    "executor": "steel",
+                },
+                {
+                    "id": "run_steel_clash_2",
+                    "tenant_id": "acme",
+                    "workflow_id": "wfl_1",
+                    "device_id": "",
+                    "started_at": now,
+                    "outcome": "running",
+                    "executor": "steel",
+                },
+            ],
+        )
+
+    downgrade = await asyncio.to_thread(
+        subprocess.run,
+        [sys.executable, "-m", "alembic", "downgrade", "-1"],
+        env={**os.environ, "SRO_DATABASE_URL": postgres_url},
+        capture_output=True,
+        text=True,
+    )
+    await engine.dispose()
+
+    assert downgrade.returncode != 0
+    assert "cannot downgrade 0073" in downgrade.stderr, downgrade.stderr
+    assert "'acme'" in downgrade.stderr, downgrade.stderr
 
 
 # The migrated schema is not just A schema -- it is the one every test after

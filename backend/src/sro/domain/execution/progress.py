@@ -18,8 +18,6 @@ K_BUDGET_FACTOR = 4
 
 Wrote = Literal["", "sending", "done", "unknown"]
 
-_ACCOUNT_KEYS = frozenset({"origin", "username"})
-
 
 @dataclass
 class StepMark:
@@ -29,13 +27,19 @@ class StepMark:
 
 
 @dataclass
+class Account:
+    origin: str = ""
+    username: str = ""
+
+
+@dataclass
 class Progress:
     step: int = 0
     marks: dict[int, StepMark] = field(default_factory=dict)
     read: dict[str, str] = field(default_factory=dict)
     tabs: dict[str, str] = field(default_factory=dict)
     lease: str = ""
-    account: dict[str, str] = field(default_factory=dict)
+    account: Account = field(default_factory=Account)
     start_url: str = ""
 
     @classmethod
@@ -90,8 +94,9 @@ def _strings(value: object) -> dict[str, str]:
     return {str(key): str(one) for key, one in value.items()}
 
 
-def _account(value: object) -> dict[str, str]:
-    return {key: one for key, one in _strings(value).items() if key in _ACCOUNT_KEYS}
+def _account(value: object) -> Account:
+    found = _strings(value)
+    return Account(origin=found.get("origin", ""), username=found.get("username", ""))
 
 
 def _marks(value: object) -> dict[int, StepMark]:

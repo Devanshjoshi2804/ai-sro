@@ -137,13 +137,15 @@ class TestWorkflowRuns:
         assert listed == (run,)
         assert missing is None
 
-    async def test_saving_again_replaces_the_steps_rather_than_appending(
+    async def test_saving_again_upserts_the_steps_rather_than_appending(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
         """A run is saved after every step so the panel can poll it; the second
-        save must not double the first step -- and a step that leaves the
-        record has to leave the store with it, which a per-step upsert keyed on
-        (run_id, ord) would not do."""
+        save must not double the first step. Each step is upserted by
+        `(run_id, ord)` rather than deleted and reinserted, so a save that
+        carries fewer steps than the row already has never erases the rest --
+        `test_a_stale_save_does_not_erase_a_step_the_worker_added` is the
+        failure mode a delete-then-insert would still have."""
         run = _run(steps=[RunStep(order=0, says="a", verdict="held", verdict_by="status")])
 
         async with SqlUnitOfWork(session_factory) as uow:
@@ -158,16 +160,48 @@ class TestWorkflowRuns:
         assert grown is not None
         assert [step.order for step in grown.steps] == [0, 1]
 
-        run.steps = run.steps[:1]
+    async def test_a_stale_save_does_not_erase_a_step_the_worker_added(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A stale API save carries only the steps its own stale copy knew
+        about -- one -- saved after a worker has since appended a second one
+        to the same run. The worker's step must survive it, the same way
+        C1 keeps a stale save from rolling `progress` back."""
+        run = _run(steps=[RunStep(order=0, says="a", verdict="held", verdict_by="status")])
+
         async with SqlUnitOfWork(session_factory) as uow:
             await uow.workflow_runs.save(run)
             await uow.commit()
 
+        # A caller's stale copy: loaded before the worker's step below.
         async with SqlUnitOfWork(session_factory) as uow:
-            shrunk = await uow.workflow_runs.get(TENANT, run.id)
+            stale_copy = await uow.workflow_runs.get(TENANT, run.id)
+            assert stale_copy is not None
 
-        assert shrunk is not None
-        assert [step.order for step in shrunk.steps] == [0]
+        # The worker appends and saves its own, newer copy.
+        async with SqlUnitOfWork(session_factory) as uow:
+            worker_copy = await uow.workflow_runs.get(TENANT, run.id)
+            assert worker_copy is not None
+            worker_copy.steps.append(
+                RunStep(order=1, says="b", verdict="held", verdict_by="status")
+            )
+            await uow.workflow_runs.save(worker_copy)
+            await uow.commit()
+
+        # The stale copy -- still just step 0 -- is saved back.
+        async with SqlUnitOfWork(session_factory) as uow:
+            stale_copy.watched = True
+            await uow.workflow_runs.save(stale_copy)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            back = await uow.workflow_runs.get(TENANT, run.id)
+
+        assert back is not None
+        assert back.watched is True, "the stale save's own change still landed"
+        assert [step.order for step in back.steps] == [0, 1], (
+            "the worker's step must survive a stale save that never carried it"
+        )
 
     async def test_a_step_that_sent_nothing_reads_back_as_sql_null(
         self, session_factory: async_sessionmaker[AsyncSession]
@@ -559,10 +593,12 @@ class TestProgressWrittenOnlyByRecordProgress:
         async with SqlUnitOfWork(session_factory) as uow:
             worker_copy = await uow.workflow_runs.get(TENANT, run.id)
             assert worker_copy is not None
-            await uow.workflow_runs.record_progress(
-                run.id, {"step": 1, "marks": {"0": {"wrote": "done"}}}
+            recorded = await uow.workflow_runs.record_progress(
+                TENANT, run.id, {"step": 1, "marks": {"0": {"wrote": "done"}}}
             )
             await uow.commit()
+
+        assert recorded is True
 
         # A concurrent API path's view: loaded BEFORE the worker's write above,
         # touches something that has nothing to do with progress, and saves
@@ -600,6 +636,39 @@ class TestProgressWrittenOnlyByRecordProgress:
             back = await uow.workflow_runs.get(TENANT, run.id)
 
         assert back is not None and back.progress == {"step": 0, "lease": "lse_1"}
+
+    async def test_record_progress_returns_false_for_an_unknown_run(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A worker that has lost its run must find that out, not believe a
+        no-op mark is durable."""
+        async with SqlUnitOfWork(session_factory) as uow:
+            recorded = await uow.workflow_runs.record_progress(
+                TENANT, "run_no_such_run", {"step": 1}
+            )
+            await uow.commit()
+
+        assert recorded is False
+
+    async def test_record_progress_returns_false_for_the_wrong_tenant(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        run = _run(executor="steel", device_id="")
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            recorded = await uow.workflow_runs.record_progress(OTHER_TENANT, run.id, {"step": 1})
+            await uow.commit()
+
+        assert recorded is False
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            untouched = await uow.workflow_runs.get(TENANT, run.id)
+
+        assert untouched is not None and untouched.progress == {}
 
 
 class TestOrphans:

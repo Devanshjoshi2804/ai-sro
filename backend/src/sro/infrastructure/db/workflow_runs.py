@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any, cast
 
-from sqlalchemy import Select, delete, func, select, update
+from sqlalchemy import Select, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -177,22 +177,31 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
             await self._session.rollback()
             busy = await self.in_flight(TenantId(run.tenant), DeviceId(run.device_id))
             raise Conflict(already_running(run.device_id, busy)) from clash
-        await self._session.execute(
-            delete(WorkflowRunStepRow).where(WorkflowRunStepRow.run_id == run.id)
-        )
         if run.steps:
+            step_statement = pg_insert(WorkflowRunStepRow).values(
+                [_step_values(run.id, step) for step in run.steps]
+            )
             await self._session.execute(
-                pg_insert(WorkflowRunStepRow).values(
-                    [_step_values(run.id, step) for step in run.steps]
+                step_statement.on_conflict_do_update(
+                    index_elements=["run_id", "ord"],
+                    set_={
+                        column.name: step_statement.excluded[column.name]
+                        for column in WorkflowRunStepRow.__table__.columns
+                        if column.name not in ("run_id", "ord")
+                    },
                 )
             )
 
-    async def record_progress(self, run_id: str, progress: dict[str, object]) -> None:
-        await self._session.execute(
+    async def record_progress(
+        self, tenant_id: TenantId, run_id: str, progress: dict[str, object]
+    ) -> bool:
+        result = await self._session.execute(
             update(WorkflowRunRow)
-            .where(WorkflowRunRow.id == run_id)
+            .where(WorkflowRunRow.id == run_id, WorkflowRunRow.tenant_id == tenant_id.value)
             .values(progress=dict(progress))
+            .returning(WorkflowRunRow.id)
         )
+        return result.first() is not None
 
     async def get(self, tenant_id: TenantId, run_id: str) -> WorkflowRun | None:
         query = self._rows().where(

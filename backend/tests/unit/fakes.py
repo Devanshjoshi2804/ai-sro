@@ -1679,11 +1679,13 @@ class FakePoolRepository:
 class FakeWorkflowRunRepository:
     """Runs, their steps, and the approvals on them, in two dicts.
 
-    Faithful rather than convenient. A run is stored and returned as a copy, so
-    the "steps are replaced, not appended" rule is real here and a caller that
-    mutates what it loaded does not silently rewrite the store. Approvals take
-    the first tap only, and the orphan sweep crosses tenants -- the two rules
-    a caller can actually get wrong.
+    Faithful rather than convenient. A run is stored and returned as a copy,
+    so a caller that mutates what it loaded does not silently rewrite the
+    store. Steps are upserted by `order` and never deleted -- a save that
+    carries fewer steps than the row already has leaves the rest alone, same
+    as the real store's per-step upsert. Approvals take the first tap only,
+    and the orphan sweep crosses tenants -- rules a caller can actually get
+    wrong.
     """
 
     def __init__(self) -> None:
@@ -1729,12 +1731,23 @@ class FakeWorkflowRunRepository:
         # roll that mark back -- only `record_progress` ever changes it again.
         existing = self.rows.get(run.id)
         kept.progress = dict(run.progress) if existing is None else dict(existing.progress)
+        # Steps are upserted by `order`, same as the real store's per-step
+        # `ON CONFLICT DO UPDATE`, and never deleted: a step the run being
+        # saved does not carry stays exactly as the row already has it, so a
+        # stale save cannot erase a step a worker has since added.
+        merged = {step.order: step for step in existing.steps} if existing is not None else {}
+        merged.update({step.order: step for step in kept.steps})
+        kept.steps = [merged[order] for order in sorted(merged)]
         self.rows[run.id] = kept
 
-    async def record_progress(self, run_id: str, progress: dict[str, object]) -> None:
+    async def record_progress(
+        self, tenant_id: TenantId, run_id: str, progress: dict[str, object]
+    ) -> bool:
         found = self.rows.get(run_id)
-        if found is not None:
-            found.progress = dict(progress)
+        if found is None or found.tenant != tenant_id.value:
+            return False
+        found.progress = dict(progress)
+        return True
 
     async def get(self, tenant_id: TenantId, run_id: str) -> WorkflowRun | None:
         run = self.rows.get(run_id)

@@ -349,3 +349,66 @@ def test_the_snapshot_tree_keeps_its_own_vocabulary() -> None:
     assert nodes[0]["type"] == "token"
     assert nodes[1]["type"] == "tokenList"
     assert nodes[0]["name"] == "Dock"
+
+
+_A_TYPED_PASSWORD = "hunter2-live-password"  # noqa: S105
+_A_LIVE_TOKEN = "live-oauth-code-in-a-url"  # noqa: S105
+
+
+async def test_a_hostile_client_sending_a_typed_password_and_a_url_token_stores_neither() -> None:
+    """A client that skips every extension-side rule and sends CDP's raw AX
+    tree, unreshaped, plus a page URL carrying a live OAuth code. The backend
+    is the boundary that must not trust it."""
+    uow = FakeUnitOfWork()
+    blobs = FakeBlobStore()
+    await SetObservationPolicy(uow).execute(ACME, policy=ObservationPolicy().enabled())
+    registered = await RegisterDevice(uow, FakeClock(), FakeIdFactory()).execute(
+        ACME, label="laptop", extension_version="0.1.0"
+    )
+
+    gesture = {
+        "kind": "gesture",
+        "tab_id": 42,
+        "gesture": {
+            "kind": "click",
+            "at": 1772355630.0,
+            "url": "https://wms.acme.example/orders",
+            "target": {"tag": "button", "cssPath": "button#go"},
+        },
+    }
+    snapshot = {
+        "kind": "snapshot",
+        "tab_id": 42,
+        "taken_at": "2026-03-01T09:00:31Z",
+        "url": f"https://wms.acme.example/callback?client_id=demo&state=xyz&code={_A_LIVE_TOKEN}",
+        "snapshot": {
+            "nodes": [
+                {
+                    "role": {"value": "textbox"},
+                    "name": {"value": "Password"},
+                    "value": {"value": _A_TYPED_PASSWORD},
+                }
+            ]
+        },
+    }
+
+    stored = await IngestObservation(uow, blobs, FakeClock()).execute(
+        ACME,
+        device_id=registered.device_id,
+        secret=registered.secret,
+        batch_id=BatchId("bat_hostile_tree"),
+        started_at=datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+        ended_at=datetime(2026, 3, 1, 9, 5, tzinfo=UTC),
+        mode=CaptureMode.PASSIVE,
+        events=[gesture, snapshot],
+    )
+
+    assert stored.stored_at is not None
+    written = (await blobs.read(stored.stored_at)).decode("utf-8")
+    assert _A_TYPED_PASSWORD not in written, "a typed password reached the evidence blob"
+    assert _A_LIVE_TOKEN not in written, "a live OAuth code reached the evidence blob"
+
+    (kept,) = uow.gestures.rows.values()
+    stored_tree = json.dumps(kept.tree)
+    assert _A_TYPED_PASSWORD not in stored_tree, "a typed password reached the gesture store"
+    assert _A_LIVE_TOKEN not in stored_tree, "a live OAuth code reached the gesture store"

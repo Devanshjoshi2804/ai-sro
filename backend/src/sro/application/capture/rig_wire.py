@@ -316,6 +316,7 @@ class SnapshotEvent(BaseModel):
     kind: Literal["snapshot"]
     url: str | None = None
     taken_at: str | None = None
+    tab_id: int | None = None
     snapshot: dict[str, Any] = Field(default_factory=dict)
 
 

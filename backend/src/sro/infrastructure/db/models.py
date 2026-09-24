@@ -508,6 +508,7 @@ class GestureRow(Base):
     gesture: Mapped[Any] = mapped_column(JSONB, nullable=False)
     requests: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
     page_events: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+    tree: Mapped[Any | None] = mapped_column(JSONB(none_as_null=True), nullable=True)
 
     __table_args__ = (
         Index("ix_gestures_tenant_at", "tenant_id", "at"),

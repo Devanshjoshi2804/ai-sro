@@ -431,3 +431,28 @@ def test_a_gesture_on_the_top_document_stores_an_empty_frame_path() -> None:
     gestures, _, _, _ = correlate(_batch([event]), TENANT)
 
     assert gestures[0].action.frame_path == ()
+
+
+def test_a_tree_taken_before_a_gesture_is_stored_with_it() -> None:
+    tab = GESTURE_TYPE["tab_id"]
+    tree = {
+        "kind": "snapshot",
+        "tab_id": tab,
+        "taken_at": "2026-08-31T08:40:04.600Z",
+        "snapshot": {"nodes": [{"role": {"value": "textbox"}, "name": {"value": "Client"}}]},
+    }
+
+    gestures, _, _, unplaced = correlate(_batch([GESTURE_TYPE, tree]), TENANT)
+
+    assert gestures[0].tree == {
+        "nodes": [{"role": {"value": "textbox"}, "name": {"value": "Client"}}]
+    }
+    assert unplaced == 0
+
+
+def test_a_tree_with_no_gesture_before_it_on_its_tab_is_counted() -> None:
+    tree = {"kind": "snapshot", "tab_id": 999, "snapshot": {"nodes": []}}
+
+    _, _, _, unplaced = correlate(_batch([GESTURE_TYPE, tree]), TENANT)
+
+    assert unplaced == 1

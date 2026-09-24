@@ -125,6 +125,7 @@ class Gesture:
     page_url: str | None = None
     requests: list[Call] = field(default_factory=list)
     page_events: list[PageMark] = field(default_factory=list)
+    tree: dict[str, object] | None = None
 
 
 @dataclass(frozen=True, slots=True)

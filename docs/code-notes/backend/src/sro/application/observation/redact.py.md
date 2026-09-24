@@ -60,18 +60,26 @@ Code: `_PROSE = ("name", "text", "fieldLabel")`
 > Copies rather than mutates: the caller's events came off an HTTP request
 > body and the rejection report beside them refers to positions in it.
 
-## `_shapes_only`, [line 61](../../../../../../../backend/src/sro/application/observation/redact.py#L61): Docstring
+## `_tree`, [line 61](../../../../../../../backend/src/sro/application/observation/redact.py#L61): Docstring
 
-> Every string under here through `redact_shapes`, and nothing else.
+> Every string under here through `redact_shapes`, and a node's `value`
+> dropped when its `name` is a credential name.
 >
 > Structure is preserved exactly -- a locator is built from this tree, so a
-> key or a role that changed would change what a skill can find.
+> key or a role that changed would change what a skill can find. The name
+> rule runs here too, not just shapes: an editable node's `value` is what a
+> browser running no rules of its own would have typed into it (E6 -- the
+> extension sends CDP's `Accessibility.getFullAXTree` unreshaped), and only
+> the server can tell "Password" from "Client" by the node's own name. A
+> node with no credential name keeps its value -- `token`/`tokenList` are
+> CDP AXValue TYPE descriptors, not field names, so this never touches
+> them.
 
-## `_element`, [line 124](../../../../../../../backend/src/sro/application/observation/redact.py#L124): Docstring
+## `_element`, [line 127](../../../../../../../backend/src/sro/application/observation/redact.py#L127): Docstring
 
 > A `target` or the `component` hanging off it -- the same three fields.
 
-## `_attributes`, [line 139](../../../../../../../backend/src/sro/application/observation/redact.py#L139): Docstring
+## `_attributes`, [line 142](../../../../../../../backend/src/sro/application/observation/redact.py#L142): Docstring
 
 > Every DOM attribute of the element the operator touched, by all three rules.
 >
@@ -86,7 +94,7 @@ Code: `_PROSE = ("name", "text", "fieldLabel")`
 > `placeholder` whose value is "Password" is a label. The key is kept and the
 > value replaced, so a reviewer still sees what was taken out.
 
-## `_headers`, [line 169](../../../../../../../backend/src/sro/application/observation/redact.py#L169): Docstring
+## `_headers`, [line 172](../../../../../../../backend/src/sro/application/observation/redact.py#L172): Docstring
 
 > The name kept and the value replaced, so a reader still sees the call was
 > authenticated.
@@ -98,7 +106,7 @@ Code: `_PROSE = ("name", "text", "fieldLabel")`
 > the 34 `X-Goog-Api-Key` values in this store are matched by nothing but
 > their shape.
 
-## `_hop`, [line 193](../../../../../../../backend/src/sro/application/observation/redact.py#L193): Docstring
+## `_hop`, [line 196](../../../../../../../backend/src/sro/application/observation/redact.py#L196): Docstring
 
 > One entry of a redirect chain, whose shape the protocol leaves open.
 >
@@ -110,15 +118,18 @@ Code: `_PROSE = ("name", "text", "fieldLabel")`
 
 ## `_event`, [line 53](../../../../../../../backend/src/sro/application/observation/redact.py#L53): Comment
 
-Code: `out["snapshot"] = _shapes_only(snapshot)`
+Code: `out["snapshot"] = _tree(snapshot)`
 
 > The accessibility tree is 27MB of this deployment's 59MB evidence
 > plane -- every string a page rendered, which is where a key shown on
-> screen would sit. Shapes only, never the name rule: the tree's own
-> vocabulary uses `token` and `tokenList` as CDP AXValue TYPE
-> descriptors, and a name rule would blank 2,573 of them here for no
-> protection at all. Measured across 70,636 real nodes: zero shapes,
-> so this costs nothing today and covers the day a page renders one.
+> screen would sit. Shapes on every string, and now the name rule too,
+> but scoped to a node's own `value`: the tree's own vocabulary uses
+> `token` and `tokenList` as CDP AXValue TYPE descriptors on `type`, not
+> `name`, so `_tree` never touches them. Measured across 70,636 real
+> nodes: zero shapes, so the shape pass costs nothing today and covers
+> the day a page renders one; E6 is what a typed password or one-time
+> code, sent by a client running none of the extension's own rules,
+> costs without the name pass.
 
 ## `_event`, [line 57](../../../../../../../backend/src/sro/application/observation/redact.py#L57): Comment
 
@@ -128,7 +139,7 @@ Code: `out["detail"] = redact_body(detail, content_type=None)[0]`
 > said -- so it gets the body rule with no content type to go on. A
 > `?magic_link_token=` landed here in the rig's audit.
 
-## `_gesture`, [line 92](../../../../../../../backend/src/sro/application/observation/redact.py#L92): Comment
+## `_gesture`, [line 95](../../../../../../../backend/src/sro/application/observation/redact.py#L95): Comment
 
 Code: `out["value"] = None`
 
@@ -136,7 +147,7 @@ Code: `out["value"] = None`
 > marked: `null` is what the extension already sends for one of these,
 > so the stored shape is the same whether or not the browser obeyed.
 
-## `_gesture`, [line 94](../../../../../../../backend/src/sro/application/observation/redact.py#L94): Comment
+## `_gesture`, [line 97](../../../../../../../backend/src/sro/application/observation/redact.py#L97): Comment
 
 Code: `out["value"] = redact_shapes(value)`
 
@@ -144,7 +155,7 @@ Code: `out["value"] = redact_shapes(value)`
 > search box is not typed into an `input[type=password]`, so nothing
 > upstream marks it. The shape does.
 
-## `_body`, [line 187](../../../../../../../backend/src/sro/application/observation/redact.py#L187): Comment
+## `_body`, [line 190](../../../../../../../backend/src/sro/application/observation/redact.py#L190): Comment
 
 Code: `already = out.get("redacted_fields")`
 
@@ -159,7 +170,7 @@ Code: `already = out.get("redacted_fields")`
 > `ref`, as `correlate` joins them. A string key because the values are the
 > client's raw JSON and a hostile one need not be hashable.
 
-## `_state`, [line 100](../../../../../../../backend/src/sro/application/observation/redact.py#L100): Docstring
+## `_state`, [line 103](../../../../../../../backend/src/sro/application/observation/redact.py#L103): Docstring
 
 > What is kept of a gesture's `prior`, the after-state of the gesture before
 > it. Written to the evidence blob before `correlate` runs, so this is where
@@ -167,7 +178,7 @@ Code: `already = out.get("redacted_fields")`
 > `correlate` reads. Only the three fields of an after-state survive, and
 > `visible` / `enabled` only as booleans.
 
-## `_setting`, [line 111](../../../../../../../backend/src/sro/application/observation/redact.py#L111): Docstring
+## `_setting`, [line 114](../../../../../../../backend/src/sro/application/observation/redact.py#L114): Docstring
 
 > The server's half of the E5 ruling (2026-09-25): an after-state never holds
 > free text, whatever the client sent. A value is kept only when the gesture

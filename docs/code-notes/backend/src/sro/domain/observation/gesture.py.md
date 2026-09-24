@@ -82,7 +82,7 @@ Code: `modifiers: tuple[str, ...] = ()`
 > A recorded exchange, the part of it the belts read: never a response
 > body's text beyond what `confirming_read` compares.
 
-## `GestureBatch`, [line 131](../../../../../../../backend/src/sro/domain/observation/gesture.py#L131): Docstring
+## `GestureBatch`, [line 132](../../../../../../../backend/src/sro/domain/observation/gesture.py#L132): Docstring
 
 > What one upload said about itself.
 >
@@ -97,7 +97,7 @@ Code: `modifiers: tuple[str, ...] = ()`
 > separate tables. Both may describe one upload; neither is derived from the
 > other.
 
-## `passed_through`, [line 170](../../../../../../../backend/src/sro/domain/observation/gesture.py#L170): Docstring
+## `passed_through`, [line 171](../../../../../../../backend/src/sro/domain/observation/gesture.py#L171): Docstring
 
 > Whether this gesture ended on a different system from the one it
 > happened on -- the browser moved the operator, the operator did not.

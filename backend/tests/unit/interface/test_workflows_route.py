@@ -611,6 +611,7 @@ async def test_a_cited_gesture_reaches_the_bridge_whole(
         "frame_url": "http://wms.test/frame",
         "page_url": "http://wms.test/orders",
         "page_events": [],
+        "tree": None,
         "action": {
             "kind": "type",
             "at": 10.0,

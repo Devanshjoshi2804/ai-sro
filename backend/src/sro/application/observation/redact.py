@@ -50,7 +50,7 @@ def _event(event: Event, made: Mapping[str, Mapping[str, object]]) -> Event:
         out["request"] = _request(request)
     snapshot = out.get("snapshot")
     if isinstance(snapshot, Mapping):
-        out["snapshot"] = _shapes_only(snapshot)
+        out["snapshot"] = _tree(snapshot)
 
     detail = out.get("detail")
     if isinstance(detail, str) and detail:
@@ -58,14 +58,17 @@ def _event(event: Event, made: Mapping[str, Mapping[str, object]]) -> Event:
     return out
 
 
-def _shapes_only(node: object) -> object:
-    if isinstance(node, str):
-        return redact_shapes(node)
-    if isinstance(node, Mapping):
-        return {key: _shapes_only(value) for key, value in node.items()}
+def _tree(node: object) -> object:
     if isinstance(node, list):
-        return [_shapes_only(value) for value in node]
-    return node
+        return [_tree(one) for one in node]
+    if not isinstance(node, Mapping):
+        return redact_shapes(node) if isinstance(node, str) else node
+    out = {key: _tree(value) for key, value in node.items()}
+    named = out.get("name")
+    said = named.get("value") if isinstance(named, Mapping) else named
+    if isinstance(said, str) and is_secret_field(said):
+        out.pop("value", None)
+    return out
 
 
 def _urls(node: dict[str, object]) -> None:

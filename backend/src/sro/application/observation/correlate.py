@@ -49,10 +49,15 @@ def correlate(batch: Batch, tenant: str) -> tuple[list[Gesture], list[Call], lis
     snapshots_ignored = 0
     made: dict[_Made, Gesture] = {}
     priors: list[tuple[_Made, AfterState]] = []
+    last_on_tab: dict[int | None, Gesture] = {}
 
     for event in batch.events:
         if isinstance(event, SnapshotEvent):
-            snapshots_ignored += 1
+            owner = last_on_tab.get(event.tab_id)
+            if owner is None or owner.tree is not None:
+                snapshots_ignored += 1
+            else:
+                owner.tree = dict(event.snapshot)
         elif isinstance(event, GestureEvent):
             gesture = Gesture(
                 id=new_gesture_id(),
@@ -68,6 +73,7 @@ def correlate(batch: Batch, tenant: str) -> tuple[list[Gesture], list[Call], lis
                 page_url=event.page_url,
             )
             gestures.append(gesture)
+            last_on_tab[event.tab_id] = gesture
             frame = (event.tab_id, gesture.action.frame_path)
             if event.gesture.ref is not None:
                 made[(*frame, event.gesture.ref)] = gesture

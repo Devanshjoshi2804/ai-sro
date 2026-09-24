@@ -61,6 +61,7 @@ def _gesture_to_row(gesture: Gesture) -> GestureRow:
         gesture=dump(_ACTION, gesture.action),
         requests=dump(_CALLS, gesture.requests),
         page_events=dump(_PAGE_MARKS, gesture.page_events),
+        tree=gesture.tree,
     )
 
 
@@ -79,6 +80,7 @@ def _row_to_gesture(row: GestureRow) -> Gesture:
         action=_ACTION.validate_python(row.gesture),
         requests=_CALLS.validate_python(row.requests or []),
         page_events=_PAGE_MARKS.validate_python(row.page_events or []),
+        tree=row.tree,
     )
 
 

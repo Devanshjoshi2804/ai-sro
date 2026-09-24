@@ -635,11 +635,11 @@ async def test_a_call_that_lands_in_the_next_batch_is_kept_and_not_dropped() -> 
 async def test_a_batch_of_pictures_says_so_on_the_way_out() -> None:
     """`snapshots_ignored`, which `correlate` counts and nothing carried.
 
-    A snapshot is admitted, stored, billed and read by nothing -- there is
-    nowhere in the schema to put one. `correlate`'s docstring says the count
-    exists because silently dropping them is not the same as never having
-    received them, and until this it was bound to a local and dropped one line
-    later. The rig returns it in the same 202 body.
+    The first `SNAPSHOT` is stored with `GESTURE`, the gesture ahead of it on
+    its tab; the second finds that gesture's tree slot already taken and is
+    the one counted. Silently dropping the second is not the same as never
+    having received it, and until this it was bound to a local and dropped
+    one line later. The rig returns the count in the same 202 body.
     """
     uow, blobs = FakeUnitOfWork(), FakeBlobStore()
     ctx = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
@@ -648,7 +648,7 @@ async def test_a_batch_of_pictures_says_so_on_the_way_out() -> None:
 
     ingested = await _ingest(uow, blobs, device_id, ctx=ctx, events=[GESTURE, SNAPSHOT, SNAPSHOT])
 
-    assert ingested.snapshots_ignored == 2
+    assert ingested.snapshots_ignored == 1
 
 
 async def test_a_picture_is_filed_where_the_purge_will_look_for_it() -> None:

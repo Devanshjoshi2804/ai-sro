@@ -15,12 +15,17 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/c
 
 > Returns (gestures, orphan requests, orphan pages, snapshots ignored).
 >
-> Accessibility-tree snapshots are deliberately out of scope for this plan
-> -- there is nowhere in the schema to put one -- but silently dropping
-> them is not the same as never having received them. The count is the
-> difference: it says a batch had snapshots even though nothing stores them.
+> The extension takes the tree before a gesture and enqueues it right after
+> that gesture, on the same tab (`takeTree(tab_id)`), so the tree belongs to
+> the latest gesture in batch order on its tab -- `last_on_tab` is keyed on
+> that queue order, not on `at`, and is built in the same pass that appends
+> to `gestures`, before the later sort by time. A tree with no gesture ahead
+> of it on its tab, or a second tree for a gesture whose slot is already
+> filled, has nowhere to go; the count is the difference between a batch
+> that had snapshots and one that had none, so silently dropping the extra
+> ones is not the same as never receiving them.
 
-## `correlate`, [line 83](../../../../../../../backend/src/sro/application/observation/correlate.py#L83): Comment
+## `correlate`, [line 89](../../../../../../../backend/src/sro/application/observation/correlate.py#L89): Comment
 
 Code: `for key, after in priors:`
 
@@ -49,7 +54,7 @@ Code: `for key, after in priors:`
 > and frame -- `redact._setting` needs that stored gesture's target too, to
 > judge the value.
 
-## `_owner`, [line 111](../../../../../../../backend/src/sro/application/observation/correlate.py#L111): Docstring
+## `_owner`, [line 117](../../../../../../../backend/src/sro/application/observation/correlate.py#L117): Docstring
 
 > The last gesture in the same tab, within the attribution window.
 >
@@ -58,7 +63,7 @@ Code: `for key, after in priors:`
 > evidence means "I cannot prove this belongs to that gesture", not
 > "attach it to the nearest one".
 
-## `_nearest_owner`, [line 124](../../../../../../../backend/src/sro/application/observation/correlate.py#L124): Docstring
+## `_nearest_owner`, [line 130](../../../../../../../backend/src/sro/application/observation/correlate.py#L130): Docstring
 
 > The closest gesture in time, in the same tab, within the window.
 >
@@ -68,27 +73,27 @@ Code: `for key, after in priors:`
 > acts) — so it may attach to a gesture on either side, whichever is
 > nearer in time.
 
-## `as_action`, [line 139](../../../../../../../backend/src/sro/application/observation/correlate.py#L139): Docstring
+## `as_action`, [line 145](../../../../../../../backend/src/sro/application/observation/correlate.py#L145): Docstring
 
 > The wire gesture as the domain sees it: the fields the arithmetic
 > reads, and nothing the recorder might add next week.
 
-## `as_body`, [line 184](../../../../../../../backend/src/sro/application/observation/correlate.py#L184): Docstring
+## `as_body`, [line 190](../../../../../../../backend/src/sro/application/observation/correlate.py#L190): Docstring
 
 > A wire body as the domain sees it: no encoding field, nothing the
 > belts don't read.
 
-## `as_call`, [line 196](../../../../../../../backend/src/sro/application/observation/correlate.py#L196): Docstring
+## `as_call`, [line 202](../../../../../../../backend/src/sro/application/observation/correlate.py#L202): Docstring
 
 > A wire request as the domain sees it. The tab is not on the request:
 > it is on the enclosing `RequestEvent`, so the caller passes it in — an
 > orphan call's tab is a fact worth keeping.
 
-## `as_mark`, [line 212](../../../../../../../backend/src/sro/application/observation/correlate.py#L212): Docstring
+## `as_mark`, [line 218](../../../../../../../backend/src/sro/application/observation/correlate.py#L218): Docstring
 
 > A wire page event as the domain sees it.
 
-## `as_action`, [line 159](../../../../../../../backend/src/sro/application/observation/correlate.py#L159): Comment
+## `as_action`, [line 165](../../../../../../../backend/src/sro/application/observation/correlate.py#L165): Comment
 
 Code: `required=target.required,`
 

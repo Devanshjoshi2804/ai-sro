@@ -129,6 +129,7 @@ class TestGestures:
             page_events=[
                 PageMark(at=0.5, page_kind="navigated", url="https://wms.example/", tab_id=7)
             ],
+            tree={"nodes": [{"role": {"value": "textbox"}, "name": {"value": "Client"}}]},
         )
 
         async with SqlUnitOfWork(session_factory) as uow:
@@ -144,6 +145,9 @@ class TestGestures:
         call = loaded.requests[0]
         assert call.request_id == "req_0"
         assert call.request_headers == {"content-type": "application/json"}
+        assert loaded.tree == {
+            "nodes": [{"role": {"value": "textbox"}, "name": {"value": "Client"}}]
+        }
         assert call.request_body is not None
         assert call.request_body.redacted_fields == ("password",)
         assert loaded.page_events[0].page_kind == "navigated"

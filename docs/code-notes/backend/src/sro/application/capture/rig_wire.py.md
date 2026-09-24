@@ -65,7 +65,7 @@ Code: `required: bool | None = None`
 > `placeholder` whose value is "Password" is a LABEL. Measured over the acme
 > capture -- 13 distinct attribute names, 95 distinct values -- none move.
 
-## `parse_batch`, [line 344](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L344): Docstring
+## `parse_batch`, [line 345](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L345): Docstring
 
 > Parse a batch, keeping every event that parses and naming those that do not.
 >
@@ -283,7 +283,7 @@ Code: `shaped = shapes_in(body.text)`
 > the ones that went by name. Same marker in the text either
 > way; different fact about why.
 
-## `parse_batch`, [line 346](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L346): Comment
+## `parse_batch`, [line 347](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L347): Comment
 
 Code: `return Batch.model_validate(raw), ()`
 
@@ -295,7 +295,7 @@ Code: `return Batch.model_validate(raw), ()`
 > Let the envelope model refuse it and say why; the route turns that
 > into a 422.
 
-## `parse_batch`, [line 357](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L357): Comment
+## `parse_batch`, [line 358](../../../../../../../backend/src/sro/application/capture/rig_wire.py#L358): Comment
 
 Code: `where = ".".join(str(part) for part in first.get("loc", ()))`
 

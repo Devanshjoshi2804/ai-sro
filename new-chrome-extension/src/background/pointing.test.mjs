@@ -148,10 +148,8 @@ test("a tab this cannot drive says so, and does not report the step failed", asy
 });
 
 test("it detaches what it attached and nothing else", async () => {
-  // `trees.js` attaches the same tabs for accessibility trees, and Chrome
-  // counts one attachment per extension per tab. When trees got there first
-  // our attach fails, our commands work anyway, and detaching would pull the
-  // floor out from under it.
+  // A tab someone else already holds refuses our attach, and detaching it
+  // would pull the floor out from under them.
   fresh();
   await pointAt(7, { x: 1, y: 2, action: "click" });
   assert.deepEqual(attached, [7]);

@@ -11,6 +11,8 @@ from typing import Any, cast
 
 from sro.application.capture.rig_wire import Batch
 from sro.application.observation.correlate import ATTRIBUTION_SECONDS, correlate, system_of
+from sro.domain.observation.gesture import Outline, OutlineField
+from sro.domain.observation.outline import last_outline
 from sro.infrastructure.db.evidence import _gesture_to_row, _row_to_gesture
 from tests.unit.domain.rig.conftest import BATCH
 
@@ -431,3 +433,45 @@ def test_a_gesture_on_the_top_document_stores_an_empty_frame_path() -> None:
     gestures, _, _, _ = correlate(_batch([event]), TENANT)
 
     assert gestures[0].action.frame_path == ()
+
+
+def test_the_screen_a_gesture_was_made_on_is_stored_with_it() -> None:
+    event = copy.deepcopy(GESTURE_TYPE)
+    event["gesture"]["outlines"] = [
+        {
+            "headings": ["New Customer Type"],
+            "fields": [{"role": "combobox", "label": "Department", "options": ["Finance"]}],
+            "buttons": ["Save"],
+        }
+    ]
+
+    gestures, _, _, _ = correlate(_batch([event]), TENANT)
+
+    (outline,) = gestures[0].action.outlines
+    assert outline.headings == ("New Customer Type",)
+    assert outline.fields[0] == OutlineField("combobox", "Department", None, ("Finance",))
+
+
+def test_a_gesture_without_an_outline_was_made_on_the_last_outlined_screen() -> None:
+    first, second, elsewhere = (copy.deepcopy(GESTURE_TYPE) for _ in range(3))
+    first["gesture"]["outlines"] = [{"buttons": ["Save"]}]
+    second["gesture"]["at"] = first["gesture"]["at"] + 1
+    elsewhere["gesture"]["at"] = first["gesture"]["at"] + 2
+    elsewhere["gesture"]["frame_path"] = [{"index": 0, "url": "https://wms.example/other"}]
+
+    gestures, _, _, _ = correlate(_batch([first, second, elsewhere]), TENANT)
+
+    assert last_outline(gestures[1], gestures[:1]) == Outline(buttons=("Save",))
+    assert last_outline(gestures[2], gestures[:2]) is None
+
+
+def test_a_screen_from_another_document_in_the_same_frame_is_not_this_one() -> None:
+    first, second = (copy.deepcopy(GESTURE_TYPE) for _ in range(2))
+    first["gesture"]["outlines"] = [{"buttons": ["Save"]}]
+    first["gesture"]["url"] = "https://wms.example/customers?id=1"
+    second["gesture"]["url"] = "https://wms.example/orders?id=1"
+    second["gesture"]["at"] = first["gesture"]["at"] + 1
+
+    gestures, _, _, _ = correlate(_batch([first, second]), TENANT)
+
+    assert last_outline(gestures[1], gestures[:1]) is None

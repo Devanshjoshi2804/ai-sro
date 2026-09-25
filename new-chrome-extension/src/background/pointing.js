@@ -38,11 +38,10 @@
 // ## What it costs
 //
 // `chrome.debugger`, and so the "AI-SRO is debugging this browser" banner for
-// as long as a command is in flight. That is the same bargain `trees.js`
-// documents at length: invisible under `ExtensionInstallForcelist`, which is
-// the deployment this is for, and visible on an unpacked development copy.
-// Unlike trees this is not policy-gated -- a run acting on a page is a
-// deliberate act somebody asked for, not a background convenience.
+// as long as a command is in flight: invisible under `ExtensionInstallForcelist`,
+// which is the deployment this is for, and visible on an unpacked development
+// copy. It is not policy-gated -- a run acting on a page is a deliberate act
+// somebody asked for, not a background convenience.
 //
 // Chrome allows one debugger client per tab, so an operator with DevTools open
 // takes it. `pointAt` says so rather than pretending, and the caller falls back
@@ -52,11 +51,8 @@ const PROTOCOL = "1.3";
 
 /** Tabs this module attached itself, so it detaches only what it took.
  *
- * `trees.js` attaches the same tabs for accessibility trees and Chrome counts
- * one attachment per extension per tab: when it got there first our attach
- * fails, our commands work anyway (we are attached, just not by us), and
- * detaching would pull the floor out from under it. So an attach that failed
- * is an attach that is not undone. */
+ * An attach that failed (DevTools holds the tab) is an attach that is not
+ * undone: detaching would pull the floor out from under whoever holds it. */
 const ours = new Set();
 
 /** How a key is described to the browser. `text` is what makes a keypress
@@ -91,10 +87,8 @@ const NAME_IT = `function () {
 
 /** Take the tab, or say we could not.
  *
- * A failed attach is not always a refusal: it is also what Chrome says when
- * this extension is already attached for trees. Both answer `true` here,
- * because in both cases commands are about to work; a genuine refusal shows
- * up as the first `sendCommand` throwing, which is where it is reported.
+ * A failed attach is not reported here: a genuine refusal shows up as the
+ * first `sendCommand` throwing, which is where it is reported.
  */
 async function hold(tabId) {
   if (ours.has(tabId)) return;
@@ -102,8 +96,8 @@ async function hold(tabId) {
     await chrome.debugger.attach({ tabId }, PROTOCOL);
     ours.add(tabId);
   } catch {
-    // Already attached -- by us for trees, or by DevTools. Either way this
-    // does not own it and must not detach it.
+    // Already attached, by DevTools. This does not own it and must not
+    // detach it.
   }
 }
 

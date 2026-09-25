@@ -1151,8 +1151,6 @@ class ObservationPolicyModel(BaseModel):
     include_hosts: list[str]
     capture_screenshots: bool
     screenshot_max_per_minute: int
-    capture_snapshots: bool = False
-    snapshot_max_per_minute: int = 20
     capture_response_bodies: bool
     max_body_bytes: int
     daily_budget_bytes: int
@@ -1167,8 +1165,6 @@ class ObservationPolicyModel(BaseModel):
             include_hosts=list(policy.include_hosts),
             capture_screenshots=policy.capture_screenshots,
             screenshot_max_per_minute=policy.screenshot_max_per_minute,
-            capture_snapshots=policy.capture_snapshots,
-            snapshot_max_per_minute=policy.snapshot_max_per_minute,
             capture_response_bodies=policy.capture_response_bodies,
             max_body_bytes=policy.max_body_bytes,
             daily_budget_bytes=policy.daily_budget_bytes,

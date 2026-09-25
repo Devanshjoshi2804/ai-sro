@@ -648,6 +648,7 @@ async def test_a_cited_gesture_reaches_the_bridge_whole(
             "detail": None,
             "trusted": None,
             "after": None,
+            "outlines": [],
         },
     }
 

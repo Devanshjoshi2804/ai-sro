@@ -8,6 +8,7 @@ the failure this port exists to avoid.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -21,6 +22,10 @@ from sro.domain.observation.gesture import (
     Gesture,
     GestureBatch,
     Intent,
+    Landmark,
+    Outline,
+    OutlineField,
+    OutlineMessage,
     PageMark,
     Target,
     ValueSeen,
@@ -147,6 +152,31 @@ class TestGestures:
         assert call.request_body is not None
         assert call.request_body.redacted_fields == ("password",)
         assert loaded.page_events[0].page_kind == "navigated"
+
+    async def test_the_screen_a_gesture_was_made_on_survives_the_round_trip(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        screen = Outline(
+            headings=("New Customer Type",),
+            landmarks=(Landmark("form", "New"),),
+            fields=(
+                OutlineField("combobox", "Department", True, ("Finance", "Operations")),
+                OutlineField("textbox", "Code"),
+            ),
+            buttons=("Save",),
+            messages=(OutlineMessage("alert"),),
+        )
+        gesture = _gesture("ges_1")
+        gesture.action = replace(gesture.action, outlines=(screen, Outline(buttons=("Close",))))
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.gestures.add_gestures((gesture,))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            loaded = (await uow.gestures.gestures_for(TENANT))[0]
+
+        assert loaded.action.outlines == (screen, Outline(buttons=("Close",)))
 
     async def test_the_device_clock_is_kept_against_the_servers_own(
         self, session_factory: async_sessionmaker[AsyncSession]

@@ -62,6 +62,28 @@ class AfterState:
 
 
 @dataclass(frozen=True, slots=True)
+class OutlineField:
+    role: str
+    label: str
+    required: bool | None = None
+    options: tuple[str, ...] | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class OutlineMessage:
+    role: str
+
+
+@dataclass(frozen=True, slots=True)
+class Outline:
+    headings: tuple[str, ...] = ()
+    landmarks: tuple[Landmark, ...] = ()
+    fields: tuple[OutlineField, ...] = ()
+    buttons: tuple[str, ...] = ()
+    messages: tuple[OutlineMessage, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class Action:
     kind: Kind
     at: float
@@ -74,6 +96,7 @@ class Action:
     detail: int | None = None
     trusted: bool | None = None
     after: AfterState | None = None
+    outlines: tuple[Outline, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

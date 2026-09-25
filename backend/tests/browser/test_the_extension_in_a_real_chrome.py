@@ -103,29 +103,22 @@ def _flush(context: Any, worker: Any) -> None:
     page.close()
 
 
-def _wait_for_a_tree(worker: Any, deadline_seconds: float = 5.0) -> None:
-    """Block until `trees.js` has captured at least one tree.
-
-    `noteTree()` writes `sro.treeTimes` the moment `takeTreeSoon` succeeds --
-    the real signal that the "before" tree the next gesture will pick up is
-    actually waiting, rather than a guess at how long a debugger attach and
-    an `Accessibility.getFullAXTree` command take under whatever load the
-    machine is under. The deadline is only a bound; a run where nothing is
-    ever captured fails on the assertion that follows, not here.
-    """
-    until = time.time() + deadline_seconds
-    while time.time() < until:
-        times = worker.evaluate(
-            """async () =>
-                 (await chrome.storage.local.get("sro.treeTimes"))["sro.treeTimes"] || []"""
-        )
-        if times:
-            return
-        time.sleep(0.1)
+def _clicks_on(batches: list[dict[str, Any]], element_id: str) -> list[dict[str, Any]]:
+    return [
+        event
+        for batch in batches
+        for event in batch["events"]
+        if event["kind"] == "gesture"
+        and ((event["gesture"].get("target") or {}).get("attributes") or {}).get("id") == element_id
+    ]
 
 
-def _flush_until_a_snapshot_arrives(
-    context: Any, worker: Any, batches: list[dict[str, Any]], deadline_seconds: float = 8.0
+def _flush_until_a_click_arrives(
+    context: Any,
+    worker: Any,
+    batches: list[dict[str, Any]],
+    element_id: str,
+    deadline_seconds: float = 8.0,
 ) -> None:
     """The same shape as `capture_fixtures.py`'s fix for I5: flush, check what
     actually arrived, and only sleep between attempts -- never instead of
@@ -133,7 +126,7 @@ def _flush_until_a_snapshot_arrives(
     until = time.time() + deadline_seconds
     while True:
         _flush(context, worker)
-        if any(event["kind"] == "snapshot" for batch in batches for event in batch["events"]):
+        if _clicks_on(batches, element_id):
             return
         if time.time() >= until:
             return
@@ -1696,19 +1689,17 @@ def test_pressing_yes_on_the_card_starts_the_run_the_card_described(
     assert "started_by" not in press, press
 
 
-def test_the_tree_a_step_carries_is_the_page_the_operator_acted_on(browser: Any, stub: Any) -> None:
-    """A snapshot is attached to the frame of the gesture before it, and that
-    frame's locator is built from the tree — so the tree has to be the screen
-    the operator was looking at when they decided to act.
+def test_the_screen_a_step_carries_is_the_page_the_operator_acted_on(
+    browser: Any, stub: Any
+) -> None:
+    """The screen outline rides on the gesture record it was taken for, read
+    in the capture phase before the click does anything -- so it has to be
+    the screen the operator was looking at when they decided to act.
 
-    Taken after the click, a step that navigates carries the *destination*
-    page, and induction builds that step's locator from a page where the
-    control it clicked does not exist.
-
-    Passive, not a deliberate demonstration: the accessibility tree is the
-    same event either way (`trees.js`'s `takeTree`/`takeTreeSoon`), gated by
-    the tenant policy's `capture_snapshots` rather than a debugger session
-    somebody pressed a button to start.
+    Taken after the click, a step that navigates would carry the
+    *destination* page, and a field would be looked for on a page where it
+    does not exist. Through the real extension, so the worker's queue and
+    upload carry `outlines` unchanged; no debugger is involved.
     """
     api_url, batches = stub
     worker = _service_worker(browser)
@@ -1729,27 +1720,27 @@ def test_the_tree_a_step_carries_is_the_page_the_operator_acted_on(browser: Any,
     )
     _watch(browser, worker, page)
 
-    # The first gesture has no "before" tree waiting for it; what it does is
-    # schedule one, of this page, for the gesture after it. Waited for by the
-    # signal that says it landed, not by guessing how long a debugger attach
-    # takes.
     page.click("#client")
-    _wait_for_a_tree(worker)
-
     page.click("#go")
     page.wait_for_url(f"{api_url}/elsewhere", timeout=15_000)
-    _flush_until_a_snapshot_arrives(browser, worker, batches)
+    _flush_until_a_click_arrives(browser, worker, batches, "go")
     page.close()
 
-    events = [event for batch in batches for event in batch["events"]]
-    snapshots = [event for event in events if event["kind"] == "snapshot"]
-    assert snapshots, "the passive path carried no accessibility tree at all"
-
-    names = [node.get("name", {}).get("value", "") for node in snapshots[0]["snapshot"]["nodes"]]
-    assert any("Go elsewhere" in name for name in names), (
-        "the tree is the page the click produced, not the one the operator clicked on"
+    gestures = [
+        event["gesture"]
+        for batch in batches
+        for event in batch["events"]
+        if event["kind"] == "gesture"
+    ]
+    (go,) = _clicks_on(batches, "go")
+    upto = gestures[: gestures.index(go["gesture"]) + 1]
+    outlines = [screen for gesture in upto for screen in gesture.get("outlines") or []]
+    assert outlines, "the passive path carried no screen outline at all"
+    assert outlines[-1]["headings"] == ["Depot"], (
+        "the screen a click was made on is the page the operator clicked on"
     )
-    assert not any("Only here" in name for name in names)
+    assert "Save" in outlines[-1]["buttons"]
+    assert "Only here" not in json.dumps(outlines), "the destination page was sent as the screen"
 
 
 def test_a_tab_nobody_pointed_at_is_not_evidence(browser: Any, stub: Any) -> None:

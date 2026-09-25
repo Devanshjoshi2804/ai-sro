@@ -538,11 +538,6 @@ class _Stub(BaseHTTPRequestHandler):
                             # handful of times must be able to reach it.
                             "capture_screenshots": True,
                             "screenshot_max_per_minute": 3,
-                            # On, so the passive path emits the accessibility
-                            # trees induction reads -- the same event a
-                            # deliberate demonstration used to be the only
-                            # producer of.
-                            "capture_snapshots": True,
                             "capture_response_bodies": True,
                             "max_body_bytes": 262144,
                             "daily_budget_bytes": 524288000,

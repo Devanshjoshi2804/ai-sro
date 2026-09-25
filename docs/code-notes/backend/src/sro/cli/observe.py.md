@@ -15,13 +15,13 @@ Comments and docstrings moved out of [`backend/src/sro/cli/observe.py`](../../..
 >     python -m sro.cli.observe acme --off
 >     python -m sro.cli.observe acme            # just read it back
 
-## `_run`, [line 49](../../../../../../backend/src/sro/cli/observe.py#L49): Comment
+## `_run`, [line 36](../../../../../../backend/src/sro/cli/observe.py#L36): Comment
 
 Code: `principal_id=PrincipalId("shell"),`
 
 > The shell is the authority here; the name is for the record, not a check.
 
-## `_run`, [line 57](../../../../../../backend/src/sro/cli/observe.py#L57): Comment
+## `_run`, [line 44](../../../../../../backend/src/sro/cli/observe.py#L44): Comment
 
 Code: `print(`
 

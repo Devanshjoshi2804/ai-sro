@@ -65,7 +65,11 @@
     // Any script in the page can dispatch this event, so nothing here trusts
     // the payload: it is size-capped and shape-checked before it is forwarded,
     // and the worker re-checks the policy against the frame it came from.
-    if (typeof json !== "string" || json.length > MAX_GESTURE_CHARS) return;
+    if (typeof json !== "string") return;
+    if (json.length > MAX_GESTURE_CHARS) {
+      window.dispatchEvent(new CustomEvent("sro:dropped", { detail: null }));
+      return;
+    }
 
     let gesture;
     try {

@@ -825,16 +825,7 @@ function watching(status) {
         `You turned this on for ${mine.host}. Everything you do here is evidence,` +
         " until you close the tab or stop watching." +
         elsewhere,
-      // Said out loud, because it is a change to the screen they are working
-      // on. Chrome puts a debugging banner up for it on any browser that did
-      // not install this by policy, and an operator meeting that with no
-      // explanation has been given a reason to distrust everything else the
-      // panel says.
-      metrics:
-        `since ${clock(mine.since)}` +
-        (status.policy?.capture_snapshots
-          ? " · reading this page's structure too"
-          : ""),
+      metrics: `since ${clock(mine.since)}`,
       actions: [
         { label: "Stop watching", act: (button) => setWatch(button, false) },
         pauseAction(status),
@@ -861,11 +852,7 @@ function watching(status) {
       // begin or end.
       `Work as usual in ${mine.on || mine.host || "this tab"}. It learns from what you repeat.` +
       elsewhere,
-    metrics:
-      `since ${clock(mine.since)}` +
-      (status.policy?.capture_snapshots
-        ? " · reading this page's structure too"
-        : ""),
+    metrics: `since ${clock(mine.since)}`,
     actions: [
       { label: "Stop watching", act: (button) => setWatch(button, false) },
       pauseAction(status),

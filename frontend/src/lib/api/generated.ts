@@ -3300,16 +3300,6 @@ export interface components {
             capture_screenshots: boolean;
             /** Screenshot Max Per Minute */
             screenshot_max_per_minute: number;
-            /**
-             * Capture Snapshots
-             * @default false
-             */
-            capture_snapshots: boolean;
-            /**
-             * Snapshot Max Per Minute
-             * @default 20
-             */
-            snapshot_max_per_minute: number;
             /** Capture Response Bodies */
             capture_response_bodies: boolean;
             /** Max Body Bytes */

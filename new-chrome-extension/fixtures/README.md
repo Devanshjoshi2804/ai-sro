@@ -24,7 +24,6 @@ Shapes are specified in [`docs/14-extension-protocol.md`](../../docs/14-extensio
 | `request-with-body.json` | an XHR with a body each way — the other transport, patched separately |
 | `request-uninspectable-body.json` | a response nothing read: an event stream stays open for the life of the page |
 | `page-navigated.json` | one `page` event |
-| `snapshot.json` | one `snapshot` event — an accessibility tree, from the passive path |
 | `batch.json` | a complete `POST /v1/observations` body |
 | `command-ui-perform-reply.json` | an extension → server reply to `ui.perform` |
 | `command-http-send-reply.json` | an extension → server reply to `http.send` |

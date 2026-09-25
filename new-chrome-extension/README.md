@@ -92,20 +92,6 @@ Set the console's address in Settings; leave it empty and the panel still does
 everything only it can do, and says so rather than opening nothing when asked
 for a console with no address set.
 
-## Accessibility trees
-
-Passive capture is cheap and invisible on purpose, and by default it sees only
-what the DOM offers. A tenant may turn on `capture_snapshots` in its policy, and
-when it does, `trees.js` attaches `chrome.debugger` to a watched tab and takes
-an accessibility tree at every gesture -- the one view that says what a control
-*is* rather than where it sits today, and what induction needs to build a
-locator that survives a re-render.
-
-Chrome banners the tab for as long as it is attached, which here is as long as
-the tab stays watched, so this is off unless a tenant's policy turns it on --
-the cost is real and belongs to an administrator's decision, not an operator's
-surprise.
-
 ## Deleting your own evidence
 
 The options page has a "Delete the last hour" button, and it does both halves:

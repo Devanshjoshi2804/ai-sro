@@ -194,6 +194,19 @@ test("a gesture the worker drops tells the recorder to forget its target", async
   }
 });
 
+test("a gesture too large to relay tells the recorder it was dropped", () => {
+  // Refused for size, the gesture is lost; silently, the recorder would go on
+  // believing its screen was sent and never send it again.
+  const world = aWorld();
+  run(world);
+  const dropped = [];
+  world.window.addEventListener("sro:dropped", (event) => dropped.push(event.detail));
+
+  gesture(world, "x".repeat(128 * 1024 + 1));
+
+  assert.deepEqual(dropped, [null]);
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

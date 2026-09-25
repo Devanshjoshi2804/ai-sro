@@ -24,9 +24,6 @@ class ObservationPolicy:
     capture_screenshots: bool = True
     screenshot_max_per_minute: int = 20
 
-    capture_snapshots: bool = False
-
-    snapshot_max_per_minute: int = 20
     capture_response_bodies: bool = True
     max_body_bytes: int = 256 * 1024
     daily_budget_bytes: int = 500 * 1024 * 1024
@@ -39,7 +36,6 @@ class ObservationPolicy:
             raise InvariantViolation("evidence kept for less than a day is evidence discarded")
         for name, value in (
             ("screenshot_max_per_minute", self.screenshot_max_per_minute),
-            ("snapshot_max_per_minute", self.snapshot_max_per_minute),
             ("max_body_bytes", self.max_body_bytes),
             ("daily_budget_bytes", self.daily_budget_bytes),
         ):
@@ -73,6 +69,3 @@ class ObservationPolicy:
 
     def keeping_for(self, days: int) -> ObservationPolicy:
         return replace(self, version=self.version + 1, retention_days=days)
-
-    def reading_structure(self, on: bool) -> ObservationPolicy:
-        return replace(self, version=self.version + 1, capture_snapshots=on)

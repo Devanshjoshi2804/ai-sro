@@ -17,6 +17,9 @@ from sro.domain.observation.gesture import (
     FrameHop,
     Gesture,
     Landmark,
+    Outline,
+    OutlineField,
+    OutlineMessage,
     PageMark,
     Target,
     new_gesture_id,
@@ -178,6 +181,24 @@ def as_action(wire: WireGesture) -> Action:
         else tuple(FrameHop(index=hop.index, url=hop.url) for hop in wire.frame_path),
         detail=wire.detail,
         trusted=wire.trusted,
+        outlines=tuple(
+            Outline(
+                headings=tuple(one.headings),
+                landmarks=tuple(Landmark(role=mark.role, name=mark.name) for mark in one.landmarks),
+                fields=tuple(
+                    OutlineField(
+                        field.role,
+                        field.label,
+                        field.required,
+                        None if field.options is None else tuple(field.options),
+                    )
+                    for field in one.fields
+                ),
+                buttons=tuple(one.buttons),
+                messages=tuple(OutlineMessage(said.role) for said in one.messages),
+            )
+            for one in wire.outlines
+        ),
     )
 
 

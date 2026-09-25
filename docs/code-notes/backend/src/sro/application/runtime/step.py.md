@@ -19,3 +19,9 @@ Code: `reauthed: bool = False`
 > headers (a mark, a reload, then only requests after the mark): the page's
 > request log still holds the token from before the sign-in, and replaying
 > it would spend the only retry on a second refusal.
+
+## `ReadsBack`, [line 106](../../../../../../../backend/src/sro/application/runtime/step.py#L106): Note
+
+> The API lane as the executor needs it: a lane that can also say whether
+> a read-back shows an `unknown` write's values, without sending the
+> write again.

@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sro.application.ports.repositories import WorkflowRepository
 from sro.domain.execution.belts import RunProof, state_verified
+from sro.domain.execution.lanes import Broken, Lane
 from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.observation.identity import ShapeKey
@@ -23,6 +24,7 @@ from sro.domain.skill.repeats import Repeat
 from sro.domain.skill.workflow import Noticed, Step, Workflow
 from sro.infrastructure.db.codec import when
 from sro.infrastructure.db.models import (
+    KnownBrokenRow,
     LearnedWriteRow,
     MiningPassRow,
     WorkflowEffectRow,
@@ -435,6 +437,52 @@ class SqlWorkflowRepository(WorkflowRepository):
                 found_by=row.found_by,
             )
             for row in rows
+        )
+
+    async def break_lane(
+        self, tenant_id: TenantId, workflow_id: str, broken: Broken, *, cites: str, at: datetime
+    ) -> None:
+        await self._session.execute(
+            pg_insert(KnownBrokenRow)
+            .values(
+                tenant_id=tenant_id.value,
+                workflow_id=workflow_id,
+                ord=broken.step,
+                lane=broken.lane.value,
+                fingerprint=broken.fingerprint,
+                cites=cites,
+                at=at,
+            )
+            .on_conflict_do_nothing()
+        )
+
+    async def broken_for(
+        self, tenant_id: TenantId, workflow_id: str, cites: Mapping[int, str]
+    ) -> tuple[Broken, ...]:
+        rows = (
+            await self._session.execute(
+                select(KnownBrokenRow)
+                .where(
+                    KnownBrokenRow.tenant_id == tenant_id.value,
+                    KnownBrokenRow.workflow_id == workflow_id,
+                )
+                .order_by(KnownBrokenRow.ord, KnownBrokenRow.lane, KnownBrokenRow.fingerprint)
+            )
+        ).scalars()
+        return tuple(
+            Broken(row.ord, Lane(row.lane), row.fingerprint)
+            for row in rows
+            if cites.get(row.ord) == row.cites
+        )
+
+    async def mend_lane(self, tenant_id: TenantId, workflow_id: str, step: int, lane: Lane) -> None:
+        await self._session.execute(
+            delete(KnownBrokenRow).where(
+                KnownBrokenRow.tenant_id == tenant_id.value,
+                KnownBrokenRow.workflow_id == workflow_id,
+                KnownBrokenRow.ord == step,
+                KnownBrokenRow.lane == lane.value,
+            )
         )
 
     async def learned_for(self, workflow_id: str) -> tuple[LearnedStep, ...]:

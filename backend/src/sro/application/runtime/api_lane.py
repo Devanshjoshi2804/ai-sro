@@ -43,7 +43,7 @@ class ApiLane:
         self._broker = broker
 
     async def execute(self, step: Step, values: Mapping[str, str], ctx: LaneContext) -> StepResult:
-        planned = _plan(step, values, ctx)
+        planned = replay_of(step, values, ctx)
         recorded = recorded_call(step, ctx.by_id)
         held = ctx.held
         if planned is None or recorded is None or held is None:
@@ -123,7 +123,7 @@ class ApiLane:
     async def read_back(
         self, step: Step, values: Mapping[str, str], ctx: LaneContext
     ) -> Verdict | None:
-        planned = _plan(step, values, ctx)
+        planned = replay_of(step, values, ctx)
         if planned is None or ctx.held is None:
             return None
         confirmed = await self._confirmed(step, planned, ctx, ctx.held, fresh=ctx.reauthed)
@@ -170,7 +170,7 @@ class ApiLane:
         }
 
 
-def _plan(step: Step, values: Mapping[str, str], ctx: LaneContext) -> Planned | None:
+def replay_of(step: Step, values: Mapping[str, str], ctx: LaneContext) -> Planned | None:
     return replay_without_asking(
         step=step,
         cited=[ctx.by_id[one] for one in step.cites if one in ctx.by_id],

@@ -24,6 +24,7 @@ import pytest
 from sro.application.analytics.audit import ReadAudit
 from sro.application.capture.devices import ReadRoster, RestoreDevice, RevokeDevice
 from sro.application.context import RequestContext
+from sro.application.runtime.api_lane import ApiLane
 from sro.application.skill.record_offer import RecordOffer
 from sro.application.skill.retire_workflow import RetireWorkflow
 from sro.application.skill.serve_shapes import ServeShapes
@@ -31,7 +32,14 @@ from sro.container import Container
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.skill.workflow import Workflow
 from sro.infrastructure.agent.drivers import RemoteAgents
-from tests.unit.fakes import FakeAsker, FakeClock, FakePageDriver, FakeUnitOfWork
+from tests.unit.fakes import (
+    FakeAsker,
+    FakeBrowserPool,
+    FakeClock,
+    FakeCredentialVault,
+    FakePageDriver,
+    FakeUnitOfWork,
+)
 from tests.unit.interface.test_http import _FakeContainer
 
 FROZEN = datetime(2026, 3, 4, 9, 30, tzinfo=UTC)
@@ -555,3 +563,20 @@ def test_the_sight_lane_has_no_model_when_the_deployment_has_no_vision(
     container.driver = FakePageDriver()
 
     assert container.sight_lane()._models == ()
+
+
+def test_every_broker_the_container_builds_shares_one_token_floor(
+    container: Container,
+) -> None:
+    """A floor one broker sets after a sign-in is the floor the API lane's own
+    broker reads, so the lane never sends a token from before it."""
+    container.vision = None
+    container.driver = FakePageDriver()
+    container.pool = FakeBrowserPool({})
+    container.vault = FakeCredentialVault()
+
+    executor = container.step_executor()
+
+    assert executor._broker._floors is container.token_floors
+    assert isinstance(executor._api, ApiLane)
+    assert executor._api._broker is executor._broker

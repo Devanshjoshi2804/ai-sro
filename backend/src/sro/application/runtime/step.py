@@ -8,7 +8,7 @@ from typing import Literal, Protocol
 from sro.application.context import RequestContext
 from sro.application.ports.page import SessionRef
 from sro.domain.execution.account import Lease
-from sro.domain.execution.lanes import Lane, StepResult
+from sro.domain.execution.lanes import Lane, StepResult, Verdict
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.observation.gesture import Gesture
@@ -101,3 +101,9 @@ class StepLane(Protocol):
     async def execute(
         self, step: Step, values: Mapping[str, str], ctx: LaneContext
     ) -> StepResult: ...
+
+
+class ReadsBack(StepLane, Protocol):
+    async def read_back(
+        self, step: Step, values: Mapping[str, str], ctx: LaneContext
+    ) -> Verdict | None: ...

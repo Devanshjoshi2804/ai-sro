@@ -69,19 +69,24 @@ Clean architecture, enforced by import-linter: `domain` (pure), `application` (u
 | `backend/src/sro/application/runtime/tool_lane.py` | Tool lane: mailbox steps through the MCP Gmail connector | X6 |
 | `backend/src/sro/application/runtime/sight_lane.py` | Sight lane: Gemini computer use on a Steel screenshot, CDP points | X7 |
 | `backend/src/sro/application/runtime/executor.py` | `StepExecutor`: walks the ladder for one step | X8 |
-| `backend/src/sro/application/runtime/teach.py` | `Teach`: known-broken list, mending, sight → locator, UI → API promotion | X9 |
+| `backend/src/sro/application/runtime/teach.py` | `Teach`: known-broken list, mending, sight → locator, UI → API promotion; a confirmed composed field learned into the job | X9, X10 |
+| `backend/src/sro/domain/observation/outline.py` | The server's outline rule `outline_kept` (shape, caps, no echo, redaction), `last_outline`, `K_OUTLINE_*`, `K_ECHO_MIN` | E6 |
+| `backend/src/sro/domain/execution/compose.py` | `Composed`, `Unplaced`, `Adding`; `compose` (a run value to a field on the write's outline), `keyed` (the save's new body keys to fields), `with_field` (the learned step and optional parameter) | X10 |
+| `backend/src/sro/application/runtime/fill_field.py` | `FillField`: a composed or learned field filled on the live page by label, asked when not exactly one, sight as fallback | X10 |
 | `backend/src/sro/application/runtime/run_steps.py` | `RunSteps`: the activity bodies (prepare, acquire, step, finish, release, stopped, answered) | D2, D4, D5, D6 |
 | `backend/src/sro/application/runtime/answer_run.py` | `AnswerRun` use case: validate an answer and signal the workflow | D5 |
 | `backend/src/sro/application/chat/look_lately.py` | `LookInTheMailLately`: the server mail poll, each Steel tenant's operators through the existing mail door | D8 |
 | `backend/src/sro/infrastructure/db/locks.py` | `PostgresAccountLocks`: `pg_advisory_lock` on a dedicated connection | S3 |
 | `backend/src/sro/infrastructure/steel/pool.py` | `SteelPool`: containers from `steel_urls`, capacity from QA-0 | S4 |
 | `backend/src/sro/infrastructure/steel/driver.py` | `SteelDriver`: one CDP connection per session, tabs by target id, page code injected, network log | S5 (grown by S6, S10, X4, X7) |
-| `new-chrome-extension/src/page/page-code.js` | The one page-code file, a classic script exposing `globalThis.sroPage` | X1 (grown by S6, X2) |
+| `new-chrome-extension/src/page/page-code.js` | The one page-code file, a classic script exposing `globalThis.sroPage` | X1 (grown by S6, X2, E6: `outlineOf`, `sroPage.outline`) |
 | `new-chrome-extension/src/page/page-code.test.mjs` | Node self-checks of `page-code.js` (moved from `in-page.test.mjs`) | X1, X2 |
 | `backend/tests/unit/runtime_support.py` | Shared builders and doubles for the runtime's unit tests (steps with evidence, scripted drivers and lanes, a run world) | X4 (grown by S7–D6) |
 | `backend/tests/browser/steel_rig.py` | Local identity-provider chain (form, redirect, app) and served pages shared by runtime browser/integration tests | S5 |
 | `backend/tests/browser/test_the_steel_driver.py` | SteelDriver against served pages over local Chromium CDP | S5, S6, S10, X4, X7 |
 | `backend/tests/browser/test_page_code_parity.py` | §8.2 parity suite: extension injection vs `add_init_script` choose the same element | X2 |
+| `backend/tests/browser/test_the_screen_outline.py` | Real Chrome: no typed value in any outline sent or kept (show-password, a code box labelled "Verify", mirror div, status mirror, contenteditable, textarea) | E6 |
+| `backend/tests/unit/domain/test_composing_a_field.py`, `backend/tests/unit/application/runtime/test_a_field_nobody_showed.py` | Composing, keying, asking, learning a field nobody demonstrated | X10 |
 | `backend/tests/integration/test_leases.py` | Lease SQL: unique live lease, beat, expiry | S2 |
 | `backend/tests/integration/test_account_locks.py` | Advisory lock excludes a second holder across connections | S3 |
 | `backend/tests/integration/test_runs_on_local_steel.py` | §8.3 scenarios against local Steel + Temporal test server | S7, S8, D2, D4, D6, D7 |
@@ -89,7 +94,6 @@ Clean architecture, enforced by import-linter: `domain` (pure), `application` (u
 | `backend/tests/integration/test_mail_is_read_once.py` | The heartbeat look and the server poll, concurrently on Postgres, read one mail once | D8 |
 | `new-chrome-extension/src/watch-only.test.mjs` | The extension can load no code that acts on a page or sends a request for a run | R2 |
 | `backend/scripts/shadow.py` | Rollout step 1: dry Steel runs beside extension runs, verdicts compared | R1 |
-| `backend/migrations/versions/2026xxxx_0073_a_gesture_keeps_its_tree.py` | `gestures.tree` JSONB | E6 |
 | `backend/migrations/versions/2026xxxx_0074_sign_in_pages_are_watched.py` | Heal stored policies whose `exclude_hosts` is exactly the old default | E7 |
 | `backend/migrations/versions/2026xxxx_0075_a_session_is_leased.py` | Lease columns and the one-live-lease index on `browser_sessions` | S2 |
 | `backend/migrations/versions/2026xxxx_0076_a_lane_known_broken.py` | `known_broken` table | X8 |
@@ -100,17 +104,20 @@ Clean architecture, enforced by import-linter: `domain` (pure), `application` (u
 | File | Change | Task |
 |---|---|---|
 | `new-chrome-extension/src/background/service-worker.js` | `popupEvent`/`pageEvent` carry `opener_tab_id` | A0 |
-| `backend/src/sro/application/capture/rig_wire.py` | Wire fields: `opener_tab_id`, `landmarks`, `frame_path`, `detail`, `trusted`, `prior`, snapshot `tab_id` | A0, E2–E6 |
-| `backend/src/sro/domain/observation/gesture.py` | `PageMark.opener_tab_id`; `Target.bounds/attributes/landmarks`; `Component.chain`; `Action.modifiers/detail/trusted/frame_path/after`; `Landmark`, `FrameHop`, `AfterState`; `Gesture.tree` | A0, E1–E6 |
-| `backend/src/sro/application/observation/correlate.py` | `as_action`/`as_mark` keep every captured field; after-state join; tree attached to its gesture | A0, E1–E6 |
-| `backend/src/sro/infrastructure/steel/recorder.js` (+ generated copy) | `landmarksOf`, `framePathOf`, click `detail`/`isTrusted`, `stateOf` + `prior` | E2–E5 |
+| `backend/src/sro/application/capture/rig_wire.py` | Wire fields: `opener_tab_id`, `landmarks`, `frame_path`, `detail`, `trusted`, `prior`, `outlines` (`Outline`, `OutlineField`, `OutlineMessage`) | A0, E2–E6 |
+| `backend/src/sro/domain/observation/gesture.py` | `PageMark.opener_tab_id`; `Target.bounds/attributes/landmarks`; `Component.chain`; `Action.modifiers/detail/trusted/frame_path/after/outlines`; `Landmark`, `FrameHop`, `AfterState`, `Outline`, `OutlineField`, `OutlineMessage` | A0, E1–E6 |
+| `backend/src/sro/application/observation/correlate.py` | `as_action`/`as_mark` keep every captured field; after-state join; outlines carried on their own gesture | A0, E1–E6 |
+| `backend/src/sro/infrastructure/steel/recorder.js` (+ generated copy) | `landmarksOf`, `framePathOf`, click `detail`/`isTrusted`, `stateOf` + `prior`; `requiredOf`/`outlineOf` from the readers, `takeOutline`, the `MutationObserver`, `outlines` on each record | E2–E6 |
 | `backend/src/sro/domain/skill/signing_in.py` | Enter-submit by `detail == 0`; `PageSignals` and the structural sign-in predicates | E4, S6 |
-| `backend/src/sro/application/observation/redact.py` | A snapshot's tree keeps no credential-field value | E6 |
-| `backend/src/sro/infrastructure/db/evidence.py`, `models.py` | `gestures.tree` round trip; lease columns; `known_broken`; run `progress`/`executor` | E6, S2, X8, D1 |
-| `backend/src/sro/domain/observation/policy.py` | `DEFAULT_EXCLUSIONS = ()` | E7 |
+| `backend/src/sro/application/observation/redact.py` | Outlines kept only through `outline_kept` against the batch's typed values; a `snapshot` event's tree discarded; `_shapes_only` gone | E6 |
+| `backend/src/sro/infrastructure/db/evidence.py`, `models.py` | lease columns; `known_broken`; run `progress`/`executor` (E6's outline rides in `gestures.gesture` JSONB: no schema change) | S2, X8, D1 |
+| `backend/src/sro/domain/observation/policy.py` | `DEFAULT_EXCLUSIONS = ()` (E7); `capture_snapshots`, `snapshot_max_per_minute`, `reading_structure` deleted (E6; the stored JSONB key is kept and ignored) | E6, E7 |
+| `backend/src/sro/interface/http/schemas.py` (policy response), `backend/src/sro/cli/observe.py` | The two snapshot policy fields and `--snapshots`/`--no-snapshots` deleted | E6 |
+| `new-chrome-extension/src/background/trees.js`, `trees.test.mjs` | Deleted: tree capture and its `chrome.debugger` attach | E6 |
+| `new-chrome-extension/src/background/service-worker.js`, `state.js`, `panel.js`, `pointing.js` (comments), `README.md` | `takeTree`/`takeTreeSoon`/`releaseAll`, `treeTimes` and the tree wording removed | E6 |
 | `backend/src/sro/application/ports/repositories.py` | `BrowserSessionRepository` lease methods; `WorkflowRepository` known-broken methods | S2, X8 |
 | `backend/src/sro/infrastructure/db/repositories.py`, `workflows.py`, `workflow_runs.py` | SQL for leases, known-broken, progress/executor, `fail_orphans` narrowed | S2, X8, D1 |
-| `backend/tests/unit/fakes.py` | Fakes for leases, locks, pool, page driver, known-broken, durable runs | S2–S5, X8, D2 |
+| `backend/tests/unit/fakes.py` | Fakes for leases, locks, pool, page driver, known-broken, durable runs | S2–S5, X8, D2, X10 |
 | `backend/src/sro/interface/http/v1/routers/secrets.py`, `schemas.py` | Password stored under the account key when a username is given | S1 |
 | `backend/src/sro/config.py` | `steel_urls`, `steel_sessions_per_container`, `page_code_path`, `steel_tenants`, `mail_sweep_seconds` | S4, X1, D3, D8 |
 | `infra/docker-compose.yml`, `infra/docker-compose.deploy.yml` | `steel-1…steel-N` services | S4 |
@@ -124,13 +131,18 @@ Clean architecture, enforced by import-linter: `domain` (pure), `application` (u
 | `backend/src/sro/domain/execution/workflow_run.py` | `WorkflowRun.progress`, `WorkflowRun.executor` | D1 |
 | `backend/src/sro/application/ports/durable.py`, `infrastructure/temporal/{workflows,activities,durable,worker,queues}.py` | `RunWorkflow` on the `runs` queue; `start_run`, `cancel_run`, `answer_run` | D2, D4, D5 |
 | `backend/src/sro/application/execution/workflow_runs.py` | `StartWorkflowRun` starts Steel tenants' runs durably, and a takeover with the operator's writes in its first `progress`; `AbortWorkflowRun` cancels them | D3, D4, D7 |
-| `backend/src/sro/application/chat/from_the_mail.py` | A sure mail with all required values starts the run (Steel tenants); a cap refusal while starting releases the message's claim | D3, D8 |
+| `backend/src/sro/application/chat/from_the_mail.py` | A sure mail with all required values starts the run (Steel tenants); a cap refusal while starting releases the message's claim; an asked-for aside value rides into the run, and a reply answers a `field` question | D3, D8, X10 |
 | `backend/src/sro/infrastructure/temporal/worker.py` | `look_in_the_mail_lately` loop beside the session keeper | D8 |
 | `backend/src/sro/application/lookup/run_lookups.py`, `domain/lookup/address.py` (`Address.page`), `routers/ask.py`, `routers/lookups.py`, `application/chat/converse.py`, `schemas.py` (`allow_focus` gone from `LookupRequest`/`AskRequest`) | Lookups read through the broker: the account's session first, then a Steel tab; no `SocketChannel` | L1 |
 | `backend/src/sro/interface/http/schemas.py` (`StartWorkflowRunRequest.took_over`), `routers/workflow_runs.py` (pass-through) | The press names the operator's tab and the span its matched gestures cover | D7 |
 | `new-chrome-extension/src/background/recognise.js`, `service-worker.js` | `match` returns `since`/`through`; the press flushes the capture queue, then sends `took_over` | D7 |
 | `backend/src/sro/interface/http/v1/routers/workflow_runs.py` | `POST /v1/workflow-runs/{id}/answer` | D5 |
-| `backend/src/sro/container.py` | Factories for everything above | S3–D5, D8 |
+| `backend/src/sro/container.py` | Factories for everything above | S3–D5, D8, X10 |
+| `backend/src/sro/application/ports/page.py`, `infrastructure/steel/driver.py` | `PageDriver.resolve`, `PageDriver.outline` | X10 |
+| `backend/src/sro/application/runtime/ui_lane.py`, `sight_lane.py`, `executor.py`, `step.py`, `domain/execution/lanes.py` | `_same_call` accepts the keys of fields filled this run (`Adding`) and reports them (`StepResult.keyed`); `SightLane.fill`; no API lane for a write that follows a new field; `LaneContext.adding` | X10 |
+| `backend/src/sro/domain/execution/progress.py`, `application/runtime/run_steps.py`, `answer_run.py`, `teach.py` | `Progress.composed`; compose at prepare, ask `field` questions, fill before the write, settle by `keyed`, learn at finish | X10 |
+| `backend/src/sro/infrastructure/db/workflows.py` (`grew`) | Also moves `known_broken` rows | X10 |
+| `backend/tests/browser/steel_rig.py` | A Department select on the Customer Type form, sent only when chosen | X10 |
 | `backend/src/sro/interface/http/app.py` | Startup sweep leaves Steel runs alone | D1 |
 | `new-chrome-extension/src/background/commands.js`, `channel.js`, `showing.js`, `pointing.js`, `sign-in.js`, `whats-on-screen.js` | Deleted: every executing kind including `http.send` (`httpSend`), the command socket, the driving band | R2 |
 | `new-chrome-extension/src/background/service-worker.js`, `api.js`, `looking.js` | The heartbeat's mail call (`lookInTheMail`, `api.fromTheMail`, `offerFromMail`, the throttle) and the command handler removed | R2 |
@@ -145,9 +157,9 @@ Six streams, one implementer each, plus the probe that comes first. Within a str
 | Stream | Spec | Tasks |
 |---|---|---|
 | **—** probe | §5.1, §8 QA-0 | C0 |
-| **E** evidence contract | §4, §5.6 (capture), parent §5.4 | A0, E1, E2, E3, E4, E5, E6, E7 |
+| **E** evidence contract | §4, §5.6 (capture), parent §5.4 | A0, E1, E2, E3, E4, E5, E6 (screen outline; replaces the abandoned tree task), E7 |
 | **S** session broker and pool | §5 | S1, S2, S3, S4, S5, S6, S7, S8, S9, S10 |
-| **X** executors, lanes, page code | §3, §6 | X1, X2, X3, X4, X5, X6, X7, X8, X9 |
+| **X** executors, lanes, page code | §3, §6 | X1, X2, X3, X4, X5, X6, X7, X8, X9, X10 (after D5) |
 | **D** durable runs | §7, §2 (mail poll) | D1, D2, D3, D4, D5, D6, D7, D8 |
 | **L** lookups | §6.5 | L1 |
 | **R** rollout and removals | §9, §10 | R1, R2, R3 |
@@ -157,7 +169,7 @@ Six streams, one implementer each, plus the probe that comes first. Within a str
 ```
 C0 (QA-0) ──────────────────────────────► S4
 A0 ─┐ (independent)
-E1 → E2 → E3 → E4 → E5 → E6        E7 (independent)
+E1 → E2 → E3 → E4 → E5 → E6 (+X2, S6: page-code readers)        E7 (independent)
 S1 → S2 ─┐
 S3 ──────┤
 S4 ──────┤
@@ -174,8 +186,9 @@ S7, S8, X9 ──► D2 → D3 ──► (QA-1, QA-3)
 X3, D3, D5, D6 ──► D7 (takeover) ──► QA-6
 D3 ──► D8 (server mail poll) ──► QA-7
 S7, S8, S10, X5, X7 ──► L1 (lookups on Steel) ──► QA-8
+E6, X4, X7, X8, X9, D5 ──► X10 (a field nobody demonstrated) ──► QA-9 (with D8 for the mail)
 X5 + X9 on QA ──► QA-2
-D3 → R1 (shadow) ;  QA-1…QA-8 = POC ──► R2 (also after D7, D8, L1) ; R3 measure-first after R2
+D3 → R1 (shadow) ;  QA-1…QA-9 = POC ──► R2 (also after D7, D8, L1, X10) ; R3 measure-first after R2
 ```
 
 Parallel start (no shared files): **C0, A0, E1, E7, S1, S3, X1, X3, D1**. C0 blocks only S4.
@@ -186,7 +199,9 @@ Parallel start (no shared files): **C0, A0, E1, E7, S1, S3, X1, X3, D1**. C0 blo
 - `Held`, `NeedsAPerson`, `SessionBroker.acquire/reattach/reauth/headers/release` (S7, S10) → X4, X5, X7, D2.
 - `Lane`, `Verdict`, `StepResult`, `Broken`, `LaneContext`, `StepLane` (X3) → X4–X9, D2.
 - `Progress`, `StepMark` (D1) → D2, D4–D7.
-- `page-code.js` `sroPage` API (X1, X2, S6) → S5, X4, X7, parity suite.
+- `page-code.js` `sroPage` API (X1, X2, S6, E6 `outline`) → S5, X4, X7, X10, parity suite.
+- `Outline`, `OutlineField`, `last_outline` (E6) → X10.
+- `Adding`, `StepResult.keyed`, `Progress.composed` (X10): additive to the X3 and D1 types.
 
 ---
 
@@ -1091,161 +1106,684 @@ git commit -m "feat(evidence): record the state each gesture left its control in
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 ```
 
-## E6: A snapshot is stored with its gesture, not counted and dropped (§4.6)
+## E6: A screen outline — labels, roles and messages, never a value, no debugger (§4.6)
 
-`correlate.py:46-47` counts every `SnapshotEvent` as ignored. The extension enqueues the tree taken before a gesture immediately after that gesture, on the same tab (`service-worker.js:1695-1697`, `takeTree(tab_id)`), so the tree belongs to the latest gesture in batch order on its tab. The accessibility graph stays off by default (`ObservationPolicy.capture_snapshots = False`).
+Depends on: E5 (the `ref`/`prior_of` identity, and `sro:dropped`), and X2 and S6 as merged (`page-code.js` `readers`, spliced into the recorder by `_recorder_script`, `infrastructure/steel/capture.py:44-64`).
+
+**Replaces the first E6.** That task stored the whole accessibility tree (`rt/e6`, 8954f324; the review is in `.superpowers/sdd/2026-09-24-execution-runtime/task-E6-review.md`). The branch is abandoned and never merged. The new task keeps the id E6.
+
+Today the extension attaches `chrome.debugger` to take the tree (`new-chrome-extension/src/background/trees.js`, `takeTreeSoon`), gated by `ObservationPolicy.capture_snapshots` (`domain/observation/policy.py:27`). The service worker enqueues the tree as a separate `snapshot` event after the gesture (`service-worker.js:1692-1699`). The server counts and drops it (`correlate.py:54-55`), after `redact.py:61` `_shapes_only` has already put it in the blob.
+
+This task makes these changes:
+- All of that goes.
+- The recorder builds a compact outline in the page, with the same reader code that builds labelled ancestors (E2).
+- The outline rides on the gesture record it was taken for, so nothing joins by batch position.
+- The server enforces the rule itself: shape, caps, no echo of a typed value, and URL and credential-shape redaction.
 
 **Files:**
-- Modify: `backend/src/sro/application/capture/rig_wire.py:272-276` (`SnapshotEvent.tab_id`)
-- Modify: `backend/src/sro/domain/observation/gesture.py:84-98` (`Gesture.tree`)
-- Modify: `backend/src/sro/application/observation/correlate.py:39-90` (attach the tree)
-- Modify: `backend/src/sro/application/observation/redact.py:25-51` (`_tree`)
-- Modify: `backend/src/sro/infrastructure/db/models.py:460-485` (`GestureRow.tree`)
-- Modify: `backend/src/sro/infrastructure/db/evidence.py:49-82`
-- Create: `backend/migrations/versions/2026xxxx_0073_a_gesture_keeps_its_tree.py`
-- Test: `backend/tests/unit/application/test_correlate.py`, `backend/tests/unit/application/test_an_extension_uploads_what_it_saw.py` (edit only if its snapshot count now differs), `backend/tests/integration/test_evidence_repositories.py`
+- Modify: `new-chrome-extension/src/page/page-code.js`. In `readers` (lines 10-141), add `labelOf`, `requiredOf` (moved from `recorder.js:115-124`), `typedOn` and `outlineOf`, and the constants `OUTLINE_OPTIONS`, `OUTLINE_FIELDS`, `OUTLINE_TEXT`, `OUTLINE_MESSAGES` and `ECHO_MIN`. Add them to the returned object and to the destructuring at line 139. On `sroPage` (line 402), add `outline()`.
+- Modify: `new-chrome-extension/src/page/page-code.test.mjs`
+- Modify: `backend/src/sro/infrastructure/steel/recorder.js`:
+  - destructure `requiredOf` and `outlineOf` from `__PAGE_READERS__` (line 47), and delete the local `requiredOf` (lines 115-124);
+  - add `takeOutline`, a `MutationObserver`, and `OUTLINES_PER_GESTURE`;
+  - `emit` (line 248) adds `outlines`;
+  - `sro:dropped` (line 273) also resets `seenOutline`.
+- Regenerate: `new-chrome-extension/src/content/recorder.generated.js` with `make gen-recorder`.
+- Create: `backend/src/sro/domain/observation/outline.py`. It holds the `K_OUTLINE_*` constants and `K_ECHO_MIN`, `FIELD_ROLES` and `MESSAGE_ROLES`, `outline_kept` and `last_outline`.
+- Modify: `backend/src/sro/domain/observation/gesture.py`: add `OutlineField`, `OutlineMessage` and `Outline`, and `Action.outlines`.
+- Modify: `backend/src/sro/application/capture/rig_wire.py`: add the `OutlineField`, `OutlineMessage` and `Outline` models, and `Gesture.outlines`.
+- Modify: `backend/src/sro/application/observation/correlate.py`: `as_action` carries `outlines`.
+- Modify: `backend/src/sro/application/observation/redact.py`:
+  - `redact_events` collects the batch's typed values;
+  - `_gesture` keeps `outlines` only through `outline_kept`;
+  - `_event` drops a `snapshot` event's tree;
+  - `_shapes_only` is deleted.
+- Modify: `backend/src/sro/domain/observation/policy.py`: delete `capture_snapshots`, `snapshot_max_per_minute` (and its `__post_init__` check) and `reading_structure`.
+- Modify: `backend/src/sro/interface/http/schemas.py:1154-1171`: delete the two policy fields. Then run `make types`.
+- Modify: `backend/src/sro/cli/observe.py:65,89-91`: delete the `--snapshots` and `--no-snapshots` flags and their output line.
+- Delete: `new-chrome-extension/src/background/trees.js` and `trees.test.mjs`.
+- Modify: `new-chrome-extension/src/background/service-worker.js`:
+  - the `trees.js` import (lines 57-59);
+  - `takeTree` and `takeTreeSoon` in the gesture handler (lines 1692-1699, including the comment above them);
+  - `releaseAll` on a policy change (lines 3255-3257).
+- Modify: `state.js` (`treeTimes`, lines 45 and 325-330).
+- Modify: `panel.js` (the `capture_snapshots` wording, lines 835 and 866).
+- Modify: `pointing.js` (its comments that name `trees.js`, lines 40-44, 55, 95 and 105). The code is unchanged: R2 deletes the file.
+- Modify: `new-chrome-extension/README.md:98`.
+- Test:
+  - `backend/tests/unit/application/test_correlate.py`;
+  - `backend/tests/unit/application/test_the_backend_stores_what_the_browser_sent.py`. The two snapshot-tree tests (lines 267-284 and 337-352) are replaced by the hostile-outline test and the discarded-tree test;
+  - `backend/tests/unit/application/test_a_mined_skill_gets_the_same_locators.py:56-80`. The snapshot-policy assertions go, and a stored-policy test comes in;
+  - Create: `backend/tests/browser/test_the_screen_outline.py`;
+  - `backend/tests/browser/conftest.py:545`, `test_a_gesture_in_a_real_iframe_finds_its_frame_path.py:81` and `test_the_extension_in_a_real_chrome.py`. In each, drop the `capture_snapshots` policy key. Also delete the tree-timing helper at lines 109-120 of the last file and its caller, and reword the docstring at line 1710;
+  - `backend/tests/integration/test_evidence_repositories.py`: an outline round trip. The outline is stored inside `gestures.gesture` (JSONB), like every E1–E5 field. There is no migration.
 
 **Interfaces:**
-- Produces: `Gesture.tree: dict[str, Any] | None = None`; `correlate(...)[3]` now counts only snapshots that belong to no gesture (the name `snapshots_ignored` is kept on the wire).
-- Redaction: a tree node whose `name` is a credential name (`sensitivity.is_secret_field`) loses its `value`; every string still goes through `redact_shapes`.
+- Produces, in the page, `outlineOf(doc)` and `sroPage.outline()`:
+
+  ```
+  {headings: string[], landmarks: [{role, name}], fields: [{role, label, required, options}],
+   buttons: string[], messages: [{role, text}]}
+  ```
+
+  - `options` is a list of option labels only when the control has at most `OUTLINE_OPTIONS` options. Otherwise it is `null`.
+  - `messages[].role` is `alert`, `status` or `invalid`.
+  - Every string is dropped when it contains the current value of a text control on the page (`ECHO_MIN` characters or more).
+- Produces, on the recorder record: `outlines: Outline[]`. These are the screens outlined since this frame's previous gesture, at most `OUTLINES_PER_GESTURE`. The last one is the screen this gesture was made on, read in the capture phase: the settled state of the previous gesture, the same instant E5 reads `prior`. A screen equal to the last one sent from this frame is not sent again.
+- Wire (`rig_wire.py`):
+  - `OutlineField(role: str, label: str, required: bool | None = None, options: list[str] | None = None)`;
+  - `OutlineMessage(role: str, text: str)`;
+  - `Outline(headings, landmarks: list[Landmark], fields, buttons, messages)`;
+  - `Gesture.outlines: list[Outline] = []`.
+- Domain (`gesture.py`, frozen and slotted):
+  - `OutlineField(role: str, label: str, required: bool | None = None, options: tuple[str, ...] | None = None)`;
+  - `OutlineMessage(role: str, text: str)`;
+  - `Outline(headings: tuple[str, ...] = (), landmarks: tuple[Landmark, ...] = (), fields: tuple[OutlineField, ...] = (), buttons: tuple[str, ...] = (), messages: tuple[OutlineMessage, ...] = ())`;
+  - `Action.outlines: tuple[Outline, ...] = ()`.
+- Domain (`outline.py`):
+  - `outline_kept(raw: object, typed: Collection[str]) -> dict[str, object] | None`. It is the one server rule, applied in `redact_events` before the blob is written and before the batch is parsed, so it holds for both stores.
+  - `last_outline(gesture: Gesture, earlier: Sequence[Gesture]) -> Outline | None`. It returns the gesture's own last outline, else the latest outline among earlier gestures on the same `tab_id` and `frame_path`.
+- Removes: `ObservationPolicy.capture_snapshots`, `.snapshot_max_per_minute` and `.reading_structure`; the policy response fields; the CLI flags; `trees.js`.
+  - **The stored flag.** It is not a column: it is a key inside `observation_policies.policy` (JSONB, `models.py:353-358`). Stored rows keep it, and there is no migration (Global Constraint 7). `load_policy` (`infrastructure/db/codec.py:102`, a `TypeAdapter` over the dataclass) ignores the unknown key. The next `save` writes the policy without it.
+  - **An older extension.** It reads `capture_snapshots` as absent, so it takes no tree. If one sends a `snapshot` event anyway, the event is still counted in `snapshots_ignored`, and its tree is removed before the blob is written.
+- Consumed by: X10 (`last_outline`, `sroPage.outline()`).
 
 - [ ] **Step 1: Write the failing tests**
 
-```python
-def test_a_tree_taken_before_a_gesture_is_stored_with_it() -> None:
-    tab = GESTURE_TYPE["tab_id"]
-    tree = {"kind": "snapshot", "tab_id": tab, "taken_at": "2026-08-31T08:40:04.600Z",
-            "snapshot": {"nodes": [{"role": {"value": "textbox"}, "name": {"value": "Client"}}]}}
+Append to `new-chrome-extension/src/page/page-code.test.mjs`. Its loader (`load-sro-page.mjs`) evaluates the file with fake elements and no DOM. So this test pins only the API; the outline's content is proven in real Chrome below:
 
-    gestures, _, _, unplaced = correlate(_batch([GESTURE_TYPE, tree]), TENANT)
-
-    assert gestures[0].tree == {"nodes": [{"role": {"value": "textbox"}, "name": {"value": "Client"}}]}
-    assert unplaced == 0
-
-
-def test_a_tree_with_no_gesture_before_it_on_its_tab_is_counted() -> None:
-    tree = {"kind": "snapshot", "tab_id": 999, "snapshot": {"nodes": []}}
-
-    _, _, _, unplaced = correlate(_batch([GESTURE_TYPE, tree]), TENANT)
-
-    assert unplaced == 1
+```js
+test("the page code can outline the live screen", () => {
+  assert.equal(typeof loadSroPage().outline, "function");
+});
 ```
 
-In `backend/tests/unit/application/test_redaction_of_trees.py` (new):
+In `test_correlate.py`:
 
 ```python
-from sro.application.observation.redact import redact_events
+def test_the_screen_a_gesture_was_made_on_is_stored_with_it() -> None:
+    event = copy.deepcopy(GESTURE_TYPE)
+    event["gesture"]["outlines"] = [
+        {
+            "headings": ["New Customer Type"],
+            "fields": [{"role": "combobox", "label": "Department", "options": ["Finance"]}],
+            "buttons": ["Save"],
+        }
+    ]
+
+    gestures, _, _, _ = correlate(_batch([event]), TENANT)
+
+    (outline,) = gestures[0].action.outlines
+    assert outline.headings == ("New Customer Type",)
+    assert outline.fields[0] == OutlineField("combobox", "Department", None, ("Finance",))
 
 
-def test_a_password_node_keeps_no_value() -> None:
-    event = {
-        "kind": "snapshot",
-        "snapshot": {
-            "nodes": [
-                {"name": {"value": "Password"}, "value": {"value": "hunter2"}},
-                {"name": {"value": "Client"}, "value": {"value": "ACME"}},
-            ]
-        },
-    }
+def test_a_gesture_without_an_outline_was_made_on_the_last_outlined_screen() -> None:
+    first, second, elsewhere = (copy.deepcopy(GESTURE_TYPE) for _ in range(3))
+    first["gesture"]["outlines"] = [{"buttons": ["Save"]}]
+    second["gesture"]["at"] = first["gesture"]["at"] + 1
+    elsewhere["gesture"]["at"] = first["gesture"]["at"] + 2
+    elsewhere["gesture"]["frame_path"] = [{"index": 0, "url": "https://wms.example/other"}]
+
+    gestures, _, _, _ = correlate(_batch([first, second, elsewhere]), TENANT)
+
+    assert last_outline(gestures[1], gestures[:1]) == Outline(buttons=("Save",))
+    assert last_outline(gestures[2], gestures[:2]) is None
+```
+
+The hostile client, in `test_the_backend_stores_what_the_browser_sent.py`. It goes through `IngestObservation`, like the other boundary tests:
+
+```python
+_TYPED = "ACME-7731-QX"
+_OTP = "483920"
+
+
+def _hostile_outline() -> list[dict[str, object]]:
+    events = _events()
+    typed, click = copy.deepcopy(events[1]), copy.deepcopy(events[3])
+    typed["gesture"].update(kind="type", value=_TYPED, secret=False)
+    typed["gesture"]["target"] = {**typed["gesture"]["target"], "secret": False}
+    code = copy.deepcopy(typed)
+    code["gesture"].update(value=_OTP, at=typed["gesture"]["at"] + 0.5)
+    click["gesture"]["outlines"] = [
+        {
+            "headings": [f"Editing {_TYPED}", "Customer Types"],
+            "landmarks": [{"role": "dialog", "name": f"Code {_OTP}"}, {"role": "form", "name": "New"}],
+            "fields": [
+                {"role": "textbox", "label": "Verify", "value": _OTP, "required": True},
+                {"role": "textbox", "label": f"Note: {_TYPED}"},
+                {"role": "gridcell", "label": "Row 4"},
+                {"role": "combobox", "label": "Department", "options": ["Finance", _A_JWT]},
+                {"role": "combobox", "label": "Carrier", "options": [f"c{i}" for i in range(26)]},
+            ],
+            "buttons": ["Save", f"Save {_TYPED}"],
+            "messages": [
+                {"role": "status", "text": "https://wms.example/cb?access_token=live-token"},
+                {"role": "alert", "text": "Required field"},
+                {"role": "banner", "text": "free page text"},
+            ],
+            "value": _OTP,
+            "text": f"all page text {_TYPED}",
+        }
+    ]
+    return [typed, code, click]
+
+
+async def test_a_client_that_sends_values_in_an_outline_stores_none_of_them() -> None:
+    uow = FakeUnitOfWork()
+    blobs = FakeBlobStore()
+    await SetObservationPolicy(uow).execute(ACME, policy=ObservationPolicy().enabled())
+    registered = await RegisterDevice(uow, FakeClock(), FakeIdFactory()).execute(
+        ACME, label="laptop", extension_version="0.1.0"
+    )
+
+    stored = await IngestObservation(uow, blobs, FakeClock()).execute(
+        ACME,
+        device_id=registered.device_id,
+        secret=registered.secret,
+        batch_id=BatchId("bat_hostile_outline"),
+        started_at=datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+        ended_at=datetime(2026, 3, 1, 9, 5, tzinfo=UTC),
+        mode=CaptureMode.PASSIVE,
+        events=_hostile_outline(),
+    )
+
+    assert stored.stored_at is not None
+    lines = (await blobs.read(stored.stored_at)).decode("utf-8").splitlines()
+    written = json.dumps([json.loads(one).get("gesture", {}).get("outlines") for one in lines if one])
+    (outline,) = next(
+        one.action.outlines for one in uow.gestures.rows.values() if one.action.outlines
+    )
+    kept = repr(outline)
+    for said in (_TYPED, _OTP, _A_JWT, "live-token", "free page text", "all page text", "Row 4"):
+        assert said not in written, f"{said!r} reached an outline in the evidence blob"
+        assert said not in kept, f"{said!r} reached an outline in the gesture store"
+    assert outline.headings == ("Customer Types",)
+    assert outline.landmarks == (Landmark("form", "New"),)
+    assert [(one.role, one.label, one.options) for one in outline.fields] == [
+        ("textbox", "Verify", None),
+        ("combobox", "Department", ("Finance",)),
+        ("combobox", "Carrier", None),
+    ]
+    assert outline.buttons == ("Save",)
+    assert [one.role for one in outline.messages] == ["alert"]
+
+
+def test_a_tree_from_an_older_extension_is_discarded_unread() -> None:
+    event = {"kind": "snapshot", "snapshot": {"nodes": [{"name": "Service Level"}]}}
 
     (out,) = redact_events([event])
 
-    nodes = out["snapshot"]["nodes"]
-    assert "value" not in nodes[0]
-    assert nodes[1]["value"] == {"value": "ACME"}
+    assert "snapshot" not in out
 ```
 
-In `test_evidence_repositories.py` add a round trip that saves a gesture with `tree={"nodes": [...]}` through `SqlGestureRepository.add_gestures` and reads the same dict back from `gestures_for`.
-
-- [ ] **Step 2: Run them and see them fail**
-
-Run: `cd backend && uv run pytest tests/unit/application/test_correlate.py tests/unit/application/test_redaction_of_trees.py -q -o faulthandler_timeout=120`
-Expected: FAIL, `AttributeError: 'Gesture' object has no attribute 'tree'` and `AssertionError` on `"value" not in nodes[0]`.
-
-- [ ] **Step 3: Implement**
-
-`rig_wire.py` `SnapshotEvent`: add `tab_id: int | None = None`. `gesture.py` `Gesture`: add `tree: dict[str, Any] | None = None` after `page_events`.
-
-`correlate.py`:
+In `test_a_mined_skill_gets_the_same_locators.py`, the policy tests at lines 56-80 are replaced by:
 
 ```python
-    unplaced = 0
-    last_on_tab: dict[int | None, Gesture] = {}
-    for event in batch.events:
-        if isinstance(event, SnapshotEvent):
-            owner = last_on_tab.get(event.tab_id)
-            if owner is None or owner.tree is not None:
-                unplaced += 1
-            else:
-                owner.tree = dict(event.snapshot)
-        elif isinstance(event, GestureEvent):
-            gesture = Gesture(...)
-            gestures.append(gesture)
-            last_on_tab[event.tab_id] = gesture
-        ...
-    return gestures, orphan_requests, orphan_pages, unplaced
+def test_a_stored_policy_with_the_old_tree_keys_still_loads() -> None:
+    stored = {"capture_enabled": True, "capture_snapshots": True, "snapshot_max_per_minute": 20}
+
+    assert load_policy(stored) == ObservationPolicy(capture_enabled=True)
 ```
 
-`redact.py`: in `_event`, replace `out["snapshot"] = _shapes_only(snapshot)` with `out["snapshot"] = _tree(snapshot)`, adding:
+The real-Chrome proof. It has the shape of `test_the_state_a_gesture_left.py`: the generated recorder plus `page-code.js` as init scripts, and then the server's own `redact_events` over what the recorder sent:
 
 ```python
-def _tree(node: object) -> object:
-    if isinstance(node, list):
-        return [_tree(one) for one in node]
-    if not isinstance(node, Mapping):
-        return redact_shapes(node) if isinstance(node, str) else node
-    out = {key: _tree(value) for key, value in node.items()}
-    named = out.get("name")
-    said = named.get("value") if isinstance(named, Mapping) else named
-    if isinstance(said, str) and is_secret_field(said):
-        out.pop("value", None)
-    return out
-```
-
-`models.py` `GestureRow`: `tree: Mapped[Any | None] = mapped_column(JSONB(none_as_null=True), nullable=True)`. `evidence.py`: `tree=gesture.tree` in `_gesture_to_row`, `tree=row.tree` in `_row_to_gesture`.
-
-Migration (take the next number at merge):
-
-```python
-"""a gesture keeps its tree
-
-Revision ID: 0073
-Revises: 0072
-"""
+# backend/tests/browser/test_the_screen_outline.py
+"""The screen outline, in a real Chrome: after the operator types, no typed
+string is anywhere in an outline the recorder sends or the server keeps."""
 
 from __future__ import annotations
 
-import sqlalchemy as sa
-from alembic import op
-from sqlalchemy.dialects.postgresql import JSONB
+import json
+from collections.abc import Iterator
+from typing import Any
 
-revision = "0073"
-down_revision = "0072"
-branch_labels = None
-depends_on = None
+import pytest
+
+from sro.application.observation.redact import redact_events
+from sro.config import get_settings
+from sro.infrastructure.steel.capture import _recorder_script
+
+pytestmark = pytest.mark.browser
+
+PAGE = """<!doctype html><html><body>
+<form aria-label="Sign in">
+  <h1>Verify it's you</h1>
+  <label for="pw">Password</label><input id="pw" type="password">
+  <button id="show" type="button" onclick="pw.type = pw.type === 'text' ? 'password' : 'text'">Show</button>
+  <label for="code">Verify</label><input id="code" autocomplete="off">
+  <div id="mirror"></div>
+  <div id="said" role="status"></div>
+  <div contenteditable="true" role="textbox" id="note" aria-label="Note"></div>
+  <label for="memo">Memo</label><textarea id="memo"></textarea>
+  <label for="dept">Department</label>
+  <select id="dept"><option>Finance</option><option>Operations</option></select>
+  <button id="go" type="button">Save</button>
+</form>
+<script>
+  code.addEventListener("input", () => {
+    mirror.textContent = "Code: " + code.value;
+    said.textContent = "Checking " + code.value;
+  });
+</script>
+</body></html>"""
+
+PASSWORD = "hunter2-correct-horse"
+OTP = "483920"
+NOTE = "call the dentist at four"
+MEMO = "pallet 77 goes to dock B"
 
 
-def upgrade() -> None:
-    op.add_column("gestures", sa.Column("tree", JSONB(), nullable=True))
+@pytest.fixture
+def page() -> Iterator[Any]:
+    playwright = pytest.importorskip("playwright.sync_api")
+    with playwright.sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as why:  # pragma: no cover - environment, not logic
+            pytest.skip(f"no chromium here: {why}")
+        try:
+            context = browser.new_context()
+            context.add_init_script(
+                "window.__sroRecord = (j) => (window.__got = window.__got || []).push(j);"
+            )
+            context.add_init_script(_recorder_script())
+            context.add_init_script(path=get_settings().page_code_path)
+            context.route(
+                "http://sro.test/**",
+                lambda route: route.fulfill(body=PAGE, content_type="text/html"),
+            )
+            one = context.new_page()
+            one.goto("http://sro.test/")
+            yield one
+        finally:
+            browser.close()
 
 
-def downgrade() -> None:
-    op.drop_column("gestures", "tree")
+def _typed_everything(page: Any) -> list[dict[str, Any]]:
+    page.fill("#pw", PASSWORD)
+    page.click("#show")
+    page.click("#code")
+    page.keyboard.type(OTP)
+    page.click("#note")
+    page.keyboard.type(NOTE)
+    page.fill("#memo", MEMO)
+    page.select_option("#dept", label="Operations")
+    page.click("#go")
+    return [json.loads(raw) for raw in page.evaluate("window.__got || []")]
+
+
+def test_no_typed_value_is_in_any_outline_the_recorder_sends(page: Any) -> None:
+    records = _typed_everything(page)
+
+    sent = json.dumps([one.get("outlines") for one in records])
+    for typed in (PASSWORD, OTP, NOTE, MEMO):
+        assert typed not in sent, f"{typed!r} left the page in an outline"
+    assert "Code: " not in sent, "the mirror div is free page text and is never kept"
+
+
+def test_no_typed_value_is_in_any_outline_the_server_keeps(page: Any) -> None:
+    records = _typed_everything(page)
+    events = [{"kind": "gesture", "tab_id": 1, "gesture": one} for one in records]
+
+    kept = json.dumps([one["gesture"].get("outlines") for one in redact_events(events)])
+
+    for typed in (PASSWORD, OTP, NOTE, MEMO):
+        assert typed not in kept, f"{typed!r} reached the server's copy of an outline"
+
+
+def test_the_outline_still_says_what_the_screen_asks_for(page: Any) -> None:
+    records = _typed_everything(page)
+
+    last = records[-1]["outlines"][-1] if records[-1]["outlines"] else None
+    screen = last or next(one["outlines"][-1] for one in reversed(records) if one["outlines"])
+    labels = {(one["role"], one["label"]) for one in screen["fields"]}
+    assert {("textbox", "Password"), ("textbox", "Verify"), ("textbox", "Memo")} <= labels
+    assert ("textbox", "Note") in labels
+    dept = next(one for one in screen["fields"] if one["label"] == "Department")
+    assert dept["options"] == ["Finance", "Operations"]
+    assert screen["headings"] == ["Verify it's you"]
+    assert "Save" in screen["buttons"]
+
+
+def test_a_screen_already_sent_from_this_frame_is_not_sent_again(page: Any) -> None:
+    page.click("#go")
+    page.click("#go")
+
+    records = [json.loads(raw) for raw in page.evaluate("window.__got || []")]
+
+    assert records[-2]["outlines"] and records[-1]["outlines"] == []
+
+
+def test_a_dialog_that_appears_is_outlined_before_anyone_acts_on_it(page: Any) -> None:
+    page.evaluate(
+        """async () => {
+          const d = document.createElement('div');
+          d.setAttribute('role', 'dialog');
+          d.setAttribute('aria-label', 'Confirm delete');
+          d.innerHTML = '<button>Delete</button>';
+          document.body.append(d);
+          await new Promise((settled) => setTimeout(settled, 0));
+          d.remove();
+        }"""
+    )
+    page.click("#go")
+
+    records = [json.loads(raw) for raw in page.evaluate("window.__got || []")]
+    seen = [screen for screen in records[-1]["outlines"]]
+    assert any({"role": "dialog", "name": "Confirm delete"} in one["landmarks"] for one in seen)
+
+
+def test_steel_reads_the_same_outline_from_the_live_page(page: Any) -> None:
+    page.click("#code")
+    page.keyboard.type(OTP)
+
+    outline = page.evaluate("globalThis.sroPage.outline()")
+
+    assert {"role": "form", "name": "Sign in"} in outline["landmarks"]
+    assert [one for one in outline["fields"] if one["label"] == "Department"] == [
+        {"role": "combobox", "label": "Department", "required": None, "options": ["Finance", "Operations"]}
+    ]
+    assert outline["messages"] == [], "the status only echoes the typed code"
+    assert OTP not in json.dumps(outline)
 ```
 
-Code notes: `correlate` (why queue order places a tree; that an unplaced tree is counted, not silently dropped) and `redact._tree`.
+The show-password case is the first field: after `#show` the password box is `type=text`, and its value is still never in the outline. The code box labelled "Verify" has `autocomplete="off"` and no credential name, so no name rule could catch it. Only the outline's construction and the echo rule keep its value out. The mirror div and the `role=status` mirror both echo the code.
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `cd new-chrome-extension && node --test src/page/page-code.test.mjs`. Expected: FAIL, `'undefined' !== 'function'`.
+Run: `cd backend && uv run pytest tests/unit/application/test_correlate.py tests/unit/application/test_the_backend_stores_what_the_browser_sent.py tests/unit/application/test_a_mined_skill_gets_the_same_locators.py -q -o faulthandler_timeout=120`. Expected: FAIL, `ImportError: cannot import name 'OutlineField'`.
+Run: `cd backend && uv run pytest tests/browser/test_the_screen_outline.py -q -o faulthandler_timeout=120`. Expected: FAIL, `KeyError: 'outlines'`.
+
+- [ ] **Step 3: Implement**
+
+`page-code.js`, inside `readers` after `settingOf`:
+
+```js
+    const OUTLINE_OPTIONS = 25;
+    const OUTLINE_FIELDS = 80;
+    const OUTLINE_TEXT = 120;
+    const OUTLINE_MESSAGES = 10;
+    const ECHO_MIN = 3;
+    const FIELD_ROLES = ["textbox", "searchbox", "combobox", "listbox", "checkbox", "radio", "switch", "spinbutton", "slider"];
+    const labelOf = (el) => {
+      const own = ownName(el);
+      if (own) return own;
+      if (el.labels && el.labels.length) return (el.labels[0].innerText || "").trim().slice(0, MAX_TEXT);
+      return (el.getAttribute("placeholder") || el.getAttribute("title") || "").trim().slice(0, MAX_TEXT);
+    };
+    const requiredOf = (el) => {
+      const said = el.getAttribute("aria-required");
+      if (said === "true") return true;
+      if (said === "false") return false;
+      if (el.required === true || el.hasAttribute("required")) return true;
+      return /\*\s*$/.test(labelOf(el)) ? true : null;
+    };
+    const typedOn = (doc) =>
+      [...doc.querySelectorAll("input, textarea, [contenteditable]")]
+        .map((el) => (el.isContentEditable ? el.innerText : roleOf(el) === "textbox" ? el.value : ""))
+        .map((text) => String(text || "").trim().toLowerCase())
+        .filter((text) => text.length >= ECHO_MIN);
+    const outlineOf = (doc) => {
+      const typed = typedOn(doc);
+      const say = (text) => {
+        const plain = String(text || "").replace(/\s+/g, " ").trim();
+        const lower = plain.toLowerCase();
+        return plain && !typed.some((one) => lower.includes(one)) ? plain.slice(0, OUTLINE_TEXT) : null;
+      };
+      const shownIn = (selector) => [...doc.querySelectorAll(selector)].filter((el) => el.getClientRects().length > 0);
+      const unique = (texts, cap) => [...new Set(texts.map(say).filter(Boolean))].slice(0, cap);
+      const optionsOf = (el) => {
+        const owned = el.getAttribute("aria-controls") || el.getAttribute("aria-owns");
+        const list = el.tagName === "SELECT" ? [...el.options].map((one) => one.label)
+          : roleOf(el) === "listbox" ? [...el.querySelectorAll("[role=option]")].map((one) => one.innerText)
+          : owned && doc.getElementById(owned) ? [...doc.getElementById(owned).querySelectorAll("[role=option]")].map((one) => one.innerText)
+          : null;
+        return list && list.length <= OUTLINE_OPTIONS ? list.map(say).filter(Boolean) : null;
+      };
+      const fields = shownIn("input, select, textarea, [role]")
+        .filter((el) => FIELD_ROLES.includes(roleOf(el)))
+        .map((el) => ({ role: roleOf(el), label: say(labelOf(el)), required: requiredOf(el), options: optionsOf(el) }))
+        .filter((one) => one.label)
+        .slice(0, OUTLINE_FIELDS);
+      const invalid = shownIn("[aria-invalid=true]").flatMap((el) =>
+        (el.getAttribute("aria-errormessage") || el.getAttribute("aria-describedby") || "")
+          .split(/\s+/).map((id) => id && doc.getElementById(id)).filter(Boolean)
+          .map((said) => ({ role: "invalid", text: said.innerText })));
+      const messages = [
+        ...shownIn("[role=alert], [role=status]").map((el) => ({ role: el.getAttribute("role"), text: el.innerText })),
+        ...invalid,
+      ].map((one) => ({ role: one.role, text: say(one.text) })).filter((one) => one.text).slice(0, OUTLINE_MESSAGES);
+      return {
+        headings: unique(shownIn("h1, h2, h3, h4, h5, h6, [role=heading]").map((el) => el.innerText), OUTLINE_FIELDS),
+        landmarks: shownIn("form, dialog, [role=dialog], [role=alertdialog], [role=form]")
+          .map((el) => ({ role: landmarkRole(el), name: say(ownName(el)) }))
+          .filter((one) => one.role && one.name),
+        fields,
+        buttons: unique(shownIn("button, [role=button], input[type=submit], input[type=button]").map(nameOf), OUTLINE_FIELDS),
+        messages,
+      };
+    };
+```
+
+Add `labelOf`, `requiredOf` and `outlineOf` to the returned `readers` object and to the destructuring. On `sroPage`, add `outline() { return outlineOf(document); },`.
+
+`recorder.js`:
+- Add `requiredOf` and `outlineOf` to the `__PAGE_READERS__` destructuring, and delete the local `requiredOf`. `describe`'s `required: requiredOf(el)` is unchanged.
+- After `let lastRef = null;`:
+
+```js
+  const OUTLINES_PER_GESTURE = 3;
+  const OUTLINED = 'form, dialog, [role=dialog], [role=alertdialog], [role=form], [role=alert], [role=status]';
+  let seenOutline = null;
+  let outlines = [];
+  const takeOutline = () => {
+    const taken = JSON.stringify(outlineOf(document));
+    if (taken === seenOutline) return;
+    seenOutline = taken;
+    outlines = [...outlines, JSON.parse(taken)].slice(-OUTLINES_PER_GESTURE);
+  };
+  const appeared = (change) => {
+    const inside = change.target.nodeType === 1 ? change.target : change.target.parentElement;
+    if (inside && inside.closest('[role=alert], [role=status]')) return true;
+    return [...change.addedNodes].some(
+      (node) => node.nodeType === 1 && (node.matches(OUTLINED) || node.querySelector(OUTLINED)),
+    );
+  };
+  new MutationObserver((changes) => {
+    if (changes.some(appeared)) takeOutline();
+  }).observe(document, { childList: true, subtree: true, characterData: true });
+```
+
+- `emit` calls `takeOutline()` first, then sends `outlines` and resets it: `takeOutline(); const sent = outlines; outlines = [];` Then add `outlines: sent,` to the record beside `prior`.
+- In the `sro:dropped` listener, beside `last = null;`, add `seenOutline = null;`. When the worker drops a gesture, the outlines it carried are lost. So the next gesture must send its screen again, or the server's last outline for that frame would be stale.
+
+Code notes go in `docs/code-notes/new-chrome-extension/src/page/page-code.js.md` and `…/recorder.js.md`. Cover:
+- why labels never come from the control's own text (`innerText` of a contenteditable is the typed text);
+- the echo rule, and why `ECHO_MIN` is 3 (shorter values would drop ordinary words). **Ceiling:** a typed value shorter than that is not echo-checked;
+- why options are kept only for small lists: a list over the cap is data, not a control's vocabulary;
+- why the outline rides on the gesture record. The first E6 joined a separate event by batch position, and that mis-attached it;
+- the trigger rules, and the ceiling: the screen after a demonstration's last gesture is not sent.
+
+Then run `make gen-recorder`.
+
+`outline.py`:
+
+```python
+# backend/src/sro/domain/observation/outline.py
+from __future__ import annotations
+
+from collections.abc import Collection, Mapping, Sequence
+
+from sro.domain.observation.gesture import Gesture, Outline
+from sro.domain.recording.sensitivity import redact_shapes, redact_url
+
+K_OUTLINE_OPTIONS = 25
+K_OUTLINE_FIELDS = 80
+K_OUTLINE_TEXT = 120
+K_OUTLINE_MESSAGES = 10
+K_OUTLINES_PER_GESTURE = 3
+K_ECHO_MIN = 3
+
+FIELD_ROLES = frozenset(
+    {"textbox", "searchbox", "combobox", "listbox", "checkbox", "radio", "switch", "spinbutton", "slider"}
+)
+MESSAGE_ROLES = frozenset({"alert", "status", "invalid"})
+LANDMARK_ROLES = frozenset({"form", "dialog", "alertdialog"})
+
+
+def _said(raw: object, echoes: Collection[str]) -> str | None:
+    if not isinstance(raw, str):
+        return None
+    plain = " ".join(raw.split())
+    lower = plain.lower()
+    if not plain or any(one in lower for one in echoes):
+        return None
+    if redact_shapes(redact_url(plain)) != plain:
+        return None
+    return plain[:K_OUTLINE_TEXT]
+
+
+def _items(raw: object) -> list[Mapping[str, object]]:
+    return [one for one in raw if isinstance(one, Mapping)] if isinstance(raw, list) else []
+
+
+def _texts(raw: object, echoes: Collection[str], cap: int) -> list[str]:
+    items = raw if isinstance(raw, list) else []
+    return [said for one in items[:cap] if (said := _said(one, echoes)) is not None]
+
+
+def outline_kept(raw: object, typed: Collection[str]) -> dict[str, object] | None:
+    if not isinstance(raw, Mapping):
+        return None
+    echoes = {one.lower() for one in typed if len(one) >= K_ECHO_MIN}
+    fields = []
+    for one in _items(raw.get("fields"))[:K_OUTLINE_FIELDS]:
+        label = _said(one.get("label"), echoes)
+        if one.get("role") not in FIELD_ROLES or label is None:
+            continue
+        options = one.get("options")
+        required = one.get("required")
+        fields.append(
+            {
+                "role": one["role"],
+                "label": label,
+                "required": required if isinstance(required, bool) else None,
+                "options": _texts(options, echoes, K_OUTLINE_OPTIONS)
+                if isinstance(options, list) and len(options) <= K_OUTLINE_OPTIONS
+                else None,
+            }
+        )
+    return {
+        "headings": _texts(raw.get("headings"), echoes, K_OUTLINE_FIELDS),
+        "landmarks": [
+            {"role": one["role"], "name": name}
+            for one in _items(raw.get("landmarks"))
+            if one.get("role") in LANDMARK_ROLES
+            and (name := _said(one.get("name"), echoes)) is not None
+        ],
+        "fields": fields,
+        "buttons": _texts(raw.get("buttons"), echoes, K_OUTLINE_FIELDS),
+        "messages": [
+            {"role": one["role"], "text": text}
+            for one in _items(raw.get("messages"))[:K_OUTLINE_MESSAGES]
+            if one.get("role") in MESSAGE_ROLES
+            and (text := _said(one.get("text"), echoes)) is not None
+        ],
+    }
+
+
+def last_outline(gesture: Gesture, earlier: Sequence[Gesture]) -> Outline | None:
+    if gesture.action.outlines:
+        return gesture.action.outlines[-1]
+    here = (gesture.tab_id, gesture.action.frame_path)
+    for one in sorted(earlier, key=lambda one: one.at, reverse=True):
+        if (one.tab_id, one.action.frame_path) == here and one.action.outlines:
+            return one.action.outlines[-1]
+    return None
+```
+
+Only the keys above are written out. A `value`, a `text` or any other key the client sent is not copied, so no rule has to name it. A string that URL or credential-shape redaction would change is dropped whole, not kept with a marker. An outline string is vocabulary, and a redacted token carries none.
+
+`redact.py`:
+
+```python
+def redact_events(events: Sequence[Event]) -> tuple[Event, ...]:
+    made: dict[str, Mapping[str, object]] = {}
+    typed: set[str] = set()
+    for event in events:
+        gesture = event.get("gesture")
+        if isinstance(gesture, Mapping):
+            if isinstance(gesture.get("ref"), str):
+                made[_made(event, gesture, gesture["ref"])] = gesture
+            if gesture.get("kind") == "type" and isinstance(gesture.get("value"), str):
+                typed.add(gesture["value"])
+    return tuple(_event(event, made, typed) for event in events)
+```
+
+- `_event` passes `typed` to `_gesture`, and replaces the `snapshot` branch with `out.pop("snapshot", None)`.
+- `_gesture` adds:
+
+  ```python
+  if "outlines" in out:
+      raw = out["outlines"]
+      out["outlines"] = [kept for one in (raw if isinstance(raw, list) else [])[-K_OUTLINES_PER_GESTURE:] if (kept := outline_kept(one, typed)) is not None]
+  ```
+
+- Delete `_shapes_only`.
+- `select` gestures are not in `typed`. A chosen option is the page's own vocabulary, and dropping it would empty the dropdown the outline exists to describe.
+
+`rig_wire.py`: `OutlineField`, `OutlineMessage` and `Outline` as in Interfaces (plain `BaseModel`s; `redact_events` already enforced the content), and `Gesture.outlines: list[Outline] = Field(default_factory=list)`. `gesture.py`: the three frozen dataclasses and `Action.outlines`. `correlate.as_action`:
+
+```python
+outlines=tuple(
+    Outline(
+        headings=tuple(one.headings),
+        landmarks=tuple(Landmark(role=mark.role, name=mark.name) for mark in one.landmarks),
+        fields=tuple(
+            OutlineField(field.role, field.label, field.required,
+                         None if field.options is None else tuple(field.options))
+            for field in one.fields
+        ),
+        buttons=tuple(one.buttons),
+        messages=tuple(OutlineMessage(said.role, said.text) for said in one.messages),
+    )
+    for one in wire.outlines
+),
+```
+
+Deletions:
+- Delete `trees.js` and `trees.test.mjs`.
+- In `service-worker.js`:
+  - delete the import at lines 57-59;
+  - delete the block at lines 1692-1698, `const before = takeTree(...)` through `takeTreeSoon(...)`;
+  - delete line 3257, `if (!policy?.capture_snapshots) await releaseAll();`, with its comment.
+- `state.js`: delete the `treeTimes` key and its two accessors.
+- `panel.js:835,866`: delete the tree clause from the capture summary.
+- `pointing.js`: delete the sentences that describe sharing the debugger with `trees.js`.
+- `README.md:98`: delete the paragraph.
+- `policy.py`: delete the two fields, their `__post_init__` entry and `reading_structure`.
+- `schemas.py:1154-1155,1170-1171`: delete the fields.
+- `cli/observe.py`: delete the flags, the `_apply` branches and line 65.
+- Run `make types`.
+
+`test_evidence_repositories.py`: save a gesture whose `action.outlines` holds one `Outline` with a field that has options, then read the same value back from `gestures_for`.
 
 - [ ] **Step 4: Run them and see them pass**
 
-Run: `cd backend && uv run pytest tests/unit/application -q -o faulthandler_timeout=120`
-Run: `cd backend && SRO_INTEGRATION_DATABASE_URL="postgresql+asyncpg://sro:sro@localhost:5432/sro_test" uv run pytest tests/integration/test_evidence_repositories.py tests/integration/test_the_migrations_run.py -q -o faulthandler_timeout=120`
-Expected: all pass.
+Run: `make gen-recorder && make test-extension && make lint-extension && make types`. Expected: exit 0.
+Run: `cd backend && uv run pytest tests/unit tests/contract -q -o faulthandler_timeout=120`. Expected: all pass.
+Run: `cd backend && uv run pytest tests/browser/test_the_screen_outline.py tests/browser/test_the_state_a_gesture_left.py tests/browser/test_the_extension_in_a_real_chrome.py tests/browser/test_a_gesture_in_a_real_iframe_finds_its_frame_path.py -q -o faulthandler_timeout=120`. Expected: all pass, 3 runs in a row for `test_the_screen_outline.py` (no flake).
+Run: `cd backend && SRO_INTEGRATION_DATABASE_URL="postgresql+asyncpg://sro:sro@localhost:5432/sro_test" uv run pytest tests/integration/test_evidence_repositories.py -q -o faulthandler_timeout=120`. Expected: all pass.
+Run: `grep -rn "trees.js\|takeTree\|capture_snapshots\|snapshot_max_per_minute\|getFullAXTree" new-chrome-extension/src backend/src/sro/interface backend/src/sro/domain/observation backend/src/sro/application/observation frontend/src --include=*.js --include=*.mjs --include=*.py --include=*.ts --include=*.tsx`. Expected: nothing printed.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/sro/application/capture/rig_wire.py backend/src/sro/domain/observation/gesture.py backend/src/sro/application/observation/correlate.py backend/src/sro/application/observation/redact.py backend/src/sro/infrastructure/db/models.py backend/src/sro/infrastructure/db/evidence.py backend/migrations/versions/*_0073_a_gesture_keeps_its_tree.py backend/tests docs/code-notes
-git commit -m "feat(evidence): store the tree taken before a gesture with that gesture
+git add new-chrome-extension backend/src/sro backend/tests frontend/openapi.json frontend/src/lib/api/generated.ts docs/code-notes
+git commit -m "feat(evidence): a screen outline replaces tree capture; no value, no debugger
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 ```
@@ -4791,6 +5329,581 @@ git commit -m "feat(runtime): sight teaches the UI lane, the UI lane promotes to
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 ```
 
+## X10: A field nobody demonstrated — composed from the outline, filled on Steel, confirmed by the save's body key, learned (§6.6) — **LIVE QA: QA-9**
+
+Depends on:
+- **E6:** the stored outline, `last_outline` and `sroPage.outline()`.
+- **X4:** the UI lane and its own-call rule `_same_call`.
+- **X7:** the sight lane.
+- **X8:** the executor's API-lane offer, and the `known_broken` table that `grew` must move.
+- **X9:** `Teach`.
+- **D5:** asking and answering. It brings D2's `RunSteps` with it.
+
+**What exists.** Today a name the operator asked for that the job has no parameter for is only recorded:
+- `WorkflowRun.unasked` (`domain/execution/workflow_run.py:95`) keeps the names, never the values.
+- A mail's value for such a name is `Offered.aside` (`application/chat/from_the_mail.py:71`). It reaches the run's values only when a declared form key places it: `declared_keys` in `application/execution/declared.py:38`, applied in `_told` (`from_the_mail.py:634-651`).
+
+**What this task adds.** A name that no step fills, with a value, is composed into a step from the outline of the form the job saves (E6). It is filled on the live Steel page by its label through the page code, and asked about when the page does not answer it exactly. It counts only when the save's own call carries a new body key for it. On success it is learned into the job as an optional parameter.
+
+**Files:**
+- Create: `backend/src/sro/domain/execution/compose.py` (`Composed`, `Unplaced`, `Adding`, `SELECTS`, `normal`, `compose`, `keyed`, `with_field`)
+- Create: `backend/src/sro/application/runtime/fill_field.py` (`Filled`, `FillField`)
+- Modify: `backend/src/sro/application/ports/page.py` (`PageDriver.resolve`, `PageDriver.outline`)
+- Modify: `backend/src/sro/infrastructure/steel/driver.py` (the two methods, through `_frame` and the `_call` wrapper like X4's; `resolve` evaluates `sroPage.resolve`, `outline` evaluates `sroPage.outline`)
+- Modify: `backend/src/sro/application/runtime/ui_lane.py`:
+  - `_same_call` (line 195) takes an `Adding` and answers `dict[str, str] | None`. The dict maps each parameter name to the key found for it; `None` means the call is not this write's own;
+  - `_perform` passes `ctx.adding.get(step.order, Adding())` and puts the keys found on the result.
+- Modify: `backend/src/sro/domain/execution/lanes.py` (`StepResult.keyed: Mapping[str, str]`, default empty — additive to X3's frozen type)
+- Modify: `backend/src/sro/application/runtime/step.py` (`LaneContext.adding: Mapping[int, Adding]`, default empty)
+- Modify: `backend/src/sro/application/runtime/sight_lane.py` (`SightLane.fill(says, write, ctx) -> StepResult`: the same capped, origin-bound loop, for a step that is not a write, whose goal is `says`)
+- Modify: `backend/src/sro/application/runtime/executor.py` (a write with `ctx.adding[step.order]` is not offered the API lane)
+- Modify: `backend/src/sro/domain/execution/progress.py` (`Progress.composed: list[dict[str, object]]`, additive; `Progress.of` reads it, and a malformed entry raises like every other field)
+- Modify: `backend/src/sro/application/runtime/run_steps.py`:
+  - `prepare` composes;
+  - `step` asks for each unplaced name before step 0, fills a write's composed fields before the write, fills a learned field step by its locator or passes over it when it has no value, and settles each filled field by the write's `keyed`;
+  - `finish` learns;
+  - `answered` handles `kind == "field"`.
+- Modify: `backend/src/sro/application/runtime/answer_run.py` (a `field` answer must be `""` or one of `asking["choices"]`)
+- Modify: `backend/src/sro/application/runtime/teach.py` (`Teach.learn_field`)
+- Modify: `backend/src/sro/infrastructure/db/workflows.py:472` (`grew` also moves `KnownBrokenRow`, which is keyed by `ord` like the three tables it already moves)
+- Modify: `backend/src/sro/application/chat/from_the_mail.py`:
+  - the start of a sure mail's run (D3's `_started`) carries `{name: offer.aside[name] for name in offer.unasked if name in offer.aside}` into the run's values; the offer's own `values` win on a clash;
+  - a reply may answer a `field` question (D5's reply path).
+- Modify: `backend/src/sro/container.py` (`fill_field()`; `run_steps()` gets it)
+- Modify: `backend/tests/unit/fakes.py`:
+  - `FakePageDriver(resolved=…, outline=…)`, which records `resolved`;
+  - `FakeWorkflowRepository.grew` moves known-broken entries.
+- Modify: `backend/tests/unit/runtime_support.py`:
+  - `scripted_driver(resolved=…, outline=…)`;
+  - `lane_context(adding=…)`;
+  - `save_step_evidence(outline=…)`;
+  - `steel_run(values=…)`, whose world gains `fill` (a `ScriptedFill` with `answers(*filled)`), `progress()`, `job()` and `learned()`.
+- Create: `backend/tests/unit/domain/test_composing_a_field.py`
+- Create: `backend/tests/unit/application/runtime/test_a_field_nobody_showed.py`
+- Modify: `backend/tests/unit/application/runtime/test_the_ui_lane.py`
+- Modify: `backend/tests/browser/steel_rig.py`. `_APP_PAGE` (line 36) gains `<label for="dept">Department</label><select id="dept" name="department"><option value=""></option><option>Finance</option><option>Operations</option></select>`, and its save sends `department` only when one is chosen. So a job recorded without touching it records the body keys `{name}`.
+- Modify: `backend/tests/browser/test_the_steel_driver.py`, `backend/tests/integration/test_runs_on_local_steel.py`
+- Run: `make types` (`AnswerRunRequest` is unchanged; the `asking` payload the panel reads gains `name` and `choices`)
+
+**Interfaces:**
+- Consumes: `last_outline`, `Outline`, `OutlineField` (E6); `primary_gesture`, `writes` (`domain/execution/evidence.py`); `is_secret_field` (`domain/recording/sensitivity.py:236`); `body_key_set` and `_parsed` shapes (`domain/observation/trim.py`); `PageDriver.act`/`mark`/`calls_since`/`wait_for` (X4); `SightLane` (X7); `Teach` and `remember_locator` (X9); `WorkflowRepository.grew` (`application/ports/repositories.py:489`); D5's asking and `answered`.
+- Produces:
+  - `Composed(name: str, label: str, role: str, before: int, options: tuple[str, ...] | None = None)`, whose `.action` is `"select"` for a role in `SELECTS = {"combobox", "listbox"}` and `"type"` otherwise.
+  - `Unplaced(name: str, why: Literal["no_field", "ambiguous"], labels: tuple[str, ...] = ())`.
+  - `Adding(known: Mapping[str, str] = {}, fresh: Mapping[str, str] = {})`. `known` maps a body key to a parameter, for learned field steps filled this run. `fresh` maps a parameter to its value, for fields composed this run.
+  - `compose(workflow, by_id, values) -> tuple[tuple[Composed, ...], tuple[Unplaced, ...]]`. A name is composed when it has a value, no step's `parameters` names it, it is not a credential name, and it equals, after `normal`, exactly one field label on the last outline of exactly one write step's primary gesture.
+  - `keyed(extra: Mapping[str, str], adding: Adding) -> dict[str, str] | None`. `extra` is the save's body keys that the recorded body lacks, each with its value as sent. Known keys are named first. Then each fresh field takes the key whose value equals its own, compared with `casefold`. One field and one key left over pair up. More extra keys than `known` plus `fresh` can explain means the call is not this write's own: `None`.
+  - `with_field(workflow, field, *, key, value) -> tuple[Workflow, dict[int, int]]`. It inserts `Step(order=field.before, says=f"Fill {label}", system=<the write's>, parameters=[name])`, and shifts each later step's `order`, its `uses` and the `repeat` bounds by one. It appends `{"name", "required": False, "seen_values": [value], "names": [label], "key": key}` to `parameters`.
+  - `PageDriver.resolve(session, target_id, payload) -> PageAnswer`, where `candidates` is the count found. `PageDriver.outline(session, target_id, frame_path) -> Mapping[str, object] | None`.
+  - `Filled(lane: Lane | None, asks: Literal["", "no_field", "ambiguous", "no_option"] = "", options: tuple[str, ...] = (), learned: Mapping[str, str] = {}, detail: str = "")`.
+  - `FillField(driver, sight: SightLane | None, *, wait_s=K_UI_WAIT_S).fill(field, value, write, ctx, *, learned: LearnedStep | None = None) -> Filled`. The payload is `{action, value, write: False, target: {role, name: label, landmarks: <the write's primary target landmarks>}, frame_path: <the write's>, learned}`. The steps:
+    1. `resolve`: 0 found → `no_field`; more than 1 → `ambiguous`.
+    2. For a select, the live outline's options for that label. When it lists options and none equals the value after `normal` → `no_option`, with those options.
+    3. `act`, then `wait_for` its pin with `expect.value`.
+    4. If the act is refused or the value does not hold → `sight.fill(f"Set {label} to {value}", write, ctx)`.
+    5. It never acts on a resolve that is not exactly one control.
+  - `StepResult.keyed`; `LaneContext.adding`; `Progress.composed` entries `{name, label, role, before, options, lane, verdict, key}`.
+  - A `field` question: `asking = {id, kind: "field", name, text, choices}`. `choices` are the labels (`no_field`, `ambiguous`) or the options (`no_option`). The answer is one of `choices`, or `""` to leave the value out.
+  - `Teach.learn_field(ctx, workflow, field, *, key, value, learned, run_id) -> None`: `grew` with `with_field`'s result, then `remember_locator(LearnedStep(field.before, strategy, query, found_by))`. `found_by` is `"composed"` from the UI lane and `"sight"` from sight.
+
+- [ ] **Step 1: Write the failing tests**
+
+```python
+# backend/tests/unit/domain/test_composing_a_field.py
+from dataclasses import replace
+
+from sro.domain.execution.compose import Adding, Composed, compose, keyed, with_field
+from sro.domain.observation.gesture import Gesture, Outline, OutlineField
+from sro.domain.skill.workflow import Workflow
+from tests.unit.runtime_support import save_step
+
+
+def _job(*fields: OutlineField) -> tuple[Workflow, dict[str, Gesture]]:
+    step, by_id = save_step(status=201)
+    save = by_id["ges_save"]
+    by_id["ges_save"] = replace(save, action=replace(save.action, outlines=(Outline(fields=fields),)))
+    job = Workflow(id="wf_ct", tenant="acme", title="Create Customer Type", narrative="", steps=[step])
+    return job, by_id
+
+
+def test_a_value_the_job_never_filled_is_composed_before_the_write_whose_screen_names_it() -> None:
+    job, by_id = _job(
+        OutlineField("textbox", "Customer Type *", True),
+        OutlineField("combobox", "Department", None, ("Finance", "Operations")),
+    )
+
+    composed, unplaced = compose(job, by_id, {"department": "Finance"})
+
+    assert composed == (
+        Composed("department", "Department", "combobox", job.steps[0].order, ("Finance", "Operations")),
+    )
+    assert unplaced == ()
+    assert composed[0].action == "select"
+
+
+def test_a_name_no_field_has_or_two_fields_have_is_asked_never_guessed() -> None:
+    job, by_id = _job(OutlineField("combobox", "Department"), OutlineField("textbox", "Department"))
+
+    _, twice = compose(job, by_id, {"Department": "Finance"})
+    _, nowhere = compose(job, by_id, {"Cost centre": "CC-9"})
+
+    assert [one.why for one in twice] == ["ambiguous"]
+    assert [one.why for one in nowhere] == ["no_field"]
+    assert nowhere[0].labels == ("Department",)
+
+
+def test_a_credential_or_a_name_a_step_already_fills_is_never_composed() -> None:
+    job, by_id = _job(OutlineField("textbox", "Password"), OutlineField("textbox", "Customer Type"))
+    job.steps[0].parameters = ["Customer Type"]
+
+    assert compose(job, by_id, {"Password": "hunter2", "Customer Type": "GT2"}) == ((), ())
+
+
+def test_the_new_key_is_found_by_its_value_or_as_the_only_one_left() -> None:
+    two = Adding(fresh={"Department": "Finance", "Region": "North"})
+
+    assert keyed({"department": "Finance", "regionId": "7"}, two) == {
+        "Department": "department",
+        "Region": "regionId",
+    }
+    assert keyed({"deptId": "3", "regionId": "7"}, two) == {}
+    assert keyed({"a": "1", "b": "2", "c": "3"}, two) is None
+    assert keyed({"department": "3"}, Adding(known={"department": "Department"})) == {
+        "Department": "department"
+    }
+    assert keyed({}, Adding()) == {}
+
+
+def test_learning_the_field_puts_its_step_before_the_write_and_keeps_it_optional() -> None:
+    job, _ = _job(OutlineField("combobox", "Department"))
+    write = job.steps[0].order
+
+    grown, moved = with_field(
+        job, Composed("department", "Department", "combobox", write), key="department", value="Finance"
+    )
+
+    assert [(one.order, one.parameters, one.cites) for one in grown.steps] == [
+        (write, ["department"], []),
+        (write + 1, [], ["ges_save"]),
+    ]
+    assert moved == {write: write + 1}
+    assert grown.parameters[-1] == {
+        "name": "department",
+        "required": False,
+        "seen_values": ["Finance"],
+        "names": ["Department"],
+        "key": "department",
+    }
+```
+
+In `test_the_ui_lane.py`:
+
+```python
+def _saved(body: str) -> SeenCall:
+    return SeenCall("POST", "https://wms.example/api/customer-types", 201,
+                    request_body=body, request_content_type="application/json")
+
+
+async def test_the_save_call_that_carries_the_new_field_keys_it() -> None:
+    step, by_id = save_step(status=201, body=Body(text='{"name": "GT1"}', mime_type="application/json"))
+    driver = scripted_driver(answer=PageAnswer(ok=True, matched_by="component"),
+                             calls=[_saved('{"name": "GT9", "department": "Operations"}')])
+    ctx = lane_context(by_id, adding={step.order: Adding(fresh={"department": "Operations"})})
+
+    result = await UiLane(driver).execute(step, {}, ctx)
+
+    assert result.verdict == "done"
+    assert dict(result.keyed) == {"department": "department"}
+
+
+async def test_a_save_call_without_the_new_field_is_done_and_keys_nothing() -> None:
+    step, by_id = save_step(status=201, body=Body(text='{"name": "GT1"}', mime_type="application/json"))
+    driver = scripted_driver(answer=PageAnswer(ok=True, matched_by="component"),
+                             calls=[_saved('{"name": "GT9"}')])
+    ctx = lane_context(by_id, adding={step.order: Adding(fresh={"department": "Operations"})})
+
+    result = await UiLane(driver).execute(step, {}, ctx)
+
+    assert (result.verdict, dict(result.keyed)) == ("done", {})
+
+
+async def test_more_new_keys_than_fields_filled_is_not_this_writes_own_call() -> None:
+    step, by_id = save_step(status=201, body=Body(text='{"name": "GT1"}', mime_type="application/json"))
+    driver = scripted_driver(answer=PageAnswer(ok=True, matched_by="component"),
+                             calls=[_saved('{"name": "GT9", "department": "Operations", "owner": "x"}')])
+    ctx = lane_context(by_id, adding={step.order: Adding(fresh={"department": "Operations"})})
+
+    result = await UiLane(driver).execute(step, {}, ctx)
+
+    assert result.verdict == "unknown"
+```
+
+`test_the_ui_lane.py` imports `Adding` from `sro.domain.execution.compose` and `Body` from `sro.domain.observation.gesture`.
+
+```python
+# backend/tests/unit/application/runtime/test_a_field_nobody_showed.py
+import asyncio
+
+import pytest
+
+from sro.application.ports.page import PageAnswer
+from sro.application.runtime.fill_field import Filled, FillField
+from sro.domain.execution.compose import Composed
+from sro.domain.execution.lanes import Lane, StepResult
+from sro.domain.observation.gesture import Outline, OutlineField
+from tests.unit.runtime_support import (
+    CTX, lane_context, save_step, save_step_evidence, scripted_driver, steel_run,
+)
+
+DEPARTMENT = OutlineField("combobox", "Department", None, ("Finance", "Operations"))
+
+
+class RecordingSight:
+    def __init__(self, result: StepResult) -> None:
+        self.result = result
+        self.said: list[str] = []
+
+    async def fill(self, says, write, ctx) -> StepResult:  # type: ignore[no-untyped-def]
+        self.said.append(says)
+        return self.result
+
+
+def _field(write_order: int) -> Composed:
+    return Composed("department", "Department", "combobox", write_order, ("Finance", "Operations"))
+
+
+async def test_a_field_found_once_by_its_label_is_selected_and_holds() -> None:
+    driver = scripted_driver(
+        resolved=PageAnswer(ok=True, candidates=1),
+        answer=PageAnswer(ok=True, matched_by="within_role_name", pin="p1"),
+        outline={"fields": [{"role": "combobox", "label": "Department", "options": ["Finance", "Operations"]}]},
+        holds=True,
+    )
+    write, by_id = save_step(status=201)
+
+    filled = await FillField(driver, None).fill(_field(write.order), "Operations", write, lane_context(by_id))
+
+    assert (filled.lane, filled.asks) == (Lane.UI, "")
+    assert dict(filled.learned) == {"strategy": "role_and_name", "query": "combobox|Department"}
+    assert driver.acted[-1]["action"] == "select"
+    assert driver.acted[-1]["write"] is False
+    assert driver.acted[-1]["target"]["name"] == "Department"
+
+
+@pytest.mark.parametrize(("found", "asks"), [(0, "no_field"), (2, "ambiguous")])
+async def test_a_label_missing_or_twice_on_the_live_page_is_asked(found: int, asks: str) -> None:
+    driver = scripted_driver(resolved=PageAnswer(ok=found > 0, candidates=found))
+    write, by_id = save_step(status=201)
+
+    filled = await FillField(driver, None).fill(_field(write.order), "Finance", write, lane_context(by_id))
+
+    assert filled.asks == asks
+    assert driver.acted == []
+
+
+async def test_a_dropdown_without_the_option_is_asked_with_the_options_it_has() -> None:
+    driver = scripted_driver(
+        resolved=PageAnswer(ok=True, candidates=1),
+        outline={"fields": [{"role": "combobox", "label": "Department", "options": ["Finance", "Operations"]}]},
+    )
+    write, by_id = save_step(status=201)
+
+    filled = await FillField(driver, None).fill(_field(write.order), "Legal", write, lane_context(by_id))
+
+    assert (filled.asks, filled.options) == ("no_option", ("Finance", "Operations"))
+    assert driver.acted == []
+
+
+async def test_a_control_that_will_not_take_the_value_falls_back_to_sight() -> None:
+    driver = scripted_driver(
+        resolved=PageAnswer(ok=True, candidates=1),
+        answer=PageAnswer(ok=False, error_kind="not_actionable"),
+        outline={"fields": []},
+    )
+    sight = RecordingSight(StepResult("done", Lane.SIGHT, learned={"strategy": "xpath", "query": "/html/body/select[1]"}))
+    write, by_id = save_step(status=201)
+
+    filled = await FillField(driver, sight).fill(_field(write.order), "Finance", write, lane_context(by_id))
+
+    assert (filled.lane, dict(filled.learned)) == (Lane.SIGHT, {"strategy": "xpath", "query": "/html/body/select[1]"})
+    assert sight.said == ["Set Department to Finance"]
+
+
+async def test_a_value_with_no_field_on_the_form_is_asked_before_any_step_runs() -> None:
+    world = await steel_run(steps=[save_step_evidence(status=201, outline=Outline())], values={"department": "Finance"})
+    await world.run_steps.prepare(CTX, world.run_id)
+    await world.run_steps.acquire(CTX, world.run_id)
+
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert outcome.asking
+    asking = world.progress().asking
+    assert (asking["kind"], asking["name"]) == ("field", "department")
+    assert world.lanes.ui.calls == 0
+
+
+async def test_leaving_the_field_out_drops_the_value_and_names_it_unasked() -> None:
+    world = await steel_run(steps=[save_step_evidence(status=201, outline=Outline())], values={"department": "Finance"})
+    await world.run_steps.prepare(CTX, world.run_id)
+    await world.run_steps.acquire(CTX, world.run_id)
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    await world.run_steps.answered(CTX, world.run_id, outcome.asking, "")
+
+    run = await world.saved_run()
+    assert "department" not in run.values
+    assert run.unasked == ["department"]
+
+
+async def test_a_field_the_save_call_carried_is_done_and_learned_into_the_job() -> None:
+    world = await steel_run(
+        steps=[save_step_evidence(status=201, outline=Outline(fields=(DEPARTMENT,)))],
+        values={"department": "Finance"},
+    )
+    world.fill.answers(Filled(Lane.UI, learned={"strategy": "role_and_name", "query": "combobox|Department"}))
+    world.lanes.ui.answers(StepResult("done", Lane.UI, keyed={"department": "department"}))
+    await world.run_steps.prepare(CTX, world.run_id)
+    await world.run_steps.acquire(CTX, world.run_id)
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    await world.run_steps.finish(CTX, world.run_id)
+
+    (field,) = world.progress().composed
+    assert (field["lane"], field["verdict"], field["key"]) == ("ui", "done", "department")
+    job = await world.job()
+    assert job.steps[0].parameters == ["department"]
+    assert job.parameters[-1]["key"] == "department"
+    assert [(one.strategy, one.found_by) for one in await world.learned()] == [("role_and_name", "composed")]
+
+
+async def test_a_field_the_save_call_did_not_carry_is_unknown_and_not_learned() -> None:
+    world = await steel_run(
+        steps=[save_step_evidence(status=201, outline=Outline(fields=(DEPARTMENT,)))],
+        values={"department": "Finance"},
+    )
+    world.fill.answers(Filled(Lane.UI, learned={"strategy": "role_and_name", "query": "combobox|Department"}))
+    world.lanes.ui.answers(StepResult("done", Lane.UI))
+    await world.run_steps.prepare(CTX, world.run_id)
+    await world.run_steps.acquire(CTX, world.run_id)
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    await world.run_steps.finish(CTX, world.run_id)
+
+    (field,) = world.progress().composed
+    assert field["verdict"] == "unknown"
+    assert [one.parameters for one in (await world.job()).steps] == [[]]
+```
+
+Browser (`test_the_steel_driver.py`, against `rig.url("/app")` signed in): `resolve` with `{"target": {"role": "combobox", "name": "Department", "landmarks": [{"role": "form", "name": "Customer Type"}]}}` answers `candidates == 1`; `outline(session, tab, [])` lists `Department` with options `["Finance", "Operations"]` (the empty option has no label and is dropped); one `connect_over_cdp` for both.
+
+Integration (`test_runs_on_local_steel.py`, scenario "a field nobody demonstrated"):
+1. A job recorded on the rig by typing a Customer Type and pressing Save. It never touches Department, so its recorded body keys are `{name}`.
+2. It runs with `{"Customer Type": "GT9", "department": "Operations"}`. `rig.saved[-1] == {"name": "GT9", "department": "Operations"}`. The run's `progress.composed[0]` is `lane = ui, verdict = done, key = department`. The job now has the step "Fill Department" and the optional parameter.
+3. A second run with `{"Customer Type": "GT10", "department": "Finance"}` fills Department from the learned locator, composes nothing, and `rig.saved[-1]["department"] == "Finance"`.
+4. A third run with `{"Customer Type": "GT11"}` passes over the learned step, and `"department" not in rig.saved[-1]`.
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `cd backend && uv run pytest tests/unit/domain/test_composing_a_field.py tests/unit/application/runtime/test_a_field_nobody_showed.py tests/unit/application/runtime/test_the_ui_lane.py -q -o faulthandler_timeout=120`
+Expected: FAIL, `ModuleNotFoundError: No module named 'sro.domain.execution.compose'`.
+
+- [ ] **Step 3: Implement**
+
+```python
+# backend/src/sro/domain/execution/compose.py
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass, field, replace
+from typing import Literal
+
+from sro.domain.execution.evidence import primary_gesture, writes
+from sro.domain.observation.gesture import Gesture, OutlineField
+from sro.domain.observation.outline import last_outline
+from sro.domain.recording.sensitivity import is_secret_field
+from sro.domain.skill.repeats import Repeat
+from sro.domain.skill.workflow import Step, Workflow
+
+SELECTS = frozenset({"combobox", "listbox"})
+
+
+@dataclass(frozen=True, slots=True)
+class Composed:
+    name: str
+    label: str
+    role: str
+    before: int
+    options: tuple[str, ...] | None = None
+
+    @property
+    def action(self) -> str:
+        return "select" if self.role in SELECTS else "type"
+
+
+@dataclass(frozen=True, slots=True)
+class Unplaced:
+    name: str
+    why: Literal["no_field", "ambiguous"]
+    labels: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class Adding:
+    known: Mapping[str, str] = field(default_factory=dict)
+    fresh: Mapping[str, str] = field(default_factory=dict)
+
+
+def normal(label: str) -> str:
+    return " ".join(label.replace("*", " ").split()).casefold()
+
+
+def _screens(
+    workflow: Workflow, by_id: Mapping[str, Gesture]
+) -> list[tuple[Step, tuple[OutlineField, ...]]]:
+    gestures = sorted(by_id.values(), key=lambda one: one.at)
+    found: list[tuple[Step, tuple[OutlineField, ...]]] = []
+    for step in sorted(workflow.steps, key=lambda one: one.order):
+        primary = primary_gesture(step, by_id)
+        if primary is None or not writes(step, by_id):
+            continue
+        outline = last_outline(primary, [one for one in gestures if one.at < primary.at])
+        if outline is not None:
+            found.append((step, outline.fields))
+    return found
+
+
+def compose(
+    workflow: Workflow, by_id: Mapping[str, Gesture], values: Mapping[str, str]
+) -> tuple[tuple[Composed, ...], tuple[Unplaced, ...]]:
+    filled = {name for step in workflow.steps for name in step.parameters}
+    screens = _screens(workflow, by_id)
+    labels = tuple(dict.fromkeys(one.label for _, fields in screens for one in fields))
+    composed: list[Composed] = []
+    unplaced: list[Unplaced] = []
+    for name, value in values.items():
+        if name in filled or not value.strip() or is_secret_field(name):
+            continue
+        hits = [
+            (step, one) for step, fields in screens for one in fields if normal(one.label) == normal(name)
+        ]
+        if len(hits) == 1:
+            step, one = hits[0]
+            composed.append(Composed(name, one.label, one.role, step.order, one.options))
+        else:
+            unplaced.append(Unplaced(name, "ambiguous" if hits else "no_field", labels))
+    return tuple(composed), tuple(unplaced)
+
+
+def keyed(extra: Mapping[str, str], adding: Adding) -> dict[str, str] | None:
+    found = {adding.known[key]: key for key in extra if key in adding.known}
+    rest = {key: said for key, said in extra.items() if key not in adding.known}
+    if len(rest) > len(adding.fresh):
+        return None
+    for name, value in adding.fresh.items():
+        key = next((key for key, said in rest.items() if said.casefold() == value.casefold()), None)
+        if key is not None:
+            found[name] = key
+            del rest[key]
+    left = [name for name in adding.fresh if name not in found]
+    if len(left) == 1 and len(rest) == 1:
+        found[left[0]] = next(iter(rest))
+    return found
+
+
+def with_field(
+    workflow: Workflow, composed: Composed, *, key: str, value: str
+) -> tuple[Workflow, dict[int, int]]:
+    moved = {
+        step.order: step.order + 1 if step.order >= composed.before else step.order
+        for step in workflow.steps
+    }
+    system = next((one.system for one in workflow.steps if one.order == composed.before), None)
+    steps = [
+        replace(step, order=moved[step.order], uses=[moved.get(one, one) for one in step.uses])
+        for step in workflow.steps
+    ]
+    steps.append(
+        Step(order=composed.before, says=f"Fill {composed.label}", system=system, parameters=[composed.name])
+    )
+    repeat = workflow.repeat
+    if repeat is not None:
+        repeat = Repeat(moved.get(repeat.first_step, repeat.first_step), moved.get(repeat.last_step, repeat.last_step))
+    parameter: dict[str, object] = {
+        "name": composed.name,
+        "required": False,
+        "seen_values": [value],
+        "names": [composed.label],
+        "key": key,
+    }
+    grown = replace(
+        workflow,
+        steps=sorted(steps, key=lambda one: one.order),
+        parameters=[*workflow.parameters, parameter],
+        repeat=repeat,
+    )
+    return grown, moved
+```
+
+The rest, in order:
+
+- **`ui_lane.py`.**
+  - `_same_call(seen, recorded, adding) -> dict[str, str] | None`. It keeps the frame, method, path-shape and host checks. Then:
+    - `wanted is None`: answer `{}` (own call, no key knowable);
+    - the seen key set is missing any wanted key: `None`;
+    - otherwise the extra keys, with their values from the parsed body, go to `keyed(extra, adding)`.
+  - In `_perform`, `own` becomes the calls whose `_same_call` is not `None`, and the first own call's mapping becomes `StepResult.keyed` on the write's result.
+  - Existing tests pass `Adding()` implicitly, through `ctx.adding`'s empty default.
+- **`fill_field.py`.** `FillField.fill` builds the payload in Interfaces from the write's `primary_gesture`, with its `target.landmarks` and `frame_path`. Then:
+  1. `resolve`; answer `Filled(None, asks=…)` unless `candidates == 1`.
+  2. For `field.action == "select"`, read `outline` and find the entry whose `normal(label)` matches. If it has an `options` list and none matches the value after `normal`, answer `Filled(None, "no_option", options=tuple(options))`.
+  3. `act`, then `wait_for` with `{**payload, "pin": answer.pin, "expect": {"value": value}}`.
+  4. If it holds, answer `Filled(Lane.UI, learned={"strategy": "role_and_name", "query": f"{field.role}|{field.label}"})`, or the given `learned` locator when one was passed. A learned field step passes its `LearnedStep` as `payload["learned"]`, the way X4 does.
+  5. If the act is refused or the value does not hold, and a sight lane exists, call `sight.fill(f"Set {field.label} to {value}", write, ctx)`. A non-failed result answers `Filled(Lane.SIGHT, learned=result.learned)`.
+  6. Otherwise answer `Filled(None, detail=…)`.
+  - A failed fill (lane `None`, no `asks`) asks the operator as D5's ordinary step question.
+- **`sight_lane.py`.** Factor the loop out of `execute` into `_drive(goal, home, writing, ctx)`. `fill` calls it with `goal=says`, `home` taken from the write's primary gesture, and `writing=False`.
+- **`executor.py`.** `api = api and not ctx.adding.get(step.order)`.
+- **`run_steps.py`.**
+  - `prepare` runs `compose(job, by_id, run.values)`. It stores the composed fields in `progress.composed`, with `lane`, `verdict` and `key` empty, and the unplaced ones as pending questions.
+  - `step`, while any unplaced name is unanswered: before step 0 runs, ask one `field` question per name (D5's `_ask`, `choices = labels`).
+  - `step`, at a write step `k`:
+    1. Fill every `progress.composed` entry with `before == k` through `FillField` before the write's lanes run. A fill that `asks` becomes the question, with `choices = options` or `labels`, and the write is not started.
+    2. Record the fill as `lane = <lane>, verdict = "unknown"`.
+    3. Pass `ctx.adding[k] = Adding(known=…, fresh={name: value})`.
+    4. After the write, each field filled for it takes `verdict = "done"` and `key = result.keyed[name]` when the write is `done` and its name is in `keyed`. Otherwise it stays `unknown`, or becomes `failed` when the write failed.
+  - `step`, at a learned field step (no `cites`, one parameter): with no value, pass over it with no mark and no `RunStep` row. With a value, fill it through `FillField` with its learned locator, record it `unknown`, and add its parameter's `key` to the next write's `Adding.known`. That write's `keyed` settles it the same way.
+  - `finish` calls `Teach.learn_field` for each composed field that is `done`.
+  - `answered` handles `kind == "field"`. `""` drops the value from `run.values` and appends the name to `run.unasked`. A label re-runs `compose` for that name against that label only. An option replaces the value.
+- **`answer_run.py`.** A `field` answer is refused with `Conflict` unless it is `""` or in `asking["choices"]`.
+- **`teach.py`.** `learn_field` as in Interfaces, in one unit of work.
+- **`workflows.py`.** `grew`'s `keyed_by_ord` adds `KnownBrokenRow`.
+- **`from_the_mail.py`.** Carry the asked-for aside values into the started run, as in Files. A `field` question can be answered from a reply the way D5 answers `value`: `said[:K_ANSWER]`, validated by `AnswerRun`.
+
+Code notes cover:
+- the exact-label rule and why wording is design 2's;
+- why a write that follows a new field skips the API lane (the replay template cannot carry the key; design 2's recipe compiler). **Ceiling**, with the upgrade path;
+- the `keyed` pairing rules;
+- why a fill alone never confirms anything (§6.2);
+- **Ceiling:** a later mining pass that grows the job re-derives its steps from demonstrations. `where_steps_moved` gives a step with no cites no place, so the learned step is dropped. Its parameter stays, and the next run with that value composes it again from the outline.
+
+- [ ] **Step 4: Run them and see them pass**
+
+Run: `cd backend && uv run pytest tests/unit tests/contract -q -o faulthandler_timeout=120`
+Run: `cd backend && uv run pytest tests/browser/test_the_steel_driver.py -q -o faulthandler_timeout=120`
+Run: `cd backend && SRO_INTEGRATION_DATABASE_URL="postgresql+asyncpg://sro:sro@localhost:5432/sro_test" uv run pytest tests/integration/test_runs_on_local_steel.py tests/integration/test_workflow_repositories.py -q -o faulthandler_timeout=120`
+Expected: all pass. The worker must restart for this to be live: `run_steps` is an activity.
+
+- [ ] **Step 5: LIVE QA (QA-9, the user runs it)** — see Proof points.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add backend/src/sro backend/tests frontend/openapi.json frontend/src/lib/api/generated.ts docs/code-notes
+git commit -m "feat(runtime): fill a field nobody demonstrated, confirm it by the save's key, learn it
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
+```
+
 ---
 
 # Stream D — durable runs (spec §7)
@@ -6643,13 +7756,14 @@ The user runs `python scripts/shadow.py --tenant greyorange --runs 10` on QA and
 **What R2 is, plainly: the step that makes the extension watch-only.** After it, the extension captures what the operator does, recognises the jobs they start, and asks and answers in the panel. It can no longer act on a page. It can no longer send a request for a run — including `httpSend`, which today sends a request from the operator's own browser with their cookies. Its heartbeat no longer calls the mail door; the server reads the mailbox (D8).
 
 Depends on:
-- QA-1 … QA-8 passed (the POC milestone): takeover (QA-6) because after R2 no run can carry on in the operator's tab, the server mail poll (QA-7) because R2 removes the only other reader, and lookups on Steel (QA-8) because R2 deletes the kinds lookups used to send.
-- D7, D8, L1.
+- QA-1 … QA-9 passed (the POC milestone): takeover (QA-6) because after R2 no run can carry on in the operator's tab, the server mail poll (QA-7) because R2 removes the only other reader, and lookups on Steel (QA-8) because R2 deletes the kinds lookups used to send. QA-9 is an acceptance line of spec §1, not something R2 removes.
+- D7, D8, L1, X10.
 
 **Files:**
 - Delete: `new-chrome-extension/src/background/commands.js` — every executing kind: `ui.perform`, `ui.perform_at`, `ui.url`, `screenshot`, `navigate`, `sign_in`, `tab.open`, `calls.since`, `http.send` (`httpSend`, `commands.js:1451`) and `abort`.
 - Delete: `channel.js`. Its only job is to carry backend commands to `commands.perform` (`channel.js:12,61`).
 - Delete: `showing.js` (the in-page driving band), and `pointing.js`, `sign-in.js`, `whats-on-screen.js` (imported only by `commands.js`).
+- Modify: `new-chrome-extension/manifest.json`: drop the `debugger` permission. `pointing.js` was its last user after E6 removed `trees.js`, and the watch-only test asserts it is absent.
 - Delete: every test file whose only subject is one of the deleted files. Grep each `*.test.mjs`'s imports first; a mixed file is edited, not deleted.
 - Modify: `new-chrome-extension/src/background/service-worker.js`:
   - the command handler, and the `channel.*` calls (`:206, 1641, 1722, 1750, 1818, 3258, 3360-3362`);
@@ -6670,7 +7784,7 @@ Depends on:
 
 **Interfaces:**
 - Removes: `Settings.steel_tenants`; every executing command kind, `httpSend` among them; the command socket, on both ends; the heartbeat's mail call; `StartWorkflowRun`'s extension branch; `pursuits.spawn` on the workflow-run path.
-- Keeps: capture (`recorder.generated.js`, `network*.js`, `observe.js`, `upload.js`, `queue.js`, `trees.js`, `shots.js`); recognition (`recognise.js`, served shapes) and the offer press, which calls the backend and acts on no page; the panel; `api.js` requests to the deployment; `page-code.js` as Steel's file.
+- Keeps: capture (`recorder.generated.js`, `network*.js`, `observe.js`, `upload.js`, `queue.js`, `shots.js`; `trees.js` is already gone, E6); recognition (`recognise.js`, served shapes) and the offer press, which calls the backend and acts on no page; the panel; `api.js` requests to the deployment; `page-code.js` as Steel's file.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -6947,7 +8061,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 
 ---
 
-# Proof points (spec §8.4)
+# Proof points (spec §8.5)
 
 Each live QA point is run once by the user on the QA box (`infra/docker-compose.deploy.yml` only). Implementers never drive them (Global Constraint 12).
 
@@ -6962,20 +8076,26 @@ Each live QA point is run once by the user on the QA box (`infra/docker-compose.
 | **QA-6** | D7, R1's switch | (a) In their own tab the user starts a mined Blue Yonder job by hand (Create a Customer Type): opens the screen, presses Add, types the code, and stops before saving. The offer appears; they press it. The run's `workflow_run_steps` begin with the replayed typing on Steel (`verdict_by = ui`), the save is the run's own, and Blue Yonder holds one new customer type. (b) On a mined job with two saves, they make the first save by hand and press the offer. The run's `progress.marks` show that save `wrote = done`, `lane = operator`; the run starts after it; the Blue Yonder audit shows the first record once. If QA holds no two-save job, (b) is proven only by D7's local Steel scenario, and the report says so. (c) They press an offer within a second of their own save: the run either shows that save `done` by `operator` or asks in the panel "may already have been done". It never sends it again. | A job the operator started by hand finishes on Steel from their step; their writes are never repeated; doubt is asked, never guessed. |
 | **QA-7** | D8, R1's switch | With the operator's Chrome closed, the user sends two request mails to the operator's mailbox: one with every value, one missing a value. Within one `mail_sweep_seconds` the first has a run (`started_by` the operator, `awaiting.thread` the mail's thread) with no press, and the second is a `needs_values` question in the operator's thread. `docker compose logs worker` shows the poll's lines under the tenant, and the reading's `model_spend` rows carry the tenant. They open Chrome and wait for a heartbeat: no card and no second run for either mail, and `tool_calls` holds one `mail:` row per message id. | The server reads the mailbox with the extension closed; the poll and the heartbeat look never read one mail twice; tenant-attributed and metered. |
 | **QA-8** | L1, R1's switch | With the operator's Chrome closed, the user asks in the console (`/v1/ask`) and in chat a question a recorded read answers (which suppliers site SG has). The answer comes back with the records. `docker compose logs api` shows no command sent to any extension socket, the account's lease is the one runs use (or a new `ready` one, signed in from the vault), and after the answer the account's browser has no extra tab. Then a `screen` question returns a picture taken on Steel. | A lookup answers with the operator's Chrome closed, through the account's Steel session. |
-| **POC milestone** | QA-1 … QA-8 all passed | The seven acceptance lines of spec §1 hold. R2 may start. | Spec §1 accepted. |
+| **QA-9** | X10, D8, R1's switch | On Blue Yonder the user picks a field on the Create Customer Type form that the mined job never filled: a dropdown with a short list if the form has one (Department is the spec's example), else a text field. The report names the field used. With the operator's Chrome closed, they mail the operator's mailbox: "Create customer type GT-QA9, Department: Finance", naming the field by its on-screen label. The run starts with no press. In its `progress.composed`, the field shows `lane = ui`, `verdict = done` and a `key`. The save step reads `verdict_by = ui`. Blue Yonder's new customer type holds Finance. The job now has a step "Fill Department" before the save, and an optional parameter with that `key`. The reply is in the mail thread. A second mail with another department and another code runs with no composing: the learned step fills it, and the save's body carries the key. A third mail naming an option the dropdown lacks gets a question in the thread listing the options, and the run sends no save until it is answered. | A field nobody demonstrated is filled on Steel, confirmed by the save call, and learned; a missing option is asked, never guessed. |
+| **POC milestone** | QA-1 … QA-9 all passed | The eight acceptance lines of spec §1 hold. R2 may start. | Spec §1 accepted. |
 
-Local proofs (implementer): §8.2 parity suite green (X2); §8.3 scenarios green on local Steel (S7: leases and restore, two tabs; S8: container crash, expiry then re-sign-in; D2: two runs as tabs; D4: stop during a step; D6: worker restart, no repeated write; D7: a takeover after the operator's own save, `rig.posts == 2`); D8's concurrent read-once test on Postgres; L1: a lookup read on local Steel; R2's watch-only test.
+Local proofs (implementer): the outline's real-Chrome and hostile-client proofs green (E6); X10's local Steel scenario (filled, keyed, learned, reused, passed over); §8.2 parity suite green (X2); §8.3 scenarios green on local Steel (S7: leases and restore, two tabs; S8: container crash, expiry then re-sign-in; D2: two runs as tabs; D4: stop during a step; D6: worker restart, no repeated write; D7: a takeover after the operator's own save, `rig.posts == 2`); D8's concurrent read-once test on Postgres; L1: a lookup read on local Steel; R2's watch-only test.
 
 # Pre-flight conflict table
 
 | Pair | Shared surface | Ruling |
 |---|---|---|
-| A0 × E1 × E2 × E3 × E4 × E5 × E6 | `domain/observation/gesture.py`, `application/observation/correlate.py`, `application/capture/rig_wire.py`, `tests/unit/application/test_correlate.py` | Serial in that order; each rebases on the last. |
-| E2 × E3 × E4 × E5 | `infrastructure/steel/recorder.js`, `recorder.generated.js`, `src/content/evidence.test.mjs` | Serial. Never hand-merge the generated file: resolve `recorder.js`, then `make gen-recorder`. |
+| A0 × E1 × E2 × E3 × E4 × E5 × E6 | `domain/observation/gesture.py`, `application/observation/correlate.py`, `application/capture/rig_wire.py`, `tests/unit/application/test_correlate.py` | Serial in that order; each rebases on the last. E6 is cut fresh from the integration tip; nothing from `rt/e6` (8954f324) is merged or cherry-picked. |
+| E2 × E3 × E4 × E5 × E6 | `infrastructure/steel/recorder.js`, `recorder.generated.js`, `src/content/evidence.test.mjs` | Serial. Never hand-merge the generated file: resolve `recorder.js`, then `make gen-recorder`. |
+| E6 × E7 | `application/observation/redact.py`, `domain/observation/policy.py`, `tests/unit/application/test_the_backend_stores_what_the_browser_sent.py` | E7 is parked; whichever lands second rebases. E6 deletes the snapshot fields and `_shapes_only`; E7's structure-only rule must not reintroduce a tree path. |
+| E6 × R2 | `new-chrome-extension/src/background/service-worker.js`, `pointing.js`, `state.js` | E6 first (tree code and comments); R2 then deletes `pointing.js` and the manifest's `debugger` permission. |
+| E6 × X10 | *interface:* `Outline`, `OutlineField`, `last_outline`, `sroPage.outline` | Owned by E6; X10 only reads them. |
 | E4 × S6 | `domain/skill/signing_in.py` | Different functions (`sign_in_chain` vs the new predicates). E4 first; rebase. |
-| X1 × X2 × S6 × R2 | `new-chrome-extension/src/page/page-code.js`, `page-code.test.mjs` | X1, then X2, then S6 (`signals`), then R2 (deletes the extension-only methods). |
+| X1 × X2 × S6 × E6 × R2 | `new-chrome-extension/src/page/page-code.js`, `page-code.test.mjs` | X1, then X2, then S6 (`signals`), then E6 (`readers` gain `labelOf`/`requiredOf`/`outlineOf`; `sroPage.outline`), then R2 (deletes the extension-only methods; `outline` stays). |
 | X1 × R2 | `new-chrome-extension/src/background/commands.js` | X1 changes injection; R2 deletes the executing kinds. X1 first. |
-| S5 × S6 × X4 × S10 × X7 | `infrastructure/steel/driver.py`, `application/ports/page.py`, `FakePageDriver`, `tests/browser/test_the_steel_driver.py` | Serial: S5, S6, X4, S10, X7. Each adds methods; none rewrites another's. |
+| S5 × S6 × X4 × S10 × X7 × X10 | `infrastructure/steel/driver.py`, `application/ports/page.py`, `FakePageDriver`, `tests/browser/test_the_steel_driver.py` | Serial: S5, S6, X4, S10, X7, X10. Each adds methods; none rewrites another's. |
+| X4 × X7 × X8 × X9 × X10 | `application/runtime/ui_lane.py` (`_same_call`), `sight_lane.py`, `executor.py`, `teach.py`, `tests/unit/application/runtime/test_the_ui_lane.py` | X10 last; it widens `_same_call` (an `Adding` argument, same checks) and adds `SightLane.fill` and `Teach.learn_field`, rewriting none of the earlier rules. |
+| X3 × D1 → X10 | *interface:* `StepResult.keyed`, `LaneContext.adding`, `Progress.composed` | Additive fields with empty defaults on the frozen types; no existing reader changes. |
 | S7 × S8 × S10 | `application/runtime/broker.py`, `test_the_broker.py` | Serial. |
 | S2 × S9 | `BrowserSessionRepository` (port, SQL, fake) | S2 owns the lease methods including `leased_sessions`; S9 only reads them. |
 | S9 × R3 | `application/connection/release_strays.py`, `application/execution/pursuits.py` | S9 removes the `Pursuits` reader; R3 deletes `Pursuits`. |
@@ -6983,23 +8103,24 @@ Local proofs (implementer): §8.2 parity suite green (X2); §8.3 scenarios green
 | S5 → S6, S7, S10, X4, X7 | *interface:* `PageDriver`, `SessionRef`, `PageGone` | Owned by S5; later tasks only add methods. |
 | S1 → S2, S7, D2 | *interface:* `Account`, `Lease`, `LeaseState`, vault keys | Owned by S1. |
 | D1 → D2, D4, D5, D6 | *interface:* `Progress`, `StepMark`, `MAIN`, the step limits | Owned by D1. |
-| D2 × D4 × D5 × D6 × D7 | `application/runtime/run_steps.py`, `infrastructure/temporal/{workflows,activities,durable}.py`, `ports/durable.py`, `tests/integration/test_run_workflow.py`, `test_run_steps.py` | Serial: D2, D4, D5, D6, D7. |
+| D2 × D4 × D5 × D6 × D7 × X10 | `application/runtime/run_steps.py`, `infrastructure/temporal/{workflows,activities,durable}.py`, `ports/durable.py`, `tests/integration/test_run_workflow.py`, `test_run_steps.py` | Serial: D2, D4, D5, D6, D7, then X10 (`run_steps.py`, `answer_run.py` only). |
 | D5 × D7 | `application/runtime/answer_run.py`, `tests/unit/application/runtime/test_asking.py` | D5 then D7 (`step` answers are `done`/`redo`). |
 | D1 → D7 | *interface:* `Progress.sending/settle(never_left)/written/in_doubt`, `done` immutable, `record_progress` | D7 codes against D1 as merged (rt/d `9a0fb66c`), not the plan's first D1 text: no `Progress.asking`, `account` is an `Account`. |
 | X3 → D7 | *interface:* `SeenCall`, `write_confirmed` | Owned by X3; D7 only calls them. |
 | D3 × D4 × D7 × R2 | `application/execution/workflow_runs.py` (`StartWorkflowRun`, `AbortWorkflowRun`) | Serial: D3, D4, D7, R2. D8 only reads `runs_on_steel`. |
-| D3 × D5 × D8 × R2 | `application/chat/from_the_mail.py`, `tests/unit/application/rig/test_from_the_mail.py` (`mail_world`) | Serial: D3 (start), D5 (answer from a reply), D8 (claim released on a refused start; poll), R2 (gate removed). |
+| D3 × D5 × D8 × X10 × R2 | `application/chat/from_the_mail.py`, `tests/unit/application/rig/test_from_the_mail.py` (`mail_world`) | Serial: D3 (start), D5 (answer from a reply), D8 (claim released on a refused start; poll), X10 (asked-for aside values into the run; `field` answers), R2 (gate removed). |
 | D2 × D8 | `infrastructure/temporal/worker.py` | D2 adds the `runs` `Worker`; D8 adds a loop beside the keeper. Merge by union. |
 | L1 × R2 | `backend/src/sro/container.py` (`run_lookups`, `SocketChannel`), `tests/unit/test_container_wiring.py` | L1 moves lookups off the socket; R2 deletes the socket. L1 first. |
 | S7 × S8 × S10 × L1 | `application/runtime/broker.py` | L1 adds one method (`screenshot`) after S10; merge by union. |
 | L1 × D2 … D8 | `backend/src/sro/interface/http/schemas.py` / `make types` | Regenerate on conflict. |
 | D7 × R2 | `new-chrome-extension/src/background/service-worker.js`, `recognise.js` | D7 adds `took_over` to the offer press; R2 deletes the command handler, the band and the mail look around it. D7 first. |
 | D8 → R2 | the heartbeat's mail call | R2 deletes it only after QA-7; before that the two callers run side by side, kept apart by the claim (D8's tests). |
-| E6 × E7 × S2 × X8 × D1 | `infrastructure/db/models.py`, the Alembic head (`backend/migrations/versions`, head `0072`) | Take the next number at merge, repoint `down_revision`, keep one head. |
-| S1 × X1 × D5 × D7 × L1 | `interface/http/schemas.py`, `frontend/openapi.json`, `frontend/src/lib/api/generated.ts` | Each runs `make types`; regenerate on conflict, never hand-merge. |
+| E7 × S2 × X8 × D1 | `infrastructure/db/models.py`, the Alembic head (`backend/migrations/versions`, head `0072`) | Take the next number at merge, repoint `down_revision`, keep one head. E6 adds no migration (the outline rides in `gestures.gesture`; the old policy key stays in `observation_policies.policy`). |
+| X8 × X10 | `infrastructure/db/workflows.py` (`grew`), `KnownBrokenRow` | X8 creates the table; X10 adds it to `grew`'s moved tables. |
+| S1 × X1 × E6 × D5 × D7 × L1 × X10 | `interface/http/schemas.py`, `frontend/openapi.json`, `frontend/src/lib/api/generated.ts` | Each runs `make types`; regenerate on conflict, never hand-merge. |
 | S3 × S4 × S5 × S7 × S9 × X4 … X9 × D2 … D5 × D8 × L1 × R2 × R3 | `backend/src/sro/container.py` and its code-notes | Each adds or removes one factory or field: merge by union; re-anchor the notes once after R3. |
-| S2 … D7, L1 | `backend/tests/unit/fakes.py`, `backend/tests/unit/runtime_support.py` | Additions only; merge by union. |
-| S7 × S8 × D2 × D4 × D6 × D7 × L1 | `backend/tests/integration/test_runs_on_local_steel.py` | One scenario per task, appended; serial. |
+| S2 … D7, L1, X10 | `backend/tests/unit/fakes.py`, `backend/tests/unit/runtime_support.py` | Additions only; merge by union. |
+| S7 × S8 × D2 × D4 × D6 × D7 × L1 × X10 | `backend/tests/integration/test_runs_on_local_steel.py`, `backend/tests/browser/steel_rig.py` | One scenario per task, appended; serial. X10's Department select is sent only when chosen, so every earlier scenario's saved body is unchanged. |
 | D3 × D8 × R2 | `backend/src/sro/config.py` | Different keys (`steel_tenants`, `mail_sweep_seconds`); R2 deletes `steel_tenants` only. Merge by union. |
 | S4 × D3 × R1 × R2 | `infra/docker-compose.deploy.yml` | Different keys (Steel services, `SRO_STEEL_URLS`, `SRO_STEEL_TENANTS`); merge by union. |
 | C0 → S4 | *interface:* QA-0's verdict | S4's capacity and variant follow it. |
@@ -7008,7 +8129,7 @@ Local proofs (implementer): §8.2 parity suite green (X2); §8.3 scenarios green
 
 | Spec section | Tasks |
 |---|---|
-| §1 Goal and acceptance | POC milestone (QA-1 … QA-8); D2, D3, S7, S8, D6, D7 (takeover), D8 (server mail poll), L1 (lookups) |
+| §1 Goal and acceptance | POC milestone (QA-1 … QA-9); D2, D3, S7, S8, D6, D7 (takeover), D8 (server mail poll), L1 (lookups), X10 (a field nobody demonstrated) |
 | §2 Architecture (worker runs activities; API only starts, stops, answers) | D2, D3, D4, D5 |
 | §2 Mail poll (worker loop, per operator, once per message, metered, tenant-attributed, side by side with the heartbeat) | D8; R2 removes the heartbeat call |
 | §3 The ladder; API-lane failures; ask after sight; no blind repeats | X3, X8, X5, D2 (`_ask`, settle), D1 (`sending`) |
@@ -7017,7 +8138,7 @@ Local proofs (implementer): §8.2 parity suite green (X2); §8.3 scenarios green
 | §4.3 Frame identity | E3, X4 (`_frame`) |
 | §4.4 Click `detail` and `isTrusted` | E4 |
 | §4.5 After-state | E5, X3 (`after_matches`), X4 |
-| §4.6 Snapshot events kept | E6 |
+| §4.6 Screen outline (no tree, no debugger; kept/never-kept lists; no echo; structural trigger; joined on its own gesture; `capture_snapshots` removed, its JSONB key kept and ignored) | E6 |
 | §5.1 Layout (container per account; C0) | C0, S4 |
 | §5.2 Leases; sweeper; grace timer and in-memory list go | S1, S2, S9 |
 | §5.3 Acquire; vault keys with username; 64 KiB | S1, S7 |
@@ -7030,6 +8151,7 @@ Local proofs (implementer): §8.2 parity suite green (X2); §8.3 scenarios green
 | §6.3 Each lane teaches the one above; known-broken list | X8, X9 |
 | §6.4 Shared page code; strategy order; snapshot repair | X1, X2, S6 |
 | §6.5 Lookups (account's session first, then a Steel tab; reads only; gaps per system) | L1 |
+| §6.6 A field nobody demonstrated (compose from the outline, fill by label, ask, verify by the save's body key, sight fallback, learn; API lane withheld) | X10 (with E6, X4, X7, X9, D5) |
 | §7.1 Start | D3 |
 | §7.2 Workflow | D2 |
 | §7.3 Progress and idempotency | D1, D2, D6 |
@@ -7038,12 +8160,13 @@ Local proofs (implementer): §8.2 parity suite green (X2); §8.3 scenarios green
 | §7.6 Mid-job takeover | D7 (and D5's `done`/`redo` for a doubt) |
 | §8.1 Unit | every task |
 | §8.2 Page-code parity | X2 |
-| §8.3 Integration on local Steel | S7, S8, D2, D4, D6, D7, L1 |
-| §8.4 Live QA | C0 (QA-0), Proof points QA-1 … QA-8 |
+| §8.3 Integration on local Steel | S7, S8, D2, D4, D6, D7, L1, X10 |
+| §8.4 The outline keeps no typed value (real Chrome; hostile client) | E6 |
+| §8.5 Live QA | C0 (QA-0), Proof points QA-1 … QA-9 |
 | §9 Rollout | D3 (setting), R1 (shadow, switch), D8 (poll beside the heartbeat from step 2), R2 (setting removed; watch-only) |
-| §10 Removed when live | X1 (`in-page.js`), S9 (grace timer), R2 (every executing kind including `httpSend`, the command socket, the heartbeat mail call, `pursuits.spawn`, `Stops` on the run path; the watch-only test), R3 (`ui_driver.py`, old engine). the backend command socket after L1 |
-| §11 Out of scope | nothing planned (live view, service account, shadow DOM, more tenants, design 2/3 work) |
-| §12 Risks | QA-0 (C0); QA-4 (restore, memory); X1 CI hash + X2 parity; X2 threshold + write verification (X4); X7 cap and metering; X2 falls back to existing strategies for older evidence; D7 (flush before the press, doubt when uploads lag); D8 (concurrent read-once test); L1 (tab per lookup, closed in `finally`; reads only, tested) |
+| §10 Removed when live | E6 (`trees.js`, the tree debugger attach, `capture_snapshots`/`snapshot_max_per_minute`/`reading_structure`, `_shapes_only`), X1 (`in-page.js`), S9 (grace timer), R2 (`pointing.js` and the manifest's `debugger` permission), R2 (every executing kind including `httpSend`, the command socket, the heartbeat mail call, `pursuits.spawn`, `Stops` on the run path; the watch-only test), R3 (`ui_driver.py`, old engine). the backend command socket after L1 |
+| §11 Out of scope | nothing planned (live view, service account, shadow DOM, more tenants, design 2/3 work: wording-to-field matching, the learned key in the replay template, offering optional fields) |
+| §12 Risks | QA-0 (C0); QA-4 (restore, memory); X1 CI hash + X2 parity; X2 threshold + write verification (X4); X7 cap and metering; X2 falls back to existing strategies for older evidence; D7 (flush before the press, doubt when uploads lag); D8 (concurrent read-once test); L1 (tab per lookup, closed in `finally`; reads only, tested); E6 (outline echo rule, real-Chrome and hostile tests); X10 (exact label, one live match, key in the save's own call) |
 
 # Deferred to design 2, "Learning and agents"
 
@@ -7058,5 +8181,12 @@ From the steel-migration plan's stream A (A0 stays here). No tasks are written f
 - **A7** Miner prompt defects and fenced page text.
 - **A8** Mail agent guards (the mail body the tool lane sends is written by this agent).
 - **A9** Repair eval suite.
+- **Wording to fields.** A mail's wording matched to the outline's fields when it is not the exact on-screen label: "dept" or "cost center" for "Department", or a value that names its field only by context. X10 matches exact labels only and asks otherwise. This is the request reader's work (A6), and it feeds X10's `compose` a label.
+- **A learned key in the replay template.** The key X10 learned is folded into the API lane's body template, so a write that follows a learned field can be promoted to the API lane. Until then X10 withholds the API lane from that write (A4).
 
 Superseded tasks of streams B and C not carried into this plan, and where they belong: B1, B2 (step timing and its console view) and B13–B16 (value sources, thread list, "Not a job", the per-job report) go to design 3 or its measurement work; B12 (a server-side mail poll) is D8 here — the worker reads each operator's mailbox, beside the extension's heartbeat look until R2 removes it — and only its panel half, "checked N s ago" (P5), stays with design 3; B8 (a lock for session-wide steps) is dropped by spec §5.4 (only session changes take the lock); C16 (a live view) is out of scope (§11). B3, B4, B5, B6, B7a/b, B9–B11 and C1–C15 are replaced by the tasks above (C9/C10's `SteelChannel` is not built: the lanes call `PageDriver` directly).
+
+# Deferred to design 3, "Operator surface"
+
+- **Offering optional fields.** The panel offers a job's optional fields, including the ones X10 learned (`required: false`, `names`, `seen_values`; `offerable` in `domain/skill/learned.py` already lists them), so the operator can give a value before a run.
+- **Answering a `field` question in the panel.** The question lists `choices` (labels or options) and has a "leave it out" button. X10 defines the question and its answer (`POST /v1/workflow-runs/{id}/answer`); the panel's drawing of it is design 3's.

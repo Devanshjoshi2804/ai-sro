@@ -1,6 +1,8 @@
 # Execution runtime on Steel — design
 
 Date: 2026-09-24. Status: approved in conversation, section by section.
+Amended 2026-09-25 (user decision): a screen outline replaces tree capture (§4.6), and a
+field nobody demonstrated is filled, verified and learned (§6.6, QA-9).
 Parent spec: `2026-09-23-vm-execution-recipes-and-agents.md` (decisions D1–D9 bind this design).
 
 This is the first of three designs the parent spec decomposes into:
@@ -34,7 +36,10 @@ The POC is accepted when all of these hold, and each is proven by a live QA run 
 - a job the operator started by hand finishes on Steel from where they stopped, and no
   write they already made is sent again;
 - a request mail is read and its run started by the server, with the extension closed;
-- a lookup answers with the operator's Chrome closed.
+- a lookup answers with the operator's Chrome closed;
+- a mail asks for a field the job never filled: the run fills it on Steel by the form's
+  label, the save's own call carries its key, and the job keeps it as a learned optional
+  field (§6.6).
 
 Scale: one tenant, a few operator accounts (2–5), each with its own browser. Deployed
 with one account first.
@@ -134,10 +139,50 @@ hand-edited.
 5. **After-state.** After each gesture, the recorder records the target's value,
    visibility and enabled state. With the network calls already joined, the runner has
    a recorded expected result to verify against.
-6. **Snapshot events stop being discarded at ingest.** The accessibility graph stays
-   off by default (the debugger banner). Where a tenant turns it on, the tree taken
-   before a gesture is stored with that gesture, so it is not silently counted and
-   dropped as today.
+6. **Screen outline, no debugger.** The accessibility tree is not captured at all: no
+   `chrome.debugger` for trees, and no stored tree. The first cut (E6 on `rt/e6`,
+   8954f324, abandoned) stored the whole tree, and a real-Chrome review found typed
+   text in it: in editable nodes' names and their `StaticText` children, in
+   `name.sources`, in mirror text, and tokens in node URLs. The tree also joined to
+   its gesture by batch position. Instead the recorder builds a compact outline of the
+   screen in the page, the way §4.2 builds labelled ancestors.
+   - **Kept:**
+     - headings, and the titles of dialogs and forms;
+     - each field's label, role and required flag;
+     - button names;
+     - the option labels of a dropdown with at most `K_OUTLINE_OPTIONS` options;
+     - alert, status and validation messages, as a role and short text.
+   - **Never kept:** values, editable content, free page text, grid cells. A label is
+     read from `aria-label`, `aria-labelledby`, `<label>`, `placeholder` or `title`,
+     never from the control's own text.
+   - **No echo.** Any outline string that contains the current value of a text control
+     on the page is dropped in the page. The server repeats the rule against the values
+     typed in the same batch. It also drops whole any string that `redact_url` or
+     credential-shape redaction would change: an outline string is the page's
+     vocabulary, and a token is not. The server also enforces the shape: known keys and
+     roles only, and every cap.
+   - **When.** It is taken on a structural trigger. The first is a form or dialog first
+     appearing, or an alert or status first shown. The second is each gesture's capture
+     phase, which is the state the previous gesture settled into; E5 reads after-state
+     at the same instant. Each screen is stored once: an outline equal to the last one
+     sent from that frame is not sent again.
+   - **Join.** The outline rides on the gesture record it was taken for, so it is stored
+     with the gesture that has that ref, tab and frame path. This is the identity E5
+     uses. Nothing joins by batch position. A gesture sent without an outline was made
+     on the last outlined screen of its tab and frame.
+   - **Where.** The outline is built by `outlineOf` in `page-code.js`'s `readers`,
+     which is spliced into the recorder. The runtime reads the same outline from a
+     live Steel page as `sroPage.outline()` (§6.6).
+   - **Removed:** the extension's tree capture (`trees.js`), its debugger attach, and
+     the `capture_snapshots` policy. The policy has no column of its own. It is a key in
+     `observation_policies.policy` (JSONB). Stored rows keep the key: there is no
+     migration, by the additive rule. Loading ignores it, and the next save of that
+     policy writes it without the key. A `snapshot` event from an older extension is
+     still counted, and its tree is discarded unread.
+   - Steel's live-view recorder (`CaptureSession._ax_graph` in
+     `infrastructure/steel/capture.py`) reads its own browser's tree over CDP for the
+     recording path. It is not the extension's debugger, and this design does not
+     change it.
 
 ## 5. Session broker and Steel pool
 
@@ -338,6 +383,58 @@ and the lanes, like a run:
   that one lookup a named gap. The rest of the plan still answers. A lookup never waits
   on a person.
 
+### 6.6 A field nobody demonstrated
+
+**The case.** A run's values include a parameter the job has no step for. Example:
+"department: Finance" on Create Customer Type, where no demonstration ever touched
+Department. Today the name is kept as `WorkflowRun.unasked` and nothing is done with
+it. A mail's value for such a name (`Offered.aside`) reaches the run only when a
+declared form key places it (`declared_keys`, `application/execution/declared.py`).
+
+1. **Before the run (prepare).** The job's stored outlines (§4.6) are read from the
+   screens its write steps were made on. The value's name must equal exactly one field
+   label on exactly one write step's screen, compared after normalisation only: case,
+   spacing, and a trailing required star. Then a step is composed that fills that
+   field before that write. The composed step carries the parameter name, the
+   outline's label and role, and the write it precedes. Finding a field from other
+   wording is design 2's work.
+2. **On the live Steel page.** The composed step is resolved through page code, in the
+   write's recorded frame, by role and name, inside the write's labelled ancestors
+   (§4.2). A combobox or listbox gets `select`, and anything else gets `type`. Nothing
+   is acted on unless exactly one control matches.
+3. **Asking (D5), never guessing.** The run asks the operator when:
+   - no field has that label, or more than one does;
+   - the live page has no control with that label, or more than one;
+   - the dropdown lacks the option. The question lists the options the live outline
+     shows.
+
+   The answer is a label or an option from that list, or "leave it out". Leaving it
+   out drops the value from the run and records the name as `unasked`.
+4. **Verify.** The composed step's own fill is not a confirmation. The write it
+   precedes is still confirmed by its own call (X4). The extension to X4's rule: the
+   call's body keys must be the recorded keys plus at most one new key per field
+   filled this run. A new key is attributed to the composed field whose value it
+   carries. If exactly one field and one key are left unmatched, they pair. A composed
+   field whose key is not found in the call is `unknown`, even when the write is
+   `done`. A recorded write whose body keys are unknown gives no key to find, so the
+   field is `unknown`.
+5. **Fallback.** If the UI lane cannot fill the field (not actionable, or the value did
+   not hold), the sight lane fills it, with the goal "set Department to Finance" on
+   the write's page. A step whose label is missing or ambiguous goes to the operator,
+   not to sight: sight is for a control that exists but will not take the value.
+6. **Learn.** When the field is confirmed, the composed step is saved into the job
+   before its write (`WorkflowRepository.grew`, which renumbers what is keyed by step
+   order), with its locator: `role_and_name` from the UI lane, or the sight hit test
+   (§6.3). The job gains the parameter as optional (`required: false`,
+   `seen_values`, `names: [label]`, `key`: the body key). The next run fills it from the
+   learned locator when a value is given, and skips the step when none is.
+7. **API lane.** A write that follows a field the recorded body lacks is not offered
+   the API lane in that run: the replay template cannot carry the new key. Adding a
+   learned key to the template belongs to design 2's recipe compiler.
+
+Matching mail wording to the outline's fields, and offering optional fields in the
+panel, belong to designs 2 and 3.
+
 ## 7. Durable runs
 
 ### 7.1 Start
@@ -451,8 +548,18 @@ panel says so (design 3).
    - two runs as tabs on one account;
    - expiry mid-step followed by re-sign-in;
    - a takeover after the operator's own save, which sends that save no second time;
-   - a lookup read through the account's session, then from a Steel tab when the call is refused.
-4. **Live QA proofs.** Each is run once by the operator.
+   - a lookup read through the account's session, then from a Steel tab when the call is refused;
+   - a field nobody demonstrated: filled by label, confirmed by the save's body key, and
+     learned. The next run fills it from the learned locator.
+4. **The outline keeps no typed value.** Browser tests run in real Chrome, and each one
+   passes the recorder's records through the server's redaction. They cover a
+   password field shown as text, a code box labelled "Verify", a mirror div, a
+   `role=status` mirror, a contenteditable and a textarea. After typing, no typed
+   string appears anywhere in a stored outline. A hostile-client test sends outlines
+   that a real recorder never would. The cases are value keys, unknown roles,
+   oversize lists, an echo of a typed value, token URLs and credential shapes. The
+   server keeps none of them.
+5. **Live QA proofs.** Each is run once by the operator.
 
 | # | Proves |
 |---|---|
@@ -465,6 +572,7 @@ panel says so (design 3).
 | QA-6 | a job the operator started by hand is finished on Steel from their step; their save is not repeated |
 | QA-7 | the server reads the mailbox with the extension closed; a request mail starts its run; no mail is read twice |
 | QA-8 | a lookup answers with the operator's Chrome closed, read through the account's Steel session |
+| QA-9 | a mail asks for a field never demonstrated: it is filled on Steel, confirmed by the save call's body key, and learned into the job |
 
 ## 9. Rollout
 
@@ -475,7 +583,7 @@ A per-tenant setting, `executor: extension | steel`, controls the rollout:
    The server mail poll (§2) starts reading that tenant's mailboxes. The extension's
    heartbeat look keeps running beside it; the per-message claim keeps them from
    reading any mail twice.
-3. After QA-1 to QA-8 pass, `steel` becomes the only executor and the setting is
+3. After QA-1 to QA-9 pass, `steel` becomes the only executor and the setting is
    removed. The extension becomes watch-only (§10): it captures, recognises and asks,
    and it can no longer act on a page or send a request for a run.
 
@@ -495,6 +603,18 @@ A per-tenant setting, `executor: extension | steel`, controls the rollout:
   page or sends a request for a run.
 - The backend's command socket (`agent_channel.py`, `SocketChannel`), once lookups read
   through Steel (§6.5) and nothing sends a command any more.
+- Tree capture (§4.6), removed by E6 without waiting for the POC, because it captures
+  and never executes:
+  - `trees.js` and `trees.test.mjs`;
+  - the service worker's `takeTree`, `takeTreeSoon` and `releaseAll` calls;
+  - `state.js`'s `treeTimes`;
+  - the panel's tree wording;
+  - the `capture_snapshots` and `snapshot_max_per_minute` policy fields, with
+    `ObservationPolicy.reading_structure`, the CLI's `--snapshots`/`--no-snapshots`
+    and the wire fields;
+  - `redact.py`'s `_shapes_only` path for trees.
+- The last `chrome.debugger` use, `pointing.js`, is deleted with the executing kinds.
+  The manifest's `debugger` permission goes with it.
 - `pursuits.spawn` and the in-memory `Stops`.
 - The grace timer in `release_strays.py`.
 - The resolution and fixed waits in `ui_driver.py`.
@@ -508,6 +628,9 @@ A per-tenant setting, `executor: extension | steel`, controls the rollout:
 - More than one tenant deployed: the design is tenant-scoped, but only `greyorange`
   runs it.
 - Learning-side prompt work and panel UI: designs 2 and 3.
+- Matching a mail's wording to the outline's fields, beyond an exact label, and
+  folding a learned key into the API lane's replay template: design 2.
+- Offering a job's learned optional fields in the panel: design 3.
 
 ## 12. Risks
 
@@ -525,3 +648,6 @@ A per-tenant setting, `executor: extension | steel`, controls the rollout:
 | A lookup competes with runs for an account's browser | It takes a tab, never the account lock unless it must sign in, and closes the tab in `finally`; a full pool or a sign-in that needs a person is a named gap for that system, not a wait |
 | A lookup could reach a write | Structurally impossible: only 2xx GETs are addressed, the API lane sends `GET`, the tab path only navigates and photographs; tested |
 | The mail poll and the heartbeat look read one mail twice | One claim per message, an insert that does nothing on conflict; proven by a concurrent test on Postgres |
+| The outline carries a typed value | No values or free text by construction; echoes dropped in the page against live values and on the server against the batch's typed values; real-Chrome tests and a hostile-client test. Ceiling: a value under `K_ECHO_MIN` characters, or typed in an earlier batch and echoed by a page that hides it from the recorder, is not caught on the server |
+| A composed fill writes the wrong field | Exact label on exactly one screen, one live match inside the write's labelled ancestors, else the operator is asked; the field counts only when the write's own call carries its key |
+| The last screen of a doing has no outline | Accepted: the next gesture carries it; a form's fields are outlined when the operator first acts on it |

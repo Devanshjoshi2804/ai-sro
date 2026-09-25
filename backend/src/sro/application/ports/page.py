@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Collection, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
 from sro.application.ports.vision import Screen
@@ -27,6 +27,7 @@ class PageAnswer:
     state: AfterState | None = None
     pin: str | None = None
     repaired: bool = False
+    held: str | None = field(default=None, repr=False)
 
 
 class PageGone(Exception):
@@ -43,6 +44,17 @@ class PageDriver(Protocol):
     ) -> PageAnswer: ...
 
     async def mark(self, session: SessionRef, target_id: str) -> int: ...
+
+    async def resolve(
+        self, session: SessionRef, target_id: str, payload: Mapping[str, object]
+    ) -> PageAnswer: ...
+
+    async def outline(
+        self,
+        session: SessionRef,
+        target_id: str,
+        frame_path: Sequence[Mapping[str, object]] | None,
+    ) -> Mapping[str, object] | None: ...
 
     async def calls_since(
         self, session: SessionRef, target_id: str, mark: int

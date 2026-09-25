@@ -1485,7 +1485,11 @@ class FakePageDriver:
     and `aimed`, lets `calls` arrive on the first point and `calls_on[(x, y)]`
     on that point, and moves the tab to `lands` when set. `arrive` numbers
     calls into the log at any moment a test chooses; a call with no status is
-    one sent and not yet answered."""
+    one sent and not yet answered.
+
+    For a field nobody demonstrated, `resolve` records each payload in
+    `resolved` and answers the scripted `resolved` answer (one control by
+    default), and `outline` answers the scripted live outline."""
 
     def __init__(
         self,
@@ -1498,6 +1502,8 @@ class FakePageDriver:
         url: str = "",
         unsettled: bool = False,
         hit: Mapping[str, object] | None = None,
+        resolved: PageAnswer | None = None,
+        outline: Mapping[str, object] | None = None,
     ) -> None:
         self.tabs: dict[str, str] = {}
         self.owners: dict[str, str] = {}
@@ -1524,6 +1530,9 @@ class FakePageDriver:
         self.lands: str | None = None
         self.pointed: list[tuple[str, int, int, str | None]] = []
         self.aimed: list[Sequence[Mapping[str, object]] | None] = []
+        self._resolves = resolved if resolved is not None else PageAnswer(ok=True, candidates=1)
+        self._outline = outline
+        self.resolved: list[dict[str, object]] = []
         self.cookie = ""
         self.headers: dict[str, str] = {}
         self.headers_after_mark: dict[str, str] | None = None
@@ -1617,6 +1626,20 @@ class FakePageDriver:
 
     async def mark(self, session: SessionRef, target_id: str) -> int:
         return next(self._seq)
+
+    async def resolve(
+        self, session: SessionRef, target_id: str, payload: Mapping[str, object]
+    ) -> PageAnswer:
+        self.resolved.append(dict(payload))
+        return self._resolves
+
+    async def outline(
+        self,
+        session: SessionRef,
+        target_id: str,
+        frame_path: Sequence[Mapping[str, object]] | None,
+    ) -> Mapping[str, object] | None:
+        return self._outline
 
     async def screenshot(self, session: SessionRef, target_id: str) -> Screen:
         self._tab(session, target_id)

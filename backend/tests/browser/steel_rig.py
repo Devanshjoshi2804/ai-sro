@@ -36,16 +36,20 @@ _FRAMED_TWICE_PAGE = """<!doctype html><html><body>
 _APP_PAGE = """<!doctype html><html><head><meta name="csrf-token" content="{token}"></head><body>
   <form aria-label="Customer Type">
     <label for="ct">Customer Type</label><input id="ct" name="customerType">
+    <label for="dept">Department</label><select id="dept" name="department">
+      <option value=""></option><option>Finance</option><option>Operations</option>
+    </select>
     <button id="save" type="button">Save</button>
   </form>
   <script>
     document.getElementById("save").addEventListener("click", async () => {{
       const token = document.querySelector("meta[name=csrf-token]").content;
       const name = document.getElementById("ct").value;
+      const department = document.getElementById("dept").value;
       await fetch("/api/customer-types", {{
         method: "POST",
         headers: {{"X-CSRF-Token": token, "content-type": "application/json"}},
-        body: JSON.stringify({{name}}),
+        body: JSON.stringify(department ? {{name, department}} : {{name}}),
       }});
     }});
   </script>

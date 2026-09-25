@@ -23,8 +23,13 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/page.py
 > `UiLane._holds` re-check the SAME element `act` touched (never `holds`
 > re-resolving and repairing a second time) and refuse to call a repaired
 > write `done` on verification alone.
+>
+> `held` is `resolve`'s reading of the value the control holds -- never a
+> credential field's (`isSecretField`, the recorder's own rule) -- and is kept
+> out of `repr` so no log line or traceback prints a value; the other calls
+> leave it `None`.
 
-## `PageDriver`, [line 40](../../../../../../../backend/src/sro/application/ports/page.py#L40): Docstring
+## `PageDriver`, [line 41](../../../../../../../backend/src/sro/application/ports/page.py#L41): Docstring
 
 > S5 owns this file and this Protocol; the five methods X4 needs to drive
 > the recorded frame are here (`act`, `mark`, `calls_since`, `wait_for_call`,
@@ -34,12 +39,12 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/page.py
 > `restore_state`, `forget`) and `aclose`; a `Protocol` has no body to
 > conflict over, so the two additions merge as a plain union of methods.
 
-## `PageDriver.aclose`, [line 113](../../../../../../../backend/src/sro/application/ports/page.py#L113): Docstring
+## `PageDriver.aclose`, [line 125](../../../../../../../backend/src/sro/application/ports/page.py#L125): Docstring
 
 > The driver holds connections for the life of the process; whoever built
 > the container closes them on the way down.
 
-## `PageDriver.forget_calls`, [line 111](../../../../../../../backend/src/sro/application/ports/page.py#L111): Docstring
+## `PageDriver.forget_calls`, [line 123](../../../../../../../backend/src/sro/application/ports/page.py#L123): Docstring
 
 > Drops a tab's call log, request bodies included. The broker calls it on
 > the probe tab before handing it to the first run, so the sign-in POST,

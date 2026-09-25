@@ -45,51 +45,10 @@
   // records and what page-code.js later resolves it against are one text, so
   // the two cannot disagree about a control. Reasoning lives in
   // docs/code-notes/new-chrome-extension/src/page/page-code.js.md.
-  const { roleOf, nameOf, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf, requiredOf, outlineOf } =
-    __PAGE_READERS__;
-
-  // A credential field is recognised where it is typed, not later. Anything
-  // matched here has its value dropped before it leaves the page: the evidence
-  // plane keeps everything a demonstration did, and a password is not that --
-  // it is a key to the customer's system.
-  // Whole words, not substrings. Matched loosely this ate ordinary business
-  // data -- an address search box came back as «secret», so the demonstration
-  // could not say what was searched for, the model narrating it described a
-  // hole, and the value that would have become a parameter was gone. A
-  // redaction that eats business data is how people learn to switch it off.
-  // Substituted from sensitivity.SECRET_TOKENS when this file is injected --
-  // there is one list, on the Python side, and this used to be a second copy of
-  // it that drifted. Injection fails loudly rather than shipping the marker.
-  const SECRET_WORDS = new Set(__SECRET_WORDS__);
-  // `([A-Z]{2,})([A-Z][a-z])` and not `([A-Z]+)(...)`: the wider rule splits
-  // the lone N off `pickNPassAutoDropLocation` and leaves `Pass` bare, blanking
-  // a real warehouse field. Two-or-more needs three capitals in a row before it
-  // cuts, so `SAMLResponse` splits and `NPass` does not. Measured over 3,270
-  // real field, header and query names: this rule changes none of them.
-  const wordsOf = (text) =>
-    (text || '')
-      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-      .replace(/([A-Z]{2,})([A-Z][a-z])/g, '$1 $2')
-      .split(/[^A-Za-z]+/)
-      .filter(Boolean)
-      .map((word) => word.toLowerCase());
-  const isSecretName = (name) => {
-    const words = wordsOf(name);
-    return words.some((word) => SECRET_WORDS.has(word)) || SECRET_WORDS.has(words.join(''));
-  };
-  const isSecretField = (el) => {
-    if (!el || el.nodeType !== 1) return false;
-    // What the page itself says is a credential, which is the only signal here
-    // that is a decision rather than a guess.
-    if ((el.type || '').toLowerCase() === 'password') return true;
-    const autocomplete = (el.getAttribute('autocomplete') || '').toLowerCase();
-    if (autocomplete.includes('password') || autocomplete === 'one-time-code') return true;
-    if (autocomplete === 'cc-csc' || autocomplete === 'cc-number') return true;
-    const named = [el.name, el.id, el.getAttribute('aria-label'), el.getAttribute('placeholder')]
-      .filter(Boolean)
-      .join(' ');
-    return isSecretName(named);
-  };
+  const {
+    roleOf, nameOf, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf, requiredOf, outlineOf,
+    isSecretField,
+  } = __PAGE_READERS__;
 
   const stateOf = (el) => {
     if (!el || el.nodeType !== 1 || el.isConnected === false) {

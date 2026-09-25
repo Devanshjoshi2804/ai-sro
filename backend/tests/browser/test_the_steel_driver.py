@@ -17,8 +17,10 @@ from playwright.async_api import async_playwright
 from sro.application.ports.page import PageGone, PageUnsettled, SessionRef
 from sro.application.ports.vision import ProposedGesture
 from sro.application.runtime.sight_lane import SightLane
+from sro.application.runtime.ui_lane import same_call
 from sro.config import get_settings
-from sro.domain.observation.gesture import AfterState, Body
+from sro.domain.execution.compose import Adding
+from sro.domain.observation.gesture import AfterState, Body, Call
 from sro.domain.recording.events import ActionKind
 from sro.domain.shared.hosts import origin_of, system_of
 from sro.domain.shared.identifiers import BrowserSessionId
@@ -1109,6 +1111,56 @@ async def test_a_point_is_confirmed_only_when_the_recorded_control_is_what_it_hi
     assert not await holds(prefilled, {"value": "GT9"})
     typed = await pointed("#ct", ActionKind.TYPE, "GT9")
     assert await holds(typed, {"value": "GT1GT9", "visible": True, "enabled": True})
+
+
+async def test_a_field_nobody_recorded_is_found_by_its_label_filled_and_saved(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/"))
+    await rig.sign_in_in(driver, one, target)
+    department = {
+        "action": "select",
+        "write": False,
+        "target": {
+            "role": "combobox",
+            "name": "Department",
+            "landmarks": [{"role": "form", "name": "Customer Type"}],
+        },
+    }
+
+    found = await driver.resolve(one, target, department)
+    outline = await driver.outline(one, target, [])
+
+    assert (found.ok, found.candidates, found.matched_by) == (True, 1, "within_role_name")
+    assert outline is not None
+    fields = {one["label"]: one["options"] for one in outline["fields"]}
+    assert fields["Department"] == ["Finance", "Operations"]
+    chosen = await driver.act(one, target, {**department, "value": "Operations"})
+    held = {**department, "pin": chosen.pin, "expect": {"value": "Operations"}}
+    assert chosen.ok and await driver.wait_for(one, target, held, 5.0)
+    holding = (await driver.resolve(one, target, department)).held
+    assert holding == "Operations"
+    await driver.act(one, target, {"action": "type", "value": "GT9", "target": {"css_path": "#ct"}})
+    mark = await driver.mark(one, target)
+    await driver.act(one, target, {"action": "click", "target": {"css_path": "#save"}})
+    assert await driver.wait_for_call(
+        one, target, method="POST", shape="/api/customer-types", since=mark, deadline_s=5.0
+    )
+    assert rig.saved[-1] == {"name": "GT9", "department": "Operations"}
+    (save,) = [c for c in await driver.calls_since(one, target, mark) if c.method == "POST"]
+    recorded = Call(
+        "POST",
+        rig.url("/api/customer-types"),
+        201,
+        1.0,
+        request_body=Body(text='{"name": "GT1"}', mime_type="application/json"),
+    )
+    assert same_call(save, recorded, Adding(fresh={"department": holding})) == {
+        "department": "department"
+    }
+    assert same_call(save, recorded, Adding(fresh={"department": "Finance"})) is None
 
 
 async def test_connecting_a_system_keeps_a_token_from_any_path_of_its_own(

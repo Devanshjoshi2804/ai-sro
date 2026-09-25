@@ -32,7 +32,6 @@ from sro.config import get_settings
 from sro.domain.recording.artifact import ArtifactKind
 from sro.domain.recording.network import Body, CapturedRequest, Cookie, RedirectHop
 from sro.domain.recording.redaction import REDACTED, redact_body
-from sro.domain.recording.sensitivity import SECRET_TOKENS
 from sro.domain.recording.state import ConsoleMessage, PageEvent
 from sro.infrastructure.steel.video import Recorded, ScreencastRecorder
 
@@ -56,13 +55,9 @@ def _page_readers() -> str:
 
 def _recorder_script() -> str:
     source = _RECORDER_JS.read_text(encoding="utf-8")
-    if "__SECRET_WORDS__" not in source:
-        raise RuntimeError("recorder.js has no place to put the credential word list")
     if "__PAGE_READERS__" not in source:
         raise RuntimeError("recorder.js has no place to put page-code.js's readers")
-    return source.replace("__SECRET_WORDS__", json.dumps(sorted(SECRET_TOKENS))).replace(
-        "__PAGE_READERS__", _page_readers()
-    )
+    return source.replace("__PAGE_READERS__", _page_readers())
 
 
 @dataclass(frozen=True, slots=True)

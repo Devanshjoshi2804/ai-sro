@@ -181,15 +181,14 @@ Code: `needs = [name.lower() for name in (*address.live_headers, *address.struck
 > supply, so the broker waits for each of them in the context's request log
 > (from tab arrival). A value never reaches a log. The wait is what is left of
 > the caller's budget -- chat's `K_WHILE_TALKING` or the door's own -- never
-> the broker's fixed wait past it, and nothing at all when nothing is needed
-> (the driver otherwise waits for any token header, which a cookie-only system
-> never sends). A header still missing when it ends is a
+> the broker's fixed wait past it. With nothing needed the driver answers at
+> once. A header still missing when it ends is a
 > named gap (`MissingHeaders`), not a GET sent without it. From the recording
 > only representation headers are sent, through the API lane's one rule
 > (`session_headers`): a recorded `x-user-id` is the operator's, never this
 > account's.
 
-## `_looked`, [line 152](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L152): Comment
+## `_looked`, [line 150](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L150): Comment
 
 Code: `read=read_answer(body, url=address.url) if isinstance(body, str) else None,`
 

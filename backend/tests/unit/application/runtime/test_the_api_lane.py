@@ -37,6 +37,21 @@ async def test_a_replayed_write_confirmed_by_its_read_back_is_done() -> None:
     assert [one["method"] for one in http.sent] == ["POST", "GET"]
 
 
+async def test_a_write_on_a_cookie_only_system_waits_for_no_token() -> None:
+    http = FakeHttpCaller()
+    http.answer(201, '{"id": "ct-9"}')
+    http.answer(200, '{"name": "GT2"}')
+    step, by_id, ledger = proven_write_step(read_back=LIST)
+    driver = FakePageDriver()
+
+    result = await ApiLane(http, headers_broker({"cookie": "sid=1"}, driver=driver)).execute(
+        step, RUN, lane_context(by_id, ledger=ledger)
+    )
+
+    assert result.verdict == "done"
+    assert driver.waited_out == []
+
+
 async def test_the_broker_is_asked_with_the_full_request_url() -> None:
     http = FakeHttpCaller()
     driver = FakePageDriver()

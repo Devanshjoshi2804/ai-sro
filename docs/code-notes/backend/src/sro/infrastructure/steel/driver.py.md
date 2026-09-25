@@ -434,10 +434,14 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > headers are read, so it is sorted by number first). Not the newest
 > token-bearing request alone: an app that sends its CSRF token only on
 > writes then sends a GET carrying only `x-requested-with`, and that newest
-> request would hide the token (X5 review concern 2). It answers as soon as
-> the merge is non-empty and holds every name in `needs` (lower-cased, the
-> tokens the caller's write carried); at the deadline it answers with what it
-> has, so a needed name that never arrived is simply absent. The log
+> request would hide the token (X5 review concern 2). It waits only for the
+> names in `needs` (lower-cased, the tokens the caller's call carried) and
+> answers as soon as the merge holds every one of them; with `needs` empty it
+> answers at once with what the log already holds since `since`, so a
+> cookie-only system costs no wait (L1 round 1: waiting for "any token" made
+> every cookie-only write and lookup sit out the whole deadline). At the
+> deadline it answers with what it has, so a needed name that never arrived is
+> simply absent. The log
 > started when the tab arrived, so a token sent before this call is found at
 > once (S10 review C1). `since` is a `mark` taken before a reload: the
 > broker's `fresh=True` passes it, so a token from before the reload is never

@@ -237,7 +237,9 @@ async def test_a_s_csrf_token_and_cookie_are_never_b_s(
         )
 
     for name, who in (("a", a), ("b", b)):
-        said[name] = await driver.headers_for(who, origin_of(app_url), 10.0)
+        said[name] = await driver.headers_for(
+            who, origin_of(app_url), 10.0, needs=("x-csrf-token",)
+        )
         cookie[name] = await driver.cookies_for(who, app_url)
 
     assert set(said["a"]) == set(said["b"]) == {"x-csrf-token"}

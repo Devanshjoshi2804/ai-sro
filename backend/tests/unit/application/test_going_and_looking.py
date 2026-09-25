@@ -207,7 +207,7 @@ async def test_a_recorded_account_header_never_rides_on_the_account_s_read() -> 
     assert isinstance(sent["headers"], dict)
     assert "x-user-id" not in {name.lower() for name in sent["headers"]}
     assert sent["headers"]["accept"] == "application/json"
-    assert world.driver.deadlines == [0.0], "nothing was needed, so nothing is waited for"
+    assert world.driver.waited_out == [], "nothing was needed, so nothing is waited for"
 
 
 async def test_a_header_the_page_never_sends_is_a_gap_inside_the_conversation_s_budget() -> None:
@@ -219,7 +219,7 @@ async def test_a_header_the_page_never_sends_is_a_gap_inside_the_conversation_s_
 
     assert world.http.sent == []
     assert not answers.looked[0].ok and "x-requested-with" in answers.looked[0].detail
-    assert world.driver.deadlines and 0 < max(world.driver.deadlines) <= K_WHILE_TALKING
+    assert world.driver.waited_out and 0 < max(world.driver.waited_out) <= K_WHILE_TALKING
     assert world.driver.tabs == {}
 
 

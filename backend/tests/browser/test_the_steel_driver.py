@@ -463,7 +463,7 @@ async def test_a_token_the_page_sent_before_anyone_asked_is_found_at_once(
     )
 
     started = asyncio.get_running_loop().time()
-    got = await driver.headers_for(one, app_origin, 5.0)
+    got = await driver.headers_for(one, app_origin, 5.0, needs=("x-csrf-token",))
     elapsed = asyncio.get_running_loop().time() - started
 
     assert elapsed < 2.0
@@ -472,6 +472,21 @@ async def test_a_token_the_page_sent_before_anyone_asked_is_found_at_once(
 
     await driver.open_tab(two, rig.url("/public"))
     assert await driver.headers_for(two, origin_of(rig.url("/public")), 0.3) == {}
+
+
+async def test_nothing_needed_is_answered_at_once_from_a_context_that_sent_no_token(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    await driver.open_tab(one, rig.url("/public"))
+    loop = asyncio.get_running_loop()
+    started = loop.time()
+
+    got = await driver.headers_for(one, origin_of(rig.url("/public")), 10.0)
+
+    assert got == {}
+    assert loop.time() - started < 1.0
 
 
 async def test_a_fresh_token_is_never_one_sent_before_the_mark(
@@ -483,14 +498,16 @@ async def test_a_fresh_token_is_never_one_sent_before_the_mark(
     target = await driver.open_tab(one, rig.url("/"))
     await rig.sign_in_in(driver, one, target)
     await driver.evaluate(one, target, SAVE)
-    assert await driver.headers_for(one, app_origin, 5.0)
+    assert await driver.headers_for(one, app_origin, 5.0, needs=("x-csrf-token",))
 
     since = await driver.mark(one, target)
     await driver.goto(one, target, await driver.url_of(one, target))
 
     assert await driver.headers_for(one, app_origin, 0.5, since=since) == {}
     await driver.evaluate(one, target, SAVE)
-    assert set(await driver.headers_for(one, app_origin, 5.0, since=since)) == {"x-csrf-token"}
+    assert set(
+        await driver.headers_for(one, app_origin, 5.0, since=since, needs=("x-csrf-token",))
+    ) == {"x-csrf-token"}
 
 
 ASKED = "fetch('/api/ping', {headers: {'X-Requested-With': 'XMLHttpRequest'}})"
@@ -575,7 +592,9 @@ async def test_an_authorization_the_browser_adds_itself_is_seen(
 
     await driver.evaluate(one, target, "fetch('/api/basic').then((r) => r.status)")
 
-    got = await driver.headers_for(one, origin_of(rig.url("/public")), 5.0)
+    got = await driver.headers_for(
+        one, origin_of(rig.url("/public")), 5.0, needs=("authorization",)
+    )
     assert got == {"authorization": "Basic dTpw"}
 
 
@@ -588,7 +607,7 @@ async def test_forgetting_a_context_drops_every_header_it_sent(
     target = await driver.open_tab(one, rig.url("/"))
     await rig.sign_in_in(driver, one, target)
     await driver.evaluate(one, target, SAVE)
-    assert await driver.headers_for(one, app_origin, 5.0)
+    assert await driver.headers_for(one, app_origin, 5.0, needs=("x-csrf-token",))
 
     await driver.forget(one)
 
@@ -612,7 +631,9 @@ async def test_a_context_that_dies_while_headers_are_awaited_is_page_gone(
             return await super().wait()
 
     driver._seen[(one.cdp_url, one.context_id)] = Seen()
-    waiting = asyncio.create_task(driver.headers_for(one, origin_of(rig.url("/app")), 10.0))
+    waiting = asyncio.create_task(
+        driver.headers_for(one, origin_of(rig.url("/app")), 10.0, needs=("x-csrf-token",))
+    )
     await asyncio.wait_for(parked.wait(), 5.0)
     started = loop.time()
 

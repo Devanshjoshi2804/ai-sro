@@ -733,7 +733,7 @@ class SteelDriver:
                     ):
                         if at > since and where == wanted:
                             found.update(kept)
-                    if found and all(name in found for name in needs):
+                    if all(name in found for name in needs):
                         return found
                     await seen.wait()
                     await self._context(session)

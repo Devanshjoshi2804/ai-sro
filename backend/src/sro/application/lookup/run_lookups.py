@@ -129,9 +129,7 @@ class RunLookups:
         self, ctx: RequestContext, held: Held, address: Address, budget: asyncio.Timeout
     ) -> HttpResponse:
         needs = [name.lower() for name in (*address.live_headers, *address.struck)]
-        left = (
-            max(0.0, (budget.when() or 0.0) - asyncio.get_running_loop().time()) if needs else 0.0
-        )
+        left = max(0.0, (budget.when() or 0.0) - asyncio.get_running_loop().time())
         headers = await session_headers(
             self._broker, ctx, held, address.url, address.headers, needs=needs, wait_s=left
         )

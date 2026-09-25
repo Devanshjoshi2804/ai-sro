@@ -24,9 +24,11 @@ _BEFORE_THIS_SYSTEM_EXISTED = datetime(2000, 1, 1, tzinfo=UTC)
 
 async def _jobs_and_gestures(
     uow: UnitOfWork, tenant_id: TenantId
-) -> tuple[list[Workflow], dict[str, Gesture]]:
+) -> tuple[list[Workflow], dict[str, Gesture], int]:
     async with uow:
-        jobs = [job for job in await uow.workflows.known(tenant_id) if job.signs_in]
+        known = await uow.workflows.known(tenant_id)
+        undecided = sum(1 for job in known if job.signs_in is None)
+        jobs = [job for job in known if job.signs_in is True]
         cited = tuple(sorted({one for job in jobs for one in ordered_cites(job)}))
         seen = {
             gesture.id: gesture
@@ -40,7 +42,7 @@ async def _jobs_and_gestures(
                 tenant_id, after=min(times), before=max(times) + K_SITTING_GAP_S
             )
             seen.update({gesture.id: gesture for gesture in around})
-    return jobs, seen
+    return jobs, seen, undecided
 
 
 async def _migrate_job(
@@ -96,7 +98,12 @@ async def migrate(
 ) -> list[str]:
     lines: list[str] = []
     for tenant_id in tenants:
-        jobs, seen = await _jobs_and_gestures(uow_factory(), tenant_id)
+        jobs, seen, undecided = await _jobs_and_gestures(uow_factory(), tenant_id)
+        if undecided:
+            lines.append(
+                f"{tenant_id.value}: {undecided} job(s) not yet decided -- "
+                "wait for a mining sweep, then run this again"
+            )
         for job in jobs:
             lines.append(
                 await _migrate_job(vault, tenant_id, job, seen, apply=apply, delete_old=delete_old)

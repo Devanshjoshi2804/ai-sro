@@ -63,6 +63,7 @@ from sro.whose import attribute
 
 __all__ = [
     "MineResult",
+    "decide_sign_ins",
     "fill_in_passwords",
     "learn_parameters",
     "mine",
@@ -589,10 +590,7 @@ async def fill_in_passwords(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
     changed = 0
     by_id = {gesture.id: gesture for gesture in await uow.gestures.gestures_for(tenant_id)}
     for workflow in await uow.workflows.known(tenant_id):
-        wanted = ordered_cites(workflow)
-        if not wanted:
-            continue
-        if any(cited not in by_id for cited in wanted):
+        if not _evidenced(workflow, by_id):
             continue
         found = repeated_block(workflow, by_id)
         changed_here = with_passwords(workflow, by_id) + with_the_press(workflow, by_id)
@@ -609,6 +607,26 @@ async def fill_in_passwords(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
         changed += 1
         logger.info("%s: healed the steps no model got right", workflow.title)
     return changed
+
+
+def _evidenced(workflow: Workflow, by_id: Mapping[str, Gesture]) -> bool:
+    wanted = ordered_cites(workflow)
+    return bool(wanted) and all(cited in by_id for cited in wanted)
+
+
+async def decide_sign_ins(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
+    undecided = [one for one in await uow.workflows.known(tenant_id) if one.signs_in is None]
+    if not undecided:
+        return 0
+    by_id = {gesture.id: gesture for gesture in await uow.gestures.gestures_for(tenant_id)}
+    decided = 0
+    for workflow in undecided:
+        if not _evidenced(workflow, by_id):
+            continue
+        workflow.signs_in = signs_in(workflow, by_id)
+        await uow.workflows.save(workflow)
+        decided += 1
+    return decided
 
 
 async def rekey_workflows(uow: UnitOfWork, *, tenant_id: TenantId) -> int:

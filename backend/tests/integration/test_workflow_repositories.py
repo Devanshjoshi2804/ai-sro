@@ -134,7 +134,8 @@ class TestWorkflows:
     ) -> None:
         """Decided once by the mining pass and read by every run after it, so
         it has to survive the store -- and a re-save must be able to clear it
-        when the healing pass reads the evidence differently."""
+        when the healing pass reads the evidence differently. A job nobody has
+        judged reads back undecided (None), never as decided."""
         workflow = _workflow(signs_in=True)
         ordinary = _workflow()
 
@@ -145,7 +146,7 @@ class TestWorkflows:
 
         async with SqlUnitOfWork(session_factory) as uow:
             assert (await uow.workflows.get(TENANT, workflow.id)).signs_in is True
-            assert (await uow.workflows.get(TENANT, ordinary.id)).signs_in is False
+            assert (await uow.workflows.get(TENANT, ordinary.id)).signs_in is None
             workflow.signs_in = False
             await uow.workflows.save(workflow)
             await uow.commit()

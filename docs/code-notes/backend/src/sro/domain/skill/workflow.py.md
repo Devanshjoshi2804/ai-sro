@@ -133,7 +133,7 @@ Code: `pass_id: str = ""`
 
 ## `Workflow`, [line 48](../../../../../../../backend/src/sro/domain/skill/workflow.py#L48): Note on the line above
 
-Code: `signs_in: bool = False`
+Code: `signs_in: bool | None = None`
 
 > Whether this job signs in: set by the mining pass from its evidence
 > (`checks.signs_in`) and healed onto stored jobs, never guessed at run time.
@@ -141,4 +141,9 @@ Code: `signs_in: bool = False`
 > through a sign-in page, and the only jobs whose run may end `held` because
 > the browser has moved past their page -- and by anything that later has to
 > know which jobs sign in to a system.
+>
+> `None` is undecided: never evaluated against its evidence. Every reader
+> treats it as "not known yet" -- never as a sign-in job -- and every mining
+> sweep decides it (`mining_pass.decide_sign_ins`). A job starts undecided;
+> the mining pass decides a proposal before it is stored.
 

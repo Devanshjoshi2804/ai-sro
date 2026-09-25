@@ -25,8 +25,12 @@ Comments and docstrings moved out of [`backend/scripts/migrate_vault_keys.py`](.
 > tenant's whole set of sign-in jobs rather than one per job — QA has few
 > tenants and few sign-in jobs, and a per-job round trip buys nothing a batch
 > doesn't already give it.
+>
+> Only jobs decided true move; an undecided job (`signs_in` NULL) is never
+> taken for a sign-in job. The count of undecided jobs is printed per tenant
+> so the operator knows to wait for a mining sweep and run the script again.
 
-## `_migrate_job`, [line 46](../../../../backend/scripts/migrate_vault_keys.py#L46): Note on the function
+## `_migrate_job`, [line 48](../../../../backend/scripts/migrate_vault_keys.py#L48): Note on the function
 
 > The new key is never hand-assembled: `Account.of(...).vault_key("password")`
 > is the one function S1 built for this, and a key built any other way is a
@@ -44,7 +48,7 @@ Comments and docstrings moved out of [`backend/scripts/migrate_vault_keys.py`](.
 > the value that made it to (or already sits at) the new key — never a delete
 > with no corresponding copy on record.
 
-## `main`, [line 116](../../../../backend/scripts/migrate_vault_keys.py#L116): Note on the function
+## `main`, [line 123](../../../../backend/scripts/migrate_vault_keys.py#L123): Note on the function
 
 > `--dry-run` wins over `--apply` if both are given, because the flag that
 > guarantees nothing is written should never lose a race with the one that

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from scripts.migrate_vault_keys import migrate
 
+from sro.application.observation.mining_pass import decide_sign_ins
 from sro.domain.execution.account import Account
 from sro.domain.execution.secrets import secret_key_of
 from sro.domain.observation.gesture import Action, Gesture, PageMark, Target
@@ -63,7 +64,9 @@ def _sign_in(name: str, *, user: str | None, at: float = 1.0) -> dict[str, Gestu
     }
 
 
-def _job(name: str, *, cites: tuple[str, ...] = ("user", "pass", "go")) -> Workflow:
+def _job(
+    name: str, *, cites: tuple[str, ...] = ("user", "pass", "go"), signs_in: bool | None = True
+) -> Workflow:
     return Workflow(
         id=f"wfl_{name}",
         tenant=f.TENANT.value,
@@ -73,7 +76,7 @@ def _job(name: str, *, cites: tuple[str, ...] = ("user", "pass", "go")) -> Workf
             Step(order=n, says="s", system=None, cites=[f"{name}-{one}"])
             for n, one in enumerate(cites)
         ],
-        signs_in=True,
+        signs_in=signs_in,
     )
 
 
@@ -166,3 +169,17 @@ async def test_no_line_ever_prints_the_secret_value() -> None:
     lines = await migrate(lambda: uow, vault, [f.TENANT], apply=True, delete_old=True)
 
     assert all(OLD_VALUE not in line for line in lines)
+
+
+async def test_a_job_the_quiet_sweep_marked_is_moved_by_the_dry_run() -> None:
+    job = _job("h", signs_in=None)
+    uow, vault = await _world([job], _sign_in("h", user="hana"))
+
+    before = await migrate(lambda: uow, vault, [f.TENANT], apply=False, delete_old=False)
+    assert await decide_sign_ins(uow, tenant_id=f.TENANT) == 1
+    after = await migrate(lambda: uow, vault, [f.TENANT], apply=False, delete_old=False)
+
+    assert not any("would copy" in line for line in before)
+    assert any("1 job(s) not yet decided" in line for line in before)
+    assert any("would copy" in line and job.id in line for line in after)
+    assert not any("not yet decided" in line for line in after)

@@ -20,6 +20,8 @@ from sro.application.observation.mining_pass import MineResult
 from sro.application.shared.refusals import OverCap
 from sro.domain.observation.gesture import Action, Gesture, GestureBatch
 from sro.domain.observation.mining import MiningPass
+from sro.domain.shared.identifiers import TenantId
+from sro.domain.skill.workflow import Step, Workflow
 from sro.whose import about, whose
 from tests.unit.fakes import FakeUnitOfWork
 
@@ -500,3 +502,41 @@ async def test_each_tenant_s_reading_and_pass_are_billed_to_that_tenant() -> Non
     assert sorted(seen) == sorted(
         [("read", "acme"), ("mine", "acme"), ("read", "new"), ("mine", "new")]
     )
+
+
+def _job_citing(tenant: str, *, signs_in: bool | None) -> Workflow:
+    return Workflow(
+        id=f"wfl_{tenant}",
+        tenant=tenant,
+        title="receive",
+        narrative="n",
+        steps=[Step(order=0, says="s", system=None, cites=[f"ges_{tenant}"])],
+        signs_in=signs_in,
+    )
+
+
+async def test_a_quiet_sweep_decides_every_job_nobody_has_judged() -> None:
+    """QA's 23 jobs came out of the 0069 migration as `signs_in = false`,
+    and the flag was only ever decided when new gestures arrived. On a quiet
+    system that never happened, so the vault migration found no sign-in job to
+    move. An undecided job is decided on the next sweep, new gestures or not --
+    and a tenant quiet for longer than the mining window is still swept."""
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", taken=NOW - timedelta(days=30))
+    await _mined(uow, "acme", left_out=0, at=NOW - timedelta(days=29))
+    await uow.workflows.save(_job_citing("acme", signs_in=None))
+
+    await _swept(uow, _Passes())
+
+    assert (await uow.workflows.get(TenantId("acme"), "wfl_acme")).signs_in is False
+
+
+async def test_a_decided_job_is_not_decided_again_without_new_evidence() -> None:
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
+    await _mined(uow, "acme", left_out=0, at=NOW - timedelta(hours=1))
+    await uow.workflows.save(_job_citing("acme", signs_in=True))
+
+    await _swept(uow, _Passes())
+
+    assert (await uow.workflows.get(TenantId("acme"), "wfl_acme")).signs_in is True

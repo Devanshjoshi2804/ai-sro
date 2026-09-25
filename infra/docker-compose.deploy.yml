@@ -350,6 +350,11 @@ services:
       # `StartWorkflowRun` loads the ledger when the worker builds it.
       - ../knowledge-base:/knowledge-base:ro
     command: ["python", "-m", "sro.infrastructure.temporal.worker"]
+    # Must exceed the runs worker's `graceful_shutdown_timeout`, which is
+    # `K_STEP_HEARTBEAT_S` (30 s, domain/execution/progress.py): a deploy gives
+    # a running step that long to finish before it is cancelled as a shutdown.
+    # Docker's default of 10 s would kill it first. Raise this with the constant.
+    stop_grace_period: 45s
     # The image's healthcheck curls the API's port, and this container serves
     # no HTTP -- so it reported `unhealthy` from the moment it started while
     # polling Temporal correctly. A check that is always red is worse than no

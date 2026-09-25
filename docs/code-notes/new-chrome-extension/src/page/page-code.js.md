@@ -295,7 +295,7 @@ Comments and docstrings moved out of [`new-chrome-extension/src/page/page-code.j
 > been inner closures of `perform` rather than functions in their own
 > right.
 
-## module, [line 990](../../../../../new-chrome-extension/src/page/page-code.js#L990): Comment
+## module, [line 998](../../../../../new-chrome-extension/src/page/page-code.js#L998): Comment
 
 Code: `globalThis.sroPage = sroPage;`
 
@@ -778,7 +778,7 @@ Code: `globalThis.sroPage = sroPage;`
 > all: the two facts that tell a refusal from a stall, and neither of
 > them costs anything to collect. (the final `unreachable` detail)
 
-## `hitTest`, [line 925](../../../../../new-chrome-extension/src/page/page-code.js#L925): Function
+## `hitTest`, [line 931](../../../../../new-chrome-extension/src/page/page-code.js#L931): Function
 
 > Sight's other half: `viewport` tells the model where things are, and a
 > model's answer is a point, which is only useful to a future run if it
@@ -796,6 +796,13 @@ Code: `globalThis.sroPage = sroPage;`
 > exactly this component; then role and name; then a unique test id; then
 > an xpath -- and only an xpath that finds this element, else `null`, since
 > a locator that finds nothing teaches a future run to fail.
+>
+> A reachable answer also carries a `pin`: the hit element is kept under it
+> in that frame's own `__sroHits` map, so `holds` can later ask whether the
+> step's RECORDED locator resolves to the element this point hit (X7 review,
+> non-write sight ruling). ponytail: the map lives as long as the document
+> and gains one entry per sight point; clear it per step if a page ever
+> lives through enough sight steps for that to matter.
 
 ## `act`, [line 896](../../../../../new-chrome-extension/src/page/page-code.js#L896): Function
 
@@ -858,8 +865,16 @@ Code: `globalThis.sroPage = sroPage;`
 > holds when the expected value is the chosen option's `value`: `act`
 > accepts an option by value or by text, so a run's parameter may name
 > either, while the recording names the label.
+>
+> A pin `hitTest` gave (sight) is stricter: the payload's recorded locator
+> is resolved with `find`, never repaired (the sight lane sends no
+> `write: false`), and holds only when it resolves to the hit element or to
+> the control that contains it (a click lands on a button's inner span); the
+> state is then read from that recorded control. So the right value typed
+> into the wrong field, or a click on any element that is merely visible
+> and enabled, never holds.
 
-## `signals`, [line 976](../../../../../new-chrome-extension/src/page/page-code.js#L976): Function
+## `signals`, [line 984](../../../../../new-chrome-extension/src/page/page-code.js#L984): Function
 
 > S6: what the page's own inputs say about it, never what was typed into
 > them. Only inputs `shown` passes count -- the one visibility rule this file

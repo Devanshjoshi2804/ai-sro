@@ -401,7 +401,7 @@ class SteelDriver:
             log = self._calls.get(request.frame.page)
         except PlaywrightError:
             return
-        sent = None if log is None else log.numbered.pop(request, None)
+        sent = None if log is None else log.numbered.get(request)
         if log is None or sent is None:
             return
         reading = asyncio.get_running_loop().create_task(self._record(log, sent, response))
@@ -423,6 +423,7 @@ class SteelDriver:
             sent.own_frame,
         )
         log.seen.append((sent.at, call))
+        log.numbered.pop(response.request, None)
         log.changed.set()
 
     async def _frame(self, page: Page, payload: Mapping[str, object]) -> tuple[Frame | None, str]:
@@ -511,11 +512,10 @@ class SteelDriver:
         x: int,
         y: int,
         value: str | None,
+        frame_path: Sequence[Mapping[str, object]] | None,
     ) -> None:
         page = await self._page(session, target_id)
-        hit = await self.hit_test(session, target_id, x, y)
-        hops = hit.get("frame_path") if hit else None
-        frame, _ = await self._frame(page, {"frame_path": hops if isinstance(hops, list) else []})
+        frame, _ = await self._frame(page, {"frame_path": list(frame_path or [])})
         self._log(page).acted = frame
 
         async def gesture() -> None:
@@ -539,7 +539,7 @@ class SteelDriver:
         ):
             await self.on(session, "request", self._sent)
             await self.on(session, "response", self._heard)
-        self._log(page)
+        self._log(page).acted = None
         return next(self._seq)
 
     async def calls_since(
@@ -548,7 +548,24 @@ class SteelDriver:
         log = self._calls.get(await self._page(session, target_id))
         if log is None or log.first > mark:
             return ()
-        return tuple(call for at, call in sorted(log.seen, key=lambda one: one[0]) if at > mark)
+        pending = [
+            (
+                sent.at,
+                SeenCall(
+                    request.method,
+                    request.url,
+                    None,
+                    None,
+                    sent.body,
+                    sent.content_type,
+                    sent.own_frame,
+                ),
+            )
+            for request, sent in log.numbered.items()
+        ]
+        return tuple(
+            call for at, call in sorted([*log.seen, *pending], key=lambda one: one[0]) if at > mark
+        )
 
     async def wait_for_call(
         self,
@@ -591,7 +608,14 @@ class SteelDriver:
         self, session: SessionRef, target_id: str, payload: Mapping[str, object], deadline_s: float
     ) -> bool:
         page = await self._page(session, target_id)
-        frame = self._log(page).acted or page.main_frame
+        recorded, _ = (
+            await self._frame(page, payload)
+            if isinstance(payload.get("frame_path"), list)
+            else (self._log(page).acted or page.main_frame, "")
+        )
+        if recorded is None:
+            return False
+        frame = recorded
         try:
             await self._call(
                 session,

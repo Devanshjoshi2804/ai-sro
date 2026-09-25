@@ -911,8 +911,14 @@
       return { ...done, matched_by: f.strategy, candidates: f.candidates, repaired, pin, state: stateOf(f.el) };
     },
     holds(payload) {
-      const acted = globalThis.__sroActed;
-      if (!acted || !payload.pin || acted.pin !== payload.pin) return null;
+      const hit = globalThis.__sroHits?.get(payload.pin);
+      const acted = hit ? { el: hit, repaired: false } : globalThis.__sroActed;
+      if (!acted || !payload.pin || (!hit && acted.pin !== payload.pin)) return null;
+      if (hit) {
+        const recorded = find(payload).el;
+        if (!recorded || !recorded.contains(hit)) return null;
+        acted.el = recorded;
+      }
       const seen = stateOf(acted.el);
       const want = payload.expect || {};
       const keys = (acted.el.type || "").toLowerCase() === "password" ? ["visible", "enabled"] : ["value", "visible", "enabled"];
@@ -949,6 +955,8 @@
       }
       if (!el) return null;
       const win = doc.defaultView || window;
+      const pin = Math.random().toString(36).slice(2);
+      (win.__sroHits ||= new Map()).set(pin, el);
       const frame_path = framePathOf(win);
       const only = (found) => found.length === 1 && found[0] === el;
       const cmp = cmpOf(el);
@@ -958,20 +966,20 @@
         for (const query of [item, chain.slice(-2).join(" "), chain.join(" ")]) {
           if (!query || !(query.startsWith("#") || query.includes(" "))) continue;
           const found = components(query, win);
-          if (found.length === 1 && found[0] === cmp) return { strategy: "component", query, frame_path };
+          if (found.length === 1 && found[0] === cmp) return { strategy: "component", query, frame_path, pin };
         }
       }
       const role = roleOf(el);
       const name = nameOf(el);
       if (role && name && only(qsa("*", doc).filter((one) => roleOf(one) === role && nameOf(one) === name))) {
-        return { strategy: "role_and_name", query: `${role}|${name}`, frame_path };
+        return { strategy: "role_and_name", query: `${role}|${name}`, frame_path, pin };
       }
       const testId = el.getAttribute("data-testid");
       if (testId && only(qsa(`[data-testid="${CSS.escape(testId)}"]`, doc))) {
-        return { strategy: "test_id", query: testId, frame_path };
+        return { strategy: "test_id", query: testId, frame_path, pin };
       }
       const path = xpathOf(el);
-      return only(byXpath(path, doc)) ? { strategy: "xpath", query: path, frame_path } : null;
+      return only(byXpath(path, doc)) ? { strategy: "xpath", query: path, frame_path, pin } : null;
     },
     signals() {
       const inputs = qsa("input")

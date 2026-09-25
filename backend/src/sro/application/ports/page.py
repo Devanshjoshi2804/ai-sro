@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -79,6 +79,7 @@ class PageDriver(Protocol):
         x: int,
         y: int,
         value: str | None,
+        frame_path: Sequence[Mapping[str, object]] | None,
     ) -> None: ...
 
     async def open_tab(self, session: SessionRef, url: str) -> str: ...

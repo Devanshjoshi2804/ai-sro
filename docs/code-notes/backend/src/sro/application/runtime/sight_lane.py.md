@@ -2,13 +2,13 @@
 
 Comments and docstrings moved out of [`backend/src/sro/application/runtime/sight_lane.py`](../../../../../../../backend/src/sro/application/runtime/sight_lane.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `ALLOWED`, [line 29](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L29): Constant
+## `ALLOWED`, [line 32](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L32): Constant
 
 > The gestures sight may propose (spec §6.1 Sight). Navigation, dragging and
 > anything outside the account's own tab are not offered to the model at all;
 > the Computer Use adapter turns anything else it proposes into a refusal.
 
-## `SightLane`, [line 40](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L40): Class
+## `SightLane`, [line 45](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L45): Class
 
 > The last lane: `gemini-3.8-flash` with the Computer Use tool looks at a
 > screenshot of the account's own Steel tab and names one point at a time,
@@ -16,33 +16,71 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/sight
 >
 > - **Action cap.** Each model gets at most `K_SIGHT_ACTIONS` proposals
 >   (refusals and waits count); a model that has not finished by then hands
->   over. There is no sleep between proposals: every proposal takes a fresh
->   screenshot, and the only waiting is the named deadline on the write's own
->   call (`K_UI_WAIT_S`).
+>   over. A `wait` proposal waits on the page settling (`signals`, which
+>   waits out the main frame's pending navigation); a page that does not
+>   settle ends that model's turn instead of spending the cap on waits.
 > - **One escalation.** `flash` first, then `pro` (`gemini-3.1-pro-preview`)
 >   once, on the same page, when flash refuses or runs out of actions. Both
 >   are built by the container over `metered_client`, so every call is billed
 >   and refused by `Meter` once the tenant's daily cap is spent; the lane
 >   attributes each call to the run's tenant, workflow and step with
 >   `whose.about` so the meter never sees an unattributed call.
-> - **Origin rule.** The tab's origin is compared with the step's system
->   before every screenshot and again before every point. Once the tab has
->   left it, nothing more is shown to the model or done on the page.
+> - **A write is sent once.** On a writing step, before every model call and
+>   again right before every point, the lane asks the tab's log for a call
+>   with the recorded write's method and path shape, from any frame,
+>   answered or not (the driver numbers calls when they are SENT). Once one
+>   is there sight stops: no further point, no escalation, and the step
+>   settles by the own-call rule alone (X7 review C1). The match is broad on
+>   purpose, since stopping is the safe direction.
+> - **The mark.** Taken right before the first point, not when the step
+>   starts, and `mark` forgets the frame the previous step acted in: a call
+>   sent while the first screenshot is being read (an autosave) is never this
+>   step's call (X7 review I5).
+> - **Origin rule.** Home is `scheme://host[:port]` of the primary gesture's
+>   recorded URL -- evidence only, never `step.system`, which is model text
+>   (X7 review I1), and with the scheme, so an http downgrade on the same
+>   host is off the system (M3). The tab is compared with it before every
+>   screenshot and again before every point; once it has left, nothing more
+>   is shown to the model or done on the page.
+> - **Unreachable hits.** A point whose hit test lands in a cross-origin
+>   frame is never made (X7 review I2); that model's turn ends. A reachable
+>   hit is same-origin by construction, so every point acts in the system.
 > - **Secrets.** A step citing any secret gesture is refused before a
 >   screenshot is taken: sight never types a credential. A screenshot lives
 >   only in the loop iteration that asked about it; it is never logged, put in
 >   a result, or kept in the history the model is given.
-> - **Settling.** The model saying "done" confirms nothing. A write is done
->   only by X4's own-call rule (`ui_lane.same_call`: acting frame, host, path
->   shape, body keys, numbered after the mark) with a wanted status; a 4xx is
->   failed, anything else unknown. A read is `read` only when its own call
->   answered 2xx; otherwise `unknown`. A step where nothing was pointed at
->   is `failed` with `never_left`, since nothing reached the page; any
->   exception after a write's first point is `unknown`.
-> - **Learning.** `learned` is the hit test of the last point, and only on a
->   `done` or `read` step: an unconfirmed step teaches nothing.
+> - **Settling.** The model saying "done" confirms nothing.
+>   - A write is done only by X4's own-call rule (`ui_lane.same_call`:
+>     acting frame, host, path shape, body keys, numbered after the mark)
+>     with a wanted status; a 4xx is failed, anything else unknown.
+>   - A read is `read` only when its own call answered 2xx.
+>   - A step whose primary gesture recorded a move to another page shape is
+>     done only when the tab is on that shape now, was not on it at the
+>     mark, and every id in the recorded path is confirmed: equal to one of
+>     the run's values when the run gave any, else equal to the recorded id
+>     (a constant step). The wrong record, or the recorded record on a run
+>     that asked for another, is unknown.
+>   - Any other step is done only when the recorded locator (with its
+>     `frame_path`, strict, never repaired, never a learned locator)
+>     resolves to the element the last point of the primary gesture's kind
+>     hit (the hit's pin), and that control holds the run's value
+>     (`value_for`) with the recorded visible and enabled. The right value
+>     in the wrong field, a click on any visible element, or a prefilled
+>     field that already showed the recording's value are all unknown.
+>   - A step where nothing was pointed at is `failed` with `never_left`,
+>     since nothing reached the page. Any exception once `about_to_write`
+>     has returned is `unknown`, never `never_left`; `Stopped` and
+>     cancellation propagate.
+> - **Learning.** Only from the element that satisfied the step's check.
+>   For a write, that is the last point -- sight stops right after the point
+>   its call followed -- and only when that point is of the primary
+>   gesture's kind, so a blur-click on Cancel never teaches a typing step.
+>   For an element check, the hit it confirmed. A read or a navigation is
+>   confirmed by no element and teaches nothing.
+> - **Reasons.** A refusal is forgotten once a later point is made, so a
+>   step pro acted on never reports flash's refusal (M6).
 
-## `_taught`, [line 204](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L204): Function
+## `_taught`, [line 300](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L300): Function
 
 > What a hit test teaches (X2 ruling). `None` (nothing, or no unique
 > locator) and `unreachable` (a cross-origin frame) teach nothing, and so

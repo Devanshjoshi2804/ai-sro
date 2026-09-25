@@ -72,10 +72,14 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > `changed` is set on every append and when the tab closes, so every waiter
 > wakes on a real event. `reading` keeps the body-reading tasks referenced
 > until they finish. `acted` is the frame the last `act` ran in, where
-> `holds` must be asked: the pin lives in that frame's realm. ponytail:
-> `numbered` keeps a request that never gets a response (it failed) until
-> the tab closes; drop it on `requestfailed` if a tab ever lives long enough
-> for that to matter.
+> `holds` must be asked: the pin lives in that frame's realm. A request
+> stays in `numbered` until `_record` has appended its call to `seen` (the
+> append and the removal are one synchronous step), so every call the tab
+> SENT is in exactly one of the two and `calls_since` can show a write that
+> went out and has no answer yet (X7 review C1). A request that never gets a
+> response (it failed) stays there as sent with no status: it may well have
+> reached the server. ponytail: kept until the tab closes; drop it on
+> `requestfailed` if a tab ever lives long enough for that to matter.
 
 ## `SteelDriver`, [line 99](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L99): Docstring
 
@@ -307,7 +311,8 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > The `response` listener, registered alongside `_sent`. It keeps only a
 > response whose request `_sent` numbered in this same log: a request sent
 > before the listener existed, or into a log that has since been lost, has
-> no number and is not a call anyone can claim. Reading the body is a task.
+> no number and is not a call anyone can claim. Reading the body is a task;
+> the request leaves `numbered` only when that task records it.
 
 ## `SteelDriver._record`, [line 411](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L411): Docstring
 
@@ -315,7 +320,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > sequence `_heard` gave it. A body that cannot be read (a redirect, a tab
 > that closed) is `None`; the call itself still counts.
 
-## `SteelDriver._frame`, [line 428](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L428): Docstring
+## `SteelDriver._frame`, [line 429](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L429): Docstring
 
 > Where the page code runs (spec §4.3, E3), and why not: `("", "")` on
 > success, or `(None, kind)` naming the refusal. With a recorded `frame_path`,
@@ -333,7 +338,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > acting in every matching frame would click twice on a page that carries the
 > same form twice.
 
-## `SteelDriver.act`, [line 454](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L454): Docstring
+## `SteelDriver.act`, [line 455](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L455): Docstring
 
 > Runs `sroPage.act` in the chosen frame through `_call`, so a closed tab is
 > `PageGone`. A recorded frame that is gone is `frame_not_found`; an
@@ -345,16 +350,19 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 ## `SteelDriver.mark`, [line 535](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L535): Docstring
 
 > Registers the call listeners for the account on first use, makes sure the
-> tab's log exists, then takes a number from the one counter: every request
-> sent after this returns gets a higher one. Taken before `act`, so the act's
-> own requests are after it.
+> tab's log exists, forgets the frame the last step acted in, then takes a
+> number from the one counter: every request sent after this returns gets a
+> higher one. Taken before `act`, so the act's own requests are after it.
+> Forgetting `acted` means a request from the previous step's frame (an
+> autosave) is never `own_frame` before this step has acted (X7 review I5).
 
 ## `SteelDriver.calls_since`, [line 545](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L545): Docstring
 
-> The tab's calls sent after `mark`, in the order they were sent; nothing at
-> all when the log `mark` was taken on has been lost since.
+> The tab's calls sent after `mark`, in the order they were sent, answered or
+> not: one still waiting has `status=None`. Nothing at all when the log
+> `mark` was taken on has been lost since.
 
-## `SteelDriver.wait_for_call`, [line 553](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L553): Docstring
+## `SteelDriver.wait_for_call`, [line 570](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L570): Docstring
 
 > Waits on the log's `changed` event until a call with that method and path
 > shape, sent after `since`, is answered. A lost log answers `False` at once. No sleep, no polling: it wakes on a new call or
@@ -362,10 +370,13 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > whether the tab is still there: gone is `PageGone`, alive is `False` (the
 > page is fine; the call never came).
 
-## `SteelDriver.wait_for`, [line 590](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L590): Docstring
+## `SteelDriver.wait_for`, [line 607](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L607): Docstring
 
 > Playwright's `wait_for_function` on `sroPage.holds(payload)` in the frame
-> `act` last ran in on this tab (kept on its log, not chosen again: a probe
+> the payload's `frame_path` names, when it names one (resolved exactly as
+> `act` resolved it, so for the UI lane it is the frame `act` ran in, and for
+> sight it is the recorded frame whatever frame the last point was in);
+> otherwise in the frame `act` last ran in on this tab (kept on its log, not chosen again: a probe
 > that changed its mind since would ask the wrong frame; X4 review M2), or the
 > main frame when nothing has acted: the condition is the pinned element's state, never a
 > fixed wait. A Playwright timeout on a live tab is `False`, the port's answer
@@ -373,7 +384,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > turns a closed tab into `PageGone` first. The port returns `bool`, so the
 > not-met case is `False`, not an exception.
 
-## `SteelDriver.storage_state`, [line 608](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L608): Docstring
+## `SteelDriver.storage_state`, [line 632](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L632): Docstring
 
 > Cookies come from the account's own jar (`Storage.getCookies` with its
 > `browserContextId`). `localStorage` is read from the account's open
@@ -381,7 +392,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > with no open tab is not in the state. Sign-in reads the state with the
 > signed-in tab open, the only place this plan calls it.
 
-## `SteelDriver.restore_state`, [line 637](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L637): Docstring
+## `SteelDriver.restore_state`, [line 661](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L661): Docstring
 
 > Cookies go into the account's jar directly. `localStorage` is written now,
 > into the context itself, through a short-lived tab whose every request is
@@ -392,14 +403,14 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > review M5). This is how Playwright restores storage state into a context
 > it made; here the context is Steel's, so it is done by hand.
 
-## `SteelDriver.forget`, [line 670](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L670): Docstring
+## `SteelDriver.forget`, [line 694](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L694): Docstring
 
 > Drops this account's listeners from `SteelDriver._listeners` and from
 > every tab of theirs the driver currently knows about. It closes nothing:
 > the connection is shared by every account on the container, and the
 > context belongs to the pool (S4, S7's lease), which closes it.
 
-## `SteelDriver.aclose`, [line 681](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L681): Docstring
+## `SteelDriver.aclose`, [line 705](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L705): Docstring
 
 > Closes every connection and stops Playwright; the API lifespan and the
 > worker call it on the way down (S5 review I6). Closing a
@@ -436,7 +447,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > reaches `UiLane` as `PageUnsettled` through `_call`, never as a raw
 > `TimeoutError`.
 
-## `best_frame`, [line 691](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L691): Docstring
+## `best_frame`, [line 715](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L715): Docstring
 
 > Which frame the probe acts in, from `(frame, strategy)` for every frame
 > whose `resolve` found the control. A strict strategy outranks `repair`
@@ -455,18 +466,19 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > How far a sight scroll moves when the model names no distance: about half
 > of an 800-pixel viewport, so what was at the bottom is still on screen.
 
-## `SteelDriver.screenshot`, [line 485](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L485): Function
+## `SteelDriver.screenshot`, [line 486](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L486): Function
 
 > A PNG of the tab at CSS scale, sized by the viewport in CSS pixels, so the
 > model's points are the same coordinates `page.mouse` and `hitTest` use.
 
-## `SteelDriver.point`, [line 506](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L506): Function
+## `SteelDriver.point`, [line 507](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L507): Function
 
 > Carries out one sight gesture with `page.mouse`/`page.keyboard`, which
 > Playwright sends as CDP `Input` events to this tab. Before the gesture it
-> hit-tests the point and resolves the frame it lands in from the hit's
-> `frame_path` (the unreachable answer carries one too), and records that as
-> the acted frame, so the write's own call is judged by the frame the click
-> really went to. A point that hits nothing is taken as the main frame; a
-> frame that cannot be found leaves no acted frame, so no call is its own and
-> the write settles as unknown, never done.
+> resolves the frame named by `frame_path` -- the path of the lane's own hit
+> test for this point, so the element the lane learns from and the frame
+> the write is judged by come from one hit test, not two that the page can
+> change between (X7 review M5) -- and records that as the acted frame, so
+> the write's own call is judged by the frame the click really went to.
+> `None` is the main frame; a frame that cannot be found leaves no acted
+> frame, so no call is its own and the write settles as unknown, never done.

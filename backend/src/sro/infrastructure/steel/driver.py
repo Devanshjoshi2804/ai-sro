@@ -4,6 +4,7 @@ import asyncio
 import contextlib
 import itertools
 import json
+from collections import deque
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -29,6 +30,8 @@ from sro.application.ports.page import PageAnswer, PageGone, PageUnsettled, Sess
 from sro.domain.execution.lanes import SeenCall
 from sro.domain.observation.gesture import AfterState
 from sro.domain.observation.trim import path_shape
+from sro.domain.recording.sensitivity import Sensitivity, classify_header
+from sro.domain.shared.hosts import origin_of
 from sro.domain.skill.signing_in import PageSignals, a_navigation
 from sro.infrastructure.steel.capture import addressed
 from sro.infrastructure.steel.client import cdp_origin, websocket_debugger_url
@@ -82,6 +85,7 @@ class _Calls:
 @dataclass
 class _Tab:
     visited: list[str] | None
+    owner: str = ""
     pending: set[Request] = field(default_factory=set)
     settled: asyncio.Event = field(default_factory=asyncio.Event)
     loads: int = 0
@@ -101,6 +105,8 @@ class SteelDriver:
         self._listeners: dict[tuple[str, str], list[tuple[str, Callable[..., Any]]]] = {}
         self._calls: dict[Page, _Calls] = {}
         self._tabs: dict[Page, _Tab] = {}
+        self._requests: dict[str, deque[tuple[str, dict[str, str]]]] = {}
+        self._seen: dict[str, asyncio.Event] = {}
         self._seq = itertools.count(1)
 
     async def _lock_for(self, cdp_url: str) -> asyncio.Lock:
@@ -154,7 +160,7 @@ class SteelDriver:
             return
         target_id, owner = str(info["targetId"]), str(info.get("browserContextId", ""))
 
-        tab = self._tabs[page] = _Tab([] if whole else None)
+        tab = self._tabs[page] = _Tab([] if whole else None, owner=owner)
         tab.settled.set()
 
         def gone(_: Page) -> None:
@@ -390,6 +396,19 @@ class SteelDriver:
             return
         self._log(page).numbered[request] = _Sent(next(self._seq), own_frame, body, content_type)
 
+    def _saw(self, request: Request) -> None:
+        try:
+            page = request.frame.page
+            headers = dict(request.headers)
+        except PlaywrightError:
+            return
+        tab = self._tabs.get(page)
+        if tab is None or not tab.owner:
+            return
+        queue = self._requests.setdefault(tab.owner, deque(maxlen=200))
+        queue.append((origin_of(request.url), headers))
+        self._seen.setdefault(tab.owner, asyncio.Event()).set()
+
     def _heard(self, response: Response) -> None:
         request = response.request
         try:
@@ -578,6 +597,56 @@ class SteelDriver:
                 ],
             }
         )
+
+    async def headers_for(
+        self, session: SessionRef, origin: str, deadline_s: float
+    ) -> dict[str, str]:
+        await self._context(session)
+        if ("request", self._saw) not in self._listeners.get(
+            (session.cdp_url, session.context_id), []
+        ):
+            await self.on(session, "request", self._saw)
+        loop = asyncio.get_running_loop()
+        wanted = origin_of(origin)
+        ends = loop.time() + deadline_s
+        while True:
+            for seen_origin, headers in reversed(self._requests.get(session.context_id) or ()):
+                if seen_origin != wanted:
+                    continue
+                kept = {
+                    name.lower(): value
+                    for name, value in headers.items()
+                    if classify_header(name) in (Sensitivity.AUTH, Sensitivity.CSRF)
+                    and name.lower() != "cookie"
+                }
+                if kept:
+                    return kept
+            left = ends - loop.time()
+            if left <= 0:
+                return {}
+            seen = self._seen.setdefault(session.context_id, asyncio.Event())
+            seen.clear()
+            try:
+                await asyncio.wait_for(seen.wait(), timeout=left)
+            except TimeoutError:
+                return {}
+
+    async def cookies_for(self, session: SessionRef, origin: str) -> str:
+        link = await self._context(session)
+        found = await self._send(
+            link, "Storage.getCookies", {"browserContextId": session.context_id}
+        )
+        parsed = urlsplit(origin)
+        if not parsed.netloc:
+            parsed = urlsplit(f"//{origin}")
+        host = parsed.hostname or origin
+        matched = [
+            cookie
+            for cookie in found["cookies"]
+            if host == str(cookie.get("domain", "")).lstrip(".")
+            or host.endswith("." + str(cookie.get("domain", "")).lstrip("."))
+        ]
+        return "; ".join(f"{cookie['name']}={cookie['value']}" for cookie in matched)
 
     async def restore_state(self, session: SessionRef, state: str) -> None:
         saved = json.loads(state)

@@ -14,7 +14,14 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > that outlives it is logged and left to its container; its lease is
 > already expired or broken, so nothing opens a tab on it again.
 
-## `SessionBroker`, [line 44](../../../../../../../backend/src/sro/application/runtime/broker.py#L44): Note
+## `K_HEADERS_WAIT_S`, [line 42](../../../../../../../backend/src/sro/application/runtime/broker.py#L42): Note
+
+> The bound `headers` gives `PageDriver.headers_for` (spec §5.7): the API
+> lane's own budget for a header a page never sends, not a sleep the
+> driver waits out regardless -- `headers_for` returns the moment it sees
+> one.
+
+## `SessionBroker`, [line 45](../../../../../../../backend/src/sro/application/runtime/broker.py#L45): Note
 
 > One account, one lease, one browser context in its tenant's Steel
 > container; every run on that account is a tab in that context (§5.3).
@@ -68,7 +75,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > The stray sweeper keeps every session a live lease names, and the broker
 > never releases one (S7 review, I3).
 
-## `SessionBroker._recover`, [line 110](../../../../../../../backend/src/sro/application/runtime/broker.py#L110): Note
+## `SessionBroker._recover`, [line 124](../../../../../../../backend/src/sro/application/runtime/broker.py#L124): Note
 
 > `PageGone` from `open_tab` does not only mean the context is dead:
 > `driver.py`'s `open_tab` also raises it when a tab fails to attach
@@ -86,7 +93,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > not caught here: the context is confirmed alive, so a second failure on
 > it is not this function's case to handle and reaches `acquire`'s caller.
 
-## `SessionBroker._recorded`, [line 194](../../../../../../../backend/src/sro/application/runtime/broker.py#L194): Note
+## `SessionBroker._recorded`, [line 208](../../../../../../../backend/src/sro/application/runtime/broker.py#L208): Note
 
 > The account is where the password is typed -- the identity provider's
 > origin that `recorded_login` reads off the credential gesture -- with the
@@ -98,7 +105,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > the given account's is refused for the same reason: the chain types the
 > recorded username.
 
-## `SessionBroker._sign_in`, [line 215](../../../../../../../backend/src/sro/application/runtime/broker.py#L215): Note
+## `SessionBroker._sign_in`, [line 229](../../../../../../../backend/src/sro/application/runtime/broker.py#L229): Note
 
 > The recorded sign-in job's chain (`sign_in_chain`, audit wave 1 Task 10)
 > replayed through the UI lane with the vault password as the step's
@@ -110,7 +117,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > page's structure (S6), never by its text. Each step beats the lease, so a
 > long chain keeps it and a lost lease stops the chain.
 
-## `SessionBroker._save_state`, [line 259](../../../../../../../backend/src/sro/application/runtime/broker.py#L259): Note
+## `SessionBroker._save_state`, [line 273](../../../../../../../backend/src/sro/application/runtime/broker.py#L273): Note
 
 > Cookies and localStorage go to the vault under the account's `state` key,
 > and only if they fit `K_VAULT_VALUE_BYTES`. A state over the limit is not
@@ -119,7 +126,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > state that restores half a session. The log line names the account and
 > the size, never the state.
 
-## `SessionBroker._reclaim`, [line 285](../../../../../../../backend/src/sro/application/runtime/broker.py#L285): Note
+## `SessionBroker._reclaim`, [line 299](../../../../../../../backend/src/sro/application/runtime/broker.py#L299): Note
 
 > After every fresh claim, the contexts Chrome still lists on that
 > container whose lease rows have ended are disposed. A close that hit

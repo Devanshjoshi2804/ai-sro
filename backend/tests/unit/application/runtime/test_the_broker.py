@@ -268,6 +268,18 @@ async def test_a_beat_says_whether_the_holder_still_has_the_lease() -> None:
     assert await broker.beat(CTX, held.lease.id, holder="run_1") is False
 
 
+async def test_the_api_lane_is_handed_the_session_s_cookie_and_token() -> None:
+    uow, driver, vault = FakeUnitOfWork(), FakePageDriver(), FakeCredentialVault()
+    driver.cookie = "sid=abc"
+    driver.headers = {"x-csrf-token": "t1"}
+    broker = _broker(uow, driver, vault)
+    held = await broker.acquire(CTX, LENA, APP, holder="run_1")
+
+    said = await broker.headers(CTX, held, "https://wms.example")
+
+    assert said == {"cookie": "sid=abc", "x-csrf-token": "t1"}
+
+
 async def test_the_lease_names_the_steel_session_and_the_context_apart() -> None:
     uow, driver, vault = FakeUnitOfWork(), FakePageDriver(), FakeCredentialVault()
     pool = FakeBrowserPool({STEEL: 5})

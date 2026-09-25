@@ -16,6 +16,7 @@ import pytest
 
 from sro.application.ports.page import PageGone, SessionRef
 from sro.config import get_settings
+from sro.domain.shared.hosts import origin_of
 from sro.domain.skill.signing_in import a_sign_in_page
 from sro.infrastructure.steel.client import SteelClient
 from sro.infrastructure.steel.driver import SteelDriver
@@ -215,6 +216,32 @@ async def test_one_account_never_sees_the_calls_another_account_makes_in_the_sam
     )
     with pytest.raises(PageGone):
         await driver.calls_since(a, theirs, 0)
+
+
+async def test_a_s_csrf_token_and_cookie_are_never_b_s(
+    accounts: Accounts,
+    steel_rig: Rig,
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    _, _, a, b = accounts
+    app_origin = origin_of(steel_rig.url("/app"))
+
+    theirs = await driver.open_tab(b, steel_rig.url("/"))
+    await steel_rig.sign_in_in(driver, b, theirs)
+    await driver.headers_for(b, app_origin, 0.1)  # registers the request listener
+    await driver.evaluate(b, theirs, "document.getElementById('save').click()")
+    said_b = await driver.headers_for(b, app_origin, 10.0)
+    cookie_b = await driver.cookies_for(b, app_origin)
+
+    said_a = await driver.headers_for(a, app_origin, 1.0)
+    cookie_a = await driver.cookies_for(a, app_origin)
+
+    assert set(said_b) == {"x-csrf-token"}
+    assert said_b["x-csrf-token"]
+    assert cookie_b.startswith("sid=")
+    assert said_a == {}
+    assert cookie_a == ""
+    assert cookie_a != cookie_b
 
 
 async def test_a_tab_s_calls_are_forgotten_body_and_all(

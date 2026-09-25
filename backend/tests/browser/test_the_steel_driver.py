@@ -15,6 +15,7 @@ from playwright.async_api import async_playwright
 from sro.application.ports.page import PageGone, PageUnsettled, SessionRef
 from sro.config import get_settings
 from sro.domain.observation.gesture import AfterState
+from sro.domain.shared.hosts import origin_of
 from sro.domain.skill.signing_in import a_sign_in_page, asks_for_a_code, expired
 from sro.infrastructure.steel import driver as driver_module
 from sro.infrastructure.steel.client import websocket_debugger_url
@@ -429,6 +430,32 @@ async def test_one_account_never_sees_another_accounts_calls(
         await driver.mark(one, theirs)
     with pytest.raises(PageGone):
         await driver.calls_since(one, theirs, 0)
+
+
+async def test_headers_for_answers_as_soon_as_the_page_sends_its_own_csrf_token(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    two: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    app_origin = origin_of(rig.url("/app"))
+    target = await driver.open_tab(one, rig.url("/"))
+    await rig.sign_in_in(driver, one, target)
+    await driver.headers_for(one, app_origin, 0.1)  # registers the request listener
+
+    started = asyncio.get_running_loop().time()
+    await driver.evaluate(one, target, "document.getElementById('save').click()")
+    got = await driver.headers_for(one, app_origin, 5.0)
+    elapsed = asyncio.get_running_loop().time() - started
+
+    assert elapsed < 2.0
+    assert set(got) == {"x-csrf-token"}
+    assert got["x-csrf-token"]
+
+    empty = await driver.open_tab(two, rig.url("/public"))
+    got_none = await driver.headers_for(two, origin_of(rig.url("/public")), 0.3)
+    assert got_none == {}
+    assert empty
 
 
 async def test_every_wait_on_a_tab_that_closes_is_page_gone_before_its_deadline(

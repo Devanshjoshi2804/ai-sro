@@ -34,12 +34,12 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/page.py
 > `restore_state`, `forget`) and `aclose`; a `Protocol` has no body to
 > conflict over, so the two additions merge as a plain union of methods.
 
-## `PageDriver.aclose`, [line 82](../../../../../../../backend/src/sro/application/ports/page.py#L82): Docstring
+## `PageDriver.aclose`, [line 88](../../../../../../../backend/src/sro/application/ports/page.py#L88): Docstring
 
 > The driver holds connections for the life of the process; whoever built
 > the container closes them on the way down.
 
-## `PageDriver.forget_calls`, [line 80](../../../../../../../backend/src/sro/application/ports/page.py#L80): Docstring
+## `PageDriver.forget_calls`, [line 86](../../../../../../../backend/src/sro/application/ports/page.py#L86): Docstring
 
 > Drops a tab's call log, request bodies included. The broker calls it on
 > the probe tab before handing it to the first run, so the sign-in POST,

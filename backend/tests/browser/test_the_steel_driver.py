@@ -491,6 +491,24 @@ async def test_nothing_needed_is_answered_at_once_from_a_context_that_sent_no_to
     assert loop.time() - started < 1.0
 
 
+async def test_a_needed_token_that_never_comes_is_answered_inside_the_deadline(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    """The deadline bounds the whole call, the round trips to Chrome
+    included: a caller holding its own budget gets the partial answer back
+    before that budget is gone, and can say which header was missing."""
+    await driver.open_tab(one, rig.url("/public"))
+    loop = asyncio.get_running_loop()
+    started = loop.time()
+
+    got = await driver.headers_for(one, origin_of(rig.url("/public")), 0.5, needs=("x-csrf-token",))
+
+    assert got == {}
+    assert loop.time() - started < 0.5 + 0.05
+
+
 async def test_a_fresh_token_is_never_one_sent_before_the_mark(
     rig: Rig,  # noqa: F811
     one: SessionRef,  # noqa: F811

@@ -75,17 +75,23 @@ class SessionBroker:
         return account
 
     async def acquire(
-        self, ctx: RequestContext, account: Account, start_url: str, *, holder: str
+        self,
+        ctx: RequestContext,
+        account: Account,
+        start_url: str,
+        *,
+        holder: str,
+        park: bool = True,
     ) -> Held:
         async with self._uow as uow:
             lease = await uow.browser_sessions.current_lease(ctx.tenant_id, account)
         if lease is not None:
             with contextlib.suppress(PageGone):
-                held = await self._attach(ctx, lease, start_url, holder)
+                held = await self._attach(ctx, lease, start_url, holder if park else None)
                 if held is not None:
                     return held
         async with self._locks.hold(account):
-            return await self._ready(ctx, account, start_url, holder=holder)
+            return await self._ready(ctx, account, start_url, holder=holder, park=park)
 
     async def reattach(self, ctx: RequestContext, lease_id: str, target_id: str) -> Held:
         async with self._uow as uow:
@@ -103,7 +109,7 @@ class SessionBroker:
     async def screenshot(self, ctx: RequestContext, held: Held) -> Screen:
         return await self._driver.screenshot(held.session, held.target_id)
 
-    async def beat(self, ctx: RequestContext, lease_id: str, *, holder: str) -> bool:
+    async def beat(self, ctx: RequestContext, lease_id: str, *, holder: str | None) -> bool:
         async with self._uow as uow:
             kept = await uow.browser_sessions.beat(
                 ctx.tenant_id, lease_id, now=self._clock.now(), holder=holder
@@ -148,7 +154,13 @@ class SessionBroker:
         return {"cookie": cookie, **said} if cookie else said
 
     async def reauth(
-        self, ctx: RequestContext, held: Held, start_url: str, *, back_to: str | None = None
+        self,
+        ctx: RequestContext,
+        held: Held,
+        start_url: str,
+        *,
+        back_to: str | None = None,
+        park: bool = True,
     ) -> None:
         async with self._locks.hold(held.lease.account):
             async with self._uow as uow:
@@ -163,9 +175,9 @@ class SessionBroker:
             await self._driver.goto(held.session, held.target_id, start_url)
             if a_sign_in_page(await self._driver.signals(held.session, held.target_id)):
                 try:
-                    await self._sign_in(ctx, held, start_url)
+                    await self._sign_in(ctx, held, start_url, park=park)
                 except NeedsAPerson as asked:
-                    if asked.kind == "password":
+                    if park and asked.kind == "password":
                         await self._park(ctx, held.lease.id)
                     raise
                 await self._save_state(held.lease, held.session)
@@ -191,7 +203,7 @@ class SessionBroker:
             raise PageGone(f"lease {lease_id} is not waiting for a person")
         async with self._locks.hold(lease.account):
             if not lease.live(self._clock.now()):
-                return await self._ready(ctx, lease.account, start_url, holder=holder)
+                return await self._ready(ctx, lease.account, start_url, holder=holder, park=True)
             held = Held(lease, target_id, await self._session(lease))
             signals = await self._driver.signals(held.session, target_id)
             if asks_for_a_code(signals):
@@ -217,32 +229,33 @@ class SessionBroker:
         )
 
     async def _attach(
-        self, ctx: RequestContext, lease: Lease, start_url: str, holder: str
+        self, ctx: RequestContext, lease: Lease, start_url: str, holder: str | None
     ) -> Held | None:
         if lease.state is not LeaseState.READY or not lease.live(self._clock.now()):
             return None
-        held = await self._tab(lease, start_url)
-        if await self.beat(ctx, lease.id, holder=holder):
-            return held
-        await self.release(ctx, held)
-        return None
+        return await self._beaten(ctx, await self._tab(lease, start_url), holder)
+
+    async def _beaten(self, ctx: RequestContext, held: Held, holder: str | None) -> Held | None:
+        kept = False
+        try:
+            kept = await self.beat(ctx, held.lease.id, holder=holder)
+        finally:
+            if not kept:
+                await self.release(ctx, held)
+        return held if kept else None
 
     async def _recover(
-        self, ctx: RequestContext, lease: Lease, start_url: str, holder: str
+        self, ctx: RequestContext, lease: Lease, start_url: str, holder: str | None
     ) -> Held | None:
         try:
             return await self._attach(ctx, lease, start_url, holder)
         except PageGone:
             if lease.context_id not in await self._pool.contexts(lease.container_url):
                 return None
-        held = await self._tab(lease, start_url)
-        if await self.beat(ctx, lease.id, holder=holder):
-            return held
-        await self.release(ctx, held)
-        return None
+        return await self._beaten(ctx, await self._tab(lease, start_url), holder)
 
     async def _ready(
-        self, ctx: RequestContext, account: Account, start_url: str, *, holder: str
+        self, ctx: RequestContext, account: Account, start_url: str, *, holder: str, park: bool
     ) -> Held:
         now = self._clock.now()
         async with self._uow as uow:
@@ -256,7 +269,7 @@ class SessionBroker:
                 old.container_url
             ):
                 raise AccountBusy(f"{account.key} is waiting for a person until {old.expires_at}")
-            held = await self._recover(ctx, old, start_url, holder)
+            held = await self._recover(ctx, old, start_url, holder if park else None)
             if held is not None:
                 return held
             await self._settle(ctx, old, LeaseState.BROKEN)
@@ -287,8 +300,11 @@ class SessionBroker:
             raise AccountBusy(f"{account.key} was leased as {lease.id} by another holder")
         await self._reclaim(container)
         try:
-            held = await self._signed_in(ctx, lease, start_url)
+            held = await self._signed_in(ctx, lease, start_url, park=park)
         except WaitingForAPerson:
+            raise
+        except (asyncio.CancelledError, TimeoutError):
+            await self._settle(ctx, lease, LeaseState.READY)
             raise
         except BaseException:
             try:
@@ -296,11 +312,19 @@ class SessionBroker:
             finally:
                 await self._close(lease)
             raise
-        if not await self._settle(ctx, lease, LeaseState.READY):
+        settled = False
+        try:
+            settled = await self._settle(ctx, lease, LeaseState.READY)
+        finally:
+            if not settled:
+                await self.release(ctx, held)
+        if not settled:
             raise PageGone(f"lease {lease.id} was lost while it was signing in")
         return replace(held, lease=replace(lease, state=LeaseState.READY))
 
-    async def _signed_in(self, ctx: RequestContext, lease: Lease, start_url: str) -> Held:
+    async def _signed_in(
+        self, ctx: RequestContext, lease: Lease, start_url: str, *, park: bool
+    ) -> Held:
         session = await self._session(lease)
         state = await self._vault.get(lease.account.vault_key("state"))
         if state:
@@ -308,7 +332,7 @@ class SessionBroker:
         held = Held(lease, await self._driver.open_tab(session, start_url), session)
         try:
             if a_sign_in_page(await self._driver.signals(session, held.target_id)):
-                await self._sign_in(ctx, held, start_url)
+                await self._sign_in(ctx, held, start_url, park=park)
             await self._save_state(held.lease, held.session)
             await self._driver.forget_calls(session, held.target_id)
         except WaitingForAPerson:
@@ -340,7 +364,9 @@ class SessionBroker:
             ) from None
         return account, job, seen
 
-    async def _sign_in(self, ctx: RequestContext, held: Held, start_url: str) -> None:
+    async def _sign_in(
+        self, ctx: RequestContext, held: Held, start_url: str, *, park: bool
+    ) -> None:
         account = held.lease.account
         recorded, job, seen = await self._recorded(ctx, start_url)
         if recorded != account:
@@ -360,7 +386,7 @@ class SessionBroker:
             held.session, await self._driver.mark(held.session, held.target_id)
         )
         if asks_for_a_code(await self._driver.signals(held.session, held.target_id)):
-            await self._wait_for_a_person(ctx, held)
+            await self._wait_for_a_person(ctx, held, park=park)
         lane = LaneContext.for_sign_in(ctx, job, seen, held, secret=password)
         for step in sign_in_chain(job, seen):
             result = await self._ui.execute(step, {}, lane)
@@ -372,7 +398,7 @@ class SessionBroker:
                 raise PageGone(f"lease {held.lease.id} was lost while it was signing in")
         after = await self._driver.signals(held.session, held.target_id)
         if asks_for_a_code(after):
-            await self._wait_for_a_person(ctx, held)
+            await self._wait_for_a_person(ctx, held, park=park)
         if a_sign_in_page(after):
             await refused.refuse(
                 key,
@@ -387,7 +413,9 @@ class SessionBroker:
             )
         await self._driver.goto(held.session, held.target_id, start_url)
 
-    async def _wait_for_a_person(self, ctx: RequestContext, held: Held) -> None:
+    async def _wait_for_a_person(self, ctx: RequestContext, held: Held, *, park: bool) -> None:
+        if not park:
+            raise NeedsAPerson(f"{held.lease.account.origin} asks for a one-time code", kind="code")
         until = await self._park(ctx, held.lease.id)
         waiting = replace(held.lease, state=LeaseState.WAITING, expires_at=until)
         raise WaitingForAPerson(

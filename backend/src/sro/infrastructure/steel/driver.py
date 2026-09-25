@@ -32,7 +32,7 @@ from sro.domain.execution.lanes import SeenCall
 from sro.domain.observation.gesture import AfterState
 from sro.domain.observation.trim import path_shape
 from sro.domain.recording.events import ActionKind
-from sro.domain.recording.sensitivity import Sensitivity, classify_header
+from sro.domain.recording.sensitivity import K_TOKENS, classify_header
 from sro.domain.shared.hosts import belongs_to, origin_of
 from sro.domain.skill.signing_in import PageSignals, a_navigation
 from sro.infrastructure.steel.capture import addressed
@@ -45,7 +45,6 @@ K_CALL_TYPES = frozenset({"fetch", "xhr"})
 K_NO_DOCUMENT = frozenset({204, 205})
 K_SCROLL_PX = 400
 K_REQUESTS_KEPT = 200
-K_TOKENS = frozenset({Sensitivity.AUTH, Sensitivity.CSRF})
 
 _SIGNALS = "() => globalThis.sroPage.signals()"
 _HIT_TEST = "([x, y]) => globalThis.sroPage.hitTest(x, y)"
@@ -758,29 +757,30 @@ class SteelDriver:
         since: int = 0,
         needs: Collection[str] = (),
     ) -> dict[str, str]:
-        await self._context(session)
         key = (session.cdp_url, session.context_id)
         since = max(since, self._floors.get(key, 0))
         wanted = origin_of(origin)
         seen = self._seen.setdefault(key, asyncio.Event())
-        found: dict[str, str] = {}
+
+        def merged() -> dict[str, str]:
+            found: dict[str, str] = {}
+            for at, where, kept in sorted(self._requests.get(key, ()), key=lambda one: one[0]):
+                if at > since and where == wanted:
+                    found.update(kept)
+            return found
+
         try:
             async with asyncio.timeout(deadline_s):
+                await self._context(session)
                 while True:
                     seen.clear()
-                    found = {}
-                    for at, where, kept in sorted(
-                        self._requests.get(key, ()), key=lambda one: one[0]
-                    ):
-                        if at > since and where == wanted:
-                            found.update(kept)
+                    found = merged()
                     if all(name in found for name in needs):
                         return found
                     await seen.wait()
                     await self._context(session)
         except TimeoutError:
-            await self._context(session)
-            return found
+            return merged()
 
     async def cookies_for(self, session: SessionRef, url: str) -> str:
         link = await self._context(session)

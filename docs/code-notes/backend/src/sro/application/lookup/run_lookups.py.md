@@ -31,7 +31,20 @@ Comments and docstrings moved out of [`backend/src/sro/application/lookup/run_lo
 > the whole plan. The difference is that a planning failure means the plan is
 > wrong about the world, and a looking failure means one system was shut.
 
-## module, [line 24](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L24): Note on the line above
+## module, [line 36](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L36): Note on the line above
+
+Code: `K_AFTER_HEADERS_S = 1.0`
+
+> Room kept inside a lookup's budget after the header wait: `headers_for`
+> answers inside its deadline (the round trips to Chrome included), and then
+> the broker reads the cookie jar and the lookup decides. Without it the
+> header wait ends when the budget does, the budget's own timeout wins, and
+> the lookup says "timed out" instead of naming the header that never came
+> -- and "ask again" fails the same way for ever.
+> ponytail: a fixed second; a measured cookie-read time if a slow Chrome
+> ever eats it.
+
+## module, [line 25](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L25): Note on the line above
 
 Code: `K_GAPS = (DomainError, PoolFull, PageGone, TargetUnreachable, AccountBusy, BrowserUnavailable)`
 
@@ -42,7 +55,7 @@ Code: `K_GAPS = (DomainError, PoolFull, PageGone, TargetUnreachable, AccountBusy
 > that needs a person is a gap and not a question: nothing is waiting to resume
 > a lookup, so a lookup never waits on a person.
 
-## module, [line 31](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L31): Note on the line above
+## module, [line 32](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L32): Note on the line above
 
 Code: `K_DEADLINE_S = 45.0`
 
@@ -56,7 +69,7 @@ Code: `K_DEADLINE_S = 45.0`
 > This is the budget for `/v1/lookups` and `/v1/ask`, where the answer IS the
 > request and nothing else is held up behind it.
 
-## module, [line 33](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L33): Note on the line above
+## module, [line 34](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L34): Note on the line above
 
 Code: `K_WHILE_TALKING = 10.0`
 
@@ -88,11 +101,11 @@ Code: `K_WHILE_TALKING = 10.0`
 > trade: a question answered late is worth less than a conversation that
 > kept going.
 
-## `Looked`, [line 37](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L37): Docstring
+## `Looked`, [line 40](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L40): Docstring
 
 > What one lookup came back with.
 
-## `Looked`, [line 42](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L42): Note on the line above
+## `Looked`, [line 45](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L45): Note on the line above
 
 Code: `read: Answer | None = None`
 
@@ -118,7 +131,7 @@ Code: `read: Answer | None = None`
 > None where there are no records to speak of -- a page of HTML, one scalar,
 > a screen's photograph. Those keep `answer` and are drawn from it.
 
-## `Looked`, [line 44](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L44): Note on the line above
+## `Looked`, [line 47](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L47): Note on the line above
 
 Code: `detail: str = ""`
 
@@ -126,14 +139,14 @@ Code: `detail: str = ""`
 > person is a different problem from an unreachable system, and flattening them
 > to "failed" throws away the one thing that says which.
 
-## `MissingHeaders`, [line 27](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L27): Note on the line above
+## `MissingHeaders`, [line 28](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L28): Note on the line above
 
 Code: `class MissingHeaders(DomainError):`
 
 > A header the read needs that the account's context never sent within the
 > budget. A `DomainError`, so it is that one lookup's named gap.
 
-## `RunLookups`, [line 57](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L57): Docstring
+## `RunLookups`, [line 60](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L60): Docstring
 
 > Execute a plan on backend Steel, never the operator's browser.
 >
@@ -146,14 +159,14 @@ Code: `class MissingHeaders(DomainError):`
 > the page), `screenshot` and `release` -- never `act`, `point` or the sight
 > model. A target seen only as a write addresses nothing, and nothing is sent.
 
-## `RunLookups.execute`, [line 61](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L61): Docstring
+## `RunLookups.execute`, [line 64](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L64): Docstring
 
 > `within` is the caller's budget, because the callers have different
 > ones: a lookup somebody asked for may take as long as the slowest
 > warehouse, and a lookup inside a conversation turn may not. See
 > `K_WHILE_TALKING`.
 
-## `RunLookups.execute`, [line 67](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L67): Comment (debt)
+## `RunLookups.execute`, [line 70](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L70): Comment (debt)
 
 Code: `gestures = list(await uow.gestures.gestures_for(ctx.tenant_id))`
 
@@ -163,7 +176,7 @@ Code: `gestures = list(await uow.gestures.gestures_for(ctx.tenant_id))`
 > ponytail: whole-store scan; a `calls_for_path` query if a tenant's
 > capture outgrows memory.
 
-## `RunLookups._one`, [line 101](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L101): Comment
+## `RunLookups._one`, [line 106](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L106): Comment
 
 Code: `if lookup.how == "call":`
 
@@ -173,13 +186,15 @@ Code: `if lookup.how == "call":`
 > already up in the tab `acquire` opened (and `reauth` returns it there), so it
 > is photographed with no navigation. The same rule as §3's, applied to a read.
 
-## `RunLookups._send`, [line 131](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L131): Comment
+## `RunLookups._send`, [line 142](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L142): Comment
 
-Code: `needs = [name.lower() for name in (*address.live_headers, *address.struck)]`
+Code: `needs = needs_of(dict.fromkeys((*address.live_headers, *address.struck), REDACTED))`
 
-> Every header the recording struck out is one the account's own context has to
-> supply, so the broker waits for each of them in the context's request log
-> (from tab arrival). A value never reaches a log. The wait is what is left of
+> The headers the recording struck out whose role a request log keeps
+> (`needs_of`, the API lane's one rule) are the ones the account's own context
+> has to supply, so the broker waits for each of them in the context's request
+> log (from tab arrival). After a re-sign-in the wait is `fresh`: only tokens
+> sent after the reload count, never the pre-sign-in one still in the log. A value never reaches a log. The wait is what is left of
 > the caller's budget -- chat's `K_WHILE_TALKING` or the door's own -- never
 > the broker's fixed wait past it. With nothing needed the driver answers at
 > once. A header still missing when it ends is a
@@ -188,7 +203,7 @@ Code: `needs = [name.lower() for name in (*address.live_headers, *address.struck
 > (`session_headers`): a recorded `x-user-id` is the operator's, never this
 > account's.
 
-## `_looked`, [line 150](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L150): Comment
+## `_looked`, [line 168](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L168): Comment
 
 Code: `read=read_answer(body, url=address.url) if isinstance(body, str) else None,`
 

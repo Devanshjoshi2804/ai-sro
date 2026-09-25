@@ -71,6 +71,9 @@ class Sensitivity(StrEnum):
     SEMANTIC = "semantic"
 
 
+K_TOKENS = frozenset({Sensitivity.AUTH, Sensitivity.CSRF})
+
+
 def classify_header(name: str) -> Sensitivity:
     lowered = name.lower().strip()
     if lowered.startswith(":"):

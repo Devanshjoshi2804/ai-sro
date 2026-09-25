@@ -14,12 +14,13 @@ from sro.application.ports.locks import AccountBusy
 from sro.application.ports.page import PageGone
 from sro.application.ports.pool import PoolFull
 from sro.application.ports.repositories import UnitOfWork
-from sro.application.runtime.api_lane import K_AUTH_REFUSED, session_headers
+from sro.application.runtime.api_lane import K_AUTH_REFUSED, needs_of, session_headers
 from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.step import Held
 from sro.domain.lookup.address import Address, address_for
 from sro.domain.lookup.plan import Lookup, Plan
 from sro.domain.shared.errors import DomainError
+from sro.domain.shared.hosts import REDACTED
 
 K_GAPS = (DomainError, PoolFull, PageGone, TargetUnreachable, AccountBusy, BrowserUnavailable)
 
@@ -31,6 +32,8 @@ class MissingHeaders(DomainError):
 K_DEADLINE_S = 45.0
 
 K_WHILE_TALKING = 10.0
+
+K_AFTER_HEADERS_S = 1.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,7 +99,9 @@ class RunLookups:
     ) -> Looked:
         page = address.page or address.url
         account = await self._broker.account_for(ctx, page)
-        held = await self._broker.acquire(ctx, account, page, holder=f"lookup-{uuid4().hex}")
+        held = await self._broker.acquire(
+            ctx, account, page, holder=f"lookup-{uuid4().hex}", park=False
+        )
         try:
             if lookup.how == "call":
                 got = await self._get(ctx, held, address, page, budget)
@@ -119,19 +124,32 @@ class RunLookups:
     async def _get(
         self, ctx: RequestContext, held: Held, address: Address, page: str, budget: asyncio.Timeout
     ) -> HttpResponse:
-        got = await self._send(ctx, held, address, budget)
+        got = await self._send(ctx, held, address, budget, fresh=False)
         if got.status_code in K_AUTH_REFUSED:
-            await self._broker.reauth(ctx, held, page)
-            got = await self._send(ctx, held, address, budget)
+            await self._broker.reauth(ctx, held, page, park=False)
+            got = await self._send(ctx, held, address, budget, fresh=True)
         return got
 
     async def _send(
-        self, ctx: RequestContext, held: Held, address: Address, budget: asyncio.Timeout
+        self,
+        ctx: RequestContext,
+        held: Held,
+        address: Address,
+        budget: asyncio.Timeout,
+        *,
+        fresh: bool,
     ) -> HttpResponse:
-        needs = [name.lower() for name in (*address.live_headers, *address.struck)]
-        left = max(0.0, (budget.when() or 0.0) - asyncio.get_running_loop().time())
+        needs = needs_of(dict.fromkeys((*address.live_headers, *address.struck), REDACTED))
+        left = (budget.when() or 0.0) - asyncio.get_running_loop().time() - K_AFTER_HEADERS_S
         headers = await session_headers(
-            self._broker, ctx, held, address.url, address.headers, needs=needs, wait_s=left
+            self._broker,
+            ctx,
+            held,
+            address.url,
+            address.headers,
+            fresh=fresh,
+            needs=needs,
+            wait_s=max(0.0, left),
         )
         carried = {name.lower() for name in headers}
         missing = [name for name in needs if name not in carried]

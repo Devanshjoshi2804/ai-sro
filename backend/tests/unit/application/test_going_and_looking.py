@@ -17,15 +17,19 @@ from types import MappingProxyType
 import pytest
 
 from sro.application.context import RequestContext
-from sro.application.lookup.run_lookups import K_WHILE_TALKING
+from sro.application.lookup.run_lookups import K_AFTER_HEADERS_S, K_WHILE_TALKING
 from sro.application.ports.http import HttpResponse
+from sro.domain.execution.account import Account, LeaseState
+from sro.domain.execution.lanes import Lane, StepResult
 from sro.domain.lookup.address import address_for
 from sro.domain.lookup.plan import Lookup, Plan
 from sro.domain.observation.gesture import Action, Call, Gesture
 from sro.domain.shared.hosts import REDACTED
+from sro.domain.skill.signing_in import PageSignals
+from sro.domain.skill.workflow import Step
 from tests import factories as f
 from tests.unit.fakes import FakeHttpCaller
-from tests.unit.runtime_support import lookup_world
+from tests.unit.runtime_support import IDP, LookupWorld, lookup_world
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
 WMS = "https://bf56-kms-wms-web-np2.jdadelivers.com"
@@ -219,7 +223,8 @@ async def test_a_header_the_page_never_sends_is_a_gap_inside_the_conversation_s_
 
     assert world.http.sent == []
     assert not answers.looked[0].ok and "x-requested-with" in answers.looked[0].detail
-    assert world.driver.waited_out and 0 < max(world.driver.waited_out) <= K_WHILE_TALKING
+    assert world.driver.waited_out
+    assert 0 < max(world.driver.waited_out) <= K_WHILE_TALKING - K_AFTER_HEADERS_S
     assert world.driver.tabs == {}
 
 
@@ -385,3 +390,120 @@ async def test_a_plan_that_asks_instead_of_answering_sends_nothing() -> None:
     answers = await world.run_lookups.execute(CTX, plan=Plan(question="q"))
 
     assert world.http.sent == [] and world.driver.calls == [] and answers.looked == ()
+
+
+def _leases(world: LookupWorld) -> list[LeaseState]:
+    return [one.state for one in world.uow.browser_sessions.leases.values()]
+
+
+async def test_a_header_the_driver_never_keeps_is_never_waited_for() -> None:
+    """A recording that shape-redacts a header with a plain name struck its
+    value, but no request log ever holds it: waiting for it would burn the
+    whole budget for nothing."""
+    world = await lookup_world(_gesture(_call(headers={"X-Acme-Ticket": REDACTED})))
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    assert answers.any_answered
+    assert world.driver.needed == () and world.driver.waited_out == []
+
+
+async def test_the_read_after_a_fresh_sign_in_takes_only_tokens_from_after_it() -> None:
+    world = await lookup_world(_gesture(_call()))
+    world.http.answer(401, "")
+    world.http.answer(200, '{"rows": 1}')
+
+    await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    first, retry = (int(call[-1]) for call in world.driver.calls if call[0] == "headers_for")
+    assert retry > first, "the retry took a token from before the sign-in it followed"
+
+
+async def test_a_lookup_reads_as_the_tenant_s_recorded_login_not_as_whoever_asked() -> None:
+    world = await lookup_world(_gesture(_call()))
+
+    await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    (lease,) = world.uow.browser_sessions.leases.values()
+    assert lease.account == Account.of(f.TENANT.value, IDP, "lena")
+    assert CTX.principal_id.value != "lena"
+
+
+async def test_a_lookup_beside_a_run_never_takes_the_run_s_lease_as_its_own() -> None:
+    world = await lookup_world(_gesture(_call()))
+    account = await world.broker.account_for(CTX, f"{WMS}/portal")
+    run = await world.broker.acquire(CTX, account, f"{WMS}/portal", holder="run_7")
+
+    await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    assert world.uow.browser_sessions.leases[run.lease.id].holder == "run_7"
+
+
+async def test_a_one_time_code_during_a_lookup_is_a_gap_and_parks_nobody() -> None:
+    world = await lookup_world(_gesture(_call()))
+    world.driver.shows_sign_in_until_signed = False
+    world.driver.signals_for_every_tab = PageSignals(
+        f"{WMS}/portal", autocomplete=frozenset({"one-time-code"})
+    )
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    assert not answers.looked[0].ok and "one-time code" in answers.looked[0].detail
+    assert LeaseState.WAITING not in _leases(world)
+    assert world.driver.tabs == {} and world.http.sent == []
+
+
+class _SignedOutOnTheFirstRead(FakeHttpCaller):
+    def __init__(self, world: LookupWorld) -> None:
+        super().__init__()
+        self._world = world
+
+    async def send(
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: Mapping[str, str] = MappingProxyType({}),
+        body: str | None = None,
+        timeout_s: float = 30.0,
+    ) -> HttpResponse:
+        self.sent.append({"method": method, "url": url, "headers": dict(headers)})
+        self._world.driver.expire_session()
+        self._world.driver.refuses = True
+        return HttpResponse(status_code=401, headers={}, text="")
+
+
+async def test_a_password_refused_while_a_lookup_signs_in_again_parks_nobody() -> None:
+    world = await lookup_world(_gesture(_call()))
+    world.run_lookups._http = _SignedOutOnTheFirstRead(world)
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    assert not answers.looked[0].ok and answers.looked[0].detail
+    assert world.reauths == 1
+    assert LeaseState.WAITING not in _leases(world)
+    assert world.driver.tabs == {}
+
+
+class _Hangs:
+    lane = Lane.UI
+
+    async def execute(self, step: Step, values: Mapping[str, str], ctx: object) -> StepResult:
+        await asyncio.Event().wait()
+        raise AssertionError("an event nobody sets was set")
+
+
+async def test_a_conversation_that_runs_out_mid_sign_in_leaves_the_lease_ready() -> None:
+    """BROKEN means the pool no longer lists the context. A sign-in the
+    caller stopped waiting for says nothing about the context: the next
+    acquire finds it and probes."""
+    world = await lookup_world(_gesture(_call()))
+    world.broker._ui = _Hangs()
+
+    answers = await world.run_lookups.execute(
+        CTX, plan=Plan(question="q", lookups=(CALL,)), within=0.05
+    )
+
+    assert answers.looked[0].detail.startswith("timed out after")
+    assert _leases(world) == [LeaseState.READY]
+    assert world.driver.tabs == {}

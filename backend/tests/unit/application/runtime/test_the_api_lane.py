@@ -225,6 +225,24 @@ async def test_a_read_back_settles_an_unknown_write() -> None:
     assert http.sent[0]["method"] == "GET"
 
 
+async def test_a_token_guarded_read_back_after_a_fresh_sign_in_waits_for_its_csrf_token() -> None:
+    http = FakeHttpCaller()
+    http.answer(200, '[{"name": "GT2"}]')
+    step, by_id, ledger = proven_write_step(
+        read_back=LIST, read_headers={"X-CSRF-Token": REDACTED, "X-Trace-Id": REDACTED}
+    )
+    driver = scripted_driver(url="https://wms.example/app")
+    driver.headers_after_mark = {"x-csrf-token": "after"}
+
+    settled = await ApiLane(
+        http, headers_broker({"x-csrf-token": "before"}, driver=driver)
+    ).read_back(step, RUN, lane_context(by_id, ledger=ledger, reauthed=True))
+
+    assert settled == "done"
+    assert driver.needed == ("x-csrf-token",)
+    assert http.sent[0]["headers"]["x-csrf-token"] == "after"
+
+
 @pytest.mark.parametrize(
     "body",
     ['[{"name": "GT1"}]', '[{"name": "GT1", "note": "GT2"}]', "<td>GT20</td>"],

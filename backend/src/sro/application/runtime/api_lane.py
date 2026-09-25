@@ -25,15 +25,13 @@ from sro.domain.execution.planning import Planned
 from sro.domain.execution.records import made_by
 from sro.domain.execution.write_plan import seen_values
 from sro.domain.observation.trim import path_shape
-from sro.domain.recording.sensitivity import Sensitivity, classify_header
+from sro.domain.recording.sensitivity import K_TOKENS, classify_header
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.skill.workflow import Step
 
 K_AUTH_REFUSED = frozenset({401, 403, 419})
 
 K_REPRESENTATION = frozenset({"content-type", "accept"})
-
-K_TOKEN_ROLES = frozenset({Sensitivity.AUTH, Sensitivity.CSRF})
 
 
 class ApiLane:
@@ -51,13 +49,7 @@ class ApiLane:
             return _unsent("no verified replay for this step", "no_replay")
         method, url = str(planned.payload["method"]), str(planned.payload["url"])
         body = planned.payload.get("body")
-        needs = sorted(
-            {
-                name.lower()
-                for name, value in recorded.request_headers.items()
-                if REDACTED in value and classify_header(name) in K_TOKEN_ROLES
-            }
-        )
+        needs = needs_of(recorded.request_headers)
         headers = await session_headers(
             self._broker,
             ctx.ctx,
@@ -150,12 +142,28 @@ class ApiLane:
         if url is None:
             return False
         headers = await session_headers(
-            self._broker, ctx.ctx, held, url, probe.request_headers, fresh=fresh
+            self._broker,
+            ctx.ctx,
+            held,
+            url,
+            probe.request_headers,
+            fresh=fresh,
+            needs=needs_of(probe.request_headers),
         )
         if not _sendable(url, headers):
             return False
         got = await self._http.send("GET", url, headers=headers)
         return got.succeeded and carries_in_slot(got.text, planned.confirm)
+
+
+def needs_of(recorded: Mapping[str, str]) -> list[str]:
+    return sorted(
+        {
+            name.lower()
+            for name, value in recorded.items()
+            if REDACTED in value and classify_header(name) in K_TOKENS
+        }
+    )
 
 
 async def session_headers(

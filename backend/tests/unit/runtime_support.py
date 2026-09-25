@@ -215,6 +215,7 @@ def proven_write_step(
     *,
     read_back: str | None,
     request_headers: Mapping[str, str] = MappingProxyType({"Content-Type": "application/json"}),
+    read_headers: Mapping[str, str] = MappingProxyType({}),
 ) -> tuple[Step, dict[str, Gesture], tuple[VerifiedWrite, ...]]:
     by_id: dict[str, Gesture] = {}
     for nth, name in enumerate(("GT0", "GT1")):
@@ -232,7 +233,15 @@ def proven_write_step(
         if read_back is not None:
             read = read_back.format(name=name)
             read = read if read.startswith("http") else f"{_SYSTEM}{read}"
-            requests.append(Call(method="GET", url=read, status=200, started_at=at + 0.5))
+            requests.append(
+                Call(
+                    method="GET",
+                    url=read,
+                    status=200,
+                    started_at=at + 0.5,
+                    request_headers=dict(read_headers),
+                )
+            )
         gesture = Gesture(
             id=f"ges_save_{nth}",
             tenant=_TENANT,
@@ -461,6 +470,8 @@ class SigningLane:
 @dataclass
 class LookupWorld:
     run_lookups: RunLookups
+    broker: SessionBroker
+    uow: FakeUnitOfWork
     driver: FakePageDriver
     http: FakeHttpCaller
     reauths: int = 0
@@ -470,10 +481,16 @@ class _CountingBroker(SessionBroker):
     world: LookupWorld
 
     async def reauth(
-        self, ctx: RequestContext, held: Held, start_url: str, *, back_to: str | None = None
+        self,
+        ctx: RequestContext,
+        held: Held,
+        start_url: str,
+        *,
+        back_to: str | None = None,
+        park: bool = True,
     ) -> None:
         self.world.reauths += 1
-        await super().reauth(ctx, held, start_url, back_to=back_to)
+        await super().reauth(ctx, held, start_url, back_to=back_to, park=park)
 
 
 async def lookup_world(*gestures: Gesture) -> LookupWorld:
@@ -499,7 +516,7 @@ async def lookup_world(*gestures: Gesture) -> LookupWorld:
         ui=SigningLane(driver),
         close_s=0.05,
     )
-    world = LookupWorld(RunLookups(uow, broker, http), driver, http)
+    world = LookupWorld(RunLookups(uow, broker, http), broker, uow, driver, http)
     broker.world = world
     return world
 
@@ -590,7 +607,13 @@ class FakeBroker(SessionBroker):
         self.refuses = refuses
 
     async def reauth(
-        self, ctx: RequestContext, held: Held, start_url: str, *, back_to: str | None = None
+        self,
+        ctx: RequestContext,
+        held: Held,
+        start_url: str,
+        *,
+        back_to: str | None = None,
+        park: bool = True,
     ) -> None:
         self.reauths += 1
         self.back_tos.append(back_to)

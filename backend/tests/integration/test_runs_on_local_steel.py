@@ -40,11 +40,13 @@ from sro.application.context import RequestContext
 from sro.application.lookup.run_lookups import RunLookups
 from sro.application.ports.browser import BrowserUnavailable
 from sro.application.runtime.broker import K_CLOSE_S, SessionBroker
+from sro.application.runtime.step import Held
 from sro.application.runtime.ui_lane import UiLane
 from sro.config import get_settings
 from sro.domain.execution.account import K_LEASE_TTL, Account, LeaseState
 from sro.domain.lookup.plan import Lookup, Plan
 from sro.domain.observation.gesture import Action, Call, Gesture, GestureBatch
+from sro.domain.shared.hosts import REDACTED
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.infrastructure.db.locks import PostgresAccountLocks
 from sro.infrastructure.db.repositories import SqlUnitOfWork
@@ -305,7 +307,7 @@ async def test_an_expiry_mid_step_signs_in_once_for_every_run_on_the_account(wor
         assert urlsplit(await driver.url_of(held.session, held.target_id)).path == "/app"
 
 
-async def test_a_lookup_reads_through_the_account_s_steel_session(world: World) -> None:
+async def _a_lookup(world: World, headers: dict[str, str]) -> tuple[SessionBroker, Held]:
     account = await _recorded(world)
     world.rig.saved.append({"name": "GT0"})
     read = Call(
@@ -313,7 +315,7 @@ async def test_a_lookup_reads_through_the_account_s_steel_session(world: World) 
         url=world.rig.url("/api/customer-types"),
         request_id="req-read",
         started_at=10.0,
-        request_headers={"accept": "application/json"},
+        request_headers=headers,
         status=200,
     )
     seen = Gesture(
@@ -334,11 +336,18 @@ async def test_a_lookup_reads_through_the_account_s_steel_session(world: World) 
         await uow.commit()
     broker, _ = world.broker()
     held = await broker.acquire(CTX, account, world.rig.url("/app"), holder="run_1")
+    return broker, held
+
+
+LOOKUP = Lookup(system="rig", how="call", target="/api/customer-types")
+
+
+async def test_a_lookup_reads_through_the_account_s_steel_session(world: World) -> None:
+    broker, held = await _a_lookup(world, {"accept": "application/json"})
     before = await pages_in(held.session)
-    lookup = Lookup(system="rig", how="call", target="/api/customer-types")
 
     answers = await RunLookups(world.uow, broker, HttpxCaller()).execute(
-        CTX, plan=Plan(question="q", lookups=(lookup,))
+        CTX, plan=Plan(question="q", lookups=(LOOKUP,))
     )
 
     (looked,) = answers.looked
@@ -347,6 +356,18 @@ async def test_a_lookup_reads_through_the_account_s_steel_session(world: World) 
     assert json.loads(str(looked.answer["body"])) == [{"name": "GT0"}]
     assert world.rig.logins == 1
     assert await pages_in(held.session) == before
+
+
+async def test_a_token_the_page_never_sends_is_named_inside_the_lookup_s_budget(
+    world: World,
+) -> None:
+    broker, _ = await _a_lookup(world, {"X-CSRF-Token": REDACTED})
+
+    answers = await RunLookups(world.uow, broker, HttpxCaller()).execute(
+        CTX, plan=Plan(question="q", lookups=(LOOKUP,)), within=3.0
+    )
+
+    assert answers.looked[0].detail == "the session has no x-csrf-token for this read"
 
 
 K_STEEL_BACK_S = 60.0

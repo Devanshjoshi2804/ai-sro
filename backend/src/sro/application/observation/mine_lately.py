@@ -85,9 +85,13 @@ class MineLately:
         for tenant, jobs in groupby(undecided, key=lambda job: job.tenant):
             tenant_id = TenantId(tenant)
             try:
-                async with self._locks.hold_named(mining_lock(tenant_id)), self._uow as uow:
-                    decided = await decide_sign_ins(uow, tenant_id, list(jobs))
-                    await uow.commit()
+                async with self._locks.try_hold_named(mining_lock(tenant_id)) as held:
+                    if not held:
+                        logger.info("%s: being mined elsewhere; deciding it next sweep", tenant)
+                        continue
+                    async with self._uow as uow:
+                        decided = await decide_sign_ins(uow, tenant_id, list(jobs))
+                        await uow.commit()
             except Exception:
                 logger.exception("%s: could not decide which jobs sign in", tenant)
                 continue

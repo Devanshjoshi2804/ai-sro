@@ -1776,6 +1776,15 @@ class FakeAccountLocks:
         async with lock:
             yield
 
+    @asynccontextmanager
+    async def try_hold_named(self, name: str) -> AsyncIterator[bool]:
+        lock = self._locks.setdefault(name, asyncio.Lock())
+        if name in self.busy or lock.locked():
+            yield False
+            return
+        async with lock:
+            yield True
+
 
 class FakeScheduler:
     """A clock that keeps a list. What matters is that a trigger which cannot

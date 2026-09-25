@@ -12,8 +12,11 @@ pre-rig sweep's.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+
+import pytest
 
 from sro.application.context import RequestContext
 from sro.application.observation.mine_lately import MineLately
@@ -584,10 +587,14 @@ async def test_nothing_undecided_reads_no_gestures() -> None:
     assert uow.gestures.gestures_for_calls == 0
 
 
-async def test_one_tenant_that_cannot_be_decided_does_not_stop_another() -> None:
+async def test_a_tenant_busy_elsewhere_is_skipped_quietly(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """Each tenant is decided in its own transaction, under its own mining
-    lock: a tenant whose lock is held elsewhere (or whose write fails) is
-    logged and skipped, and the tenant after it is still decided."""
+    lock, which the sweep only tries for: another worker already doing that
+    tenant's work is the right outcome, not an error, so the tenant is
+    skipped at once with an info line and the tenant after it is decided."""
+    caplog.set_level(logging.INFO)
     uow = FakeUnitOfWork()
     await uow.workflows.save(_job_citing("acme", signs_in=None))
     await uow.workflows.save(_job_citing("zeta", signs_in=None))
@@ -598,6 +605,8 @@ async def test_one_tenant_that_cannot_be_decided_does_not_stop_another() -> None
 
     assert (await uow.workflows.get(TenantId("acme"), "wfl_acme")).signs_in is None
     assert (await uow.workflows.get(TenantId("zeta"), "wfl_zeta")).signs_in is False
+    assert not [record for record in caplog.records if record.levelno >= logging.WARNING]
+    assert any("acme" in record.getMessage() for record in caplog.records)
 
 
 async def test_a_tenant_whose_write_fails_does_not_stop_another() -> None:

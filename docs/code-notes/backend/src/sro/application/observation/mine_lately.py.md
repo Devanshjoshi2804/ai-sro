@@ -169,7 +169,7 @@ Code: `held = max(1, last.window_size)`
 > saw rather than from a count of the table: the window is what the
 > budget allowed, and `left_out` is what would not fit beside it.
 
-## `MineLately.execute`, [line 102](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L102): Comment
+## `MineLately.execute`, [line 106](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L106): Comment
 
 Code: `still_going = set(`
 
@@ -178,7 +178,7 @@ Code: `still_going = set(`
 > column, because the port already answers that question and a
 > second way to ask it is a second thing to keep true.
 
-## `MineLately.execute`, [line 112](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L112): Comment
+## `MineLately.execute`, [line 116](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L116): Comment
 
 Code: `logger.info("%s: still working; leaving this one to settle", tenant_id.value)`
 
@@ -189,7 +189,7 @@ Code: `logger.info("%s: still working; leaving this one to settle", tenant_id.va
 > half done. Waiting costs one interval and nothing else: the
 > evidence does not go anywhere.
 
-## `MineLately.execute`, [line 124](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L124): Comment
+## `MineLately.execute`, [line 128](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L128): Comment
 
 Code: `logger.info("%s: %s", tenant_id.value, reached)`
 
@@ -205,7 +205,9 @@ Code: `logger.info("%s: %s", tenant_id.value, reached)`
 > new gestures arrived and however long its tenant has been quiet. It costs
 > no model call, and one query when nothing is undecided.
 >
-> One transaction per tenant, under that tenant's mining lock, taken from
-> the undecided rows themselves: a tenant whose lock another worker holds,
-> or whose write fails, is logged and skipped until the next sweep, and the
-> tenants after it are still decided.
+> One transaction per tenant, taken from the undecided rows themselves,
+> under that tenant's mining lock -- which the sweep only tries for
+> (`try_hold_named`), never waits on: a tenant another worker is mining is
+> that worker's work, so it is skipped at once with an info line and decided
+> on a later sweep. A tenant whose write fails is logged and skipped the
+> same way; the tenants after either are still decided.

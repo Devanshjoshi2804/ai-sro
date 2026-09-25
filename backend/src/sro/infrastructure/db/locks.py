@@ -61,6 +61,14 @@ class PostgresAccountLocks:
                     raise AccountBusy(f"{name} is held by another session") from None
                 await on_wait()
 
+    @asynccontextmanager
+    async def try_hold_named(self, name: str) -> AsyncIterator[bool]:
+        async with self._engine.begin() as connection:
+            got = await connection.execute(
+                text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": lock_id_of(name)}
+            )
+            yield bool(got.scalar_one())
+
 
 def _is_lock_timeout(error: DBAPIError) -> bool:
     return getattr(error.orig, "sqlstate", None) == _LOCK_NOT_AVAILABLE

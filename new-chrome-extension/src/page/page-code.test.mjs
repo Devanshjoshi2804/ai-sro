@@ -85,6 +85,14 @@ function element({ tagName = "BUTTON", typeable = false, src, box, name = "" } =
   return el;
 }
 
+function fakeInput({ type = "text", autocomplete = "", hidden = false } = {}) {
+  return {
+    type,
+    getAttribute: (name) => (name === "autocomplete" ? autocomplete : null),
+    getBoundingClientRect: () => (hidden ? { width: 0, height: 0 } : { width: 10, height: 10 }),
+  };
+}
+
 function control(tagName, name) {
   return {
     tagName,
@@ -885,5 +893,31 @@ test("hitTest refuses to teach an xpath that finds nothing", () => {
     assert.equal(hitTest(5, 5), null);
   } finally {
     globalThis.document.elementFromPoint = () => at;
+  }
+});
+
+// --- signals: what the page shows, never what was typed into it --------------
+
+test("the page says what credential inputs it shows", () => {
+  const { signals } = loadSroPage();
+  globalThis.document.querySelectorAll = () => [
+    fakeInput({ type: "password", autocomplete: "current-password" }),
+    fakeInput({ type: "text", autocomplete: "username" }),
+    fakeInput({ type: "text", hidden: true, autocomplete: "one-time-code" }),
+  ];
+  try {
+    assert.deepEqual(signals(), { password: true, autocomplete: ["current-password", "username"] });
+  } finally {
+    globalThis.document.querySelectorAll = () => onScreen;
+  }
+});
+
+test("a hidden password field is not shown, and a page with none reports none", () => {
+  const { signals } = loadSroPage();
+  globalThis.document.querySelectorAll = () => [fakeInput({ type: "password", hidden: true })];
+  try {
+    assert.deepEqual(signals(), { password: false, autocomplete: [] });
+  } finally {
+    globalThis.document.querySelectorAll = () => onScreen;
   }
 });

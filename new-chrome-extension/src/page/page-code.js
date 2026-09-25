@@ -957,6 +957,21 @@
       const path = xpathOf(el);
       return only(byXpath(path, doc)) ? { strategy: "xpath", query: path, frame_path } : null;
     },
+    signals() {
+      const shown = [...document.querySelectorAll("input")].filter((el) => {
+        const box = el.getBoundingClientRect();
+        return box.width > 0 && box.height > 0;
+      });
+      const autocomplete = [
+        ...new Set(
+          shown.map((el) => (el.getAttribute("autocomplete") || "").toLowerCase()).filter(Boolean),
+        ),
+      ];
+      return {
+        password: shown.some((el) => (el.type || "").toLowerCase() === "password"),
+        autocomplete,
+      };
+    },
   };
 
   globalThis.sroPage = sroPage;

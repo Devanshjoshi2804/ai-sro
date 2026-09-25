@@ -15,6 +15,7 @@ from playwright.async_api import async_playwright
 from sro.application.ports.page import PageGone, SessionRef
 from sro.config import get_settings
 from sro.domain.observation.gesture import AfterState
+from sro.domain.skill.signing_in import a_sign_in_page, asks_for_a_code
 from sro.infrastructure.steel import driver as driver_module
 from sro.infrastructure.steel.client import websocket_debugger_url
 from sro.infrastructure.steel.driver import SteelDriver
@@ -450,3 +451,50 @@ async def test_wait_for_on_a_tab_closed_mid_wait_is_page_gone(
             await driver.wait_for(one, target, {"pin": "never", "expect": {}}, 30.0)
     finally:
         await closer
+
+
+async def test_a_password_page_is_recognised_across_the_oidc_round_trip_and_stops_after_sign_in(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/"))
+
+    assert a_sign_in_page(await driver.signals(one, target))
+
+    await rig.sign_in_in(driver, one, target)
+
+    assert not a_sign_in_page(await driver.signals(one, target))
+
+
+async def test_a_one_time_code_field_is_recognised_by_its_autocomplete(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/public"))
+    await driver.evaluate(
+        one,
+        target,
+        "document.body.insertAdjacentHTML('beforeend', '<input autocomplete=\"one-time-code\">')",
+    )
+
+    signals = await driver.signals(one, target)
+
+    assert a_sign_in_page(signals) and asks_for_a_code(signals)
+
+
+async def test_two_accounts_signals_never_cross(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    two: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    signing_in = await driver.open_tab(one, rig.url("/"))
+    elsewhere_target = await driver.open_tab(two, rig.url("/public"))
+
+    assert a_sign_in_page(await driver.signals(one, signing_in))
+
+    other_signals = await driver.signals(two, elsewhere_target)
+    assert not a_sign_in_page(other_signals)
+    assert not any("idp/authorize" in visited for visited in other_signals.visited)

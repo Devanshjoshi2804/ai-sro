@@ -26,17 +26,17 @@ def _asks(url: str) -> frozenset[str]:
     return frozenset(parse_qs(urlsplit(url).query, keep_blank_values=True))
 
 
-def _an_authorize_request(url: str) -> bool:
+def an_authorize_request(url: str) -> bool:
     return _asks(url) >= _AUTHORIZE
 
 
-def _a_code_return(url: str) -> bool:
+def a_code_return(url: str) -> bool:
     return _asks(url) >= _RETURN
 
 
 def _in_round_trip(urls: tuple[str, ...]) -> bool:
-    opened = max((n for n, url in enumerate(urls) if _an_authorize_request(url)), default=-1)
-    closed = max((n for n, url in enumerate(urls) if _a_code_return(url)), default=-1)
+    opened = max((n for n, url in enumerate(urls) if an_authorize_request(url)), default=-1)
+    closed = max((n for n, url in enumerate(urls) if a_code_return(url)), default=-1)
     return opened > closed
 
 
@@ -46,6 +46,10 @@ def a_sign_in_page(page: PageSignals) -> bool:
         or bool(page.autocomplete & _CREDENTIAL)
         or _in_round_trip((*page.visited, page.url))
     )
+
+
+def asks_for_a_code(page: PageSignals) -> bool:
+    return "one-time-code" in page.autocomplete
 
 
 def signs_in_at(
@@ -213,7 +217,10 @@ def _secret(gesture: Gesture) -> bool:
 __all__ = [
     "PageSignals",
     "RecordedLogin",
+    "a_code_return",
     "a_sign_in_page",
+    "an_authorize_request",
+    "asks_for_a_code",
     "recorded_login",
     "sign_in_chain",
     "signs_in_at",

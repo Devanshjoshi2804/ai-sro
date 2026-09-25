@@ -295,7 +295,7 @@ Comments and docstrings moved out of [`new-chrome-extension/src/page/page-code.j
 > been inner closures of `perform` rather than functions in their own
 > right.
 
-## module, [line 962](../../../../../new-chrome-extension/src/page/page-code.js#L962): Comment
+## module, [line 977](../../../../../new-chrome-extension/src/page/page-code.js#L977): Comment
 
 Code: `globalThis.sroPage = sroPage;`
 
@@ -816,3 +816,17 @@ Code: `globalThis.sroPage = sroPage;`
 > exactly when it holds, so a `wait_for_function` on it waits for the right
 > thing. Never re-resolves. A password field compares only `visible` and
 > `enabled`: its value is never read back.
+
+## `signals`, [line 960](../../../../../new-chrome-extension/src/page/page-code.js#L960): Function
+
+> S6: what the page's own inputs say about it, never what was typed into
+> them. `password` is any visible input whose `type` is `password`;
+> `autocomplete` is the set of visible inputs' own `autocomplete` values
+> that a browser recognises as credential-shaped (`current-password`,
+> `username`, `one-time-code`), lower-cased and de-duplicated. Visible is
+> `getBoundingClientRect` having width and height, the same test `perform`
+> uses -- an input a script or a framework hides (a shadow username field
+> ExtJS leaves behind, say) is never a signal. Structure only: no value is
+> read off any control, matching the sign-in capture rule (E7 security
+> ruling, spec §5.6) that a sign-in page's evidence never carries what was
+> typed into it.

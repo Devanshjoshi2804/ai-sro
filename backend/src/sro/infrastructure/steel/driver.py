@@ -27,6 +27,7 @@ from sro.application.ports.page import PageAnswer, PageGone, SessionRef
 from sro.domain.execution.lanes import SeenCall
 from sro.domain.observation.gesture import AfterState
 from sro.domain.observation.trim import path_shape
+from sro.domain.skill.signing_in import PageSignals
 from sro.infrastructure.steel.capture import addressed
 from sro.infrastructure.steel.client import cdp_origin, websocket_debugger_url
 
@@ -72,6 +73,7 @@ class SteelDriver:
         self._links: dict[str, _Link] = {}
         self._listeners: dict[tuple[str, str], list[tuple[str, Callable[..., Any]]]] = {}
         self._calls: dict[Page, _Calls] = {}
+        self._visited: dict[str, list[str]] = {}
 
     async def _lock_for(self, cdp_url: str) -> asyncio.Lock:
         async with self._locks_guard:
@@ -127,11 +129,21 @@ class SteelDriver:
         def gone(_: Page) -> None:
             link.pages.pop(target_id, None)
             link.owners.pop(target_id, None)
+            self._visited.pop(target_id, None)
 
         page.once("close", gone)
         link.owners[target_id] = owner
         for event, handler in self._listeners.get((link.cdp_url, owner), []):
             page.on(event, handler)  # type: ignore[call-overload]
+
+        def navigated(response: Response) -> None:
+            if (
+                response.request.is_navigation_request()
+                and response.request.frame == page.main_frame
+            ):
+                self._visited.setdefault(target_id, []).append(response.url)
+
+        page.on("response", navigated)
 
         try:
             await page.add_init_script(script=self._page_code)
@@ -246,6 +258,24 @@ class SteelDriver:
     async def evaluate(self, session: SessionRef, target_id: str, expression: str) -> object:
         page = await self._page(session, target_id)
         return await self._call(session, target_id, page, lambda: page.evaluate(expression))
+
+    async def signals(self, session: SessionRef, target_id: str) -> PageSignals:
+        page = await self._page(session, target_id)
+
+        async def gather() -> tuple[bool, set[str]]:
+            password = False
+            autocomplete: set[str] = set()
+            for frame in page.frames:
+                with contextlib.suppress(PlaywrightError):
+                    got = await frame.evaluate("() => globalThis.sroPage.signals()")
+                    password = password or bool(got.get("password"))
+                    autocomplete.update(got.get("autocomplete") or [])
+            return password, autocomplete
+
+        password, autocomplete = await self._call(session, target_id, page, gather)
+        return PageSignals(
+            page.url, tuple(self._visited.get(target_id, ())), password, frozenset(autocomplete)
+        )
 
     async def on(self, session: SessionRef, event: str, handler: Callable[..., Any]) -> None:
         link = await self._context(session)

@@ -3,7 +3,8 @@ from collections.abc import Awaitable, Callable
 
 import pytest
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from sro.application.ports.locks import AccountBusy
 from sro.domain.execution.account import Account
@@ -116,6 +117,30 @@ async def test_on_wait_is_called_between_attempts(
             await asyncio.wait_for(_enter(locks, LENA, on_wait=_on_wait), timeout=5.0)
 
     assert calls >= 1
+
+
+async def test_a_tenant_s_mining_lock_holds_across_two_engines(
+    engine: AsyncEngine, postgres_url: str
+) -> None:
+    """Mining's per-tenant lock is the same advisory lock, keyed by name, so
+    two workers -- two engines, two connections -- never mine or heal one
+    tenant at once, and another tenant never waits on it."""
+    elsewhere = create_async_engine(postgres_url, poolclass=NullPool)
+    try:
+        here, there = PostgresAccountLocks(engine), PostgresAccountLocks(elsewhere)
+        async with here.hold_named("mining:greyorange"):
+            waiter = asyncio.create_task(_enter_named(there, "mining:greyorange"))
+            await _until(lambda: _waiting_advisory_locks(engine), at_least=1)
+            assert not waiter.done()
+            await asyncio.wait_for(_enter_named(there, "mining:other-corp"), timeout=5.0)
+        await asyncio.wait_for(waiter, timeout=5.0)
+    finally:
+        await elsewhere.dispose()
+
+
+async def _enter_named(locks: PostgresAccountLocks, name: str) -> None:
+    async with locks.hold_named(name):
+        return None
 
 
 async def _no_op() -> None:

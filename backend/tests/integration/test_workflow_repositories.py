@@ -34,7 +34,7 @@ from sro.domain.skill.workflow import Step, Workflow, new_workflow_id
 from sro.infrastructure.db.models import WorkflowEffectRow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from tests.unit.domain.rig.conftest import gestures as _gestures
-from tests.unit.fakes import FakeAsker
+from tests.unit.fakes import FakeAccountLocks, FakeAsker
 
 FOUND_BY = "pas_abcdef"
 
@@ -843,6 +843,7 @@ class TestTheMiningPass:
                     uow,
                     tenant_id=TENANT,
                     asker=asker,
+                    locks=FakeAccountLocks(),
                     model="gemini-3.1-pro",
                     now=datetime(2025, 2, 11, 23, tzinfo=UTC),
                     cap_usd=100.0,

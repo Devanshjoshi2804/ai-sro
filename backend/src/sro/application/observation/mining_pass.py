@@ -6,12 +6,11 @@ from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import datetime
-from itertools import groupby
 
 from sro.application.intent.spend import over_cap
+from sro.application.ports.locks import AccountLocks
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
-from sro.application.shared.locks import one_at_a_time
 from sro.domain.execution.uses_edges import uses_edges
 from sro.domain.observation.driving import was_our_own_driving
 from sro.domain.observation.gesture import Gesture, Intent
@@ -70,6 +69,7 @@ __all__ = [
     "fill_in_passwords",
     "learn_parameters",
     "mine",
+    "mining_lock",
     "new_pass_id",
     "propose",
     "rekey_workflows",
@@ -138,13 +138,14 @@ async def mine(
     *,
     tenant_id: TenantId,
     asker: Asker,
+    locks: AccountLocks,
     model: str,
     now: datetime,
     cap_usd: float,
     kb: str = "",
     ours: frozenset[str] = frozenset(),
 ) -> MineResult:
-    async with one_at_a_time(f"mining:{tenant_id.value}"):
+    async with locks.hold_named(mining_lock(tenant_id)):
         why = await over_cap(uow, tenant_id, now=now, cap_usd=cap_usd)
         if why:
             logger.warning("%s for %s, nothing mined", why, tenant_id.value)
@@ -646,16 +647,15 @@ async def evidence_of(
     return seen
 
 
-async def decide_sign_ins(uow: UnitOfWork) -> dict[str, int]:
-    decided: dict[str, int] = {}
-    undecided = await uow.workflows.undecided()
-    for tenant, jobs in groupby(undecided, key=lambda job: job.tenant):
-        waiting = list(jobs)
-        tenant_id = TenantId(tenant)
-        by_id = await evidence_of(uow, tenant_id, waiting)
-        for job in waiting:
-            if await uow.workflows.decide_signs_in(tenant_id, job.id, _judged(job, by_id)):
-                decided[tenant] = decided.get(tenant, 0) + 1
+def mining_lock(tenant_id: TenantId) -> str:
+    return f"mining:{tenant_id.value}"
+
+
+async def decide_sign_ins(uow: UnitOfWork, tenant_id: TenantId, jobs: Sequence[Workflow]) -> int:
+    by_id = await evidence_of(uow, tenant_id, jobs)
+    decided = 0
+    for job in jobs:
+        decided += await uow.workflows.decide_signs_in(tenant_id, job.id, _judged(job, by_id))
     return decided
 
 

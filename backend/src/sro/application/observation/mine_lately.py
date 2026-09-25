@@ -3,11 +3,13 @@ from __future__ import annotations
 import logging
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from itertools import groupby
 
 from sro.application.context import RequestContext
 from sro.application.observation.mine_pass import MinePass
-from sro.application.observation.mining_pass import MineResult, decide_sign_ins
+from sro.application.observation.mining_pass import MineResult, decide_sign_ins, mining_lock
 from sro.application.observation.read_gesture import ReadGestures
+from sro.application.ports.locks import AccountLocks
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.shared.refusals import OverCap
 from sro.domain.shared.identifiers import PrincipalId, TenantId
@@ -37,6 +39,7 @@ class MineLately:
         uow: UnitOfWork,
         pass_: MinePass,
         reader: ReadGestures,
+        locks: AccountLocks,
         *,
         window_hours: int,
         max_reads: int = MAX_READS,
@@ -45,6 +48,7 @@ class MineLately:
         self._uow = uow
         self._pass = pass_
         self._reader = reader
+        self._locks = locks
         self._window_hours = window_hours
         self._max_reads = max_reads
         self._settle = settle_seconds
@@ -76,16 +80,19 @@ class MineLately:
         return since_anybody_worked < windows
 
     async def _decide(self) -> None:
-        try:
-            async with self._uow as uow:
-                decided = await decide_sign_ins(uow)
-                if decided:
+        async with self._uow as uow:
+            undecided = await uow.workflows.undecided()
+        for tenant, jobs in groupby(undecided, key=lambda job: job.tenant):
+            tenant_id = TenantId(tenant)
+            try:
+                async with self._locks.hold_named(mining_lock(tenant_id)), self._uow as uow:
+                    decided = await decide_sign_ins(uow, tenant_id, list(jobs))
                     await uow.commit()
-        except Exception:
-            logger.exception("could not decide which jobs sign in")
-            return
-        for tenant, count in decided.items():
-            logger.info("%s: decided whether %d job(s) sign in", tenant, count)
+            except Exception:
+                logger.exception("%s: could not decide which jobs sign in", tenant)
+                continue
+            if decided:
+                logger.info("%s: decided whether %d job(s) sign in", tenant, decided)
 
     async def execute(self, *, now: datetime) -> dict[str, MineResult]:
         await self._decide()

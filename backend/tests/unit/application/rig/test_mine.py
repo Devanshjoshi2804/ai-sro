@@ -35,6 +35,7 @@ from sro.application.observation.mining_pass import (
     propose,
     rekey_workflows,
 )
+from sro.application.ports.locks import AccountBusy
 from sro.domain.observation.gesture import Gesture, Intent, Target, ValueSeen
 from sro.domain.observation.pool import K_POOL_AGE
 from sro.domain.observation.trim import is_secret
@@ -44,7 +45,7 @@ from sro.domain.shared.prices import Answer
 from sro.domain.skill.umbrella import INSTRUCTIONS, K_EFFORT, K_SAMPLES
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.domain.rig.conftest import gestures as _gestures
-from tests.unit.fakes import FakeAsker, FakeGestureRepository, FakeUnitOfWork
+from tests.unit.fakes import FakeAccountLocks, FakeAsker, FakeGestureRepository, FakeUnitOfWork
 
 TENANT = TenantId("acme")
 MODEL = "gemini-3.1-pro"
@@ -84,9 +85,18 @@ async def _mine(
     cap_usd: float = CAP,
     tenant: TenantId = TENANT,
     ours: frozenset[str] = frozenset(),
+    locks: FakeAccountLocks | None = None,
 ) -> MineResult:
     return await mine(
-        uow, tenant_id=tenant, asker=asker, model=model, now=NOW, cap_usd=cap_usd, kb=kb, ours=ours
+        uow,
+        tenant_id=tenant,
+        asker=asker,
+        locks=locks or FakeAccountLocks(),
+        model=model,
+        now=NOW,
+        cap_usd=cap_usd,
+        kb=kb,
+        ours=ours,
     )
 
 
@@ -326,7 +336,9 @@ async def test_two_passes_at_once_do_not_both_read_the_same_window() -> None:
     uow, ids = await _day()
     asker = FakeAsker(_found(_proposal(ids[:2])), _found(_proposal(ids[:2])))
 
-    await asyncio.gather(_mine(uow, asker), _mine(uow, asker))
+    locks = FakeAccountLocks()
+
+    await asyncio.gather(_mine(uow, asker, locks=locks), _mine(uow, asker, locks=locks))
 
     assert len(await uow.workflows.known(TENANT)) == 1
 
@@ -346,6 +358,7 @@ async def test_two_tenants_mine_at_the_same_time_rather_than_in_turn() -> None:
     uow, _ = await _day()
     await uow.gestures.add_gestures(tuple(_gestures("other-corp")))
     second_asked = asyncio.Event()
+    locks = FakeAccountLocks()
 
     class Gated:
         """An asker that answers only once its partner has been asked."""
@@ -366,6 +379,7 @@ async def test_two_tenants_mine_at_the_same_time_rather_than_in_turn() -> None:
                 uow,
                 tenant_id=TENANT,
                 asker=Gated(waits=True),
+                locks=locks,
                 model=MODEL,
                 now=NOW,
                 cap_usd=CAP,
@@ -374,6 +388,7 @@ async def test_two_tenants_mine_at_the_same_time_rather_than_in_turn() -> None:
                 uow,
                 tenant_id=TenantId("other-corp"),
                 asker=Gated(waits=False),
+                locks=locks,
                 model=MODEL,
                 now=NOW,
                 cap_usd=CAP,
@@ -2020,3 +2035,18 @@ async def test_a_job_already_stored_is_marked_as_signing_in_by_the_healing_pass(
     assert await fill_in_passwords(uow, tenant_id=TENANT) == 1
     assert (await uow.workflows.get(TENANT, "wfl_stored")).signs_in is True
     assert await fill_in_passwords(uow, tenant_id=TENANT) == 0
+
+
+async def test_a_tenant_being_mined_elsewhere_is_not_mined_again() -> None:
+    """The mining lock is the database's, per tenant, not this process's: a
+    pass (and the healing `fill_in_passwords` inside it, which saves whole
+    workflows) never runs beside another worker's pass over the same tenant."""
+    uow, _ = await _day()
+    asker = FakeAsker(_found())
+    locks = FakeAccountLocks()
+    locks.busy.add(f"mining:{TENANT.value}")
+
+    with pytest.raises(AccountBusy):
+        await _mine(uow, asker, locks=locks)
+
+    assert len(asker.answers) == 1

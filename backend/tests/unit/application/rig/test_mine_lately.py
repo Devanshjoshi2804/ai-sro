@@ -24,7 +24,7 @@ from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.skill.workflow import Step, Workflow
 from sro.whose import about, whose
-from tests.unit.fakes import FakeUnitOfWork
+from tests.unit.fakes import FakeAccountLocks, FakeUnitOfWork
 from tests.unit.scripts.test_migrate_vault_keys import _job as _signing_in_job
 from tests.unit.scripts.test_migrate_vault_keys import _sign_in
 
@@ -109,11 +109,13 @@ async def _swept(
     reads: _Reads | None = None,
     *,
     max_reads: int = 25,
+    locks: FakeAccountLocks | None = None,
 ) -> dict[str, MineResult]:
     lately = MineLately(
         uow,
         passes,
         reads or _Reads(),
+        locks or FakeAccountLocks(),
         window_hours=24,
         max_reads=max_reads,
     )
@@ -580,3 +582,37 @@ async def test_nothing_undecided_reads_no_gestures() -> None:
     await _swept(uow, _Passes())
 
     assert uow.gestures.gestures_for_calls == 0
+
+
+async def test_one_tenant_that_cannot_be_decided_does_not_stop_another() -> None:
+    """Each tenant is decided in its own transaction, under its own mining
+    lock: a tenant whose lock is held elsewhere (or whose write fails) is
+    logged and skipped, and the tenant after it is still decided."""
+    uow = FakeUnitOfWork()
+    await uow.workflows.save(_job_citing("acme", signs_in=None))
+    await uow.workflows.save(_job_citing("zeta", signs_in=None))
+    locks = FakeAccountLocks()
+    locks.busy.add("mining:acme")
+
+    await _swept(uow, _Passes(), locks=locks)
+
+    assert (await uow.workflows.get(TenantId("acme"), "wfl_acme")).signs_in is None
+    assert (await uow.workflows.get(TenantId("zeta"), "wfl_zeta")).signs_in is False
+
+
+async def test_a_tenant_whose_write_fails_does_not_stop_another() -> None:
+    uow = FakeUnitOfWork()
+    await uow.workflows.save(_job_citing("acme", signs_in=None))
+    await uow.workflows.save(_job_citing("zeta", signs_in=None))
+    deciding = uow.workflows.decide_signs_in
+
+    async def _refuses_acme(tenant_id: TenantId, workflow_id: str, signs_in: bool) -> bool:
+        if tenant_id.value == "acme":
+            raise RuntimeError("the store refused")
+        return await deciding(tenant_id, workflow_id, signs_in)
+
+    uow.workflows.decide_signs_in = _refuses_acme  # type: ignore[method-assign]
+
+    await _swept(uow, _Passes())
+
+    assert (await uow.workflows.get(TenantId("zeta"), "wfl_zeta")).signs_in is False

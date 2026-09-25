@@ -30,7 +30,13 @@ from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer, ModelSpend
 from sro.infrastructure.db.codec import when
 from tests.unit.domain.rig.conftest import gestures as _gestures
-from tests.unit.fakes import FakeAsker, FakeClock, FakeGestureRepository, FakeUnitOfWork
+from tests.unit.fakes import (
+    FakeAccountLocks,
+    FakeAsker,
+    FakeClock,
+    FakeGestureRepository,
+    FakeUnitOfWork,
+)
 
 TENANT = TenantId("acme")
 RIVAL = TenantId("rival")
@@ -67,6 +73,7 @@ def _pass(
     return MinePass(
         uow.hand_out(),
         asker=asker,
+        locks=FakeAccountLocks(),
         model=model,
         clock=clock or FakeClock(NOW),
         cap_usd=cap_usd,

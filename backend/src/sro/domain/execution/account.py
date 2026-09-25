@@ -43,7 +43,11 @@ class Account:
 
     @property
     def lock_id(self) -> int:
-        return int.from_bytes(hashlib.sha256(self.key.encode()).digest()[:8], "big", signed=True)
+        return lock_id_of(self.key)
+
+
+def lock_id_of(name: str) -> int:
+    return int.from_bytes(hashlib.sha256(name.encode()).digest()[:8], "big", signed=True)
 
 
 def _encoded(username: str) -> str:

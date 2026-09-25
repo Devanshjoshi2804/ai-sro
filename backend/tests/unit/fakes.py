@@ -11,7 +11,7 @@ import re
 import sys
 from collections import Counter
 from collections.abc import AsyncIterator, Awaitable, Callable, Collection, Mapping, Sequence
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from copy import deepcopy
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -1760,14 +1760,19 @@ class FakeAccountLocks:
         self._locks: dict[str, asyncio.Lock] = {}
         self.busy: set[str] = set()
 
-    @asynccontextmanager
-    async def hold(
+    def hold(
         self, account: Account, *, on_wait: Callable[[], Awaitable[None]] = _no_op_on_wait
+    ) -> AbstractAsyncContextManager[None]:
+        return self.hold_named(account.key, on_wait=on_wait)
+
+    @asynccontextmanager
+    async def hold_named(
+        self, name: str, *, on_wait: Callable[[], Awaitable[None]] = _no_op_on_wait
     ) -> AsyncIterator[None]:
-        if account.key in self.busy:
+        if name in self.busy:
             await on_wait()
-            raise AccountBusy(f"{account.key} is held by another session")
-        lock = self._locks.setdefault(account.key, asyncio.Lock())
+            raise AccountBusy(f"{name} is held by another session")
+        lock = self._locks.setdefault(name, asyncio.Lock())
         async with lock:
             yield
 

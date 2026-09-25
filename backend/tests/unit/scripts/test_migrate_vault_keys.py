@@ -176,7 +176,7 @@ async def test_a_job_the_quiet_sweep_marked_is_moved_by_the_dry_run() -> None:
     uow, vault = await _world([job], _sign_in("h", user="hana"))
 
     before = await migrate(lambda: uow, vault, [f.TENANT], apply=False, delete_old=False)
-    assert await decide_sign_ins(uow) == {f.TENANT.value: 1}
+    assert await decide_sign_ins(uow, f.TENANT, await uow.workflows.undecided()) == 1
     after = await migrate(lambda: uow, vault, [f.TENANT], apply=False, delete_old=False)
 
     assert not any("would copy" in line for line in before)

@@ -71,6 +71,7 @@ import pytest
 
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.chat.reading import ChatReading
+from sro.domain.execution.account import K_LEASE_TTL, Account, Lease, LeaseState
 from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Action, Gesture, GestureBatch, Intent
@@ -1659,3 +1660,47 @@ class TestTenantsWaiting:
 
         async with store as work:
             assert await work.confirmations.tenants_waiting() == ()
+
+
+def _lease(lease_id: str, **over: Any) -> Lease:
+    fields: dict[str, Any] = {
+        "id": lease_id,
+        "account": Account.of("acme", "https://wms.example", "lena"),
+        "container_url": "http://steel:3000",
+        "steel_session_id": f"s-{lease_id}",
+        "context_id": f"ctx-{lease_id}",
+        "holder": "run_1",
+        "heartbeat_at": _when(9),
+        "expires_at": _when(9) + K_LEASE_TTL,
+        "state": LeaseState.SIGNING_IN,
+    }
+    fields.update(over)
+    return Lease(**fields)
+
+
+class TestLeases:
+    async def test_a_beat_on_a_waiting_lease_never_moves_its_deadline(
+        self, store: UnitOfWork
+    ) -> None:
+        until = _when(9) + timedelta(minutes=10)
+        async with store as work:
+            await work.browser_sessions.lease(TENANT, _lease("lse_a"))
+            await work.browser_sessions.settle(
+                TENANT, "lse_a", state=LeaseState.WAITING, until=until
+            )
+            await work.commit()
+
+        async with store as work:
+            # A sibling beats well past the WAITING deadline -- the beat is
+            # accepted (it still holds the lease as the caller's), but it
+            # must never push a WAITING lease's expiry out.
+            assert await work.browser_sessions.beat(
+                TENANT, "lse_a", now=until + timedelta(minutes=20)
+            )
+            await work.commit()
+
+        async with store as work:
+            waiting = await work.browser_sessions.get_lease(TENANT, "lse_a")
+            assert waiting is not None
+            assert waiting.state is LeaseState.WAITING
+            assert waiting.expires_at == until

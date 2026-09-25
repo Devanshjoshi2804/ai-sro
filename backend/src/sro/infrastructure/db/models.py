@@ -271,7 +271,7 @@ class BrowserSessionRow(Base):
             "tenant_id",
             "account_key",
             unique=True,
-            postgresql_where=text("state IN ('signing_in', 'ready')"),
+            postgresql_where=text("state IN ('signing_in', 'ready', 'waiting')"),
         ),
         CheckConstraint(
             "(state IS NULL OR ("

@@ -424,7 +424,11 @@ declared form key places it (`declared_keys`, `application/execution/declared.py
    precedes is still confirmed by its own call (X4). The extension to X4's rule: the
    call's body keys must be the recorded keys plus at most one new key per field
    filled this run. A new key is attributed to the composed field whose value it
-   carries. If exactly one field and one key are left unmatched, they pair. A composed
+   carries: the sent value must equal the value the page control holds after the fill
+   (the input's value, or the selected option's value), and be non-empty. There is no
+   pairing by elimination: a leftover key whose value is not the filled control's value
+   (`validateOnly: true`, a null a widget sent without taking the value) means the call
+   is not the write's own, so it neither confirms the write nor teaches a key. A composed
    field whose key is not found in the call is `unknown`, even when the write is
    `done`. A recorded write whose body keys are unknown gives no key to find, so the
    field is `unknown`.

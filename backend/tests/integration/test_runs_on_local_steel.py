@@ -50,6 +50,7 @@ from sro.application.execution.stops import Stops
 from sro.application.execution.workflow_runs import AbortWorkflowRun
 from sro.application.lookup.run_lookups import RunLookups
 from sro.application.ports.browser import BrowserUnavailable
+from sro.application.ports.page import SessionRef
 from sro.application.runtime.api_lane import ApiLane
 from sro.application.runtime.broker import K_CLOSE_S, SessionBroker
 from sro.application.runtime.executor import StepExecutor
@@ -706,3 +707,39 @@ async def test_a_stop_mid_step_lets_the_step_finish_and_sends_nothing_after_it(
     assert run.outcome == "aborted"
     assert [(one.of_step, one.verdict) for one in run.steps] == [(0, "held")]
     assert Progress.of(run.progress).tabs == {}
+
+
+async def test_a_worker_killed_mid_write_resumes_the_run_and_never_sends_it_again(
+    world: World, temporal: Client
+) -> None:
+    run_id = await _a_run(world, "type", "save")
+    world.rig.hold_saves = True
+    queue = f"runs-test-{uuid.uuid4().hex}"
+    first = asyncio.create_task(_worker(world, temporal, queue).run())
+    handle = await temporal.start_workflow(
+        RunWorkflow.run,
+        RunRef(tenant_id=TENANT, principal_id="op", run_id=run_id, budget_s=300.0),
+        id=f"workflow-run-{run_id}",
+        task_queue=queue,
+    )
+    assert await asyncio.to_thread(world.rig.asked.wait, 60)
+    tab = Progress.of((await _saved(world, run_id)).progress).tabs[MAIN]
+
+    first.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await first
+    world.rig.answer.set()
+    async with _worker(world, temporal, queue):
+        await handle.result()
+
+    assert world.rig.saved == [{"name": "GT2"}]
+    assert world.rig.logins == 1
+    run = await _saved(world, run_id)
+    assert [(one.of_step, one.verdict) for one in run.steps] == [(0, "held"), (1, "unclear")]
+    progress = Progress.of(run.progress)
+    assert progress.in_doubt(1)
+    async with world.uow as uow:
+        lease = await uow.browser_sessions.get_lease(CTX.tenant_id, progress.lease)
+    assert lease is not None
+    session = SessionRef(lease.context_id, await world.pool.cdp_url(lease.container_url))
+    assert tab not in await pages_in(session)

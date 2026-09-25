@@ -109,8 +109,9 @@ class Rig:
     `POST /api/ping` answers 201 from any page and sets `pinged`; with `?hold`
     it answers only once `release` is set, so a test can hold a request open
     across a mark. `/app`'s Refresh reads `/api/customer-types?hold`, which
-    sets `asked` and answers only once `answer` is set, so a test can act
-    while a read is in flight. With `idp_elsewhere`
+    sets `asked` and answers only once `answer` is set; with `hold_saves` a
+    save is kept and sets `asked`, and its answer waits the same way, so a
+    test can act while a read or a write is in flight. With `idp_elsewhere`
     the identity provider answers on a
     second port -- a second origin, as a real one is -- and `logins` counts
     the credentials posted to it."""
@@ -125,6 +126,7 @@ class Rig:
         self.answer = threading.Event()
         self.pinged = threading.Event()
         self.release = threading.Event()
+        self.hold_saves = False
         self.logins = 0
         host = "0.0.0.0" if for_steel else "127.0.0.1"  # noqa: S104
         self._servers = [ThreadingHTTPServer((host, 0), _handler_for(self))]
@@ -339,6 +341,9 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
                     self.end_headers()
                     return
                 rig.saved.append(json.loads(body or b"{}"))
+                if rig.hold_saves:
+                    rig.asked.set()
+                    rig.answer.wait(_HELD_S)
                 self._json({"ok": True}, status=201)
             else:
                 self.send_response(404)

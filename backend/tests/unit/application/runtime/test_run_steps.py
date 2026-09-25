@@ -198,6 +198,19 @@ async def test_stopped_aborts_a_running_run_and_leaves_a_finished_one_alone() ->
     assert (await world.saved_run()).outcome == "held"
 
 
+async def test_a_restarted_worker_finds_the_run_s_tab_by_its_target_id() -> None:
+    world = await steel_run(steps=[type_step(), save_step(status=201)])
+    await world.run_steps.prepare(CTX, world.run_id)
+    await world.run_steps.acquire(CTX, world.run_id)
+    tab = Progress.of((await world.saved_run()).progress).tabs[MAIN]
+    opened = dict(world.driver.tabs)
+
+    await world.restarted().acquire(CTX, world.run_id)
+
+    assert Progress.of((await world.saved_run()).progress).tabs[MAIN] == tab
+    assert world.driver.tabs == opened
+
+
 async def test_a_dry_run_withholds_the_write() -> None:
     world = await steel_run(steps=[save_step(status=201)], live=False)
 

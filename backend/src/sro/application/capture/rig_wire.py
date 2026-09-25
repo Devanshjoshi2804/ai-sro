@@ -133,6 +133,26 @@ class AfterState(BaseModel):
         return self
 
 
+class OutlineField(BaseModel):
+    role: str
+    label: str
+    required: bool | None = None
+    options: list[str] | None = None
+
+
+class OutlineMessage(BaseModel):
+    role: str
+    text: str
+
+
+class Outline(BaseModel):
+    headings: list[str] = Field(default_factory=list)
+    landmarks: list[Landmark] = Field(default_factory=list)
+    fields: list[OutlineField] = Field(default_factory=list)
+    buttons: list[str] = Field(default_factory=list)
+    messages: list[OutlineMessage] = Field(default_factory=list)
+
+
 class Gesture(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
@@ -149,6 +169,7 @@ class Gesture(BaseModel):
     ref: str | None = None
     prior: AfterState | None = None
     prior_of: str | None = None
+    outlines: list[Outline] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def a_credential_value_is_dropped_here(self) -> "Gesture":

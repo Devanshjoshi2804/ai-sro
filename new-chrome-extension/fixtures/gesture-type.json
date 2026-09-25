@@ -42,14 +42,49 @@
     "value": "ACME-4471",
     "secret": false,
     "modifiers": [],
-    "ref": "bsx4f495038.1",
+    "ref": "wpr2edei8eh.1",
     "prior": null,
     "prior_of": null,
+    "outlines": [
+      {
+        "headings": [
+          "Depot"
+        ],
+        "landmarks": [],
+        "fields": [
+          {
+            "role": "textbox",
+            "label": "Client Code",
+            "required": null,
+            "options": null
+          },
+          {
+            "role": "textbox",
+            "label": "Password",
+            "required": null,
+            "options": null
+          },
+          {
+            "role": "combobox",
+            "label": "Dock",
+            "required": null,
+            "options": [
+              "choose",
+              "Dock 3"
+            ]
+          }
+        ],
+        "buttons": [
+          "Save"
+        ],
+        "messages": []
+      }
+    ],
     "frame_path": [],
-    "at": 1790278953.873,
-    "url": "http://127.0.0.1:55199/"
+    "at": 1790330430.007,
+    "url": "http://127.0.0.1:55211/"
   },
-  "tab_id": 1470579231,
-  "frame_url": "http://127.0.0.1:55199/",
-  "page_url": "http://127.0.0.1:55199/"
+  "tab_id": 1809463707,
+  "frame_url": "http://127.0.0.1:55211/",
+  "page_url": "http://127.0.0.1:55211/"
 }

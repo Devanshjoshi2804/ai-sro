@@ -27155,16 +27155,6 @@
             "type": "integer",
             "title": "Screenshot Max Per Minute"
           },
-          "capture_snapshots": {
-            "type": "boolean",
-            "title": "Capture Snapshots",
-            "default": false
-          },
-          "snapshot_max_per_minute": {
-            "type": "integer",
-            "title": "Snapshot Max Per Minute",
-            "default": 20
-          },
           "capture_response_bodies": {
             "type": "boolean",
             "title": "Capture Response Bodies"

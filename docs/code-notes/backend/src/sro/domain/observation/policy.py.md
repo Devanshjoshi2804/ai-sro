@@ -71,43 +71,7 @@ Code: `include_hosts: tuple[str, ...] = ()`
 > Empty means everything not excluded. A non-empty list narrows capture to
 > those hosts and their subdomains.
 
-## `ObservationPolicy`, [line 27](../../../../../../../backend/src/sro/domain/observation/policy.py#L27): Note on the line above
-
-Code: `capture_snapshots: bool = False`
-
-> Accessibility trees while nobody is deliberately teaching.
->
-> The tree is the one view that says what a control *is* rather than where it
-> happens to sit today, and induction builds a locator from it. Without one, a
-> skill has only what the DOM offers -- a css path of framework ids assigned
-> in render order, different on the next page load. So every skill that
-> arrived the way this product intends -- watch, notice the repetition, offer
-> it back -- got the weaker ladder, and the good locators were reserved for
-> the path an operator has to remember to press.
->
-> Off by default, and this is the only capture setting that is, because it is
-> the only one an operator can see. Trees come from `chrome.debugger` and
-> Chrome shows "AI-SRO is debugging this browser" for as long as anything is
-> attached. An extension force-installed by enterprise policy
-> (`ExtensionInstallForcelist`) raises no banner at all, which is the
-> deployment this is for; an unpacked development copy does, and no extension
-> can suppress it from inside. Turning this on is therefore an administrator's
-> decision about a browser they manage, which is why it is written here rather
-> than defaulted on and discovered by somebody working.
->
-> It also costs the tab's debugger, and Chrome allows one. An operator who
-> opens DevTools takes it and keeps it until they close them; capture carries
-> on without trees rather than fighting them for it.
-
-## `ObservationPolicy`, [line 29](../../../../../../../backend/src/sro/domain/observation/policy.py#L29): Note on the line above
-
-Code: `snapshot_max_per_minute: int = 20`
-
-> Its own budget, not the screenshots'. A tree is a round trip and some
-> JSON, a picture is a PNG, and one shared counter would have whichever
-> happened first spend the other's allowance.
-
-## `ObservationPolicy.allows`, [line 49](../../../../../../../backend/src/sro/domain/observation/policy.py#L49): Docstring
+## `ObservationPolicy.allows`, [line 45](../../../../../../../backend/src/sro/domain/observation/policy.py#L45): Docstring
 
 > Whether a page at this URL may be observed.
 >
@@ -130,26 +94,17 @@ Code: `snapshot_max_per_minute: int = 20`
 >   ever be observed. That is not a default, and an operator does not get
 >   to widen it from a side panel.
 
-## `ObservationPolicy.enabled`, [line 62](../../../../../../../backend/src/sro/domain/observation/policy.py#L62): Docstring
+## `ObservationPolicy.enabled`, [line 58](../../../../../../../backend/src/sro/domain/observation/policy.py#L58): Docstring
 
 > Observation on for this tenant. A contract conversation happened;
 > this is where it is recorded.
 
-## `ObservationPolicy.excluding`, [line 68](../../../../../../../backend/src/sro/domain/observation/policy.py#L68): Docstring
+## `ObservationPolicy.excluding`, [line 64](../../../../../../../backend/src/sro/domain/observation/policy.py#L64): Docstring
 
 > Replaces the list rather than adding to it: an exclusion somebody
 > thought they had removed is worse than one they have to retype.
 
-## `ObservationPolicy.reading_structure`, [line 77](../../../../../../../backend/src/sro/domain/observation/policy.py#L77): Docstring
-
-> Accessibility trees while nobody is deliberately teaching.
->
-> Its own method rather than a field somebody edits, because turning it on
-> is a decision about a browser an administrator manages: on an install
-> that is not force-installed by policy, Chrome puts a debugging banner on
-> every watched tab for as long as this is on.
-
-## `ObservationPolicy.allows`, [line 56](../../../../../../../backend/src/sro/domain/observation/policy.py#L56): Comment
+## `ObservationPolicy.allows`, [line 52](../../../../../../../backend/src/sro/domain/observation/policy.py#L52): Comment
 
 Code: `if excluded_by_default and host not in granted:`
 

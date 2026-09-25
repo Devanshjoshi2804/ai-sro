@@ -13,15 +13,13 @@ the backend. A fixture that exists and does not parse fails the build.
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
 from pydantic import TypeAdapter
 
-from sro.application.capture.decode import epoch_to_datetime, to_ax_graph, to_input_action
-from sro.domain.recording.axgraph import AxGraph
+from sro.application.capture.decode import epoch_to_datetime, to_input_action
 from sro.domain.recording.events import InputAction
 from sro.domain.recording.network import CapturedRequest
 from sro.domain.recording.state import PageEvent
@@ -52,7 +50,7 @@ def _fixtures() -> list[Path]:
     return sorted(p for p in FIXTURES.glob("*.json") if p.name not in NOT_EXTENSION_OUTPUT)
 
 
-def _parse_event(event: dict[str, Any]) -> InputAction | CapturedRequest | AxGraph | PageEvent:
+def _parse_event(event: dict[str, Any]) -> InputAction | CapturedRequest | PageEvent:
     """The dispatch the ingest use case will do, done here against the raw file."""
     kind = event.get("kind")
     if kind == "gesture":
@@ -70,11 +68,6 @@ def _parse_event(event: dict[str, Any]) -> InputAction | CapturedRequest | AxGra
                 "detail": event.get("detail"),
             }
         )
-    if kind == "snapshot":
-        taken_at = datetime.fromisoformat(event["taken_at"]).astimezone(UTC)
-        graph = to_ax_graph(event["snapshot"], url=event["url"], taken_at=taken_at)
-        assert graph is not None, "an accessibility snapshot with no usable root"
-        return graph
     raise AssertionError(f"the protocol declares no event kind {kind!r}")
 
 

@@ -48,7 +48,7 @@
   // records and what page-code.js later resolves it against are one text, so
   // the two cannot disagree about a control. Reasoning lives in
   // docs/code-notes/new-chrome-extension/src/page/page-code.js.md.
-  const { roleOf, nameOf, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf } =
+  const { roleOf, nameOf, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf, requiredOf, outlineOf } =
     (() => {
     const MAX_TEXT = 200;
     const roleOf = (el) => {
@@ -176,7 +176,121 @@
       }
       return undefined;
     };
-    return { roleOf, ownName, nameOf, landmarkRole, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf };
+    const OUTLINE_OPTIONS = 25;
+    const OUTLINE_FIELDS = 80;
+    const OUTLINE_TEXT = 120;
+    const OUTLINE_MESSAGES = 10;
+    const ECHO_MIN = 3;
+    const ECHO_SPAN = 8;
+    const FIELD_ROLES = ["textbox", "searchbox", "combobox", "listbox", "checkbox", "radio", "switch", "spinbutton", "slider"];
+    const NOT_TYPED = ["checkbox", "radio", "button", "submit", "reset", "image", "hidden", "file", "range", "color"];
+    const NOT_VOCABULARY = /:\/\/|\w=\S/;
+    const labelOf = (el) => {
+      const own = ownName(el);
+      if (own) return own;
+      if (el.labels && el.labels.length) return (el.labels[0].innerText || "").trim().slice(0, MAX_TEXT);
+      return (el.getAttribute("placeholder") || el.getAttribute("title") || "").trim().slice(0, MAX_TEXT);
+    };
+    const requiredOf = (el) => {
+      const said = el.getAttribute("aria-required");
+      if (said === "true") return true;
+      if (said === "false") return false;
+      if (el.required === true || el.hasAttribute("required")) return true;
+      return /\*\s*$/.test(labelOf(el)) ? true : null;
+    };
+    const plainOf = (text) => String(text || "").replace(/\s+/g, " ").trim();
+    const wordsOf = (text) => text.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+    const insideEditor = (el) => Boolean(el.parentElement && el.parentElement.isContentEditable);
+    const rootsOf = (root) => [
+      root,
+      ...[...root.querySelectorAll("*")].flatMap((el) => {
+        let inner = el.shadowRoot;
+        if (!inner && el.tagName === "IFRAME") {
+          try {
+            inner = el.contentDocument;
+          } catch {
+            inner = null;
+          }
+        }
+        return inner ? rootsOf(inner) : [];
+      }),
+    ];
+    const typedOn = (doc) =>
+      rootsOf(doc)
+        .flatMap((root) => [...root.querySelectorAll("input, textarea, [contenteditable]")])
+        .map((el) => {
+          if (el.isContentEditable) return insideEditor(el) ? "" : el.innerText;
+          if (el.tagName === "INPUT" && NOT_TYPED.includes((el.getAttribute("type") || "text").toLowerCase())) return "";
+          return el.value;
+        })
+        .map((text) => plainOf(text).toLowerCase())
+        .filter(Boolean);
+    const echoes = (lower, typed) => {
+      const words = wordsOf(lower);
+      return typed.some((one) => {
+        if (one.length < ECHO_MIN) return wordsOf(one).some((word) => words.includes(word));
+        if (lower.includes(one)) return true;
+        for (let at = 0; at + ECHO_SPAN <= lower.length; at += 1) {
+          if (one.includes(lower.slice(at, at + ECHO_SPAN))) return true;
+        }
+        return false;
+      });
+    };
+    const outlineOf = (doc) => {
+      const typed = typedOn(doc);
+      const say = (text) => {
+        const plain = plainOf(text);
+        if (!plain || NOT_VOCABULARY.test(plain) || echoes(plain.toLowerCase(), typed)) return null;
+        return plain.slice(0, OUTLINE_TEXT);
+      };
+      const shownIn = (selector) =>
+        [...doc.querySelectorAll(selector)].filter((el) => el.getClientRects().length > 0 && !insideEditor(el));
+      const unique = (texts, cap) => [...new Set(texts.map(say).filter(Boolean))].slice(0, cap);
+      const optionsOf = (el) => {
+        const owned = el.getAttribute("aria-controls") || el.getAttribute("aria-owns");
+        const list =
+          el.tagName === "SELECT"
+            ? [...el.options].map((one) => one.label)
+            : roleOf(el) === "listbox"
+              ? [...el.querySelectorAll("[role=option]")].map((one) => one.innerText)
+              : owned && doc.getElementById(owned)
+                ? [...doc.getElementById(owned).querySelectorAll("[role=option]")].map((one) => one.innerText)
+                : null;
+        return list && list.length <= OUTLINE_OPTIONS ? list.map(say).filter(Boolean) : null;
+      };
+      const fields = shownIn("input, select, textarea, [role]")
+        .filter((el) => FIELD_ROLES.includes(roleOf(el)))
+        .map((el) => ({ role: roleOf(el), label: say(labelOf(el)), required: requiredOf(el), options: optionsOf(el) }))
+        .filter((one) => one.label)
+        .slice(0, OUTLINE_FIELDS);
+      const invalid = shownIn("[aria-invalid=true]").flatMap((el) =>
+        (el.getAttribute("aria-errormessage") || el.getAttribute("aria-describedby") || "")
+          .split(/\s+/)
+          .map((id) => id && doc.getElementById(id))
+          .filter(Boolean)
+          .map((said) => ({ role: "invalid", text: said.innerText })),
+      );
+      const messages = [
+        ...shownIn("[role=alert], [role=status]").map((el) => ({ role: el.getAttribute("role"), text: el.innerText })),
+        ...invalid,
+      ]
+        .map((one) => ({ role: one.role, text: say(one.text) }))
+        .filter((one) => one.text)
+        .slice(0, OUTLINE_MESSAGES);
+      return {
+        headings: unique(shownIn("h1, h2, h3, h4, h5, h6, [role=heading]").map((el) => el.innerText), OUTLINE_FIELDS),
+        landmarks: shownIn("form, dialog, [role=dialog], [role=alertdialog], [role=form]")
+          .map((el) => ({ role: landmarkRole(el), name: say(ownName(el)) }))
+          .filter((one) => one.role && one.name),
+        fields,
+        buttons: unique(shownIn("button, [role=button], input[type=submit], input[type=button]").map(nameOf), OUTLINE_FIELDS),
+        messages,
+      };
+    };
+    return {
+      roleOf, ownName, nameOf, landmarkRole, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf,
+      labelOf, requiredOf, outlineOf,
+    };
   })();
 
   // A credential field is recognised where it is typed, not later. Anything
@@ -240,19 +354,34 @@
   let last = null;
   let lastRef = null;
 
-  // What the page says about whether this field is mandatory, or null where
-  // it says nothing. Read off the control and off the label that names it: a
-  // form marks the star on the label, not on the input.
-  const requiredOf = (el) => {
-    const said = el.getAttribute && el.getAttribute('aria-required');
-    if (said === 'true') return true;
-    if (said === 'false') return false;
-    if (el.required === true) return true;
-    if (el.hasAttribute && el.hasAttribute('required')) return true;
-    const named = label(el);
-    if (named && /\*\s*$/.test(named)) return true;
-    return null;
+  const OUTLINES_PER_GESTURE = 3;
+  const OUTLINED = 'form, dialog, [role=dialog], [role=alertdialog], [role=form], [role=alert], [role=status]';
+  let seenOutline = null;
+  let outlines = [];
+  const takeOutline = () => {
+    let taken = null;
+    try {
+      taken = JSON.stringify(outlineOf(document));
+    } catch {
+      return;
+    }
+    if (taken === seenOutline) return;
+    seenOutline = taken;
+    outlines = [...outlines, JSON.parse(taken)].slice(-OUTLINES_PER_GESTURE);
   };
+  const appeared = (change) => {
+    const inside = change.target.nodeType === 1 ? change.target : change.target.parentElement;
+    if (inside && inside.closest('[role=alert], [role=status]')) return true;
+    return [...change.addedNodes].some(
+      (node) => node.nodeType === 1 && (node.matches(OUTLINED) || node.querySelector(OUTLINED)),
+    );
+  };
+  const WATCHING = '__sroOutlineWatch';
+  if (window[WATCHING]) window[WATCHING].disconnect();
+  window[WATCHING] = new MutationObserver((changes) => {
+    if (changes.some(appeared)) takeOutline();
+  });
+  window[WATCHING].observe(document, { childList: true, subtree: true, characterData: true });
 
   const cssPath = (el) => {
     const parts = [];
@@ -381,6 +510,9 @@
     const ref = `${REALM}.${count}`;
     const prior = last ? stateOf(last) : null;
     const prior_of = last ? lastRef : null;
+    takeOutline();
+    const sent = outlines;
+    outlines = [];
     last = el;
     lastRef = el ? ref : null;
     try {
@@ -390,12 +522,14 @@
           ref,
           prior,
           prior_of,
+          outlines: sent,
           frame_path: framePathOf(window),
           at: Date.now() / 1000,
           url: location.href,
         }),
       );
     } catch {
+      seenOutline = null;
       // The binding is not installed yet, or the frame is being torn down.
       // Losing a gesture is preferable to breaking the page the operator is using.
     }
@@ -406,6 +540,7 @@
       last = null;
       lastRef = null;
     }
+    seenOutline = null;
   });
 
   listen('click', (e) =>

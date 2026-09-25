@@ -78,7 +78,6 @@ class _Frames(_Stub):
                             "include_hosts": [],
                             "capture_screenshots": False,
                             "screenshot_max_per_minute": 3,
-                            "capture_snapshots": False,
                             "capture_response_bodies": True,
                             "max_body_bytes": 262144,
                             "daily_budget_bytes": 524288000,

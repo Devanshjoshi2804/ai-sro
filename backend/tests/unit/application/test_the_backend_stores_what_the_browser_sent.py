@@ -40,7 +40,7 @@ from sro.application.observation.policy import SetObservationPolicy
 from sro.application.observation.redact import redact_events
 from sro.application.observation.register import RegisterDevice
 from sro.domain.observation.batch import CaptureMode
-from sro.domain.observation.gesture import AfterState
+from sro.domain.observation.gesture import AfterState, Landmark
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.sensitivity import REDACTED
 from sro.domain.shared.identifiers import BatchId, TenantId
@@ -264,26 +264,6 @@ def test_a_state_control_keeps_its_state_and_nothing_else() -> None:
     assert pair({"tag": "input", "role": None}, "typed") is None
 
 
-def test_a_key_rendered_on_screen_does_not_survive_the_snapshot_tree() -> None:
-    """The accessibility tree is 27MB of this deployment's 59MB evidence plane
-    -- every string a page rendered, and nothing guarded it."""
-    event = {
-        "kind": "snapshot",
-        "url": "https://wms.example/settings",
-        "snapshot": {
-            "nodes": [
-                {"role": "text", "name": "eyJhbGciOiJIUzI1NiJ9.eyJhIjoxfQ.c2lnbmF0dXJl"},
-                {"role": "text", "name": "Service Level"},
-            ]
-        },
-    }
-
-    out = redact_events([event])[0]
-
-    assert "eyJhbGciOiJIUzI1NiJ9" not in json.dumps(out)
-    assert out["snapshot"]["nodes"][1]["name"] == "Service Level", "real page text is untouched"
-
-
 async def test_a_token_in_an_iframe_hop_does_not_survive_ingest() -> None:
     """E3 added `gesture.frame_path[].url`, the chain of iframe URLs a gesture
     was found through, and `_gesture` never ran it through `redact_url`: a
@@ -334,18 +314,108 @@ async def test_a_token_in_an_iframe_hop_does_not_survive_ingest() -> None:
     assert "live-secret-id-token" not in hops, "the correlated gesture kept the raw id_token"
 
 
-def test_the_snapshot_tree_keeps_its_own_vocabulary() -> None:
-    """`token` and `tokenList` are CDP AXValue TYPE descriptors and this corpus
-    holds 2,573 of them. A name rule here would blank the tree's structure for
-    no protection -- the same trap as `pin` inside `shippingPhone`, and a
-    locator is built from exactly these fields."""
-    event = {
-        "kind": "snapshot",
-        "snapshot": {"nodes": [{"type": "token", "name": "Dock"}, {"type": "tokenList"}]},
-    }
+_TYPED = "ACME-7731-QX"
+_OTP = "483920"
+_SHORT = "7"
+_SECRET = "hunter2-correct-horse"  # noqa: S105 -- not a credential
 
-    nodes = redact_events([event])[0]["snapshot"]["nodes"]
 
-    assert nodes[0]["type"] == "token"
-    assert nodes[1]["type"] == "tokenList"
-    assert nodes[0]["name"] == "Dock"
+def _hostile_outline() -> list[dict[str, object]]:
+    events = _events()
+    typed, click = copy.deepcopy(events[1]), copy.deepcopy(events[3])
+    typed["gesture"].update(kind="type", value=_TYPED, secret=False)
+    typed["gesture"]["target"] = {**typed["gesture"]["target"], "secret": False}
+    code, short, secret = copy.deepcopy(typed), copy.deepcopy(typed), copy.deepcopy(typed)
+    code["gesture"].update(value=_OTP, at=typed["gesture"]["at"] + 0.5)
+    short["gesture"].update(value=_SHORT, at=typed["gesture"]["at"] + 0.6)
+    secret["gesture"].update(value=_SECRET, secret=True, at=typed["gesture"]["at"] + 0.7)
+    click["gesture"]["outlines"] = [
+        {
+            "headings": [f"Editing {_TYPED}", "Customer Types", "access_token=live-token"],
+            "landmarks": [
+                {"role": "dialog", "name": f"Code {_OTP}"},
+                {"role": "form", "name": "New"},
+                {"role": "region", "name": "Anything"},
+                {"role": "form", "name": f"Signed in with {_SECRET}"},
+            ],
+            "fields": [
+                {"role": "textbox", "label": "Verify", "value": _OTP, "required": True},
+                {"role": "textbox", "label": f"Note: {_TYPED}"},
+                {"role": "gridcell", "label": "Row 4"},
+                {"role": "combobox", "label": "Department", "options": ["Finance", _A_JWT]},
+                {"role": "combobox", "label": "Carrier", "options": [f"c{i}" for i in range(26)]},
+            ],
+            "buttons": ["Save", f"Save {_TYPED}", f"Saved {_TYPED[:9]}"],
+            "messages": [
+                {"role": "status", "text": "https://wms.example/cb?access_token=live-token"},
+                {"role": "alert", "text": "Required field"},
+                {"role": "alert", "text": f"Code {_SHORT} rejected"},
+                {"role": "banner", "text": "free page text"},
+            ],
+            "value": _OTP,
+            "text": f"all page text {_TYPED}",
+        }
+    ]
+    return [typed, code, short, secret, click]
+
+
+async def test_a_client_that_sends_values_in_an_outline_stores_none_of_them() -> None:
+    uow = FakeUnitOfWork()
+    blobs = FakeBlobStore()
+    await SetObservationPolicy(uow).execute(ACME, policy=ObservationPolicy().enabled())
+    registered = await RegisterDevice(uow, FakeClock(), FakeIdFactory()).execute(
+        ACME, label="laptop", extension_version="0.1.0"
+    )
+
+    stored = await IngestObservation(uow, blobs, FakeClock()).execute(
+        ACME,
+        device_id=registered.device_id,
+        secret=registered.secret,
+        batch_id=BatchId("bat_hostile_outline"),
+        started_at=datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+        ended_at=datetime(2026, 3, 1, 9, 5, tzinfo=UTC),
+        mode=CaptureMode.PASSIVE,
+        events=_hostile_outline(),
+    )
+
+    assert stored.stored_at is not None
+    lines = (await blobs.read(stored.stored_at)).decode("utf-8").splitlines()
+    written = json.dumps(
+        [json.loads(one).get("gesture", {}).get("outlines") for one in lines if one]
+    )
+    (outline,) = next(
+        one.action.outlines for one in uow.gestures.rows.values() if one.action.outlines
+    )
+    kept = repr(outline)
+    for said in (
+        _TYPED,
+        _TYPED[:9],
+        _OTP,
+        _SECRET,
+        _A_JWT,
+        "live-token",
+        "free page text",
+        "all page text",
+        "Row 4",
+        f"Code {_SHORT}",
+        "Anything",
+    ):
+        assert said not in written, f"{said!r} reached an outline in the evidence blob"
+        assert said not in kept, f"{said!r} reached an outline in the gesture store"
+    assert outline.headings == ("Customer Types",)
+    assert outline.landmarks == (Landmark("form", "New"),)
+    assert [(one.role, one.label, one.options) for one in outline.fields] == [
+        ("textbox", "Verify", None),
+        ("combobox", "Department", ("Finance",)),
+        ("combobox", "Carrier", None),
+    ]
+    assert outline.buttons == ("Save",)
+    assert [(one.role, one.text) for one in outline.messages] == [("alert", "Required field")]
+
+
+def test_a_tree_from_an_older_extension_is_discarded_unread() -> None:
+    event = {"kind": "snapshot", "snapshot": {"nodes": [{"name": "Service Level"}]}}
+
+    (out,) = redact_events([event])
+
+    assert "snapshot" not in out

@@ -51,12 +51,6 @@ import {
   RETIRED_KEYS,
   state,
 } from "./state.js";
-import {
-  release as releaseTree,
-  releaseAll,
-  takeTree,
-  takeTreeSoon,
-} from "./trees.js";
 import { flush } from "./upload.js";
 
 const BEAT = "sro-heartbeat";
@@ -1301,10 +1295,6 @@ function unwatch(tabId) {
     // A tab nobody was watching closes all day long. Writing the same list
     // back for each one is how a watch set meanwhile gets overwritten.
     if (next.length !== watched.length) await state.setWatched(next);
-    // Stop watching, stop debugging. An operator who pressed "stop watching"
-    // and was left with the banner up would have every reason to disbelieve
-    // the panel about anything else it says.
-    if (next.length !== watched.length) await releaseTree(tabId);
     // And stop remembering what was typed there. A tail kept across "stop
     // watching" and "watch" again could complete a prefix from yesterday's
     // job with values nobody is looking at. Inline rather than `forgetTail`,
@@ -1324,7 +1314,6 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   halfDeaf.delete(tabId);
   void forgetRepaired(tabId);
   void forgetTail(tabId);
-  void releaseTree(tabId);
   void unwatch(tabId);
 });
 
@@ -1688,15 +1677,6 @@ async function handle(message, sender) {
           },
           shot,
         );
-
-        // The screen the operator was looking at when they decided to act,
-        // for whatever induction later builds a locator from. Taken before
-        // the click, not after: a step that navigates would otherwise carry
-        // the destination page, and induction would build that step's
-        // locator from a page where the control it clicked does not exist.
-        const before = takeTree(tab_id);
-        if (before) await queue.enqueue(before, null);
-        void takeTreeSoon(tab_id, page_url, policy).catch(() => null);
         return { ok: true, screenshot: Boolean(shot) };
       }
       await queue.enqueue({
@@ -3252,9 +3232,6 @@ async function settle() {
   // from an ordinary wake-up. Without this a tab open across a reload records
   // nothing while the panel goes on saying it is watched.
   await injectIntoWatched(await watchedTabs(), policy, granted);
-  // A tenant that has just switched trees off gets the banner taken down now,
-  // not at the next tab close. Nothing re-attaches until a gesture asks.
-  if (!policy?.capture_snapshots) await releaseAll();
   await channel.settle();
   await badge();
   return status();

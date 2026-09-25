@@ -29,7 +29,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/reco
 > previous target's state and resets it, it does not skip it), and after the
 > worker says it did not keep the gesture that set them (`sro:dropped`).
 
-## `emit`, [line 248](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L248): Docstring
+## `emit`, [line 263](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L263): Docstring
 
 > A control keeps changing after the gesture that touched it fires -- a
 > spinner clears, a field disables, a box stays ticked -- so there is no
@@ -45,7 +45,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/reco
 > its after-state arrives in the next batch and is not joined (see
 > correlate.py's notes).
 
-## module, [line 273](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L273): Comment
+## module, [line 293](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L293): Comment
 
 Code: `listen('sro:dropped', (e) => {`
 
@@ -58,3 +58,39 @@ Code: `listen('sro:dropped', (e) => {`
 > forgotten if it is still that gesture's. When the next gesture was recorded
 > before the answer came back, its `prior_of` names a gesture the server
 > never received, and the server joins nothing.
+>
+> `seenOutline` is forgotten on every drop, whichever gesture it was: the
+> dropped record carried outlines, and without the reset the next gesture
+> would not resend a screen the server never received, so the server's last
+> outline for this frame would be stale.
+
+## `OUTLINES_PER_GESTURE`, [line 112](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L112): Constant
+
+> At most three screens ride on one gesture record: the ones seen since this
+> frame's previous gesture, oldest dropped first. A screen equal to the last
+> one taken (`seenOutline`, compared as JSON) is not taken again, so an
+> unchanged page costs nothing per gesture.
+
+## `takeOutline`, [line 116](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L116): Function
+
+> Reads `outlineOf(document)` and keeps it when the screen changed. A throw is
+> swallowed: an outline the page cannot give must not cost the gesture it
+> would have ridden on.
+
+## `appeared`, [line 127](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L127): Function
+
+> When a screen is outlined between gestures. `emit` always reads one; this
+> adds the screens that come and go before anyone acts: a dialog or form
+> added to the page, and any change inside an `alert` or `status` region. A
+> dialog that appears and is dismissed by a key the recorder does not record
+> would otherwise leave no trace.
+>
+> **Ceiling:** nothing is read after a demonstration's last gesture, so the
+> screen that gesture produced (a confirmation, an error) is not sent until
+> the operator acts again.
+
+## `WATCHING`, [line 134](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L134): Constant
+
+> The observer is kept on the window and disconnected before a new one is made,
+> for the same reason the listeners are (`__sroHandlers`): installing the
+> recorder again must not leave two observers outlining one page.

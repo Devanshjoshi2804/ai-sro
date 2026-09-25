@@ -42,7 +42,6 @@ const KEYS = {
   queueEpoch: "sro.queueEpoch",
   pendingBatch: "sro.pendingBatch",
   shotTimes: "sro.shotTimes",
-  treeTimes: "sro.treeTimes",
   finishedRun: "sro.finishedRun",
   question: "sro.question",
   activeRun: "sro.activeRun",
@@ -75,6 +74,7 @@ export const RETIRED_KEYS = [
   "sro.rigRefusal",
   "sro.teaching",
   "sro.muted",
+  "sro.treeTimes",
 ];
 
 async function read(key, fallback = null) {
@@ -321,13 +321,6 @@ export const state = {
    * which, at a human's pace, is most pairs of clicks. */
   shotTimes: () => read(KEYS.shotTimes, []),
   setShotTimes: (times) => write(KEYS.shotTimes, times),
-
-  /** When accessibility trees were last taken, for their own per-minute cap.
-   * Separate from the screenshots' budget: a tree is a round trip and some
-   * JSON, a picture is a PNG, and sharing one counter would have whichever
-   * happened first spend the other's allowance. */
-  treeTimes: () => read(KEYS.treeTimes, []),
-  setTreeTimes: (times) => write(KEYS.treeTimes, times),
 
   /** The last run this browser finished, and what it made -- `{ id, status,
    * derived, reversal, failure, at, wrongBecause? }`, or null. In storage

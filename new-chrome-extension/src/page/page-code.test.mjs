@@ -948,3 +948,7 @@ test("a hidden password field is not shown, and a page with none reports none", 
     globalThis.document.querySelectorAll = () => onScreen;
   }
 });
+
+test("the page code can outline the live screen", () => {
+  assert.equal(typeof loadSroPage().outline, "function");
+});

@@ -76,11 +76,11 @@ Code: `attributes: dict[str, object] = field(default_factory=dict, hash=False)`
 > definitions. X3 pre-created the same type once already and it was deleted
 > as dead (nothing consumed it yet); X4 is the first real consumer.
 
-## `Action`, [line 65](../../../../../../../backend/src/sro/domain/observation/gesture.py#L65): Docstring
+## `Action`, [line 88](../../../../../../../backend/src/sro/domain/observation/gesture.py#L88): Docstring
 
 > The gesture itself: what was done, to what, with what typed.
 
-## `Action`, [line 72](../../../../../../../backend/src/sro/domain/observation/gesture.py#L72): Note on the line above
+## `Action`, [line 95](../../../../../../../backend/src/sro/domain/observation/gesture.py#L95): Note on the line above
 
 Code: `modifiers: tuple[str, ...] = ()`
 
@@ -88,12 +88,12 @@ Code: `modifiers: tuple[str, ...] = ()`
 > captured and this used to drop. A run replaying the gesture needs them to
 > reproduce a modified click or keypress rather than a bare one (§4.1).
 
-## `Call`, [line 89](../../../../../../../backend/src/sro/domain/observation/gesture.py#L89): Docstring
+## `Call`, [line 113](../../../../../../../backend/src/sro/domain/observation/gesture.py#L113): Docstring
 
 > A recorded exchange, the part of it the belts read: never a response
 > body's text beyond what `confirming_read` compares.
 
-## `GestureBatch`, [line 131](../../../../../../../backend/src/sro/domain/observation/gesture.py#L131): Docstring
+## `GestureBatch`, [line 155](../../../../../../../backend/src/sro/domain/observation/gesture.py#L155): Docstring
 
 > What one upload said about itself.
 >
@@ -108,7 +108,7 @@ Code: `modifiers: tuple[str, ...] = ()`
 > separate tables. Both may describe one upload; neither is derived from the
 > other.
 
-## `passed_through`, [line 170](../../../../../../../backend/src/sro/domain/observation/gesture.py#L170): Docstring
+## `passed_through`, [line 194](../../../../../../../backend/src/sro/domain/observation/gesture.py#L194): Docstring
 
 > Whether this gesture ended on a different system from the one it
 > happened on -- the browser moved the operator, the operator did not.
@@ -118,10 +118,18 @@ Code: `modifiers: tuple[str, ...] = ()`
 > `values.worked_in_both` reads it for the same distinction: a browser
 > bouncing through an identity provider is not somebody using two tabs.
 
-## `Call`, [line 92](../../../../../../../backend/src/sro/domain/observation/gesture.py#L92): Comment
+## `Call`, [line 116](../../../../../../../backend/src/sro/domain/observation/gesture.py#L116): Comment
 
 Code: `request_id: str = ""`
 
 > The rig's wire `request_id` is a required string, so a call that came off
 > a batch always has one; "" is what a hand-built call has instead of None,
 > which keeps the type a plain str for everything that reads it.
+
+## `Outline`, [line 79](../../../../../../../backend/src/sro/domain/observation/gesture.py#L79): Class
+
+> The screen a gesture was made on, as labels, roles and messages -- never a
+> value (spec §4.6). Stored inside `gestures.gesture` like every other action
+> field, so it needed no migration. `Action.outlines` holds the screens seen
+> since the frame's previous gesture, the last being this gesture's own;
+> `outline.last_outline` answers for a gesture that carried none.

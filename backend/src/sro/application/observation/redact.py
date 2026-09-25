@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 
 from sro.application.observation.admit import Event
+from sro.domain.observation.outline import K_OUTLINES_PER_GESTURE, outline_kept
 from sro.domain.recording.redaction import redact_body
 from sro.domain.recording.sensitivity import (
     REDACTED,
@@ -24,11 +25,16 @@ _TOGGLED = ("checked", "unchecked")
 
 def redact_events(events: Sequence[Event]) -> tuple[Event, ...]:
     made: dict[str, Mapping[str, object]] = {}
+    typed: set[str] = set()
     for event in events:
         gesture = event.get("gesture")
-        if isinstance(gesture, Mapping) and isinstance(gesture.get("ref"), str):
-            made[_made(event, gesture, gesture["ref"])] = gesture
-    return tuple(_event(event, made) for event in events)
+        if isinstance(gesture, Mapping):
+            if isinstance(gesture.get("ref"), str):
+                made[_made(event, gesture, gesture["ref"])] = gesture
+            value = gesture.get("value")
+            if gesture.get("kind") == "type" and isinstance(value, str):
+                typed.add(value)
+    return tuple(_event(event, made, typed) for event in events)
 
 
 def _made(event: Event, gesture: Mapping[str, object], ref: object) -> str:
@@ -37,35 +43,23 @@ def _made(event: Event, gesture: Mapping[str, object], ref: object) -> str:
     )
 
 
-def _event(event: Event, made: Mapping[str, Mapping[str, object]]) -> Event:
+def _event(event: Event, made: Mapping[str, Mapping[str, object]], typed: Collection[str]) -> Event:
     out = dict(event)
     _urls(out)
     gesture = out.get("gesture")
     if isinstance(gesture, Mapping):
         prior_of = gesture.get("prior_of")
         before = made.get(_made(event, gesture, prior_of)) if isinstance(prior_of, str) else None
-        out["gesture"] = _gesture(gesture, before)
+        out["gesture"] = _gesture(gesture, before, typed)
     request = out.get("request")
     if isinstance(request, Mapping):
         out["request"] = _request(request)
-    snapshot = out.get("snapshot")
-    if isinstance(snapshot, Mapping):
-        out["snapshot"] = _shapes_only(snapshot)
+    out.pop("snapshot", None)
 
     detail = out.get("detail")
     if isinstance(detail, str) and detail:
         out["detail"] = redact_body(detail, content_type=None)[0]
     return out
-
-
-def _shapes_only(node: object) -> object:
-    if isinstance(node, str):
-        return redact_shapes(node)
-    if isinstance(node, Mapping):
-        return {key: _shapes_only(value) for key, value in node.items()}
-    if isinstance(node, list):
-        return [_shapes_only(value) for value in node]
-    return node
 
 
 def _urls(node: dict[str, object]) -> None:
@@ -76,10 +70,17 @@ def _urls(node: dict[str, object]) -> None:
 
 
 def _gesture(
-    gesture: Mapping[str, object], before: Mapping[str, object] | None
+    gesture: Mapping[str, object], before: Mapping[str, object] | None, typed: Collection[str]
 ) -> dict[str, object]:
     out = dict(gesture)
     _urls(out)
+    if "outlines" in out:
+        raw = out["outlines"]
+        out["outlines"] = [
+            kept
+            for one in (raw if isinstance(raw, list) else [])[-K_OUTLINES_PER_GESTURE:]
+            if (kept := outline_kept(one, typed)) is not None
+        ]
     frame_path = out.get("frame_path")
     if isinstance(frame_path, list):
         out["frame_path"] = [_hop(hop) if isinstance(hop, Mapping) else hop for hop in frame_path]

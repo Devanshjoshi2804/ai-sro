@@ -45,7 +45,7 @@
   // records and what page-code.js later resolves it against are one text, so
   // the two cannot disagree about a control. Reasoning lives in
   // docs/code-notes/new-chrome-extension/src/page/page-code.js.md.
-  const { roleOf, nameOf, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf } =
+  const { roleOf, nameOf, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf, requiredOf, outlineOf } =
     __PAGE_READERS__;
 
   // A credential field is recognised where it is typed, not later. Anything
@@ -109,19 +109,34 @@
   let last = null;
   let lastRef = null;
 
-  // What the page says about whether this field is mandatory, or null where
-  // it says nothing. Read off the control and off the label that names it: a
-  // form marks the star on the label, not on the input.
-  const requiredOf = (el) => {
-    const said = el.getAttribute && el.getAttribute('aria-required');
-    if (said === 'true') return true;
-    if (said === 'false') return false;
-    if (el.required === true) return true;
-    if (el.hasAttribute && el.hasAttribute('required')) return true;
-    const named = label(el);
-    if (named && /\*\s*$/.test(named)) return true;
-    return null;
+  const OUTLINES_PER_GESTURE = 3;
+  const OUTLINED = 'form, dialog, [role=dialog], [role=alertdialog], [role=form], [role=alert], [role=status]';
+  let seenOutline = null;
+  let outlines = [];
+  const takeOutline = () => {
+    let taken = null;
+    try {
+      taken = JSON.stringify(outlineOf(document));
+    } catch {
+      return;
+    }
+    if (taken === seenOutline) return;
+    seenOutline = taken;
+    outlines = [...outlines, JSON.parse(taken)].slice(-OUTLINES_PER_GESTURE);
   };
+  const appeared = (change) => {
+    const inside = change.target.nodeType === 1 ? change.target : change.target.parentElement;
+    if (inside && inside.closest('[role=alert], [role=status]')) return true;
+    return [...change.addedNodes].some(
+      (node) => node.nodeType === 1 && (node.matches(OUTLINED) || node.querySelector(OUTLINED)),
+    );
+  };
+  const WATCHING = '__sroOutlineWatch';
+  if (window[WATCHING]) window[WATCHING].disconnect();
+  window[WATCHING] = new MutationObserver((changes) => {
+    if (changes.some(appeared)) takeOutline();
+  });
+  window[WATCHING].observe(document, { childList: true, subtree: true, characterData: true });
 
   const cssPath = (el) => {
     const parts = [];
@@ -250,6 +265,9 @@
     const ref = `${REALM}.${count}`;
     const prior = last ? stateOf(last) : null;
     const prior_of = last ? lastRef : null;
+    takeOutline();
+    const sent = outlines;
+    outlines = [];
     last = el;
     lastRef = el ? ref : null;
     try {
@@ -259,12 +277,14 @@
           ref,
           prior,
           prior_of,
+          outlines: sent,
           frame_path: framePathOf(window),
           at: Date.now() / 1000,
           url: location.href,
         }),
       );
     } catch {
+      seenOutline = null;
       // The binding is not installed yet, or the frame is being torn down.
       // Losing a gesture is preferable to breaking the page the operator is using.
     }
@@ -275,6 +295,7 @@
       last = null;
       lastRef = null;
     }
+    seenOutline = null;
   });
 
   listen('click', (e) =>

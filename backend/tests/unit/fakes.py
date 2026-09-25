@@ -1527,6 +1527,7 @@ class FakePageDriver:
         self.cookie = ""
         self.headers: dict[str, str] = {}
         self.headers_after_mark: dict[str, str] | None = None
+        self.needed: tuple[str, ...] = ()
 
     def expire_session(self) -> None:
         self.shows_sign_in_until_signed = True
@@ -1565,10 +1566,17 @@ class FakePageDriver:
         return self.tabs[target_id]
 
     async def headers_for(
-        self, session: SessionRef, origin: str, deadline_s: float, *, since: int = 0
+        self,
+        session: SessionRef,
+        origin: str,
+        deadline_s: float,
+        *,
+        since: int = 0,
+        needs: Collection[str] = (),
     ) -> dict[str, str]:
         self._live(session)
         self.calls.append(("headers_for", session.context_id, origin, since))
+        self.needed = tuple(needs)
         if since and self.headers_after_mark is not None:
             return dict(self.headers_after_mark)
         return dict(self.headers)

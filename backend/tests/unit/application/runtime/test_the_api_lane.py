@@ -283,6 +283,25 @@ async def test_a_token_the_write_needs_that_the_session_lacks_is_refused_before_
     assert http.sent == []
 
 
+async def test_the_session_is_asked_to_wait_for_every_token_the_write_carried() -> None:
+    driver = FakePageDriver()
+    step, by_id, ledger = proven_write_step(
+        read_back=None,
+        request_headers={
+            "Content-Type": "application/json",
+            "X-CSRF-Token": REDACTED,
+            "Authorization": REDACTED,
+            "X-User-Id": REDACTED,
+        },
+    )
+
+    await ApiLane(FakeHttpCaller(), headers_broker({}, driver=driver)).execute(
+        step, RUN, lane_context(by_id, ledger=ledger)
+    )
+
+    assert sorted(driver.needed) == ["authorization", "x-csrf-token"]
+
+
 async def test_only_representation_headers_come_from_the_recording() -> None:
     http = FakeHttpCaller()
     step, by_id, ledger = proven_write_step(

@@ -35,7 +35,8 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/api_l
 
 ## `ApiLane.execute`, [line 45](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L45): Comment
 
-> A token the recorded write carried and the live session does not have is
+> The broker is asked to wait (within its bound) for every token the
+> recorded write carried; a token the live session still does not have is
 > refused before anything is sent (`never_left`): the call would only be
 > refused, and nothing has left, so another lane may take the step.
 
@@ -73,7 +74,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/api_l
 > the record written. Without one, or when it does not show it, the write is
 > `unknown` and the run settles it later with `read_back` or asks.
 
-## `ApiLane._confirmed`, [line 129](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L129): Comment
+## `ApiLane._confirmed`, [line 132](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L132): Comment
 
 > One check for `execute` and `read_back`. The confirming read goes only to
 > the write's own origin (a GET recorded after the write may be analytics or
@@ -83,7 +84,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/api_l
 > string is not the record this run wrote. A write with no filled slots is
 > never confirmed by a read-back.
 
-## `_aimed`, [line 197](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L197): Comment
+## `_aimed`, [line 207](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L207): Comment
 
 > The recorded read names the recorded record. A path segment equal to a value
 > the recording saw for a filled parameter is replaced by this run's value. A

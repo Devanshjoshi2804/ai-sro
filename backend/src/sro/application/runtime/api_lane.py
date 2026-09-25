@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
@@ -50,15 +50,18 @@ class ApiLane:
             return _unsent("no verified replay for this step", "no_replay")
         method, url = str(planned.payload["method"]), str(planned.payload["url"])
         body = planned.payload.get("body")
-        headers = await self._headers(ctx, held, url, recorded.request_headers, ctx.reauthed)
-        carried = {name.lower() for name in headers}
-        missing = sorted(
-            name.lower()
-            for name, value in recorded.request_headers.items()
-            if REDACTED in value
-            and classify_header(name) in K_TOKEN_ROLES
-            and name.lower() not in carried
+        needs = sorted(
+            {
+                name.lower()
+                for name, value in recorded.request_headers.items()
+                if REDACTED in value and classify_header(name) in K_TOKEN_ROLES
+            }
         )
+        headers = await self._headers(
+            ctx, held, url, recorded.request_headers, ctx.reauthed, needs=needs
+        )
+        carried = {name.lower() for name in headers}
+        missing = [name for name in needs if name not in carried]
         if missing:
             return _unsent(
                 f"the session has no {', '.join(missing)} for this write",
@@ -144,9 +147,16 @@ class ApiLane:
         return got.succeeded and carries_in_slot(got.text, planned.confirm)
 
     async def _headers(
-        self, ctx: LaneContext, held: Held, url: str, recorded: Mapping[str, str], fresh: bool
+        self,
+        ctx: LaneContext,
+        held: Held,
+        url: str,
+        recorded: Mapping[str, str],
+        fresh: bool,
+        *,
+        needs: Sequence[str] = (),
     ) -> dict[str, str]:
-        said = await self._broker.headers(ctx.ctx, held, url, fresh=fresh)
+        said = await self._broker.headers(ctx.ctx, held, url, fresh=fresh, needs=needs)
         named = {name.lower() for name in said}
         return {
             **{

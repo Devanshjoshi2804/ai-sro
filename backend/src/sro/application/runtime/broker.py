@@ -4,6 +4,7 @@ import asyncio
 import contextlib
 import logging
 from collections import Counter
+from collections.abc import Collection
 from dataclasses import replace
 from datetime import datetime, timedelta
 
@@ -106,7 +107,13 @@ class SessionBroker:
         return kept
 
     async def headers(
-        self, ctx: RequestContext, held: Held, url: str, *, fresh: bool = False
+        self,
+        ctx: RequestContext,
+        held: Held,
+        url: str,
+        *,
+        fresh: bool = False,
+        needs: Collection[str] = (),
     ) -> dict[str, str]:
         since = 0
         if fresh:
@@ -116,7 +123,9 @@ class SessionBroker:
                 held.target_id,
                 await self._driver.url_of(held.session, held.target_id),
             )
-        said = await self._driver.headers_for(held.session, url, K_HEADERS_WAIT_S, since=since)
+        said = await self._driver.headers_for(
+            held.session, url, K_HEADERS_WAIT_S, since=since, needs=needs
+        )
         cookie = await self._driver.cookies_for(held.session, url)
         return {"cookie": cookie, **said} if cookie else said
 

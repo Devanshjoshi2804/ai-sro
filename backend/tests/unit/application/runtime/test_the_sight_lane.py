@@ -474,3 +474,51 @@ async def test_a_step_that_needs_a_secret_is_refused() -> None:
     result = await SightLane(driver, flash, None).execute(step, {}, lane_context(by_id))
 
     assert result.verdict == "failed" and driver.pointed == [] and flash.asked == []
+
+
+FIELD = {"target": {"role": "combobox", "name": "Department"}, "expect": {"value": "Finance"}}
+SELECT_HIT = {"strategy": "xpath", "query": "/html/body/select[1]", "frame_path": [], "pin": "h1"}
+
+
+def types_then_done() -> FakeVisionDriver:
+    return FakeVisionDriver(
+        ProposedGesture(ActionKind.TYPE, x=40, y=60, value="Finance"),
+        ProposedGesture(ActionKind.HOVER, done=True),
+    )
+
+
+@pytest.mark.parametrize(("holds", "verdict"), [(True, "done"), (False, "unknown")])
+async def test_a_field_sight_fills_is_done_only_when_the_labelled_control_holds_it(
+    holds: bool, verdict: str
+) -> None:
+    driver = scripted_driver(url=APP, hit=SELECT_HIT, holds=holds)
+    write, by_id = save_step(status=201)
+    written: list[int] = []
+
+    async def wrote() -> None:
+        written.append(write.order)
+
+    result = await SightLane(driver, types_then_done(), None).fill(
+        "Set Department to Finance", write, lane_context(by_id, about_to_write=wrote), FIELD
+    )
+
+    assert result.verdict == verdict
+    assert driver.waited_for[-1] == {**FIELD, "pin": "h1"}
+    assert written == []
+    assert bool(result.learned) is holds
+
+
+async def test_a_fill_that_sends_the_save_stops_and_is_never_done() -> None:
+    driver = scripted_driver(url=APP, hit=SELECT_HIT, holds=True, calls=[SAVED])
+    write, by_id = save_step(status=201)
+    model = FakeVisionDriver(
+        ProposedGesture(ActionKind.CLICK, x=400, y=20),
+        ProposedGesture(ActionKind.TYPE, x=40, y=60, value="Finance"),
+    )
+
+    result = await SightLane(driver, model, None).fill(
+        "Set Department to Finance", write, lane_context(by_id), FIELD
+    )
+
+    assert result.verdict == "unknown"
+    assert len(driver.pointed) == 1

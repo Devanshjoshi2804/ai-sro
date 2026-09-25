@@ -45,6 +45,7 @@ class StepResult:
     learned: Mapping[str, str] = field(default_factory=dict)
     fingerprint: str = ""
     expired: bool = False
+    keyed: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

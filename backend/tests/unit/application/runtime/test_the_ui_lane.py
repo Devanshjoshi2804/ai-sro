@@ -6,6 +6,7 @@ import pytest
 from sro.application.ports.page import PageAnswer, PageGone
 from sro.application.runtime.step import Stopped
 from sro.application.runtime.ui_lane import UiLane, ui_payload
+from sro.domain.execution.compose import Adding
 from sro.domain.execution.lanes import SeenCall
 from sro.domain.observation.gesture import AfterState, Body
 from tests.unit.runtime_support import (
@@ -364,3 +365,58 @@ async def test_a_stop_or_a_cancel_after_the_write_is_announced_still_propagates(
 
     with pytest.raises(type(error)):
         await UiLane(driver).execute(step, {}, lane_context(by_id))
+
+
+def _saved(body: str) -> SeenCall:
+    return SeenCall(
+        "POST",
+        "https://wms.example/api/customer-types",
+        201,
+        request_body=body,
+        request_content_type="application/json",
+    )
+
+
+async def test_the_save_call_that_carries_the_new_field_keys_it() -> None:
+    step, by_id = save_step(
+        status=201, body=Body(text='{"name": "GT1"}', mime_type="application/json")
+    )
+    driver = scripted_driver(
+        answer=PageAnswer(ok=True, matched_by="component"),
+        calls=[_saved('{"name": "GT9", "department": "Operations"}')],
+    )
+    ctx = lane_context(by_id, adding={step.order: Adding(fresh={"department": "Operations"})})
+
+    result = await UiLane(driver).execute(step, {}, ctx)
+
+    assert result.verdict == "done"
+    assert dict(result.keyed) == {"department": "department"}
+
+
+async def test_a_save_call_without_the_new_field_is_done_and_keys_nothing() -> None:
+    step, by_id = save_step(
+        status=201, body=Body(text='{"name": "GT1"}', mime_type="application/json")
+    )
+    driver = scripted_driver(
+        answer=PageAnswer(ok=True, matched_by="component"), calls=[_saved('{"name": "GT9"}')]
+    )
+    ctx = lane_context(by_id, adding={step.order: Adding(fresh={"department": "Operations"})})
+
+    result = await UiLane(driver).execute(step, {}, ctx)
+
+    assert (result.verdict, dict(result.keyed)) == ("done", {})
+
+
+async def test_more_new_keys_than_fields_filled_is_not_this_writes_own_call() -> None:
+    step, by_id = save_step(
+        status=201, body=Body(text='{"name": "GT1"}', mime_type="application/json")
+    )
+    driver = scripted_driver(
+        answer=PageAnswer(ok=True, matched_by="component"),
+        calls=[_saved('{"name": "GT9", "department": "Operations", "owner": "x"}')],
+    )
+    ctx = lane_context(by_id, adding={step.order: Adding(fresh={"department": "Operations"})})
+
+    result = await UiLane(driver).execute(step, {}, ctx)
+
+    assert result.verdict == "unknown"

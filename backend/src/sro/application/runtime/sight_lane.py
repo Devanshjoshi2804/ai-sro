@@ -11,6 +11,7 @@ from sro.application.ports.vision import VisionDriver
 from sro.application.runtime.step import Held, LaneContext, Stopped
 from sro.application.runtime.ui_lane import K_UI_WAIT_S, same_call, ui_payload
 from sro.domain.execution.belts import expected_statuses
+from sro.domain.execution.compose import Adding
 from sro.domain.execution.evidence import READ_METHODS, primary_gesture, recorded_call, writes
 from sro.domain.execution.lanes import (
     K_SIGHT_ACTIONS,
@@ -66,8 +67,11 @@ class SightLane:
         if any(needs_a_secret(ctx.by_id[one]) for one in step.cites if one in ctx.by_id):
             return _refused("sight never types a credential", "secret")
         tried = _Tried()
+        watched = recorded_call(step, ctx.by_id) if writes(step, ctx.by_id) else None
         try:
-            await self._drive(step, values, ctx, held, primary, tried)
+            await self._drive(
+                _goal(step, values, primary), step.order, primary, watched, ctx, held, tried
+            )
             return await self._settle(step, values, ctx, held, primary, tried)
         except (Stopped, asyncio.CancelledError):
             raise
@@ -76,18 +80,41 @@ class SightLane:
                 return StepResult("unknown", Lane.SIGHT, f"the write's outcome was lost: {exc}")
             raise
 
+    async def fill(
+        self, says: str, write: Step, ctx: LaneContext, check: Mapping[str, object]
+    ) -> StepResult:
+        held = ctx.held
+        primary = primary_gesture(write, ctx.by_id)
+        if held is None or primary is None or not self._models:
+            return _refused("sight has no page or no model", "no_evidence")
+        tried = _Tried()
+        watched = recorded_call(write, ctx.by_id)
+        await self._drive(says, write.order, primary, watched, ctx, held, tried, writing=False)
+        if await self._sent(held, watched, tried):
+            return StepResult("unknown", Lane.SIGHT, "the write was sent while filling a field")
+        hit = tried.points[-1][1] if tried.points else None
+        pin = hit.get("pin") if hit else None
+        if not (isinstance(pin, str) and pin and _taught(hit)):
+            return StepResult("unknown", Lane.SIGHT, tried.why or "sight never reached the field")
+        if await self._driver.wait_for(
+            held.session, held.target_id, {**check, "pin": pin}, self._wait_s
+        ):
+            return StepResult("done", Lane.SIGHT, learned=_taught(hit))
+        return StepResult("unknown", Lane.SIGHT, "the field sight set does not hold the value")
+
     async def _drive(
         self,
-        step: Step,
-        values: Mapping[str, str],
+        goal: str,
+        order: int,
+        primary: Gesture,
+        watched: Call | None,
         ctx: LaneContext,
         held: Held,
-        primary: Gesture,
         tried: _Tried,
+        *,
+        writing: bool = True,
     ) -> None:
         home = system_of(primary.url)
-        watched = recorded_call(step, ctx.by_id) if writes(step, ctx.by_id) else None
-        goal = _goal(step, values, primary)
         for model in self._models:
             history: list[str] = []
             for _ in range(K_SIGHT_ACTIONS):
@@ -98,7 +125,7 @@ class SightLane:
                     tried.why = _LEFT
                     return
                 screen = await self._driver.screenshot(held.session, held.target_id)
-                with about(tenant=str(ctx.tenant_id), workflow=ctx.workflow.id, step=step.order):
+                with about(tenant=str(ctx.tenant_id), workflow=ctx.workflow.id, step=order):
                     proposed = await model.propose(
                         goal=goal, screen=screen, allowed=ALLOWED, history=tuple(history)
                     )
@@ -130,7 +157,7 @@ class SightLane:
                 if hit and hit.get("unreachable"):
                     tried.why = "the point lands in a frame of another origin"
                     break
-                if watched is not None and not tried.warned:
+                if writing and watched is not None and not tried.warned:
                     await ctx.about_to_write()
                     tried.warned = True
                 hops = hit.get("frame_path") if hit else None
@@ -186,7 +213,13 @@ class SightLane:
                 deadline_s=self._wait_s,
             )
         calls = await self._driver.calls_since(held.session, held.target_id, mark)
-        own = [one for one in calls if recorded is not None and same_call(one, recorded)]
+        adding = ctx.adding.get(step.order, Adding())
+        found = [
+            (one, keys)
+            for one in calls
+            if recorded is not None and (keys := same_call(one, recorded, adding)) is not None
+        ]
+        own = [one for one, _ in found]
         if writes(step, ctx.by_id):
             verdict = write_confirmed(
                 recorded=recorded, wanted=expected_statuses(step, ctx.by_id), calls=own
@@ -208,7 +241,9 @@ class SightLane:
                 )
                 kind, hit = tried.points[-1]
                 learned = _taught(hit) if kind == primary.action.kind else {}
-                return StepResult("done", Lane.SIGHT, read=made, calls=calls, learned=learned)
+                return StepResult(
+                    "done", Lane.SIGHT, read=made, calls=calls, learned=learned, keyed=found[0][1]
+                )
             return StepResult(
                 "unknown", Lane.SIGHT, tried.why or "no call confirmed the write", calls=calls
             )

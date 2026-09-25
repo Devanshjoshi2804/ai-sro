@@ -44,6 +44,17 @@ class PageDriver(Protocol):
 
     async def mark(self, session: SessionRef, target_id: str) -> int: ...
 
+    async def resolve(
+        self, session: SessionRef, target_id: str, payload: Mapping[str, object]
+    ) -> PageAnswer: ...
+
+    async def outline(
+        self,
+        session: SessionRef,
+        target_id: str,
+        frame_path: Sequence[Mapping[str, object]] | None,
+    ) -> Mapping[str, object] | None: ...
+
     async def calls_since(
         self, session: SessionRef, target_id: str, mark: int
     ) -> tuple[SeenCall, ...]: ...

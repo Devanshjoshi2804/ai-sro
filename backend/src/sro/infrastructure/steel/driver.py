@@ -483,6 +483,40 @@ class SteelDriver:
             repaired=bool(got.get("repaired")),
         )
 
+    async def resolve(
+        self, session: SessionRef, target_id: str, payload: Mapping[str, object]
+    ) -> PageAnswer:
+        page = await self._page(session, target_id)
+        frame, kind = await self._frame(page, payload)
+        if frame is None:
+            return PageAnswer(ok=False, error_kind=kind)
+        got = await self._call(
+            session,
+            target_id,
+            page,
+            lambda: frame.evaluate("p => globalThis.sroPage.resolve(p)", dict(payload)),
+        )
+        return PageAnswer(
+            ok=bool(got.get("found")),
+            matched_by=got.get("strategy"),
+            candidates=int(got.get("candidates") or 0),
+        )
+
+    async def outline(
+        self,
+        session: SessionRef,
+        target_id: str,
+        frame_path: Sequence[Mapping[str, object]] | None,
+    ) -> Mapping[str, object] | None:
+        page = await self._page(session, target_id)
+        frame, _ = await self._frame(page, {"frame_path": list(frame_path or [])})
+        if frame is None:
+            return None
+        got = await self._call(
+            session, target_id, page, lambda: frame.evaluate("() => globalThis.sroPage.outline()")
+        )
+        return got if isinstance(got, dict) else None
+
     async def screenshot(self, session: SessionRef, target_id: str) -> Screen:
         page = await self._page(session, target_id)
 

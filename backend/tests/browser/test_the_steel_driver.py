@@ -912,3 +912,39 @@ async def test_a_point_is_confirmed_only_when_the_recorded_control_is_what_it_hi
     assert not await holds(prefilled, {"value": "GT9"})
     typed = await pointed("#ct", ActionKind.TYPE, "GT9")
     assert await holds(typed, {"value": "GT1GT9", "visible": True, "enabled": True})
+
+
+async def test_a_field_nobody_recorded_is_found_by_its_label_filled_and_saved(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/"))
+    await rig.sign_in_in(driver, one, target)
+    department = {
+        "action": "select",
+        "write": False,
+        "target": {
+            "role": "combobox",
+            "name": "Department",
+            "landmarks": [{"role": "form", "name": "Customer Type"}],
+        },
+    }
+
+    found = await driver.resolve(one, target, department)
+    outline = await driver.outline(one, target, [])
+
+    assert (found.ok, found.candidates, found.matched_by) == (True, 1, "within_role_name")
+    assert outline is not None
+    fields = {one["label"]: one["options"] for one in outline["fields"]}
+    assert fields["Department"] == ["Finance", "Operations"]
+    chosen = await driver.act(one, target, {**department, "value": "Operations"})
+    held = {**department, "pin": chosen.pin, "expect": {"value": "Operations"}}
+    assert chosen.ok and await driver.wait_for(one, target, held, 5.0)
+    await driver.act(one, target, {"action": "type", "value": "GT9", "target": {"css_path": "#ct"}})
+    mark = await driver.mark(one, target)
+    await driver.act(one, target, {"action": "click", "target": {"css_path": "#save"}})
+    assert await driver.wait_for_call(
+        one, target, method="POST", shape="/api/customer-types", since=mark, deadline_s=5.0
+    )
+    assert rig.saved[-1] == {"name": "GT9", "department": "Operations"}

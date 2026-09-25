@@ -24,6 +24,7 @@ from sro.application.ports.page import PageAnswer, SessionRef
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.runtime.step import Held, LaneContext
 from sro.domain.execution.account import Account, Lease, LeaseState
+from sro.domain.execution.compose import Adding
 from sro.domain.execution.lanes import Lane, SeenCall, StepResult
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.observation.gesture import (
@@ -78,6 +79,8 @@ def scripted_driver(
     url: str = "",
     unsettled: bool = False,
     hit: Mapping[str, object] | None = None,
+    resolved: PageAnswer | None = None,
+    outline: Mapping[str, object] | None = None,
 ) -> FakePageDriver:
     driver = FakePageDriver(
         answer=answer,
@@ -88,6 +91,8 @@ def scripted_driver(
         url=url,
         unsettled=unsettled,
         hit=hit,
+        resolved=resolved,
+        outline=outline,
     )
     if url:
         driver.tabs["tab-1"], driver.owners["tab-1"] = url, _DEFAULT_HELD.session.context_id
@@ -109,6 +114,7 @@ def lane_context(
     secret: str | None = None,
     about_to_write: Callable[[], Awaitable[None]] | None = None,
     thread: str = "",
+    adding: Mapping[int, Adding] = MappingProxyType({}),
 ) -> LaneContext:
     return LaneContext(
         tenant_id=TenantId(_TENANT),
@@ -122,6 +128,7 @@ def lane_context(
         secret=secret,
         thread=thread,
         about_to_write=about_to_write if about_to_write is not None else _nothing,
+        adding=adding,
     )
 
 

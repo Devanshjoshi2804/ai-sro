@@ -17,7 +17,6 @@ from playwright.async_api import Playwright as PlaywrightDriver
 from sro.application.capture.decode import (
     CdpPayload,
     epoch_to_datetime,
-    to_ax_graph,
     to_console_message,
     to_cookies,
     to_headers,
@@ -26,7 +25,7 @@ from sro.application.capture.decode import (
     to_page_event,
     to_timing,
 )
-from sro.application.capture.events import CaptureEvent, InputEvent, RequestEvent, SnapshotEvent
+from sro.application.capture.events import CaptureEvent, InputEvent, RequestEvent
 from sro.application.ports.blob import BlobStore
 from sro.config import get_settings
 from sro.domain.recording.artifact import ArtifactKind
@@ -299,27 +298,13 @@ class CaptureSession:
     async def _on_gesture(self, _source: object, raw: str) -> None:
         payload: CdpPayload = json.loads(raw)
         at = epoch_to_datetime(float(payload.get("at", 0)))
-        url = str(payload.get("url", ""))
         index = self._gesture_count
         self._gesture_count += 1
 
         self._events.append(InputEvent(at=at, action=to_input_action(payload)))
 
-        ax = await self._ax_graph(url=url, at=at)
-        if ax is not None:
-            self._events.append(SnapshotEvent(snapshot=ax))
         if self._screenshot:
             await self._capture_screenshot(index=index, at=at)
-
-    async def _ax_graph(self, *, url: str, at: datetime) -> Any:
-        cdp = self._cdp
-        if cdp is None:
-            return None
-        try:
-            payload = await cdp.send("Accessibility.getFullAXTree")
-        except Exception:
-            return None
-        return to_ax_graph(payload, url=url, taken_at=at)
 
     async def _capture_screenshot(self, *, index: int, at: datetime) -> None:
         page = self._page

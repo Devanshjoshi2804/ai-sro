@@ -977,11 +977,14 @@ class FakeBrowserSessionRepository:
         *,
         state: LeaseState,
         until: datetime | None = None,
+        now: datetime | None = None,
     ) -> bool:
         if state is LeaseState.EXPIRED:
             raise ValueError("settle cannot move a lease to expired; use expire")
         found = self.leases.get(lease_id)
         if found is None or found.account.tenant != str(tenant_id) or found.state not in LIVE:
+            return False
+        if now is not None and found.expires_at <= now:
             return False
         self.leases[lease_id] = replace(
             found, state=state, expires_at=found.expires_at if until is None else until
@@ -1403,7 +1406,12 @@ class FakeBrowserPool:
     `contexts` lists what Chrome would: every context opened (or appended to
     `opened` by a test, as another process would) and not closed, less
     `dead`, the ones a test has killed; `closes_hang` makes `close` never
-    return, the way a sibling's hung page has held a real disposal."""
+    return, the way a sibling's hung page has held a real disposal; `down`
+    names container urls whose `cdp_url` raises `BrowserUnavailable`, the
+    way a restarted Steel container answers; `unknown` names ones whose
+    `cdp_url` raises `KeyError`, the way one dropped from the pool's own
+    config answers -- a real `SteelBrowserPool` indexes its clients by
+    container url and never had one to begin with."""
 
     def __init__(
         self,
@@ -1416,6 +1424,8 @@ class FakeBrowserPool:
         self.opened: list[tuple[str, str]] = []
         self.closed: list[tuple[str, str]] = []
         self.dead: set[str] = set()
+        self.down: set[str] = set()
+        self.unknown: set[str] = set()
         self.closes_hang = False
         self.session_id = "ses_1"
         self._next = count(1)
@@ -1451,6 +1461,10 @@ class FakeBrowserPool:
         )
 
     async def cdp_url(self, container_url: str) -> str:
+        if container_url in self.down:
+            raise BrowserUnavailable(f"{container_url} is down")
+        if container_url in self.unknown:
+            raise KeyError(container_url)
         return f"ws://{container_url}"
 
 
@@ -1485,7 +1499,12 @@ class FakePageDriver:
     and `aimed`, lets `calls` arrive on the first point and `calls_on[(x, y)]`
     on that point, and moves the tab to `lands` when set. `arrive` numbers
     calls into the log at any moment a test chooses; a call with no status is
-    one sent and not yet answered."""
+    one sent and not yet answered. `storage_state_hangs` makes `storage_state`
+    never return, the way a wedged renderer's CDP socket answers nothing.
+
+    For a field nobody demonstrated, `resolve` records each payload in
+    `resolved` and answers the scripted `resolved` answer (one control by
+    default), and `outline` answers the scripted live outline."""
 
     def __init__(
         self,
@@ -1498,6 +1517,8 @@ class FakePageDriver:
         url: str = "",
         unsettled: bool = False,
         hit: Mapping[str, object] | None = None,
+        resolved: PageAnswer | None = None,
+        outline: Mapping[str, object] | None = None,
     ) -> None:
         self.tabs: dict[str, str] = {}
         self.owners: dict[str, str] = {}
@@ -1505,6 +1526,7 @@ class FakePageDriver:
         self.dead: set[str] = set()
         self.calls: list[tuple[str, ...]] = []
         self.closed = False
+        self.storage_state_hangs = False
         self._next = count(1)
         self._answer = answer if answer is not None else PageAnswer(ok=True)
         self._arriving = tuple(calls)
@@ -1524,6 +1546,9 @@ class FakePageDriver:
         self.lands: str | None = None
         self.pointed: list[tuple[str, int, int, str | None]] = []
         self.aimed: list[Sequence[Mapping[str, object]] | None] = []
+        self._resolves = resolved if resolved is not None else PageAnswer(ok=True, candidates=1)
+        self._outline = outline
+        self.resolved: list[dict[str, object]] = []
         self.cookie = ""
         self.headers: dict[str, str] = {}
         self.headers_after_mark: dict[str, str] | None = None
@@ -1594,6 +1619,8 @@ class FakePageDriver:
 
     async def storage_state(self, session: SessionRef) -> str:
         self._live(session)
+        if self.storage_state_hangs:
+            await asyncio.Event().wait()
         self.calls.append(("storage_state", session.context_id))
         return self.states.get(session.context_id, "{}")
 
@@ -1623,6 +1650,20 @@ class FakePageDriver:
 
     async def mark(self, session: SessionRef, target_id: str) -> int:
         return next(self._seq)
+
+    async def resolve(
+        self, session: SessionRef, target_id: str, payload: Mapping[str, object]
+    ) -> PageAnswer:
+        self.resolved.append(dict(payload))
+        return self._resolves
+
+    async def outline(
+        self,
+        session: SessionRef,
+        target_id: str,
+        frame_path: Sequence[Mapping[str, object]] | None,
+    ) -> Mapping[str, object] | None:
+        return self._outline
 
     async def screenshot(self, session: SessionRef, target_id: str) -> Screen:
         self._tab(session, target_id)

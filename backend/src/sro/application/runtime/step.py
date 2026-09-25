@@ -8,6 +8,7 @@ from typing import Literal, Protocol
 from sro.application.context import RequestContext
 from sro.application.ports.page import SessionRef
 from sro.domain.execution.account import Lease
+from sro.domain.execution.compose import Adding
 from sro.domain.execution.lanes import Lane, StepResult
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.verified_writes import VerifiedWrite
@@ -63,6 +64,7 @@ class LaneContext:
     thread: str = ""
     about_to_write: Callable[[], Awaitable[None]] = _nothing
     reauthed: bool = False
+    adding: Mapping[int, Adding] = field(default_factory=dict)
 
     @property
     def ctx(self) -> RequestContext:

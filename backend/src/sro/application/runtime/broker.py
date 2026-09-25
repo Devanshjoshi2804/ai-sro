@@ -37,6 +37,7 @@ from sro.domain.execution.account import (
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.hosts import origin_of
+from sro.domain.shared.identifiers import TenantId
 from sro.domain.skill.signing_in import (
     a_sign_in_page,
     asks_for_a_code,
@@ -110,6 +111,20 @@ class SessionBroker:
             await uow.commit()
         return kept
 
+    async def prepare_to_expire(self, lease: Lease) -> bool:
+        try:
+            session = await self._session(lease)
+        except (BrowserUnavailable, KeyError):
+            return False
+        if lease.state is LeaseState.READY:
+            with contextlib.suppress(TimeoutError, PageGone, BrowserUnavailable):
+                async with asyncio.timeout(self._close_s):
+                    await self._save_state(lease, session)
+        return True
+
+    async def end_expired(self, lease: Lease) -> None:
+        await self._close(lease)
+
     async def headers(
         self,
         ctx: RequestContext,
@@ -151,7 +166,7 @@ class SessionBroker:
                     if asked.kind == "password":
                         await self._park(ctx, held.lease.id)
                     raise
-                await self._save_state(held)
+                await self._save_state(held.lease, held.session)
                 await self._driver.forget_calls(held.session, held.target_id)
 
     async def recover(
@@ -184,13 +199,18 @@ class SessionBroker:
                     f"{lease.account.origin} asks for a password now, not a code",
                     kind="password",
                 )
-            await self._driver.goto(held.session, target_id, start_url)
-            await self._save_state(held)
-            await self._driver.forget_calls(held.session, target_id)
-            if not await self._settle(ctx, lease, LeaseState.READY):
+            now = self._clock.now()
+            until = now + K_LEASE_TTL
+            if not await self._settle(ctx, lease, LeaseState.READY, until=until, now=now):
                 raise PageGone(f"lease {lease_id} was lost while it waited for a person")
-            await self.beat(ctx, lease_id, holder=holder)
-        return replace(held, lease=replace(lease, state=LeaseState.READY, holder=holder))
+            await self._driver.goto(held.session, target_id, start_url)
+            await self._save_state(lease, held.session)
+            await self._driver.forget_calls(held.session, target_id)
+            if not await self.beat(ctx, lease_id, holder=holder):
+                raise PageGone(f"lease {lease_id} was lost while it waited for a person")
+        return replace(
+            held, lease=replace(lease, state=LeaseState.READY, holder=holder, expires_at=until)
+        )
 
     async def _attach(
         self, ctx: RequestContext, lease: Lease, start_url: str, holder: str
@@ -285,7 +305,7 @@ class SessionBroker:
         try:
             if a_sign_in_page(await self._driver.signals(session, held.target_id)):
                 await self._sign_in(ctx, held, start_url)
-            await self._save_state(held)
+            await self._save_state(held.lease, held.session)
             await self._driver.forget_calls(session, held.target_id)
         except WaitingForAPerson:
             raise
@@ -379,22 +399,32 @@ class SessionBroker:
             raise PageGone(f"lease {lease_id} was lost while it was signing in")
         return until
 
-    async def _save_state(self, held: Held) -> None:
-        state = await self._driver.storage_state(held.session)
+    async def _save_state(self, lease: Lease, session: SessionRef) -> None:
+        state = await self._driver.storage_state(session)
         size = len(state.encode())
         if size > K_VAULT_VALUE_BYTES:
             logger.warning(
                 "%s: the signed-in state is %d bytes, over the vault's %d; not saved",
-                held.lease.account.key,
+                lease.account.key,
                 size,
                 K_VAULT_VALUE_BYTES,
             )
             return
-        await self._vault.store(held.lease.account.vault_key("state"), state)
+        await self._vault.store(lease.account.vault_key("state"), state)
 
-    async def _settle(self, ctx: RequestContext, lease: Lease, state: LeaseState) -> bool:
+    async def _settle(
+        self,
+        ctx: RequestContext,
+        lease: Lease,
+        state: LeaseState,
+        *,
+        until: datetime | None = None,
+        now: datetime | None = None,
+    ) -> bool:
         async with self._uow as uow:
-            moved = await uow.browser_sessions.settle(ctx.tenant_id, lease.id, state=state)
+            moved = await uow.browser_sessions.settle(
+                ctx.tenant_id, lease.id, state=state, until=until, now=now
+            )
             await uow.commit()
         return moved
 
@@ -425,3 +455,15 @@ class SessionBroker:
             logger.warning(
                 "context %s of lease %s was not closed: %r", lease.context_id, lease.id, why
             )
+        except KeyError as why:
+            logger.warning(
+                "container %s of lease %s is no longer configured: %r",
+                lease.container_url,
+                lease.id,
+                why,
+            )
+            async with self._uow as uow:
+                await uow.browser_sessions.settle(
+                    TenantId(lease.account.tenant), lease.id, state=LeaseState.BROKEN
+                )
+                await uow.commit()

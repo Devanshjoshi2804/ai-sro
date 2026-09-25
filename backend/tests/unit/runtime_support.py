@@ -17,6 +17,8 @@ provider (`IDP` unless told otherwise) that lands on a system, and
 `lookup_world` saves the given gestures beside a recorded sign-in that lands
 on their system, and builds `RunLookups` over a real `SessionBroker` on fakes;
 `reauths` counts the broker's `reauth` calls.
+
+`lease_for` inserts a `ready` lease a sweeper test can expire.
 """
 
 from __future__ import annotations
@@ -32,9 +34,11 @@ from sro.application.execution.mail_job import Written
 from sro.application.lookup.run_lookups import RunLookups
 from sro.application.ports.page import PageAnswer, SessionRef
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.ports.system import Clock
 from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.step import Held, LaneContext
-from sro.domain.execution.account import Account, Lease, LeaseState
+from sro.domain.execution.account import K_LEASE_TTL, Account, Lease, LeaseState, new_lease_id
+from sro.domain.execution.compose import Adding
 from sro.domain.execution.lanes import Lane, SeenCall, StepResult
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.verified_writes import VerifiedWrite
@@ -104,6 +108,8 @@ def scripted_driver(
     url: str = "",
     unsettled: bool = False,
     hit: Mapping[str, object] | None = None,
+    resolved: PageAnswer | None = None,
+    outline: Mapping[str, object] | None = None,
 ) -> FakePageDriver:
     driver = FakePageDriver(
         answer=answer,
@@ -114,6 +120,8 @@ def scripted_driver(
         url=url,
         unsettled=unsettled,
         hit=hit,
+        resolved=resolved,
+        outline=outline,
     )
     if url:
         driver.tabs["tab-1"], driver.owners["tab-1"] = url, _DEFAULT_HELD.session.context_id
@@ -137,6 +145,7 @@ def lane_context(
     about_to_write: Callable[[], Awaitable[None]] | None = None,
     thread: str = "",
     reauthed: bool = False,
+    adding: Mapping[int, Adding] = MappingProxyType({}),
 ) -> LaneContext:
     return LaneContext(
         tenant_id=TenantId(_TENANT),
@@ -151,6 +160,7 @@ def lane_context(
         thread=thread,
         about_to_write=about_to_write if about_to_write is not None else _nothing,
         reauthed=reauthed,
+        adding=adding,
     )
 
 
@@ -486,3 +496,25 @@ async def lookup_world(*gestures: Gesture) -> LookupWorld:
     world = LookupWorld(RunLookups(uow, broker, http), driver, http)
     broker.world = world
     return world
+
+
+async def lease_for(uow: UnitOfWork, clock: Clock, *, holder: str = "run_1") -> Lease:
+    """Inserts a `ready` lease on a Steel session held in `http://steel:3000`,
+    its context id and steel session id deliberately distinct -- a sweeper
+    test has to tell which one a pool close was actually given."""
+    now = clock.now()
+    lease = Lease(
+        id=new_lease_id(),
+        account=Account.of(_TENANT, _SYSTEM, "clerk"),
+        container_url="http://steel:3000",
+        steel_session_id=new_lease_id(),
+        context_id=new_lease_id(),
+        holder=holder,
+        heartbeat_at=now,
+        expires_at=now + K_LEASE_TTL,
+        state=LeaseState.READY,
+    )
+    async with uow:
+        saved = await uow.browser_sessions.lease(TenantId(_TENANT), lease)
+        await uow.commit()
+    return saved

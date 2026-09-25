@@ -3,10 +3,11 @@ import asyncio
 import pytest
 
 from sro.application.context import RequestContext
+from sro.application.ports.locks import AccountBusy
 from sro.application.ports.page import PageGone, SessionRef
 from sro.application.ports.pool import PoolFull
-from sro.application.runtime.broker import SessionBroker
-from sro.application.runtime.step import NeedsAPerson
+from sro.application.runtime.broker import K_CODE_WAIT, SessionBroker
+from sro.application.runtime.step import Held, NeedsAPerson, WaitingForAPerson
 from sro.domain.execution.account import (
     K_LEASE_TTL,
     K_VAULT_VALUE_BYTES,
@@ -138,13 +139,92 @@ async def test_a_refused_password_is_never_typed_again() -> None:
     assert lane.stepped == []
 
 
-async def test_a_one_time_code_asks_a_person() -> None:
-    uow, driver, vault = await _signing_world()
+async def _asked_for_a_code(
+    uow: FakeUnitOfWork, driver: FakePageDriver, broker: SessionBroker
+) -> Held:
     driver.shows_sign_in_until_signed = False
     driver.signals_for_every_tab = PageSignals(APP, autocomplete=frozenset({"one-time-code"}))
+    with pytest.raises(WaitingForAPerson) as asked:
+        await broker.acquire(CTX, LENA, APP, holder="run_1")
+    assert asked.value.kind == "code"
+    return asked.value.held
 
-    with pytest.raises(NeedsAPerson):
-        await _broker(uow, driver, vault).acquire(CTX, LENA, APP, holder="run_1")
+
+async def test_a_one_time_code_keeps_its_page_open_and_its_account_while_a_person_answers() -> None:
+    uow, driver, vault = await _signing_world()
+    pool, clock = FakeBrowserPool({STEEL: 5}), FakeClock()
+    broker = _broker(uow, driver, vault, pool=pool, clock=clock)
+    asked_at = clock.now()
+    waiting = await _asked_for_a_code(uow, driver, broker)
+    lease = uow.browser_sessions.leases[waiting.lease.id]
+    clock.advance(int(K_LEASE_TTL.total_seconds()) + 1)
+
+    assert await broker.beat(CTX, lease.id, holder="run_2")
+    with pytest.raises(AccountBusy):
+        await broker.acquire(CTX, LENA, APP, holder="run_2")
+    with pytest.raises(WaitingForAPerson):
+        await broker.resume(CTX, lease.id, waiting.target_id, APP, holder="run_1")
+
+    assert lease.state is LeaseState.WAITING
+    assert lease.expires_at == waiting.lease.expires_at == asked_at + K_CODE_WAIT
+    assert uow.browser_sessions.leases[lease.id].state is LeaseState.WAITING
+    assert uow.browser_sessions.leases[lease.id].expires_at == lease.expires_at
+    assert waiting.target_id in driver.tabs
+    assert pool.closed == []
+
+    driver.signals_for_every_tab = PageSignals(APP)
+    held = await broker.resume(CTX, lease.id, waiting.target_id, APP, holder="run_1")
+
+    assert held.lease.state is LeaseState.READY
+    assert held.target_id == waiting.target_id
+    assert await vault.get(LENA.vault_key("state")) is not None
+    assert (await broker.acquire(CTX, LENA, APP, holder="run_2")).lease.id == lease.id
+
+
+async def test_a_code_nobody_answers_in_time_is_taken_over() -> None:
+    uow, driver, vault = await _signing_world()
+    pool, clock = FakeBrowserPool({STEEL: 5}), FakeClock()
+    broker = _broker(uow, driver, vault, pool=pool, clock=clock)
+    waiting = await _asked_for_a_code(uow, driver, broker)
+    clock.advance(int(K_CODE_WAIT.total_seconds()) + 1)
+    driver.signals_for_every_tab = PageSignals(APP)
+
+    held = await broker.acquire(CTX, LENA, APP, holder="run_2")
+
+    assert uow.browser_sessions.leases[waiting.lease.id].state is LeaseState.EXPIRED
+    assert held.lease.id != waiting.lease.id
+    assert (STEEL, waiting.session.context_id) in pool.closed
+
+
+async def test_resume_past_its_deadline_goes_through_a_fresh_acquire_never_back_to_ready() -> None:
+    uow, driver, vault = await _signing_world()
+    pool, clock = FakeBrowserPool({STEEL: 5}), FakeClock()
+    broker = _broker(uow, driver, vault, pool=pool, clock=clock)
+    waiting = await _asked_for_a_code(uow, driver, broker)
+    clock.advance(int(K_CODE_WAIT.total_seconds()) + 1)
+    driver.signals_for_every_tab = PageSignals(APP)
+
+    held = await broker.resume(CTX, waiting.lease.id, waiting.target_id, APP, holder="run_1")
+
+    assert uow.browser_sessions.leases[waiting.lease.id].state is LeaseState.EXPIRED
+    assert held.lease.id != waiting.lease.id
+    assert held.lease.state is LeaseState.READY
+
+
+async def test_resume_when_the_code_page_now_shows_a_password_asks_for_a_password_not_a_code() -> (
+    None
+):
+    uow, driver, vault = await _signing_world()
+    pool, clock = FakeBrowserPool({STEEL: 5}), FakeClock()
+    broker = _broker(uow, driver, vault, pool=pool, clock=clock)
+    waiting = await _asked_for_a_code(uow, driver, broker)
+    driver.signals_for_every_tab = PageSignals(APP, password=True)
+
+    with pytest.raises(NeedsAPerson) as asked:
+        await broker.resume(CTX, waiting.lease.id, waiting.target_id, APP, holder="run_1")
+
+    assert asked.value.kind == "password"
+    assert uow.browser_sessions.leases[waiting.lease.id].state is LeaseState.WAITING
 
 
 async def test_no_stored_password_asks_for_one_and_types_nothing() -> None:
@@ -453,3 +533,106 @@ async def test_a_settle_that_fails_still_closes_the_context() -> None:
 
     (lease,) = uow.browser_sessions.leases.values()
     assert pool.closed == [(STEEL, lease.context_id)]
+
+
+async def test_runs_waiting_on_the_lock_find_the_session_already_signed_back_in() -> None:
+    uow, driver, vault = FakeUnitOfWork(), FakePageDriver(), FakeCredentialVault()
+    await with_a_recorded_sign_in(uow, lands_on=APP, username="lena")
+    await vault.store(LENA.vault_key("password"), PASSWORD)
+    lane = SigningLane(driver)
+    broker = _broker(uow, driver, vault, lane)
+    one = await broker.acquire(CTX, LENA, APP, holder="run_1")
+    two = await broker.acquire(CTX, LENA, APP, holder="run_2")
+    driver.expire_session()
+
+    await asyncio.gather(broker.reauth(CTX, one, APP), broker.reauth(CTX, two, APP))
+
+    assert lane.sign_ins == 1
+    assert driver.tabs[one.target_id] == driver.tabs[two.target_id] == APP
+    assert await vault.get(LENA.vault_key("state")) is not None
+
+
+async def test_reauth_forgets_the_password_call_once_it_signs_back_in() -> None:
+    uow, driver, vault = await _signing_world()
+    lane = SigningLane(driver)
+    broker = _broker(uow, driver, vault, lane)
+    held = await broker.acquire(CTX, LENA, APP, holder="run_1")
+    driver.expire_session()
+    driver._log = [(0, SeenCall("POST", f"{IDP}/login", 200, request_body="password=x"))]
+
+    await broker.reauth(CTX, held, APP)
+
+    assert await driver.calls_since(held.session, held.target_id, -1) == ()
+
+
+async def test_a_password_refused_on_re_sign_in_parks_the_lease_for_the_queued_caller() -> None:
+    uow, driver, vault = await _signing_world()
+    lane = SigningLane(driver)
+    broker = _broker(uow, driver, vault, lane)
+    one = await broker.acquire(CTX, LENA, APP, holder="run_1")
+    two = await broker.acquire(CTX, LENA, APP, holder="run_2")
+    driver.expire_session()
+    driver.refuses = True
+    before = lane.sign_ins
+
+    first, second = await asyncio.gather(
+        broker.reauth(CTX, one, APP), broker.reauth(CTX, two, APP), return_exceptions=True
+    )
+
+    assert isinstance(first, NeedsAPerson) and first.kind == "password"
+    assert isinstance(second, AccountBusy)
+    assert lane.sign_ins == before + 1
+    assert await vault.get(LENA.vault_key("password") + "#refused") is not None
+    assert uow.browser_sessions.leases[one.lease.id].state is LeaseState.WAITING
+
+
+async def test_a_code_asked_on_re_sign_in_holds_the_account_for_the_person() -> None:
+    uow, driver, vault = await _signing_world()
+    lane = SigningLane(driver)
+    broker = _broker(uow, driver, vault, lane)
+    one = await broker.acquire(CTX, LENA, APP, holder="run_1")
+    two = await broker.acquire(CTX, LENA, APP, holder="run_2")
+    driver.expire_session()
+    driver.shows_sign_in_until_signed = False
+    driver.signals_for_every_tab = PageSignals(APP, autocomplete=frozenset({"one-time-code"}))
+
+    with pytest.raises(WaitingForAPerson) as asked:
+        await broker.reauth(CTX, one, APP)
+    with pytest.raises(AccountBusy):
+        await broker.reauth(CTX, two, APP)
+
+    assert asked.value.held.target_id == one.target_id
+    assert uow.browser_sessions.leases[one.lease.id].state is LeaseState.WAITING
+    assert lane.sign_ins == 1
+
+
+async def test_a_crashed_container_is_replaced_and_its_state_restored() -> None:
+    uow, driver, vault = FakeUnitOfWork(), FakePageDriver(), FakeCredentialVault()
+    await vault.store(LENA.vault_key("state"), '{"cookies": []}')
+    pool = FakeBrowserPool({STEEL: 5})
+    broker = _broker(uow, driver, vault, pool=pool)
+    held = await broker.acquire(CTX, LENA, APP, holder="run_1")
+    driver.dead.add(held.session.context_id)
+    pool.dead.add(held.session.context_id)
+
+    again = await broker.recover(CTX, held.lease.id, APP, holder="run_1")
+
+    assert again.lease.id != held.lease.id
+    restored = [call[2] for call in driver.calls if call[0] == "restore_state"]
+    assert restored == ['{"cookies": []}', '{"cookies": []}']
+    assert uow.browser_sessions.leases[held.lease.id].state is LeaseState.BROKEN
+    assert (STEEL, held.session.context_id) in pool.closed
+
+
+async def test_recover_keeps_a_lease_whose_context_the_pool_still_lists() -> None:
+    uow, driver, vault = FakeUnitOfWork(), FakePageDriver(), FakeCredentialVault()
+    pool = FakeBrowserPool({STEEL: 5})
+    broker = _broker(uow, driver, vault, pool=pool)
+    held = await broker.acquire(CTX, LENA, APP, holder="run_1")
+    await driver.close_tab(held.session, held.target_id)
+
+    again = await broker.recover(CTX, held.lease.id, APP, holder="run_1")
+
+    assert again.lease.id == held.lease.id
+    assert again.target_id != held.target_id
+    assert pool.closed == []

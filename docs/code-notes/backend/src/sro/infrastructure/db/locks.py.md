@@ -94,7 +94,7 @@ Code: `except _Retry:`
 > is; `mining:` never appears in an account key, which leads with a tenant
 > and a `/`.
 
-## `PostgresAccountLocks.try_hold_named`, [line 66](../../../../../../../backend/src/sro/infrastructure/db/locks.py#L66): Note on the function
+## `PostgresAccountLocks.try_hold_named`, [line 65](../../../../../../../backend/src/sro/infrastructure/db/locks.py#L65): Note on the function
 
 > `pg_try_advisory_xact_lock` on the same key `hold_named` waits for, in a
 > transaction on the lock engine that lasts the block, so a lock it took is

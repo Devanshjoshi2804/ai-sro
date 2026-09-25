@@ -3,22 +3,37 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, TypeVar
 from urllib.parse import urlsplit
 
 import httpx
-from playwright.async_api import Browser, CDPSession, Page, Playwright, Route, async_playwright
+from playwright.async_api import (
+    Browser,
+    CDPSession,
+    Frame,
+    Page,
+    Playwright,
+    Response,
+    Route,
+    async_playwright,
+)
 from playwright.async_api import Error as PlaywrightError
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
-from sro.application.ports.page import PageGone, SessionRef
+from sro.application.ports.page import PageAnswer, PageGone, SessionRef
+from sro.domain.execution.lanes import SeenCall
+from sro.domain.observation.gesture import AfterState
+from sro.domain.observation.trim import path_shape
 from sro.infrastructure.steel.capture import addressed
 from sro.infrastructure.steel.client import cdp_origin, websocket_debugger_url
 
 K_ATTACH_TIMEOUT_S = 10
 K_ACTION_TIMEOUT_S = 15
+K_CALL_BODY_CHARS = 4096
+K_CALL_TYPES = frozenset({"fetch", "xhr"})
 
 _SEED_STORAGE = """(items) => {
   for (const { name, value } of items) {
@@ -40,6 +55,14 @@ class _Link:
     waiting: dict[str, asyncio.Future[Page]] = field(default_factory=dict)
 
 
+@dataclass
+class _Calls:
+    count: int = 0
+    seen: list[tuple[int, SeenCall]] = field(default_factory=list)
+    changed: asyncio.Event = field(default_factory=asyncio.Event)
+    reading: set[asyncio.Task[None]] = field(default_factory=set)
+
+
 class SteelDriver:
     def __init__(self, page_code_path: str) -> None:
         self._page_code = Path(page_code_path).read_text(encoding="utf-8")
@@ -48,6 +71,7 @@ class SteelDriver:
         self._locks_guard = asyncio.Lock()
         self._links: dict[str, _Link] = {}
         self._listeners: dict[tuple[str, str], list[tuple[str, Callable[..., Any]]]] = {}
+        self._calls: dict[Page, _Calls] = {}
 
     async def _lock_for(self, cdp_url: str) -> asyncio.Lock:
         async with self._locks_guard:
@@ -230,6 +254,156 @@ class SteelDriver:
         for target_id, page in list(link.pages.items()):
             if link.owners.get(target_id) == session.context_id:
                 page.on(event, handler)  # type: ignore[call-overload]
+
+    def _log(self, page: Page) -> _Calls:
+        log = self._calls.get(page)
+        if log is None:
+            log = self._calls[page] = _Calls()
+
+            def closed(_: Page) -> None:
+                self._calls.pop(page, None)
+                log.changed.set()
+
+            page.once("close", closed)
+        return log
+
+    def _heard(self, response: Response) -> None:
+        request = response.request
+        if request.resource_type not in K_CALL_TYPES:
+            return
+        try:
+            page = request.frame.page
+        except PlaywrightError:
+            return
+        log = self._log(page)
+        at, log.count = log.count, log.count + 1
+        reading = asyncio.get_running_loop().create_task(self._record(log, at, response))
+        log.reading.add(reading)
+        reading.add_done_callback(log.reading.discard)
+
+    async def _record(self, log: _Calls, at: int, response: Response) -> None:
+        body = None
+        if 200 <= response.status < 300:
+            with contextlib.suppress(PlaywrightError):
+                body = (await response.text())[:K_CALL_BODY_CHARS]
+        call = SeenCall(response.request.method, response.url, response.status, body)
+        log.seen.append((at, call))
+        log.changed.set()
+
+    async def _frame(self, page: Page, payload: Mapping[str, object]) -> Frame:
+        hops = payload.get("frame_path")
+        if isinstance(hops, list):
+            frame = page.main_frame
+            for hop in hops:
+                children = frame.child_frames
+                url, index = hop.get("url"), hop.get("index")
+                same = [c for c in children if url and path_shape(c.url) == path_shape(url)]
+                if len(same) == 1:
+                    frame = same[0]
+                elif isinstance(index, int) and 0 <= index < len(children):
+                    frame = children[index]
+                else:
+                    break
+            else:
+                return frame
+        holding = []
+        for frame in page.frames:
+            with contextlib.suppress(PlaywrightError):
+                found = await frame.evaluate("p => globalThis.sroPage.resolve(p)", dict(payload))
+                if found and found.get("found"):
+                    holding.append(frame)
+        return holding[0] if len(holding) == 1 else page.main_frame
+
+    async def act(
+        self, session: SessionRef, target_id: str, payload: Mapping[str, object]
+    ) -> PageAnswer:
+        page = await self._page(session, target_id)
+        frame = await self._frame(page, payload)
+        got = await self._call(
+            session,
+            target_id,
+            page,
+            lambda: frame.evaluate("p => globalThis.sroPage.act(p)", dict(payload)),
+        )
+        error, state = got.get("error") or {}, got.get("state")
+        return PageAnswer(
+            ok=bool(got.get("ok")),
+            matched_by=got.get("matched_by"),
+            candidates=int(got.get("candidates") or 0),
+            detail=str(error.get("detail") or ""),
+            error_kind=error.get("kind"),
+            state=AfterState(**state) if state else None,
+            pin=got.get("pin"),
+            repaired=bool(got.get("repaired")),
+        )
+
+    async def mark(self, session: SessionRef, target_id: str) -> int:
+        page = await self._page(session, target_id)
+        if ("response", self._heard) not in self._listeners.get(
+            (session.cdp_url, session.context_id), []
+        ):
+            await self.on(session, "response", self._heard)
+        return self._log(page).count
+
+    async def calls_since(
+        self, session: SessionRef, target_id: str, mark: int
+    ) -> tuple[SeenCall, ...]:
+        log = self._calls.get(await self._page(session, target_id))
+        if log is None:
+            return ()
+        return tuple(call for at, call in sorted(log.seen, key=lambda one: one[0]) if at >= mark)
+
+    async def wait_for_call(
+        self,
+        session: SessionRef,
+        target_id: str,
+        *,
+        method: str,
+        shape: str,
+        since: int,
+        deadline_s: float,
+    ) -> bool:
+        page = await self._page(session, target_id)
+        log = self._log(page)
+        wanted = method.upper()
+
+        def arrived() -> bool:
+            return any(
+                at >= since and call.method.upper() == wanted and path_shape(call.url) == shape
+                for at, call in log.seen
+            )
+
+        gone = PageGone(f"tab {target_id} in context {session.context_id} is gone")
+        try:
+            async with asyncio.timeout(deadline_s):
+                while not arrived():
+                    if page.is_closed():
+                        raise gone
+                    log.changed.clear()
+                    await log.changed.wait()
+        except TimeoutError:
+            if page.is_closed() or not await self._target_alive(session, target_id):
+                raise gone from None
+            return False
+        return True
+
+    async def wait_for(
+        self, session: SessionRef, target_id: str, payload: Mapping[str, object], deadline_s: float
+    ) -> bool:
+        page = await self._page(session, target_id)
+        frame = await self._frame(page, payload)
+        try:
+            await self._call(
+                session,
+                target_id,
+                page,
+                lambda: frame.wait_for_function(
+                    "p => globalThis.sroPage.holds(p)", arg=dict(payload), timeout=deadline_s * 1000
+                ),
+            )
+        except PlaywrightTimeoutError:
+            return False
+        return True
 
     async def storage_state(self, session: SessionRef) -> str:
         link = await self._context(session)

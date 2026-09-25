@@ -2,14 +2,14 @@
 
 Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driver.py`](../../../../../../../backend/src/sro/infrastructure/steel/driver.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `K_ATTACH_TIMEOUT_S`, [line 20](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L20): Note
+## `K_ATTACH_TIMEOUT_S`, [line 33](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L33): Note
 
 > How long a tab `Target.createTarget` just made may take to surface as a
 > Playwright `Page`, and the bound on attaching to a browser at all. Ten
 > seconds is S4's `K_CONTEXT_PAGE_TIMEOUT_S` for the same wait; a healthy
 > Steel surfaces a tab in well under one.
 
-## `K_ACTION_TIMEOUT_S`, [line 21](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L21): Note
+## `K_ACTION_TIMEOUT_S`, [line 34](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L34): Note
 
 > The bound passed to `goto`'s own `timeout`, in place of Playwright's
 > 30 s default. A context disposed mid-navigation left `goto` hanging the
@@ -19,13 +19,27 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > context surfaces as `PageGone` in bounded time, not to police a live
 > page's load time.
 
-## `_SEED_STORAGE`, [line 23](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L23): Note
+## `K_CALL_BODY_CHARS`, [line 35](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L35): Note
+
+> How much of a 2xx fetch/XHR body the call log keeps. X4's brief caps it at
+> 4096 characters. The UI lane reads the body for two things only: the ids a
+> 201 created (`made_by`) and the names a read returned (`names_in`); both sit
+> at the front of a JSON answer. The brief said "201 only"; a read step needs
+> its 2xx body too, so every 2xx is read.
+
+## `K_CALL_TYPES`, [line 36](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L36): Note
+
+> Only `fetch` and `xhr` are calls. The UI lane takes the last 2xx call as the
+> answer to a read step; logging documents, scripts and images would hand it
+> a stylesheet's 200 instead of the data the screen asked for.
+
+## `_SEED_STORAGE`, [line 38](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L38): Note
 
 > Restored `localStorage` is seeded, never forced: `if (localStorage.getItem(name)
 > === null)` only fills a key the context does not already hold. A context
 > the application has already written to keeps the application's value.
 
-## `_Link`, [line 33](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L33): Note
+## `_Link`, [line 48](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L48): Note
 
 > Everything this process knows about one browser connection, and nothing
 > that outlives it: the tabs it has seen (`pages`, by CDP target id) and the
@@ -44,7 +58,17 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > live on `SteelDriver._listeners` instead, which outlives any one
 > connection.
 
-## `SteelDriver`, [line 43](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L43): Docstring
+## `_Calls`, [line 59](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L59): Note
+
+> One tab's network call log. `count` is handed out when a response arrives,
+> synchronously, before the body is read, so `mark` (which returns `count`)
+> splits calls by when they happened, not by when their bodies finished
+> reading: a call answered before the mark never counts as the act's, even if
+> its body lands after. `seen` holds `(sequence, call)`; `changed` is set on
+> every append and when the tab closes, so every waiter wakes on a real event.
+> `reading` keeps the body-reading tasks referenced until they finish.
+
+## `SteelDriver`, [line 66](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L66): Docstring
 
 > `ui_driver.py`'s `_AttachedPage.__aenter__` opened a new CDP connection for
 > every call, measured at about 630 ms each (spec §2). `SteelDriver` connects
@@ -63,7 +87,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > The page code is read once, here: it is the same file for the life of the
 > process.
 
-## `SteelDriver._lock_for`, [line 52](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L52): Docstring
+## `SteelDriver._lock_for`, [line 76](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L76): Docstring
 
 > One `asyncio.Lock` per `cdp_url`, not one for the whole driver: `_link`
 > holds its lock for every page in the container while it reattaches
@@ -73,7 +97,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > by a second, tiny lock held only long enough to look up or create the
 > entry, never across an await that talks to a browser.
 
-## `SteelDriver._link`, [line 59](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L59): Docstring
+## `SteelDriver._link`, [line 83](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L83): Docstring
 
 > One connection per `cdp_url`, made under that url's own lock so two
 > first calls do not open two. The url goes through
@@ -98,7 +122,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > tabs). Tabs that were open before the connection -- a worker that
 > restarted -- are adopted once, here, not searched for on every lookup.
 
-## `SteelDriver._arrived`, [line 92](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L92): Docstring
+## `SteelDriver._arrived`, [line 116](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L116): Docstring
 
 > Every tab the connection sees, once: which target and which browser
 > context it is, the account's listeners for that context (if any are
@@ -124,14 +148,14 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > init script is not yet in place. A tab that closes while any of this runs
 > is dropped, including the owner entry set just for it.
 
-## `SteelDriver._context`, [line 132](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L132): Docstring
+## `SteelDriver._context`, [line 156](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L156): Docstring
 
 > The account's context must be open in this browser before anything is
 > created or read in it -- the same check S4's `_require_context` makes. It
 > is also what keeps a stale `SessionRef` from ever landing in Chrome's
 > default context: that context is never in `Target.getBrowserContexts`.
 
-## `SteelDriver._page`, [line 139](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L139): Docstring
+## `SteelDriver._page`, [line 163](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L163): Docstring
 
 > A tab is the account's only when its target belongs to the account's
 > context, and that context is one this browser still lists: every lookup
@@ -143,7 +167,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > bare target-id lookup found another account's tab and let a stale target
 > id drive it (S5 review I1).
 
-## `SteelDriver._target_alive`, [line 146](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L146): Docstring
+## `SteelDriver._target_alive`, [line 170](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L170): Docstring
 
 > Whether Chrome still lists this target, asked over CDP
 > (`Target.getTargetInfo`) rather than inferred from how long a call took.
@@ -151,7 +175,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > Playwright error means the tab is gone or means something else went
 > wrong on a page that is still there (S5 re-review N1).
 
-## `SteelDriver._call`, [line 156](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L156): Docstring
+## `SteelDriver._call`, [line 180](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L180): Docstring
 
 > The one place every call made on a tab -- `close_tab`, `goto`,
 > `evaluate` -- routes through to turn "the tab is gone" into `PageGone`.
@@ -165,7 +189,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > tab that is still there is re-raised as-is, so a genuinely slow live
 > page is never mistaken for a dead one.
 
-## `SteelDriver.open_tab`, [line 168](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L168): Docstring
+## `SteelDriver.open_tab`, [line 192](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L192): Docstring
 
 > Tabs are addressed by their CDP target id, not by position in `pages[0]`,
 > so a worker that restarts finds the tabs a previous process opened (spec
@@ -177,7 +201,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > closed -- otherwise it would sit in the account's context forever -- and
 > the call is `PageGone`, never a raw timeout.
 
-## `SteelDriver.on`, [line 226](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L226): Docstring
+## `SteelDriver.on`, [line 250](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L250): Docstring
 
 > A listener for one account: attached to each tab of that account's
 > context -- the tabs it has now and every tab `_arrived` sees for it later,
@@ -197,7 +221,77 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > re-review N2). `_arrived` re-applies this account's listeners to every
 > tab it (re)adopts.
 
-## `SteelDriver.storage_state`, [line 234](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L234): Docstring
+## `SteelDriver._log`, [line 258](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L258): Docstring
+
+> The tab's call log, keyed by its Playwright `Page`, created on first use.
+> Closing the tab drops the log and wakes any waiter, which then answers
+> `PageGone`. Keyed by `Page`, so a reconnect (a new `Page` for the same
+> target) starts a fresh log: a `mark` taken before a reconnect reads nothing
+> after it. ponytail: a long-lived tab's log grows with every fetch/XHR until
+> the tab closes; trim below the oldest outstanding mark if a tab ever lives
+> long enough for that to matter.
+
+## `SteelDriver._heard`, [line 270](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L270): Docstring
+
+> The `response` listener, registered through `on`, so it is attached only to
+> the account's own tabs (S5 ruling 8) and never to the shared Playwright
+> context: account B's traffic cannot reach account A's log, because A's
+> listener is never on B's pages. It is one bound method, so `mark` can see it
+> is already registered and `forget` can remove it. Sequencing happens here,
+> synchronously; reading the body is a task.
+
+## `SteelDriver._record`, [line 284](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L284): Docstring
+
+> Reads a 2xx body (first `K_CALL_BODY_CHARS`) and appends the call under the
+> sequence `_heard` gave it. A body that cannot be read (a redirect, a tab
+> that closed) is `None`; the call itself still counts.
+
+## `SteelDriver._frame`, [line 293](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L293): Docstring
+
+> Where the page code runs (spec §4.3, E3). With a recorded `frame_path`,
+> walk it from the main frame: at each hop, the only child whose
+> `path_shape(url)` equals the hop's; else the child at the hop's index; else
+> give up on the path and probe. The probe is the extension's `frameHolding`
+> rule: ask every frame `sroPage.resolve`, and take the frame only when exactly
+> one claims the control, else the main frame, where the same
+> `control_not_found` comes back. Acting in every matching frame would click
+> twice on a page that carries the same form twice.
+
+## `SteelDriver.act`, [line 317](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L317): Docstring
+
+> Runs `sroPage.act` in the chosen frame through `_call`, so a closed tab is
+> `PageGone`. The pin and the repaired flag are passed back exactly as the
+> page code answered; the UI lane threads the pin into `holds` and never
+> treats a repaired match as done on its own.
+
+## `SteelDriver.mark`, [line 340](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L340): Docstring
+
+> Registers the call listener for the account on first use, then returns the
+> tab's next call sequence number.
+
+## `SteelDriver.calls_since`, [line 348](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L348): Docstring
+
+> The tab's calls from `mark` on, in the order they happened.
+
+## `SteelDriver.wait_for_call`, [line 356](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L356): Docstring
+
+> Waits on the log's `changed` event until a call with that method and path
+> shape arrives after `since`. No sleep, no polling: it wakes on a new call or
+> the tab closing. `deadline_s` bounds the wait. At the deadline it asks
+> whether the tab is still there: gone is `PageGone`, alive is `False` (the
+> page is fine; the call never came).
+
+## `SteelDriver.wait_for`, [line 390](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L390): Docstring
+
+> Playwright's `wait_for_function` on `sroPage.holds(payload)` in the same
+> frame `act` used: the condition is the pinned element's state, never a
+> fixed wait. A Playwright timeout on a live tab is `False`, the port's answer
+> for "the page is there and the control did not end up as recorded"; `_call`
+> turns a closed tab into `PageGone` first. The port returns `bool`, so the
+> not-met case is `False`, not an exception: the UI lane reads `False` as a
+> failed verdict.
+
+## `SteelDriver.storage_state`, [line 408](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L408): Docstring
 
 > Cookies come from the account's own jar (`Storage.getCookies` with its
 > `browserContextId`). `localStorage` is read from the account's open
@@ -205,7 +299,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > with no open tab is not in the state. Sign-in reads the state with the
 > signed-in tab open, the only place this plan calls it.
 
-## `SteelDriver.restore_state`, [line 263](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L263): Docstring
+## `SteelDriver.restore_state`, [line 437](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L437): Docstring
 
 > Cookies go into the account's jar directly. `localStorage` is written now,
 > into the context itself, through a short-lived tab whose every request is
@@ -216,14 +310,14 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > review M5). This is how Playwright restores storage state into a context
 > it made; here the context is Steel's, so it is done by hand.
 
-## `SteelDriver.forget`, [line 293](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L293): Docstring
+## `SteelDriver.forget`, [line 467](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L467): Docstring
 
 > Drops this account's listeners from `SteelDriver._listeners` and from
 > every tab of theirs the driver currently knows about. It closes nothing:
 > the connection is shared by every account on the container, and the
 > context belongs to the pool (S4, S7's lease), which closes it.
 
-## `SteelDriver.aclose`, [line 304](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L304): Docstring
+## `SteelDriver.aclose`, [line 478](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L478): Docstring
 
 > Closes every connection and stops Playwright; the API lifespan and the
 > worker call it on the way down (S5 review I6). Closing a

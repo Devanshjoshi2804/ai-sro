@@ -14,6 +14,7 @@ from playwright.async_api import async_playwright
 
 from sro.application.ports.page import PageGone, SessionRef
 from sro.config import get_settings
+from sro.domain.observation.gesture import AfterState
 from sro.infrastructure.steel import driver as driver_module
 from sro.infrastructure.steel.client import websocket_debugger_url
 from sro.infrastructure.steel.driver import SteelDriver
@@ -311,3 +312,141 @@ async def test_the_default_context_id_never_reaches_a_default_tab(
 
     with pytest.raises(PageGone):
         await driver.url_of(SessionRef(default_context, cdp_url), default_target)
+
+
+def in_the_app_frame(app: Rig, action: str, css: str, value: str | None = None) -> dict[str, Any]:
+    return {
+        "action": action,
+        "value": value,
+        "target": {"css_path": css},
+        "frame_path": [{"index": 1, "url": app.url("/app")}],
+    }
+
+
+async def signed_in_on_the_framed_page(app: Rig, through: SteelDriver, who: SessionRef) -> str:
+    target = await through.open_tab(who, app.url("/"))
+    await app.sign_in_in(through, who, target)
+    await through.goto(who, target, app.url("/framed"))
+    return target
+
+
+async def test_act_in_the_recorded_frame_is_confirmed_by_its_state_and_its_own_call(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await signed_in_on_the_framed_page(rig, driver, one)
+    typing = in_the_app_frame(rig, "type", "#ct", "GT2")
+    mark = await driver.mark(one, target)
+
+    typed = await driver.act(one, target, typing)
+
+    assert (typed.ok, typed.matched_by, typed.repaired) == (True, "css_path", False)
+    assert typed.pin
+    assert typed.state == AfterState(value="GT2", visible=True, enabled=True)
+    held = {**typing, "pin": typed.pin, "expect": {"value": "GT2"}}
+    assert await driver.wait_for(one, target, held, 5.0) is True
+    wrong = {**typing, "pin": typed.pin, "expect": {"value": "not-typed"}}
+    assert await driver.wait_for(one, target, wrong, 0.5) is False
+
+    saved = await driver.act(one, target, in_the_app_frame(rig, "click", "#save"))
+    assert saved.ok
+
+    assert await driver.wait_for_call(
+        one, target, method="POST", shape="/api/customer-types", since=mark, deadline_s=5.0
+    )
+    posts = [c for c in await driver.calls_since(one, target, mark) if c.method == "POST"]
+    assert [(c.status, c.body) for c in posts] == [(201, '{"ok": true}')]
+    assert await driver.calls_since(one, target, await driver.mark(one, target)) == ()
+
+
+async def test_act_without_a_frame_path_finds_the_one_frame_holding_the_control(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await signed_in_on_the_framed_page(rig, driver, one)
+
+    typed = await driver.act(
+        one, target, {**in_the_app_frame(rig, "type", "#ct", "GT3"), "frame_path": None}
+    )
+
+    assert typed.ok and typed.state == AfterState(value="GT3", visible=True, enabled=True)
+    missing = await driver.act(one, target, in_the_app_frame(rig, "click", "#nowhere"))
+    assert (missing.ok, missing.error_kind) == (False, "control_not_found")
+
+
+async def test_one_account_never_sees_another_accounts_calls(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    two: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    mine = await driver.open_tab(one, rig.url("/public"))
+    mark = await driver.mark(one, mine)
+    theirs = await signed_in_on_the_framed_page(rig, driver, two)
+    their_mark = await driver.mark(two, theirs)
+
+    await driver.act(two, theirs, in_the_app_frame(rig, "type", "#ct", "B"))
+    await driver.act(two, theirs, in_the_app_frame(rig, "click", "#save"))
+
+    assert await driver.wait_for_call(
+        two, theirs, method="POST", shape="/api/customer-types", since=their_mark, deadline_s=5.0
+    )
+    assert await driver.calls_since(one, mine, mark) == ()
+    assert not await driver.wait_for_call(
+        one, mine, method="POST", shape="/api/customer-types", since=mark, deadline_s=0.5
+    )
+    with pytest.raises(PageGone):
+        await driver.mark(one, theirs)
+    with pytest.raises(PageGone):
+        await driver.calls_since(one, theirs, 0)
+
+
+async def test_every_wait_on_a_tab_that_closes_is_page_gone_before_its_deadline(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/public"))
+    mark = await driver.mark(one, target)
+    loop = asyncio.get_running_loop()
+
+    async def close_soon() -> None:
+        await asyncio.sleep(0.2)
+        await driver.close_tab(one, target)
+
+    started = loop.time()
+    closer = asyncio.create_task(close_soon())
+    try:
+        with pytest.raises(PageGone):
+            await driver.wait_for_call(
+                one, target, method="POST", shape="/x", since=mark, deadline_s=30.0
+            )
+    finally:
+        await closer
+    assert loop.time() - started < 10, "the wait ran to its deadline on a closed tab"
+
+    with pytest.raises(PageGone):
+        await driver.wait_for(one, target, {"pin": "p", "expect": {}}, 30.0)
+    with pytest.raises(PageGone):
+        await driver.act(one, target, {"action": "click", "target": {"css_path": "h1"}})
+
+
+async def test_wait_for_on_a_tab_closed_mid_wait_is_page_gone(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/public"))
+
+    async def close_soon() -> None:
+        await asyncio.sleep(0.2)
+        await driver.close_tab(one, target)
+
+    closer = asyncio.create_task(close_soon())
+    try:
+        with pytest.raises(PageGone):
+            await driver.wait_for(one, target, {"pin": "never", "expect": {}}, 30.0)
+    finally:
+        await closer

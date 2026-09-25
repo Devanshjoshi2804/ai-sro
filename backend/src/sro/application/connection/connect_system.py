@@ -6,7 +6,7 @@ from datetime import datetime
 from urllib.parse import parse_qsl, urlsplit
 
 from sro.application.connection.browsers import Browsers
-from sro.application.connection.cookies import belongs_to
+from sro.application.connection.cookies import belongs_to_system
 from sro.application.context import RequestContext
 from sro.application.ports.browser import BrowserProvider
 from sro.application.ports.repositories import UnitOfWork
@@ -111,7 +111,7 @@ def _name_from(base_url: str) -> str:
 
 
 def _cookie_header(cookies: list[dict[str, object]], origin: str) -> str:
-    wanted = [cookie for cookie in cookies if belongs_to(cookie, origin)]
+    wanted = [cookie for cookie in cookies if belongs_to_system(cookie, origin)]
     return "; ".join(f"{cookie['name']}={cookie['value']}" for cookie in wanted)
 
 

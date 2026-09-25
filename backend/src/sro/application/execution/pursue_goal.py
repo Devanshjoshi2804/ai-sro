@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from sro.application.connection.browsers import Browsers
-from sro.application.connection.cookies import belongs_to
+from sro.application.connection.cookies import belongs_to_system
 from sro.application.context import RequestContext
 from sro.application.execution.egress import EgressRefused, prepare
 from sro.application.execution.execute_skill import refuse_if_breaker_is_open
@@ -340,4 +340,4 @@ async def _arrived(ui: UiDriver, wanted: str) -> str | None:
 
 
 def _holds_a_session(cookies: tuple[dict[str, object], ...], base_url: str) -> bool:
-    return any(belongs_to(cookie, base_url) for cookie in cookies)
+    return any(belongs_to_system(cookie, base_url) for cookie in cookies)

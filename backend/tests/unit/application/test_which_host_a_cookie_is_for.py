@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from sro.application.connection.cookies import belongs_to, domain_matches
+from sro.application.connection.cookies import belongs_to, belongs_to_system, domain_matches
 
 
 @pytest.mark.parametrize(
@@ -77,3 +77,22 @@ def test_a_url_without_a_scheme_carries_no_cookie() -> None:
     session = {"name": "sid", "value": "1", "domain": "wms.by.example"}
 
     assert not belongs_to(session, "wms.by.example")
+
+
+@pytest.mark.parametrize("url", ["http://localhost:8080/app", "http://127.0.0.1:63319/app"])
+def test_a_secure_cookie_goes_to_plain_http_on_this_machine(url: str) -> None:
+    host = url.split("//")[1].split(":")[0]
+    secure = {"name": "sid", "value": "S", "domain": host, "secure": True}
+
+    assert belongs_to(secure, url)
+    assert belongs_to_system(secure, url)
+
+
+def test_the_whole_system_takes_a_cookie_from_any_path_but_keeps_the_other_rules() -> None:
+    api = {"name": "JSESSIONID", "value": "1", "domain": "wms.by.example", "path": "/data"}
+    base = "https://wms.by.example/portal/page?siteId=SG"
+
+    assert not belongs_to(api, base)
+    assert belongs_to_system(api, base)
+    assert not belongs_to_system({**api, "domain": "by.example"}, base)
+    assert not belongs_to_system({**api, "secure": True}, "http://wms.by.example/portal")

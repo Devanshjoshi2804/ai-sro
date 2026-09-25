@@ -530,7 +530,9 @@ class SteelDriver:
         if ("request", self._sent) not in self._listeners.get(
             (session.cdp_url, session.context_id), []
         ):
-            link = self._links[session.cdp_url]
+            link = self._links.get(session.cdp_url)
+            if link is None:
+                raise PageGone(f"the connection for context {session.context_id} is gone")
             self._listen(link, session, "request", self._sent)
             self._listen(link, session, "response", self._heard)
         self._log(page)

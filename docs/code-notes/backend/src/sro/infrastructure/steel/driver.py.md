@@ -380,14 +380,15 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > sent after this returns gets a higher one. Taken before `act`, so the act's
 > own requests are after it. The check and the registration run with no
 > await between them (`_listen`, not `on`), so two marks at once register
-> once (S10 review M8).
+> once (S10 review M8). A connection that went away between `_page` and
+> the registration is `PageGone`, the way every other lost context is.
 
-## `SteelDriver.calls_since`, [line 539](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L539): Docstring
+## `SteelDriver.calls_since`, [line 541](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L541): Docstring
 
 > The tab's calls sent after `mark`, in the order they were sent; nothing at
 > all when the log `mark` was taken on has been lost since.
 
-## `SteelDriver.wait_for_call`, [line 547](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L547): Docstring
+## `SteelDriver.wait_for_call`, [line 549](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L549): Docstring
 
 > Waits on the log's `changed` event until a call with that method and path
 > shape, sent after `since`, is answered. A lost log answers `False` at once. No sleep, no polling: it wakes on a new call or
@@ -395,7 +396,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > whether the tab is still there: gone is `PageGone`, alive is `False` (the
 > page is fine; the call never came).
 
-## `SteelDriver.wait_for`, [line 584](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L584): Docstring
+## `SteelDriver.wait_for`, [line 586](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L586): Docstring
 
 > Playwright's `wait_for_function` on `sroPage.holds(payload)` in the frame
 > `act` last ran in on this tab (kept on its log, not chosen again: a probe
@@ -406,7 +407,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > turns a closed tab into `PageGone` first. The port returns `bool`, so the
 > not-met case is `False`, not an exception.
 
-## `SteelDriver.storage_state`, [line 602](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L602): Docstring
+## `SteelDriver.storage_state`, [line 604](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L604): Docstring
 
 > Cookies come from the account's own jar (`Storage.getCookies` with its
 > `browserContextId`). `localStorage` is read from the account's open
@@ -414,7 +415,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > with no open tab is not in the state. Sign-in reads the state with the
 > signed-in tab open, the only place this plan calls it.
 
-## `SteelDriver.headers_for`, [line 631](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L631): Docstring
+## `SteelDriver.headers_for`, [line 633](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L633): Docstring
 
 > Answers as soon as the context's log holds a request to `origin` carrying
 > an AUTH or CSRF header, numbered after `since`, newest first. The log
@@ -429,7 +430,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > event is cleared before the log is scanned, so a request that lands
 > between the scan and the wait still wakes it.
 
-## `SteelDriver.cookies_for`, [line 655](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L655): Docstring
+## `SteelDriver.cookies_for`, [line 657](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L657): Docstring
 
 > The account's own jar (`Storage.getCookies` with its `browserContextId`,
 > same call `storage_state` makes), filtered by `belongs_to`: the browser's
@@ -437,7 +438,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > scheme (S10 review I3, I4). A url without a scheme carries nothing.
 > Joined as a `Cookie` header value.
 
-## `SteelDriver.restore_state`, [line 666](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L666): Docstring
+## `SteelDriver.restore_state`, [line 668](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L668): Docstring
 
 > Cookies go into the account's jar directly. `localStorage` is written now,
 > into the context itself, through a short-lived tab whose every request is
@@ -448,7 +449,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > review M5). This is how Playwright restores storage state into a context
 > it made; here the context is Steel's, so it is done by hand.
 
-## `SteelDriver.forget`, [line 699](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L699): Docstring
+## `SteelDriver.forget`, [line 701](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L701): Docstring
 
 > Drops this account's listeners from `SteelDriver._listeners` and from
 > every tab of theirs the driver currently knows about, and its request log
@@ -457,7 +458,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > the container, and the context belongs to the pool (S4, S7's lease),
 > which closes it.
 
-## `SteelDriver.aclose`, [line 714](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L714): Docstring
+## `SteelDriver.aclose`, [line 716](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L716): Docstring
 
 > Closes every connection and stops Playwright; the API lifespan and the
 > worker call it on the way down (S5 review I6). Closing a
@@ -505,7 +506,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > reaches `UiLane` as `PageUnsettled` through `_call`, never as a raw
 > `TimeoutError`.
 
-## `best_frame`, [line 724](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L724): Docstring
+## `best_frame`, [line 726](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L726): Docstring
 
 > Which frame the probe acts in, from `(frame, strategy)` for every frame
 > whose `resolve` found the control. A strict strategy outranks `repair`

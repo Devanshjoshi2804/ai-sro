@@ -906,3 +906,23 @@ async def test_connecting_a_system_keeps_a_token_from_any_path_of_its_own(
         said = await client.session_headers(BrowserSessionId("only"), rig.url("/landing"))
 
     assert said.get("x-csrf-token") == "landing-token"
+
+
+async def test_a_mark_whose_connection_went_away_is_page_gone(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = await driver.open_tab(one, rig.url("/public"))
+    found = driver._page
+
+    async def then_lost(session: SessionRef, target_id: str) -> Any:
+        page = await found(session, target_id)
+        driver._links.clear()
+        return page
+
+    monkeypatch.setattr(driver, "_page", then_lost)
+
+    with pytest.raises(PageGone):
+        await driver.mark(one, target)

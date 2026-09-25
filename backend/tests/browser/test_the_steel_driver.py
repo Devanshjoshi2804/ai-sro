@@ -8,7 +8,7 @@ import asyncio
 import contextlib
 import json
 from dataclasses import replace
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 import pytest
@@ -20,10 +20,11 @@ from sro.application.runtime.sight_lane import SightLane
 from sro.config import get_settings
 from sro.domain.observation.gesture import AfterState, Body
 from sro.domain.recording.events import ActionKind
-from sro.domain.shared.hosts import system_of
+from sro.domain.shared.hosts import origin_of, system_of
+from sro.domain.shared.identifiers import BrowserSessionId
 from sro.domain.skill.signing_in import a_sign_in_page, asks_for_a_code, expired
 from sro.infrastructure.steel import driver as driver_module
-from sro.infrastructure.steel.client import websocket_debugger_url
+from sro.infrastructure.steel.client import SteelClient, websocket_debugger_url
 from sro.infrastructure.steel.driver import SteelDriver
 from tests.browser.steel_rig import (  # noqa: F401
     Rig,
@@ -43,6 +44,13 @@ from tests.unit.runtime_support import lane_context, save_step
 pytestmark = pytest.mark.browser
 
 PING = "fetch('/api/ping', {method: 'POST'})"
+SAVE = "document.getElementById('save').click()"
+BASIC = """new Promise((done) => {
+  const asking = new XMLHttpRequest();
+  asking.open("GET", "/api/basic", true, "u", "p");
+  asking.onloadend = () => done(asking.status);
+  asking.send();
+})"""
 
 
 async def test_a_restarted_worker_finds_its_tab_and_the_page_code_is_still_there(
@@ -437,6 +445,123 @@ async def test_one_account_never_sees_another_accounts_calls(
         await driver.mark(one, theirs)
     with pytest.raises(PageGone):
         await driver.calls_since(one, theirs, 0)
+
+
+async def test_a_token_the_page_sent_before_anyone_asked_is_found_at_once(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    two: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    app_origin = origin_of(rig.url("/app"))
+    target = await driver.open_tab(one, rig.url("/"))
+    await rig.sign_in_in(driver, one, target)
+    since = await driver.mark(one, target)
+    await driver.evaluate(one, target, SAVE)
+    assert await driver.wait_for_call(
+        one, target, method="POST", shape="/api/customer-types", since=since, deadline_s=5.0
+    )
+
+    started = asyncio.get_running_loop().time()
+    got = await driver.headers_for(one, app_origin, 5.0)
+    elapsed = asyncio.get_running_loop().time() - started
+
+    assert elapsed < 2.0
+    assert set(got) == {"x-csrf-token"}
+    assert got["x-csrf-token"]
+
+    await driver.open_tab(two, rig.url("/public"))
+    assert await driver.headers_for(two, origin_of(rig.url("/public")), 0.3) == {}
+
+
+async def test_a_fresh_token_is_never_one_sent_before_the_mark(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    app_origin = origin_of(rig.url("/app"))
+    target = await driver.open_tab(one, rig.url("/"))
+    await rig.sign_in_in(driver, one, target)
+    await driver.evaluate(one, target, SAVE)
+    assert await driver.headers_for(one, app_origin, 5.0)
+
+    since = await driver.mark(one, target)
+    await driver.goto(one, target, await driver.url_of(one, target))
+
+    assert await driver.headers_for(one, app_origin, 0.5, since=since) == {}
+    await driver.evaluate(one, target, SAVE)
+    assert set(await driver.headers_for(one, app_origin, 5.0, since=since)) == {"x-csrf-token"}
+
+
+async def test_an_authorization_the_browser_adds_itself_is_seen(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/public"))
+    assert await driver.evaluate(one, target, BASIC) == 200
+
+    await driver.evaluate(one, target, "fetch('/api/basic').then((r) => r.status)")
+
+    got = await driver.headers_for(one, origin_of(rig.url("/public")), 5.0)
+    assert got == {"authorization": "Basic dTpw"}
+
+
+async def test_forgetting_a_context_drops_every_header_it_sent(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    app_origin = origin_of(rig.url("/app"))
+    target = await driver.open_tab(one, rig.url("/"))
+    await rig.sign_in_in(driver, one, target)
+    await driver.evaluate(one, target, SAVE)
+    assert await driver.headers_for(one, app_origin, 5.0)
+
+    await driver.forget(one)
+
+    assert (one.cdp_url, one.context_id) not in driver._requests
+    assert (one.cdp_url, one.context_id) not in driver._seen
+    assert await driver.headers_for(one, app_origin, 0.3) == {}
+
+
+async def test_a_context_that_dies_while_headers_are_awaited_is_page_gone(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    await driver.open_tab(one, rig.url("/public"))
+    loop = asyncio.get_running_loop()
+    parked = asyncio.Event()
+
+    class Seen(asyncio.Event):
+        async def wait(self) -> Literal[True]:
+            parked.set()
+            return await super().wait()
+
+    driver._seen[(one.cdp_url, one.context_id)] = Seen()
+    waiting = asyncio.create_task(driver.headers_for(one, origin_of(rig.url("/app")), 10.0))
+    await asyncio.wait_for(parked.wait(), 5.0)
+    started = loop.time()
+
+    await close_account(one)
+
+    with pytest.raises(PageGone):
+        await waiting
+    assert loop.time() - started < 5.0
+
+
+async def test_two_marks_at_once_listen_once(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/public"))
+
+    await asyncio.gather(driver.mark(one, target), driver.mark(one, target))
+
+    listening = driver._listeners[(one.cdp_url, one.context_id)]
+    assert [event for event, _ in listening] == ["request", "response"]
 
 
 async def test_every_wait_on_a_tab_that_closes_is_page_gone_before_its_deadline(
@@ -912,3 +1037,33 @@ async def test_a_point_is_confirmed_only_when_the_recorded_control_is_what_it_hi
     assert not await holds(prefilled, {"value": "GT9"})
     typed = await pointed("#ct", ActionKind.TYPE, "GT9")
     assert await holds(typed, {"value": "GT1GT9", "visible": True, "enabled": True})
+
+
+async def test_connecting_a_system_keeps_a_token_from_any_path_of_its_own(
+    rig: Rig,  # noqa: F811
+    cdp_url: str,  # noqa: F811
+) -> None:
+    async with SteelClient("http://steel.invalid", cdp_url) as client:
+        said = await client.session_headers(BrowserSessionId("only"), rig.url("/landing"))
+
+    assert said.get("x-csrf-token") == "landing-token"
+
+
+async def test_a_mark_whose_connection_went_away_is_page_gone(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = await driver.open_tab(one, rig.url("/public"))
+    found = driver._page
+
+    async def then_lost(session: SessionRef, target_id: str) -> Any:
+        page = await found(session, target_id)
+        driver._links.clear()
+        return page
+
+    monkeypatch.setattr(driver, "_page", then_lost)
+
+    with pytest.raises(PageGone):
+        await driver.mark(one, target)

@@ -654,17 +654,29 @@ class SqlBrowserSessionRepository(BrowserSessionRepository):
             return None
         return _lease_of(row)
 
-    async def settle(self, tenant_id: TenantId, lease_id: str, *, state: LeaseState) -> bool:
+    async def settle(
+        self,
+        tenant_id: TenantId,
+        lease_id: str,
+        *,
+        state: LeaseState,
+        until: datetime | None = None,
+        now: datetime | None = None,
+    ) -> bool:
         if state is LeaseState.EXPIRED:
             raise ValueError("settle cannot move a lease to expired; use expire")
+        values: dict[str, object] = {"state": state.value}
+        if until is not None:
+            values["expires_at"] = until
+        conditions = [
+            BrowserSessionRow.tenant_id == tenant_id.value,
+            BrowserSessionRow.session_id == lease_id,
+            BrowserSessionRow.state.in_(_LIVE_STATES),
+        ]
+        if now is not None:
+            conditions.append(BrowserSessionRow.expires_at > now)
         result = await self._session.execute(
-            update(BrowserSessionRow)
-            .where(
-                BrowserSessionRow.tenant_id == tenant_id.value,
-                BrowserSessionRow.session_id == lease_id,
-                BrowserSessionRow.state.in_(_LIVE_STATES),
-            )
-            .values(state=state.value)
+            update(BrowserSessionRow).where(*conditions).values(**values)
         )
         return cast(CursorResult[Any], result).rowcount > 0
 
@@ -684,7 +696,16 @@ class SqlBrowserSessionRepository(BrowserSessionRepository):
     async def beat(
         self, tenant_id: TenantId, lease_id: str, *, now: datetime, holder: str | None = None
     ) -> bool:
-        values: dict[str, object] = {"heartbeat_at": now, "expires_at": now + K_LEASE_TTL}
+        values: dict[str, object] = {
+            "heartbeat_at": now,
+            "expires_at": case(
+                (
+                    BrowserSessionRow.state == LeaseState.WAITING.value,
+                    BrowserSessionRow.expires_at,
+                ),
+                else_=now + K_LEASE_TTL,
+            ),
+        }
         if holder is not None:
             values["holder"] = holder
         result = await self._session.execute(

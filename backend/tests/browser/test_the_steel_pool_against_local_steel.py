@@ -13,11 +13,12 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterable
 
 import httpx
 import pytest
 
+from sro.application.ports.browser import BrowserUnavailable
 from sro.domain.shared.identifiers import BrowserSessionId
 from sro.infrastructure.steel.client import SteelClient
 from sro.infrastructure.steel.pool import SteelPool
@@ -36,11 +37,11 @@ async def client() -> AsyncIterator[SteelClient]:
             pytest.skip("Steel is not running; `make up` first")
     except Exception as exc:
         pytest.skip(f"Steel is not reachable: {exc}")
-    async with made:
+    async with made, tracking_contexts() as created:
         try:
             yield made
         finally:
-            await release_every_live_session(made)
+            await release_every_live_session(made, created)
 
 
 async def status_of(session_id: str) -> str:
@@ -51,7 +52,35 @@ async def status_of(session_id: str) -> str:
     return next((str(one["status"]) for one in listed if one["id"] == session_id), "missing")
 
 
-async def release_every_live_session(steel: SteelClient) -> None:
+@contextlib.asynccontextmanager
+async def tracking_contexts() -> AsyncIterator[list[str]]:
+    """Every context any `SteelClient` opens while this is active, patched at
+    the class level so a test's own second client -- standing in for a second
+    process, as `test_a_restarted_client_opens_beside_the_first...` does --
+    is tracked too. A sibling worktree's `SteelClient` is a different test
+    process with this patch never applied, so its contexts are never in the
+    list and never disposed."""
+    created: list[str] = []
+    original = SteelClient.open_context
+
+    async def tracked(self: SteelClient) -> tuple[BrowserSessionId, str]:
+        session_id, context_id = await original(self)
+        created.append(context_id)
+        return session_id, context_id
+
+    SteelClient.open_context = tracked  # type: ignore[method-assign]
+    try:
+        yield created
+    finally:
+        SteelClient.open_context = original  # type: ignore[method-assign]
+
+
+async def release_every_live_session(steel: SteelClient, created: Iterable[str]) -> None:
+    """Disposes only the contexts this test created -- never every context
+    Chrome lists, which would end a sibling test's session too (I2)."""
+    with contextlib.suppress(BrowserUnavailable):
+        for context_id in created:
+            await steel.dispose(context_id)
     for session_id in await steel.live_sessions():
         if await status_of(str(session_id)) == "live":
             await steel.close(session_id)
@@ -160,3 +189,26 @@ async def test_a_close_that_timed_out_leaves_no_slot_taken_in_the_client(
 
     assert second != first
     assert second in await pool.contexts(url)
+
+
+async def test_the_teardown_never_disposes_a_sibling_worktrees_context() -> None:
+    """A sibling worktree is another process with its own `SteelClient`, so
+    nothing here patches it -- `sibling`'s context is opened before
+    `tracking_contexts()` is even entered."""
+    made = SteelClient(STEEL_URL, CDP_URL, capacity=2)
+    if not await made.health():
+        pytest.skip("Steel is not running; `make up` first")
+    async with made:
+        sibling = SteelClient(STEEL_URL, CDP_URL, capacity=2)
+        async with sibling:
+            _, theirs = await sibling.open_context()
+            try:
+                async with tracking_contexts() as created:
+                    _, mine = await made.open_context()
+                    await release_every_live_session(made, created)
+
+                    listed = await made.contexts()
+                    assert mine not in listed
+                    assert theirs in listed
+            finally:
+                await sibling.dispose(theirs)

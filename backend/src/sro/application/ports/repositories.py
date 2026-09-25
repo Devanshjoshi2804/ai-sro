@@ -197,7 +197,15 @@ class BrowserSessionRepository(Protocol):
 
     async def get_lease(self, tenant_id: TenantId, lease_id: str) -> Lease | None: ...
 
-    async def settle(self, tenant_id: TenantId, lease_id: str, *, state: LeaseState) -> bool: ...
+    async def settle(
+        self,
+        tenant_id: TenantId,
+        lease_id: str,
+        *,
+        state: LeaseState,
+        until: datetime | None = None,
+        now: datetime | None = None,
+    ) -> bool: ...
 
     async def expire(self, tenant_id: TenantId, lease_id: str, *, now: datetime) -> bool: ...
 

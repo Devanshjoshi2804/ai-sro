@@ -9,6 +9,29 @@
 
   const readers = (() => {
     const MAX_TEXT = 200;
+    const SECRET_WORDS = new Set(["accesskey", "accesstoken", "apikey", "apisecret", "appsecret", "authkey", "authorization", "authtoken", "backupcode", "bearer", "clientsecret", "connectionstring", "consumerkey", "consumersecret", "cookie", "credential", "credentials", "csrf", "csrftoken", "cvv", "encryptionkey", "hotp", "htpasswd", "idrsa", "idtoken", "jsessionid", "jwt", "keystore", "machinekey", "mfa", "oauthtoken", "onetimecode", "onetimepasscode", "otp", "pass", "passcode", "passphrase", "passwd", "password", "phpsessid", "pin", "privatekey", "privkey", "pwd", "recoverycode", "refreshtoken", "relaystate", "resettoken", "rsakey", "saml", "samlrequest", "samlresponse", "secret", "secretaccesskey", "secretanswer", "secretkey", "securityanswer", "securitycode", "sessionid", "sessionkey", "sessiontoken", "sshkey", "ssn", "sso", "token", "totp", "truststore", "verificationcode", "xapikey", "xauthtoken", "xsrf", "xsrftoken"]);
+    const wordsOf = (text) =>
+      (text || "")
+        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+        .replace(/([A-Z]{2,})([A-Z][a-z])/g, "$1 $2")
+        .split(/[^A-Za-z]+/)
+        .filter(Boolean)
+        .map((word) => word.toLowerCase());
+    const isSecretName = (name) => {
+      const words = wordsOf(name);
+      return words.some((word) => SECRET_WORDS.has(word)) || SECRET_WORDS.has(words.join(""));
+    };
+    const isSecretField = (el) => {
+      if (!el || el.nodeType !== 1) return false;
+      if ((el.type || "").toLowerCase() === "password") return true;
+      const autocomplete = (el.getAttribute("autocomplete") || "").toLowerCase();
+      if (autocomplete.includes("password") || autocomplete === "one-time-code") return true;
+      if (autocomplete === "cc-csc" || autocomplete === "cc-number") return true;
+      const named = [el.name, el.id, el.getAttribute("aria-label"), el.getAttribute("placeholder")]
+        .filter(Boolean)
+        .join(" ");
+      return isSecretName(named);
+    };
     const roleOf = (el) => {
       const written = el.getAttribute("role");
       if (written) return written;
@@ -238,12 +261,12 @@
     };
     return {
       roleOf, ownName, nameOf, landmarkRole, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf,
-      labelOf, requiredOf, outlineOf,
+      labelOf, requiredOf, outlineOf, isSecretField,
     };
   })();
   const {
     roleOf, ownName, nameOf, landmarkRole, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf,
-    labelOf, requiredOf, outlineOf,
+    labelOf, requiredOf, outlineOf, isSecretField,
   } = readers;
 
   const shown = (el) => {
@@ -390,8 +413,8 @@
   };
   const stateOf = (el) => {
     if (el.isConnected === false) return { value: null, visible: false, enabled: null };
-    const secret = (el.type || "").toLowerCase() === "password";
-    const setting = settingOf(el);
+    const secret = isSecretField(el);
+    const setting = secret ? null : settingOf(el);
     return {
       value:
         setting !== undefined ? setting : secret || el.value === undefined || el.value === null ? null : String(el.value),
@@ -998,8 +1021,7 @@
 
     resolve(payload) {
       const f = find(payload);
-      const secret = f.el && (f.el.type || "").toLowerCase() === "password";
-      const held = f.el && !secret && typeof f.el.value === "string" ? f.el.value : null;
+      const held = f.el && !isSecretField(f.el) && typeof f.el.value === "string" ? f.el.value : null;
       return { found: Boolean(f.el), strategy: f.strategy, candidates: f.candidates, score: f.score, xpath: f.el ? xpathOf(f.el) : null, held };
     },
     act(payload) {
@@ -1030,7 +1052,7 @@
       }
       const seen = stateOf(acted.el);
       const want = payload.expect || {};
-      const keys = (acted.el.type || "").toLowerCase() === "password" ? ["visible", "enabled"] : ["value", "visible", "enabled"];
+      const keys = isSecretField(acted.el) ? ["visible", "enabled"] : ["value", "visible", "enabled"];
       const chosen = acted.el.tagName === "SELECT" && acted.el.isConnected ? [...acted.el.selectedOptions] : [];
       const same = (key) =>
         seen[key] === want[key] || (key === "value" && chosen.some((option) => option.value === want.value));

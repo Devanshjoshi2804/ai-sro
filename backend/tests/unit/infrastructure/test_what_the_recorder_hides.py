@@ -67,7 +67,7 @@ def test_the_page_s_own_declaration_is_still_believed() -> None:
     """`type=password` and the autocomplete tokens are decisions the site made,
     not guesses about a name, and they stay authoritative."""
     source = _recorder_script()
-    assert "'password'" in source and "one-time-code" in source
+    assert '"password"' in source and "one-time-code" in source
 
 
 @pytest.mark.parametrize(

@@ -22,7 +22,7 @@ class Filled:
     options: tuple[str, ...] = ()
     learned: Mapping[str, str] = field(default_factory=dict)
     detail: str = ""
-    held: str = ""
+    held: str = field(default="", repr=False)
 
 
 class FillField:

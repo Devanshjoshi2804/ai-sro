@@ -3,7 +3,7 @@ from collections.abc import Mapping
 import pytest
 
 from sro.application.ports.page import PageAnswer
-from sro.application.runtime.fill_field import FillField
+from sro.application.runtime.fill_field import Filled, FillField
 from sro.application.runtime.step import LaneContext
 from sro.domain.execution.compose import Composed
 from sro.domain.execution.lanes import Lane, StepResult
@@ -235,3 +235,8 @@ async def test_the_operators_value_never_reaches_the_detail() -> None:
 
     assert filled.lane is None and filled.detail
     assert "Legal-7" not in filled.detail
+
+
+def test_a_held_value_never_reaches_a_repr() -> None:
+    assert "4111" not in repr(PageAnswer(ok=True, held="4111111111111111"))
+    assert "4111" not in repr(Filled(Lane.UI, held="4111111111111111"))

@@ -24,8 +24,10 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/page.py
 > re-resolving and repairing a second time) and refuse to call a repaired
 > write `done` on verification alone.
 >
-> `held` is `resolve`'s reading of the value the control holds (never a
-> password's); the other calls leave it `None`.
+> `held` is `resolve`'s reading of the value the control holds -- never a
+> credential field's (`isSecretField`, the recorder's own rule) -- and is kept
+> out of `repr` so no log line or traceback prints a value; the other calls
+> leave it `None`.
 
 ## `PageDriver`, [line 41](../../../../../../../backend/src/sro/application/ports/page.py#L41): Docstring
 

@@ -1001,3 +1001,26 @@ test("resolve reads the value the one control holds, never a password's", () => 
   page([]);
   assert.equal(resolve({ target: { attributes: { name: "department" } } }).held, null);
 });
+
+for (const [rule, attrs, props] of [
+  ["a card number", { autocomplete: "cc-number" }, {}],
+  ["a card code", { autocomplete: "cc-csc" }, {}],
+  ["a one-time code", { autocomplete: "one-time-code" }, {}],
+  ["a password by its autocomplete", { autocomplete: "current-password" }, {}],
+  ["a secret-named id", {}, { id: "apiToken" }],
+  ["a secret-named aria-label", { "aria-label": "Security PIN" }, {}],
+]) {
+  test(`resolve never reads the value of ${rule}`, () => {
+    const { resolve, act } = loadSroPage();
+    const field = Object.assign(elem("input", { attrs: { name: "field", ...attrs } }), {
+      value: "4111111111111111",
+      type: "text",
+      ...props,
+    });
+    page([field]);
+
+    assert.equal(resolve({ target: { attributes: { name: "field" } } }).held, null);
+    const acted = act({ action: "click", target: { attributes: { name: "field" } } });
+    assert.equal(acted.state?.value ?? null, null);
+  });
+}

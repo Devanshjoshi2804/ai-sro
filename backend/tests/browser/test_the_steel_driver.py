@@ -512,6 +512,26 @@ async def test_a_fresh_token_is_never_one_sent_before_the_mark(
     ) == {"x-csrf-token"}
 
 
+async def test_no_header_sent_before_a_forgotten_mark_is_answered_until_forget(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    app_origin = origin_of(rig.url("/app"))
+    target = await driver.open_tab(one, rig.url("/"))
+    await rig.sign_in_in(driver, one, target)
+    await driver.evaluate(one, target, SAVE)
+    assert await driver.headers_for(one, app_origin, 5.0)
+
+    await driver.forget_headers_before(one, await driver.mark(one, target))
+
+    assert await driver.headers_for(one, app_origin, 0.5) == {}
+    await driver.evaluate(one, target, SAVE)
+    assert set(await driver.headers_for(one, app_origin, 5.0)) == {"x-csrf-token"}
+    await driver.forget(one)
+    assert (one.cdp_url, one.context_id) not in driver._floors
+
+
 ASKED = "fetch('/api/ping', {headers: {'X-Requested-With': 'XMLHttpRequest'}})"
 
 

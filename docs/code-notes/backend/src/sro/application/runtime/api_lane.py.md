@@ -74,7 +74,18 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/api_l
 > the record written. Without one, or when it does not show it, the write is
 > `unknown` and the run settles it later with `read_back` or asks.
 
-## `ApiLane._confirmed`, [line 139](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L139): Comment
+## `ApiLane.execute`, [line 72](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L72): Note
+
+Code: `if missing:`
+
+> A token the write needs that the session never sent is a session
+> problem, not a broken lane: the result is `expired` (nothing left, so
+> `never_left`) and carries no fingerprint, so nothing marks the API lane
+> broken for it. The executor signs back in -- a sign-in waiting for a
+> person answers `AccountBusy` and the run queues -- and retries with
+> fresh headers.
+
+## `ApiLane._confirmed`, [line 141](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L141): Comment
 
 > One check for `execute` and `read_back`. The confirming read goes only to
 > the write's own origin (a GET recorded after the write may be analytics or
@@ -84,7 +95,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/api_l
 > string is not the record this run wrote. A write with no filled slots is
 > never confirmed by a read-back.
 
-## `_aimed`, [line 218](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L218): Comment
+## `_aimed`, [line 220](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L220): Comment
 
 > The recorded read names the recorded record. A path segment equal to a value
 > the recording saw for a filled parameter is replaced by this run's value. A
@@ -92,7 +103,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/api_l
 > query) cannot be re-aimed safely, so no read is sent and the write stays
 > `unknown`.
 
-## `session_headers`, [line 159](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L159): Note on the line above
+## `session_headers`, [line 161](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L161): Note on the line above
 
 Code: `async def session_headers(`
 

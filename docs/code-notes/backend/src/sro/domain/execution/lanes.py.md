@@ -57,7 +57,7 @@ Code: `never_left: bool = False`
 > `never_left_step` combines every attempt tried for the step (X8's job)
 > before it reaches `settle`.
 
-## `never_left_step`, [line 109](../../../../../../../backend/src/sro/domain/execution/lanes.py#L109): Docstring
+## `never_left_step`, [line 111](../../../../../../../backend/src/sro/domain/execution/lanes.py#L111): Docstring
 
 > ANDs `never_left` across every lane tried for one step: the step itself
 > never left only if none of its attempts did. One lane that reached the
@@ -91,8 +91,11 @@ Code: `never_left: bool = False`
 > step with every lane dropped would never be tried again until someone
 > re-recorded the job. What is left, in order, is the run's own retry
 > path if an earlier lane fails without settling the step.
+>
+> A step with no lane at all (no tool, no replay, no gesture to aim at)
+> has an empty ladder: `()`, never an index into nothing.
 
-## `accepts`, [line 83](../../../../../../../backend/src/sro/domain/execution/lanes.py#L83): Docstring
+## `accepts`, [line 85](../../../../../../../backend/src/sro/domain/execution/lanes.py#L85): Docstring
 
 > The status test `write_confirmed` applies to a write's own call: one of the
 > statuses the belts expect, or any 2xx when none is recorded. Shared so a lane

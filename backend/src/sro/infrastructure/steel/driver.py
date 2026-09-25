@@ -115,6 +115,7 @@ class SteelDriver:
         self._calls: dict[Page, _Calls] = {}
         self._tabs: dict[Page, _Tab] = {}
         self._requests: dict[_Key, deque[tuple[int, str, dict[str, str]]]] = {}
+        self._floors: dict[_Key, int] = {}
         self._seen: dict[_Key, asyncio.Event] = {}
         self._reading: set[asyncio.Task[None]] = set()
         self._seq = itertools.count(1)
@@ -744,6 +745,10 @@ class SteelDriver:
             }
         )
 
+    async def forget_headers_before(self, session: SessionRef, mark: int) -> None:
+        key = (session.cdp_url, session.context_id)
+        self._floors[key] = max(mark, self._floors.get(key, 0))
+
     async def headers_for(
         self,
         session: SessionRef,
@@ -755,6 +760,7 @@ class SteelDriver:
     ) -> dict[str, str]:
         await self._context(session)
         key = (session.cdp_url, session.context_id)
+        since = max(since, self._floors.get(key, 0))
         wanted = origin_of(origin)
         seen = self._seen.setdefault(key, asyncio.Event())
         found: dict[str, str] = {}
@@ -823,6 +829,7 @@ class SteelDriver:
     async def forget(self, session: SessionRef) -> None:
         key = (session.cdp_url, session.context_id)
         self._requests.pop(key, None)
+        self._floors.pop(key, None)
         seen = self._seen.pop(key, None)
         if seen is not None:
             seen.set()

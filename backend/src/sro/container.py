@@ -130,6 +130,7 @@ from sro.application.recording.ingest_capture_events import IngestCaptureEvents
 from sro.application.recording.start_recording import StartRecording
 from sro.application.runtime.api_lane import ApiLane
 from sro.application.runtime.broker import SessionBroker
+from sro.application.runtime.executor import StepExecutor
 from sro.application.runtime.sight_lane import SightLane
 from sro.application.runtime.tool_lane import ToolLane
 from sro.application.runtime.ui_lane import UiLane
@@ -273,6 +274,15 @@ class Container:
             self.vault,
             self.clock,
             ui=self.ui_lane(),
+        )
+
+    def step_executor(self) -> StepExecutor:
+        return StepExecutor(
+            self.tool_lane(),
+            self.api_lane(),
+            self.ui_lane(),
+            self.sight_lane(),
+            self.session_broker(),
         )
 
     def unit_of_work(self) -> UnitOfWork:

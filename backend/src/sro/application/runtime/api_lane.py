@@ -44,7 +44,7 @@ class ApiLane:
         self._broker = broker
 
     async def execute(self, step: Step, values: Mapping[str, str], ctx: LaneContext) -> StepResult:
-        planned = _plan(step, values, ctx)
+        planned = replay_of(step, values, ctx)
         recorded = recorded_call(step, ctx.by_id)
         held = ctx.held
         if planned is None or recorded is None or held is None:
@@ -70,10 +70,12 @@ class ApiLane:
         carried = {name.lower() for name in headers}
         missing = [name for name in needs if name not in carried]
         if missing:
-            return _unsent(
+            return StepResult(
+                "failed",
+                Lane.API,
                 f"the session has no {', '.join(missing)} for this write",
-                "missing_header",
-                path_shape(url),
+                never_left=True,
+                expired=True,
             )
         if not _sendable(url, headers):
             return _unsent("the call cannot be built as recorded", "unsendable", path_shape(url))
@@ -130,7 +132,7 @@ class ApiLane:
     async def read_back(
         self, step: Step, values: Mapping[str, str], ctx: LaneContext
     ) -> Verdict | None:
-        planned = _plan(step, values, ctx)
+        planned = replay_of(step, values, ctx)
         if planned is None or ctx.held is None:
             return None
         confirmed = await self._confirmed(step, planned, ctx, ctx.held, fresh=ctx.reauthed)
@@ -181,7 +183,7 @@ async def session_headers(
     }
 
 
-def _plan(step: Step, values: Mapping[str, str], ctx: LaneContext) -> Planned | None:
+def replay_of(step: Step, values: Mapping[str, str], ctx: LaneContext) -> Planned | None:
     return replay_without_asking(
         step=step,
         cited=[ctx.by_id[one] for one in step.cites if one in ctx.by_id],

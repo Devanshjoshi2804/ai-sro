@@ -5,10 +5,12 @@ from contextlib import AbstractAsyncContextManager
 from typing import Protocol
 
 from sro.domain.execution.account import Account
+from sro.domain.execution.lanes import StepResult
 
 
 class AccountBusy(Exception):
     code = "account_busy"
+    tried: tuple[StepResult, ...] = ()
 
 
 class AccountLocks(Protocol):

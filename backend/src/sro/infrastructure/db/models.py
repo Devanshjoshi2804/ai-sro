@@ -779,6 +779,19 @@ class WorkflowLearnedRow(Base):
     learned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class KnownBrokenRow(Base):
+    __tablename__ = "known_broken"
+    __table_args__ = (Index("ix_known_broken_job", "tenant_id", "workflow_id"),)
+
+    tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    workflow_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    ord: Mapped[int] = mapped_column(Integer, primary_key=True)
+    lane: Mapped[str] = mapped_column(String(8), primary_key=True)
+    fingerprint: Mapped[str] = mapped_column(String(32), primary_key=True)
+    cites: Mapped[str] = mapped_column(String(32), nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class WorkflowLearnedHistoryRow(Base):
     __tablename__ = "workflow_learned_history"
     __table_args__ = (Index("ix_workflow_learned_history_job", "workflow_id", "at"),)

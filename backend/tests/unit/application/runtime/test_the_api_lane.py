@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 from sro.application.runtime.api_lane import K_AUTH_REFUSED, ApiLane
+from sro.domain.execution.lanes import Lane
 from sro.domain.shared.hosts import REDACTED
 from sro.infrastructure.http.httpx_caller import HttpxCaller
 from tests.unit.fakes import FakeHttpCaller, FakePageDriver
@@ -186,7 +187,7 @@ async def test_a_header_no_request_can_carry_is_refused_before_anything_is_sent(
     step, by_id, ledger = proven_write_step(read_back=LIST)
     warned: list[str] = []
 
-    async def about_to_write() -> None:
+    async def about_to_write(lane: Lane) -> None:
         warned.append("write")
 
     result = await ApiLane(http, headers_broker({"x-csrf-token": "a\r\nb"})).execute(
@@ -216,7 +217,7 @@ async def test_a_write_the_ledger_never_watched_is_not_sent() -> None:
     step, by_id, _ = proven_write_step(read_back=LIST)
     warned: list[str] = []
 
-    async def about_to_write() -> None:
+    async def about_to_write(lane: Lane) -> None:
         warned.append("write")
 
     result = await ApiLane(http, headers_broker({})).execute(

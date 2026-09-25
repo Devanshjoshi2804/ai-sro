@@ -199,7 +199,7 @@ class SightLane:
                     tried.why = "the point lands in a frame of another origin"
                     break
                 if writing and watched is not None and not tried.warned:
-                    await ctx.about_to_write()
+                    await ctx.about_to_write(self.lane)
                     tried.warned = True
                 hops = hit.get("frame_path") if hit else None
                 await self._driver.point(

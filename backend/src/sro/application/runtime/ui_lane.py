@@ -92,7 +92,7 @@ class UiLane:
         ctx.check_stop()
         if not writes(step, ctx.by_id):
             return await self._perform(step, primary, value, payload, held, ctx)
-        await ctx.about_to_write()
+        await ctx.about_to_write(self.lane)
         try:
             return await self._perform(step, primary, value, payload, held, ctx)
         except (Stopped, asyncio.CancelledError):

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
+import signal
 import socket
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from temporalio.client import Client
 from temporalio.worker import Worker
@@ -12,12 +14,15 @@ from temporalio.worker import Worker
 from sro.application.observation.mining_pass import rekey_workflows
 from sro.config import Settings, get_settings
 from sro.container import Container, build_container
-from sro.infrastructure.temporal.activities import Activities
-from sro.infrastructure.temporal.queues import DEFAULT_QUEUE
-from sro.infrastructure.temporal.workflows import ExecutionWorkflow, TriggerWorkflow
+from sro.domain.execution.progress import K_STEP_HEARTBEAT_S
+from sro.infrastructure.temporal.activities import Activities, RunActivities
+from sro.infrastructure.temporal.queues import DEFAULT_QUEUE, RUNS_QUEUE
+from sro.infrastructure.temporal.workflows import ExecutionWorkflow, RunWorkflow, TriggerWorkflow
 from sro.observability import configure_logging
 
 logger = logging.getLogger("sro.infrastructure.temporal.worker")
+
+_STOP_SIGNALS = (signal.SIGTERM, signal.SIGINT)
 
 
 def identity(settings: Settings) -> str:
@@ -26,6 +31,22 @@ def identity(settings: Settings) -> str:
 
 async def connect(settings: Settings) -> Client:
     return await Client.connect(settings.temporal_address, namespace=settings.temporal_namespace)
+
+
+async def until_signalled(*workers: Worker) -> None:
+    loop = asyncio.get_running_loop()
+    stopping = asyncio.Event()
+    for one in _STOP_SIGNALS:
+        loop.add_signal_handler(one, stopping.set)
+    try:
+        async with contextlib.AsyncExitStack() as serving:
+            for worker in workers:
+                await serving.enter_async_context(worker)
+            await stopping.wait()
+            logger.info("stopping: letting running activities finish first")
+    finally:
+        for one in _STOP_SIGNALS:
+            loop.remove_signal_handler(one)
 
 
 async def keep_sessions_open(container: Container, every_seconds: float) -> None:
@@ -129,6 +150,21 @@ async def run() -> None:
             activities.fire_trigger,
         ],
     )
+    run_activities = RunActivities(container)
+    runs = Worker(
+        client,
+        identity=me,
+        task_queue=RUNS_QUEUE,
+        graceful_shutdown_timeout=timedelta(seconds=K_STEP_HEARTBEAT_S),
+        workflows=[RunWorkflow],
+        activities=[
+            run_activities.prepare,
+            run_activities.acquire,
+            run_activities.step,
+            run_activities.finish,
+            run_activities.release,
+        ],
+    )
     try:
         rekeyed = await rekey_everything(container)
         if rekeyed:
@@ -140,8 +176,7 @@ async def run() -> None:
     rig_miner = asyncio.create_task(mine_the_rig_lately(container, settings.rig_sweep_seconds))
     retainer = asyncio.create_task(retain_lately(container, settings.retention_sweep_seconds))
     try:
-        async with default:
-            await asyncio.Future()
+        await until_signalled(default, runs)
     finally:
         keeper.cancel()
         rig_miner.cancel()

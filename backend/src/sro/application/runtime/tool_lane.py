@@ -33,7 +33,7 @@ class ToolLane:
                 fingerprint=fingerprint_of(Lane.TOOL, "unwritten"),
             )
         ctx.check_stop()
-        await ctx.about_to_write()
+        await ctx.about_to_write(self.lane)
         try:
             sent_id, why = await hand.send(written)
         except (Stopped, asyncio.CancelledError):

@@ -412,6 +412,9 @@ class FakeDurableExecution:
         and the person who approved one of its fires are different people, and
         which of them a run carries is the point of the confirmation queue."""
 
+        self.runs_started: list[tuple[str, float]] = []
+        """One `(run_id, budget_s)` per `start_run` call."""
+
     async def execute_skill(
         self,
         ctx: RequestContext,
@@ -444,6 +447,9 @@ class FakeDurableExecution:
             ),
         )
         return run.id
+
+    async def start_run(self, ctx: RequestContext, *, run_id: str, budget_s: float) -> None:
+        self.runs_started.append((run_id, budget_s))
 
 
 class FakeRecordingRepository:
@@ -2184,6 +2190,10 @@ class FakeWorkflowRunRepository:
     def __init__(self) -> None:
         self.rows: dict[str, WorkflowRun] = {}
         self.approved: dict[tuple[str, int], tuple[str, str | None]] = {}
+        self.on_save: Callable[[WorkflowRun], None] | None = None
+        """Called with a copy of the row after every write to it -- `save` and
+        `record_progress` alike -- so a test can see the order progress was
+        made durable in, not only where it ended."""
 
     async def save(self, run: WorkflowRun) -> None:
         # `uq_workflow_runs_one_running_per_device`, the rule rather than the
@@ -2232,14 +2242,25 @@ class FakeWorkflowRunRepository:
         merged.update({step.order: step for step in kept.steps})
         kept.steps = [merged[order] for order in sorted(merged)]
         self.rows[run.id] = kept
+        if self.on_save is not None:
+            self.on_save(deepcopy(kept))
 
     async def record_progress(
-        self, tenant_id: TenantId, run_id: str, progress: dict[str, object]
+        self,
+        tenant_id: TenantId,
+        run_id: str,
+        progress: dict[str, object],
+        *,
+        was: Mapping[str, object] | None = None,
     ) -> bool:
         found = self.rows.get(run_id)
         if found is None or found.tenant != tenant_id.value:
             return False
+        if was is not None and found.progress != dict(was):
+            return False
         found.progress = dict(progress)
+        if self.on_save is not None:
+            self.on_save(deepcopy(found))
         return True
 
     async def get(self, tenant_id: TenantId, run_id: str) -> WorkflowRun | None:

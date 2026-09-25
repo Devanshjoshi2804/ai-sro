@@ -34,7 +34,7 @@ from sro.domain.skill.workflow import Step, Workflow, new_workflow_id
 from sro.infrastructure.db.models import WorkflowEffectRow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from tests.unit.domain.rig.conftest import gestures as _gestures
-from tests.unit.fakes import FakeAsker
+from tests.unit.fakes import FakeAccountLocks, FakeAsker
 
 FOUND_BY = "pas_abcdef"
 
@@ -134,7 +134,8 @@ class TestWorkflows:
     ) -> None:
         """Decided once by the mining pass and read by every run after it, so
         it has to survive the store -- and a re-save must be able to clear it
-        when the healing pass reads the evidence differently."""
+        when the healing pass reads the evidence differently. A job nobody has
+        judged reads back undecided (None), never as decided."""
         workflow = _workflow(signs_in=True)
         ordinary = _workflow()
 
@@ -145,7 +146,7 @@ class TestWorkflows:
 
         async with SqlUnitOfWork(session_factory) as uow:
             assert (await uow.workflows.get(TENANT, workflow.id)).signs_in is True
-            assert (await uow.workflows.get(TENANT, ordinary.id)).signs_in is False
+            assert (await uow.workflows.get(TENANT, ordinary.id)).signs_in is None
             workflow.signs_in = False
             await uow.workflows.save(workflow)
             await uow.commit()
@@ -842,6 +843,7 @@ class TestTheMiningPass:
                     uow,
                     tenant_id=TENANT,
                     asker=asker,
+                    locks=FakeAccountLocks(),
                     model="gemini-3.1-pro",
                     now=datetime(2025, 2, 11, 23, tzinfo=UTC),
                     cap_usd=100.0,

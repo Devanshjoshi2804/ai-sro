@@ -384,6 +384,7 @@ class Container:
         return MinePass(
             self.unit_of_work(),
             asker=self._patient_asker(),
+            locks=self.locks,
             model=self.settings.gemini_mine_model,
             clock=self.clock,
             cap_usd=self.settings.daily_usd_cap,
@@ -395,6 +396,7 @@ class Container:
             self.unit_of_work(),
             self.mine_pass(),
             self.read_gestures(),
+            self.locks,
             window_hours=self.settings.mining_window_hours,
         )
 

@@ -36,7 +36,7 @@ Code: `K_LOCK_CONNECT_TIMEOUT_S = 10`
 > heartbeats to spare before the activity is presumed dead, rather than the
 > attempt silently eating the whole budget with nothing to show a retry.
 
-## `PostgresAccountLocks.hold`, [line 40](../../../../../../../backend/src/sro/infrastructure/db/locks.py#L40): Comment
+## `PostgresAccountLocks.hold_named`, [line 45](../../../../../../../backend/src/sro/infrastructure/db/locks.py#L45): Comment
 
 Code: `async with self._engine.begin() as connection:`
 
@@ -70,7 +70,7 @@ Code: `async with self._engine.begin() as connection:`
 > and `app.py`'s `lifespan` disposes it in the same `finally` block as the
 > main engine, on the same shutdown.
 
-## `PostgresAccountLocks.hold`, [line 54](../../../../../../../backend/src/sro/infrastructure/db/locks.py#L54): Comment
+## `PostgresAccountLocks.hold_named`, [line 59](../../../../../../../backend/src/sro/infrastructure/db/locks.py#L59): Comment
 
 Code: `except _Retry:`
 
@@ -82,3 +82,21 @@ Code: `except _Retry:`
 > Temporal activity code: called between attempts, never during one, so a
 > caller that heartbeats from it stays alive for the whole `K_LOCK_WAIT_S`
 > wait without needing to know how the wait is actually broken up.
+
+## `PostgresAccountLocks.hold_named`, [line 39](../../../../../../../backend/src/sro/infrastructure/db/locks.py#L39): Note on the function
+
+> The one advisory lock, keyed by any name: an account's session change
+> holds its `Account.key` (through `hold`), and a tenant's mining holds
+> `mining:{tenant}` (`mining_pass.mining_lock`), so a mining pass -- and the
+> whole-workflow saves `fill_in_passwords` makes inside it -- and the sweep's
+> sign-in decisions never run beside another worker's over the same tenant.
+> The name is hashed by `account.lock_id_of`, the same way an account's key
+> is; `mining:` never appears in an account key, which leads with a tenant
+> and a `/`.
+
+## `PostgresAccountLocks.try_hold_named`, [line 66](../../../../../../../backend/src/sro/infrastructure/db/locks.py#L66): Note on the function
+
+> `pg_try_advisory_xact_lock` on the same key `hold_named` waits for, in a
+> transaction on the lock engine that lasts the block, so a lock it took is
+> released when the block ends, and one it did not take costs one round
+> trip and no wait.

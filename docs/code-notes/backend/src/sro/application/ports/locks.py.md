@@ -18,3 +18,17 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/locks.p
 > caller heartbeating a Temporal activity from it stays alive for the
 > whole wait. A caller that does not need to heartbeat -- most tests --
 > passes nothing and gets a no-op.
+
+## `AccountLocks.hold_named`, [line 21](../../../../../../../backend/src/sro/application/ports/locks.py#L21): Note on the function
+
+> The same lock under a name that is not an account: a tenant's mining
+> (`mining:{tenant}`). One port and one mechanism rather than a second lock
+> port, because the effect -- one holder across every process -- is the
+> same. `on_wait` has the same contract as `hold`'s.
+
+## `AccountLocks.try_hold_named`, [line 25](../../../../../../../backend/src/sro/application/ports/locks.py#L25): Note on the function
+
+> The same named lock, tried once and never waited on: it yields whether
+> it was taken, and holds it for the block only when it was. For work that
+> another holder makes unnecessary -- the background sweep's sign-in
+> decisions for a tenant another worker is mining.

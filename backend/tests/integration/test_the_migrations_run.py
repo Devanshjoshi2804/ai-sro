@@ -21,7 +21,7 @@ from alembic.migration import MigrationContext
 from sqlalchemy import Connection, insert, inspect, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from sro.infrastructure.db.models import Base, WorkflowRunRow
+from sro.infrastructure.db.models import Base, WorkflowRow, WorkflowRunRow
 
 
 async def test_upgrading_from_nothing_builds_the_schema(postgres_url: str) -> None:
@@ -156,6 +156,79 @@ async def test_downgrading_0073_refuses_when_two_steel_runs_share_a_device(
     assert downgrade.returncode != 0
     assert "cannot downgrade 0073" in downgrade.stderr, downgrade.stderr
     assert "'acme'" in downgrade.stderr, downgrade.stderr
+
+
+async def _alembic(postgres_url: str, *args: str) -> None:
+    ran = await asyncio.to_thread(
+        subprocess.run,
+        [sys.executable, "-m", "alembic", *args],
+        env={**os.environ, "SRO_DATABASE_URL": postgres_url},
+        capture_output=True,
+        text=True,
+    )
+    assert ran.returncode == 0, ran.stderr
+
+
+async def test_0078_makes_every_stored_job_undecided_and_back(postgres_url: str) -> None:
+    """0069 stored `false` on every job it found, which reads as "decided: does
+    not sign in" and so no sweep ever looked again. 0078 turns every stored
+    `false` into NULL -- undecided -- for the sweep to decide from evidence,
+    and keeps `true`, which only ever came from evidence. Its downgrade maps
+    NULL back to the `false` the older code expects."""
+    engine = create_async_engine(postgres_url)
+    try:
+        async with engine.begin() as connection:
+            await connection.execute(text("DROP SCHEMA public CASCADE"))
+            await connection.execute(text("CREATE SCHEMA public"))
+            await connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        await _alembic(postgres_url, "upgrade", "0077")
+        async with engine.begin() as connection:
+            await connection.execute(
+                insert(WorkflowRow.__table__),
+                [
+                    {
+                        "id": "wfl_old",
+                        "tenant_id": "acme",
+                        "created_at": datetime.now(tz=UTC),
+                        "signs_in": False,
+                    },
+                    {
+                        "id": "wfl_marked",
+                        "tenant_id": "acme",
+                        "created_at": datetime.now(tz=UTC),
+                        "signs_in": True,
+                    },
+                ],
+            )
+        read = text("SELECT id, signs_in FROM workflows ORDER BY id")
+
+        await _alembic(postgres_url, "upgrade", "0078")
+        async with engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "INSERT INTO workflows (id, tenant_id, pass_id, title, narrative, systems,"
+                    " parameters, shape_key, created_at) VALUES ('wfl_new', 'acme', '', '', '',"
+                    " '[]', '[]', '[]', now())"
+                )
+            )
+            upgraded = (await connection.execute(read)).all()
+        await _alembic(postgres_url, "downgrade", "0077")
+        async with engine.begin() as connection:
+            downgraded = (await connection.execute(read)).all()
+        await _alembic(postgres_url, "upgrade", "head")
+    finally:
+        await engine.dispose()
+
+    assert [tuple(row) for row in upgraded] == [
+        ("wfl_marked", True),
+        ("wfl_new", None),
+        ("wfl_old", None),
+    ]
+    assert [tuple(row) for row in downgraded] == [
+        ("wfl_marked", True),
+        ("wfl_new", False),
+        ("wfl_old", False),
+    ]
 
 
 # Every test in this directory already runs against the migrated schema --

@@ -11,7 +11,7 @@ import re
 import sys
 from collections import Counter
 from collections.abc import AsyncIterator, Awaitable, Callable, Collection, Mapping, Sequence
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from copy import deepcopy
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -1760,16 +1760,30 @@ class FakeAccountLocks:
         self._locks: dict[str, asyncio.Lock] = {}
         self.busy: set[str] = set()
 
-    @asynccontextmanager
-    async def hold(
+    def hold(
         self, account: Account, *, on_wait: Callable[[], Awaitable[None]] = _no_op_on_wait
+    ) -> AbstractAsyncContextManager[None]:
+        return self.hold_named(account.key, on_wait=on_wait)
+
+    @asynccontextmanager
+    async def hold_named(
+        self, name: str, *, on_wait: Callable[[], Awaitable[None]] = _no_op_on_wait
     ) -> AsyncIterator[None]:
-        if account.key in self.busy:
+        if name in self.busy:
             await on_wait()
-            raise AccountBusy(f"{account.key} is held by another session")
-        lock = self._locks.setdefault(account.key, asyncio.Lock())
+            raise AccountBusy(f"{name} is held by another session")
+        lock = self._locks.setdefault(name, asyncio.Lock())
         async with lock:
             yield
+
+    @asynccontextmanager
+    async def try_hold_named(self, name: str) -> AsyncIterator[bool]:
+        lock = self._locks.setdefault(name, asyncio.Lock())
+        if name in self.busy or lock.locked():
+            yield False
+            return
+        async with lock:
+            yield True
 
 
 class FakeScheduler:
@@ -2583,6 +2597,20 @@ class FakeWorkflowRepository:
         row = self.rows.get(workflow_id)
         if row is not None and row.tenant == tenant_id.value:
             row.shape_key = [list(entry) for entry in key]
+
+    async def undecided(self) -> tuple[Workflow, ...]:
+        found = [
+            row for row in self.rows.values() if row.signs_in is None and row.id not in self.retired
+        ]
+        found.sort(key=lambda row: (row.tenant, self._created[row.id], row.id))
+        return tuple(deepcopy(row) for row in found)
+
+    async def decide_signs_in(self, tenant_id: TenantId, workflow_id: str, signs_in: bool) -> bool:
+        row = self.rows.get(workflow_id)
+        if row is None or row.tenant != tenant_id.value or row.signs_in is not None:
+            return False
+        row.signs_in = signs_in
+        return True
 
     async def add_pass(self, mining_pass: MiningPass) -> None:
         self._alive()

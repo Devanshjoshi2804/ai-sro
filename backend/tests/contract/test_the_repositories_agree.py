@@ -556,6 +556,41 @@ class TestWorkflows:
                 ["click", "Save", "wms"],
             ]
 
+    async def test_deciding_sets_only_an_undecided_job_and_never_overwrites_one(
+        self, store: UnitOfWork
+    ) -> None:
+        """The sweep decides whether a job signs in by writing that one column,
+        and only while it is still NULL: a decision already made -- by the
+        mining pass, or by a sweep in another worker -- is never overwritten,
+        and nothing else about the job is rewritten with it."""
+        async with store as work:
+            await work.workflows.save(_workflow("wfl_1", signs_in=None))
+            await work.workflows.save(_workflow("wfl_2", signs_in=None))
+            await work.workflows.save(_workflow("wfl_3", signs_in=None, tenant=OTHER_TENANT))
+            await work.workflows.save(_workflow("wfl_4", signs_in=True))
+            await work.workflows.save(_workflow("wfl_5", signs_in=None))
+            await work.workflows.retire(TENANT, "wfl_5", at=_when(12))
+            await work.commit()
+
+        async with store as work:
+            undecided = await work.workflows.undecided()
+            assert [(job.tenant, job.id) for job in undecided] == [
+                (TENANT.value, "wfl_1"),
+                (TENANT.value, "wfl_2"),
+                (OTHER_TENANT.value, "wfl_3"),
+            ]
+            assert await work.workflows.decide_signs_in(TENANT, "wfl_1", True) is True
+            assert await work.workflows.decide_signs_in(TENANT, "wfl_1", False) is False
+            assert await work.workflows.decide_signs_in(TENANT, "wfl_4", False) is False
+            assert await work.workflows.decide_signs_in(OTHER_TENANT, "wfl_2", True) is False
+            await work.commit()
+
+        async with store as work:
+            assert (await work.workflows.get(TENANT, "wfl_1")).signs_in is True
+            assert (await work.workflows.get(TENANT, "wfl_2")).signs_in is None
+            assert (await work.workflows.get(TENANT, "wfl_4")).signs_in is True
+            assert [job.id for job in await work.workflows.undecided()] == ["wfl_2", "wfl_3"]
+
     async def test_proofs_name_the_written_steps_of_every_live_held_run(
         self, store: UnitOfWork
     ) -> None:

@@ -12,7 +12,11 @@ pre-rig sweep's.
 
 from __future__ import annotations
 
+import logging
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+
+import pytest
 
 from sro.application.context import RequestContext
 from sro.application.observation.mine_lately import MineLately
@@ -20,8 +24,12 @@ from sro.application.observation.mining_pass import MineResult
 from sro.application.shared.refusals import OverCap
 from sro.domain.observation.gesture import Action, Gesture, GestureBatch
 from sro.domain.observation.mining import MiningPass
+from sro.domain.shared.identifiers import TenantId
+from sro.domain.skill.workflow import Step, Workflow
 from sro.whose import about, whose
-from tests.unit.fakes import FakeUnitOfWork
+from tests.unit.fakes import FakeAccountLocks, FakeUnitOfWork
+from tests.unit.scripts.test_migrate_vault_keys import _job as _signing_in_job
+from tests.unit.scripts.test_migrate_vault_keys import _sign_in
 
 NOW = datetime(2026, 9, 13, 12, 0, tzinfo=UTC)
 
@@ -104,11 +112,13 @@ async def _swept(
     reads: _Reads | None = None,
     *,
     max_reads: int = 25,
+    locks: FakeAccountLocks | None = None,
 ) -> dict[str, MineResult]:
     lately = MineLately(
         uow,
         passes,
         reads or _Reads(),
+        locks or FakeAccountLocks(),
         window_hours=24,
         max_reads=max_reads,
     )
@@ -500,3 +510,118 @@ async def test_each_tenant_s_reading_and_pass_are_billed_to_that_tenant() -> Non
     assert sorted(seen) == sorted(
         [("read", "acme"), ("mine", "acme"), ("read", "new"), ("mine", "new")]
     )
+
+
+def _job_citing(tenant: str, *, signs_in: bool | None) -> Workflow:
+    return Workflow(
+        id=f"wfl_{tenant}",
+        tenant=tenant,
+        title="receive",
+        narrative="n",
+        steps=[Step(order=0, says="s", system=None, cites=[f"ges_{tenant}"])],
+        signs_in=signs_in,
+    )
+
+
+async def test_a_quiet_sweep_decides_every_job_nobody_has_judged() -> None:
+    """QA's 23 jobs came out of the 0069 migration as `signs_in = false`,
+    and the flag was only ever decided when new gestures arrived. On a quiet
+    system that never happened, so the vault migration found no sign-in job to
+    move. An undecided job is decided on the next sweep, new gestures or not --
+    and a tenant quiet for longer than the mining window is still swept."""
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", taken=NOW - timedelta(days=30))
+    await _mined(uow, "acme", left_out=0, at=NOW - timedelta(days=29))
+    await uow.workflows.save(_job_citing("acme", signs_in=None))
+
+    await _swept(uow, _Passes())
+
+    assert (await uow.workflows.get(TenantId("acme"), "wfl_acme")).signs_in is False
+
+
+async def test_a_decided_job_is_not_decided_again_without_new_evidence() -> None:
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
+    await _mined(uow, "acme", left_out=0, at=NOW - timedelta(hours=1))
+    await uow.workflows.save(_job_citing("acme", signs_in=True))
+
+    await _swept(uow, _Passes())
+
+    assert (await uow.workflows.get(TenantId("acme"), "wfl_acme")).signs_in is True
+
+
+async def test_a_quiet_sweep_decides_a_real_sign_in_job_true() -> None:
+    """The case QA's vault migration waits on: a recorded sign-in, stored
+    before the flag existed, and nothing uploaded since."""
+    uow = FakeUnitOfWork()
+    await uow.gestures.add_gestures(tuple(_sign_in("h", user="hana").values()))
+    await uow.workflows.save(_signing_in_job("h", signs_in=None))
+
+    await _swept(uow, _Passes())
+
+    assert (await uow.workflows.get(TenantId("acme"), "wfl_h")).signs_in is True
+
+
+async def test_a_job_with_no_evidence_is_decided_false() -> None:
+    """Gestures are never deleted, so a job whose cites were never stored can
+    never be judged -- and every use of `true` needs those gestures, so
+    `false` hides nothing. Left NULL it would be re-read on every sweep."""
+    uow = FakeUnitOfWork()
+    await uow.workflows.save(_job_citing("acme", signs_in=None))
+    await uow.workflows.save(replace(_job_citing("acme", signs_in=None), id="wfl_bare", steps=[]))
+
+    await _swept(uow, _Passes())
+
+    assert (await uow.workflows.get(TenantId("acme"), "wfl_acme")).signs_in is False
+    assert (await uow.workflows.get(TenantId("acme"), "wfl_bare")).signs_in is False
+
+
+async def test_nothing_undecided_reads_no_gestures() -> None:
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
+    await _mined(uow, "acme", left_out=0, at=NOW - timedelta(hours=1))
+    await uow.workflows.save(_job_citing("acme", signs_in=False))
+
+    await _swept(uow, _Passes())
+
+    assert uow.gestures.gestures_for_calls == 0
+
+
+async def test_a_tenant_busy_elsewhere_is_skipped_quietly(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Each tenant is decided in its own transaction, under its own mining
+    lock, which the sweep only tries for: another worker already doing that
+    tenant's work is the right outcome, not an error, so the tenant is
+    skipped at once with an info line and the tenant after it is decided."""
+    caplog.set_level(logging.INFO)
+    uow = FakeUnitOfWork()
+    await uow.workflows.save(_job_citing("acme", signs_in=None))
+    await uow.workflows.save(_job_citing("zeta", signs_in=None))
+    locks = FakeAccountLocks()
+    locks.busy.add("mining:acme")
+
+    await _swept(uow, _Passes(), locks=locks)
+
+    assert (await uow.workflows.get(TenantId("acme"), "wfl_acme")).signs_in is None
+    assert (await uow.workflows.get(TenantId("zeta"), "wfl_zeta")).signs_in is False
+    assert not [record for record in caplog.records if record.levelno >= logging.WARNING]
+    assert any("acme" in record.getMessage() for record in caplog.records)
+
+
+async def test_a_tenant_whose_write_fails_does_not_stop_another() -> None:
+    uow = FakeUnitOfWork()
+    await uow.workflows.save(_job_citing("acme", signs_in=None))
+    await uow.workflows.save(_job_citing("zeta", signs_in=None))
+    deciding = uow.workflows.decide_signs_in
+
+    async def _refuses_acme(tenant_id: TenantId, workflow_id: str, signs_in: bool) -> bool:
+        if tenant_id.value == "acme":
+            raise RuntimeError("the store refused")
+        return await deciding(tenant_id, workflow_id, signs_in)
+
+    uow.workflows.decide_signs_in = _refuses_acme  # type: ignore[method-assign]
+
+    await _swept(uow, _Passes())
+
+    assert (await uow.workflows.get(TenantId("zeta"), "wfl_zeta")).signs_in is False

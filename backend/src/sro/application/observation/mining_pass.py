@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import logging
 import secrets
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 
 from sro.application.intent.spend import over_cap
+from sro.application.ports.locks import AccountLocks
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
-from sro.application.shared.locks import one_at_a_time
 from sro.domain.execution.uses_edges import uses_edges
 from sro.domain.observation.driving import was_our_own_driving
 from sro.domain.observation.gesture import Gesture, Intent
@@ -63,9 +64,12 @@ from sro.whose import attribute
 
 __all__ = [
     "MineResult",
+    "decide_sign_ins",
+    "evidence_of",
     "fill_in_passwords",
     "learn_parameters",
     "mine",
+    "mining_lock",
     "new_pass_id",
     "propose",
     "rekey_workflows",
@@ -134,13 +138,14 @@ async def mine(
     *,
     tenant_id: TenantId,
     asker: Asker,
+    locks: AccountLocks,
     model: str,
     now: datetime,
     cap_usd: float,
     kb: str = "",
     ours: frozenset[str] = frozenset(),
 ) -> MineResult:
-    async with one_at_a_time(f"mining:{tenant_id.value}"):
+    async with locks.hold_named(mining_lock(tenant_id)):
         why = await over_cap(uow, tenant_id, now=now, cap_usd=cap_usd)
         if why:
             logger.warning("%s for %s, nothing mined", why, tenant_id.value)
@@ -589,17 +594,14 @@ async def fill_in_passwords(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
     changed = 0
     by_id = {gesture.id: gesture for gesture in await uow.gestures.gestures_for(tenant_id)}
     for workflow in await uow.workflows.known(tenant_id):
-        wanted = ordered_cites(workflow)
-        if not wanted:
-            continue
-        if any(cited not in by_id for cited in wanted):
+        if not _evidenced(workflow, by_id):
             continue
         found = repeated_block(workflow, by_id)
         changed_here = with_passwords(workflow, by_id) + with_the_press(workflow, by_id)
         if workflow.repeat != found:
             workflow.repeat = found
             changed_here += 1
-        marked = signs_in(workflow, by_id)
+        marked = _judged(workflow, by_id)
         if workflow.signs_in != marked:
             workflow.signs_in = marked
             changed_here += 1
@@ -609,6 +611,52 @@ async def fill_in_passwords(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
         changed += 1
         logger.info("%s: healed the steps no model got right", workflow.title)
     return changed
+
+
+def _evidenced(workflow: Workflow, by_id: Mapping[str, Gesture]) -> bool:
+    wanted = ordered_cites(workflow)
+    return bool(wanted) and all(cited in by_id for cited in wanted)
+
+
+def _judged(workflow: Workflow, by_id: dict[str, Gesture]) -> bool:
+    if not _evidenced(workflow, by_id):
+        return False
+    healed = deepcopy(workflow)
+    with_passwords(healed, by_id)
+    with_the_press(healed, by_id)
+    return signs_in(healed, by_id)
+
+
+async def evidence_of(
+    uow: UnitOfWork, tenant_id: TenantId, jobs: Sequence[Workflow]
+) -> dict[str, Gesture]:
+    cited = tuple(sorted({one for job in jobs for one in ordered_cites(job)}))
+    if not cited:
+        return {}
+    seen = {
+        gesture.id: gesture for gesture in await uow.gestures.gestures_for(tenant_id, ids=cited)
+    }
+    for job in jobs:
+        times = [seen[one].at for one in ordered_cites(job) if one in seen]
+        if not times:
+            continue
+        around = await uow.gestures.gestures_for(
+            tenant_id, after=min(times), before=max(times) + K_SITTING_GAP_S
+        )
+        seen.update({gesture.id: gesture for gesture in around})
+    return seen
+
+
+def mining_lock(tenant_id: TenantId) -> str:
+    return f"mining:{tenant_id.value}"
+
+
+async def decide_sign_ins(uow: UnitOfWork, tenant_id: TenantId, jobs: Sequence[Workflow]) -> int:
+    by_id = await evidence_of(uow, tenant_id, jobs)
+    decided = 0
+    for job in jobs:
+        decided += await uow.workflows.decide_signs_in(tenant_id, job.id, _judged(job, by_id))
+    return decided
 
 
 async def rekey_workflows(uow: UnitOfWork, *, tenant_id: TenantId) -> int:

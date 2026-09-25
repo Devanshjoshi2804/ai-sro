@@ -1,8 +1,9 @@
 """Shared fixtures for the runtime lanes' unit tests.
 
 `scripted_driver` is a `FakePageDriver` configured by keyword; `save_step`,
-`type_step` and `lane_context` build a `Step`, its cited `Gesture`s and a
-`LaneContext` without every lane test re-typing the same evidence by hand.
+`type_step`, `mail_send_step` and `lane_context` build a `Step`, its cited
+`Gesture`s and a `LaneContext` without every lane test re-typing the same
+evidence by hand.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from types import MappingProxyType
 
+from sro.application.execution.mail_job import Written
 from sro.application.ports.page import PageAnswer, SessionRef
 from sro.application.runtime.step import Held, LaneContext
 from sro.domain.execution.account import Account, Lease, LeaseState
@@ -41,6 +43,8 @@ _LEASE = Lease(
 
 _WORKFLOW = Workflow(id="wfl_test", tenant=_TENANT, title="Save the customer type", narrative="")
 
+GMAIL = "https://mail.google.com/mail/u/0/#inbox"
+
 
 async def _nothing() -> None:
     return None
@@ -64,13 +68,17 @@ def _held() -> Held:
     return Held(lease=_LEASE, target_id="tab-1", session=SessionRef("sess-1", "http://cdp.local"))
 
 
+_DEFAULT_HELD = _held()
+
+
 def lane_context(
     by_id: Mapping[str, Gesture],
     *,
-    held: Held | None = None,
+    held: Held | None = _DEFAULT_HELD,
     learned: Mapping[int, LearnedStep] = MappingProxyType({}),
     secret: str | None = None,
     about_to_write: Callable[[], Awaitable[None]] | None = None,
+    thread: str = "",
 ) -> LaneContext:
     return LaneContext(
         tenant_id=TenantId(_TENANT),
@@ -79,9 +87,10 @@ def lane_context(
         by_id=by_id,
         learned=learned,
         ledger=(),
-        held=held if held is not None else _held(),
+        held=held,
         stop=asyncio.Event(),
         secret=secret,
+        thread=thread,
         about_to_write=about_to_write if about_to_write is not None else _nothing,
     )
 
@@ -144,3 +153,38 @@ def type_step(*, after: AfterState | None = None) -> tuple[Step, dict[str, Gestu
         parameters=["Customer Type"],
     )
     return step, by_id
+
+
+def mail_send_step() -> tuple[Step, dict[str, Gesture]]:
+    gesture = Gesture(
+        id="g-send",
+        tenant="t1",
+        stream_id="str-1",
+        batch_id="bat-1",
+        at=1_000.0,
+        url=GMAIL,
+        system=GMAIL,
+        tab_id=7,
+        frame_url=None,
+        action=Action(
+            kind="click",
+            at=1_000.0,
+            url=GMAIL,
+            target=Target(tag="button", role="button", name="Send"),
+        ),
+    )
+    step = Step(order=0, says="Send the mail", system=None, cites=["g-send"])
+    return step, {"g-send": gesture}
+
+
+async def write_ok(workflow: Workflow, values: Mapping[str, str], thread: str) -> Written | str:
+    return Written(to="ops@example.com", subject="s", body="b", thread=thread, in_reply_to="")
+
+
+async def _sent(sent: list[Written], mail: Written, msg_id: str) -> tuple[str, str]:
+    sent.append(mail)
+    return msg_id, ""
+
+
+async def _answer(msg_id: str, why: str) -> tuple[str, str]:
+    return msg_id, why

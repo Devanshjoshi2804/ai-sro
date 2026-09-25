@@ -35,7 +35,7 @@ from sro.application.ports.http import (
 from sro.application.ports.intent import Extraction, Reading
 from sro.application.ports.locks import AccountBusy
 from sro.application.ports.model import Asker
-from sro.application.ports.page import PageAnswer, SessionRef
+from sro.application.ports.page import PageAnswer, PageGone, SessionRef
 from sro.application.ports.pool import PoolFull
 from sro.application.ports.repositories import (
     AttemptRepository,
@@ -1404,6 +1404,141 @@ class FakeBrowserPool:
 
     async def cdp_url(self, container_url: str) -> str:
         return f"ws://{container_url}"
+
+
+class FakePageDriver:
+    """`tabs` maps a target id (`tab-1`, `tab-2`, ...) to the url it was last
+    sent to, and `owners` maps it to the context id that opened it: a tab
+    asked for under another account's context is `PageGone`, as the real
+    driver answers. `states` holds the saved storage-state JSON per context
+    id, and `dead` names context ids whose calls raise `PageGone`, the way a
+    context a lease no longer holds would. `calls` logs every tab-lifecycle
+    call as a tuple starting with the method name, for tests that check what
+    was asked of the driver rather than only its answers.
+
+    `act`/`wait_for`/`calls_since` answer exactly what a test scripted, for
+    the runtime lanes that drive a page through it (`UiLane` first): `mark`
+    counts how many times it has been asked, and `calls_since` always serves
+    the same scripted tuple regardless of the mark it is given, since these
+    tests script one exchange at a time rather than a growing log."""
+
+    def __init__(
+        self,
+        *,
+        answer: PageAnswer | None = None,
+        calls: Sequence[SeenCall] = (),
+        holds: bool = False,
+        sign_in: bool = False,
+        url: str = "",
+        hit: object | None = None,
+    ) -> None:
+        self.tabs: dict[str, str] = {}
+        self.owners: dict[str, str] = {}
+        self.states: dict[str, str] = {}
+        self.dead: set[str] = set()
+        self.calls: list[tuple[str, ...]] = []
+        self.closed = False
+        self._next = count(1)
+        self._answer = answer if answer is not None else PageAnswer(ok=True)
+        self._scripted_calls = tuple(calls)
+        self._holds = holds
+        self._signals = PageSignals(url or "https://wms.example/app", password=sign_in)
+        self.hit = hit
+        self.acted: list[tuple[SessionRef, str, dict[str, object]]] = []
+        self.waited_for: list[dict[str, object]] = []
+        self.pointed: list[tuple[SessionRef, str]] = []
+        self._marks = 0
+
+    def _live(self, session: SessionRef) -> None:
+        if session.context_id in self.dead:
+            raise PageGone(f"context {session.context_id} is gone")
+
+    def _tab(self, session: SessionRef, target_id: str) -> None:
+        self._live(session)
+        if self.owners.get(target_id) != session.context_id:
+            raise PageGone(f"tab {target_id} is not open in context {session.context_id}")
+
+    async def open_tab(self, session: SessionRef, url: str) -> str:
+        self._live(session)
+        target_id = f"tab-{next(self._next)}"
+        self.tabs[target_id] = url
+        self.owners[target_id] = session.context_id
+        self.calls.append(("open_tab", session.context_id, url))
+        return target_id
+
+    async def close_tab(self, session: SessionRef, target_id: str) -> None:
+        self._tab(session, target_id)
+        del self.tabs[target_id], self.owners[target_id]
+        self.calls.append(("close_tab", session.context_id, target_id))
+
+    async def goto(self, session: SessionRef, target_id: str, url: str) -> None:
+        self._tab(session, target_id)
+        self.tabs[target_id] = url
+        self.calls.append(("goto", session.context_id, target_id, url))
+
+    async def url_of(self, session: SessionRef, target_id: str) -> str:
+        self._tab(session, target_id)
+        self.calls.append(("url_of", session.context_id, target_id))
+        return self.tabs[target_id]
+
+    async def storage_state(self, session: SessionRef) -> str:
+        self._live(session)
+        self.calls.append(("storage_state", session.context_id))
+        return self.states.get(session.context_id, "{}")
+
+    async def restore_state(self, session: SessionRef, state: str) -> None:
+        self._live(session)
+        self.states[session.context_id] = state
+        self.calls.append(("restore_state", session.context_id, state))
+
+    async def forget(self, session: SessionRef) -> None:
+        self.calls.append(("forget", session.context_id))
+
+    async def aclose(self) -> None:
+        self.closed = True
+
+    async def act(
+        self, session: SessionRef, target_id: str, payload: Mapping[str, object]
+    ) -> PageAnswer:
+        self.acted.append((session, target_id, dict(payload)))
+        return self._answer
+
+    async def mark(self, session: SessionRef, target_id: str) -> int:
+        self._marks += 1
+        return self._marks
+
+    async def calls_since(
+        self, session: SessionRef, target_id: str, mark: int
+    ) -> tuple[SeenCall, ...]:
+        return self._scripted_calls
+
+    async def wait_for_call(
+        self,
+        session: SessionRef,
+        target_id: str,
+        *,
+        method: str,
+        shape: str,
+        since: int,
+        deadline_s: float,
+    ) -> bool:
+        return any(
+            call.method.upper() == method.upper() and path_shape(call.url) == shape
+            for call in self._scripted_calls
+        )
+
+    async def wait_for(
+        self,
+        session: SessionRef,
+        target_id: str,
+        payload: Mapping[str, object],
+        deadline_s: float,
+    ) -> bool:
+        self.waited_for.append(dict(payload))
+        return self._holds
+
+    async def signals(self, session: SessionRef, target_id: str) -> PageSignals:
+        return self._signals
 
 
 class FakeAccountLocks:
@@ -2847,79 +2982,3 @@ class FakeToolCaller:
         if answer is None:
             raise ToolsUnavailable(f"{server} offers no tool called {tool}")
         return answer
-
-
-class FakePageDriver:
-    """A `PageDriver` (S5's port) whose `act`/`wait_for`/`calls_since` answer
-    exactly what a test scripted, for the runtime lanes that drive a page
-    through it (X4's `UiLane` first).
-
-    `mark`/`calls_since` model S5's per-target response log loosely enough for
-    a lane test: `mark` counts how many times it has been asked, and
-    `calls_since` always serves the same scripted tuple regardless of the mark
-    it is given, since these tests script one exchange at a time rather than a
-    growing log.
-    """
-
-    def __init__(
-        self,
-        *,
-        answer: PageAnswer | None = None,
-        calls: Sequence[SeenCall] = (),
-        holds: bool = False,
-        sign_in: bool = False,
-        url: str = "",
-        hit: object | None = None,
-    ) -> None:
-        self._answer = answer if answer is not None else PageAnswer(ok=True)
-        self._calls = tuple(calls)
-        self._holds = holds
-        self._signals = PageSignals(url or "https://wms.example/app", password=sign_in)
-        self.hit = hit
-        self.acted: list[tuple[SessionRef, str, dict[str, object]]] = []
-        self.waited_for: list[dict[str, object]] = []
-        self.pointed: list[tuple[SessionRef, str]] = []
-        self._marks = 0
-
-    async def act(
-        self, session: SessionRef, target_id: str, payload: Mapping[str, object]
-    ) -> PageAnswer:
-        self.acted.append((session, target_id, dict(payload)))
-        return self._answer
-
-    async def mark(self, session: SessionRef, target_id: str) -> int:
-        self._marks += 1
-        return self._marks
-
-    async def calls_since(
-        self, session: SessionRef, target_id: str, mark: int
-    ) -> tuple[SeenCall, ...]:
-        return self._calls
-
-    async def wait_for_call(
-        self,
-        session: SessionRef,
-        target_id: str,
-        *,
-        method: str,
-        shape: str,
-        since: int,
-        deadline_s: float,
-    ) -> bool:
-        return any(
-            call.method.upper() == method.upper() and path_shape(call.url) == shape
-            for call in self._calls
-        )
-
-    async def wait_for(
-        self,
-        session: SessionRef,
-        target_id: str,
-        payload: Mapping[str, object],
-        deadline_s: float,
-    ) -> bool:
-        self.waited_for.append(dict(payload))
-        return self._holds
-
-    async def signals(self, session: SessionRef, target_id: str) -> PageSignals:
-        return self._signals

@@ -1,11 +1,11 @@
 {
   "kind": "request",
   "request": {
-    "request_id": "req_4f1264c1_1",
+    "request_id": "req_5e2094ed_1",
     "method": "POST",
-    "url": "http://127.0.0.1:55773/api/orders",
+    "url": "http://127.0.0.1:55199/api/orders",
     "resource_type": "fetch",
-    "started_at": "2026-09-24T09:41:48.658Z",
+    "started_at": "2026-09-24T19:42:34.028Z",
     "request_headers": {
       "content-type": "application/json"
     },
@@ -23,7 +23,7 @@
       "access-control-allow-origin": "*",
       "content-length": "12",
       "content-type": "application/json",
-      "date": "Thu, 24 Sep 2026 09:41:48 GMT",
+      "date": "Thu, 24 Sep 2026 19:42:34 GMT",
       "server": "BaseHTTP/0.6 Python/3.14.7"
     },
     "response_body": {
@@ -39,6 +39,6 @@
     "failure_reason": null,
     "blocked_reason": null
   },
-  "tab_id": 170716789,
-  "frame_url": "http://127.0.0.1:55773/"
+  "tab_id": 1470579231,
+  "frame_url": "http://127.0.0.1:55199/"
 }

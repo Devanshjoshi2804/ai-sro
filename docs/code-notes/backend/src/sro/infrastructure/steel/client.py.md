@@ -74,7 +74,7 @@ Code: `K_CONTEXT_PAGE_TIMEOUT_S = 10`
 > Steel's REST shape is confined to this module. The application only knows
 > ``BrowserProvider``, so replacing Steel is an adapter change.
 
-## `_held_by`, [line 435](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L435): Docstring
+## `_held_by`, [line 420](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L420): Docstring
 
 > Which sessions are holding the only browser, and since when.
 >
@@ -83,11 +83,11 @@ Code: `K_CONTEXT_PAGE_TIMEOUT_S = 10`
 > needs the same three facts either way -- who has it, how long they have had
 > it, and that a stuck one outlives its own Chrome.
 
-## `_path_of`, [line 447](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L447): Docstring
+## `_path_of`, [line 453](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L453): Docstring
 
 > Path and query of a URL, or "/" when there is nothing useful.
 
-## `SteelClient._require_browser`, [line 125](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L125): Docstring
+## `SteelClient._require_browser`, [line 126](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L126): Docstring
 
 > Refuse a session that has no browser behind it.
 >
@@ -100,11 +100,11 @@ Code: `K_CONTEXT_PAGE_TIMEOUT_S = 10`
 > A brief `idle` is normal while Chrome starts, so this waits before
 > deciding, and then says which session is holding the browser.
 
-## `SteelClient._live_sessions`, [line 155](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L155): Docstring
+## `SteelClient._live_sessions`, [line 156](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L156): Docstring
 
 > Sessions Steel currently believes are using the browser.
 
-## `SteelClient._cdp_origin`, [line 168](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L168): Docstring
+## `cdp_origin`, [line 432](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L432): Docstring
 
 > The CDP endpoint with its host resolved to an address.
 >
@@ -137,7 +137,7 @@ Code: `K_CONTEXT_PAGE_TIMEOUT_S = 10`
 > reach, which is a better error than one about DNS -- and it keeps a
 > made-up hostname in a test from depending on a resolver.
 
-## `SteelClient._websocket_debugger_url`, [line 179](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L179): Docstring
+## `SteelClient._websocket_debugger_url`, [line 169](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L169): Docstring
 
 > Chrome's own websocket endpoint, with the host put back.
 >
@@ -146,7 +146,7 @@ Code: `K_CONTEXT_PAGE_TIMEOUT_S = 10`
 > Following that verbatim dials port 80. The path is right; the authority
 > has to come from configuration.
 
-## `SteelClient.close`, [line 201](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L201): Docstring
+## `SteelClient.close`, [line 186](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L186): Docstring
 
 > Release the session. A 404 is success -- crash recovery calls this on
 > sessions the provider already reaped.
@@ -155,7 +155,7 @@ Code: `K_CONTEXT_PAGE_TIMEOUT_S = 10`
 > releasing a session whose Chrome has already died and leaves it marked
 > live, which reads as success and holds the only browser forever.
 
-## `SteelClient._attached`, [line 285](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L285): Docstring
+## `SteelClient._attached`, [line 270](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L270): Docstring
 
 > A short-lived CDP attachment.
 >
@@ -163,7 +163,7 @@ Code: `K_CONTEXT_PAGE_TIMEOUT_S = 10`
 > using, and an idle connection to it is a way to lose their session
 > rather than keep it.
 
-## `SteelClient.session_cookies`, [line 294](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L294): Docstring
+## `SteelClient.session_cookies`, [line 279](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L279): Docstring
 
 > Read the cookies through a short-lived CDP attachment.
 >
@@ -171,12 +171,12 @@ Code: `K_CONTEXT_PAGE_TIMEOUT_S = 10`
 > finished logging in, and an idle connection to the browser they are
 > using is a way to lose their session rather than keep it.
 
-## `SteelClient.forget_everything`, [line 308](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L308): Docstring
+## `SteelClient.forget_everything`, [line 293](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L293): Docstring
 
 > Clear the cookie jar this deployment's one browser carries between
 > sessions, so what a session is signed into is only what it restored.
 
-## `SteelClient.restore`, [line 324](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L324): Docstring
+## `SteelClient.restore`, [line 309](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L309): Docstring
 
 > Set stored cookies, addressed so the browser will accept them.
 >
@@ -185,7 +185,7 @@ Code: `K_CONTEXT_PAGE_TIMEOUT_S = 10`
 > reports as successful. The identity provider's cookies are exactly the
 > secure ones.
 
-## `SteelClient.session_headers`, [line 345](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L345): Docstring
+## `SteelClient.session_headers`, [line 330](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L330): Docstring
 
 > Watch the application make one request, and keep what authenticates it.
 >
@@ -198,28 +198,28 @@ Code: `K_CONTEXT_PAGE_TIMEOUT_S = 10`
 > theirs, is useless against this system, and has no business in a vault
 > keyed by it.
 
-## `SteelClient.live_sessions`, [line 386](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L386): Docstring
+## `SteelClient.live_sessions`, [line 371](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L371): Docstring
 
 > Every session Steel currently has a browser for.
 
-## `SteelClient.debugger_url`, [line 389](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L389): Docstring
+## `SteelClient.debugger_url`, [line 374](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L374): Docstring
 
 > A self-hosted Steel has one browser, so this is the same endpoint for
 > every session it reports. Asked per session anyway, because that is what
 > the port promises and what a pool would have to honour.
 
-## `SteelClient.frames`, [line 392](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L392): Docstring
+## `SteelClient.frames`, [line 377](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L377): Docstring
 
 > The session's screen off CDP, rather than Steel's own viewer page.
 
-## `SteelClient.live_view_url`, [line 396](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L396): Docstring
+## `SteelClient.live_view_url`, [line 381](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L381): Docstring
 
 > Ask Steel where the session can be driven.
 >
 > A released session still answers, but with a status that says it is over;
 > there is nothing to point an operator at, so that is ``None``.
 
-## `SteelClient._viewer`, [line 410](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L410): Docstring
+## `SteelClient._viewer`, [line 395](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L395): Docstring
 
 > Steel's bare session player rather than its own console.
 >
@@ -343,6 +343,25 @@ Code: `holding = [`
 
 ## `SteelClient.open`, [line 87](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L87): Comment
 
+Code: `"skipFingerprintInjection": True,`
+
+> Steel's fingerprint injector attaches to every new tab
+> (`CDPService.handleNewTarget` -> `injectFingerprintSafely` ->
+> `FingerprintInjector.attachFingerprintToPuppeteer`). When the tab has
+> already closed, `Target.attachToTarget` rejects with "No target with
+> given id found", nothing catches it, and Steel's Node process exits --
+> taking Chrome and every account context in the container with it.
+> Closing a tab right after opening it did this 3 times out of 3 in the S5
+> review, and every time again with this flag stripped in the S5 fix
+> round; with it, five open-then-close cycles and ten raw
+> create-then-close cycles left the sibling context alive. The option is
+> Steel's own session schema (`sessions.schema.js`,
+> `skipFingerprintInjection`), which gates exactly that call. Nothing here
+> wants a disguised browser: it drives the tenant's own WMS as the
+> tenant's own account.
+
+## `SteelClient.open`, [line 88](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L88): Comment
+
 Code: `"dimensions": {"width": self._dimensions[0], "height": self._dimensions[1]},`
 
 > Sized deliberately. The operator has to be able to read the screen
@@ -350,7 +369,7 @@ Code: `"dimensions": {"width": self._dimensions[0], "height": self._dimensions[1
 > captured is the one this viewport produced -- a cramped layout
 > teaches a skill about a layout nobody uses.
 
-## `SteelClient.open`, [line 107](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L107): Comment
+## `SteelClient.open`, [line 108](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L108): Comment
 
 Code: `live_view_url=self._viewer(body),`
 
@@ -358,27 +377,27 @@ Code: `live_view_url=self._viewer(body),`
 > (0.0.0.0:3000). Only the path is usable from out here; the host
 > comes from configuration, which knows the published ports.
 
-## `SteelClient._cdp_origin`, [line 177](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L177): Comment
+## `cdp_origin`, [line 441](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L441): Comment
 
 Code: `return f"{found[0][4][0]!s}:{port}"`
 
 > `sockaddr[0]` for AF_INET is the dotted address. `str()` rather than
 > a cast because the annotation admits shapes this family never has.
 
-## `SteelClient.session_headers.observe`, [line 366](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L366): Comment
+## `SteelClient.session_headers.observe`, [line 351](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L351): Comment
 
 Code: `if "/data/" not in str(request.get("url", "")):`
 
 > Data calls only: the document request carries no token, and
 > its Referer is whatever the operator came from.
 
-## `SteelClient.session_headers`, [line 378](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L378): Comment
+## `SteelClient.session_headers`, [line 363](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L363): Comment
 
 Code: `await page.wait_for_timeout(6000)`
 
 > The data calls follow the document, not the other way round.
 
-## `SteelClient.live_view_url`, [line 406](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L406): Comment
+## `SteelClient.live_view_url`, [line 391](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L391): Comment
 
 Code: `if str(body.get("status", "")).lower() in {"released", "failed", "idle"}:`
 

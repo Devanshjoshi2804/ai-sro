@@ -42,7 +42,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/capt
 
 > One attached CDP session. Not reusable across browser sessions.
 
-## `_addressed`, [line 586](../../../../../../../backend/src/sro/infrastructure/steel/capture.py#L586): Docstring
+## `addressed`, [line 586](../../../../../../../backend/src/sro/infrastructure/steel/capture.py#L586): Docstring
 
 > Give a stored cookie the URL it came from.
 >

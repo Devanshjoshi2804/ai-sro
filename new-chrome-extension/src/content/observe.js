@@ -51,9 +51,9 @@
   const alive = () => Boolean(chrome.runtime?.id);
 
   const tell = (message) => {
-    if (!alive()) return;
+    if (!alive()) return undefined;
     try {
-      chrome.runtime.sendMessage(message).catch(() => {});
+      return chrome.runtime.sendMessage(message).catch(() => undefined);
     } catch {
       // The context died between the check and the call. Nothing to do and
       // nobody to tell.
@@ -80,7 +80,13 @@
     )
       return;
 
-    tell({ kind: "gesture", gesture, frameUrl: location.href });
+    // A gesture the worker does not keep -- paused, an unwatched tab, a tab
+    // running a job -- must not lend its target's state to the next one the
+    // recorder records. Only an explicit `ok: true` counts as kept.
+    tell({ kind: "gesture", gesture, frameUrl: location.href })?.then((reply) => {
+      if (reply?.ok !== true)
+        window.dispatchEvent(new CustomEvent("sro:dropped", { detail: gesture.ref }));
+    });
   });
 
   tell({ kind: "content-ready", url: location.href });

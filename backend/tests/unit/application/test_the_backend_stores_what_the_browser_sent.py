@@ -28,6 +28,7 @@ that. So the fixture carries what a browser running no rules would have sent.
 
 from __future__ import annotations
 
+import copy
 import json
 import re
 from datetime import UTC, datetime
@@ -39,6 +40,7 @@ from sro.application.observation.policy import SetObservationPolicy
 from sro.application.observation.redact import redact_events
 from sro.application.observation.register import RegisterDevice
 from sro.domain.observation.batch import CaptureMode
+from sro.domain.observation.gesture import AfterState
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.sensitivity import REDACTED
 from sro.domain.shared.identifiers import BatchId, TenantId
@@ -183,6 +185,85 @@ async def test_nothing_reaches_the_blob_store_without_passing_the_boundary() -> 
     assert REDACTED in written
 
 
+_A_JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJvcGVyYXRvciJ9.c2lnbmF0dXJlLXNpZ25hdHVyZQ"
+_TYPED_AT_SIGN_IN = "correct-horse-battery-staple"
+_A_NOTE = "call the dentist at four"
+
+
+def _hostile() -> list[dict[str, object]]:
+    """What a client that ignores every rule could send: the free text of a
+    text field and of a password field as the state they were left in, joined
+    and unjoined."""
+    events = _events()
+    text, password, click = (copy.deepcopy(events[i]) for i in (1, 2, 3))
+    text["gesture"]["ref"] = "r.1"
+    password["gesture"].update(
+        ref="r.2", prior_of="r.1", prior={"value": _A_JWT, "visible": True, "enabled": True}
+    )
+    click["gesture"].update(
+        ref="r.3",
+        prior_of="r.2",
+        prior={"value": _TYPED_AT_SIGN_IN, "visible": True, "enabled": True},
+    )
+    unjoined = copy.deepcopy(click)
+    unjoined["gesture"].update(
+        ref="r.4", prior_of=None, prior={"value": _A_NOTE, "visible": True, "enabled": True}
+    )
+    unjoined["gesture"]["at"] += 1
+    return [text, password, click, unjoined]
+
+
+async def test_a_client_that_sends_typed_text_as_a_state_stores_none_of_it() -> None:
+    uow = FakeUnitOfWork()
+    blobs = FakeBlobStore()
+    await SetObservationPolicy(uow).execute(ACME, policy=ObservationPolicy().enabled())
+    registered = await RegisterDevice(uow, FakeClock(), FakeIdFactory()).execute(
+        ACME, label="laptop", extension_version="0.1.0"
+    )
+
+    stored = await IngestObservation(uow, blobs, FakeClock()).execute(
+        ACME,
+        device_id=registered.device_id,
+        secret=registered.secret,
+        batch_id=BatchId("bat_hostile_states"),
+        started_at=datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+        ended_at=datetime(2026, 3, 1, 9, 5, tzinfo=UTC),
+        mode=CaptureMode.PASSIVE,
+        events=_hostile(),
+    )
+
+    assert stored.stored_at is not None
+    written = (await blobs.read(stored.stored_at)).decode("utf-8")
+    kept = repr(list(uow.gestures.rows.values()))
+    assert len(uow.gestures.rows) == 4
+    for said in (_A_JWT, _TYPED_AT_SIGN_IN, _A_NOTE):
+        assert said not in written, f"{said!r} reached the evidence blob"
+        assert said not in kept, f"{said!r} reached the gesture store"
+    assert [one.action.after for one in uow.gestures.rows.values() if one.action.after] == [
+        AfterState(None, True, True),
+        AfterState(None, True, True),
+    ]
+
+
+def test_a_state_control_keeps_its_state_and_nothing_else() -> None:
+    events = _events()
+
+    def pair(target: dict[str, object], value: str) -> object:
+        before, after = copy.deepcopy(events[3]), copy.deepcopy(events[3])
+        before["gesture"].update(ref="r.1", target={**before["gesture"]["target"], **target})
+        after["gesture"].update(ref="r.2", prior_of="r.1", prior={"value": value})
+        return redact_events([before, after])[1]["gesture"]["prior"]["value"]
+
+    assert pair({"role": "checkbox"}, "checked") == "checked"
+    assert pair({"role": "switch"}, "unchecked") == "unchecked"
+    assert pair({"role": "checkbox"}, "on") is None
+    assert pair({"tag": "select", "role": "combobox"}, "Second choice") == "Second choice"
+    assert pair({"tag": "select", "role": "combobox"}, _A_JWT) == REDACTED
+    assert pair({"tag": "select", "secret": True}, "Second choice") is None
+    assert pair({"tag": "input", "role": "combobox"}, "typed") is None
+    assert pair({"tag": "input", "role": None}, "typed") is None
+
+
 def test_a_key_rendered_on_screen_does_not_survive_the_snapshot_tree() -> None:
     """The accessibility tree is 27MB of this deployment's 59MB evidence plane
     -- every string a page rendered, and nothing guarded it."""
@@ -201,6 +282,56 @@ def test_a_key_rendered_on_screen_does_not_survive_the_snapshot_tree() -> None:
 
     assert "eyJhbGciOiJIUzI1NiJ9" not in json.dumps(out)
     assert out["snapshot"]["nodes"][1]["name"] == "Service Level", "real page text is untouched"
+
+
+async def test_a_token_in_an_iframe_hop_does_not_survive_ingest() -> None:
+    """E3 added `gesture.frame_path[].url`, the chain of iframe URLs a gesture
+    was found through, and `_gesture` never ran it through `redact_url`: a
+    token in an iframe URL's query string or fragment went to the blob store
+    raw. Both a `?access_token=` and a `#id_token=` hop are checked, since
+    `redact_url` treats the query and the fragment separately."""
+    events = _events()
+    click = copy.deepcopy(events[3])
+    click["gesture"]["frame_path"] = [
+        {"index": 0, "url": "https://top.example/shell"},
+        {
+            "index": 1,
+            "url": (
+                "https://embed.example/widget"
+                "?access_token=live-secret-token"
+                "#id_token=live-secret-id-token"
+            ),
+        },
+    ]
+
+    uow = FakeUnitOfWork()
+    blobs = FakeBlobStore()
+    await SetObservationPolicy(uow).execute(ACME, policy=ObservationPolicy().enabled())
+    registered = await RegisterDevice(uow, FakeClock(), FakeIdFactory()).execute(
+        ACME, label="laptop", extension_version="0.1.0"
+    )
+
+    stored = await IngestObservation(uow, blobs, FakeClock()).execute(
+        ACME,
+        device_id=registered.device_id,
+        secret=registered.secret,
+        batch_id=BatchId("bat_with_a_token_in_a_frame_hop"),
+        started_at=datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+        ended_at=datetime(2026, 3, 1, 9, 5, tzinfo=UTC),
+        mode=CaptureMode.PASSIVE,
+        events=[click],
+    )
+
+    assert stored.stored_at is not None
+    written = (await blobs.read(stored.stored_at)).decode("utf-8")
+    assert "live-secret-token" not in written, "an access_token in a frame hop reached the blob"
+    assert "live-secret-id-token" not in written, "an id_token in a frame hop reached the blob"
+    assert "https://embed.example/widget" in written, "the hop's host and path are still evidence"
+
+    (correlated,) = uow.gestures.rows.values()
+    hops = repr(correlated.action.frame_path)
+    assert "live-secret-token" not in hops, "the correlated gesture kept the raw access_token"
+    assert "live-secret-id-token" not in hops, "the correlated gesture kept the raw id_token"
 
 
 def test_the_snapshot_tree_keeps_its_own_vocabulary() -> None:

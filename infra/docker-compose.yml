@@ -143,6 +143,12 @@ services:
       # non-IP, non-"localhost" Host is refused).
       DOMAIN: "localhost:3010"
       CDP_DOMAIN: "localhost:9223"
+      # A tab that closes before Steel's own new-target handler finishes its
+      # awaited CDP calls (a self-closing sign-in popup, for one) leaves an
+      # unhandled rejection Steel never catches, and Node exits -- killing
+      # every account in this container. Logging the rejection instead of
+      # dying is the fix; see task-S5-rereview-1.md's "Second crash path".
+      NODE_OPTIONS: --unhandled-rejections=warn
     ports:
       - "3010:3000"   # sessions API + debug UI  -> http://localhost:3010/ui
       - "9223:9223"   # chrome devtools protocol
@@ -155,6 +161,7 @@ services:
     environment:
       DOMAIN: "localhost:3011"
       CDP_DOMAIN: "localhost:9224"
+      NODE_OPTIONS: --unhandled-rejections=warn
     ports:
       - "3011:3000"
       - "9224:9223"

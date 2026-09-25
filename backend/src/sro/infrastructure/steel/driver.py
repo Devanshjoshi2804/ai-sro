@@ -5,7 +5,7 @@ import contextlib
 import itertools
 import json
 from collections import deque
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, TypeVar
@@ -710,28 +710,36 @@ class SteelDriver:
         )
 
     async def headers_for(
-        self, session: SessionRef, origin: str, deadline_s: float, *, since: int = 0
+        self,
+        session: SessionRef,
+        origin: str,
+        deadline_s: float,
+        *,
+        since: int = 0,
+        needs: Collection[str] = (),
     ) -> dict[str, str]:
         await self._context(session)
         key = (session.cdp_url, session.context_id)
         wanted = origin_of(origin)
         seen = self._seen.setdefault(key, asyncio.Event())
+        found: dict[str, str] = {}
         try:
             async with asyncio.timeout(deadline_s):
                 while True:
                     seen.clear()
-                    found = [
-                        (at, kept)
-                        for at, where, kept in self._requests.get(key, ())
-                        if at > since and where == wanted
-                    ]
-                    if found:
-                        return max(found, key=lambda one: one[0])[1]
+                    found = {}
+                    for at, where, kept in sorted(
+                        self._requests.get(key, ()), key=lambda one: one[0]
+                    ):
+                        if at > since and where == wanted:
+                            found.update(kept)
+                    if found and all(name in found for name in needs):
+                        return found
                     await seen.wait()
                     await self._context(session)
         except TimeoutError:
             await self._context(session)
-            return {}
+            return found
 
     async def cookies_for(self, session: SessionRef, url: str) -> str:
         link = await self._context(session)

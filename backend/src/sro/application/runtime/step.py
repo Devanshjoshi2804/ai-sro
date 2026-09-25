@@ -62,6 +62,7 @@ class LaneContext:
     secret: str | None = field(default=None, repr=False)
     thread: str = ""
     about_to_write: Callable[[], Awaitable[None]] = _nothing
+    reauthed: bool = False
 
     @property
     def ctx(self) -> RequestContext:

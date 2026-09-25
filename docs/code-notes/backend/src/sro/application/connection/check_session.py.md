@@ -36,7 +36,7 @@ Code: `UNREACHABLE = "unreachable"`
 > The system did not answer. Says nothing about the session, and must not
 > be reported as a bad one -- signing in again would not fix an outage.
 
-## `_is_login`, [line 174](../../../../../../../backend/src/sro/application/connection/check_session.py#L174): Docstring
+## `is_login`, [line 174](../../../../../../../backend/src/sro/application/connection/check_session.py#L174): Docstring
 
 > Whether the system answered with its login rather than with the thing.
 >
@@ -132,7 +132,7 @@ Code: `if await self._refresh.execute(ctx, cookies=cookies, trusted=True):`
 > cookie, which is what signing in produces and what an identity
 > provider's cookies alone are not.
 
-## `_is_login`, [line 179](../../../../../../../backend/src/sro/application/connection/check_session.py#L179): Comment
+## `is_login`, [line 179](../../../../../../../backend/src/sro/application/connection/check_session.py#L179): Comment
 
 Code: `lowered = body[:_LOGIN_SCAN_CHARS].lower()`
 

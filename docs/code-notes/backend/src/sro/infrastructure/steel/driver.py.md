@@ -428,8 +428,16 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 
 ## `SteelDriver.headers_for`, [line 712](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L712): Docstring
 
-> Answers as soon as the context's log holds a request to `origin` carrying
-> an AUTH or CSRF header, numbered after `since`, newest first. The log
+> Answers with the newest value of each AUTH or CSRF header the context's
+> log holds for requests to `origin` numbered after `since`, merged by
+> header name in request order (the log is appended when a request's
+> headers are read, so it is sorted by number first). Not the newest
+> token-bearing request alone: an app that sends its CSRF token only on
+> writes then sends a GET carrying only `x-requested-with`, and that newest
+> request would hide the token (X5 review concern 2). It answers as soon as
+> the merge is non-empty and holds every name in `needs` (lower-cased, the
+> tokens the caller's write carried); at the deadline it answers with what it
+> has, so a needed name that never arrived is simply absent. The log
 > started when the tab arrived, so a token sent before this call is found at
 > once (S10 review C1). `since` is a `mark` taken before a reload: the
 > broker's `fresh=True` passes it, so a token from before the reload is never
@@ -437,11 +445,11 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > context's `asyncio.Event`, set by each kept request, a tab closing or the
 > connection dropping, under the caller's `deadline_s`. Each wake re-asks
 > Chrome whether the context is still open, and so does the deadline, so a
-> context that dies mid-wait is `PageGone`, never `{}` (S10 review M7). The
+> context that dies mid-wait is `PageGone`, never an answer (S10 review M7). The
 > event is cleared before the log is scanned, so a request that lands
 > between the scan and the wait still wakes it.
 
-## `SteelDriver.cookies_for`, [line 736](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L736): Docstring
+## `SteelDriver.cookies_for`, [line 744](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L744): Docstring
 
 > The account's own jar (`Storage.getCookies` with its `browserContextId`,
 > same call `storage_state` makes), filtered by `belongs_to`: the browser's
@@ -449,7 +457,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > scheme (S10 review I3, I4). A url without a scheme carries nothing.
 > Joined as a `Cookie` header value.
 
-## `SteelDriver.restore_state`, [line 747](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L747): Docstring
+## `SteelDriver.restore_state`, [line 755](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L755): Docstring
 
 > Cookies go into the account's jar directly. `localStorage` is written now,
 > into the context itself, through a short-lived tab whose every request is
@@ -460,7 +468,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > review M5). This is how Playwright restores storage state into a context
 > it made; here the context is Steel's, so it is done by hand.
 
-## `SteelDriver.forget`, [line 780](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L780): Docstring
+## `SteelDriver.forget`, [line 788](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L788): Docstring
 
 > Drops this account's listeners from `SteelDriver._listeners` and from
 > every tab of theirs the driver currently knows about, and its request log
@@ -469,7 +477,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > the container, and the context belongs to the pool (S4, S7's lease),
 > which closes it.
 
-## `SteelDriver.aclose`, [line 795](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L795): Docstring
+## `SteelDriver.aclose`, [line 803](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L803): Docstring
 
 > Closes every connection and stops Playwright; the API lifespan and the
 > worker call it on the way down (S5 review I6). Closing a
@@ -517,7 +525,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > reaches `UiLane` as `PageUnsettled` through `_call`, never as a raw
 > `TimeoutError`.
 
-## `best_frame`, [line 805](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L805): Docstring
+## `best_frame`, [line 813](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L813): Docstring
 
 > Which frame the probe acts in, from `(frame, strategy)` for every frame
 > whose `resolve` found the control. A strict strategy outranks `repair`

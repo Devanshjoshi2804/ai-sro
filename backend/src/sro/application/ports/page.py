@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -91,7 +91,13 @@ class PageDriver(Protocol):
     async def url_of(self, session: SessionRef, target_id: str) -> str: ...
 
     async def headers_for(
-        self, session: SessionRef, origin: str, deadline_s: float, *, since: int = 0
+        self,
+        session: SessionRef,
+        origin: str,
+        deadline_s: float,
+        *,
+        since: int = 0,
+        needs: Collection[str] = (),
     ) -> dict[str, str]: ...
 
     async def cookies_for(self, session: SessionRef, url: str) -> str: ...

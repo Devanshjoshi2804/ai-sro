@@ -493,6 +493,78 @@ async def test_a_fresh_token_is_never_one_sent_before_the_mark(
     assert set(await driver.headers_for(one, app_origin, 5.0, since=since)) == {"x-csrf-token"}
 
 
+ASKED = "fetch('/api/ping', {headers: {'X-Requested-With': 'XMLHttpRequest'}})"
+
+
+async def test_each_token_is_its_newest_value_not_only_the_newest_request(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    app_origin = origin_of(rig.url("/app"))
+    target = await driver.open_tab(one, rig.url("/"))
+    await rig.sign_in_in(driver, one, target)
+    since = await driver.mark(one, target)
+    await driver.evaluate(one, target, SAVE)
+    assert await driver.wait_for_call(
+        one, target, method="POST", shape="/api/customer-types", since=since, deadline_s=5.0
+    )
+    await driver.evaluate(one, target, ASKED)
+
+    got = await driver.headers_for(
+        one, app_origin, 5.0, since=since, needs=("x-csrf-token", "x-requested-with")
+    )
+
+    assert got["x-requested-with"] == "XMLHttpRequest"
+    assert got["x-csrf-token"]
+
+
+async def test_a_needed_token_that_arrives_after_the_call_starts_is_waited_for(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    app_origin = origin_of(rig.url("/app"))
+    target = await driver.open_tab(one, rig.url("/"))
+    await rig.sign_in_in(driver, one, target)
+    since = await driver.mark(one, target)
+    await driver.evaluate(one, target, ASKED)
+    parked = asyncio.Event()
+
+    class Seen(asyncio.Event):
+        async def wait(self) -> Literal[True]:
+            parked.set()
+            return await super().wait()
+
+    driver._seen[(one.cdp_url, one.context_id)] = Seen()
+    waiting = asyncio.create_task(
+        driver.headers_for(one, app_origin, 10.0, since=since, needs=("x-csrf-token",))
+    )
+    await asyncio.wait_for(parked.wait(), 5.0)
+
+    await driver.evaluate(one, target, SAVE)
+
+    got = await waiting
+    assert got["x-csrf-token"]
+    assert got["x-requested-with"] == "XMLHttpRequest"
+
+
+async def test_a_needed_token_that_never_arrives_is_absent_at_the_deadline(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    app_origin = origin_of(rig.url("/app"))
+    target = await driver.open_tab(one, rig.url("/"))
+    await rig.sign_in_in(driver, one, target)
+    since = await driver.mark(one, target)
+    await driver.evaluate(one, target, ASKED)
+
+    got = await driver.headers_for(one, app_origin, 1.0, since=since, needs=("x-csrf-token",))
+
+    assert got == {"x-requested-with": "XMLHttpRequest"}
+
+
 async def test_an_authorization_the_browser_adds_itself_is_seen(
     rig: Rig,  # noqa: F811
     one: SessionRef,  # noqa: F811

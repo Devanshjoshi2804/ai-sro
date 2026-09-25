@@ -128,6 +128,7 @@ from sro.application.recording.attach_artifact import AttachArtifact
 from sro.application.recording.finish_recording import FinishRecording
 from sro.application.recording.ingest_capture_events import IngestCaptureEvents
 from sro.application.recording.start_recording import StartRecording
+from sro.application.runtime.api_lane import ApiLane
 from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.sight_lane import SightLane
 from sro.application.runtime.tool_lane import ToolLane
@@ -245,6 +246,9 @@ class Container:
     capture: CaptureController = field(init=False)
 
     driving_runs: AsyncConnection | None = None
+
+    def api_lane(self) -> ApiLane:
+        return ApiLane(self.http, self.session_broker())
 
     def ui_lane(self) -> UiLane:
         return UiLane(self.driver)

@@ -93,7 +93,7 @@ class CheckSession:
         except TargetUnreachable as error:
             return SessionCheck(connection_id, system, SessionHealth.UNREACHABLE, str(error))
 
-        if _is_login(
+        if is_login(
             response.status_code,
             response.headers.get("location"),
             connection.base_url,
@@ -129,7 +129,7 @@ class CheckSession:
             )
         except TargetUnreachable:
             return False
-        return not _is_login(
+        return not is_login(
             answer.status_code,
             answer.headers.get("location"),
             connection.base_url,
@@ -171,7 +171,7 @@ class CheckSession:
         return False
 
 
-def _is_login(status_code: int, location: str | None, base_url: str, body: str = "") -> bool:
+def is_login(status_code: int, location: str | None, base_url: str, body: str = "") -> bool:
     if 300 <= status_code < 400 and location:
         here = urlsplit(base_url).hostname or ""
         there = urlsplit(location).hostname

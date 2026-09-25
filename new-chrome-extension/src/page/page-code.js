@@ -41,10 +41,24 @@
         .trim();
       return said ? said.slice(0, MAX_TEXT) : null;
     };
+    const NOT_LABEL = "input, select, textarea, [contenteditable], script, style";
+    const textBeside = (node) =>
+      node.nodeType === 3
+        ? node.data
+        : node.nodeType === 1 && !node.matches(NOT_LABEL) && node.getClientRects().length
+          ? [...node.childNodes].map(textBeside).join("")
+          : " ";
+    const labelled = (el) => {
+      const label = el.labels[0];
+      const said = label.querySelector(NOT_LABEL)
+        ? [...label.childNodes].map(textBeside).join("").replace(/\s+/g, " ")
+        : label.innerText || "";
+      return said.trim().slice(0, MAX_TEXT);
+    };
     const nameOf = (el) => {
       const own = ownName(el);
       if (own) return own;
-      if (el.labels && el.labels.length) return (el.labels[0].innerText || "").trim().slice(0, MAX_TEXT);
+      if (el.labels && el.labels.length) return labelled(el);
       const pressed = el.tagName.toLowerCase() === "input" && roleOf(el) === "button" ? el.value : "";
       const said = el.getAttribute("placeholder") || el.getAttribute("title") || el.innerText || pressed || "";
       return said.trim().slice(0, MAX_TEXT);
@@ -138,15 +152,13 @@
     const OUTLINE_FIELDS = 80;
     const OUTLINE_TEXT = 120;
     const OUTLINE_MESSAGES = 10;
-    const ECHO_MIN = 3;
-    const ECHO_SPAN = 8;
+    const OUTLINE_CHARS = 16384;
     const FIELD_ROLES = ["textbox", "searchbox", "combobox", "listbox", "checkbox", "radio", "switch", "spinbutton", "slider"];
-    const NOT_TYPED = ["checkbox", "radio", "button", "submit", "reset", "image", "hidden", "file", "range", "color"];
-    const NOT_VOCABULARY = /:\/\/|\w=\S/;
+    const NOT_VOCABULARY = /:\/\/|\w=\S|[0-9a-f]{16,}|[\w-]{32,}/i;
     const labelOf = (el) => {
       const own = ownName(el);
       if (own) return own;
-      if (el.labels && el.labels.length) return (el.labels[0].innerText || "").trim().slice(0, MAX_TEXT);
+      if (el.labels && el.labels.length) return labelled(el);
       return (el.getAttribute("placeholder") || el.getAttribute("title") || "").trim().slice(0, MAX_TEXT);
     };
     const requiredOf = (el) => {
@@ -157,48 +169,27 @@
       return /\*\s*$/.test(labelOf(el)) ? true : null;
     };
     const plainOf = (text) => String(text || "").replace(/\s+/g, " ").trim();
-    const wordsOf = (text) => text.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
     const insideEditor = (el) => Boolean(el.parentElement && el.parentElement.isContentEditable);
-    const rootsOf = (root) => [
-      root,
-      ...[...root.querySelectorAll("*")].flatMap((el) => {
-        let inner = el.shadowRoot;
-        if (!inner && el.tagName === "IFRAME") {
-          try {
-            inner = el.contentDocument;
-          } catch {
-            inner = null;
-          }
+    const sizeOf = (value) => JSON.stringify(value).length;
+    const fitted = (outline) => {
+      let size = sizeOf(outline);
+      for (const field of [...outline.fields].reverse()) {
+        if (size <= OUTLINE_CHARS) break;
+        if (field.options !== null) {
+          size -= sizeOf(field.options) - sizeOf(null);
+          field.options = null;
         }
-        return inner ? rootsOf(inner) : [];
-      }),
-    ];
-    const typedOn = (doc) =>
-      rootsOf(doc)
-        .flatMap((root) => [...root.querySelectorAll("input, textarea, [contenteditable]")])
-        .map((el) => {
-          if (el.isContentEditable) return insideEditor(el) ? "" : el.innerText;
-          if (el.tagName === "INPUT" && NOT_TYPED.includes((el.getAttribute("type") || "text").toLowerCase())) return "";
-          return el.value;
-        })
-        .map((text) => plainOf(text).toLowerCase())
-        .filter(Boolean);
-    const echoes = (lower, typed) => {
-      const words = wordsOf(lower);
-      return typed.some((one) => {
-        if (one.length < ECHO_MIN) return wordsOf(one).some((word) => words.includes(word));
-        if (lower.includes(one)) return true;
-        for (let at = 0; at + ECHO_SPAN <= lower.length; at += 1) {
-          if (one.includes(lower.slice(at, at + ECHO_SPAN))) return true;
-        }
-        return false;
-      });
+      }
+      for (const key of ["fields", "buttons", "landmarks", "messages", "headings"]) {
+        const items = outline[key];
+        while (items.length && size > OUTLINE_CHARS) size -= sizeOf(items.pop()) + (items.length ? 1 : 0);
+      }
+      return outline;
     };
     const outlineOf = (doc) => {
-      const typed = typedOn(doc);
       const say = (text) => {
         const plain = plainOf(text);
-        if (!plain || NOT_VOCABULARY.test(plain) || echoes(plain.toLowerCase(), typed)) return null;
+        if (!plain || NOT_VOCABULARY.test(plain)) return null;
         return plain.slice(0, OUTLINE_TEXT);
       };
       const shownIn = (selector) =>
@@ -226,16 +217,16 @@
           .split(/\s+/)
           .map((id) => id && doc.getElementById(id))
           .filter(Boolean)
-          .map((said) => ({ role: "invalid", text: said.innerText })),
+          .map((said) => ({ role: "invalid", said })),
       );
       const messages = [
-        ...shownIn("[role=alert], [role=status]").map((el) => ({ role: el.getAttribute("role"), text: el.innerText })),
+        ...shownIn("[role=alert], [role=status]").map((said) => ({ role: said.getAttribute("role"), said })),
         ...invalid,
       ]
-        .map((one) => ({ role: one.role, text: say(one.text) }))
-        .filter((one) => one.text)
+        .filter((one) => plainOf(one.said.innerText))
+        .map((one) => ({ role: one.role }))
         .slice(0, OUTLINE_MESSAGES);
-      return {
+      return fitted({
         headings: unique(shownIn("h1, h2, h3, h4, h5, h6, [role=heading]").map((el) => el.innerText), OUTLINE_FIELDS),
         landmarks: shownIn("form, dialog, [role=dialog], [role=alertdialog], [role=form]")
           .map((el) => ({ role: landmarkRole(el), name: say(ownName(el)) }))
@@ -243,7 +234,7 @@
         fields,
         buttons: unique(shownIn("button, [role=button], input[type=submit], input[type=button]").map(nameOf), OUTLINE_FIELDS),
         messages,
-      };
+      });
     };
     return {
       roleOf, ownName, nameOf, landmarkRole, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf,

@@ -142,7 +142,6 @@ class OutlineField(BaseModel):
 
 class OutlineMessage(BaseModel):
     role: str
-    text: str
 
 
 class Outline(BaseModel):

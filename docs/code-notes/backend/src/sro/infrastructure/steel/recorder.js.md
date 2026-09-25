@@ -63,13 +63,18 @@ Code: `listen('sro:dropped', (e) => {`
 > dropped record carried outlines, and without the reset the next gesture
 > would not resend a screen the server never received, so the server's last
 > outline for this frame would be stale.
+> `observe.js` also dispatches `sro:dropped` (with no `ref`) when it refuses a
+> record over its 128 KiB limit, so a refusal for size is never silent here
+> either. Outlines are capped well under that limit (page-code.js
+> `OUTLINE_CHARS`), so it should not happen.
 
 ## `OUTLINES_PER_GESTURE`, [line 112](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L112): Constant
 
 > At most three screens ride on one gesture record: the ones seen since this
 > frame's previous gesture, oldest dropped first. A screen equal to the last
 > one taken (`seenOutline`, compared as JSON) is not taken again, so an
-> unchanged page costs nothing per gesture.
+> unchanged page is not resent. A message keeps only its role, so a status
+> whose text ticks does not produce a new screen per tick.
 
 ## `takeOutline`, [line 116](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L116): Function
 

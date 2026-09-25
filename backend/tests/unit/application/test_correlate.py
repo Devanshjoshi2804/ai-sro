@@ -463,3 +463,15 @@ def test_a_gesture_without_an_outline_was_made_on_the_last_outlined_screen() -> 
 
     assert last_outline(gestures[1], gestures[:1]) == Outline(buttons=("Save",))
     assert last_outline(gestures[2], gestures[:2]) is None
+
+
+def test_a_screen_from_another_document_in_the_same_frame_is_not_this_one() -> None:
+    first, second = (copy.deepcopy(GESTURE_TYPE) for _ in range(2))
+    first["gesture"]["outlines"] = [{"buttons": ["Save"]}]
+    first["gesture"]["url"] = "https://wms.example/customers?id=1"
+    second["gesture"]["url"] = "https://wms.example/orders?id=1"
+    second["gesture"]["at"] = first["gesture"]["at"] + 1
+
+    gestures, _, _, _ = correlate(_batch([first, second]), TENANT)
+
+    assert last_outline(gestures[1], gestures[:1]) is None

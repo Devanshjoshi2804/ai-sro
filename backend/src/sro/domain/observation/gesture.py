@@ -72,7 +72,6 @@ class OutlineField:
 @dataclass(frozen=True, slots=True)
 class OutlineMessage:
     role: str
-    text: str
 
 
 @dataclass(frozen=True, slots=True)

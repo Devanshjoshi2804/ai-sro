@@ -40,7 +40,8 @@ from sro.application.observation.policy import SetObservationPolicy
 from sro.application.observation.redact import redact_events
 from sro.application.observation.register import RegisterDevice
 from sro.domain.observation.batch import CaptureMode
-from sro.domain.observation.gesture import AfterState, Landmark
+from sro.domain.observation.gesture import AfterState, Landmark, OutlineMessage
+from sro.domain.observation.outline import K_OUTLINE_CHARS, K_OUTLINE_FIELDS, K_OUTLINE_OPTIONS
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.sensitivity import REDACTED
 from sro.domain.shared.identifiers import BatchId, TenantId
@@ -316,47 +317,57 @@ async def test_a_token_in_an_iframe_hop_does_not_survive_ingest() -> None:
 
 _TYPED = "ACME-7731-QX"
 _OTP = "483920"
-_SHORT = "7"
 _SECRET = "hunter2-correct-horse"  # noqa: S105 -- not a credential
+_PATH_TOKEN = "9f8e7d6c5b4a39281706f5e4d3c2b1a0"  # noqa: S105 -- not a credential
+_FORGED = {"headings": ["Forged Under Another Key"], "buttons": [f"Code {_OTP}"]}
 
 
 def _hostile_outline() -> list[dict[str, object]]:
     events = _events()
-    typed, click = copy.deepcopy(events[1]), copy.deepcopy(events[3])
+    typed, click, page = (
+        copy.deepcopy(events[1]),
+        copy.deepcopy(events[3]),
+        copy.deepcopy(events[4]),
+    )
     typed["gesture"].update(kind="type", value=_TYPED, secret=False)
     typed["gesture"]["target"] = {**typed["gesture"]["target"], "secret": False}
-    code, short, secret = copy.deepcopy(typed), copy.deepcopy(typed), copy.deepcopy(typed)
-    code["gesture"].update(value=_OTP, at=typed["gesture"]["at"] + 0.5)
-    short["gesture"].update(value=_SHORT, at=typed["gesture"]["at"] + 0.6)
-    secret["gesture"].update(value=_SECRET, secret=True, at=typed["gesture"]["at"] + 0.7)
+    click["gesture"]["outline"] = _FORGED
+    click["gesture"]["snapshot"] = _FORGED
+    click["outlines"] = [_FORGED]
+    page["outlines"] = [_FORGED]
     click["gesture"]["outlines"] = [
         {
-            "headings": [f"Editing {_TYPED}", "Customer Types", "access_token=live-token"],
+            "headings": [
+                "Customer Types",
+                "access_token=live-token",
+                f"Open /reset/{_PATH_TOKEN} to continue",
+            ],
             "landmarks": [
-                {"role": "dialog", "name": f"Code {_OTP}"},
                 {"role": "form", "name": "New"},
                 {"role": "region", "name": "Anything"},
-                {"role": "form", "name": f"Signed in with {_SECRET}"},
+                {"role": ["form"], "name": "Unhashable"},
             ],
             "fields": [
                 {"role": "textbox", "label": "Verify", "value": _OTP, "required": True},
-                {"role": "textbox", "label": f"Note: {_TYPED}"},
                 {"role": "gridcell", "label": "Row 4"},
+                {"role": [], "label": "A list role"},
+                {"role": {}, "label": "A mapping role"},
                 {"role": "combobox", "label": "Department", "options": ["Finance", _A_JWT]},
                 {"role": "combobox", "label": "Carrier", "options": [f"c{i}" for i in range(26)]},
             ],
-            "buttons": ["Save", f"Save {_TYPED}", f"Saved {_TYPED[:9]}"],
+            "buttons": ["Save"],
             "messages": [
                 {"role": "status", "text": "https://wms.example/cb?access_token=live-token"},
-                {"role": "alert", "text": "Required field"},
-                {"role": "alert", "text": f"Code {_SHORT} rejected"},
+                {"role": "alert", "text": f"Code {_OTP} has expired"},
+                {"role": "status", "text": f"Verifying {_SECRET}"},
                 {"role": "banner", "text": "free page text"},
+                {"role": ["alert"], "text": "a list role"},
             ],
             "value": _OTP,
             "text": f"all page text {_TYPED}",
         }
     ]
-    return [typed, code, short, secret, click]
+    return [typed, click, page]
 
 
 async def test_a_client_that_sends_values_in_an_outline_stores_none_of_them() -> None:
@@ -379,28 +390,29 @@ async def test_a_client_that_sends_values_in_an_outline_stores_none_of_them() ->
     )
 
     assert stored.stored_at is not None
-    lines = (await blobs.read(stored.stored_at)).decode("utf-8").splitlines()
-    written = json.dumps(
-        [json.loads(one).get("gesture", {}).get("outlines") for one in lines if one]
-    )
+    written = (await blobs.read(stored.stored_at)).decode("utf-8")
     (outline,) = next(
         one.action.outlines for one in uow.gestures.rows.values() if one.action.outlines
     )
     kept = repr(outline)
     for said in (
-        _TYPED,
-        _TYPED[:9],
         _OTP,
         _SECRET,
         _A_JWT,
+        _PATH_TOKEN,
         "live-token",
         "free page text",
         "all page text",
         "Row 4",
-        f"Code {_SHORT}",
         "Anything",
+        "A list role",
+        "A mapping role",
+        "a list role",
+        "Unhashable",
+        "has expired",
+        "Forged Under Another Key",
     ):
-        assert said not in written, f"{said!r} reached an outline in the evidence blob"
+        assert said not in written, f"{said!r} reached the evidence blob"
         assert said not in kept, f"{said!r} reached an outline in the gesture store"
     assert outline.headings == ("Customer Types",)
     assert outline.landmarks == (Landmark("form", "New"),)
@@ -410,7 +422,62 @@ async def test_a_client_that_sends_values_in_an_outline_stores_none_of_them() ->
         ("combobox", "Carrier", None),
     ]
     assert outline.buttons == ("Save",)
-    assert [(one.role, one.text) for one in outline.messages] == [("alert", "Required field")]
+    assert outline.messages == (
+        OutlineMessage("status"),
+        OutlineMessage("alert"),
+        OutlineMessage("status"),
+    )
+
+
+def test_a_word_the_operator_typed_is_still_the_screen_s_vocabulary() -> None:
+    typed = {"kind": "gesture", "tab_id": 1, "gesture": {"kind": "type", "at": 1.0}}
+    typed["gesture"]["value"] = "Operations Center"
+    click = {"kind": "gesture", "tab_id": 1, "gesture": {"kind": "click", "at": 2.0}}
+    click["gesture"]["outlines"] = [
+        {
+            "headings": ["Operations Dashboard", "Picking", "Step 1 of 3"],
+            "fields": [
+                {"role": "textbox", "label": "Pick Location"},
+                {"role": "combobox", "label": "Site", "options": ["Operations Center", "Dock"]},
+            ],
+            "buttons": ["Reopen"],
+        }
+    ]
+
+    (_, out) = redact_events([typed, click])
+
+    (outline,) = out["gesture"]["outlines"]
+    assert outline["headings"] == ["Operations Dashboard", "Picking", "Step 1 of 3"]
+    assert [one["label"] for one in outline["fields"]] == ["Pick Location", "Site"]
+    assert outline["fields"][1]["options"] == ["Operations Center", "Dock"]
+    assert outline["buttons"] == ["Reopen"]
+
+
+def test_an_outline_too_large_to_send_loses_its_option_lists_before_its_fields() -> None:
+    options = [f"Carrier option number {i:02d} with a long name" for i in range(K_OUTLINE_OPTIONS)]
+    fields = [
+        {"role": "combobox", "label": f"Carrier {i}", "options": options}
+        for i in range(K_OUTLINE_FIELDS)
+    ]
+    click = {"kind": "gesture", "tab_id": 1, "gesture": {"kind": "click", "at": 2.0}}
+    click["gesture"]["outlines"] = [
+        {"headings": ["Carriers"], "fields": fields, "buttons": ["Save"]}
+    ]
+
+    ((out,),) = [one["gesture"]["outlines"] for one in redact_events([click])]
+
+    assert len(json.dumps(out, separators=(",", ":"))) <= K_OUTLINE_CHARS
+    assert out["headings"] == ["Carriers"]
+    assert out["fields"][0]["options"] == options
+    assert out["fields"][-1] == {
+        "role": "combobox",
+        "label": f"Carrier {K_OUTLINE_FIELDS - 1}",
+        "required": None,
+        "options": None,
+    }
+    assert len(out["fields"]) == K_OUTLINE_FIELDS, "labels outlast option lists"
+    kept = [one for one in out["fields"] if one["options"] is not None]
+    assert kept == out["fields"][: len(kept)], "option lists are dropped from the end"
 
 
 def test_a_tree_from_an_older_extension_is_discarded_unread() -> None:

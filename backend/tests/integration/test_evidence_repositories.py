@@ -164,7 +164,7 @@ class TestGestures:
                 OutlineField("textbox", "Code"),
             ),
             buttons=("Save",),
-            messages=(OutlineMessage("alert", "Required field"),),
+            messages=(OutlineMessage("alert"),),
         )
         gesture = _gesture("ges_1")
         gesture.action = replace(gesture.action, outlines=(screen, Outline(buttons=("Close",))))

@@ -195,7 +195,7 @@ def as_action(wire: WireGesture) -> Action:
                     for field in one.fields
                 ),
                 buttons=tuple(one.buttons),
-                messages=tuple(OutlineMessage(said.role, said.text) for said in one.messages),
+                messages=tuple(OutlineMessage(said.role) for said in one.messages),
             )
             for one in wire.outlines
         ),

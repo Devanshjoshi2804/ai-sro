@@ -1,18 +1,21 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
+import json
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import asdict
 from urllib.parse import urlsplit
 
 from sro.application.ports.page import PageAnswer, PageDriver, PageUnsettled
 from sro.application.runtime.step import Held, LaneContext, Stopped
 from sro.domain.execution.belts import expected_statuses
+from sro.domain.execution.compose import Adding, keyed
 from sro.domain.execution.evidence import READ_METHODS, primary_gesture, recorded_call, writes
 from sro.domain.execution.lanes import (
     Lane,
     SeenCall,
     StepResult,
+    accepts,
     fingerprint_of,
     write_confirmed,
 )
@@ -21,7 +24,7 @@ from sro.domain.execution.planning import value_for
 from sro.domain.execution.records import made_by, names_in
 from sro.domain.execution.secrets import needs_a_secret
 from sro.domain.observation.gesture import AfterState, Body, Call, Gesture
-from sro.domain.observation.trim import body_key_set, path_shape
+from sro.domain.observation.trim import body_key_set, parsed_body, path_shape
 from sro.domain.skill.signing_in import expired
 from sro.domain.skill.workflow import Step
 
@@ -121,12 +124,17 @@ class UiLane:
                 deadline_s=self._wait_s,
             )
         calls = await self._driver.calls_since(held.session, held.target_id, mark)
-        own = [one for one in calls if recorded is not None and same_call(one, recorded)]
+        adding = ctx.adding.get(step.order, Adding())
+        found = [
+            (one, keys)
+            for one in calls
+            if recorded is not None and (keys := same_call(one, recorded, adding)) is not None
+        ]
+        own = [one for one, _ in found]
         after = primary.action.after
         if writes(step, ctx.by_id):
-            verdict = write_confirmed(
-                recorded=recorded, wanted=expected_statuses(step, ctx.by_id), calls=own
-            )
+            wanted = expected_statuses(step, ctx.by_id)
+            verdict = write_confirmed(recorded=recorded, wanted=wanted, calls=own)
             if verdict == "failed":
                 return StepResult(
                     "failed",
@@ -146,7 +154,13 @@ class UiLane:
                 filter(None, (made_by({"status": one.status, "body": one.body}) for one in own)),
                 {},
             )
-            return StepResult(verdict or "unknown", Lane.UI, read=made, calls=calls)
+            return StepResult(
+                verdict or "unknown",
+                Lane.UI,
+                read=made,
+                calls=calls,
+                keyed=confirming(found, wanted) if verdict == "done" else {},
+            )
         if recorded is not None and recorded.method.upper() in READ_METHODS:
             got = next(
                 (
@@ -192,20 +206,33 @@ class UiLane:
         )
 
 
-def same_call(seen: SeenCall, recorded: Call) -> bool:
+def same_call(seen: SeenCall, recorded: Call, adding: Adding) -> dict[str, str] | None:
     if not (
         seen.own_frame
         and seen.method.upper() == recorded.method.upper()
         and path_shape(seen.url) == path_shape(recorded.url)
         and urlsplit(seen.url).netloc == urlsplit(recorded.url).netloc
     ):
-        return False
+        return None
     wanted = body_key_set(recorded.request_body)
     if wanted is None:
-        return True
-    seen_body = (
-        Body(text=seen.request_body, mime_type=seen.request_content_type)
-        if seen.request_body is not None
+        return {}
+    sent = (
+        parsed_body(Body(text=seen.request_body, mime_type=seen.request_content_type))
+        if seen.request_body
         else None
     )
-    return body_key_set(seen_body) == wanted
+    if not isinstance(sent, dict) or not wanted <= sent.keys():
+        return None
+    extra = {
+        str(key): said if isinstance(said, str) else json.dumps(said)
+        for key, said in sent.items()
+        if key not in wanted
+    }
+    return keyed(extra, adding)
+
+
+def confirming(
+    found: Sequence[tuple[SeenCall, dict[str, str]]], wanted: Collection[int]
+) -> dict[str, str]:
+    return next((keys for one, keys in found if accepts(one.status, wanted)), {})

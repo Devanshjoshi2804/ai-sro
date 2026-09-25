@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/application/runtime/step.py`](../../../../../../../backend/src/sro/application/runtime/step.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `WaitingForAPerson`, [line 38](../../../../../../../backend/src/sro/application/runtime/step.py#L38): Note
+## `WaitingForAPerson`, [line 39](../../../../../../../backend/src/sro/application/runtime/step.py#L39): Note
 
 > A sign-in asked for a one-time code and its page is kept open for a
 > person: a `NeedsAPerson` of kind `code` that also carries the `Held`
@@ -10,7 +10,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/step.
 > question and later call `SessionBroker.resume` on that tab. Unlike every
 > other `NeedsAPerson`, its tab must not be closed while the run waits.
 
-## `LaneContext`, [line 65](../../../../../../../backend/src/sro/application/runtime/step.py#L65): Note
+## `LaneContext`, [line 66](../../../../../../../backend/src/sro/application/runtime/step.py#L66): Note
 
 Code: `reauthed: bool = False`
 
@@ -20,7 +20,7 @@ Code: `reauthed: bool = False`
 > request log still holds the token from before the sign-in, and replaying
 > it would spend the only retry on a second refusal.
 
-## `ReadsBack`, [line 106](../../../../../../../backend/src/sro/application/runtime/step.py#L106): Note
+## `ReadsBack`, [line 108](../../../../../../../backend/src/sro/application/runtime/step.py#L108): Note
 
 > The API lane as the executor needs it: a lane that can also say whether
 > a read-back shows an `unknown` write's values, without sending the

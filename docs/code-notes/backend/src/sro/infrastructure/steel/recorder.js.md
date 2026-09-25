@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/recorder.js`](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js). Each note names the code it explains (the const it is bound to, then the line in the current file) and keeps the original text. The rest of this file still carries its explanations inline (`check_code_notes.py` gained JS support in X1, after most of this file was written); the symbols below are the ones added since, so they follow the same-file convention the Python side already uses.
 
-## `stateOf`, [line 94](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L94): Docstring
+## `stateOf`, [line 53](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L53): Docstring
 
 > What the target is in right now: its setting (`settingOf`), whether it is
 > visible, whether it is enabled. `emit` calls it on whatever element the
@@ -13,14 +13,14 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/reco
 > `isSecretField` blanks a select named like a credential, and a label is cut
 > to `MAX_VALUE`.
 
-## `REALM`, [line 107](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L107): Docstring
+## `REALM`, [line 66](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L66): Docstring
 
 > Makes `ref` unique across recorder installs. The counter restarts whenever
 > the recorder is installed again (a navigation, a `document.open`), so a bare
 > counter would let a new page's gesture 1 claim the identity of an old page's
 > gesture 1 on the same tab and frame.
 
-## `last`, [line 109](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L109): Docstring
+## `last`, [line 68](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L68): Docstring
 
 > The element the previous gesture acted on, and `lastRef` that gesture's
 > `ref`, so `emit` can read its state right before recording the next one and
@@ -29,7 +29,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/reco
 > previous target's state and resets it, it does not skip it), and after the
 > worker says it did not keep the gesture that set them (`sro:dropped`).
 
-## `emit`, [line 263](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L263): Docstring
+## `emit`, [line 222](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L222): Docstring
 
 > A control keeps changing after the gesture that touched it fires -- a
 > spinner clears, a field disables, a box stays ticked -- so there is no
@@ -45,7 +45,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/reco
 > its after-state arrives in the next batch and is not joined (see
 > correlate.py's notes).
 
-## module, [line 293](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L293): Comment
+## module, [line 252](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L252): Comment
 
 Code: `listen('sro:dropped', (e) => {`
 
@@ -68,7 +68,7 @@ Code: `listen('sro:dropped', (e) => {`
 > either. Outlines are capped well under that limit (page-code.js
 > `OUTLINE_CHARS`), so it should not happen.
 
-## `OUTLINES_PER_GESTURE`, [line 112](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L112): Constant
+## `OUTLINES_PER_GESTURE`, [line 71](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L71): Constant
 
 > At most three screens ride on one gesture record: the ones seen since this
 > frame's previous gesture, oldest dropped first. A screen equal to the last
@@ -76,13 +76,13 @@ Code: `listen('sro:dropped', (e) => {`
 > unchanged page is not resent. A message keeps only its role, so a status
 > whose text ticks does not produce a new screen per tick.
 
-## `takeOutline`, [line 116](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L116): Function
+## `takeOutline`, [line 75](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L75): Function
 
 > Reads `outlineOf(document)` and keeps it when the screen changed. A throw is
 > swallowed: an outline the page cannot give must not cost the gesture it
 > would have ridden on.
 
-## `appeared`, [line 127](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L127): Function
+## `appeared`, [line 86](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L86): Function
 
 > When a screen is outlined between gestures. `emit` always reads one; this
 > adds the screens that come and go before anyone acts: a dialog or form
@@ -94,7 +94,7 @@ Code: `listen('sro:dropped', (e) => {`
 > screen that gesture produced (a confirmation, an error) is not sent until
 > the operator acts again.
 
-## `WATCHING`, [line 134](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L134): Constant
+## `WATCHING`, [line 93](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L93): Constant
 
 > The observer is kept on the window and disconnected before a new one is made,
 > for the same reason the listeners are (`__sroHandlers`): installing the

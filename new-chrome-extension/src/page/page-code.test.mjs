@@ -988,3 +988,39 @@ test("a hidden password field is not shown, and a page with none reports none", 
 test("the page code can outline the live screen", () => {
   assert.equal(typeof loadSroPage().outline, "function");
 });
+
+test("resolve reads the value the one control holds, never a password's", () => {
+  const { resolve } = loadSroPage();
+  const chosen = Object.assign(elem("select", { attrs: { name: "department" } }), { value: "3" });
+  const secret = Object.assign(elem("input", { attrs: { name: "pw" } }), { value: "hunter2", type: "password" });
+
+  page([chosen]);
+  assert.equal(resolve({ target: { attributes: { name: "department" } } }).held, "3");
+  page([secret]);
+  assert.equal(resolve({ target: { attributes: { name: "pw" } } }).held, null);
+  page([]);
+  assert.equal(resolve({ target: { attributes: { name: "department" } } }).held, null);
+});
+
+for (const [rule, attrs, props] of [
+  ["a card number", { autocomplete: "cc-number" }, {}],
+  ["a card code", { autocomplete: "cc-csc" }, {}],
+  ["a one-time code", { autocomplete: "one-time-code" }, {}],
+  ["a password by its autocomplete", { autocomplete: "current-password" }, {}],
+  ["a secret-named id", {}, { id: "apiToken" }],
+  ["a secret-named aria-label", { "aria-label": "Security PIN" }, {}],
+]) {
+  test(`resolve never reads the value of ${rule}`, () => {
+    const { resolve, act } = loadSroPage();
+    const field = Object.assign(elem("input", { attrs: { name: "field", ...attrs } }), {
+      value: "4111111111111111",
+      type: "text",
+      ...props,
+    });
+    page([field]);
+
+    assert.equal(resolve({ target: { attributes: { name: "field" } } }).held, null);
+    const acted = act({ action: "click", target: { attributes: { name: "field" } } });
+    assert.equal(acted.state?.value ?? null, null);
+  });
+}

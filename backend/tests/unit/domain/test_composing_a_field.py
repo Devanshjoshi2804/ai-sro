@@ -1,0 +1,119 @@
+from dataclasses import replace
+
+from sro.domain.execution.compose import Adding, Composed, compose, keyed, with_field
+from sro.domain.observation.gesture import Gesture, Outline, OutlineField
+from sro.domain.skill.workflow import Workflow
+from tests.unit.runtime_support import save_step
+
+
+def _job(*fields: OutlineField) -> tuple[Workflow, dict[str, Gesture]]:
+    step, by_id = save_step(status=201)
+    save = by_id["ges_save"]
+    by_id["ges_save"] = replace(
+        save, action=replace(save.action, outlines=(Outline(fields=fields),))
+    )
+    job = Workflow(
+        id="wf_ct", tenant="acme", title="Create Customer Type", narrative="", steps=[step]
+    )
+    return job, by_id
+
+
+def test_a_value_the_job_never_filled_is_composed_before_the_write_whose_screen_names_it() -> None:
+    job, by_id = _job(
+        OutlineField("textbox", "Customer Type *", True),
+        OutlineField("combobox", "Department", None, ("Finance", "Operations")),
+    )
+
+    composed, unplaced = compose(job, by_id, {"department": "Finance"})
+
+    assert composed == (
+        Composed(
+            "department", "Department", "combobox", job.steps[0].order, ("Finance", "Operations")
+        ),
+    )
+    assert unplaced == ()
+    assert composed[0].action == "select"
+
+
+def test_a_name_no_field_has_or_two_fields_have_is_asked_never_guessed() -> None:
+    job, by_id = _job(OutlineField("combobox", "Department"), OutlineField("textbox", "Department"))
+
+    _, twice = compose(job, by_id, {"Department": "Finance"})
+    _, nowhere = compose(job, by_id, {"Cost centre": "CC-9"})
+
+    assert [one.why for one in twice] == ["ambiguous"]
+    assert [one.why for one in nowhere] == ["no_field"]
+    assert nowhere[0].labels == ("Department",)
+
+
+def test_a_credential_or_a_name_a_step_already_fills_is_never_composed() -> None:
+    job, by_id = _job(OutlineField("textbox", "Password"), OutlineField("textbox", "Customer Type"))
+    job.steps[0].parameters = ["Customer Type"]
+
+    assert compose(job, by_id, {"Password": "hunter2", "Customer Type": "GT2"}) == ((), ())
+
+
+def test_a_new_key_pairs_only_with_the_value_its_control_holds() -> None:
+    two = Adding(fresh={"Department": "Finance", "Region": "7"})
+
+    assert keyed({"department": "Finance", "regionId": "7"}, two) == {
+        "Department": "department",
+        "Region": "regionId",
+    }
+    assert keyed({"department": "Finance"}, two) == {"Department": "department"}
+    assert keyed({}, two) == {}
+    assert keyed({}, Adding()) == {}
+
+
+def test_a_leftover_key_is_never_paired_by_elimination() -> None:
+    one = Adding(fresh={"Department": "Finance"})
+
+    assert keyed({"deptId": "3"}, one) is None
+    assert keyed({"validateOnly": "true"}, one) is None
+    assert keyed({"department": ""}, one) is None
+    assert keyed({"department": "Finance"}, Adding(fresh={"Department": ""})) is None
+    assert keyed({"a": "Finance", "b": "Finance"}, one) is None
+
+
+def test_a_select_pairs_by_the_option_value_it_holds_not_its_label() -> None:
+    assert keyed({"deptId": "3"}, Adding(fresh={"Department": "3"})) == {"Department": "deptId"}
+    assert keyed({"deptId": "Finance"}, Adding(fresh={"Department": "3"})) is None
+
+
+def test_two_fields_holding_the_same_value_attribute_no_key() -> None:
+    same = Adding(fresh={"Department": "North", "Region": "North"})
+
+    assert keyed({"department": "North"}, same) is None
+
+
+def test_a_learned_key_still_carries_its_fields_value() -> None:
+    learned = Adding(known={"department": "Department"}, fresh={"Department": "3"})
+
+    assert keyed({"department": "3"}, learned) == {"Department": "department"}
+    assert keyed({"department": "4"}, learned) is None
+    assert keyed({"department": "3"}, Adding(known={"department": "Department"})) is None
+
+
+def test_learning_the_field_puts_its_step_before_the_write_and_keeps_it_optional() -> None:
+    job, _ = _job(OutlineField("combobox", "Department"))
+    write = job.steps[0].order
+
+    grown, moved = with_field(
+        job,
+        Composed("department", "Department", "combobox", write),
+        key="department",
+        value="Finance",
+    )
+
+    assert [(one.order, one.parameters, one.cites) for one in grown.steps] == [
+        (write, ["department"], []),
+        (write + 1, [], ["ges_save"]),
+    ]
+    assert moved == {write: write + 1}
+    assert grown.parameters[-1] == {
+        "name": "department",
+        "required": False,
+        "seen_values": ["Finance"],
+        "names": ["Department"],
+        "key": "department",
+    }

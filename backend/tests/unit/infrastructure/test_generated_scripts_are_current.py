@@ -17,10 +17,12 @@ import pytest
 from sro.config import get_settings
 from sro.infrastructure.steel.capture import _recorder_script
 from sro.infrastructure.steel.generate_extension_recorder import (
+    PAGE_CODE_OUT,
     RECORDER_OUT,
     SENSITIVITY_MODULE_OUT,
     SENSITIVITY_OUT,
     SHAPE_OUT,
+    page_code_source,
     recorder_source,
     sensitivity_module_source,
     sensitivity_source,
@@ -35,6 +37,7 @@ from sro.infrastructure.steel.generate_extension_recorder import (
         pytest.param(SENSITIVITY_OUT, sensitivity_source, id="sensitivity"),
         pytest.param(SENSITIVITY_MODULE_OUT, sensitivity_module_source, id="sensitivity-module"),
         pytest.param(SHAPE_OUT, shape_source, id="shape"),
+        pytest.param(PAGE_CODE_OUT, page_code_source, id="page-code-secret-words"),
     ],
 )
 def test_the_committed_copy_is_what_the_generator_writes(path, expected) -> None:  # type: ignore[no-untyped-def]

@@ -40,7 +40,7 @@ def looks_like_an_id(part: str) -> bool:
     return len(part) >= 8 and digits >= len(part) // 2
 
 
-def _parsed(body: Body) -> object:
+def parsed_body(body: Body) -> object:
     if body.mime_type == "application/x-www-form-urlencoded":
         return dict(parse_qsl(body.text or ""))
     try:
@@ -55,7 +55,7 @@ def body_keys(body: Body | None) -> dict[str, str] | None:
             return {"_": ", ".join(body.redacted_fields)[:VALUE_CHARS]}
         return None
 
-    parsed = _parsed(body)
+    parsed = parsed_body(body)
     if not isinstance(parsed, dict):
         return {"_": (redact_body(body.text, body.mime_type) or "")[:VALUE_CHARS]}
 
@@ -71,7 +71,7 @@ def body_keys(body: Body | None) -> dict[str, str] | None:
 def body_key_set(body: Body | None) -> frozenset[str] | None:
     if body is None or not body.text:
         return None
-    parsed = _parsed(body)
+    parsed = parsed_body(body)
     return frozenset(parsed) if isinstance(parsed, dict) else None
 
 

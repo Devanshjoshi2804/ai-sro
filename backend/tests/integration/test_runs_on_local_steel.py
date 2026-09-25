@@ -12,12 +12,18 @@ the shared Steel container itself, which kills every other live test running
 against it -- any `-m browser` run on the machine, CI included. It is opt-in:
 set `SRO_STEEL_CRASH_TESTS=1` to run it, and only after checking no other live
 session is in use.
+
+`test_a_lookup_reads_through_the_account_s_steel_session` sends its GET from
+this process as well as loading pages in Steel, so the rig's host must resolve
+on both sides: set `SRO_STEEL_SEES_HOST` to this machine's LAN address
+(`host.docker.internal` resolves only inside the container).
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import os
 import time
 from collections.abc import AsyncIterator, Iterator
@@ -31,19 +37,22 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from sro.application.context import RequestContext
+from sro.application.lookup.run_lookups import RunLookups
 from sro.application.ports.browser import BrowserUnavailable
 from sro.application.runtime.broker import K_CLOSE_S, SessionBroker
 from sro.application.runtime.ui_lane import UiLane
 from sro.config import get_settings
 from sro.domain.execution.account import K_LEASE_TTL, Account, LeaseState
-from sro.domain.observation.gesture import GestureBatch
+from sro.domain.lookup.plan import Lookup, Plan
+from sro.domain.observation.gesture import Action, Call, Gesture, GestureBatch
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.infrastructure.db.locks import PostgresAccountLocks
 from sro.infrastructure.db.repositories import SqlUnitOfWork
+from sro.infrastructure.http.httpx_caller import HttpxCaller
 from sro.infrastructure.steel.client import SteelClient
 from sro.infrastructure.steel.driver import SteelDriver
 from sro.infrastructure.steel.pool import SteelPool
-from tests.browser.steel_rig import Rig
+from tests.browser.steel_rig import Rig, pages_in
 from tests.browser.test_the_steel_pool_against_local_steel import (
     CDP_URL,
     STEEL_URL,
@@ -294,6 +303,50 @@ async def test_an_expiry_mid_step_signs_in_once_for_every_run_on_the_account(wor
     assert world.rig.logins == 2
     for held in (one, two):
         assert urlsplit(await driver.url_of(held.session, held.target_id)).path == "/app"
+
+
+async def test_a_lookup_reads_through_the_account_s_steel_session(world: World) -> None:
+    account = await _recorded(world)
+    world.rig.saved.append({"name": "GT0"})
+    read = Call(
+        method="GET",
+        url=world.rig.url("/api/customer-types"),
+        request_id="req-read",
+        started_at=10.0,
+        request_headers={"accept": "application/json"},
+        status=200,
+    )
+    seen = Gesture(
+        id="ges_read",
+        tenant=TENANT,
+        stream_id="stream-read",
+        batch_id="batch-sign-in",
+        at=10.0,
+        url=world.rig.url("/app"),
+        system=world.rig.url(""),
+        tab_id=1,
+        frame_url=None,
+        action=Action(kind="click", at=10.0),
+        requests=[read],
+    )
+    async with world.uow as uow:
+        await uow.gestures.add_gestures((seen,))
+        await uow.commit()
+    broker, _ = world.broker()
+    held = await broker.acquire(CTX, account, world.rig.url("/app"), holder="run_1")
+    before = await pages_in(held.session)
+    lookup = Lookup(system="rig", how="call", target="/api/customer-types")
+
+    answers = await RunLookups(world.uow, broker, HttpxCaller()).execute(
+        CTX, plan=Plan(question="q", lookups=(lookup,))
+    )
+
+    (looked,) = answers.looked
+    assert looked.ok, looked.detail
+    assert looked.answer["status"] == 200
+    assert json.loads(str(looked.answer["body"])) == [{"name": "GT0"}]
+    assert world.rig.logins == 1
+    assert await pages_in(held.session) == before
 
 
 K_STEEL_BACK_S = 60.0

@@ -796,9 +796,7 @@ class Converse:
             return None
         if not planned.plan.ready:
             return None
-        return await self._run_lookups.execute(
-            ctx, plan=planned.plan, allow_focus=False, within=K_WHILE_TALKING
-        )
+        return await self._run_lookups.execute(ctx, plan=planned.plan, within=K_WHILE_TALKING)
 
     async def _say_what_was_found(
         self, ctx: RequestContext, *, thread_id: ThreadId, text: str, found: Answers
@@ -1028,10 +1026,7 @@ def _what_was_found(found: Answers) -> str:
     if not answered:
         why = next((one.detail for one in found.looked if one.detail), "")
         if any(_ran_out(one.detail) for one in found.looked):
-            return (
-                "I could not reach your browser in time, so I have not read that yet."
-                " Ask again and I will try once more."
-            )
+            return "I could not read that in time. Ask again and I will try once more."
         return f"I could not read that. {why}".strip()
     said = [
         one.read.sentence(subject_of(one.lookup.target) or "record")

@@ -18,6 +18,7 @@ from sro.application.ports.pool import BrowserPool
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.application.ports.vault import CredentialVault
+from sro.application.ports.vision import Screen
 from sro.application.runtime.step import (
     Held,
     LaneContext,
@@ -97,6 +98,9 @@ class SessionBroker:
     async def release(self, ctx: RequestContext, held: Held) -> None:
         with contextlib.suppress(PageGone):
             await self._driver.close_tab(held.session, held.target_id)
+
+    async def screenshot(self, ctx: RequestContext, held: Held) -> Screen:
+        return await self._driver.screenshot(held.session, held.target_id)
 
     async def beat(self, ctx: RequestContext, lease_id: str, *, holder: str) -> bool:
         async with self._uow as uow:

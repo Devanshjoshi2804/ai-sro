@@ -1152,7 +1152,6 @@ class _Runs:
     """A browser that answers the plan, or does not."""
 
     def __init__(self, ok: bool = True, detail: str = "") -> None:
-        self.focus: list[bool] = []
         self.within: list[float] = []
         self._ok = ok
         self._detail = detail
@@ -1162,7 +1161,6 @@ class _Runs:
         _ctx: object,
         *,
         plan: object,
-        allow_focus: bool = False,
         within: float = 45.0,
         **_rest: object,
     ) -> object:
@@ -1170,7 +1168,6 @@ class _Runs:
 
         from sro.application.lookup.run_lookups import Answers, Looked
 
-        self.focus.append(allow_focus)
         self.within.append(within)
         if not self._ok:
             return Answers(
@@ -1231,20 +1228,6 @@ async def test_a_question_nothing_was_taught_for_goes_to_the_lookup_door() -> No
     assert "screen" not in last.text.lower(), last.text
 
 
-async def test_a_question_never_takes_the_screen_somebody_is_working_on() -> None:
-    """`focus_not_permitted` is the refusal this path exists to stop meeting.
-    A question is not a reason to navigate the tab in front of an operator."""
-    uow = FakeUnitOfWork()
-    converse, thread_id = await _asked(uow, [])
-    runs = _Runs()
-    converse._plan_lookups = _Plans()  # type: ignore[assignment]
-    converse._run_lookups = runs  # type: ignore[assignment]
-
-    await converse.execute(CTX, thread_id=thread_id, text="is there a customer type KKYT")
-
-    assert runs.focus == [False]
-
-
 async def test_a_conversation_does_not_wait_on_a_browser_for_a_minute() -> None:
     """A reply in a panel is a turn in a conversation, and a turn that takes a
     minute has stopped being one.
@@ -1279,7 +1262,7 @@ async def test_a_browser_that_never_answered_is_said_in_words_a_person_can_act_o
 
     said = await converse.execute(CTX, thread_id=thread_id, text="is there a customer type KKYT")
 
-    assert "could not reach your browser" in said.messages[-1].text
+    assert "could not read that in time" in said.messages[-1].text
     assert "timeout" not in said.messages[-1].text
 
 

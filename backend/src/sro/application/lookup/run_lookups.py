@@ -1,21 +1,27 @@
 from __future__ import annotations
 
-import logging
+import asyncio
+from base64 import b64encode
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from uuid import uuid4
 
 from sro.application.context import RequestContext
 from sro.application.execution.answer import Answer, read_answer
-from sro.application.ports.channel import Channel, Reply
+from sro.application.ports.browser import BrowserUnavailable
+from sro.application.ports.http import HttpCaller, HttpResponse, TargetUnreachable
+from sro.application.ports.locks import AccountBusy
+from sro.application.ports.page import PageGone
+from sro.application.ports.pool import PoolFull
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.runtime.api_lane import K_AUTH_REFUSED
+from sro.application.runtime.broker import SessionBroker
+from sro.application.runtime.step import Held
 from sro.domain.lookup.address import Address, address_for
 from sro.domain.lookup.plan import Lookup, Plan
-from sro.domain.shared.hosts import system_of
-from sro.domain.shared.identifiers import DeviceId
+from sro.domain.shared.errors import DomainError
 
-logger = logging.getLogger(__name__)
-
-NO_TAB = frozenset({"no_tab_for_origin", "no_tab_for_system"})
+K_GAPS = (DomainError, PoolFull, PageGone, TargetUnreachable, AccountBusy, BrowserUnavailable)
 
 K_DEADLINE_S = 45.0
 
@@ -44,134 +50,88 @@ class Answers:
 
 
 class RunLookups:
-    def __init__(self, uow: UnitOfWork, channel: Channel) -> None:
-        self._uow = uow
-        self._channel = channel
+    def __init__(self, uow: UnitOfWork, broker: SessionBroker, http: HttpCaller) -> None:
+        self._uow, self._broker, self._http = uow, broker, http
 
     async def execute(
-        self,
-        ctx: RequestContext,
-        *,
-        plan: Plan,
-        device_id: DeviceId | None = None,
-        allow_focus: bool = False,
-        within: float = K_DEADLINE_S,
+        self, ctx: RequestContext, *, plan: Plan, within: float = K_DEADLINE_S
     ) -> Answers:
         if not plan.lookups:
             return Answers(plan=plan)
-
-        device = device_id or next(iter(self._channel.online(ctx.tenant_id)), None)
-        if device is None:
-            return Answers(
-                plan=plan,
-                looked=tuple(
-                    Looked(lookup=one, ok=False, detail="no browser is connected")
-                    for one in plan.lookups
-                ),
-            )
-
         async with self._uow as uow:
             gestures = list(await uow.gestures.gestures_for(ctx.tenant_id))
-
-        looked = []
+        looked: list[Looked] = []
         for lookup in plan.lookups:
             address = address_for(lookup, gestures)
             if address is None:
                 looked.append(
                     Looked(
-                        lookup=lookup,
-                        ok=False,
-                        detail=f"nothing here has been to {lookup.target}",
+                        lookup=lookup, ok=False, detail=f"nothing here has been to {lookup.target}"
                     )
                 )
                 continue
-            looked.append(
-                await self._one(
-                    ctx, lookup, address, device, allow_focus=allow_focus, within=within
+            try:
+                async with asyncio.timeout(within):
+                    looked.append(await self._one(ctx, lookup, address))
+            except TimeoutError:
+                looked.append(
+                    Looked(
+                        lookup=lookup,
+                        ok=False,
+                        url=address.url,
+                        detail=f"timed out after {within:.0f} s",
+                    )
                 )
-            )
+            except K_GAPS as gap:
+                looked.append(Looked(lookup=lookup, ok=False, url=address.url, detail=str(gap)))
         return Answers(plan=plan, looked=tuple(looked))
 
-    async def _one(
-        self,
-        ctx: RequestContext,
-        lookup: Lookup,
-        address: Address,
-        device: DeviceId,
-        *,
-        allow_focus: bool,
-        within: float = K_DEADLINE_S,
-    ) -> Looked:
-        if lookup.how == "call":
-            reply = await self._send(ctx, device, "http.send", _call_payload(address), within)
-            if _shut(reply):
-                reply = await self._reopened(
-                    ctx, device, address, "http.send", _call_payload(address), within
-                )
-            return _looked(lookup, address, reply)
+    async def _one(self, ctx: RequestContext, lookup: Lookup, address: Address) -> Looked:
+        page = address.page or address.url
+        account = await self._broker.account_for(ctx, page)
+        held = await self._broker.acquire(ctx, account, page, holder=f"lookup-{uuid4().hex}")
+        try:
+            if lookup.how == "call":
+                got = await self._get(ctx, held, address, page)
+                if got.succeeded:
+                    return _looked(lookup, address, {"status": got.status_code, "body": got.text})
+            shot = await self._broker.screenshot(ctx, held)
+            return _looked(
+                lookup,
+                address,
+                {
+                    "image_base64": b64encode(shot.image).decode(),
+                    "mime_type": shot.mime_type,
+                    "width": shot.width,
+                    "height": shot.height,
+                },
+            )
+        finally:
+            await self._broker.release(ctx, held)
 
-        origin = system_of(address.url)
-        going = {"url": address.url, "origin": origin, "allow_focus": allow_focus}
-        moved = await self._send(ctx, device, "navigate", going, within)
-        if _shut(moved):
-            moved = await self._reopened(ctx, device, address, "navigate", going, within)
-        if not moved.ok:
-            return _looked(lookup, address, moved)
-        shot = await self._send(
-            ctx, device, "screenshot", {"origin": origin, "allow_focus": allow_focus}, within
-        )
-        return _looked(lookup, address, shot)
+    async def _get(
+        self, ctx: RequestContext, held: Held, address: Address, page: str
+    ) -> HttpResponse:
+        got = await self._send(ctx, held, address)
+        if got.status_code in K_AUTH_REFUSED:
+            await self._broker.reauth(ctx, held, page)
+            got = await self._send(ctx, held, address)
+        return got
 
-    async def _reopened(
-        self,
-        ctx: RequestContext,
-        device: DeviceId,
-        address: Address,
-        kind: str,
-        payload: Mapping[str, object],
-        within: float = K_DEADLINE_S,
-    ) -> Reply:
-        opened = await self._send(ctx, device, "tab.open", {"url": address.url}, within)
-        if not opened.ok:
-            return opened
-        return await self._send(ctx, device, kind, payload, within)
-
-    async def _send(
-        self,
-        ctx: RequestContext,
-        device: DeviceId,
-        kind: str,
-        payload: Mapping[str, object],
-        within: float = K_DEADLINE_S,
-    ) -> Reply:
-        return await self._channel.send(
-            ctx.tenant_id, device, kind=kind, payload=payload, deadline_s=within
-        )
+    async def _send(self, ctx: RequestContext, held: Held, address: Address) -> HttpResponse:
+        needs = [name.lower() for name in (*address.live_headers, *address.struck)]
+        session = await self._broker.headers(ctx, held, address.url, needs=needs)
+        named = {name.lower() for name in session}
+        recorded = {k: v for k, v in address.headers.items() if k.lower() not in named}
+        return await self._http.send("GET", address.url, headers={**recorded, **session})
 
 
-def _call_payload(address: Address) -> dict[str, object]:
-    payload: dict[str, object] = {
-        "method": "GET",
-        "url": address.url,
-        "headers": address.headers,
-    }
-    if address.live_headers:
-        payload["live_headers"] = list(address.live_headers)
-    return payload
-
-
-def _looked(lookup: Lookup, address: Address, reply: Reply) -> Looked:
-    result = reply.result if reply.ok else {}
-    body = result.get("body") if isinstance(result, Mapping) else None
+def _looked(lookup: Lookup, address: Address, result: Mapping[str, object]) -> Looked:
+    body = result.get("body")
     return Looked(
         lookup=lookup,
-        ok=reply.ok,
+        ok=True,
         url=address.url,
         answer=result,
         read=read_answer(body, url=address.url) if isinstance(body, str) else None,
-        detail="" if reply.ok else reply.detail,
     )
-
-
-def _shut(reply: Reply) -> bool:
-    return not reply.ok and (reply.error_kind or "") in NO_TAB

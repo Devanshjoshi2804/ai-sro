@@ -13,16 +13,23 @@ session headers.
 provider (`IDP` unless told otherwise) that lands on a system, and
 `SigningLane` stands in for the UI lane that replays it against a
 `FakePageDriver`.
+
+`lookup_world` saves the given gestures beside a recorded sign-in that lands
+on their system, and builds `RunLookups` over a real `SessionBroker` on fakes;
+`reauths` counts the broker's `reauth` calls.
 """
 
 from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable, Mapping, Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from types import MappingProxyType
 
+from sro.application.context import RequestContext
 from sro.application.execution.mail_job import Written
+from sro.application.lookup.run_lookups import RunLookups
 from sro.application.ports.page import PageAnswer, SessionRef
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.runtime.broker import SessionBroker
@@ -50,6 +57,7 @@ from tests.unit.fakes import (
     FakeBrowserPool,
     FakeClock,
     FakeCredentialVault,
+    FakeHttpCaller,
     FakePageDriver,
     FakeUnitOfWork,
 )
@@ -434,3 +442,47 @@ class SigningLane:
         if step.order == last.order and ctx.held is not None and not self._driver.refuses:
             self._driver.signed.add(ctx.held.session.context_id)
         return StepResult("done", Lane.UI)
+
+
+@dataclass
+class LookupWorld:
+    run_lookups: RunLookups
+    driver: FakePageDriver
+    http: FakeHttpCaller
+    reauths: int = 0
+
+
+class _CountingBroker(SessionBroker):
+    world: LookupWorld
+
+    async def reauth(self, ctx: RequestContext, held: Held, start_url: str) -> None:
+        self.world.reauths += 1
+        await super().reauth(ctx, held, start_url)
+
+
+async def lookup_world(*gestures: Gesture) -> LookupWorld:
+    uow, driver, vault, http = (
+        FakeUnitOfWork(),
+        FakePageDriver(),
+        FakeCredentialVault(),
+        FakeHttpCaller(),
+    )
+    await with_a_recorded_sign_in(
+        uow, lands_on=gestures[0].url or "", username="lena", tenant=_TENANT
+    )
+    await vault.store(Account.of(_TENANT, IDP, "lena").vault_key("password"), "not-a-real-secret")
+    await uow.gestures.add_gestures(gestures)
+    driver.shows_sign_in_until_signed = True
+    broker = _CountingBroker(
+        uow,
+        FakeBrowserPool({"http://steel:3000": 1}),
+        driver,
+        FakeAccountLocks(),
+        vault,
+        FakeClock(),
+        ui=SigningLane(driver),
+        close_s=0.05,
+    )
+    world = LookupWorld(RunLookups(uow, broker, http), driver, http)
+    broker.world = world
+    return world

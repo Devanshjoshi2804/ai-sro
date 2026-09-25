@@ -405,7 +405,7 @@ class Container:
         )
 
     def run_lookups(self) -> RunLookups:
-        return RunLookups(self.unit_of_work(), SocketChannel(self.agent_sockets))
+        return RunLookups(self.unit_of_work(), self.session_broker(), self.http)
 
     def create_trigger(self) -> CreateTrigger:
         return CreateTrigger(

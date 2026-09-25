@@ -2,25 +2,29 @@
 
 Two things are held here. The ADDRESS -- a plan names a knowledge key and a
 browser needs a url, and the only honest bridge is a place this deployment has
-already been. And the RUN -- a GET in the operator's session, or a page put up
-and photographed, with one system's failure kept as one system's failure.
+already been. And the RUN -- a GET with the account's own Steel session, or a
+page put up in a Steel tab and photographed, never the operator's browser, with
+one system's failure kept as one system's failure.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
+from collections.abc import Mapping
+from types import MappingProxyType
 
 import pytest
 
 from sro.application.context import RequestContext
-from sro.application.lookup.run_lookups import K_DEADLINE_S, RunLookups
-from sro.application.ports.channel import Reply
+from sro.application.ports.http import HttpResponse
 from sro.domain.lookup.address import address_for
 from sro.domain.lookup.plan import Lookup, Plan
 from sro.domain.observation.gesture import Action, Call, Gesture
 from sro.domain.shared.hosts import REDACTED
 from tests import factories as f
-from tests.unit.fakes import FakeChannel, FakeUnitOfWork
+from tests.unit.fakes import FakeHttpCaller
+from tests.unit.runtime_support import lookup_world
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
 WMS = "https://bf56-kms-wms-web-np2.jdadelivers.com"
@@ -170,18 +174,75 @@ def test_a_route_is_matched_however_the_two_sides_spell_it() -> None:
     )
 
 
-async def test_a_call_goes_out_as_a_get_in_the_operators_own_session() -> None:
-    channel = FakeChannel({"http.send": [Reply(ok=True, result={"status": 200, "rows": 5})]})
-    uow = FakeUnitOfWork()
-    await uow.gestures.add_gestures((_gesture(_call(headers={"X-Requested-With": REDACTED})),))
+async def test_a_call_goes_out_as_a_get_with_the_account_s_steel_session() -> None:
+    world = await lookup_world(_gesture(_call(headers={"X-Requested-With": REDACTED})))
+    world.driver.cookie = "sid=abc"
+    world.driver.headers = {"x-requested-with": "XMLHttpRequest"}
+    world.http.answer(200, '{"rows": 5}')
 
-    answers = await RunLookups(uow, channel).execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
 
-    (sent,) = channel.sent
-    assert sent["kind"] == "http.send"
-    assert sent["payload"]["method"] == "GET"
-    assert sent["payload"]["live_headers"] == ["X-Requested-With"]
-    assert answers.any_answered and answers.looked[0].answer["rows"] == 5
+    (sent,) = world.http.sent
+    assert sent["method"] == "GET"
+    assert isinstance(sent["headers"], dict)
+    assert sent["headers"]["cookie"] == "sid=abc"
+    assert sent["headers"]["x-requested-with"] == "XMLHttpRequest"
+    assert world.driver.needed == ("x-requested-with",)
+    assert answers.any_answered
+    assert world.driver.tabs == {}
+
+
+async def test_an_expired_session_signs_in_again_once_and_the_read_is_tried_again() -> None:
+    world = await lookup_world(_gesture(_call()))
+    world.http.answer(401, "")
+    world.http.answer(200, '{"rows": 1}')
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    assert world.reauths == 1 and len(world.http.sent) == 2 and answers.any_answered
+
+
+async def test_a_call_refused_otherwise_is_read_off_the_page_it_was_seen_on() -> None:
+    world = await lookup_world(_gesture(_call(), url=SCREEN_URL))
+    world.http.answer(500, "")
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    assert answers.looked[0].ok and answers.looked[0].answer["mime_type"] == "image/png"
+    assert ("open_tab", SCREEN_URL) in {(call[0], call[-1]) for call in world.driver.calls}
+    assert world.reauths == 0
+
+
+async def test_a_screen_is_put_up_in_a_steel_tab_and_nothing_on_it_is_pressed() -> None:
+    world = await lookup_world(_gesture(url=SCREEN_URL))
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(SCREEN,)))
+
+    assert answers.looked[0].ok
+    assert set(answers.looked[0].answer) == {"image_base64", "mime_type", "width", "height"}
+    assert world.driver.acted == [] and world.driver.pointed == []
+    assert world.http.sent == []
+    assert world.driver.tabs == {}
+
+
+async def test_an_endpoint_seen_only_as_a_write_is_refused_before_anything_is_sent() -> None:
+    world = await lookup_world(_gesture(_call(method="POST")))
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    assert world.http.sent == [] and world.driver.calls == []
+    assert answers.looked[0].detail.startswith("nothing here has been to")
+
+
+async def test_a_system_that_needs_a_person_is_one_named_gap() -> None:
+    world = await lookup_world(_gesture(_call()), _gesture(url=SCREEN_URL, at=200.0))
+    world.driver.refuses = True
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL, SCREEN)))
+
+    assert [one.ok for one in answers.looked] == [False, False]
+    assert all(one.detail for one in answers.looked)
+    assert world.http.sent == []
 
 
 async def test_what_came_back_is_read_by_the_reader_every_other_read_uses() -> None:
@@ -213,11 +274,10 @@ async def test_what_came_back_is_read_by_the_reader_every_other_read_uses() -> N
             ],
         }
     )
-    channel = FakeChannel({"http.send": [Reply(ok=True, result={"status": 200, "body": body})]})
-    uow = FakeUnitOfWork()
-    await uow.gestures.add_gestures((_gesture(_call()),))
+    world = await lookup_world(_gesture(_call()))
+    world.http.answer(200, body)
 
-    answers = await RunLookups(uow, channel).execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
 
     read = answers.looked[0].read
     assert read is not None, "the body crossed unread, for every surface to guess at"
@@ -230,196 +290,54 @@ async def test_what_came_back_is_read_by_the_reader_every_other_read_uses() -> N
     assert read.columns.index("supplierName") < read.columns.index("bulkPickingFlag")
 
 
-async def test_the_caller_says_how_long_a_lookup_may_take() -> None:
-    """The two callers have different budgets and the constant only had one.
-
-    A lookup somebody asked for may take as long as the slowest warehouse. A
-    lookup inside a conversation turn may not: measured on the deployment
-    2026-09-21, request `req_10d3ff9b`, the browser's socket dropped twice
-    inside one request, a command waited out the full 45 seconds, and a panel
-    reply took 67459ms.
-    """
-    channel = FakeChannel({"http.send": [Reply(ok=True, result={"status": 200})]})
-    uow = FakeUnitOfWork()
-    await uow.gestures.add_gestures((_gesture(_call()),))
-
-    await RunLookups(uow, channel).execute(
-        CTX, plan=Plan(question="q", lookups=(CALL,)), within=10.0
-    )
-
-    assert [one["deadline_s"] for one in channel.sent] == [10.0]
-
-
-async def test_a_lookup_nobody_budgeted_takes_the_door_s_own_time() -> None:
-    """`/v1/lookups` and `/v1/ask` are where the answer IS the request, and
-    nothing else is held up behind it."""
-    channel = FakeChannel({"http.send": [Reply(ok=True, result={"status": 200})]})
-    uow = FakeUnitOfWork()
-    await uow.gestures.add_gestures((_gesture(_call()),))
-
-    await RunLookups(uow, channel).execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
-
-    assert [one["deadline_s"] for one in channel.sent] == [K_DEADLINE_S]
-
-
-async def test_the_budget_holds_across_a_reopen_too() -> None:
-    """A system nobody has open costs three commands. Under one budget they
-    are three short waits; under none they were three long ones."""
-    channel = FakeChannel(
-        {
-            "http.send": [
-                Reply(ok=False, error_kind="no_tab_for_system", error_detail="no tab"),
-                Reply(ok=True, result={"status": 200}),
-            ],
-            "tab.open": [Reply(ok=True, result={"opened": True})],
-        }
-    )
-    uow = FakeUnitOfWork()
-    await uow.gestures.add_gestures((_gesture(_call()),))
-
-    await RunLookups(uow, channel).execute(
-        CTX, plan=Plan(question="q", lookups=(CALL,)), within=10.0
-    )
-
-    assert [one["deadline_s"] for one in channel.sent] == [10.0, 10.0, 10.0]
-
-
 async def test_an_answer_that_is_not_records_is_left_as_it_came() -> None:
     """A page of HTML, a scalar, a screen's photograph. There is nothing for
     the reader to read, and the surfaces draw those from the body."""
-    channel = FakeChannel(
-        {"http.send": [Reply(ok=True, result={"status": 200, "body": "<html>a page</html>"})]}
-    )
-    uow = FakeUnitOfWork()
-    await uow.gestures.add_gestures((_gesture(_call()),))
+    world = await lookup_world(_gesture(_call()))
+    world.http.answer(200, "<html>a page</html>")
 
-    answers = await RunLookups(uow, channel).execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
 
     assert answers.looked[0].read is None
-    assert answers.looked[0].answer["body"] == "<html>a page</html>"
+    assert answers.looked[0].answer == {"status": 200, "body": "<html>a page</html>"}
 
 
-async def test_a_screen_is_put_up_and_then_photographed() -> None:
-    channel = FakeChannel(
-        {
-            "navigate": [Reply(ok=True, result={"navigated": True})],
-            "screenshot": [Reply(ok=True, result={"image_base64": "iVBOR", "width": 1280})],
-        }
-    )
-    uow = FakeUnitOfWork()
-    await uow.gestures.add_gestures((_gesture(url=SCREEN_URL),))
-
-    answers = await RunLookups(uow, channel).execute(
-        CTX, plan=Plan(question="q", lookups=(SCREEN,)), allow_focus=True
-    )
-
-    assert [one["kind"] for one in channel.sent] == ["navigate", "screenshot"]
-    assert channel.sent[0]["payload"]["url"] == SCREEN_URL
-    assert channel.sent[0]["payload"]["origin"] == "https://bf56-kms-wms-web-np2.jdadelivers.com"
-    assert answers.looked[0].ok
+class _Silent(FakeHttpCaller):
+    async def send(
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: Mapping[str, str] = MappingProxyType({}),
+        body: str | None = None,
+        timeout_s: float = 30.0,
+    ) -> HttpResponse:
+        await asyncio.Event().wait()
+        raise AssertionError("an event nobody sets was set")
 
 
-async def test_a_system_nobody_has_open_is_opened_and_asked_again() -> None:
-    """The whole point of the fallback: without it a question is answerable
-    only by the systems the operator happens to have in front of them."""
-    channel = FakeChannel(
-        {
-            "http.send": [
-                Reply(ok=False, error_kind="no_tab_for_origin", error_detail="no tab"),
-                Reply(ok=True, result={"rows": 5}),
-            ],
-            "tab.open": [Reply(ok=True, result={"opened": True, "tab_id": 42})],
-        }
-    )
-    uow = FakeUnitOfWork()
-    await uow.gestures.add_gestures((_gesture(_call()),))
+async def test_a_lookup_that_runs_out_of_its_budget_is_one_named_gap() -> None:
+    """The caller says how long: a conversation turn may not wait as long as
+    a door whose answer IS the request. The tab it took is given back."""
+    world = await lookup_world(_gesture(_call()))
+    world.run_lookups._http = _Silent()
 
-    answers = await RunLookups(uow, channel).execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
-
-    assert [one["kind"] for one in channel.sent] == ["http.send", "tab.open", "http.send"]
-    assert str(channel.sent[1]["payload"]["url"]).startswith(f"{WMS}{SUPPLIERS}")
-    assert answers.looked[0].ok
-
-
-async def test_a_system_that_is_open_and_still_will_not_answer_is_not_retried() -> None:
-    # A second attempt costs the same time twice and changes nothing: another
-    # tab does not fix a page that would not answer.
-    channel = FakeChannel(
-        {
-            "http.send": [
-                Reply(ok=False, error_kind="unreachable", error_detail="the page did not answer")
-            ]
-        }
-    )
-    uow = FakeUnitOfWork()
-    await uow.gestures.add_gestures((_gesture(_call()),))
-
-    answers = await RunLookups(uow, channel).execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
-
-    assert [one["kind"] for one in channel.sent] == ["http.send"]
-    assert answers.looked[0].detail == "unreachable: the page did not answer"
-
-
-async def test_a_screen_on_a_shut_system_is_opened_before_it_is_given_up_on() -> None:
-    channel = FakeChannel(
-        {
-            "navigate": [
-                Reply(ok=False, error_kind="no_tab_for_system", error_detail="no page"),
-                Reply(ok=True, result={"navigated": True}),
-            ],
-            "tab.open": [Reply(ok=True, result={"opened": True, "tab_id": 42})],
-            "screenshot": [Reply(ok=True, result={"image_base64": "iVBOR"})],
-        }
-    )
-    uow = FakeUnitOfWork()
-    await uow.gestures.add_gestures((_gesture(url=SCREEN_URL),))
-
-    answers = await RunLookups(uow, channel).execute(
-        CTX, plan=Plan(question="q", lookups=(SCREEN,))
+    answers = await world.run_lookups.execute(
+        CTX, plan=Plan(question="q", lookups=(CALL,)), within=0.05
     )
 
-    assert [one["kind"] for one in channel.sent] == [
-        "navigate",
-        "tab.open",
-        "navigate",
-        "screenshot",
-    ]
-    assert answers.looked[0].ok
+    assert answers.looked[0].detail.startswith("timed out after")
+    assert world.driver.tabs == {}
 
 
-async def test_a_page_that_would_not_come_up_is_not_photographed() -> None:
-    # The picture would be of whatever was there before, and reading it would
-    # be answering the question with a different screen.
-    channel = FakeChannel(
-        {
-            "navigate": [Reply(ok=False, error_kind="no_tab_for_system", error_detail="no page")],
-            "tab.open": [
-                Reply(ok=False, error_kind="not_actionable", error_detail="not an http url")
-            ],
-        }
-    )
-    uow = FakeUnitOfWork()
-    await uow.gestures.add_gestures((_gesture(url=SCREEN_URL),))
-
-    answers = await RunLookups(uow, channel).execute(
-        CTX, plan=Plan(question="q", lookups=(SCREEN,))
-    )
-
-    assert [one["kind"] for one in channel.sent] == ["navigate", "tab.open"]
-    assert answers.looked[0].detail == "not_actionable: not an http url"
-
-
-async def test_one_shut_system_is_one_named_gap_and_not_a_failed_question() -> None:
+async def test_one_unseen_system_is_one_named_gap_and_not_a_failed_question() -> None:
     """The opposite reading from the planner's, deliberately. A target nobody
-    has seen means the PLAN is wrong about the world; a system with no tab open
-    means that system was shut, and three answers with a named gap are worth
-    more than nothing."""
-    channel = FakeChannel({"http.send": [Reply(ok=True, result={"rows": 5})]})
-    uow = FakeUnitOfWork()
-    await uow.gestures.add_gestures((_gesture(_call()),))
+    has seen means the PLAN is wrong about the world, and three answers with a
+    named gap are worth more than nothing."""
+    world = await lookup_world(_gesture(_call()))
     elsewhere = Lookup(system="mail", how="call", target="/gmail/v1/threads", cites=("x",))
 
-    answers = await RunLookups(uow, channel).execute(
+    answers = await world.run_lookups.execute(
         CTX, plan=Plan(question="q", lookups=(CALL, elsewhere))
     )
 
@@ -430,22 +348,9 @@ async def test_one_shut_system_is_one_named_gap_and_not_a_failed_question() -> N
     assert answers.any_answered
 
 
-async def test_no_browser_connected_refuses_every_lookup_by_name() -> None:
-    class _Nobody(FakeChannel):
-        def online(self, tenant_id: object) -> tuple[()]:
-            return ()
-
-    answers = await RunLookups(FakeUnitOfWork(), _Nobody()).execute(
-        CTX, plan=Plan(question="q", lookups=(CALL,))
-    )
-
-    assert not answers.any_answered
-    assert answers.looked[0].detail == "no browser is connected"
-
-
 async def test_a_plan_that_asks_instead_of_answering_sends_nothing() -> None:
-    channel = FakeChannel()
+    world = await lookup_world(_gesture(_call()))
 
-    answers = await RunLookups(FakeUnitOfWork(), channel).execute(CTX, plan=Plan(question="q"))
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q"))
 
-    assert channel.sent == [] and answers.looked == ()
+    assert world.http.sent == [] and world.driver.calls == [] and answers.looked == ()

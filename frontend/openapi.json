@@ -24523,11 +24523,6 @@
             "type": "boolean",
             "title": "Execute",
             "default": true
-          },
-          "allow_focus": {
-            "type": "boolean",
-            "title": "Allow Focus",
-            "default": false
           }
         },
         "type": "object",
@@ -26398,11 +26393,6 @@
             "type": "boolean",
             "title": "Execute",
             "default": true
-          },
-          "allow_focus": {
-            "type": "boolean",
-            "title": "Allow Focus",
-            "default": false
           }
         },
         "type": "object",

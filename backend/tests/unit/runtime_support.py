@@ -88,6 +88,11 @@ _WORKFLOW = Workflow(
     parameters=[{"name": "Customer Type", "seen_values": ["GT0", "GT1"]}],
 )
 
+TENANT = TenantId(_TENANT)
+CTX = RequestContext(tenant_id=TENANT, principal_id=PrincipalId("clerk"))
+NOW = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+WORKFLOW = _WORKFLOW
+
 GMAIL = "https://mail.google.com/mail/u/0/#inbox"
 
 

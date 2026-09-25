@@ -2601,7 +2601,7 @@ class FakeWorkflowRepository:
         # other learnt.
         was = self.learned.get((workflow_id, ord_))
         now = (
-            LearnedStep(ord_, was.strategy, was.query, was.found_by, holds)
+            replace(was, holds=holds)
             if was is not None
             else LearnedStep(ord_, "", "", "typed", holds)
         )

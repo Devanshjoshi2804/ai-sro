@@ -86,7 +86,10 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/sight
 > locator) and `unreachable` (a cross-origin frame) teach nothing, and so
 > does a hit without its `frame_path`: a locator is never learned apart from
 > the frame it was found in. `frame_path` is kept as its JSON text so
-> `StepResult.learned` stays a string map.
+> `StepResult.learned` stays a string map. Each hop is kept as its `index`
+> and its URL's path only: a live frame's address can carry a session in
+> its query, its `;params` or its fragment, and the driver matches a hop by
+> `path_shape` and `index` alone, so nothing else is ever stored.
 
 ## `SightLane.fill`, [line 85](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L85): Docstring
 

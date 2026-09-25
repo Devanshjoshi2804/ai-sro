@@ -45,7 +45,7 @@ def ui_payload(
         "value": value,
         "target": {} if target is None else asdict(target),
         "learned": None
-        if learned is None or not learned.usable
+        if learned is None or not learned.usable or learned.frame_path is not None
         else {"strategy": learned.strategy, "query": learned.query},
         "frame_path": None
         if gesture.action.frame_path is None
@@ -54,6 +54,19 @@ def ui_payload(
     if not writes(step, by_id):
         payload["write"] = False
     return payload
+
+
+def learned_payload(
+    payload: Mapping[str, object], learned: LearnedStep | None
+) -> dict[str, object] | None:
+    if learned is None or not learned.usable or learned.frame_path is None:
+        return None
+    return {
+        **payload,
+        "target": {},
+        "learned": {"strategy": learned.strategy, "query": learned.query},
+        "frame_path": json.loads(learned.frame_path),
+    }
 
 
 class UiLane:
@@ -98,7 +111,16 @@ class UiLane:
     ) -> StepResult:
         recorded = recorded_call(step, ctx.by_id)
         mark = await self._driver.mark(held.session, held.target_id)
-        answer = await self._driver.act(held.session, held.target_id, payload)
+        first = learned_payload(payload, ctx.learned.get(step.order))
+        answer = None
+        if first is not None:
+            answer = await self._driver.act(held.session, held.target_id, first)
+            if answer.ok or answer.error_kind not in _NOTHING_SENT:
+                payload = first
+            else:
+                answer = None
+        if answer is None:
+            answer = await self._driver.act(held.session, held.target_id, payload)
         if not answer.ok:
             try:
                 signals = await self._driver.signals(held.session, held.target_id)

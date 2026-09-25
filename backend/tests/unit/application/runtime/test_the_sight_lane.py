@@ -1,4 +1,5 @@
 import asyncio
+import json
 from dataclasses import replace
 from typing import Any
 
@@ -54,6 +55,21 @@ async def test_sight_acts_by_points_and_teaches_the_control_it_hit() -> None:
     }
     assert driver.pointed == [("click", 400, 20, None)]
     assert written == [step.order]
+
+
+async def test_a_learned_frame_path_never_keeps_a_token_from_a_frame_url() -> None:
+    frame_url = "https://wms.example/f;jsessionid=s3cr3t?ticket=s3cr3t#s3cr3t"
+    framed = {**HIT, "frame_path": [{"index": 0, "url": frame_url, "name": "s3cr3t"}]}
+    driver = scripted_driver(url=APP, hit=framed, calls=[SAVED])
+    step, by_id = save_step(status=201)
+
+    result = await SightLane(driver, clicks_then_done(), None).execute(
+        step, {}, lane_context(by_id)
+    )
+
+    assert result.verdict == "done"
+    assert json.loads(result.learned["frame_path"]) == [{"index": 0, "url": "/f"}]
+    assert driver.pointed == [("click", 400, 20, None)]
 
 
 async def test_the_model_saying_done_never_confirms_a_write() -> None:

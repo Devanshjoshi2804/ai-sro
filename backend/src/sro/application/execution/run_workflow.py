@@ -1932,7 +1932,14 @@ async def run_workflow(
                             await uow.workflows.remember_locator(workflow.id, found, by_run=run.id)
                     elif planned.kind == "ui.perform":
                         await uow.workflows.clear_stale(workflow.id, step.order)
-                    await record_effect(uow.workflows, run, record, at=_now())
+                    recorded_one = recorded_call(step, by_id)
+                    await record_effect(
+                        uow.workflows,
+                        run,
+                        record,
+                        at=_now(),
+                        recorded=None if recorded_one is None else recorded_one.url,
+                    )
                     break
                 if (
                     may_write

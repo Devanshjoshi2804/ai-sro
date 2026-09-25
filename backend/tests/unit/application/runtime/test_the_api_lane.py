@@ -74,6 +74,21 @@ async def test_a_refused_session_asks_for_a_fresh_one(status: int) -> None:
     assert len(http.sent) == 1
 
 
+@pytest.mark.parametrize("status", sorted(K_AUTH_REFUSED), ids=lambda status: f"refused-{status}")
+async def test_a_refusal_after_a_fresh_sign_in_is_the_lanes_own_failure(status: int) -> None:
+    http = FakeHttpCaller()
+    http.answer(status, "")
+    step, by_id, ledger = proven_write_step(read_back=LIST)
+
+    driver = scripted_driver(url="https://wms.example/app")
+
+    result = await ApiLane(http, headers_broker({}, driver=driver)).execute(
+        step, RUN, lane_context(by_id, ledger=ledger, reauthed=True)
+    )
+
+    assert result.verdict == "failed" and not result.expired and result.fingerprint
+
+
 async def test_a_rejected_replay_hands_the_step_to_the_ui_lane() -> None:
     http = FakeHttpCaller()
     http.answer(400, '{"error": "bad"}')

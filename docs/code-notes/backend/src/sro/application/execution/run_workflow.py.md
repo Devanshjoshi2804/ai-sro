@@ -2830,14 +2830,17 @@ Code: `await uow.workflows.clear_stale(workflow.id, step.order)`
 
 ## `run_workflow`, [line 1935](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1935): Comment
 
-Code: `await record_effect(uow.workflows, run, record, at=_now())`
+Code: `recorded_one = recorded_call(step, by_id)`
 
 > A write this run made that the verifier saw hold by
 > state. The three gates -- live, held, wrote -- are
 > `record_effect`'s own, read off the record rather than
 > off these locals so a second caller cannot forget one.
+> The recorded call goes with it, so `learned_pattern`
+> can tell a segment the recording held fixed from one
+> this run's value filled.
 
-## `run_workflow`, [line 1937](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1937): Comment
+## `run_workflow`, [line 1944](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1944): Comment
 
 Code: `if (`
 
@@ -2848,7 +2851,7 @@ Code: `if (`
 > rescue. A read is always safe. `may_write` above is the same
 > reading of "this may have changed something" the tap uses.
 
-## `run_workflow`, [line 1945](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1945): Comment
+## `run_workflow`, [line 1952](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1952): Comment
 
 Code: `if stepped_over:`
 
@@ -2857,7 +2860,7 @@ Code: `if stepped_over:`
 > would otherwise reasonably ask why it did not just press the
 > button, and the answer is that this run never filled the form.
 
-## `run_workflow`, [line 1956](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1956): Comment
+## `run_workflow`, [line 1963](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1963): Comment
 
 Code: `if record.verdict == "skipped" and verdict is not None:`
 
@@ -2866,7 +2869,7 @@ Code: `if record.verdict == "skipped" and verdict is not None:`
 > and nothing on the record, which then read `skipped` and let the
 > run walk past it.
 
-## `run_workflow`, [line 1960](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1960): Note on the line above
+## `run_workflow`, [line 1967](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1967): Note on the line above
 
 Code: `await step_ended(record.verdict == "held" and not of_job.signs_in, origin)`
 
@@ -2880,7 +2883,7 @@ Code: `await step_ended(record.verdict == "held" and not of_job.signs_in, origin
 > The step's origin goes with it, so a held step clears only the keys that
 > sign into its own system.
 
-## `run_workflow`, [line 1966](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1966): Comment
+## `run_workflow`, [line 1973](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1973): Comment
 
 Code: `took_it = bool(isinstance(record.result, dict) and record.result.get("ok"))`
 
@@ -2906,7 +2909,7 @@ Code: `took_it = bool(isinstance(record.result, dict) and record.result.get("ok"
 > which is a decision for a person, and the reserve is for the case
 > where the page did nothing.
 
-## `run_workflow`, [line 1973](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1973): Comment
+## `run_workflow`, [line 1980](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1980): Comment
 
 Code: `logger.info(`
 
@@ -2934,7 +2937,7 @@ Code: `logger.info(`
 > from the start, and the write goes out as a call. Once --
 > `in_reserve` is emptied -- so a job that fails again fails.
 
-## `run_workflow`, [line 1990](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1990): Comment
+## `run_workflow`, [line 1997](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1997): Comment
 
 Code: `_signing_in, back = (`
 
@@ -2960,7 +2963,7 @@ Code: `_signing_in, back = (`
 > Keycloak` into the middle of itself -- two sign-ins, and a
 > run left asking for a third after the second worked.
 
-## `run_workflow`, [line 1998](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1998): Comment
+## `run_workflow`, [line 2005](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2005): Comment
 
 Code: `record.reason = (`
 
@@ -2970,7 +2973,7 @@ Code: `record.reason = (`
 > locked -- and trying again would spend somebody's
 > attempts on it.
 
-## `run_workflow`, [line 2005](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2005): Comment
+## `run_workflow`, [line 2012](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2012): Comment
 
 Code: `standing = standing | stood_on(_signing_in, by_id)`
 
@@ -2981,14 +2984,14 @@ Code: `standing = standing | stood_on(_signing_in, by_id)`
 > -- which is the right rule for the job and the wrong one
 > for the page it has been bounced to.
 
-## `run_workflow`, [line 2008](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2008): Comment
+## `run_workflow`, [line 2015](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2015): Comment
 
 Code: `budget += len(back) + 1`
 
 > The rescue's own steps, and the retry. Without this the
 > budget below ends the run part way through signing in.
 
-## `run_workflow`, [line 2019](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2019): Comment
+## `run_workflow`, [line 2026](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2026): Comment
 
 Code: `if run.steps and all(one.verdict == "not_needed" for one in run.steps):`
 
@@ -3005,7 +3008,7 @@ Code: `if run.steps and all(one.verdict == "not_needed" for one in run.steps):`
 > deliberately does nothing and says so in its own word, and a run
 > with no steps at all never reaches here.
 
-## `run_workflow`, [line 2029](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2029): Comment
+## `run_workflow`, [line 2036](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2036): Comment
 
 Code: `except OverCap as reached:`
 
@@ -3013,7 +3016,7 @@ Code: `except OverCap as reached:`
 > checks -- the same condition the leg check records as `stopped`. One outcome
 > for one condition, and no traceback: it is the cap working, not a failure.
 
-## `run_workflow`, [line 2033](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2033): Comment
+## `run_workflow`, [line 2040](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2040): Comment
 
 Code: `_fell_over(run, in_flight, f"{type(broke).__name__}: {broke}")`
 
@@ -3021,7 +3024,7 @@ Code: `_fell_over(run, in_flight, f"{type(broke).__name__}: {broke}")`
 > either. The record is finished and saved by the `finally` below, then
 > this goes on up.
 
-## `run_workflow`, [line 2036](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2036): Comment
+## `run_workflow`, [line 2043](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2043): Comment
 
 Code: `if run.outcome == "running":`
 
@@ -3034,7 +3037,7 @@ Code: `if run.outcome == "running":`
 > nobody watched finish, so it says so rather than being read later as
 > one still in flight on a process that no longer exists.
 
-## `run_workflow`, [line 2038](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2038): Comment
+## `run_workflow`, [line 2045](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L2045): Comment
 
 Code: `await forget_effects(uow.workflows, run)`
 

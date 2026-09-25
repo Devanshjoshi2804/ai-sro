@@ -85,6 +85,13 @@ class ApiLane:
                 "unknown", Lane.API, f"the call may have arrived: {type(lost).__name__}"
             )
         status = answered.status_code
+        if status in K_AUTH_REFUSED and ctx.reauthed:
+            return StepResult(
+                "failed",
+                Lane.API,
+                f"the system refused this account ({status})",
+                fingerprint=fingerprint_of(Lane.API, str(status), path_shape(url)),
+            )
         if status in K_AUTH_REFUSED:
             return StepResult(
                 "failed", Lane.API, f"the session was refused ({status})", expired=True

@@ -4,7 +4,7 @@ import asyncio
 import json
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
-from urllib.parse import urlsplit
+from urllib.parse import urlparse, urlsplit
 
 from sro.application.ports.page import PageDriver, PageUnsettled
 from sro.application.ports.vision import VisionDriver
@@ -374,9 +374,16 @@ def _taught(hit: Mapping[str, object] | None) -> dict[str, str]:
     strategy, query, frame_path = hit.get("strategy"), hit.get("query"), hit.get("frame_path")
     if not (isinstance(strategy, str) and strategy and isinstance(query, str) and query):
         return {}
-    if not isinstance(frame_path, list):
+    if not isinstance(frame_path, list) or not all(isinstance(hop, dict) for hop in frame_path):
         return {}
-    return {"strategy": strategy, "query": query, "frame_path": json.dumps(frame_path)}
+    hops = [
+        {
+            "index": hop.get("index"),
+            "url": urlparse(url).path if isinstance(url := hop.get("url"), str) else None,
+        }
+        for hop in frame_path
+    ]
+    return {"strategy": strategy, "query": query, "frame_path": json.dumps(hops)}
 
 
 def _goal(step: Step, values: Mapping[str, str], primary: Gesture) -> str:

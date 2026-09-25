@@ -132,6 +132,7 @@ from sro.application.runtime.api_lane import ApiLane
 from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.executor import StepExecutor
 from sro.application.runtime.sight_lane import SightLane
+from sro.application.runtime.teach import Teach
 from sro.application.runtime.tool_lane import ToolLane
 from sro.application.runtime.ui_lane import UiLane
 from sro.application.skill.describe_skill import DescribeSkill
@@ -284,6 +285,9 @@ class Container:
             self.sight_lane(),
             self.session_broker(),
         )
+
+    def teach(self) -> Teach:
+        return Teach(self.unit_of_work(), self.clock)
 
     def unit_of_work(self) -> UnitOfWork:
         return SqlUnitOfWork(self.session_factory)

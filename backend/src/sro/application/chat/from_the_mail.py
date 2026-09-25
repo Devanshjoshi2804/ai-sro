@@ -6,6 +6,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from types import MappingProxyType
+from typing import TYPE_CHECKING
 
 from sro.application.chat.announce import SayWhatHappened
 from sro.application.chat.read_threads import ReadThreads
@@ -33,6 +34,9 @@ from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.learned import offerable
 from sro.domain.skill.workflow import Workflow
+
+if TYPE_CHECKING:
+    from sro.application.execution.workflow_runs import StartWorkflowRun
 
 SERVER = "gmail"
 
@@ -101,8 +105,10 @@ class FromTheMail:
         clock: Clock | None = None,
         ids: IdFactory | None = None,
         cap_usd: float = -1.0,
+        start: StartWorkflowRun | None = None,
     ) -> None:
         self._uow = uow
+        self._start = start
         self._tools = tools
         self._asker = asker
         self._model = model
@@ -276,7 +282,12 @@ class FromTheMail:
                     spent=spent,
                 )
         looked = LookedInTheMail(
-            offered=await self._what_will_not_fit(ctx, offered, workflows),
+            offered=tuple(
+                [
+                    await self._started(ctx, one)
+                    for one in await self._what_will_not_fit(ctx, offered, workflows)
+                ]
+            ),
             read=read,
             why=_sentence(offered, read, unsure),
             spent=spent,
@@ -289,6 +300,33 @@ class FromTheMail:
             looked.why,
         )
         return looked
+
+    async def _started(self, ctx: RequestContext, one: Offered) -> Offered:
+        if (
+            one.missing
+            or one.too_long
+            or one.started
+            or self._start is None
+            or not self._start.runs_on_steel(ctx)
+        ):
+            return one
+        try:
+            run = await self._start.execute(
+                ctx,
+                workflow_id=one.workflow_id,
+                device_id=None,
+                values=dict(one.values),
+                live=True,
+                allow_focus=False,
+                conversation=(SERVER, one.thread),
+            )
+        except Exception:
+            logger.exception(
+                "%s: a sure, complete mail could not start its run", ctx.tenant_id.value
+            )
+            return one
+        await self._start.perform(ctx, run)
+        return replace(one, started=True)
 
     async def _answering(self, ctx: RequestContext, thread: str) -> WorkflowRun | None:
         if not thread.strip():

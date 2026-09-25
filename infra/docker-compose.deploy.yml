@@ -263,6 +263,10 @@ services:
       # string this system hands out built from a Steel address.
       SRO_STEEL_PUBLIC_BASE_URL: ${SRO_STEEL_PUBLIC_BASE_URL:?set SRO_STEEL_PUBLIC_BASE_URL, e.g. http://10.11.9.25:8088}
       SRO_STEEL_CDP_URL: http://steel:9223
+      # Tenants whose runs the server starts on Steel, as a JSON list, e.g.
+      # '["greyorange"]'. Empty until rollout step 2: every tenant stays on the
+      # extension. The api and the worker read the same list.
+      SRO_STEEL_TENANTS: ${SRO_STEEL_TENANTS:-[]}
       SRO_TEMPORAL_ADDRESS: temporal:7233
       SRO_OTLP_ENDPOINT: http://otel-collector:4318
       # Signs this deployment's credentials. Unset, every authenticated

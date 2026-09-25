@@ -18,6 +18,9 @@ provider (`IDP` unless told otherwise) that lands on a system, and
 on their system, and builds `RunLookups` over a real `SessionBroker` on fakes;
 `reauths` counts the broker's `reauth` calls.
 
+`save_job` stores a one-step job typing its one required value, "Customer
+Type", with its evidence.
+
 `lease_for` inserts a `ready` lease a sweeper test can expire.
 
 `steel_run` builds a whole Steel run for `RunSteps`: the run, its job and
@@ -349,6 +352,19 @@ def type_step(*, after: AfterState | None = None) -> tuple[Step, dict[str, Gestu
         parameters=["Customer Type"],
     )
     return step, by_id
+
+
+async def save_job(uow: UnitOfWork, workflow_id: str) -> Workflow:
+    step, by_id = type_step()
+    job = replace(
+        _WORKFLOW,
+        id=workflow_id,
+        steps=[replace(step, order=0)],
+        parameters=[{"name": "Customer Type", "seen_values": ["GT0", "GT1"], "required": True}],
+    )
+    await uow.workflows.save(job)
+    await uow.gestures.add_gestures(tuple(by_id.values()))
+    return job
 
 
 def mail_send_step() -> tuple[Step, dict[str, Gesture]]:

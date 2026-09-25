@@ -25,6 +25,7 @@ from sro.application.execution.stops import Stops
 from sro.application.intent.spend import over_cap
 from sro.application.knowledge.retrieve import Question, Retrieve
 from sro.application.ports.channel import Channel
+from sro.application.ports.durable import DurableExecution
 from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
@@ -36,6 +37,7 @@ from sro.domain.execution.evidence import unperformable
 from sro.domain.execution.gathering import Gathered
 from sro.domain.execution.learned_step import limits_for
 from sro.domain.execution.mail_job import is_mail_only
+from sro.domain.execution.progress import run_budget
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.waiting import as_said, waiting_on
 from sro.domain.execution.workflow_run import (
@@ -107,8 +109,12 @@ class StartWorkflowRun:
         gather: GatherContext | None = None,
         ids: IdFactory | None = None,
         asker_drafts: DraftsForTheAsker | None = None,
+        durable: DurableExecution | None = None,
+        steel_tenants: frozenset[str] = frozenset(),
     ) -> None:
         self._uow = uow
+        self._durable = durable
+        self._steel_tenants = steel_tenants
         self._asker_drafts: DraftsForTheAsker | None = asker_drafts
         self._vault = vault
         self._one_time_secrets = one_time_secrets
@@ -125,12 +131,15 @@ class StartWorkflowRun:
         self._approvals = approvals
         self._verified_writes = verified_writes
 
+    def runs_on_steel(self, ctx: RequestContext) -> bool:
+        return self._durable is not None and ctx.tenant_id.value in self._steel_tenants
+
     async def execute(
         self,
         ctx: RequestContext,
         *,
         workflow_id: str,
-        device_id: DeviceId,
+        device_id: DeviceId | None,
         values: Mapping[str, str],
         live: bool,
         allow_focus: bool,
@@ -144,15 +153,19 @@ class StartWorkflowRun:
     ) -> WorkflowRun:
         asker_or_refuse(self._asker)
         now: datetime = self._clock.now()
+        steel = self.runs_on_steel(ctx)
         async with self._uow as uow:
             why = await over_cap(uow, ctx.tenant_id, now=now, cap_usd=self._cap_usd)
             if why is not None:
                 raise OverCap(why)
-            if device_id not in self._channel.online(ctx.tenant_id):
-                raise Conflict(f"{device_id.value} is not connected")
-            busy = await uow.workflow_runs.in_flight(ctx.tenant_id, device_id)
-            if busy is not None:
-                raise Conflict(already_running(device_id.value, busy))
+            if not steel:
+                if device_id is None:
+                    raise Conflict("this run needs a connected browser")
+                if device_id not in self._channel.online(ctx.tenant_id):
+                    raise Conflict(f"{device_id.value} is not connected")
+                busy = await uow.workflow_runs.in_flight(ctx.tenant_id, device_id)
+                if busy is not None:
+                    raise Conflict(already_running(device_id.value, busy))
             workflow = await uow.workflows.get(ctx.tenant_id, workflow_id)
             given = {name: value.strip() for name, value in values.items() if value.strip()}
             things = (
@@ -178,7 +191,7 @@ class StartWorkflowRun:
             )
             if blank:
                 raise RunRefused(f"this job needs a value for: {', '.join(blank)}")
-            if absent and (self._gather is None or things):
+            if absent and (self._gather is None or things or steel):
                 raise RunRefused(f"this job needs a value for: {', '.join(absent)}")
             if not workflow.steps:
                 raise RunRefused("this job has no steps")
@@ -204,7 +217,8 @@ class StartWorkflowRun:
                 id=run_id or new_run_id(),
                 tenant=ctx.tenant_id.value,
                 workflow_id=workflow.id,
-                device_id=device_id.value,
+                device_id="" if device_id is None or steel else device_id.value,
+                executor="steel" if steel else "extension",
                 values=given,
                 started_by=ctx.principal_id.value,
                 live=live,
@@ -231,6 +245,18 @@ class StartWorkflowRun:
 
     async def perform(self, ctx: RequestContext, run: WorkflowRun) -> None:
         try:
+            if run.executor == "steel" and self._durable is not None:
+                async with self._uow as uow:
+                    workflow = await uow.workflows.get(ctx.tenant_id, run.workflow_id)
+                    cited = await uow.gestures.gestures_for(
+                        ctx.tenant_id, ids=tuple(sorted(cited_ids(workflow)))
+                    )
+                await self._durable.start_run(
+                    ctx,
+                    run_id=run.id,
+                    budget_s=run_budget(workflow, {one.id: one for one in cited}),
+                )
+                return
             asker = asker_or_refuse(self._asker)
             mail = await self._a_mail_job(ctx, run)
             if mail is not None and self._gather is not None and self._ids is not None:

@@ -27,6 +27,7 @@ import pytest
 from sro.application.context import RequestContext
 from sro.application.execution import workflow_runs as door
 from sro.application.execution.approvals import Approvals
+from sro.application.execution.gather import GatherContext
 from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.run_workflow import run_workflow
 from sro.application.execution.stops import Stops
@@ -44,10 +45,13 @@ from tests.unit.fakes import (
     FakeAsker,
     FakeChannel,
     FakeClock,
+    FakeDurableExecution,
     FakeGestureRepository,
     FakeIdFactory,
+    FakeToolCaller,
     FakeUnitOfWork,
 )
+from tests.unit.runtime_support import CTX, save_job
 
 TENANT = TenantId("acme")
 RIVAL = TenantId("rival")
@@ -172,6 +176,8 @@ def _starter(
     cap_usd: float = CAP,
     stops: Stops | None = None,
     approvals: Approvals | None = None,
+    durable: FakeDurableExecution | None = None,
+    steel_tenants: frozenset[str] = frozenset(),
 ) -> StartWorkflowRun:
     return StartWorkflowRun(
         uow,
@@ -184,7 +190,60 @@ def _starter(
         stops=stops or Stops(),
         approvals=approvals or Approvals(),
         one_time_secrets=OneTimeSecrets(),
+        durable=durable,
+        steel_tenants=steel_tenants,
     )
+
+
+async def test_a_steel_tenant_s_press_starts_a_durable_run_and_drives_no_browser() -> None:
+    uow, durable, channel = FakeUnitOfWork(), FakeDurableExecution(), FakeChannel()
+    await save_job(uow, "wfl_ct")
+    starter = _starter(
+        uow, channel=channel, durable=durable, steel_tenants=frozenset({TENANT.value})
+    )
+
+    run = await starter.execute(
+        CTX,
+        workflow_id="wfl_ct",
+        device_id=DeviceId("offline"),
+        values={"Customer Type": "GT2"},
+        live=True,
+        allow_focus=False,
+    )
+    await starter.perform(CTX, run)
+
+    assert (run.executor, run.device_id) == ("steel", "")
+    assert [one for one, _ in durable.runs_started] == [run.id]
+    assert channel.sent == []
+    saved = await uow.workflow_runs.get(TENANT, run.id)
+    assert saved is not None and saved.executor == "steel"
+
+
+async def test_a_steel_run_is_refused_a_value_it_has_no_way_to_gather() -> None:
+    uow, durable = FakeUnitOfWork(), FakeDurableExecution()
+    await save_job(uow, "wfl_ct")
+    starter = StartWorkflowRun(
+        uow,
+        channel=FakeChannel(),
+        asker=_A_MODEL,
+        plan_model=PLAN,
+        rescue_model=RESCUE,
+        clock=FakeClock(NOW),
+        cap_usd=CAP,
+        stops=Stops(),
+        approvals=Approvals(),
+        one_time_secrets=OneTimeSecrets(),
+        gather=GatherContext(tools=FakeToolCaller(), asker=_A_MODEL, model=PLAN),
+        durable=durable,
+        steel_tenants=frozenset({TENANT.value}),
+    )
+
+    with pytest.raises(RunRefused, match="Customer Type"):
+        await starter.execute(
+            CTX, workflow_id="wfl_ct", device_id=None, values={}, live=True, allow_focus=False
+        )
+
+    assert await uow.workflow_runs.for_workflow(TENANT, "wfl_ct") == ()
 
 
 async def _press(

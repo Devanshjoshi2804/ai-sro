@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -19,6 +20,7 @@ from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.converse import StartThread
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.context import RequestContext
+from sro.application.execution.workflow_runs import StartWorkflowRun
 from sro.application.ports.tools import ToolResult, ToolsUnavailable
 from sro.application.shared.refusals import OverCap
 from sro.domain.chat.asking import NEEDS, Pending, pending_job
@@ -36,7 +38,9 @@ from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer, ModelSpend
 from sro.domain.skill.workflow import Step, Workflow
 from tests import factories as f
-from tests.unit.fakes import FakeClock, FakeIdFactory, FakeUnitOfWork
+from tests.unit.application.rig.test_start_workflow_run import _starter
+from tests.unit.fakes import FakeClock, FakeDurableExecution, FakeIdFactory, FakeUnitOfWork
+from tests.unit.runtime_support import save_job
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=PrincipalId("devansh"))
 JOB = "wfl_1"
@@ -161,6 +165,7 @@ def _look(
     gather: Any = None,
     *,
     cap_usd: float = -1.0,
+    start: StartWorkflowRun | None = None,
 ) -> FromTheMail:
     return FromTheMail(
         uow,
@@ -171,7 +176,73 @@ def _look(
         clock=FakeClock(),
         ids=FakeIdFactory(),
         cap_usd=cap_usd,
+        start=start,
     )
+
+
+@dataclass
+class _MailWorld:
+    uow: FakeUnitOfWork
+    from_the_mail: FromTheMail
+    durable: FakeDurableExecution
+
+
+async def mail_world(*, sure: bool, values: Mapping[str, str], steel: bool) -> _MailWorld:
+    """One request mail naming the saved job, read as `sure` with `values`,
+    for a tenant that runs on Steel or on the extension."""
+    uow, durable = FakeUnitOfWork(), FakeDurableExecution()
+    await save_job(uow, JOB)
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("please add customer type GT2")})
+    reads = _Reads(
+        {
+            "workflow_id": JOB,
+            "values": [{"name": name, "value": value} for name, value in values.items()],
+            "missing": [name for name in ("Customer Type",) if name not in values],
+            "sure": sure,
+        }
+    )
+    start = _starter(
+        uow, durable=durable, steel_tenants=frozenset({f.TENANT.value}) if steel else frozenset()
+    )
+    return _MailWorld(uow, _look(uow, mailbox, reads, start=start), durable)
+
+
+async def test_a_sure_mail_with_every_value_starts_the_run_itself() -> None:
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+
+    looked = await world.from_the_mail.execute(CTX)
+
+    assert looked.offered[0].started
+    assert len(world.durable.runs_started) == 1
+    (run,) = await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)
+    assert (run.executor, run.values) == ("steel", {"Customer Type": "GT2"})
+
+
+async def test_a_steel_mail_missing_a_value_is_only_offered() -> None:
+    world = await mail_world(sure=True, values={}, steel=True)
+
+    looked = await world.from_the_mail.execute(CTX)
+
+    assert not looked.offered[0].started and world.durable.runs_started == []
+
+
+async def test_a_run_the_press_refuses_leaves_the_offer_and_the_look_standing() -> None:
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+    job = await world.uow.workflows.get(f.TENANT, JOB)
+    await world.uow.workflows.save(replace(job, steps=[replace(job.steps[0], cites=["gone"])]))
+
+    looked = await world.from_the_mail.execute(CTX)
+
+    assert [one.started for one in looked.offered] == [False]
+    assert world.durable.runs_started == []
+
+
+async def test_an_extension_tenant_is_unchanged() -> None:
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=False)
+
+    looked = await world.from_the_mail.execute(CTX)
+
+    assert not looked.offered[0].started and world.durable.runs_started == []
 
 
 class _Gathers:

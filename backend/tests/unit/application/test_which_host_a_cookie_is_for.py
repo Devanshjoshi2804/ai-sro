@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from sro.application.connection.cookies import belongs_to, domain_matches
+from sro.application.connection.cookies import belongs_to, belongs_to_system, domain_matches
 
 
 @pytest.mark.parametrize(
@@ -47,3 +47,52 @@ def test_a_cookie_is_read_against_the_url_it_would_be_sent_to() -> None:
 
     assert belongs_to(session, "https://wms.acme.com/portal")
     assert not belongs_to(session, "https://acme.com.attacker.test/portal")
+
+
+def test_a_host_only_cookie_goes_to_its_own_host_and_nowhere_else() -> None:
+    parent = {"name": "sid", "value": "P", "domain": "by.example", "path": "/"}
+
+    assert belongs_to(parent, "https://by.example/")
+    assert not belongs_to(parent, "https://wms.by.example/")
+
+
+def test_a_secure_cookie_never_goes_over_plain_http() -> None:
+    secure = {"name": "sid", "value": "S", "domain": "wms.by.example", "secure": True}
+
+    assert belongs_to(secure, "https://wms.by.example/app")
+    assert not belongs_to(secure, "http://wms.by.example/app")
+
+
+def test_a_cookie_goes_only_under_its_path() -> None:
+    admin = {"name": "a", "value": "A", "domain": "wms.by.example", "path": "/admin"}
+
+    assert belongs_to(admin, "https://wms.by.example/admin")
+    assert belongs_to(admin, "https://wms.by.example/admin/users")
+    assert not belongs_to(admin, "https://wms.by.example/")
+    assert not belongs_to(admin, "https://wms.by.example/administrator")
+    assert belongs_to({**admin, "path": "/"}, "https://wms.by.example")
+
+
+def test_a_url_without_a_scheme_carries_no_cookie() -> None:
+    session = {"name": "sid", "value": "1", "domain": "wms.by.example"}
+
+    assert not belongs_to(session, "wms.by.example")
+
+
+@pytest.mark.parametrize("url", ["http://localhost:8080/app", "http://127.0.0.1:63319/app"])
+def test_a_secure_cookie_goes_to_plain_http_on_this_machine(url: str) -> None:
+    host = url.split("//")[1].split(":")[0]
+    secure = {"name": "sid", "value": "S", "domain": host, "secure": True}
+
+    assert belongs_to(secure, url)
+    assert belongs_to_system(secure, url)
+
+
+def test_the_whole_system_takes_a_cookie_from_any_path_but_keeps_the_other_rules() -> None:
+    api = {"name": "JSESSIONID", "value": "1", "domain": "wms.by.example", "path": "/data"}
+    base = "https://wms.by.example/portal/page?siteId=SG"
+
+    assert not belongs_to(api, base)
+    assert belongs_to_system(api, base)
+    assert not belongs_to_system({**api, "domain": "by.example"}, base)
+    assert not belongs_to_system({**api, "secure": True}, "http://wms.by.example/portal")

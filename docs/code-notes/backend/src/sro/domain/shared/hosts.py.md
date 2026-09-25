@@ -6,7 +6,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/shared/hosts.py`](
 
 > Host matching. One rule, because three copies of it disagreed once.
 
-## `origin_of`, [line 12](../../../../../../../backend/src/sro/domain/shared/hosts.py#L12): Docstring
+## `origin_of`, [line 13](../../../../../../../backend/src/sro/domain/shared/hosts.py#L13): Docstring
 
 > A url as the system it belongs to: host and port, default port dropped.
 >
@@ -29,7 +29,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/shared/hosts.py`](
 > text (`secret_key_of`, `Account.of`) needs no fallback of its own and
 > a URL's userinfo cannot hide from this function by dropping the scheme.
 
-## `page_of`, [line 39](../../../../../../../backend/src/sro/domain/shared/hosts.py#L39): Docstring
+## `page_of`, [line 40](../../../../../../../backend/src/sro/domain/shared/hosts.py#L40): Docstring
 
 > The screen a url names, without what identifies one visit to it.
 >
@@ -53,7 +53,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/shared/hosts.py`](
 > -- so a run opening this would land on the portal root and plan against the
 > wrong page. `run_workflow` keeps the whole url for that, deliberately.
 
-## `same_screen`, [line 48](../../../../../../../backend/src/sro/domain/shared/hosts.py#L48): Docstring
+## `same_screen`, [line 49](../../../../../../../backend/src/sro/domain/shared/hosts.py#L49): Docstring
 
 > Whether two urls are the same screen of the same application.
 >
@@ -72,7 +72,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/shared/hosts.py`](
 > The query stays dropped, for `page_of`'s reason: it is where a session
 > token and one visit's particulars live.
 
-## `screen_of`, [line 60](../../../../../../../backend/src/sro/domain/shared/hosts.py#L60): Docstring
+## `screen_of`, [line 61](../../../../../../../backend/src/sro/domain/shared/hosts.py#L61): Docstring
 
 > The screen these visits have in common: what every one of them agrees on.
 >
@@ -104,7 +104,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/shared/hosts.py`](
 > is the honest answer and not a fallback -- with one doing there is nothing
 > that says which half of it was the job.
 
-## `domain_matches`, [line 80](../../../../../../../backend/src/sro/domain/shared/hosts.py#L80): Docstring
+## `domain_matches`, [line 81](../../../../../../../backend/src/sro/domain/shared/hosts.py#L81): Docstring
 
 > RFC 6265 domain-match: the host itself, or a subdomain of it.
 >
@@ -112,7 +112,41 @@ Comments and docstrings moved out of [`backend/src/sro/domain/shared/hosts.py`](
 > is true, and that is how a lookalike host reaches a cookie -- or, here, past
 > an exclusion.
 
-## `headers_without_markers`, [line 87](../../../../../../../backend/src/sro/domain/shared/hosts.py#L87): Docstring
+## `belongs_to_system`, [line 88](../../../../../../../backend/src/sro/domain/shared/hosts.py#L88): Docstring
+
+> Whether ``cookie`` belongs to the system at ``url`` as a whole: the domain
+> must match (``domain_matches``); a domain with no leading dot is host-only
+> (how Chrome and Playwright report a cookie set without a ``Domain``
+> attribute), so it goes to that exact host and not to its subdomains -- an
+> IdP's or a sibling app's session at ``by.example`` never reaches
+> ``wms.by.example``; a ``Secure`` cookie goes only over https, or to
+> localhost / 127.0.0.1 / ::1, which Chrome treats as secure. There is no
+> Path test: it answers for callers that keep one session for the whole
+> system from its ``base_url`` (``StoreSession``, ``_holds_a_session``) and
+> then send it to every API path. A session cookie scoped to ``/data`` is
+> the system's session even though ``base_url`` is ``/portal/page`` (S10
+> re-review N1). A url without a scheme has no host here and carries
+> nothing.
+>
+> ``domain_matches`` itself keeps a dotless domain matching its subdomains:
+> its other callers (observation policy's include/exclude lists, watch
+> hosts) are configuration, where ``acme.com`` means the whole domain.
+
+## `belongs_to`, [line 98](../../../../../../../backend/src/sro/domain/shared/hosts.py#L98): Docstring
+
+> Whether ``cookie`` would be sent with one request to ``url``, by the
+> browser's rules (RFC 6265 §5.4): ``belongs_to_system`` plus ``Path``,
+> matched by prefix on a ``/`` boundary -- ``/admin`` covers ``/admin/users``
+> and not ``/administrator``. The broker and the Steel driver use it,
+> because they build the header for the very request about to be sent (S10
+> review I3).
+
+## `_LOOPBACK`, [line 10](../../../../../../../backend/src/sro/domain/shared/hosts.py#L10): Constant
+
+> The hosts Chrome counts as a secure context over plain http, so a
+> ``Secure`` cookie is sent to them.
+
+## `headers_without_markers`, [line 108](../../../../../../../backend/src/sro/domain/shared/hosts.py#L108): Docstring
 
 > The headers that can still be sent: a value the boundary struck out is
 > not a credential the browser can use, it is the marker's own text. Beside

@@ -14,8 +14,5 @@ Comments and docstrings moved out of [`backend/src/sro/application/connection/co
 > ``acme.com`` and to its subdomains, and to nothing that merely ends with it.
 >
 > The rule itself moved to ``domain/shared/hosts.py`` when observation policy
-> needed the same one to decide whether a page is excluded from capture.
-
-## `belongs_to`, [line 10](../../../../../../../backend/src/sro/application/connection/cookies.py#L10): Docstring
-
-> Whether ``cookie`` would be sent to ``url``, by domain alone.
+> needed the same one to decide whether a page is excluded from capture, and
+> ``belongs_to`` followed it when the Steel driver needed it (S10).

@@ -1511,6 +1511,8 @@ class FakePageDriver:
         self.lands: str | None = None
         self.pointed: list[tuple[str, int, int, str | None]] = []
         self.aimed: list[Sequence[Mapping[str, object]] | None] = []
+        self.cookie = ""
+        self.headers: dict[str, str] = {}
 
     def _live(self, session: SessionRef) -> None:
         if session.context_id in self.dead:
@@ -1543,6 +1545,18 @@ class FakePageDriver:
         self._tab(session, target_id)
         self.calls.append(("url_of", session.context_id, target_id))
         return self.tabs[target_id]
+
+    async def headers_for(
+        self, session: SessionRef, origin: str, deadline_s: float, *, since: int = 0
+    ) -> dict[str, str]:
+        self._live(session)
+        self.calls.append(("headers_for", session.context_id, origin, since))
+        return dict(self.headers)
+
+    async def cookies_for(self, session: SessionRef, url: str) -> str:
+        self._live(session)
+        self.calls.append(("cookies_for", session.context_id, url))
+        return self.cookie
 
     async def storage_state(self, session: SessionRef) -> str:
         self._live(session)

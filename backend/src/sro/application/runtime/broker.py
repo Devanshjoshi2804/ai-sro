@@ -39,6 +39,7 @@ from sro.domain.skill.workflow import Workflow
 logger = logging.getLogger(__name__)
 
 K_CLOSE_S = 5.0
+K_HEADERS_WAIT_S = 20.0
 
 
 class SessionBroker:
@@ -95,6 +96,21 @@ class SessionBroker:
             )
             await uow.commit()
         return kept
+
+    async def headers(
+        self, ctx: RequestContext, held: Held, url: str, *, fresh: bool = False
+    ) -> dict[str, str]:
+        since = 0
+        if fresh:
+            since = await self._driver.mark(held.session, held.target_id)
+            await self._driver.goto(
+                held.session,
+                held.target_id,
+                await self._driver.url_of(held.session, held.target_id),
+            )
+        said = await self._driver.headers_for(held.session, url, K_HEADERS_WAIT_S, since=since)
+        cookie = await self._driver.cookies_for(held.session, url)
+        return {"cookie": cookie, **said} if cookie else said
 
     async def _attach(
         self, ctx: RequestContext, lease: Lease, start_url: str, holder: str

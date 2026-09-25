@@ -155,7 +155,7 @@ async def test_a_tab_that_never_attaches_is_closed_and_page_gone(
     one: SessionRef,  # noqa: F811
     driver: SteelDriver,  # noqa: F811
 ) -> None:
-    async def never(*_: Any) -> None:
+    async def never(*_: Any, **__: Any) -> None:
         return None
 
     monkeypatch.setattr(driver_module, "K_ATTACH_TIMEOUT_S", 0.5)
@@ -498,3 +498,115 @@ async def test_two_accounts_signals_never_cross(
     other_signals = await driver.signals(two, elsewhere_target)
     assert not a_sign_in_page(other_signals)
     assert not any("idp/authorize" in visited for visited in other_signals.visited)
+
+
+@pytest.mark.parametrize(
+    ("start", "lands"),
+    [("/?response_mode=fragment", "/cb"), ("/?response_mode=form_post", "/app")],
+)
+async def test_the_round_trip_ends_whatever_way_the_code_comes_back(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+    start: str,
+    lands: str,
+) -> None:
+    target = await driver.open_tab(one, rig.url(start))
+    assert a_sign_in_page(await driver.signals(one, target))
+
+    await rig.sign_in_in(driver, one, target, lands=lands)
+    assert not a_sign_in_page(await driver.signals(one, target))
+
+    await driver.goto(one, target, rig.url("/public"))
+    assert not a_sign_in_page(await driver.signals(one, target))
+
+
+async def test_an_error_return_ends_the_round_trip(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/?prompt=none"))
+
+    signals = await driver.signals(one, target)
+
+    assert "/cb" in signals.url and not a_sign_in_page(signals)
+
+
+async def test_the_round_trip_alone_marks_an_identifier_first_page(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/?acr_values=identifier"))
+
+    signals = await driver.signals(one, target)
+
+    assert not signals.password and "username" in signals.autocomplete
+    assert a_sign_in_page(signals)
+
+
+async def test_the_navigation_log_keeps_no_parameter_value(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/"))
+    await rig.sign_in_in(driver, one, target)
+
+    signals = await driver.signals(one, target)
+
+    assert signals.visited
+    assert all(
+        "=" not in url.partition("?")[2].replace("redirect_uri=", "") for url in signals.visited
+    )
+    assert any(url.endswith("/cb?code&state") for url in signals.visited)
+
+
+async def test_a_login_form_arriving_mid_navigation_is_read_once_it_has_loaded(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/public"))
+    await driver.evaluate(one, target, f"location.href = {rig.url('/held-login')!r}")
+    assert await asyncio.to_thread(rig.asked.wait, 10.0)
+
+    reading = asyncio.create_task(driver.signals(one, target))
+    early, _ = await asyncio.wait({reading}, timeout=1.0)
+    rig.answer.set()
+
+    assert not early and (await reading).password
+
+
+async def test_a_tab_closed_while_its_signals_are_read_is_page_gone(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/public"))
+    await driver.evaluate(one, target, f"location.href = {rig.url('/held-login')!r}")
+    assert await asyncio.to_thread(rig.asked.wait, 10.0)
+
+    reading = asyncio.create_task(driver.signals(one, target))
+    await driver.close_tab(one, target)
+
+    with pytest.raises(PageGone):
+        await reading
+
+
+async def test_a_tab_whose_log_was_lost_to_a_restart_is_never_read_as_outside_a_round_trip(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+) -> None:
+    first = SteelDriver(get_settings().page_code_path)
+    target = await first.open_tab(one, rig.url("/?acr_values=identifier"))
+    await first.aclose()
+
+    again = SteelDriver(get_settings().page_code_path)
+    try:
+        signals = await again.signals(one, target)
+    finally:
+        await again.aclose()
+
+    assert signals.visited is None and a_sign_in_page(signals)

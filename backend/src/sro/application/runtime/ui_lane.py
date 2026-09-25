@@ -14,7 +14,7 @@ from sro.domain.execution.records import made_by, names_in
 from sro.domain.execution.secrets import needs_a_secret
 from sro.domain.observation.gesture import AfterState, Gesture
 from sro.domain.observation.trim import path_shape
-from sro.domain.skill.signing_in import a_sign_in_page
+from sro.domain.skill.signing_in import expired
 from sro.domain.skill.workflow import Step
 
 K_UI_WAIT_S = 15.0
@@ -72,12 +72,12 @@ class UiLane:
         mark = await self._driver.mark(held.session, held.target_id)
         answer = await self._driver.act(held.session, held.target_id, payload)
         if not answer.ok:
-            expired = a_sign_in_page(await self._driver.signals(held.session, held.target_id))
+            signals = await self._driver.signals(held.session, held.target_id)
             return StepResult(
                 "failed",
                 Lane.UI,
                 answer.detail or str(answer.error_kind),
-                expired=expired,
+                expired=expired(signals, primary.page_url or primary.url),
                 fingerprint=fingerprint_of(Lane.UI, str(answer.error_kind), str(payload["target"])),
             )
         if recorded is not None:

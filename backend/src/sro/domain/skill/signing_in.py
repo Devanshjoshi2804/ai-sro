@@ -2,54 +2,81 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, quote, urlsplit, urlunsplit
 
 from sro.domain.observation.gesture import Gesture, Target, passed_through
-from sro.domain.shared.hosts import origin_of
+from sro.domain.observation.trim import path_shape
+from sro.domain.shared.hosts import origin_of, page_of
 from sro.domain.skill.checks import signs_in_to
 from sro.domain.skill.workflow import Step, Workflow, ordered_cites
 
 _AUTHORIZE = frozenset({"response_type", "client_id", "redirect_uri", "state"})
-_RETURN = frozenset({"code", "state"})
-_CREDENTIAL = frozenset({"current-password", "username", "one-time-code"})
+_PROMPT = frozenset({"current-password", "one-time-code"})
 
 
 @dataclass(frozen=True, slots=True)
 class PageSignals:
     url: str
-    visited: tuple[str, ...] = ()
+    visited: tuple[str, ...] | None = ()
     password: bool = False
     autocomplete: frozenset[str] = frozenset()
 
 
-def _asks(url: str) -> frozenset[str]:
-    return frozenset(parse_qs(urlsplit(url).query, keep_blank_values=True))
+def _asks(url: str) -> dict[str, list[str]]:
+    return parse_qs(urlsplit(url).query, keep_blank_values=True)
+
+
+def _where(url: str) -> tuple[str, str]:
+    return origin_of(url), urlsplit(url).path
 
 
 def an_authorize_request(url: str) -> bool:
-    return _asks(url) >= _AUTHORIZE
+    return _asks(url).keys() >= _AUTHORIZE
 
 
-def a_code_return(url: str) -> bool:
-    return _asks(url) >= _RETURN
+def _returns_to(url: str) -> str | None:
+    if not an_authorize_request(url):
+        return None
+    return page_of(_asks(url)["redirect_uri"][0])
+
+
+def a_navigation(url: str) -> str:
+    parts = urlsplit(url)
+    back = _returns_to(url)
+    names = [
+        f"{name}={quote(back, safe='')}" if name == "redirect_uri" and back else name
+        for name in _asks(url)
+    ]
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, "&".join(names), ""))
 
 
 def _in_round_trip(urls: tuple[str, ...]) -> bool:
-    opened = max((n for n, url in enumerate(urls) if an_authorize_request(url)), default=-1)
-    closed = max((n for n, url in enumerate(urls) if a_code_return(url)), default=-1)
-    return opened > closed
+    back: tuple[str, str] | None = None
+    for url in urls:
+        if back is not None and _where(url) == back:
+            back = None
+        if (returns := _returns_to(url)) is not None:
+            back = _where(returns)
+    return back is not None
 
 
 def a_sign_in_page(page: PageSignals) -> bool:
     return (
         page.password
-        or bool(page.autocomplete & _CREDENTIAL)
+        or bool(page.autocomplete & _PROMPT)
+        or page.visited is None
         or _in_round_trip((*page.visited, page.url))
     )
 
 
 def asks_for_a_code(page: PageSignals) -> bool:
     return "one-time-code" in page.autocomplete
+
+
+def expired(page: PageSignals, recorded_page: str | None) -> bool:
+    here, there = page.url, recorded_page or ""
+    moved = (origin_of(here), path_shape(here)) != (origin_of(there), path_shape(there))
+    return moved and a_sign_in_page(page)
 
 
 def signs_in_at(
@@ -217,10 +244,11 @@ def _secret(gesture: Gesture) -> bool:
 __all__ = [
     "PageSignals",
     "RecordedLogin",
-    "a_code_return",
+    "a_navigation",
     "a_sign_in_page",
     "an_authorize_request",
     "asks_for_a_code",
+    "expired",
     "recorded_login",
     "sign_in_chain",
     "signs_in_at",

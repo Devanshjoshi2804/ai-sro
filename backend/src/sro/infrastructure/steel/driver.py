@@ -16,6 +16,7 @@ from playwright.async_api import (
     Frame,
     Page,
     Playwright,
+    Request,
     Response,
     Route,
     async_playwright,
@@ -27,7 +28,7 @@ from sro.application.ports.page import PageAnswer, PageGone, SessionRef
 from sro.domain.execution.lanes import SeenCall
 from sro.domain.observation.gesture import AfterState
 from sro.domain.observation.trim import path_shape
-from sro.domain.skill.signing_in import PageSignals
+from sro.domain.skill.signing_in import PageSignals, a_navigation
 from sro.infrastructure.steel.capture import addressed
 from sro.infrastructure.steel.client import cdp_origin, websocket_debugger_url
 
@@ -35,6 +36,9 @@ K_ATTACH_TIMEOUT_S = 10
 K_ACTION_TIMEOUT_S = 15
 K_CALL_BODY_CHARS = 4096
 K_CALL_TYPES = frozenset({"fetch", "xhr"})
+K_NO_DOCUMENT = frozenset({204, 205})
+
+_SIGNALS = "() => globalThis.sroPage.signals()"
 
 _SEED_STORAGE = """(items) => {
   for (const { name, value } of items) {
@@ -64,6 +68,18 @@ class _Calls:
     reading: set[asyncio.Task[None]] = field(default_factory=set)
 
 
+@dataclass
+class _Tab:
+    visited: list[str] | None
+    pending: set[Request] = field(default_factory=set)
+    settled: asyncio.Event = field(default_factory=asyncio.Event)
+    loads: int = 0
+
+    def settle(self) -> None:
+        if not self.pending:
+            self.settled.set()
+
+
 class SteelDriver:
     def __init__(self, page_code_path: str) -> None:
         self._page_code = Path(page_code_path).read_text(encoding="utf-8")
@@ -73,7 +89,7 @@ class SteelDriver:
         self._links: dict[str, _Link] = {}
         self._listeners: dict[tuple[str, str], list[tuple[str, Callable[..., Any]]]] = {}
         self._calls: dict[Page, _Calls] = {}
-        self._visited: dict[str, list[str]] = {}
+        self._tabs: dict[Page, _Tab] = {}
 
     async def _lock_for(self, cdp_url: str) -> asyncio.Lock:
         async with self._locks_guard:
@@ -109,13 +125,13 @@ class SteelDriver:
                         await stale.browser.close()
             context = browser.contexts[0]
             already = list(context.pages)
-            context.on("page", lambda page: self._arrived(link, page))
+            context.on("page", lambda page: self._arrived(link, page, whole=True))
             for page in already:
-                await self._arrived(link, page)
+                await self._arrived(link, page, whole=False)
             self._links[cdp_url] = link
             return link
 
-    async def _arrived(self, link: _Link, page: Page) -> None:
+    async def _arrived(self, link: _Link, page: Page, *, whole: bool) -> None:
         try:
             cdp = await page.context.new_cdp_session(page)
             try:
@@ -126,24 +142,53 @@ class SteelDriver:
             return
         target_id, owner = str(info["targetId"]), str(info.get("browserContextId", ""))
 
+        tab = self._tabs[page] = _Tab([] if whole else None)
+        tab.settled.set()
+
         def gone(_: Page) -> None:
             link.pages.pop(target_id, None)
             link.owners.pop(target_id, None)
-            self._visited.pop(target_id, None)
+            self._tabs.pop(page, None)
+            tab.pending.clear()
+            tab.settled.set()
 
         page.once("close", gone)
         link.owners[target_id] = owner
         for event, handler in self._listeners.get((link.cdp_url, owner), []):
             page.on(event, handler)  # type: ignore[call-overload]
 
-        def navigated(response: Response) -> None:
-            if (
-                response.request.is_navigation_request()
-                and response.request.frame == page.main_frame
-            ):
-                self._visited.setdefault(target_id, []).append(response.url)
+        def main(request: Request) -> bool:
+            return request.is_navigation_request() and request.frame == page.main_frame
 
+        def started(request: Request) -> None:
+            if main(request):
+                tab.pending.discard(request.redirected_from)
+                tab.pending.add(request)
+                tab.settled.clear()
+
+        def failed(request: Request) -> None:
+            if main(request):
+                tab.pending.discard(request)
+                tab.settle()
+
+        def navigated(response: Response) -> None:
+            if not main(response.request):
+                return
+            if tab.visited is not None:
+                tab.visited.append(a_navigation(response.url))
+            if response.status in K_NO_DOCUMENT:
+                failed(response.request)
+
+        def loaded(_: object) -> None:
+            tab.loads += 1
+            tab.pending.clear()
+            tab.settle()
+
+        page.on("request", started)
+        page.on("requestfailed", failed)
         page.on("response", navigated)
+        page.on("domcontentloaded", loaded)
+        page.on("download", loaded)
 
         try:
             await page.add_init_script(script=self._page_code)
@@ -261,21 +306,36 @@ class SteelDriver:
 
     async def signals(self, session: SessionRef, target_id: str) -> PageSignals:
         page = await self._page(session, target_id)
+        tab = self._tabs.get(page)
+
+        async def settled_read() -> dict[str, Any]:
+            while True:
+                if tab is not None:
+                    await tab.settled.wait()
+                loads = tab.loads if tab is not None else 0
+                try:
+                    return dict(await page.main_frame.evaluate(_SIGNALS))
+                except PlaywrightError:
+                    if tab is None or (tab.loads == loads and tab.settled.is_set()):
+                        raise
 
         async def gather() -> tuple[bool, set[str]]:
-            password = False
-            autocomplete: set[str] = set()
+            async with asyncio.timeout(K_ACTION_TIMEOUT_S):
+                got = await settled_read()
+            password = bool(got.get("password"))
+            autocomplete = set(got.get("autocomplete") or [])
             for frame in page.frames:
+                if frame == page.main_frame:
+                    continue
                 with contextlib.suppress(PlaywrightError):
-                    got = await frame.evaluate("() => globalThis.sroPage.signals()")
-                    password = password or bool(got.get("password"))
-                    autocomplete.update(got.get("autocomplete") or [])
+                    child = await frame.evaluate(_SIGNALS)
+                    password = password or bool(child.get("password"))
+                    autocomplete.update(child.get("autocomplete") or [])
             return password, autocomplete
 
         password, autocomplete = await self._call(session, target_id, page, gather)
-        return PageSignals(
-            page.url, tuple(self._visited.get(target_id, ())), password, frozenset(autocomplete)
-        )
+        visited = None if tab is None or tab.visited is None else tuple(tab.visited)
+        return PageSignals(a_navigation(page.url), visited, password, frozenset(autocomplete))
 
     async def on(self, session: SessionRef, event: str, handler: Callable[..., Any]) -> None:
         link = await self._context(session)

@@ -16,6 +16,7 @@ import pytest
 
 from sro.application.ports.page import PageGone, SessionRef
 from sro.config import get_settings
+from sro.domain.skill.signing_in import a_sign_in_page
 from sro.infrastructure.steel.client import SteelClient
 from sro.infrastructure.steel.driver import SteelDriver
 from sro.infrastructure.steel.pool import SteelPool
@@ -232,3 +233,19 @@ async def test_act_through_the_recorded_iframe_is_confirmed_on_steel(
     assert [c.status for c in await driver.calls_since(a, target, mark) if c.method == "POST"] == [
         201
     ]
+
+
+async def test_the_round_trip_alone_marks_an_identifier_first_page_and_ends_at_its_return(
+    accounts: Accounts,
+    steel_rig: Rig,
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    _, _, a, b = accounts
+
+    asking = await driver.open_tab(a, steel_rig.url("/?acr_values=identifier"))
+    signals = await driver.signals(a, asking)
+    assert not signals.password and a_sign_in_page(signals)
+
+    returned = await driver.open_tab(b, steel_rig.url("/?response_mode=form_post"))
+    await steel_rig.sign_in_in(driver, b, returned)
+    assert not a_sign_in_page(await driver.signals(b, returned))

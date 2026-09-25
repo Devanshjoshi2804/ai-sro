@@ -85,9 +85,10 @@ function element({ tagName = "BUTTON", typeable = false, src, box, name = "" } =
   return el;
 }
 
-function fakeInput({ type = "text", autocomplete = "", hidden = false } = {}) {
+function fakeInput({ type = "text", autocomplete = "", hidden = false, visibility = "visible" } = {}) {
   return {
     type,
+    computed: { visibility, display: "block" },
     getAttribute: (name) => (name === "autocomplete" ? autocomplete : null),
     getBoundingClientRect: () => (hidden ? { width: 0, height: 0 } : { width: 10, height: 10 }),
   };
@@ -907,6 +908,32 @@ test("the page says what credential inputs it shows", () => {
   ];
   try {
     assert.deepEqual(signals(), { password: true, autocomplete: ["current-password", "username"] });
+  } finally {
+    globalThis.document.querySelectorAll = () => onScreen;
+  }
+});
+
+test("a visibility:hidden password field is not shown", () => {
+  const { signals } = loadSroPage();
+  const style = globalThis.getComputedStyle;
+  globalThis.getComputedStyle = (el) => el.computed ?? style(el);
+  globalThis.document.querySelectorAll = () => [fakeInput({ type: "password", visibility: "hidden" })];
+  try {
+    assert.deepEqual(signals(), { password: false, autocomplete: [] });
+  } finally {
+    globalThis.getComputedStyle = style;
+    globalThis.document.querySelectorAll = () => onScreen;
+  }
+});
+
+test("autocomplete is read as a token list, and a new-password field is no prompt", () => {
+  const { signals } = loadSroPage();
+  globalThis.document.querySelectorAll = () => [
+    fakeInput({ type: "text", autocomplete: "section-login Username webauthn" }),
+    fakeInput({ type: "password", autocomplete: "new-password" }),
+  ];
+  try {
+    assert.deepEqual(signals(), { password: false, autocomplete: ["section-login", "username", "webauthn", "new-password"] });
   } finally {
     globalThis.document.querySelectorAll = () => onScreen;
   }

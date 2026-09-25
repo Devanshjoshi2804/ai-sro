@@ -48,14 +48,29 @@ _APP_PAGE = """<!doctype html><html><head><meta name="csrf-token" content="{toke
 </body></html>"""
 
 _LOGIN_PAGE = """<!doctype html><html><body>
-  <form method="post" action="/idp/login?state={state}">
+  <form method="post" action="/idp/login?state={state}&response_mode={mode}">
     <input id="username" name="username">
     <input id="password" name="password" type="password">
     <button id="go" type="submit">Sign in</button>
   </form>
 </body></html>"""
 
+_IDENTIFIER_PAGE = """<!doctype html><html><body>
+  <form method="post" action="/idp/next">
+    <input id="username" name="username" autocomplete="username webauthn">
+    <button id="next" type="submit">Next</button>
+  </form>
+</body></html>"""
+
+_FORM_POST_PAGE = """<!doctype html><html><body onload="document.forms[0].submit()">
+  <form method="post" action="{to}">
+    <input type="hidden" name="code" value="{code}">
+    <input type="hidden" name="state" value="{state}">
+  </form>
+</body></html>"""
+
 _SIGN_IN_TIMEOUT_S = 10.0
+_HELD_S = 30.0
 
 
 def _free_port() -> int:
@@ -70,7 +85,11 @@ class Rig:
     posted to `/idp/login`; that redeems the credentials for a code redirected
     to `/cb`, which trades the code for a session cookie and lands on `/app`.
     `/app` also serves the CSRF-protected `/api/customer-types` write this
-    task's live rig exercises."""
+    task's live rig exercises. `/`'s own query is forwarded into the authorize
+    request: `response_mode=fragment|form_post` picks how the code comes back,
+    `prompt=none` returns an error at once, and `acr_values=identifier` sends
+    on to an identifier-first page with no password field. `/held-login` answers
+    only once the test sets `answer`, so a navigation can be caught in flight."""
 
     def __init__(self, *, for_steel: bool = False) -> None:
         self._for_steel = for_steel
@@ -78,6 +97,8 @@ class Rig:
         self._codes: dict[str, tuple[str, str]] = {}
         self._csrf: dict[str, str] = {}
         self.saved: list[dict[str, object]] = []
+        self.asked = threading.Event()
+        self.answer = threading.Event()
         host = "0.0.0.0" if for_steel else "127.0.0.1"  # noqa: S104
         self._port = _free_port()
         self._server = ThreadingHTTPServer((host, self._port), _handler_for(self))
@@ -96,9 +117,12 @@ class Rig:
         self._csrf.clear()
 
     def close(self) -> None:
+        self.answer.set()
         self._server.shutdown()
 
-    async def sign_in_in(self, driver: SteelDriver, session: SessionRef, target_id: str) -> None:
+    async def sign_in_in(
+        self, driver: SteelDriver, session: SessionRef, target_id: str, *, lands: str = "/app"
+    ) -> None:
         await driver.evaluate(
             session, target_id, "document.getElementById('username').value = 'operator'"
         )
@@ -111,7 +135,7 @@ class Rig:
         loop = asyncio.get_running_loop()
         deadline = loop.time() + _SIGN_IN_TIMEOUT_S
         while True:
-            if (await driver.url_of(session, target_id)).endswith("/app"):
+            if urlsplit(await driver.url_of(session, target_id)).path == lands:
                 return
             if loop.time() > deadline:
                 raise AssertionError("sign-in did not reach /app")
@@ -174,22 +198,31 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
                         "client_id": "app",
                         "redirect_uri": rig.url("/cb"),
                         "state": state,
+                        **{name: values[0] for name, values in query.items()},
                     }
                 )
                 self._redirect(rig.url(f"/idp/authorize?{params}"))
             elif path == "/idp/authorize":
-                self._html(_LOGIN_PAGE.format(state=query.get("state", [""])[0]))
+                state = query.get("state", [""])[0]
+                if query.get("prompt") == ["none"]:
+                    back = urlencode({"error": "login_required", "state": state})
+                    self._redirect(f"{query['redirect_uri'][0]}?{back}")
+                elif query.get("acr_values") == ["identifier"]:
+                    self._redirect(rig.url("/idp/identifier"))
+                else:
+                    mode = query.get("response_mode", ["query"])[0]
+                    self._html(_LOGIN_PAGE.format(state=state, mode=mode))
+            elif path == "/idp/identifier":
+                self._html(_IDENTIFIER_PAGE)
+            elif path == "/held-login":
+                rig.asked.set()
+                rig.answer.wait(_HELD_S)
+                self._html(_LOGIN_PAGE.format(state="", mode="query"))
             elif path == "/cb":
-                code, state = query.get("code", [""])[0], query.get("state", [""])[0]
-                found = rig._codes.pop(code, None)
-                if found is None or found[0] != state:
-                    self.send_response(401)
-                    self.end_headers()
+                if "code" not in query:
+                    self._html(_PUBLIC_PAGE)
                     return
-                new_sid = secrets.token_hex(16)
-                rig._sessions[new_sid] = found[1]
-                rig._csrf[new_sid] = secrets.token_hex(16)
-                self._redirect(rig.url("/app"), cookie=f"sid={new_sid}; Path=/")
+                self._signed_in(query)
             elif path == "/app":
                 if not sid or sid not in rig._sessions:
                     self._redirect(rig.url("/"))
@@ -205,6 +238,18 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
                 self.send_response(404)
                 self.end_headers()
 
+        def _signed_in(self, answer: dict[str, list[str]]) -> None:
+            code, state = answer.get("code", [""])[0], answer.get("state", [""])[0]
+            found = rig._codes.pop(code, None)
+            if found is None or found[0] != state:
+                self.send_response(401)
+                self.end_headers()
+                return
+            new_sid = secrets.token_hex(16)
+            rig._sessions[new_sid] = found[1]
+            rig._csrf[new_sid] = secrets.token_hex(16)
+            self._redirect(rig.url("/app"), cookie=f"sid={new_sid}; Path=/")
+
         def do_POST(self) -> None:
             split = urlsplit(self.path)
             path, query = split.path, parse_qs(split.query)
@@ -217,7 +262,15 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
                 code = secrets.token_hex(8)
                 rig._codes[code] = (state, username)
                 params = urlencode({"code": code, "state": state})
-                self._redirect(rig.url(f"/cb?{params}"))
+                mode = query.get("response_mode", ["query"])[0]
+                if mode == "form_post":
+                    self._html(_FORM_POST_PAGE.format(to=rig.url("/cb"), code=code, state=state))
+                elif mode == "fragment":
+                    self._redirect(rig.url(f"/cb#{params}"))
+                else:
+                    self._redirect(rig.url(f"/cb?{params}"))
+            elif path == "/cb":
+                self._signed_in(parse_qs(body.decode()))
             elif path == "/api/customer-types":
                 sid = self._cookie()
                 if not sid or sid not in rig._sessions:

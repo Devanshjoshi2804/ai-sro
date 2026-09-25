@@ -295,7 +295,7 @@ Comments and docstrings moved out of [`new-chrome-extension/src/page/page-code.j
 > been inner closures of `perform` rather than functions in their own
 > right.
 
-## module, [line 977](../../../../../new-chrome-extension/src/page/page-code.js#L977): Comment
+## module, [line 974](../../../../../new-chrome-extension/src/page/page-code.js#L974): Comment
 
 Code: `globalThis.sroPage = sroPage;`
 
@@ -820,13 +820,14 @@ Code: `globalThis.sroPage = sroPage;`
 ## `signals`, [line 960](../../../../../new-chrome-extension/src/page/page-code.js#L960): Function
 
 > S6: what the page's own inputs say about it, never what was typed into
-> them. `password` is any visible input whose `type` is `password`;
-> `autocomplete` is the set of visible inputs' own `autocomplete` values
-> that a browser recognises as credential-shaped (`current-password`,
-> `username`, `one-time-code`), lower-cased and de-duplicated. Visible is
-> `getBoundingClientRect` having width and height, the same test `perform`
-> uses -- an input a script or a framework hides (a shadow username field
-> ExtJS leaves behind, say) is never a signal. Structure only: no value is
-> read off any control, matching the sign-in capture rule (E7 security
-> ruling, spec §5.6) that a sign-in page's evidence never carries what was
-> typed into it.
+> them. Only inputs `shown` passes count -- the one visibility rule this file
+> has (box, `visibility`, `display`), so a `visibility:hidden` anti-autofill
+> decoy is not a signal (S6 fix round 1, I2). `autocomplete` is read as the
+> HTML token list it is, split on whitespace and lower-cased
+> (`section-login username webauthn` is three tokens; I3), and every shown
+> input's tokens are returned de-duplicated; the domain decides which count.
+> `password` is a shown password input that is not a `new-password` field: a
+> "create user" or "change password" form's new-password box asks for no
+> credential (I5). Structure only: no value is read off any control, matching
+> the sign-in capture rule (E7 security ruling, spec §5.6) that a sign-in
+> page's evidence never carries what was typed into it.

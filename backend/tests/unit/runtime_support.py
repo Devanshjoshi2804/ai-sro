@@ -77,8 +77,9 @@ def scripted_driver(
     sign_in: bool = False,
     url: str = "",
     unsettled: bool = False,
+    hit: Mapping[str, object] | None = None,
 ) -> FakePageDriver:
-    return FakePageDriver(
+    driver = FakePageDriver(
         answer=answer,
         calls=calls,
         before=before,
@@ -86,7 +87,11 @@ def scripted_driver(
         sign_in=sign_in,
         url=url,
         unsettled=unsettled,
+        hit=hit,
     )
+    if url:
+        driver.tabs["tab-1"], driver.owners["tab-1"] = url, _DEFAULT_HELD.session.context_id
+    return driver
 
 
 def _held() -> Held:

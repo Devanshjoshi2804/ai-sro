@@ -1464,7 +1464,15 @@ class FakePageDriver:
     ahead of any `mark`, `calls` arrive with the first `act`, and
     `calls_since`/`wait_for_call` see only calls numbered after the mark they
     are given. The log is one for every tab, so `forget_calls` empties all
-    of it."""
+    of it.
+
+    For the sight lane, `screenshot` answers a blank screen, `hit_test`
+    answers `hits[(x, y)]`, else `hit` (a `sroPage.hitTest` answer), and
+    `point` records each gesture and the frame path it was given in `pointed`
+    and `aimed`, lets `calls` arrive on the first point and `calls_on[(x, y)]`
+    on that point, and moves the tab to `lands` when set. `arrive` numbers
+    calls into the log at any moment a test chooses; a call with no status is
+    one sent and not yet answered."""
 
     def __init__(
         self,
@@ -1476,6 +1484,7 @@ class FakePageDriver:
         sign_in: bool = False,
         url: str = "",
         unsettled: bool = False,
+        hit: Mapping[str, object] | None = None,
     ) -> None:
         self.tabs: dict[str, str] = {}
         self.owners: dict[str, str] = {}
@@ -1496,6 +1505,12 @@ class FakePageDriver:
         self.signed: set[str] = set()
         self.acted: list[tuple[SessionRef, str, dict[str, object]]] = []
         self.waited_for: list[dict[str, object]] = []
+        self.hit = hit
+        self.hits: dict[tuple[int, int], Mapping[str, object] | None] = {}
+        self.calls_on: dict[tuple[int, int], Sequence[SeenCall]] = {}
+        self.lands: str | None = None
+        self.pointed: list[tuple[str, int, int, str | None]] = []
+        self.aimed: list[Sequence[Mapping[str, object]] | None] = []
 
     def _live(self, session: SessionRef) -> None:
         if session.context_id in self.dead:
@@ -1560,6 +1575,37 @@ class FakePageDriver:
 
     async def mark(self, session: SessionRef, target_id: str) -> int:
         return next(self._seq)
+
+    async def screenshot(self, session: SessionRef, target_id: str) -> Screen:
+        self._tab(session, target_id)
+        return Screen(image=b"", mime_type="image/png", width=1280, height=800)
+
+    async def hit_test(
+        self, session: SessionRef, target_id: str, x: int, y: int
+    ) -> Mapping[str, object] | None:
+        self._tab(session, target_id)
+        return self.hits.get((x, y), self.hit)
+
+    def arrive(self, *calls: SeenCall) -> None:
+        self._log += [(next(self._seq), call) for call in calls]
+
+    async def point(
+        self,
+        session: SessionRef,
+        target_id: str,
+        action: ActionKind,
+        x: int,
+        y: int,
+        value: str | None,
+        frame_path: Sequence[Mapping[str, object]] | None,
+    ) -> None:
+        self._tab(session, target_id)
+        self.pointed.append((action.value, x, y, value))
+        self.aimed.append(frame_path)
+        self.arrive(*self._arriving, *self.calls_on.get((x, y), ()))
+        self._arriving = ()
+        if self.lands is not None:
+            self.tabs[target_id] = self.lands
 
     async def calls_since(
         self, session: SessionRef, target_id: str, mark: int

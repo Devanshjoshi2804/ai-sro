@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
+from dataclasses import replace
 from typing import Any
 
 import httpx
@@ -13,8 +15,12 @@ import pytest
 from playwright.async_api import async_playwright
 
 from sro.application.ports.page import PageGone, PageUnsettled, SessionRef
+from sro.application.ports.vision import ProposedGesture
+from sro.application.runtime.sight_lane import SightLane
 from sro.config import get_settings
-from sro.domain.observation.gesture import AfterState
+from sro.domain.observation.gesture import AfterState, Body
+from sro.domain.recording.events import ActionKind
+from sro.domain.shared.hosts import system_of
 from sro.domain.skill.signing_in import a_sign_in_page, asks_for_a_code, expired
 from sro.infrastructure.steel import driver as driver_module
 from sro.infrastructure.steel.client import websocket_debugger_url
@@ -31,6 +37,8 @@ from tests.browser.steel_rig import (  # noqa: F401
     rig,
     two,
 )
+from tests.unit.fakes import FakeVisionDriver
+from tests.unit.runtime_support import lane_context, save_step
 
 pytestmark = pytest.mark.browser
 
@@ -770,3 +778,137 @@ async def test_holds_is_asked_in_the_frame_act_touched(
 
     held = {**typing, "pin": typed.pin, "expect": {"value": "GT4"}}
     assert await driver.wait_for(one, target, held, 5.0) is True
+
+
+_CENTRE_IN_APP_FRAME = """(css) => {
+  const frame = document.querySelectorAll("iframe")[1];
+  const outer = frame.getBoundingClientRect();
+  const inner = frame.contentDocument.querySelector(css).getBoundingClientRect();
+  return [Math.round(outer.left + frame.clientLeft + inner.left + inner.width / 2),
+          Math.round(outer.top + frame.clientTop + inner.top + inner.height / 2)];
+}"""
+
+
+async def test_sight_types_and_saves_in_the_frame_and_settles_by_its_own_call(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await signed_in_on_the_framed_page(rig, driver, one)
+    page = await driver._page(one, target)
+    ct = await page.evaluate(_CENTRE_IN_APP_FRAME, "#ct")
+    save = await page.evaluate(_CENTRE_IN_APP_FRAME, "#save")
+    model = FakeVisionDriver(
+        ProposedGesture(ActionKind.TYPE, x=ct[0], y=ct[1], value="GT2"),
+        ProposedGesture(ActionKind.CLICK, x=save[0], y=save[1]),
+        ProposedGesture(ActionKind.HOVER, done=True),
+    )
+    step, saved = save_step(
+        status=201, body=Body(text='{"name": "GT1"}', mime_type="application/json")
+    )
+    by_id = {
+        key: replace(
+            one_,
+            url=rig.url("/app"),
+            system=system_of(rig.url("/")),
+            requests=[replace(one_.requests[0], url=rig.url("/api/customer-types"))],
+        )
+        for key, one_ in saved.items()
+    }
+    ctx = lane_context(by_id)
+    assert ctx.held is not None
+    ctx = replace(ctx, held=replace(ctx.held, target_id=target, session=one))
+
+    screen = await driver.screenshot(one, target)
+    result = await SightLane(driver, model, None).execute(
+        replace(step, system=system_of(rig.url("/"))), {"Customer Type": "GT2"}, ctx
+    )
+
+    assert screen.image.startswith(b"\x89PNG") and screen.width > 0 and screen.height > 0
+    assert result.verdict == "done", result.reason
+    assert dict(result.learned) == {
+        "strategy": "role_and_name",
+        "query": "button|Save",
+        "frame_path": json.dumps([{"index": 1, "url": rig.url("/app")}]),
+    }
+    posted = [c for c in result.calls if c.method == "POST"]
+    assert [(c.status, c.own_frame, c.request_body) for c in posted] == [
+        (201, True, '{"name":"GT2"}')
+    ]
+
+
+async def test_a_call_sent_and_not_yet_answered_is_already_in_the_log(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/public"))
+    mark = await driver.mark(one, target)
+    await driver.evaluate(one, target, "void fetch('/api/ping?hold', {method: 'POST'})")
+    assert await asyncio.to_thread(rig.pinged.wait, 10)
+
+    pending = await driver.calls_since(one, target, mark)
+    rig.release.set()
+
+    assert [(c.method, c.status) for c in pending] == [("POST", None)]
+    assert await driver.wait_for_call(
+        one, target, method="POST", shape="/api/ping", since=mark, deadline_s=5.0
+    )
+    assert [(c.method, c.status) for c in await driver.calls_since(one, target, mark)] == [
+        ("POST", 201)
+    ]
+
+
+async def test_a_mark_forgets_the_frame_the_last_step_acted_in(
+    rig: Rig,  # noqa: F811
+    cdp_url: str,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await signed_in_on_the_framed_page(rig, driver, one)
+    assert (await driver.act(one, target, in_the_app_frame(rig, "type", "#ct", "GT2"))).ok
+    mark = await driver.mark(one, target)
+    app = next(f for f in driver._links[cdp_url].pages[target].frames if f.url.endswith("/app"))
+
+    await app.evaluate(PING)
+
+    assert await driver.wait_for_call(
+        one, target, method="POST", shape="/api/ping", since=mark, deadline_s=5.0
+    )
+    assert [c.own_frame for c in await driver.calls_since(one, target, mark)] == [False]
+
+
+async def test_a_point_is_confirmed_only_when_the_recorded_control_is_what_it_hit(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await signed_in_on_the_framed_page(rig, driver, one)
+    page = await driver._page(one, target)
+    await page.wait_for_load_state()
+    app = next(f for f in page.frames if f.url.endswith("/app"))
+    await app.evaluate(
+        "document.getElementById('save').insertAdjacentHTML('beforebegin',"
+        ' \'<input id="desc" aria-label="Description">\')'
+    )
+    recorded = in_the_app_frame(rig, "type", "#ct")
+
+    async def pointed(css: str, action: ActionKind, value: str | None) -> str:
+        x, y = await page.evaluate(_CENTRE_IN_APP_FRAME, css)
+        hit = await driver.hit_test(one, target, x, y)
+        assert hit is not None and isinstance(hit.get("pin"), str)
+        await driver.point(one, target, action, x, y, value, hit["frame_path"])
+        return str(hit["pin"])
+
+    async def holds(pin: str, expect: dict[str, object]) -> bool:
+        return await driver.wait_for(one, target, {**recorded, "pin": pin, "expect": expect}, 0.5)
+
+    wrong_field = await pointed("#desc", ActionKind.TYPE, "GT2")
+    assert not await holds(wrong_field, {"value": "GT2"})
+    save = await pointed("#save", ActionKind.CLICK, None)
+    assert not await holds(save, {"visible": True, "enabled": True})
+    await app.evaluate("document.getElementById('ct').value = 'GT1'")
+    prefilled = await pointed("#ct", ActionKind.HOVER, None)
+    assert not await holds(prefilled, {"value": "GT9"})
+    typed = await pointed("#ct", ActionKind.TYPE, "GT9")
+    assert await holds(typed, {"value": "GT1GT9", "visible": True, "enabled": True})

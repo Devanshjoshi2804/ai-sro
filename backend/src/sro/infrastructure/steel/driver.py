@@ -26,9 +26,11 @@ from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 from sro.application.ports.page import PageAnswer, PageGone, PageUnsettled, SessionRef
+from sro.application.ports.vision import Screen
 from sro.domain.execution.lanes import SeenCall
 from sro.domain.observation.gesture import AfterState
 from sro.domain.observation.trim import path_shape
+from sro.domain.recording.events import ActionKind
 from sro.domain.skill.signing_in import PageSignals, a_navigation
 from sro.infrastructure.steel.capture import addressed
 from sro.infrastructure.steel.client import cdp_origin, websocket_debugger_url
@@ -38,8 +40,11 @@ K_ACTION_TIMEOUT_S = 15
 K_CALL_BODY_CHARS = 4096
 K_CALL_TYPES = frozenset({"fetch", "xhr"})
 K_NO_DOCUMENT = frozenset({204, 205})
+K_SCROLL_PX = 400
 
 _SIGNALS = "() => globalThis.sroPage.signals()"
+_HIT_TEST = "([x, y]) => globalThis.sroPage.hitTest(x, y)"
+_VIEWPORT = "() => ({width: innerWidth, height: innerHeight})"
 
 _SEED_STORAGE = """(items) => {
   for (const { name, value } of items) {
@@ -396,7 +401,7 @@ class SteelDriver:
             log = self._calls.get(request.frame.page)
         except PlaywrightError:
             return
-        sent = None if log is None else log.numbered.pop(request, None)
+        sent = None if log is None else log.numbered.get(request)
         if log is None or sent is None:
             return
         reading = asyncio.get_running_loop().create_task(self._record(log, sent, response))
@@ -418,6 +423,7 @@ class SteelDriver:
             sent.own_frame,
         )
         log.seen.append((sent.at, call))
+        log.numbered.pop(response.request, None)
         log.changed.set()
 
     async def _frame(self, page: Page, payload: Mapping[str, object]) -> tuple[Frame | None, str]:
@@ -477,6 +483,55 @@ class SteelDriver:
             repaired=bool(got.get("repaired")),
         )
 
+    async def screenshot(self, session: SessionRef, target_id: str) -> Screen:
+        page = await self._page(session, target_id)
+
+        async def take() -> Screen:
+            size = page.viewport_size or await page.evaluate(_VIEWPORT)
+            image = await page.screenshot(
+                type="png", scale="css", timeout=K_ACTION_TIMEOUT_S * 1000
+            )
+            return Screen(image, "image/png", int(size["width"]), int(size["height"]))
+
+        return await self._call(session, target_id, page, take)
+
+    async def hit_test(
+        self, session: SessionRef, target_id: str, x: int, y: int
+    ) -> Mapping[str, object] | None:
+        page = await self._page(session, target_id)
+        found = await self._call(
+            session, target_id, page, lambda: page.main_frame.evaluate(_HIT_TEST, [x, y])
+        )
+        return dict(found) if found else None
+
+    async def point(
+        self,
+        session: SessionRef,
+        target_id: str,
+        action: ActionKind,
+        x: int,
+        y: int,
+        value: str | None,
+        frame_path: Sequence[Mapping[str, object]] | None,
+    ) -> None:
+        page = await self._page(session, target_id)
+        frame, _ = await self._frame(page, {"frame_path": list(frame_path or [])})
+        self._log(page).acted = frame
+
+        async def gesture() -> None:
+            await page.mouse.move(x, y)
+            if action in (ActionKind.CLICK, ActionKind.TYPE):
+                await page.mouse.click(x, y)
+            if action is ActionKind.TYPE:
+                await page.keyboard.type(value or "")
+            elif action is ActionKind.PRESS:
+                await page.keyboard.press(value or "Enter")
+            elif action is ActionKind.SCROLL:
+                digits = value is not None and value.lstrip("-").isdigit()
+                await page.mouse.wheel(0, int(value) if digits and value else K_SCROLL_PX)
+
+        await self._call(session, target_id, page, gesture)
+
     async def mark(self, session: SessionRef, target_id: str) -> int:
         page = await self._page(session, target_id)
         if ("request", self._sent) not in self._listeners.get(
@@ -484,7 +539,7 @@ class SteelDriver:
         ):
             await self.on(session, "request", self._sent)
             await self.on(session, "response", self._heard)
-        self._log(page)
+        self._log(page).acted = None
         return next(self._seq)
 
     async def calls_since(
@@ -493,7 +548,24 @@ class SteelDriver:
         log = self._calls.get(await self._page(session, target_id))
         if log is None or log.first > mark:
             return ()
-        return tuple(call for at, call in sorted(log.seen, key=lambda one: one[0]) if at > mark)
+        pending = [
+            (
+                sent.at,
+                SeenCall(
+                    request.method,
+                    request.url,
+                    None,
+                    None,
+                    sent.body,
+                    sent.content_type,
+                    sent.own_frame,
+                ),
+            )
+            for request, sent in log.numbered.items()
+        ]
+        return tuple(
+            call for at, call in sorted([*log.seen, *pending], key=lambda one: one[0]) if at > mark
+        )
 
     async def wait_for_call(
         self,
@@ -536,7 +608,14 @@ class SteelDriver:
         self, session: SessionRef, target_id: str, payload: Mapping[str, object], deadline_s: float
     ) -> bool:
         page = await self._page(session, target_id)
-        frame = self._log(page).acted or page.main_frame
+        recorded, _ = (
+            await self._frame(page, payload)
+            if isinstance(payload.get("frame_path"), list)
+            else (self._log(page).acted or page.main_frame, "")
+        )
+        if recorded is None:
+            return False
+        frame = recorded
         try:
             await self._call(
                 session,

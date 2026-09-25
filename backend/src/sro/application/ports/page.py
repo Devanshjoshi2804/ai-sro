@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
+from sro.application.ports.vision import Screen
 from sro.domain.execution.lanes import SeenCall
 from sro.domain.observation.gesture import AfterState
+from sro.domain.recording.events import ActionKind
 from sro.domain.skill.signing_in import PageSignals
 
 
@@ -62,6 +64,23 @@ class PageDriver(Protocol):
     ) -> bool: ...
 
     async def signals(self, session: SessionRef, target_id: str) -> PageSignals: ...
+
+    async def screenshot(self, session: SessionRef, target_id: str) -> Screen: ...
+
+    async def hit_test(
+        self, session: SessionRef, target_id: str, x: int, y: int
+    ) -> Mapping[str, object] | None: ...
+
+    async def point(
+        self,
+        session: SessionRef,
+        target_id: str,
+        action: ActionKind,
+        x: int,
+        y: int,
+        value: str | None,
+        frame_path: Sequence[Mapping[str, object]] | None,
+    ) -> None: ...
 
     async def open_tab(self, session: SessionRef, url: str) -> str: ...
 

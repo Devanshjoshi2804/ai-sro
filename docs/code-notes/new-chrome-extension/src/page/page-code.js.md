@@ -142,18 +142,6 @@ Comments and docstrings moved out of [`new-chrome-extension/src/page/page-code.j
 > so a secret field is never named at all. The authoritative accessible name
 > on Steel still comes from the AX tree.
 
-## `labelled`, [line 51](../../../../../new-chrome-extension/src/page/page-code.js#L51): Function
-
-> The text of a field's first `<label>`, for `nameOf` and `labelOf`. A label
-> that holds no control is read with `innerText`, exactly as before. A label
-> that wraps its control (`<label>Carrier <select>...`) is walked instead
-> (`textBeside`), skipping every control, editing host, script and style in
-> it (`NOT_LABEL`) and every descendant that is not laid out: `innerText`
-> would give "Carrier UPS Ground FedEx", putting the option list -- or a
-> wrapped textarea's text -- into the name and the outline (E6 review, M3).
-> Keeping `innerText` for the common case leaves every existing locator's
-> name unchanged.
-
 ## `ext`, [line 281](../../../../../new-chrome-extension/src/page/page-code.js#L281): Function
 
 > The DOM behind every visible component a query matches, through `partOf`:
@@ -307,7 +295,7 @@ Comments and docstrings moved out of [`new-chrome-extension/src/page/page-code.j
 > been inner closures of `perform` rather than functions in their own
 > right.
 
-## module, [line 1100](../../../../../new-chrome-extension/src/page/page-code.js#L1100): Comment
+## module, [line 1108](../../../../../new-chrome-extension/src/page/page-code.js#L1108): Comment
 
 Code: `globalThis.sroPage = sroPage;`
 
@@ -790,7 +778,7 @@ Code: `globalThis.sroPage = sroPage;`
 > all: the two facts that tell a refusal from a stall, and neither of
 > them costs anything to collect. (the final `unreachable` detail)
 
-## `hitTest`, [line 1032](../../../../../new-chrome-extension/src/page/page-code.js#L1032): Function
+## `hitTest`, [line 1038](../../../../../new-chrome-extension/src/page/page-code.js#L1038): Function
 
 > Sight's other half: `viewport` tells the model where things are, and a
 > model's answer is a point, which is only useful to a future run if it
@@ -808,6 +796,13 @@ Code: `globalThis.sroPage = sroPage;`
 > exactly this component; then role and name; then a unique test id; then
 > an xpath -- and only an xpath that finds this element, else `null`, since
 > a locator that finds nothing teaches a future run to fail.
+>
+> A reachable answer also carries a `pin`: the hit element is kept under it
+> in that frame's own `__sroHits` map, so `holds` can later ask whether the
+> step's RECORDED locator resolves to the element this point hit (X7 review,
+> non-write sight ruling). ponytail: the map lives as long as the document
+> and gains one entry per sight point; clear it per step if a page ever
+> lives through enough sight steps for that to matter.
 
 ## `act`, [line 1003](../../../../../new-chrome-extension/src/page/page-code.js#L1003): Function
 
@@ -870,8 +865,19 @@ Code: `globalThis.sroPage = sroPage;`
 > holds when the expected value is the chosen option's `value`: `act`
 > accepts an option by value or by text, so a run's parameter may name
 > either, while the recording names the label.
+>
+> A pin `hitTest` gave (sight) is stricter: the payload's recorded locator
+> is resolved with `find`, never repaired (the sight lane sends no
+> `write: false`), and holds only when it resolves to exactly the hit's
+> nearest actionable element, `hit.closest(CANDIDATES)` -- so a click on a
+> button's inner span confirms the button, while a container locator (a
+> grid, a tab list) never confirms a click on one of its children, such as
+> the wrong row (X7 re-review N1). The state is then read from that
+> recorded control. So the right value typed
+> into the wrong field, or a click on any element that is merely visible
+> and enabled, never holds.
 
-## `signals`, [line 1083](../../../../../new-chrome-extension/src/page/page-code.js#L1083): Function
+## `signals`, [line 1091](../../../../../new-chrome-extension/src/page/page-code.js#L1091): Function
 
 > S6: what the page's own inputs say about it, never what was typed into
 > them. Only inputs `shown` passes count -- the one visibility rule this file
@@ -885,129 +891,3 @@ Code: `globalThis.sroPage = sroPage;`
 > credential (I5). Structure only: no value is read off any control, matching
 > the sign-in capture rule (E7 security ruling, spec §5.6) that a sign-in
 > page's evidence never carries what was typed into it.
-
-## `OUTLINE_OPTIONS`, [line 151](../../../../../new-chrome-extension/src/page/page-code.js#L151): Constant
-
-> The screen outline (`outlineOf`) keeps a control's option labels only when
-> it has at most this many. A short list is the control's vocabulary -- the
-> departments, the carriers -- and is what a run needs to fill it by label. A
-> list over the cap is data: customers, SKUs, locations, rows from the
-> tenant's own tables. It is dropped whole (`options: null`), never cut to its
-> first 25, so no part of a data list is kept. The server applies the same cap
-> (`outline.py`, `K_OUTLINE_OPTIONS`).
-
-## `OUTLINE_FIELDS`, [line 152](../../../../../new-chrome-extension/src/page/page-code.js#L152): Constant
-
-> Caps on what one outline may carry: at most 80 fields, headings or buttons,
-> 120 characters per string (`OUTLINE_TEXT`) and 10 messages
-> (`OUTLINE_MESSAGES`). They bound each part; `OUTLINE_CHARS` bounds the
-> whole. The server applies the same caps to whatever a client sends.
-
-## `OUTLINE_CHARS`, [line 155](../../../../../new-chrome-extension/src/page/page-code.js#L155): Constant
-
-> The most one outline may weigh, serialized: 16 KiB. An outline rides on its
-> gesture record, and `observe.js` refuses any record over 128 KiB
-> (`MAX_GESTURE_CHARS`) -- the whole gesture, not just the outline. At the
-> per-part caps alone one outline measured about 100 KB (80 selects of 25
-> long options), and a record carries up to `OUTLINES_PER_GESTURE` (3) of
-> them, so the caps were never enough (E6 review, I2). Three outlines at
-> 16 KiB leave well over half the limit for the gesture itself. `fitted`
-> trims to it; the server applies the same cap (`K_OUTLINE_CHARS`).
-
-## `NOT_VOCABULARY`, [line 157](../../../../../new-chrome-extension/src/page/page-code.js#L157): Constant
-
-> A string holding a URL (`://`), a query-style pair (`name=value`), a run of
-> 16 or more hex digits, or a run of 32 or more word characters is never
-> outline vocabulary, and is how a token travels: an OAuth callback, an
-> `access_token=` a page prints, a reset link's path ("Open /reset/9f8e...b1a0
-> to continue", E6 review M4). No label, heading or option name is such a
-> run. It is dropped whole in the page; the server drops it again, and also
-> drops anything `redact_url` or `redact_shapes` would change.
-
-## `labelOf`, [line 158](../../../../../new-chrome-extension/src/page/page-code.js#L158): Function
-
-> What a field is called, from the page's words about it and never from the
-> control itself: `aria-label`, `aria-labelledby`, the `<label>` bound to it,
-> then `placeholder` or `title`. Unlike `nameOf` there is no `innerText`
-> fallback. A contenteditable's `innerText` is exactly what the operator
-> typed, and a field's own text is its value -- the first E6 stored the
-> accessibility tree, whose names carried both (review 2026-09-25). The
-> `<label>` is read through `labelled`, so a label that wraps its control
-> never takes in the control's text.
->
-> **Ceiling:** a label the page itself rewrites from a typed value (an
-> `aria-labelledby` pointing at a mirror) is kept. There is no echo rule any
-> more (see `outlineOf`); structure cannot tell such a label from any other.
-
-## `requiredOf`, [line 164](../../../../../new-chrome-extension/src/page/page-code.js#L164): Function
-
-> Whether the PAGE says this field must be filled: `aria-required`, the HTML5
-> attribute, or a star at the end of its label; `null` where it says nothing.
-> Moved here from recorder.js so the recorder's `describe` and the outline
-> read it with one text. It reads `labelOf`, not the recorder's `label`, so a
-> contenteditable's typed text is never searched for a star.
-
-## `insideEditor`, [line 172](../../../../../new-chrome-extension/src/page/page-code.js#L172): Function
-
-> An element inside an editing host (a rich-text editor) is typed content, not
-> page structure: an `<h2>` the operator wrote in a notes editor is a heading
-> of their text. The outline skips every such element.
-
-## `fitted`, [line 174](../../../../../new-chrome-extension/src/page/page-code.js#L174): Function
-
-> Trims an outline to `OUTLINE_CHARS`, deterministically and in this order:
-> option lists from the last field back, then whole fields from the end,
-> then buttons, landmarks, messages, and headings last. Option lists go
-> first because they are the bulk and the least of what a run needs: the
-> field is found by its label, and its choices can be read off the live page.
-> The size is kept as a running total (each removal subtracts its own
-> serialized length) rather than re-serializing the outline per step. An
-> outline is never refused for size, so it never costs its gesture.
-
-## `outlineOf`, [line 189](../../../../../new-chrome-extension/src/page/page-code.js#L189): Function
-
-> A compact description of the screen: headings, named forms and dialogs,
-> fields (role, label, required, small option lists), button names, and the
-> ROLE of each message on screen (`alert`, `status`, and `invalid` for the
-> element an `aria-invalid` field points at). Never a value, never free page
-> text: a mirror `<div>` is not read at all, and every string passes
-> `NOT_VOCABULARY`. Only what is laid out (`getClientRects`) is described.
->
-> **Messages keep their role only** (E6 ruling, 2026-09-25). A message is the
-> one part of a screen that pages build from what was typed: "Code 483920
-> has expired" after the box is cleared, "Verifying 483920" from six
-> one-digit boxes, a debounced "Checking 4839..", "You typed ..." from a
-> password in a closed shadow root. The first outline compared message text
-> with the controls' current values, and real Chrome showed all four
-> reaching storage: by the time the message is read the value is gone,
-> split, partial, or out of reach. So a message is recorded as "an alert
-> appeared" and nothing it said. What an error MEANT comes from the server
-> response the step received, which is stored, redacted, with the call. A
-> message element with no text is not a message and is skipped.
->
-> **No echo rule.** Headings, labels, landmarks, buttons and options are kept
-> even when they equal something the operator typed. The rule that dropped
-> them removed whole fields ("Pick Location" after "pick" was typed),
-> headings, and the chosen option from its own list, and bought no privacy:
-> a non-secret typed value is stored in its own `type` gesture anyway.
-> **Ceiling:** a page that writes a secret into a heading, a button, a label
-> or a dialog's name is not caught; structure cannot tell such a string from
-> the page's own words.
->
-> **Cost ceiling** (E6 review, M6): `outlineOf` took 19 ms on a page of about
-> 6,000 elements. It runs synchronously in the capture phase of every
-> gesture, and again whenever the text inside an `alert` or `status`
-> changes, so a ticking status re-outlines the page on every tick (the
-> result is deduplicated, the work is not). Upgrade path: debounce the
-> observer's re-reads, or read only the changed subtree, if a real page
-> shows the cost.
->
-> It replaced tree capture (spec §4.6): the extension no longer attaches
-> `chrome.debugger`, and Steel reads the same outline from the live page
-> with `sroPage.outline()` -- one text, spliced into the recorder with the
-> other readers.
-
-## `outline`, [line 1095](../../../../../new-chrome-extension/src/page/page-code.js#L1095): Function
-
-> `outlineOf(document)` for Steel (X10): the screen as the recorder would
-> send it, read on demand from the live page.

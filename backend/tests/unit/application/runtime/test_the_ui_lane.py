@@ -7,7 +7,7 @@ from sro.application.ports.page import PageAnswer, PageGone
 from sro.application.runtime.step import Stopped
 from sro.application.runtime.ui_lane import UiLane, ui_payload
 from sro.domain.execution.lanes import SeenCall
-from sro.domain.observation.gesture import AfterState
+from sro.domain.observation.gesture import AfterState, Body
 from tests.unit.runtime_support import (
     lane_context,
     read_step,
@@ -117,6 +117,70 @@ async def test_a_call_numbered_before_the_mark_is_not_this_steps_write() -> None
     result = await UiLane(driver).execute(step, {}, lane_context(by_id))
 
     assert (result.verdict, result.read) == ("unknown", {})
+
+
+async def test_a_same_shape_2xx_from_another_frame_does_not_confirm_a_write() -> None:
+    background = SeenCall(
+        "POST", "https://wms.example/api/customer-types", 201, '{"id": "ct-9"}', own_frame=False
+    )
+    driver = scripted_driver(answer=PageAnswer(ok=True, matched_by="component"), calls=[background])
+    step, by_id = save_step(status=201)
+
+    result = await UiLane(driver).execute(step, {}, lane_context(by_id))
+
+    assert result.verdict == "unknown"
+
+
+async def test_a_same_shape_2xx_from_another_host_does_not_confirm_a_write() -> None:
+    elsewhere = SeenCall("POST", "https://other.example/api/customer-types", 201, '{"id": "ct-9"}')
+    driver = scripted_driver(answer=PageAnswer(ok=True, matched_by="component"), calls=[elsewhere])
+    step, by_id = save_step(status=201)
+
+    result = await UiLane(driver).execute(step, {}, lane_context(by_id))
+
+    assert result.verdict == "unknown"
+
+
+async def test_a_same_shape_2xx_with_different_body_keys_does_not_confirm_a_write() -> None:
+    other_fields = SeenCall(
+        "POST",
+        "https://wms.example/api/customer-types",
+        201,
+        '{"id": "ct-9"}',
+        request_body='{"other": "x"}',
+        request_content_type="application/json",
+    )
+    driver = scripted_driver(
+        answer=PageAnswer(ok=True, matched_by="component"), calls=[other_fields]
+    )
+    step, by_id = save_step(
+        status=201, body=Body(text='{"name": "GT2"}', mime_type="application/json")
+    )
+
+    result = await UiLane(driver).execute(step, {}, lane_context(by_id))
+
+    assert result.verdict == "unknown"
+
+
+async def test_a_same_shape_2xx_with_matching_body_keys_confirms_the_write() -> None:
+    same_fields = SeenCall(
+        "POST",
+        "https://wms.example/api/customer-types",
+        201,
+        '{"id": "ct-9"}',
+        request_body='{"name": "GT2"}',
+        request_content_type="application/json",
+    )
+    driver = scripted_driver(
+        answer=PageAnswer(ok=True, matched_by="component"), calls=[same_fields]
+    )
+    step, by_id = save_step(
+        status=201, body=Body(text='{"name": "GT1"}', mime_type="application/json")
+    )
+
+    result = await UiLane(driver).execute(step, {}, lane_context(by_id))
+
+    assert (result.verdict, result.read) == ("done", {"id": "ct-9"})
 
 
 async def test_an_after_state_that_does_not_hold_turns_a_confirmed_write_unknown() -> None:

@@ -29,6 +29,10 @@ _FRAMED_PAGE = """<!doctype html><html><body>
   <iframe src="/public"></iframe><iframe src="/app"></iframe>
 </body></html>"""
 
+_FRAMED_TWICE_PAGE = """<!doctype html><html><body>
+  <iframe src="/app"></iframe><iframe src="/app"></iframe>
+</body></html>"""
+
 _APP_PAGE = """<!doctype html><html><head><meta name="csrf-token" content="{token}"></head><body>
   <form aria-label="Customer Type">
     <label for="ct">Customer Type</label><input id="ct" name="customerType">
@@ -167,6 +171,8 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
                 self._html(_PUBLIC_PAGE)
             elif path == "/framed":
                 self._html(_FRAMED_PAGE)
+            elif path == "/framed-twice":
+                self._html(_FRAMED_TWICE_PAGE)
             elif path == "/":
                 if sid and sid in rig._sessions:
                     self._redirect(rig.url("/app"))

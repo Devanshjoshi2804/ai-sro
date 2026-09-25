@@ -20,7 +20,15 @@ from sro.application.runtime.step import Held, LaneContext
 from sro.domain.execution.account import Account, Lease, LeaseState
 from sro.domain.execution.lanes import SeenCall
 from sro.domain.execution.learned_step import LearnedStep
-from sro.domain.observation.gesture import Action, AfterState, Call, Component, Gesture, Target
+from sro.domain.observation.gesture import (
+    Action,
+    AfterState,
+    Body,
+    Call,
+    Component,
+    Gesture,
+    Target,
+)
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.fakes import FakePageDriver
@@ -97,7 +105,7 @@ def lane_context(
 
 
 def save_step(
-    *, status: int = 201, after: AfterState | None = None
+    *, status: int = 201, after: AfterState | None = None, body: Body | None = None
 ) -> tuple[Step, dict[str, Gesture]]:
     gesture = Gesture(
         id="ges_save",
@@ -116,6 +124,7 @@ def save_step(
                 url=f"{_SYSTEM}/api/customer-types",
                 status=status,
                 started_at=1.0,
+                request_body=body,
             )
         ],
     )

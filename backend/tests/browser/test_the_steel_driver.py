@@ -378,6 +378,22 @@ async def test_act_without_a_frame_path_finds_the_one_frame_holding_the_control(
     assert (missing.ok, missing.error_kind) == (False, "control_not_found")
 
 
+async def test_an_ambiguous_probe_on_old_evidence_is_refused_not_the_main_frame(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/"))
+    await rig.sign_in_in(driver, one, target)
+    await driver.goto(one, target, rig.url("/framed-twice"))
+
+    result = await driver.act(
+        one, target, {**in_the_app_frame(rig, "click", "#save"), "frame_path": None}
+    )
+
+    assert (result.ok, result.error_kind) == (False, "frame_ambiguous")
+
+
 async def test_one_account_never_sees_another_accounts_calls(
     rig: Rig,  # noqa: F811
     one: SessionRef,  # noqa: F811
@@ -402,7 +418,9 @@ async def test_one_account_never_sees_another_accounts_calls(
     assert [(c.method, c.url, c.status) for c in await driver.calls_since(one, mine, mark)] == [
         ("POST", rig.url("/api/ping"), 201)
     ]
-    assert all(c.url != rig.url("/api/ping") for c in await driver.calls_since(two, theirs, 0))
+    theirs_calls = await driver.calls_since(two, theirs, their_mark)
+    assert any(c.url == rig.url("/api/customer-types") for c in theirs_calls)
+    assert all(c.url != rig.url("/api/ping") for c in theirs_calls)
     assert not await driver.wait_for_call(
         one, mine, method="POST", shape="/api/customer-types", since=mark, deadline_s=0.5
     )

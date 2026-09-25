@@ -208,7 +208,9 @@ async def test_one_account_never_sees_the_calls_another_account_makes_in_the_sam
     assert [(c.method, c.url, c.status) for c in await driver.calls_since(a, mine, mark)] == [
         ("POST", steel_rig.url("/api/ping"), 201)
     ]
-    assert all(c.url != steel_rig.url("/api/ping") for c in await driver.calls_since(b, theirs, 0))
+    theirs_calls = await driver.calls_since(b, theirs, their_mark)
+    assert any(c.url == steel_rig.url("/api/customer-types") for c in theirs_calls)
+    assert all(c.url != steel_rig.url("/api/ping") for c in theirs_calls)
     assert not await driver.wait_for_call(
         a, mine, method="POST", shape="/api/customer-types", since=mark, deadline_s=1.0
     )

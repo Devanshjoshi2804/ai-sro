@@ -58,9 +58,17 @@ class _Link:
 
 
 @dataclass
+class _Sent:
+    at: int
+    own_frame: bool
+    body: str | None
+    content_type: str | None
+
+
+@dataclass
 class _Calls:
     first: int
-    numbered: dict[Request, int] = field(default_factory=dict)
+    numbered: dict[Request, _Sent] = field(default_factory=dict)
     seen: list[tuple[int, SeenCall]] = field(default_factory=list)
     acted: Frame | None = None
     changed: asyncio.Event = field(default_factory=asyncio.Event)
@@ -277,9 +285,12 @@ class SteelDriver:
             return
         try:
             page = request.frame.page
+            own_frame = request.frame is self._log(page).acted
+            content_type = request.headers.get("content-type")
+            body = request.post_data
         except PlaywrightError:
             return
-        self._log(page).numbered[request] = next(self._seq)
+        self._log(page).numbered[request] = _Sent(next(self._seq), own_frame, body, content_type)
 
     def _heard(self, response: Response) -> None:
         request = response.request
@@ -287,23 +298,31 @@ class SteelDriver:
             log = self._calls.get(request.frame.page)
         except PlaywrightError:
             return
-        at = None if log is None else log.numbered.pop(request, None)
-        if log is None or at is None:
+        sent = None if log is None else log.numbered.pop(request, None)
+        if log is None or sent is None:
             return
-        reading = asyncio.get_running_loop().create_task(self._record(log, at, response))
+        reading = asyncio.get_running_loop().create_task(self._record(log, sent, response))
         log.reading.add(reading)
         reading.add_done_callback(log.reading.discard)
 
-    async def _record(self, log: _Calls, at: int, response: Response) -> None:
+    async def _record(self, log: _Calls, sent: _Sent, response: Response) -> None:
         body = None
         if 200 <= response.status < 300:
             with contextlib.suppress(PlaywrightError):
                 body = (await response.text())[:K_CALL_BODY_CHARS]
-        call = SeenCall(response.request.method, response.url, response.status, body)
-        log.seen.append((at, call))
+        call = SeenCall(
+            response.request.method,
+            response.url,
+            response.status,
+            body,
+            sent.body,
+            sent.content_type,
+            sent.own_frame,
+        )
+        log.seen.append((sent.at, call))
         log.changed.set()
 
-    async def _frame(self, page: Page, payload: Mapping[str, object]) -> Frame | None:
+    async def _frame(self, page: Page, payload: Mapping[str, object]) -> tuple[Frame | None, str]:
         hops = payload.get("frame_path")
         if isinstance(hops, list):
             frame = page.main_frame
@@ -316,27 +335,31 @@ class SteelDriver:
                 elif isinstance(index, int) and 0 <= index < len(children):
                     frame = children[index]
                 else:
-                    return None
-            return frame
+                    return None, "frame_not_found"
+            return frame, ""
         holding = []
         for frame in page.frames:
             with contextlib.suppress(PlaywrightError):
                 found = await frame.evaluate("p => globalThis.sroPage.resolve(p)", dict(payload))
                 if found and found.get("found"):
                     holding.append((frame, found.get("strategy")))
-        return best_frame(holding) or page.main_frame
+        picked = best_frame(holding)
+        if picked is not None:
+            return picked, ""
+        return (None, "frame_ambiguous") if holding else (page.main_frame, "")
 
     async def act(
         self, session: SessionRef, target_id: str, payload: Mapping[str, object]
     ) -> PageAnswer:
         page = await self._page(session, target_id)
-        frame = await self._frame(page, payload)
+        frame, kind = await self._frame(page, payload)
         if frame is None:
-            return PageAnswer(
-                ok=False,
-                detail="the recorded frame is no longer on the page",
-                error_kind="frame_not_found",
+            detail = (
+                "more than one frame matched, ambiguously"
+                if kind == "frame_ambiguous"
+                else "the recorded frame is no longer on the page"
             )
+            return PageAnswer(ok=False, detail=detail, error_kind=kind)
         self._log(page).acted = frame
         got = await self._call(
             session,

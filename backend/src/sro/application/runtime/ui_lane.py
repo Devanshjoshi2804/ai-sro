@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Mapping
 from dataclasses import asdict
+from urllib.parse import urlsplit
 
 from sro.application.ports.page import PageAnswer, PageDriver
 from sro.application.runtime.step import Held, LaneContext, Stopped
@@ -19,13 +20,13 @@ from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.planning import value_for
 from sro.domain.execution.records import made_by, names_in
 from sro.domain.execution.secrets import needs_a_secret
-from sro.domain.observation.gesture import AfterState, Call, Gesture
-from sro.domain.observation.trim import path_shape
+from sro.domain.observation.gesture import AfterState, Body, Call, Gesture
+from sro.domain.observation.trim import body_key_set, path_shape
 from sro.domain.skill.signing_in import a_sign_in_page
 from sro.domain.skill.workflow import Step
 
 K_UI_WAIT_S = 15.0
-_NOTHING_SENT = frozenset({"control_not_found", "frame_not_found"})
+_NOTHING_SENT = frozenset({"control_not_found", "frame_not_found", "frame_ambiguous"})
 
 
 def ui_payload(
@@ -187,6 +188,19 @@ class UiLane:
 
 
 def _same_call(seen: SeenCall, recorded: Call) -> bool:
-    return seen.method.upper() == recorded.method.upper() and path_shape(seen.url) == path_shape(
-        recorded.url
+    if not (
+        seen.own_frame
+        and seen.method.upper() == recorded.method.upper()
+        and path_shape(seen.url) == path_shape(recorded.url)
+        and urlsplit(seen.url).netloc == urlsplit(recorded.url).netloc
+    ):
+        return False
+    wanted = body_key_set(recorded.request_body)
+    if wanted is None:
+        return True
+    seen_body = (
+        Body(text=seen.request_body, mime_type=seen.request_content_type)
+        if seen.request_body is not None
+        else None
     )
+    return body_key_set(seen_body) == wanted

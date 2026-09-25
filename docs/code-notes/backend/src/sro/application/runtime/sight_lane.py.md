@@ -2,13 +2,13 @@
 
 Comments and docstrings moved out of [`backend/src/sro/application/runtime/sight_lane.py`](../../../../../../../backend/src/sro/application/runtime/sight_lane.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `ALLOWED`, [line 33](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L33): Constant
+## `ALLOWED`, [line 34](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L34): Constant
 
 > The gestures sight may propose (spec §6.1 Sight). Navigation, dragging and
 > anything outside the account's own tab are not offered to the model at all;
 > the Computer Use adapter turns anything else it proposes into a refusal.
 
-## `SightLane`, [line 46](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L46): Class
+## `SightLane`, [line 47](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L47): Class
 
 > The last lane: `gemini-3.8-flash` with the Computer Use tool looks at a
 > screenshot of the account's own Steel tab and names one point at a time,
@@ -80,15 +80,19 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/sight
 > - **Reasons.** A refusal is forgotten once a later point is made, so a
 >   step pro acted on never reports flash's refusal (M6).
 
-## `_taught`, [line 371](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L371): Function
+## `_taught`, [line 372](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L372): Function
 
 > What a hit test teaches (X2 ruling). `None` (nothing, or no unique
 > locator) and `unreachable` (a cross-origin frame) teach nothing, and so
 > does a hit without its `frame_path`: a locator is never learned apart from
 > the frame it was found in. `frame_path` is kept as its JSON text so
-> `StepResult.learned` stays a string map.
+> `StepResult.learned` stays a string map. Each hop's `url` is a live
+> frame's address and may carry a token in its query, so it goes through
+> `redact_url` -- the same rule a recorded gesture's `frame_path` gets at
+> ingest -- before it can reach `workflow_learned`. The driver matches hops
+> by `path_shape`, which the redaction leaves alone.
 
-## `SightLane.fill`, [line 85](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L85): Docstring
+## `SightLane.fill`, [line 86](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L86): Docstring
 
 > Sight for a composed field that exists but will not take the value, through
 > `execute`'s own guarded loop (`_guarded`), with the goal `says`, the write's
@@ -100,7 +104,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/sight
 > (`check`, the fill's payload) resolves to exactly the last hit's nearest
 > actionable control and holds the value; the locator is learned from that hit.
 
-## `SightLane._guarded`, [line 113](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L113): Docstring
+## `SightLane._guarded`, [line 114](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L114): Docstring
 
 > The one loop both `execute` and `fill` run: drive, wait on the awaited call
 > after the last point (so a call the last point caused is in the log before

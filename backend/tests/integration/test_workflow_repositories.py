@@ -927,6 +927,29 @@ class TestWhatAJobTaughtItself:
         assert [one.by_run for one in changes] == ["run_b", "run_a"]
         assert changes[0].found_by == "sight"
 
+    async def test_a_sight_locator_keeps_its_frame_through_a_limit_and_loses_it_when_replaced(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        hops = '[{"index": 1, "url": "https://wms.example/frames/form"}]'
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(_workflow())
+            await uow.workflows.remember_locator(
+                "wfl_1", LearnedStep(2, "component", "#save", "sight", frame_path=hops)
+            )
+            await uow.workflows.remember_limit("wfl_1", 2, 40)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            kept = await uow.workflows.learned_for("wfl_1")
+            await uow.workflows.remember_locator("wfl_1", LearnedStep(2, "text", "Save", "text"))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            replaced = await uow.workflows.learned_for("wfl_1")
+
+        assert [(one.query, one.holds, one.frame_path) for one in kept] == [("#save", 40, hops)]
+        assert [(one.query, one.frame_path) for one in replaced] == [("Save", None)]
+
     async def test_a_run_that_found_what_the_last_one_found_writes_nothing(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:

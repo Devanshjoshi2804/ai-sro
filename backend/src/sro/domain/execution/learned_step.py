@@ -21,6 +21,7 @@ class LearnedStep:
     found_by: str
 
     holds: int | None = None
+    frame_path: str | None = None
 
     @property
     def usable(self) -> bool:

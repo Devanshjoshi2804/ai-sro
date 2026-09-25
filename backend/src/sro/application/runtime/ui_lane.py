@@ -40,6 +40,13 @@ def ui_payload(
     by_id: Mapping[str, Gesture],
 ) -> dict[str, object]:
     target = gesture.action.target
+    frame_path: object = (
+        None
+        if gesture.action.frame_path is None
+        else [asdict(hop) for hop in gesture.action.frame_path]
+    )
+    if learned is not None and learned.usable and learned.frame_path is not None:
+        frame_path = json.loads(learned.frame_path)
     payload: dict[str, object] = {
         "action": gesture.action.kind,
         "value": value,
@@ -47,9 +54,7 @@ def ui_payload(
         "learned": None
         if learned is None or not learned.usable
         else {"strategy": learned.strategy, "query": learned.query},
-        "frame_path": None
-        if gesture.action.frame_path is None
-        else [asdict(hop) for hop in gesture.action.frame_path],
+        "frame_path": frame_path,
     }
     if not writes(step, by_id):
         payload["write"] = False

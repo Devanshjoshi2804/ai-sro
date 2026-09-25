@@ -56,6 +56,19 @@ async def test_sight_acts_by_points_and_teaches_the_control_it_hit() -> None:
     assert written == [step.order]
 
 
+async def test_a_learned_frame_path_never_keeps_a_token_from_a_frame_url() -> None:
+    framed = {**HIT, "frame_path": [{"index": 0, "url": "https://wms.example/f?token=s3cr3t"}]}
+    driver = scripted_driver(url=APP, hit=framed, calls=[SAVED])
+    step, by_id = save_step(status=201)
+
+    result = await SightLane(driver, clicks_then_done(), None).execute(
+        step, {}, lane_context(by_id)
+    )
+
+    assert result.verdict == "done" and "s3cr3t" not in result.learned["frame_path"]
+    assert driver.pointed == [("click", 400, 20, None)]
+
+
 async def test_the_model_saying_done_never_confirms_a_write() -> None:
     driver = scripted_driver(url=APP, hit=HIT, calls=[])
     step, by_id = save_step(status=201)

@@ -26,6 +26,7 @@ from sro.domain.execution.secrets import needs_a_secret
 from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.observation.trim import looks_like_an_id, path_shape
 from sro.domain.recording.events import ActionKind
+from sro.domain.recording.sensitivity import redact_url
 from sro.domain.shared.hosts import system_of
 from sro.domain.skill.workflow import Step
 from sro.whose import about
@@ -376,7 +377,13 @@ def _taught(hit: Mapping[str, object] | None) -> dict[str, str]:
         return {}
     if not isinstance(frame_path, list):
         return {}
-    return {"strategy": strategy, "query": query, "frame_path": json.dumps(frame_path)}
+    hops = [
+        {**hop, "url": redact_url(hop["url"])}
+        if isinstance(hop, dict) and isinstance(hop.get("url"), str)
+        else hop
+        for hop in frame_path
+    ]
+    return {"strategy": strategy, "query": query, "frame_path": json.dumps(hops)}
 
 
 def _goal(step: Step, values: Mapping[str, str], primary: Gesture) -> str:

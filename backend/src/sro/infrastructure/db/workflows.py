@@ -378,6 +378,7 @@ class SqlWorkflowRepository(WorkflowRepository):
             strategy=learned.strategy,
             query=learned.query,
             found_by=learned.found_by,
+            frame_path=learned.frame_path,
             learned_at=datetime.now(tz=UTC),
         )
         await self._session.execute(
@@ -387,6 +388,7 @@ class SqlWorkflowRepository(WorkflowRepository):
                     "strategy": statement.excluded.strategy,
                     "query": statement.excluded.query,
                     "found_by": statement.excluded.found_by,
+                    "frame_path": statement.excluded.frame_path,
                     "learned_at": statement.excluded.learned_at,
                 },
             )
@@ -500,6 +502,7 @@ class SqlWorkflowRepository(WorkflowRepository):
                 query=row.query,
                 found_by=row.found_by,
                 holds=row.holds,
+                frame_path=row.frame_path,
             )
             for row in rows
         )

@@ -1,0 +1,168 @@
+import json
+
+import pytest
+
+from sro.application.runtime.teach import Teach
+from sro.domain.execution.lanes import Broken, Lane, SeenCall, StepResult, cites_key
+from tests.unit.fakes import FakeClock, FakeUnitOfWork
+from tests.unit.runtime_support import (
+    CTX,
+    NOW,
+    TENANT,
+    WORKFLOW,
+    proven_write_step,
+    save_step,
+)
+
+FRAME = json.dumps([{"index": 1, "url": "https://wms.example/frames/form"}])
+SIGHTED = {"strategy": "component", "query": "#saveButton", "frame_path": FRAME}
+URL = "https://wms.example/api/customer-types"
+
+
+async def test_a_sight_success_is_learned_into_the_ui_lane() -> None:
+    uow = FakeUnitOfWork()
+    step, by_id = save_step(status=201)
+    await uow.workflows.break_lane(
+        TENANT, WORKFLOW.id, Broken(step.order, Lane.UI, "f"), cites=cites_key(step), at=NOW
+    )
+    tried = (
+        StepResult("failed", Lane.UI, fingerprint="f"),
+        StepResult("done", Lane.SIGHT, learned=SIGHTED),
+    )
+
+    await Teach(uow, FakeClock()).learn(
+        CTX, WORKFLOW, by_id, step, tried, run_id="run_1", values={}
+    )
+
+    learned = await uow.workflows.learned_for(WORKFLOW.id)
+    assert [(one.strategy, one.query, one.found_by, one.frame_path) for one in learned] == [
+        ("component", "#saveButton", "sight", FRAME)
+    ]
+    assert await uow.workflows.broken_for(TENANT, WORKFLOW.id, {step.order: cites_key(step)}) == ()
+
+
+async def test_a_sight_hit_without_its_frame_path_teaches_no_locator() -> None:
+    uow = FakeUnitOfWork()
+    step, by_id = save_step(status=201)
+    tried = (
+        StepResult("done", Lane.SIGHT, learned={"strategy": "component", "query": "#saveButton"}),
+    )
+
+    await Teach(uow, FakeClock()).learn(
+        CTX, WORKFLOW, by_id, step, tried, run_id="run_1", values={}
+    )
+
+    assert await uow.workflows.learned_for(WORKFLOW.id) == ()
+
+
+async def test_a_failed_lane_joins_the_known_broken_list_but_a_session_problem_does_not() -> None:
+    uow = FakeUnitOfWork()
+    step, by_id = save_step(status=201)
+    tried = (
+        StepResult("failed", Lane.API, "missing_header", expired=True),
+        StepResult("failed", Lane.UI, fingerprint="ui_gone", expired=True),
+        StepResult("failed", Lane.SIGHT, fingerprint="sight_refused"),
+    )
+
+    await Teach(uow, FakeClock()).learn(
+        CTX, WORKFLOW, by_id, step, tried, run_id="run_1", values={}
+    )
+
+    assert await uow.workflows.broken_for(TENANT, WORKFLOW.id, {step.order: cites_key(step)}) == (
+        Broken(step.order, Lane.SIGHT, "sight_refused"),
+    )
+
+
+async def test_an_unknown_outcome_mends_nothing() -> None:
+    uow = FakeUnitOfWork()
+    step, by_id = save_step(status=201)
+    await uow.workflows.break_lane(
+        TENANT, WORKFLOW.id, Broken(step.order, Lane.UI, "f"), cites=cites_key(step), at=NOW
+    )
+
+    await Teach(uow, FakeClock()).learn(
+        CTX,
+        WORKFLOW,
+        by_id,
+        step,
+        (StepResult("unknown", Lane.UI, calls=(SeenCall("POST", URL, 201),)),),
+        run_id="run_1",
+        values={},
+    )
+
+    assert await uow.workflows.broken_for(TENANT, WORKFLOW.id, {step.order: cites_key(step)}) == (
+        Broken(step.order, Lane.UI, "f"),
+    )
+
+
+async def test_a_ui_write_the_page_confirmed_promotes_the_step_to_the_api_lane() -> None:
+    uow = FakeUnitOfWork()
+    step, by_id, _ = proven_write_step(read_back="/api/customer-types/{name}")
+    await uow.workflows.break_lane(
+        TENANT, WORKFLOW.id, Broken(step.order, Lane.API, "a"), cites=cites_key(step), at=NOW
+    )
+    call = SeenCall("POST", URL, 201, request_body='{"name": "GT2"}')
+
+    await Teach(uow, FakeClock()).learn(
+        CTX,
+        WORKFLOW,
+        by_id,
+        step,
+        (StepResult("done", Lane.UI, calls=(call,)),),
+        run_id="run_1",
+        values={"Customer Type": "GT2"},
+    )
+
+    ledger = await uow.workflows.learned_writes(TENANT)
+    assert ("POST", "/api/customer-types") in {(one.method, one.path_pattern) for one in ledger}
+    assert await uow.workflows.broken_for(TENANT, WORKFLOW.id, {step.order: cites_key(step)}) == ()
+
+
+async def test_a_ui_write_with_no_read_back_is_not_promoted() -> None:
+    uow = FakeUnitOfWork()
+    step, by_id, _ = proven_write_step(read_back=None)
+    call = SeenCall("POST", URL, 201, request_body='{"name": "GT2"}')
+
+    await Teach(uow, FakeClock()).learn(
+        CTX,
+        WORKFLOW,
+        by_id,
+        step,
+        (StepResult("done", Lane.UI, calls=(call,)),),
+        run_id="run_1",
+        values={},
+    )
+
+    assert await uow.workflows.learned_writes(TENANT) == ()
+
+
+@pytest.mark.parametrize(
+    "call",
+    [
+        SeenCall("POST", URL, 201),
+        SeenCall("POST", URL, 201, request_body='{"name": "GT2", "validateOnly": true}'),
+        SeenCall("POST", URL, 201, request_body='{"name": "GT2"}', own_frame=False),
+        SeenCall(
+            "POST",
+            "https://other.example/api/customer-types",
+            201,
+            request_body='{"name": "GT2"}',
+        ),
+    ],
+    ids=["no_body", "a_key_nobody_filled", "another_frame", "another_host"],
+)
+async def test_a_call_that_is_not_the_writes_own_never_promotes(call: SeenCall) -> None:
+    uow = FakeUnitOfWork()
+    step, by_id, _ = proven_write_step(read_back="/api/customer-types/{name}")
+
+    await Teach(uow, FakeClock()).learn(
+        CTX,
+        WORKFLOW,
+        by_id,
+        step,
+        (StepResult("done", Lane.UI, calls=(call,)),),
+        run_id="run_1",
+        values={"Customer Type": "GT2"},
+    )
+
+    assert await uow.workflows.learned_writes(TENANT) == ()

@@ -776,6 +776,7 @@ class WorkflowLearnedRow(Base):
     query: Mapped[str] = mapped_column(Text, nullable=False)
     found_by: Mapped[str] = mapped_column(Text, nullable=False)
     holds: Mapped[int | None] = mapped_column(Integer)
+    frame_path: Mapped[str | None] = mapped_column(Text)
     learned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 

@@ -1,4 +1,5 @@
 import asyncio
+import json
 from dataclasses import replace
 from typing import NoReturn
 
@@ -9,6 +10,7 @@ from sro.application.runtime.step import Stopped
 from sro.application.runtime.ui_lane import UiLane, same_call, ui_payload
 from sro.domain.execution.compose import Adding
 from sro.domain.execution.lanes import SeenCall
+from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.observation.gesture import AfterState, Body, Call
 from tests.unit.runtime_support import (
     lane_context,
@@ -324,6 +326,18 @@ def test_only_a_step_that_does_not_write_is_marked_write_false() -> None:
 
     assert "write" not in wrote
     assert read["write"] is False
+
+
+def test_a_locator_sight_learned_is_looked_for_in_the_frame_it_was_found_in() -> None:
+    step, by_id = save_step(status=201)
+    hops = [{"index": 1, "url": "https://wms.example/frames/form"}]
+    sighted = LearnedStep(
+        step.order, "component", "#saveButton", "sight", frame_path=json.dumps(hops)
+    )
+    typed = LearnedStep(step.order, "text", "Save", "text")
+
+    assert ui_payload(step, by_id["ges_save"], None, sighted, by_id)["frame_path"] == hops
+    assert ui_payload(step, by_id["ges_save"], None, typed, by_id)["frame_path"] is None
 
 
 async def test_a_control_that_was_never_found_never_left() -> None:

@@ -68,6 +68,11 @@ class StepExecutor:
                 except (NeedsAPerson, AccountBusy, PageGone) as why:
                     why.tried = (*tried, replace(result, reason=f"{result.reason}; {why}"))
                     raise
+                except Stopped:
+                    raise
+                except Exception as why:
+                    failed = f"sign-in failed: {type(why).__name__}"
+                    return (*tried, replace(result, reason=failed))
                 again = replace(ctx, reauthed=True)
                 if result.verdict == "unknown":
                     result = await self._settled(step, values, again, result)

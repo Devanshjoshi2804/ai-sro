@@ -13,7 +13,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/execu
 > that only reads the mail this run came from answers `read` with no
 > lane at all: the mail is already in hand.
 
-## `StepExecutor.run`, [line 72](../../../../../../../backend/src/sro/application/runtime/executor.py#L72): Note
+## `StepExecutor.run`, [line 77](../../../../../../../backend/src/sro/application/runtime/executor.py#L77): Note
 
 Code: `if result.verdict == "unknown":`
 
@@ -26,7 +26,7 @@ Code: `if result.verdict == "unknown":`
 > the values makes it `done`, anything else leaves it `unknown` and the
 > operator is asked.
 
-## `StepExecutor.run`, [line 77](../../../../../../../backend/src/sro/application/runtime/executor.py#L77): Note
+## `StepExecutor.run`, [line 82](../../../../../../../backend/src/sro/application/runtime/executor.py#L82): Note
 
 Code: `if result.verdict != "failed" or result.expired:`
 
@@ -53,3 +53,14 @@ Code: `except (NeedsAPerson, AccountBusy, PageGone) as why:`
 > lanes tried so far and this lane's own result, with why the sign-in
 > stopped added to its reason: an `unknown` write stays `unknown` and a
 > failure keeps its fingerprint for whoever learns from it.
+
+## `StepExecutor.run`, [line 73](../../../../../../../backend/src/sro/application/runtime/executor.py#L73): Note
+
+Code: `except Exception as why:`
+
+> Any other failure while signing back in (the browser gone, a page that
+> would not settle, a timeout) ends the walk with this lane's own result,
+> still `expired` and with its verdict unchanged, so an `unknown` write is
+> neither dropped nor sent again. Its reason names only the exception's
+> class: the text may carry what the browser or the network said. An
+> operator's stop and a cancellation still propagate.

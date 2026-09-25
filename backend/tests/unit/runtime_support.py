@@ -496,7 +496,7 @@ class FakeBroker(SessionBroker):
     page it was asked to go back to in `back_tos`, and raises `refuses` when
     set, the way a sign-in that needs a person does."""
 
-    def __init__(self, *, refuses: Exception | None = None) -> None:
+    def __init__(self, *, refuses: BaseException | None = None) -> None:
         page = FakePageDriver()
         super().__init__(
             FakeUnitOfWork(),

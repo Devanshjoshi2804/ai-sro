@@ -1,7 +1,9 @@
+import asyncio
 from dataclasses import replace
 
 import pytest
 
+from sro.application.ports.browser import BrowserUnavailable
 from sro.application.ports.locks import AccountBusy
 from sro.application.runtime.executor import StepExecutor
 from sro.application.runtime.step import NeedsAPerson
@@ -227,3 +229,28 @@ async def test_an_unknown_write_whose_sign_in_is_busy_stays_unknown_on_the_way_o
 
     assert [one.verdict for one in busy.value.tried] == ["unknown"]
     assert api.read_backs == 0
+
+
+async def test_a_browser_lost_while_signing_back_in_keeps_the_unknown_and_sends_nothing() -> None:
+    lost = StepResult("unknown", Lane.API, "sent to sign in", expired=True)
+    api = RecordingLane(Lane.API, lost, settles="done")
+    step, by_id, ledger = proven_write_step(read_back="/api/x/{name}")
+    broker = FakeBroker(refuses=BrowserUnavailable("steel said: secret-ish detail"))
+
+    tried = await StepExecutor(no_tool(), api, never(), never(), broker).run(
+        step, VALUES, lane_context(by_id, ledger=ledger), broken=(), start_url=APP
+    )
+
+    assert tried == (replace(lost, reason="sign-in failed: BrowserUnavailable"),)
+    assert (api.calls, api.read_backs) == (1, 0)
+
+
+async def test_a_cancellation_while_signing_back_in_still_propagates() -> None:
+    expired = StepResult("failed", Lane.UI, expired=True)
+    step, by_id = save_step(status=201)
+    broker = FakeBroker(refuses=asyncio.CancelledError())
+
+    with pytest.raises(asyncio.CancelledError):
+        await StepExecutor(
+            no_tool(), no_api(), RecordingLane(Lane.UI, expired), never(), broker
+        ).run(step, {}, lane_context(by_id), broken=(), start_url=APP)

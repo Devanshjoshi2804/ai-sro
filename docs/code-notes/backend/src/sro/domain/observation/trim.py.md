@@ -36,7 +36,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/observation/trim.p
 > ordinary route words -- /api/order-status became /api/* -- and still missed
 > short numeric slugs like sku-123456.
 
-## `body_keys`, [line 43](../../../../../../../backend/src/sro/domain/observation/trim.py#L43): Docstring
+## `body_keys`, [line 52](../../../../../../../backend/src/sro/domain/observation/trim.py#L52): Docstring
 
 > Keys and short values. Never the prose, never the whole payload.
 >
@@ -47,7 +47,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/observation/trim.p
 > mime type, a SOAP login, a JSON array and a bare JSON string took the other
 > three.
 
-## `is_secret`, [line 83](../../../../../../../backend/src/sro/domain/observation/trim.py#L83): Docstring
+## `is_secret`, [line 91](../../../../../../../backend/src/sro/domain/observation/trim.py#L91): Docstring
 
 > Whether this gesture's value is a credential.
 >
@@ -57,7 +57,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/observation/trim.p
 > inheritance alone. A scroll has no target at all, so this falls back to
 > gesture.action.secret alone.
 
-## `body_keys`, [line 45](../../../../../../../backend/src/sro/domain/observation/trim.py#L45): Comment
+## `body_keys`, [line 54](../../../../../../../backend/src/sro/domain/observation/trim.py#L54): Comment
 
 Code: `if body is not None and body.redacted_fields:`
 
@@ -69,7 +69,7 @@ Code: `if body is not None and body.redacted_fields:`
 > says which: «not captured», «dropped: larger than the tenant's
 > max_body_bytes». One key and one line, because this goes in a prompt.
 
-## `body_keys`, [line 59](../../../../../../../backend/src/sro/domain/observation/trim.py#L59): Comment
+## `body_keys`, [line 60](../../../../../../../backend/src/sro/domain/observation/trim.py#L60): Comment
 
 Code: `return {"_": (redact_body(body.text, body.mime_type) or "")[:VALUE_CHARS]}`
 
@@ -78,7 +78,7 @@ Code: `return {"_": (redact_body(body.text, body.mime_type) or "")[:VALUE_CHARS]
 > whole -- through the same rule the store's copy went through, which
 > covers the shapes json.loads never sees.
 
-## `body_keys`, [line 61](../../../../../../../backend/src/sro/domain/observation/trim.py#L61): Comment
+## `body_keys`, [line 62](../../../../../../../backend/src/sro/domain/observation/trim.py#L62): Comment
 
 Code: `fields: dict[object, object] = parsed`
 
@@ -87,7 +87,7 @@ Code: `fields: dict[object, object] = parsed`
 > {"auth": {"password": ...}} is the same credential one level down and the
 > flat version of this rule let it through.
 
-## `_call`, [line 77](../../../../../../../backend/src/sro/domain/observation/trim.py#L77): Comment
+## `_call`, [line 85](../../../../../../../backend/src/sro/domain/observation/trim.py#L85): Comment
 
 Code: `"blocked": call.blocked_reason,`
 

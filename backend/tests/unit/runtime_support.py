@@ -1,7 +1,8 @@
 """Shared fixtures for the runtime lanes' unit tests.
 
 `scripted_driver` is a `FakePageDriver` configured by keyword; `save_step`,
-`type_step`, `mail_send_step` and `lane_context` build a `Step`, its cited
+`type_step`, `type_then_save_step`, `read_step`, `mail_send_step` and
+`lane_context` build a `Step`, its cited
 `Gesture`s and a `LaneContext` without every lane test re-typing the same
 evidence by hand.
 """
@@ -19,7 +20,15 @@ from sro.application.runtime.step import Held, LaneContext
 from sro.domain.execution.account import Account, Lease, LeaseState
 from sro.domain.execution.lanes import SeenCall
 from sro.domain.execution.learned_step import LearnedStep
-from sro.domain.observation.gesture import Action, AfterState, Call, Component, Gesture, Target
+from sro.domain.observation.gesture import (
+    Action,
+    AfterState,
+    Body,
+    Call,
+    Component,
+    Gesture,
+    Target,
+)
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.fakes import FakePageDriver
@@ -54,19 +63,19 @@ def scripted_driver(
     *,
     answer: PageAnswer | None = None,
     calls: Sequence[SeenCall] = (),
+    before: Sequence[SeenCall] = (),
     holds: bool = False,
     sign_in: bool = False,
     url: str = "",
-    hit: object | None = None,
     unsettled: bool = False,
 ) -> FakePageDriver:
     return FakePageDriver(
         answer=answer,
         calls=calls,
+        before=before,
         holds=holds,
         sign_in=sign_in,
         url=url,
-        hit=hit,
         unsettled=unsettled,
     )
 
@@ -102,7 +111,9 @@ def lane_context(
     )
 
 
-def save_step(*, status: int = 201) -> tuple[Step, dict[str, Gesture]]:
+def save_step(
+    *, status: int = 201, after: AfterState | None = None, body: Body | None = None
+) -> tuple[Step, dict[str, Gesture]]:
     gesture = Gesture(
         id="ges_save",
         tenant=_TENANT,
@@ -113,19 +124,54 @@ def save_step(*, status: int = 201) -> tuple[Step, dict[str, Gesture]]:
         system=_SYSTEM,
         tab_id=1,
         frame_url=None,
-        action=Action(kind="click", at=1.0, target=Target(role="button", name="Save")),
+        action=Action(kind="click", at=1.0, target=Target(role="button", name="Save"), after=after),
         requests=[
             Call(
                 method="POST",
                 url=f"{_SYSTEM}/api/customer-types",
                 status=status,
                 started_at=1.0,
+                request_body=body,
             )
         ],
     )
     by_id = {gesture.id: gesture}
     step = Step(order=1, says="Save the customer type", system=_SYSTEM, cites=[gesture.id])
     return step, by_id
+
+
+def type_then_save_step() -> tuple[Step, dict[str, Gesture]]:
+    _, typed = type_step(after=AfterState(value=None, visible=True, enabled=True))
+    _, saved = save_step(status=201)
+    by_id = {**typed, **saved}
+    step = Step(
+        order=3,
+        says="Type the customer type and save it",
+        system=_SYSTEM,
+        cites=[*typed, *saved],
+        parameters=["Customer Type"],
+    )
+    return step, by_id
+
+
+def read_step(
+    *, after: AfterState | None = None, role: str = "link"
+) -> tuple[Step, dict[str, Gesture]]:
+    gesture = Gesture(
+        id="ges_orders",
+        tenant=_TENANT,
+        stream_id="stream-1",
+        batch_id="batch-1",
+        at=1.0,
+        url=f"{_SYSTEM}/app",
+        system=_SYSTEM,
+        tab_id=1,
+        frame_url=None,
+        action=Action(kind="click", at=1.0, target=Target(role=role, name="Orders"), after=after),
+        requests=[Call(method="GET", url=f"{_SYSTEM}/api/orders", status=200, started_at=1.0)],
+    )
+    step = Step(order=4, says="Open the orders", system=_SYSTEM, cites=[gesture.id])
+    return step, {gesture.id: gesture}
 
 
 def type_step(*, after: AfterState | None = None) -> tuple[Step, dict[str, Gesture]]:

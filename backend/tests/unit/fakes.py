@@ -1417,20 +1417,21 @@ class FakePageDriver:
     was asked of the driver rather than only its answers.
 
     `act`/`wait_for`/`calls_since` answer exactly what a test scripted, for
-    the runtime lanes that drive a page through it (`UiLane` first): `mark`
-    counts how many times it has been asked, and `calls_since` always serves
-    the same scripted tuple regardless of the mark it is given, since these
-    tests script one exchange at a time rather than a growing log."""
+    the runtime lanes that drive a page through it (`UiLane` first). The call
+    log is numbered the way the real one is: `before` holds calls numbered
+    ahead of any `mark`, `calls` arrive with the first `act`, and
+    `calls_since`/`wait_for_call` see only calls numbered after the mark they
+    are given."""
 
     def __init__(
         self,
         *,
         answer: PageAnswer | None = None,
         calls: Sequence[SeenCall] = (),
+        before: Sequence[SeenCall] = (),
         holds: bool = False,
         sign_in: bool = False,
         url: str = "",
-        hit: object | None = None,
         unsettled: bool = False,
     ) -> None:
         self.tabs: dict[str, str] = {}
@@ -1441,15 +1442,14 @@ class FakePageDriver:
         self.closed = False
         self._next = count(1)
         self._answer = answer if answer is not None else PageAnswer(ok=True)
-        self._scripted_calls = tuple(calls)
+        self._arriving = tuple(calls)
+        self._seq = count(1)
+        self._log = [(next(self._seq), call) for call in before]
         self._holds = holds
         self._unsettled = unsettled
         self._signals = PageSignals(url or "https://wms.example/app", password=sign_in)
-        self.hit = hit
         self.acted: list[tuple[SessionRef, str, dict[str, object]]] = []
         self.waited_for: list[dict[str, object]] = []
-        self.pointed: list[tuple[SessionRef, str]] = []
-        self._marks = 0
 
     def _live(self, session: SessionRef) -> None:
         if session.context_id in self.dead:
@@ -1503,16 +1503,17 @@ class FakePageDriver:
         self, session: SessionRef, target_id: str, payload: Mapping[str, object]
     ) -> PageAnswer:
         self.acted.append((session, target_id, dict(payload)))
+        self._log += [(next(self._seq), call) for call in self._arriving]
+        self._arriving = ()
         return self._answer
 
     async def mark(self, session: SessionRef, target_id: str) -> int:
-        self._marks += 1
-        return self._marks
+        return next(self._seq)
 
     async def calls_since(
         self, session: SessionRef, target_id: str, mark: int
     ) -> tuple[SeenCall, ...]:
-        return self._scripted_calls
+        return tuple(call for at, call in self._log if at > mark)
 
     async def wait_for_call(
         self,
@@ -1526,7 +1527,7 @@ class FakePageDriver:
     ) -> bool:
         return any(
             call.method.upper() == method.upper() and path_shape(call.url) == shape
-            for call in self._scripted_calls
+            for call in await self.calls_since(session, target_id, since)
         )
 
     async def wait_for(

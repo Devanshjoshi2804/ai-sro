@@ -34,6 +34,8 @@ from tests.browser.steel_rig import (  # noqa: F401
 
 pytestmark = pytest.mark.browser
 
+PING = "fetch('/api/ping', {method: 'POST'})"
+
 
 async def test_a_restarted_worker_finds_its_tab_and_the_page_code_is_still_there(
     rig: Rig,  # noqa: F811
@@ -377,6 +379,22 @@ async def test_act_without_a_frame_path_finds_the_one_frame_holding_the_control(
     assert (missing.ok, missing.error_kind) == (False, "control_not_found")
 
 
+async def test_an_ambiguous_probe_on_old_evidence_is_refused_not_the_main_frame(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/"))
+    await rig.sign_in_in(driver, one, target)
+    await driver.goto(one, target, rig.url("/framed-twice"))
+
+    result = await driver.act(
+        one, target, {**in_the_app_frame(rig, "click", "#save"), "frame_path": None}
+    )
+
+    assert (result.ok, result.error_kind) == (False, "frame_ambiguous")
+
+
 async def test_one_account_never_sees_another_accounts_calls(
     rig: Rig,  # noqa: F811
     one: SessionRef,  # noqa: F811
@@ -388,13 +406,22 @@ async def test_one_account_never_sees_another_accounts_calls(
     theirs = await signed_in_on_the_framed_page(rig, driver, two)
     their_mark = await driver.mark(two, theirs)
 
+    await driver.evaluate(one, mine, PING)
     await driver.act(two, theirs, in_the_app_frame(rig, "type", "#ct", "B"))
     await driver.act(two, theirs, in_the_app_frame(rig, "click", "#save"))
 
     assert await driver.wait_for_call(
         two, theirs, method="POST", shape="/api/customer-types", since=their_mark, deadline_s=5.0
     )
-    assert await driver.calls_since(one, mine, mark) == ()
+    assert await driver.wait_for_call(
+        one, mine, method="POST", shape="/api/ping", since=mark, deadline_s=5.0
+    )
+    assert [(c.method, c.url, c.status) for c in await driver.calls_since(one, mine, mark)] == [
+        ("POST", rig.url("/api/ping"), 201)
+    ]
+    theirs_calls = await driver.calls_since(two, theirs, their_mark)
+    assert any(c.url == rig.url("/api/customer-types") for c in theirs_calls)
+    assert all(c.url != rig.url("/api/ping") for c in theirs_calls)
     assert not await driver.wait_for_call(
         one, mine, method="POST", shape="/api/customer-types", since=mark, deadline_s=0.5
     )
@@ -412,13 +439,21 @@ async def test_every_wait_on_a_tab_that_closes_is_page_gone_before_its_deadline(
     target = await driver.open_tab(one, rig.url("/public"))
     mark = await driver.mark(one, target)
     loop = asyncio.get_running_loop()
+    waiting = asyncio.Event()
+    logged = driver._log
 
-    async def close_soon() -> None:
-        await asyncio.sleep(0.2)
+    def log_and_tell(page: Any) -> Any:
+        waiting.set()
+        return logged(page)
+
+    driver._log = log_and_tell  # type: ignore[method-assign]
+
+    async def close_once_waiting() -> None:
+        await waiting.wait()
         await driver.close_tab(one, target)
 
     started = loop.time()
-    closer = asyncio.create_task(close_soon())
+    closer = asyncio.create_task(close_once_waiting())
     try:
         with pytest.raises(PageGone):
             await driver.wait_for_call(
@@ -440,12 +475,26 @@ async def test_wait_for_on_a_tab_closed_mid_wait_is_page_gone(
     driver: SteelDriver,  # noqa: F811
 ) -> None:
     target = await driver.open_tab(one, rig.url("/public"))
+    await driver.evaluate(
+        one,
+        target,
+        """(() => {
+          const holds = globalThis.sroPage.holds;
+          globalThis.sroPage.holds = (p) => {
+            if (!window.__told) {
+              window.__told = true;
+              fetch("/api/ping", { method: "POST" });
+            }
+            return holds(p);
+          };
+        })()""",
+    )
 
-    async def close_soon() -> None:
-        await asyncio.sleep(0.2)
+    async def close_once_waiting() -> None:
+        assert await asyncio.to_thread(rig.pinged.wait, 10)
         await driver.close_tab(one, target)
 
-    closer = asyncio.create_task(close_soon())
+    closer = asyncio.create_task(close_once_waiting())
     try:
         with pytest.raises(PageGone):
             await driver.wait_for(one, target, {"pin": "never", "expect": {}}, 30.0)
@@ -647,3 +696,77 @@ async def test_an_adopted_tab_reads_normally_after_its_next_clean_navigation(
     assert signals.visited is not None
     assert not a_sign_in_page(signals)
     assert not expired(signals, "/app")
+
+
+async def test_a_request_sent_before_the_mark_is_never_the_steps_own_call(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/public"))
+    first = await driver.mark(one, target)
+    await driver.evaluate(one, target, "void fetch('/api/ping?hold', {method: 'POST'})")
+    assert await asyncio.to_thread(rig.pinged.wait, 10)
+
+    mark = await driver.mark(one, target)
+    rig.release.set()
+
+    assert await driver.wait_for_call(
+        one, target, method="POST", shape="/api/ping", since=first, deadline_s=5.0
+    )
+    assert await driver.calls_since(one, target, mark) == ()
+    assert not await driver.wait_for_call(
+        one, target, method="POST", shape="/api/ping", since=mark, deadline_s=0.5
+    )
+
+
+async def test_a_mark_taken_before_a_reconnect_sees_no_calls_at_all(
+    rig: Rig,  # noqa: F811
+    cdp_url: str,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/public"))
+    mark = await driver.mark(one, target)
+
+    await driver._links[cdp_url].browser.close()
+    after = await driver.mark(one, target)
+    await driver.evaluate(one, target, PING)
+
+    assert await driver.wait_for_call(
+        one, target, method="POST", shape="/api/ping", since=after, deadline_s=5.0
+    )
+    assert await driver.calls_since(one, target, mark) == ()
+    assert not await driver.wait_for_call(
+        one, target, method="POST", shape="/api/ping", since=mark, deadline_s=0.5
+    )
+
+
+async def test_a_recorded_frame_that_is_gone_fails_rather_than_guessing_another(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await signed_in_on_the_framed_page(rig, driver, one)
+    gone = {**in_the_app_frame(rig, "type", "#ct", "GT2")}
+    gone["frame_path"] = [{"index": 7, "url": rig.url("/nowhere")}]
+
+    answer = await driver.act(one, target, gone)
+
+    assert (answer.ok, answer.error_kind) == (False, "frame_not_found")
+
+
+async def test_holds_is_asked_in_the_frame_act_touched(
+    rig: Rig,  # noqa: F811
+    cdp_url: str,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await signed_in_on_the_framed_page(rig, driver, one)
+    typing = {**in_the_app_frame(rig, "type", "#ct", "GT4"), "frame_path": None}
+    typed = await driver.act(one, target, typing)
+    app = next(f for f in driver._links[cdp_url].pages[target].frames if f.url.endswith("/app"))
+    await app.evaluate("document.getElementById('ct').id = 'renamed'")
+
+    held = {**typing, "pin": typed.pin, "expect": {"value": "GT4"}}
+    assert await driver.wait_for(one, target, held, 5.0) is True

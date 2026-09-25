@@ -124,9 +124,19 @@
       }
       return hops;
     };
-    return { roleOf, ownName, nameOf, landmarkRole, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf };
+    const settingOf = (el) => {
+      if (["checkbox", "radio", "switch"].includes(roleOf(el))) {
+        const checked = typeof el.checked === "boolean" ? el.checked : el.getAttribute("aria-checked") === "true";
+        return checked ? "checked" : "unchecked";
+      }
+      if (el.tagName === "SELECT") {
+        return [...(el.selectedOptions || [])].map((option) => option.label).join(", ") || null;
+      }
+      return undefined;
+    };
+    return { roleOf, ownName, nameOf, landmarkRole, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf };
   })();
-  const { roleOf, ownName, nameOf, landmarkRole, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf } =
+  const { roleOf, ownName, nameOf, landmarkRole, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf } =
     readers;
 
   const shown = (el) => {
@@ -272,9 +282,12 @@
       : { el: null, strategy: null, candidates: 0, score: null };
   };
   const stateOf = (el) => {
+    if (el.isConnected === false) return { value: null, visible: false, enabled: null };
     const secret = (el.type || "").toLowerCase() === "password";
+    const setting = settingOf(el);
     return {
-      value: secret || el.value === undefined || el.value === null ? null : String(el.value),
+      value:
+        setting !== undefined ? setting : secret || el.value === undefined || el.value === null ? null : String(el.value),
       visible: shown(el),
       enabled: !(el.disabled === true || el.getAttribute("aria-disabled") === "true"),
     };
@@ -899,11 +912,14 @@
     },
     holds(payload) {
       const acted = globalThis.__sroActed;
-      if (!acted || !payload.pin || acted.pin !== payload.pin || acted.el.isConnected === false) return null;
+      if (!acted || !payload.pin || acted.pin !== payload.pin) return null;
       const seen = stateOf(acted.el);
       const want = payload.expect || {};
       const keys = (acted.el.type || "").toLowerCase() === "password" ? ["visible", "enabled"] : ["value", "visible", "enabled"];
-      const held = keys.every((key) => want[key] === undefined || want[key] === null || seen[key] === want[key]);
+      const chosen = acted.el.tagName === "SELECT" && acted.el.isConnected ? [...acted.el.selectedOptions] : [];
+      const same = (key) =>
+        seen[key] === want[key] || (key === "value" && chosen.some((option) => option.value === want.value));
+      const held = keys.every((key) => want[key] === undefined || want[key] === null || same(key));
       return held ? { repaired: acted.repaired } : null;
     },
     hitTest(x, y) {

@@ -1,23 +1,32 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping
 from dataclasses import asdict
+from urllib.parse import urlsplit
 
 from sro.application.ports.page import PageAnswer, PageDriver, PageUnsettled
-from sro.application.runtime.step import Held, LaneContext
+from sro.application.runtime.step import Held, LaneContext, Stopped
 from sro.domain.execution.belts import expected_statuses
 from sro.domain.execution.evidence import READ_METHODS, primary_gesture, recorded_call, writes
-from sro.domain.execution.lanes import Lane, StepResult, fingerprint_of, write_confirmed
+from sro.domain.execution.lanes import (
+    Lane,
+    SeenCall,
+    StepResult,
+    fingerprint_of,
+    write_confirmed,
+)
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.planning import value_for
 from sro.domain.execution.records import made_by, names_in
 from sro.domain.execution.secrets import needs_a_secret
-from sro.domain.observation.gesture import AfterState, Gesture
-from sro.domain.observation.trim import path_shape
+from sro.domain.observation.gesture import AfterState, Body, Call, Gesture
+from sro.domain.observation.trim import body_key_set, path_shape
 from sro.domain.skill.signing_in import expired
 from sro.domain.skill.workflow import Step
 
 K_UI_WAIT_S = 15.0
+_NOTHING_SENT = frozenset({"control_not_found", "frame_not_found", "frame_ambiguous"})
 
 
 def ui_payload(
@@ -64,24 +73,41 @@ class UiLane:
             )
         value = ctx.secret if needs_a_secret(primary) else value_for(step, primary, values, None)
         payload = ui_payload(step, primary, value, ctx.learned.get(step.order), ctx.by_id)
-        writing = writes(step, ctx.by_id)
-        recorded = recorded_call(step, ctx.by_id)
         ctx.check_stop()
-        if writing:
-            await ctx.about_to_write()
+        if not writes(step, ctx.by_id):
+            return await self._perform(step, primary, value, payload, held, ctx)
+        await ctx.about_to_write()
+        try:
+            return await self._perform(step, primary, value, payload, held, ctx)
+        except (Stopped, asyncio.CancelledError):
+            raise
+        except Exception as exc:
+            return StepResult("unknown", Lane.UI, f"the write's outcome was lost: {exc}")
+
+    async def _perform(
+        self,
+        step: Step,
+        primary: Gesture,
+        value: str | None,
+        payload: Mapping[str, object],
+        held: Held,
+        ctx: LaneContext,
+    ) -> StepResult:
+        recorded = recorded_call(step, ctx.by_id)
         mark = await self._driver.mark(held.session, held.target_id)
         answer = await self._driver.act(held.session, held.target_id, payload)
         if not answer.ok:
             try:
                 signals = await self._driver.signals(held.session, held.target_id)
             except PageUnsettled:
-                if writing:
+                if writes(step, ctx.by_id):
                     return StepResult("unknown", Lane.UI, "the page did not settle")
                 return StepResult("failed", Lane.UI, "the page did not settle", never_left=True)
             return StepResult(
                 "failed",
                 Lane.UI,
                 answer.detail or str(answer.error_kind),
+                never_left=answer.error_kind in _NOTHING_SENT,
                 expired=expired(signals, primary.page_url or primary.url),
                 fingerprint=fingerprint_of(Lane.UI, str(answer.error_kind), str(payload["target"])),
             )
@@ -95,15 +121,12 @@ class UiLane:
                 deadline_s=self._wait_s,
             )
         calls = await self._driver.calls_since(held.session, held.target_id, mark)
+        own = [one for one in calls if recorded is not None and _same_call(one, recorded)]
         after = primary.action.after
-        if writing:
+        if writes(step, ctx.by_id):
             verdict = write_confirmed(
-                recorded=recorded, wanted=expected_statuses(step, ctx.by_id), calls=calls
+                recorded=recorded, wanted=expected_statuses(step, ctx.by_id), calls=own
             )
-            if verdict is None and after is not None:
-                held_ok = await self._holds(held, answer, payload, after, value)
-                if held_ok and not answer.repaired:
-                    verdict = "done"
             if verdict == "failed":
                 return StepResult(
                     "failed",
@@ -112,12 +135,15 @@ class UiLane:
                     calls=calls,
                     fingerprint=fingerprint_of(Lane.UI, "rejected", str(recorded)),
                 )
+            if verdict == "done" and (
+                answer.repaired
+                or (
+                    after is not None and not await self._holds(held, answer, payload, after, value)
+                )
+            ):
+                verdict = "unknown"
             made = next(
-                (
-                    made_by({"status": one.status, "body": one.body})
-                    for one in calls
-                    if one.status == 201
-                ),
+                filter(None, (made_by({"status": one.status, "body": one.body}) for one in own)),
                 {},
             )
             return StepResult(verdict or "unknown", Lane.UI, read=made, calls=calls)
@@ -125,22 +151,24 @@ class UiLane:
             got = next(
                 (
                     one
-                    for one in reversed(calls)
+                    for one in reversed(own)
                     if one.status is not None and 200 <= one.status < 300
                 ),
                 None,
             )
             if got is not None:
                 return StepResult("read", Lane.UI, read=names_in(got.body), calls=calls)
-        if after is not None:
-            held_ok = await self._holds(held, answer, payload, after, value)
-            if not held_ok or answer.repaired:
-                return StepResult(
-                    "failed",
-                    Lane.UI,
-                    "the control did not end up as recorded",
-                    fingerprint=fingerprint_of(Lane.UI, "after_state", str(after)),
-                )
+        if after is not None and not await self._holds(held, answer, payload, after, value):
+            return StepResult(
+                "failed",
+                Lane.UI,
+                "the control did not end up as recorded",
+                fingerprint=fingerprint_of(Lane.UI, "after_state", str(after)),
+            )
+        if answer.repaired:
+            return StepResult(
+                "unknown", Lane.UI, "a repaired match is never confirmed", calls=calls
+            )
         return StepResult("done", Lane.UI, calls=calls)
 
     async def _holds(
@@ -162,3 +190,22 @@ class UiLane:
             {**payload, "pin": answer.pin, "expect": expect},
             self._wait_s,
         )
+
+
+def _same_call(seen: SeenCall, recorded: Call) -> bool:
+    if not (
+        seen.own_frame
+        and seen.method.upper() == recorded.method.upper()
+        and path_shape(seen.url) == path_shape(recorded.url)
+        and urlsplit(seen.url).netloc == urlsplit(recorded.url).netloc
+    ):
+        return False
+    wanted = body_key_set(recorded.request_body)
+    if wanted is None:
+        return True
+    seen_body = (
+        Body(text=seen.request_body, mime_type=seen.request_content_type)
+        if seen.request_body is not None
+        else None
+    )
+    return body_key_set(seen_body) == wanted

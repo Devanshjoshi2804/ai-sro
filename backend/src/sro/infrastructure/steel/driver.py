@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import itertools
 import json
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, TypeVar
@@ -61,9 +62,19 @@ class _Link:
 
 
 @dataclass
+class _Sent:
+    at: int
+    own_frame: bool
+    body: str | None
+    content_type: str | None
+
+
+@dataclass
 class _Calls:
-    count: int = 0
+    first: int
+    numbered: dict[Request, _Sent] = field(default_factory=dict)
     seen: list[tuple[int, SeenCall]] = field(default_factory=list)
+    acted: Frame | None = None
     changed: asyncio.Event = field(default_factory=asyncio.Event)
     reading: set[asyncio.Task[None]] = field(default_factory=set)
 
@@ -90,6 +101,7 @@ class SteelDriver:
         self._listeners: dict[tuple[str, str], list[tuple[str, Callable[..., Any]]]] = {}
         self._calls: dict[Page, _Calls] = {}
         self._tabs: dict[Page, _Tab] = {}
+        self._seq = itertools.count(1)
 
     async def _lock_for(self, cdp_url: str) -> asyncio.Lock:
         async with self._locks_guard:
@@ -357,7 +369,7 @@ class SteelDriver:
     def _log(self, page: Page) -> _Calls:
         log = self._calls.get(page)
         if log is None:
-            log = self._calls[page] = _Calls()
+            log = self._calls[page] = _Calls(first=next(self._seq))
 
             def closed(_: Page) -> None:
                 self._calls.pop(page, None)
@@ -366,30 +378,49 @@ class SteelDriver:
             page.once("close", closed)
         return log
 
-    def _heard(self, response: Response) -> None:
-        request = response.request
+    def _sent(self, request: Request) -> None:
         if request.resource_type not in K_CALL_TYPES:
             return
         try:
             page = request.frame.page
+            own_frame = request.frame is self._log(page).acted
+            content_type = request.headers.get("content-type")
+            body = request.post_data
         except PlaywrightError:
             return
-        log = self._log(page)
-        at, log.count = log.count, log.count + 1
-        reading = asyncio.get_running_loop().create_task(self._record(log, at, response))
+        self._log(page).numbered[request] = _Sent(next(self._seq), own_frame, body, content_type)
+
+    def _heard(self, response: Response) -> None:
+        request = response.request
+        try:
+            log = self._calls.get(request.frame.page)
+        except PlaywrightError:
+            return
+        sent = None if log is None else log.numbered.pop(request, None)
+        if log is None or sent is None:
+            return
+        reading = asyncio.get_running_loop().create_task(self._record(log, sent, response))
         log.reading.add(reading)
         reading.add_done_callback(log.reading.discard)
 
-    async def _record(self, log: _Calls, at: int, response: Response) -> None:
+    async def _record(self, log: _Calls, sent: _Sent, response: Response) -> None:
         body = None
         if 200 <= response.status < 300:
             with contextlib.suppress(PlaywrightError):
                 body = (await response.text())[:K_CALL_BODY_CHARS]
-        call = SeenCall(response.request.method, response.url, response.status, body)
-        log.seen.append((at, call))
+        call = SeenCall(
+            response.request.method,
+            response.url,
+            response.status,
+            body,
+            sent.body,
+            sent.content_type,
+            sent.own_frame,
+        )
+        log.seen.append((sent.at, call))
         log.changed.set()
 
-    async def _frame(self, page: Page, payload: Mapping[str, object]) -> Frame:
+    async def _frame(self, page: Page, payload: Mapping[str, object]) -> tuple[Frame | None, str]:
         hops = payload.get("frame_path")
         if isinstance(hops, list):
             frame = page.main_frame
@@ -402,22 +433,32 @@ class SteelDriver:
                 elif isinstance(index, int) and 0 <= index < len(children):
                     frame = children[index]
                 else:
-                    break
-            else:
-                return frame
+                    return None, "frame_not_found"
+            return frame, ""
         holding = []
         for frame in page.frames:
             with contextlib.suppress(PlaywrightError):
                 found = await frame.evaluate("p => globalThis.sroPage.resolve(p)", dict(payload))
                 if found and found.get("found"):
-                    holding.append(frame)
-        return holding[0] if len(holding) == 1 else page.main_frame
+                    holding.append((frame, found.get("strategy")))
+        picked = best_frame(holding)
+        if picked is not None:
+            return picked, ""
+        return (None, "frame_ambiguous") if holding else (page.main_frame, "")
 
     async def act(
         self, session: SessionRef, target_id: str, payload: Mapping[str, object]
     ) -> PageAnswer:
         page = await self._page(session, target_id)
-        frame = await self._frame(page, payload)
+        frame, kind = await self._frame(page, payload)
+        if frame is None:
+            detail = (
+                "more than one frame matched, ambiguously"
+                if kind == "frame_ambiguous"
+                else "the recorded frame is no longer on the page"
+            )
+            return PageAnswer(ok=False, detail=detail, error_kind=kind)
+        self._log(page).acted = frame
         got = await self._call(
             session,
             target_id,
@@ -438,19 +479,21 @@ class SteelDriver:
 
     async def mark(self, session: SessionRef, target_id: str) -> int:
         page = await self._page(session, target_id)
-        if ("response", self._heard) not in self._listeners.get(
+        if ("request", self._sent) not in self._listeners.get(
             (session.cdp_url, session.context_id), []
         ):
+            await self.on(session, "request", self._sent)
             await self.on(session, "response", self._heard)
-        return self._log(page).count
+        self._log(page)
+        return next(self._seq)
 
     async def calls_since(
         self, session: SessionRef, target_id: str, mark: int
     ) -> tuple[SeenCall, ...]:
         log = self._calls.get(await self._page(session, target_id))
-        if log is None:
+        if log is None or log.first > mark:
             return ()
-        return tuple(call for at, call in sorted(log.seen, key=lambda one: one[0]) if at >= mark)
+        return tuple(call for at, call in sorted(log.seen, key=lambda one: one[0]) if at > mark)
 
     async def wait_for_call(
         self,
@@ -466,9 +509,12 @@ class SteelDriver:
         log = self._log(page)
         wanted = method.upper()
 
+        if log.first > since:
+            return False
+
         def arrived() -> bool:
             return any(
-                at >= since and call.method.upper() == wanted and path_shape(call.url) == shape
+                at > since and call.method.upper() == wanted and path_shape(call.url) == shape
                 for at, call in log.seen
             )
 
@@ -490,7 +536,7 @@ class SteelDriver:
         self, session: SessionRef, target_id: str, payload: Mapping[str, object], deadline_s: float
     ) -> bool:
         page = await self._page(session, target_id)
-        frame = await self._frame(page, payload)
+        frame = self._log(page).acted or page.main_frame
         try:
             await self._call(
                 session,
@@ -582,3 +628,9 @@ class SteelDriver:
         if self._playwright is not None:
             await self._playwright.stop()
             self._playwright = None
+
+
+def best_frame[F](found: Sequence[tuple[F, object]]) -> F | None:
+    strict = [frame for frame, strategy in found if strategy != "repair"]
+    pool = strict or [frame for frame, _ in found]
+    return pool[0] if len(pool) == 1 else None

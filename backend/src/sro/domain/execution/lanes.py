@@ -29,6 +29,9 @@ class SeenCall:
     url: str
     status: int | None
     body: str | None = None
+    request_body: str | None = None
+    request_content_type: str | None = None
+    own_frame: bool = True
 
 
 @dataclass(frozen=True, slots=True)

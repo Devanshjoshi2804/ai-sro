@@ -29,6 +29,10 @@ _FRAMED_PAGE = """<!doctype html><html><body>
   <iframe src="/public"></iframe><iframe src="/app"></iframe>
 </body></html>"""
 
+_FRAMED_TWICE_PAGE = """<!doctype html><html><body>
+  <iframe src="/app"></iframe><iframe src="/app"></iframe>
+</body></html>"""
+
 _APP_PAGE = """<!doctype html><html><head><meta name="csrf-token" content="{token}"></head><body>
   <form aria-label="Customer Type">
     <label for="ct">Customer Type</label><input id="ct" name="customerType">
@@ -89,7 +93,10 @@ class Rig:
     request: `response_mode=fragment|form_post` picks how the code comes back,
     `prompt=none` returns an error at once, and `acr_values=identifier` sends
     on to an identifier-first page with no password field. `/held-login` answers
-    only once the test sets `answer`, so a navigation can be caught in flight."""
+    only once the test sets `answer`, so a navigation can be caught in flight.
+    `POST /api/ping` answers 201 from any page and sets `pinged`; with `?hold`
+    it answers only once `release` is set, so a test can hold a request open
+    across a mark."""
 
     def __init__(self, *, for_steel: bool = False) -> None:
         self._for_steel = for_steel
@@ -99,6 +106,8 @@ class Rig:
         self.saved: list[dict[str, object]] = []
         self.asked = threading.Event()
         self.answer = threading.Event()
+        self.pinged = threading.Event()
+        self.release = threading.Event()
         host = "0.0.0.0" if for_steel else "127.0.0.1"  # noqa: S104
         self._port = _free_port()
         self._server = ThreadingHTTPServer((host, self._port), _handler_for(self))
@@ -187,6 +196,8 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
                 self._html(_PUBLIC_PAGE)
             elif path == "/framed":
                 self._html(_FRAMED_PAGE)
+            elif path == "/framed-twice":
+                self._html(_FRAMED_TWICE_PAGE)
             elif path == "/":
                 if sid and sid in rig._sessions:
                     self._redirect(rig.url("/app"))
@@ -255,7 +266,12 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
             path, query = split.path, parse_qs(split.query)
             body = self.rfile.read(int(self.headers.get("content-length") or 0))
 
-            if path == "/idp/login":
+            if path == "/api/ping":
+                rig.pinged.set()
+                if "hold" in query:
+                    rig.release.wait(10)
+                self._json({"id": "ping-1"}, status=201)
+            elif path == "/idp/login":
                 form = parse_qs(body.decode())
                 username = form.get("username", [""])[0]
                 state = query.get("state", [""])[0]

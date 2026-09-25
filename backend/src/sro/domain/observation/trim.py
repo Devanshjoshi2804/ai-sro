@@ -40,21 +40,22 @@ def looks_like_an_id(part: str) -> bool:
     return len(part) >= 8 and digits >= len(part) // 2
 
 
+def _parsed(body: Body) -> object:
+    if body.mime_type == "application/x-www-form-urlencoded":
+        return dict(parse_qsl(body.text or ""))
+    try:
+        return json.loads(body.text or "")
+    except (ValueError, TypeError):
+        return None
+
+
 def body_keys(body: Body | None) -> dict[str, str] | None:
     if body is None or not body.text:
         if body is not None and body.redacted_fields:
             return {"_": ", ".join(body.redacted_fields)[:VALUE_CHARS]}
         return None
 
-    parsed: object = None
-    if body.mime_type == "application/x-www-form-urlencoded":
-        parsed = dict(parse_qsl(body.text))
-    else:
-        try:
-            parsed = json.loads(body.text)
-        except (ValueError, TypeError):
-            parsed = None
-
+    parsed = _parsed(body)
     if not isinstance(parsed, dict):
         return {"_": (redact_body(body.text, body.mime_type) or "")[:VALUE_CHARS]}
 
@@ -65,6 +66,13 @@ def body_keys(body: Body | None) -> dict[str, str] | None:
         else str(redact_data(fields[key]))[:VALUE_CHARS]
         for key in list(fields)[:BODY_KEYS]
     }
+
+
+def body_key_set(body: Body | None) -> frozenset[str] | None:
+    if body is None or not body.text:
+        return None
+    parsed = _parsed(body)
+    return frozenset(parsed) if isinstance(parsed, dict) else None
 
 
 def _call(call: Call) -> dict[str, object]:

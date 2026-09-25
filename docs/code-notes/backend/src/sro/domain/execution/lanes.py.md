@@ -40,7 +40,7 @@ Code: `Verdict = Literal["done", "read", "failed", "unknown"]`
 > two only ever meet at `StepResult.verdict`, which is one of the inputs
 > `Progress.settle` takes to decide the other.
 
-## `StepResult.never_left`, [line 39](../../../../../../../backend/src/sro/domain/execution/lanes.py#L39): Comment
+## `StepResult.never_left`, [line 42](../../../../../../../backend/src/sro/domain/execution/lanes.py#L42): Comment
 
 Code: `never_left: bool = False`
 
@@ -57,7 +57,7 @@ Code: `never_left: bool = False`
 > `never_left_step` combines every attempt tried for the step (X8's job)
 > before it reaches `settle`.
 
-## `never_left_step`, [line 101](../../../../../../../backend/src/sro/domain/execution/lanes.py#L101): Docstring
+## `never_left_step`, [line 104](../../../../../../../backend/src/sro/domain/execution/lanes.py#L104): Docstring
 
 > ANDs `never_left` across every lane tried for one step: the step itself
 > never left only if none of its attempts did. One lane that reached the
@@ -67,7 +67,7 @@ Code: `never_left: bool = False`
 > `True` on no attempts, which never happens through `RunSteps.step` (a
 > step always tries at least one lane) but keeps the function total.
 
-## `fingerprint_of`, [line 62](../../../../../../../backend/src/sro/domain/execution/lanes.py#L62): Docstring
+## `fingerprint_of`, [line 65](../../../../../../../backend/src/sro/domain/execution/lanes.py#L65): Docstring
 
 > Names a failure by its lane, its kind, and the evidence it happened
 > against -- not just the lane and the kind. §6.3's known-broken list is
@@ -79,7 +79,7 @@ Code: `never_left: bool = False`
 > the same broken entry, and a repaired step would still read as broken
 > against a doing that never actually failed on it.
 
-## `lanes_for`, [line 66](../../../../../../../backend/src/sro/domain/execution/lanes.py#L66): Docstring
+## `lanes_for`, [line 69](../../../../../../../backend/src/sro/domain/execution/lanes.py#L69): Docstring
 
 > §3's ladder, walked once per step per run: tool if the step uses one,
 > else API before UI before sight for a browser step, and never more than

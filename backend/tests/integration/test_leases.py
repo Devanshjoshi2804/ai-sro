@@ -24,12 +24,11 @@ async def _wait_until_a_racing_insert_blocks(observer: AsyncSession) -> None:
     would let the race tests pass whether or not the unique index they are
     named for still exists.
 
-    The wait is a `transactionid` lock (the second inserter waiting to see
-    whether the first transaction commits or aborts), not a `relation` one
-    -- `ON CONFLICT`'s speculative-insertion check has no relation to name
-    -- so this checks for any not-yet-granted lock from a different
-    backend, which in this test's own throwaway database can only be the
-    other acquirer."""
+    No lock type is filtered on: the query counts any not-yet-granted lock
+    held by a different backend, which in this test's own throwaway database
+    can only be the other acquirer. (The wait is expected to be on the first
+    inserter's transaction id -- `ON CONFLICT`'s speculative-insertion check
+    has no relation to name -- but the check does not depend on it.)"""
     deadline = time.monotonic() + _LOCK_WAIT_DEADLINE_S
     while time.monotonic() < deadline:
         waiting = await observer.scalar(

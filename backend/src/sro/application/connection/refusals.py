@@ -9,6 +9,7 @@ from sro.application.ports.vault import CredentialVault
 
 MARK = "#refused"
 FAILED = "#failed"
+CODE = "#code"
 MARKS = (MARK, FAILED)
 FINGERPRINT = 12
 
@@ -47,6 +48,27 @@ class RefusedCredentials:
             return Refusal(at=None, reason=said)
         stale = value is not None and refusal.fingerprint not in ("", fingerprint(key, value))
         return None if stale else refusal
+
+
+class CodeAsked:
+    def __init__(self, vault: CredentialVault) -> None:
+        self._vault = vault
+
+    async def ask(self, key: str, *, at: datetime) -> None:
+        if await self.since(key) is None:
+            await self._vault.store(key + CODE, json.dumps({"at": at.isoformat()}))
+
+    async def since(self, key: str) -> datetime | None:
+        said = await self._vault.get(key + CODE)
+        if not said:
+            return None
+        try:
+            return datetime.fromisoformat(json.loads(said)["at"])
+        except (ValueError, KeyError, TypeError):
+            return None
+
+    async def clear(self, key: str) -> None:
+        await self._vault.delete(key + CODE)
 
 
 class FailedAttempts:

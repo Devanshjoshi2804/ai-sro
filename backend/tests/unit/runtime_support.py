@@ -474,6 +474,7 @@ class LookupWorld:
     uow: FakeUnitOfWork
     driver: FakePageDriver
     http: FakeHttpCaller
+    lane: SigningLane
     reauths: int = 0
 
 
@@ -506,6 +507,7 @@ async def lookup_world(*gestures: Gesture) -> LookupWorld:
     await vault.store(Account.of(_TENANT, IDP, "lena").vault_key("password"), "not-a-real-secret")
     await uow.gestures.add_gestures(gestures)
     driver.shows_sign_in_until_signed = True
+    lane = SigningLane(driver)
     broker = _CountingBroker(
         uow,
         FakeBrowserPool({"http://steel:3000": 1}),
@@ -513,10 +515,10 @@ async def lookup_world(*gestures: Gesture) -> LookupWorld:
         FakeAccountLocks(),
         vault,
         FakeClock(),
-        ui=SigningLane(driver),
+        ui=lane,
         close_s=0.05,
     )
-    world = LookupWorld(RunLookups(uow, broker, http), broker, uow, driver, http)
+    world = LookupWorld(RunLookups(uow, broker, http), broker, uow, driver, http, lane)
     broker.world = world
     return world
 

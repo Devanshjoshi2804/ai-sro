@@ -107,6 +107,8 @@ class RunLookups:
                 got = await self._get(ctx, held, address, page, budget)
                 if got.succeeded:
                     return _looked(lookup, address, {"status": got.status_code, "body": got.text})
+            if await self._broker.signed_out(ctx, held):
+                await self._broker.reauth(ctx, held, page, park=False)
             shot = await self._broker.screenshot(ctx, held)
             return _looked(
                 lookup,

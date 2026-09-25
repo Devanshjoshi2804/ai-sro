@@ -186,7 +186,7 @@ Code: `if lookup.how == "call":`
 > already up in the tab `acquire` opened (and `reauth` returns it there), so it
 > is photographed with no navigation. The same rule as §3's, applied to a read.
 
-## `RunLookups._send`, [line 142](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L142): Comment
+## `RunLookups._send`, [line 144](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L144): Comment
 
 Code: `needs = needs_of(dict.fromkeys((*address.live_headers, *address.struck), REDACTED))`
 
@@ -203,7 +203,7 @@ Code: `needs = needs_of(dict.fromkeys((*address.live_headers, *address.struck), 
 > (`session_headers`): a recorded `x-user-id` is the operator's, never this
 > account's.
 
-## `_looked`, [line 168](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L168): Comment
+## `_looked`, [line 170](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L170): Comment
 
 Code: `read=read_answer(body, url=address.url) if isinstance(body, str) else None,`
 

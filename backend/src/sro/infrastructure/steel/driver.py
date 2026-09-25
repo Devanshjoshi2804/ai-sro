@@ -45,6 +45,7 @@ K_CALL_TYPES = frozenset({"fetch", "xhr"})
 K_NO_DOCUMENT = frozenset({204, 205})
 K_SCROLL_PX = 400
 K_REQUESTS_KEPT = 200
+K_ALIVE_RESERVE_S = 0.25
 
 _SIGNALS = "() => globalThis.sroPage.signals()"
 _HIT_TEST = "([x, y]) => globalThis.sroPage.hitTest(x, y)"
@@ -295,31 +296,33 @@ class SteelDriver:
             {"url": "about:blank", "browserContextId": session.context_id},
         )
         target_id = str(made["targetId"])
-        page = link.pages.get(target_id)
-        if page is None:
-            waiter: asyncio.Future[Page] = asyncio.get_running_loop().create_future()
-            link.waiting[target_id] = waiter
-            try:
-                page = await asyncio.wait_for(waiter, K_ATTACH_TIMEOUT_S)
-            except TimeoutError:
-                link.waiting.pop(target_id, None)
-                with contextlib.suppress(PageGone):
-                    await self._send(link, "Target.closeTarget", {"targetId": target_id})
-                raise PageGone(
-                    f"tab {target_id} did not attach within {K_ATTACH_TIMEOUT_S} s"
-                ) from None
         try:
+            page = link.pages.get(target_id)
+            if page is None:
+                waiter: asyncio.Future[Page] = asyncio.get_running_loop().create_future()
+                link.waiting[target_id] = waiter
+                try:
+                    page = await asyncio.wait_for(waiter, K_ATTACH_TIMEOUT_S)
+                except TimeoutError:
+                    raise PageGone(
+                        f"tab {target_id} did not attach within {K_ATTACH_TIMEOUT_S} s"
+                    ) from None
+                finally:
+                    link.waiting.pop(target_id, None)
+            loaded = page
             await self._call(
                 session,
                 target_id,
-                page,
-                lambda: page.goto(
+                loaded,
+                lambda: loaded.goto(
                     url, wait_until="domcontentloaded", timeout=K_ACTION_TIMEOUT_S * 1000
                 ),
             )
-        except PageGone:
+        except BaseException:
             with contextlib.suppress(PageGone):
-                await self._send(link, "Target.closeTarget", {"targetId": target_id})
+                await asyncio.shield(
+                    self._send(link, "Target.closeTarget", {"targetId": target_id})
+                )
             raise
         return target_id
 
@@ -769,18 +772,23 @@ class SteelDriver:
                     found.update(kept)
             return found
 
+        until = asyncio.get_running_loop().time() + deadline_s
         try:
-            async with asyncio.timeout(deadline_s):
+            async with asyncio.timeout_at(until - K_ALIVE_RESERVE_S):
                 await self._context(session)
                 while True:
-                    seen.clear()
                     found = merged()
                     if all(name in found for name in needs):
                         return found
                     await seen.wait()
+                    seen.clear()
                     await self._context(session)
         except TimeoutError:
-            return merged()
+            pass
+        with contextlib.suppress(TimeoutError):
+            async with asyncio.timeout_at(until):
+                await self._context(session)
+        return merged()
 
     async def cookies_for(self, session: SessionRef, url: str) -> str:
         link = await self._context(session)

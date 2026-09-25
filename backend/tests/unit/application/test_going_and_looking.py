@@ -507,3 +507,25 @@ async def test_a_conversation_that_runs_out_mid_sign_in_leaves_the_lease_ready()
     assert answers.looked[0].detail.startswith("timed out after")
     assert _leases(world) == [LeaseState.READY]
     assert world.driver.tabs == {}
+
+
+async def test_a_code_prompt_is_answered_by_a_person_not_by_typing_the_password_again() -> None:
+    """Each password typed at a code-guarded account sends its owner another
+    code: a question a minute would be a push a minute. Once a code has been
+    asked for, a lookup names the gap and leaves the password alone."""
+    world = await lookup_world(_gesture(_call()))
+    world.driver.signals_for_every_tab = PageSignals(
+        f"{WMS}/portal", autocomplete=frozenset({"one-time-code"})
+    )
+    world.http.answer(401, "")
+    world.http.answer(401, "")
+    plan = Plan(question="q", lookups=(CALL,))
+
+    first = await world.run_lookups.execute(CTX, plan=plan)
+    second = await world.run_lookups.execute(CTX, plan=plan)
+
+    assert world.lane.sign_ins == 1
+    assert [one.ok for one in (*first.looked, *second.looked)] == [False, False]
+    assert "one-time code" in second.looked[0].detail
+    assert _leases(world) == [LeaseState.READY]
+    assert world.driver.tabs == {}

@@ -509,6 +509,55 @@ async def test_a_needed_token_that_never_comes_is_answered_inside_the_deadline(
     assert loop.time() - started < 0.5 + 0.05
 
 
+async def test_a_context_that_dies_with_no_wake_is_page_gone_at_the_deadline(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    """A death nothing announces -- the wake lost between a wait and its
+    re-check, a tab whose close listener never registered, a browser that
+    restarted behind a proxy that kept the socket -- is still `PageGone`:
+    the deadline keeps room for one last look at the context."""
+    await driver.open_tab(one, rig.url("/public"))
+    parked = asyncio.Event()
+
+    class Deaf(asyncio.Event):
+        def set(self) -> None:
+            return None
+
+        async def wait(self) -> Literal[True]:
+            parked.set()
+            return await super().wait()
+
+    driver._seen[(one.cdp_url, one.context_id)] = Deaf()
+    waiting = asyncio.create_task(
+        driver.headers_for(one, origin_of(rig.url("/app")), 2.0, needs=("x-csrf-token",))
+    )
+    await asyncio.wait_for(parked.wait(), 5.0)
+    await close_account(one)
+    loop = asyncio.get_running_loop()
+    started = loop.time()
+
+    with pytest.raises(PageGone):
+        await waiting
+    assert loop.time() - started < 2.0 + 0.05
+
+
+async def test_a_tab_cancelled_while_its_page_loads_is_closed(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    opening = asyncio.create_task(driver.open_tab(one, rig.url("/held-login")))
+    assert await asyncio.to_thread(rig.asked.wait, 10.0)
+
+    opening.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await opening
+
+    assert await pages_in(one) == []
+
+
 async def test_a_fresh_token_is_never_one_sent_before_the_mark(
     rig: Rig,  # noqa: F811
     one: SessionRef,  # noqa: F811

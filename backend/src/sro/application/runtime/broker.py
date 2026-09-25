@@ -8,7 +8,7 @@ from collections.abc import Collection
 from dataclasses import replace
 from datetime import datetime, timedelta
 
-from sro.application.connection.refusals import RefusedCredentials, fingerprint
+from sro.application.connection.refusals import CodeAsked, RefusedCredentials, fingerprint
 from sro.application.connection.sign_in import tagged_logins
 from sro.application.context import RequestContext
 from sro.application.ports.browser import BrowserUnavailable
@@ -105,6 +105,9 @@ class SessionBroker:
     async def release(self, ctx: RequestContext, held: Held) -> None:
         with contextlib.suppress(PageGone):
             await self._driver.close_tab(held.session, held.target_id)
+
+    async def signed_out(self, ctx: RequestContext, held: Held) -> bool:
+        return a_sign_in_page(await self._driver.signals(held.session, held.target_id))
 
     async def screenshot(self, ctx: RequestContext, held: Held) -> Screen:
         return await self._driver.screenshot(held.session, held.target_id)
@@ -221,6 +224,7 @@ class SessionBroker:
                 raise PageGone(f"lease {lease_id} was lost while it waited for a person")
             await self._driver.goto(held.session, target_id, start_url)
             await self._save_state(lease, held.session)
+            await CodeAsked(self._vault).clear(lease.account.vault_key("password"))
             await self._driver.forget_calls(held.session, target_id)
             if not await self.beat(ctx, lease_id, holder=holder):
                 raise PageGone(f"lease {lease_id} was lost while it waited for a person")
@@ -303,8 +307,13 @@ class SessionBroker:
             held = await self._signed_in(ctx, lease, start_url, park=park)
         except WaitingForAPerson:
             raise
-        except (asyncio.CancelledError, TimeoutError):
-            await self._settle(ctx, lease, LeaseState.READY)
+        except (NeedsAPerson, asyncio.CancelledError, TimeoutError):
+            kept = False
+            try:
+                kept = await self._settle(ctx, lease, LeaseState.READY)
+            finally:
+                if not kept:
+                    await self._close(lease)
             raise
         except BaseException:
             try:
@@ -382,6 +391,10 @@ class SessionBroker:
                 f"no usable password is stored for {account.username} at {account.origin}",
                 kind="password",
             )
+        asked = CodeAsked(self._vault)
+        since = await asked.since(key)
+        if not park and since is not None and self._clock.now() - since < K_CODE_WAIT:
+            raise NeedsAPerson(f"{account.origin} asks for a one-time code", kind="code")
         await self._driver.forget_headers_before(
             held.session, await self._driver.mark(held.session, held.target_id)
         )
@@ -412,8 +425,12 @@ class SessionBroker:
                 kind="password",
             )
         await self._driver.goto(held.session, held.target_id, start_url)
+        await asked.clear(key)
 
     async def _wait_for_a_person(self, ctx: RequestContext, held: Held, *, park: bool) -> None:
+        await CodeAsked(self._vault).ask(
+            held.lease.account.vault_key("password"), at=self._clock.now()
+        )
         if not park:
             raise NeedsAPerson(f"{held.lease.account.origin} asks for a one-time code", kind="code")
         until = await self._park(ctx, held.lease.id)

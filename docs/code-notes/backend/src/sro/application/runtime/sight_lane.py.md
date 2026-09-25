@@ -80,7 +80,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/sight
 > - **Reasons.** A refusal is forgotten once a later point is made, so a
 >   step pro acted on never reports flash's refusal (M6).
 
-## `_taught`, [line 335](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L335): Function
+## `_taught`, [line 371](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L371): Function
 
 > What a hit test teaches (X2 ruling). `None` (nothing, or no unique
 > locator) and `unreachable` (a cross-origin frame) teach nothing, and so
@@ -88,13 +88,22 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/sight
 > the frame it was found in. `frame_path` is kept as its JSON text so
 > `StepResult.learned` stays a string map.
 
-## `SightLane.fill`, [line 83](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L83): Docstring
+## `SightLane.fill`, [line 85](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L85): Docstring
 
-> Sight for a composed field that exists but will not take the value: the same
-> capped, origin-bound loop, with the goal `says`, the write's page as home, and
-> no `about_to_write` (filling is not writing). The write's recorded call is still
-> watched: if the model presses Save, sight stops acting and the fill is
-> `unknown`, never `done` (X7's ruling: stop once a matching write call is sent).
-> It is `done` only when the labelled control (`check`, the fill's own payload)
-> resolves to exactly the last hit's nearest actionable control and holds the
-> value; the locator is learned from that hit.
+> Sight for a composed field that exists but will not take the value, through
+> `execute`'s own guarded loop (`_guarded`), with the goal `says`, the write's
+> page as home, and no `about_to_write` (filling is not writing). The write's
+> recorded call is watched: once the model sends it, sight stops acting (X7's
+> ruling). After the last point it waits on the write's call the way `execute`
+> does, so a Save clicked on the final point is seen; any write call seen makes
+> the fill `unknown`, never `done`. It is `done` only when the labelled control
+> (`check`, the fill's payload) resolves to exactly the last hit's nearest
+> actionable control and holds the value; the locator is learned from that hit.
+
+## `SightLane._guarded`, [line 113](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L113): Docstring
+
+> The one loop both `execute` and `fill` run: drive, wait on the awaited call
+> after the last point (so a call the last point caused is in the log before
+> settling), settle. An exception after the first point, when a write is watched,
+> is `unknown` -- "the write may have gone" -- because the point may have sent it;
+> before any point it propagates. `Stopped` and cancellation always propagate.

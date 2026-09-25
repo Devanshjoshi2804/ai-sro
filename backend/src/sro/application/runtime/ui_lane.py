@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import asdict
 from urllib.parse import urlsplit
 
@@ -15,6 +15,7 @@ from sro.domain.execution.lanes import (
     Lane,
     SeenCall,
     StepResult,
+    accepts,
     fingerprint_of,
     write_confirmed,
 )
@@ -132,9 +133,8 @@ class UiLane:
         own = [one for one, _ in found]
         after = primary.action.after
         if writes(step, ctx.by_id):
-            verdict = write_confirmed(
-                recorded=recorded, wanted=expected_statuses(step, ctx.by_id), calls=own
-            )
+            wanted = expected_statuses(step, ctx.by_id)
+            verdict = write_confirmed(recorded=recorded, wanted=wanted, calls=own)
             if verdict == "failed":
                 return StepResult(
                     "failed",
@@ -159,7 +159,7 @@ class UiLane:
                 Lane.UI,
                 read=made,
                 calls=calls,
-                keyed=found[0][1] if found else {},
+                keyed=confirming(found, wanted) if verdict == "done" else {},
             )
         if recorded is not None and recorded.method.upper() in READ_METHODS:
             got = next(
@@ -230,3 +230,9 @@ def same_call(seen: SeenCall, recorded: Call, adding: Adding) -> dict[str, str] 
         if key not in wanted
     }
     return keyed(extra, adding)
+
+
+def confirming(
+    found: Sequence[tuple[SeenCall, dict[str, str]]], wanted: Collection[int]
+) -> dict[str, str]:
+    return next((keys for one, keys in found if accepts(one.status, wanted)), {})

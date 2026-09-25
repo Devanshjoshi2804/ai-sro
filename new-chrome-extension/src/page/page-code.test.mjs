@@ -988,3 +988,16 @@ test("a hidden password field is not shown, and a page with none reports none", 
 test("the page code can outline the live screen", () => {
   assert.equal(typeof loadSroPage().outline, "function");
 });
+
+test("resolve reads the value the one control holds, never a password's", () => {
+  const { resolve } = loadSroPage();
+  const chosen = Object.assign(elem("select", { attrs: { name: "department" } }), { value: "3" });
+  const secret = Object.assign(elem("input", { attrs: { name: "pw" } }), { value: "hunter2", type: "password" });
+
+  page([chosen]);
+  assert.equal(resolve({ target: { attributes: { name: "department" } } }).held, "3");
+  page([secret]);
+  assert.equal(resolve({ target: { attributes: { name: "pw" } } }).held, null);
+  page([]);
+  assert.equal(resolve({ target: { attributes: { name: "department" } } }).held, null);
+});

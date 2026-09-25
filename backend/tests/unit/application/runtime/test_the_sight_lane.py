@@ -522,3 +522,34 @@ async def test_a_fill_that_sends_the_save_stops_and_is_never_done() -> None:
 
     assert result.verdict == "unknown"
     assert len(driver.pointed) == 1
+
+
+async def test_a_fill_whose_point_breaks_is_unknown_because_the_write_may_have_gone() -> None:
+    driver = scripted_driver(url=APP, hit=SELECT_HIT, holds=True)
+    driver.point = _Breaks(PageGone("the page navigated away"))  # type: ignore[method-assign]
+    write, by_id = save_step(status=201)
+
+    result = await SightLane(driver, types_then_done(), None).fill(
+        "Set Department to Finance", write, lane_context(by_id), FIELD
+    )
+
+    assert result.verdict == "unknown"
+    assert "the write may have gone" in result.reason
+
+
+async def test_a_fill_waits_on_its_last_point_for_the_write_before_it_is_done() -> None:
+    driver = scripted_driver(url=APP, hit=SELECT_HIT, holds=True)
+    shown = driver.wait_for_call
+
+    async def late(*args: Any, **kwargs: Any) -> bool:
+        driver.arrive(SAVED)
+        return await shown(*args, **kwargs)
+
+    driver.wait_for_call = late  # type: ignore[method-assign]
+    write, by_id = save_step(status=201)
+
+    result = await SightLane(driver, types_then_done(), None).fill(
+        "Set Department to Finance", write, lane_context(by_id), FIELD
+    )
+
+    assert result.verdict == "unknown"

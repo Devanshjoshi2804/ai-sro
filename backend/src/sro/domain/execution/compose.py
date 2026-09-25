@@ -85,18 +85,14 @@ def compose(
 
 
 def keyed(extra: Mapping[str, str], adding: Adding) -> dict[str, str] | None:
-    found = {adding.known[key]: key for key in extra if key in adding.known}
-    rest = {key: said for key, said in extra.items() if key not in adding.known}
-    if len(rest) > len(adding.fresh):
-        return None
-    for name, value in adding.fresh.items():
-        key = next((key for key, said in rest.items() if said.casefold() == value.casefold()), None)
-        if key is not None:
-            found[name] = key
-            del rest[key]
-    left = [name for name in adding.fresh if name not in found]
-    if len(left) == 1 and len(rest) == 1:
-        found[left[0]] = next(iter(rest))
+    found: dict[str, str] = {}
+    for key, said in extra.items():
+        named = adding.known.get(key)
+        could = [named] if named is not None else [n for n in adding.fresh if n not in found]
+        holding = [name for name in could if said and adding.fresh.get(name) == said]
+        if len(holding) != 1 or holding[0] in found:
+            return None
+        found[holding[0]] = key
     return found
 
 

@@ -53,19 +53,45 @@ def test_a_credential_or_a_name_a_step_already_fills_is_never_composed() -> None
     assert compose(job, by_id, {"Password": "hunter2", "Customer Type": "GT2"}) == ((), ())
 
 
-def test_the_new_key_is_found_by_its_value_or_as_the_only_one_left() -> None:
-    two = Adding(fresh={"Department": "Finance", "Region": "North"})
+def test_a_new_key_pairs_only_with_the_value_its_control_holds() -> None:
+    two = Adding(fresh={"Department": "Finance", "Region": "7"})
 
     assert keyed({"department": "Finance", "regionId": "7"}, two) == {
         "Department": "department",
         "Region": "regionId",
     }
-    assert keyed({"deptId": "3", "regionId": "7"}, two) == {}
-    assert keyed({"a": "1", "b": "2", "c": "3"}, two) is None
-    assert keyed({"department": "3"}, Adding(known={"department": "Department"})) == {
-        "Department": "department"
-    }
+    assert keyed({"department": "Finance"}, two) == {"Department": "department"}
+    assert keyed({}, two) == {}
     assert keyed({}, Adding()) == {}
+
+
+def test_a_leftover_key_is_never_paired_by_elimination() -> None:
+    one = Adding(fresh={"Department": "Finance"})
+
+    assert keyed({"deptId": "3"}, one) is None
+    assert keyed({"validateOnly": "true"}, one) is None
+    assert keyed({"department": ""}, one) is None
+    assert keyed({"department": "Finance"}, Adding(fresh={"Department": ""})) is None
+    assert keyed({"a": "Finance", "b": "Finance"}, one) is None
+
+
+def test_a_select_pairs_by_the_option_value_it_holds_not_its_label() -> None:
+    assert keyed({"deptId": "3"}, Adding(fresh={"Department": "3"})) == {"Department": "deptId"}
+    assert keyed({"deptId": "Finance"}, Adding(fresh={"Department": "3"})) is None
+
+
+def test_two_fields_holding_the_same_value_attribute_no_key() -> None:
+    same = Adding(fresh={"Department": "North", "Region": "North"})
+
+    assert keyed({"department": "North"}, same) is None
+
+
+def test_a_learned_key_still_carries_its_fields_value() -> None:
+    learned = Adding(known={"department": "Department"}, fresh={"Department": "3"})
+
+    assert keyed({"department": "3"}, learned) == {"Department": "department"}
+    assert keyed({"department": "4"}, learned) is None
+    assert keyed({"department": "3"}, Adding(known={"department": "Department"})) is None
 
 
 def test_learning_the_field_puts_its_step_before_the_write_and_keeps_it_optional() -> None:

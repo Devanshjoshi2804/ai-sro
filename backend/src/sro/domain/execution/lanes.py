@@ -80,6 +80,10 @@ def lanes_for(
     return (*(lane for lane in ladder[:-1] if lane not in dead), last)
 
 
+def accepts(status: int | None, wanted: Collection[int]) -> bool:
+    return status is not None and (status in wanted or (not wanted and 200 <= status < 300))
+
+
 def write_confirmed(
     *, recorded: Call | None, wanted: Collection[int], calls: Collection[SeenCall]
 ) -> Verdict | None:
@@ -93,7 +97,7 @@ def write_confirmed(
         and call.method.upper() == method
         and path_shape(call.url) == shape
     ]
-    if any(status in wanted or (not wanted and 200 <= status < 300) for status in statuses):
+    if any(accepts(status, wanted) for status in statuses):
         return "done"
     if any(status >= 500 for status in statuses):
         return "unknown"

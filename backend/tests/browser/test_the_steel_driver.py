@@ -17,8 +17,10 @@ from playwright.async_api import async_playwright
 from sro.application.ports.page import PageGone, PageUnsettled, SessionRef
 from sro.application.ports.vision import ProposedGesture
 from sro.application.runtime.sight_lane import SightLane
+from sro.application.runtime.ui_lane import same_call
 from sro.config import get_settings
-from sro.domain.observation.gesture import AfterState, Body
+from sro.domain.execution.compose import Adding
+from sro.domain.observation.gesture import AfterState, Body, Call
 from sro.domain.recording.events import ActionKind
 from sro.domain.shared.hosts import origin_of, system_of
 from sro.domain.shared.identifiers import BrowserSessionId
@@ -1066,6 +1068,8 @@ async def test_a_field_nobody_recorded_is_found_by_its_label_filled_and_saved(
     chosen = await driver.act(one, target, {**department, "value": "Operations"})
     held = {**department, "pin": chosen.pin, "expect": {"value": "Operations"}}
     assert chosen.ok and await driver.wait_for(one, target, held, 5.0)
+    holding = (await driver.resolve(one, target, department)).held
+    assert holding == "Operations"
     await driver.act(one, target, {"action": "type", "value": "GT9", "target": {"css_path": "#ct"}})
     mark = await driver.mark(one, target)
     await driver.act(one, target, {"action": "click", "target": {"css_path": "#save"}})
@@ -1073,6 +1077,18 @@ async def test_a_field_nobody_recorded_is_found_by_its_label_filled_and_saved(
         one, target, method="POST", shape="/api/customer-types", since=mark, deadline_s=5.0
     )
     assert rig.saved[-1] == {"name": "GT9", "department": "Operations"}
+    (save,) = [c for c in await driver.calls_since(one, target, mark) if c.method == "POST"]
+    recorded = Call(
+        "POST",
+        rig.url("/api/customer-types"),
+        201,
+        1.0,
+        request_body=Body(text='{"name": "GT1"}', mime_type="application/json"),
+    )
+    assert same_call(save, recorded, Adding(fresh={"department": holding})) == {
+        "department": "department"
+    }
+    assert same_call(save, recorded, Adding(fresh={"department": "Finance"})) is None
 
 
 async def test_connecting_a_system_keeps_a_token_from_any_path_of_its_own(

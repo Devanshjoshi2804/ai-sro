@@ -27,6 +27,7 @@ class PageAnswer:
     state: AfterState | None = None
     pin: str | None = None
     repaired: bool = False
+    held: str | None = None
 
 
 class PageGone(Exception):

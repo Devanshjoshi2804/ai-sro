@@ -22,6 +22,7 @@ class Filled:
     options: tuple[str, ...] = ()
     learned: Mapping[str, str] = field(default_factory=dict)
     detail: str = ""
+    held: str = ""
 
 
 class FillField:
@@ -70,37 +71,40 @@ class FillField:
         }
         ctx.check_stop()
         found = await self._driver.resolve(held.session, held.target_id, payload)
-        if found.candidates > 1 or found.error_kind == "frame_ambiguous":
+        if found.error_kind is not None:
+            return Filled(None, detail="the recorded frame could not be chosen")
+        if found.candidates > 1:
             return Filled(None, "ambiguous")
-        if found.candidates != 1 or found.matched_by == "repair":
+        if found.candidates != 1:
             return Filled(None, "no_field")
         if composed.action == "select":
             live = await self._driver.outline(held.session, held.target_id, frame_path)
             options = _options(live, composed)
-            if options and all(normal(one) != normal(value) for one in options):
-                return Filled(None, "no_option", options=options)
+            same = [one for one in options if one.casefold() == value.strip().casefold()]
+            if options and len(same) != 1:
+                return Filled(None, "ambiguous" if same else "no_option", options=options)
+            value = same[0] if same else value
+            payload["value"] = value
+        check = {**payload, "learned": None, "expect": {"value": value}}
         ctx.check_stop()
         answer = await self._driver.act(held.session, held.target_id, payload)
-        check = {**payload, "expect": {"value": value}}
-        if (
-            answer.ok
-            and not answer.repaired
-            and await self._driver.wait_for(
-                held.session, held.target_id, {**check, "pin": answer.pin}, self._wait_s
-            )
+        if answer.ok and await self._driver.wait_for(
+            held.session, held.target_id, {**check, "pin": answer.pin}, self._wait_s
         ):
-            return Filled(
-                Lane.UI,
-                learned=locator
-                or {"strategy": "role_and_name", "query": f"{composed.role}|{composed.label}"},
-            )
-        why = answer.detail or "the control did not take the value"
-        if self._sight is None:
-            return Filled(None, detail=why)
-        result = await self._sight.fill(f"Set {composed.label} to {value}", write, ctx, check)
-        if result.verdict == "done":
-            return Filled(Lane.SIGHT, learned=result.learned)
-        return Filled(None, detail=result.reason or why)
+            lane = Lane.UI
+            taught = locator or {
+                "strategy": "role_and_name",
+                "query": f"{composed.role}|{composed.label}",
+            }
+        elif self._sight is None:
+            return Filled(None, detail="the control did not take the value")
+        else:
+            result = await self._sight.fill(f"Set {composed.label} to {value}", write, ctx, check)
+            if result.verdict != "done":
+                return Filled(None, detail="sight could not set the field")
+            lane, taught = Lane.SIGHT, dict(result.learned)
+        after = await self._driver.resolve(held.session, held.target_id, payload)
+        return Filled(lane, learned=taught, held=after.held or "")
 
 
 def _options(live: Mapping[str, object] | None, composed: Composed) -> tuple[str, ...]:

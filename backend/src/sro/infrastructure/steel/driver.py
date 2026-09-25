@@ -548,6 +548,7 @@ class SteelDriver:
             ok=bool(got.get("found")),
             matched_by=got.get("strategy"),
             candidates=int(got.get("candidates") or 0),
+            held=got.get("held"),
         )
 
     async def outline(

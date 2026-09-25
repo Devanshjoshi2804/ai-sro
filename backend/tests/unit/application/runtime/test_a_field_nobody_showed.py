@@ -36,7 +36,7 @@ def _field(write_order: int) -> Composed:
 
 async def test_a_field_found_once_by_its_label_is_selected_and_holds() -> None:
     driver = scripted_driver(
-        resolved=PageAnswer(ok=True, candidates=1, matched_by="within_role_name"),
+        resolved=PageAnswer(ok=True, candidates=1, matched_by="within_role_name", held="ops"),
         answer=PageAnswer(ok=True, matched_by="within_role_name", pin="p1"),
         outline=DEPARTMENT_OUTLINE,
         holds=True,
@@ -47,7 +47,8 @@ async def test_a_field_found_once_by_its_label_is_selected_and_holds() -> None:
         _field(write.order), "Operations", write, lane_context(by_id)
     )
 
-    assert (filled.lane, filled.asks) == (Lane.UI, "")
+    assert (filled.lane, filled.asks, filled.held) == (Lane.UI, "", "ops")
+    assert len(driver.resolved) == 2
     assert dict(filled.learned) == {"strategy": "role_and_name", "query": "combobox|Department"}
     acted = driver.acted[-1][2]
     assert (acted["action"], acted["value"], acted["write"]) == ("select", "Operations", False)
@@ -60,7 +61,6 @@ async def test_a_field_found_once_by_its_label_is_selected_and_holds() -> None:
     [
         (PageAnswer(ok=False), "no_field"),
         (PageAnswer(ok=True, candidates=2, matched_by="within_role_name"), "ambiguous"),
-        (PageAnswer(ok=False, error_kind="frame_ambiguous"), "ambiguous"),
     ],
 )
 async def test_a_label_missing_or_twice_on_the_live_page_is_asked(
@@ -74,18 +74,6 @@ async def test_a_label_missing_or_twice_on_the_live_page_is_asked(
     )
 
     assert filled.asks == asks
-    assert driver.acted == []
-
-
-async def test_a_guessed_repair_is_never_the_labelled_control() -> None:
-    driver = scripted_driver(resolved=PageAnswer(ok=True, candidates=1, matched_by="repair"))
-    write, by_id = save_step(status=201)
-
-    filled = await FillField(driver, None).fill(
-        _field(write.order), "Finance", write, lane_context(by_id)
-    )
-
-    assert filled.asks == "no_field"
     assert driver.acted == []
 
 
@@ -144,7 +132,7 @@ async def test_a_sight_fill_it_cannot_confirm_is_not_a_fill() -> None:
     filling = FillField(driver, sight)
     filled = await filling.fill(_field(write.order), "Finance", write, lane_context(by_id))
 
-    assert (filled.lane, filled.asks, filled.detail) == (None, "", "only the model says so")
+    assert (filled.lane, filled.asks, filled.detail) == (None, "", "sight could not set the field")
 
 
 async def test_a_learned_field_step_is_found_by_its_learned_locator() -> None:
@@ -163,3 +151,87 @@ async def test_a_learned_field_step_is_found_by_its_learned_locator() -> None:
     locator = {"strategy": "xpath", "query": "/html/body/select[1]"}
     assert driver.resolved[-1]["learned"] == locator
     assert (filled.lane, dict(filled.learned)) == (Lane.UI, locator)
+
+
+async def test_the_operators_value_is_the_outlines_own_option_label() -> None:
+    driver = scripted_driver(
+        resolved=PageAnswer(ok=True, candidates=1, matched_by="within_role_name"),
+        answer=PageAnswer(ok=True, matched_by="within_role_name", pin="p1"),
+        outline=DEPARTMENT_OUTLINE,
+        holds=True,
+    )
+    write, by_id = save_step(status=201)
+
+    filled = await FillField(driver, None).fill(
+        _field(write.order), " operations", write, lane_context(by_id)
+    )
+
+    assert filled.lane == Lane.UI
+    assert driver.acted[-1][2]["value"] == "Operations"
+    assert driver.waited_for[-1]["expect"] == {"value": "Operations"}
+
+
+async def test_two_options_equal_but_for_case_are_asked_not_picked() -> None:
+    twice = {"fields": [{"role": "combobox", "label": "Department", "options": ["IT", "It"]}]}
+    driver = scripted_driver(
+        resolved=PageAnswer(ok=True, candidates=1, matched_by="within_role_name"),
+        outline=twice,
+    )
+    write, by_id = save_step(status=201)
+
+    filled = await FillField(driver, None).fill(
+        _field(write.order), "it", write, lane_context(by_id)
+    )
+
+    assert (filled.asks, filled.options) == ("ambiguous", ("IT", "It"))
+    assert driver.acted == []
+
+
+@pytest.mark.parametrize("kind", ["frame_ambiguous", "frame_not_found"])
+async def test_a_frame_that_cannot_be_chosen_fails_without_a_question(kind: str) -> None:
+    driver = scripted_driver(resolved=PageAnswer(ok=False, error_kind=kind))
+    write, by_id = save_step(status=201)
+
+    filled = await FillField(driver, None).fill(
+        _field(write.order), "Finance", write, lane_context(by_id)
+    )
+
+    assert (filled.lane, filled.asks) == (None, "")
+    assert driver.acted == []
+
+
+async def test_sight_checks_the_labelled_control_never_the_learned_locator() -> None:
+    driver = scripted_driver(
+        resolved=PageAnswer(ok=True, candidates=1, matched_by="learned", held="Finance"),
+        answer=PageAnswer(ok=False, error_kind="not_actionable"),
+    )
+    sight = RecordingSight(
+        StepResult("done", Lane.SIGHT, learned={"strategy": "xpath", "query": "/x"})
+    )
+    write, by_id = save_step(status=201)
+    learned = LearnedStep(write.order - 1, "xpath", "/html/body/select[1]", "sight")
+
+    filling = FillField(driver, sight)
+    filled = await filling.fill(
+        _field(write.order), "Finance", write, lane_context(by_id), learned=learned
+    )
+
+    assert sight.checked[-1]["learned"] is None
+    assert sight.checked[-1]["target"]["name"] == "Department"
+    assert (filled.lane, filled.held) == (Lane.SIGHT, "Finance")
+
+
+async def test_the_operators_value_never_reaches_the_detail() -> None:
+    driver = scripted_driver(
+        resolved=PageAnswer(ok=True, candidates=1, matched_by="within_role_name"),
+        answer=PageAnswer(ok=False, detail="no option Legal-7", error_kind="not_actionable"),
+        outline={"fields": []},
+    )
+    write, by_id = save_step(status=201)
+
+    filled = await FillField(driver, None).fill(
+        _field(write.order), "Legal-7", write, lane_context(by_id)
+    )
+
+    assert filled.lane is None and filled.detail
+    assert "Legal-7" not in filled.detail

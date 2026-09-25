@@ -998,7 +998,9 @@
 
     resolve(payload) {
       const f = find(payload);
-      return { found: Boolean(f.el), strategy: f.strategy, candidates: f.candidates, score: f.score, xpath: f.el ? xpathOf(f.el) : null };
+      const secret = f.el && (f.el.type || "").toLowerCase() === "password";
+      const held = f.el && !secret && typeof f.el.value === "string" ? f.el.value : null;
+      return { found: Boolean(f.el), strategy: f.strategy, candidates: f.candidates, score: f.score, xpath: f.el ? xpathOf(f.el) : null, held };
     },
     act(payload) {
       const f = find(payload);

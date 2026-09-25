@@ -295,7 +295,7 @@ Comments and docstrings moved out of [`new-chrome-extension/src/page/page-code.j
 > been inner closures of `perform` rather than functions in their own
 > right.
 
-## module, [line 1108](../../../../../new-chrome-extension/src/page/page-code.js#L1108): Comment
+## module, [line 1110](../../../../../new-chrome-extension/src/page/page-code.js#L1110): Comment
 
 Code: `globalThis.sroPage = sroPage;`
 
@@ -778,7 +778,7 @@ Code: `globalThis.sroPage = sroPage;`
 > all: the two facts that tell a refusal from a stall, and neither of
 > them costs anything to collect. (the final `unreachable` detail)
 
-## `hitTest`, [line 1038](../../../../../new-chrome-extension/src/page/page-code.js#L1038): Function
+## `hitTest`, [line 1040](../../../../../new-chrome-extension/src/page/page-code.js#L1040): Function
 
 > Sight's other half: `viewport` tells the model where things are, and a
 > model's answer is a point, which is only useful to a future run if it
@@ -804,7 +804,7 @@ Code: `globalThis.sroPage = sroPage;`
 > and gains one entry per sight point; clear it per step if a page ever
 > lives through enough sight steps for that to matter.
 
-## `act`, [line 1003](../../../../../new-chrome-extension/src/page/page-code.js#L1003): Function
+## `act`, [line 1005](../../../../../new-chrome-extension/src/page/page-code.js#L1005): Function
 
 > Resolve, act through `actOn`, and pin what was touched: `pin` is a random
 > token and `globalThis.__sroActed` holds the element under it, so `holds`
@@ -853,7 +853,7 @@ Code: `globalThis.sroPage = sroPage;`
 > `{value: null, visible: false, enabled: null}`, so a recorded "gone once
 > done" holds and a recorded "still shown" does not.
 
-## `holds`, [line 1020](../../../../../new-chrome-extension/src/page/page-code.js#L1020): Function
+## `holds`, [line 1022](../../../../../new-chrome-extension/src/page/page-code.js#L1022): Function
 
 > Whether the element `act` pinned (`payload.pin`) matches
 > `payload.expect`, read through `stateOf` -- the recorder's vocabulary, so an
@@ -877,7 +877,7 @@ Code: `globalThis.sroPage = sroPage;`
 > into the wrong field, or a click on any element that is merely visible
 > and enabled, never holds.
 
-## `signals`, [line 1091](../../../../../new-chrome-extension/src/page/page-code.js#L1091): Function
+## `signals`, [line 1093](../../../../../new-chrome-extension/src/page/page-code.js#L1093): Function
 
 > S6: what the page's own inputs say about it, never what was typed into
 > them. Only inputs `shown` passes count -- the one visibility rule this file
@@ -891,3 +891,13 @@ Code: `globalThis.sroPage = sroPage;`
 > credential (I5). Structure only: no value is read off any control, matching
 > the sign-in capture rule (E7 security ruling, spec §5.6) that a sign-in
 > page's evidence never carries what was typed into it.
+
+## `sroPage`, [line 1002](../../../../../new-chrome-extension/src/page/page-code.js#L1002): Function
+
+Code: `const held = f.el && !secret && typeof f.el.value === "string" ? f.el.value : null;`
+
+> Counts the controls a payload names without acting, and reads `held`: the
+> DOM value the found control holds (an input's value, a select's chosen
+> option's value), `null` for a password or a control with no string value. A
+> composed field's save key must carry exactly that value (X10a review I1/I2).
+> The answer is read in memory by the runtime and never stored.

@@ -121,7 +121,7 @@ class UiLane:
                 deadline_s=self._wait_s,
             )
         calls = await self._driver.calls_since(held.session, held.target_id, mark)
-        own = [one for one in calls if recorded is not None and _same_call(one, recorded)]
+        own = [one for one in calls if recorded is not None and same_call(one, recorded)]
         after = primary.action.after
         if writes(step, ctx.by_id):
             verdict = write_confirmed(
@@ -192,7 +192,7 @@ class UiLane:
         )
 
 
-def _same_call(seen: SeenCall, recorded: Call) -> bool:
+def same_call(seen: SeenCall, recorded: Call) -> bool:
     if not (
         seen.own_frame
         and seen.method.upper() == recorded.method.upper()

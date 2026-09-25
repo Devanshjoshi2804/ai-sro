@@ -26,9 +26,11 @@ from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 from sro.application.ports.page import PageAnswer, PageGone, PageUnsettled, SessionRef
+from sro.application.ports.vision import Screen
 from sro.domain.execution.lanes import SeenCall
 from sro.domain.observation.gesture import AfterState
 from sro.domain.observation.trim import path_shape
+from sro.domain.recording.events import ActionKind
 from sro.domain.skill.signing_in import PageSignals, a_navigation
 from sro.infrastructure.steel.capture import addressed
 from sro.infrastructure.steel.client import cdp_origin, websocket_debugger_url
@@ -38,8 +40,11 @@ K_ACTION_TIMEOUT_S = 15
 K_CALL_BODY_CHARS = 4096
 K_CALL_TYPES = frozenset({"fetch", "xhr"})
 K_NO_DOCUMENT = frozenset({204, 205})
+K_SCROLL_PX = 400
 
 _SIGNALS = "() => globalThis.sroPage.signals()"
+_HIT_TEST = "([x, y]) => globalThis.sroPage.hitTest(x, y)"
+_VIEWPORT = "() => ({width: innerWidth, height: innerHeight})"
 
 _SEED_STORAGE = """(items) => {
   for (const { name, value } of items) {
@@ -476,6 +481,56 @@ class SteelDriver:
             pin=got.get("pin"),
             repaired=bool(got.get("repaired")),
         )
+
+    async def screenshot(self, session: SessionRef, target_id: str) -> Screen:
+        page = await self._page(session, target_id)
+
+        async def take() -> Screen:
+            size = page.viewport_size or await page.evaluate(_VIEWPORT)
+            image = await page.screenshot(
+                type="png", scale="css", timeout=K_ACTION_TIMEOUT_S * 1000
+            )
+            return Screen(image, "image/png", int(size["width"]), int(size["height"]))
+
+        return await self._call(session, target_id, page, take)
+
+    async def hit_test(
+        self, session: SessionRef, target_id: str, x: int, y: int
+    ) -> Mapping[str, object] | None:
+        page = await self._page(session, target_id)
+        found = await self._call(
+            session, target_id, page, lambda: page.main_frame.evaluate(_HIT_TEST, [x, y])
+        )
+        return dict(found) if found else None
+
+    async def point(
+        self,
+        session: SessionRef,
+        target_id: str,
+        action: ActionKind,
+        x: int,
+        y: int,
+        value: str | None,
+    ) -> None:
+        page = await self._page(session, target_id)
+        hit = await self.hit_test(session, target_id, x, y)
+        hops = hit.get("frame_path") if hit else None
+        frame, _ = await self._frame(page, {"frame_path": hops if isinstance(hops, list) else []})
+        self._log(page).acted = frame
+
+        async def gesture() -> None:
+            await page.mouse.move(x, y)
+            if action in (ActionKind.CLICK, ActionKind.TYPE):
+                await page.mouse.click(x, y)
+            if action is ActionKind.TYPE:
+                await page.keyboard.type(value or "")
+            elif action is ActionKind.PRESS:
+                await page.keyboard.press(value or "Enter")
+            elif action is ActionKind.SCROLL:
+                digits = value is not None and value.lstrip("-").isdigit()
+                await page.mouse.wheel(0, int(value) if digits and value else K_SCROLL_PX)
+
+        await self._call(session, target_id, page, gesture)
 
     async def mark(self, session: SessionRef, target_id: str) -> int:
         page = await self._page(session, target_id)

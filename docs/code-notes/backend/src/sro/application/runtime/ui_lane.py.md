@@ -81,7 +81,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > threshold, not necessarily the recorded one, so with its state holding or
 > no state recorded at all it is `unknown` (X2's binding rule; X4 review I1).
 
-## `_same_call`, [line 195](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L195): Docstring
+## `same_call`, [line 195](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L195): Docstring
 
 > Whether a seen call is the recorded one: same method, same path shape, same
 > host, sent from the frame this step acted in (`SeenCall.own_frame`, set by

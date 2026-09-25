@@ -1464,7 +1464,11 @@ class FakePageDriver:
     ahead of any `mark`, `calls` arrive with the first `act`, and
     `calls_since`/`wait_for_call` see only calls numbered after the mark they
     are given. The log is one for every tab, so `forget_calls` empties all
-    of it."""
+    of it.
+
+    For the sight lane, `screenshot` answers a blank screen, `hit_test`
+    answers `hit` (a `sroPage.hitTest` answer) for any point, and `point`
+    records each gesture in `pointed` and, like `act`, lets `calls` arrive."""
 
     def __init__(
         self,
@@ -1476,6 +1480,7 @@ class FakePageDriver:
         sign_in: bool = False,
         url: str = "",
         unsettled: bool = False,
+        hit: Mapping[str, object] | None = None,
     ) -> None:
         self.tabs: dict[str, str] = {}
         self.owners: dict[str, str] = {}
@@ -1496,6 +1501,8 @@ class FakePageDriver:
         self.signed: set[str] = set()
         self.acted: list[tuple[SessionRef, str, dict[str, object]]] = []
         self.waited_for: list[dict[str, object]] = []
+        self.hit = hit
+        self.pointed: list[tuple[str, int, int, str | None]] = []
 
     def _live(self, session: SessionRef) -> None:
         if session.context_id in self.dead:
@@ -1560,6 +1567,30 @@ class FakePageDriver:
 
     async def mark(self, session: SessionRef, target_id: str) -> int:
         return next(self._seq)
+
+    async def screenshot(self, session: SessionRef, target_id: str) -> Screen:
+        self._tab(session, target_id)
+        return Screen(image=b"", mime_type="image/png", width=1280, height=800)
+
+    async def hit_test(
+        self, session: SessionRef, target_id: str, x: int, y: int
+    ) -> Mapping[str, object] | None:
+        self._tab(session, target_id)
+        return self.hit
+
+    async def point(
+        self,
+        session: SessionRef,
+        target_id: str,
+        action: ActionKind,
+        x: int,
+        y: int,
+        value: str | None,
+    ) -> None:
+        self._tab(session, target_id)
+        self.pointed.append((action.value, x, y, value))
+        self._log += [(next(self._seq), call) for call in self._arriving]
+        self._arriving = ()
 
     async def calls_since(
         self, session: SessionRef, target_id: str, mark: int

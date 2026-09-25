@@ -31,7 +31,7 @@ from sro.container import Container
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.skill.workflow import Workflow
 from sro.infrastructure.agent.drivers import RemoteAgents
-from tests.unit.fakes import FakeAsker, FakeClock, FakeUnitOfWork
+from tests.unit.fakes import FakeAsker, FakeClock, FakePageDriver, FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer
 
 FROZEN = datetime(2026, 3, 4, 9, 30, tzinfo=UTC)
@@ -523,3 +523,35 @@ def test_the_pool_is_built_per_tenant_from_steel_urls() -> None:
     assert pool._containers("beta") == (settings.steel_base_url,)
     assert "http://acme-steel:3000" in pool._clients
     assert settings.steel_base_url in pool._clients
+
+
+def test_the_sight_lane_escalates_from_flash_to_pro_and_both_are_metered(
+    container: Container,
+) -> None:
+    """Sight is `gemini-3.8-flash` first and `gemini-3.1-pro-preview` once
+    after it; both spend through the meter, so the cap refuses either."""
+    from sro.config import Settings
+    from sro.container import _build_vision
+    from sro.infrastructure.gemini.metered import Metered
+
+    container.settings = Settings(_env_file=None, gemini_api_key="k", vision_enabled=True)
+    container.meter = _meter()
+    container.vision = _build_vision(container.settings, container.meter)
+    container.driver = FakePageDriver()
+
+    models = container.sight_lane()._models
+
+    assert [one.destination for one in models] == [
+        "gemini:gemini-3.8-flash",
+        "gemini:gemini-3.1-pro-preview",
+    ]
+    assert {type(one._client).__name__ for one in models} == {Metered.__name__}
+
+
+def test_the_sight_lane_has_no_model_when_the_deployment_has_no_vision(
+    container: Container,
+) -> None:
+    container.vision = None
+    container.driver = FakePageDriver()
+
+    assert container.sight_lane()._models == ()

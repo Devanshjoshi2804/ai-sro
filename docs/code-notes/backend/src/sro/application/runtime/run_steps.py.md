@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/application/runtime/run_steps.py`](../../../../../../../backend/src/sro/application/runtime/run_steps.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `RunSteps`, [line 51](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L51): Class
+## `RunSteps`, [line 52](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L52): Class
 
 > A Steel run's activities (spec §7.2): prepare, acquire, one step per call,
 > finish, release, beat. Each loads the run and its `progress` afresh, so a
@@ -11,7 +11,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/run_s
 > the outcome. None of them acts on a run that is no longer `running`. A code
 > change here is live only after the worker restarts (AGENTS.md).
 
-## `RunSteps.step`, [line 117](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L117): Note
+## `RunSteps.step`, [line 133](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L133): Note
 
 Code: `if progress.in_doubt(step.order):`
 
@@ -20,7 +20,7 @@ Code: `if progress.in_doubt(step.order):`
 > write by the API lane's read-back -- signed in afresh when the mark says the
 > session had expired, credited to the lane that sent it -- else it asks.
 
-## `RunSteps.step`, [line 139](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L139): Note
+## `RunSteps.step`, [line 155](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L155): Note
 
 Code: `except (NeedsAPerson, AccountBusy, PageGone) as why:`
 
@@ -30,14 +30,14 @@ Code: `except (NeedsAPerson, AccountBusy, PageGone) as why:`
 > the activity to retry. `Superseded` is raised untouched: another attempt
 > holds the run.
 
-## `RunSteps.step`, [line 165](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L165): Note
+## `RunSteps.step`, [line 181](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L181): Note
 
 Code: `await self._teach.learn(ctx, workflow, by_id, step, tried, run_id=run_id, values=values)`
 
 > Taught after the step is recorded, so a teaching failure never turns a
 > write proven done back into one in doubt.
 
-## `RunSteps.finish`, [line 168](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L168): Note
+## `RunSteps.finish`, [line 184](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L184): Note
 
 Code: `async def finish(self, ctx: RequestContext, run_id: str) -> str:`
 
@@ -45,20 +45,20 @@ Code: `async def finish(self, ctx: RequestContext, run_id: str) -> str:`
 > `held` only when every step was reached and each is held or withheld;
 > an outcome already set (a stop's `aborted`) is kept.
 
-## `RunSteps.beat`, [line 194](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L194): Note
+## `RunSteps.beat`, [line 210](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L210): Note
 
 Code: `if progress.lease and not await self._broker.beat(ctx, progress.lease, holder=run_id):`
 
 > A beat the lease no longer answers is a lost lease: the lost-page path.
 
-## `RunSteps._keep_tab`, [line 235](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L235): Note
+## `RunSteps._keep_tab`, [line 251](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L251): Note
 
 Code: `except BaseException:`
 
 > A tab this attempt opened but could not record is closed at once; a retry
 > would open another, and nothing would ever release the first.
 
-## `RunSteps._sending`, [line 278](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L278): Note
+## `RunSteps._sending`, [line 294](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L294): Note
 
 Code: `if again and wrote == "sending":`
 
@@ -66,7 +66,7 @@ Code: `if again and wrote == "sending":`
 > marked; any other mark means another attempt got there first, and this one
 > sends nothing.
 
-## `RunSteps._settled`, [line 285](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L285): Note
+## `RunSteps._settled`, [line 301](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L301): Note
 
 Code: `async def _settled(`
 
@@ -74,7 +74,7 @@ Code: `async def _settled(`
 > signed in afresh when the result says the session expired; nothing to read
 > back means a person is asked and the mark stays in doubt.
 
-## `RunSteps._advance`, [line 331](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L331): Note
+## `RunSteps._advance`, [line 347](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L347): Note
 
 Code: `progress.step, progress.asking = index + 1, {}`
 
@@ -82,7 +82,7 @@ Code: `progress.step, progress.asking = index + 1, {}`
 > follows the unclear one, and D5 takes an answer to a withdrawn question as
 > already answered.
 
-## `RunSteps._ask`, [line 347](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L347): Note
+## `RunSteps._ask`, [line 363](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L363): Note
 
 Code: `async def _ask(`
 
@@ -91,7 +91,7 @@ Code: `async def _ask(`
 > where and why the run stopped. Asked from prepare and acquire too, at the
 > step the run stands on.
 
-## `RunSteps._write`, [line 429](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L429): Note
+## `RunSteps._write`, [line 445](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L445): Note
 
 Code: `ctx.tenant_id, run.id, now, was=run.progress`
 
@@ -101,21 +101,21 @@ Code: `ctx.tenant_id, run.id, now, was=run.progress`
 > changed and stops with `Superseded`, so one write is never sent twice and
 > a step is never skipped.
 
-## `RunSteps._run`, [line 444](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L444): Note
+## `RunSteps._run`, [line 460](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L460): Note
 
 Code: `raise Stopped(f"run {run_id} is not known")`
 
 > A run this tenant does not hold is a stop: nothing more may be done for it,
 > and retrying cannot bring it back.
 
-## `RunSteps.finish`, [line 171](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L171): Note
+## `RunSteps.finish`, [line 187](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L187): Note
 
 Code: `last = {one.of_step: one.verdict for one in sorted(run.steps, key=lambda s: s.order)}`
 
 > Judged by each step's last row: an `unclear` a read-back later settled as
 > `held` is history, not the step's result.
 
-## `RunSteps._write`, [line 422](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L422): Note
+## `RunSteps._write`, [line 438](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L438): Note
 
 Code: `if (index is not None and loaded.step != index) or (`
 
@@ -124,3 +124,19 @@ Code: `if (index is not None and loaded.step != index) or (`
 > stands on that step, and a question only while the step is not done. A
 > zombie whose lane fails after the retry already held the step asks nothing
 > and adds no row.
+
+## `RunSteps.step`, [line 109](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L109): Note
+
+Code: `absent = [name for name in step.parameters if not values.get(name, "").strip()]`
+
+> A step whose parameters nobody gave (spec §6.6.6). A required one is asked
+> for (`kind="value"`) before any lane acts -- a lane would otherwise have
+> nothing to type, and the recording's value is never a substitute. When
+> every parameter of the step is optional and absent, the step is skipped:
+> recorded `skipped`, which `finish` counts as kept. A step that carries some
+> of its values is performed with those.
+
+## `_demanded`, [line 475](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L475): Note
+
+> The job's required parameter names, by the same `demanded` rule the press
+> and the mail reading use.

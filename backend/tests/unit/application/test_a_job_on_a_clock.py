@@ -144,9 +144,20 @@ def _starter(
 
 
 def _create(
-    uow: FakeUnitOfWork, scheduler: FakeScheduler, *, can_gather: bool = False
+    uow: FakeUnitOfWork,
+    scheduler: FakeScheduler,
+    *,
+    can_gather: bool = False,
+    start_run: StartWorkflowRun | None = None,
 ) -> CreateTrigger:
-    return CreateTrigger(uow, FakeClock(NOW), FakeIdFactory(), scheduler, can_gather=can_gather)
+    return CreateTrigger(
+        uow,
+        FakeClock(NOW),
+        FakeIdFactory(),
+        scheduler,
+        can_gather=can_gather,
+        start_run=start_run,
+    )
 
 
 def _new(**over: object) -> NewTrigger:
@@ -196,12 +207,22 @@ async def test_a_proven_job_on_a_weekday_morning_is_a_write_with_a_name_on_it() 
     assert scheduler.scheduled == {trigger.id.value: EVERY_WEEKDAY}
 
 
-async def test_a_job_trigger_may_name_no_browser() -> None:
-    # A Steel tenant's run needs none; whether a browser is needed is decided
-    # where every run starts, `StartWorkflowRun.execute`, when it fires.
+async def test_a_job_with_no_browser_named_is_refused_rather_than_run_headless() -> None:
+    # A workflow is a recording of somebody's own window. There is no headless
+    # path for one on the extension, so a trigger without a device would fail
+    # every morning.
     uow, scheduler = await _held(), FakeScheduler()
 
-    trigger = await _create(uow, scheduler).execute(CTX, _new(device_id=None))
+    with pytest.raises(TriggerRefused, match="browser"):
+        await _create(uow, scheduler).execute(CTX, _new(device_id=None))
+
+
+async def test_a_steel_tenant_s_job_trigger_names_no_browser() -> None:
+    # Its runs start on the server and drive nobody's browser.
+    uow, scheduler = await _held(), FakeScheduler()
+    steel = _starter(uow, durable=FakeDurableExecution(), steel_tenants=frozenset({f.TENANT.value}))
+
+    trigger = await _create(uow, scheduler, start_run=steel).execute(CTX, _new(device_id=None))
 
     assert trigger.device_id is None
 
@@ -365,21 +386,27 @@ async def test_a_process_with_no_way_to_drive_a_browser_skips_rather_than_crashe
     assert uow.triggers.rows[trigger.id.value].enabled is True
 
 
-async def test_an_extension_tenant_s_trigger_with_no_browser_is_refused_as_not_connected() -> None:
+async def test_a_job_trigger_whose_browser_was_forgotten_disables_itself() -> None:
+    """Refused at creation, so this is a row written before that check existed.
+    A trigger that can never reach a browser is not one to retry every hour."""
     uow, scheduler = await _held(), FakeScheduler()
-    trigger = await _create(uow, scheduler).execute(CTX, _new(auto_approve=True, device_id=None))
+    trigger = await _create(uow, scheduler).execute(CTX, _new(auto_approve=True))
+    stored = uow.triggers.rows[trigger.id.value]
+    object.__setattr__(stored, "device_id", None)
 
     fired = await _fire(uow, starter=_starter(uow), pursuits=_Dropped()).execute(trigger.id)
 
     assert fired.run_id is None
-    assert "connected browser" in (fired.skipped or "")
-    assert uow.workflow_runs.rows == {}
+    assert uow.triggers.rows[trigger.id.value].enabled is False
+    assert "browser" in (fired.skipped or "")
 
 
 async def test_a_steel_tenant_s_trigger_fires_with_no_browser() -> None:
     uow, scheduler, durable = await _held(), FakeScheduler(), FakeDurableExecution()
-    trigger = await _create(uow, scheduler).execute(CTX, _new(auto_approve=True, device_id=None))
     starter = _starter(uow, durable=durable, steel_tenants=frozenset({f.TENANT.value}))
+    trigger = await _create(uow, scheduler, start_run=starter).execute(
+        CTX, _new(auto_approve=True, device_id=None)
+    )
 
     fired = await _fire(uow, starter=starter).execute(trigger.id)
 
@@ -389,13 +416,22 @@ async def test_a_steel_tenant_s_trigger_fires_with_no_browser() -> None:
     assert [one for one, _ in durable.runs_started] == [fired.run_id.value]
 
 
-async def test_a_trigger_with_no_browser_is_dispatched_with_none() -> None:
+async def test_a_steel_trigger_with_no_browser_is_dispatched_with_none() -> None:
     uow, scheduler = await _held(), FakeScheduler()
-    trigger = await _create(uow, scheduler).execute(CTX, _new(auto_approve=True, device_id=None))
+    steel = _starter(uow, durable=FakeDurableExecution(), steel_tenants=frozenset({f.TENANT.value}))
+    trigger = await _create(uow, scheduler, start_run=steel).execute(
+        CTX, _new(auto_approve=True, device_id=None)
+    )
     elsewhere = FakeRunDispatcher()
 
     await FireTrigger(
-        uow, FakeClock(NOW), FakeDurableExecution(), ids=FakeIdFactory(), dispatcher=elsewhere
+        uow,
+        FakeClock(NOW),
+        FakeDurableExecution(),
+        ids=FakeIdFactory(),
+        dispatcher=elsewhere,
+        start_run=steel,
+        pursuits=_Dropped(),
     ).execute(trigger.id)
 
     assert elsewhere.asked == [("wfl_1", None)]

@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import replace
 
 import pytest
 
@@ -444,3 +445,36 @@ async def test_a_zombie_attempt_that_fails_a_step_already_held_asks_nothing() ->
     assert [(one.of_step, one.verdict) for one in run.steps] == [(0, "held"), (1, "held")]
     assert Progress.of(run.progress).asking == {}
     assert await world.run_steps.finish(CTX, world.run_id) == "held"
+
+
+async def test_an_optional_value_nobody_gave_skips_its_step() -> None:
+    world = await steel_run(steps=[type_step(), save_step(status=201)])
+    await world.uow.workflow_runs.save(replace(await world.saved_run(), values={}))
+    world.lanes.ui.answers(StepResult("done", Lane.UI))
+
+    first = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    second = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert (first.more, second.more) == (True, False)
+    assert world.lanes.ui.calls == 1
+    run = await world.saved_run()
+    assert [(one.of_step, one.verdict) for one in run.steps] == [(0, "skipped"), (1, "held")]
+    assert "Customer Type" in run.steps[0].reason
+    assert await world.run_steps.finish(CTX, world.run_id) == "held"
+
+
+async def test_a_required_value_nobody_gave_is_asked_for_never_guessed() -> None:
+    world = await steel_run(steps=[type_step()])
+    job = await world.uow.workflows.get(TENANT, (await world.saved_run()).workflow_id)
+    await world.uow.workflows.save(
+        replace(job, parameters=[{"name": "Customer Type", "required": True}])
+    )
+    await world.uow.workflow_runs.save(replace(await world.saved_run(), values={}))
+
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert outcome.asking
+    assert world.lanes.ui.calls == 0
+    progress = Progress.of((await world.saved_run()).progress)
+    assert progress.asking["kind"] == "value"
+    assert "Customer Type" in progress.asking["text"]

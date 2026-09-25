@@ -439,6 +439,7 @@ class Container:
             self.ids,
             self.scheduler,
             can_gather=self.can_gather,
+            start_run=self.start_workflow_run(),
         )
 
     def read_triggers(self) -> ReadTriggers:
@@ -783,6 +784,7 @@ class Container:
             if self.asker is not None
             else None,
             start=self.start_workflow_run(),
+            attempts=self.record_attempt(),
         )
 
     @property

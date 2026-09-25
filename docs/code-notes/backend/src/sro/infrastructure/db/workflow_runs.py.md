@@ -62,6 +62,14 @@ Code: `_ONE_RUNNING = "uq_workflow_runs_one_running_per_device"`
 
 > Against the expression index 0062 adds, and never on a blank.
 >
+> Only a run that is actually waiting on a person counts: stopped with
+> `needs`, or running and parked on a question (`progress.asking`). The
+> same rule as `waiting.asks_a_person`, which the fake uses. A run still
+> working its steps, or finished with nothing asked, keeps its `awaiting`
+> for the reply it will send, but a later mail on that thread -- a
+> "thanks!", a colleague's reply-all -- is not an answer to anything, and
+> routing it to the run would start the job again.
+>
 > `waiting_on` refuses to build a wait with no conversation in it, so
 > nothing WRITES a blank thread -- but a hand edit, a restore, or a row
 > from a deployment that did can leave one, and without this guard a
@@ -69,7 +77,7 @@ Code: `_ONE_RUNNING = "uq_workflow_runs_one_running_per_device"`
 > to something else entirely, which is a warehouse record written from
 > somebody's unrelated sentence.
 
-## `SqlWorkflowRunRepository._with_steps`, [line 422](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L422): Docstring
+## `SqlWorkflowRunRepository._with_steps`, [line 429](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L429): Docstring
 
 > One query for every run's steps rather than one per run.
 
@@ -277,13 +285,13 @@ Code: `WorkflowRunRow.executor == "extension",`
 > index and the sweep would both already treat that row as none of their
 > concern.
 
-## `SqlWorkflowRunRepository.waiting_on`, [line 355](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L355): Comment
+## `SqlWorkflowRunRepository.waiting_on`, [line 362](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L362): Comment
 
 Code: `.order_by(WorkflowRunRow.started_at.desc(), WorkflowRunRow.id.desc())`
 
 > The last question asked about this conversation is the live one.
 
-## `SqlWorkflowRunRepository.awaiting`, [line 368](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L368): Comment
+## `SqlWorkflowRunRepository.awaiting`, [line 375](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L375): Comment
 
 Code: `WorkflowRunRow.outcome == "running",`
 
@@ -294,7 +302,7 @@ Code: `WorkflowRunRow.outcome == "running",`
 > sits in the supervisor's queue forever, asking for a tap that
 > can no longer let anything out.
 
-## `SqlWorkflowRunRepository.awaiting`, [line 371](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L371): Comment
+## `SqlWorkflowRunRepository.awaiting`, [line 378](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L378): Comment
 
 Code: `.order_by(WorkflowRunRow.started_at, WorkflowRunRow.id, WorkflowRunStepRow.ord)`
 
@@ -304,7 +312,7 @@ Code: `.order_by(WorkflowRunRow.started_at, WorkflowRunRow.id, WorkflowRunStepRo
 > be started in the same instant and their parked steps would
 > otherwise interleave differently on every read.
 
-## `SqlWorkflowRunRepository.approve`, [line 377](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L377): Comment
+## `SqlWorkflowRunRepository.approve`, [line 384](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L384): Comment
 
 Code: `tapped = await self._session.execute(`
 
@@ -314,7 +322,7 @@ Code: `tapped = await self._session.execute(`
 > RETURNING rather than a rowcount, because whether this tap was the
 > one that authorised the step is the answer the caller wants.
 
-## `SqlWorkflowRunRepository.fail_orphans`, [line 397](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L397): Comment
+## `SqlWorkflowRunRepository.fail_orphans`, [line 404](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L404): Comment
 
 Code: `WorkflowRunRow.outcome == "running", WorkflowRunRow.executor == "extension"`
 
@@ -326,14 +334,14 @@ Code: `WorkflowRunRow.outcome == "running", WorkflowRunRow.executor == "extensio
 > that is still actually running. Narrowed to `executor == "extension"` so
 > only the runs this sweep was ever about are touched.
 
-## `SqlWorkflowRunRepository.fail_orphans`, [line 410](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L410): Comment
+## `SqlWorkflowRunRepository.fail_orphans`, [line 417](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L417): Comment
 
 Code: `run.steps.append(`
 
 > The reason has to land somewhere the panel shows it, and a
 > run that died before its first step has nowhere.
 
-## `SqlWorkflowRunRepository._rows`, [line 420](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L420): Comment
+## `SqlWorkflowRunRepository._rows`, [line 427](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L427): Comment
 
 Code: `return select(WorkflowRunRow).execution_options(populate_existing=True)`
 

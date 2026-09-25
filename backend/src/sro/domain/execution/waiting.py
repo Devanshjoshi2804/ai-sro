@@ -4,6 +4,9 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from sro.domain.execution.progress import Progress
+from sro.domain.execution.workflow_run import WorkflowRun
+
 K_PATIENCE = timedelta(days=7)
 
 
@@ -37,6 +40,11 @@ def still_waiting(awaiting: Awaiting | None, now: datetime) -> bool:
     return (until if until.tzinfo else until.replace(tzinfo=UTC)) > now
 
 
+def asks_a_person(run: WorkflowRun) -> bool:
+    asking = Progress.of(run.progress).asking.get("id")
+    return bool(run.needs) or (run.outcome == "running" and bool(asking))
+
+
 def as_said(awaiting: Awaiting | None) -> dict[str, str] | None:
     if awaiting is None:
         return None
@@ -60,6 +68,7 @@ __all__ = [
     "K_PATIENCE",
     "Awaiting",
     "as_said",
+    "asks_a_person",
     "read_wait",
     "still_waiting",
     "waiting_on",

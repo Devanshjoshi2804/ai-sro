@@ -25,7 +25,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/ask_the_
 > row rather than a counter here, because a worker restart must not buy anybody
 > a second mail.
 
-## module, [line 23](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L23): Note on the line above
+## module, [line 21](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L21): Note on the line above
 
 Code: `DRAFTED = "mail_draft"`
 
@@ -33,7 +33,7 @@ Code: `DRAFTED = "mail_draft"`
 > sides read it: this door writes it, and the panel draws the words with a press
 > under them.
 
-## module, [line 301](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L301): Note on the line above
+## module, [line 299](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L299): Note on the line above
 
 Code: `SENT = "mail_sent"`
 
@@ -44,7 +44,7 @@ Code: `SENT = "mail_sent"`
 > taken before the mailbox is reached and a send that cannot be shown to have
 > failed must not be retried either.
 
-## `DraftForTheAsker`, [line 26](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L26): Docstring
+## `DraftForTheAsker`, [line 24](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L24): Docstring
 
 > Write the mail, put it in front of the operator, and stop.
 >
@@ -52,7 +52,7 @@ Code: `SENT = "mail_sent"`
 > conversation -- who asked, and what the message id is to reply to -- and
 > the only write it makes is into the operator's own thread.
 
-## `_address`, [line 122](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L122): Docstring
+## `_address`, [line 120](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L120): Docstring
 
 > The address out of `Tanisha Pradhan <tanisha@example.com>`.
 >
@@ -61,7 +61,7 @@ Code: `SENT = "mail_sent"`
 > answer means nobody to ask, which is a thing this door says rather than
 > guesses past.
 
-## `SendTheDraft`, [line 129](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L129): Docstring
+## `SendTheDraft`, [line 127](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L127): Docstring
 
 > Send the mail the operator read, and nothing else.
 >
@@ -76,14 +76,14 @@ Code: `SENT = "mail_sent"`
 > decides that a mail should go -- it decides that this mail, which somebody
 > has read, may.
 
-## `_the_draft`, [line 304](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L304): Docstring
+## `_the_draft`, [line 302](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L302): Docstring
 
 > The drafted mail with that id, if it is still the last word on it.
 >
 > By id and not "the newest draft": two runs can both be waiting, and a press
 > on the older card must not send the newer mail.
 
-## `DraftForTheAsker.execute`, [line 33](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L33): Docstring
+## `DraftForTheAsker.execute`, [line 31](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L31): Docstring
 
 > Whether a draft was put in front of somebody.
 >
@@ -101,7 +101,7 @@ Code: `SENT = "mail_sent"`
 > False for every ordinary reason -- no mailbox behind it, nothing
 > missing, somebody already asked. None of those is a failure.
 
-## `DraftForTheAsker._already_drafted`, [line 86](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L86): Docstring
+## `DraftForTheAsker._already_drafted`, [line 84](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L84): Docstring
 
 > Whether somebody already has a draft in front of them for this mail.
 >
@@ -111,7 +111,7 @@ Code: `SENT = "mail_sent"`
 > a reason to refuse another either -- the run column covers that, and
 > this covers the window before it exists.
 
-## `DraftForTheAsker._who_asked`, [line 99](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L99): Docstring
+## `DraftForTheAsker._who_asked`, [line 97](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L97): Docstring
 
 > Who to answer, which message to answer, and what it was called.
 >
@@ -120,7 +120,7 @@ Code: `SENT = "mail_sent"`
 > operator about the operator's own request. The first message is the
 > request, and whoever sent it is who to ask.
 
-## `SendTheDraft.execute`, [line 136](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L136): Docstring
+## `SendTheDraft.execute`, [line 134](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L134): Docstring
 
 > The address it went to, or `""` where nothing was sent.
 >
@@ -128,7 +128,7 @@ Code: `SENT = "mail_sent"`
 > nobody can find, a run that has since been asked about another way --
 > all are reasons not to send, and none of them is an error worth a 500.
 
-## `SendTheDraft._finish_the_job`, [line 216](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L216): Docstring
+## `SendTheDraft._finish_the_job`, [line 214](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L214): Docstring
 
 > The mail job's run, finished on what Gmail answered.
 >
@@ -137,7 +137,7 @@ Code: `SENT = "mail_sent"`
 > clicked out of Gmail's page could never reach, since nothing on a
 > screen can say a mail went.
 
-## `SendTheDraft._claim`, [line 240](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L240): Docstring
+## `SendTheDraft._claim`, [line 238](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L238): Docstring
 
 > Take this draft, or say somebody already has it.
 >
@@ -154,7 +154,7 @@ Code: `SENT = "mail_sent"`
 > and the guard would let them, which is the one thing this claim
 > exists to stop. The draft id is unique in the tenant on its own.
 
-## `SendTheDraft._never_read`, [line 251](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L251): Docstring
+## `SendTheDraft._never_read`, [line 249](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L249): Docstring
 
 > Claim the id of the mail just sent, so no look ever reads it.
 >
@@ -163,7 +163,7 @@ Code: `SENT = "mail_sent"`
 > them is a reason to tell somebody their mail did not go, because it
 > did. The cost of missing this is one card somebody dismisses.
 
-## `SendTheDraft._say`, [line 269](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L269): Docstring
+## `SendTheDraft._say`, [line 267](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L267): Docstring
 
 > What happened, in the conversation the draft was read in.
 >
@@ -173,14 +173,14 @@ Code: `SENT = "mail_sent"`
 > knows whether it was. One kind, one honest flag, rather than a line
 > reading `mail_sent` under the words "I could not reach the mailbox".
 
-## `DraftForTheAsker.execute`, [line 44](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L44): Comment
+## `DraftForTheAsker.execute`, [line 42](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L42): Comment
 
 Code: `if run is not None and run.asked_the_asker:`
 
 > One per run, read off the row rather than counted here: a worker that
 > restarted between two stops must not buy anybody a second mail.
 
-## `DraftForTheAsker.execute`, [line 47](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L47): Comment
+## `DraftForTheAsker.execute`, [line 45](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L45): Comment
 
 Code: `if await self._already_drafted(ctx, conversation):`
 
@@ -188,7 +188,7 @@ Code: `if await self._already_drafted(ctx, conversation):`
 > one card would otherwise put two drafts in front of somebody, and the
 > second is a mail they can send after the first has gone.
 
-## `DraftForTheAsker.execute`, [line 67](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L67): Comment
+## `DraftForTheAsker.execute`, [line 65](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L65): Comment
 
 Code: `speaker=Speaker.SYSTEM,`
 
@@ -196,7 +196,7 @@ Code: `speaker=Speaker.SYSTEM,`
 > ASSISTANT decided, and a draft standing where the question should
 > be would eat the operator's next sentence.
 
-## `DraftForTheAsker._who_asked`, [line 117](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L117): Comment
+## `DraftForTheAsker._who_asked`, [line 115](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L115): Comment
 
 Code: `str(first.get("rfc822_message_id") or ""),`
 
@@ -210,7 +210,7 @@ Code: `str(first.get("rfc822_message_id") or ""),`
 > arrived in the recipient's mailbox as a new conversation rather
 > than under the request it was answering.
 
-## `SendTheDraft.execute`, [line 144](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L144): Comment
+## `SendTheDraft.execute`, [line 142](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L142): Comment
 
 Code: `if not await self._claim(ctx, message_id):`
 
@@ -227,7 +227,7 @@ Code: `if not await self._claim(ctx, message_id):`
 > Keyed by the DRAFT, which exists on both paths and is unique to the
 > words somebody actually read.
 
-## `SendTheDraft.execute`, [line 149](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L149): Comment
+## `SendTheDraft.execute`, [line 147](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L147): Comment
 
 Code: `job = bool(draft.get("job"))`
 
@@ -236,7 +236,7 @@ Code: `job = bool(draft.get("job"))`
 > run finishes on Gmail's answer below. See `application/execution/
 > mail_job.py`. The once-only claim above still holds for it.
 
-## `SendTheDraft.execute`, [line 152](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L152): Comment
+## `SendTheDraft.execute`, [line 150](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L150): Comment
 
 Code: `if run is not None and not job:`
 
@@ -245,7 +245,7 @@ Code: `if run is not None and not job:`
 > second mail about one request -- which is the one thing the
 > column exists to stop.
 
-## `SendTheDraft.execute`, [line 171](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L171): Comment
+## `SendTheDraft.execute`, [line 169](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L169): Comment
 
 Code: `"thread_id": str(draft.get("thread") or ""),`
 
@@ -253,7 +253,7 @@ Code: `"thread_id": str(draft.get("thread") or ""),`
 > its own thread cannot be matched back to the run waiting
 > on it, so the person answers into a void.
 
-## `SendTheDraft.execute`, [line 176](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L176): Comment
+## `SendTheDraft.execute`, [line 174](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L174): Comment
 
 Code: `logger.warning(`
 
@@ -262,7 +262,7 @@ Code: `logger.warning(`
 > ladder keeps, and for a stronger reason: a duplicate mail cannot
 > be deleted afterwards.
 
-## `SendTheDraft.execute`, [line 190](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L190): Comment
+## `SendTheDraft.execute`, [line 188](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L188): Comment
 
 Code: `await self._never_read(ctx, answered)`
 
@@ -280,7 +280,7 @@ Code: `await self._never_read(ctx, answered)`
 > question -- "have I dealt with this message" -- and a second store
 > for it is a second store to keep in step.
 
-## `SendTheDraft._say`, [line 288](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L288): Comment
+## `SendTheDraft._say`, [line 286](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L286): Comment
 
 Code: `decision={`
 
@@ -290,7 +290,7 @@ Code: `decision={`
 > panel keyed only on that went on showing `Send it` under
 > a mail already in somebody's inbox.
 
-## `SendTheDraft._say`, [line 292](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L292): Comment
+## `SendTheDraft._say`, [line 290](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L290): Comment
 
 Code: `"to": to,`
 
@@ -299,7 +299,7 @@ Code: `"to": to,`
 > a panel parsing prose to find a fact the decision
 > was already carrying everything else about.
 
-## `_the_draft`, [line 309](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L309): Comment
+## `_the_draft`, [line 307](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L307): Comment
 
 Code: `if str(getattr(message, "id", "")) == str(message_id):`
 

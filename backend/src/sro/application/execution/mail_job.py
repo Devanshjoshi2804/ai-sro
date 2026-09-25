@@ -6,8 +6,8 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 
 from sro.application.chat.announce import SayWhatHappened
-from sro.application.chat.ask_the_asker import DRAFTED, SERVER
-from sro.application.chat.from_the_mail import K_REMEMBER
+from sro.application.chat.ask_the_asker import DRAFTED
+from sro.application.chat.mailbox import K_REMEMBER, SERVER
 from sro.application.context import RequestContext
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork

@@ -4,11 +4,11 @@ import json
 import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from types import MappingProxyType
-from typing import TYPE_CHECKING
 
 from sro.application.chat.announce import SayWhatHappened
+from sro.application.chat.mailbox import K_REMEMBER, SERVER
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.chat.understand import understand
 from sro.application.context import RequestContext
@@ -19,7 +19,9 @@ from sro.application.execution.declared import (
     screen_for,
 )
 from sro.application.execution.gather import GatherContext
+from sro.application.execution.workflow_runs import StartWorkflowRun
 from sro.application.intent.spend import over_cap
+from sro.application.observation.record_attempt import RecordAttempt
 from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
@@ -31,14 +33,10 @@ from sro.domain.chat.thread import Speaker
 from sro.domain.execution.learned_step import limits_for, too_long
 from sro.domain.execution.waiting import read_wait, still_waiting
 from sro.domain.execution.workflow_run import WorkflowRun
+from sro.domain.observation.attempts import DONE
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.learned import offerable
 from sro.domain.skill.workflow import Workflow
-
-if TYPE_CHECKING:
-    from sro.application.execution.workflow_runs import StartWorkflowRun
-
-SERVER = "gmail"
 
 K_LOOK = 8
 
@@ -51,8 +49,6 @@ K_SUBJECT = 120
 K_BECAUSE = 400
 
 K_RECENT = "newer_than:2d -in:chats"
-
-K_REMEMBER = timedelta(days=30)
 
 K_TEXT = 2000
 
@@ -84,6 +80,8 @@ class Offered:
 
     too_long: Mapping[str, int] = field(default_factory=dict)
 
+    sure: bool = False
+
 
 @dataclass(frozen=True, slots=True)
 class LookedInTheMail:
@@ -106,9 +104,11 @@ class FromTheMail:
         ids: IdFactory | None = None,
         cap_usd: float = -1.0,
         start: StartWorkflowRun | None = None,
+        attempts: RecordAttempt | None = None,
     ) -> None:
         self._uow = uow
         self._start = start
+        self._attempts = attempts
         self._tools = tools
         self._asker = asker
         self._model = model
@@ -270,6 +270,7 @@ class FromTheMail:
                         ),
                         unasked=sorted({*got.unasked, *asked_for_too}),
                         aside={**got.aside, **said_besides},
+                        sure=True,
                     )
                 )
             except OverCap as reached:
@@ -303,7 +304,8 @@ class FromTheMail:
 
     async def _started(self, ctx: RequestContext, one: Offered) -> Offered:
         if (
-            one.missing
+            not one.sure
+            or one.missing
             or one.too_long
             or one.started
             or self._start is None
@@ -325,7 +327,15 @@ class FromTheMail:
                 "%s: a sure, complete mail could not start its run", ctx.tenant_id.value
             )
             return one
-        await self._start.perform(ctx, run)
+        if not await self._start.start_on_steel(ctx, run):
+            return one
+        if self._attempts is not None:
+            await self._attempts.execute(
+                ctx,
+                asked_for="start a job from a mail",
+                came_of=DONE,
+                about={"run": run.id, "workflow": one.workflow_id, "thread": one.thread},
+            )
         return replace(one, started=True)
 
     async def _answering(self, ctx: RequestContext, thread: str) -> WorkflowRun | None:
@@ -626,14 +636,14 @@ class FromTheMail:
 
     async def _forget(self, ctx: RequestContext, message: str) -> None:
         async with self._uow as uow:
-            await uow.tool_calls.forget(ctx.tenant_id, _mail_key(ctx, message))
+            await uow.tool_calls.forget(ctx.tenant_id, _mail_key(message))
             await uow.commit()
 
     async def _first_time(self, ctx: RequestContext, message: str, *, now: datetime) -> bool:
         async with self._uow as uow:
             first = await uow.tool_calls.remember(
                 ctx.tenant_id,
-                _mail_key(ctx, message),
+                _mail_key(message),
                 tool="read a mail for what it asks",
                 at=now,
                 stale_after=K_REMEMBER,
@@ -642,8 +652,8 @@ class FromTheMail:
         return first
 
 
-def _mail_key(ctx: RequestContext, message: str) -> str:
-    return f"mail:{ctx.principal_id.value}:{message}"
+def _mail_key(message: str) -> str:
+    return f"mail:{message}"
 
 
 def _sentence(offered: Sequence[Offered], read: int, unsure: int = 0) -> str:

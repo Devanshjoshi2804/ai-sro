@@ -31,7 +31,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/execution/waiting.
 > rather than to act on, because acting on it would write a warehouse record
 > somebody asked for a week ago and has long since made by hand.
 
-## module, [line 7](../../../../../../../backend/src/sro/domain/execution/waiting.py#L7): Note on the line above
+## module, [line 10](../../../../../../../backend/src/sro/domain/execution/waiting.py#L10): Note on the line above
 
 Code: `K_PATIENCE = timedelta(days=7)`
 
@@ -46,11 +46,11 @@ Code: `K_PATIENCE = timedelta(days=7)`
 > record asked for in early September and created in October is not the record
 > anybody wanted, and by then whoever asked has made it by hand.
 
-## `Awaiting`, [line 11](../../../../../../../backend/src/sro/domain/execution/waiting.py#L11): Docstring
+## `Awaiting`, [line 14](../../../../../../../backend/src/sro/domain/execution/waiting.py#L14): Docstring
 
 > The outside conversation a run is waiting to hear back on.
 
-## `Awaiting`, [line 12](../../../../../../../backend/src/sro/domain/execution/waiting.py#L12): Note on the line above
+## `Awaiting`, [line 15](../../../../../../../backend/src/sro/domain/execution/waiting.py#L15): Note on the line above
 
 Code: `server: str`
 
@@ -58,13 +58,13 @@ Code: `server: str`
 > than assumed: a deployment with two mailboxes has two threads that can
 > perfectly well share an id.
 
-## `Awaiting`, [line 15](../../../../../../../backend/src/sro/domain/execution/waiting.py#L15): Note on the line above
+## `Awaiting`, [line 18](../../../../../../../backend/src/sro/domain/execution/waiting.py#L18): Note on the line above
 
 Code: `until: str`
 
 > The ISO instant this stops being a wait. See the module docstring.
 
-## `waiting_on`, [line 18](../../../../../../../backend/src/sro/domain/execution/waiting.py#L18): Docstring
+## `waiting_on`, [line 21](../../../../../../../backend/src/sro/domain/execution/waiting.py#L21): Docstring
 
 > A wait on that conversation, or None where there is no conversation.
 >
@@ -72,7 +72,7 @@ Code: `until: str`
 > on one, and a blank would match the next blank and resume a run on a reply
 > to something else entirely.
 
-## `still_waiting`, [line 30](../../../../../../../backend/src/sro/domain/execution/waiting.py#L30): Docstring
+## `still_waiting`, [line 33](../../../../../../../backend/src/sro/domain/execution/waiting.py#L33): Docstring
 
 > Whether anything is still holding this question open.
 >
@@ -80,14 +80,22 @@ Code: `until: str`
 > is one nothing can say the age of, and treating an unknown age as young is
 > how a row from last year answers a mail that arrived this morning.
 
-## `as_said`, [line 40](../../../../../../../backend/src/sro/domain/execution/waiting.py#L40): Docstring
+## `as_said`, [line 48](../../../../../../../backend/src/sro/domain/execution/waiting.py#L48): Docstring
 
 > The wait as it is stored on a run row.
 
-## `read_wait`, [line 46](../../../../../../../backend/src/sro/domain/execution/waiting.py#L46): Docstring
+## `read_wait`, [line 54](../../../../../../../backend/src/sro/domain/execution/waiting.py#L54): Docstring
 
 > The wait a stored row holds, or None where it holds nothing usable.
 >
 > Given `object` and not a typed shape, because this is JSON off a column and
 > anything that pretends otherwise is pretending. A row half-written by an
 > older deployment is not a wait.
+
+## `asks_a_person`, [line 43](../../../../../../../backend/src/sro/domain/execution/waiting.py#L43): Note
+
+> Whether a run's wait on a mail thread is live: the run stopped short with
+> `needs` (the extension's ask), or it is running and parked on a question
+> (a Steel run's `progress.asking`). A run working its steps or finished is
+> asking nobody, whatever `awaiting` still holds. The SQL `waiting_on`
+> keeps the same rule in its WHERE clause.

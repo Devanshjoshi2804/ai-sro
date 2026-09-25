@@ -276,6 +276,13 @@ Code: `by: str = ""`
 > The run's value for this control, else what the model said, else what
 > was recorded. The run's values win: they are what the person asked for.
 >
+> Never what was recorded for a step that carries a parameter: that value
+> was somebody else's client code, and a parameter nobody gave is answered
+> with nothing. `RunSteps` skips such a step when the value is optional and
+> asks for it when it is required (spec §6.6.6); only a step with no
+> parameter -- a fixed choice the demonstration made -- replays its
+> recorded value.
+>
 > A credential is never filled in from anywhere. The wire parser already nulls
 > the value at parse time when either secret flag is set, so this is the same
 > second belt `trim.is_secret` wears -- and for the same reason: that

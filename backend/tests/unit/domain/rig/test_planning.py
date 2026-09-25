@@ -81,6 +81,15 @@ def test_the_runs_value_beats_the_models_word_which_beats_the_recorded_one() -> 
     assert value_for(step, gesture, {}, None) == gesture.action.value
 
 
+def test_a_parameter_nobody_gave_is_never_typed_from_the_recording() -> None:
+    """The recorded value was somebody else's client code."""
+    gesture = _typed()
+    step = replace(_step(gesture), parameters=["clientCode"])
+
+    assert value_for(step, gesture, {}, None) is None
+    assert value_for(step, gesture, {}, "SAID") == "SAID"
+
+
 def test_a_secret_gesture_carries_no_value_from_anywhere() -> None:
     """The second belt `trim.is_secret` wears, and for the same reason: the
     wire validator that nulled the value does not re-run when a nested Target

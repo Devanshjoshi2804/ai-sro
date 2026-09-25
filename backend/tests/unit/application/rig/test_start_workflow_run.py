@@ -27,7 +27,6 @@ import pytest
 from sro.application.context import RequestContext
 from sro.application.execution import workflow_runs as door
 from sro.application.execution.approvals import Approvals
-from sro.application.execution.gather import GatherContext
 from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.run_workflow import run_workflow
 from sro.application.execution.stops import Stops
@@ -40,6 +39,7 @@ from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.shared.prices import ModelSpend
+from sro.domain.skill.repeats import Repeat
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.fakes import (
     FakeAsker,
@@ -48,7 +48,6 @@ from tests.unit.fakes import (
     FakeDurableExecution,
     FakeGestureRepository,
     FakeIdFactory,
-    FakeToolCaller,
     FakeUnitOfWork,
 )
 from tests.unit.runtime_support import CTX, save_job
@@ -178,6 +177,7 @@ def _starter(
     approvals: Approvals | None = None,
     durable: FakeDurableExecution | None = None,
     steel_tenants: frozenset[str] = frozenset(),
+    clock: FakeClock | None = None,
 ) -> StartWorkflowRun:
     return StartWorkflowRun(
         uow,
@@ -185,7 +185,7 @@ def _starter(
         asker=asker,
         plan_model=PLAN,
         rescue_model=RESCUE,
-        clock=FakeClock(NOW),
+        clock=clock or FakeClock(NOW),
         cap_usd=cap_usd,
         stops=stops or Stops(),
         approvals=approvals or Approvals(),
@@ -219,31 +219,44 @@ async def test_a_steel_tenant_s_press_starts_a_durable_run_and_drives_no_browser
     assert saved is not None and saved.executor == "steel"
 
 
-async def test_a_steel_run_is_refused_a_value_it_has_no_way_to_gather() -> None:
-    uow, durable = FakeUnitOfWork(), FakeDurableExecution()
-    await save_job(uow, "wfl_ct")
-    starter = StartWorkflowRun(
-        uow,
-        channel=FakeChannel(),
-        asker=_A_MODEL,
-        plan_model=PLAN,
-        rescue_model=RESCUE,
-        clock=FakeClock(NOW),
-        cap_usd=CAP,
-        stops=Stops(),
-        approvals=Approvals(),
-        one_time_secrets=OneTimeSecrets(),
-        gather=GatherContext(tools=FakeToolCaller(), asker=_A_MODEL, model=PLAN),
-        durable=durable,
-        steel_tenants=frozenset({TENANT.value}),
-    )
+def _on_steel(uow: FakeUnitOfWork) -> StartWorkflowRun:
+    return _starter(uow, durable=FakeDurableExecution(), steel_tenants=frozenset({TENANT.value}))
 
-    with pytest.raises(RunRefused, match="Customer Type"):
-        await starter.execute(
-            CTX, workflow_id="wfl_ct", device_id=None, values={}, live=True, allow_focus=False
+
+async def test_a_steel_run_is_never_started_part_way_through_a_job() -> None:
+    uow = await _held()
+
+    with pytest.raises(RunRefused, match="from step 0"):
+        await _press(_on_steel(uow), values={"clientCode": "NEWTESTS"}, from_step=2)
+
+    assert uow.workflow_runs.rows == {}
+
+
+async def test_a_steel_run_of_several_things_is_refused_rather_than_done_once() -> None:
+    job = _workflow()
+    job.repeat = Repeat(first_step=0, last_step=1)
+    uow = await _held(job)
+
+    with pytest.raises(RunRefused, match="one thing"):
+        await _on_steel(uow).execute(
+            _ctx(),
+            workflow_id="wfl_1",
+            device_id=None,
+            values={},
+            items=[{"clientCode": "A"}, {"clientCode": "B"}],
+            live=True,
+            allow_focus=False,
         )
 
-    assert await uow.workflow_runs.for_workflow(TENANT, "wfl_ct") == ()
+    assert uow.workflow_runs.rows == {}
+
+
+async def test_a_steel_run_starts_without_an_optional_value_it_will_skip() -> None:
+    uow = await _held(_workflow(parameters=[{"name": "clientCode", "required": False}]))
+
+    run = await _press(_on_steel(uow), values={})
+
+    assert run.executor == "steel"
 
 
 async def _press(

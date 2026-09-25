@@ -50,7 +50,7 @@ from sro.domain.execution.write_plan import begins_again_at, seen_values
 from sro.domain.knowledge.entry import EntryKind
 from sro.domain.shared.errors import Conflict, DomainError, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId
-from sro.domain.skill.learned import offerable
+from sro.domain.skill.learned import demanded, offerable
 from sro.domain.skill.reversals import addresses, asks_for, identifies, undoes
 from sro.domain.skill.shape import resumes_at
 from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
@@ -176,11 +176,14 @@ class StartWorkflowRun:
                 if workflow.repeat is not None
                 else []
             )
+            if steel and things:
+                raise RunRefused("a Steel run does one thing per run; a list is not supported yet")
             supplied = [{**given, **thing} for thing in things] or [given]
             absent = sorted(
                 str(declared["name"])
                 for declared in workflow.parameters
                 if declared.get("name")
+                and (not steel or demanded(declared))
                 and any(str(declared["name"]) not in one for one in supplied)
             )
             blank = sorted(
@@ -191,7 +194,7 @@ class StartWorkflowRun:
             )
             if blank:
                 raise RunRefused(f"this job needs a value for: {', '.join(blank)}")
-            if absent and (self._gather is None or things or steel):
+            if absent and (self._gather is None or things):
                 raise RunRefused(f"this job needs a value for: {', '.join(absent)}")
             if not workflow.steps:
                 raise RunRefused("this job has no steps")
@@ -204,6 +207,11 @@ class StartWorkflowRun:
             last = max(step.order for step in workflow.steps)
             if isinstance(from_step, bool) or not 0 <= from_step <= last:
                 raise RunRefused(f"from_step must be a step of this job (0..{last})")
+            if steel and from_step:
+                raise RunRefused(
+                    "a Steel run starts from step 0; taking over part way through is not "
+                    "supported yet"
+                )
             if undoes_run.strip():
                 already = await uow.workflow_runs.taken_back_by(ctx.tenant_id, undoes_run.strip())
                 if already is not None:
@@ -243,20 +251,31 @@ class StartWorkflowRun:
         by_id = {gesture.id: gesture for gesture in cited}
         return workflow if is_mail_only(workflow, by_id) else None
 
-    async def perform(self, ctx: RequestContext, run: WorkflowRun) -> None:
+    async def start_on_steel(self, ctx: RequestContext, run: WorkflowRun) -> bool:
         try:
-            if run.executor == "steel" and self._durable is not None:
-                async with self._uow as uow:
-                    workflow = await uow.workflows.get(ctx.tenant_id, run.workflow_id)
-                    cited = await uow.gestures.gestures_for(
-                        ctx.tenant_id, ids=tuple(sorted(cited_ids(workflow)))
-                    )
-                await self._durable.start_run(
-                    ctx,
-                    run_id=run.id,
-                    budget_s=run_budget(workflow, {one.id: one for one in cited}),
+            if self._durable is None:
+                raise RunRefused("this process cannot start a Steel run")
+            async with self._uow as uow:
+                workflow = await uow.workflows.get(ctx.tenant_id, run.workflow_id)
+                cited = await uow.gestures.gestures_for(
+                    ctx.tenant_id, ids=tuple(sorted(cited_ids(workflow)))
                 )
-                return
+            await self._durable.start_run(
+                ctx,
+                run_id=run.id,
+                budget_s=run_budget(workflow, {one.id: one for one in cited}),
+            )
+        except Exception as error:
+            logger.exception("%s: a Steel run could not be handed to Temporal", run.id)
+            await self._close(ctx, run.id, f"{type(error).__name__}: {error}")
+            return False
+        return True
+
+    async def perform(self, ctx: RequestContext, run: WorkflowRun) -> None:
+        if run.executor == "steel":
+            await self.start_on_steel(ctx, run)
+            return
+        try:
             asker = asker_or_refuse(self._asker)
             mail = await self._a_mail_job(ctx, run)
             if mail is not None and self._gather is not None and self._ids is not None:

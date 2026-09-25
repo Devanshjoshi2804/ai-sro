@@ -1,0 +1,29 @@
+# Notes for `backend/src/sro/application/chat/mailbox.py`
+
+Comments and docstrings moved out of [`backend/src/sro/application/chat/mailbox.py`](../../../../../../../backend/src/sro/application/chat/mailbox.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
+
+## module, [line 1](../../../../../../../backend/src/sro/application/chat/mailbox.py#L1): Note
+
+> The two mailbox constants the mail doors share. A leaf, so `from_the_mail`,
+> `ask_the_asker` and `mail_job` can each import them without importing one
+> another: `from_the_mail` starts runs through `workflow_runs`, which imports
+> `mail_job`, and `mail_job` used to take these from the two chat modules --
+> a cycle.
+
+## module, [line 5](../../../../../../../backend/src/sro/application/chat/mailbox.py#L5): Note on the line above
+
+Code: `SERVER = "gmail"`
+
+> The connector this looks in, named rather than every connector a deployment
+> holds. `gather.SERVER` says the whole of why.
+
+## module, [line 7](../../../../../../../backend/src/sro/application/chat/mailbox.py#L7): Note on the line above
+
+Code: `K_REMEMBER = timedelta(days=30)`
+
+> How long a message stays offered-once.
+>
+> Long enough that a mailbox re-read for a month says nothing twice, short enough
+> that the ledger does not grow forever. A mail older than this that somehow
+> comes round again is one nobody acted on in a month, and offering it a second
+> time is not the worst thing this could do.

@@ -91,6 +91,7 @@ from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
 from sro.domain.execution.verified_writes import VerifiedWrite
+from sro.domain.execution.waiting import asks_a_person
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
 from sro.domain.knowledge.entry import (
     EntryKind,
@@ -2400,6 +2401,7 @@ class FakeWorkflowRunRepository:
             if run.tenant == tenant_id.value
             and (run.awaiting or {}).get("server") == server.strip()
             and (run.awaiting or {}).get("thread") == thread.strip()
+            and asks_a_person(run)
         ]
         asked.sort(key=lambda run: (when(run.started_at), run.id), reverse=True)
         return asked[0] if asked else None

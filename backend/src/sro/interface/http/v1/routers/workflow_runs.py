@@ -37,7 +37,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
-from sro.application.chat.from_the_mail import SERVER
+from sro.application.chat.mailbox import SERVER
 from sro.domain.observation.attempts import DONE, NOTHING
 from sro.domain.shared.identifiers import DeviceId
 from sro.interface.http.asking import AskingDeviceDep

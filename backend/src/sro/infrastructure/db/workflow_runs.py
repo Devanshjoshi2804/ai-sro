@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any, cast
 
-from sqlalchemy import Select, func, select, update
+from sqlalchemy import Select, and_, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -351,6 +351,13 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
                 WorkflowRunRow.awaiting.isnot(None),
                 WorkflowRunRow.awaiting["server"].astext == server.strip(),
                 WorkflowRunRow.awaiting["thread"].astext == thread.strip(),
+                or_(
+                    func.jsonb_array_length(WorkflowRunRow.needs) > 0,
+                    and_(
+                        WorkflowRunRow.outcome == "running",
+                        WorkflowRunRow.progress["asking"]["id"].astext != "",
+                    ),
+                ),
             )
             .order_by(WorkflowRunRow.started_at.desc(), WorkflowRunRow.id.desc())
             .limit(1)

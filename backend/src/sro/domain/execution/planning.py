@@ -108,7 +108,7 @@ def value_for(
             return values[name]
     if said:
         return said
-    return gesture.action.value
+    return None if step.parameters else gesture.action.value
 
 
 def unreplayable(call: Call) -> bool:

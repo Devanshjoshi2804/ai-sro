@@ -943,6 +943,48 @@ class TestWorkflowRuns:
                 (1, "2026-09-06T10:00:00+00:00", DEVICE.value),
             )
 
+    async def test_waiting_on_answers_only_a_run_that_is_asking(self, store: UnitOfWork) -> None:
+        """A thread's wait counts only while its run waits on a person: stopped
+        for values, or running and parked on a question. A run working its
+        steps, or finished with nothing asked, is waiting on nobody."""
+        wait = {"server": "gmail", "thread": "t-9", "until": _at(12)}
+        asking = {"asking": {"id": "q-1", "kind": "step", "text": "which?"}}
+        async with store as work:
+            await work.workflow_runs.save(
+                _run("run_working", outcome="running", awaiting=wait, started_at=_at(11))
+            )
+            await work.workflow_runs.save(
+                _run("run_done", awaiting=wait, device_id=OTHER_DEVICE.value, started_at=_at(11))
+            )
+            await work.commit()
+
+        async with store as work:
+            assert await work.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-9") is None
+            await work.workflow_runs.save(
+                _run("run_short", outcome="stopped", needs=["workArea"], awaiting=wait)
+            )
+            await work.workflow_runs.save(
+                _run(
+                    "run_parked",
+                    outcome="running",
+                    awaiting=wait,
+                    progress=asking,
+                    device_id=OTHER_DEVICE.value,
+                    started_at=_at(9),
+                )
+            )
+            await work.commit()
+
+        async with store as work:
+            found = await work.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-9")
+            assert found is not None and found.id == "run_short"
+            await work.workflow_runs.save(_run("run_short", outcome="held", awaiting=wait))
+            await work.commit()
+
+        async with store as work:
+            found = await work.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-9")
+            assert found is not None and found.id == "run_parked"
+
     async def test_in_flight_names_the_run_this_browser_is_already_driving(
         self, store: UnitOfWork
     ) -> None:

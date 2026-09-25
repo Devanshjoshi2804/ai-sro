@@ -50,12 +50,16 @@ class KeepSessionsOpen:
                 waiting.append(connection.target_system)
                 continue
             (open_now if opened else unreachable).append(connection.target_system)
-        released = (
-            ()
-            if self._strays is None or await self._demonstrating()
-            else await self._strays.execute()
-        )
-        return Swept(tuple(open_now), tuple(waiting), tuple(unreachable), tuple(released))
+        released: tuple[str, ...] = ()
+        if self._strays is not None:
+            expired = await self._strays.expire_leases()
+            strays = (
+                ()
+                if await self._demonstrating()
+                else await self._strays.close_strays(expired=expired)
+            )
+            released = (*expired, *strays)
+        return Swept(tuple(open_now), tuple(waiting), tuple(unreachable), released)
 
     async def _demonstrating(self) -> bool:
         async with self._uow as uow:

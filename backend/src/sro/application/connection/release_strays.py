@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import logging
+
 from sro.application.connection.watch_browser import WatchBrowsers
 from sro.application.ports.browser import BrowserProvider, BrowserUnavailable
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.application.runtime.broker import SessionBroker
 from sro.domain.shared.identifiers import BrowserSessionId, TenantId
+
+logger = logging.getLogger(__name__)
 
 
 class ReleaseStrayBrowsers:
@@ -24,7 +28,30 @@ class ReleaseStrayBrowsers:
         self._clock = clock
 
     async def execute(self) -> tuple[str, ...]:
-        expired = await self._expired_leases()
+        expired = await self.expire_leases()
+        strays = await self.close_strays(expired=expired)
+        return (*expired, *strays)
+
+    async def expire_leases(self) -> tuple[str, ...]:
+        async with self._uow as uow:
+            gone = await uow.browser_sessions.expired(now=self._clock.now())
+        closed: list[str] = []
+        for lease in gone:
+            if not await self._broker.prepare_to_expire(lease):
+                continue
+            async with self._uow as uow:
+                won = await uow.browser_sessions.expire(
+                    TenantId(lease.account.tenant), lease.id, now=self._clock.now()
+                )
+                await uow.commit()
+            if not won:
+                continue
+            await self._broker.end_expired(lease)
+            logger.info("closed context %s of lease %s", lease.context_id, lease.id)
+            closed.append(lease.steel_session_id)
+        return tuple(closed)
+
+    async def close_strays(self, *, expired: tuple[str, ...] = ()) -> tuple[str, ...]:
         open_now = await self._watch.all_in_deployment()
         async with self._uow as uow:
             capturing = await uow.recordings.list_capturing()
@@ -47,23 +74,7 @@ class ReleaseStrayBrowsers:
             claimed = [str(held) for held, _ in await uow.browser_sessions.all_held()]
         live = {browser.session_id for browser in open_now}
         await self._forget([*strays, *(one for one in claimed if one not in live)])
-        return (*expired, *strays)
-
-    async def _expired_leases(self) -> tuple[str, ...]:
-        async with self._uow as uow:
-            gone = await uow.browser_sessions.expired(now=self._clock.now())
-        closed: list[str] = []
-        for lease in gone:
-            async with self._uow as uow:
-                won = await uow.browser_sessions.expire(
-                    TenantId(lease.account.tenant), lease.id, now=self._clock.now()
-                )
-                await uow.commit()
-            if not won:
-                continue
-            await self._broker.end_expired(lease)
-            closed.append(lease.steel_session_id)
-        return tuple(closed)
+        return tuple(strays)
 
     async def _forget(self, session_ids: list[str]) -> None:
         if not session_ids:

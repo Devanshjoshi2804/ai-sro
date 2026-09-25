@@ -1493,7 +1493,8 @@ class FakePageDriver:
     and `aimed`, lets `calls` arrive on the first point and `calls_on[(x, y)]`
     on that point, and moves the tab to `lands` when set. `arrive` numbers
     calls into the log at any moment a test chooses; a call with no status is
-    one sent and not yet answered."""
+    one sent and not yet answered. `storage_state_hangs` makes `storage_state`
+    never return, the way a wedged renderer's CDP socket answers nothing."""
 
     def __init__(
         self,
@@ -1513,6 +1514,7 @@ class FakePageDriver:
         self.dead: set[str] = set()
         self.calls: list[tuple[str, ...]] = []
         self.closed = False
+        self.storage_state_hangs = False
         self._next = count(1)
         self._answer = answer if answer is not None else PageAnswer(ok=True)
         self._arriving = tuple(calls)
@@ -1585,6 +1587,8 @@ class FakePageDriver:
 
     async def storage_state(self, session: SessionRef) -> str:
         self._live(session)
+        if self.storage_state_hangs:
+            await asyncio.Event().wait()
         self.calls.append(("storage_state", session.context_id))
         return self.states.get(session.context_id, "{}")
 

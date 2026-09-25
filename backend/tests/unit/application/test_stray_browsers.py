@@ -12,16 +12,19 @@ it), no flat grace window either -- a lease that keeps beating survives any
 number of sweeps, and one that stops is swept the moment it expires, not
 fifteen minutes later.
 
-An expired lease is not simply dropped: whoever was signed in there may never
-come back, so the sweep saves the signed-in state through the same path a
-normal sign-in does (`SessionBroker._save_state`) before it lets the context
-go -- and only for a lease its own `expire` compare-and-set actually won,
-never one a beat has since revived.
+An expired lease is not simply dropped: for a READY lease whose session still
+answers, the state is saved through the same path a normal sign-in does
+(`SessionBroker._save_state`) BEFORE the sweep's own `expire` compare-and-set
+is attempted, under the same time bound `_close` uses -- a lost compare-and-set
+still only saved a live lease's own current state, which nothing overwrites
+after. Only a compare-and-set this sweep actually wins goes on to close the
+context, and only after the session's been resolved: one this sweep cannot
+even reach is left alone entirely, to be retried on the next one.
 """
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sro.application.connection.browsers import Browsers
 from sro.application.connection.release_strays import ReleaseStrayBrowsers
@@ -29,7 +32,7 @@ from sro.application.connection.watch_browser import WatchBrowsers
 from sro.application.context import RequestContext
 from sro.application.runtime.broker import SessionBroker
 from sro.domain.execution.account import K_LEASE_TTL, Account, Lease, LeaseState
-from sro.domain.shared.identifiers import TenantId
+from sro.domain.shared.identifiers import BrowserSessionId, TenantId
 from tests import factories as f
 from tests.unit.fakes import (
     FakeAccountLocks,
@@ -75,7 +78,7 @@ def _broker(
     clock: FakeClock,
 ) -> SessionBroker:
     return SessionBroker(
-        uow, pool, driver, FakeAccountLocks(), vault, clock, ui=SigningLane(driver)
+        uow, pool, driver, FakeAccountLocks(), vault, clock, ui=SigningLane(driver), close_s=0.05
     )
 
 
@@ -184,7 +187,11 @@ async def test_an_expired_lease_whose_session_is_gone_is_closed_without_a_save()
     assert pool.closed == [("http://steel:3000", lease.context_id)]
 
 
-async def test_a_lease_whose_compare_and_set_loses_is_neither_saved_nor_closed() -> None:
+async def test_a_lease_whose_compare_and_set_loses_is_saved_but_never_closed() -> None:
+    """A lost compare-and-set means somebody else's beat revived it: the
+    save that already ran only wrote that live lease's own current state,
+    which is harmless -- nothing can overwrite a newer state saved by
+    another worker's `_ready` after this."""
     uow, clock = FakeUnitOfWork(), FakeClock()
     pool, driver, vault = (
         FakeBrowserPool({"http://steel:3000": 1}),
@@ -192,6 +199,7 @@ async def test_a_lease_whose_compare_and_set_loses_is_neither_saved_nor_closed()
         FakeCredentialVault(),
     )
     lease = await lease_for(uow, clock, holder="run_1")
+    driver.states[lease.context_id] = '{"cookies": ["lena"]}'
     uow.browser_sessions = _RevivingBrowserSessions(uow.browser_sessions, clock)  # type: ignore[assignment]
     broker = _broker(uow, pool, driver, vault, clock)
     clock.advance(int(K_LEASE_TTL.total_seconds()) + 1)
@@ -200,7 +208,7 @@ async def test_a_lease_whose_compare_and_set_loses_is_neither_saved_nor_closed()
 
     assert released == ()
     assert pool.closed == []
-    assert vault.secrets == {}
+    assert vault.secrets[lease.account.vault_key("state")] == '{"cookies": ["lena"]}'
     still = await uow.browser_sessions.get_lease(TenantId(lease.account.tenant), lease.id)
     assert still is not None and still.state is LeaseState.READY
 
@@ -221,3 +229,170 @@ async def test_a_lease_that_keeps_beating_survives_any_number_of_sweeps() -> Non
                 TenantId(lease.account.tenant), lease.id, now=clock.now()
             )
         assert await _reaper(uow, FakeBrowserProvider(), broker, clock).execute() == ()
+
+
+async def test_a_wedged_save_times_out_and_the_context_still_closes() -> None:
+    """I1: the save is bounded the same way `_close` already is. A renderer
+    that stops answering CDP must not stop the sweep, which the worker loop
+    also drives confirmations and every other lease's expiry through."""
+    uow, clock = FakeUnitOfWork(), FakeClock()
+    pool, driver, vault = (
+        FakeBrowserPool({"http://steel:3000": 1}),
+        FakePageDriver(),
+        FakeCredentialVault(),
+    )
+    driver.storage_state_hangs = True
+    lease = await lease_for(uow, clock, holder="run_1")
+    broker = _broker(uow, pool, driver, vault, clock)
+    clock.advance(int(K_LEASE_TTL.total_seconds()) + 1)
+
+    released = await _reaper(uow, FakeBrowserProvider(), broker, clock).execute()
+
+    assert lease.steel_session_id in released
+    assert lease.account.vault_key("state") not in vault.secrets
+    assert pool.closed == [("http://steel:3000", lease.context_id)]
+
+
+async def test_a_waiting_lease_that_lapsed_is_closed_but_never_saved() -> None:
+    """M1: only a READY lease's state means the signed-in state. A WAITING
+    lease sits on the one-time-code prompt; saving it would overwrite the
+    vault's `state` key with a page that never finished signing in."""
+    uow, clock = FakeUnitOfWork(), FakeClock()
+    pool, driver, vault = (
+        FakeBrowserPool({"http://steel:3000": 1}),
+        FakePageDriver(),
+        FakeCredentialVault(),
+    )
+    lease = await lease_for(uow, clock, holder="run_1")
+    async with uow:
+        await uow.browser_sessions.settle(
+            TenantId(lease.account.tenant), lease.id, state=LeaseState.WAITING
+        )
+        await uow.commit()
+    driver.states[lease.context_id] = '{"cookies": ["mid-code"]}'
+    broker = _broker(uow, pool, driver, vault, clock)
+    clock.advance(int(K_LEASE_TTL.total_seconds()) + 1)
+
+    released = await _reaper(uow, FakeBrowserProvider(), broker, clock).execute()
+
+    assert lease.steel_session_id in released
+    assert lease.account.vault_key("state") not in vault.secrets
+    assert pool.closed == [("http://steel:3000", lease.context_id)]
+
+
+async def test_an_unreachable_container_is_skipped_this_sweep_and_retried_next() -> None:
+    """M3: the session is resolved before the compare-and-set. Committing
+    EXPIRED and then failing to reach the container would strand the lease
+    -- no longer `expired()`'s to find, never closed."""
+    uow, clock = FakeUnitOfWork(), FakeClock()
+    pool, driver, vault = (
+        FakeBrowserPool({"http://steel:3000": 1}),
+        FakePageDriver(),
+        FakeCredentialVault(),
+    )
+    lease = await lease_for(uow, clock, holder="run_1")
+    pool.down.add("http://steel:3000")
+    broker = _broker(uow, pool, driver, vault, clock)
+    clock.advance(int(K_LEASE_TTL.total_seconds()) + 1)
+
+    released = await _reaper(uow, FakeBrowserProvider(), broker, clock).execute()
+
+    assert released == ()
+    assert pool.closed == []
+    still = await uow.browser_sessions.get_lease(TenantId(lease.account.tenant), lease.id)
+    assert still is not None and still.state is LeaseState.READY
+
+    pool.down.clear()
+    retried = await _reaper(uow, FakeBrowserProvider(), broker, clock).execute()
+
+    assert lease.steel_session_id in retried
+    assert pool.closed == [("http://steel:3000", lease.context_id)]
+
+
+async def test_a_context_this_sweep_just_closed_is_not_also_closed_as_a_stray() -> None:
+    """M6: self-hosted Steel still lists the one shared session as open even
+    after a context inside it is closed. Without the skip, the sweep would
+    try to release the whole session through the legacy capture-browser
+    path for a session a lease still names."""
+    uow, clock = FakeUnitOfWork(), FakeClock()
+    pool, driver, vault = (
+        FakeBrowserPool({"http://steel:3000": 1}),
+        FakePageDriver(),
+        FakeCredentialVault(),
+    )
+    lease = await lease_for(uow, clock, holder="run_1")
+    broker = _broker(uow, pool, driver, vault, clock)
+    browser = FakeBrowserProvider()
+    browser.opened.append(BrowserSessionId(lease.steel_session_id))
+    clock.advance(int(K_LEASE_TTL.total_seconds()) + 1)
+
+    released = await _reaper(uow, browser, broker, clock).execute()
+
+    assert released == (lease.steel_session_id,)
+    assert browser.closed == []
+
+
+async def test_a_sibling_lease_on_the_same_steel_session_is_untouched() -> None:
+    """M6: two accounts on the same container share one Steel session but
+    never a context. Expiring one must never touch the other's."""
+    uow, clock = FakeUnitOfWork(), FakeClock()
+    pool, driver, vault = (
+        FakeBrowserPool({"http://steel:3000": 2}),
+        FakePageDriver(),
+        FakeCredentialVault(),
+    )
+    broker = _broker(uow, pool, driver, vault, clock)
+    dying = await lease_for(uow, clock, holder="run_1")
+    now = clock.now()
+    living = Lease(
+        "lse_sibling", Account.of(f.TENANT.value, "https://wms.example", "omar"),
+        dying.container_url, dying.steel_session_id, "ctx-sibling", "run_2",
+        now, now + K_LEASE_TTL, LeaseState.READY,
+    )  # fmt: skip
+    async with uow:
+        await uow.browser_sessions.lease(f.TENANT, living)
+        await uow.commit()
+    clock.advance(int(K_LEASE_TTL.total_seconds()) + 1)
+    async with uow:
+        await uow.browser_sessions.beat(f.TENANT, living.id, now=clock.now())
+
+    released = await _reaper(uow, FakeBrowserProvider(), broker, clock).execute()
+
+    assert dying.steel_session_id in released
+    assert pool.closed == [(dying.container_url, dying.context_id)]
+    still = await uow.browser_sessions.get_lease(f.TENANT, living.id)
+    assert still is not None and still.state is LeaseState.READY
+
+
+async def test_the_sweeper_never_closes_a_lease_resume_just_revived() -> None:
+    """I2: `resume` settles READY with a fresh deadline, guarded on the old
+    one not yet having passed, before it does anything else. Once that
+    commits, the sweep -- run right after, at a time that would have been
+    past the OLD deadline -- must find nothing to expire."""
+    uow, clock = FakeUnitOfWork(), FakeClock()
+    pool, driver, vault = (
+        FakeBrowserPool({"http://steel:3000": 1}),
+        FakePageDriver(),
+        FakeCredentialVault(),
+    )
+    broker = _broker(uow, pool, driver, vault, clock)
+    now = clock.now()
+    lease = Lease(
+        "lse_wait", Account.of(f.TENANT.value, "https://wms.example", "lena"),
+        "http://steel:3000", "sess-1", "ctx-1", "run_1",
+        now, now + timedelta(seconds=5), LeaseState.WAITING,
+    )  # fmt: skip
+    async with uow:
+        await uow.browser_sessions.lease(f.TENANT, lease)
+        await uow.commit()
+    driver.tabs["tab-1"] = "https://wms.example/app"
+    driver.owners["tab-1"] = lease.context_id
+
+    held = await broker.resume(CTX, lease.id, "tab-1", "https://wms.example/app", holder="run_1")
+    assert held.lease.state is LeaseState.READY
+
+    clock.advance(10)
+    released = await _reaper(uow, FakeBrowserProvider(), broker, clock).execute()
+
+    assert released == ()
+    assert pool.closed == []

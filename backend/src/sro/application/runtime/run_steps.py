@@ -145,7 +145,7 @@ class RunSteps:
                 last = why.tried[-1] if why.tried else None
                 run = await self._run(ctx, run_id)
                 return StepOutcome(
-                    more=True, asking=await self._ask(ctx, run, step, why, last=last)
+                    more=True, asking=await self._ask(ctx, run, step, why, last=last, index=index)
                 )
             raise
         run = await self._run(ctx, run_id)
@@ -158,7 +158,7 @@ class RunSteps:
         elif last.verdict == "failed":
             asked = NeedsAPerson(f"'{step.says}' could not be done: {last.reason}", kind="step")
             outcome = StepOutcome(
-                more=True, asking=await self._ask(ctx, run, step, asked, last=last)
+                more=True, asking=await self._ask(ctx, run, step, asked, last=last, index=index)
             )
         else:
             outcome = await self._advance(ctx, run, progress, step, ordered, index, last)
@@ -168,8 +168,9 @@ class RunSteps:
     async def finish(self, ctx: RequestContext, run_id: str) -> str:
         run, workflow, _ = await self._load(ctx, run_id)
         if run.outcome == "running":
+            last = {one.of_step: one.verdict for one in sorted(run.steps, key=lambda s: s.order)}
             done = Progress.of(run.progress).step >= len(workflow.steps)
-            kept = done and all(one.verdict in _KEPT for one in run.steps)
+            kept = done and all(verdict in _KEPT for verdict in last.values())
             run.outcome = "held" if kept else "failed"
         run.finished_at = run.finished_at or self._clock.now().isoformat()
         async with self._uow as uow:
@@ -299,7 +300,9 @@ class RunSteps:
                 f"'{step.says}' was sent and nothing confirms it; check it and answer",
                 kind="step",
             )
-            return StepOutcome(more=True, asking=await self._ask(ctx, run, step, asked, last=lost))
+            return StepOutcome(
+                more=True, asking=await self._ask(ctx, run, step, asked, last=lost, index=index)
+            )
         settled = replace(lost, verdict=verdict, reason="settled by a read-back")
         return await self._advance(ctx, run, progress, step, ordered, index, settled)
 
@@ -316,8 +319,6 @@ class RunSteps:
         by: str = "",
         withheld: bool = False,
     ) -> StepOutcome:
-        if progress.step != index:
-            raise Superseded(f"step {index} of {run.id} was already taken past by another attempt")
         by = by or result.lane.value
         progress.settle(
             step.order,
@@ -340,7 +341,7 @@ class RunSteps:
                 made=dict(result.read),
             )
         )
-        await self._write(ctx, run, progress, save=True)
+        await self._write(ctx, run, progress, save=True, index=index)
         return StepOutcome(more=progress.step < len(ordered))
 
     async def _ask(
@@ -351,6 +352,7 @@ class RunSteps:
         asked: NeedsAPerson,
         *,
         last: StepResult | None = None,
+        index: int | None = None,
     ) -> str:
         progress = Progress.of(run.progress)
         if last is not None:
@@ -375,7 +377,7 @@ class RunSteps:
                 reason=asked.question,
             )
         )
-        await self._write(ctx, run, progress, save=True)
+        await self._write(ctx, run, progress, save=True, index=index, open_step=step.order)
         return asking
 
     async def _stopped(self, ctx: RequestContext, run_id: str, step: Step) -> StepOutcome:
@@ -407,8 +409,20 @@ class RunSteps:
             await uow.commit()
 
     async def _write(
-        self, ctx: RequestContext, run: WorkflowRun, progress: Progress, *, save: bool = False
+        self,
+        ctx: RequestContext,
+        run: WorkflowRun,
+        progress: Progress,
+        *,
+        save: bool = False,
+        index: int | None = None,
+        open_step: int | None = None,
     ) -> None:
+        loaded = Progress.of(run.progress)
+        if (index is not None and loaded.step != index) or (
+            open_step is not None and loaded.written(open_step)
+        ):
+            raise Superseded(f"{run.id} moved past this step under another attempt")
         now = progress.as_json()
         async with self._uow as uow:
             kept = await uow.workflow_runs.record_progress(

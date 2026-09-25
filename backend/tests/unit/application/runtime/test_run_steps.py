@@ -388,6 +388,7 @@ async def test_an_in_doubt_write_is_read_back_as_its_sender_signed_in_afresh() -
         ("held", "ui"),
     ]
     assert Progress.of(run.progress).asking == {}
+    assert await world.run_steps.finish(CTX, world.run_id) == "held"
 
 
 async def test_a_retry_after_a_crash_mid_send_names_the_lane_that_sent() -> None:
@@ -410,3 +411,36 @@ async def test_a_lease_the_beat_finds_lost_is_the_lost_page_path() -> None:
 
     with pytest.raises(PageGone):
         await world.run_steps.beat(CTX, world.run_id)
+
+
+async def test_a_zombie_attempt_that_fails_a_step_already_held_asks_nothing() -> None:
+    world = await steel_run(steps=[type_step(), save_step(status=201)])
+    zombie_in, zombie_go = asyncio.Event(), asyncio.Event()
+    calls: list[LaneContext] = []
+
+    async def first_one_hangs(ctx: LaneContext) -> None:
+        calls.append(ctx)
+        if len(calls) == 1:
+            zombie_in.set()
+            await zombie_go.wait()
+
+    world.lanes.ui.on_execute(first_one_hangs)
+    world.lanes.ui.answers(
+        StepResult("done", Lane.UI),
+        StepResult("failed", Lane.UI, "the zombie lost its page"),
+        StepResult("done", Lane.UI),
+    )
+    world.lanes.sight.answers(StepResult("failed", Lane.SIGHT, "nor could sight"))
+    zombie = asyncio.create_task(world.run_steps.step(CTX, world.run_id, stop=asyncio.Event()))
+    await zombie_in.wait()
+    assert (await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())).more
+
+    zombie_go.set()
+    with pytest.raises(Superseded):
+        await zombie
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    run = await world.saved_run()
+    assert [(one.of_step, one.verdict) for one in run.steps] == [(0, "held"), (1, "held")]
+    assert Progress.of(run.progress).asking == {}
+    assert await world.run_steps.finish(CTX, world.run_id) == "held"

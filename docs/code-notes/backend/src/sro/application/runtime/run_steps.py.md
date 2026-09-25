@@ -45,20 +45,20 @@ Code: `async def finish(self, ctx: RequestContext, run_id: str) -> str:`
 > `held` only when every step was reached and each is held or withheld;
 > an outcome already set (a stop's `aborted`) is kept.
 
-## `RunSteps.beat`, [line 193](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L193): Note
+## `RunSteps.beat`, [line 194](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L194): Note
 
 Code: `if progress.lease and not await self._broker.beat(ctx, progress.lease, holder=run_id):`
 
 > A beat the lease no longer answers is a lost lease: the lost-page path.
 
-## `RunSteps._keep_tab`, [line 234](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L234): Note
+## `RunSteps._keep_tab`, [line 235](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L235): Note
 
 Code: `except BaseException:`
 
 > A tab this attempt opened but could not record is closed at once; a retry
 > would open another, and nothing would ever release the first.
 
-## `RunSteps._sending`, [line 277](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L277): Note
+## `RunSteps._sending`, [line 278](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L278): Note
 
 Code: `if again and wrote == "sending":`
 
@@ -66,7 +66,7 @@ Code: `if again and wrote == "sending":`
 > marked; any other mark means another attempt got there first, and this one
 > sends nothing.
 
-## `RunSteps._settled`, [line 284](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L284): Note
+## `RunSteps._settled`, [line 285](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L285): Note
 
 Code: `async def _settled(`
 
@@ -74,14 +74,15 @@ Code: `async def _settled(`
 > signed in afresh when the result says the session expired; nothing to read
 > back means a person is asked and the mark stays in doubt.
 
-## `RunSteps._advance`, [line 319](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L319): Note
+## `RunSteps._advance`, [line 331](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L331): Note
 
-Code: `if progress.step != index:`
+Code: `progress.step, progress.asking = index + 1, {}`
 
-> The step index moves only from the index this attempt acted on to the next
-> one; an attempt that finds it moved lost the run and records nothing.
+> A step that settles after asking withdraws its own question: the held row
+> follows the unclear one, and D5 takes an answer to a withdrawn question as
+> already answered.
 
-## `RunSteps._ask`, [line 346](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L346): Note
+## `RunSteps._ask`, [line 347](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L347): Note
 
 Code: `async def _ask(`
 
@@ -90,7 +91,7 @@ Code: `async def _ask(`
 > where and why the run stopped. Asked from prepare and acquire too, at the
 > step the run stands on.
 
-## `RunSteps._write`, [line 415](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L415): Note
+## `RunSteps._write`, [line 429](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L429): Note
 
 Code: `ctx.tenant_id, run.id, now, was=run.progress`
 
@@ -100,9 +101,26 @@ Code: `ctx.tenant_id, run.id, now, was=run.progress`
 > changed and stops with `Superseded`, so one write is never sent twice and
 > a step is never skipped.
 
-## `RunSteps._run`, [line 430](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L430): Note
+## `RunSteps._run`, [line 444](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L444): Note
 
 Code: `raise Stopped(f"run {run_id} is not known")`
 
 > A run this tenant does not hold is a stop: nothing more may be done for it,
 > and retrying cannot bring it back.
+
+## `RunSteps.finish`, [line 171](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L171): Note
+
+Code: `last = {one.of_step: one.verdict for one in sorted(run.steps, key=lambda s: s.order)}`
+
+> Judged by each step's last row: an `unclear` a read-back later settled as
+> `held` is history, not the step's result.
+
+## `RunSteps._write`, [line 422](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L422): Note
+
+Code: `if (index is not None and loaded.step != index) or (`
+
+> The one guard every step write passes, beside the compare-and-set: an
+> attempt only records a step's result or question while the run still
+> stands on that step, and a question only while the step is not done. A
+> zombie whose lane fails after the retry already held the step asks nothing
+> and adds no row.

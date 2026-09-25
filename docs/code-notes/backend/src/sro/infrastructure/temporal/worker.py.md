@@ -6,7 +6,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 
 > Worker process. ``make worker`` runs this.
 
-## `identity`, [line 24](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L24): Docstring
+## `identity`, [line 28](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L28): Docstring
 
 > How this worker names itself to Temporal: ``pid@host@revision``.
 >
@@ -17,7 +17,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 > reports it live, which a row written at startup by a process since killed
 > would not. `make status` reads the last ``@``-separated field.
 
-## `keep_sessions_open`, [line 32](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L32): Docstring
+## `keep_sessions_open`, [line 52](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L52): Docstring
 
 > Sign systems back in before they expire, for as long as this runs.
 >
@@ -26,7 +26,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 > cheapest thing that keeps a connection alive over a weekend is the right
 > amount of machinery for it.
 
-## `keep_sessions_open`, [line 36](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L36): Note
+## `keep_sessions_open`, [line 56](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L56): Note
 
 Code: `expired = await container.expire_confirmations().execute()`
 
@@ -36,7 +36,7 @@ Code: `expired = await container.expire_confirmations().execute()`
 > because the loop already wakes every few minutes for the whole deployment;
 > a failure is logged and the session sweep still runs.
 
-## `mine_the_rig_lately`, [line 57](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L57): Docstring
+## `mine_the_rig_lately`, [line 77](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L77): Docstring
 
 > Read each recorded tenant's day, for as long as this runs.
 >
@@ -54,7 +54,7 @@ Code: `expired = await container.expire_confirmations().execute()`
 > Sleeps first. A worker restarting in a crash loop would otherwise fire the
 > most expensive call in the system on every start.
 
-## `retain_lately`, [line 83](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L83): Docstring
+## `retain_lately`, [line 103](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L103): Docstring
 
 > Delete evidence that has aged out of its tenant's own window.
 >
@@ -62,7 +62,7 @@ Code: `expired = await container.expire_confirmations().execute()`
 > replaying, and a missed sweep costs one more day of storage rather than a
 > broken promise -- the next sweep finds the same rows and removes them.
 
-## `rekey_everything`, [line 98](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L98): Docstring
+## `rekey_everything`, [line 118](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L118): Docstring
 
 > Recompute every stored workflow's shape key, once, at startup.
 >
@@ -86,7 +86,7 @@ Code: `expired = await container.expire_confirmations().execute()`
 >     A fix that ships without its migration is a fix for new rows only.
 >     
 
-## module, [line 21](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L21): Comment
+## module, [line 23](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L23): Comment
 
 Code: `logger = logging.getLogger("sro.infrastructure.temporal.worker")`
 
@@ -97,21 +97,21 @@ Code: `logger = logging.getLogger("sro.infrastructure.temporal.worker")`
 > perfectly well, and "silent" and "dead" looked identical from outside.
 > Errors still came through, which is what made it so quiet a failure.
 
-## `keep_sessions_open`, [line 45](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L45): Comment
+## `keep_sessions_open`, [line 65](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L65): Comment
 
 Code: `logger.exception("the session keeper could not finish its sweep")`
 
 > A keeper that dies quietly is worse than no keeper: the sessions
 > look fine until the morning somebody needs one.
 
-## `run`, [line 148](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L148): Comment
+## `run`, [line 168](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L168): Comment
 
 Code: `try:`
 
 > Before anything mines, because a pass that runs against stale keys is a
 > pass that proposes a duplicate of a job the rig already holds.
 
-## `run`, [line 138](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L138): Note
+## `run`, [line 158](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L158): Note
 
 Code: `graceful_shutdown_timeout=timedelta(seconds=K_STEP_HEARTBEAT_S),`
 
@@ -119,3 +119,13 @@ Code: `graceful_shutdown_timeout=timedelta(seconds=K_STEP_HEARTBEAT_S),`
 > default queue's work. On shutdown a step gets this long to finish before
 > it is cancelled -- as a shutdown, never as a stop, so the run is picked up
 > again. A code change is live only after this worker restarts.
+
+## `until_signalled`, [line 40](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L40): Note
+
+Code: `loop.add_signal_handler(one, stopping.set)`
+
+> SIGTERM (`docker stop`) or SIGINT leaves the workers' `async with`, which
+> is their graceful shutdown: no new work is polled, and a running step gets
+> `graceful_shutdown_timeout` to finish before it is cancelled. Without a
+> handler, Python as PID 1 ignored SIGTERM and Docker killed it mid-write.
+> The handlers are removed afterwards, so the signal's default comes back.

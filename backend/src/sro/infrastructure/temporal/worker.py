@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
+import signal
 import socket
 from datetime import UTC, datetime, timedelta
 
@@ -20,6 +22,8 @@ from sro.observability import configure_logging
 
 logger = logging.getLogger("sro.infrastructure.temporal.worker")
 
+_STOP_SIGNALS = (signal.SIGTERM, signal.SIGINT)
+
 
 def identity(settings: Settings) -> str:
     return f"{os.getpid()}@{socket.gethostname()}@{settings.revision}"
@@ -27,6 +31,22 @@ def identity(settings: Settings) -> str:
 
 async def connect(settings: Settings) -> Client:
     return await Client.connect(settings.temporal_address, namespace=settings.temporal_namespace)
+
+
+async def until_signalled(*workers: Worker) -> None:
+    loop = asyncio.get_running_loop()
+    stopping = asyncio.Event()
+    for one in _STOP_SIGNALS:
+        loop.add_signal_handler(one, stopping.set)
+    try:
+        async with contextlib.AsyncExitStack() as serving:
+            for worker in workers:
+                await serving.enter_async_context(worker)
+            await stopping.wait()
+            logger.info("stopping: letting running activities finish first")
+    finally:
+        for one in _STOP_SIGNALS:
+            loop.remove_signal_handler(one)
 
 
 async def keep_sessions_open(container: Container, every_seconds: float) -> None:
@@ -156,8 +176,7 @@ async def run() -> None:
     rig_miner = asyncio.create_task(mine_the_rig_lately(container, settings.rig_sweep_seconds))
     retainer = asyncio.create_task(retain_lately(container, settings.retention_sweep_seconds))
     try:
-        async with default, runs:
-            await asyncio.Future()
+        await until_signalled(default, runs)
     finally:
         keeper.cancel()
         rig_miner.cancel()

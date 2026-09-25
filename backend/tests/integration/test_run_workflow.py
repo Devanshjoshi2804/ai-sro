@@ -6,8 +6,11 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import os
+import signal
 import uuid
 from collections.abc import AsyncIterator, Callable
+from datetime import timedelta
 from typing import Any
 
 import pytest
@@ -22,6 +25,7 @@ from sro.application.runtime.step import NeedsAPerson
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.infrastructure.temporal.activities import RunRef
 from sro.infrastructure.temporal.durable import TemporalDurableExecution
+from sro.infrastructure.temporal.worker import until_signalled
 from sro.infrastructure.temporal.workflows import RunWorkflow
 
 ADDRESS = "localhost:7233"
@@ -248,3 +252,44 @@ async def test_a_finished_run_is_never_started_again(client: Client) -> None:
     described = await handle.describe()
     assert described.run_id == first
     assert described.status is WorkflowExecutionStatus.TERMINATED
+
+
+async def test_a_sigterm_mid_step_lets_the_step_finish_before_the_worker_exits(
+    client: Client,
+) -> None:
+    started = asyncio.Event()
+    finished: list[str] = []
+
+    async def finishes_on_shutdown() -> StepOutcome:
+        started.set()
+        await activity.wait_for_worker_shutdown()
+        finished.append("finished, not cancelled")
+        return StepOutcome(more=False)
+
+    stubs = Stubs(finishes_on_shutdown)
+    queue = f"runs-test-{uuid.uuid4().hex}"
+    worker = Worker(
+        client,
+        task_queue=queue,
+        workflows=[RunWorkflow],
+        activities=[stubs.prepare, stubs.acquire, stubs.step, stubs.finish, stubs.release],
+        graceful_shutdown_timeout=timedelta(seconds=30),
+        # The workflow is left mid-run when this worker stops; uncached, its
+        # instance is closed by the worker instead of by the garbage collector
+        # in some later test.
+        max_cached_workflows=0,
+    )
+    serving = asyncio.create_task(until_signalled(worker))
+    handle = await client.start_workflow(
+        RunWorkflow.run, REF, id=f"workflow-run-{uuid.uuid4().hex}", task_queue=queue
+    )
+    try:
+        await started.wait()
+
+        os.kill(os.getpid(), signal.SIGTERM)
+        await serving
+
+        assert finished == ["finished, not cancelled"]
+        assert signal.getsignal(signal.SIGTERM) is signal.SIG_DFL
+    finally:
+        await handle.terminate("the test is done with it")

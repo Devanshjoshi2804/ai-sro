@@ -49,7 +49,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > `not_actionable` is not here: the control was found and acting on it threw
 > part way, so something may have happened.
 
-## `UiLane.execute`, [line 71](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L71): Docstring
+## `UiLane.execute`, [line 79](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L79): Docstring
 
 > One step, one act, one confirmation. `primary_gesture` and `value_for` are
 > the same evidence-reading rules every lane uses. A write announces itself
@@ -59,7 +59,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > (X4 review I5). `Stopped` and `CancelledError` still propagate: they are
 > the run being stopped, not an outcome of the write.
 
-## `UiLane._perform`, [line 95](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L95): Docstring
+## `UiLane._perform`, [line 103](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L103): Docstring
 
 > The mark is taken before the act, and only calls sent after it count. Of
 > those, only the ones matching the recorded call's method and path shape
@@ -81,7 +81,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > threshold, not necessarily the recorded one, so with its state holding or
 > no state recorded at all it is `unknown` (X2's binding rule; X4 review I1).
 
-## `same_call`, [line 214](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L214): Docstring
+## `same_call`, [line 231](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L231): Docstring
 
 > Whether a seen call is the recorded one: same method, same path shape, same
 > host, sent from the frame this step acted in (`SeenCall.own_frame`, set by
@@ -93,7 +93,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > R1). Values are never compared, only keys: a legitimate retry that resends
 > the same fields with a different value is still this step's call.
 
-## `UiLane._perform`, [line 95](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L95): Comment
+## `UiLane._perform`, [line 103](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L103): Comment
 
 > S6 re-review round 2 (N1): a failed act's own `signals` read can itself
 > raise `PageUnsettled` -- the navigation it landed on never settled within
@@ -103,7 +103,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > `about_to_write` has run the step may already have taken effect, so it
 > is `unknown`, the same verdict every other unconfirmed write gets.
 
-## `UiLane._holds`, [line 193](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L193): Docstring
+## `UiLane._holds`, [line 210](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L210): Docstring
 
 > Whether the element `act` touched -- not a fresh resolve -- now shows what
 > the recording says it should. `value` wins over `after.value` when set: the
@@ -116,19 +116,27 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > re-resolving is exactly what let a wrong repair verify itself as `done`
 > before that fix.
 
-## `confirming`, [line 240](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L240): Docstring
+## `confirming`, [line 257](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L257): Docstring
 
 > The keys come from the call that confirmed the write -- the own call whose
 > status `write_confirmed` accepts (`accepts`) -- never simply the first own call:
 > a refused attempt carrying the field, followed by an accepted retry without it,
 > confirms nothing about the field.
 
-## `ui_payload`, [line 49](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L49): Note
-
-Code: `frame_path = json.loads(learned.frame_path)`
+## `learned_payload`, [line 59](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L59): Function
 
 > A locator the sight lane learned is looked for in the frame its hit test
-> answered, not the recorded one: sight may have found the control in
-> another frame than the demonstration did. A learned locator with no
-> `frame_path` (learned from evidence or a typed limit) keeps the recorded
-> frame.
+> answered, and alone there (`target: {}`, so no recorded resolver and no
+> repair runs in that frame). `ui_payload` leaves such a locator out, so the
+> recorded locators keep their recorded frame. A learned locator with no
+> `frame_path` (learned from evidence or a typed limit) stays in
+> `ui_payload`, in the recorded frame, as before.
+
+## `UiLane._perform`, [line 114](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L114): Note
+
+Code: `first = learned_payload(payload, ctx.learned.get(step.order))`
+
+> The learned locator first, in its own frame. Only when that sent nothing
+> (`_NOTHING_SENT`: the control or the frame is not there) is the recorded
+> payload acted on; any other answer is the step's answer, settled against
+> the payload that produced it.

@@ -328,16 +328,35 @@ def test_only_a_step_that_does_not_write_is_marked_write_false() -> None:
     assert read["write"] is False
 
 
-def test_a_locator_sight_learned_is_looked_for_in_the_frame_it_was_found_in() -> None:
-    step, by_id = save_step(status=201)
-    hops = [{"index": 1, "url": "https://wms.example/frames/form"}]
-    sighted = LearnedStep(
-        step.order, "component", "#saveButton", "sight", frame_path=json.dumps(hops)
-    )
-    typed = LearnedStep(step.order, "text", "Save", "text")
+HOPS = [{"index": 1, "url": "/frames/form"}]
+SIGHTED = LearnedStep(1, "component", "#saveButton", "sight", frame_path=json.dumps(HOPS))
 
-    assert ui_payload(step, by_id["ges_save"], None, sighted, by_id)["frame_path"] == hops
-    assert ui_payload(step, by_id["ges_save"], None, typed, by_id)["frame_path"] is None
+
+async def test_a_sight_learned_locator_alone_is_looked_for_in_its_own_frame() -> None:
+    driver = scripted_driver(
+        answer=PageAnswer(ok=True, matched_by="learned"),
+        calls=[SeenCall("POST", "https://wms.example/api/customer-types", 201)],
+    )
+    step, by_id = save_step(status=201)
+
+    result = await UiLane(driver).execute(step, {}, lane_context(by_id, learned={1: SIGHTED}))
+
+    assert result.verdict == "done"
+    [(_, _, asked)] = driver.acted
+    assert asked["frame_path"] == HOPS and asked["target"] == {}
+    assert asked["learned"] == {"strategy": "component", "query": "#saveButton"}
+
+
+async def test_the_recorded_locators_keep_their_recorded_frame() -> None:
+    driver = scripted_driver(answer=PageAnswer(ok=False, error_kind="control_not_found"))
+    step, by_id = save_step(status=201)
+
+    await UiLane(driver).execute(step, {}, lane_context(by_id, learned={1: SIGHTED}))
+
+    first, then = (asked for _, _, asked in driver.acted)
+    assert first["frame_path"] == HOPS and first["target"] == {}
+    assert then["frame_path"] is None and then["learned"] is None
+    assert then["target"] == ui_payload(step, by_id["ges_save"], None, None, by_id)["target"]
 
 
 async def test_a_control_that_was_never_found_never_left() -> None:

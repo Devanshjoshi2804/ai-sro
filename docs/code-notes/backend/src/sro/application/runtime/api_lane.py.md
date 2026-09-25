@@ -85,7 +85,7 @@ Code: `if missing:`
 > person answers `AccountBusy` and the run queues -- and retries with
 > fresh headers.
 
-## `ApiLane._confirmed`, [line 134](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L134): Comment
+## `ApiLane._confirmed`, [line 141](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L141): Comment
 
 > One check for `execute` and `read_back`. The confirming read goes only to
 > the write's own origin (a GET recorded after the write may be analytics or
@@ -95,10 +95,20 @@ Code: `if missing:`
 > string is not the record this run wrote. A write with no filled slots is
 > never confirmed by a read-back.
 
-## `_aimed`, [line 209](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L209): Comment
+## `_aimed`, [line 216](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L216): Comment
 
 > The recorded read names the recorded record. A path segment equal to a value
 > the recording saw for a filled parameter is replaced by this run's value. A
 > recorded value found anywhere else in the URL (inside a segment, in the
 > query) cannot be re-aimed safely, so no read is sent and the write stays
 > `unknown`.
+
+## `ApiLane.execute`, [line 88](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L88): Note
+
+Code: `if status in K_AUTH_REFUSED and ctx.reauthed:`
+
+> A refusal the first time is the session's problem: the executor signs
+> back in and retries. A refusal on that retry, after a fresh sign-in, is an
+> authorization refusal -- this account may not make this call -- so it is
+> the lane's own failure, with a fingerprint, and the step joins the
+> known-broken list instead of signing in again on every run.

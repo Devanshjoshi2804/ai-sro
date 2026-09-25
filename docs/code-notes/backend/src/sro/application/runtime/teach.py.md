@@ -33,7 +33,7 @@ Code: `if result.verdict == "failed" and result.fingerprint and not result.expir
 > `missing_header` never breaks a lane), and a failure with no fingerprint
 > has nothing to be known by.
 
-## `Teach.learn`, [line 62](../../../../../../../backend/src/sro/application/runtime/teach.py#L62): Note
+## `Teach.learn`, [line 66](../../../../../../../backend/src/sro/application/runtime/teach.py#L66): Note
 
 Code: `own = next(`
 
@@ -45,11 +45,25 @@ Code: `own = next(`
 > (`Adding()`), so a call with a key beyond the recorded ones is not the
 > write's own and never teaches (§6.6.4): a write that followed a field the
 > recorded body lacks is not offered the API lane (§6.6.7). The pattern is
-> learned from the call this run sent, with this run's values, so a path
-> that names the record becomes `{id}`.
+> learned from the call this run sent, with this run's values and the
+> recorded URL (`learned_pattern`), so a path that names the record becomes
+> `{id}` and a segment the recording holds fixed stays fixed.
 
-## `_sighted`, [line 86](../../../../../../../backend/src/sro/application/runtime/teach.py#L86): Function
+## `_sighted`, [line 93](../../../../../../../backend/src/sro/application/runtime/teach.py#L93): Function
 
 > The locator the sight lane learned from the element that satisfied the
 > check (X7 ruling), or nothing: a learned map without a `frame_path` is
-> never stored (X2 ruling).
+> never stored (X2 ruling). Nor is a query that holds a value filled this
+> run -- a name read off a prefilled control would steer every later run to
+> that record, and the learned locator is tried first -- nor one longer than
+> `K_NAME`, the cap `learned_from` keeps (refused, not cut: a cut locator
+> matches nothing, or something else).
+
+## `Teach.learn`, [line 86](../../../../../../../backend/src/sro/application/runtime/teach.py#L86): Note
+
+Code: `if not any(one.lane is Lane.API and one.verdict == "failed" for one in tried):`
+
+> A lane is cleared only by its own success (§6.3). An API lane that failed
+> this run stays broken even when the UI lane's write promotes the
+> endpoint: mending it would send the same rejected call first on every
+> later run.

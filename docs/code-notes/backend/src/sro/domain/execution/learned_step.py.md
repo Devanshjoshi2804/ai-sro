@@ -109,7 +109,7 @@ Code: `holds: int | None = None`
 > same query found twice is the same answer however it was found the second
 > time, and a row per rung would say a job had drifted when nothing moved.
 
-## `learned_from`, [line 79](../../../../../../../backend/src/sro/domain/execution/learned_step.py#L79): Docstring
+## `learned_from`, [line 80](../../../../../../../backend/src/sro/domain/execution/learned_step.py#L80): Docstring
 
 > What this step's reply is worth keeping, or None.
 >
@@ -118,7 +118,7 @@ Code: `holds: int | None = None`
 > already says. Nothing is kept from a reply that names no control either --
 > a run cannot pass on what it did not learn.
 
-## `limits_for`, [line 98](../../../../../../../backend/src/sro/domain/execution/learned_step.py#L98): Docstring
+## `limits_for`, [line 99](../../../../../../../backend/src/sro/domain/execution/learned_step.py#L99): Docstring
 
 > What the boxes behind a job's parameter names will hold, by name.
 >
@@ -145,7 +145,7 @@ Code: `holds: int | None = None`
 > Empty by default, which is every caller that has only ever had the
 > measurements and behaves exactly as it did.
 
-## `too_long`, [line 113](../../../../../../../backend/src/sro/domain/execution/learned_step.py#L113): Docstring
+## `too_long`, [line 114](../../../../../../../backend/src/sro/domain/execution/learned_step.py#L114): Docstring
 
 > The values that will not fit, and what their box actually takes.
 >
@@ -169,14 +169,14 @@ Code: `if TYPE_CHECKING:`
 
 > a domain type used in a signature, imported for the checker only
 
-## `learned_from`, [line 84](../../../../../../../backend/src/sro/domain/execution/learned_step.py#L84): Comment
+## `learned_from`, [line 85](../../../../../../../backend/src/sro/domain/execution/learned_step.py#L85): Comment
 
 Code: `if isinstance(matched, dict) and matched.get("strategy") in WORTH_KEEPING:`
 
 > The locator that worked, where the browser named one: a css path that
 > matched is a css path worth trying first next time.
 
-## `learned_from`, [line 88](../../../../../../../backend/src/sro/domain/execution/learned_step.py#L88): Comment
+## `learned_from`, [line 89](../../../../../../../backend/src/sro/domain/execution/learned_step.py#L89): Comment
 
 Code: `if isinstance(control, dict):`
 
@@ -191,3 +191,5 @@ Code: `frame_path: str | None = None`
 > text the sight lane's hit test answered (`_taught`). A sight locator is
 > never stored without it (X2 ruling); `None` for a locator learned any
 > other way, which the UI lane looks for in the recorded frame.
+> `_as_locator` names the frame too, so the same query learned in another
+> frame is a change `changed_by` writes down.

@@ -626,6 +626,24 @@ async def test_a_write_this_deployment_watched_may_be_replayed_next_time() -> No
     )
 
 
+async def test_a_segment_the_recording_holds_fixed_stays_fixed_in_the_ledger() -> None:
+    workflows, runs = _store()
+    run = _run(
+        "run_1",
+        [_sent_a_call(url="https://wms.example/orders/42/approve")],
+        values={"Decision": "approve"},
+    )
+    await runs.save(run)
+
+    await record_effect(
+        workflows, run, run.steps[0], at=_AT, recorded="https://wms.example/orders/17/approve"
+    )
+
+    assert await workflows.learned_writes(_TENANT) == (
+        VerifiedWrite(method="DELETE", path_pattern="/orders/{id}/approve"),
+    )
+
+
 async def test_a_click_teaches_the_ledger_too() -> None:
     """The bootstrap, and without it there isn't one.
 

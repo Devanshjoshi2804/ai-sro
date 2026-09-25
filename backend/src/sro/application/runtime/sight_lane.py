@@ -4,7 +4,7 @@ import asyncio
 import json
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
-from urllib.parse import urlsplit
+from urllib.parse import urlparse, urlsplit
 
 from sro.application.ports.page import PageDriver, PageUnsettled
 from sro.application.ports.vision import VisionDriver
@@ -26,7 +26,6 @@ from sro.domain.execution.secrets import needs_a_secret
 from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.observation.trim import looks_like_an_id, path_shape
 from sro.domain.recording.events import ActionKind
-from sro.domain.recording.sensitivity import redact_url
 from sro.domain.shared.hosts import system_of
 from sro.domain.skill.workflow import Step
 from sro.whose import about
@@ -375,12 +374,13 @@ def _taught(hit: Mapping[str, object] | None) -> dict[str, str]:
     strategy, query, frame_path = hit.get("strategy"), hit.get("query"), hit.get("frame_path")
     if not (isinstance(strategy, str) and strategy and isinstance(query, str) and query):
         return {}
-    if not isinstance(frame_path, list):
+    if not isinstance(frame_path, list) or not all(isinstance(hop, dict) for hop in frame_path):
         return {}
     hops = [
-        {**hop, "url": redact_url(hop["url"])}
-        if isinstance(hop, dict) and isinstance(hop.get("url"), str)
-        else hop
+        {
+            "index": hop.get("index"),
+            "url": urlparse(url).path if isinstance(url := hop.get("url"), str) else None,
+        }
         for hop in frame_path
     ]
     return {"strategy": strategy, "query": query, "frame_path": json.dumps(hops)}

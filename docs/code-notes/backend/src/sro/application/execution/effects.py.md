@@ -58,7 +58,7 @@ Code: `K_UNEARNING = ("failed", "unclear")`
 > wrote. The fourth -- that the verdict came from a state belt and not from a
 > picture -- is `state_verified`, which is kept once, by the repository.
 
-## `_remember_the_write`, [line 32](../../../../../../../backend/src/sro/application/execution/effects.py#L32): Docstring
+## `_remember_the_write`, [line 37](../../../../../../../backend/src/sro/application/execution/effects.py#L37): Docstring
 
 > And that this ENDPOINT can be sent, which is a different fact.
 >
@@ -80,7 +80,7 @@ Code: `K_UNEARNING = ("failed", "unclear")`
 > -- and the bar is the one the file itself claims: somebody watched this
 > endpoint succeed and confirmed it on the state, not in a picture.
 
-## `may_have_landed`, [line 54](../../../../../../../backend/src/sro/application/execution/effects.py#L54): Docstring
+## `may_have_landed`, [line 64](../../../../../../../backend/src/sro/application/execution/effects.py#L64): Docstring
 
 > Whether a write this step made might actually be in the warehouse.
 >
@@ -120,7 +120,7 @@ Code: `K_UNEARNING = ("failed", "unclear")`
 > off the result, and the step `_fell_over` stamps has neither. That is the
 > rule this file has always had, and `test_effects.py` says so by name.
 
-## `can_try_again`, [line 64](../../../../../../../backend/src/sro/application/execution/effects.py#L64): Docstring
+## `can_try_again`, [line 74](../../../../../../../backend/src/sro/application/execution/effects.py#L74): Docstring
 
 > Whether this run can be started again with one press.
 >
@@ -139,7 +139,7 @@ Code: `K_UNEARNING = ("failed", "unclear")`
 > Nothing to try again on a run that held, and nothing to press on one still
 > going.
 
-## `forget_effects`, [line 70](../../../../../../../backend/src/sro/application/execution/effects.py#L70): Docstring
+## `forget_effects`, [line 80](../../../../../../../backend/src/sro/application/execution/effects.py#L80): Docstring
 
 > A write that went out and did not hold un-earns the whole job.
 >
@@ -159,7 +159,7 @@ Code: `K_UNEARNING = ("failed", "unclear")`
 > Returns how many effects were forgotten, and zero when this run un-earned
 > nothing.
 
-## `earned`, [line 82](../../../../../../../backend/src/sro/application/execution/effects.py#L82): Docstring
+## `earned`, [line 92](../../../../../../../backend/src/sro/application/execution/effects.py#L92): Docstring
 
 > Whether this job may write without asking a person first.
 >
@@ -169,7 +169,7 @@ Code: `K_UNEARNING = ("failed", "unclear")`
 > with a hundred held runs and nothing in its register has earned nothing.
 > Only `proofs` carries what the rule compares.
 
-## `_remember_the_write`, [line 35](../../../../../../../backend/src/sro/application/execution/effects.py#L35): Comment
+## `_remember_the_write`, [line 45](../../../../../../../backend/src/sro/application/execution/effects.py#L45): Comment
 
 Code: `watched = (step.result or {}).get("called")`
 
@@ -181,7 +181,7 @@ Code: `watched = (step.result or {}).get("called")`
 > starts, and the whole reason `Delete a Customer Type` clicked Save on
 > its ninth run.
 
-## `_remember_the_write`, [line 41](../../../../../../../backend/src/sro/application/execution/effects.py#L41): Comment
+## `_remember_the_write`, [line 51](../../../../../../../backend/src/sro/application/execution/effects.py#L51): Comment
 
 Code: `return`
 
@@ -189,7 +189,7 @@ Code: `return`
 > A pattern learnt from a call nobody identified is a licence to send
 > one nobody watched.
 
-## `may_have_landed`, [line 58](../../../../../../../backend/src/sro/application/execution/effects.py#L58): Comment
+## `may_have_landed`, [line 68](../../../../../../../backend/src/sro/application/execution/effects.py#L68): Comment
 
 Code: `if result.get("refuted") is True:`
 

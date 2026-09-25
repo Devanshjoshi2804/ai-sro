@@ -58,7 +58,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/execution/verified
 > A pattern wider than the evidence is a licence to send a call nobody
 > watched.
 
-## `verified_write_for`, [line 54](../../../../../../../backend/src/sro/domain/execution/verified_writes.py#L54): Docstring
+## `verified_write_for`, [line 63](../../../../../../../backend/src/sro/domain/execution/verified_writes.py#L63): Docstring
 
 > The ledger entry this call is proven under, or None.
 >
@@ -67,9 +67,19 @@ Comments and docstrings moved out of [`backend/src/sro/domain/execution/verified
 > endpoint because the operator's recording happened to carry
 > `?siteId=SG`.
 
-## `learned_pattern`, [line 48](../../../../../../../backend/src/sro/domain/execution/verified_writes.py#L48): Comment
+## `learned_pattern`, [line 52](../../../../../../../backend/src/sro/domain/execution/verified_writes.py#L52): Comment
 
-Code: `if (nth == last and segment.lower() in said) or looks_like_an_id(segment)`
+Code: `if was is None:`
+
+> With the recorded call's URL (`recorded`), each segment is compared,
+> percent-decoded, with the recording's segment at the same place. A segment
+> the recording holds the same is fixed and never templated: with
+> `Decision: approve`, `/orders/42/approve` stays `/orders/{id}/approve`,
+> not `/orders/{id}/{id}`. A segment the recording held differently is the
+> identifier when it holds one of this run's values (decoded, so
+> `Acme%20Corp` matches "Acme Corp") or looks like an id -- in any position,
+> so an email in an earlier segment is templated and never stored. With no
+> recording (or one of another length) only the rule below holds:
 
 > The LAST segment only, for the value rule. A run value is any string
 > somebody typed, and a short one collides with route words: with

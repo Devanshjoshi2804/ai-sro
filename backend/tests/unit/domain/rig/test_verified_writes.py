@@ -167,6 +167,36 @@ def test_everything_else_stays_literal() -> None:
     )
 
 
+def test_a_value_the_recording_held_differently_is_the_identifier_wherever_it_sits() -> None:
+    assert (
+        learned_pattern(
+            "https://wms.example/api/customer-types/Acme%20Corp",
+            {"Customer Type": "Acme Corp"},
+            recorded="https://wms.example/api/customer-types/Beta%20Ltd",
+        )
+        == "/api/customer-types/{id}"
+    )
+    assert (
+        learned_pattern(
+            "https://wms.example/api/users/jane.doe@acme.com/roles",
+            {"User": "jane.doe@acme.com"},
+            recorded="https://wms.example/api/users/raj@acme.com/roles",
+        )
+        == "/api/users/{id}/roles"
+    )
+
+
+def test_a_segment_the_recording_holds_fixed_is_never_templated() -> None:
+    assert (
+        learned_pattern(
+            "https://wms.example/orders/42/approve",
+            {"Decision": "approve"},
+            recorded="https://wms.example/orders/17/approve",
+        )
+        == "/orders/{id}/approve"
+    )
+
+
 def test_what_a_deployment_learnt_is_matched_the_same_way_the_file_is() -> None:
     """One vocabulary. The learned pattern goes through `verified_write_for`
     beside the file's entries, so a pattern that did not match the matcher

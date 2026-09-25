@@ -166,3 +166,46 @@ async def test_a_call_that_is_not_the_writes_own_never_promotes(call: SeenCall) 
     )
 
     assert await uow.workflows.learned_writes(TENANT) == ()
+
+
+async def test_a_promotion_never_clears_an_api_lane_that_failed_this_run() -> None:
+    uow = FakeUnitOfWork()
+    step, by_id, _ = proven_write_step(read_back="/api/customer-types/{name}")
+    call = SeenCall("POST", URL, 201, request_body='{"name": "GT2"}')
+    tried = (
+        StepResult("failed", Lane.API, "the system answered 422", fingerprint="api422"),
+        StepResult("done", Lane.UI, calls=(call,)),
+    )
+
+    await Teach(uow, FakeClock()).learn(
+        CTX, WORKFLOW, by_id, step, tried, run_id="run_1", values={"Customer Type": "GT2"}
+    )
+
+    assert await uow.workflows.broken_for(TENANT, WORKFLOW.id, {step.order: cites_key(step)}) == (
+        Broken(step.order, Lane.API, "api422"),
+    )
+
+
+@pytest.mark.parametrize(
+    "query",
+    ["textbox|Customer gt2 notes", "#" + "x" * 81],
+    ids=["holds_a_value_filled_this_run", "longer_than_a_name"],
+)
+async def test_a_locator_that_carries_a_run_value_or_runs_long_is_never_taught(
+    query: str,
+) -> None:
+    uow = FakeUnitOfWork()
+    step, by_id = save_step(status=201)
+    sighted = {**SIGHTED, "strategy": "role_and_name", "query": query}
+
+    await Teach(uow, FakeClock()).learn(
+        CTX,
+        WORKFLOW,
+        by_id,
+        step,
+        (StepResult("done", Lane.SIGHT, learned=sighted),),
+        run_id="run_1",
+        values={"Customer Type": "GT2"},
+    )
+
+    assert await uow.workflows.learned_for(WORKFLOW.id) == ()

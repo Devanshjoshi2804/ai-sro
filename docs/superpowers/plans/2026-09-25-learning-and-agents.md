@@ -3922,6 +3922,8 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 
 ## M2: Mail agent guards — every value cited, recipients from the thread, nothing unsourced (spec §4.4; A8)
 
+> **Controller amendment (user decision 2026-09-25):** allowed recipients = the thread's participants ∪ the addresses the job's own recorded evidence sent to when demonstrated (read from the cited mail-send gestures/calls). Any other address asks. An address named only in the mail text never qualifies (untrusted). Tests: a demonstrated vendor address sends without asking; a new address from the mail body asks.
+
 Depends on:
 - **P1:** `WRITE_MAIL`, `ask`, `quoted_in`.
 

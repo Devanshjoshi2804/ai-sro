@@ -87,7 +87,7 @@ When the reader is not sure which field a value belongs to, it returns the value
 
 `write_the_mail` (`application/execution/mail_job.py:46`) gets a prompt record. Code checks the draft before the tool lane sends it:
 - every value in the body is cited to a message in the thread;
-- recipients are the thread's participants only, with no new addresses;
+- recipients are the thread's participants, plus the addresses the job's own recorded evidence sent to when it was demonstrated (decided 2026-09-25); any other address asks. An address the mail's text names is never enough, because mail text is untrusted;
 - the body carries no value that is absent from the thread or from the run's results.
 
 A draft that fails is not sent: the run asks.

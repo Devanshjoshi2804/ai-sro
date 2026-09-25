@@ -103,11 +103,21 @@ Code: `cites: tuple[str, ...] = ()`
 > still guessed, and the fact that the guess happened to exist somewhere is
 > luck rather than evidence. The same reading `validate` takes of a citation.
 
-## `uncited`, [line 99](../../../../../../../backend/src/sro/domain/lookup/plan.py#L99): Docstring
+## `in_declared_slots`, [line 99](../../../../../../../backend/src/sro/domain/lookup/plan.py#L99): Note
+
+> The model picks VALUES for the slots an endpoint declares (the knowledge
+> entry's `params`) and nothing else. A key it invents is dropped here, where
+> the model's answer enters the system, so it can neither add a parameter a
+> warehouse acts on nor overwrite a recorded query key that is not a declared
+> slot -- `libraryContext`, a paging parameter -- on a read that now runs with
+> nobody watching (L1 review M4). A declared slot the recording also carries
+> is the point: it is the question being asked now.
+
+## `uncited`, [line 114](../../../../../../../backend/src/sro/domain/lookup/plan.py#L114): Docstring
 
 > Lookups whose citations name nothing the planner was shown.
 
-## `open_question_for`, [line 106](../../../../../../../backend/src/sro/domain/lookup/plan.py#L106): Docstring
+## `open_question_for`, [line 121](../../../../../../../backend/src/sro/domain/lookup/plan.py#L121): Docstring
 
 > The unanswered question this one lands on, if it lands on one.
 >
@@ -140,17 +150,17 @@ Code: `cites: tuple[str, ...] = ()`
 > because it stops the question AND teaches the operator to ignore the one
 > stop that was real.
 
-## `_stops`, [line 133](../../../../../../../backend/src/sro/domain/lookup/plan.py#L133): Docstring
+## `_stops`, [line 148](../../../../../../../backend/src/sro/domain/lookup/plan.py#L148): Docstring
 
 > Whether this ambiguity is about what was asked.
 
-## `_listed`, [line 148](../../../../../../../backend/src/sro/domain/lookup/plan.py#L148): Docstring
+## `_listed`, [line 163](../../../../../../../backend/src/sro/domain/lookup/plan.py#L163): Docstring
 
 > A JSON column's list, or nothing. `body` is `jsonb`, so every field in
 > it is `object` until something checks -- and a guard that assumed a list
 > would raise on the one entry somebody wrote by hand.
 
-## `_stem`, [line 154](../../../../../../../backend/src/sro/domain/lookup/plan.py#L154): Docstring
+## `_stem`, [line 169](../../../../../../../backend/src/sro/domain/lookup/plan.py#L169): Docstring
 
 > A word as it is compared: lowered, unpunctuated, and singular.
 >
@@ -174,7 +184,7 @@ Code: `"properties": {`
 > the evidence before it commits to a target. Asked for the target first it
 > picks an endpoint and then writes the sentence that defends it.
 
-## `open_question_for`, [line 109](../../../../../../../backend/src/sro/domain/lookup/plan.py#L109): Comment
+## `open_question_for`, [line 124](../../../../../../../backend/src/sro/domain/lookup/plan.py#L124): Comment
 
 Code: `settled = {`
 
@@ -183,7 +193,7 @@ Code: `settled = {`
 > about one row. Read once here: a question whose answer sits two rows
 > further down would otherwise stop a plan the deployment has an answer for.
 
-## `_stops`, [line 142](../../../../../../../backend/src/sro/domain/lookup/plan.py#L142): Comment
+## `_stops`, [line 157](../../../../../../../backend/src/sro/domain/lookup/plan.py#L157): Comment
 
 Code: `return bool(words & entity)`
 
@@ -191,7 +201,7 @@ Code: `return bool(words & entity)`
 > Split on the separator: the key writes `transport_mode` where an
 > operator writes "transport modes".
 
-## `_stops`, [line 144](../../../../../../../backend/src/sro/domain/lookup/plan.py#L144): Comment
+## `_stops`, [line 159](../../../../../../../backend/src/sro/domain/lookup/plan.py#L159): Comment
 
 Code: `return parts[3].lower() in asked.lower()`
 
@@ -199,7 +209,7 @@ Code: `return parts[3].lower() in asked.lower()`
 > the word came out of a demonstration and lands inside the operator's
 > own sentence in whatever form they wrote it.
 
-## `_stops`, [line 136](../../../../../../../backend/src/sro/domain/lookup/plan.py#L136): Comment
+## `_stops`, [line 160](../../../../../../../backend/src/sro/domain/lookup/plan.py#L160): Comment
 
 Code: `return False`
 

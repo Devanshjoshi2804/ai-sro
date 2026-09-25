@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Literal
 
 from sro.domain.knowledge.entry import EntryKind, KnowledgeEntry
@@ -94,6 +94,21 @@ not."""
 def unknown_targets(lookups: list[Lookup], known: list[KnowledgeEntry]) -> list[str]:
     keys = {entry.key for entry in known}
     return sorted({lookup.target for lookup in lookups if lookup.target not in keys})
+
+
+def in_declared_slots(lookups: list[Lookup], known: list[KnowledgeEntry]) -> list[Lookup]:
+    slots: dict[str, set[str]] = {}
+    for entry in known:
+        declared = entry.body.get("params") if isinstance(entry.body, dict) else None
+        if isinstance(declared, list):
+            slots.setdefault(entry.key, set()).update(str(name) for name in declared)
+    return [
+        replace(
+            one,
+            params={k: v for k, v in one.params.items() if k in slots.get(one.target, set())},
+        )
+        for one in lookups
+    ]
 
 
 def uncited(lookups: list[Lookup], known: list[KnowledgeEntry]) -> list[str]:

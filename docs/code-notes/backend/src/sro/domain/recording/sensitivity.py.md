@@ -31,7 +31,16 @@ Code: `_TRACE_HINTS = ("trace", "nonce", "request-id", "correlation", "idempoten
 > apart from a value the task actually varies. Left unclassified it becomes a
 > parameter the operator is asked to supply, which is nonsense.
 
-## module, [line 93](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L93): Note on the line above
+## module, [line 74](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L74): Note on the line above
+
+Code: `K_TOKENS = frozenset({Sensitivity.AUTH, Sensitivity.CSRF})`
+
+> The header roles a session's request log keeps: whatever `classify_header`
+> calls AUTH or CSRF. The Steel driver logs only these (cookies come from the
+> jar), so only these can ever be waited for: `api_lane.needs_of` takes the
+> same set, and a redacted header of any other role is never needed.
+
+## module, [line 96](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L96): Note on the line above
 
 Code: `SECRET_TOKENS = frozenset(`
 
@@ -42,7 +51,7 @@ Code: `SECRET_TOKENS = frozenset(`
 > generated from this one, so a word added here reaches the page that does the
 > redacting rather than only the code that checks it afterwards.
 
-## module, [line 173](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L173): Note on the line above
+## module, [line 176](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L176): Note on the line above
 
 Code: `REDACTED = "«redacted»"`
 
@@ -51,7 +60,7 @@ Code: `REDACTED = "«redacted»"`
 > extension all write these exact characters, and a second convention would mean
 > a reviewer grepping stored evidence for it found only some of the holes.
 
-## module, [line 176](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L176): Note on the line above
+## module, [line 179](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L179): Note on the line above
 
 Code: `SECRET_SHAPES: tuple[tuple[str, str], ...] = (`
 
@@ -77,7 +86,7 @@ Code: `SECRET_SHAPES: tuple[tuple[str, str], ...] = (`
 > `self_uri` URLs, not credentials. There is no threshold between "useless" and
 > "destroys the evidence": 5.0 blanks nothing at all. It stays out.
 
-## module, [line 192](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L192): Note on the line above
+## module, [line 195](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L195): Note on the line above
 
 Code: `SECRET_SHAPES_ANY_CASE: tuple[tuple[str, str], ...] = (`
 
@@ -125,7 +134,7 @@ Code: `SEMANTIC = "semantic"`
 
 > Carries meaning the call needs: tenant, facility, warehouse, content-type.
 
-## `shapes_in`, [line 206](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L206): Docstring
+## `shapes_in`, [line 209](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L209): Docstring
 
 > Which credential shapes appear in this text, in the order first seen.
 >
@@ -135,7 +144,7 @@ Code: `SEMANTIC = "semantic"`
 > tell them apart -- while the marker left behind stays the same either way,
 > so nothing downstream has to learn a second convention.
 
-## `redact_shapes`, [line 216](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L216): Docstring
+## `redact_shapes`, [line 219](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L219): Docstring
 
 > The same text with every credential-shaped run replaced.
 >
@@ -145,7 +154,7 @@ Code: `SEMANTIC = "semantic"`
 > no credential in it comes back identical, which is what lets this run on a
 > URL that must not be re-encoded.
 
-## `is_secret_field`, [line 236](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L236): Docstring
+## `is_secret_field`, [line 239](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L239): Docstring
 
 > Whether a form or JSON field holds a credential.
 >
@@ -161,7 +170,7 @@ Code: `SEMANTIC = "semantic"`
 > An all-caps acronym stuck to a word counts as two words, so ``SAMLResponse``
 > matches ``saml``. See ``_words`` for the measurement that says this is free.
 
-## `_redact_query`, [line 258](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L258): Docstring
+## `_redact_query`, [line 261](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L261): Docstring
 
 > An ``a=b&c=d`` run with every credential-named value replaced.
 >
@@ -178,7 +187,7 @@ Code: `SEMANTIC = "semantic"`
 > A pair with no ``=`` is given one, as the JavaScript does: the name alone is
 > what matched, and there is no value to leave in place.
 
-## `redact_url`, [line 271](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L271): Docstring
+## `redact_url`, [line 274](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L274): Docstring
 
 > A URL with credential-named query and fragment values replaced.
 >
@@ -209,11 +218,11 @@ Code: `SEMANTIC = "semantic"`
 > guard: every one of the 611 distinct URLs in its captured knowledge base is
 > relative, so a guard meant to be careful excluded 100% of real evidence.
 
-## `is_secret`, [line 292](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L292): Docstring
+## `is_secret`, [line 295](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L295): Docstring
 
 > Whether the *value* must be held by reference outside the evidence plane.
 
-## `is_replayable`, [line 296](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L296): Docstring
+## `is_replayable`, [line 299](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L299): Docstring
 
 > Whether the captured value can be sent again verbatim.
 >
@@ -221,7 +230,7 @@ Code: `SEMANTIC = "semantic"`
 > headers are the client's to set, and secrets are resolved from the vault at
 > run time rather than copied.
 
-## `classify_header`, [line 77](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L77): Comment
+## `classify_header`, [line 80](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L80): Comment
 
 Code: `return Sensitivity.TRANSPORT`
 
@@ -234,7 +243,7 @@ Code: `return Sensitivity.TRANSPORT`
 > host -- contains "auth". A pseudo-header is a structural fact about the
 > frame; a hint is a guess about a name, and the fact wins.
 
-## `classify_header`, [line 79](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L79): Comment
+## `classify_header`, [line 82](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L82): Comment
 
 Code: `return Sensitivity.AUTH`
 
@@ -255,7 +264,7 @@ Code: `return Sensitivity.AUTH`
 > since it was generated; this makes the two agree rather than
 > introducing anything new.
 
-## module, [line 98](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L98): Comment
+## module, [line 101](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L101): Comment
 
 Code: `"pass",`
 
@@ -274,7 +283,7 @@ Code: `"pass",`
 > trade. Revisit only with a measurement showing a `*_pass` credential
 > shape does not occur in the deployments this ships to.
 
-## module, [line 113](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L113): Comment
+## module, [line 116](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L116): Comment
 
 Code: `"passcode",`
 
@@ -283,7 +292,7 @@ Code: `"passcode",`
 > "Verification Code", the recorder kept it verbatim, and induction then
 > offered it as a parameter to be stored, displayed and replayed.
 
-## module, [line 118](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L118): Comment
+## module, [line 121](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L121): Comment
 
 Code: `"cookie",`
 
@@ -311,7 +320,7 @@ Code: `"cookie",`
 > something longer, `mySessionId`, matches neither the words nor the
 > joined form. That is the same ceiling `apiKey` has always had.
 
-## module, [line 123](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L123): Comment
+## module, [line 126](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L126): Comment
 
 Code: `"accesskey",`
 
@@ -326,7 +335,7 @@ Code: `"accesskey",`
 > `accessKey`, `privateKey`, `sshKey` and `encryptionKey` -- an
 > AWS-shaped body -- reached the store and the prompt verbatim.
 
-## module, [line 177](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L177): Comment
+## module, [line 180](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L180): Comment
 
 Code: `("jwt", r"eyJ[A-Za-z0-9_-]{10,}(?:\.[A-Za-z0-9_-]*){2,4}"),`
 
@@ -339,7 +348,7 @@ Code: `("jwt", r"eyJ[A-Za-z0-9_-]{10,}(?:\.[A-Za-z0-9_-]*){2,4}"),`
 > which is worse than not matching at all, because the marker is what a
 > reader greps for to decide the store is clean.
 
-## module, [line 183](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L183): Comment
+## module, [line 186](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L186): Comment
 
 Code: `(`
 
@@ -348,7 +357,7 @@ Code: `(`
 > a marker that says it was removed. The END clause is optional so a
 > truncated capture still loses its opening line.
 
-## module, [line 222](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L222): Comment
+## module, [line 225](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L225): Comment
 
 Code: `_ACRONYM_BOUNDARY = (`
 
@@ -370,13 +379,13 @@ Code: `_ACRONYM_BOUNDARY = (`
 > changes nothing at all, the naive rule wrongly blanks two, and this file's
 > previous findall wrongly blanked those same two.
 
-## `is_secret_field`, [line 240](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L240): Comment
+## `is_secret_field`, [line 243](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L243): Comment
 
 Code: `return "".join(words) in _SECRET_TOKENS`
 
 > Compounds that only read as credentials when joined: apiKey, api_key.
 
-## module, [line 243](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L243): Comment
+## module, [line 246](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L246): Comment
 
 Code: `OAUTH_COMPANIONS = frozenset(`
 
@@ -395,7 +404,7 @@ Code: `OAUTH_COMPANIONS = frozenset(`
 > store was caught only because Okta happens to emit a JWE; an opaque
 > authorization code, which is the common case, had no rule on this side at all.
 
-## `_redact_query`, [line 266](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L266): Comment
+## `_redact_query`, [line 269](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L269): Comment
 
 Code: `if is_secret_field(unquote_plus(key)) or (oauth and names[index] == "code"):`
 

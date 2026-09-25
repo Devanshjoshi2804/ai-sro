@@ -37,6 +37,21 @@ async def test_a_replayed_write_confirmed_by_its_read_back_is_done() -> None:
     assert [one["method"] for one in http.sent] == ["POST", "GET"]
 
 
+async def test_a_write_on_a_cookie_only_system_waits_for_no_token() -> None:
+    http = FakeHttpCaller()
+    http.answer(201, '{"id": "ct-9"}')
+    http.answer(200, '{"name": "GT2"}')
+    step, by_id, ledger = proven_write_step(read_back=LIST)
+    driver = FakePageDriver()
+
+    result = await ApiLane(http, headers_broker({"cookie": "sid=1"}, driver=driver)).execute(
+        step, RUN, lane_context(by_id, ledger=ledger)
+    )
+
+    assert result.verdict == "done"
+    assert driver.waited_out == []
+
+
 async def test_the_broker_is_asked_with_the_full_request_url() -> None:
     http = FakeHttpCaller()
     driver = FakePageDriver()
@@ -223,6 +238,24 @@ async def test_a_read_back_settles_an_unknown_write() -> None:
 
     assert settled == "done"
     assert http.sent[0]["method"] == "GET"
+
+
+async def test_a_token_guarded_read_back_after_a_fresh_sign_in_waits_for_its_csrf_token() -> None:
+    http = FakeHttpCaller()
+    http.answer(200, '[{"name": "GT2"}]')
+    step, by_id, ledger = proven_write_step(
+        read_back=LIST, read_headers={"X-CSRF-Token": REDACTED, "X-Trace-Id": REDACTED}
+    )
+    driver = scripted_driver(url="https://wms.example/app")
+    driver.headers_after_mark = {"x-csrf-token": "after"}
+
+    settled = await ApiLane(
+        http, headers_broker({"x-csrf-token": "before"}, driver=driver)
+    ).read_back(step, RUN, lane_context(by_id, ledger=ledger, reauthed=True))
+
+    assert settled == "done"
+    assert driver.needed == ("x-csrf-token",)
+    assert http.sent[0]["headers"]["x-csrf-token"] == "after"
 
 
 @pytest.mark.parametrize(

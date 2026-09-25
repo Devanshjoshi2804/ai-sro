@@ -30,6 +30,7 @@ from sro.application.skill.serve_shapes import ServeShapes
 from sro.container import Container
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.skill.workflow import Workflow
+from sro.infrastructure.agent.channel import SocketChannel
 from sro.infrastructure.agent.drivers import RemoteAgents
 from tests.unit.fakes import FakeAsker, FakeClock, FakePageDriver, FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer
@@ -555,3 +556,7 @@ def test_the_sight_lane_has_no_model_when_the_deployment_has_no_vision(
     container.driver = FakePageDriver()
 
     assert container.sight_lane()._models == ()
+
+
+def test_a_lookup_reaches_no_browser_socket(container: Container) -> None:
+    assert not any(isinstance(one, SocketChannel) for one in vars(container.run_lookups()).values())

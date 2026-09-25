@@ -45,7 +45,7 @@ Code: `calls[gesture.id] = whole.pop("requests")`
 > with them -- the caller proved which tenant it is to get here,
 > and echoing it back is one more field to keep true.
 
-## `LookupResponse.of`, [line 2462](../../../../../../../backend/src/sro/interface/http/schemas.py#L2462): Comment
+## `LookupResponse.of`, [line 2456](../../../../../../../backend/src/sro/interface/http/schemas.py#L2456): Comment
 
 Code: `answers=[`
 

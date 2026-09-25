@@ -364,3 +364,14 @@ async def test_the_planner_cannot_express_a_write_however_it_is_asked(how: str) 
     planned = await planner.execute(CTX, question="which suppliers are set up at SG")
 
     assert planned.plan.lookups == ()
+
+
+async def test_a_parameter_the_endpoint_does_not_declare_never_reaches_the_address() -> None:
+    """The model picks values for the slots the endpoint declares. A key it
+    invents -- or one that would overwrite what the recording asked with --
+    is not the model's to set on a request that leaves the building."""
+    planner, _ = _planner(_said(params={"siteId": "MEL", "libraryContext": "x", "limit": "1"}))
+
+    planned = await planner.execute(CTX, question="which suppliers are there in MEL")
+
+    assert planned.plan.lookups[0].params == {"siteId": "MEL"}

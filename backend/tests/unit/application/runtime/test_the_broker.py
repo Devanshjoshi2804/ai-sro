@@ -3,6 +3,7 @@ from datetime import timedelta
 
 import pytest
 
+from sro.application.connection.refusals import CodeAsked
 from sro.application.context import RequestContext
 from sro.application.ports.locks import AccountBusy
 from sro.application.ports.page import PageGone, SessionRef
@@ -122,8 +123,8 @@ async def test_a_form_that_comes_back_latches_the_password_and_asks() -> None:
     assert await vault.get(LENA.vault_key("password") + "#refused") is not None
     assert await vault.get(LENA.vault_key("state")) is None
     (lease,) = uow.browser_sessions.leases.values()
-    assert lease.state is LeaseState.BROKEN
-    assert pool.closed == [(STEEL, lease.context_id)]
+    assert lease.state is LeaseState.READY, "a person is needed; the context is not broken"
+    assert pool.closed == []
 
 
 async def test_a_refused_password_is_never_typed_again() -> None:
@@ -132,9 +133,11 @@ async def test_a_refused_password_is_never_typed_again() -> None:
     with pytest.raises(NeedsAPerson):
         await _broker(uow, driver, vault).acquire(CTX, LENA, APP, holder="run_1")
     lane = SigningLane(driver)
+    broker = _broker(uow, driver, vault, lane)
+    held = await broker.acquire(CTX, LENA, APP, holder="run_2")
 
     with pytest.raises(NeedsAPerson) as asked:
-        await _broker(uow, driver, vault, lane).acquire(CTX, LENA, APP, holder="run_2")
+        await broker.reauth(CTX, held, APP)
 
     assert asked.value.kind == "password"
     assert lane.stepped == []
@@ -795,3 +798,29 @@ async def test_a_re_sign_in_asked_to_go_back_ends_on_that_page() -> None:
     await broker.reauth(CTX, held, APP, back_to="https://wms.example/app/orders/7")
 
     assert driver.tabs[held.target_id] == "https://wms.example/app/orders/7"
+
+
+async def test_a_sign_in_that_lands_clears_the_code_asked_latch() -> None:
+    uow, driver, vault = await _signing_world()
+    asked = CodeAsked(vault)
+    await asked.ask(LENA.vault_key("password"), at=FakeClock().now())
+
+    await _broker(uow, driver, vault).acquire(CTX, LENA, APP, holder="run_1")
+
+    assert await asked.since(LENA.vault_key("password")) is None
+
+
+async def test_a_code_asked_again_after_the_window_restarts_the_latch() -> None:
+    # A code asked once and never answered must not leave the latch stale for
+    # good: the next prompt, one window later, starts a new window, so a
+    # lookup types the password at most once per K_CODE_WAIT (L1 re-review N3).
+    _, _, vault = await _signing_world()
+    asked = CodeAsked(vault)
+    key = LENA.vault_key("password")
+    first = FakeClock().now()
+    later = first + K_CODE_WAIT + timedelta(minutes=1)
+
+    await asked.ask(key, at=first)
+    await asked.ask(key, at=later)
+
+    assert await asked.since(key) == later

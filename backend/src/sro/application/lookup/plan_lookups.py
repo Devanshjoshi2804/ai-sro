@@ -18,6 +18,7 @@ from sro.domain.lookup.plan import (
     LOOKUP_SCHEMA,
     Lookup,
     Plan,
+    in_declared_slots,
     open_question_for,
     uncited,
     unknown_targets,
@@ -119,7 +120,7 @@ class PlanLookups:
         return Planned(
             Plan(
                 question=asked,
-                lookups=tuple(lookups[:K_MAX_LOOKUPS]),
+                lookups=tuple(in_declared_slots(lookups, known)[:K_MAX_LOOKUPS]),
                 why=str(answer.data.get("why") or ""),
             ),
             answer=answer,

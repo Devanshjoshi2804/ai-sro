@@ -6,9 +6,10 @@ from dataclasses import replace
 from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
 from sro.application.connection.check_session import is_login
+from sro.application.context import RequestContext
 from sro.application.execution.plan_step import replay_without_asking
 from sro.application.ports.http import HttpCaller
-from sro.application.runtime.broker import SessionBroker
+from sro.application.runtime.broker import K_HEADERS_WAIT_S, SessionBroker
 from sro.application.runtime.step import Held, LaneContext, Stopped
 from sro.domain.execution.belts import carries_in_slot, confirming_read, expected_statuses
 from sro.domain.execution.evidence import recorded_call
@@ -24,15 +25,13 @@ from sro.domain.execution.planning import Planned
 from sro.domain.execution.records import made_by
 from sro.domain.execution.write_plan import seen_values
 from sro.domain.observation.trim import path_shape
-from sro.domain.recording.sensitivity import Sensitivity, classify_header
+from sro.domain.recording.sensitivity import K_TOKENS, classify_header
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.skill.workflow import Step
 
 K_AUTH_REFUSED = frozenset({401, 403, 419})
 
 K_REPRESENTATION = frozenset({"content-type", "accept"})
-
-K_TOKEN_ROLES = frozenset({Sensitivity.AUTH, Sensitivity.CSRF})
 
 
 class ApiLane:
@@ -50,15 +49,15 @@ class ApiLane:
             return _unsent("no verified replay for this step", "no_replay")
         method, url = str(planned.payload["method"]), str(planned.payload["url"])
         body = planned.payload.get("body")
-        needs = sorted(
-            {
-                name.lower()
-                for name, value in recorded.request_headers.items()
-                if REDACTED in value and classify_header(name) in K_TOKEN_ROLES
-            }
-        )
-        headers = await self._headers(
-            ctx, held, url, recorded.request_headers, ctx.reauthed, needs=needs
+        needs = needs_of(recorded.request_headers)
+        headers = await session_headers(
+            self._broker,
+            ctx.ctx,
+            held,
+            url,
+            recorded.request_headers,
+            fresh=ctx.reauthed,
+            needs=needs,
         )
         carried = {name.lower() for name in headers}
         missing = [name for name in needs if name not in carried]
@@ -149,34 +148,54 @@ class ApiLane:
         url = _aimed(probe.url, planned, seen_values(ctx.workflow))
         if url is None:
             return False
-        headers = await self._headers(ctx, held, url, probe.request_headers, fresh)
+        headers = await session_headers(
+            self._broker,
+            ctx.ctx,
+            held,
+            url,
+            probe.request_headers,
+            fresh=fresh,
+            needs=needs_of(probe.request_headers),
+        )
         if not _sendable(url, headers):
             return False
         got = await self._http.send("GET", url, headers=headers)
         return got.succeeded and carries_in_slot(got.text, planned.confirm)
 
-    async def _headers(
-        self,
-        ctx: LaneContext,
-        held: Held,
-        url: str,
-        recorded: Mapping[str, str],
-        fresh: bool,
-        *,
-        needs: Sequence[str] = (),
-    ) -> dict[str, str]:
-        said = await self._broker.headers(ctx.ctx, held, url, fresh=fresh, needs=needs)
-        named = {name.lower() for name in said}
-        return {
-            **{
-                name: value
-                for name, value in recorded.items()
-                if name.lower() in K_REPRESENTATION
-                and name.lower() not in named
-                and REDACTED not in value
-            },
-            **said,
+
+def needs_of(recorded: Mapping[str, str]) -> list[str]:
+    return sorted(
+        {
+            name.lower()
+            for name, value in recorded.items()
+            if REDACTED in value and classify_header(name) in K_TOKENS
         }
+    )
+
+
+async def session_headers(
+    broker: SessionBroker,
+    ctx: RequestContext,
+    held: Held,
+    url: str,
+    recorded: Mapping[str, str],
+    *,
+    fresh: bool = False,
+    needs: Sequence[str] = (),
+    wait_s: float = K_HEADERS_WAIT_S,
+) -> dict[str, str]:
+    said = await broker.headers(ctx, held, url, fresh=fresh, needs=needs, wait_s=wait_s)
+    named = {name.lower() for name in said}
+    return {
+        **{
+            name: value
+            for name, value in recorded.items()
+            if name.lower() in K_REPRESENTATION
+            and name.lower() not in named
+            and REDACTED not in value
+        },
+        **said,
+    }
 
 
 def replay_of(step: Step, values: Mapping[str, str], ctx: LaneContext) -> Planned | None:

@@ -14,37 +14,48 @@ Comments and docstrings moved out of [`backend/src/sro/application/lookup/run_lo
 > so a mail carrying "and then delete the old one" has no shape to become by the
 > time it reaches here.
 >
-> **From the operator's own session.** The call goes out through the extension's
-> `http.send`, in the tab the operator is signed into, with the session cookie
-> the browser already has -- which is why this needs a connected browser and not
-> a credential in a file.
+> **From the account's own Steel session, never the operator's browser.** The
+> broker picks the account whose recorded sign-in lands on the page, takes a
+> Steel tab on that page in the account's context, and the GET goes out from
+> the API process with the cookie and live headers that context holds
+> (`SessionBroker.headers`, with the full URL). Nobody's screen is taken and no
+> browser needs to be connected.
 >
-> **A system nobody has open is opened, in the background.** Every command that
-> reaches a system needs a tab already on it -- the point of sending from the
-> browser is the session that origin's cookies carry -- so without `tab.open` a
-> question asked of four systems is answerable only for the ones the operator
-> happens to have in front of them. The tab is opened behind what they are
-> doing and their focus never moves.
->
-> **One lookup's failure is not the plan's.** A system with no tab open, an
-> endpoint this deployment has never been to, a page whose session token has
-> expired: each comes back as that lookup's own refusal beside the answers that
+> **One lookup's failure is not the plan's.** A sign-in that needs a person, a
+> full pool, a tab that went away, an unreachable system, an endpoint this
+> deployment has never been to, a lookup that ran out of its budget: each comes
+> back as that lookup's own refusal beside the answers that
 > did arrive. A question asked of four systems and answered by three is three
 > answers and a named gap, which is worth more than nothing at all -- the
 > opposite reading from the PLANNER's, where a target nobody has seen refuses
 > the whole plan. The difference is that a planning failure means the plan is
 > wrong about the world, and a looking failure means one system was shut.
 
-## module, [line 18](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L18): Note on the line above
+## module, [line 36](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L36): Note on the line above
 
-Code: `NO_TAB = frozenset({"no_tab_for_origin", "no_tab_for_system"})`
+Code: `K_AFTER_HEADERS_S = 1.0`
 
-> The extension's two words for "nobody has that system open", which is the
-> one failure this side can do something about. Every other error kind -- a page
-> that would not answer, a header with no live source, a refused focus -- is a
-> fact about the attempt, and retrying it would just cost the same time twice.
+> Room kept inside a lookup's budget after the header wait: `headers_for`
+> answers inside its deadline (the round trips to Chrome included), and then
+> the broker reads the cookie jar and the lookup decides. Without it the
+> header wait ends when the budget does, the budget's own timeout wins, and
+> the lookup says "timed out" instead of naming the header that never came
+> -- and "ask again" fails the same way for ever.
+> ponytail: a fixed second; a measured cookie-read time if a slow Chrome
+> ever eats it.
 
-## module, [line 20](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L20): Note on the line above
+## module, [line 25](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L25): Note on the line above
+
+Code: `K_GAPS = (DomainError, PoolFull, PageGone, TargetUnreachable, AccountBusy, BrowserUnavailable)`
+
+> What makes one lookup a named gap instead of failing the whole plan: a
+> `DomainError` (a sign-in that needs a password, an account with no recorded
+> username), a full pool, a tab or lease that went away, an unreachable system,
+> an account parked waiting for a person, a Steel browser that is down. A sign-in
+> that needs a person is a gap and not a question: nothing is waiting to resume
+> a lookup, so a lookup never waits on a person.
+
+## module, [line 32](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L32): Note on the line above
 
 Code: `K_DEADLINE_S = 45.0`
 
@@ -58,7 +69,7 @@ Code: `K_DEADLINE_S = 45.0`
 > This is the budget for `/v1/lookups` and `/v1/ask`, where the answer IS the
 > request and nothing else is held up behind it.
 
-## module, [line 22](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L22): Note on the line above
+## module, [line 34](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L34): Note on the line above
 
 Code: `K_WHILE_TALKING = 10.0`
 
@@ -90,11 +101,11 @@ Code: `K_WHILE_TALKING = 10.0`
 > trade: a question answered late is worth less than a conversation that
 > kept going.
 
-## `Looked`, [line 26](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L26): Docstring
+## `Looked`, [line 40](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L40): Docstring
 
 > What one lookup came back with.
 
-## `Looked`, [line 31](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L31): Note on the line above
+## `Looked`, [line 45](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L45): Note on the line above
 
 Code: `read: Answer | None = None`
 
@@ -120,37 +131,42 @@ Code: `read: Answer | None = None`
 > None where there are no records to speak of -- a page of HTML, one scalar,
 > a screen's photograph. Those keep `answer` and are drawn from it.
 
-## `Looked`, [line 33](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L33): Note on the line above
+## `Looked`, [line 47](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L47): Note on the line above
 
 Code: `detail: str = ""`
 
-> Why not, when not. Kept in the extension's own words -- `no_tab_for_origin`
-> is a different problem from `unreachable`, and flattening them to "failed"
-> throws away the one thing that says which.
+> Why not, when not. Kept in the refusal's own words -- a sign-in that needs a
+> person is a different problem from an unreachable system, and flattening them
+> to "failed" throws away the one thing that says which.
 
-## `RunLookups`, [line 46](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L46): Docstring
+## `MissingHeaders`, [line 28](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L28): Note on the line above
 
-> Execute a plan against one browser.
+Code: `class MissingHeaders(DomainError):`
 
-## `_shut`, [line 176](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L176): Docstring
+> A header the read needs that the account's context never sent within the
+> budget. A `DomainError`, so it is that one lookup's named gap.
 
-> Whether this failed because nobody has that system open.
+## `RunLookups`, [line 60](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L60): Docstring
 
-## `RunLookups.execute`, [line 51](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L51): Docstring
+> Execute a plan on backend Steel, never the operator's browser.
+>
+> A lookup takes a tab and not a durable run: it lives inside the request that
+> asked, bounded by the caller's deadline, so there is nothing to resume.
+>
+> **Nothing here can write**, by three structural facts, one test each:
+> `address_for` returns only GETs that answered 2xx; the API half sends the
+> literal method `"GET"`; the tab half calls only `acquire` (a tab opened on
+> the page), `screenshot` and `release` -- never `act`, `point` or the sight
+> model. A target seen only as a write addresses nothing, and nothing is sent.
+
+## `RunLookups.execute`, [line 64](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L64): Docstring
 
 > `within` is the caller's budget, because the callers have different
 > ones: a lookup somebody asked for may take as long as the slowest
 > warehouse, and a lookup inside a conversation turn may not. See
 > `K_WHILE_TALKING`.
 
-## `RunLookups._reopened`, [line 125](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L125): Docstring
-
-> Open the system this command could not find, and ask it once more.
->
-> Once. A second failure is a system that is open and still would not
-> answer, which is a different problem and not one another tab fixes.
-
-## `RunLookups.execute`, [line 74](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L74): Comment (debt)
+## `RunLookups.execute`, [line 70](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L70): Comment (debt)
 
 Code: `gestures = list(await uow.gestures.gestures_for(ctx.tenant_id))`
 
@@ -160,28 +176,34 @@ Code: `gestures = list(await uow.gestures.gestures_for(ctx.tenant_id))`
 > ponytail: whole-store scan; a `calls_for_path` query if a tenant's
 > capture outgrows memory.
 
-## `RunLookups._one`, [line 113](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L113): Comment
+## `RunLookups._one`, [line 106](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L106): Comment
 
-Code: `origin = system_of(address.url)`
+Code: `if lookup.how == "call":`
 
-> A screen takes two commands: put the page up, then photograph it.
-> Separate because the second one is the one that needs the operator's
-> permission to take their screen, and a navigate that worked is worth
-> saying so even when the picture is refused.
-> Scheme and host, which is what the extension matches a tab on --
-> `hosts.origin_of` answers the host alone, and that is the rule for
-> deciding whether two urls are one SYSTEM, not for finding a tab.
+> An auth refusal (`K_AUTH_REFUSED`, the API lane's rule) signs the account in
+> again once, under the account lock, and the read is tried again. Any other
+> answer that is not 2xx falls to the screen: the page the GET was made from is
+> already up in the tab `acquire` opened (and `reauth` returns it there), so it
+> is photographed with no navigation. The same rule as §3's, applied to a read.
 
-## `RunLookups._one`, [line 117](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L117): Comment
+## `RunLookups._send`, [line 144](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L144): Comment
 
-Code: `moved = await self._reopened(ctx, device, address, "navigate", going, within)`
+Code: `needs = needs_of(dict.fromkeys((*address.live_headers, *address.struck), REDACTED))`
 
-> The tab `tab.open` makes is already ON the address, so the
-> navigate that follows is a no-op that confirms it -- cheaper than
-> a second code path, and it keeps the failure shape identical
-> whether the operator had the system open or not.
+> The headers the recording struck out whose role a request log keeps
+> (`needs_of`, the API lane's one rule) are the ones the account's own context
+> has to supply, so the broker waits for each of them in the context's request
+> log (from tab arrival). After a re-sign-in the wait is `fresh`: only tokens
+> sent after the reload count, never the pre-sign-in one still in the log. A value never reaches a log. The wait is what is left of
+> the caller's budget -- chat's `K_WHILE_TALKING` or the door's own -- never
+> the broker's fixed wait past it. With nothing needed the driver answers at
+> once. A header still missing when it ends is a
+> named gap (`MissingHeaders`), not a GET sent without it. From the recording
+> only representation headers are sent, through the API lane's one rule
+> (`session_headers`): a recorded `x-user-id` is the operator's, never this
+> account's.
 
-## `_looked`, [line 171](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L171): Comment
+## `_looked`, [line 170](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L170): Comment
 
 Code: `read=read_answer(body, url=address.url) if isinstance(body, str) else None,`
 

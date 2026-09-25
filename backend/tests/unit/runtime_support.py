@@ -14,6 +14,10 @@ provider (`IDP` unless told otherwise) that lands on a system, and
 `SigningLane` stands in for the UI lane that replays it against a
 `FakePageDriver`.
 
+`lookup_world` saves the given gestures beside a recorded sign-in that lands
+on their system, and builds `RunLookups` over a real `SessionBroker` on fakes;
+`reauths` counts the broker's `reauth` calls.
+
 `lease_for` inserts a `ready` lease a sweeper test can expire.
 
 For the executor, `RecordingLane` answers scripted results and counts its
@@ -25,11 +29,13 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable, Mapping, Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from types import MappingProxyType
 
 from sro.application.context import RequestContext
 from sro.application.execution.mail_job import Written
+from sro.application.lookup.run_lookups import RunLookups
 from sro.application.ports.page import PageAnswer, SessionRef
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
@@ -59,6 +65,7 @@ from tests.unit.fakes import (
     FakeBrowserPool,
     FakeClock,
     FakeCredentialVault,
+    FakeHttpCaller,
     FakePageDriver,
     FakeUnitOfWork,
 )
@@ -213,6 +220,7 @@ def proven_write_step(
     *,
     read_back: str | None,
     request_headers: Mapping[str, str] = MappingProxyType({"Content-Type": "application/json"}),
+    read_headers: Mapping[str, str] = MappingProxyType({}),
 ) -> tuple[Step, dict[str, Gesture], tuple[VerifiedWrite, ...]]:
     by_id: dict[str, Gesture] = {}
     for nth, name in enumerate(("GT0", "GT1")):
@@ -230,7 +238,15 @@ def proven_write_step(
         if read_back is not None:
             read = read_back.format(name=name)
             read = read if read.startswith("http") else f"{_SYSTEM}{read}"
-            requests.append(Call(method="GET", url=read, status=200, started_at=at + 0.5))
+            requests.append(
+                Call(
+                    method="GET",
+                    url=read,
+                    status=200,
+                    started_at=at + 0.5,
+                    request_headers=dict(read_headers),
+                )
+            )
         gesture = Gesture(
             id=f"ges_save_{nth}",
             tenant=_TENANT,
@@ -456,6 +472,62 @@ class SigningLane:
         return StepResult("done", Lane.UI)
 
 
+@dataclass
+class LookupWorld:
+    run_lookups: RunLookups
+    broker: SessionBroker
+    uow: FakeUnitOfWork
+    driver: FakePageDriver
+    http: FakeHttpCaller
+    lane: SigningLane
+    reauths: int = 0
+
+
+class _CountingBroker(SessionBroker):
+    world: LookupWorld
+
+    async def reauth(
+        self,
+        ctx: RequestContext,
+        held: Held,
+        start_url: str,
+        *,
+        back_to: str | None = None,
+        park: bool = True,
+    ) -> None:
+        self.world.reauths += 1
+        await super().reauth(ctx, held, start_url, back_to=back_to, park=park)
+
+
+async def lookup_world(*gestures: Gesture) -> LookupWorld:
+    uow, driver, vault, http = (
+        FakeUnitOfWork(),
+        FakePageDriver(),
+        FakeCredentialVault(),
+        FakeHttpCaller(),
+    )
+    await with_a_recorded_sign_in(
+        uow, lands_on=gestures[0].url or "", username="lena", tenant=_TENANT
+    )
+    await vault.store(Account.of(_TENANT, IDP, "lena").vault_key("password"), "not-a-real-secret")
+    await uow.gestures.add_gestures(gestures)
+    driver.shows_sign_in_until_signed = True
+    lane = SigningLane(driver)
+    broker = _CountingBroker(
+        uow,
+        FakeBrowserPool({"http://steel:3000": 1}),
+        driver,
+        FakeAccountLocks(),
+        vault,
+        FakeClock(),
+        ui=lane,
+        close_s=0.05,
+    )
+    world = LookupWorld(RunLookups(uow, broker, http), broker, uow, driver, http, lane)
+    broker.world = world
+    return world
+
+
 async def lease_for(uow: UnitOfWork, clock: Clock, *, holder: str = "run_1") -> Lease:
     """Inserts a `ready` lease on a Steel session held in `http://steel:3000`,
     its context id and steel session id deliberately distinct -- a sweeper
@@ -542,7 +614,13 @@ class FakeBroker(SessionBroker):
         self.refuses = refuses
 
     async def reauth(
-        self, ctx: RequestContext, held: Held, start_url: str, *, back_to: str | None = None
+        self,
+        ctx: RequestContext,
+        held: Held,
+        start_url: str,
+        *,
+        back_to: str | None = None,
+        park: bool = True,
     ) -> None:
         self.reauths += 1
         self.back_tos.append(back_to)

@@ -2314,12 +2314,6 @@ class LookupRequest(BaseModel):
     building, and keeping that separable is what lets a person look at where a
     question is about to be asked."""
 
-    allow_focus: bool = False
-    """Whether a screen lookup may bring a page in front of the operator. A
-    call never needs this; a screenshot of a background tab is impossible, so
-    a screen lookup without it is refused by the browser rather than taking
-    somebody's window."""
-
 
 class LookupModel(BaseModel):
     """One place the answer might be, and why this deployment thinks so."""
@@ -2545,8 +2539,6 @@ class AskRequest(BaseModel):
     """Carried through to the lookup half. A job never starts from here
     whatever this says -- what comes back is an offer, and the press is a
     different door."""
-
-    allow_focus: bool = False
 
 
 class AskResponse(BaseModel):

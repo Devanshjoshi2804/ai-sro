@@ -53,8 +53,6 @@ async def ask(body: AskRequest, container: ContainerDep, ctx: ContextDep) -> Ask
             why="" if planned.plan.ready else "nothing here knows how to look that up",
         )
         return AskResponse(kind="lookup", lookup=LookupResponse.of(planned))
-    answers = await container.run_lookups().execute(
-        ctx, plan=planned.plan, allow_focus=body.allow_focus
-    )
+    answers = await container.run_lookups().execute(ctx, plan=planned.plan)
     await container.record_attempt().execute(ctx, asked_for="ask a question", came_of=DONE)
     return AskResponse(kind="lookup", lookup=LookupResponse.of(planned, answers))

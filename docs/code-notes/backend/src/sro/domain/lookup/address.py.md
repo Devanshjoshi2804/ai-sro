@@ -57,11 +57,21 @@ Code: `seen_at: float | None = None`
 > When the evidence this address came from was recorded. A month-old
 > session still names the right host; its session token may be spent.
 
-## `address_for`, [line 24](../../../../../../../backend/src/sro/domain/lookup/address.py#L24): Docstring
+## `Address`, [line 23](../../../../../../../backend/src/sro/domain/lookup/address.py#L23): Note on the line above
+
+Code: `page: str = ""`
+
+> The page the addressed GET was made from: its gesture's `page_url`, else its
+> `url`. A lookup opens its Steel tab there, so the account's session has made
+> that page's own requests (the live headers come from them), and a GET the
+> system refuses for any reason but auth is read off that page instead. Empty
+> for a screen, whose `url` already is the page.
+
+## `address_for`, [line 26](../../../../../../../backend/src/sro/domain/lookup/address.py#L26): Docstring
 
 > Where this lookup goes, or nothing if this deployment has not been there.
 
-## `_call_address`, [line 31](../../../../../../../backend/src/sro/domain/lookup/address.py#L31): Docstring
+## `_call_address`, [line 33](../../../../../../../backend/src/sro/domain/lookup/address.py#L33): Docstring
 
 > The newest successful GET of this exact path, re-aimed at the question.
 >
@@ -71,7 +81,7 @@ Code: `seen_at: float | None = None`
 > with a plausible-looking answer, which is the failure this whole module is
 > arranged against.
 
-## `_screen_address`, [line 55](../../../../../../../backend/src/sro/domain/lookup/address.py#L55): Docstring
+## `_screen_address`, [line 58](../../../../../../../backend/src/sro/domain/lookup/address.py#L58): Docstring
 
 > The newest page url whose fragment names this route.
 >
@@ -82,7 +92,7 @@ Code: `seen_at: float | None = None`
 > differently by the two sides, so the comparison is over the part they
 > agree on.
 
-## `_route_name`, [line 70](../../../../../../../backend/src/sro/domain/lookup/address.py#L70): Docstring
+## `_route_name`, [line 73](../../../../../../../backend/src/sro/domain/lookup/address.py#L73): Docstring
 
 > A route as the screen it names, however either side spells it.
 >
@@ -92,7 +102,7 @@ Code: `seen_at: float | None = None`
 > the menu are the catalogue's, and the trailing separators are the
 > application's own padding for parameters the screen was opened without.
 
-## `_with_params`, [line 75](../../../../../../../backend/src/sro/domain/lookup/address.py#L75): Docstring
+## `_with_params`, [line 78](../../../../../../../backend/src/sro/domain/lookup/address.py#L78): Docstring
 
 > The recorded url, asking the question that was planned.
 >

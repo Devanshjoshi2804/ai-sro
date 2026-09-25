@@ -2104,11 +2104,6 @@ export interface components {
              * @default true
              */
             execute: boolean;
-            /**
-             * Allow Focus
-             * @default false
-             */
-            allow_focus: boolean;
         };
         /**
          * AskResponse
@@ -2960,11 +2955,6 @@ export interface components {
              * @default true
              */
             execute: boolean;
-            /**
-             * Allow Focus
-             * @default false
-             */
-            allow_focus: boolean;
         };
         /**
          * LookupResponse

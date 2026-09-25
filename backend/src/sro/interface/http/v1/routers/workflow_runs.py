@@ -258,15 +258,18 @@ async def answer_workflow_run(
     A one-time code is the one question a run waits on while keeping its page,
     because the code belongs to that page: the person types it there, then
     answers here with an empty value. A password question is answered the
-    same way, after the password is stored with `PUT /v1/secrets`.
+    same way, after the password is stored with `PUT /v1/secrets`. A question
+    about a write the run sent and could not confirm needs the operator's
+    `verdict`: `done` settles it, `not_done` lets the run try it again.
 
     A run of another tenant is a 404. A run no longer running, an answer to
-    another question than the standing one, or a value for a password
-    question is a 409 `Conflict`. An answer to a question the run already
-    withdrew (the step turned out done) is accepted and changes nothing.
+    another question than the standing one, a value for a password or code
+    question, or a missing verdict on a write in doubt is a 409 `Conflict`.
+    An answer to a question the run already withdrew (the step turned out
+    done) is accepted and changes nothing.
     """
     await container.answer_run().execute(
-        ctx, run_id=run_id, question_id=body.question_id, value=body.value
+        ctx, run_id=run_id, question_id=body.question_id, value=body.value, verdict=body.verdict
     )
 
 

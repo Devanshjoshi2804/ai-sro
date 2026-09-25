@@ -73,6 +73,7 @@ class Lease:
     heartbeat_at: datetime
     expires_at: datetime
     state: LeaseState
+    waits_for: str = ""
 
     def live(self, now: datetime) -> bool:
         return self.state in LIVE and now < self.expires_at

@@ -137,7 +137,7 @@ async def _answered(client: Client, stubs: Stubs, question_id: str) -> None:
         handle = await client.start_workflow(
             RunWorkflow.run, REF, id=f"workflow-run-{uuid.uuid4().hex}", task_queue=queue
         )
-        await handle.signal(RunWorkflow.answer, args=[question_id, "done"])
+        await handle.signal(RunWorkflow.answer, args=[question_id, "done", ""])
         await handle.result()
 
 

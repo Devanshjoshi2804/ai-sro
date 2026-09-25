@@ -678,10 +678,10 @@ async def test_a_reply_on_a_steel_run_s_thread_answers_that_run_and_never_starts
 
     looked = await _look(uow, mailbox, _Reads(_reading(JOB)), durable=durable).execute(CTX)
 
-    assert [(one, question) for one, question, _ in durable.answered] == (
+    assert [(one, question) for one, question, _, _ in durable.answered] == (
         [("run_1", "q-1")] if answered else []
     )
-    assert all("yes, it is there" in value for _, _, value in durable.answered)
+    assert all("yes, it is there" in value for _, _, value, _ in durable.answered)
     assert looked.offered == ()
 
 

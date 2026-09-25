@@ -199,18 +199,29 @@ class RunSteps:
         await self._write(ctx, run, progress)
 
     async def answered(
-        self, ctx: RequestContext, run_id: str, question_id: str, value: str
+        self, ctx: RequestContext, run_id: str, question_id: str, value: str, *, verdict: str = ""
     ) -> None:
-        run = await self._run(ctx, run_id)
+        run, workflow, _ = await self._load(ctx, run_id)
         progress = Progress.of(run.progress)
         asking = progress.asking
         if asking.get("id") != question_id:
             return
-        if asking.get("kind") == "value" and asking.get("name"):
+        kind = asking.get("kind")
+        if kind == "value" and asking.get("name"):
             run.values[asking["name"]] = value
-        if asking.get("kind") == "password" and progress.lease:
-            await self._broker.unpark(ctx, progress.lease)
+        if kind == "password" and progress.lease:
+            await self._broker.unpark(ctx, progress.lease, "password")
         progress.asking = {}
+        if kind == "step" and verdict:
+            ordered = _ordered(workflow)
+            index = progress.step
+            step = ordered[index]
+            if verdict == "done":
+                said = StepResult("done", Lane.UI, "the operator says it was done")
+                await self._advance(ctx, run, progress, step, ordered, index, said, by="operator")
+                return
+            mark = progress.marks.get(step.order, StepMark())
+            progress.settle(step.order, lane=mark.lane, verdict="failed", never_left=True)
         await self._write(ctx, run, progress, save=True)
 
     async def beat(self, ctx: RequestContext, run_id: str) -> None:
@@ -396,7 +407,12 @@ class RunSteps:
         if isinstance(asked, WaitingForAPerson):
             progress.lease, progress.tabs = asked.held.lease.id, {MAIN: asked.held.target_id}
         asking = f"q-{run.id}-{step.order}-{len(run.steps)}"
-        progress.asking = {"id": asking, "kind": asked.kind, "text": asked.question}
+        progress.asking = {
+            "id": asking,
+            "kind": asked.kind,
+            "text": asked.question,
+            "step": str(step.order),
+        }
         by = last.lane.value if last is not None else "none"
         run.steps.append(
             RunStep(

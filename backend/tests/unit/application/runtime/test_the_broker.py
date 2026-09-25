@@ -824,3 +824,18 @@ async def test_a_code_asked_again_after_the_window_restarts_the_latch() -> None:
     await asked.ask(key, at=later)
 
     assert await asked.since(key) == later
+
+
+async def test_a_park_on_a_password_is_never_resumed_as_a_one_time_code() -> None:
+    uow, driver, vault = await _signing_world()
+    broker = _broker(uow, driver, vault)
+    held = await broker.acquire(CTX, LENA, APP, holder="run_1")
+    until = held.lease.expires_at + K_CODE_WAIT
+    await uow.browser_sessions.settle(
+        CTX.tenant_id, held.lease.id, state=LeaseState.WAITING, until=until, waits_for="password"
+    )
+
+    with pytest.raises(PageGone):
+        await broker.resume(CTX, held.lease.id, held.target_id, APP, holder="run_1")
+
+    assert uow.browser_sessions.leases[held.lease.id].state is LeaseState.WAITING

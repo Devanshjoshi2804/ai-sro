@@ -263,6 +263,7 @@ class BrowserSessionRow(Base):
     heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     state: Mapped[str | None] = mapped_column(String(16))
+    waits_for: Mapped[str | None] = mapped_column(String(16))
 
     __table_args__ = (
         Index("ix_browser_sessions_tenant", "tenant_id"),

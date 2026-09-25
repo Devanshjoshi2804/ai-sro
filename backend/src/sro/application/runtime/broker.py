@@ -181,7 +181,7 @@ class SessionBroker:
                     await self._sign_in(ctx, held, start_url, park=park)
                 except NeedsAPerson as asked:
                     if park and asked.kind == "password":
-                        await self._park(ctx, held.lease.id)
+                        await self._park(ctx, held.lease.id, "password")
                     raise
                 await self._save_state(held.lease, held.session)
                 await self._driver.forget_calls(held.session, held.target_id)
@@ -202,8 +202,8 @@ class SessionBroker:
     ) -> Held:
         async with self._uow as uow:
             lease = await uow.browser_sessions.get_lease(ctx.tenant_id, lease_id)
-        if lease is None or lease.state is not LeaseState.WAITING:
-            raise PageGone(f"lease {lease_id} is not waiting for a person")
+        if lease is None or lease.state is not LeaseState.WAITING or lease.waits_for != "code":
+            raise PageGone(f"lease {lease_id} is not waiting for a one-time code")
         async with self._locks.hold(lease.account):
             if not lease.live(self._clock.now()):
                 return await self._ready(ctx, lease.account, start_url, holder=holder, park=True)
@@ -232,7 +232,7 @@ class SessionBroker:
             held, lease=replace(lease, state=LeaseState.READY, holder=holder, expires_at=until)
         )
 
-    async def unpark(self, ctx: RequestContext, lease_id: str) -> None:
+    async def unpark(self, ctx: RequestContext, lease_id: str, waits_for: str) -> None:
         async with self._uow as uow:
             lease = await uow.browser_sessions.get_lease(ctx.tenant_id, lease_id)
         if lease is None or lease.state is not LeaseState.WAITING:
@@ -241,9 +241,18 @@ class SessionBroker:
             now = self._clock.now()
             async with self._uow as uow:
                 lease = await uow.browser_sessions.get_lease(ctx.tenant_id, lease_id)
-                if lease is not None and lease.state is LeaseState.WAITING:
+                if (
+                    lease is not None
+                    and lease.state is LeaseState.WAITING
+                    and lease.waits_for == waits_for
+                ):
                     await uow.browser_sessions.settle(
-                        ctx.tenant_id, lease_id, state=LeaseState.WAITING, until=now, now=now
+                        ctx.tenant_id,
+                        lease_id,
+                        state=LeaseState.WAITING,
+                        until=now,
+                        now=now,
+                        waits_for=waits_for,
                     )
                     await uow.commit()
 
@@ -448,18 +457,18 @@ class SessionBroker:
         )
         if not park:
             raise NeedsAPerson(f"{held.lease.account.origin} asks for a one-time code", kind="code")
-        until = await self._park(ctx, held.lease.id)
-        waiting = replace(held.lease, state=LeaseState.WAITING, expires_at=until)
+        until = await self._park(ctx, held.lease.id, "code")
+        waiting = replace(held.lease, state=LeaseState.WAITING, expires_at=until, waits_for="code")
         raise WaitingForAPerson(
             f"{held.lease.account.origin} asks for a one-time code",
             held=replace(held, lease=waiting),
         )
 
-    async def _park(self, ctx: RequestContext, lease_id: str) -> datetime:
+    async def _park(self, ctx: RequestContext, lease_id: str, waits_for: str) -> datetime:
         until = self._clock.now() + K_CODE_WAIT
         async with self._uow as uow:
             moved = await uow.browser_sessions.settle(
-                ctx.tenant_id, lease_id, state=LeaseState.WAITING, until=until
+                ctx.tenant_id, lease_id, state=LeaseState.WAITING, until=until, waits_for=waits_for
             )
             await uow.commit()
         if not moved:

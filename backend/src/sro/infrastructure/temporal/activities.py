@@ -146,6 +146,7 @@ class RunAnswer:
     run_id: str
     question_id: str
     value: str
+    verdict: str = ""
 
 
 class RunActivities:
@@ -201,7 +202,7 @@ class RunActivities:
     async def answered(self, answer: RunAnswer) -> None:
         ctx = _context(answer.tenant_id, answer.principal_id)
         await self._container.run_steps().answered(
-            ctx, answer.run_id, answer.question_id, answer.value
+            ctx, answer.run_id, answer.question_id, answer.value, verdict=answer.verdict
         )
 
     @activity.defn(name="run.finish")

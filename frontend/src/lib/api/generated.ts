@@ -1958,12 +1958,15 @@ export interface paths {
          *     A one-time code is the one question a run waits on while keeping its page,
          *     because the code belongs to that page: the person types it there, then
          *     answers here with an empty value. A password question is answered the
-         *     same way, after the password is stored with `PUT /v1/secrets`.
+         *     same way, after the password is stored with `PUT /v1/secrets`. A question
+         *     about a write the run sent and could not confirm needs the operator's
+         *     `verdict`: `done` settles it, `not_done` lets the run try it again.
          *
          *     A run of another tenant is a 404. A run no longer running, an answer to
-         *     another question than the standing one, or a value for a password
-         *     question is a 409 `Conflict`. An answer to a question the run already
-         *     withdrew (the step turned out done) is accepted and changes nothing.
+         *     another question than the standing one, a value for a password or code
+         *     question, or a missing verdict on a write in doubt is a 409 `Conflict`.
+         *     An answer to a question the run already withdrew (the step turned out
+         *     done) is accepted and changes nothing.
          */
         post: operations["answer_workflow_run_v1_workflow_runs__run_id__answer_post"];
         delete?: never;
@@ -2056,8 +2059,8 @@ export interface components {
          *     question the run is still asking is a 409. `value` is empty for a question
          *     that only needs the person to have done something -- a one-time code typed
          *     on the page, a password stored with `PUT /v1/secrets`. A password is never
-         *     sent here: this answer travels in the run's durable history, which is not
-         *     a vault, so a non-empty value for a password question is a 409.
+         *     sent here, nor a one-time code: this answer travels in the run's durable
+         *     history, which is not a vault, so a non-empty value for either is a 409.
          */
         AnswerRunRequest: {
             /** Question Id */
@@ -2067,6 +2070,12 @@ export interface components {
              * @default
              */
             value: string;
+            /**
+             * Verdict
+             * @default
+             * @enum {string}
+             */
+            verdict: "" | "done" | "not_done";
         };
         /** AnsweredModel */
         AnsweredModel: {

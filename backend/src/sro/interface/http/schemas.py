@@ -27,7 +27,7 @@ from sro.application.lookup.answer import as_seen
 from sro.application.lookup.plan_lookups import Planned
 from sro.application.lookup.run_lookups import Answers, Looked
 from sro.application.observation.read_shots import PlayableShot
-from sro.application.runtime.answer_run import K_ANSWER
+from sro.application.runtime.answer_run import K_ANSWER, WriteVerdict
 from sro.application.skill.read_workflows import CitedEvidence, KnownWorkflow
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread
@@ -2565,12 +2565,18 @@ class AnswerRunRequest(BaseModel):
     question the run is still asking is a 409. `value` is empty for a question
     that only needs the person to have done something -- a one-time code typed
     on the page, a password stored with `PUT /v1/secrets`. A password is never
-    sent here: this answer travels in the run's durable history, which is not
-    a vault, so a non-empty value for a password question is a 409.
+    sent here, nor a one-time code: this answer travels in the run's durable
+    history, which is not a vault, so a non-empty value for either is a 409.
     """
 
     question_id: str
     value: str = Field(default="", max_length=K_ANSWER)
+    verdict: WriteVerdict = ""
+    """The operator's word on a step the run asked about. `done`: it was done,
+    so the step is settled and never tried again. `not_done`: it was not, so
+    the run tries it again. Required when the step is a write the run sent
+    and nothing confirmed (a 409 without it, and the question stands); never
+    given for any question but a step's."""
 
 
 class StartWorkflowRunRequest(BaseModel):

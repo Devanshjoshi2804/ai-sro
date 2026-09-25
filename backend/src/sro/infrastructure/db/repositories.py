@@ -560,6 +560,7 @@ def _lease_of(row: BrowserSessionRow) -> Lease:
         heartbeat_at=row.heartbeat_at,
         expires_at=row.expires_at,
         state=LeaseState(row.state),
+        waits_for=row.waits_for or "",
     )
 
 
@@ -662,10 +663,11 @@ class SqlBrowserSessionRepository(BrowserSessionRepository):
         state: LeaseState,
         until: datetime | None = None,
         now: datetime | None = None,
+        waits_for: str = "",
     ) -> bool:
         if state is LeaseState.EXPIRED:
             raise ValueError("settle cannot move a lease to expired; use expire")
-        values: dict[str, object] = {"state": state.value}
+        values: dict[str, object] = {"state": state.value, "waits_for": waits_for or None}
         if until is not None:
             values["expires_at"] = until
         conditions = [

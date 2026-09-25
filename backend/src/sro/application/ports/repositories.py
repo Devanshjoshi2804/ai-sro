@@ -206,6 +206,7 @@ class BrowserSessionRepository(Protocol):
         state: LeaseState,
         until: datetime | None = None,
         now: datetime | None = None,
+        waits_for: str = "",
     ) -> bool: ...
 
     async def expire(self, tenant_id: TenantId, lease_id: str, *, now: datetime) -> bool: ...

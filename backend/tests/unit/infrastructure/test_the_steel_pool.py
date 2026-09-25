@@ -12,9 +12,9 @@ class _Client:
         self.name = name
         self.opened = 0
 
-    async def open(self) -> object:
+    async def open_context(self) -> tuple[str, str]:
         self.opened += 1
-        return type("S", (), {"id": f"{self.name}-{self.opened}"})()
+        return f"{self.name}-session", f"{self.name}-{self.opened}"
 
 
 def _pool(
@@ -37,6 +37,7 @@ async def test_a_session_goes_to_the_least_loaded_container_of_its_tenant() -> N
 
     assert await pool.open("greyorange", {"http://steel:3000": 3, "http://steel-2:3000": 1}) == (
         "http://steel-2:3000",
+        "two-session",
         "two-1",
     )
 
@@ -59,8 +60,8 @@ async def test_two_tenants_never_receive_the_same_container() -> None:
         steel_2=_Client("two"),
     )
 
-    acme_url, _ = await pool.open("acme", {})
-    beta_url, _ = await pool.open("beta", {})
+    acme_url, _, _ = await pool.open("acme", {})
+    beta_url, _, _ = await pool.open("beta", {})
 
     assert acme_url == "http://steel:3000"
     assert beta_url == "http://steel-2:3000"
@@ -91,8 +92,8 @@ async def test_a_pinned_account_stays_on_its_container_while_it_is_the_tenants()
     )
     busy = {"http://steel:3000": 3, "http://steel-2:3000": 1}
 
-    pinned, _ = await pool.open("acme", busy, pinned="http://steel:3000")
-    elsewhere, _ = await pool.open("acme", busy, pinned="http://steel-3:3000")
+    pinned, _, _ = await pool.open("acme", busy, pinned="http://steel:3000")
+    elsewhere, _, _ = await pool.open("acme", busy, pinned="http://steel-3:3000")
 
     assert pinned == "http://steel:3000"
     assert elsewhere == "http://steel-2:3000"

@@ -41,7 +41,10 @@ Code: `GRACE = timedelta(minutes=15)`
 
 ## `ReleaseStrayBrowsers._in_use`, [line 57](../../../../../../../backend/src/sro/application/connection/release_strays.py#L57): Docstring
 
-> Sessions something is doing something with: demonstrations, pursuits.
+> Sessions something is doing something with: demonstrations, pursuits,
+> and the Steel session every live lease's context lives in. Without the
+> leases the sweep released the runtime's shared session after its grace,
+> ending every account on the container (S7 round 1, I3).
 
 ## `ReleaseStrayBrowsers.execute`, [line 43](../../../../../../../backend/src/sro/application/connection/release_strays.py#L43): Comment
 

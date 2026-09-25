@@ -4,9 +4,17 @@ import pytest
 
 from sro.application.context import RequestContext
 from sro.application.ports.page import PageGone
+from sro.application.ports.pool import PoolFull
 from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.step import NeedsAPerson
-from sro.domain.execution.account import K_LEASE_TTL, K_VAULT_VALUE_BYTES, Account, LeaseState
+from sro.domain.execution.account import (
+    K_LEASE_TTL,
+    K_VAULT_VALUE_BYTES,
+    Account,
+    Lease,
+    LeaseState,
+)
+from sro.domain.execution.lanes import SeenCall
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.skill.signing_in import PageSignals
 from sro.interface.http.schemas import NewSecretRequest
@@ -22,8 +30,10 @@ from tests.unit.fakes import (
 from tests.unit.runtime_support import IDP, SigningLane, with_a_recorded_sign_in
 
 CTX = RequestContext(TenantId("greyorange"), PrincipalId("op"))
+ACME = RequestContext(TenantId("acme"), PrincipalId("op"))
 APP = "https://wms.example/app"
 LENA = Account.of("greyorange", IDP, "lena")
+OMAR = Account.of("greyorange", IDP, "omar")
 STEEL = "http://steel:3000"
 PASSWORD = "not-a-real-secret"  # noqa: S105 -- a test value, never a credential
 WRONG = "wrong"
@@ -256,3 +266,109 @@ async def test_a_beat_says_whether_the_holder_still_has_the_lease() -> None:
     clock.advance(int(K_LEASE_TTL.total_seconds()) + 1)
     await uow.browser_sessions.expire(CTX.tenant_id, held.lease.id, now=clock.now())
     assert await broker.beat(CTX, held.lease.id, holder="run_1") is False
+
+
+async def test_the_lease_names_the_steel_session_and_the_context_apart() -> None:
+    uow, driver, vault = FakeUnitOfWork(), FakePageDriver(), FakeCredentialVault()
+    pool = FakeBrowserPool({STEEL: 5})
+
+    held = await _broker(uow, driver, vault, pool=pool).acquire(CTX, LENA, APP, holder="run_1")
+
+    assert held.lease.steel_session_id == pool.session_id
+    assert held.lease.context_id == held.session.context_id != pool.session_id
+    assert await uow.browser_sessions.leased_sessions() == frozenset({pool.session_id})
+
+
+async def test_a_crashed_context_is_settled_broken_and_the_account_moves_to_a_fresh_one() -> None:
+    uow, driver, vault = FakeUnitOfWork(), FakePageDriver(), FakeCredentialVault()
+    pool, clock = FakeBrowserPool({STEEL: 5}), FakeClock()
+    broker = _broker(uow, driver, vault, pool=pool, clock=clock)
+    first = await broker.acquire(CTX, LENA, APP, holder="run_1")
+    driver.dead.add(first.session.context_id)
+    pool.dead.add(first.session.context_id)
+    clock.advance(10)
+
+    second = await broker.acquire(CTX, LENA, APP, holder="run_2")
+
+    old = uow.browser_sessions.leases[first.lease.id]
+    assert old.state is LeaseState.BROKEN
+    assert old.expires_at == first.lease.expires_at
+    assert second.lease.state is LeaseState.READY
+    assert second.session.context_id not in {first.session.context_id}
+    assert driver.tabs[second.target_id] == APP
+
+
+async def test_a_signing_in_lease_found_under_the_lock_is_an_orphan_and_is_replaced_now() -> None:
+    uow, driver, vault = FakeUnitOfWork(), FakePageDriver(), FakeCredentialVault()
+    pool, clock = FakeBrowserPool({STEEL: 5}), FakeClock()
+    now = clock.now()
+    orphan = Lease(
+        "lse_orphan", LENA, STEEL, pool.session_id, "ctx_orphan", "run_0",
+        now, now + K_LEASE_TTL, LeaseState.SIGNING_IN,
+    )  # fmt: skip
+    await uow.browser_sessions.lease(CTX.tenant_id, orphan)
+
+    held = await _broker(uow, driver, vault, pool=pool, clock=clock).acquire(
+        CTX, LENA, APP, holder="run_1"
+    )
+
+    assert uow.browser_sessions.leases["lse_orphan"].state is LeaseState.BROKEN
+    assert held.lease.id != "lse_orphan"
+    assert held.lease.state is LeaseState.READY
+    assert (STEEL, "ctx_orphan") in pool.closed
+
+
+async def test_a_context_a_dead_lease_left_behind_is_reclaimed_and_no_other_is() -> None:
+    uow, driver, vault = FakeUnitOfWork(), FakePageDriver(), FakeCredentialVault()
+    pool, clock = FakeBrowserPool({STEEL: 5}), FakeClock()
+    broker = _broker(uow, driver, vault, pool=pool, clock=clock)
+    omar = await broker.acquire(CTX, OMAR, APP, holder="run_1")
+    now = clock.now()
+    left = Lease(
+        "lse_left", LENA, STEEL, pool.session_id, "ctx_left", "run_0",
+        now, now + K_LEASE_TTL, LeaseState.SIGNING_IN,
+    )  # fmt: skip
+    await uow.browser_sessions.lease(CTX.tenant_id, left)
+    await uow.browser_sessions.settle(CTX.tenant_id, "lse_left", state=LeaseState.BROKEN)
+    pool.opened += [(STEEL, "ctx_left"), (STEEL, "ctx_another_process")]
+
+    await broker.acquire(CTX, LENA, APP, holder="run_2")
+
+    assert (STEEL, "ctx_left") in pool.closed
+    assert (STEEL, "ctx_another_process") not in pool.closed
+    assert (STEEL, omar.session.context_id) not in pool.closed
+
+
+async def test_a_container_is_full_by_every_tenants_live_leases() -> None:
+    uow, driver, vault = FakeUnitOfWork(), FakePageDriver(), FakeCredentialVault()
+    broker = _broker(uow, driver, vault, pool=FakeBrowserPool({STEEL: 1}))
+    await broker.acquire(ACME, Account.of("acme", IDP, "ann"), APP, holder="run_1")
+
+    with pytest.raises(PoolFull):
+        await broker.acquire(CTX, LENA, APP, holder="run_2")
+
+
+async def test_the_tab_handed_to_the_first_run_keeps_no_call_from_the_sign_in() -> None:
+    uow, driver, vault = await _signing_world()
+    driver._log = [(0, SeenCall("POST", f"{IDP}/login", 200, request_body="password=x"))]
+
+    held = await _broker(uow, driver, vault).acquire(CTX, LENA, APP, holder="run_1")
+
+    assert await driver.calls_since(held.session, held.target_id, -1) == ()
+
+
+async def test_a_settle_that_fails_still_closes_the_context() -> None:
+    uow, driver, vault = await _signing_world(password=WRONG)
+    driver.refuses = True
+    pool = FakeBrowserPool({STEEL: 1})
+
+    async def down(*_: object, **__: object) -> bool:
+        raise ConnectionError("the database is down")
+
+    uow.browser_sessions.settle = down  # type: ignore[method-assign]
+
+    with pytest.raises(ConnectionError):
+        await _broker(uow, driver, vault, pool=pool).acquire(CTX, LENA, APP, holder="run_1")
+
+    (lease,) = uow.browser_sessions.leases.values()
+    assert pool.closed == [(STEEL, lease.context_id)]

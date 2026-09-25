@@ -67,8 +67,11 @@ class SessionBroker:
     ) -> Held:
         async with self._uow as uow:
             lease = await uow.browser_sessions.current_lease(ctx.tenant_id, account)
-        if lease is not None and await self._attachable(ctx, lease, holder):
-            return await self._tab(lease, start_url)
+        if lease is not None:
+            with contextlib.suppress(PageGone):
+                held = await self._attach(ctx, lease, start_url, holder)
+                if held is not None:
+                    return held
         async with self._locks.hold(account):
             return await self._ready(ctx, account, start_url, holder=holder)
 
@@ -93,36 +96,46 @@ class SessionBroker:
             await uow.commit()
         return kept
 
-    async def _attachable(self, ctx: RequestContext, lease: Lease, holder: str) -> bool:
-        return (
-            lease.state is LeaseState.READY
-            and lease.live(self._clock.now())
-            and await self.beat(ctx, lease.id, holder=holder)
-        )
+    async def _attach(
+        self, ctx: RequestContext, lease: Lease, start_url: str, holder: str
+    ) -> Held | None:
+        if lease.state is not LeaseState.READY or not lease.live(self._clock.now()):
+            return None
+        held = await self._tab(lease, start_url)
+        if await self.beat(ctx, lease.id, holder=holder):
+            return held
+        await self.release(ctx, held)
+        return None
 
     async def _ready(
         self, ctx: RequestContext, account: Account, start_url: str, *, holder: str
     ) -> Held:
         now = self._clock.now()
         async with self._uow as uow:
-            repo = uow.browser_sessions
-            old = await repo.current_lease(ctx.tenant_id, account)
-            taken = old is not None and await repo.expire(ctx.tenant_id, old.id, now=now)
-            busy = Counter(await repo.busy_containers(ctx.tenant_id, now=now))
-            pinned = await repo.pinned_container(ctx.tenant_id, account)
+            old = await uow.browser_sessions.current_lease(ctx.tenant_id, account)
+            taken = old is not None and await uow.browser_sessions.expire(
+                ctx.tenant_id, old.id, now=now
+            )
             await uow.commit()
         if old is not None and not taken:
-            if await self._attachable(ctx, old, holder):
-                return await self._tab(old, start_url)
-            raise AccountBusy(f"{account.key} is held by lease {old.id} until {old.expires_at}")
+            with contextlib.suppress(PageGone):
+                held = await self._attach(ctx, old, start_url, holder)
+                if held is not None:
+                    return held
+            await self._settle(ctx, old, LeaseState.BROKEN)
         if old is not None:
             await self._close(old)
-        container, context_id = await self._pool.open(ctx.tenant_id.value, busy, pinned=pinned)
+        async with self._uow as uow:
+            busy = Counter(await uow.browser_sessions.busy_containers(now=now))
+            pinned = await uow.browser_sessions.pinned_container(ctx.tenant_id, account)
+        container, steel_id, context_id = await self._pool.open(
+            ctx.tenant_id.value, busy, pinned=pinned
+        )
         fresh = Lease(
             new_lease_id(),
             account,
             container,
-            context_id,
+            steel_id,
             context_id,
             holder,
             now,
@@ -135,11 +148,14 @@ class SessionBroker:
         if lease.id != fresh.id:
             await self._close(fresh)
             raise AccountBusy(f"{account.key} was leased as {lease.id} by another holder")
+        await self._reclaim(container)
         try:
             held = await self._signed_in(ctx, lease, start_url)
         except BaseException:
-            await self._settle(ctx, lease, LeaseState.BROKEN)
-            await self._close(lease)
+            try:
+                await self._settle(ctx, lease, LeaseState.BROKEN)
+            finally:
+                await self._close(lease)
             raise
         if not await self._settle(ctx, lease, LeaseState.READY):
             raise PageGone(f"lease {lease.id} was lost while it was signing in")
@@ -155,6 +171,7 @@ class SessionBroker:
             if a_sign_in_page(await self._driver.signals(session, held.target_id)):
                 await self._sign_in(ctx, held, start_url)
             await self._save_state(held)
+            await self._driver.forget_calls(session, held.target_id)
         except BaseException:
             with contextlib.suppress(PageGone):
                 await self._driver.close_tab(session, held.target_id)
@@ -251,6 +268,17 @@ class SessionBroker:
 
     async def _session(self, lease: Lease) -> SessionRef:
         return SessionRef(lease.context_id, await self._pool.cdp_url(lease.container_url))
+
+    async def _reclaim(self, container_url: str) -> None:
+        try:
+            async with asyncio.timeout(self._close_s):
+                listed = await self._pool.contexts(container_url)
+                async with self._uow as uow:
+                    retired = await uow.browser_sessions.retired_contexts(container_url, listed)
+                for context_id in retired:
+                    await self._pool.close(container_url, context_id)
+        except (TimeoutError, BrowserUnavailable) as why:
+            logger.warning("contexts on %s were not reclaimed: %r", container_url, why)
 
     async def _close(self, lease: Lease) -> None:
         try:

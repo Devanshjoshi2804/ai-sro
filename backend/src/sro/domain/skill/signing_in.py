@@ -5,7 +5,7 @@ from dataclasses import dataclass, replace
 from urllib.parse import parse_qs, quote, urlsplit, urlunsplit
 
 from sro.domain.observation.gesture import Gesture, Target, passed_through
-from sro.domain.observation.trim import path_shape
+from sro.domain.observation.trim import is_secret, path_shape
 from sro.domain.shared.hosts import origin_of, page_of
 from sro.domain.skill.checks import signs_in_to
 from sro.domain.skill.workflow import Step, Workflow, ordered_cites
@@ -110,7 +110,7 @@ K_ONE_SUBMIT_S = 0.05
 def sign_in_chain(job: Workflow, by_id: Mapping[str, Gesture]) -> list[Step]:
     steps = sorted(job.steps, key=lambda one: one.order)
     cited = _in_order(job, by_id)
-    typed = [one.at for one in cited if _secret(one)] or [
+    typed = [one.at for one in cited if is_secret(one)] or [
         one.at for one in cited if one.action.kind == "type"
     ]
     landed = [
@@ -222,7 +222,7 @@ def recorded_login(
         for gesture in _in_order(job, by_id)
         if gesture.at <= credential.at
         and gesture.action.kind == "type"
-        and not _secret(gesture)
+        and not is_secret(gesture)
         and gesture.action.value
     ]
     return RecordedLogin(
@@ -231,17 +231,12 @@ def recorded_login(
 
 
 def _credential(job: Workflow, by_id: Mapping[str, Gesture]) -> Gesture | None:
-    return next((gesture for gesture in _in_order(job, by_id) if _secret(gesture)), None)
+    return next((gesture for gesture in _in_order(job, by_id) if is_secret(gesture)), None)
 
 
 def _in_order(job: Workflow, by_id: Mapping[str, Gesture]) -> list[Gesture]:
     cited = [by_id[one] for one in ordered_cites(job) if one in by_id]
     return sorted(cited, key=lambda gesture: gesture.at)
-
-
-def _secret(gesture: Gesture) -> bool:
-    target = gesture.action.target
-    return bool(gesture.action.secret or (target is not None and target.secret))
 
 
 __all__ = [

@@ -19,6 +19,7 @@ from sro.application.connection.release_strays import GRACE, ReleaseStrayBrowser
 from sro.application.connection.watch_browser import WatchBrowsers
 from sro.application.context import RequestContext
 from sro.application.execution.pursuits import Pursuits
+from sro.domain.execution.account import K_LEASE_TTL, Account, Lease, LeaseState
 from tests import factories as f
 from tests.unit.fakes import (
     FakeBrowserProvider,
@@ -101,5 +102,26 @@ async def test_a_demonstration_in_progress_keeps_its_browser() -> None:
 
     clock.advance(int(GRACE.total_seconds()) * 4)
     released = await _reaper(uow, browser, clock, pursuits=Pursuits()).execute()
+
+    assert released == ()
+
+
+async def test_the_steel_session_a_live_lease_runs_in_is_never_litter() -> None:
+    """Every account on the container has its context inside that one
+    session; releasing it would end all of them mid-run."""
+    uow, browser, clock = FakeUnitOfWork(), FakeBrowserProvider(), FakeClock()
+    session = await browser.open()
+    now = clock.now()
+    await uow.browser_sessions.lease(
+        f.TENANT,
+        Lease(
+            "lse_1", Account.of(f.TENANT.value, "https://wms.example", "lena"),
+            "http://steel:3000", str(session.id), "ctx_1", "run_1",
+            now, now + K_LEASE_TTL, LeaseState.READY,
+        ),
+    )  # fmt: skip
+
+    clock.advance(int(GRACE.total_seconds()) + 60)
+    released = await _reaper(uow, browser, clock, Pursuits()).execute()
 
     assert released == ()

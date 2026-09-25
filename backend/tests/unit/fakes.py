@@ -10,7 +10,7 @@ import asyncio
 import re
 import sys
 from collections import Counter
-from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Collection, Mapping, Sequence
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from dataclasses import replace
@@ -1020,13 +1020,22 @@ class FakeBrowserSessionRepository:
             None,
         )
 
-    async def busy_containers(self, tenant_id: TenantId, *, now: datetime) -> tuple[str, ...]:
+    async def busy_containers(self, *, now: datetime) -> tuple[str, ...]:
         return tuple(
             held.container_url
             for held in self.leases.values()
-            if held.account.tenant == str(tenant_id)
-            and held.state in LIVE
-            and held.expires_at > now
+            if held.state in LIVE and held.expires_at > now
+        )
+
+    async def retired_contexts(
+        self, container_url: str, context_ids: Collection[str]
+    ) -> frozenset[str]:
+        return frozenset(
+            held.context_id
+            for held in self.leases.values()
+            if held.container_url == container_url
+            and held.context_id in context_ids
+            and held.state not in LIVE
         )
 
     async def leased_sessions(self) -> frozenset[str]:
@@ -1378,9 +1387,11 @@ class FakeBrowserPool:
     picks the least-loaded container of the given tenant (`by_tenant`, empty
     unless a test needs tenant isolation, falling back to every container)
     that `busy` (supplied by the caller) has not filled, and hands back a
-    fresh `context_id`, on `pinned` alone when it is one of the tenant's;
-    `dead` names context ids a test has killed, so `alive` can answer without
-    a real Steel container behind it, and `closes_hang` makes `close` never
+    fresh `context_id` inside the container's one Steel session
+    (`session_id`), on `pinned` alone when it is one of the tenant's.
+    `contexts` lists what Chrome would: every context opened (or appended to
+    `opened` by a test, as another process would) and not closed, less
+    `dead`, the ones a test has killed; `closes_hang` makes `close` never
     return, the way a sibling's hung page has held a real disposal."""
 
     def __init__(
@@ -1395,11 +1406,12 @@ class FakeBrowserPool:
         self.closed: list[tuple[str, str]] = []
         self.dead: set[str] = set()
         self.closes_hang = False
+        self.session_id = "ses_1"
         self._next = count(1)
 
     async def open(
         self, tenant: str, busy: Mapping[str, int], *, pinned: str | None = None
-    ) -> tuple[str, str]:
+    ) -> tuple[str, str, str]:
         urls = self._by_tenant.get(tenant, tuple(self._containers))
         if pinned is not None and pinned in urls:
             urls = (pinned,)
@@ -1411,15 +1423,21 @@ class FakeBrowserPool:
         _, url = min(candidates, key=lambda pair: pair[0])
         context_id = f"ctx_{next(self._next)}"
         self.opened.append((url, context_id))
-        return url, context_id
+        return url, self.session_id, context_id
 
     async def close(self, container_url: str, context_id: str) -> None:
         if self.closes_hang:
             await asyncio.Event().wait()
         self.closed.append((container_url, context_id))
 
-    async def alive(self, container_url: str, context_id: str) -> bool:
-        return context_id not in self.dead
+    async def contexts(self, container_url: str) -> frozenset[str]:
+        return frozenset(
+            context_id
+            for url, context_id in self.opened
+            if url == container_url
+            and (url, context_id) not in self.closed
+            and context_id not in self.dead
+        )
 
     async def cdp_url(self, container_url: str) -> str:
         return f"ws://{container_url}"
@@ -1445,7 +1463,8 @@ class FakePageDriver:
     log is numbered the way the real one is: `before` holds calls numbered
     ahead of any `mark`, `calls` arrive with the first `act`, and
     `calls_since`/`wait_for_call` see only calls numbered after the mark they
-    are given."""
+    are given. The log is one for every tab, so `forget_calls` empties all
+    of it."""
 
     def __init__(
         self,
@@ -1522,6 +1541,11 @@ class FakePageDriver:
 
     async def forget(self, session: SessionRef) -> None:
         self.calls.append(("forget", session.context_id))
+
+    async def forget_calls(self, session: SessionRef, target_id: str) -> None:
+        self._tab(session, target_id)
+        self._log = []
+        self.calls.append(("forget_calls", session.context_id, target_id))
 
     async def aclose(self) -> None:
         self.closed = True

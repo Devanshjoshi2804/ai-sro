@@ -20,17 +20,21 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > container; every run on that account is a tab in that context (§5.3).
 > `acquire` is the order the spec gives:
 >
-> 1. A READY, unexpired lease is attached with a new tab -- after a
->    `beat`. The beat is the liveness check: it is a compare-and-set on a
->    live state, and whoever takes a lease over expires it first (also a
->    compare-and-set), so a beat that succeeds means nobody has closed the
->    context and a tab is never opened on one whose lease is not live.
+> 1. A READY, unexpired lease is attached: a new tab first, then a
+>    `beat`. Opening the tab is the liveness check Chrome answers; the
+>    database cannot, since a READY row outlives a crashed container. A
+>    dead context raises `PageGone` before any beat, so a lease is never
+>    extended while its session is dead (S7 review, C2). A beat that fails
+>    means the lease was taken; the tab is closed and the lock path runs.
 > 2. Otherwise, under the account lock (S3), where every session change
 >    happens: a lease that meanwhile turned READY is attached; an expired
 >    one is taken over through `expire` then a fresh claim, never `settle`
->    (S2), and its context closed; a lease still SIGNING_IN and unexpired
->    under the lock belongs to a holder that died mid sign-in, and is
->    `AccountBusy` until its TTL runs out (at most `K_LEASE_TTL`).
+>    (S2). A live lease that cannot be attached is settled BROKEN and
+>    replaced at once: a READY one whose tab is `PageGone` sits on a dead
+>    context, and a SIGNING_IN one is orphaned by construction, because
+>    only `_ready` makes SIGNING_IN leases and it resolves each one before
+>    it lets go of the lock (S7 review, I1; no timer, and not `expire`,
+>    whose time guard S2 froze). Either way its context is closed.
 > 3. A fresh context on the account's pinned container (the container of
 >    its latest lease, any state; least-loaded for a new account), a
 >    SIGNING_IN lease, the saved state restored from the vault, the start
@@ -40,18 +44,31 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 >
 > Anything that fails after the claim settles the lease BROKEN and closes
 > its context, so the next run starts clean rather than attaching to a
-> half-signed session.
+> half-signed session. The close runs even when the settle itself fails
+> (the database down), so no context is left behind (M4).
+>
+> Capacity is counted from the live leases of every tenant on each
+> container (`busy_containers`), after the old lease is settled, so a
+> context being replaced does not count against its own replacement.
 >
 > The probe tab is the first run's tab: it is already on the start page
 > and signed in, and closing it only for the run to open the same page
 > again is two more tab operations on a container whose Steel has crashed
-> on early tab closes (S5).
+> on early tab closes (S5). Its call log is forgotten at the handover:
+> the sign-in POST carries the password in its body, and nothing may keep
+> it past the sign-in (S7 review, M2).
 >
-> `Lease.steel_session_id` carries the context id: the pool hands back the
-> id it opens and closes by, and the container's own Steel session is
-> never the broker's to release.
+> A one-time-code prompt still ends in `NeedsAPerson` with the context
+> closed, so the page asking for the code is gone. Keeping it needs a
+> lease state that waits for a person, which I1's orphan rule rules out
+> for SIGNING_IN; that belongs to D9 or S8 (S7 review, M5).
+>
+> `Lease.steel_session_id` is the container's real Steel session, the one
+> the pool opened the context in; the context lives only in `context_id`.
+> The stray sweeper keeps every session a live lease names, and the broker
+> never releases one (S7 review, I3).
 
-## `SessionBroker._recorded`, [line 164](../../../../../../../backend/src/sro/application/runtime/broker.py#L164): Note
+## `SessionBroker._recorded`, [line 181](../../../../../../../backend/src/sro/application/runtime/broker.py#L181): Note
 
 > The account is where the password is typed -- the identity provider's
 > origin that `recorded_login` reads off the credential gesture -- with the
@@ -63,7 +80,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > the given account's is refused for the same reason: the chain types the
 > recorded username.
 
-## `SessionBroker._sign_in`, [line 185](../../../../../../../backend/src/sro/application/runtime/broker.py#L185): Note
+## `SessionBroker._sign_in`, [line 202](../../../../../../../backend/src/sro/application/runtime/broker.py#L202): Note
 
 > The recorded sign-in job's chain (`sign_in_chain`, audit wave 1 Task 10)
 > replayed through the UI lane with the vault password as the step's
@@ -75,7 +92,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > page's structure (S6), never by its text. Each step beats the lease, so a
 > long chain keeps it and a lost lease stops the chain.
 
-## `SessionBroker._save_state`, [line 229](../../../../../../../backend/src/sro/application/runtime/broker.py#L229): Note
+## `SessionBroker._save_state`, [line 246](../../../../../../../backend/src/sro/application/runtime/broker.py#L246): Note
 
 > Cookies and localStorage go to the vault under the account's `state` key,
 > and only if they fit `K_VAULT_VALUE_BYTES`. A state over the limit is not
@@ -83,3 +100,16 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > context is lost (spec §12), which costs a sign-in and never a partial
 > state that restores half a session. The log line names the account and
 > the size, never the state.
+
+## `SessionBroker._reclaim`, [line 272](../../../../../../../backend/src/sro/application/runtime/broker.py#L272): Note
+
+> After every fresh claim, the contexts Chrome still lists on that
+> container whose lease rows have ended are disposed. A close that hit
+> `K_CLOSE_S`, or a process that died between settling and closing, leaves
+> one behind; this is where it goes, at the first claim after a restart and
+> at every one after. A context with no lease row is left alone: it may be
+> another process's, created a moment before its lease commits. Ceiling:
+> such a context from a process that died in that moment stays until the
+> Steel session is released; writing the lease before the context would
+> close it, at the cost of a nullable `context_id`. Failure to reclaim is
+> logged, never the acquire's failure.

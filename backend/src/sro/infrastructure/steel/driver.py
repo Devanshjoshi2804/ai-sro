@@ -609,6 +609,9 @@ class SteelDriver:
             with contextlib.suppress(PlaywrightError):
                 await page.close()
 
+    async def forget_calls(self, session: SessionRef, target_id: str) -> None:
+        self._calls.pop(await self._page(session, target_id), None)
+
     async def forget(self, session: SessionRef) -> None:
         key = (session.cdp_url, session.context_id)
         handlers = self._listeners.pop(key, [])

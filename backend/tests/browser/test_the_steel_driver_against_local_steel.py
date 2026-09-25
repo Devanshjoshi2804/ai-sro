@@ -44,15 +44,14 @@ def steel_rig() -> Iterator[Rig]:
 @pytest.fixture
 async def accounts(client: SteelClient) -> AsyncIterator[Accounts]:  # noqa: F811
     pool = SteelPool({STEEL_URL: client}, per_container=2)
-    url, first = await pool.open("greyorange", {})
-    _, second = await pool.open("greyorange", {STEEL_URL: 1})
+    url, _, first = await pool.open("greyorange", {})
+    _, _, second = await pool.open("greyorange", {STEEL_URL: 1})
     cdp = await pool.cdp_url(url)
     try:
         yield pool, url, SessionRef(first, cdp), SessionRef(second, cdp)
     finally:
         for context_id in (first, second):
-            if await pool.alive(url, context_id):
-                await pool.close(url, context_id)
+            await pool.close(url, context_id)
 
 
 async def test_a_tab_closed_right_after_it_opens_leaves_steel_and_its_neighbour_up(
@@ -68,8 +67,7 @@ async def test_a_tab_closed_right_after_it_opens_leaves_steel_and_its_neighbour_
         await driver.close_tab(a, target)
 
     assert await client.health()
-    assert await pool.alive(url, a.context_id)
-    assert await pool.alive(url, b.context_id), "the container's Chrome went down"
+    assert {a.context_id, b.context_id} <= await pool.contexts(url), "Chrome went down"
     sibling = await driver.open_tab(b, steel_rig.url("/public"))
     assert (await driver.url_of(b, sibling)).endswith("/public")
 
@@ -217,6 +215,24 @@ async def test_one_account_never_sees_the_calls_another_account_makes_in_the_sam
     )
     with pytest.raises(PageGone):
         await driver.calls_since(a, theirs, 0)
+
+
+async def test_a_tab_s_calls_are_forgotten_body_and_all(
+    accounts: Accounts,
+    steel_rig: Rig,
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    _, _, a, _ = accounts
+    tab = await driver.open_tab(a, steel_rig.url("/public"))
+    mark = await driver.mark(a, tab)
+    await driver.evaluate(a, tab, "fetch('/api/ping', {method: 'POST', body: 'password=x'})")
+    assert await driver.wait_for_call(
+        a, tab, method="POST", shape="/api/ping", since=mark, deadline_s=10.0
+    )
+
+    await driver.forget_calls(a, tab)
+
+    assert await driver.calls_since(a, tab, 0) == ()
 
 
 async def test_act_through_the_recorded_iframe_is_confirmed_on_steel(

@@ -392,14 +392,14 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > review M5). This is how Playwright restores storage state into a context
 > it made; here the context is Steel's, so it is done by hand.
 
-## `SteelDriver.forget`, [line 612](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L612): Docstring
+## `SteelDriver.forget`, [line 615](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L615): Docstring
 
 > Drops this account's listeners from `SteelDriver._listeners` and from
 > every tab of theirs the driver currently knows about. It closes nothing:
 > the connection is shared by every account on the container, and the
 > context belongs to the pool (S4, S7's lease), which closes it.
 
-## `SteelDriver.aclose`, [line 623](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L623): Docstring
+## `SteelDriver.aclose`, [line 626](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L626): Docstring
 
 > Closes every connection and stops Playwright; the API lifespan and the
 > worker call it on the way down (S5 review I6). Closing a
@@ -436,7 +436,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/driv
 > reaches `UiLane` as `PageUnsettled` through `_call`, never as a raw
 > `TimeoutError`.
 
-## `best_frame`, [line 633](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L633): Docstring
+## `best_frame`, [line 636](../../../../../../../backend/src/sro/infrastructure/steel/driver.py#L636): Docstring
 
 > Which frame the probe acts in, from `(frame, strategy)` for every frame
 > whose `resolve` found the control. A strict strategy outranks `repair`

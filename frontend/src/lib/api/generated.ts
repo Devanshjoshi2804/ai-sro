@@ -3912,7 +3912,7 @@ export interface components {
             /** Workflow Id */
             workflow_id: string;
             /** Device Id */
-            device_id: string;
+            device_id?: string | null;
             /** Values */
             values?: {
                 [key: string]: string;

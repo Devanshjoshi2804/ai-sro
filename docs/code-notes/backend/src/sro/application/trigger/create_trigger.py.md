@@ -80,9 +80,12 @@ Code: `asks: bool = False`
 >
 > The checks are the ones this moment knows and a later one cannot. The
 > job exists -- a schedule for one this tenant does not have is refused
-> here rather than at 3am. It runs in a browser,
-> because a workflow is a recording of somebody's own window and there is
-> no headless path for one. And every parameter it declares has a value,
+> here rather than at 3am. A browser is not required to RUN it: a Steel
+> tenant's run drives none, and an extension tenant's trigger with no
+> browser is refused as not connected when it fires, by
+> `StartWorkflowRun.execute`, the one place that rule lives. A browser is
+> required to SEE an arrival or a watch -- the browser is what fires those
+> -- so those two kinds are still refused without one, here, as a 409. And every parameter it declares has a value,
 > from the trigger or from whatever fires it: `StartWorkflowRun` refuses
 > a job with one left blank, which for a schedule means failing at 3am
 > every night instead of being refused once, now, in front of a person.
@@ -178,7 +181,7 @@ Code: `raise TriggerRefused("an arrival trigger needs the page it fires on")`
 > and no page would be refused by `Trigger` as a 500 out of a
 > route; here it is a sentence the caller can act on.
 
-## `CreateTrigger._for_a_job`, [line 185](../../../../../../../backend/src/sro/application/trigger/create_trigger.py#L185): Comment
+## `CreateTrigger._for_a_job`, [line 188](../../../../../../../backend/src/sro/application/trigger/create_trigger.py#L188): Comment
 
 Code: `raise TriggerRefused(`
 
@@ -195,7 +198,7 @@ Code: `raise TriggerRefused(`
 > onto a line of the mail by hand. What it cannot find, it
 > refuses at the step, with the names on the card.
 
-## `CreateTrigger._for_a_job`, [line 218](../../../../../../../backend/src/sro/application/trigger/create_trigger.py#L218): Comment
+## `CreateTrigger._for_a_job`, [line 221](../../../../../../../backend/src/sro/application/trigger/create_trigger.py#L221): Comment
 
 Code: `watch=request.watch,`
 
@@ -203,7 +206,7 @@ Code: `watch=request.watch,`
 > may name a job: without it the row would be a watch that
 > matches nothing, which is a trigger that silently never fires.
 
-## `CreateTrigger._for_a_job`, [line 232](../../../../../../../backend/src/sro/application/trigger/create_trigger.py#L232): Comment
+## `CreateTrigger._for_a_job`, [line 235](../../../../../../../backend/src/sro/application/trigger/create_trigger.py#L235): Comment
 
 Code: `await self._scheduler.schedule(trigger)`
 

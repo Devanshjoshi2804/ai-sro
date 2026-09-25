@@ -2601,7 +2601,11 @@ class StartWorkflowRunRequest(BaseModel):
     """
 
     workflow_id: str
-    device_id: str
+    device_id: str | None = None
+    """The browser to drive. Absent for a tenant whose runs start on Steel,
+    where no browser of anybody's is driven; for every other tenant a press
+    without one is refused as not connected, by the same check that refuses
+    a browser that went away."""
     values: dict[str, str] = Field(default_factory=dict)
     items: list[dict[str, str]] = Field(default_factory=list)
     """The things this job is to be done for, where the operator named several

@@ -179,8 +179,11 @@ class CreateTrigger:
             workflow = await uow.workflows.get(ctx.tenant_id, str(request.workflow_id))
             if request.kind is TriggerKind.ARRIVAL and request.arrival is None:
                 raise TriggerRefused("an arrival trigger needs the page it fires on")
-            if request.device_id is None:
-                raise TriggerRefused("a job runs in a browser: name a device")
+            if request.device_id is None and request.kind in (
+                TriggerKind.ARRIVAL,
+                TriggerKind.WATCH,
+            ):
+                raise TriggerRefused(f"a {request.kind.value} is seen in a browser: name a device")
             if not request.authorized_by:
                 raise TriggerRefused(
                     "a job drives a real browser through real work, so a trigger for one "

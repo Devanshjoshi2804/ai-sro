@@ -1796,7 +1796,7 @@ class FakeRunDispatcher:
 
     def __init__(self, *, reachable: bool = True) -> None:
         self.reachable = reachable
-        self.asked: list[tuple[str, str]] = []
+        self.asked: list[tuple[str, str | None]] = []
         self.with_values: list[dict[str, str]] = []
         self.may_take_focus = False
 
@@ -1824,7 +1824,7 @@ class FakeRunDispatcher:
         ctx: RequestContext,
         *,
         workflow_id: str,
-        device_id: DeviceId,
+        device_id: DeviceId | None,
         values: Mapping[str, str],
         allow_focus: bool = False,
     ) -> RunId:
@@ -1832,7 +1832,7 @@ class FakeRunDispatcher:
         the same thing: which browser, and with what."""
         if not self.reachable:
             raise DispatchFailed(f"{device_id} has no channel open anywhere")
-        self.asked.append((workflow_id, device_id.value))
+        self.asked.append((workflow_id, device_id.value if device_id is not None else None))
         self.with_values.append(dict(values))
         self.may_take_focus = allow_focus
         return RunId(f"run-dispatched-{len(self.asked)}")

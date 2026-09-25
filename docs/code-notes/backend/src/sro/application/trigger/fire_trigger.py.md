@@ -45,7 +45,7 @@ Code: `skipped: str | None = None`
 > and the principal come off the trigger, which is why the repository's
 > ``find`` is the one tenant-blind read in the system.
 
-## `start_for`, [line 216](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L216): Docstring
+## `start_for`, [line 211](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L211): Docstring
 
 > Start the run a trigger asks for, at the rung it asks for.
 >
@@ -60,7 +60,7 @@ Code: `skipped: str | None = None`
 > under the name of whoever pressed the button rather than whoever made the
 > trigger.
 
-## `start_job_for`, [line 259](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L259): Docstring
+## `start_job_for`, [line 254](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L254): Docstring
 
 > Start the mined job a trigger asks for, in the browser it names.
 >
@@ -91,7 +91,7 @@ Code: `skipped: str | None = None`
 > "not connected". `start_run` remains the path for a deployment with no
 > dispatcher at all.
 
-## `blank_inputs`, [line 302](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L302): Docstring
+## `blank_inputs`, [line 295](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L295): Docstring
 
 > The values this skill needs that nothing supplied.
 >
@@ -109,7 +109,7 @@ Code: `skipped: str | None = None`
 > a mail that named no Delta Priority is not a mail that named nothing --
 > it is one doing what the operator who skipped that box did.
 
-## `_because`, [line 306](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L306): Docstring
+## `_because`, [line 299](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L299): Docstring
 
 > The one sentence somebody reads before deciding.
 >
@@ -169,11 +169,13 @@ Code: `skipped: str | None = None`
 > would be a second ladder that can disagree with the first.
 >
 > What IS checked here is what only this call site knows: that the job
-> still exists, and that it is one a browser may be offered at all.
+> still exists.
 >
-> A job runs in a browser or nowhere. There is no headless path for one:
-> a workflow is a recording of somebody's own window, and `device_id` is
-> how the run reaches it.
+> Whether the run needs a browser is not checked here either. A Steel
+> tenant's run drives none, and an extension tenant's run with no
+> `device_id` is refused as not connected by `StartWorkflowRun.execute` --
+> in process, or behind the dispatcher's POST to the press -- which the
+> fire reports as a skip.
 
 ## `FireTrigger.__init__`, [line 55](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L55): Comment
 
@@ -231,13 +233,6 @@ Code: `logger.info(`
 
 ## `FireTrigger._fire_a_job`, [line 168](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L168): Comment
 
-Code: `trigger.disable("a job runs in a browser: name a device")`
-
-> Refused at creation too. Belt and braces, because a row written
-> before that check existed is still a row.
-
-## `FireTrigger._fire_a_job`, [line 173](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L173): Comment
-
 Code: `await uow.workflows.get(ctx.tenant_id, str(trigger.workflow_id))`
 
 > Read for its existence and nothing else: a trigger whose job has
@@ -245,7 +240,7 @@ Code: `await uow.workflows.get(ctx.tenant_id, str(trigger.workflow_id))`
 > a run of it, and the confirmation path returns before anything else
 > would look. `start_job_for` reads it again for what it contains.
 
-## `FireTrigger._fire_a_job`, [line 189](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L189): Comment
+## `FireTrigger._fire_a_job`, [line 184](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L184): Comment
 
 Code: `logger.info("trigger %s did not start its job: %s", trigger.id, refused)`
 
@@ -260,7 +255,7 @@ Code: `logger.info("trigger %s did not start its job: %s", trigger.id, refused)`
 > cited evidence has aged out is refused today and proven again by
 > the next pass that reads those gestures back.
 
-## `FireTrigger._fire_a_job`, [line 191](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L191): Comment
+## `FireTrigger._fire_a_job`, [line 186](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L186): Comment
 
 Code: `trigger.fired(now, run_id)`
 
@@ -279,7 +274,7 @@ Code: `trigger.fired(now, run_id)`
 > one of them is an arrival trigger that silently drops the mail it
 > was fired for.
 
-## `start_for`, [line 229](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L229): Comment
+## `start_for`, [line 224](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L224): Comment
 
 Code: `raise DispatchFailed("this trigger runs a job, not a skill")`
 
@@ -287,7 +282,7 @@ Code: `raise DispatchFailed("this trigger runs a job, not a skill")`
 > goes to `start_job_for` above, which is not this function's business
 > to reach into -- `FireTrigger` routes on the same field.
 
-## `start_for`, [line 232](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L232): Comment
+## `start_for`, [line 227](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L227): Comment
 
 Code: `run_id = ids.new_run_id()`
 
@@ -297,14 +292,14 @@ Code: `run_id = ids.new_run_id()`
 > return, and without one every fire blocked a worker activity
 > slot for the run's full duration regardless of the flag.
 
-## `start_for`, [line 245](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L245): Comment
+## `start_for`, [line 240](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L240): Comment
 
 Code: `if dispatcher is None:`
 
 > The channel to that browser is held by whichever process the extension
 > connected to, and this is not that process.
 
-## `start_for`, [line 255](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L255): Comment
+## `start_for`, [line 250](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L250): Comment
 
 Code: `may_take_focus=trigger.may_take_focus,`
 
@@ -312,7 +307,7 @@ Code: `may_take_focus=trigger.may_take_focus,`
 > at 3am has no business taking a screen, and a trigger the operator
 > set up to watch may.
 
-## `start_job_for`, [line 269](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L269): Comment
+## `start_job_for`, [line 264](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L264): Comment
 
 Code: `named = authorized_by or (trigger.authorized_by.value if trigger.authorized_by else None)`
 
@@ -320,14 +315,14 @@ Code: `named = authorized_by or (trigger.authorized_by.value if trigger.authoriz
 > context's principal, which for a fire is the trigger's author and for an
 > approved card is whoever pressed it.
 
-## `start_job_for`, [line 271](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L271): Comment
+## `start_job_for`, [line 266](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L266): Comment
 
 Code: `raise DispatchFailed("this trigger writes and names nobody who authorised it")`
 
 > `Trigger` refuses this at creation. A row written before that check
 > existed is still a row, and this is the last place to notice.
 
-## `start_job_for`, [line 296](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L296): Comment
+## `start_job_for`, [line 289](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L289): Comment
 
 Code: `await performing`
 
@@ -335,7 +330,7 @@ Code: `await performing`
 > coroutine created and discarded is a run that never happens, and
 > "the trigger fired" would be a lie told with a run id.
 
-## `_because`, [line 311](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L311): Comment
+## `_because`, [line 304](../../../../../../../backend/src/sro/application/trigger/fire_trigger.py#L304): Comment
 
 Code: `article = "an" if trigger.kind.value[0] in "aeiou" else "a"`
 

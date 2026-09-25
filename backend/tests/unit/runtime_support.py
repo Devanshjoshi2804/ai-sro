@@ -4,7 +4,10 @@
 `type_step`, `type_then_save_step`, `read_step`, `mail_send_step` and
 `lane_context` build a `Step`, its cited
 `Gesture`s and a `LaneContext` without every lane test re-typing the same
-evidence by hand.
+evidence by hand. `proven_write_step` is a save the ledger has watched
+succeed, demonstrated twice so its body has a slot for the run's value, and
+`headers_broker` is a real `SessionBroker` whose page answers the given
+session headers.
 
 `with_a_recorded_sign_in` stores a tagged sign-in job typed on an identity
 provider (`IDP` unless told otherwise) that lands on a system, and
@@ -22,10 +25,12 @@ from types import MappingProxyType
 from sro.application.execution.mail_job import Written
 from sro.application.ports.page import PageAnswer, SessionRef
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.step import Held, LaneContext
 from sro.domain.execution.account import Account, Lease, LeaseState
 from sro.domain.execution.lanes import Lane, SeenCall, StepResult
 from sro.domain.execution.learned_step import LearnedStep
+from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.observation.gesture import (
     Action,
     AfterState,
@@ -40,7 +45,14 @@ from sro.domain.shared.hosts import origin_of
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.skill.signing_in import sign_in_chain
 from sro.domain.skill.workflow import Step, Workflow
-from tests.unit.fakes import FakePageDriver
+from tests.unit.fakes import (
+    FakeAccountLocks,
+    FakeBrowserPool,
+    FakeClock,
+    FakeCredentialVault,
+    FakePageDriver,
+    FakeUnitOfWork,
+)
 
 _TENANT = "acme"
 _SYSTEM = "https://wms.example"
@@ -59,7 +71,13 @@ _LEASE = Lease(
     state=LeaseState.READY,
 )
 
-_WORKFLOW = Workflow(id="wfl_test", tenant=_TENANT, title="Save the customer type", narrative="")
+_WORKFLOW = Workflow(
+    id="wfl_test",
+    tenant=_TENANT,
+    title="Save the customer type",
+    narrative="",
+    parameters=[{"name": "Customer Type", "seen_values": ["GT0", "GT1"]}],
+)
 
 GMAIL = "https://mail.google.com/mail/u/0/#inbox"
 
@@ -106,6 +124,7 @@ def lane_context(
     *,
     held: Held | None = _DEFAULT_HELD,
     learned: Mapping[int, LearnedStep] = MappingProxyType({}),
+    ledger: tuple[VerifiedWrite, ...] = (),
     secret: str | None = None,
     about_to_write: Callable[[], Awaitable[None]] | None = None,
     thread: str = "",
@@ -116,7 +135,7 @@ def lane_context(
         workflow=_WORKFLOW,
         by_id=by_id,
         learned=learned,
-        ledger=(),
+        ledger=ledger,
         held=held,
         stop=asyncio.Event(),
         secret=secret,
@@ -166,6 +185,67 @@ def type_then_save_step() -> tuple[Step, dict[str, Gesture]]:
         parameters=["Customer Type"],
     )
     return step, by_id
+
+
+def proven_write_step(
+    *, read_back: str | None
+) -> tuple[Step, dict[str, Gesture], tuple[VerifiedWrite, ...]]:
+    by_id: dict[str, Gesture] = {}
+    for nth, name in enumerate(("GT0", "GT1")):
+        at = float(nth + 1)
+        requests = [
+            Call(
+                method="POST",
+                url=f"{_SYSTEM}/api/customer-types",
+                status=201,
+                started_at=at,
+                request_body=Body(text=f'{{"name": "{name}"}}', mime_type="application/json"),
+                request_headers={"Content-Type": "application/json"},
+            )
+        ]
+        if read_back is not None:
+            requests.append(
+                Call(method="GET", url=f"{_SYSTEM}{read_back}", status=200, started_at=at + 0.5)
+            )
+        gesture = Gesture(
+            id=f"ges_save_{nth}",
+            tenant=_TENANT,
+            stream_id="stream-1",
+            batch_id="batch-1",
+            at=at,
+            url=f"{_SYSTEM}/app",
+            system=_SYSTEM,
+            tab_id=1,
+            frame_url=None,
+            action=Action(kind="click", at=at, target=Target(role="button", name="Save")),
+            requests=requests,
+        )
+        by_id[gesture.id] = gesture
+    step = Step(
+        order=1,
+        says="Save the customer type",
+        system=_SYSTEM,
+        cites=list(by_id),
+        parameters=["Customer Type"],
+    )
+    return step, by_id, (VerifiedWrite("POST", "/api/customer-types"),)
+
+
+def headers_broker(
+    headers: Mapping[str, str], *, driver: FakePageDriver | None = None
+) -> SessionBroker:
+    page = driver or FakePageDriver()
+    page.cookie = headers.get("cookie", "")
+    page.headers = {name: value for name, value in headers.items() if name != "cookie"}
+    return SessionBroker(
+        FakeUnitOfWork(),
+        FakeBrowserPool({}),
+        page,
+        FakeAccountLocks(),
+        FakeCredentialVault(),
+        FakeClock(),
+        ui=SigningLane(page),
+    )
 
 
 def read_step(

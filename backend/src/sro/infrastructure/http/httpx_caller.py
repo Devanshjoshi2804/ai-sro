@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from http.cookiejar import DefaultCookiePolicy
 
 import httpx
 
@@ -9,7 +10,8 @@ from sro.application.ports.http import HttpResponse, MalformedRequest, TargetUnr
 
 class HttpxCaller:
     def __init__(self, client: httpx.AsyncClient | None = None) -> None:
-        self._client = client or httpx.AsyncClient(follow_redirects=False, cookies=None)
+        self._client = client or httpx.AsyncClient(follow_redirects=False)
+        self._client.cookies.jar.set_policy(DefaultCookiePolicy(allowed_domains=[]))
 
     async def send(
         self,

@@ -61,7 +61,8 @@ def _replay_of(
     aimed = write_plan_for(step, by_id, values, verified_writes, seen, keys)
     if aimed is None and values and verified:
         return None
-    if verified and any(not values.get(name, "").strip() for name in wanted_by(step, by_id, seen)):
+    wanted = wanted_by(step, by_id, seen)
+    if verified and wanted and not any(values.get(name, "").strip() for name in wanted):
         return None
     recorded = call.request_body.text if call.request_body else None
     payload: dict[str, object] = {

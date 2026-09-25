@@ -12,14 +12,14 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > replaces: every wait here is `wait_for_call` or `wait_for`, both bounded by
 > `K_UI_WAIT_S` and both polling a real condition.
 
-## `K_UI_WAIT_S`, [line 31](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L31): Comment
+## `K_UI_WAIT_S`, [line 37](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L37): Comment
 
 > How long a step waits for its recorded call to show up, or for the control
 > to settle into the state it left when recorded (§6.1, §6.2). Not in the
 > plan's own named-constants list (Global Constraints #14); the task brief
 > names it directly and it binds nothing outside this lane.
 
-## `ui_payload`, [line 35](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L35): Docstring
+## `ui_payload`, [line 41](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L41): Docstring
 
 > What `sroPage.act` is given: the recorded action, the value this run
 > supplies, the target evidence, a verified-run locator if one has been
@@ -28,7 +28,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > that, since a step's own evidence lives in the run's gesture map, not on
 > the step.
 
-## `ui_payload`, [line 35](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L35): Comment
+## `ui_payload`, [line 41](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L41): Comment
 
 > X2's binding rule: `write` is set to `False` only on a step that is not a
 > write; a write step omits the key entirely. The page code treats a missing
@@ -39,7 +39,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > page code's own default branch assumes -- so a caller who forgets the flag
 > fails safe into "never repaired" rather than "always repaired".
 
-## `_NOTHING_SENT`, [line 32](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L32): Comment
+## `_NOTHING_SENT`, [line 38](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L38): Comment
 
 > The `act` failures that dispatched nothing: no control was found, the
 > recorded frame is gone, or -- on evidence with no `frame_path` -- the probe
@@ -49,7 +49,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > `not_actionable` is not here: the control was found and acting on it threw
 > part way, so something may have happened.
 
-## `UiLane.execute`, [line 79](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L79): Docstring
+## `UiLane.execute`, [line 85](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L85): Docstring
 
 > One step, one act, one confirmation. `primary_gesture` and `value_for` are
 > the same evidence-reading rules every lane uses. A write announces itself
@@ -59,7 +59,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > (X4 review I5). `Stopped` and `CancelledError` still propagate: they are
 > the run being stopped, not an outcome of the write.
 
-## `UiLane._perform`, [line 103](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L103): Docstring
+## `UiLane._perform`, [line 118](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L118): Docstring
 
 > The mark is taken before the act, and only calls sent after it count. Of
 > those, only the ones matching the recorded call's method and path shape
@@ -81,7 +81,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > threshold, not necessarily the recorded one, so with its state holding or
 > no state recorded at all it is `unknown` (X2's binding rule; X4 review I1).
 
-## `same_call`, [line 231](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L231): Docstring
+## `same_call`, [line 246](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L246): Docstring
 
 > Whether a seen call is the recorded one: same method, same path shape, same
 > host, sent from the frame this step acted in (`SeenCall.own_frame`, set by
@@ -93,7 +93,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > R1). Values are never compared, only keys: a legitimate retry that resends
 > the same fields with a different value is still this step's call.
 
-## `UiLane._perform`, [line 103](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L103): Comment
+## `UiLane._perform`, [line 118](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L118): Comment
 
 > S6 re-review round 2 (N1): a failed act's own `signals` read can itself
 > raise `PageUnsettled` -- the navigation it landed on never settled within
@@ -103,7 +103,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > `about_to_write` has run the step may already have taken effect, so it
 > is `unknown`, the same verdict every other unconfirmed write gets.
 
-## `UiLane._holds`, [line 210](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L210): Docstring
+## `UiLane._holds`, [line 225](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L225): Docstring
 
 > Whether the element `act` touched -- not a fresh resolve -- now shows what
 > the recording says it should. `value` wins over `after.value` when set: the
@@ -116,14 +116,14 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > re-resolving is exactly what let a wrong repair verify itself as `done`
 > before that fix.
 
-## `confirming`, [line 257](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L257): Docstring
+## `confirming`, [line 272](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L272): Docstring
 
 > The keys come from the call that confirmed the write -- the own call whose
 > status `write_confirmed` accepts (`accepts`) -- never simply the first own call:
 > a refused attempt carrying the field, followed by an accepted retry without it,
 > confirms nothing about the field.
 
-## `learned_payload`, [line 59](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L59): Function
+## `learned_payload`, [line 65](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L65): Function
 
 > A locator the sight lane learned is looked for in the frame its hit test
 > answered, and alone there (`target: {}`, so no recorded resolver and no
@@ -132,7 +132,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > `frame_path` (learned from evidence or a typed limit) stays in
 > `ui_payload`, in the recorded frame, as before.
 
-## `UiLane._perform`, [line 114](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L114): Note
+## `UiLane._perform`, [line 129](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L129): Note
 
 Code: `first = learned_payload(payload, ctx.learned.get(step.order))`
 
@@ -140,3 +140,12 @@ Code: `first = learned_payload(payload, ctx.learned.get(step.order))`
 > (`_NOTHING_SENT`: the control or the frame is not there) is the recorded
 > payload acted on; any other answer is the step's answer, settled against
 > the payload that produced it.
+
+## `UiLane.execute`, [line 98](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L98): Note
+
+Code: `value is None`
+
+> A control that puts a value, on a step that carries parameters, with no
+> value bound to it: nothing is typed. Typing `None` would clear the field,
+> and the recording's value is never a substitute. Failed, never having
+> left, so the step goes to a person rather than into somebody's form.

@@ -90,6 +90,13 @@ def test_a_parameter_nobody_gave_is_never_typed_from_the_recording() -> None:
     assert value_for(step, gesture, {}, "SAID") == "SAID"
 
 
+def test_a_control_whose_own_parameter_is_absent_takes_no_other_parameter() -> None:
+    gesture = _typed()
+    step = replace(_step(gesture), parameters=["clientCode", "clientName"])
+
+    assert value_for(step, gesture, {"clientName": "ACME"}, None) is None
+
+
 def test_a_secret_gesture_carries_no_value_from_anywhere() -> None:
     """The second belt `trim.is_secret` wears, and for the same reason: the
     wire validator that nulled the value does not re-run when a nested Target

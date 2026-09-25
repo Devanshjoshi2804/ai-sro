@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 
+from sro.domain.execution.evidence import control_names
 from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.observation.trim import is_secret
 from sro.domain.shared.hosts import REDACTED
@@ -91,6 +92,13 @@ class Planned:
     by: str = ""
 
 
+def own_parameter(step: Step, gesture: Gesture) -> str | None:
+    named = [name for name in step.parameters if name in control_names(gesture)]
+    if named:
+        return named[0]
+    return step.parameters[0] if len(step.parameters) == 1 else None
+
+
 def value_for(
     step: Step, gesture: Gesture, values: Mapping[str, str], said: str | None
 ) -> str | None:
@@ -98,17 +106,25 @@ def value_for(
         return None
     target = gesture.action.target
     component = target.component if target else None
+    own = own_parameter(step, gesture)
     for name in (
         component.item_id if component else None,
         component.field_label if component else None,
         target.name if target else None,
-        *step.parameters,
+        own,
     ):
         if name and name in values:
             return values[name]
     if said:
         return said
     return None if step.parameters else gesture.action.value
+
+
+def shown_after(step: Step, gesture: Gesture, value: str | None) -> str | None:
+    after = gesture.action.after
+    if value is not None or after is None or step.parameters:
+        return value
+    return after.value
 
 
 def unreplayable(call: Call) -> bool:

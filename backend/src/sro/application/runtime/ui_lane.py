@@ -10,7 +10,13 @@ from sro.application.ports.page import PageAnswer, PageDriver, PageUnsettled
 from sro.application.runtime.step import Held, LaneContext, Stopped
 from sro.domain.execution.belts import expected_statuses
 from sro.domain.execution.compose import Adding, keyed
-from sro.domain.execution.evidence import READ_METHODS, primary_gesture, recorded_call, writes
+from sro.domain.execution.evidence import (
+    PUTS_A_VALUE,
+    READ_METHODS,
+    primary_gesture,
+    recorded_call,
+    writes,
+)
 from sro.domain.execution.lanes import (
     Lane,
     SeenCall,
@@ -88,6 +94,15 @@ class UiLane:
                 fingerprint=fingerprint_of(Lane.UI, "no_evidence"),
             )
         value = ctx.secret if needs_a_secret(primary) else value_for(step, primary, values, None)
+        if (
+            value is None
+            and step.parameters
+            and primary.action.kind in PUTS_A_VALUE
+            and not needs_a_secret(primary)
+        ):
+            return StepResult(
+                "failed", Lane.UI, "no value was given for this control", never_left=True
+            )
         payload = ui_payload(step, primary, value, ctx.learned.get(step.order), ctx.by_id)
         ctx.check_stop()
         if not writes(step, ctx.by_id):

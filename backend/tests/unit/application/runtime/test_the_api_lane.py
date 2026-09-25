@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 
 import httpx
 import pytest
@@ -9,6 +10,7 @@ from sro.domain.shared.hosts import REDACTED
 from sro.infrastructure.http.httpx_caller import HttpxCaller
 from tests.unit.fakes import FakeHttpCaller, FakePageDriver
 from tests.unit.runtime_support import (
+    WORKFLOW,
     headers_broker,
     lane_context,
     proven_write_step,
@@ -434,3 +436,24 @@ async def test_a_redirect_on_the_same_host_is_in_doubt_but_the_session_stands() 
     )
 
     assert result.verdict == "unknown" and not result.expired
+
+
+async def test_a_replay_with_an_absent_optional_value_sends_no_key_for_it() -> None:
+    http = FakeHttpCaller()
+    http.answer(201, '{"id": "ct-9"}')
+    step, by_id, ledger = proven_write_step(read_back=None, described=("north", "south"))
+    job = replace(
+        WORKFLOW,
+        parameters=[
+            {"name": "Customer Type", "seen_values": ["GT0", "GT1"]},
+            {"name": "Description", "seen_values": ["north", "south"], "required": False},
+        ],
+    )
+
+    await ApiLane(http, headers_broker({})).execute(
+        step, RUN, lane_context(by_id, ledger=ledger, workflow=job)
+    )
+
+    (sent,) = http.sent
+    assert json.loads(str(sent["body"])) == {"name": "GT2"}
+    assert "north" not in str(sent) and "south" not in str(sent)

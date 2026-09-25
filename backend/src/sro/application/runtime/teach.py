@@ -72,11 +72,12 @@ class Teach:
                     ),
                     None,
                 )
-                if own is not None:
+                pattern = None if own is None else learned_pattern(own.url, values, recorded.url)
+                if own is not None and pattern is not None:
                     await uow.workflows.remember_write(
                         ctx.tenant_id,
                         method=own.method.upper(),
-                        path_pattern=learned_pattern(own.url, values, recorded.url),
+                        path_pattern=pattern,
                         origin=origin_of(own.url),
                         run_id=run_id,
                         workflow_id=workflow.id,

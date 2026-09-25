@@ -49,7 +49,7 @@ Code: `own = next(`
 > recorded URL (`learned_pattern`), so a path that names the record becomes
 > `{id}` and a segment the recording holds fixed stays fixed.
 
-## `_sighted`, [line 93](../../../../../../../backend/src/sro/application/runtime/teach.py#L93): Function
+## `_sighted`, [line 94](../../../../../../../backend/src/sro/application/runtime/teach.py#L94): Function
 
 > The locator the sight lane learned from the element that satisfied the
 > check (X7 ruling), or nothing: a learned map without a `frame_path` is
@@ -59,7 +59,7 @@ Code: `own = next(`
 > `K_NAME`, the cap `learned_from` keeps (refused, not cut: a cut locator
 > matches nothing, or something else).
 
-## `Teach.learn`, [line 86](../../../../../../../backend/src/sro/application/runtime/teach.py#L86): Note
+## `Teach.learn`, [line 87](../../../../../../../backend/src/sro/application/runtime/teach.py#L87): Note
 
 Code: `if not any(one.lane is Lane.API and one.verdict == "failed" for one in tried):`
 

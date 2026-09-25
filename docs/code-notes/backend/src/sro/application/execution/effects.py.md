@@ -80,7 +80,7 @@ Code: `K_UNEARNING = ("failed", "unclear")`
 > -- and the bar is the one the file itself claims: somebody watched this
 > endpoint succeed and confirmed it on the state, not in a picture.
 
-## `may_have_landed`, [line 64](../../../../../../../backend/src/sro/application/execution/effects.py#L64): Docstring
+## `may_have_landed`, [line 65](../../../../../../../backend/src/sro/application/execution/effects.py#L65): Docstring
 
 > Whether a write this step made might actually be in the warehouse.
 >
@@ -120,7 +120,7 @@ Code: `K_UNEARNING = ("failed", "unclear")`
 > off the result, and the step `_fell_over` stamps has neither. That is the
 > rule this file has always had, and `test_effects.py` says so by name.
 
-## `can_try_again`, [line 74](../../../../../../../backend/src/sro/application/execution/effects.py#L74): Docstring
+## `can_try_again`, [line 75](../../../../../../../backend/src/sro/application/execution/effects.py#L75): Docstring
 
 > Whether this run can be started again with one press.
 >
@@ -139,7 +139,7 @@ Code: `K_UNEARNING = ("failed", "unclear")`
 > Nothing to try again on a run that held, and nothing to press on one still
 > going.
 
-## `forget_effects`, [line 80](../../../../../../../backend/src/sro/application/execution/effects.py#L80): Docstring
+## `forget_effects`, [line 81](../../../../../../../backend/src/sro/application/execution/effects.py#L81): Docstring
 
 > A write that went out and did not hold un-earns the whole job.
 >
@@ -159,7 +159,7 @@ Code: `K_UNEARNING = ("failed", "unclear")`
 > Returns how many effects were forgotten, and zero when this run un-earned
 > nothing.
 
-## `earned`, [line 92](../../../../../../../backend/src/sro/application/execution/effects.py#L92): Docstring
+## `earned`, [line 93](../../../../../../../backend/src/sro/application/execution/effects.py#L93): Docstring
 
 > Whether this job may write without asking a person first.
 >
@@ -181,15 +181,18 @@ Code: `watched = (step.result or {}).get("called")`
 > starts, and the whole reason `Delete a Customer Type` clicked Save on
 > its ninth run.
 
-## `_remember_the_write`, [line 51](../../../../../../../backend/src/sro/application/execution/effects.py#L51): Comment
+## `_remember_the_write`, [line 52](../../../../../../../backend/src/sro/application/execution/effects.py#L52): Comment
 
 Code: `return`
 
 > Nothing watched and nothing sent: a step verified some other way.
 > A pattern learnt from a call nobody identified is a licence to send
 > one nobody watched.
+> So is a call with no recorded one to compare it with (`recorded` is
+> `None`): `learned_pattern` answers `None`, since no segment can be known
+> fixed, and no ledger row is written.
 
-## `may_have_landed`, [line 68](../../../../../../../backend/src/sro/application/execution/effects.py#L68): Comment
+## `may_have_landed`, [line 69](../../../../../../../backend/src/sro/application/execution/effects.py#L69): Comment
 
 Code: `if result.get("refuted") is True:`
 

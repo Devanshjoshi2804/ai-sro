@@ -39,18 +39,15 @@ def _matches_path(path: str, pattern: str) -> bool:
     )
 
 
-def learned_pattern(url: str, values: Mapping[str, str], recorded: str | None = None) -> str:
+def learned_pattern(url: str, values: Mapping[str, str], recorded: str | None) -> str | None:
     said = {value.strip().casefold() for value in values.values() if value.strip()}
     segments = _segments(urlsplit(url).path)
     was = None if recorded is None else _segments(urlsplit(recorded).path)
-    if was is not None and len(was) != len(segments):
-        was = None
-    last = len(segments) - 1
+    if was is None or len(was) != len(segments):
+        return None
 
     def templated(nth: int, segment: str) -> bool:
         value = unquote(segment).casefold()
-        if was is None:
-            return (nth == last and value in said) or looks_like_an_id(segment)
         if unquote(was[nth]).casefold() == value:
             return False
         return value in said or looks_like_an_id(segment)

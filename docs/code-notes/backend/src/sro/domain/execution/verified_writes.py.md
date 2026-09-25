@@ -58,7 +58,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/execution/verified
 > A pattern wider than the evidence is a licence to send a call nobody
 > watched.
 
-## `verified_write_for`, [line 63](../../../../../../../backend/src/sro/domain/execution/verified_writes.py#L63): Docstring
+## `verified_write_for`, [line 60](../../../../../../../backend/src/sro/domain/execution/verified_writes.py#L60): Docstring
 
 > The ledger entry this call is proven under, or None.
 >
@@ -67,23 +67,19 @@ Comments and docstrings moved out of [`backend/src/sro/domain/execution/verified
 > endpoint because the operator's recording happened to carry
 > `?siteId=SG`.
 
-## `learned_pattern`, [line 52](../../../../../../../backend/src/sro/domain/execution/verified_writes.py#L52): Comment
+## `learned_pattern`, [line 46](../../../../../../../backend/src/sro/domain/execution/verified_writes.py#L46): Comment
 
-Code: `if was is None:`
+Code: `if was is None or len(was) != len(segments):`
 
-> With the recorded call's URL (`recorded`), each segment is compared,
-> percent-decoded, with the recording's segment at the same place. A segment
-> the recording holds the same is fixed and never templated: with
-> `Decision: approve`, `/orders/42/approve` stays `/orders/{id}/approve`,
-> not `/orders/{id}/{id}`. A segment the recording held differently is the
-> identifier when it holds one of this run's values (decoded, so
-> `Acme%20Corp` matches "Acme Corp") or looks like an id -- in any position,
-> so an email in an earlier segment is templated and never stored. With no
-> recording (or one of another length) only the rule below holds:
-
-> The LAST segment only, for the value rule. A run value is any string
-> somebody typed, and a short one collides with route words: with
-> `Department: wm` a create became `/data/{id}/{id}/customerTypes`,
-> which matches paths nobody has ever watched -- the exact licence
-> this module's opening note refuses. A REST identifier is the last
-> segment; the resource is not.
+> No recording (or one of another length), no pattern: `None`, and the
+> caller writes no ledger row. Without the recorded call no segment can be
+> known to be fixed, so any template either keeps a raw run value or
+> over-generalises (`/approve` coming to cover `/cancel`). With it, each
+> segment is compared, percent-decoded, with the recording's segment at the
+> same place. A segment the recording holds the same is fixed and never
+> templated: with `Decision: approve` (or `Department: wm`, which once made
+> `/data/{id}/{id}/customerTypes`), the route words stay literal. A segment
+> the recording held differently is the identifier when it holds one of this
+> run's values (decoded, so `Acme%20Corp` matches "Acme Corp") or looks like
+> an id -- in any position, so an email in an earlier segment is templated
+> and never stored.

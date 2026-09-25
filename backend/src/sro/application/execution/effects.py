@@ -47,12 +47,13 @@ async def _remember_the_write(
     call = watched if isinstance(watched, dict) else sent
     url = str(call.get("url", "")) if isinstance(call, dict) else ""
     method = str(call.get("method", "")) if isinstance(call, dict) else ""
-    if not url or not method:
+    pattern = learned_pattern(url, run.values, recorded) if url and method else None
+    if pattern is None:
         return
     await workflows.remember_write(
         TenantId(run.tenant),
         method=method,
-        path_pattern=learned_pattern(url, run.values, recorded),
+        path_pattern=pattern,
         origin=origin_of(url),
         run_id=run.id,
         workflow_id=run.workflow_id,

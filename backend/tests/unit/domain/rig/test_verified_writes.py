@@ -133,6 +133,7 @@ def test_the_segment_this_run_typed_is_the_identifier() -> None:
     pattern = learned_pattern(
         "https://wms.example/data/WM/wm/customerTypes/GZ5?siteId=SG",
         {"Customer Type": "GZ5", "Description": "leaning new type"},
+        recorded="https://wms.example/data/WM/wm/customerTypes/GZ1?siteId=SG",
     )
 
     assert pattern == "/data/WM/wm/customerTypes/{id}"
@@ -141,7 +142,11 @@ def test_the_segment_this_run_typed_is_the_identifier() -> None:
 def test_a_row_id_nobody_typed_is_still_an_identifier() -> None:
     """The second source, for ids no value names."""
     assert (
-        learned_pattern("https://wms.example/data/WM/wm/addresses/1183", {})
+        learned_pattern(
+            "https://wms.example/data/WM/wm/addresses/1183",
+            {},
+            recorded="https://wms.example/data/WM/wm/addresses/1077",
+        )
         == "/data/WM/wm/addresses/{id}"
     )
 
@@ -152,19 +157,39 @@ def test_everything_else_stays_literal() -> None:
     to send a call nobody watched."""
     # A short value collides with route words. With `Department: wm` this
     # produced `/data/{id}/{id}/customerTypes`, which matches paths nobody has
-    # ever watched. Only the last segment may be named by a value.
+    # ever watched. A segment the recording holds the same is fixed.
     assert (
-        learned_pattern("https://wms.example/data/WM/wm/customerTypes", {"x": "wm"})
+        learned_pattern(
+            "https://wms.example/data/WM/wm/customerTypes",
+            {"x": "wm"},
+            recorded="https://wms.example/data/WM/wm/customerTypes",
+        )
         == "/data/WM/wm/customerTypes"
     )
     assert (
-        learned_pattern("https://wms.example/data/WM/wm/customerTypes/wm", {"x": "wm"})
+        learned_pattern(
+            "https://wms.example/data/WM/wm/customerTypes/wm",
+            {"x": "wm"},
+            recorded="https://wms.example/data/WM/wm/customerTypes/fin",
+        )
         == "/data/WM/wm/customerTypes/{id}"
-    ), "the identifier really is the last segment"
+    ), "the identifier really is the segment the recording held differently"
+
+
+def test_with_no_recording_nothing_is_learned() -> None:
+    """No segment can be known fixed without one: any template would either
+    keep a raw run value or cover calls nobody watched."""
     assert (
-        learned_pattern("https://wms.example/data/WM/wm/customerTypes", {})
-        == "/data/WM/wm/customerTypes"
+        learned_pattern("https://wms.example/api/users/jane.doe@acme.com/roles", {}, None) is None
     )
+    assert (
+        learned_pattern(
+            "https://wms.example/api/users/jane.doe@acme.com/roles",
+            {"User": "jane.doe@acme.com"},
+            recorded="https://wms.example/api/users/roles",
+        )
+        is None
+    ), "a recording of another length says nothing about any segment"
 
 
 def test_a_value_the_recording_held_differently_is_the_identifier_wherever_it_sits() -> None:
@@ -204,8 +229,11 @@ def test_what_a_deployment_learnt_is_matched_the_same_way_the_file_is() -> None:
     learnt = VerifiedWrite(
         method="DELETE",
         path_pattern=learned_pattern(
-            "https://wms.example/data/WM/wm/customerTypes/GZ5", {"Customer Type": "GZ5"}
-        ),
+            "https://wms.example/data/WM/wm/customerTypes/GZ5",
+            {"Customer Type": "GZ5"},
+            recorded="https://wms.example/data/WM/wm/customerTypes/GZ1",
+        )
+        or "",
     )
 
     found = verified_write_for(

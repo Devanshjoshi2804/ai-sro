@@ -5,6 +5,7 @@ import asyncio
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 
+from sro.application.observation.mining_pass import evidence_of
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.vault import CredentialVault
 from sro.container import build_container
@@ -13,9 +14,9 @@ from sro.domain.execution.secrets import secret_key_of
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.identifiers import TenantId
-from sro.domain.skill.checks import K_SITTING_GAP_S, signs_in_to
+from sro.domain.skill.checks import signs_in_to
 from sro.domain.skill.signing_in import recorded_login
-from sro.domain.skill.workflow import Workflow, ordered_cites
+from sro.domain.skill.workflow import Workflow
 
 PASSWORD = "password"  # noqa: S105 -- a vault field's name, not a value
 
@@ -29,19 +30,7 @@ async def _jobs_and_gestures(
         known = await uow.workflows.known(tenant_id)
         undecided = sum(1 for job in known if job.signs_in is None)
         jobs = [job for job in known if job.signs_in is True]
-        cited = tuple(sorted({one for job in jobs for one in ordered_cites(job)}))
-        seen = {
-            gesture.id: gesture
-            for gesture in (await uow.gestures.gestures_for(tenant_id, ids=cited) if cited else ())
-        }
-        for job in jobs:
-            times = [seen[one].at for one in ordered_cites(job) if one in seen]
-            if not times:
-                continue
-            around = await uow.gestures.gestures_for(
-                tenant_id, after=min(times), before=max(times) + K_SITTING_GAP_S
-            )
-            seen.update({gesture.id: gesture for gesture in around})
+        seen = await evidence_of(uow, tenant_id, jobs)
     return jobs, seen, undecided
 
 
@@ -104,9 +93,21 @@ async def migrate(
                 f"{tenant_id.value}: {undecided} job(s) not yet decided -- "
                 "wait for a mining sweep, then run this again"
             )
+            if delete_old:
+                lines.append(
+                    f"{tenant_id.value}: not deleting old keys -- {undecided} job(s) not yet"
+                    " decided may sign in with one of them"
+                )
         for job in jobs:
             lines.append(
-                await _migrate_job(vault, tenant_id, job, seen, apply=apply, delete_old=delete_old)
+                await _migrate_job(
+                    vault,
+                    tenant_id,
+                    job,
+                    seen,
+                    apply=apply,
+                    delete_old=delete_old and not undecided,
+                )
             )
     return lines
 

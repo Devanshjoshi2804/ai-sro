@@ -9,7 +9,6 @@ from sro.application.observation.mine_pass import MinePass
 from sro.application.observation.mining_pass import MineResult, decide_sign_ins
 from sro.application.observation.read_gesture import ReadGestures
 from sro.application.ports.repositories import UnitOfWork
-from sro.application.shared.locks import one_at_a_time
 from sro.application.shared.refusals import OverCap
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.whose import about
@@ -30,8 +29,6 @@ def _when(stamp: str) -> datetime:
 
 
 K_SETTLE_S = 120.0
-
-_EVER = datetime(1970, 1, 1, tzinfo=UTC)
 
 
 class MineLately:
@@ -79,19 +76,16 @@ class MineLately:
         return since_anybody_worked < windows
 
     async def _decide(self) -> None:
-        async with self._uow as uow:
-            tenants = await uow.gestures.tenants_since(_EVER)
-        for tenant_id in tenants:
-            try:
-                async with self._uow as uow, one_at_a_time(f"mining:{tenant_id.value}"):
-                    decided = await decide_sign_ins(uow, tenant_id=tenant_id)
-                    if decided:
-                        await uow.commit()
-            except Exception:
-                logger.exception("%s: could not decide which jobs sign in", tenant_id.value)
-                continue
-            if decided:
-                logger.info("%s: decided whether %d job(s) sign in", tenant_id.value, decided)
+        try:
+            async with self._uow as uow:
+                decided = await decide_sign_ins(uow)
+                if decided:
+                    await uow.commit()
+        except Exception:
+            logger.exception("could not decide which jobs sign in")
+            return
+        for tenant, count in decided.items():
+            logger.info("%s: decided whether %d job(s) sign in", tenant, count)
 
     async def execute(self, *, now: datetime) -> dict[str, MineResult]:
         await self._decide()

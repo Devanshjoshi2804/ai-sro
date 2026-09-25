@@ -2584,6 +2584,20 @@ class FakeWorkflowRepository:
         if row is not None and row.tenant == tenant_id.value:
             row.shape_key = [list(entry) for entry in key]
 
+    async def undecided(self) -> tuple[Workflow, ...]:
+        found = [
+            row for row in self.rows.values() if row.signs_in is None and row.id not in self.retired
+        ]
+        found.sort(key=lambda row: (row.tenant, self._created[row.id], row.id))
+        return tuple(deepcopy(row) for row in found)
+
+    async def decide_signs_in(self, tenant_id: TenantId, workflow_id: str, signs_in: bool) -> bool:
+        row = self.rows.get(workflow_id)
+        if row is None or row.tenant != tenant_id.value or row.signs_in is not None:
+            return False
+        row.signs_in = signs_in
+        return True
+
     async def add_pass(self, mining_pass: MiningPass) -> None:
         self._alive()
         # The store's plain INSERT, which refuses a second row under one id:

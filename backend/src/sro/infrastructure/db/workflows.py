@@ -4,9 +4,9 @@ import logging
 from collections import defaultdict
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import CursorResult, delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -274,6 +274,31 @@ class SqlWorkflowRepository(WorkflowRepository):
             .where(WorkflowRow.tenant_id == tenant_id.value, WorkflowRow.id == workflow_id)
             .values(shape_key=[list(entry) for entry in key])
         )
+
+    async def undecided(self) -> tuple[Workflow, ...]:
+        query = (
+            select(WorkflowRow)
+            .where(WorkflowRow.signs_in.is_(None), WorkflowRow.retired_at.is_(None))
+            .order_by(WorkflowRow.tenant_id, WorkflowRow.created_at, WorkflowRow.id)
+            .execution_options(populate_existing=True)
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        if not rows:
+            return ()
+        steps = await self._steps_of([row.id for row in rows])
+        return tuple(_row_to_workflow(row, steps[row.id]) for row in rows)
+
+    async def decide_signs_in(self, tenant_id: TenantId, workflow_id: str, signs_in: bool) -> bool:
+        decided = await self._session.execute(
+            update(WorkflowRow)
+            .where(
+                WorkflowRow.tenant_id == tenant_id.value,
+                WorkflowRow.id == workflow_id,
+                WorkflowRow.signs_in.is_(None),
+            )
+            .values(signs_in=signs_in)
+        )
+        return cast(CursorResult[Any], decided).rowcount > 0
 
     async def add_pass(self, mining_pass: MiningPass) -> None:
         try:

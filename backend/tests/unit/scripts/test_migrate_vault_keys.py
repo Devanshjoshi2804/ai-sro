@@ -176,10 +176,27 @@ async def test_a_job_the_quiet_sweep_marked_is_moved_by_the_dry_run() -> None:
     uow, vault = await _world([job], _sign_in("h", user="hana"))
 
     before = await migrate(lambda: uow, vault, [f.TENANT], apply=False, delete_old=False)
-    assert await decide_sign_ins(uow, tenant_id=f.TENANT) == 1
+    assert await decide_sign_ins(uow) == {f.TENANT.value: 1}
     after = await migrate(lambda: uow, vault, [f.TENANT], apply=False, delete_old=False)
 
     assert not any("would copy" in line for line in before)
     assert any("1 job(s) not yet decided" in line for line in before)
     assert any("would copy" in line and job.id in line for line in after)
     assert not any("not yet decided" in line for line in after)
+
+
+async def test_old_keys_are_kept_while_any_job_of_the_tenant_is_undecided() -> None:
+    """The old key is per origin, not per job: deleting it once job `i` is
+    copied would leave an undecided sign-in job on the same origin with no
+    password to be moved to it once it is decided."""
+    decided, waiting = _job("i"), _job("j", signs_in=None)
+    uow, vault = await _world(
+        [decided, waiting], _sign_in("i", user="ivy") | _sign_in("j", user="jo", at=5000.0)
+    )
+
+    lines = await migrate(lambda: uow, vault, [f.TENANT], apply=True, delete_old=True)
+
+    assert await vault.get(OLD_KEY) == OLD_VALUE
+    assert any("not deleting old keys" in line and "not yet decided" in line for line in lines)
+    new_key = Account.of(f.TENANT.value, "login.example.com", "ivy").vault_key("password")
+    assert await vault.get(new_key) == OLD_VALUE

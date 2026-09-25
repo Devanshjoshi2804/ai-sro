@@ -16,21 +16,23 @@ Comments and docstrings moved out of [`backend/scripts/migrate_vault_keys.py`](.
 > a separate, later run: the user makes it only after QA-1 passes, never on
 > the same pass as the copy.
 
-## `_jobs_and_gestures`, [line 25](../../../../backend/scripts/migrate_vault_keys.py#L25): Note on the function
+## `_jobs_and_gestures`, [line 26](../../../../backend/scripts/migrate_vault_keys.py#L26): Note on the function
 
-> Same shape as `sro.application.connection.sign_in._recorded`: every
-> `signs_in` job's cited gestures, widened to the gestures in the sitting
-> around them (`K_SITTING_GAP_S`), because `signs_in_to` and `recorded_login`
-> both read past the cited set to find where a session lands. One query per
-> tenant's whole set of sign-in jobs rather than one per job — QA has few
-> tenants and few sign-in jobs, and a per-job round trip buys nothing a batch
-> doesn't already give it.
+> Every decided-true job's cited gestures, widened to the sitting around
+> them, through `mining_pass.evidence_of` -- the same read the sweep decides
+> from -- because `signs_in_to` and `recorded_login` both read past the cited
+> set to find where a session lands.
 >
 > Only jobs decided true move; an undecided job (`signs_in` NULL) is never
 > taken for a sign-in job. The count of undecided jobs is printed per tenant
 > so the operator knows to wait for a mining sweep and run the script again.
+>
+> `--delete-old` is refused for a tenant while any of its jobs is undecided:
+> the old key is per origin, not per job, so deleting it after copying one
+> job's password would leave an undecided sign-in job on the same origin
+> with nothing to be copied once it is decided.
 
-## `_migrate_job`, [line 48](../../../../backend/scripts/migrate_vault_keys.py#L48): Note on the function
+## `_migrate_job`, [line 37](../../../../backend/scripts/migrate_vault_keys.py#L37): Note on the function
 
 > The new key is never hand-assembled: `Account.of(...).vault_key("password")`
 > is the one function S1 built for this, and a key built any other way is a
@@ -48,7 +50,7 @@ Comments and docstrings moved out of [`backend/scripts/migrate_vault_keys.py`](.
 > the value that made it to (or already sits at) the new key — never a delete
 > with no corresponding copy on record.
 
-## `main`, [line 123](../../../../backend/scripts/migrate_vault_keys.py#L123): Note on the function
+## `main`, [line 124](../../../../backend/scripts/migrate_vault_keys.py#L124): Note on the function
 
 > `--dry-run` wins over `--apply` if both are given, because the flag that
 > guarantees nothing is written should never lose a race with the one that

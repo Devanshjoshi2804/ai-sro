@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import logging
 import secrets
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import datetime
+from itertools import groupby
 
 from sro.application.intent.spend import over_cap
 from sro.application.ports.model import Asker
@@ -64,6 +66,7 @@ from sro.whose import attribute
 __all__ = [
     "MineResult",
     "decide_sign_ins",
+    "evidence_of",
     "fill_in_passwords",
     "learn_parameters",
     "mine",
@@ -597,7 +600,7 @@ async def fill_in_passwords(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
         if workflow.repeat != found:
             workflow.repeat = found
             changed_here += 1
-        marked = signs_in(workflow, by_id)
+        marked = _judged(workflow, by_id)
         if workflow.signs_in != marked:
             workflow.signs_in = marked
             changed_here += 1
@@ -614,18 +617,45 @@ def _evidenced(workflow: Workflow, by_id: Mapping[str, Gesture]) -> bool:
     return bool(wanted) and all(cited in by_id for cited in wanted)
 
 
-async def decide_sign_ins(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
-    undecided = [one for one in await uow.workflows.known(tenant_id) if one.signs_in is None]
-    if not undecided:
-        return 0
-    by_id = {gesture.id: gesture for gesture in await uow.gestures.gestures_for(tenant_id)}
-    decided = 0
-    for workflow in undecided:
-        if not _evidenced(workflow, by_id):
+def _judged(workflow: Workflow, by_id: dict[str, Gesture]) -> bool:
+    if not _evidenced(workflow, by_id):
+        return False
+    healed = deepcopy(workflow)
+    with_passwords(healed, by_id)
+    with_the_press(healed, by_id)
+    return signs_in(healed, by_id)
+
+
+async def evidence_of(
+    uow: UnitOfWork, tenant_id: TenantId, jobs: Sequence[Workflow]
+) -> dict[str, Gesture]:
+    cited = tuple(sorted({one for job in jobs for one in ordered_cites(job)}))
+    if not cited:
+        return {}
+    seen = {
+        gesture.id: gesture for gesture in await uow.gestures.gestures_for(tenant_id, ids=cited)
+    }
+    for job in jobs:
+        times = [seen[one].at for one in ordered_cites(job) if one in seen]
+        if not times:
             continue
-        workflow.signs_in = signs_in(workflow, by_id)
-        await uow.workflows.save(workflow)
-        decided += 1
+        around = await uow.gestures.gestures_for(
+            tenant_id, after=min(times), before=max(times) + K_SITTING_GAP_S
+        )
+        seen.update({gesture.id: gesture for gesture in around})
+    return seen
+
+
+async def decide_sign_ins(uow: UnitOfWork) -> dict[str, int]:
+    decided: dict[str, int] = {}
+    undecided = await uow.workflows.undecided()
+    for tenant, jobs in groupby(undecided, key=lambda job: job.tenant):
+        waiting = list(jobs)
+        tenant_id = TenantId(tenant)
+        by_id = await evidence_of(uow, tenant_id, waiting)
+        for job in waiting:
+            if await uow.workflows.decide_signs_in(tenant_id, job.id, _judged(job, by_id)):
+                decided[tenant] = decided.get(tenant, 0) + 1
     return decided
 
 

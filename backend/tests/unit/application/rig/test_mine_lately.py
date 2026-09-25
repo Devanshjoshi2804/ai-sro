@@ -12,6 +12,7 @@ pre-rig sweep's.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 from sro.application.context import RequestContext
@@ -24,6 +25,8 @@ from sro.domain.shared.identifiers import TenantId
 from sro.domain.skill.workflow import Step, Workflow
 from sro.whose import about, whose
 from tests.unit.fakes import FakeUnitOfWork
+from tests.unit.scripts.test_migrate_vault_keys import _job as _signing_in_job
+from tests.unit.scripts.test_migrate_vault_keys import _sign_in
 
 NOW = datetime(2026, 9, 13, 12, 0, tzinfo=UTC)
 
@@ -540,3 +543,40 @@ async def test_a_decided_job_is_not_decided_again_without_new_evidence() -> None
     await _swept(uow, _Passes())
 
     assert (await uow.workflows.get(TenantId("acme"), "wfl_acme")).signs_in is True
+
+
+async def test_a_quiet_sweep_decides_a_real_sign_in_job_true() -> None:
+    """The case QA's vault migration waits on: a recorded sign-in, stored
+    before the flag existed, and nothing uploaded since."""
+    uow = FakeUnitOfWork()
+    await uow.gestures.add_gestures(tuple(_sign_in("h", user="hana").values()))
+    await uow.workflows.save(_signing_in_job("h", signs_in=None))
+
+    await _swept(uow, _Passes())
+
+    assert (await uow.workflows.get(TenantId("acme"), "wfl_h")).signs_in is True
+
+
+async def test_a_job_with_no_evidence_is_decided_false() -> None:
+    """Gestures are never deleted, so a job whose cites were never stored can
+    never be judged -- and every use of `true` needs those gestures, so
+    `false` hides nothing. Left NULL it would be re-read on every sweep."""
+    uow = FakeUnitOfWork()
+    await uow.workflows.save(_job_citing("acme", signs_in=None))
+    await uow.workflows.save(replace(_job_citing("acme", signs_in=None), id="wfl_bare", steps=[]))
+
+    await _swept(uow, _Passes())
+
+    assert (await uow.workflows.get(TenantId("acme"), "wfl_acme")).signs_in is False
+    assert (await uow.workflows.get(TenantId("acme"), "wfl_bare")).signs_in is False
+
+
+async def test_nothing_undecided_reads_no_gestures() -> None:
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
+    await _mined(uow, "acme", left_out=0, at=NOW - timedelta(hours=1))
+    await uow.workflows.save(_job_citing("acme", signs_in=False))
+
+    await _swept(uow, _Passes())
+
+    assert uow.gestures.gestures_for_calls == 0

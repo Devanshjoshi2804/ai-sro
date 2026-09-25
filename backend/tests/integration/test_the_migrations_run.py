@@ -172,8 +172,9 @@ async def _alembic(postgres_url: str, *args: str) -> None:
 async def test_0078_makes_every_stored_job_undecided_and_back(postgres_url: str) -> None:
     """0069 stored `false` on every job it found, which reads as "decided: does
     not sign in" and so no sweep ever looked again. 0078 turns every stored
-    value into NULL -- undecided -- for the sweep to decide from evidence; its
-    downgrade maps NULL back to the `false` the older code expects."""
+    `false` into NULL -- undecided -- for the sweep to decide from evidence,
+    and keeps `true`, which only ever came from evidence. Its downgrade maps
+    NULL back to the `false` the older code expects."""
     engine = create_async_engine(postgres_url)
     try:
         async with engine.begin() as connection:
@@ -185,7 +186,12 @@ async def test_0078_makes_every_stored_job_undecided_and_back(postgres_url: str)
             await connection.execute(
                 insert(WorkflowRow.__table__),
                 [
-                    {"id": "wfl_old", "tenant_id": "acme", "created_at": datetime.now(tz=UTC)},
+                    {
+                        "id": "wfl_old",
+                        "tenant_id": "acme",
+                        "created_at": datetime.now(tz=UTC),
+                        "signs_in": False,
+                    },
                     {
                         "id": "wfl_marked",
                         "tenant_id": "acme",
@@ -214,12 +220,12 @@ async def test_0078_makes_every_stored_job_undecided_and_back(postgres_url: str)
         await engine.dispose()
 
     assert [tuple(row) for row in upgraded] == [
-        ("wfl_marked", None),
+        ("wfl_marked", True),
         ("wfl_new", None),
         ("wfl_old", None),
     ]
     assert [tuple(row) for row in downgraded] == [
-        ("wfl_marked", False),
+        ("wfl_marked", True),
         ("wfl_new", False),
         ("wfl_old", False),
     ]

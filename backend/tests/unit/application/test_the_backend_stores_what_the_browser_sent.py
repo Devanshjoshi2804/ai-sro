@@ -480,6 +480,26 @@ def test_an_outline_too_large_to_send_loses_its_option_lists_before_its_fields()
     assert kept == out["fields"][: len(kept)], "option lists are dropped from the end"
 
 
+def test_an_outline_too_large_to_send_keeps_all_its_fields_while_it_drops_headings() -> None:
+    long = " ".join(["word"] * 20)
+    headings = [f"{long} {i:03d}" for i in range(K_OUTLINE_FIELDS)]
+    buttons = [f"{long} {i:03d}" for i in range(K_OUTLINE_FIELDS)]
+    landmarks = [{"role": "dialog", "name": f"{long} {i:03d}"} for i in range(K_OUTLINE_FIELDS)]
+    fields = [
+        {"role": "textbox", "label": f"Field {i}", "options": None} for i in range(K_OUTLINE_FIELDS)
+    ]
+    click = {"kind": "gesture", "tab_id": 1, "gesture": {"kind": "click", "at": 2.0}}
+    click["gesture"]["outlines"] = [
+        {"headings": headings, "buttons": buttons, "landmarks": landmarks, "fields": fields}
+    ]
+
+    ((out,),) = [one["gesture"]["outlines"] for one in redact_events([click])]
+
+    assert len(json.dumps(out, separators=(",", ":"))) <= K_OUTLINE_CHARS
+    assert len(out["fields"]) == K_OUTLINE_FIELDS, "fields survive the trim intact"
+    assert len(out["headings"]) < K_OUTLINE_FIELDS, "headings are dropped before fields"
+
+
 def test_a_tree_from_an_older_extension_is_discarded_unread() -> None:
     event = {"kind": "snapshot", "snapshot": {"nodes": [{"name": "Service Level"}]}}
 

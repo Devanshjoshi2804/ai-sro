@@ -45,20 +45,20 @@ Code: `async def finish(self, ctx: RequestContext, run_id: str) -> str:`
 > `held` only when every step was reached and each is held or withheld;
 > an outcome already set (a stop's `aborted`) is kept.
 
-## `RunSteps.beat`, [line 194](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L194): Note
+## `RunSteps.beat`, [line 203](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L203): Note
 
 Code: `if progress.lease and not await self._broker.beat(ctx, progress.lease, holder=run_id):`
 
 > A beat the lease no longer answers is a lost lease: the lost-page path.
 
-## `RunSteps._keep_tab`, [line 235](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L235): Note
+## `RunSteps._keep_tab`, [line 244](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L244): Note
 
 Code: `except BaseException:`
 
 > A tab this attempt opened but could not record is closed at once; a retry
 > would open another, and nothing would ever release the first.
 
-## `RunSteps._sending`, [line 278](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L278): Note
+## `RunSteps._sending`, [line 287](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L287): Note
 
 Code: `if again and wrote == "sending":`
 
@@ -66,7 +66,7 @@ Code: `if again and wrote == "sending":`
 > marked; any other mark means another attempt got there first, and this one
 > sends nothing.
 
-## `RunSteps._settled`, [line 285](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L285): Note
+## `RunSteps._settled`, [line 294](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L294): Note
 
 Code: `async def _settled(`
 
@@ -74,7 +74,7 @@ Code: `async def _settled(`
 > signed in afresh when the result says the session expired; nothing to read
 > back means a person is asked and the mark stays in doubt.
 
-## `RunSteps._advance`, [line 331](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L331): Note
+## `RunSteps._advance`, [line 340](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L340): Note
 
 Code: `progress.step, progress.asking = index + 1, {}`
 
@@ -82,7 +82,7 @@ Code: `progress.step, progress.asking = index + 1, {}`
 > follows the unclear one, and D5 takes an answer to a withdrawn question as
 > already answered.
 
-## `RunSteps._ask`, [line 347](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L347): Note
+## `RunSteps._ask`, [line 356](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L356): Note
 
 Code: `async def _ask(`
 
@@ -124,3 +124,12 @@ Code: `if (index is not None and loaded.step != index) or (`
 > stands on that step, and a question only while the step is not done. A
 > zombie whose lane fails after the retry already held the step asks nothing
 > and adds no row.
+
+## `RunSteps.stopped`, [line 181](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L181): Note
+
+Code: `async def stopped(self, ctx: RequestContext, run_id: str) -> None:`
+
+> The one place a stopped run is recorded `aborted`: the workflow calls it
+> after the operator's cancel, and `acquire` calls it when the stop arrived
+> while it was signing in. A run the step already closed (a lane raised
+> `Stopped`, or it held) is left as it is.

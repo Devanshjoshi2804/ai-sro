@@ -414,6 +414,8 @@ class FakeDurableExecution:
 
         self.runs_started: list[tuple[str, float]] = []
         """One `(run_id, budget_s)` per `start_run` call."""
+        self.cancelled: list[str] = []
+        """One run id per `cancel_run` call."""
 
     async def execute_skill(
         self,
@@ -450,6 +452,9 @@ class FakeDurableExecution:
 
     async def start_run(self, ctx: RequestContext, *, run_id: str, budget_s: float) -> None:
         self.runs_started.append((run_id, budget_s))
+
+    async def cancel_run(self, run_id: str) -> None:
+        self.cancelled.append(run_id)
 
 
 class FakeRecordingRepository:

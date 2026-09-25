@@ -740,3 +740,21 @@ async def steel_run(
     executor = StepExecutor(lanes.tool, lanes.api, lanes.ui, lanes.sight, broker)
     run_steps = RunSteps(uow, broker, executor, Teach(uow, clock), lanes.api, clock)
     return SteelRun(uow, run_id, run_steps, lanes, broker, driver, account)
+
+
+async def running_steel_run(uow: FakeUnitOfWork, run_id: str = "run_steel") -> WorkflowRun:
+    """A live run on Steel, still `running`, stored in `uow` under `CTX`."""
+    run = WorkflowRun(
+        id=run_id,
+        tenant=_TENANT,
+        workflow_id=_WORKFLOW.id,
+        device_id="",
+        values={},
+        started_by="clerk",
+        live=True,
+        allow_focus=False,
+        started_at=NOW.isoformat(),
+        executor="steel",
+    )
+    await uow.workflow_runs.save(run)
+    return run

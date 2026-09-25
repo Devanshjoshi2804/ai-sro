@@ -9,7 +9,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/d
 > The client connects lazily and is cached: building the container is synchronous,
 > and a Temporal outage at boot must not stop the API from serving reads.
 
-## `_root_message`, [line 101](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L101): Docstring
+## `_root_message`, [line 104](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L104): Docstring
 
 > The deepest message in a Temporal failure chain.
 >
@@ -41,7 +41,7 @@ Code: `return run_id`
 > precisely so it can watch the steps land instead of holding a
 > request open for as long as the warehouse takes.
 
-## `_root_message`, [line 105](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L105): Comment
+## `_root_message`, [line 108](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L108): Comment
 
 Code: `message = getattr(current, "message", None)`
 
@@ -57,3 +57,11 @@ Code: `with contextlib.suppress(WorkflowAlreadyStartedError):`
 > remaining steps are never executed again. Starting a run is idempotent.
 > Bounded by the job's budget plus `K_BUDGET_MARGIN_S`, a backstop only;
 > the workflow keeps the budget itself (§7.5).
+
+## `TemporalDurableExecution.cancel_run`, [line 101](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L101): Note
+
+Code: `await (await self._connect()).get_workflow_handle(f"workflow-run-{run_id}").cancel()`
+
+> The operator's stop. A cancel request through the server is the one signal
+> `RunWorkflow` reads as a stop (`workflow.cancellation_reason()`); a heartbeat
+> timeout or a worker shutdown never is.

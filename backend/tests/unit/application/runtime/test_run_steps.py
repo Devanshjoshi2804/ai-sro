@@ -5,6 +5,7 @@ import pytest
 from sro.application.ports.locks import AccountBusy
 from sro.application.ports.page import PageGone
 from sro.application.runtime.step import LaneContext, Superseded
+from sro.application.runtime.ui_lane import UiLane
 from sro.domain.execution.account import LeaseState
 from sro.domain.execution.lanes import Broken, Lane, StepResult, cites_key
 from sro.domain.execution.progress import MAIN, Progress, StepMark
@@ -162,6 +163,39 @@ async def test_a_stopped_step_aborts_the_run_and_says_where() -> None:
     run = await world.saved_run()
     assert run.outcome == "aborted"
     assert await world.run_steps.finish(CTX, world.run_id) == "aborted"
+
+
+async def test_a_stop_is_seen_before_the_next_primitive() -> None:
+    step, by_id = save_step(status=201)
+    world = await steel_run(steps=[(step, by_id)])
+    await world.run_steps.prepare(CTX, world.run_id)
+    await world.run_steps.acquire(CTX, world.run_id)
+    stop = asyncio.Event()
+    stop.set()
+
+    async def really_acts(ctx: LaneContext) -> None:
+        await UiLane(world.driver).execute(step, {}, ctx)
+
+    world.lanes.ui.on_execute(really_acts)
+
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=stop)
+
+    assert outcome.failed and not outcome.more
+    assert (await world.saved_run()).outcome == "aborted"
+    assert world.driver.acted == []
+
+
+async def test_stopped_aborts_a_running_run_and_leaves_a_finished_one_alone() -> None:
+    world = await steel_run(steps=[save_step(status=201)])
+
+    await world.run_steps.stopped(CTX, world.run_id)
+    run = await world.saved_run()
+    assert run.outcome == "aborted"
+    run.outcome = "held"
+    await world.uow.workflow_runs.save(run)
+    await world.run_steps.stopped(CTX, world.run_id)
+
+    assert (await world.saved_run()).outcome == "held"
 
 
 async def test_a_dry_run_withholds_the_write() -> None:

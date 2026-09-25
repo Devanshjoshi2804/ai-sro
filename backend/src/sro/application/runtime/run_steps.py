@@ -89,7 +89,7 @@ class RunSteps:
     ) -> str:
         asking = await self._acquire(ctx, run_id)
         if stop is not None and stop.is_set():
-            await self._abort(ctx, run_id)
+            await self.stopped(ctx, run_id)
         return asking
 
     async def step(self, ctx: RequestContext, run_id: str, *, stop: asyncio.Event) -> StepOutcome:
@@ -177,6 +177,15 @@ class RunSteps:
             await uow.workflow_runs.save(run)
             await uow.commit()
         return run.outcome
+
+    async def stopped(self, ctx: RequestContext, run_id: str) -> None:
+        run = await self._run(ctx, run_id)
+        if run.outcome != "running":
+            return
+        run.outcome = "aborted"
+        async with self._uow as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
 
     async def release(self, ctx: RequestContext, run_id: str) -> None:
         run = await self._run(ctx, run_id)
@@ -398,15 +407,6 @@ class RunSteps:
             await uow.workflow_runs.save(run)
             await uow.commit()
         return StepOutcome(more=False, failed=True)
-
-    async def _abort(self, ctx: RequestContext, run_id: str) -> None:
-        run = await self._run(ctx, run_id)
-        if run.outcome != "running":
-            return
-        run.outcome = "aborted"
-        async with self._uow as uow:
-            await uow.workflow_runs.save(run)
-            await uow.commit()
 
     async def _write(
         self,

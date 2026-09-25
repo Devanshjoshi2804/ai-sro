@@ -42,7 +42,7 @@ async def client() -> Client:
 
 
 class Stubs:
-    """The five activities by their contract names. `step` answers the next
+    """The six activities by their contract names. `step` answers the next
     of `outcomes` (or runs it, when it is a callable) and every call is kept
     in `called` in the order it happened."""
 
@@ -79,6 +79,10 @@ class Stubs:
         answer: StepOutcome = await next_one()
         return answer
 
+    @activity.defn(name="run.stopped")
+    async def stopped(self, ref: RunRef) -> None:
+        self.called.append("stopped")
+
     @activity.defn(name="run.finish")
     async def finish(self, ref: RunRef) -> str:
         self.called.append("finish")
@@ -96,7 +100,14 @@ async def _worker(client: Client, stubs: Stubs) -> AsyncIterator[str]:
         client,
         task_queue=queue,
         workflows=[RunWorkflow],
-        activities=[stubs.prepare, stubs.acquire, stubs.step, stubs.finish, stubs.release],
+        activities=[
+            stubs.prepare,
+            stubs.acquire,
+            stubs.step,
+            stubs.stopped,
+            stubs.finish,
+            stubs.release,
+        ],
     ):
         yield queue
 
@@ -176,7 +187,33 @@ async def test_a_cancelled_run_waits_for_its_step_then_finishes_and_releases(
             await handle.result()
 
     assert wound_down.is_set()
-    assert stubs.called == ["prepare", "acquire", "step", "finish", "release"]
+    assert stubs.called == ["prepare", "acquire", "step", "stopped", "finish", "release"]
+    assert (await handle.describe()).status is WorkflowExecutionStatus.CANCELED
+
+
+async def test_a_stop_that_lands_as_a_step_completes_runs_no_further_step(
+    client: Client,
+) -> None:
+    started, go_on = asyncio.Event(), asyncio.Event()
+
+    async def finishes_before_it_hears() -> StepOutcome:
+        started.set()
+        await go_on.wait()
+        return StepOutcome(more=True)
+
+    stubs = Stubs(finishes_before_it_hears, StepOutcome(more=False))
+    async with _worker(client, stubs) as queue:
+        handle = await client.start_workflow(
+            RunWorkflow.run, REF, id=f"workflow-run-{uuid.uuid4().hex}", task_queue=queue
+        )
+        await started.wait()
+        await handle.cancel()
+        go_on.set()
+        with pytest.raises(WorkflowFailureError):
+            await handle.result()
+
+    assert stubs.called == ["prepare", "acquire", "step", "stopped", "finish", "release"]
+    assert (await handle.describe()).status is WorkflowExecutionStatus.CANCELED
 
 
 async def _until_cancelled() -> StepOutcome:
@@ -235,7 +272,7 @@ async def test_a_stop_during_acquire_waits_for_it_before_releasing(client: Clien
         with pytest.raises(WorkflowFailureError):
             await handle.result()
 
-    assert stubs.called == ["prepare", "acquire", "acquired", "finish", "release"]
+    assert stubs.called == ["prepare", "acquire", "acquired", "stopped", "finish", "release"]
 
 
 async def test_a_finished_run_is_never_started_again(client: Client) -> None:
@@ -272,7 +309,14 @@ async def test_a_sigterm_mid_step_lets_the_step_finish_before_the_worker_exits(
         client,
         task_queue=queue,
         workflows=[RunWorkflow],
-        activities=[stubs.prepare, stubs.acquire, stubs.step, stubs.finish, stubs.release],
+        activities=[
+            stubs.prepare,
+            stubs.acquire,
+            stubs.step,
+            stubs.stopped,
+            stubs.finish,
+            stubs.release,
+        ],
         graceful_shutdown_timeout=timedelta(seconds=30),
         # The workflow is left mid-run when this worker stops; uncached, its
         # instance is closed by the worker instead of by the garbage collector

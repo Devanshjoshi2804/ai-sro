@@ -10,7 +10,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 > directly would replay differently after a restart and lose the durability that
 > is the only reason Temporal is here.
 
-## `ExecutionWorkflow`, [line 51](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L51): Docstring
+## `ExecutionWorkflow`, [line 52](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L52): Docstring
 
 > Perform a skill, one step per activity.
 >
@@ -19,7 +19,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 > run already records step 7, an activity asked to repeat it returns what
 > happened rather than doing it again.
 
-## `TriggerWorkflow`, [line 99](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L99): Docstring
+## `TriggerWorkflow`, [line 100](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L100): Docstring
 
 > One firing of one trigger.
 >
@@ -28,32 +28,32 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/w
 > fact about now, and a workflow replays. It asks once and reports what it was
 > told.
 
-## `ExecutionWorkflow.run`, [line 53](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L53): Docstring
+## `ExecutionWorkflow.run`, [line 54](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L54): Docstring
 
 > Returns the run id. What happened is on the run itself, which is the
 > record everything else reads.
 
-## module, [line 22](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L22): Comment
+## module, [line 23](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L23): Comment
 
 Code: `_READ_RETRY = RetryPolicy(`
 
 > A read that failed to connect is worth another attempt. A write is not: the
 > first attempt may have arrived, and the target system has no way to tell us.
 
-## module, [line 25](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L25): Comment
+## module, [line 26](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L26): Comment
 
 Code: `non_retryable_error_types=["NotRunnable"],`
 
 > A skill that may not be run is refused the same way every time.
 
-## `ExecutionWorkflow.run`, [line 57](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L57): Comment
+## `ExecutionWorkflow.run`, [line 58](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L58): Comment
 
 Code: `result_type=StartedRun,`
 
 > Named activities carry no type information, so the converter
 > hands back a dict unless the shape is stated here.
 
-## `ExecutionWorkflow.run`, [line 68](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L68): Comment
+## `ExecutionWorkflow.run`, [line 69](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L69): Comment
 
 Code: `index = 0`
 
@@ -63,7 +63,7 @@ Code: `index = 0`
 > here. Determinism is unaffected -- what the activity answered is in
 > the history, and a replay reads the same answers.
 
-## `ExecutionWorkflow.run`, [line 80](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L80): Comment
+## `ExecutionWorkflow.run`, [line 81](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L81): Comment
 
 Code: `retry_policy=_WRITE_RETRY,`
 
@@ -71,14 +71,14 @@ Code: `retry_policy=_WRITE_RETRY,`
 > the first attempt, so the conservative policy applies to every
 > step and the read-only ones lose a retry they rarely need.
 
-## `ExecutionWorkflow.run`, [line 83](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L83): Comment
+## `ExecutionWorkflow.run`, [line 84](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L84): Comment
 
 Code: `break`
 
 > Later steps depend on this one having worked. Continuing would
 > send calls built from values the system never returned.
 
-## `TriggerWorkflow.run`, [line 106](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L106): Comment
+## `TriggerWorkflow.run`, [line 107](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L107): Comment
 
 Code: `retry_policy=RetryPolicy(maximum_attempts=1),`
 
@@ -86,7 +86,7 @@ Code: `retry_policy=RetryPolicy(maximum_attempts=1),`
 > has a run to look at; a second firing would be a second set of
 > writes against the same records, minutes apart, with nobody there.
 
-## module, [line 28](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L28): Note
+## module, [line 29](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L29): Note
 
 Code: `_NEVER_AGAIN = ["NeedsAPerson", "WaitingForAPerson", "Stopped"]`
 
@@ -95,7 +95,7 @@ Code: `_NEVER_AGAIN = ["NeedsAPerson", "WaitingForAPerson", "Stopped"]`
 > attempt that lost the run to another) is left out on purpose: the retry
 > reads what the winner recorded.
 
-## module, [line 29](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L29): Note
+## module, [line 30](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L30): Note
 
 Code: `_STEP_RETRY = RetryPolicy(`
 
@@ -106,20 +106,20 @@ Code: `_STEP_RETRY = RetryPolicy(`
 > themselves. Bounded by the run's own deadline (`schedule_to_close`), never
 > by the workflow timeout, so `finish` and `release` still run.
 
-## module, [line 35](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L35): Note
+## module, [line 36](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L36): Note
 
 Code: `_QUEUE_RETRY = RetryPolicy(`
 
 > `run.acquire` retries without limit on `PoolFull`: a run beyond capacity
 > waits its turn (D8), inside its budget.
 
-## module, [line 41](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L41): Note
+## module, [line 42](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L42): Note
 
 Code: `_PREPARE_RETRY = RetryPolicy(`
 
 > A person-needed failure at prepare is asked, never retried.
 
-## `RunWorkflow`, [line 112](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L112): Class
+## `RunWorkflow`, [line 113](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L113): Class
 
 > Every Steel run is one of these on `RUNS_QUEUE` (spec §7.2). It holds only
 > ids and its budget, so it stays deterministic; every activity loads the run
@@ -129,7 +129,7 @@ Code: `_PREPARE_RETRY = RetryPolicy(`
 > step ends the loop; D5 adds the wait for the answer. A code change is live
 > only after the worker restarts (AGENTS.md).
 
-## `RunWorkflow.run`, [line 115](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L115): Note
+## `RunWorkflow.run`, [line 116](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L116): Note
 
 Code: `deadline = workflow.info().start_time + timedelta(seconds=ref.budget_s)`
 
@@ -137,9 +137,29 @@ Code: `deadline = workflow.info().start_time + timedelta(seconds=ref.budget_s)`
 > survives a worker restart. `execution_timeout` is only a backstop past it:
 > a workflow Temporal times out runs no `finish` and no `release`.
 
-## `RunWorkflow._driven`, [line 155](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L155): Note
+## `RunWorkflow._driven`, [line 162](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L162): Note
 
 Code: `schedule_to_close_timeout=max(deadline - workflow.now(), _AT_LEAST),`
 
 > Acquire and each step get whatever is left of the budget, across all their
 > retries; both heartbeat, so a stop reaches them and is waited for.
+
+## `RunWorkflow.run`, [line 134](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L134): Note
+
+Code: `if workflow.cancellation_reason() is not None:`
+
+> Only the operator's cancel (`cancel_run`) records the run as stopped; a
+> budget running out or a failed activity is no stop, and `finish` decides
+> those. By now the running step has finished its current primitive
+> (`WAIT_CANCELLATION_COMPLETED`), because a click already dispatched cannot
+> be recalled. `finish` and `release` still run after it, on every way out.
+
+## `RunWorkflow._driven`, [line 168](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L168): Note
+
+Code: `if workflow.cancellation_reason() is not None:`
+
+> A stop that lands while acquire or a step is finishing is not lost. With
+> `WAIT_CANCELLATION_COMPLETED`, an activity that completes before its next
+> heartbeat carries the cancel returns its result and the workflow's
+> cancellation is spent; without this check the next step would run, and
+> could send a write, after the operator stopped the run.

@@ -881,7 +881,9 @@ class Container:
         return GetWorkflowRun(self.unit_of_work())
 
     def abort_workflow_run(self) -> AbortWorkflowRun:
-        return AbortWorkflowRun(self.unit_of_work(), self.stops, self.approvals)
+        return AbortWorkflowRun(
+            self.unit_of_work(), self.stops, self.approvals, durable=self.durable
+        )
 
     def approve_workflow_step(self) -> ApproveWorkflowStep:
         return ApproveWorkflowStep(self.unit_of_work(), self.approvals, self.clock)

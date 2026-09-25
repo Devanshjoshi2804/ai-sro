@@ -20,7 +20,7 @@ Code: `return WorkflowRunModel.of(run, await reader.undo_for(ctx, run))`
 > their evidence, and a response model that went to a repository would be a
 > response model with a session.
 
-## `approve_workflow_step`, [line 297](../../../../../../../../../backend/src/sro/interface/http/v1/routers/workflow_runs.py#L297): Comment
+## `approve_workflow_step`, [line 301](../../../../../../../../../backend/src/sro/interface/http/v1/routers/workflow_runs.py#L301): Comment
 
 Code: `await container.record_attempt().execute(`
 

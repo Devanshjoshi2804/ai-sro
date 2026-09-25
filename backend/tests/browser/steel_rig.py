@@ -40,8 +40,12 @@ _APP_PAGE = """<!doctype html><html><head><meta name="csrf-token" content="{toke
       <option value=""></option><option>Finance</option><option>Operations</option>
     </select>
     <button id="save" type="button">Save</button>
+    <button id="refresh" type="button">Refresh</button>
   </form>
   <script>
+    document.getElementById("refresh").addEventListener("click", () => {{
+      fetch("/api/customer-types?hold");
+    }});
     document.getElementById("save").addEventListener("click", async () => {{
       const token = document.querySelector("meta[name=csrf-token]").content;
       const name = document.getElementById("ct").value;
@@ -104,7 +108,10 @@ class Rig:
     only once the test sets `answer`, so a navigation can be caught in flight.
     `POST /api/ping` answers 201 from any page and sets `pinged`; with `?hold`
     it answers only once `release` is set, so a test can hold a request open
-    across a mark. With `idp_elsewhere` the identity provider answers on a
+    across a mark. `/app`'s Refresh reads `/api/customer-types?hold`, which
+    sets `asked` and answers only once `answer` is set, so a test can act
+    while a read is in flight. With `idp_elsewhere`
+    the identity provider answers on a
     second port -- a second origin, as a real one is -- and `logins` counts
     the credentials posted to it."""
 
@@ -209,7 +216,7 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
 
         def do_GET(self) -> None:
             split = urlsplit(self.path)
-            path, query = split.path, parse_qs(split.query)
+            path, query = split.path, parse_qs(split.query, keep_blank_values=True)
             sid = self._cookie()
 
             if path == "/public":
@@ -274,6 +281,9 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
                     self.send_response(401)
                     self.end_headers()
                     return
+                if "hold" in query:
+                    rig.asked.set()
+                    rig.answer.wait(_HELD_S)
                 self._json(rig.saved)
             else:
                 self.send_response(404)
@@ -293,7 +303,7 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
 
         def do_POST(self) -> None:
             split = urlsplit(self.path)
-            path, query = split.path, parse_qs(split.query)
+            path, query = split.path, parse_qs(split.query, keep_blank_values=True)
             body = self.rfile.read(int(self.headers.get("content-length") or 0))
 
             if path == "/api/ping":

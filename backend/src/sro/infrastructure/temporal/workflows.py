@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta
 
 from temporalio import workflow
@@ -129,6 +130,12 @@ class RunWorkflow:
                 if not outcome.more:
                     break
                 asking = outcome.asking
+        except (Exception, asyncio.CancelledError):
+            if workflow.cancellation_reason() is not None:
+                await workflow.execute_activity(
+                    "run.stopped", ref, start_to_close_timeout=_SHORT, retry_policy=_READ_RETRY
+                )
+            raise
         finally:
             try:
                 await workflow.execute_activity(
@@ -158,4 +165,6 @@ class RunWorkflow:
             retry_policy=retry,
             cancellation_type=workflow.ActivityCancellationType.WAIT_CANCELLATION_COMPLETED,
         )
+        if workflow.cancellation_reason() is not None:
+            raise asyncio.CancelledError
         return done

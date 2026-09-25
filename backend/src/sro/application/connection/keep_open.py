@@ -56,9 +56,9 @@ class KeepSessionsOpen:
             strays = (
                 ()
                 if await self._demonstrating()
-                else await self._strays.close_strays(expired=expired)
+                else await self._strays.close_strays(expired=expired.steel_sessions)
             )
-            released = (*expired, *strays)
+            released = (*expired.contexts, *strays)
         return Swept(tuple(open_now), tuple(waiting), tuple(unreachable), released)
 
     async def _demonstrating(self) -> bool:

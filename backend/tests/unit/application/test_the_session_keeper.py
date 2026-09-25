@@ -17,6 +17,7 @@ from dataclasses import dataclass
 import pytest
 
 from sro.application.connection.keep_open import KEEPER, KeepSessionsOpen
+from sro.application.connection.release_strays import Expired
 from sro.application.context import RequestContext
 from sro.application.ports.browser import BrowserUnavailable
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
@@ -131,8 +132,8 @@ class _Strays:
         self.expired = expired
         self.asked = 0
 
-    async def expire_leases(self) -> tuple[str, ...]:
-        return self.expired
+    async def expire_leases(self) -> Expired:
+        return Expired(contexts=self.expired, steel_sessions=self.expired)
 
     async def close_strays(self, *, expired: tuple[str, ...] = ()) -> tuple[str, ...]:
         self.asked += 1

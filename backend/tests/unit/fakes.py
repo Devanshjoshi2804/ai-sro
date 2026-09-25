@@ -1408,7 +1408,10 @@ class FakeBrowserPool:
     `dead`, the ones a test has killed; `closes_hang` makes `close` never
     return, the way a sibling's hung page has held a real disposal; `down`
     names container urls whose `cdp_url` raises `BrowserUnavailable`, the
-    way a restarted Steel container answers."""
+    way a restarted Steel container answers; `unknown` names ones whose
+    `cdp_url` raises `KeyError`, the way one dropped from the pool's own
+    config answers -- a real `SteelBrowserPool` indexes its clients by
+    container url and never had one to begin with."""
 
     def __init__(
         self,
@@ -1422,6 +1425,7 @@ class FakeBrowserPool:
         self.closed: list[tuple[str, str]] = []
         self.dead: set[str] = set()
         self.down: set[str] = set()
+        self.unknown: set[str] = set()
         self.closes_hang = False
         self.session_id = "ses_1"
         self._next = count(1)
@@ -1459,6 +1463,8 @@ class FakeBrowserPool:
     async def cdp_url(self, container_url: str) -> str:
         if container_url in self.down:
             raise BrowserUnavailable(f"{container_url} is down")
+        if container_url in self.unknown:
+            raise KeyError(container_url)
         return f"ws://{container_url}"
 
 

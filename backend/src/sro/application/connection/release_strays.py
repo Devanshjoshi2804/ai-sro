@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 
 from sro.application.connection.watch_browser import WatchBrowsers
 from sro.application.ports.browser import BrowserProvider, BrowserUnavailable
@@ -10,6 +11,12 @@ from sro.application.runtime.broker import SessionBroker
 from sro.domain.shared.identifiers import BrowserSessionId, TenantId
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class Expired:
+    contexts: tuple[str, ...] = ()
+    steel_sessions: tuple[str, ...] = ()
 
 
 class ReleaseStrayBrowsers:
@@ -29,13 +36,14 @@ class ReleaseStrayBrowsers:
 
     async def execute(self) -> tuple[str, ...]:
         expired = await self.expire_leases()
-        strays = await self.close_strays(expired=expired)
-        return (*expired, *strays)
+        strays = await self.close_strays(expired=expired.steel_sessions)
+        return (*expired.contexts, *strays)
 
-    async def expire_leases(self) -> tuple[str, ...]:
+    async def expire_leases(self) -> Expired:
         async with self._uow as uow:
             gone = await uow.browser_sessions.expired(now=self._clock.now())
-        closed: list[str] = []
+        contexts: list[str] = []
+        steel_sessions: list[str] = []
         for lease in gone:
             if not await self._broker.prepare_to_expire(lease):
                 continue
@@ -48,8 +56,9 @@ class ReleaseStrayBrowsers:
                 continue
             await self._broker.end_expired(lease)
             logger.info("closed context %s of lease %s", lease.context_id, lease.id)
-            closed.append(lease.steel_session_id)
-        return tuple(closed)
+            contexts.append(lease.context_id)
+            steel_sessions.append(lease.steel_session_id)
+        return Expired(tuple(contexts), tuple(steel_sessions))
 
     async def close_strays(self, *, expired: tuple[str, ...] = ()) -> tuple[str, ...]:
         open_now = await self._watch.all_in_deployment()

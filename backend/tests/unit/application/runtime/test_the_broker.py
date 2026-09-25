@@ -1,4 +1,5 @@
 import asyncio
+from datetime import timedelta
 
 import pytest
 
@@ -194,6 +195,110 @@ async def test_a_code_nobody_answers_in_time_is_taken_over() -> None:
     assert uow.browser_sessions.leases[waiting.lease.id].state is LeaseState.EXPIRED
     assert held.lease.id != waiting.lease.id
     assert (STEEL, waiting.session.context_id) in pool.closed
+
+
+class _JumpsTheClockOnSignals:
+    """Wraps a `FakePageDriver`. `signals` advances the clock before
+    answering, the way real time passing during a page probe would -- a
+    deterministic way to land the clock past a deadline strictly between
+    `resume`'s own `lease.live(now)` check and its later `settle`, a gap no
+    synchronous test can otherwise open."""
+
+    def __init__(self, inner: FakePageDriver, clock: FakeClock, by: timedelta) -> None:
+        self._inner = inner
+        self._clock = clock
+        self._by = by
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._inner, name)
+
+    async def signals(self, session: SessionRef, target_id: str) -> PageSignals:
+        self._clock.advance(int(self._by.total_seconds()))
+        return await self._inner.signals(session, target_id)
+
+
+class _ForcedAnswers:
+    """Wraps a `BrowserSessionRepository`, forcing `settle` and/or `beat` to
+    a fixed answer regardless of the store's own -- to test what a caller
+    does with a `False` it did not itself cause."""
+
+    def __init__(
+        self, inner: object, *, settle: bool | None = None, beat: bool | None = None
+    ) -> None:
+        self._inner = inner
+        self._settle = settle
+        self._beat = beat
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._inner, name)
+
+    async def settle(self, *args: object, **kwargs: object) -> bool:
+        if self._settle is not None:
+            return self._settle
+        return await self._inner.settle(*args, **kwargs)
+
+    async def beat(self, *args: object, **kwargs: object) -> bool:
+        if self._beat is not None:
+            return self._beat
+        return await self._inner.beat(*args, **kwargs)
+
+
+async def test_the_deadline_passing_before_resumes_settle_is_pagegone_and_never_gotos() -> None:
+    """I2 (re-review): the deadline passes strictly between the live check
+    and the settle, not before either -- otherwise `resume` would already
+    have taken the fresh-acquire branch. Only the guarded `settle` catches
+    this, and `goto` (which comes after it) must never run."""
+    uow, driver, vault = await _signing_world()
+    pool, clock = FakeBrowserPool({STEEL: 5}), FakeClock()
+    broker = _broker(uow, driver, vault, pool=pool, clock=clock)
+    waiting = await _asked_for_a_code(uow, driver, broker)
+    driver.signals_for_every_tab = PageSignals(APP)
+    jumpy = _JumpsTheClockOnSignals(
+        driver, clock, timedelta(seconds=int(K_CODE_WAIT.total_seconds()) + 1)
+    )
+    resuming = _broker(uow, jumpy, vault, SigningLane(driver), pool=pool, clock=clock)
+
+    with pytest.raises(PageGone):
+        await resuming.resume(CTX, waiting.lease.id, waiting.target_id, APP, holder="run_1")
+
+    assert not any(call[0] == "goto" for call in driver.calls)
+    assert uow.browser_sessions.leases[waiting.lease.id].state is LeaseState.WAITING
+
+
+async def test_resume_raises_pagegone_when_its_settle_is_refused() -> None:
+    """Whatever the store's reason -- lost the race, wrong tenant, gone --
+    a `False` settle is `PageGone`, and `goto` (which comes after it) never
+    runs on a lease `resume` no longer holds."""
+    uow, driver, vault = await _signing_world()
+    pool, clock = FakeBrowserPool({STEEL: 5}), FakeClock()
+    broker = _broker(uow, driver, vault, pool=pool, clock=clock)
+    waiting = await _asked_for_a_code(uow, driver, broker)
+    driver.signals_for_every_tab = PageSignals(APP)
+    uow.browser_sessions = _ForcedAnswers(uow.browser_sessions, settle=False)  # type: ignore[assignment]
+
+    with pytest.raises(PageGone):
+        await broker.resume(CTX, waiting.lease.id, waiting.target_id, APP, holder="run_1")
+
+    assert not any(call[0] == "goto" for call in driver.calls)
+
+
+async def test_resume_raises_pagegone_when_its_beat_is_refused() -> None:
+    """The settle already committed READY by the time `beat` is asked, so a
+    `False` beat here means the lease was lost between them -- `PageGone`,
+    even though `goto` already ran against a context this call no longer
+    holds."""
+    uow, driver, vault = await _signing_world()
+    pool, clock = FakeBrowserPool({STEEL: 5}), FakeClock()
+    broker = _broker(uow, driver, vault, pool=pool, clock=clock)
+    waiting = await _asked_for_a_code(uow, driver, broker)
+    driver.signals_for_every_tab = PageSignals(APP)
+    uow.browser_sessions = _ForcedAnswers(uow.browser_sessions, beat=False)  # type: ignore[assignment]
+
+    with pytest.raises(PageGone):
+        await broker.resume(CTX, waiting.lease.id, waiting.target_id, APP, holder="run_1")
+
+    assert any(call[0] == "goto" for call in driver.calls)
+    assert uow.browser_sessions.leases[waiting.lease.id].state is LeaseState.READY
 
 
 async def test_resume_past_its_deadline_goes_through_a_fresh_acquire_never_back_to_ready() -> None:
@@ -411,6 +516,32 @@ async def test_a_crashed_context_is_settled_broken_and_the_account_moves_to_a_fr
     assert second.lease.state is LeaseState.READY
     assert second.session.context_id not in {first.session.context_id}
     assert driver.tabs[second.target_id] == APP
+
+
+async def test_a_lease_whose_container_left_the_pool_config_is_settled_broken_not_crashed() -> None:
+    """Minor (S9 re-review round 3): a container the pool config no longer
+    names can never be closed -- its context left with it, and `cdp_url`
+    raises `KeyError` for it, not `BrowserUnavailable`. `_close` must treat
+    that as the context already being gone: settle BROKEN, log, and never
+    let the `KeyError` reach the caller trying to replace the lease."""
+    uow, driver, vault = FakeUnitOfWork(), FakePageDriver(), FakeCredentialVault()
+    pool, clock = FakeBrowserPool({STEEL: 5}), FakeClock()
+    now = clock.now()
+    stale = Lease(
+        "lse_stale", LENA, "gone-container", "sess-gone", "ctx-gone", "run_0",
+        now - timedelta(minutes=20), now - timedelta(minutes=10), LeaseState.WAITING,
+    )  # fmt: skip
+    async with uow:
+        await uow.browser_sessions.lease(TenantId("greyorange"), stale)
+        await uow.commit()
+    pool.unknown.add("gone-container")
+    broker = _broker(uow, driver, vault, pool=pool, clock=clock)
+
+    held = await broker.acquire(CTX, LENA, APP, holder="run_1")
+
+    assert held.lease.id != stale.id
+    assert held.lease.state is LeaseState.READY
+    assert uow.browser_sessions.leases[stale.id].state is LeaseState.EXPIRED
 
 
 class _FlakyTab:

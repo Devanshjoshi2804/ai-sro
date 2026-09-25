@@ -35,6 +35,7 @@ from sro.domain.execution.account import (
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.hosts import origin_of
+from sro.domain.shared.identifiers import TenantId
 from sro.domain.skill.signing_in import (
     a_sign_in_page,
     asks_for_a_code,
@@ -442,3 +443,15 @@ class SessionBroker:
             logger.warning(
                 "context %s of lease %s was not closed: %r", lease.context_id, lease.id, why
             )
+        except KeyError as why:
+            logger.warning(
+                "container %s of lease %s is no longer configured: %r",
+                lease.container_url,
+                lease.id,
+                why,
+            )
+            async with self._uow as uow:
+                await uow.browser_sessions.settle(
+                    TenantId(lease.account.tenant), lease.id, state=LeaseState.BROKEN
+                )
+                await uow.commit()

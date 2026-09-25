@@ -163,7 +163,7 @@ async def test_an_expired_lease_whose_session_answers_is_saved_then_closed() -> 
 
     released = await _reaper(uow, FakeBrowserProvider(), broker, clock).execute()
 
-    assert lease.steel_session_id in released
+    assert lease.context_id in released
     assert vault.secrets[lease.account.vault_key("state")] == '{"cookies": ["lena"]}'
     assert pool.closed == [("http://steel:3000", lease.context_id)]
 
@@ -182,7 +182,7 @@ async def test_an_expired_lease_whose_session_is_gone_is_closed_without_a_save()
 
     released = await _reaper(uow, FakeBrowserProvider(), broker, clock).execute()
 
-    assert lease.steel_session_id in released
+    assert lease.context_id in released
     assert lease.account.vault_key("state") not in vault.secrets
     assert pool.closed == [("http://steel:3000", lease.context_id)]
 
@@ -248,7 +248,7 @@ async def test_a_wedged_save_times_out_and_the_context_still_closes() -> None:
 
     released = await _reaper(uow, FakeBrowserProvider(), broker, clock).execute()
 
-    assert lease.steel_session_id in released
+    assert lease.context_id in released
     assert lease.account.vault_key("state") not in vault.secrets
     assert pool.closed == [("http://steel:3000", lease.context_id)]
 
@@ -275,7 +275,7 @@ async def test_a_waiting_lease_that_lapsed_is_closed_but_never_saved() -> None:
 
     released = await _reaper(uow, FakeBrowserProvider(), broker, clock).execute()
 
-    assert lease.steel_session_id in released
+    assert lease.context_id in released
     assert lease.account.vault_key("state") not in vault.secrets
     assert pool.closed == [("http://steel:3000", lease.context_id)]
 
@@ -305,7 +305,7 @@ async def test_an_unreachable_container_is_skipped_this_sweep_and_retried_next()
     pool.down.clear()
     retried = await _reaper(uow, FakeBrowserProvider(), broker, clock).execute()
 
-    assert lease.steel_session_id in retried
+    assert lease.context_id in retried
     assert pool.closed == [("http://steel:3000", lease.context_id)]
 
 
@@ -328,7 +328,7 @@ async def test_a_context_this_sweep_just_closed_is_not_also_closed_as_a_stray() 
 
     released = await _reaper(uow, browser, broker, clock).execute()
 
-    assert released == (lease.steel_session_id,)
+    assert released == (lease.context_id,)
     assert browser.closed == []
 
 
@@ -358,7 +358,7 @@ async def test_a_sibling_lease_on_the_same_steel_session_is_untouched() -> None:
 
     released = await _reaper(uow, FakeBrowserProvider(), broker, clock).execute()
 
-    assert dying.steel_session_id in released
+    assert dying.context_id in released
     assert pool.closed == [(dying.container_url, dying.context_id)]
     still = await uow.browser_sessions.get_lease(f.TENANT, living.id)
     assert still is not None and still.state is LeaseState.READY

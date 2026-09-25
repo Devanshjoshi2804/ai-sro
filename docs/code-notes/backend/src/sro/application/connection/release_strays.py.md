@@ -20,10 +20,22 @@ Comments and docstrings moved out of [`backend/src/sro/application/connection/re
 > that keeps beating survives any number of sweeps, and one that stops is
 > released the moment `expired()` says so, not some minutes later).
 
-## `ReleaseStrayBrowsers.execute`, [line 30](../../../../../../../backend/src/sro/application/connection/release_strays.py#L30): Docstring
+## `Expired`, [line 17](../../../../../../../backend/src/sro/application/connection/release_strays.py#L17): Note on the class above
+
+> What `expire_leases` closed, in the two id spaces a caller actually
+> needs. `contexts` is what was released, once per lease, for `Swept` and
+> the worker log (S9 re-review round 3, M4): a lease's `steel_session_id`
+> is not its own -- self-hosted Steel gives every lease on a container the
+> SAME one, so returning it named a shared browser "released" once per
+> sibling lease, which it was not. `steel_sessions` is a second, narrower
+> answer for `close_strays`'s own exclusion, which reads `WatchBrowsers`'
+> deployment-wide list and has to compare against the id space that list
+> actually uses.
+
+## `ReleaseStrayBrowsers.execute`, [line 37](../../../../../../../backend/src/sro/application/connection/release_strays.py#L37): Docstring
 
 > Release what nothing claims. Returns what was given back: every expired
-> lease's Steel session, then every stray capture browser.
+> lease's context, then every stray capture browser's session.
 >
 > `expire_leases` and `close_strays` are exposed separately because
 > `KeepSessionsOpen` must never let a demonstration elsewhere delay lease
@@ -31,7 +43,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/connection/re
 > is the unconditional convenience the tests and any other caller with no
 > such split use.
 
-## `ReleaseStrayBrowsers.expire_leases`, [line 35](../../../../../../../backend/src/sro/application/connection/release_strays.py#L35): Docstring
+## `ReleaseStrayBrowsers.expire_leases`, [line 42](../../../../../../../backend/src/sro/application/connection/release_strays.py#L42): Docstring
 
 > Every lease `expired()` names goes through, in order, per lease:
 >
@@ -60,11 +72,11 @@ Comments and docstrings moved out of [`backend/src/sro/application/connection/re
 >    itself, which `SteelClient.close` already refuses while Chrome still
 >    lists any context in it (S7's guard: self-hosted Steel releases its
 >    one browser for any id sent to release). The closed context is
->    logged once, by lease and context id, never as "a browser was
->    released" -- the shared Steel session backing it is very much still
->    open (S9 review, M4).
+>    logged once, by lease and context id, and it is the context id --
+>    never the shared Steel session id -- that goes into the `contexts`
+>    this sweep returns (S9 re-review round 3, M4).
 
-## `ReleaseStrayBrowsers.close_strays`, [line 54](../../../../../../../backend/src/sro/application/connection/release_strays.py#L54): Docstring
+## `ReleaseStrayBrowsers.close_strays`, [line 63](../../../../../../../backend/src/sro/application/connection/release_strays.py#L63): Docstring
 
 > The legacy sweep: a Steel session with no live lease and no capturing
 > recording is litter, closed through the provider's own release path, not
@@ -75,7 +87,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/connection/re
 > second time, through the wrong path, as if the whole deployment's
 > browser had gone unclaimed (S9 review, M6).
 
-## `ReleaseStrayBrowsers.close_strays`, [line 74](../../../../../../../backend/src/sro/application/connection/release_strays.py#L74): Comment
+## `ReleaseStrayBrowsers.close_strays`, [line 83](../../../../../../../backend/src/sro/application/connection/release_strays.py#L83): Comment
 
 Code: `claimed = [str(held) for held, _ in await uow.browser_sessions.all_held()]`
 

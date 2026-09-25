@@ -85,9 +85,12 @@ Code: `released: tuple[str, ...] = ()`
 > capture-browser sweep -- waits for `_demonstrating`, and only when
 > nobody is demonstrating: a sign-in opens a browser of its own, and
 > reaping between opening and using it would take the slot out from under
-> the thing that just asked for it. `expired`, already known, is passed
-> through so a context this same pass just closed for its lease is never
-> also treated as an unclaimed capture browser (S9 review, M6).
+> the thing that just asked for it. `expired.steel_sessions`, already
+> known, is passed through so a context this same pass just closed for
+> its lease is never also treated as an unclaimed capture browser (S9
+> review, M6); `expired.contexts` -- never the shared Steel session id a
+> sibling lease still names -- is what `released` reports as closed (S9
+> re-review round 3, M4).
 
 ## `KeepSessionsOpen.sweep`, [line 49](../../../../../../../backend/src/sro/application/connection/keep_open.py#L49): Note on the line above
 

@@ -1136,7 +1136,7 @@ async def test_sight_types_and_saves_in_the_frame_and_settles_by_its_own_call(
     assert dict(result.learned) == {
         "strategy": "role_and_name",
         "query": "button|Save",
-        "frame_path": json.dumps([{"index": 1, "url": rig.url("/app")}]),
+        "frame_path": json.dumps([{"index": 1, "url": "/app"}]),
     }
     posted = [c for c in result.calls if c.method == "POST"]
     assert [(c.status, c.own_frame, c.request_body) for c in posted] == [

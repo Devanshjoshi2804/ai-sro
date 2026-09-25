@@ -808,3 +808,19 @@ async def test_a_sign_in_that_lands_clears_the_code_asked_latch() -> None:
     await _broker(uow, driver, vault).acquire(CTX, LENA, APP, holder="run_1")
 
     assert await asked.since(LENA.vault_key("password")) is None
+
+
+async def test_a_code_asked_again_after_the_window_restarts_the_latch() -> None:
+    # A code asked once and never answered must not leave the latch stale for
+    # good: the next prompt, one window later, starts a new window, so a
+    # lookup types the password at most once per K_CODE_WAIT (L1 re-review N3).
+    _, _, vault = await _signing_world()
+    asked = CodeAsked(vault)
+    key = LENA.vault_key("password")
+    first = FakeClock().now()
+    later = first + K_CODE_WAIT + timedelta(minutes=1)
+
+    await asked.ask(key, at=first)
+    await asked.ask(key, at=later)
+
+    assert await asked.since(key) == later

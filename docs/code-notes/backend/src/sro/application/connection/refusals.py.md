@@ -55,7 +55,7 @@ Code: `FAILED = "#failed"`
 > record holds a decimal count and a truncated keyed-hash fingerprint of the
 > password it counted, in the same vault as the password itself.
 
-## `FailedAttempts`, [line 74](../../../../../../../backend/src/sro/application/connection/refusals.py#L74): Class
+## `FailedAttempts`, [line 73](../../../../../../../backend/src/sro/application/connection/refusals.py#L73): Class
 
 > Failed sign-in attempts for one vault key, across runs, recorded as
 > `"<count> <fingerprint>"`. The fingerprint is `fingerprint(key, value)` of
@@ -67,7 +67,7 @@ Code: `FAILED = "#failed"`
 > same password at the same moment can lose one increment, making the latch
 > one attempt late.
 
-## `ForgetsRefusalOnWrite`, [line 88](../../../../../../../backend/src/sro/application/connection/refusals.py#L88): Class
+## `ForgetsRefusalOnWrite`, [line 87](../../../../../../../backend/src/sro/application/connection/refusals.py#L87): Class
 
 > The vault, wrapped so that writing a key lifts any refusal against it and
 > clears its failed-attempt count (`#failed`, task 10). Writing or deleting a
@@ -87,6 +87,10 @@ Code: `FAILED = "#failed"`
 
 > When a system last asked this account for a one-time code: a mark beside
 > the password in the vault, `#code`, built like the `#refused` latch. `ask`
-> keeps the first time it was asked, so a caller that keeps meeting the
-> prompt does not keep pushing the window out; `clear` is a sign-in that
-> landed. The broker reads it (`_sign_in`).
+> records the latest prompt: every prompt is a code the identity provider
+> really sent, so the window restarts from it. Keeping only the first one
+> let the latch go stale for good -- a code nobody answered, and eleven
+> minutes later every lookup typed the password and sent another push (L1
+> re-review N3). A caller with `park=False` never types inside the window,
+> so it cannot push the window out itself; at most one password per
+> `K_CODE_WAIT` per account. `clear` is a sign-in that landed. The broker reads it (`_sign_in`).

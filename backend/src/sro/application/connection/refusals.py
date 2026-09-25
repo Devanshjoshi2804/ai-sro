@@ -55,8 +55,7 @@ class CodeAsked:
         self._vault = vault
 
     async def ask(self, key: str, *, at: datetime) -> None:
-        if await self.since(key) is None:
-            await self._vault.store(key + CODE, json.dumps({"at": at.isoformat()}))
+        await self._vault.store(key + CODE, json.dumps({"at": at.isoformat()}))
 
     async def since(self, key: str) -> datetime | None:
         said = await self._vault.get(key + CODE)

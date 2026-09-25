@@ -112,7 +112,7 @@ class TriggerWorkflow:
 @workflow.defn
 class RunWorkflow:
     def __init__(self) -> None:
-        self._answers: dict[str, tuple[str, str]] = {}
+        self._answers: set[str] = set()
 
     @workflow.run
     async def run(self, ref: RunRef) -> str:
@@ -150,8 +150,8 @@ class RunWorkflow:
         return ref.run_id
 
     @workflow.signal
-    def answer(self, question_id: str, value: str, verdict: str = "") -> None:
-        self._answers[question_id] = (value, verdict)
+    def answer(self, question_id: str) -> None:
+        self._answers.add(question_id)
 
     async def _answered(self, ref: RunRef, asking: str, deadline: datetime) -> bool:
         await workflow.execute_activity(
@@ -165,7 +165,7 @@ class RunWorkflow:
             return False
         await workflow.execute_activity(
             "run.answered",
-            RunAnswer(ref.tenant_id, ref.principal_id, ref.run_id, asking, *self._answers[asking]),
+            RunAnswer(ref.tenant_id, ref.principal_id, ref.run_id, asking),
             start_to_close_timeout=_SHORT,
             retry_policy=_READ_RETRY,
         )

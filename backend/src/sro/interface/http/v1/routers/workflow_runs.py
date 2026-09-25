@@ -262,11 +262,11 @@ async def answer_workflow_run(
     about a write the run sent and could not confirm needs the operator's
     `verdict`: `done` settles it, `not_done` lets the run try it again.
 
-    A run of another tenant is a 404. A run no longer running, an answer to
-    another question than the standing one, a value for a password or code
-    question, or a missing verdict on a write in doubt is a 409 `Conflict`.
-    An answer to a question the run already withdrew (the step turned out
-    done) is accepted and changes nothing.
+    A run of another tenant is a 404. A 409 `Conflict` for: a run no longer
+    running; no question standing, or another one than `question_id`; a
+    question already answered differently; a value on anything but a value
+    question; a missing verdict on a write in doubt. Only the question id
+    reaches the run's workflow; the answer itself is kept on the run.
     """
     await container.answer_run().execute(
         ctx, run_id=run_id, question_id=body.question_id, value=body.value, verdict=body.verdict

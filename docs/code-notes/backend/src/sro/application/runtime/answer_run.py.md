@@ -6,22 +6,34 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/answe
 
 > The longest answer a run is handed, in characters. An answer is a choice,
 > a value or a short "done it"; a mail reply carries its whole quoted thread,
-> which is cut here rather than stored in the workflow's history.
+> which is cut here rather than kept whole.
 
 ## `AnswerRun.execute`, [line 38](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L38): Note
 
-Code: `if not asking:`
+Code: `if not asking or asking.get("id") != question_id:`
 
-> Nothing standing means the question was withdrawn (the step turned out
-> done): the answer is passed on bare, with no value, so a workflow waiting
-> on it carries on, and `RunSteps.answered` changes nothing. A secret never
-> rides a signal: the workflow's history is not a vault (Global Constraint
-> 10). A password is stored with `PUT /v1/secrets` and a one-time code is
-> typed on the page; either answer is empty.
+> Only the question standing now is answered. A question withdrawn under a
+> waiting workflow (the step turned out done) is refused like any other; it
+> is never run again, because the step has already moved on.
+>
+> Only a question for a value takes a value. A password is stored with
+> `PUT /v1/secrets`, a one-time code is typed on the page, a step is answered
+> by its verdict: no secret or free text is ever kept with the answer.
 >
 > A question about a write that was sent and never confirmed needs the
-> operator's verdict. Without one nothing is signalled: the question stands
-> and the write stays in doubt, never sent again.
+> operator's verdict. Without one the question stands and the write stays in
+> doubt, never sent again.
+
+## `AnswerRun.execute`, [line 56](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L56): Note
+
+Code: `progress.asking = {**asking, **answer}`
+
+> The answer is kept on the run's own question, in one compare-and-set, so
+> the first answer wins: a different second one is refused, the same one
+> again is only signalled again (a retry after the signal failed). The
+> signal carries the question id and nothing else; the workflow's history is
+> not a vault (Global Constraint 10), and `RunSteps.answered` reads the
+> answer back from the run.
 
 ## `WriteVerdict`, [line 13](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L13): Constant
 

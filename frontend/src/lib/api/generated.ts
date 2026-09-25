@@ -1962,11 +1962,11 @@ export interface paths {
          *     about a write the run sent and could not confirm needs the operator's
          *     `verdict`: `done` settles it, `not_done` lets the run try it again.
          *
-         *     A run of another tenant is a 404. A run no longer running, an answer to
-         *     another question than the standing one, a value for a password or code
-         *     question, or a missing verdict on a write in doubt is a 409 `Conflict`.
-         *     An answer to a question the run already withdrew (the step turned out
-         *     done) is accepted and changes nothing.
+         *     A run of another tenant is a 404. A 409 `Conflict` for: a run no longer
+         *     running; no question standing, or another one than `question_id`; a
+         *     question already answered differently; a value on anything but a value
+         *     question; a missing verdict on a write in doubt. Only the question id
+         *     reaches the run's workflow; the answer itself is kept on the run.
          */
         post: operations["answer_workflow_run_v1_workflow_runs__run_id__answer_post"];
         delete?: never;
@@ -2054,13 +2054,16 @@ export interface components {
          * AnswerRunRequest
          * @description The operator's answer to the question a Steel run is waiting on.
          *
-         *     `question_id` is the one the run asked (`decision.question_id` on the
-         *     `run_asks` message in the operator's thread); an answer to any other
-         *     question the run is still asking is a 409. `value` is empty for a question
-         *     that only needs the person to have done something -- a one-time code typed
-         *     on the page, a password stored with `PUT /v1/secrets`. A password is never
-         *     sent here, nor a one-time code: this answer travels in the run's durable
-         *     history, which is not a vault, so a non-empty value for either is a 409.
+         *     `question_id` is the one the run is asking now (`decision.question_id` on
+         *     the `run_asks` message in the operator's thread); any other id, or an
+         *     answer when nothing is asked, is a 409. The first answer to a question is
+         *     the one kept: a different second answer is a 409, the same one again is
+         *     accepted.
+         *
+         *     `value` is given only for a question that asks for a value; for any other
+         *     it must be empty, or the answer is a 409. A password is stored with
+         *     `PUT /v1/secrets`, a one-time code is typed on the page, and a step is
+         *     answered by its `verdict`, so no secret or free text ever rides along.
          */
         AnswerRunRequest: {
             /** Question Id */

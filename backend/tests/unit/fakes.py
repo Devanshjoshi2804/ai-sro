@@ -415,8 +415,9 @@ class FakeDurableExecution:
         self.runs_started: list[tuple[str, float]] = []
         """One `(run_id, budget_s)` per `start_run` call."""
 
-        self.answered: list[tuple[str, str, str, str]] = []
-        """One `(run_id, question_id, value, verdict)` per `answer_run` call."""
+        self.answered: list[tuple[str, ...]] = []
+        """Every argument of each `answer_run` call, in order: what a signal
+        to the run's workflow would carry into its history."""
 
     async def execute_skill(
         self,
@@ -454,8 +455,8 @@ class FakeDurableExecution:
     async def start_run(self, ctx: RequestContext, *, run_id: str, budget_s: float) -> None:
         self.runs_started.append((run_id, budget_s))
 
-    async def answer_run(self, run_id: str, question_id: str, value: str, verdict: str) -> None:
-        self.answered.append((run_id, question_id, value, verdict))
+    async def answer_run(self, run_id: str, question_id: str) -> None:
+        self.answered.append((run_id, question_id))
 
 
 class FakeRecordingRepository:

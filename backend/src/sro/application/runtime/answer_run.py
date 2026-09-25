@@ -35,19 +35,31 @@ class AnswerRun:
             raise Conflict("that run is no longer running")
         progress = Progress.of(run.progress)
         asking = progress.asking
-        if not asking:
-            await self._durable.answer_run(run_id, question_id, "", "")
-            return
-        if asking.get("id") != question_id:
+        if not asking or asking.get("id") != question_id:
             raise Conflict("that is not the question this run is waiting on")
         kind = asking.get("kind")
-        if kind in ("password", "code") and value:
+        if value and kind != "value":
             raise Conflict(
-                "a secret is never sent as an answer: a password is stored with "
-                "PUT /v1/secrets and a one-time code is typed on the page"
+                "only a question for a value takes one: a password is stored with "
+                "PUT /v1/secrets, a one-time code is typed on the page, and a step "
+                "is answered by its verdict"
             )
         if verdict and kind != "step":
             raise Conflict("only a question about a step takes a verdict")
         if kind == "step" and not verdict and progress.in_doubt(int(asking.get("step") or -1)):
             raise Conflict("say whether the write was done: its verdict is done or not_done")
-        await self._durable.answer_run(run_id, question_id, value, verdict)
+        answer = {"answered": "yes", "value": value, "verdict": verdict}
+        if asking.get("answered"):
+            if any(asking.get(key, "") != said for key, said in answer.items()):
+                raise Conflict("that question was already answered")
+        else:
+            progress.asking = {**asking, **answer}
+            async with self._uow as uow:
+                kept = await uow.workflow_runs.record_progress(
+                    ctx.tenant_id, run_id, progress.as_json(), was=run.progress
+                )
+                if kept:
+                    await uow.commit()
+            if not kept:
+                raise Conflict("that question was answered, or the run moved on, meanwhile")
+        await self._durable.answer_run(run_id, question_id)

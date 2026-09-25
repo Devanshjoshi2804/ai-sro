@@ -44,6 +44,7 @@ from sro.application.lookup.run_lookups import RunLookups
 from sro.application.ports.page import PageAnswer, SessionRef
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
+from sro.application.runtime.answer_run import AnswerRun, WriteVerdict
 from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.executor import StepExecutor
 from sro.application.runtime.run_steps import RunSteps
@@ -75,6 +76,7 @@ from tests.unit.fakes import (
     FakeBrowserPool,
     FakeClock,
     FakeCredentialVault,
+    FakeDurableExecution,
     FakeHttpCaller,
     FakeIdFactory,
     FakePageDriver,
@@ -676,6 +678,16 @@ class SteelRun:
     account: Account
     vault: FakeCredentialVault
     clock: FakeClock
+    durable: FakeDurableExecution
+
+    async def answer(
+        self, question_id: str, *, value: str = "", verdict: WriteVerdict = ""
+    ) -> None:
+        """Answers as the panel does, then runs what the workflow runs on it."""
+        await AnswerRun(self.uow, self.durable).execute(
+            CTX, run_id=self.run_id, question_id=question_id, value=value, verdict=verdict
+        )
+        await self.run_steps.answered(CTX, self.run_id, question_id)
 
     async def thread_says(self) -> list[dict[str, object]]:
         """What the run's operator (`clerk`) has been told in their own thread,
@@ -759,7 +771,9 @@ async def steel_run(
     run_steps = RunSteps(
         uow, broker, executor, Teach(uow, clock), lanes.api, clock, FakeIdFactory()
     )
-    return SteelRun(uow, run_id, run_steps, lanes, broker, driver, account, vault, clock)
+    return SteelRun(
+        uow, run_id, run_steps, lanes, broker, driver, account, vault, clock, FakeDurableExecution()
+    )
 
 
 QID = "q-run_ask-0-0"

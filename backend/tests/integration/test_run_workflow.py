@@ -82,7 +82,7 @@ class Stubs:
 
     @activity.defn(name="run.answered")
     async def answered(self, answer: RunAnswer) -> None:
-        self.called.append(f"answered {answer.question_id}={answer.value}")
+        self.called.append(f"answered {answer.question_id}")
         self.prepared = Prepared(browser=self.prepared.browser)
 
     @activity.defn(name="run.finish")
@@ -137,7 +137,7 @@ async def _answered(client: Client, stubs: Stubs, question_id: str) -> None:
         handle = await client.start_workflow(
             RunWorkflow.run, REF, id=f"workflow-run-{uuid.uuid4().hex}", task_queue=queue
         )
-        await handle.signal(RunWorkflow.answer, args=[question_id, "done", ""])
+        await handle.signal(RunWorkflow.answer, question_id)
         await handle.result()
 
 
@@ -153,7 +153,7 @@ async def test_a_step_that_asks_lets_go_waits_for_the_answer_and_carries_on(
         "acquire",
         "step",
         "release",
-        "answered q-1=done",
+        "answered q-1",
         "prepare",
         "acquire",
         "step",
@@ -266,7 +266,7 @@ async def test_a_question_at_prepare_or_acquire_runs_no_step_until_it_is_answere
     assert asked_early.called == [
         "prepare",
         "release",
-        "answered q-prepare=done",
+        "answered q-prepare",
         "prepare",
         "acquire",
         "step",
@@ -277,7 +277,7 @@ async def test_a_question_at_prepare_or_acquire_runs_no_step_until_it_is_answere
         "prepare",
         "acquire",
         "release",
-        "answered q-acquire=done",
+        "answered q-acquire",
         "prepare",
         "acquire",
         "step",

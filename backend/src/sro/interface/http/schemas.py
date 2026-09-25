@@ -2560,13 +2560,16 @@ class AskResponse(BaseModel):
 class AnswerRunRequest(BaseModel):
     """The operator's answer to the question a Steel run is waiting on.
 
-    `question_id` is the one the run asked (`decision.question_id` on the
-    `run_asks` message in the operator's thread); an answer to any other
-    question the run is still asking is a 409. `value` is empty for a question
-    that only needs the person to have done something -- a one-time code typed
-    on the page, a password stored with `PUT /v1/secrets`. A password is never
-    sent here, nor a one-time code: this answer travels in the run's durable
-    history, which is not a vault, so a non-empty value for either is a 409.
+    `question_id` is the one the run is asking now (`decision.question_id` on
+    the `run_asks` message in the operator's thread); any other id, or an
+    answer when nothing is asked, is a 409. The first answer to a question is
+    the one kept: a different second answer is a 409, the same one again is
+    accepted.
+
+    `value` is given only for a question that asks for a value; for any other
+    it must be empty, or the answer is a 409. A password is stored with
+    `PUT /v1/secrets`, a one-time code is typed on the page, and a step is
+    answered by its `verdict`, so no secret or free text ever rides along.
     """
 
     question_id: str

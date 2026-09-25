@@ -47,59 +47,100 @@ async def test_a_question_is_said_to_the_operator_and_the_run_holds_nothing_whil
     assert world.driver.tabs == {}
 
 
-async def test_a_password_never_travels_in_an_answer() -> None:
-    uow, durable = FakeUnitOfWork(), FakeDurableExecution()
-    run = await asking_steel_run(uow, kind="password")
-
-    with pytest.raises(Conflict):
-        await AnswerRun(uow, durable).execute(CTX, run_id=run.id, question_id=QID, value="hunter2")
-    await AnswerRun(uow, durable).execute(CTX, run_id=run.id, question_id=QID, value="")
-
-    assert durable.answered == [(run.id, QID, "", "")]
-
-
-async def test_an_answer_to_another_question_is_refused() -> None:
-    uow, durable = FakeUnitOfWork(), FakeDurableExecution()
-    run = await asking_steel_run(uow, kind="step")
-
-    with pytest.raises(Conflict):
-        await AnswerRun(uow, durable).execute(CTX, run_id=run.id, question_id="q-other", value="")
-
-    assert durable.answered == []
-
-
-async def test_an_answer_to_a_withdrawn_question_is_passed_on_bare_and_changes_nothing() -> None:
+async def _asked_a_failed_step() -> tuple[SteelRun, str]:
     world = await steel_run(steps=[save_step(status=201), type_step()])
     world.lanes.ui.answers(StepResult("failed", Lane.UI, fingerprint="f"))
     world.lanes.sight.answers(StepResult("failed", Lane.SIGHT, fingerprint="g"))
     await world.run_steps.prepare(CTX, world.run_id)
     await world.run_steps.acquire(CTX, world.run_id)
     asked = (await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())).asking
+    assert asked
+    return world, asked
+
+
+async def _asked_about_a_write_in_doubt() -> tuple[SteelRun, str]:
+    world = await steel_run(steps=[save_step(status=201)])
+    await world.run_steps.prepare(CTX, world.run_id)
+    await world.run_steps.acquire(CTX, world.run_id)
+    await world.mark_sending(0)
+    asked = (await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())).asking
+    assert asked
+    return world, asked
+
+
+async def test_question_ids_cannot_be_guessed_from_the_run_or_its_step() -> None:
+    one, first = await _asked_a_failed_step()
+    two, second = await _asked_a_failed_step()
+
+    assert first != second
+    assert one.run_id not in first and two.run_id not in second
+
+
+@pytest.mark.parametrize("kind", ["password", "code", "step"])
+async def test_only_a_question_for_a_value_takes_one_and_nothing_else_reaches_the_signal(
+    kind: str,
+) -> None:
+    uow, durable = FakeUnitOfWork(), FakeDurableExecution()
+    run = await asking_steel_run(uow, kind=kind)
+
+    with pytest.raises(Conflict):
+        await AnswerRun(uow, durable).execute(
+            CTX, run_id=run.id, question_id=QID, value="use pw Hunter2!"
+        )
+    await AnswerRun(uow, durable).execute(CTX, run_id=run.id, question_id=QID, value="")
+
+    assert durable.answered == [(run.id, QID)]
+    saved = await uow.workflow_runs.get(TENANT, run.id)
+    assert saved is not None
+    assert "Hunter2" not in str(saved.progress)
+
+
+async def test_an_answer_to_another_question_or_to_none_is_refused() -> None:
+    uow, durable = FakeUnitOfWork(), FakeDurableExecution()
+    run = await asking_steel_run(uow, kind="step")
+
+    with pytest.raises(Conflict):
+        await AnswerRun(uow, durable).execute(CTX, run_id=run.id, question_id="q-other", value="")
+    assert await uow.workflow_runs.record_progress(TENANT, run.id, {})
+    with pytest.raises(Conflict):
+        await AnswerRun(uow, durable).execute(CTX, run_id=run.id, question_id=QID, value="")
+
+    assert durable.answered == []
+
+
+async def test_an_answer_to_a_withdrawn_question_is_refused_and_the_step_never_runs_again() -> None:
+    world, asked = await _asked_a_failed_step()
     progress = Progress.of((await world.saved_run()).progress)
     progress.settle(0, lane="ui", verdict="done")
     progress.step, progress.asking = 1, {}
     assert await world.uow.workflow_runs.record_progress(TENANT, world.run_id, progress.as_json())
-    durable = FakeDurableExecution()
 
-    await AnswerRun(world.uow, durable).execute(
-        CTX, run_id=world.run_id, question_id=asked, value="hunter2"
-    )
-    await world.run_steps.answered(CTX, world.run_id, asked, "done")
+    with pytest.raises(Conflict):
+        await world.answer(asked)
+    await world.run_steps.answered(CTX, world.run_id, asked)
 
-    assert durable.answered == [(world.run_id, asked, "", "")]
+    assert world.durable.answered == []
     assert Progress.of((await world.saved_run()).progress).as_json() == progress.as_json()
     assert world.lanes.ui.calls == 1
 
 
-async def test_an_answered_value_is_kept_under_its_name_and_the_question_stops_standing() -> None:
-    world = await steel_run(steps=[save_step(status=201)])
-    await world.asks({"id": QID, "kind": "value", "name": "Customer Type", "text": "which?"})
+async def test_the_first_answer_wins_and_a_different_second_one_is_refused() -> None:
+    world, asked = await _asked_about_a_write_in_doubt()
 
-    await world.run_steps.answered(CTX, world.run_id, QID, "GT9")
+    await AnswerRun(world.uow, world.durable).execute(
+        CTX, run_id=world.run_id, question_id=asked, value="", verdict="done"
+    )
+    with pytest.raises(Conflict):
+        await AnswerRun(world.uow, world.durable).execute(
+            CTX, run_id=world.run_id, question_id=asked, value="", verdict="not_done"
+        )
+    await AnswerRun(world.uow, world.durable).execute(
+        CTX, run_id=world.run_id, question_id=asked, value="", verdict="done"
+    )
+    await world.run_steps.answered(CTX, world.run_id, asked)
 
-    run = await world.saved_run()
-    assert run.values["Customer Type"] == "GT9"
-    assert Progress.of(run.progress).asking == {}
+    assert world.durable.answered == [(world.run_id, asked), (world.run_id, asked)]
+    assert Progress.of((await world.saved_run()).progress).written(0)
 
 
 async def test_a_one_time_code_keeps_its_lease_and_page_while_waiting_and_resumes_on_them() -> None:
@@ -116,7 +157,7 @@ async def test_a_one_time_code_keeps_its_lease_and_page_while_waiting_and_resume
     assert waiting.tabs[MAIN] in world.driver.tabs
     assert world.uow.browser_sessions.leases[waiting.lease].state is LeaseState.WAITING
 
-    await world.run_steps.answered(CTX, world.run_id, asked, "")
+    await world.answer(asked)
     world.driver.signals_for_every_tab = PageSignals(APP)
     assert await world.run_steps.acquire(CTX, world.run_id) == ""
 
@@ -125,8 +166,24 @@ async def test_a_one_time_code_keeps_its_lease_and_page_while_waiting_and_resume
     assert world.uow.browser_sessions.leases[resumed.lease].state is LeaseState.READY
 
 
-async def test_a_stored_password_ends_the_park_at_once_and_the_run_signs_in_afresh() -> None:
+async def test_a_run_that_ends_while_a_code_is_asked_ends_its_park_and_closes_its_page() -> None:
     world = await steel_run(steps=[save_step(status=201)])
+    await world.vault.store(world.account.vault_key("password"), "pw")
+    await world.run_steps.prepare(CTX, world.run_id)
+    world.driver.signals_for_every_tab = PageSignals(APP, autocomplete=frozenset({"one-time-code"}))
+    await world.run_steps.acquire(CTX, world.run_id)
+    await world.run_steps.release(CTX, world.run_id)
+    waiting = Progress.of((await world.saved_run()).progress)
+
+    await world.run_steps.finish(CTX, world.run_id)
+    await world.run_steps.release(CTX, world.run_id)
+
+    lease = world.uow.browser_sessions.leases[waiting.lease]
+    assert lease.expires_at <= world.clock.now()
+    assert waiting.tabs[MAIN] not in world.driver.tabs
+
+
+async def _parked_on_a_password(world: SteelRun) -> str:
     await world.run_steps.prepare(CTX, world.run_id)
     await world.run_steps.acquire(CTX, world.run_id)
     parked = Progress.of((await world.saved_run()).progress).lease
@@ -138,14 +195,31 @@ async def test_a_stored_password_ends_the_park_at_once_and_the_run_signs_in_afre
         waits_for="password",
     )
     await world.asks({"id": QID, "kind": "password", "text": "store a new one"})
-    await world.run_steps.release(CTX, world.run_id)
+    return parked
 
-    await world.run_steps.answered(CTX, world.run_id, QID, "")
+
+async def test_a_stored_password_ends_the_park_at_once_and_the_run_signs_in_afresh() -> None:
+    world = await steel_run(steps=[save_step(status=201)])
+    parked = await _parked_on_a_password(world)
+    await world.run_steps.release(CTX, world.run_id)
+    assert world.uow.browser_sessions.leases[parked].expires_at > world.clock.now()
+
+    await world.answer(QID)
 
     assert await world.run_steps.acquire(CTX, world.run_id) == ""
     fresh = Progress.of((await world.saved_run()).progress).lease
     assert fresh != parked
     assert world.uow.browser_sessions.leases[parked].state is LeaseState.EXPIRED
+
+
+async def test_a_run_that_ends_while_a_password_is_asked_ends_its_park() -> None:
+    world = await steel_run(steps=[save_step(status=201)])
+    parked = await _parked_on_a_password(world)
+
+    await world.run_steps.finish(CTX, world.run_id)
+    await world.run_steps.release(CTX, world.run_id)
+
+    assert world.uow.browser_sessions.leases[parked].expires_at <= world.clock.now()
 
 
 async def test_a_finished_steel_run_waits_on_its_mail_thread_no_longer() -> None:
@@ -159,22 +233,12 @@ async def test_a_finished_steel_run_waits_on_its_mail_thread_no_longer() -> None
     assert (await world.saved_run()).awaiting is None
 
 
-async def _asked_about_a_write_in_doubt() -> tuple[SteelRun, str]:
-    world = await steel_run(steps=[save_step(status=201)])
-    await world.run_steps.prepare(CTX, world.run_id)
-    await world.run_steps.acquire(CTX, world.run_id)
-    await world.mark_sending(0)
-    asked = (await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())).asking
-    assert asked
-    return world, asked
-
-
 async def test_an_operator_who_says_the_write_was_done_settles_it_and_nothing_sends_it_again() -> (
     None
 ):
     world, asked = await _asked_about_a_write_in_doubt()
 
-    await world.run_steps.answered(CTX, world.run_id, asked, "", verdict="done")
+    await world.answer(asked, verdict="done")
     after = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
 
     run = await world.saved_run()
@@ -189,36 +253,23 @@ async def test_an_operator_who_says_the_write_was_not_done_lets_the_lanes_try_it
     world, asked = await _asked_about_a_write_in_doubt()
     world.lanes.ui.answers(StepResult("done", Lane.UI))
 
-    await world.run_steps.answered(CTX, world.run_id, asked, "", verdict="not_done")
+    await world.answer(asked, verdict="not_done")
+    said = (await world.saved_run()).steps[-1]
     await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
 
+    assert (said.verdict, said.verdict_by) == ("failed", "operator")
     assert world.lanes.ui.calls == 1
     assert Progress.of((await world.saved_run()).progress).step == 1
 
 
 async def test_an_answer_about_a_write_in_doubt_that_says_nothing_of_it_is_refused() -> None:
     world, asked = await _asked_about_a_write_in_doubt()
-    durable = FakeDurableExecution()
 
     with pytest.raises(Conflict):
-        await AnswerRun(world.uow, durable).execute(
-            CTX, run_id=world.run_id, question_id=asked, value="looks fine"
-        )
-    await AnswerRun(world.uow, durable).execute(
-        CTX, run_id=world.run_id, question_id=asked, value="", verdict="done"
-    )
+        await world.answer(asked)
 
-    assert durable.answered == [(world.run_id, asked, "", "done")]
-
-
-async def test_a_one_time_code_never_travels_in_an_answer() -> None:
-    uow, durable = FakeUnitOfWork(), FakeDurableExecution()
-    run = await asking_steel_run(uow, kind="code")
-
-    with pytest.raises(Conflict):
-        await AnswerRun(uow, durable).execute(CTX, run_id=run.id, question_id=QID, value="123456")
-
-    assert durable.answered == []
+    assert world.durable.answered == []
+    assert Progress.of((await world.saved_run()).progress).asking["id"] == asked
 
 
 async def test_a_password_answer_never_ends_a_park_on_a_one_time_code() -> None:
@@ -231,7 +282,7 @@ async def test_a_password_answer_never_ends_a_park_on_a_one_time_code() -> None:
     parked = world.uow.browser_sessions.leases[lease]
     await world.asks({"id": QID, "kind": "password", "text": "store a new one"})
 
-    await world.run_steps.answered(CTX, world.run_id, QID, "")
+    await world.answer(QID)
 
     assert world.uow.browser_sessions.leases[lease] == parked
     assert parked.waits_for == "code"

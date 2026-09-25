@@ -311,17 +311,26 @@ class FromTheMail:
 
     async def _answer_the_run(self, ctx: RequestContext, run: WorkflowRun, said: str) -> None:
         asking = Progress.of(run.progress).asking
-        if run.outcome != "running" or asking.get("kind") not in ("step", "value"):
+        if run.outcome != "running" or asking.get("kind") != "value":
             logger.info(
-                "%s: a reply on %s's thread answers nothing it asks", ctx.tenant_id.value, run.id
+                "%s: a reply on %s's thread answers nothing: only a value is taken from mail, "
+                "and whatever %s asks stands in the panel",
+                ctx.tenant_id.value,
+                run.id,
+                run.id,
             )
             return
         try:
             await self._answer.execute(
                 ctx, run_id=run.id, question_id=asking["id"], value=said[:K_ANSWER]
             )
-        except Conflict as stale:
-            logger.info("%s: a reply came too late for %s: %s", ctx.tenant_id.value, run.id, stale)
+        except Conflict as refused:
+            logger.info(
+                "%s: a reply on %s's thread was not taken as its answer: %s",
+                ctx.tenant_id.value,
+                run.id,
+                refused,
+            )
 
     async def _was_asked(self, ctx: RequestContext, thread: str) -> Pending | None:
         if not thread.strip():

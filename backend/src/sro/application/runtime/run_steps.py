@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import secrets
 from dataclasses import dataclass, replace
 
 from sro.application.chat.announce import SayWhatHappened
@@ -188,27 +189,25 @@ class RunSteps:
     async def release(self, ctx: RequestContext, run_id: str) -> None:
         run = await self._run(ctx, run_id)
         progress = Progress.of(run.progress)
-        if not progress.tabs.get(MAIN) or (
-            run.outcome == "running" and progress.asking.get("kind") == "code"
-        ):
+        waits = progress.asking.get("kind", "")
+        if run.outcome == "running" and waits == "code":
             return
-        with contextlib.suppress(PageGone):
-            held = await self._broker.reattach(ctx, progress.lease, progress.tabs[MAIN])
-            await self._broker.release(ctx, held)
-        progress.tabs = {}
-        await self._write(ctx, run, progress)
+        if progress.tabs.get(MAIN):
+            with contextlib.suppress(PageGone):
+                held = await self._broker.reattach(ctx, progress.lease, progress.tabs[MAIN])
+                await self._broker.release(ctx, held)
+            progress.tabs = {}
+            await self._write(ctx, run, progress)
+        if run.outcome != "running" and waits in ("code", "password") and progress.lease:
+            await self._broker.unpark(ctx, progress.lease, waits)
 
-    async def answered(
-        self, ctx: RequestContext, run_id: str, question_id: str, value: str, *, verdict: str = ""
-    ) -> None:
+    async def answered(self, ctx: RequestContext, run_id: str, question_id: str) -> None:
         run, workflow, _ = await self._load(ctx, run_id)
         progress = Progress.of(run.progress)
         asking = progress.asking
-        if asking.get("id") != question_id:
+        if asking.get("id") != question_id or not asking.get("answered"):
             return
-        kind = asking.get("kind")
-        if kind == "value" and asking.get("name"):
-            run.values[asking["name"]] = value
+        kind, verdict = asking.get("kind"), asking.get("verdict", "")
         if kind == "password" and progress.lease:
             await self._broker.unpark(ctx, progress.lease, "password")
         progress.asking = {}
@@ -222,6 +221,17 @@ class RunSteps:
                 return
             mark = progress.marks.get(step.order, StepMark())
             progress.settle(step.order, lane=mark.lane, verdict="failed", never_left=True)
+            run.steps.append(
+                RunStep(
+                    order=len(run.steps),
+                    of_step=step.order,
+                    says=step.says,
+                    verdict="failed",
+                    verdict_by="operator",
+                    planned_by="operator",
+                    reason="the operator says it was not done; it is tried again",
+                )
+            )
         await self._write(ctx, run, progress, save=True)
 
     async def beat(self, ctx: RequestContext, run_id: str) -> None:
@@ -406,7 +416,7 @@ class RunSteps:
             )
         if isinstance(asked, WaitingForAPerson):
             progress.lease, progress.tabs = asked.held.lease.id, {MAIN: asked.held.target_id}
-        asking = f"q-{run.id}-{step.order}-{len(run.steps)}"
+        asking = f"q_{secrets.token_hex(16)}"
         progress.asking = {
             "id": asking,
             "kind": asked.kind,

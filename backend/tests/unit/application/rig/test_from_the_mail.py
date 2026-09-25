@@ -662,26 +662,31 @@ async def test_a_reply_carries_on_the_run_that_was_waiting_for_it() -> None:
 
 @pytest.mark.parametrize(
     ("asking", "answered"),
-    [("step", True), ("value", True), ("password", False), ("", False)],
+    [("value", True), ("step", False), ("password", False), ("code", False), ("", False)],
 )
-async def test_a_reply_on_a_steel_run_s_thread_answers_that_run_and_never_starts_another(
+async def test_a_reply_on_a_steel_run_s_thread_answers_only_a_value_and_never_starts_another(
     asking: str, answered: bool
 ) -> None:
+    """Mail is untrusted: a reply may give a value the run asked for, but never
+    tells a step to go again or says a write was done. That question stands in
+    the panel."""
     uow = await _held()
     run = _short("t-9", needs=[], values={})
     run.outcome, run.executor = "running", "steel"
     if asking:
-        run.progress = {"asking": {"id": "q-1", "kind": asking, "text": "was it saved?"}}
+        run.progress = {"asking": {"id": "q-1", "kind": asking, "text": "which one?"}}
     await uow.workflow_runs.save(run)
-    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("yes, it is there", thread="t-9")})
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("GU9 please", thread="t-9")})
     durable = FakeDurableExecution()
 
     looked = await _look(uow, mailbox, _Reads(_reading(JOB)), durable=durable).execute(CTX)
 
-    assert [(one, question) for one, question, _, _ in durable.answered] == (
-        [("run_1", "q-1")] if answered else []
-    )
-    assert all("yes, it is there" in value for _, _, value, _ in durable.answered)
+    assert durable.answered == ([("run_1", "q-1")] if answered else [])
+    saved = await uow.workflow_runs.get(f.TENANT, "run_1")
+    assert saved is not None
+    standing = saved.progress.get("asking", {})
+    assert isinstance(standing, dict)
+    assert ("GU9 please" in str(standing.get("value", ""))) is answered
     assert looked.offered == ()
 
 

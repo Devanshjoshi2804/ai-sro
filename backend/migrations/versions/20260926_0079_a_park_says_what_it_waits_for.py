@@ -6,7 +6,7 @@ password answer ends only a password park and a code answer resumes only a
 code park. Null on every lease that is not waiting.
 
 Revision ID: 0079
-Revises: 0077
+Revises: 0078
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "0079"
-down_revision = "0077"
+down_revision = "0078"
 branch_labels = None
 depends_on = None
 

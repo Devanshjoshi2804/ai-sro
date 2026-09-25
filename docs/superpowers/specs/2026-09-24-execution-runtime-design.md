@@ -151,16 +151,22 @@ hand-edited.
      - each field's label, role and required flag;
      - button names;
      - the option labels of a dropdown with at most `K_OUTLINE_OPTIONS` options;
-     - alert, status and validation messages, as a role and short text.
+     - alert, status and validation messages, as their role only, with no text. Pages
+       build messages from what was typed (a cleared code quoted in an alert, a split
+       code echoed by a status, a partial echo, a closed-shadow-root password), and no
+       text rule caught all of them in real Chrome. What an error means comes from the
+       stored, redacted server response of the step, not from the message.
    - **Never kept:** values, editable content, free page text, grid cells. A label is
      read from `aria-label`, `aria-labelledby`, `<label>`, `placeholder` or `title`,
      never from the control's own text.
-   - **No echo.** Any outline string that contains the current value of a text control
-     on the page is dropped in the page. The server repeats the rule against the values
-     typed in the same batch. It also drops whole any string that `redact_url` or
-     credential-shape redaction would change: an outline string is the page's
-     vocabulary, and a token is not. The server also enforces the shape: known keys and
-     roles only, and every cap.
+   - **No echo rule.** A heading, label or option equal to a typed word is kept: a
+     non-secret typed value is stored in its gesture anyway, and dropping echoes removed
+     whole fields. Any string holding a URL, a `name=value` pair or a token-like run, or
+     that `redact_url` or credential-shape redaction would change, is dropped whole in
+     the page and on the server: an outline string is the page's vocabulary, and a token
+     is not. The server also enforces the shape: known keys and roles only, message text
+     dropped, every cap, and a total size cap (`K_OUTLINE_CHARS`) trimmed to fit so a
+     gesture is never lost for size.
    - **When.** It is taken on a structural trigger. The first is a form or dialog first
      appearing, or an alert or status first shown. The second is each gesture's capture
      phase, which is the state the previous gesture settled into; E5 reads after-state

@@ -11,9 +11,7 @@ provider (`IDP` unless told otherwise) that lands on a system, and
 `SigningLane` stands in for the UI lane that replays it against a
 `FakePageDriver`.
 
-`lease_for` inserts a `ready` lease a sweeper test can expire, and `_sweeper`
-builds a `ReleaseStrayBrowsers` over the fakes it is given, with a browser
-provider that has nothing open (no strays besides the expired lease itself).
+`lease_for` inserts a `ready` lease a sweeper test can expire.
 """
 
 from __future__ import annotations
@@ -23,11 +21,8 @@ from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from types import MappingProxyType
 
-from sro.application.connection.release_strays import ReleaseStrayBrowsers
-from sro.application.connection.watch_browser import WatchBrowsers
 from sro.application.execution.mail_job import Written
-from sro.application.ports.page import PageAnswer, PageDriver, SessionRef
-from sro.application.ports.pool import BrowserPool
+from sro.application.ports.page import PageAnswer, SessionRef
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.application.runtime.step import Held, LaneContext
@@ -48,7 +43,7 @@ from sro.domain.shared.hosts import origin_of
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.skill.signing_in import sign_in_chain
 from sro.domain.skill.workflow import Step, Workflow
-from tests.unit.fakes import FakeBrowserProvider, FakePageDriver
+from tests.unit.fakes import FakePageDriver
 
 _TENANT = "acme"
 _SYSTEM = "https://wms.example"
@@ -359,17 +354,15 @@ class SigningLane:
 
 async def lease_for(uow: UnitOfWork, clock: Clock, *, holder: str = "run_1") -> Lease:
     """Inserts a `ready` lease on a Steel session held in `http://steel:3000`,
-    its context id doubling as its steel session id -- a sweeper test cares
-    only that the pool was asked to close the right container, not that the
-    two ids differ."""
+    its context id and steel session id deliberately distinct -- a sweeper
+    test has to tell which one a pool close was actually given."""
     now = clock.now()
-    session_id = new_lease_id()
     lease = Lease(
         id=new_lease_id(),
         account=Account.of(_TENANT, _SYSTEM, "clerk"),
         container_url="http://steel:3000",
-        steel_session_id=session_id,
-        context_id=session_id,
+        steel_session_id=new_lease_id(),
+        context_id=new_lease_id(),
         holder=holder,
         heartbeat_at=now,
         expires_at=now + K_LEASE_TTL,
@@ -379,10 +372,3 @@ async def lease_for(uow: UnitOfWork, clock: Clock, *, holder: str = "run_1") -> 
         saved = await uow.browser_sessions.lease(TenantId(_TENANT), lease)
         await uow.commit()
     return saved
-
-
-def _sweeper(
-    uow: UnitOfWork, pool: BrowserPool, driver: PageDriver, clock: Clock
-) -> ReleaseStrayBrowsers:
-    browser = FakeBrowserProvider()
-    return ReleaseStrayBrowsers(uow, browser, WatchBrowsers(browser), pool, driver, clock)

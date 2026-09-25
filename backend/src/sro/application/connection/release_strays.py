@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import contextlib
-
 from sro.application.connection.watch_browser import WatchBrowsers
 from sro.application.ports.browser import BrowserProvider, BrowserUnavailable
-from sro.application.ports.page import PageDriver
-from sro.application.ports.pool import BrowserPool
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
+from sro.application.runtime.broker import SessionBroker
 from sro.domain.shared.identifiers import BrowserSessionId, TenantId
 
 
@@ -17,15 +14,13 @@ class ReleaseStrayBrowsers:
         uow: UnitOfWork,
         browser: BrowserProvider,
         watch: WatchBrowsers,
-        pool: BrowserPool,
-        driver: PageDriver,
+        broker: SessionBroker,
         clock: Clock,
     ) -> None:
         self._uow = uow
         self._browser = browser
         self._watch = watch
-        self._pool = pool
-        self._driver = driver
+        self._broker = broker
         self._clock = clock
 
     async def execute(self) -> tuple[str, ...]:
@@ -59,13 +54,14 @@ class ReleaseStrayBrowsers:
             gone = await uow.browser_sessions.expired(now=self._clock.now())
         closed: list[str] = []
         for lease in gone:
-            with contextlib.suppress(BrowserUnavailable):
-                await self._pool.close(lease.container_url, lease.context_id)
             async with self._uow as uow:
-                await uow.browser_sessions.expire(
+                won = await uow.browser_sessions.expire(
                     TenantId(lease.account.tenant), lease.id, now=self._clock.now()
                 )
                 await uow.commit()
+            if not won:
+                continue
+            await self._broker.end_expired(lease)
             closed.append(lease.steel_session_id)
         return tuple(closed)
 

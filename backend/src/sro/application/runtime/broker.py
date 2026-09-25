@@ -96,6 +96,12 @@ class SessionBroker:
             await uow.commit()
         return kept
 
+    async def end_expired(self, lease: Lease) -> None:
+        session = await self._session(lease)
+        with contextlib.suppress(PageGone, BrowserUnavailable):
+            await self._save_state(lease, session)
+        await self._close(lease)
+
     async def _attach(
         self, ctx: RequestContext, lease: Lease, start_url: str, holder: str
     ) -> Held | None:
@@ -183,7 +189,7 @@ class SessionBroker:
         try:
             if a_sign_in_page(await self._driver.signals(session, held.target_id)):
                 await self._sign_in(ctx, held, start_url)
-            await self._save_state(held)
+            await self._save_state(held.lease, held.session)
             await self._driver.forget_calls(session, held.target_id)
         except BaseException:
             with contextlib.suppress(PageGone):
@@ -256,18 +262,18 @@ class SessionBroker:
             )
         await self._driver.goto(held.session, held.target_id, start_url)
 
-    async def _save_state(self, held: Held) -> None:
-        state = await self._driver.storage_state(held.session)
+    async def _save_state(self, lease: Lease, session: SessionRef) -> None:
+        state = await self._driver.storage_state(session)
         size = len(state.encode())
         if size > K_VAULT_VALUE_BYTES:
             logger.warning(
                 "%s: the signed-in state is %d bytes, over the vault's %d; not saved",
-                held.lease.account.key,
+                lease.account.key,
                 size,
                 K_VAULT_VALUE_BYTES,
             )
             return
-        await self._vault.store(held.lease.account.vault_key("state"), state)
+        await self._vault.store(lease.account.vault_key("state"), state)
 
     async def _settle(self, ctx: RequestContext, lease: Lease, state: LeaseState) -> bool:
         async with self._uow as uow:

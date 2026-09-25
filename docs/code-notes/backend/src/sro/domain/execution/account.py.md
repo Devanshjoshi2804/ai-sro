@@ -105,7 +105,7 @@ Why the code in [`backend/src/sro/domain/execution/account.py`](../../../../../.
 > driving runs. Worth naming if a third advisory lock is ever added here:
 > the space is shared by convention, not by a partition the code enforces.
 
-## `Lease.context_id`, [line 70](../../../../../../../backend/src/sro/domain/execution/account.py#L70): Note
+## `Lease.context_id`, [line 71](../../../../../../../backend/src/sro/domain/execution/account.py#L71): Note
 
 > Under the one-container-per-tenant, one-context-per-account ruling,
 > `steel_session_id` names the tenant's shared session and is the same for
@@ -115,3 +115,11 @@ Why the code in [`backend/src/sro/domain/execution/account.py`](../../../../../.
 > `container_url` and `steel_session_id` stay for now (harmless, if now
 > redundant per lease) since S4's `BrowserPool` still expresses close and
 > attach in terms of them.
+
+## `LIVE`, [line 62](../../../../../../../backend/src/sro/domain/execution/account.py#L62): Note
+
+> A lease holds its account and its browser context in three states:
+> SIGNING_IN while the broker signs in under the lock, READY while runs use
+> it, and WAITING while a sign-in's one-time code waits for a person with
+> its page kept open (S8). All three count for the one-live-lease index,
+> for container capacity, and against reclaiming the context.

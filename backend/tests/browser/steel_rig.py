@@ -77,6 +77,10 @@ _FORM_POST_PAGE = """<!doctype html><html><body onload="document.forms[0].submit
   </form>
 </body></html>"""
 
+_LANDING_PAGE = """<!doctype html><html><body><script>
+  fetch("/api/ping", {method: "POST", headers: {"X-CSRF-Token": "landing-token"}});
+</script></body></html>"""
+
 _SIGN_IN_TIMEOUT_S = 10.0
 _HELD_S = 30.0
 
@@ -212,6 +216,16 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
                 self._html(_PUBLIC_PAGE)
             elif path == "/framed":
                 self._html(_FRAMED_PAGE)
+            elif path == "/landing":
+                self._html(_LANDING_PAGE)
+            elif path == "/api/basic":
+                if not self.headers.get("authorization"):
+                    self.send_response(401)
+                    self.send_header("www-authenticate", 'Basic realm="rig"')
+                    self.send_header("content-length", "0")
+                    self.end_headers()
+                    return
+                self._json({"ok": True})
             elif path == "/framed-twice":
                 self._html(_FRAMED_TWICE_PAGE)
             elif path == "/":

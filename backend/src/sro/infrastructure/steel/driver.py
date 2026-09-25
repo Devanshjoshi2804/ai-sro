@@ -4,6 +4,7 @@ import asyncio
 import contextlib
 import itertools
 import json
+from collections import deque
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -31,6 +32,8 @@ from sro.domain.execution.lanes import SeenCall
 from sro.domain.observation.gesture import AfterState
 from sro.domain.observation.trim import path_shape
 from sro.domain.recording.events import ActionKind
+from sro.domain.recording.sensitivity import Sensitivity, classify_header
+from sro.domain.shared.hosts import belongs_to, origin_of
 from sro.domain.skill.signing_in import PageSignals, a_navigation
 from sro.infrastructure.steel.capture import addressed
 from sro.infrastructure.steel.client import cdp_origin, websocket_debugger_url
@@ -41,6 +44,8 @@ K_CALL_BODY_CHARS = 4096
 K_CALL_TYPES = frozenset({"fetch", "xhr"})
 K_NO_DOCUMENT = frozenset({204, 205})
 K_SCROLL_PX = 400
+K_REQUESTS_KEPT = 200
+K_TOKENS = frozenset({Sensitivity.AUTH, Sensitivity.CSRF})
 
 _SIGNALS = "() => globalThis.sroPage.signals()"
 _HIT_TEST = "([x, y]) => globalThis.sroPage.hitTest(x, y)"
@@ -53,6 +58,8 @@ _SEED_STORAGE = """(items) => {
 }"""
 
 T = TypeVar("T")
+
+type _Key = tuple[str, str]
 
 
 @dataclass
@@ -87,6 +94,7 @@ class _Calls:
 @dataclass
 class _Tab:
     visited: list[str] | None
+    owner: str = ""
     pending: set[Request] = field(default_factory=set)
     settled: asyncio.Event = field(default_factory=asyncio.Event)
     loads: int = 0
@@ -106,6 +114,9 @@ class SteelDriver:
         self._listeners: dict[tuple[str, str], list[tuple[str, Callable[..., Any]]]] = {}
         self._calls: dict[Page, _Calls] = {}
         self._tabs: dict[Page, _Tab] = {}
+        self._requests: dict[_Key, deque[tuple[int, str, dict[str, str]]]] = {}
+        self._seen: dict[_Key, asyncio.Event] = {}
+        self._reading: set[asyncio.Task[None]] = set()
         self._seq = itertools.count(1)
 
     async def _lock_for(self, cdp_url: str) -> asyncio.Lock:
@@ -142,6 +153,7 @@ class SteelDriver:
                         await stale.browser.close()
             context = browser.contexts[0]
             already = list(context.pages)
+            browser.on("disconnected", lambda _: self._wake_all(cdp_url))
             context.on("page", lambda page: self._arrived(link, page, whole=True))
             for page in already:
                 await self._arrived(link, page, whole=False)
@@ -159,8 +171,9 @@ class SteelDriver:
             return
         target_id, owner = str(info["targetId"]), str(info.get("browserContextId", ""))
 
-        tab = self._tabs[page] = _Tab([] if whole else None)
+        tab = self._tabs[page] = _Tab([] if whole else None, owner=owner)
         tab.settled.set()
+        key = (link.cdp_url, owner)
 
         def gone(_: Page) -> None:
             link.pages.pop(target_id, None)
@@ -168,6 +181,7 @@ class SteelDriver:
             self._tabs.pop(page, None)
             tab.pending.clear()
             tab.settled.set()
+            self._wake(key)
 
         page.once("close", gone)
         link.owners[target_id] = owner
@@ -203,6 +217,7 @@ class SteelDriver:
             tab.settle()
 
         page.on("request", started)
+        page.on("request", lambda request: self._saw(key, request))
         page.on("requestfailed", failed)
         page.on("response", navigated)
         page.on("domcontentloaded", loaded)
@@ -364,7 +379,11 @@ class SteelDriver:
         return PageSignals(a_navigation(page.url), visited, password, frozenset(autocomplete))
 
     async def on(self, session: SessionRef, event: str, handler: Callable[..., Any]) -> None:
-        link = await self._context(session)
+        self._listen(await self._context(session), session, event, handler)
+
+    def _listen(
+        self, link: _Link, session: SessionRef, event: str, handler: Callable[..., Any]
+    ) -> None:
         key = (session.cdp_url, session.context_id)
         self._listeners.setdefault(key, []).append((event, handler))
         for target_id, page in list(link.pages.items()):
@@ -394,6 +413,35 @@ class SteelDriver:
         except PlaywrightError:
             return
         self._log(page).numbered[request] = _Sent(next(self._seq), own_frame, body, content_type)
+
+    def _wake(self, key: _Key) -> None:
+        seen = self._seen.get(key)
+        if seen is not None:
+            seen.set()
+
+    def _wake_all(self, cdp_url: str) -> None:
+        for key in [key for key in self._seen if key[0] == cdp_url]:
+            self._wake(key)
+
+    def _saw(self, key: _Key, request: Request) -> None:
+        reading = asyncio.get_running_loop().create_task(self._keep(key, next(self._seq), request))
+        self._reading.add(reading)
+        reading.add_done_callback(self._reading.discard)
+
+    async def _keep(self, key: _Key, at: int, request: Request) -> None:
+        try:
+            headers = await request.all_headers()
+        except PlaywrightError:
+            return
+        kept = {
+            name.lower(): value
+            for name, value in headers.items()
+            if name.lower() != "cookie" and classify_header(name) in K_TOKENS
+        }
+        if kept:
+            log = self._requests.setdefault(key, deque(maxlen=K_REQUESTS_KEPT))
+            log.append((at, origin_of(request.url), kept))
+            self._wake(key)
 
     def _heard(self, response: Response) -> None:
         request = response.request
@@ -571,8 +619,11 @@ class SteelDriver:
         if ("request", self._sent) not in self._listeners.get(
             (session.cdp_url, session.context_id), []
         ):
-            await self.on(session, "request", self._sent)
-            await self.on(session, "response", self._heard)
+            link = self._links.get(session.cdp_url)
+            if link is None:
+                raise PageGone(f"the connection for context {session.context_id} is gone")
+            self._listen(link, session, "request", self._sent)
+            self._listen(link, session, "response", self._heard)
         self._log(page).acted = None
         return next(self._seq)
 
@@ -692,6 +743,41 @@ class SteelDriver:
             }
         )
 
+    async def headers_for(
+        self, session: SessionRef, origin: str, deadline_s: float, *, since: int = 0
+    ) -> dict[str, str]:
+        await self._context(session)
+        key = (session.cdp_url, session.context_id)
+        wanted = origin_of(origin)
+        seen = self._seen.setdefault(key, asyncio.Event())
+        try:
+            async with asyncio.timeout(deadline_s):
+                while True:
+                    seen.clear()
+                    found = [
+                        (at, kept)
+                        for at, where, kept in self._requests.get(key, ())
+                        if at > since and where == wanted
+                    ]
+                    if found:
+                        return max(found, key=lambda one: one[0])[1]
+                    await seen.wait()
+                    await self._context(session)
+        except TimeoutError:
+            await self._context(session)
+            return {}
+
+    async def cookies_for(self, session: SessionRef, url: str) -> str:
+        link = await self._context(session)
+        found = await self._send(
+            link, "Storage.getCookies", {"browserContextId": session.context_id}
+        )
+        return "; ".join(
+            f"{cookie['name']}={cookie['value']}"
+            for cookie in found["cookies"]
+            if belongs_to(cookie, url)
+        )
+
     async def restore_state(self, session: SessionRef, state: str) -> None:
         saved = json.loads(state)
         link = await self._context(session)
@@ -727,6 +813,10 @@ class SteelDriver:
 
     async def forget(self, session: SessionRef) -> None:
         key = (session.cdp_url, session.context_id)
+        self._requests.pop(key, None)
+        seen = self._seen.pop(key, None)
+        if seen is not None:
+            seen.set()
         handlers = self._listeners.pop(key, [])
         link = self._links.get(session.cdp_url)
         if link is None or not handlers:

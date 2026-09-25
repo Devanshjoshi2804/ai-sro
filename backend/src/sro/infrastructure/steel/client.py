@@ -365,8 +365,6 @@ class SteelClient:
                 request = event.get("request") or {}
                 if (urlsplit(str(request.get("url", ""))).hostname or "") != host:
                     return
-                if "/data/" not in str(request.get("url", "")):
-                    return
                 for name, value in (request.get("headers") or {}).items():
                     if not isinstance(value, str):
                         continue

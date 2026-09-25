@@ -6,23 +6,32 @@ answers on a second origin, as a real one does.
 Skipped unless local Steel answers and `SRO_INTEGRATION_DATABASE_URL` (or
 Docker) gives a database. Run each test alone: they share the container's one
 browser, and each releases the Steel session when it ends.
+
+`test_a_crashed_container_is_replaced_and_its_saved_state_restored` restarts
+the shared Steel container itself, which kills every other live test running
+against it -- any `-m browser` run on the machine, CI included. It is opt-in:
+set `SRO_STEEL_CRASH_TESTS=1` to run it, and only after checking no other live
+session is in use.
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
+import os
 import time
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from urllib.parse import urlsplit
 
+import docker
 import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from sro.application.context import RequestContext
+from sro.application.ports.browser import BrowserUnavailable
 from sro.application.runtime.broker import K_CLOSE_S, SessionBroker
 from sro.application.runtime.ui_lane import UiLane
 from sro.config import get_settings
@@ -40,6 +49,7 @@ from tests.browser.test_the_steel_pool_against_local_steel import (
     STEEL_URL,
     release_every_live_session,
     status_of,
+    tracking_contexts,
 )
 from tests.unit.fakes import FakeClock, FakeCredentialVault
 from tests.unit.runtime_support import with_a_recorded_sign_in
@@ -59,11 +69,11 @@ async def client() -> AsyncIterator[SteelClient]:
             pytest.skip("Steel is not running; `make up` first")
     except Exception as exc:
         pytest.skip(f"Steel is not reachable: {exc}")
-    async with made:
+    async with made, tracking_contexts() as created:
         try:
             yield made
         finally:
-            await release_every_live_session(made)
+            await release_every_live_session(made, created)
 
 
 @pytest.fixture
@@ -266,3 +276,62 @@ async def test_a_container_whose_browser_went_away_recovers_onto_a_fresh_context
     assert second.lease.id != first.lease.id
     assert second.lease.context_id in await world.pool.contexts(STEEL_URL)
     assert urlsplit(await driver.url_of(second.session, second.target_id)).path == "/public"
+
+
+async def test_an_expiry_mid_step_signs_in_once_for_every_run_on_the_account(world: World) -> None:
+    account = await _recorded(world)
+    broker, driver = world.broker()
+    one = await broker.acquire(CTX, account, world.rig.url("/app"), holder="run_1")
+    two = await broker.acquire(CTX, account, world.rig.url("/app"), holder="run_2")
+    assert world.rig.logins == 1
+    world.rig.expire()
+
+    await asyncio.gather(
+        broker.reauth(CTX, one, world.rig.url("/app")),
+        broker.reauth(CTX, two, world.rig.url("/app")),
+    )
+
+    assert world.rig.logins == 2
+    for held in (one, two):
+        assert urlsplit(await driver.url_of(held.session, held.target_id)).path == "/app"
+
+
+K_STEEL_BACK_S = 60.0
+
+
+async def _restart_steel(client: SteelClient) -> None:
+    port = urlsplit(STEEL_URL).port
+    (container,) = docker.from_env().containers.list(filters={"publish": str(port)})
+    await asyncio.to_thread(container.restart)
+    async with asyncio.timeout(K_STEEL_BACK_S):
+        while True:
+            with contextlib.suppress(BrowserUnavailable):
+                await client.contexts()
+                return
+            await asyncio.sleep(0.5)
+
+
+@pytest.mark.skipif(
+    os.environ.get("SRO_STEEL_CRASH_TESTS") != "1",
+    reason="restarts the shared Steel container, killing every other live test "
+    "running against it; set SRO_STEEL_CRASH_TESTS=1 to opt in",
+)
+async def test_a_crashed_container_is_replaced_and_its_saved_state_restored(
+    world: World, client: SteelClient
+) -> None:
+    account = await _recorded(world)
+    broker, _ = world.broker()
+    first = await broker.acquire(CTX, account, world.rig.url("/app"), holder="run_1")
+    assert world.rig.logins == 1
+
+    await _restart_steel(client)
+    again, driver = world.broker()
+    second = await again.recover(CTX, first.lease.id, world.rig.url("/app"), holder="run_1")
+
+    assert world.rig.logins == 1
+    async with world.uow as uow:
+        old = await uow.browser_sessions.get_lease(CTX.tenant_id, first.lease.id)
+    assert old is not None
+    assert old.state is LeaseState.BROKEN
+    assert second.lease.id != first.lease.id
+    assert urlsplit(await driver.url_of(second.session, second.target_id)).path == "/app"

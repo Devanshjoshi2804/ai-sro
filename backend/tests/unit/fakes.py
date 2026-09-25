@@ -970,13 +970,22 @@ class FakeBrowserSessionRepository:
             return None
         return found
 
-    async def settle(self, tenant_id: TenantId, lease_id: str, *, state: LeaseState) -> bool:
+    async def settle(
+        self,
+        tenant_id: TenantId,
+        lease_id: str,
+        *,
+        state: LeaseState,
+        until: datetime | None = None,
+    ) -> bool:
         if state is LeaseState.EXPIRED:
             raise ValueError("settle cannot move a lease to expired; use expire")
         found = self.leases.get(lease_id)
         if found is None or found.account.tenant != str(tenant_id) or found.state not in LIVE:
             return False
-        self.leases[lease_id] = replace(found, state=state)
+        self.leases[lease_id] = replace(
+            found, state=state, expires_at=found.expires_at if until is None else until
+        )
         return True
 
     async def expire(self, tenant_id: TenantId, lease_id: str, *, now: datetime) -> bool:
@@ -1000,7 +1009,9 @@ class FakeBrowserSessionRepository:
         self.leases[lease_id] = replace(
             found,
             heartbeat_at=now,
-            expires_at=now + K_LEASE_TTL,
+            expires_at=(
+                found.expires_at if found.state is LeaseState.WAITING else now + K_LEASE_TTL
+            ),
             holder=found.holder if holder is None else holder,
         )
         return True
@@ -1457,6 +1468,8 @@ class FakePageDriver:
     `shows_sign_in_until_signed` a context not yet in `signed` answers a
     password form: whoever drives the recorded sign-in adds the context to
     `signed`, unless `refuses` says the system turns the password away.
+    `expire_session` signs every context out, the way a system ending its
+    session server-side does.
 
     `act`/`wait_for`/`calls_since` answer exactly what a test scripted, for
     the runtime lanes that drive a page through it (`UiLane` first). The call
@@ -1520,6 +1533,12 @@ class FakePageDriver:
         self._resolves = resolved if resolved is not None else PageAnswer(ok=True, candidates=1)
         self._outline = outline
         self.resolved: list[dict[str, object]] = []
+        self.cookie = ""
+        self.headers: dict[str, str] = {}
+
+    def expire_session(self) -> None:
+        self.shows_sign_in_until_signed = True
+        self.signed.clear()
 
     def _live(self, session: SessionRef) -> None:
         if session.context_id in self.dead:
@@ -1552,6 +1571,18 @@ class FakePageDriver:
         self._tab(session, target_id)
         self.calls.append(("url_of", session.context_id, target_id))
         return self.tabs[target_id]
+
+    async def headers_for(
+        self, session: SessionRef, origin: str, deadline_s: float, *, since: int = 0
+    ) -> dict[str, str]:
+        self._live(session)
+        self.calls.append(("headers_for", session.context_id, origin, since))
+        return dict(self.headers)
+
+    async def cookies_for(self, session: SessionRef, url: str) -> str:
+        self._live(session)
+        self.calls.append(("cookies_for", session.context_id, url))
+        return self.cookie
 
     async def storage_state(self, session: SessionRef) -> str:
         self._live(session)

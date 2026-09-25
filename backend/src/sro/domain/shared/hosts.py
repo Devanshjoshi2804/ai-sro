@@ -7,6 +7,7 @@ REDACTED = "«redacted»"
 
 
 _DEFAULT_PORTS = {"http": "80", "https": "443"}
+_LOOPBACK = frozenset({"localhost", "127.0.0.1", "::1"})
 
 
 def origin_of(url: str) -> str:
@@ -82,6 +83,26 @@ def domain_matches(host: str, domain: str) -> bool:
     if not host or not domain:
         return False
     return host == domain or host.endswith(f".{domain}")
+
+
+def belongs_to_system(cookie: Mapping[str, object], url: str) -> bool:
+    parts = urlsplit(url)
+    host, domain = parts.hostname or "", str(cookie.get("domain", ""))
+    if not domain_matches(host, domain):
+        return False
+    if not domain.startswith(".") and host.rstrip(".") != domain.lower().rstrip("."):
+        return False
+    return not cookie.get("secure") or parts.scheme.lower() == "https" or host in _LOOPBACK
+
+
+def belongs_to(cookie: Mapping[str, object], url: str) -> bool:
+    if not belongs_to_system(cookie, url):
+        return False
+    parts = urlsplit(url)
+    path, under = parts.path or "/", str(cookie.get("path") or "/")
+    return path == under or (
+        path.startswith(under) and (under.endswith("/") or path[len(under)] == "/")
+    )
 
 
 def headers_without_markers(headers: Mapping[str, str]) -> dict[str, str]:

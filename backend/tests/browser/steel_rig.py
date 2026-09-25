@@ -70,7 +70,9 @@ class Rig:
     posted to `/idp/login`; that redeems the credentials for a code redirected
     to `/cb`, which trades the code for a session cookie and lands on `/app`.
     `/app` also serves the CSRF-protected `/api/customer-types` write this
-    task's live rig exercises."""
+    task's live rig exercises. `POST /api/ping` answers 201 from any page and
+    sets `pinged`; with `?hold` it answers only once `release` is set, so a
+    test can hold a request open across a mark."""
 
     def __init__(self, *, for_steel: bool = False) -> None:
         self._for_steel = for_steel
@@ -78,6 +80,8 @@ class Rig:
         self._codes: dict[str, tuple[str, str]] = {}
         self._csrf: dict[str, str] = {}
         self.saved: list[dict[str, object]] = []
+        self.pinged = threading.Event()
+        self.release = threading.Event()
         host = "0.0.0.0" if for_steel else "127.0.0.1"  # noqa: S104
         self._port = _free_port()
         self._server = ThreadingHTTPServer((host, self._port), _handler_for(self))
@@ -210,7 +214,12 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
             path, query = split.path, parse_qs(split.query)
             body = self.rfile.read(int(self.headers.get("content-length") or 0))
 
-            if path == "/idp/login":
+            if path == "/api/ping":
+                rig.pinged.set()
+                if "hold" in query:
+                    rig.release.wait(10)
+                self._json({"id": "ping-1"}, status=201)
+            elif path == "/idp/login":
                 form = parse_qs(body.decode())
                 username = form.get("username", [""])[0]
                 state = query.get("state", [""])[0]

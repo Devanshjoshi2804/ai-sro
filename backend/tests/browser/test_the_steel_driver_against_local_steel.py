@@ -195,13 +195,20 @@ async def test_one_account_never_sees_the_calls_another_account_makes_in_the_sam
     theirs = await signed_in_on_the_framed_page(steel_rig, driver, b)
     their_mark = await driver.mark(b, theirs)
 
+    await driver.evaluate(a, mine, "fetch('/api/ping', {method: 'POST'})")
     await driver.act(b, theirs, in_the_app_frame(steel_rig, "type", "#ct", "B"))
     await driver.act(b, theirs, in_the_app_frame(steel_rig, "click", "#save"))
 
     assert await driver.wait_for_call(
         b, theirs, method="POST", shape="/api/customer-types", since=their_mark, deadline_s=10.0
     )
-    assert await driver.calls_since(a, mine, mark) == ()
+    assert await driver.wait_for_call(
+        a, mine, method="POST", shape="/api/ping", since=mark, deadline_s=10.0
+    )
+    assert [(c.method, c.url, c.status) for c in await driver.calls_since(a, mine, mark)] == [
+        ("POST", steel_rig.url("/api/ping"), 201)
+    ]
+    assert all(c.url != steel_rig.url("/api/ping") for c in await driver.calls_since(b, theirs, 0))
     assert not await driver.wait_for_call(
         a, mine, method="POST", shape="/api/customer-types", since=mark, deadline_s=1.0
     )

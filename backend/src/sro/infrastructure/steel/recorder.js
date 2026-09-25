@@ -45,7 +45,7 @@
   // records and what page-code.js later resolves it against are one text, so
   // the two cannot disagree about a control. Reasoning lives in
   // docs/code-notes/new-chrome-extension/src/page/page-code.js.md.
-  const { roleOf, nameOf, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf } =
+  const { roleOf, nameOf, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf } =
     __PAGE_READERS__;
 
   // A credential field is recognised where it is typed, not later. Anything
@@ -91,20 +91,6 @@
     return isSecretName(named);
   };
 
-  const settingOf = (el) => {
-    if (isSecretField(el)) return null;
-    if (['checkbox', 'radio', 'switch'].includes(roleOf(el))) {
-      const checked =
-        typeof el.checked === 'boolean' ? el.checked : el.getAttribute('aria-checked') === 'true';
-      return checked ? 'checked' : 'unchecked';
-    }
-    if (el.tagName === 'SELECT') {
-      const chosen = [...(el.selectedOptions || [])].map((option) => option.label).join(', ');
-      return chosen ? chosen.slice(0, MAX_VALUE) : null;
-    }
-    return null;
-  };
-
   const stateOf = (el) => {
     if (!el || el.nodeType !== 1 || el.isConnected === false) {
       return { value: null, visible: false, enabled: null };
@@ -114,7 +100,8 @@
     const visible =
       box.width > 0 && box.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
     const enabled = !(el.disabled === true || el.getAttribute('aria-disabled') === 'true');
-    return { value: settingOf(el), visible, enabled };
+    const setting = isSecretField(el) ? null : settingOf(el);
+    return { value: setting ? setting.slice(0, MAX_VALUE) : null, visible, enabled };
   };
 
   const REALM = Math.random().toString(36).slice(2);

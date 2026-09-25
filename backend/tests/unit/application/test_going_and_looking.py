@@ -17,6 +17,7 @@ from types import MappingProxyType
 import pytest
 
 from sro.application.context import RequestContext
+from sro.application.lookup.run_lookups import K_WHILE_TALKING
 from sro.application.ports.http import HttpResponse
 from sro.domain.lookup.address import address_for
 from sro.domain.lookup.plan import Lookup, Plan
@@ -189,6 +190,36 @@ async def test_a_call_goes_out_as_a_get_with_the_account_s_steel_session() -> No
     assert sent["headers"]["x-requested-with"] == "XMLHttpRequest"
     assert world.driver.needed == ("x-requested-with",)
     assert answers.any_answered
+    assert world.driver.tabs == {}
+
+
+async def test_a_recorded_account_header_never_rides_on_the_account_s_read() -> None:
+    """The recording is the operator's. Only how the body is represented
+    comes from it; whatever names an account comes from the account's own
+    context."""
+    world = await lookup_world(
+        _gesture(_call(headers={"X-User-Id": "operator-7", "accept": "application/json"}))
+    )
+
+    await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    (sent,) = world.http.sent
+    assert isinstance(sent["headers"], dict)
+    assert "x-user-id" not in {name.lower() for name in sent["headers"]}
+    assert sent["headers"]["accept"] == "application/json"
+    assert world.driver.deadlines == [0.0], "nothing was needed, so nothing is waited for"
+
+
+async def test_a_header_the_page_never_sends_is_a_gap_inside_the_conversation_s_budget() -> None:
+    world = await lookup_world(_gesture(_call(headers={"X-Requested-With": REDACTED})))
+
+    answers = await world.run_lookups.execute(
+        CTX, plan=Plan(question="q", lookups=(CALL,)), within=K_WHILE_TALKING
+    )
+
+    assert world.http.sent == []
+    assert not answers.looked[0].ok and "x-requested-with" in answers.looked[0].detail
+    assert world.driver.deadlines and 0 < max(world.driver.deadlines) <= K_WHILE_TALKING
     assert world.driver.tabs == {}
 
 

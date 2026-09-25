@@ -42,7 +42,7 @@ Code: `K_GAPS = (DomainError, PoolFull, PageGone, TargetUnreachable, AccountBusy
 > that needs a person is a gap and not a question: nothing is waiting to resume
 > a lookup, so a lookup never waits on a person.
 
-## module, [line 26](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L26): Note on the line above
+## module, [line 31](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L31): Note on the line above
 
 Code: `K_DEADLINE_S = 45.0`
 
@@ -56,7 +56,7 @@ Code: `K_DEADLINE_S = 45.0`
 > This is the budget for `/v1/lookups` and `/v1/ask`, where the answer IS the
 > request and nothing else is held up behind it.
 
-## module, [line 28](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L28): Note on the line above
+## module, [line 33](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L33): Note on the line above
 
 Code: `K_WHILE_TALKING = 10.0`
 
@@ -88,11 +88,11 @@ Code: `K_WHILE_TALKING = 10.0`
 > trade: a question answered late is worth less than a conversation that
 > kept going.
 
-## `Looked`, [line 32](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L32): Docstring
+## `Looked`, [line 37](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L37): Docstring
 
 > What one lookup came back with.
 
-## `Looked`, [line 37](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L37): Note on the line above
+## `Looked`, [line 42](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L42): Note on the line above
 
 Code: `read: Answer | None = None`
 
@@ -118,7 +118,7 @@ Code: `read: Answer | None = None`
 > None where there are no records to speak of -- a page of HTML, one scalar,
 > a screen's photograph. Those keep `answer` and are drawn from it.
 
-## `Looked`, [line 39](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L39): Note on the line above
+## `Looked`, [line 44](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L44): Note on the line above
 
 Code: `detail: str = ""`
 
@@ -126,7 +126,14 @@ Code: `detail: str = ""`
 > person is a different problem from an unreachable system, and flattening them
 > to "failed" throws away the one thing that says which.
 
-## `RunLookups`, [line 52](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L52): Docstring
+## `MissingHeaders`, [line 27](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L27): Note on the line above
+
+Code: `class MissingHeaders(DomainError):`
+
+> A header the read needs that the account's context never sent within the
+> budget. A `DomainError`, so it is that one lookup's named gap.
+
+## `RunLookups`, [line 57](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L57): Docstring
 
 > Execute a plan on backend Steel, never the operator's browser.
 >
@@ -139,14 +146,14 @@ Code: `detail: str = ""`
 > the page), `screenshot` and `release` -- never `act`, `point` or the sight
 > model. A target seen only as a write addresses nothing, and nothing is sent.
 
-## `RunLookups.execute`, [line 56](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L56): Docstring
+## `RunLookups.execute`, [line 61](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L61): Docstring
 
 > `within` is the caller's budget, because the callers have different
 > ones: a lookup somebody asked for may take as long as the slowest
 > warehouse, and a lookup inside a conversation turn may not. See
 > `K_WHILE_TALKING`.
 
-## `RunLookups.execute`, [line 62](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L62): Comment (debt)
+## `RunLookups.execute`, [line 67](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L67): Comment (debt)
 
 Code: `gestures = list(await uow.gestures.gestures_for(ctx.tenant_id))`
 
@@ -156,7 +163,7 @@ Code: `gestures = list(await uow.gestures.gestures_for(ctx.tenant_id))`
 > ponytail: whole-store scan; a `calls_for_path` query if a tenant's
 > capture outgrows memory.
 
-## `RunLookups._one`, [line 94](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L94): Comment
+## `RunLookups._one`, [line 101](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L101): Comment
 
 Code: `if lookup.how == "call":`
 
@@ -166,17 +173,23 @@ Code: `if lookup.how == "call":`
 > already up in the tab `acquire` opened (and `reauth` returns it there), so it
 > is photographed with no navigation. The same rule as §3's, applied to a read.
 
-## `RunLookups._send`, [line 122](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L122): Comment
+## `RunLookups._send`, [line 131](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L131): Comment
 
 Code: `needs = [name.lower() for name in (*address.live_headers, *address.struck)]`
 
 > Every header the recording struck out is one the account's own context has to
 > supply, so the broker waits for each of them in the context's request log
-> (from tab arrival). A value never reaches a log. The recorded headers that
-> were not struck are sent as recorded, unless the session carries the same
-> name, which wins.
+> (from tab arrival). A value never reaches a log. The wait is what is left of
+> the caller's budget -- chat's `K_WHILE_TALKING` or the door's own -- never
+> the broker's fixed wait past it, and nothing at all when nothing is needed
+> (the driver otherwise waits for any token header, which a cookie-only system
+> never sends). A header still missing when it ends is a
+> named gap (`MissingHeaders`), not a GET sent without it. From the recording
+> only representation headers are sent, through the API lane's one rule
+> (`session_headers`): a recorded `x-user-id` is the operator's, never this
+> account's.
 
-## `_looked`, [line 136](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L136): Comment
+## `_looked`, [line 152](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L152): Comment
 
 Code: `read=read_answer(body, url=address.url) if isinstance(body, str) else None,`
 

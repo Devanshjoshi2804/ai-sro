@@ -118,6 +118,7 @@ class SessionBroker:
         *,
         fresh: bool = False,
         needs: Collection[str] = (),
+        wait_s: float = K_HEADERS_WAIT_S,
     ) -> dict[str, str]:
         since = 0
         if fresh:
@@ -127,9 +128,7 @@ class SessionBroker:
                 held.target_id,
                 await self._driver.url_of(held.session, held.target_id),
             )
-        said = await self._driver.headers_for(
-            held.session, url, K_HEADERS_WAIT_S, since=since, needs=needs
-        )
+        said = await self._driver.headers_for(held.session, url, wait_s, since=since, needs=needs)
         cookie = await self._driver.cookies_for(held.session, url)
         return {"cookie": cookie, **said} if cookie else said
 

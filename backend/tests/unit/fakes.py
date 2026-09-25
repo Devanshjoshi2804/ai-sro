@@ -1528,6 +1528,7 @@ class FakePageDriver:
         self.headers: dict[str, str] = {}
         self.headers_after_mark: dict[str, str] | None = None
         self.needed: tuple[str, ...] = ()
+        self.deadlines: list[float] = []
 
     def expire_session(self) -> None:
         self.shows_sign_in_until_signed = True
@@ -1577,6 +1578,7 @@ class FakePageDriver:
         self._live(session)
         self.calls.append(("headers_for", session.context_id, origin, since))
         self.needed = tuple(needs)
+        self.deadlines.append(deadline_s)
         if since and self.headers_after_mark is not None:
             return dict(self.headers_after_mark)
         return dict(self.headers)

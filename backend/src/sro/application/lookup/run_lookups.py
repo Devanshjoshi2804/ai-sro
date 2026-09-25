@@ -14,7 +14,7 @@ from sro.application.ports.locks import AccountBusy
 from sro.application.ports.page import PageGone
 from sro.application.ports.pool import PoolFull
 from sro.application.ports.repositories import UnitOfWork
-from sro.application.runtime.api_lane import K_AUTH_REFUSED
+from sro.application.runtime.api_lane import K_AUTH_REFUSED, session_headers
 from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.step import Held
 from sro.domain.lookup.address import Address, address_for
@@ -22,6 +22,11 @@ from sro.domain.lookup.plan import Lookup, Plan
 from sro.domain.shared.errors import DomainError
 
 K_GAPS = (DomainError, PoolFull, PageGone, TargetUnreachable, AccountBusy, BrowserUnavailable)
+
+
+class MissingHeaders(DomainError):
+    code = "missing_headers"
+
 
 K_DEADLINE_S = 45.0
 
@@ -71,8 +76,8 @@ class RunLookups:
                 )
                 continue
             try:
-                async with asyncio.timeout(within):
-                    looked.append(await self._one(ctx, lookup, address))
+                async with asyncio.timeout(within) as budget:
+                    looked.append(await self._one(ctx, lookup, address, budget))
             except TimeoutError:
                 looked.append(
                     Looked(
@@ -86,13 +91,15 @@ class RunLookups:
                 looked.append(Looked(lookup=lookup, ok=False, url=address.url, detail=str(gap)))
         return Answers(plan=plan, looked=tuple(looked))
 
-    async def _one(self, ctx: RequestContext, lookup: Lookup, address: Address) -> Looked:
+    async def _one(
+        self, ctx: RequestContext, lookup: Lookup, address: Address, budget: asyncio.Timeout
+    ) -> Looked:
         page = address.page or address.url
         account = await self._broker.account_for(ctx, page)
         held = await self._broker.acquire(ctx, account, page, holder=f"lookup-{uuid4().hex}")
         try:
             if lookup.how == "call":
-                got = await self._get(ctx, held, address, page)
+                got = await self._get(ctx, held, address, page, budget)
                 if got.succeeded:
                     return _looked(lookup, address, {"status": got.status_code, "body": got.text})
             shot = await self._broker.screenshot(ctx, held)
@@ -110,20 +117,29 @@ class RunLookups:
             await self._broker.release(ctx, held)
 
     async def _get(
-        self, ctx: RequestContext, held: Held, address: Address, page: str
+        self, ctx: RequestContext, held: Held, address: Address, page: str, budget: asyncio.Timeout
     ) -> HttpResponse:
-        got = await self._send(ctx, held, address)
+        got = await self._send(ctx, held, address, budget)
         if got.status_code in K_AUTH_REFUSED:
             await self._broker.reauth(ctx, held, page)
-            got = await self._send(ctx, held, address)
+            got = await self._send(ctx, held, address, budget)
         return got
 
-    async def _send(self, ctx: RequestContext, held: Held, address: Address) -> HttpResponse:
+    async def _send(
+        self, ctx: RequestContext, held: Held, address: Address, budget: asyncio.Timeout
+    ) -> HttpResponse:
         needs = [name.lower() for name in (*address.live_headers, *address.struck)]
-        session = await self._broker.headers(ctx, held, address.url, needs=needs)
-        named = {name.lower() for name in session}
-        recorded = {k: v for k, v in address.headers.items() if k.lower() not in named}
-        return await self._http.send("GET", address.url, headers={**recorded, **session})
+        left = (
+            max(0.0, (budget.when() or 0.0) - asyncio.get_running_loop().time()) if needs else 0.0
+        )
+        headers = await session_headers(
+            self._broker, ctx, held, address.url, address.headers, needs=needs, wait_s=left
+        )
+        carried = {name.lower() for name in headers}
+        missing = [name for name in needs if name not in carried]
+        if missing:
+            raise MissingHeaders(f"the session has no {', '.join(missing)} for this read")
+        return await self._http.send("GET", address.url, headers=headers)
 
 
 def _looked(lookup: Lookup, address: Address, result: Mapping[str, object]) -> Looked:

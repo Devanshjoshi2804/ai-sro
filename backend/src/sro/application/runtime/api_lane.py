@@ -63,10 +63,12 @@ class ApiLane:
         carried = {name.lower() for name in headers}
         missing = [name for name in needs if name not in carried]
         if missing:
-            return _unsent(
+            return StepResult(
+                "failed",
+                Lane.API,
                 f"the session has no {', '.join(missing)} for this write",
-                "missing_header",
-                path_shape(url),
+                never_left=True,
+                expired=True,
             )
         if not _sendable(url, headers):
             return _unsent("the call cannot be built as recorded", "unsendable", path_shape(url))

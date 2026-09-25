@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/application/runtime/executor.py`](../../../../../../../backend/src/sro/application/runtime/executor.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `StepExecutor.run`, [line 35](../../../../../../../backend/src/sro/application/runtime/executor.py#L35): Note
+## `StepExecutor.run`, [line 43](../../../../../../../backend/src/sro/application/runtime/executor.py#L43): Note
 
 > One step, down the ladder (spec §3): the tool lane alone for a mail
 > send; otherwise the API lane when a verified replay can be planned,
@@ -13,7 +13,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/execu
 > that only reads the mail this run came from answers `read` with no
 > lane at all: the mail is already in hand.
 
-## `StepExecutor.run`, [line 55](../../../../../../../backend/src/sro/application/runtime/executor.py#L55): Note
+## `StepExecutor.run`, [line 72](../../../../../../../backend/src/sro/application/runtime/executor.py#L72): Note
 
 Code: `if result.verdict == "unknown":`
 
@@ -26,7 +26,7 @@ Code: `if result.verdict == "unknown":`
 > the values makes it `done`, anything else leaves it `unknown` and the
 > operator is asked.
 
-## `StepExecutor.run`, [line 60](../../../../../../../backend/src/sro/application/runtime/executor.py#L60): Note
+## `StepExecutor.run`, [line 77](../../../../../../../backend/src/sro/application/runtime/executor.py#L77): Note
 
 Code: `if result.verdict != "failed" or result.expired:`
 
@@ -34,3 +34,22 @@ Code: `if result.verdict != "failed" or result.expired:`
 > than falling to the next lane: the session, not the step, is what is
 > wrong, and every lower lane drives the same session. Walking on would
 > spend each lane on the same refusal and mark lanes broken that are not.
+
+## `StepExecutor.run`, [line 59](../../../../../../../backend/src/sro/application/runtime/executor.py#L59): Note
+
+Code: `ladder = lanes_for(`
+
+> A step with no mail send, no plannable replay and no gesture to aim at
+> (it cites nothing, or only a scroll) has an empty ladder and answers
+> `()`: the caller says no lane could act, rather than the activity dying.
+
+## `StepExecutor.run`, [line 68](../../../../../../../backend/src/sro/application/runtime/executor.py#L68): Note
+
+Code: `except (NeedsAPerson, AccountBusy, PageGone) as why:`
+
+> Signing back in can need a person, find the account waiting for one
+> (the run queues), or find the lease gone. The exception goes on to the
+> caller as it is, since each has its own answer there, but it carries the
+> lanes tried so far and this lane's own result, with why the sign-in
+> stopped added to its reason: an `unknown` write stays `unknown` and a
+> failure keeps its fingerprint for whoever learns from it.

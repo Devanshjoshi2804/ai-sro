@@ -75,6 +75,8 @@ def lanes_for(
         if tool
         else ((Lane.API,) if api else ()) + ((Lane.UI, Lane.SIGHT) if browser else ())
     )
+    if not ladder:
+        return ()
     dead = {one.lane for one in broken if one.step == order}
     last = ladder[-1]
     return (*(lane for lane in ladder[:-1] if lane not in dead), last)

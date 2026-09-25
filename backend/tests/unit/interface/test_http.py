@@ -103,7 +103,6 @@ class _FakeContainer(Container):
         self.http.unreachable = True
         self.sign_in_driver = FakeSignInDriver()
         self.locks = FakeAccountLocks()
-        self.token_floors = {}
         # Real credential checking, with a key that lives for the length of the
         # test: the wiring under test includes who is allowed to ask.
         self.credentials = SignedTokens(TEST_SECRET)

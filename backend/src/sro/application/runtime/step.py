@@ -27,6 +27,7 @@ class Held:
 
 class NeedsAPerson(DomainError):
     code = "needs_a_person"
+    tried: tuple[StepResult, ...] = ()
 
     def __init__(
         self, question: str, *, kind: Literal["password", "value", "step", "code"] = "step"

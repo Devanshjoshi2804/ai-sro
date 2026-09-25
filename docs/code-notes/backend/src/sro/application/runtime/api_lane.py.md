@@ -74,7 +74,18 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/api_l
 > the record written. Without one, or when it does not show it, the write is
 > `unknown` and the run settles it later with `read_back` or asks.
 
-## `ApiLane._confirmed`, [line 132](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L132): Comment
+## `ApiLane.execute`, [line 65](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L65): Note
+
+Code: `if missing:`
+
+> A token the write needs that the session never sent is a session
+> problem, not a broken lane: the result is `expired` (nothing left, so
+> `never_left`) and carries no fingerprint, so nothing marks the API lane
+> broken for it. The executor signs back in -- a sign-in waiting for a
+> person answers `AccountBusy` and the run queues -- and retries with
+> fresh headers.
+
+## `ApiLane._confirmed`, [line 134](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L134): Comment
 
 > One check for `execute` and `read_back`. The confirming read goes only to
 > the write's own origin (a GET recorded after the write may be analytics or
@@ -84,7 +95,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/api_l
 > string is not the record this run wrote. A write with no filled slots is
 > never confirmed by a read-back.
 
-## `_aimed`, [line 207](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L207): Comment
+## `_aimed`, [line 209](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L209): Comment
 
 > The recorded read names the recorded record. A path segment equal to a value
 > the recording saw for a filled parameter is replaced by this run's value. A

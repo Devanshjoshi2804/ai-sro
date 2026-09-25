@@ -783,7 +783,7 @@ class KnownBrokenRow(Base):
     __tablename__ = "known_broken"
     __table_args__ = (Index("ix_known_broken_job", "tenant_id", "workflow_id"),)
 
-    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     workflow_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     ord: Mapped[int] = mapped_column(Integer, primary_key=True)
     lane: Mapped[str] = mapped_column(String(8), primary_key=True)

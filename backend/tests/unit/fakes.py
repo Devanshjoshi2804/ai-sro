@@ -1537,6 +1537,7 @@ class FakePageDriver:
         self.headers: dict[str, str] = {}
         self.headers_after_mark: dict[str, str] | None = None
         self.needed: tuple[str, ...] = ()
+        self.floors: dict[str, int] = {}
 
     def expire_session(self) -> None:
         self.shows_sign_in_until_signed = True
@@ -1584,6 +1585,7 @@ class FakePageDriver:
         needs: Collection[str] = (),
     ) -> dict[str, str]:
         self._live(session)
+        since = max(since, self.floors.get(session.context_id, 0))
         self.calls.append(("headers_for", session.context_id, origin, since))
         self.needed = tuple(needs)
         if since and self.headers_after_mark is not None:
@@ -1605,7 +1607,12 @@ class FakePageDriver:
         self.states[session.context_id] = state
         self.calls.append(("restore_state", session.context_id, state))
 
+    async def forget_headers_before(self, session: SessionRef, mark: int) -> None:
+        self._live(session)
+        self.floors[session.context_id] = max(mark, self.floors.get(session.context_id, 0))
+
     async def forget(self, session: SessionRef) -> None:
+        self.floors.pop(session.context_id, None)
         self.calls.append(("forget", session.context_id))
 
     async def forget_calls(self, session: SessionRef, target_id: str) -> None:
@@ -2441,8 +2448,8 @@ class FakeWorkflowRepository:
         self.stale: dict[tuple[str, int], tuple[str | None, str]] = {}
         # What runs have found out about steps whose recorded identity missed.
         self.learned: dict[tuple[str, int], LearnedStep] = {}
-        # Each known-broken lane, keyed as the store's primary key plus the
-        # tenant, to the step's cites key when it broke.
+        # Each known-broken lane, keyed as the store's primary key, to the
+        # step's cites key when it last broke.
         self.broken: dict[tuple[str, str, int, Lane, str], str] = {}
         # Append-only, like the store's: a history that can be edited is a
         # history nobody can rely on.
@@ -2595,7 +2602,7 @@ class FakeWorkflowRepository:
         self, tenant_id: TenantId, workflow_id: str, broken: Broken, *, cites: str, at: datetime
     ) -> None:
         key = (tenant_id.value, workflow_id, broken.step, broken.lane, broken.fingerprint)
-        self.broken.setdefault(key, cites)
+        self.broken[key] = cites
 
     async def broken_for(
         self, tenant_id: TenantId, workflow_id: str, cites: Mapping[int, str]

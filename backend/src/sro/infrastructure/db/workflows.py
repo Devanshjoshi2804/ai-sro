@@ -442,18 +442,20 @@ class SqlWorkflowRepository(WorkflowRepository):
     async def break_lane(
         self, tenant_id: TenantId, workflow_id: str, broken: Broken, *, cites: str, at: datetime
     ) -> None:
+        statement = pg_insert(KnownBrokenRow).values(
+            tenant_id=tenant_id.value,
+            workflow_id=workflow_id,
+            ord=broken.step,
+            lane=broken.lane.value,
+            fingerprint=broken.fingerprint,
+            cites=cites,
+            at=at,
+        )
         await self._session.execute(
-            pg_insert(KnownBrokenRow)
-            .values(
-                tenant_id=tenant_id.value,
-                workflow_id=workflow_id,
-                ord=broken.step,
-                lane=broken.lane.value,
-                fingerprint=broken.fingerprint,
-                cites=cites,
-                at=at,
+            statement.on_conflict_do_update(
+                index_elements=["tenant_id", "workflow_id", "ord", "lane", "fingerprint"],
+                set_={"cites": statement.excluded.cites, "at": statement.excluded.at},
             )
-            .on_conflict_do_nothing()
         )
 
     async def broken_for(

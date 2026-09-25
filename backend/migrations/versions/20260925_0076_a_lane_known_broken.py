@@ -1,6 +1,6 @@
 """a lane known broken
 
-A lane that failed a step is remembered per job, step and lane, with a
+A lane that failed a step is remembered per tenant, job, step and lane, with a
 fingerprint of how it failed and the step's `cites` key at the time, so the
 next run skips it; a new doing of the job changes the key and clears it.
 
@@ -22,7 +22,7 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "known_broken",
-        sa.Column("tenant_id", sa.String(64), nullable=False),
+        sa.Column("tenant_id", sa.String(64), primary_key=True),
         sa.Column("workflow_id", sa.String(64), primary_key=True),
         sa.Column("ord", sa.Integer(), primary_key=True),
         sa.Column("lane", sa.String(8), primary_key=True),

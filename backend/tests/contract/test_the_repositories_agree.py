@@ -482,6 +482,34 @@ class TestWorkflows:
                 TENANT, "wfl_1", {1: "cites-a", 2: "cites-b"}
             ) == (Broken(1, Lane.SIGHT, "fp-sight"), Broken(2, Lane.API, "fp-api"))
 
+    async def test_a_lane_broken_again_on_a_new_doing_is_known_broken_for_that_doing(
+        self, store: UnitOfWork
+    ) -> None:
+        at = datetime(2026, 9, 25, tzinfo=UTC)
+        async with store as work:
+            ui = Broken(1, Lane.UI, "fp-ui")
+            await work.workflows.break_lane(TENANT, "wfl_1", ui, cites="old", at=at)
+            await work.workflows.break_lane(TENANT, "wfl_1", ui, cites="new", at=at)
+            await work.commit()
+
+        async with store as work:
+            assert await work.workflows.broken_for(TENANT, "wfl_1", {1: "new"}) == (ui,)
+            assert await work.workflows.broken_for(TENANT, "wfl_1", {1: "old"}) == ()
+
+    async def test_one_job_id_under_two_tenants_keeps_two_broken_lists(
+        self, store: UnitOfWork
+    ) -> None:
+        at = datetime(2026, 9, 25, tzinfo=UTC)
+        ui = Broken(1, Lane.UI, "fp-ui")
+        async with store as work:
+            await work.workflows.break_lane(TENANT, "wfl_1", ui, cites="ours", at=at)
+            await work.workflows.break_lane(OTHER_TENANT, "wfl_1", ui, cites="theirs", at=at)
+            await work.commit()
+
+        async with store as work:
+            assert await work.workflows.broken_for(TENANT, "wfl_1", {1: "ours"}) == (ui,)
+            assert await work.workflows.broken_for(OTHER_TENANT, "wfl_1", {1: "theirs"}) == (ui,)
+
     async def test_only_a_state_belt_registers_an_effect_and_one_write_is_one_row(
         self, store: UnitOfWork
     ) -> None:

@@ -279,7 +279,8 @@ async def test_a_token_the_write_needs_that_the_session_lacks_is_refused_before_
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
-    assert result.verdict == "failed" and result.never_left and result.fingerprint
+    assert result.verdict == "failed" and result.never_left and result.expired
+    assert not result.fingerprint
     assert http.sent == []
 
 

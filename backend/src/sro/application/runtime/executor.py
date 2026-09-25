@@ -4,9 +4,17 @@ import asyncio
 from collections.abc import Collection, Mapping
 from dataclasses import replace
 
+from sro.application.ports.locks import AccountBusy
+from sro.application.ports.page import PageGone
 from sro.application.runtime.api_lane import replay_of
 from sro.application.runtime.broker import SessionBroker
-from sro.application.runtime.step import LaneContext, ReadsBack, StepLane, Stopped
+from sro.application.runtime.step import (
+    LaneContext,
+    NeedsAPerson,
+    ReadsBack,
+    StepLane,
+    Stopped,
+)
 from sro.domain.chat.asked_by import only_reads_the_mail
 from sro.domain.execution.evidence import primary_gesture
 from sro.domain.execution.lanes import Broken, Lane, StepResult, lanes_for
@@ -45,12 +53,21 @@ class StepExecutor:
             return (StepResult("read", Lane.TOOL, "the mail this run came from is already read"),)
         tool = sends_mail(step, ctx.by_id)
         api = not tool and replay_of(step, values, ctx) is not None
-        browser = not tool and primary_gesture(step, ctx.by_id) is not None
+        primary = None if tool else primary_gesture(step, ctx.by_id)
+        page = None if primary is None else primary.page_url or primary.url
         tried: list[StepResult] = []
-        for lane in lanes_for(step.order, tool=tool, api=api, browser=browser, broken=broken):
+        ladder = lanes_for(
+            step.order, tool=tool, api=api, browser=primary is not None, broken=broken
+        )
+        for lane in ladder:
             result = await self._lanes[lane].execute(step, values, ctx)
             if result.expired and ctx.held is not None:
-                await self._broker.reauth(ctx.ctx, ctx.held, start_url)
+                back_to = page if lane in (Lane.UI, Lane.SIGHT) else None
+                try:
+                    await self._broker.reauth(ctx.ctx, ctx.held, start_url, back_to=back_to)
+                except (NeedsAPerson, AccountBusy, PageGone) as why:
+                    why.tried = (*tried, replace(result, reason=f"{result.reason}; {why}"))
+                    raise
                 again = replace(ctx, reauthed=True)
                 if result.verdict == "unknown":
                     result = await self._settled(step, values, again, result)

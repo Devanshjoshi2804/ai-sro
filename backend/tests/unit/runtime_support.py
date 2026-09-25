@@ -492,9 +492,11 @@ def never() -> RecordingLane:
 
 
 class FakeBroker(SessionBroker):
-    """A `SessionBroker` whose `reauth` only counts itself in `reauths`."""
+    """A `SessionBroker` whose `reauth` counts itself in `reauths`, keeps the
+    page it was asked to go back to in `back_tos`, and raises `refuses` when
+    set, the way a sign-in that needs a person does."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, refuses: Exception | None = None) -> None:
         page = FakePageDriver()
         super().__init__(
             FakeUnitOfWork(),
@@ -506,6 +508,13 @@ class FakeBroker(SessionBroker):
             ui=SigningLane(page),
         )
         self.reauths = 0
+        self.back_tos: list[str | None] = []
+        self.refuses = refuses
 
-    async def reauth(self, ctx: RequestContext, held: Held, start_url: str) -> None:
+    async def reauth(
+        self, ctx: RequestContext, held: Held, start_url: str, *, back_to: str | None = None
+    ) -> None:
         self.reauths += 1
+        self.back_tos.append(back_to)
+        if self.refuses is not None:
+            raise self.refuses

@@ -112,7 +112,7 @@ from sro.application.ports.intent import IntentParser
 from sro.application.ports.interpretation import WorkflowInterpreter
 from sro.application.ports.locks import AccountLocks
 from sro.application.ports.model import Asker, asker_or_refuse
-from sro.application.ports.page import PageDriver, SessionRef
+from sro.application.ports.page import PageDriver
 from sro.application.ports.pool import BrowserPool
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.schedule import Scheduler
@@ -244,8 +244,6 @@ class Container:
 
     pursuits: Pursuits = field(default_factory=Pursuits)
 
-    token_floors: dict[SessionRef, int] = field(default_factory=dict)
-
     capture: CaptureController = field(init=False)
 
     driving_runs: AsyncConnection | None = None
@@ -276,17 +274,15 @@ class Container:
             self.vault,
             self.clock,
             ui=self.ui_lane(),
-            floors=self.token_floors,
         )
 
     def step_executor(self) -> StepExecutor:
-        broker = self.session_broker()
         return StepExecutor(
             self.tool_lane(),
-            ApiLane(self.http, broker),
+            self.api_lane(),
             self.ui_lane(),
             self.sight_lane(),
-            broker,
+            self.session_broker(),
         )
 
     def unit_of_work(self) -> UnitOfWork:

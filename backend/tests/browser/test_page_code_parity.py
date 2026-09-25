@@ -519,6 +519,8 @@ def test_hit_test_names_the_frame_it_found_the_control_in_and_says_when_it_canno
     port = pages.server_address[1]
     inside, across = _hit(f"http://127.0.0.1:{port}/hit-top", (50, 25), (50, 225))
 
+    assert isinstance(inside.pop("pin"), str)
+    assert "pin" not in across
     assert inside == {
         "strategy": "role_and_name",
         "query": "button|Save",

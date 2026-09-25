@@ -18,6 +18,7 @@ from collections.abc import AsyncIterator
 import httpx
 import pytest
 
+from sro.application.ports.browser import BrowserUnavailable
 from sro.domain.shared.identifiers import BrowserSessionId
 from sro.infrastructure.steel.client import SteelClient
 from sro.infrastructure.steel.pool import SteelPool
@@ -52,6 +53,9 @@ async def status_of(session_id: str) -> str:
 
 
 async def release_every_live_session(steel: SteelClient) -> None:
+    with contextlib.suppress(BrowserUnavailable):
+        for context_id in await steel.contexts():
+            await steel.dispose(context_id)
     for session_id in await steel.live_sessions():
         if await status_of(str(session_id)) == "live":
             await steel.close(session_id)

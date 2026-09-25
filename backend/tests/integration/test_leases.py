@@ -276,3 +276,23 @@ async def test_an_account_is_pinned_to_the_container_of_its_latest_lease_live_or
     omar = Account.of("greyorange", "https://wms.example", "omar")
     assert await repo.pinned_container(T, omar) is None
     assert await repo.pinned_container(TenantId("acme"), LENA) is None
+
+
+async def test_a_lease_waiting_for_a_person_holds_its_account_until_its_own_deadline(
+    session: AsyncSession,
+) -> None:
+    repo = SqlBrowserSessionRepository(session)
+    await repo.lease(T, _lease("lse_a"))
+    until = NOW + timedelta(minutes=10)
+
+    assert await repo.settle(T, "lse_a", state=LeaseState.WAITING, until=until)
+    assert await repo.beat(T, "lse_a", now=NOW + timedelta(minutes=1))
+
+    waiting = await repo.get_lease(T, "lse_a")
+    assert waiting is not None
+    assert waiting.state is LeaseState.WAITING
+    assert waiting.expires_at == until
+    assert (await repo.lease(T, _lease("lse_b"))).id == "lse_a"
+    assert await repo.retired_contexts("http://steel:3000", ["ctx-lse_a"]) == frozenset()
+    assert not await repo.expire(T, "lse_a", now=until - timedelta(seconds=1))
+    assert await repo.expire(T, "lse_a", now=until)

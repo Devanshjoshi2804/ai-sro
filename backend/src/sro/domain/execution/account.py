@@ -54,11 +54,12 @@ def _encoded(username: str) -> str:
 class LeaseState(StrEnum):
     SIGNING_IN = "signing_in"
     READY = "ready"
+    WAITING = "waiting"
     EXPIRED = "expired"
     BROKEN = "broken"
 
 
-LIVE = frozenset({LeaseState.SIGNING_IN, LeaseState.READY})
+LIVE = frozenset({LeaseState.SIGNING_IN, LeaseState.READY, LeaseState.WAITING})
 
 
 @dataclass(frozen=True, slots=True)

@@ -326,7 +326,7 @@ class SigningLane:
     """Replays a sign-in chain against a `FakePageDriver`: it records the step
     orders it was given in `stepped` and the secret it was handed in
     `secret_seen`, and the chain's last step signs the context in unless the
-    driver `refuses`."""
+    driver `refuses`; `sign_ins` counts the chains that reached that step."""
 
     lane = Lane.UI
 
@@ -334,11 +334,14 @@ class SigningLane:
         self._driver = driver
         self.stepped: list[int] = []
         self.secret_seen: str | None = None
+        self.sign_ins = 0
 
     async def execute(self, step: Step, values: Mapping[str, str], ctx: LaneContext) -> StepResult:
         self.stepped.append(step.order)
         self.secret_seen = ctx.secret or self.secret_seen
         last = sign_in_chain(ctx.workflow, ctx.by_id)[-1]
+        if step.order == last.order:
+            self.sign_ins += 1
         if step.order == last.order and ctx.held is not None and not self._driver.refuses:
             self._driver.signed.add(ctx.held.session.context_id)
         return StepResult("done", Lane.UI)

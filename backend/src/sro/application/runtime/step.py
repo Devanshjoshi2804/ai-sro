@@ -28,11 +28,17 @@ class NeedsAPerson(DomainError):
     code = "needs_a_person"
 
     def __init__(
-        self, question: str, *, kind: Literal["password", "value", "step"] = "step"
+        self, question: str, *, kind: Literal["password", "value", "step", "code"] = "step"
     ) -> None:
         super().__init__(question)
         self.question = question
         self.kind = kind
+
+
+class WaitingForAPerson(NeedsAPerson):
+    def __init__(self, question: str, *, held: Held) -> None:
+        super().__init__(question, kind="code")
+        self.held = held
 
 
 class Stopped(DomainError):

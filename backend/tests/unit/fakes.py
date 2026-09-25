@@ -970,13 +970,22 @@ class FakeBrowserSessionRepository:
             return None
         return found
 
-    async def settle(self, tenant_id: TenantId, lease_id: str, *, state: LeaseState) -> bool:
+    async def settle(
+        self,
+        tenant_id: TenantId,
+        lease_id: str,
+        *,
+        state: LeaseState,
+        until: datetime | None = None,
+    ) -> bool:
         if state is LeaseState.EXPIRED:
             raise ValueError("settle cannot move a lease to expired; use expire")
         found = self.leases.get(lease_id)
         if found is None or found.account.tenant != str(tenant_id) or found.state not in LIVE:
             return False
-        self.leases[lease_id] = replace(found, state=state)
+        self.leases[lease_id] = replace(
+            found, state=state, expires_at=found.expires_at if until is None else until
+        )
         return True
 
     async def expire(self, tenant_id: TenantId, lease_id: str, *, now: datetime) -> bool:
@@ -1000,7 +1009,7 @@ class FakeBrowserSessionRepository:
         self.leases[lease_id] = replace(
             found,
             heartbeat_at=now,
-            expires_at=now + K_LEASE_TTL,
+            expires_at=max(found.expires_at, now + K_LEASE_TTL),
             holder=found.holder if holder is None else holder,
         )
         return True
@@ -1457,6 +1466,8 @@ class FakePageDriver:
     `shows_sign_in_until_signed` a context not yet in `signed` answers a
     password form: whoever drives the recorded sign-in adds the context to
     `signed`, unless `refuses` says the system turns the password away.
+    `expire_session` signs every context out, the way a system ending its
+    session server-side does.
 
     `act`/`wait_for`/`calls_since` answer exactly what a test scripted, for
     the runtime lanes that drive a page through it (`UiLane` first). The call
@@ -1496,6 +1507,10 @@ class FakePageDriver:
         self.signed: set[str] = set()
         self.acted: list[tuple[SessionRef, str, dict[str, object]]] = []
         self.waited_for: list[dict[str, object]] = []
+
+    def expire_session(self) -> None:
+        self.shows_sign_in_until_signed = True
+        self.signed.clear()
 
     def _live(self, session: SessionRef) -> None:
         if session.context_id in self.dead:

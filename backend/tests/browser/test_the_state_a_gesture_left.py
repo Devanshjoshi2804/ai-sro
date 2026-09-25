@@ -16,6 +16,7 @@ from typing import Any
 
 import pytest
 
+from sro.config import get_settings
 from sro.infrastructure.steel.capture import _recorder_script
 
 pytestmark = pytest.mark.browser
@@ -55,6 +56,7 @@ def page() -> Iterator[Any]:
                 "window.__sroRecord = (j) => (window.__got = window.__got || []).push(j);"
             )
             context.add_init_script(_recorder_script())
+            context.add_init_script(path=get_settings().page_code_path)
             context.route(
                 "http://sro.test/**",
                 lambda route: route.fulfill(body=PAGE, content_type="text/html"),
@@ -116,6 +118,40 @@ def test_a_checkbox_and_a_select_record_the_state_they_were_left_in(page: Any) -
 
     page.select_option("#pick", "b")
     assert _go(page)["prior"]["value"] == "Second choice"
+
+
+def _act(page: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    acted: dict[str, Any] = page.evaluate("p => globalThis.sroPage.act(p)", payload)
+    return acted
+
+
+def _holds(page: Any, pin: str, expect: dict[str, Any]) -> Any:
+    return page.evaluate("p => globalThis.sroPage.holds(p)", {"pin": pin, "expect": expect})
+
+
+def test_a_checkbox_step_holds_in_the_state_the_recorder_wrote(page: Any) -> None:
+    page.click("#agree")
+    recorded = _go(page)["prior"]
+    page.click("#agree")
+
+    acted = _act(page, {"action": "click", "target": {"css_path": "#agree"}, "write": False})
+
+    assert acted["ok"] and acted["state"] == recorded
+    assert _holds(page, acted["pin"], recorded)
+    assert not _holds(page, acted["pin"], {**recorded, "value": "unchecked"})
+
+
+def test_a_select_step_holds_in_the_label_the_recorder_wrote(page: Any) -> None:
+    page.select_option("#pick", "b")
+    recorded = _go(page)["prior"]
+    page.select_option("#pick", "a")
+
+    acted = _act(page, {"action": "select", "value": "b", "target": {"css_path": "#pick"}})
+
+    assert acted["ok"] and acted["state"] == recorded
+    assert _holds(page, acted["pin"], recorded)
+    assert _holds(page, acted["pin"], {"value": "b"}), "the value act was given also holds"
+    assert not _holds(page, acted["pin"], {"value": "First"})
 
 
 def test_a_gesture_the_worker_dropped_lends_nothing_to_the_next(page: Any) -> None:

@@ -129,6 +129,7 @@ from sro.application.recording.finish_recording import FinishRecording
 from sro.application.recording.ingest_capture_events import IngestCaptureEvents
 from sro.application.recording.start_recording import StartRecording
 from sro.application.runtime.tool_lane import ToolLane
+from sro.application.runtime.ui_lane import UiLane
 from sro.application.skill.describe_skill import DescribeSkill
 from sro.application.skill.read_skills import GetSkill, ListSkills
 from sro.application.skill.read_workflows import ReadEvidence, ReadWorkflows
@@ -242,6 +243,9 @@ class Container:
     capture: CaptureController = field(init=False)
 
     driving_runs: AsyncConnection | None = None
+
+    def ui_lane(self) -> UiLane:
+        return UiLane(self.driver)
 
     def unit_of_work(self) -> UnitOfWork:
         return SqlUnitOfWork(self.session_factory)

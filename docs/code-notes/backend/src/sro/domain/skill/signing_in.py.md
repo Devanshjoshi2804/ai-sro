@@ -53,7 +53,29 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/signing_in.p
 > the jobs whose `Workflow.signs_in` the mining pass set -- `checks.signs_in`
 > -- and the host then picks among them.
 
-## `signs_in_at`, [line 12](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L12): Docstring
+## `PageSignals`, [line 18](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L18): Docstring
+
+> Pre-created for X4's UI-lane expired-session check, which needs
+> `a_sign_in_page` to tell a genuinely missing control from a session that
+> dropped the operator on a sign-in page mid-step. S6 owns this file's
+> `signals()` picture of a page -- the shape here (`url`, `visited`,
+> `password`, `autocomplete`) and `a_sign_in_page` itself are copied verbatim
+> from S6's own brief, not designed here, so S6 lands the rest of it
+> (`asks_for_a_code`, `PageDriver.signals`, the page code's `sroPage.signals`)
+> on top of a type and a function already in their final shape.
+
+## `a_sign_in_page`, [line 43](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L43): Docstring
+
+> A page is a sign-in page when it shows a credential input (a password
+> input, or an `autocomplete` of `current-password`, `username` or
+> `one-time-code`), or when its tab is inside an OAuth/OIDC round trip: an
+> authorize request carrying `response_type`, `client_id`, `redirect_uri` and
+> `state` not yet answered by a return carrying `code` and `state`. Structural
+> signals only (S6, §5.6) -- never a host list or a login-looking path, which
+> is exactly the kind of allowlist that goes stale the day a tenant adds a
+> system.
+
+## `signs_in_at`, [line 51](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L51): Docstring
 
 > The job that signs in at this page, or None where nothing does.
 >
@@ -63,12 +85,12 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/signing_in.p
 >
 > `not_this` is the job being run, which can never be its own way back in.
 
-## `_starts_at`, [line 26](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L26): Docstring
+## `_starts_at`, [line 65](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L65): Docstring
 
 > The origin of the first gesture this job cites, in time; the job's own step
 > order breaks a tie.
 
-## `sign_in_chain`, [line 37](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L37): Function
+## `sign_in_chain`, [line 76](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L76): Function
 
 > The steps a sign-back-in replays: every step, in step order, cut to the
 > gestures made no later than the first act (in time) that left its host
@@ -141,12 +163,12 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/signing_in.p
 > they still hold. Before, the order was fixed first, so a step that lost the
 > submit to dedupe still sorted last and replayed its other gestures (a focus
 > on the password box) on the landed page.
-## `RecordedLogin`, [line 125](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L125): Class
+## `RecordedLogin`, [line 164](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L164): Class
 
 > What a recorded sign-in says about credentials: the origin the password was
 > typed on, which names its vault key, and the username typed before it.
 
-## `recorded_login`, [line 131](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L131): Docstring
+## `recorded_login`, [line 170](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L170): Docstring
 
 > The tagged sign-in job that lands on the connection's own system: the
 > `worked` half of `checks.signs_in_to`, the same key the mining pass folds

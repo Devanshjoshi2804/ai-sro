@@ -35,7 +35,7 @@ from sro.application.ports.http import (
 from sro.application.ports.intent import Extraction, Reading
 from sro.application.ports.locks import AccountBusy
 from sro.application.ports.model import Asker
-from sro.application.ports.page import PageGone, SessionRef
+from sro.application.ports.page import PageAnswer, PageGone, SessionRef
 from sro.application.ports.pool import PoolFull
 from sro.application.ports.repositories import (
     AttemptRepository,
@@ -86,6 +86,7 @@ from sro.domain.chat.thread import MessageId, Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
 from sro.domain.execution.account import K_LEASE_TTL, LIVE, Account, Lease, LeaseState
 from sro.domain.execution.belts import RunProof, state_verified
+from sro.domain.execution.lanes import SeenCall
 from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
@@ -113,6 +114,7 @@ from sro.domain.observation.pool import (
     RETIRED_STALE,
     PoolEntry,
 )
+from sro.domain.observation.trim import path_shape
 from sro.domain.recording.events import ActionKind
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.errors import Conflict, NotFound
@@ -135,6 +137,7 @@ from sro.domain.shared.prices import Answer as ModelAnswer
 from sro.domain.shared.prices import DaySpend, Effort, ModelSpend
 from sro.domain.skill.locator import LocatorStrategy
 from sro.domain.skill.offers import Offer, OfferRow
+from sro.domain.skill.signing_in import PageSignals
 from sro.domain.skill.skill import Skill
 from sro.domain.skill.workflow import Noticed, Workflow
 from sro.domain.trigger.confirmation import Answer, Confirmation
@@ -1409,11 +1412,27 @@ class FakePageDriver:
     asked for under another account's context is `PageGone`, as the real
     driver answers. `states` holds the saved storage-state JSON per context
     id, and `dead` names context ids whose calls raise `PageGone`, the way a
-    context a lease no longer holds would. `calls` logs every call as a tuple
-    starting with the method name, for tests that check what was asked of
-    the driver rather than only its answers."""
+    context a lease no longer holds would. `calls` logs every tab-lifecycle
+    call as a tuple starting with the method name, for tests that check what
+    was asked of the driver rather than only its answers.
 
-    def __init__(self) -> None:
+    `act`/`wait_for`/`calls_since` answer exactly what a test scripted, for
+    the runtime lanes that drive a page through it (`UiLane` first). The call
+    log is numbered the way the real one is: `before` holds calls numbered
+    ahead of any `mark`, `calls` arrive with the first `act`, and
+    `calls_since`/`wait_for_call` see only calls numbered after the mark they
+    are given."""
+
+    def __init__(
+        self,
+        *,
+        answer: PageAnswer | None = None,
+        calls: Sequence[SeenCall] = (),
+        before: Sequence[SeenCall] = (),
+        holds: bool = False,
+        sign_in: bool = False,
+        url: str = "",
+    ) -> None:
         self.tabs: dict[str, str] = {}
         self.owners: dict[str, str] = {}
         self.states: dict[str, str] = {}
@@ -1421,6 +1440,14 @@ class FakePageDriver:
         self.calls: list[tuple[str, ...]] = []
         self.closed = False
         self._next = count(1)
+        self._answer = answer if answer is not None else PageAnswer(ok=True)
+        self._arriving = tuple(calls)
+        self._seq = count(1)
+        self._log = [(next(self._seq), call) for call in before]
+        self._holds = holds
+        self._signals = PageSignals(url or "https://wms.example/app", password=sign_in)
+        self.acted: list[tuple[SessionRef, str, dict[str, object]]] = []
+        self.waited_for: list[dict[str, object]] = []
 
     def _live(self, session: SessionRef) -> None:
         if session.context_id in self.dead:
@@ -1469,6 +1496,50 @@ class FakePageDriver:
 
     async def aclose(self) -> None:
         self.closed = True
+
+    async def act(
+        self, session: SessionRef, target_id: str, payload: Mapping[str, object]
+    ) -> PageAnswer:
+        self.acted.append((session, target_id, dict(payload)))
+        self._log += [(next(self._seq), call) for call in self._arriving]
+        self._arriving = ()
+        return self._answer
+
+    async def mark(self, session: SessionRef, target_id: str) -> int:
+        return next(self._seq)
+
+    async def calls_since(
+        self, session: SessionRef, target_id: str, mark: int
+    ) -> tuple[SeenCall, ...]:
+        return tuple(call for at, call in self._log if at > mark)
+
+    async def wait_for_call(
+        self,
+        session: SessionRef,
+        target_id: str,
+        *,
+        method: str,
+        shape: str,
+        since: int,
+        deadline_s: float,
+    ) -> bool:
+        return any(
+            call.method.upper() == method.upper() and path_shape(call.url) == shape
+            for call in await self.calls_since(session, target_id, since)
+        )
+
+    async def wait_for(
+        self,
+        session: SessionRef,
+        target_id: str,
+        payload: Mapping[str, object],
+        deadline_s: float,
+    ) -> bool:
+        self.waited_for.append(dict(payload))
+        return self._holds
+
+    async def signals(self, session: SessionRef, target_id: str) -> PageSignals:
+        return self._signals
 
 
 class FakeAccountLocks:

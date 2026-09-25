@@ -868,9 +868,12 @@ Code: `globalThis.sroPage = sroPage;`
 >
 > A pin `hitTest` gave (sight) is stricter: the payload's recorded locator
 > is resolved with `find`, never repaired (the sight lane sends no
-> `write: false`), and holds only when it resolves to the hit element or to
-> the control that contains it (a click lands on a button's inner span); the
-> state is then read from that recorded control. So the right value typed
+> `write: false`), and holds only when it resolves to exactly the hit's
+> nearest actionable element, `hit.closest(CANDIDATES)` -- so a click on a
+> button's inner span confirms the button, while a container locator (a
+> grid, a tab list) never confirms a click on one of its children, such as
+> the wrong row (X7 re-review N1). The state is then read from that
+> recorded control. So the right value typed
 > into the wrong field, or a click on any element that is merely visible
 > and enabled, never holds.
 

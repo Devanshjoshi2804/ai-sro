@@ -916,7 +916,7 @@
       if (!acted || !payload.pin || (!hit && acted.pin !== payload.pin)) return null;
       if (hit) {
         const recorded = find(payload).el;
-        if (!recorded || !recorded.contains(hit)) return null;
+        if (!recorded || recorded !== hit.closest(CANDIDATES)) return null;
         acted.el = recorded;
       }
       const seen = stateOf(acted.el);

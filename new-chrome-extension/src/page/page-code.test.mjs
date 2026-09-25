@@ -595,6 +595,13 @@ function node(tag, { attrs = {}, box = { x: 0, y: 0, width: 40, height: 20 }, te
   el.moveTo = (next) => {
     el.getBoundingClientRect = () => ({ ...next, top: next.y, left: next.x });
   };
+  el.contains = (other) => other === el || below(el).includes(other);
+  el.closest = (selector) => {
+    for (let here = el; here; here = here.parentElement) {
+      if (matching([here], selector).length) return here;
+    }
+    return null;
+  };
   return el;
 }
 
@@ -855,6 +862,35 @@ test("the Create Shipment By list opens: a component-chain click lands on its tr
   } finally {
     delete globalThis.window.Ext;
   }
+});
+
+// --- a sight hit holds only when the recorded locator IS the control it hit --
+
+test("a hit on a button's inner span confirms the recorded button", () => {
+  const realm = {};
+  const { holds } = loadSroPage(realm);
+  const label = node("span", {});
+  mount(node("body", { children: [node("button", { attrs: { "aria-label": "Save" }, children: [label] })] }));
+  realm.__sroHits = new Map([["p-save", label]]);
+
+  const held = holds({ pin: "p-save", action: "click", target: { role: "button", name: "Save" }, expect: {} });
+
+  assert.deepEqual(held, { repaired: false });
+});
+
+test("a container locator never confirms a click on the wrong child inside it", () => {
+  const realm = {};
+  const { holds } = loadSroPage(realm);
+  const cell = node("span", {});
+  const wrong = node("div", { attrs: { role: "row", "aria-label": "456" }, children: [cell] });
+  const right = node("div", { attrs: { role: "row", "aria-label": "123" } });
+  const grid = node("div", { attrs: { role: "grid", "aria-label": "Orders" }, children: [right, wrong] });
+  mount(node("body", { children: [grid] }));
+  realm.__sroHits = new Map([["p-row", cell]]);
+
+  const held = holds({ pin: "p-row", action: "click", target: { role: "grid", name: "Orders" }, expect: {} });
+
+  assert.equal(held, null, "the grid confirmed a click on row 456");
 });
 
 // --- hitTest teaches only locators that find the element -----------------------

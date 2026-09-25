@@ -62,8 +62,8 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/sight
 >     that asked for another, is unknown.
 >   - Any other step is done only when the recorded locator (with its
 >     `frame_path`, strict, never repaired, never a learned locator)
->     resolves to the element the last point of the primary gesture's kind
->     hit (the hit's pin), and that control holds the run's value
+>     resolves to exactly the nearest actionable element under the last
+>     point of the primary gesture's kind (the hit's pin), and that control holds the run's value
 >     (`value_for`) with the recorded visible and enabled. The right value
 >     in the wrong field, a click on any visible element, or a prefilled
 >     field that already showed the recording's value are all unknown.

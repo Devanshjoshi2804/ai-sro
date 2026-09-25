@@ -973,6 +973,18 @@
       const path = xpathOf(el);
       return only(byXpath(path, doc)) ? { strategy: "xpath", query: path, frame_path } : null;
     },
+    signals() {
+      const inputs = qsa("input")
+        .filter(shown)
+        .map((el) => ({
+          password: (el.type || "").toLowerCase() === "password",
+          tokens: (el.getAttribute("autocomplete") || "").toLowerCase().split(/\s+/).filter(Boolean),
+        }));
+      return {
+        password: inputs.some((one) => one.password && !one.tokens.includes("new-password")),
+        autocomplete: [...new Set(inputs.flatMap((one) => one.tokens))],
+      };
+    },
   };
 
   globalThis.sroPage = sroPage;

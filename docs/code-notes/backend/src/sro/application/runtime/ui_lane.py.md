@@ -81,7 +81,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > threshold, not necessarily the recorded one, so with its state holding or
 > no state recorded at all it is `unknown` (X2's binding rule; X4 review I1).
 
-## `_same_call`, [line 190](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L190): Docstring
+## `_same_call`, [line 195](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L195): Docstring
 
 > Whether a seen call is the recorded one: same method, same path shape, same
 > host, sent from the frame this step acted in (`SeenCall.own_frame`, set by
@@ -93,7 +93,17 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > R1). Values are never compared, only keys: a legitimate retry that resends
 > the same fields with a different value is still this step's call.
 
-## `UiLane._holds`, [line 169](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L169): Docstring
+## `UiLane._perform`, [line 87](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L87): Comment
+
+> S6 re-review round 2 (N1): a failed act's own `signals` read can itself
+> raise `PageUnsettled` -- the navigation it landed on never settled within
+> the driver's own bound. Before any write is attempted (`writes(step,
+> ctx.by_id)` is false, so `about_to_write` was never called) the step
+> never left, so it is `failed` with `never_left=True`; once
+> `about_to_write` has run the step may already have taken effect, so it
+> is `unknown`, the same verdict every other unconfirmed write gets.
+
+## `UiLane._holds`, [line 174](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L174): Docstring
 
 > Whether the element `act` touched -- not a fresh resolve -- now shows what
 > the recording says it should. `value` wins over `after.value` when set: the

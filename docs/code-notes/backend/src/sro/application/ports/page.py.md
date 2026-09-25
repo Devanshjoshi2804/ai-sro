@@ -24,7 +24,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/page.py
 > re-resolving and repairing a second time) and refuse to call a repaired
 > write `done` on verification alone.
 
-## `PageDriver`, [line 34](../../../../../../../backend/src/sro/application/ports/page.py#L34): Docstring
+## `PageDriver`, [line 38](../../../../../../../backend/src/sro/application/ports/page.py#L38): Docstring
 
 > S5 owns this file and this Protocol; the five methods X4 needs to drive
 > the recorded frame are here (`act`, `mark`, `calls_since`, `wait_for_call`,
@@ -34,7 +34,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/page.py
 > `restore_state`, `forget`) and `aclose`; a `Protocol` has no body to
 > conflict over, so the two additions merge as a plain union of methods.
 
-## `PageDriver.aclose`, [line 76](../../../../../../../backend/src/sro/application/ports/page.py#L76): Docstring
+## `PageDriver.aclose`, [line 80](../../../../../../../backend/src/sro/application/ports/page.py#L80): Docstring
 
 > The driver holds connections for the life of the process; whoever built
 > the container closes them on the way down.

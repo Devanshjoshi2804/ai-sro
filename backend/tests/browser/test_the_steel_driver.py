@@ -12,9 +12,10 @@ import httpx
 import pytest
 from playwright.async_api import async_playwright
 
-from sro.application.ports.page import PageGone, SessionRef
+from sro.application.ports.page import PageGone, PageUnsettled, SessionRef
 from sro.config import get_settings
 from sro.domain.observation.gesture import AfterState
+from sro.domain.skill.signing_in import a_sign_in_page, asks_for_a_code, expired
 from sro.infrastructure.steel import driver as driver_module
 from sro.infrastructure.steel.client import websocket_debugger_url
 from sro.infrastructure.steel.driver import SteelDriver
@@ -156,7 +157,7 @@ async def test_a_tab_that_never_attaches_is_closed_and_page_gone(
     one: SessionRef,  # noqa: F811
     driver: SteelDriver,  # noqa: F811
 ) -> None:
-    async def never(*_: Any) -> None:
+    async def never(*_: Any, **__: Any) -> None:
         return None
 
     monkeypatch.setattr(driver_module, "K_ATTACH_TIMEOUT_S", 0.5)
@@ -499,6 +500,202 @@ async def test_wait_for_on_a_tab_closed_mid_wait_is_page_gone(
             await driver.wait_for(one, target, {"pin": "never", "expect": {}}, 30.0)
     finally:
         await closer
+
+
+async def test_a_password_page_is_recognised_across_the_oidc_round_trip_and_stops_after_sign_in(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/"))
+
+    assert a_sign_in_page(await driver.signals(one, target))
+
+    await rig.sign_in_in(driver, one, target)
+
+    assert not a_sign_in_page(await driver.signals(one, target))
+
+
+async def test_a_one_time_code_field_is_recognised_by_its_autocomplete(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/public"))
+    await driver.evaluate(
+        one,
+        target,
+        "document.body.insertAdjacentHTML('beforeend', '<input autocomplete=\"one-time-code\">')",
+    )
+
+    signals = await driver.signals(one, target)
+
+    assert a_sign_in_page(signals) and asks_for_a_code(signals)
+
+
+async def test_two_accounts_signals_never_cross(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    two: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    signing_in = await driver.open_tab(one, rig.url("/"))
+    elsewhere_target = await driver.open_tab(two, rig.url("/public"))
+
+    assert a_sign_in_page(await driver.signals(one, signing_in))
+
+    other_signals = await driver.signals(two, elsewhere_target)
+    assert not a_sign_in_page(other_signals)
+    assert not any("idp/authorize" in visited for visited in other_signals.visited)
+
+
+@pytest.mark.parametrize(
+    ("start", "lands"),
+    [("/?response_mode=fragment", "/cb"), ("/?response_mode=form_post", "/app")],
+)
+async def test_the_round_trip_ends_whatever_way_the_code_comes_back(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+    start: str,
+    lands: str,
+) -> None:
+    target = await driver.open_tab(one, rig.url(start))
+    assert a_sign_in_page(await driver.signals(one, target))
+
+    await rig.sign_in_in(driver, one, target, lands=lands)
+    assert not a_sign_in_page(await driver.signals(one, target))
+
+    await driver.goto(one, target, rig.url("/public"))
+    assert not a_sign_in_page(await driver.signals(one, target))
+
+
+async def test_an_error_return_ends_the_round_trip(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/?prompt=none"))
+
+    signals = await driver.signals(one, target)
+
+    assert "/cb" in signals.url and not a_sign_in_page(signals)
+
+
+async def test_the_round_trip_alone_marks_an_identifier_first_page(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/?acr_values=identifier"))
+
+    signals = await driver.signals(one, target)
+
+    assert not signals.password and "username" in signals.autocomplete
+    assert a_sign_in_page(signals)
+
+
+async def test_the_navigation_log_keeps_no_parameter_value(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/"))
+    await rig.sign_in_in(driver, one, target)
+
+    signals = await driver.signals(one, target)
+
+    assert signals.visited
+    assert all(
+        "=" not in url.partition("?")[2].replace("redirect_uri=", "") for url in signals.visited
+    )
+    assert any(url.endswith("/cb?code&state") for url in signals.visited)
+
+
+async def test_a_login_form_arriving_mid_navigation_is_read_once_it_has_loaded(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/public"))
+    await driver.evaluate(one, target, f"location.href = {rig.url('/held-login')!r}")
+    assert await asyncio.to_thread(rig.asked.wait, 10.0)
+
+    reading = asyncio.create_task(driver.signals(one, target))
+    early, _ = await asyncio.wait({reading}, timeout=1.0)
+    rig.answer.set()
+
+    assert not early and (await reading).password
+
+
+async def test_a_tab_closed_while_its_signals_are_read_is_page_gone(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    target = await driver.open_tab(one, rig.url("/public"))
+    await driver.evaluate(one, target, f"location.href = {rig.url('/held-login')!r}")
+    assert await asyncio.to_thread(rig.asked.wait, 10.0)
+
+    reading = asyncio.create_task(driver.signals(one, target))
+    await driver.close_tab(one, target)
+
+    with pytest.raises(PageGone):
+        await reading
+
+
+async def test_a_held_main_frame_navigation_is_page_unsettled_not_a_raw_timeout_error(
+    monkeypatch: pytest.MonkeyPatch,
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    monkeypatch.setattr(driver_module, "K_ACTION_TIMEOUT_S", 1.0)
+    target = await driver.open_tab(one, rig.url("/public"))
+    await driver.evaluate(one, target, f"location.href = {rig.url('/held-login')!r}")
+    assert await asyncio.to_thread(rig.asked.wait, 10.0)
+
+    with pytest.raises(PageUnsettled):
+        await driver.signals(one, target)
+
+
+async def test_a_tab_whose_log_was_lost_to_a_restart_is_never_read_as_outside_a_round_trip(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+) -> None:
+    first = SteelDriver(get_settings().page_code_path)
+    target = await first.open_tab(one, rig.url("/?acr_values=identifier"))
+    await first.aclose()
+
+    again = SteelDriver(get_settings().page_code_path)
+    try:
+        signals = await again.signals(one, target)
+    finally:
+        await again.aclose()
+
+    assert signals.visited is None and a_sign_in_page(signals)
+
+
+async def test_an_adopted_tab_reads_normally_after_its_next_clean_navigation(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+) -> None:
+    first = SteelDriver(get_settings().page_code_path)
+    target = await first.open_tab(one, rig.url("/app"))
+    await first.aclose()
+
+    again = SteelDriver(get_settings().page_code_path)
+    try:
+        await again.goto(one, target, rig.url("/public?one"))
+        await again.goto(one, target, rig.url("/public?two"))
+
+        signals = await again.signals(one, target)
+    finally:
+        await again.aclose()
+
+    assert signals.visited is not None
+    assert not a_sign_in_page(signals)
+    assert not expired(signals, "/app")
 
 
 async def test_a_request_sent_before_the_mark_is_never_the_steps_own_call(

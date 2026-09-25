@@ -64,18 +64,77 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/signing_in.p
 > (`asks_for_a_code`, `PageDriver.signals`, the page code's `sroPage.signals`)
 > on top of a type and a function already in their final shape.
 
-## `a_sign_in_page`, [line 43](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L43): Docstring
+## `a_sign_in_page`, [line 66](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L66): Docstring
 
-> A page is a sign-in page when it shows a credential input (a password
-> input, or an `autocomplete` of `current-password`, `username` or
-> `one-time-code`), or when its tab is inside an OAuth/OIDC round trip: an
-> authorize request carrying `response_type`, `client_id`, `redirect_uri` and
-> `state` not yet answered by a return carrying `code` and `state`. Structural
-> signals only (S6, §5.6) -- never a host list or a login-looking path, which
-> is exactly the kind of allowlist that goes stale the day a tenant adds a
-> system.
+> A page is a sign-in page when it shows a password field that is not a
+> new-password field, or a `current-password` or `one-time-code` token, or
+> when its tab is inside an OAuth/OIDC round trip. Structural signals only
+> (S6, §5.6) -- never a host list or a login-looking path.
+>
+> S6 fix round 1 (I5): `username` alone and `new-password` alone never
+> count. An in-app "create user" form carries both, and reading it as a
+> sign-in page reported a failed act as an expired session. An
+> identifier-first page (Azure B2C) is still caught: it sits inside the
+> round trip its authorize request opened.
+>
+> A lost navigation log (`visited is None`, see `SteelDriver._arrived`) is
+> read as possibly inside a round trip, never as outside one (M1): the cost
+> is at most one needless re-sign-in, and §5.5 retries a step once.
+>
+> S6 re-review round 2 (N2): that "at most one" held only once
+> `SteelDriver.navigated` was fixed to start the log on the tab's first
+> main-frame navigation after adoption -- until then `visited` stayed
+> `None` forever, so every later failed step in an adopted tab cost a
+> re-sign-in, not just the first one.
 
-## `signs_in_at`, [line 51](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L51): Docstring
+## `a_navigation`, [line 43](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L43): Function
+
+> A URL as the navigation log keeps it: scheme, host, path and the query's
+> parameter names, never a value, and no fragment (S6 fix round 1, M2: the
+> log held `?code=&state=` in the clear). The one value kept is an authorize
+> request's `redirect_uri`, cut to its own scheme, host and path: it is the
+> public page registered with the provider, and the round trip cannot be
+> closed without it.
+>
+> S6 re-review round 2 (N4, partial): a bare query token with no `=`
+> (`?<jwt>`) used to come back from `parse_qs` as a key of its own, so the
+> whole token was kept as a "parameter name". Only names that actually
+> appear as `name=value` in the raw query are kept now; a bare token is
+> dropped. Ceiling: a path segment that is itself a secret (`/verify/<token>`)
+> is still kept whole -- the log matches the recorded page by exact path,
+> and folding it through `path_shape` would also fold the authorize
+> request's `redirect_uri` path, which the round trip must match exactly.
+
+## `_in_round_trip`, [line 55](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L55): Function
+
+> S6 fix round 1 (C1): an authorize request opens the trip and names where
+> it ends -- its own `redirect_uri`. The first main-frame navigation back to
+> that origin and path closes it, whatever the return looks like: a query
+> `code`, a fragment (keycloak-js; the log never sees fragments, the page
+> path is enough), a `form_post` POST with no query (ASP.NET / Azure AD), or
+> an error return. Matching on a `code` in the query left every other return
+> open, so the tab read as a sign-in page for the rest of its life. It also
+> no longer closes on an app URL that happens to carry `code` and `state`.
+>
+> S6 re-review round 2 (N3): a single `back` value let an inner federated
+> hop (B2C to Azure AD, say) overwrite the outer trip's own `back`, so the
+> outer trip's return went unmatched and a page still on the outer
+> provider's host read as outside any round trip. `back` is now a stack of
+> every open trip's return page; each navigation pops whichever entry it
+> matches, wherever it sits in the stack, and the tab is inside a round
+> trip while the stack is non-empty.
+
+## `expired`, [line 79](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L79): Function
+
+> Whether a step that could not act met an expired session: sign-in
+> signals on a page whose shape (origin and `path_shape`, ids folded) is
+> not the page the step was recorded on. A password form on the recorded
+> page itself is the step's own work -- an in-app change-password screen --
+> and never an expired session (S6 fix round 1). Ceiling: an application
+> that routes its own login by fragment on the recorded path is not told
+> apart; the step then fails honestly rather than re-signing in.
+
+## `signs_in_at`, [line 85](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L85): Docstring
 
 > The job that signs in at this page, or None where nothing does.
 >
@@ -85,12 +144,12 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/signing_in.p
 >
 > `not_this` is the job being run, which can never be its own way back in.
 
-## `_starts_at`, [line 65](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L65): Docstring
+## `_starts_at`, [line 99](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L99): Docstring
 
 > The origin of the first gesture this job cites, in time; the job's own step
 > order breaks a tie.
 
-## `sign_in_chain`, [line 76](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L76): Function
+## `sign_in_chain`, [line 110](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L110): Function
 
 > The steps a sign-back-in replays: every step, in step order, cut to the
 > gestures made no later than the first act (in time) that left its host
@@ -163,12 +222,12 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/signing_in.p
 > they still hold. Before, the order was fixed first, so a step that lost the
 > submit to dedupe still sorted last and replayed its other gestures (a focus
 > on the password box) on the landed page.
-## `RecordedLogin`, [line 164](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L164): Class
+## `RecordedLogin`, [line 198](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L198): Class
 
 > What a recorded sign-in says about credentials: the origin the password was
 > typed on, which names its vault key, and the username typed before it.
 
-## `recorded_login`, [line 170](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L170): Docstring
+## `recorded_login`, [line 204](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L204): Docstring
 
 > The tagged sign-in job that lands on the connection's own system: the
 > `worked` half of `checks.signs_in_to`, the same key the mining pass folds

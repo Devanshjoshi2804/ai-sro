@@ -62,13 +62,50 @@ async def test_a_typed_value_is_confirmed_by_the_state_it_left() -> None:
 
 async def test_a_missing_control_on_a_sign_in_page_is_an_expired_session() -> None:
     driver = scripted_driver(
-        answer=PageAnswer(ok=False, error_kind="control_not_found"), sign_in=True
+        answer=PageAnswer(ok=False, error_kind="control_not_found"),
+        sign_in=True,
+        url="https://idp.example/login",
     )
     step, by_id = save_step(status=201)
 
     result = await UiLane(driver).execute(step, {}, lane_context(by_id))
 
     assert result.expired and result.verdict == "failed"
+
+
+async def test_a_password_form_on_the_recorded_page_itself_is_not_an_expired_session() -> None:
+    driver = scripted_driver(
+        answer=PageAnswer(ok=False, error_kind="control_not_found"),
+        sign_in=True,
+        url="https://wms.example/app",
+    )
+    step, by_id = save_step(status=201)
+
+    result = await UiLane(driver).execute(step, {}, lane_context(by_id))
+
+    assert not result.expired and result.verdict == "failed"
+
+
+async def test_a_page_that_never_settled_before_any_write_never_left() -> None:
+    driver = scripted_driver(
+        answer=PageAnswer(ok=False, error_kind="control_not_found"), unsettled=True
+    )
+    step, by_id = type_step()
+
+    result = await UiLane(driver).execute(step, {}, lane_context(by_id))
+
+    assert result.verdict == "failed" and result.never_left
+
+
+async def test_a_page_that_never_settled_after_about_to_write_is_unknown() -> None:
+    driver = scripted_driver(
+        answer=PageAnswer(ok=False, error_kind="control_not_found"), unsettled=True
+    )
+    step, by_id = save_step(status=201)
+
+    result = await UiLane(driver).execute(step, {}, lane_context(by_id))
+
+    assert result.verdict == "unknown" and not result.never_left
 
 
 async def test_a_missing_control_is_fingerprinted_for_the_known_broken_list() -> None:

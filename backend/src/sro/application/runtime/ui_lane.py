@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from dataclasses import asdict
 from urllib.parse import urlsplit
 
-from sro.application.ports.page import PageAnswer, PageDriver
+from sro.application.ports.page import PageAnswer, PageDriver, PageUnsettled
 from sro.application.runtime.step import Held, LaneContext, Stopped
 from sro.domain.execution.belts import expected_statuses
 from sro.domain.execution.evidence import READ_METHODS, primary_gesture, recorded_call, writes
@@ -22,7 +22,7 @@ from sro.domain.execution.records import made_by, names_in
 from sro.domain.execution.secrets import needs_a_secret
 from sro.domain.observation.gesture import AfterState, Body, Call, Gesture
 from sro.domain.observation.trim import body_key_set, path_shape
-from sro.domain.skill.signing_in import a_sign_in_page
+from sro.domain.skill.signing_in import expired
 from sro.domain.skill.workflow import Step
 
 K_UI_WAIT_S = 15.0
@@ -97,13 +97,18 @@ class UiLane:
         mark = await self._driver.mark(held.session, held.target_id)
         answer = await self._driver.act(held.session, held.target_id, payload)
         if not answer.ok:
-            expired = a_sign_in_page(await self._driver.signals(held.session, held.target_id))
+            try:
+                signals = await self._driver.signals(held.session, held.target_id)
+            except PageUnsettled:
+                if writes(step, ctx.by_id):
+                    return StepResult("unknown", Lane.UI, "the page did not settle")
+                return StepResult("failed", Lane.UI, "the page did not settle", never_left=True)
             return StepResult(
                 "failed",
                 Lane.UI,
                 answer.detail or str(answer.error_kind),
                 never_left=answer.error_kind in _NOTHING_SENT,
-                expired=expired,
+                expired=expired(signals, primary.page_url or primary.url),
                 fingerprint=fingerprint_of(Lane.UI, str(answer.error_kind), str(payload["target"])),
             )
         if recorded is not None:

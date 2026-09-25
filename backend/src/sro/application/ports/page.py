@@ -31,6 +31,10 @@ class PageGone(Exception):
     code = "page_gone"
 
 
+class PageUnsettled(Exception):
+    code = "page_unsettled"
+
+
 class PageDriver(Protocol):
     async def act(
         self, session: SessionRef, target_id: str, payload: Mapping[str, object]

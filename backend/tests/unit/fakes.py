@@ -35,7 +35,7 @@ from sro.application.ports.http import (
 from sro.application.ports.intent import Extraction, Reading
 from sro.application.ports.locks import AccountBusy
 from sro.application.ports.model import Asker
-from sro.application.ports.page import PageAnswer, PageGone, SessionRef
+from sro.application.ports.page import PageAnswer, PageGone, PageUnsettled, SessionRef
 from sro.application.ports.pool import PoolFull
 from sro.application.ports.repositories import (
     AttemptRepository,
@@ -1432,6 +1432,7 @@ class FakePageDriver:
         holds: bool = False,
         sign_in: bool = False,
         url: str = "",
+        unsettled: bool = False,
     ) -> None:
         self.tabs: dict[str, str] = {}
         self.owners: dict[str, str] = {}
@@ -1445,6 +1446,7 @@ class FakePageDriver:
         self._seq = count(1)
         self._log = [(next(self._seq), call) for call in before]
         self._holds = holds
+        self._unsettled = unsettled
         self._signals = PageSignals(url or "https://wms.example/app", password=sign_in)
         self.acted: list[tuple[SessionRef, str, dict[str, object]]] = []
         self.waited_for: list[dict[str, object]] = []
@@ -1539,6 +1541,8 @@ class FakePageDriver:
         return self._holds
 
     async def signals(self, session: SessionRef, target_id: str) -> PageSignals:
+        if self._unsettled:
+            raise PageUnsettled(f"tab {target_id} did not settle")
         return self._signals
 
 

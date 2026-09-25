@@ -128,6 +128,7 @@ def lane_context(
     secret: str | None = None,
     about_to_write: Callable[[], Awaitable[None]] | None = None,
     thread: str = "",
+    reauthed: bool = False,
 ) -> LaneContext:
     return LaneContext(
         tenant_id=TenantId(_TENANT),
@@ -141,6 +142,7 @@ def lane_context(
         secret=secret,
         thread=thread,
         about_to_write=about_to_write if about_to_write is not None else _nothing,
+        reauthed=reauthed,
     )
 
 
@@ -188,7 +190,9 @@ def type_then_save_step() -> tuple[Step, dict[str, Gesture]]:
 
 
 def proven_write_step(
-    *, read_back: str | None
+    *,
+    read_back: str | None,
+    request_headers: Mapping[str, str] = MappingProxyType({"Content-Type": "application/json"}),
 ) -> tuple[Step, dict[str, Gesture], tuple[VerifiedWrite, ...]]:
     by_id: dict[str, Gesture] = {}
     for nth, name in enumerate(("GT0", "GT1")):
@@ -200,13 +204,13 @@ def proven_write_step(
                 status=201,
                 started_at=at,
                 request_body=Body(text=f'{{"name": "{name}"}}', mime_type="application/json"),
-                request_headers={"Content-Type": "application/json"},
+                request_headers=dict(request_headers),
             )
         ]
         if read_back is not None:
-            requests.append(
-                Call(method="GET", url=f"{_SYSTEM}{read_back}", status=200, started_at=at + 0.5)
-            )
+            read = read_back.format(name=name)
+            read = read if read.startswith("http") else f"{_SYSTEM}{read}"
+            requests.append(Call(method="GET", url=read, status=200, started_at=at + 0.5))
         gesture = Gesture(
             id=f"ges_save_{nth}",
             tenant=_TENANT,

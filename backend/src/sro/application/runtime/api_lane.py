@@ -3,17 +3,14 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Mapping
 from dataclasses import replace
+from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
+from sro.application.connection.check_session import is_login
 from sro.application.execution.plan_step import replay_without_asking
-from sro.application.ports.http import HttpCaller, MalformedRequest
+from sro.application.ports.http import HttpCaller
 from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.step import Held, LaneContext, Stopped
-from sro.domain.execution.belts import (
-    carries_every,
-    confirming_read,
-    expected_statuses,
-    record_carrying,
-)
+from sro.domain.execution.belts import carries_in_slot, confirming_read, expected_statuses
 from sro.domain.execution.evidence import recorded_call
 from sro.domain.execution.lanes import (
     Lane,
@@ -23,13 +20,19 @@ from sro.domain.execution.lanes import (
     fingerprint_of,
     write_confirmed,
 )
+from sro.domain.execution.planning import Planned
 from sro.domain.execution.records import made_by
 from sro.domain.execution.write_plan import seen_values
 from sro.domain.observation.trim import path_shape
+from sro.domain.recording.sensitivity import Sensitivity, classify_header
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.skill.workflow import Step
 
 K_AUTH_REFUSED = frozenset({401, 403, 419})
+
+K_REPRESENTATION = frozenset({"content-type", "accept"})
+
+K_TOKEN_ROLES = frozenset({Sensitivity.AUTH, Sensitivity.CSRF})
 
 
 class ApiLane:
@@ -40,52 +43,50 @@ class ApiLane:
         self._broker = broker
 
     async def execute(self, step: Step, values: Mapping[str, str], ctx: LaneContext) -> StepResult:
-        cited = [ctx.by_id[one] for one in step.cites if one in ctx.by_id]
-        planned = replay_without_asking(
-            step=step,
-            cited=cited,
-            values=values,
-            verified_writes=ctx.ledger,
-            seen=seen_values(ctx.workflow),
-        )
+        planned = _plan(step, values, ctx)
         recorded = recorded_call(step, ctx.by_id)
-        if planned is None or recorded is None or ctx.held is None:
-            return StepResult(
-                "failed",
-                Lane.API,
-                "no verified replay for this step",
-                never_left=True,
-                fingerprint=fingerprint_of(Lane.API, "no_replay"),
-            )
-        payload = planned.payload
-        method, url = str(payload["method"]), str(payload["url"])
-        body = payload.get("body")
-        recorded_headers = payload.get("headers")
-        headers = await self._headers(
-            ctx, ctx.held, url, recorded_headers if isinstance(recorded_headers, dict) else {}
+        held = ctx.held
+        if planned is None or recorded is None or held is None:
+            return _unsent("no verified replay for this step", "no_replay")
+        method, url = str(planned.payload["method"]), str(planned.payload["url"])
+        body = planned.payload.get("body")
+        headers = await self._headers(ctx, held, url, recorded.request_headers, ctx.reauthed)
+        carried = {name.lower() for name in headers}
+        missing = sorted(
+            name.lower()
+            for name, value in recorded.request_headers.items()
+            if REDACTED in value
+            and classify_header(name) in K_TOKEN_ROLES
+            and name.lower() not in carried
         )
+        if missing:
+            return _unsent(
+                f"the session has no {', '.join(missing)} for this write",
+                "missing_header",
+                path_shape(url),
+            )
+        if not _sendable(url, headers):
+            return _unsent("the call cannot be built as recorded", "unsendable", path_shape(url))
         ctx.check_stop()
         await ctx.about_to_write()
         try:
             answered = await self._http.send(
                 method, url, headers=headers, body=body if isinstance(body, str) else None
             )
-        except MalformedRequest as wrong:
-            return StepResult(
-                "failed",
-                Lane.API,
-                f"the call could not be built: {wrong}",
-                never_left=True,
-                fingerprint=fingerprint_of(Lane.API, "malformed", path_shape(url)),
-            )
         except (Stopped, asyncio.CancelledError):
             raise
         except Exception as lost:
-            return StepResult("unknown", Lane.API, f"the call may have arrived: {lost}")
+            return StepResult(
+                "unknown", Lane.API, f"the call may have arrived: {type(lost).__name__}"
+            )
         status = answered.status_code
         if status in K_AUTH_REFUSED:
             return StepResult(
                 "failed", Lane.API, f"the session was refused ({status})", expired=True
+            )
+        if is_login(status, answered.headers.get("location"), url, answered.text):
+            return StepResult(
+                "unknown", Lane.API, f"the system sent the call to sign in ({status})", expired=True
             )
         verdict = write_confirmed(
             recorded=replace(recorded, url=url),
@@ -103,13 +104,13 @@ class ApiLane:
         if verdict != "done":
             return StepResult("unknown", Lane.API, f"the system answered {status}", read=made)
         try:
-            confirmed = await self._confirmed(
-                step, planned.confirm or values, ctx, ctx.held, in_slot=bool(planned.confirm)
-            )
+            confirmed = await self._confirmed(step, planned, ctx, held, fresh=False)
         except (Stopped, asyncio.CancelledError):
             raise
         except Exception as lost:
-            return StepResult("unknown", Lane.API, f"the read-back was lost: {lost}", read=made)
+            return StepResult(
+                "unknown", Lane.API, f"the read-back was lost: {type(lost).__name__}", read=made
+            )
         if not confirmed:
             return StepResult(
                 "unknown", Lane.API, "no read-back shows the values written", read=made
@@ -119,40 +120,91 @@ class ApiLane:
     async def read_back(
         self, step: Step, values: Mapping[str, str], ctx: LaneContext
     ) -> Verdict | None:
-        if ctx.held is None:
+        planned = _plan(step, values, ctx)
+        if planned is None or ctx.held is None:
             return None
-        return "done" if await self._confirmed(step, values, ctx, ctx.held) else None
+        confirmed = await self._confirmed(step, planned, ctx, ctx.held, fresh=ctx.reauthed)
+        return "done" if confirmed else None
 
     async def _confirmed(
-        self,
-        step: Step,
-        values: Mapping[str, str],
-        ctx: LaneContext,
-        held: Held,
-        *,
-        in_slot: bool = False,
+        self, step: Step, planned: Planned, ctx: LaneContext, held: Held, *, fresh: bool
     ) -> bool:
         probe = confirming_read(step, ctx.by_id)
-        if probe is None or REDACTED in probe.url:
+        if probe is None or not planned.confirm or REDACTED in probe.url:
             return False
-        wanted = {name: value for name, value in values.items() if value and value not in probe.url}
-        if not wanted:
+        if _origin(probe.url) != _origin(str(planned.payload["url"])):
             return False
-        got = await self._http.send(
-            "GET", probe.url, headers=await self._headers(ctx, held, probe.url, {})
-        )
-        if not got.succeeded:
+        url = _aimed(probe.url, planned, seen_values(ctx.workflow))
+        if url is None:
             return False
-        if in_slot:
-            return record_carrying(got.text, wanted) is not None
-        return carries_every(got.text, wanted)
+        headers = await self._headers(ctx, held, url, probe.request_headers, fresh)
+        if not _sendable(url, headers):
+            return False
+        got = await self._http.send("GET", url, headers=headers)
+        return got.succeeded and carries_in_slot(got.text, planned.confirm)
 
     async def _headers(
-        self, ctx: LaneContext, held: Held, url: str, recorded: Mapping[str, object]
+        self, ctx: LaneContext, held: Held, url: str, recorded: Mapping[str, str], fresh: bool
     ) -> dict[str, str]:
-        said = await self._broker.headers(ctx.ctx, held, url)
+        said = await self._broker.headers(ctx.ctx, held, url, fresh=fresh)
         named = {name.lower() for name in said}
         return {
-            **{name: str(value) for name, value in recorded.items() if name.lower() not in named},
+            **{
+                name: value
+                for name, value in recorded.items()
+                if name.lower() in K_REPRESENTATION
+                and name.lower() not in named
+                and REDACTED not in value
+            },
             **said,
         }
+
+
+def _plan(step: Step, values: Mapping[str, str], ctx: LaneContext) -> Planned | None:
+    return replay_without_asking(
+        step=step,
+        cited=[ctx.by_id[one] for one in step.cites if one in ctx.by_id],
+        values=values,
+        verified_writes=ctx.ledger,
+        seen=seen_values(ctx.workflow),
+    )
+
+
+def _unsent(reason: str, kind: str, evidence: str = "") -> StepResult:
+    return StepResult(
+        "failed",
+        Lane.API,
+        reason,
+        never_left=True,
+        fingerprint=fingerprint_of(Lane.API, kind, evidence),
+    )
+
+
+def _origin(url: str) -> tuple[str, str]:
+    parts = urlsplit(url)
+    return parts.scheme.lower(), parts.netloc.lower()
+
+
+def _sendable(url: str, headers: Mapping[str, str]) -> bool:
+    scheme, host = _origin(url)
+    if scheme not in ("http", "https") or not host:
+        return False
+    return all(
+        (name + value).isascii() and (name + value).isprintable() for name, value in headers.items()
+    )
+
+
+def _aimed(url: str, planned: Planned, seen: Mapping[str, frozenset[str]]) -> str | None:
+    run = {
+        recorded: planned.confirm[slot]
+        for slot, parameter in planned.filled.items()
+        if slot in planned.confirm
+        for recorded in seen.get(parameter, frozenset())
+    }
+    parts = urlsplit(url)
+    segments = parts.path.split("/")
+    rest = unquote("/".join(one for one in segments if unquote(one) not in run) + "?" + parts.query)
+    if any(recorded in rest for recorded in run):
+        return None
+    aimed = [quote(run[unquote(one)], safe="") if unquote(one) in run else one for one in segments]
+    return urlunsplit(parts._replace(path="/".join(aimed)))

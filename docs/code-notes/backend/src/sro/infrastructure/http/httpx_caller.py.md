@@ -6,9 +6,9 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/http/httpx
 
 > HttpCaller over httpx.
 
-## `HttpxCaller.__init__`, [line 14](../../../../../../../backend/src/sro/infrastructure/http/httpx_caller.py#L14): Comment
+## `HttpxCaller.__init__`, [line 15](../../../../../../../backend/src/sro/infrastructure/http/httpx_caller.py#L15): Comment
 
-Code: `self._client.cookies.jar.set_policy(DefaultCookiePolicy(allowed_domains=[]))`
+Code: `cookies=CookieJar(DefaultCookiePolicy(allowed_domains=[])),`
 
 > No cookie jar and no redirect following: a session the executor was
 > not handed is a session it must not acquire, and a 302 on a mutation
@@ -18,11 +18,12 @@ Code: `self._client.cookies.jar.set_policy(DefaultCookiePolicy(allowed_domains=[
 > every `Set-Cookie` it is answered with and sends it on the next call
 > that carries no `Cookie` header of its own. One caller is shared by
 > every run, so one account's session cookie reached the next account's
-> call. A policy that allows no domain makes the jar refuse every cookie,
-> for a client built here or one handed in; each call carries only the
-> `Cookie` header its caller gave it.
+> call. A policy that allows no domain makes the jar refuse every cookie;
+> each call carries only the `Cookie` header its caller gave it. The
+> caller always builds its own client (a test hands in only a transport),
+> so no one else's client has its cookie policy changed underneath it.
 
-## `HttpxCaller.send`, [line 39](../../../../../../../backend/src/sro/infrastructure/http/httpx_caller.py#L39): Comment
+## `HttpxCaller.send`, [line 41](../../../../../../../backend/src/sro/infrastructure/http/httpx_caller.py#L41): Comment
 
 Code: `raise MalformedRequest(str(wrong) or type(wrong).__name__) from wrong`
 
@@ -34,8 +35,12 @@ Code: `raise MalformedRequest(str(wrong) or type(wrong).__name__) from wrong`
 > counted as broken. `InvalidURL` is not an `httpx.HTTPError` at
 > all, so until now it escaped the executor and took the run with
 > it rather than being recorded as a failed step.
+>
+> `httpx.DecodingError` is not here: it is raised while decoding an
+> answer, after the server received the request and may have acted on
+> it. Called malformed, an applied write read as one that never left.
 
-## `HttpxCaller.send`, [line 41](../../../../../../../backend/src/sro/infrastructure/http/httpx_caller.py#L41): Comment
+## `HttpxCaller.send`, [line 43](../../../../../../../backend/src/sro/infrastructure/http/httpx_caller.py#L43): Comment
 
 Code: `raise TargetUnreachable(str(error) or type(error).__name__) from error`
 

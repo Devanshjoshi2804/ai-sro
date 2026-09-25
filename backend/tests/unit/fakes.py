@@ -1526,6 +1526,7 @@ class FakePageDriver:
         self.aimed: list[Sequence[Mapping[str, object]] | None] = []
         self.cookie = ""
         self.headers: dict[str, str] = {}
+        self.headers_after_mark: dict[str, str] | None = None
 
     def expire_session(self) -> None:
         self.shows_sign_in_until_signed = True
@@ -1568,6 +1569,8 @@ class FakePageDriver:
     ) -> dict[str, str]:
         self._live(session)
         self.calls.append(("headers_for", session.context_id, origin, since))
+        if since and self.headers_after_mark is not None:
+            return dict(self.headers_after_mark)
         return dict(self.headers)
 
     async def cookies_for(self, session: SessionRef, url: str) -> str:

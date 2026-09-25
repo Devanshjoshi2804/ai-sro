@@ -3,7 +3,7 @@ import asyncio
 import pytest
 
 from sro.application.context import RequestContext
-from sro.application.ports.page import PageGone
+from sro.application.ports.page import PageGone, SessionRef
 from sro.application.ports.pool import PoolFull
 from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.step import NeedsAPerson
@@ -296,6 +296,52 @@ async def test_a_crashed_context_is_settled_broken_and_the_account_moves_to_a_fr
     assert second.lease.state is LeaseState.READY
     assert second.session.context_id not in {first.session.context_id}
     assert driver.tabs[second.target_id] == APP
+
+
+class _FlakyTab:
+    """Delegates to `driver`, except that `open_tab` for `context_id` raises
+    `PageGone` `fails` times before it succeeds -- a busy Chrome that fails
+    to attach a tab in time, or a crashed renderer, while the context itself
+    survives (S7 rereview, N1)."""
+
+    def __init__(self, driver: FakePageDriver, context_id: str, *, fails: int) -> None:
+        self._driver = driver
+        self._context_id = context_id
+        self._left = fails
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._driver, name)
+
+    async def open_tab(self, session: SessionRef, url: str) -> str:
+        if self._left > 0 and session.context_id == self._context_id:
+            self._left -= 1
+            raise PageGone(f"context {self._context_id} did not attach a tab in time")
+        return await self._driver.open_tab(session, url)
+
+
+async def test_a_page_gone_context_the_pool_still_lists_survives_with_a_new_tab() -> None:
+    uow, driver, vault = FakeUnitOfWork(), FakePageDriver(), FakeCredentialVault()
+    pool, clock = FakeBrowserPool({STEEL: 5}), FakeClock()
+    broker = _broker(uow, driver, vault, pool=pool, clock=clock)
+    first = await broker.acquire(CTX, LENA, APP, holder="run_1")
+    sibling = await broker.acquire(CTX, LENA, APP, holder="run_1b")
+    clock.advance(10)
+    # Two failures: one for `acquire`'s own attach outside the lock, one for
+    # `_ready`'s retry under it -- the third call, from the fix, succeeds.
+    flaky = _FlakyTab(driver, first.session.context_id, fails=2)
+    flaky_broker = _broker(uow, flaky, vault, pool=pool, clock=clock)
+
+    third = await flaky_broker.acquire(CTX, LENA, APP, holder="run_2")
+
+    lease = uow.browser_sessions.leases[first.lease.id]
+    assert lease.state is LeaseState.READY
+    assert third.lease.id == first.lease.id
+    assert third.session.context_id == first.session.context_id
+    assert third.target_id not in {first.target_id, sibling.target_id}
+    assert (STEEL, first.session.context_id) not in pool.closed
+    still_there = await broker.reattach(CTX, sibling.lease.id, sibling.target_id)
+    assert still_there.target_id == sibling.target_id
+    assert still_there.session == sibling.session
 
 
 async def test_a_signing_in_lease_found_under_the_lock_is_an_orphan_and_is_replaced_now() -> None:

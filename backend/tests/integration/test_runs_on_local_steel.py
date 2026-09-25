@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from urllib.parse import urlsplit
 
+import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
@@ -27,7 +28,7 @@ from sro.application.runtime.ui_lane import UiLane
 from sro.config import get_settings
 from sro.domain.execution.account import K_LEASE_TTL, Account, LeaseState
 from sro.domain.observation.gesture import GestureBatch
-from sro.domain.shared.identifiers import BrowserSessionId, PrincipalId, TenantId
+from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.infrastructure.db.locks import PostgresAccountLocks
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from sro.infrastructure.steel.client import SteelClient
@@ -248,7 +249,12 @@ async def test_a_container_whose_browser_went_away_recovers_onto_a_fresh_context
     page = world.rig.url("/public")
     broker, _ = world.broker()
     first = await broker.acquire(CTX, lena, page, holder="run_1")
-    await client.close(BrowserSessionId(first.lease.steel_session_id))
+
+    # A real crash releases the container's shared browser directly, at
+    # Steel, not through `SteelClient.close`'s guard (S7 rereview, R2-1),
+    # which now refuses that release for as long as any context is live.
+    async with httpx.AsyncClient() as http:
+        await http.post(f"{STEEL_URL}/v1/sessions/{first.lease.steel_session_id}/release")
 
     again, driver = world.broker()
     second = await again.acquire(CTX, lena, page, holder="run_2")

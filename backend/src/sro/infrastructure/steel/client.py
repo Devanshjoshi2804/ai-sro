@@ -166,23 +166,31 @@ class SteelClient:
         )
 
     async def _status(self, session_id: BrowserSessionId) -> str:
-        try:
-            response = await self._client.get(f"{self._base_url}/v1/sessions/{session_id}")
-            response.raise_for_status()
-        except httpx.HTTPError:
-            return "unknown"
-        return str(response.json().get("status", "unknown"))
+        matched = await self._named(session_id)
+        return str(matched.get("status", "unknown")) if matched else "unknown"
 
-    async def _live_sessions(self) -> list[dict[str, object]]:
+    async def _named(self, session_id: BrowserSessionId) -> dict[str, object] | None:
+        return next(
+            (
+                session
+                for session in await self._sessions()
+                if str(session.get("id")) == str(session_id)
+            ),
+            None,
+        )
+
+    async def _sessions(self) -> list[dict[str, object]]:
         try:
             response = await self._client.get(f"{self._base_url}/v1/sessions")
             response.raise_for_status()
         except httpx.HTTPError:
             return []
-        sessions = response.json().get("sessions", [])
+        return list(response.json().get("sessions", []))
+
+    async def _live_sessions(self) -> list[dict[str, object]]:
         return [
             session
-            for session in sessions
+            for session in await self._sessions()
             if str(session.get("status", "")).lower() in {"live", "idle"}
         ]
 
@@ -192,10 +200,15 @@ class SteelClient:
         except httpx.HTTPError as exc:
             raise BrowserUnavailable(f"could not reach the CDP endpoint: {exc}") from exc
 
-    async def alive(self, session_id: BrowserSessionId) -> bool:
-        return (await self._status(session_id)).lower() == "live"
-
     async def close(self, session_id: BrowserSessionId) -> None:
+        if await self.contexts():
+            logger.warning(
+                "refusing to release Steel session %s while its container still lists a "
+                "browser context; a self-hosted Steel releases its one browser for any "
+                "id it is asked to release",
+                session_id,
+            )
+            return
         try:
             response = await self._client.post(f"{self._base_url}/v1/sessions/{session_id}/release")
             if response.status_code == httpx.codes.NOT_FOUND:
@@ -383,18 +396,12 @@ class SteelClient:
             yield frame
 
     async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
-        try:
-            response = await self._client.get(f"{self._base_url}/v1/sessions/{session_id}")
-            if response.status_code == httpx.codes.NOT_FOUND:
-                return None
-            response.raise_for_status()
-        except httpx.HTTPError as exc:
-            raise BrowserUnavailable(f"could not read Steel session {session_id}: {exc}") from exc
-
-        body = response.json()
-        if str(body.get("status", "")).lower() in {"released", "failed", "idle"}:
+        matched = await self._named(session_id)
+        if matched is None:
             return None
-        return self._viewer(body)
+        if str(matched.get("status", "")).lower() in {"released", "failed", "idle"}:
+            return None
+        return self._viewer(matched)
 
     def _viewer(self, body: dict[str, object]) -> str:
         return self._viewer_base + _path_of(body.get("debugUrl") or body.get("sessionViewerUrl"))

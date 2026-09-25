@@ -107,6 +107,20 @@ class SessionBroker:
         await self.release(ctx, held)
         return None
 
+    async def _recover(
+        self, ctx: RequestContext, lease: Lease, start_url: str, holder: str
+    ) -> Held | None:
+        try:
+            return await self._attach(ctx, lease, start_url, holder)
+        except PageGone:
+            if lease.context_id not in await self._pool.contexts(lease.container_url):
+                return None
+        held = await self._tab(lease, start_url)
+        if await self.beat(ctx, lease.id, holder=holder):
+            return held
+        await self.release(ctx, held)
+        return None
+
     async def _ready(
         self, ctx: RequestContext, account: Account, start_url: str, *, holder: str
     ) -> Held:
@@ -118,10 +132,9 @@ class SessionBroker:
             )
             await uow.commit()
         if old is not None and not taken:
-            with contextlib.suppress(PageGone):
-                held = await self._attach(ctx, old, start_url, holder)
-                if held is not None:
-                    return held
+            held = await self._recover(ctx, old, start_url, holder)
+            if held is not None:
+                return held
             await self._settle(ctx, old, LeaseState.BROKEN)
         if old is not None:
             await self._close(old)

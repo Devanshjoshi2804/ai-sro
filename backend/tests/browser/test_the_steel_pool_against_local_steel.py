@@ -53,7 +53,7 @@ async def status_of(session_id: str) -> str:
 
 async def release_every_live_session(steel: SteelClient) -> None:
     for session_id in await steel.live_sessions():
-        if await steel.alive(session_id):
+        if await status_of(str(session_id)) == "live":
             await steel.close(session_id)
 
 
@@ -79,6 +79,24 @@ async def test_closing_one_accounts_context_leaves_a_sibling_context_alive(
     listed = await pool.contexts(url)
     assert first in listed
     assert second not in listed
+    assert await status_of(session) == "live"
+
+
+async def test_closing_an_unrelated_stale_session_id_never_touches_a_live_context(
+    client: SteelClient,
+) -> None:
+    """A self-hosted Steel's `/v1/sessions/<id>/release` frees the container's
+    one browser for ANY id it is sent -- not only an id that owns it (S7
+    rereview, R2-1's live probe: releasing a different, already-released id
+    answered 200 and took the live session's browser down with it). `close`
+    must never reach that endpoint while Chrome still lists a context, no
+    matter what id it was asked to release."""
+    pool = SteelPool({STEEL_URL: client}, per_container=2)
+    url, session, first = await pool.open("greyorange", {})
+
+    await client.close(BrowserSessionId("not-the-session-holding-this-context"))
+
+    assert first in await pool.contexts(url)
     assert await status_of(session) == "live"
 
 

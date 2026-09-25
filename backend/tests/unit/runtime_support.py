@@ -58,9 +58,16 @@ def scripted_driver(
     sign_in: bool = False,
     url: str = "",
     hit: object | None = None,
+    unsettled: bool = False,
 ) -> FakePageDriver:
     return FakePageDriver(
-        answer=answer, calls=calls, holds=holds, sign_in=sign_in, url=url, hit=hit
+        answer=answer,
+        calls=calls,
+        holds=holds,
+        sign_in=sign_in,
+        url=url,
+        hit=hit,
+        unsettled=unsettled,
     )
 
 

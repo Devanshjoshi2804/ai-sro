@@ -43,21 +43,24 @@ def _returns_to(url: str) -> str | None:
 def a_navigation(url: str) -> str:
     parts = urlsplit(url)
     back = _returns_to(url)
+    named = {segment.partition("=")[0] for segment in parts.query.split("&") if "=" in segment}
     names = [
         f"{name}={quote(back, safe='')}" if name == "redirect_uri" and back else name
         for name in _asks(url)
+        if name in named
     ]
     return urlunsplit((parts.scheme, parts.netloc, parts.path, "&".join(names), ""))
 
 
 def _in_round_trip(urls: tuple[str, ...]) -> bool:
-    back: tuple[str, str] | None = None
+    stack: list[tuple[str, str]] = []
     for url in urls:
-        if back is not None and _where(url) == back:
-            back = None
+        where = _where(url)
+        if where in stack:
+            stack.remove(where)
         if (returns := _returns_to(url)) is not None:
-            back = _where(returns)
-    return back is not None
+            stack.append(_where(returns))
+    return bool(stack)
 
 
 def a_sign_in_page(page: PageSignals) -> bool:

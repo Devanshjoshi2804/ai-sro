@@ -69,7 +69,17 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > just as unconfirmed here as it is for a write -- the reasons in the
 > `execute` docstring above.
 
-## `UiLane._holds`, [line 141](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L141): Docstring
+## `UiLane.execute`, [line 54](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L54): Comment
+
+> S6 re-review round 2 (N1): a failed act's own `signals` read can itself
+> raise `PageUnsettled` -- the navigation it landed on never settled within
+> the driver's own bound. Before any write is attempted (`writing` is
+> false, so `about_to_write` was never called) the step never left, so it
+> is `failed` with `never_left=True`; once `about_to_write` has run the
+> step may already have taken effect, so it is `unknown`, the same verdict
+> every other unconfirmed write gets.
+
+## `UiLane._holds`, [line 146](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L146): Docstring
 
 > Whether the element `act` touched -- not a fresh resolve -- now shows what
 > the recording says it should. `value` wins over `after.value` when set: the

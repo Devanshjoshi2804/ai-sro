@@ -70,6 +70,17 @@ def test_a_lost_navigation_log_is_never_read_as_outside_a_round_trip() -> None:
     assert a_sign_in_page(PageSignals("https://idp.example/sso/hop", visited=None))
 
 
+def test_an_inner_federated_round_trip_does_not_close_the_outer_one() -> None:
+    inner_authorize = (
+        "https://idp.example/federate?response_type=code&client_id=fed"
+        "&redirect_uri=https%3A%2F%2Fidp.example%2Freturn&state=s2"
+    )
+    inner_return = "https://idp.example/return?code=c2&state=s2"
+    visited = tuple(a_navigation(one) for one in (AUTHORIZE, inner_authorize, inner_return))
+
+    assert a_sign_in_page(PageSignals("https://idp.example/return", visited=visited))
+
+
 def test_a_logged_navigation_keeps_parameter_names_and_only_the_return_page() -> None:
     back = a_navigation("https://wms.example/cb?code=SECRET&state=s1#access_token=T")
     asked = a_navigation(
@@ -82,6 +93,12 @@ def test_a_logged_navigation_keeps_parameter_names_and_only_the_return_page() ->
         "https://idp.example/authorize?response_type&client_id&login_hint"
         "&redirect_uri=https%3A%2F%2Fwms.example%2Fcb&state"
     )
+
+
+def test_a_bare_query_token_is_dropped_not_kept_as_a_parameter_name() -> None:
+    jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4"
+
+    assert a_navigation(f"https://wms.example/verify?{jwt}") == "https://wms.example/verify"
 
 
 def test_a_one_time_code_asks_for_a_person() -> None:

@@ -24,7 +24,7 @@ from playwright.async_api import (
 from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
-from sro.application.ports.page import PageAnswer, PageGone, SessionRef
+from sro.application.ports.page import PageAnswer, PageGone, PageUnsettled, SessionRef
 from sro.domain.execution.lanes import SeenCall
 from sro.domain.observation.gesture import AfterState
 from sro.domain.observation.trim import path_shape
@@ -174,8 +174,9 @@ class SteelDriver:
         def navigated(response: Response) -> None:
             if not main(response.request):
                 return
-            if tab.visited is not None:
-                tab.visited.append(a_navigation(response.url))
+            if tab.visited is None:
+                tab.visited = []
+            tab.visited.append(a_navigation(response.url))
             if response.status in K_NO_DOCUMENT:
                 failed(response.request)
 
@@ -245,6 +246,14 @@ class SteelDriver:
                     f"tab {target_id} in context {session.context_id} is gone: {why}"
                 ) from why
             raise
+        except TimeoutError as why:
+            if page.is_closed() or not await self._target_alive(session, target_id):
+                raise PageGone(
+                    f"tab {target_id} in context {session.context_id} is gone: {why}"
+                ) from why
+            raise PageUnsettled(
+                f"tab {target_id} in context {session.context_id} did not settle: {why}"
+            ) from why
 
     async def open_tab(self, session: SessionRef, url: str) -> str:
         link = await self._context(session)

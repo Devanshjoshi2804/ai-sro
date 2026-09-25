@@ -12,10 +12,10 @@ import httpx
 import pytest
 from playwright.async_api import async_playwright
 
-from sro.application.ports.page import PageGone, SessionRef
+from sro.application.ports.page import PageGone, PageUnsettled, SessionRef
 from sro.config import get_settings
 from sro.domain.observation.gesture import AfterState
-from sro.domain.skill.signing_in import a_sign_in_page, asks_for_a_code
+from sro.domain.skill.signing_in import a_sign_in_page, asks_for_a_code, expired
 from sro.infrastructure.steel import driver as driver_module
 from sro.infrastructure.steel.client import websocket_debugger_url
 from sro.infrastructure.steel.driver import SteelDriver
@@ -595,6 +595,21 @@ async def test_a_tab_closed_while_its_signals_are_read_is_page_gone(
         await reading
 
 
+async def test_a_held_main_frame_navigation_is_page_unsettled_not_a_raw_timeout_error(
+    monkeypatch: pytest.MonkeyPatch,
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    monkeypatch.setattr(driver_module, "K_ACTION_TIMEOUT_S", 1.0)
+    target = await driver.open_tab(one, rig.url("/public"))
+    await driver.evaluate(one, target, f"location.href = {rig.url('/held-login')!r}")
+    assert await asyncio.to_thread(rig.asked.wait, 10.0)
+
+    with pytest.raises(PageUnsettled):
+        await driver.signals(one, target)
+
+
 async def test_a_tab_whose_log_was_lost_to_a_restart_is_never_read_as_outside_a_round_trip(
     rig: Rig,  # noqa: F811
     one: SessionRef,  # noqa: F811
@@ -610,3 +625,25 @@ async def test_a_tab_whose_log_was_lost_to_a_restart_is_never_read_as_outside_a_
         await again.aclose()
 
     assert signals.visited is None and a_sign_in_page(signals)
+
+
+async def test_an_adopted_tab_reads_normally_after_its_next_clean_navigation(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+) -> None:
+    first = SteelDriver(get_settings().page_code_path)
+    target = await first.open_tab(one, rig.url("/app"))
+    await first.aclose()
+
+    again = SteelDriver(get_settings().page_code_path)
+    try:
+        await again.goto(one, target, rig.url("/public?one"))
+        await again.goto(one, target, rig.url("/public?two"))
+
+        signals = await again.signals(one, target)
+    finally:
+        await again.aclose()
+
+    assert signals.visited is not None
+    assert not a_sign_in_page(signals)
+    assert not expired(signals, "/app")

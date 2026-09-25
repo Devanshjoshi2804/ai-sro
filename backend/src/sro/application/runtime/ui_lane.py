@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import asdict
 
-from sro.application.ports.page import PageAnswer, PageDriver
+from sro.application.ports.page import PageAnswer, PageDriver, PageUnsettled
 from sro.application.runtime.step import Held, LaneContext
 from sro.domain.execution.belts import expected_statuses
 from sro.domain.execution.evidence import READ_METHODS, primary_gesture, recorded_call, writes
@@ -72,7 +72,12 @@ class UiLane:
         mark = await self._driver.mark(held.session, held.target_id)
         answer = await self._driver.act(held.session, held.target_id, payload)
         if not answer.ok:
-            signals = await self._driver.signals(held.session, held.target_id)
+            try:
+                signals = await self._driver.signals(held.session, held.target_id)
+            except PageUnsettled:
+                if writing:
+                    return StepResult("unknown", Lane.UI, "the page did not settle")
+                return StepResult("failed", Lane.UI, "the page did not settle", never_left=True)
             return StepResult(
                 "failed",
                 Lane.UI,

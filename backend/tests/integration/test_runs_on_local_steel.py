@@ -69,7 +69,7 @@ from tests.browser.test_the_steel_pool_against_local_steel import (
     status_of,
     tracking_contexts,
 )
-from tests.unit.fakes import FakeClock, FakeCredentialVault
+from tests.unit.fakes import FakeClock, FakeCredentialVault, FakeIdFactory
 from tests.unit.runtime_support import RecordingLane, with_a_recorded_sign_in
 
 pytestmark = pytest.mark.browser
@@ -427,6 +427,7 @@ async def test_two_runs_of_one_job_share_the_account_s_lease_as_two_tabs(world: 
         Teach(world.uow, world.clock),
         api,
         world.clock,
+        FakeIdFactory(),
     )
 
     for run_id in ("run_tab_1", "run_tab_2"):

@@ -23,6 +23,7 @@ from sro.application.connection.session_life import SessionLife
 from sro.application.connection.sign_in import EnsureSignedIn, SignIn
 from sro.application.knowledge.record_claim import RecordClaims
 from sro.application.ports.vision import Screen
+from sro.application.runtime.answer_run import AnswerRun
 from sro.application.shared.refusals import OverCap
 from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.recording.events import ActionKind
@@ -40,6 +41,7 @@ from tests.unit.fakes import (
     FakeBrowserProvider,
     FakeClock,
     FakeCredentialVault,
+    FakeDurableExecution,
     FakeHttpCaller,
     FakeIdFactory,
     FakeSignInDriver,
@@ -307,6 +309,7 @@ async def test_a_look_in_the_mail_and_its_gather_are_billed() -> None:
         mailbox,
         asker,
         model=MODEL,
+        answer=AnswerRun(uow, FakeDurableExecution()),
         gather=GatherContext(tools=mailbox, asker=asker, model=MODEL),
         clock=FakeClock(NOW),
         ids=FakeIdFactory(),

@@ -43,6 +43,7 @@ from sro.domain.shared.identifiers import DeviceId
 from sro.interface.http.asking import AskingDeviceDep
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
+    AnswerRunRequest,
     StartWorkflowRunRequest,
     WorkflowRunModel,
     WorkflowStepApprovedModel,
@@ -241,6 +242,32 @@ async def abort_workflow_run(
         ctx, asked_for="stop a run", came_of=DONE, about={"run": run_id}
     )
     return WorkflowRunModel.of(stopped)
+
+
+@router.post("/workflow-runs/{run_id}/answer", status_code=status.HTTP_202_ACCEPTED)
+async def answer_workflow_run(
+    run_id: str, body: AnswerRunRequest, container: ContainerDep, ctx: ContextDep
+) -> None:
+    """Answer the question a Steel run is waiting on.
+
+    A run that asks lets go of its browser tab and waits; this hands it the
+    answer and it takes a browser again and carries on from the step that
+    asked, never from the start. 202 because the run carries on after this
+    returns, in its own workflow.
+
+    A one-time code is the one question a run waits on while keeping its page,
+    because the code belongs to that page: the person types it there, then
+    answers here with an empty value. A password question is answered the
+    same way, after the password is stored with `PUT /v1/secrets`.
+
+    A run of another tenant is a 404. A run no longer running, an answer to
+    another question than the standing one, or a value for a password
+    question is a 409 `Conflict`. An answer to a question the run already
+    withdrew (the step turned out done) is accepted and changes nothing.
+    """
+    await container.answer_run().execute(
+        ctx, run_id=run_id, question_id=body.question_id, value=body.value
+    )
 
 
 @router.post("/workflow-runs/{run_id}/approve")

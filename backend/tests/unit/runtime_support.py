@@ -37,6 +37,7 @@ from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from types import MappingProxyType
 
+from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.execution.mail_job import Written
 from sro.application.lookup.run_lookups import RunLookups
@@ -75,6 +76,7 @@ from tests.unit.fakes import (
     FakeClock,
     FakeCredentialVault,
     FakeHttpCaller,
+    FakeIdFactory,
     FakePageDriver,
     FakeUnitOfWork,
 )
@@ -672,6 +674,22 @@ class SteelRun:
     broker: SessionBroker
     driver: FakePageDriver
     account: Account
+    vault: FakeCredentialVault
+    clock: FakeClock
+
+    async def thread_says(self) -> list[dict[str, object]]:
+        """What the run's operator (`clerk`) has been told in their own thread,
+        oldest first, each message as its `text` and `decision`."""
+        found = await ReadThreads(self.uow).current(CTX)
+        if found is None:
+            return []
+        return [{"text": one.text, "decision": one.decision} for one in found.messages]
+
+    async def asks(self, question: dict[str, str]) -> None:
+        """Leaves `question` standing on the run, as a step that asked it would."""
+        progress = Progress.of((await self.saved_run()).progress)
+        progress.asking = question
+        assert await self.uow.workflow_runs.record_progress(TENANT, self.run_id, progress.as_json())
 
     async def saved_run(self, run_id: str = "") -> WorkflowRun:
         run = await self.uow.workflow_runs.get(TENANT, run_id or self.run_id)
@@ -738,5 +756,31 @@ async def steel_run(
         ui=SigningLane(driver),
     )
     executor = StepExecutor(lanes.tool, lanes.api, lanes.ui, lanes.sight, broker)
-    run_steps = RunSteps(uow, broker, executor, Teach(uow, clock), lanes.api, clock)
-    return SteelRun(uow, run_id, run_steps, lanes, broker, driver, account)
+    run_steps = RunSteps(
+        uow, broker, executor, Teach(uow, clock), lanes.api, clock, FakeIdFactory()
+    )
+    return SteelRun(uow, run_id, run_steps, lanes, broker, driver, account, vault, clock)
+
+
+QID = "q-run_ask-0-0"
+
+
+async def asking_steel_run(uow: UnitOfWork, *, kind: str) -> WorkflowRun:
+    """A running Steel run whose standing question is `QID`, of `kind`."""
+    run = WorkflowRun(
+        id="run_ask",
+        tenant=_TENANT,
+        workflow_id=_WORKFLOW.id,
+        device_id="",
+        values={},
+        started_by="clerk",
+        live=True,
+        allow_focus=False,
+        started_at=NOW.isoformat(),
+        executor="steel",
+        progress={"asking": {"id": QID, "kind": kind, "text": "what now?"}},
+    )
+    async with uow:
+        await uow.workflow_runs.save(run)
+        await uow.commit()
+    return run

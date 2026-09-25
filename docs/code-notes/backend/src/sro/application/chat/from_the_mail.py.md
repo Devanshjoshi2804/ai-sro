@@ -48,14 +48,14 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/from_the
 > principal and this passes it down: a look that reached another operator's
 > mailbox would be the boundary undone one layer up.
 
-## module, [line 37](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L37): Note on the line above
+## module, [line 40](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L40): Note on the line above
 
 Code: `SERVER = "gmail"`
 
 > The connector this looks in, named rather than every connector a deployment
 > holds. `gather.SERVER` says the whole of why.
 
-## module, [line 39](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L39): Note on the line above
+## module, [line 42](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L42): Note on the line above
 
 Code: `K_LOOK = 8`
 
@@ -65,14 +65,14 @@ Code: `K_LOOK = 8`
 > cards at once is a panel nobody reads past the third -- not because of what the
 > readings cost. Eight covers a morning's arrivals between looks.
 
-## module, [line 41](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L41): Note on the line above
+## module, [line 44](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L44): Note on the line above
 
 Code: `K_THREAD = 8000`
 
 > How much of one conversation is read back. Long enough for a thread of a
 > dozen short mails, short enough that a forwarded chain is not a prompt.
 
-## module, [line 43](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L43): Note on the line above
+## module, [line 46](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L46): Note on the line above
 
 Code: `K_OFFER_ROUNDS = 3`
 
@@ -87,7 +87,7 @@ Code: `K_OFFER_ROUNDS = 3`
 > `GatherContext`), so two rounds is one search the model actually directs, and
 > the value is in a sibling mail that has to be found before it can be read.
 
-## module, [line 45](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L45): Note on the line above
+## module, [line 48](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L48): Note on the line above
 
 Code: `K_SUBJECT = 120`
 
@@ -95,14 +95,14 @@ Code: `K_SUBJECT = 120`
 > forwarded chain of them: `Fwd: Re: Fwd:` prefixes stack, and what a person
 > needs is enough to tell this request from the three like it.
 
-## module, [line 47](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L47): Note on the line above
+## module, [line 50](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L50): Note on the line above
 
 Code: `K_BECAUSE = 400`
 
 > How much of the request the gather is told, so it knows what it is looking
 > for. The sentence that asked, not the mailbox.
 
-## module, [line 49](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L49): Note on the line above
+## module, [line 52](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L52): Note on the line above
 
 Code: `K_RECENT = "newer_than:2d -in:chats"`
 
@@ -132,7 +132,7 @@ Code: `K_RECENT = "newer_than:2d -in:chats"`
 >
 > Chats stay out. A chat message is not a request in any sense this reads.
 
-## module, [line 51](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L51): Note on the line above
+## module, [line 54](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L54): Note on the line above
 
 Code: `K_REMEMBER = timedelta(days=30)`
 
@@ -143,7 +143,7 @@ Code: `K_REMEMBER = timedelta(days=30)`
 > comes round again is one nobody acted on in a month, and offering it a second
 > time is not the worst thing this could do.
 
-## module, [line 53](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L53): Note on the line above
+## module, [line 56](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L56): Note on the line above
 
 Code: `K_TEXT = 2000`
 
@@ -153,11 +153,11 @@ Code: `K_TEXT = 2000`
 > follows is a quoted thread and a signature block, which is where a model finds
 > last week's request and offers the job again for a record that already exists.
 
-## `Offered`, [line 60](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L60): Docstring
+## `Offered`, [line 63](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L63): Docstring
 
 > One mail, and the job it turned out to ask for.
 
-## `Offered`, [line 67](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L67): Note on the line above
+## `Offered`, [line 70](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L70): Note on the line above
 
 Code: `offers: Sequence[tuple[str, str]] = ()`
 
@@ -171,7 +171,7 @@ Code: `offers: Sequence[tuple[str, str]] = ()`
 > their mailbox actually uses, the optional fields could never be set at
 > all. Measured as a gap on 2026-09-22, before it could bite.
 
-## `Offered`, [line 69](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L69): Note on the line above
+## `Offered`, [line 72](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L72): Note on the line above
 
 Code: `unasked: Sequence[str] = ()`
 
@@ -182,7 +182,7 @@ Code: `unasked: Sequence[str] = ()`
 > they cannot see, and "I asked for a Department and it made one without
 > one" is the fault this closes.
 
-## `Offered`, [line 71](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L71): Note on the line above
+## `Offered`, [line 74](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L74): Note on the line above
 
 Code: `aside: Mapping[str, str] = field(default_factory=dict)`
 
@@ -192,7 +192,7 @@ Code: `aside: Mapping[str, str] = field(default_factory=dict)`
 > sometimes untrue -- a form posts far more fields than a job varies, so
 > where the dictionary names the slot the write can fill it after all.
 
-## `Offered`, [line 73](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L73): Note on the line above
+## `Offered`, [line 76](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L76): Note on the line above
 
 Code: `placed: Mapping[str, str] = field(default_factory=dict)`
 
@@ -204,7 +204,7 @@ Code: `placed: Mapping[str, str] = field(default_factory=dict)`
 > posts far more than that. A name in here is one this write can fill after
 > all -- and the run proves it landed, because nothing demonstrated it.
 
-## `Offered`, [line 75](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L75): Note on the line above
+## `Offered`, [line 78](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L78): Note on the line above
 
 Code: `started: bool = False`
 
@@ -218,7 +218,7 @@ Code: `started: bool = False`
 > still counts what it read and the caller still tells a browser what
 > happened -- what changes is that no card is kept.
 
-## `Offered`, [line 77](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L77): Note on the line above
+## `Offered`, [line 80](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L80): Note on the line above
 
 Code: `subject: str = ""`
 
@@ -232,7 +232,7 @@ Code: `subject: str = ""`
 > job open at once, it is the only thing that tells one from another in a
 > thread that is no longer standing next to the card.
 
-## `Offered`, [line 79](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L79): Note on the line above
+## `Offered`, [line 82](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L82): Note on the line above
 
 Code: `thread: str = ""`
 
@@ -243,7 +243,7 @@ Code: `thread: str = ""`
 > sent the request, and they are not the person with the panel open -- see
 > `domain/execution/waiting.py`.
 
-## `Offered`, [line 81](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L81): Note on the line above
+## `Offered`, [line 84](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L84): Note on the line above
 
 Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 
@@ -255,24 +255,24 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > person pressed, watched half a form fill, and got a question back. The
 > limit is known before the press, so it can be said before the press.
 
-## `LookedInTheMail`, [line 85](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L85): Docstring
+## `LookedInTheMail`, [line 88](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L88): Docstring
 
 > What one look through the mailbox came to.
 
-## `FromTheMail`, [line 92](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L92): Docstring
+## `FromTheMail`, [line 95](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L95): Docstring
 
 > Read the operator's recent mail, and offer the jobs it asks for.
 
-## `_sentence`, [line 611](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L611): Docstring
+## `_sentence`, [line 633](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L633): Docstring
 
 > What happened, for a person reading the result rather than the code.
 
-## `_also`, [line 621](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L621): Docstring
+## `_also`, [line 643](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L643): Docstring
 
 > What the readings came to, totalled. Kept because every other loop here
 > reports it and the spend line reads it, not as a limit on anything.
 
-## `_told`, [line 634](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L634): Docstring
+## `_told`, [line 656](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L656): Docstring
 
 > One offer, told what its boxes will not hold and what it can write after
 > all.
@@ -281,7 +281,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > `unasked` and joins the values -- which is what makes the card's "this job
 > cannot set Department" true when it is said and absent when it is not.
 
-## `FromTheMail.execute`, [line 114](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L114): Docstring
+## `FromTheMail.execute`, [line 119](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L119): Docstring
 
 > One look. Nothing runs, and nothing is written down about the mail.
 >
@@ -291,7 +291,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > mailbox to decide one thing, and `ChatReading` has no field for them
 > for the same reason.
 
-## `FromTheMail._answering`, [line 293](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L293): Docstring
+## `FromTheMail._answering`, [line 301](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L301): Docstring
 
 > The run still waiting to hear back on this conversation, if any.
 >
@@ -301,7 +301,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > falls through to the ordinary reading, which is the right answer for it
 > -- a fresh request on an old thread is a fresh request.
 
-## `FromTheMail._was_asked`, [line 304](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L304): Docstring
+## `FromTheMail._was_asked`, [line 326](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L326): Docstring
 
 > A question standing in the operator's conversation about this mail.
 >
@@ -320,7 +320,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > The operator's own conversation, because that is where the question
 > was put and this look runs as them.
 
-## `FromTheMail._carrying_on`, [line 315](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L315): Docstring
+## `FromTheMail._carrying_on`, [line 337](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L337): Docstring
 
 > The waiting run's offer again, with whatever the reply added.
 >
@@ -333,7 +333,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > thread it arrived in -- the same call, with the same rounds, now
 > looking at a conversation that contains the answer.
 
-## `FromTheMail._answered_by_mail`, [line 357](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L357): Docstring
+## `FromTheMail._answered_by_mail`, [line 379](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L379): Docstring
 
 > The standing question, with whatever the reply answered of it.
 >
@@ -353,7 +353,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > So the reply is read, the value is filled in, and the card comes back
 > naming it. One press, on something visible.
 
-## `FromTheMail._reply_says`, [line 400](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L400): Docstring
+## `FromTheMail._reply_says`, [line 422](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L422): Docstring
 
 > The values this reply actually states, read out of the reply.
 >
@@ -377,7 +377,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > reply that says nothing useful is the case the mailbox search exists
 > for.
 
-## `FromTheMail._the_question_is_answered`, [line 423](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L423): Docstring
+## `FromTheMail._the_question_is_answered`, [line 445](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L445): Docstring
 
 > Close the standing question, because a reply has answered it.
 >
@@ -400,7 +400,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > is a stale question, and a stale question is not worth losing the card
 > that answers it.
 
-## `FromTheMail._what_will_not_fit`, [line 494](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L494): Docstring
+## `FromTheMail._what_will_not_fit`, [line 516](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L516): Docstring
 
 > Each offer, told which of its values its own boxes are too small for.
 >
@@ -411,13 +411,13 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > A job nothing has been learnt about comes back exactly as it went in,
 > which is most of them -- a limit exists only where a run has hit one.
 
-## `FromTheMail._recent`, [line 530](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L530): Docstring
+## `FromTheMail._recent`, [line 552](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L552): Docstring
 
 > The newest message ids, as this operator. Ids only: what each one
 > says is read one at a time below, and a search answer carries a snippet
 > that is not enough to decide on.
 
-## `FromTheMail._body`, [line 551](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L551): Docstring
+## `FromTheMail._body`, [line 573](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L573): Docstring
 
 > What one message says, the conversation it belongs to, and its name.
 >
@@ -428,7 +428,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > The subject beside both because a conversation about this request has
 > to be able to say which request. See `Offered.subject`.
 
-## `FromTheMail._conversation`, [line 571](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L571): Docstring
+## `FromTheMail._conversation`, [line 593](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L593): Docstring
 
 > Every mail in one conversation, as one piece of text.
 >
@@ -441,7 +441,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > about a value sitting one mail away. Measured on the deployment,
 > 2026-09-17 at 21:26.
 
-## `FromTheMail._first_time`, [line 594](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L594): Docstring
+## `FromTheMail._first_time`, [line 616](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L616): Docstring
 
 > Whether this message has been offered before.
 >
@@ -454,7 +454,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > mail nobody was offered after a crash; the cost of the other order is a
 > model call per look per message, forever.
 
-## `FromTheMail.__init__`, [line 110](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L110): Comment
+## `FromTheMail.__init__`, [line 115](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L115): Comment
 
 Code: `self._clock = clock`
 
@@ -463,7 +463,7 @@ Code: `self._clock = clock`
 > so nothing that builds this for a test has to grow two arguments to
 > go on testing what it was testing.
 
-## `FromTheMail.execute`, [line 115](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L115): Comment
+## `FromTheMail.execute`, [line 120](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L120): Comment
 
 Code: `asker = asker_or_refuse(self._asker)`
 
@@ -471,7 +471,7 @@ Code: `asker = asker_or_refuse(self._asker)`
 > factory that raised would make a deployment with no key unbuildable
 > instead of refusing at the one call that actually needs a model.
 
-## `FromTheMail.execute`, [line 118](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L118): Comment
+## `FromTheMail.execute`, [line 123](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L123): Comment
 
 Code: `why = await over_cap(`
 
@@ -481,14 +481,14 @@ Code: `why = await over_cap(`
 > client would refuse each call anyway; asking here gives the operator the 429
 > and the reason instead of a look that quietly read nothing.
 
-## `FromTheMail.execute`, [line 148](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L148): Comment
+## `FromTheMail.execute`, [line 153](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L153): Comment
 
 Code: `unsure = 0`
 
 > Read, asked for a job, and dropped because the reading could not tell
 > which job. Counted rather than swallowed: see `_sentence`.
 
-## `FromTheMail.execute`, [line 163](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L163): Comment
+## `FromTheMail.execute`, [line 168](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L168): Comment
 
 Code: `back = await self._answering(ctx, thread)`
 
@@ -506,13 +506,13 @@ Code: `back = await self._answering(ctx, thread)`
 > and the id is already claimed so it is dropped for good. The
 > answer would be lost at precisely the moment it arrived.
 
-## `FromTheMail.execute`, [line 171](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L171): Comment
+## `FromTheMail.execute`, [line 179](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L179): Comment
 
 Code: `asked = await self._was_asked(ctx, thread)`
 
 > Or a question standing in the conversation that this answers.
 
-## `FromTheMail.execute`, [line 181](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L181): Comment
+## `FromTheMail.execute`, [line 189](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L189): Comment
 
 Code: `if got.workflow_id is None:`
 
@@ -520,7 +520,7 @@ Code: `if got.workflow_id is None:`
 > A card about a delivery notice is worse than no card: the person
 > stops reading the ones that matter.
 
-## `FromTheMail.execute`, [line 185](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L185): Comment
+## `FromTheMail.execute`, [line 193](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L193): Comment
 
 Code: `unsure += 1`
 
@@ -533,14 +533,14 @@ Code: `unsure += 1`
 > the job the rig had otherwise learned to do. Nothing anywhere
 > said so.
 
-## `FromTheMail.execute`, [line 186](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L186): Comment
+## `FromTheMail.execute`, [line 194](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L194): Comment
 
 Code: `logger.info(`
 
 > A thread that wandered onto another subject is not
 > more evidence about this one.
 
-## `FromTheMail.execute`, [line 193](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L193): Comment
+## `FromTheMail.execute`, [line 201](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L201): Comment
 
 Code: `values, missing = dict(got.values), list(got.missing)`
 
@@ -559,7 +559,7 @@ Code: `values, missing = dict(got.values), list(got.missing)`
 > moved to where the decision is actually made, so a wrong reading
 > is caught before the record instead of after it.
 
-## `FromTheMail.execute`, [line 194](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L194): Comment
+## `FromTheMail.execute`, [line 202](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L202): Comment
 
 Code: `asked_for_too: set[str] = set()`
 
@@ -567,7 +567,7 @@ Code: `asked_for_too: set[str] = set()`
 > reading of it. A set, because two readings of one conversation
 > name the same field twice.
 
-## `FromTheMail.execute`, [line 196](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L196): Comment
+## `FromTheMail.execute`, [line 204](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L204): Comment
 
 Code: `if missing:`
 
@@ -578,7 +578,7 @@ Code: `if missing:`
 > below searches the whole mailbox with a query a model writes, and
 > on this mailbox that came back empty about a value one mail away.
 
-## `FromTheMail.execute`, [line 197](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L197): Comment
+## `FromTheMail.execute`, [line 205](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L205): Comment
 
 Code: `job_ = titles.get(got.workflow_id, got.workflow_id)`
 
@@ -589,7 +589,7 @@ Code: `job_ = titles.get(got.workflow_id, got.workflow_id)`
 > is a step nobody can debug -- which is the lesson the
 > execution ladder already learned, in the same week.
 
-## `FromTheMail.execute`, [line 205](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L205): Comment
+## `FromTheMail.execute`, [line 213](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L213): Comment
 
 Code: `logger.info(`
 
@@ -601,7 +601,7 @@ Code: `logger.info(`
 > Twice on 2026-09-17 that reading sent me looking for a card in a
 > panel when I had no idea whether one had ever been offered.
 
-## `FromTheMail.execute`, [line 212](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L212): Comment
+## `FromTheMail.execute`, [line 220](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L220): Comment
 
 Code: `logger.info(`
 
@@ -610,7 +610,7 @@ Code: `logger.info(`
 > same from outside. Names and counts, never a value: this line
 > is about whether the mechanism worked.
 
-## `FromTheMail.execute`, [line 221](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L221): Comment
+## `FromTheMail.execute`, [line 229](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L229): Comment
 
 Code: `asked_for_too.update(again.unasked)`
 
@@ -619,7 +619,7 @@ Code: `asked_for_too.update(again.unasked)`
 > mails up is still something the request asked for
 > and this job cannot write.
 
-## `FromTheMail.execute`, [line 258](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L258): Comment
+## `FromTheMail.execute`, [line 266](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L266): Comment
 
 Code: `offers=offerable(`
 
@@ -629,7 +629,7 @@ Code: `offers=offerable(`
 > names fields the first sentence did not.
 > What it could ALSO set, which nothing has to answer.
 
-## `FromTheMail.execute`, [line 266](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L266): Comment
+## `FromTheMail.execute`, [line 274](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L274): Comment
 
 Code: `aside={**got.aside, **said_besides},`
 
@@ -637,7 +637,7 @@ Code: `aside={**got.aside, **said_besides},`
 > card say what this job cannot set; the values are what
 > make it sometimes untrue.
 
-## `FromTheMail.execute`, [line 269](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L269): Comment
+## `FromTheMail.execute`, [line 277](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L277): Comment
 
 Code: `except OverCap as reached:`
 
@@ -646,7 +646,7 @@ Code: `except OverCap as reached:`
 > forgets the claim on the mail it was reading, so the next look reads it;
 > the mails after it were never claimed.
 
-## `FromTheMail._answered_by_mail`, [line 390](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L390): Comment
+## `FromTheMail._answered_by_mail`, [line 412](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L412): Comment
 
 Code: `started=started,`
 
@@ -654,7 +654,7 @@ Code: `started=started,`
 > run started by the same answer is the panel offering to do what
 > it is doing.
 
-## `FromTheMail._the_question_is_answered`, [line 459](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L459): Comment
+## `FromTheMail._the_question_is_answered`, [line 481](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L481): Comment
 
 Code: `speaker=Speaker.ASSISTANT,`
 
@@ -662,7 +662,7 @@ Code: `speaker=Speaker.ASSISTANT,`
 > question is still standing, and a SYSTEM note leaves the old
 > one to be found by the next sentence somebody types.
 
-## `FromTheMail._the_question_is_answered`, [line 474](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L474): Comment
+## `FromTheMail._the_question_is_answered`, [line 496](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L496): Comment
 
 Code: `else {`
 
@@ -685,21 +685,21 @@ Code: `else {`
 > is about the job's track record and this is about one
 > person's consent, and neither stands in for the other.
 
-## `FromTheMail._the_question_is_answered`, [line 485](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L485): Comment
+## `FromTheMail._the_question_is_answered`, [line 507](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L507): Comment
 
 Code: `"resume": True,`
 
 > The browser's cue to start without asking again. The
 > same field the chat path emits for the same reason.
 
-## `FromTheMail._what_will_not_fit`, [line 499](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L499): Comment
+## `FromTheMail._what_will_not_fit`, [line 521](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L521): Comment
 
 Code: `placeable: dict[str, dict[str, str]] = {}`
 
 > Per job, like the limits: a mailbox holding four requests for one job
 > is the ordinary case and it is the same answer four times.
 
-## `FromTheMail._what_will_not_fit`, [line 509](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L509): Comment
+## `FromTheMail._what_will_not_fit`, [line 531](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L531): Comment
 
 Code: `await declared_limits(`
 
@@ -708,7 +708,7 @@ Code: `await declared_limits(`
 > the press is lost if the first request too long for a field
 > still has to be sent to find that out.
 
-## `FromTheMail._what_will_not_fit`, [line 518](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L518): Comment
+## `FromTheMail._what_will_not_fit`, [line 540](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L540): Comment
 
 Code: `asked = sorted(`
 
@@ -721,7 +721,7 @@ Code: `asked = sorted(`
 > the dictionary names the slot, the write can fill it -- and the
 > run then proves it landed, because nothing demonstrated it.
 
-## `_sentence`, [line 615](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L615): Comment
+## `_sentence`, [line 637](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L637): Comment
 
 Code: `return f"read {read}, and {unsure} asked for a job this tenant holds more than one of"`
 
@@ -731,10 +731,20 @@ Code: `return f"read {read}, and {unsure} asked for a job this tenant holds more
 > nobody investigates -- the tenant had two workflows with one name for
 > a day, and this sentence is why nobody knew.
 
-## `_told`, [line 644](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L644): Comment
+## `_told`, [line 666](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L666): Comment
 
 Code: `return replace(`
 
 > Placed fields leave `unasked` -- they are no longer things this job
 > cannot set -- and their values join the ones it was given, because the
 > write is what fills them and the write reads `values`.
+
+## `FromTheMail._answer_the_run`, [line 314](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L314): Note
+
+Code: `if run.outcome != "running" or asking.get("kind") not in ("step", "value"):`
+
+> A reply on the conversation a Steel run is waiting on answers that run's
+> standing question (spec §7.4), and never starts a second run from step 0.
+> A password is never answered from mail (it goes to `PUT /v1/secrets`), nor
+> a one-time code (it is typed on the page). A reply that arrives after the
+> question was answered or the run ended is logged and dropped.

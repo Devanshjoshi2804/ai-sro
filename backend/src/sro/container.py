@@ -128,6 +128,7 @@ from sro.application.recording.attach_artifact import AttachArtifact
 from sro.application.recording.finish_recording import FinishRecording
 from sro.application.recording.ingest_capture_events import IngestCaptureEvents
 from sro.application.recording.start_recording import StartRecording
+from sro.application.runtime.answer_run import AnswerRun
 from sro.application.runtime.api_lane import ApiLane
 from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.executor import StepExecutor
@@ -298,7 +299,11 @@ class Container:
             self.teach(),
             self.api_lane(),
             self.clock,
+            self.ids,
         )
+
+    def answer_run(self) -> AnswerRun:
+        return AnswerRun(self.unit_of_work(), self.durable)
 
     def unit_of_work(self) -> UnitOfWork:
         return SqlUnitOfWork(self.session_factory)
@@ -777,6 +782,7 @@ class Container:
             clock=self.clock,
             ids=self.ids,
             cap_usd=self.settings.daily_usd_cap,
+            answer=self.answer_run(),
             gather=GatherContext(
                 tools=self.tools, asker=self.asker, model=self.settings.gemini_plan_model
             )

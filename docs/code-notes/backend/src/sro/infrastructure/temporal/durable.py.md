@@ -9,7 +9,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/d
 > The client connects lazily and is cached: building the container is synchronous,
 > and a Temporal outage at boot must not stop the API from serving reads.
 
-## `_root_message`, [line 101](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L101): Docstring
+## `_root_message`, [line 105](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L105): Docstring
 
 > The deepest message in a Temporal failure chain.
 >
@@ -41,7 +41,7 @@ Code: `return run_id`
 > precisely so it can watch the steps land instead of holding a
 > request open for as long as the warehouse takes.
 
-## `_root_message`, [line 105](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L105): Comment
+## `_root_message`, [line 109](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L109): Comment
 
 Code: `message = getattr(current, "message", None)`
 

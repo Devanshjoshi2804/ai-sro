@@ -20,6 +20,7 @@ from sro.application.chat.converse import StartThread
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.context import RequestContext
 from sro.application.ports.tools import ToolResult, ToolsUnavailable
+from sro.application.runtime.answer_run import AnswerRun
 from sro.application.shared.refusals import OverCap
 from sro.domain.chat.asking import NEEDS, Pending, pending_job
 from sro.domain.chat.thread import Message, MessageId, Speaker
@@ -36,7 +37,7 @@ from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer, ModelSpend
 from sro.domain.skill.workflow import Step, Workflow
 from tests import factories as f
-from tests.unit.fakes import FakeClock, FakeIdFactory, FakeUnitOfWork
+from tests.unit.fakes import FakeClock, FakeDurableExecution, FakeIdFactory, FakeUnitOfWork
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=PrincipalId("devansh"))
 JOB = "wfl_1"
@@ -161,12 +162,14 @@ def _look(
     gather: Any = None,
     *,
     cap_usd: float = -1.0,
+    durable: FakeDurableExecution | None = None,
 ) -> FromTheMail:
     return FromTheMail(
         uow,
         mailbox,
         reads,
         model="m",
+        answer=AnswerRun(uow, durable or FakeDurableExecution()),
         gather=gather,
         clock=FakeClock(),
         ids=FakeIdFactory(),
@@ -655,6 +658,31 @@ async def test_a_reply_carries_on_the_run_that_was_waiting_for_it() -> None:
     # re-classified against every job this tenant holds reads as no job at all
     # and is dropped -- which is the failure this path exists to prevent.
     assert [json.loads(seen)["jobs"][0]["id"] for seen in reads.saw] == [JOB]
+
+
+@pytest.mark.parametrize(
+    ("asking", "answered"),
+    [("step", True), ("value", True), ("password", False), ("", False)],
+)
+async def test_a_reply_on_a_steel_run_s_thread_answers_that_run_and_never_starts_another(
+    asking: str, answered: bool
+) -> None:
+    uow = await _held()
+    run = _short("t-9", needs=[], values={})
+    run.outcome, run.executor = "running", "steel"
+    if asking:
+        run.progress = {"asking": {"id": "q-1", "kind": asking, "text": "was it saved?"}}
+    await uow.workflow_runs.save(run)
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("yes, it is there", thread="t-9")})
+    durable = FakeDurableExecution()
+
+    looked = await _look(uow, mailbox, _Reads(_reading(JOB)), durable=durable).execute(CTX)
+
+    assert [(one, question) for one, question, _ in durable.answered] == (
+        [("run_1", "q-1")] if answered else []
+    )
+    assert all("yes, it is there" in value for _, _, value in durable.answered)
+    assert looked.offered == ()
 
 
 async def test_a_reply_to_a_wait_that_ran_out_is_an_ordinary_new_request() -> None:

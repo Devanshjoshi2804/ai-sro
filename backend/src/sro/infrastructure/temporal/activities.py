@@ -139,6 +139,15 @@ class RunRef:
     budget_s: float
 
 
+@dataclass
+class RunAnswer:
+    tenant_id: str
+    principal_id: str
+    run_id: str
+    question_id: str
+    value: str
+
+
 class RunActivities:
     def __init__(self, container: Container) -> None:
         self._container = container
@@ -187,6 +196,13 @@ class RunActivities:
                 await _abandon(work)
             raise
         return work.result()
+
+    @activity.defn(name="run.answered")
+    async def answered(self, answer: RunAnswer) -> None:
+        ctx = _context(answer.tenant_id, answer.principal_id)
+        await self._container.run_steps().answered(
+            ctx, answer.run_id, answer.question_id, answer.value
+        )
 
     @activity.defn(name="run.finish")
     async def finish(self, ref: RunRef) -> str:

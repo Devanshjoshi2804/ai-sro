@@ -4,11 +4,12 @@ import asyncio
 import contextlib
 from dataclasses import dataclass, replace
 
+from sro.application.chat.announce import SayWhatHappened
 from sro.application.context import RequestContext
 from sro.application.ports.locks import AccountBusy
 from sro.application.ports.page import PageGone
 from sro.application.ports.repositories import UnitOfWork
-from sro.application.ports.system import Clock
+from sro.application.ports.system import Clock, IdFactory
 from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.executor import StepExecutor
 from sro.application.runtime.step import (
@@ -18,10 +19,12 @@ from sro.application.runtime.step import (
     ReadsBack,
     Stopped,
     Superseded,
+    WaitingForAPerson,
 )
 from sro.application.runtime.teach import Teach
 from sro.domain.chat.asked_by import only_reads_the_mail
-from sro.domain.execution.account import Account
+from sro.domain.chat.thread import Speaker
+from sro.domain.execution.account import Account, LeaseState
 from sro.domain.execution.evidence import primary_gesture, writes
 from sro.domain.execution.lanes import Lane, StepResult, cites_key
 from sro.domain.execution.mail_job import sends_mail
@@ -29,6 +32,7 @@ from sro.domain.execution.progress import MAIN, Progress, StepMark
 from sro.domain.execution.waiting import read_wait
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Gesture
+from sro.domain.shared.identifiers import PrincipalId
 from sro.domain.skill.workflow import Step, Workflow, cited_ids
 
 _RUN_VERDICT = {"done": "held", "read": "held", "failed": "failed", "unknown": "unclear"}
@@ -57,9 +61,10 @@ class RunSteps:
         teach: Teach,
         api: ReadsBack,
         clock: Clock,
+        ids: IdFactory,
     ) -> None:
         self._uow, self._broker, self._executor = uow, broker, executor
-        self._teach, self._api, self._clock = teach, api, clock
+        self._teach, self._api, self._clock, self._ids = teach, api, clock, ids
 
     async def prepare(self, ctx: RequestContext, run_id: str) -> Prepared:
         run, workflow, by_id = await self._load(ctx, run_id)
@@ -172,6 +177,8 @@ class RunSteps:
             done = Progress.of(run.progress).step >= len(workflow.steps)
             kept = done and all(verdict in _KEPT for verdict in last.values())
             run.outcome = "held" if kept else "failed"
+        if not run.needs:
+            run.awaiting = None
         run.finished_at = run.finished_at or self._clock.now().isoformat()
         async with self._uow as uow:
             await uow.workflow_runs.save(run)
@@ -181,13 +188,30 @@ class RunSteps:
     async def release(self, ctx: RequestContext, run_id: str) -> None:
         run = await self._run(ctx, run_id)
         progress = Progress.of(run.progress)
-        if not progress.tabs.get(MAIN):
+        if not progress.tabs.get(MAIN) or (
+            run.outcome == "running" and progress.asking.get("kind") == "code"
+        ):
             return
         with contextlib.suppress(PageGone):
             held = await self._broker.reattach(ctx, progress.lease, progress.tabs[MAIN])
             await self._broker.release(ctx, held)
         progress.tabs = {}
         await self._write(ctx, run, progress)
+
+    async def answered(
+        self, ctx: RequestContext, run_id: str, question_id: str, value: str
+    ) -> None:
+        run = await self._run(ctx, run_id)
+        progress = Progress.of(run.progress)
+        asking = progress.asking
+        if asking.get("id") != question_id:
+            return
+        if asking.get("kind") == "value" and asking.get("name"):
+            run.values[asking["name"]] = value
+        if asking.get("kind") == "password" and progress.lease:
+            await self._broker.unpark(ctx, progress.lease)
+        progress.asking = {}
+        await self._write(ctx, run, progress, save=True)
 
     async def beat(self, ctx: RequestContext, run_id: str) -> None:
         progress = Progress.of((await self._run(ctx, run_id)).progress)
@@ -199,14 +223,20 @@ class RunSteps:
         if run.outcome != "running":
             return ""
         progress = Progress.of(run.progress)
-        if progress.lease and progress.tabs.get(MAIN):
-            with contextlib.suppress(PageGone):
-                await self._broker.reattach(ctx, progress.lease, progress.tabs[MAIN])
-                return ""
-        account = Account.of(
-            ctx.tenant_id.value, progress.account.origin, progress.account.username
-        )
         try:
+            if progress.lease and progress.tabs.get(MAIN):
+                with contextlib.suppress(PageGone):
+                    kept = await self._broker.reattach(ctx, progress.lease, progress.tabs[MAIN])
+                    if kept.lease.state is not LeaseState.WAITING:
+                        return ""
+                    held = await self._broker.resume(
+                        ctx, kept.lease.id, kept.target_id, progress.start_url, holder=run_id
+                    )
+                    await self._keep_tab(ctx, run, progress, held)
+                    return ""
+            account = Account.of(
+                ctx.tenant_id.value, progress.account.origin, progress.account.username
+            )
             held = await self._broker.acquire(ctx, account, progress.start_url, holder=run_id)
         except NeedsAPerson as asked:
             return await self._ask(ctx, run, _standing(_ordered(workflow), progress), asked)
@@ -363,6 +393,8 @@ class RunSteps:
                 never_left=last.never_left,
                 expired=last.expired,
             )
+        if isinstance(asked, WaitingForAPerson):
+            progress.lease, progress.tabs = asked.held.lease.id, {MAIN: asked.held.target_id}
         asking = f"q-{run.id}-{step.order}-{len(run.steps)}"
         progress.asking = {"id": asking, "kind": asked.kind, "text": asked.question}
         by = last.lane.value if last is not None else "none"
@@ -378,6 +410,18 @@ class RunSteps:
             )
         )
         await self._write(ctx, run, progress, save=True, index=index, open_step=step.order)
+        await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+            ctx,
+            for_operator=PrincipalId(run.started_by) if run.started_by else ctx.principal_id,
+            text=asked.question,
+            speaker=Speaker.ASSISTANT,
+            decision={
+                "kind": "run_asks",
+                "run_id": run.id,
+                "question_id": asking,
+                "asks": asked.kind,
+            },
+        )
         return asking
 
     async def _stopped(self, ctx: RequestContext, run_id: str, step: Step) -> StepOutcome:

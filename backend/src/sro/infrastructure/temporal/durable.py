@@ -97,6 +97,10 @@ class TemporalDurableExecution:
                 id_reuse_policy=WorkflowIDReusePolicy.REJECT_DUPLICATE,
             )
 
+    async def answer_run(self, run_id: str, question_id: str, value: str) -> None:
+        handle = (await self._connect()).get_workflow_handle(f"workflow-run-{run_id}")
+        await handle.signal(RunWorkflow.answer, args=[question_id, value])
+
 
 def _root_message(error: BaseException) -> str:
     current: BaseException = error

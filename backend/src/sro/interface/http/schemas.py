@@ -27,6 +27,7 @@ from sro.application.lookup.answer import as_seen
 from sro.application.lookup.plan_lookups import Planned
 from sro.application.lookup.run_lookups import Answers, Looked
 from sro.application.observation.read_shots import PlayableShot
+from sro.application.runtime.answer_run import K_ANSWER
 from sro.application.skill.read_workflows import CitedEvidence, KnownWorkflow
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread
@@ -2554,6 +2555,22 @@ class AskResponse(BaseModel):
 
     job: ChatResponse | None = None
     lookup: LookupResponse | None = None
+
+
+class AnswerRunRequest(BaseModel):
+    """The operator's answer to the question a Steel run is waiting on.
+
+    `question_id` is the one the run asked (`decision.question_id` on the
+    `run_asks` message in the operator's thread); an answer to any other
+    question the run is still asking is a 409. `value` is empty for a question
+    that only needs the person to have done something -- a one-time code typed
+    on the page, a password stored with `PUT /v1/secrets`. A password is never
+    sent here: this answer travels in the run's durable history, which is not
+    a vault, so a non-empty value for a password question is a 409.
+    """
+
+    question_id: str
+    value: str = Field(default="", max_length=K_ANSWER)
 
 
 class StartWorkflowRunRequest(BaseModel):

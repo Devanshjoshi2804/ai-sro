@@ -232,6 +232,21 @@ class SessionBroker:
             held, lease=replace(lease, state=LeaseState.READY, holder=holder, expires_at=until)
         )
 
+    async def unpark(self, ctx: RequestContext, lease_id: str) -> None:
+        async with self._uow as uow:
+            lease = await uow.browser_sessions.get_lease(ctx.tenant_id, lease_id)
+        if lease is None or lease.state is not LeaseState.WAITING:
+            return
+        async with self._locks.hold(lease.account):
+            now = self._clock.now()
+            async with self._uow as uow:
+                lease = await uow.browser_sessions.get_lease(ctx.tenant_id, lease_id)
+                if lease is not None and lease.state is LeaseState.WAITING:
+                    await uow.browser_sessions.settle(
+                        ctx.tenant_id, lease_id, state=LeaseState.WAITING, until=now, now=now
+                    )
+                    await uow.commit()
+
     async def _attach(
         self, ctx: RequestContext, lease: Lease, start_url: str, holder: str | None
     ) -> Held | None:

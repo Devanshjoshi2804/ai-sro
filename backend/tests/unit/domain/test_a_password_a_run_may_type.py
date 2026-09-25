@@ -13,6 +13,8 @@ needs it -- and the mark that goes into the run's own record instead.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from sro.domain.execution.secrets import (
@@ -60,6 +62,14 @@ def _typed(
 def test_a_secret_field_is_what_makes_a_step_ask_the_vault() -> None:
     assert needs_a_secret(_typed())
     assert not needs_a_secret(_typed(secret=False))
+
+
+def test_a_gesture_marked_secret_on_its_action_alone_is_the_password_field_too() -> None:
+    """The sign-in chain takes such a gesture for the password; typing the
+    recorded, redacted value there instead would read as a refused password."""
+    typed = _typed(secret=False)
+
+    assert needs_a_secret(replace(typed, action=replace(typed.action, secret=True)))
 
 
 def test_the_key_is_the_system_and_the_field_and_not_the_page() -> None:

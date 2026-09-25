@@ -26,7 +26,9 @@ from collections.abc import AsyncIterator
 import pytest
 from playwright.async_api import async_playwright
 
+from sro.domain.shared.identifiers import BrowserSessionId
 from sro.infrastructure.steel.client import SteelClient
+from tests.browser.test_the_steel_pool_against_local_steel import release_every_live_session
 
 pytestmark = pytest.mark.browser
 
@@ -67,32 +69,31 @@ async def client() -> AsyncIterator[SteelClient]:
         try:
             yield made
         finally:
-            if made._session_id is not None:
-                await made.close(made._session_id)
+            await release_every_live_session(made)
 
 
 async def test_a_container_survives_20_tabs_closing_before_steels_handler_finishes(
     client: SteelClient,
 ) -> None:
-    victim = await client.open()
-    sibling = await client.open()
+    session, victim = await client.open_context()
+    _, sibling = await client.open_context()
 
     async with async_playwright() as driver:
-        browser = await driver.chromium.connect_over_cdp(victim.debugger_url)
+        browser = await driver.chromium.connect_over_cdp(await client.debugger_url(session))
         try:
             raw = await browser.new_browser_cdp_session()
             for round_ in range(_ROUNDS):
                 if round_ == _POPUP_ROUND:
                     made = await raw.send(
                         "Target.createTarget",
-                        {"url": _SELF_CLOSING_POPUP, "browserContextId": str(victim.id)},
+                        {"url": _SELF_CLOSING_POPUP, "browserContextId": victim},
                     )
                     # The popup closes itself; nothing further to send.
                     _ = made
                 else:
                     made = await raw.send(
                         "Target.createTarget",
-                        {"url": _LIVE_URL, "browserContextId": str(victim.id)},
+                        {"url": _LIVE_URL, "browserContextId": victim},
                     )
                     await asyncio.sleep(_CLOSE_DELAY_S)
                     await raw.send("Target.closeTarget", {"targetId": made["targetId"]})
@@ -101,6 +102,6 @@ async def test_a_container_survives_20_tabs_closing_before_steels_handler_finish
             await browser.close()
 
     assert await client.health()
-    assert await client.alive(sibling.id)
+    assert sibling in await client.contexts()
 
-    await client.navigate(sibling.id, "data:text/html,sibling still usable")
+    await client.navigate(BrowserSessionId(sibling), "data:text/html,sibling still usable")

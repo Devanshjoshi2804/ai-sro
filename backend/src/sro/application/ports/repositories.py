@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from datetime import datetime, timedelta
 from typing import Protocol
 
@@ -212,7 +212,13 @@ class BrowserSessionRepository(Protocol):
 
     async def expired(self, *, now: datetime) -> tuple[Lease, ...]: ...
 
-    async def busy_containers(self, tenant_id: TenantId, *, now: datetime) -> tuple[str, ...]: ...
+    async def pinned_container(self, tenant_id: TenantId, account: Account) -> str | None: ...
+
+    async def busy_containers(self, *, now: datetime) -> tuple[str, ...]: ...
+
+    async def retired_contexts(
+        self, container_url: str, context_ids: Collection[str]
+    ) -> frozenset[str]: ...
 
     async def leased_sessions(self) -> frozenset[str]: ...
 

@@ -16,11 +16,12 @@ from sro.application.ports.system import Clock
 from sro.application.ports.vault import CredentialVault
 from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.execution.secrets import secret_key_of
+from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.errors import Conflict, DomainError
 from sro.domain.skill.checks import K_SITTING_GAP_S
 from sro.domain.skill.signing_in import RecordedLogin, recorded_login
 from sro.domain.skill.skill import Skill
-from sro.domain.skill.workflow import ordered_cites
+from sro.domain.skill.workflow import Workflow, ordered_cites
 
 USERNAME = "username"
 PASSWORD = "password"  # noqa: S105 -- a vault key's name, not a value
@@ -238,6 +239,13 @@ def _is_a_login(skill: Skill) -> bool:
 async def _recorded(
     uow: UnitOfWork, ctx: RequestContext, connection: Connection
 ) -> RecordedLogin | None:
+    tagged, seen = await tagged_logins(uow, ctx)
+    return recorded_login(connection.base_url, tagged, seen)
+
+
+async def tagged_logins(
+    uow: UnitOfWork, ctx: RequestContext
+) -> tuple[list[Workflow], dict[str, Gesture]]:
     async with uow:
         known = await uow.workflows.known(ctx.tenant_id)
         tagged = [job for job in known if job.signs_in]
@@ -253,7 +261,7 @@ async def _recorded(
                     ctx.tenant_id, after=min(times), before=max(times) + K_SITTING_GAP_S
                 )
                 seen.update({one.id: one for one in after})
-    return recorded_login(connection.base_url, tagged, seen)
+    return tagged, seen
 
 
 def _key(ctx: RequestContext, recorded: RecordedLogin, field: str) -> str:

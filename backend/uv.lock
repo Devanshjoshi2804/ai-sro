@@ -2730,6 +2730,7 @@ dependencies = [
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "temporalio" },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "websockets" },
 ]
 
 [package.optional-dependencies]
@@ -2785,6 +2786,7 @@ requires-dist = [
     { name = "testcontainers", extras = ["postgres", "minio"], marker = "extra == 'dev'", specifier = ">=4.9" },
     { name = "types-boto3", marker = "extra == 'dev'", specifier = ">=1.35" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
+    { name = "websockets", specifier = ">=13" },
 ]
 provides-extras = ["dev", "gcp"]
 

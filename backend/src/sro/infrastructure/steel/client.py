@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import socket
 from collections.abc import AsyncIterator
@@ -10,6 +11,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import httpx
+import websockets
 from playwright.async_api import Browser, BrowserContext, CDPSession, Page, async_playwright
 from playwright.async_api import Error as PlaywrightError
 
@@ -32,6 +34,8 @@ K_MAX_CONTEXTS_PER_CONTAINER = 20
 
 K_CONTEXT_PAGE_TIMEOUT_S = 10
 
+K_BROWSER_REPLY_S = 10.0
+
 
 class SteelClient:
     def __init__(
@@ -52,34 +56,47 @@ class SteelClient:
         self._timeout_seconds = session_timeout_seconds
         self._dimensions = dimensions
         self._client = client or httpx.AsyncClient(timeout=30.0)
-        self._session_id: BrowserSessionId | None = None
-        self._contexts: set[str] = set()
 
     async def open(self, *, start_url: str | None = None) -> BrowserSession:
-        if self._session_id is not None and await self.alive(self._session_id):
-            if self._capacity == 1 or len(self._contexts) >= self._capacity:
-                raise BrowserUnavailable(
-                    f"this container holds {self._capacity} context(s) and all are in use"
-                )
-            context_id = await self._new_context()
-            self._contexts.add(context_id)
-            return BrowserSession(
-                id=BrowserSessionId(context_id),
-                live_view_url=self._viewer_base,
-                debugger_url=await self._websocket_debugger_url(),
-            )
-
-        holding = [
-            held
-            for held in await self._live_sessions()
-            if str(held.get("status", "")).lower() == "live"
-        ]
+        holding = await self._holding()
         if holding:
             raise BrowserUnavailable(
                 f"this container holds {self._capacity} context(s) and all are in "
                 "use; " + _held_by(holding)
             )
+        body = await self._start(start_url)
+        return BrowserSession(
+            id=BrowserSessionId(str(body["id"])),
+            live_view_url=self._viewer(body),
+            debugger_url=await self._websocket_debugger_url(),
+        )
 
+    async def open_context(self) -> tuple[BrowserSessionId, str]:
+        holding = await self._holding()
+        session_id = str(holding[0]["id"] if holding else (await self._start(None))["id"])
+        return BrowserSessionId(session_id), await self._new_context()
+
+    async def contexts(self) -> frozenset[str]:
+        listed = await self._browser_call("Target.getBrowserContexts", {})
+        return frozenset(str(one) for one in listed["browserContextIds"])
+
+    async def dispose(self, context_id: str) -> None:
+        try:
+            await self._browser_call(
+                "Target.disposeBrowserContext", {"browserContextId": context_id}
+            )
+        except BrowserUnavailable:
+            if context_id in await self.contexts():
+                raise
+
+    async def _holding(self) -> list[dict[str, object]]:
+        return [
+            held
+            for held in await self._live_sessions()
+            if str(held.get("status", "")).lower() == "live"
+        ]
+
+    async def _start(self, start_url: str | None) -> dict[str, Any]:
         payload: dict[str, object] = {
             "timeout": self._timeout_seconds * 1000,
             "blockAds": True,
@@ -96,32 +113,35 @@ class SteelClient:
         except httpx.HTTPError as exc:
             raise BrowserUnavailable(f"could not start a Steel session: {exc}") from exc
 
-        body = response.json()
-        session_id = BrowserSessionId(str(body["id"]))
-        await self._require_browser(session_id, str(body.get("status", "")))
-        self._session_id = session_id
-        self._contexts = set()
-
-        if self._capacity == 1:
-            return BrowserSession(
-                id=session_id,
-                live_view_url=self._viewer(body),
-                debugger_url=await self._websocket_debugger_url(),
-            )
-
-        context_id = await self._new_context()
-        self._contexts.add(context_id)
-        return BrowserSession(
-            id=BrowserSessionId(context_id),
-            live_view_url=self._viewer(body),
-            debugger_url=await self._websocket_debugger_url(),
-        )
+        body: dict[str, Any] = response.json()
+        await self._require_browser(BrowserSessionId(str(body["id"])), str(body.get("status", "")))
+        return body
 
     async def _new_context(self) -> str:
-        async with self._attached() as browser:
-            raw = await browser.new_browser_cdp_session()
-            made = await raw.send("Target.createBrowserContext", {"disposeOnDetach": False})
-            return str(made["browserContextId"])
+        made = await self._browser_call("Target.createBrowserContext", {"disposeOnDetach": False})
+        return str(made["browserContextId"])
+
+    async def _browser_call(self, method: str, params: dict[str, object]) -> dict[str, Any]:
+        try:
+            async with (
+                asyncio.timeout(K_BROWSER_REPLY_S),
+                websockets.connect(await self._websocket_debugger_url(), max_size=None) as link,
+            ):
+                await link.send(json.dumps({"id": 1, "method": method, "params": params}))
+                async for raw in link:
+                    said = json.loads(raw)
+                    if said.get("id") != 1:
+                        continue
+                    if "error" in said:
+                        raise BrowserUnavailable(f"{method} failed: {said['error']}")
+                    return dict(said["result"])
+        except TimeoutError as why:
+            raise BrowserUnavailable(
+                f"{method}: the browser did not answer within {K_BROWSER_REPLY_S} s"
+            ) from why
+        except (websockets.WebSocketException, OSError) as why:
+            raise BrowserUnavailable(f"{method} failed: {why}") from why
+        raise BrowserUnavailable(f"{method}: the browser closed the connection")
 
     async def _require_browser(self, session_id: BrowserSessionId, status: str) -> None:
         for attempt in range(_LIVE_ATTEMPTS):
@@ -146,23 +166,31 @@ class SteelClient:
         )
 
     async def _status(self, session_id: BrowserSessionId) -> str:
-        try:
-            response = await self._client.get(f"{self._base_url}/v1/sessions/{session_id}")
-            response.raise_for_status()
-        except httpx.HTTPError:
-            return "unknown"
-        return str(response.json().get("status", "unknown"))
+        matched = await self._named(session_id)
+        return str(matched.get("status", "unknown")) if matched else "unknown"
 
-    async def _live_sessions(self) -> list[dict[str, object]]:
+    async def _named(self, session_id: BrowserSessionId) -> dict[str, object] | None:
+        return next(
+            (
+                session
+                for session in await self._sessions()
+                if str(session.get("id")) == str(session_id)
+            ),
+            None,
+        )
+
+    async def _sessions(self) -> list[dict[str, object]]:
         try:
             response = await self._client.get(f"{self._base_url}/v1/sessions")
             response.raise_for_status()
         except httpx.HTTPError:
             return []
-        sessions = response.json().get("sessions", [])
+        return list(response.json().get("sessions", []))
+
+    async def _live_sessions(self) -> list[dict[str, object]]:
         return [
             session
-            for session in sessions
+            for session in await self._sessions()
             if str(session.get("status", "")).lower() in {"live", "idle"}
         ]
 
@@ -172,26 +200,15 @@ class SteelClient:
         except httpx.HTTPError as exc:
             raise BrowserUnavailable(f"could not reach the CDP endpoint: {exc}") from exc
 
-    async def alive(self, session_id: BrowserSessionId) -> bool:
-        sid = str(session_id)
-        if sid in self._contexts:
-            if self._session_id is None or (await self._status(self._session_id)).lower() != "live":
-                return False
-            async with self._attached() as browser:
-                raw = await browser.new_browser_cdp_session()
-                contexts = (await raw.send("Target.getBrowserContexts"))["browserContextIds"]
-            return sid in contexts
-        return (await self._status(session_id)).lower() == "live"
-
     async def close(self, session_id: BrowserSessionId) -> None:
-        sid = str(session_id)
-        if sid in self._contexts:
-            async with self._attached() as browser:
-                raw = await browser.new_browser_cdp_session()
-                await raw.send("Target.disposeBrowserContext", {"browserContextId": sid})
-            self._contexts.discard(sid)
+        if await self.contexts():
+            logger.warning(
+                "refusing to release Steel session %s while its container still lists a "
+                "browser context; a self-hosted Steel releases its one browser for any "
+                "id it is asked to release",
+                session_id,
+            )
             return
-
         try:
             response = await self._client.post(f"{self._base_url}/v1/sessions/{session_id}/release")
             if response.status_code == httpx.codes.NOT_FOUND:
@@ -379,18 +396,12 @@ class SteelClient:
             yield frame
 
     async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
-        try:
-            response = await self._client.get(f"{self._base_url}/v1/sessions/{session_id}")
-            if response.status_code == httpx.codes.NOT_FOUND:
-                return None
-            response.raise_for_status()
-        except httpx.HTTPError as exc:
-            raise BrowserUnavailable(f"could not read Steel session {session_id}: {exc}") from exc
-
-        body = response.json()
-        if str(body.get("status", "")).lower() in {"released", "failed", "idle"}:
+        matched = await self._named(session_id)
+        if matched is None:
             return None
-        return self._viewer(body)
+        if str(matched.get("status", "")).lower() in {"released", "failed", "idle"}:
+            return None
+        return self._viewer(matched)
 
     def _viewer(self, body: dict[str, object]) -> str:
         return self._viewer_base + _path_of(body.get("debugUrl") or body.get("sessionViewerUrl"))

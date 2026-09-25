@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Collection
 from datetime import datetime, timedelta
 from typing import Any, cast
 
@@ -705,15 +706,39 @@ class SqlBrowserSessionRepository(BrowserSessionRepository):
         )
         return tuple(_lease_of(row) for row in rows)
 
-    async def busy_containers(self, tenant_id: TenantId, *, now: datetime) -> tuple[str, ...]:
+    async def pinned_container(self, tenant_id: TenantId, account: Account) -> str | None:
+        return await self._session.scalar(
+            select(BrowserSessionRow.container_url)
+            .where(
+                BrowserSessionRow.tenant_id == tenant_id.value,
+                BrowserSessionRow.account_key == account.key,
+                BrowserSessionRow.container_url.is_not(None),
+            )
+            .order_by(BrowserSessionRow.opened_at.desc())
+            .limit(1)
+        )
+
+    async def busy_containers(self, *, now: datetime) -> tuple[str, ...]:
         rows = await self._session.scalars(
             select(BrowserSessionRow.container_url).where(
-                BrowserSessionRow.tenant_id == tenant_id.value,
                 BrowserSessionRow.state.in_(_LIVE_STATES),
                 BrowserSessionRow.expires_at > now,
             )
         )
         return tuple(str(url) for url in rows)
+
+    async def retired_contexts(
+        self, container_url: str, context_ids: Collection[str]
+    ) -> frozenset[str]:
+        rows = await self._session.scalars(
+            select(BrowserSessionRow.context_id).where(
+                BrowserSessionRow.container_url == container_url,
+                BrowserSessionRow.context_id.in_(list(context_ids)),
+                BrowserSessionRow.state.is_not(None),
+                BrowserSessionRow.state.not_in(_LIVE_STATES),
+            )
+        )
+        return frozenset(str(one) for one in rows)
 
     async def leased_sessions(self) -> frozenset[str]:
         rows = await self._session.scalars(

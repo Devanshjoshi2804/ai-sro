@@ -26,8 +26,12 @@ class SteelPool:
     def _containers(self, tenant: str) -> tuple[str, ...]:
         return self._by_tenant.get(tenant, self._fallback)
 
-    async def open(self, tenant: str, busy: Mapping[str, int]) -> tuple[str, str]:
+    async def open(
+        self, tenant: str, busy: Mapping[str, int], *, pinned: str | None = None
+    ) -> tuple[str, str, str]:
         urls = self._containers(tenant)
+        if pinned is not None and pinned in urls:
+            urls = (pinned,)
         candidates = [(busy.get(url, 0), url) for url in urls if busy.get(url, 0) < self._per]
         if not candidates:
             raise PoolFull(
@@ -35,14 +39,14 @@ class SteelPool:
                 f"{self._per} context(s) each"
             )
         _, url = min(candidates, key=lambda pair: pair[0])
-        session = await self._clients[url].open()
-        return url, str(session.id)
+        session_id, context_id = await self._clients[url].open_context()
+        return url, str(session_id), context_id
 
     async def close(self, container_url: str, context_id: str) -> None:
-        await self._clients[container_url].close(BrowserSessionId(context_id))
+        await self._clients[container_url].dispose(context_id)
 
-    async def alive(self, container_url: str, context_id: str) -> bool:
-        return await self._clients[container_url].alive(BrowserSessionId(context_id))
+    async def contexts(self, container_url: str) -> frozenset[str]:
+        return await self._clients[container_url].contexts()
 
     async def cdp_url(self, container_url: str) -> str:
         return await self._clients[container_url].debugger_url(BrowserSessionId(container_url))

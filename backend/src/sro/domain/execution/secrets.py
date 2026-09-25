@@ -5,6 +5,7 @@ import re
 from collections.abc import Mapping
 
 from sro.domain.observation.gesture import Gesture
+from sro.domain.observation.trim import is_secret
 from sro.domain.shared.hosts import origin_of
 
 SECRET_MARK = "«from the vault»"  # noqa: S105 - a marker written INSTEAD of a password
@@ -42,8 +43,7 @@ def connector_key(tenant_id: str, server: str, principal_id: str) -> str:
 
 
 def needs_a_secret(gesture: Gesture) -> bool:
-    target = gesture.action.target
-    return bool(target and target.secret)
+    return is_secret(gesture)
 
 
 def without_secrets(payload: Mapping[str, object]) -> dict[str, object]:

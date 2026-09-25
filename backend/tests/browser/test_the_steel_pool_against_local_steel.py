@@ -11,8 +11,11 @@ Skipped when Steel is not running.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 from collections.abc import AsyncIterator
 
+import httpx
 import pytest
 
 from sro.domain.shared.identifiers import BrowserSessionId
@@ -37,8 +40,21 @@ async def client() -> AsyncIterator[SteelClient]:
         try:
             yield made
         finally:
-            if made._session_id is not None:
-                await made.close(made._session_id)
+            await release_every_live_session(made)
+
+
+async def status_of(session_id: str) -> str:
+    """Steel's own list, not `GET /v1/sessions/<id>`: self-hosted Steel
+    answers `released` there for the session its list calls live."""
+    async with httpx.AsyncClient() as http:
+        listed = (await http.get(f"{STEEL_URL}/v1/sessions")).json()["sessions"]
+    return next((str(one["status"]) for one in listed if one["id"] == session_id), "missing")
+
+
+async def release_every_live_session(steel: SteelClient) -> None:
+    for session_id in await steel.live_sessions():
+        if await status_of(str(session_id)) == "live":
+            await steel.close(session_id)
 
 
 async def test_closing_one_accounts_context_leaves_a_sibling_context_alive(
@@ -46,12 +62,12 @@ async def test_closing_one_accounts_context_leaves_a_sibling_context_alive(
 ) -> None:
     pool = SteelPool({STEEL_URL: client}, per_container=2)
 
-    url, first = await pool.open("greyorange", {})
-    _, second = await pool.open("greyorange", {STEEL_URL: 1})
+    url, session, first = await pool.open("greyorange", {})
+    _, same, second = await pool.open("greyorange", {STEEL_URL: 1})
 
     assert first != second
-    assert await pool.alive(url, first)
-    assert await pool.alive(url, second)
+    assert session == same
+    assert {first, second} <= await pool.contexts(url)
 
     await pool.close(url, second)
 
@@ -60,8 +76,28 @@ async def test_closing_one_accounts_context_leaves_a_sibling_context_alive(
     # this is "usable", not merely "not yet reaped": a context that failed to
     # dispose cleanly, or was disposed along with its session, drops out of
     # that list the same call would use to attach a tab to it.
-    assert await pool.alive(url, first)
-    assert not await pool.alive(url, second)
+    listed = await pool.contexts(url)
+    assert first in listed
+    assert second not in listed
+    assert await status_of(session) == "live"
+
+
+async def test_closing_an_unrelated_stale_session_id_never_touches_a_live_context(
+    client: SteelClient,
+) -> None:
+    """A self-hosted Steel's `/v1/sessions/<id>/release` frees the container's
+    one browser for ANY id it is sent -- not only an id that owns it (S7
+    rereview, R2-1's live probe: releasing a different, already-released id
+    answered 200 and took the live session's browser down with it). `close`
+    must never reach that endpoint while Chrome still lists a context, no
+    matter what id it was asked to release."""
+    pool = SteelPool({STEEL_URL: client}, per_container=2)
+    url, session, first = await pool.open("greyorange", {})
+
+    await client.close(BrowserSessionId("not-the-session-holding-this-context"))
+
+    assert first in await pool.contexts(url)
+    assert await status_of(session) == "live"
 
 
 async def test_navigating_reading_cookies_or_clearing_one_account_never_touches_the_other(
@@ -69,8 +105,8 @@ async def test_navigating_reading_cookies_or_clearing_one_account_never_touches_
 ) -> None:
     pool = SteelPool({STEEL_URL: client}, per_container=2)
 
-    _, first = await pool.open("greyorange", {})
-    _, second = await pool.open("greyorange", {STEEL_URL: 1})
+    _, _, first = await pool.open("greyorange", {})
+    _, _, second = await pool.open("greyorange", {STEEL_URL: 1})
 
     await client.navigate(BrowserSessionId(first), "data:text/html,first")
     await client.navigate(BrowserSessionId(second), "data:text/html,second")
@@ -87,3 +123,40 @@ async def test_navigating_reading_cookies_or_clearing_one_account_never_touches_
 
     await client.forget_everything(BrowserSessionId(first))
     assert not await client.session_cookies(BrowserSessionId(first))
+
+
+async def test_a_restarted_client_opens_beside_the_first_and_closes_only_what_it_names(
+    client: SteelClient,
+) -> None:
+    """The API and the worker are two processes, and either restarts. The
+    container's contexts and its one Steel session belong to neither."""
+    before = SteelPool({STEEL_URL: client}, per_container=3)
+    url, session, first = await before.open("greyorange", {})
+    _, _, sibling = await before.open("greyorange", {STEEL_URL: 1})
+
+    async with SteelClient(STEEL_URL, CDP_URL, capacity=3) as restarted:
+        after = SteelPool({STEEL_URL: restarted}, per_container=3)
+        _, adopted, third = await after.open("greyorange", {STEEL_URL: 2})
+        await after.close(url, first)
+        await after.close(url, first)
+
+        listed = await after.contexts(url)
+        assert adopted == session
+        assert first not in listed
+        assert {sibling, third} <= listed
+        assert await status_of(session) == "live"
+
+
+async def test_a_close_that_timed_out_leaves_no_slot_taken_in_the_client(
+    client: SteelClient,
+) -> None:
+    pool = SteelPool({STEEL_URL: client}, per_container=1)
+    url, _, first = await pool.open("greyorange", {})
+    with contextlib.suppress(TimeoutError):
+        async with asyncio.timeout(0):
+            await pool.close(url, first)
+
+    _, _, second = await pool.open("greyorange", {})
+
+    assert second != first
+    assert second in await pool.contexts(url)

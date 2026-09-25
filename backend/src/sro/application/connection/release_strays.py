@@ -57,12 +57,13 @@ class ReleaseStrayBrowsers:
     async def _in_use(self) -> set[str]:
         async with self._uow as uow:
             capturing = await uow.recordings.list_capturing()
+            leased = await uow.browser_sessions.leased_sessions()
         held = {
             str(recording.browser_session_id)
             for recording in capturing
             if recording.browser_session_id is not None
         }
-        return held | {str(session) for session in self._pursuits.sessions()}
+        return held | leased | {str(session) for session in self._pursuits.sessions()}
 
     async def _forget(self, session_ids: list[str]) -> None:
         if not session_ids:

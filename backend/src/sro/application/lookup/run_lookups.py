@@ -29,6 +29,10 @@ class MissingHeaders(DomainError):
     code = "missing_headers"
 
 
+class SignedOut(DomainError):
+    code = "signed_out"
+
+
 K_DEADLINE_S = 45.0
 
 K_WHILE_TALKING = 10.0
@@ -109,6 +113,8 @@ class RunLookups:
                     return _looked(lookup, address, {"status": got.status_code, "body": got.text})
             if await self._broker.signed_out(ctx, held):
                 await self._broker.reauth(ctx, held, page, park=False)
+            if await self._broker.signed_out(ctx, held):
+                raise SignedOut(f"{page} is still a sign-in page")
             shot = await self._broker.screenshot(ctx, held)
             return _looked(
                 lookup,

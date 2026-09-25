@@ -13,6 +13,7 @@ import asyncio
 import json
 from collections.abc import Mapping
 from types import MappingProxyType
+from typing import Any
 
 import pytest
 
@@ -529,3 +530,29 @@ async def test_a_code_prompt_is_answered_by_a_person_not_by_typing_the_password_
     assert "one-time code" in second.looked[0].detail
     assert _leases(world) == [LeaseState.READY]
     assert world.driver.tabs == {}
+
+
+async def test_a_screen_that_is_a_sign_in_page_after_signing_back_in_is_a_gap_not_a_photo(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The system's single-page app sends the tab back to sign-in after the
+    held page, and again after the sign-in that answered it."""
+    world = await lookup_world(_gesture(url=SCREEN_URL))
+    acquire, reauth = world.broker.acquire, world.broker.reauth
+
+    async def acquired_then_redirected(*args: Any, **kwargs: Any) -> Any:
+        held = await acquire(*args, **kwargs)
+        world.driver.expire_session()
+        return held
+
+    async def signed_in_then_redirected(*args: Any, **kwargs: Any) -> None:
+        await reauth(*args, **kwargs)
+        world.driver.expire_session()
+
+    monkeypatch.setattr(world.broker, "acquire", acquired_then_redirected)
+    monkeypatch.setattr(world.broker, "reauth", signed_in_then_redirected)
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(SCREEN,)))
+
+    assert world.reauths == 1
+    assert not answers.looked[0].ok and "sign-in page" in answers.looked[0].detail

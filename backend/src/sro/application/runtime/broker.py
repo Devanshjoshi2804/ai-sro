@@ -119,6 +119,7 @@ class SessionBroker:
             if a_sign_in_page(await self._driver.signals(held.session, held.target_id)):
                 await self._sign_in(ctx, held, start_url)
                 await self._save_state(held)
+                await self._driver.forget_calls(held.session, held.target_id)
 
     async def recover(
         self, ctx: RequestContext, lease_id: str, start_url: str, *, holder: str

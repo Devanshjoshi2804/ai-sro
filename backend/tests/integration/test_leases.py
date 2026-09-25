@@ -296,3 +296,18 @@ async def test_a_lease_waiting_for_a_person_holds_its_account_until_its_own_dead
     assert await repo.retired_contexts("http://steel:3000", ["ctx-lse_a"]) == frozenset()
     assert not await repo.expire(T, "lse_a", now=until - timedelta(seconds=1))
     assert await repo.expire(T, "lse_a", now=until)
+
+
+async def test_a_sibling_beating_a_waiting_lease_never_pushes_its_deadline_out(
+    session: AsyncSession,
+) -> None:
+    repo = SqlBrowserSessionRepository(session)
+    await repo.lease(T, _lease("lse_a"))
+    until = NOW + timedelta(minutes=10)
+    assert await repo.settle(T, "lse_a", state=LeaseState.WAITING, until=until)
+
+    for minute in range(1, 31):
+        assert await repo.beat(T, "lse_a", now=NOW + timedelta(minutes=minute))
+
+    assert not await repo.expire(T, "lse_a", now=until - timedelta(seconds=1))
+    assert await repo.expire(T, "lse_a", now=until)

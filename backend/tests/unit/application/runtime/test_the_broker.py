@@ -486,6 +486,19 @@ async def test_runs_waiting_on_the_lock_find_the_session_already_signed_back_in(
     assert await vault.get(LENA.vault_key("state")) is not None
 
 
+async def test_reauth_forgets_the_password_call_once_it_signs_back_in() -> None:
+    uow, driver, vault = await _signing_world()
+    lane = SigningLane(driver)
+    broker = _broker(uow, driver, vault, lane)
+    held = await broker.acquire(CTX, LENA, APP, holder="run_1")
+    driver.expire_session()
+    driver._log = [(0, SeenCall("POST", f"{IDP}/login", 200, request_body="password=x"))]
+
+    await broker.reauth(CTX, held, APP)
+
+    assert await driver.calls_since(held.session, held.target_id, -1) == ()
+
+
 async def test_a_password_refused_on_re_sign_in_asks_a_person_and_is_never_typed_again() -> None:
     uow, driver, vault = await _signing_world()
     lane = SigningLane(driver)

@@ -1009,7 +1009,9 @@ class FakeBrowserSessionRepository:
         self.leases[lease_id] = replace(
             found,
             heartbeat_at=now,
-            expires_at=max(found.expires_at, now + K_LEASE_TTL),
+            expires_at=(
+                found.expires_at if found.state is LeaseState.WAITING else now + K_LEASE_TTL
+            ),
             holder=found.holder if holder is None else holder,
         )
         return True

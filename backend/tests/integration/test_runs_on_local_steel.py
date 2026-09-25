@@ -6,12 +6,19 @@ answers on a second origin, as a real one does.
 Skipped unless local Steel answers and `SRO_INTEGRATION_DATABASE_URL` (or
 Docker) gives a database. Run each test alone: they share the container's one
 browser, and each releases the Steel session when it ends.
+
+`test_a_crashed_container_is_replaced_and_its_saved_state_restored` restarts
+the shared Steel container itself, which kills every other live test running
+against it -- any `-m browser` run on the machine, CI included. It is opt-in:
+set `SRO_STEEL_CRASH_TESTS=1` to run it, and only after checking no other live
+session is in use.
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
+import os
 import time
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass
@@ -42,6 +49,7 @@ from tests.browser.test_the_steel_pool_against_local_steel import (
     STEEL_URL,
     release_every_live_session,
     status_of,
+    tracking_contexts,
 )
 from tests.unit.fakes import FakeClock, FakeCredentialVault
 from tests.unit.runtime_support import with_a_recorded_sign_in
@@ -61,11 +69,11 @@ async def client() -> AsyncIterator[SteelClient]:
             pytest.skip("Steel is not running; `make up` first")
     except Exception as exc:
         pytest.skip(f"Steel is not reachable: {exc}")
-    async with made:
+    async with made, tracking_contexts() as created:
         try:
             yield made
         finally:
-            await release_every_live_session(made)
+            await release_every_live_session(made, created)
 
 
 @pytest.fixture
@@ -303,6 +311,11 @@ async def _restart_steel(client: SteelClient) -> None:
             await asyncio.sleep(0.5)
 
 
+@pytest.mark.skipif(
+    os.environ.get("SRO_STEEL_CRASH_TESTS") != "1",
+    reason="restarts the shared Steel container, killing every other live test "
+    "running against it; set SRO_STEEL_CRASH_TESTS=1 to opt in",
+)
 async def test_a_crashed_container_is_replaced_and_its_saved_state_restored(
     world: World, client: SteelClient
 ) -> None:

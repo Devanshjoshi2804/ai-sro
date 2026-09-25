@@ -28,7 +28,10 @@ from playwright.async_api import async_playwright
 
 from sro.domain.shared.identifiers import BrowserSessionId
 from sro.infrastructure.steel.client import SteelClient
-from tests.browser.test_the_steel_pool_against_local_steel import release_every_live_session
+from tests.browser.test_the_steel_pool_against_local_steel import (
+    release_every_live_session,
+    tracking_contexts,
+)
 
 pytestmark = pytest.mark.browser
 
@@ -65,11 +68,11 @@ async def client() -> AsyncIterator[SteelClient]:
             pytest.skip("Steel is not running; `make up` first")
     except Exception as exc:
         pytest.skip(f"Steel is not reachable: {exc}")
-    async with made:
+    async with made, tracking_contexts() as created:
         try:
             yield made
         finally:
-            await release_every_live_session(made)
+            await release_every_live_session(made, created)
 
 
 async def test_a_container_survives_20_tabs_closing_before_steels_handler_finishes(

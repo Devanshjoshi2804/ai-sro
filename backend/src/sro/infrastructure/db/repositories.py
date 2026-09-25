@@ -11,7 +11,6 @@ from sqlalchemy import (
     case,
     delete,
     exists,
-    func,
     literal,
     or_,
     select,
@@ -697,7 +696,13 @@ class SqlBrowserSessionRepository(BrowserSessionRepository):
     ) -> bool:
         values: dict[str, object] = {
             "heartbeat_at": now,
-            "expires_at": func.greatest(BrowserSessionRow.expires_at, now + K_LEASE_TTL),
+            "expires_at": case(
+                (
+                    BrowserSessionRow.state == LeaseState.WAITING.value,
+                    BrowserSessionRow.expires_at,
+                ),
+                else_=now + K_LEASE_TTL,
+            ),
         }
         if holder is not None:
             values["holder"] = holder

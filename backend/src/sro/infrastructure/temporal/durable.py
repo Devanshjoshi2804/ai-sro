@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
+from datetime import timedelta
 
 from temporalio.client import Client, WorkflowFailureError
 
@@ -10,9 +11,9 @@ from sro.application.context import RequestContext
 from sro.application.execution.execute_skill import NotRunnable
 from sro.domain.execution.run import RunId
 from sro.domain.shared.identifiers import SkillId
-from sro.infrastructure.temporal.activities import StartRunRequest
-from sro.infrastructure.temporal.queues import DEFAULT_QUEUE
-from sro.infrastructure.temporal.workflows import ExecutionWorkflow
+from sro.infrastructure.temporal.activities import RunRef, StartRunRequest
+from sro.infrastructure.temporal.queues import DEFAULT_QUEUE, RUNS_QUEUE
+from sro.infrastructure.temporal.workflows import ExecutionWorkflow, RunWorkflow
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,20 @@ class TemporalDurableExecution:
         except WorkflowFailureError as exc:
             raise NotRunnable(_root_message(exc)) from exc
         return RunId(finished)
+
+    async def start_run(self, ctx: RequestContext, *, run_id: str, budget_s: float) -> None:
+        client = await self._connect()
+        await client.start_workflow(
+            RunWorkflow.run,
+            RunRef(
+                tenant_id=ctx.tenant_id.value,
+                principal_id=ctx.principal_id.value,
+                run_id=run_id,
+            ),
+            id=f"workflow-run-{run_id}",
+            task_queue=RUNS_QUEUE,
+            execution_timeout=timedelta(seconds=budget_s),
+        )
 
 
 def _root_message(error: BaseException) -> str:

@@ -41,6 +41,7 @@ class Progress:
     lease: str = ""
     account: Account = field(default_factory=Account)
     start_url: str = ""
+    asking: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def of(cls, raw: Mapping[str, object] | None) -> Progress:
@@ -54,6 +55,7 @@ class Progress:
             lease=str(raw.get("lease") or ""),
             account=_account(raw.get("account")),
             start_url=str(raw.get("start_url") or ""),
+            asking=_strings(raw.get("asking")),
         )
 
     def as_json(self) -> dict[str, object]:

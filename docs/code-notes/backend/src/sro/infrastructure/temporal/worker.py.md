@@ -104,9 +104,16 @@ Code: `logger.exception("the session keeper could not finish its sweep")`
 > A keeper that dies quietly is worse than no keeper: the sessions
 > look fine until the morning somebody needs one.
 
-## `run`, [line 132](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L132): Comment
+## `run`, [line 146](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L146): Comment
 
 Code: `try:`
 
 > Before anything mines, because a pass that runs against stale keys is a
 > pass that proposes a duplicate of a job the rig already holds.
+
+## `run`, [line 133](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L133): Note
+
+Code: `runs = Worker(`
+
+> Steel runs have a queue of their own, so a long run never waits behind the
+> default queue's work. A code change is live only after this worker restarts.

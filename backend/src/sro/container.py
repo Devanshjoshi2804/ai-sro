@@ -131,6 +131,7 @@ from sro.application.recording.start_recording import StartRecording
 from sro.application.runtime.api_lane import ApiLane
 from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.executor import StepExecutor
+from sro.application.runtime.run_steps import RunSteps
 from sro.application.runtime.sight_lane import SightLane
 from sro.application.runtime.teach import Teach
 from sro.application.runtime.tool_lane import ToolLane
@@ -288,6 +289,16 @@ class Container:
 
     def teach(self) -> Teach:
         return Teach(self.unit_of_work(), self.clock)
+
+    def run_steps(self) -> RunSteps:
+        return RunSteps(
+            self.unit_of_work(),
+            self.session_broker(),
+            self.step_executor(),
+            self.teach(),
+            self.api_lane(),
+            self.clock,
+        )
 
     def unit_of_work(self) -> UnitOfWork:
         return SqlUnitOfWork(self.session_factory)

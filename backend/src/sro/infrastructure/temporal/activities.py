@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import asyncio
+import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from temporalio import activity
 
 from sro.application.context import RequestContext
+from sro.application.runtime.run_steps import Prepared, StepOutcome
+from sro.domain.execution.progress import K_BEAT_EVERY_S
 from sro.whose import attribute
 
 if TYPE_CHECKING:
@@ -18,6 +22,8 @@ from sro.domain.shared.identifiers import (
     TenantId,
     TriggerId,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -121,6 +127,58 @@ class Activities:
             run_id=fired.run_id.value if fired.run_id else None,
             skipped=fired.skipped,
         )
+
+
+@dataclass
+class RunRef:
+    tenant_id: str
+    principal_id: str
+    run_id: str
+
+
+class RunActivities:
+    def __init__(self, container: Container) -> None:
+        self._container = container
+
+    @activity.defn(name="run.prepare")
+    async def prepare(self, ref: RunRef) -> Prepared:
+        ctx = _context(ref.tenant_id, ref.principal_id)
+        return await self._container.run_steps().prepare(ctx, ref.run_id)
+
+    @activity.defn(name="run.acquire")
+    async def acquire(self, ref: RunRef) -> None:
+        ctx = _context(ref.tenant_id, ref.principal_id)
+        await self._container.run_steps().acquire(ctx, ref.run_id)
+
+    @activity.defn(name="run.step")
+    async def step(self, ref: RunRef) -> StepOutcome:
+        ctx = _context(ref.tenant_id, ref.principal_id)
+        steps, beating = self._container.run_steps(), self._container.run_steps()
+        stop = asyncio.Event()
+        work = asyncio.create_task(steps.step(ctx, ref.run_id, stop=stop))
+        try:
+            while not work.done():
+                activity.heartbeat()
+                try:
+                    await beating.beat(ctx, ref.run_id)
+                except Exception:
+                    logger.warning("run %s could not beat its lease", ref.run_id, exc_info=True)
+                await asyncio.wait({work}, timeout=K_BEAT_EVERY_S)
+        except asyncio.CancelledError:
+            stop.set()
+            await asyncio.shield(work)
+            raise
+        return work.result()
+
+    @activity.defn(name="run.finish")
+    async def finish(self, ref: RunRef) -> str:
+        ctx = _context(ref.tenant_id, ref.principal_id)
+        return await self._container.run_steps().finish(ctx, ref.run_id)
+
+    @activity.defn(name="run.release")
+    async def release(self, ref: RunRef) -> None:
+        ctx = _context(ref.tenant_id, ref.principal_id)
+        await self._container.run_steps().release(ctx, ref.run_id)
 
 
 def _context(tenant_id: str, principal_id: str) -> RequestContext:

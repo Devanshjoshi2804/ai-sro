@@ -9,7 +9,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/d
 > The client connects lazily and is cached: building the container is synchronous,
 > and a Temporal outage at boot must not stop the API from serving reads.
 
-## `_root_message`, [line 79](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L79): Docstring
+## `_root_message`, [line 94](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L94): Docstring
 
 > The deepest message in a Temporal failure chain.
 >
@@ -17,7 +17,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/d
 > "Activity task failed". The message worth showing a supervisor is at the
 > bottom: the reason the pair could not be induced.
 
-## `TemporalDurableExecution.__init__`, [line 28](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L28): Comment
+## `TemporalDurableExecution.__init__`, [line 29](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L29): Comment
 
 Code: `self._address = address`
 
@@ -25,7 +25,7 @@ Code: `self._address = address`
 > queue must be looking at the same data; a worker pointed at another
 > database will happily accept the work and fail to find the run.
 
-## `TemporalDurableExecution.execute_skill`, [line 66](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L66): Comment
+## `TemporalDurableExecution.execute_skill`, [line 67](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L67): Comment
 
 Code: `id=f"run-{skill_id}-{uuid.uuid4().hex[:8]}",`
 
@@ -33,7 +33,7 @@ Code: `id=f"run-{skill_id}-{uuid.uuid4().hex[:8]}",`
 > parameters is a second, deliberate act -- not a duplicate to be
 > folded into the first run's history.
 
-## `TemporalDurableExecution.execute_skill`, [line 70](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L70): Comment
+## `TemporalDurableExecution.execute_skill`, [line 71](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L71): Comment
 
 Code: `return run_id`
 
@@ -41,9 +41,16 @@ Code: `return run_id`
 > precisely so it can watch the steps land instead of holding a
 > request open for as long as the warehouse takes.
 
-## `_root_message`, [line 83](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L83): Comment
+## `_root_message`, [line 98](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L98): Comment
 
 Code: `message = getattr(current, "message", None)`
 
 > ApplicationError carries the original message without the class name
 > str() would prepend; the supervisor reads this, not a Python type.
+
+## `TemporalDurableExecution.start_run`, [line 79](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L79): Note
+
+Code: `async def start_run(self, ctx: RequestContext, *, run_id: str, budget_s: float) -> None:`
+
+> One workflow per run id (`workflow-run-{run_id}`), so a second start of the
+> same run is refused by Temporal; bounded by the job's budget (§7.5).

@@ -16,6 +16,10 @@ provider (`IDP` unless told otherwise) that lands on a system, and
 
 `lease_for` inserts a `ready` lease a sweeper test can expire.
 
+`steel_run` builds a whole Steel run for `RunSteps`: the run, its job and
+gestures and a recorded sign-in in a `FakeUnitOfWork`, a real `SessionBroker`
+on fakes, and an executor over four `RecordingLane`s.
+
 For the executor, `RecordingLane` answers scripted results and counts its
 calls (`no_tool`, `no_api` and `never` are lanes the step must not reach),
 and `FakeBroker` counts its re-sign-ins.
@@ -25,6 +29,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable, Mapping, Sequence
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from types import MappingProxyType
 
@@ -34,12 +39,17 @@ from sro.application.ports.page import PageAnswer, SessionRef
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.application.runtime.broker import SessionBroker
+from sro.application.runtime.executor import StepExecutor
+from sro.application.runtime.run_steps import RunSteps
 from sro.application.runtime.step import Held, LaneContext
+from sro.application.runtime.teach import Teach
 from sro.domain.execution.account import K_LEASE_TTL, Account, Lease, LeaseState, new_lease_id
 from sro.domain.execution.compose import Adding
 from sro.domain.execution.lanes import Lane, SeenCall, StepResult, Verdict
 from sro.domain.execution.learned_step import LearnedStep
+from sro.domain.execution.progress import Progress
 from sro.domain.execution.verified_writes import VerifiedWrite
+from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.observation.gesture import (
     Action,
     AfterState,
@@ -482,9 +492,10 @@ APP = f"{_SYSTEM}/app"
 
 
 class RecordingLane:
-    """Answers each `execute` with the next of `results` and counts them in
-    `calls`, keeping each context it was handed in `contexts`; a lane given no
-    results is one the step must never reach. `read_back` answers `settles`
+    """Answers each `execute` with the next of `results` (more are added with
+    `answers`) and counts them in `calls`, keeping each context it was handed
+    in `contexts` and first running what `on_execute` was given on it; a lane
+    given no results is one the step must never reach. `read_back` answers `settles`
     and counts itself in `read_backs`, as the API lane's read-back would."""
 
     def __init__(self, lane: Lane, *results: StepResult, settles: Verdict | None = None) -> None:
@@ -494,11 +505,20 @@ class RecordingLane:
         self.calls = 0
         self.read_backs = 0
         self.contexts: list[LaneContext] = []
+        self._on_execute: Callable[[LaneContext], Awaitable[None] | None] | None = None
+
+    def answers(self, *results: StepResult) -> None:
+        self._results.extend(results)
+
+    def on_execute(self, act: Callable[[LaneContext], Awaitable[None] | None]) -> None:
+        self._on_execute = act
 
     async def execute(self, step: Step, values: Mapping[str, str], ctx: LaneContext) -> StepResult:
-        assert self._results, f"the {self.lane} lane was not expected to run"
         self.calls += 1
         self.contexts.append(ctx)
+        if self._on_execute is not None and (acted := self._on_execute(ctx)) is not None:
+            await acted
+        assert self._results, f"the {self.lane} lane was not expected to run"
         return self._results.pop(0)
 
     async def read_back(
@@ -548,3 +568,93 @@ class FakeBroker(SessionBroker):
         self.back_tos.append(back_to)
         if self.refuses is not None:
             raise self.refuses
+
+
+STEEL = "http://steel:3000"
+
+
+@dataclass
+class Lanes:
+    tool: RecordingLane
+    api: RecordingLane
+    ui: RecordingLane
+    sight: RecordingLane
+
+
+@dataclass
+class SteelRun:
+    """A Steel run of a job made of the given steps, numbered from 0 in the
+    order given, stored in `uow` with its job, its gestures and a recorded
+    sign-in whose saved state restores without a password. `run_steps` drives
+    it over a real `SessionBroker` on fakes and an executor over `lanes`."""
+
+    uow: FakeUnitOfWork
+    run_id: str
+    run_steps: RunSteps
+    lanes: Lanes
+    broker: SessionBroker
+    driver: FakePageDriver
+    account: Account
+
+    async def saved_run(self, run_id: str = "") -> WorkflowRun:
+        run = await self.uow.workflow_runs.get(TENANT, run_id or self.run_id)
+        assert run is not None
+        return run
+
+    async def another_run(self, run_id: str) -> None:
+        run = await self.saved_run()
+        await self.uow.workflow_runs.save(replace(run, id=run_id, steps=[], progress={}))
+
+    async def mark_sending(self, order: int) -> None:
+        progress = Progress.of((await self.saved_run()).progress)
+        progress.sending(order)
+        assert await self.uow.workflow_runs.record_progress(TENANT, self.run_id, progress.as_json())
+
+
+async def steel_run(
+    *, steps: Sequence[tuple[Step, dict[str, Gesture]]], live: bool = True, run_id: str = "run_a"
+) -> SteelRun:
+    uow, driver, clock, vault = (
+        FakeUnitOfWork(),
+        FakePageDriver(),
+        FakeClock(NOW),
+        FakeCredentialVault(),
+    )
+    job = replace(_WORKFLOW, steps=[replace(step, order=n) for n, (step, _) in enumerate(steps)])
+    by_id = {
+        one: replace(seen, tenant=_TENANT) for _, cited in steps for one, seen in cited.items()
+    }
+    await uow.workflows.save(job)
+    await uow.gestures.add_gestures(tuple(by_id.values()))
+    await with_a_recorded_sign_in(uow, lands_on=APP, username="clerk", tenant=_TENANT)
+    account = Account.of(_TENANT, IDP, "clerk")
+    await vault.store(account.vault_key("state"), '{"cookies": []}')
+    await uow.workflow_runs.save(
+        WorkflowRun(
+            id=run_id,
+            tenant=_TENANT,
+            workflow_id=job.id,
+            device_id="",
+            values={"Customer Type": "GT1"},
+            started_by="clerk",
+            live=live,
+            allow_focus=False,
+            started_at=NOW.isoformat(),
+            executor="steel",
+        )
+    )
+    lanes = Lanes(
+        *(RecordingLane(lane, settles=None) for lane in (Lane.TOOL, Lane.API, Lane.UI, Lane.SIGHT))
+    )
+    broker = SessionBroker(
+        uow,
+        FakeBrowserPool({STEEL: 2}),
+        driver,
+        FakeAccountLocks(),
+        vault,
+        clock,
+        ui=SigningLane(driver),
+    )
+    executor = StepExecutor(lanes.tool, lanes.api, lanes.ui, lanes.sight, broker)
+    run_steps = RunSteps(uow, broker, executor, Teach(uow, clock), lanes.api, clock)
+    return SteelRun(uow, run_id, run_steps, lanes, broker, driver, account)

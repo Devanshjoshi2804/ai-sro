@@ -33,11 +33,18 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sro.application.context import RequestContext
 from sro.application.ports.browser import BrowserUnavailable
 from sro.application.runtime.broker import K_CLOSE_S, SessionBroker
+from sro.application.runtime.executor import StepExecutor
+from sro.application.runtime.run_steps import RunSteps
+from sro.application.runtime.teach import Teach
 from sro.application.runtime.ui_lane import UiLane
 from sro.config import get_settings
 from sro.domain.execution.account import K_LEASE_TTL, Account, LeaseState
-from sro.domain.observation.gesture import GestureBatch
+from sro.domain.execution.lanes import Lane
+from sro.domain.execution.progress import MAIN, Progress
+from sro.domain.execution.workflow_run import WorkflowRun
+from sro.domain.observation.gesture import Action, Gesture, GestureBatch, Target
 from sro.domain.shared.identifiers import PrincipalId, TenantId
+from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.db.locks import PostgresAccountLocks
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from sro.infrastructure.steel.client import SteelClient
@@ -52,7 +59,7 @@ from tests.browser.test_the_steel_pool_against_local_steel import (
     tracking_contexts,
 )
 from tests.unit.fakes import FakeClock, FakeCredentialVault
-from tests.unit.runtime_support import with_a_recorded_sign_in
+from tests.unit.runtime_support import RecordingLane, with_a_recorded_sign_in
 
 pytestmark = pytest.mark.browser
 
@@ -294,6 +301,78 @@ async def test_an_expiry_mid_step_signs_in_once_for_every_run_on_the_account(wor
     assert world.rig.logins == 2
     for held in (one, two):
         assert urlsplit(await driver.url_of(held.session, held.target_id)).path == "/app"
+
+
+async def test_two_runs_of_one_job_share_the_account_s_lease_as_two_tabs(world: World) -> None:
+    await _recorded(world)
+    app = world.rig.url("/app")
+    opened = Gesture(
+        id="ges_open_app",
+        tenant=TENANT,
+        stream_id="stream-job",
+        batch_id="batch-sign-in",
+        at=10.0,
+        url=app,
+        system=world.rig.url(""),
+        tab_id=1,
+        frame_url=None,
+        action=Action(kind="click", at=10.0, target=Target(role="link", name="Orders")),
+    )
+    job = Workflow(
+        id="wfl_two_tabs",
+        tenant=TENANT,
+        title="Open the orders",
+        narrative="",
+        steps=[Step(order=0, says="Open the orders", system=None, cites=[opened.id])],
+    )
+    async with world.uow as uow:
+        await uow.gestures.add_gestures((opened,))
+        await uow.workflows.save(job)
+        for run_id in ("run_tab_1", "run_tab_2"):
+            await uow.workflow_runs.save(
+                WorkflowRun(
+                    id=run_id,
+                    tenant=TENANT,
+                    workflow_id=job.id,
+                    device_id="",
+                    values={},
+                    started_by="op",
+                    live=False,
+                    allow_focus=False,
+                    started_at=datetime.now(UTC).isoformat(),
+                    executor="steel",
+                )
+            )
+        await uow.commit()
+    broker, _ = world.broker()
+    tool, api, ui, sight = (RecordingLane(lane) for lane in Lane)
+    steps = RunSteps(
+        world.uow,
+        broker,
+        StepExecutor(tool, api, ui, sight, broker),
+        Teach(world.uow, world.clock),
+        api,
+        world.clock,
+    )
+
+    for run_id in ("run_tab_1", "run_tab_2"):
+        assert (await steps.prepare(CTX, run_id)).browser
+        await steps.acquire(CTX, run_id)
+
+    async with world.uow as uow:
+        one, two = (
+            Progress.of(found.progress)
+            for found in [
+                await uow.workflow_runs.get(CTX.tenant_id, run_id)
+                for run_id in ("run_tab_1", "run_tab_2")
+            ]
+            if found is not None
+        )
+    assert world.rig.logins == 1
+    assert one.lease == two.lease
+    assert one.tabs[MAIN] != two.tabs[MAIN]
+    for run_id in ("run_tab_1", "run_tab_2"):
+        await steps.release(CTX, run_id)
 
 
 K_STEEL_BACK_S = 60.0

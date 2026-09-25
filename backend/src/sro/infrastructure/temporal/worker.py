@@ -12,9 +12,9 @@ from temporalio.worker import Worker
 from sro.application.observation.mining_pass import rekey_workflows
 from sro.config import Settings, get_settings
 from sro.container import Container, build_container
-from sro.infrastructure.temporal.activities import Activities
-from sro.infrastructure.temporal.queues import DEFAULT_QUEUE
-from sro.infrastructure.temporal.workflows import ExecutionWorkflow, TriggerWorkflow
+from sro.infrastructure.temporal.activities import Activities, RunActivities
+from sro.infrastructure.temporal.queues import DEFAULT_QUEUE, RUNS_QUEUE
+from sro.infrastructure.temporal.workflows import ExecutionWorkflow, RunWorkflow, TriggerWorkflow
 from sro.observability import configure_logging
 
 logger = logging.getLogger("sro.infrastructure.temporal.worker")
@@ -129,6 +129,20 @@ async def run() -> None:
             activities.fire_trigger,
         ],
     )
+    run_activities = RunActivities(container)
+    runs = Worker(
+        client,
+        identity=me,
+        task_queue=RUNS_QUEUE,
+        workflows=[RunWorkflow],
+        activities=[
+            run_activities.prepare,
+            run_activities.acquire,
+            run_activities.step,
+            run_activities.finish,
+            run_activities.release,
+        ],
+    )
     try:
         rekeyed = await rekey_everything(container)
         if rekeyed:
@@ -140,7 +154,7 @@ async def run() -> None:
     rig_miner = asyncio.create_task(mine_the_rig_lately(container, settings.rig_sweep_seconds))
     retainer = asyncio.create_task(retain_lately(container, settings.retention_sweep_seconds))
     try:
-        async with default:
+        async with default, runs:
             await asyncio.Future()
     finally:
         keeper.cancel()

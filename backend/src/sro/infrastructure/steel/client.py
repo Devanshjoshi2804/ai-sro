@@ -5,7 +5,7 @@ import json
 import logging
 import socket
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from types import TracebackType
 from typing import Any
 from urllib.parse import urlsplit
@@ -16,14 +16,14 @@ from playwright.async_api import Browser, BrowserContext, CDPSession, Page, asyn
 from playwright.async_api import Error as PlaywrightError
 
 from sro.application.ports.browser import BrowserSession, BrowserUnavailable
-from sro.domain.recording.sensitivity import Sensitivity, classify_header
+from sro.domain.recording.sensitivity import K_TOKENS, classify_header
 from sro.domain.shared.identifiers import BrowserSessionId
 from sro.infrastructure.steel.capture import addressed
 from sro.infrastructure.steel.screencast import stream_frames
 
 _CONTEXT = frozenset({"referer"})
 
-_WANTED = frozenset({Sensitivity.AUTH, Sensitivity.CSRF})
+K_TOKEN_WAIT_S = 6
 
 logger = logging.getLogger(__name__)
 
@@ -347,6 +347,7 @@ class SteelClient:
     async def session_headers(self, session_id: BrowserSessionId, url: str) -> dict[str, str]:
         host = urlsplit(url).hostname or ""
         found: dict[str, str] = {}
+        tokened = asyncio.Event()
 
         async with self._attached() as browser:
             if self._capacity == 1:
@@ -368,14 +369,19 @@ class SteelClient:
                 for name, value in (request.get("headers") or {}).items():
                     if not isinstance(value, str):
                         continue
-                    if classify_header(name) in _WANTED or name.lower() in _CONTEXT:
+                    token = classify_header(name) in K_TOKENS
+                    if token or name.lower() in _CONTEXT:
                         found.setdefault(name.lower(), value)
+                    if token:
+                        tokened.set()
 
             cdp.on("Network.requestWillBeSent", observe)
             await cdp.send("Network.enable")
             try:
                 await page.goto(url, wait_until="domcontentloaded")
-                await page.wait_for_timeout(6000)
+                with suppress(TimeoutError):
+                    async with asyncio.timeout(K_TOKEN_WAIT_S):
+                        await tokened.wait()
             except Exception:
                 logger.warning("could not provoke traffic at %s", url, exc_info=True)
             finally:

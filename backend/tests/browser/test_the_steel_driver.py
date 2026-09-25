@@ -1281,6 +1281,20 @@ async def test_connecting_a_system_keeps_a_token_from_any_path_of_its_own(
     assert said.get("x-csrf-token") == "landing-token"
 
 
+async def test_connecting_a_system_returns_once_the_token_is_sent(
+    rig: Rig,  # noqa: F811
+    cdp_url: str,  # noqa: F811
+) -> None:
+    loop = asyncio.get_running_loop()
+    async with SteelClient("http://steel.invalid", cdp_url) as client:
+        began = loop.time()
+        said = await client.session_headers(BrowserSessionId("only"), rig.url("/landing"))
+        took = loop.time() - began
+
+    assert said.get("x-csrf-token") == "landing-token"
+    assert took < 3
+
+
 async def test_a_mark_whose_connection_went_away_is_page_gone(
     rig: Rig,  # noqa: F811
     one: SessionRef,  # noqa: F811

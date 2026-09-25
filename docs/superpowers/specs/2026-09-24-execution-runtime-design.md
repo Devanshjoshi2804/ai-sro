@@ -190,6 +190,10 @@ hand-edited.
      recording path. It is not the extension's debugger, and this design does not
      change it.
 
+   **Known ceiling:** a page that itself writes a typed secret into a heading, button,
+   label or dialog name is kept as that text; with the echo rule gone the outline cannot
+   tell page structure from an echo. Rare; documented in the page-code notes.
+
 ## 5. Session broker and Steel pool
 
 ### 5.1 Layout

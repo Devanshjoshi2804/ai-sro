@@ -47,7 +47,11 @@ class Stopped(DomainError):
     code = "stopped"
 
 
-async def _nothing() -> None:
+class Superseded(Stopped):
+    code = "superseded"
+
+
+async def _nothing(lane: Lane) -> None:
     return None
 
 
@@ -63,7 +67,7 @@ class LaneContext:
     stop: asyncio.Event
     secret: str | None = field(default=None, repr=False)
     thread: str = ""
-    about_to_write: Callable[[], Awaitable[None]] = _nothing
+    about_to_write: Callable[[Lane], Awaitable[None]] = _nothing
     reauthed: bool = False
     adding: Mapping[int, Adding] = field(default_factory=dict)
 

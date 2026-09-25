@@ -82,3 +82,24 @@ async def test_record_progress_returns_false_for_the_wrong_tenant() -> None:
     assert recorded is False
     back = await runs.get(TENANT, run.id)
     assert back is not None and back.progress == {}
+
+
+async def test_record_progress_writes_only_over_the_progress_it_was_given() -> None:
+    runs = FakeWorkflowRunRepository()
+    loaded = {"step": 0, "marks": {"0": {"lane": "", "verdict": "", "wrote": ""}}}
+    run = _run(progress=loaded)
+    await runs.save(run)
+
+    outcomes = [
+        await runs.record_progress(
+            TENANT,
+            run.id,
+            {"step": 0, "marks": {"0": {"lane": lane, "wrote": "sending"}}},
+            was=loaded,
+        )
+        for lane in ("ui", "sight")
+    ]
+
+    back = await runs.get(TENANT, run.id)
+    assert outcomes == [True, False]
+    assert back is not None and back.progress["marks"] == {"0": {"lane": "ui", "wrote": "sending"}}

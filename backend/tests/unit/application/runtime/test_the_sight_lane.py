@@ -9,7 +9,7 @@ from sro.application.ports.page import PageGone
 from sro.application.ports.vision import ProposedGesture
 from sro.application.runtime.sight_lane import SightLane
 from sro.application.runtime.step import Stopped
-from sro.domain.execution.lanes import K_SIGHT_ACTIONS, SeenCall
+from sro.domain.execution.lanes import K_SIGHT_ACTIONS, Lane, SeenCall
 from sro.domain.observation.gesture import AfterState, Gesture, PageMark
 from sro.domain.recording.events import ActionKind
 from sro.domain.skill.workflow import Step
@@ -40,7 +40,7 @@ async def test_sight_acts_by_points_and_teaches_the_control_it_hit() -> None:
     step, by_id = save_step(status=201)
     written: list[int] = []
 
-    async def wrote() -> None:
+    async def wrote(lane: Lane) -> None:
         written.append(step.order)
 
     result = await SightLane(driver, clicks_then_done(), None).execute(
@@ -511,7 +511,7 @@ async def test_a_field_sight_fills_is_done_only_when_the_labelled_control_holds_
     write, by_id = save_step(status=201)
     written: list[int] = []
 
-    async def wrote() -> None:
+    async def wrote(lane: Lane) -> None:
         written.append(write.order)
 
     result = await SightLane(driver, types_then_done(), None).fill(

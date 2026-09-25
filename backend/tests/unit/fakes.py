@@ -2240,10 +2240,17 @@ class FakeWorkflowRunRepository:
             self.on_save(deepcopy(kept))
 
     async def record_progress(
-        self, tenant_id: TenantId, run_id: str, progress: dict[str, object]
+        self,
+        tenant_id: TenantId,
+        run_id: str,
+        progress: dict[str, object],
+        *,
+        was: Mapping[str, object] | None = None,
     ) -> bool:
         found = self.rows.get(run_id)
         if found is None or found.tenant != tenant_id.value:
+            return False
+        if was is not None and found.progress != dict(was):
             return False
         found.progress = dict(progress)
         if self.on_save is not None:

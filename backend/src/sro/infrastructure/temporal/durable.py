@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import uuid
 from datetime import timedelta
 
 from temporalio.client import Client, WorkflowFailureError
+from temporalio.common import WorkflowIDReusePolicy
+from temporalio.exceptions import WorkflowAlreadyStartedError
 
 from sro.application.context import RequestContext
 from sro.application.execution.execute_skill import NotRunnable
+from sro.domain.execution.progress import K_BUDGET_MARGIN_S
 from sro.domain.execution.run import RunId
 from sro.domain.shared.identifiers import SkillId
 from sro.infrastructure.temporal.activities import RunRef, StartRunRequest
@@ -78,17 +82,20 @@ class TemporalDurableExecution:
 
     async def start_run(self, ctx: RequestContext, *, run_id: str, budget_s: float) -> None:
         client = await self._connect()
-        await client.start_workflow(
-            RunWorkflow.run,
-            RunRef(
-                tenant_id=ctx.tenant_id.value,
-                principal_id=ctx.principal_id.value,
-                run_id=run_id,
-            ),
-            id=f"workflow-run-{run_id}",
-            task_queue=RUNS_QUEUE,
-            execution_timeout=timedelta(seconds=budget_s),
-        )
+        with contextlib.suppress(WorkflowAlreadyStartedError):
+            await client.start_workflow(
+                RunWorkflow.run,
+                RunRef(
+                    tenant_id=ctx.tenant_id.value,
+                    principal_id=ctx.principal_id.value,
+                    run_id=run_id,
+                    budget_s=budget_s,
+                ),
+                id=f"workflow-run-{run_id}",
+                task_queue=RUNS_QUEUE,
+                execution_timeout=timedelta(seconds=budget_s + K_BUDGET_MARGIN_S),
+                id_reuse_policy=WorkflowIDReusePolicy.REJECT_DUPLICATE,
+            )
 
 
 def _root_message(error: BaseException) -> str:

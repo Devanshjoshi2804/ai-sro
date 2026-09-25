@@ -106,7 +106,7 @@ WORKFLOW = _WORKFLOW
 GMAIL = "https://mail.google.com/mail/u/0/#inbox"
 
 
-async def _nothing() -> None:
+async def _nothing(lane: Lane) -> None:
     return None
 
 
@@ -154,7 +154,7 @@ def lane_context(
     learned: Mapping[int, LearnedStep] = MappingProxyType({}),
     ledger: tuple[VerifiedWrite, ...] = (),
     secret: str | None = None,
-    about_to_write: Callable[[], Awaitable[None]] | None = None,
+    about_to_write: Callable[[Lane], Awaitable[None]] | None = None,
     thread: str = "",
     reauthed: bool = False,
     adding: Mapping[int, Adding] = MappingProxyType({}),
@@ -605,14 +605,18 @@ class SteelRun:
         run = await self.saved_run()
         await self.uow.workflow_runs.save(replace(run, id=run_id, steps=[], progress={}))
 
-    async def mark_sending(self, order: int) -> None:
+    async def mark_sending(self, order: int, lane: Lane = Lane.UI) -> None:
         progress = Progress.of((await self.saved_run()).progress)
-        progress.sending(order)
+        progress.sending(order, lane.value)
         assert await self.uow.workflow_runs.record_progress(TENANT, self.run_id, progress.as_json())
 
 
 async def steel_run(
-    *, steps: Sequence[tuple[Step, dict[str, Gesture]]], live: bool = True, run_id: str = "run_a"
+    *,
+    steps: Sequence[tuple[Step, dict[str, Gesture]]],
+    live: bool = True,
+    run_id: str = "run_a",
+    recorded_sign_in: bool = True,
 ) -> SteelRun:
     uow, driver, clock, vault = (
         FakeUnitOfWork(),
@@ -626,7 +630,8 @@ async def steel_run(
     }
     await uow.workflows.save(job)
     await uow.gestures.add_gestures(tuple(by_id.values()))
-    await with_a_recorded_sign_in(uow, lands_on=APP, username="clerk", tenant=_TENANT)
+    if recorded_sign_in:
+        await with_a_recorded_sign_in(uow, lands_on=APP, username="clerk", tenant=_TENANT)
     account = Account.of(_TENANT, IDP, "clerk")
     await vault.store(account.vault_key("state"), '{"cookies": []}')
     await uow.workflow_runs.save(

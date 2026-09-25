@@ -193,13 +193,20 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
             )
 
     async def record_progress(
-        self, tenant_id: TenantId, run_id: str, progress: dict[str, object]
+        self,
+        tenant_id: TenantId,
+        run_id: str,
+        progress: dict[str, object],
+        *,
+        was: Mapping[str, object] | None = None,
     ) -> bool:
+        query = update(WorkflowRunRow).where(
+            WorkflowRunRow.id == run_id, WorkflowRunRow.tenant_id == tenant_id.value
+        )
+        if was is not None:
+            query = query.where(WorkflowRunRow.progress == dict(was))
         result = await self._session.execute(
-            update(WorkflowRunRow)
-            .where(WorkflowRunRow.id == run_id, WorkflowRunRow.tenant_id == tenant_id.value)
-            .values(progress=dict(progress))
-            .returning(WorkflowRunRow.id)
+            query.values(progress=dict(progress)).returning(WorkflowRunRow.id)
         )
         return result.first() is not None
 

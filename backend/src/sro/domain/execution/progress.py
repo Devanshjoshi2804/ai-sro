@@ -15,6 +15,7 @@ K_BEAT_EVERY_S = 10
 K_BUDGET_FLOOR_S = 120
 K_BUDGET_PER_STEP_S = 60
 K_BUDGET_FACTOR = 4
+K_BUDGET_MARGIN_S = 600
 
 Wrote = Literal["", "sending", "done", "unknown"]
 
@@ -24,6 +25,7 @@ class StepMark:
     lane: str = ""
     verdict: str = ""
     wrote: Wrote = ""
+    expired: bool = False
 
 
 @dataclass
@@ -63,11 +65,11 @@ class Progress:
         out["marks"] = {str(k): v for k, v in out["marks"].items()}
         return out
 
-    def sending(self, order: int) -> None:
+    def sending(self, order: int, lane: str) -> None:
         mark = self.marks.setdefault(order, StepMark())
         if mark.wrote == "done":
             return
-        mark.wrote = "sending"
+        mark.lane, mark.wrote = lane, "sending"
 
     def written(self, order: int) -> bool:
         return self.marks.get(order, StepMark()).wrote == "done"
@@ -75,7 +77,15 @@ class Progress:
     def in_doubt(self, order: int) -> bool:
         return self.marks.get(order, StepMark()).wrote in ("sending", "unknown")
 
-    def settle(self, order: int, *, lane: str, verdict: str, never_left: bool = False) -> None:
+    def settle(
+        self,
+        order: int,
+        *,
+        lane: str,
+        verdict: str,
+        never_left: bool = False,
+        expired: bool = False,
+    ) -> None:
         mark = self.marks.setdefault(order, StepMark())
         if mark.wrote == "done":
             return
@@ -87,7 +97,7 @@ class Progress:
         elif verdict == "failed" and never_left:
             mark.wrote = ""
         else:
-            mark.wrote = "unknown"
+            mark.wrote, mark.expired = "unknown", expired
 
 
 def _strings(value: object) -> dict[str, str]:
@@ -109,6 +119,7 @@ def _marks(value: object) -> dict[int, StepMark]:
             lane=str(one.get("lane") or ""),
             verdict=str(one.get("verdict") or ""),
             wrote=_wrote(str(one.get("wrote") or "")),
+            expired=one.get("expired") is True,
         )
         for key, one in value.items()
         if isinstance(one, Mapping)

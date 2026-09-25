@@ -3,12 +3,15 @@ import asyncio
 import pytest
 
 from sro.application.ports.locks import AccountBusy
+from sro.application.ports.page import PageGone
+from sro.application.runtime.step import LaneContext, Superseded
 from sro.domain.execution.account import LeaseState
 from sro.domain.execution.lanes import Broken, Lane, StepResult, cites_key
 from sro.domain.execution.progress import MAIN, Progress, StepMark
 from tests.unit.runtime_support import (
     CTX,
     TENANT,
+    SteelRun,
     mail_send_step,
     save_step,
     steel_run,
@@ -40,7 +43,7 @@ async def test_a_mail_only_job_takes_no_browser() -> None:
 
 async def test_a_write_is_marked_before_it_is_sent() -> None:
     world = await steel_run(steps=[save_step(status=201)])
-    world.lanes.ui.on_execute(lambda ctx: ctx.about_to_write())
+    world.lanes.ui.on_execute(lambda ctx: ctx.about_to_write(Lane.UI))
     world.lanes.ui.answers(StepResult("done", Lane.UI))
     seen: list[str] = []
     world.uow.workflow_runs.on_save = lambda run: seen.append(
@@ -60,7 +63,12 @@ async def test_a_step_no_lane_could_do_asks_a_person() -> None:
     outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
 
     assert outcome.asking
-    assert Progress.of((await world.saved_run()).progress).asking["kind"] == "step"
+    run = await world.saved_run()
+    assert Progress.of(run.progress).asking["kind"] == "step"
+    assert [(one.of_step, one.verdict, one.verdict_by) for one in run.steps] == [
+        (0, "failed", "sight")
+    ]
+    assert "could not be done" in run.steps[0].reason
 
 
 async def test_a_retry_after_a_send_never_runs_a_lane_and_settles_by_read_back() -> None:
@@ -73,7 +81,7 @@ async def test_a_retry_after_a_send_never_runs_a_lane_and_settles_by_read_back()
     assert outcome.more is False
     assert (world.lanes.ui.calls, world.lanes.sight.calls) == (0, 0)
     run = await world.saved_run()
-    assert [(one.verdict, one.verdict_by) for one in run.steps] == [("held", "api")]
+    assert [(one.verdict, one.verdict_by) for one in run.steps] == [("held", "ui")]
     assert Progress.of(run.progress).written(0)
 
 
@@ -92,7 +100,7 @@ async def test_a_retry_after_a_send_no_read_back_can_settle_asks_and_stays_in_do
 
 async def test_an_unknown_write_after_an_expiry_is_read_back_signed_in_afresh() -> None:
     world = await steel_run(steps=[save_step(status=201)])
-    world.lanes.ui.on_execute(lambda ctx: ctx.about_to_write())
+    world.lanes.ui.on_execute(lambda ctx: ctx.about_to_write(Lane.UI))
     world.lanes.ui.answers(StepResult("unknown", Lane.UI, "no answer", expired=True))
     world.lanes.api.settles = "done"
 
@@ -107,14 +115,16 @@ async def test_an_unknown_write_after_an_expiry_is_read_back_signed_in_afresh() 
 
 async def test_an_unknown_write_nothing_can_settle_is_asked_and_never_sent_again() -> None:
     world = await steel_run(steps=[save_step(status=201)])
-    world.lanes.ui.on_execute(lambda ctx: ctx.about_to_write())
+    world.lanes.ui.on_execute(lambda ctx: ctx.about_to_write(Lane.UI))
     world.lanes.ui.answers(StepResult("unknown", Lane.UI, "no answer"))
 
     outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
 
     assert outcome.asking
     assert world.lanes.api.contexts[-1].reauthed is False
-    assert Progress.of((await world.saved_run()).progress).marks[0].wrote == "unknown"
+    run = await world.saved_run()
+    assert Progress.of(run.progress).marks[0].wrote == "unknown"
+    assert [(one.verdict, one.verdict_by) for one in run.steps] == [("unclear", "ui")]
     again = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
     assert again.asking
     assert world.lanes.ui.calls == 1
@@ -205,3 +215,198 @@ async def test_a_tab_lost_between_steps_is_opened_again_and_its_id_kept() -> Non
     held = world.lanes.ui.contexts[-1].held
     assert held is not None and held.target_id != lost
     assert Progress.of((await world.saved_run()).progress).tabs[MAIN] == held.target_id
+
+
+def _both_arrive(world: SteelRun, *, write: bool) -> list[int]:
+    """Holds each attempt in the UI lane until two are there, the way a retry
+    Temporal scheduled overlaps the attempt it gave up on; `sent` counts the
+    writes that actually went out."""
+    here: list[LaneContext] = []
+    both = asyncio.Event()
+    sent: list[int] = []
+
+    async def act(ctx: LaneContext) -> None:
+        here.append(ctx)
+        if len(here) == 2:
+            both.set()
+        await both.wait()
+        if write:
+            await ctx.about_to_write(Lane.UI)
+            sent.append(1)
+
+    world.lanes.ui.on_execute(act)
+    return sent
+
+
+async def test_two_overlapping_attempts_on_a_one_write_job_send_it_once() -> None:
+    world = await steel_run(steps=[save_step(status=201)])
+    sent = _both_arrive(world, write=True)
+    world.lanes.ui.answers(StepResult("done", Lane.UI), StepResult("done", Lane.UI))
+
+    results = await asyncio.gather(
+        world.run_steps.step(CTX, world.run_id, stop=asyncio.Event()),
+        world.run_steps.step(CTX, world.run_id, stop=asyncio.Event()),
+        return_exceptions=True,
+    )
+
+    assert len(sent) == 1
+    assert sum(isinstance(one, Superseded) for one in results) == 1
+    run = await world.saved_run()
+    assert [(one.of_step, one.verdict) for one in run.steps] == [(0, "held")]
+    assert Progress.of(run.progress).step == 1
+
+
+async def test_overlapping_attempts_on_a_two_step_job_never_skip_the_save() -> None:
+    world = await steel_run(steps=[type_step(), save_step(status=201)])
+    _both_arrive(world, write=False)
+    world.lanes.ui.answers(*(StepResult("done", Lane.UI) for _ in range(3)))
+
+    await asyncio.gather(
+        world.run_steps.step(CTX, world.run_id, stop=asyncio.Event()),
+        world.run_steps.step(CTX, world.run_id, stop=asyncio.Event()),
+        return_exceptions=True,
+    )
+    world.lanes.ui.on_execute(lambda ctx: None)
+    last = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert last.more is False
+    run = await world.saved_run()
+    assert [(one.of_step, one.verdict) for one in run.steps] == [(0, "held"), (1, "held")]
+    assert world.lanes.ui.calls == 3
+
+
+async def test_a_run_that_is_no_longer_running_is_never_acted_on() -> None:
+    world = await steel_run(steps=[save_step(status=201)])
+    run = await world.saved_run()
+    run.outcome = "aborted"
+    await world.uow.workflow_runs.save(run)
+
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert outcome.more is False
+    assert world.lanes.ui.calls == 0
+    assert await world.run_steps.acquire(CTX, world.run_id) == ""
+    assert Progress.of((await world.saved_run()).progress).tabs == {}
+
+
+async def test_a_job_with_no_recorded_sign_in_asks_at_prepare_and_says_why() -> None:
+    world = await steel_run(steps=[save_step(status=201)], recorded_sign_in=False)
+
+    prepared = await world.run_steps.prepare(CTX, world.run_id)
+
+    assert prepared.asking
+    run = await world.saved_run()
+    assert Progress.of(run.progress).asking["id"] == prepared.asking
+    assert [one.verdict for one in run.steps] == ["failed"]
+    assert "no recorded sign-in" in run.steps[0].reason
+
+
+async def test_a_sign_in_that_needs_a_password_is_asked_at_acquire() -> None:
+    world = await steel_run(steps=[save_step(status=201)])
+    await world.run_steps.prepare(CTX, world.run_id)
+    world.driver.shows_sign_in_until_signed = True
+
+    asking = await world.run_steps.acquire(CTX, world.run_id)
+
+    assert asking
+    run = await world.saved_run()
+    assert Progress.of(run.progress).asking == {
+        "id": asking,
+        "kind": "password",
+        "text": run.steps[0].reason,
+    }
+    assert [one.verdict for one in run.steps] == ["failed"]
+
+
+async def test_a_stop_during_acquire_keeps_the_tab_for_release_and_aborts() -> None:
+    world = await steel_run(steps=[save_step(status=201)])
+    await world.run_steps.prepare(CTX, world.run_id)
+    stop = asyncio.Event()
+    stop.set()
+
+    await world.run_steps.acquire(CTX, world.run_id, stop=stop)
+
+    run = await world.saved_run()
+    assert run.outcome == "aborted"
+    tab = Progress.of(run.progress).tabs[MAIN]
+    await world.run_steps.release(CTX, world.run_id)
+    assert tab not in world.driver.tabs
+
+
+async def test_an_acquire_that_cannot_record_its_tab_closes_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    world = await steel_run(steps=[save_step(status=201)])
+    await world.run_steps.prepare(CTX, world.run_id)
+
+    async def lost(*args: object, **kwargs: object) -> bool:
+        raise ConnectionError("the database went away")
+
+    monkeypatch.setattr(world.uow.workflow_runs, "record_progress", lost)
+
+    with pytest.raises(ConnectionError):
+        await world.run_steps.acquire(CTX, world.run_id)
+
+    assert world.driver.tabs == {}
+
+
+async def test_a_done_step_stays_done_when_teaching_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    world = await steel_run(steps=[save_step(status=201)])
+    world.lanes.ui.on_execute(lambda ctx: ctx.about_to_write(Lane.UI))
+    world.lanes.ui.answers(StepResult("done", Lane.UI))
+
+    async def broken(*args: object, **kwargs: object) -> None:
+        raise ConnectionError("the database went away")
+
+    monkeypatch.setattr(world.uow.workflows, "mend_lane", broken)
+
+    with pytest.raises(ConnectionError):
+        await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    run = await world.saved_run()
+    assert Progress.of(run.progress).written(0)
+    assert [one.verdict for one in run.steps] == ["held"]
+
+
+async def test_an_in_doubt_write_is_read_back_as_its_sender_signed_in_afresh() -> None:
+    world = await steel_run(steps=[save_step(status=201)])
+    world.lanes.ui.on_execute(lambda ctx: ctx.about_to_write(Lane.UI))
+    world.lanes.ui.answers(StepResult("unknown", Lane.UI, "no answer", expired=True))
+    asked = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    assert asked.asking
+    world.lanes.api.settles = "done"
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert world.lanes.ui.calls == 1
+    assert world.lanes.api.contexts[-1].reauthed is True
+    run = await world.saved_run()
+    assert [(one.verdict, one.verdict_by) for one in run.steps] == [
+        ("unclear", "ui"),
+        ("held", "ui"),
+    ]
+    assert Progress.of(run.progress).asking == {}
+
+
+async def test_a_retry_after_a_crash_mid_send_names_the_lane_that_sent() -> None:
+    world = await steel_run(steps=[save_step(status=201)])
+    await world.mark_sending(0, Lane.SIGHT)
+    world.lanes.api.settles = "done"
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    run = await world.saved_run()
+    assert [(one.verdict, one.verdict_by) for one in run.steps] == [("held", "sight")]
+
+
+async def test_a_lease_the_beat_finds_lost_is_the_lost_page_path() -> None:
+    world = await steel_run(steps=[save_step(status=201)])
+    await world.run_steps.prepare(CTX, world.run_id)
+    await world.run_steps.acquire(CTX, world.run_id)
+    lease = Progress.of((await world.saved_run()).progress).lease
+    assert await world.uow.browser_sessions.settle(TENANT, lease, state=LeaseState.BROKEN)
+
+    with pytest.raises(PageGone):
+        await world.run_steps.beat(CTX, world.run_id)

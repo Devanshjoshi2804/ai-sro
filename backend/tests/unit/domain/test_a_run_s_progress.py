@@ -40,7 +40,7 @@ def test_progress_survives_its_row() -> None:
         account=Account(origin="https://example.com", username="op"),
         start_url="https://example.com/start",
     )
-    progress.sending(1)
+    progress.sending(1, "ui")
     progress.settle(0, lane="ui", verdict="done")
 
     again = Progress.of(progress.as_json())
@@ -50,14 +50,14 @@ def test_progress_survives_its_row() -> None:
 
 def test_a_write_in_flight_is_in_doubt_and_never_written() -> None:
     progress = Progress()
-    progress.sending(3)
+    progress.sending(3, "ui")
 
     assert progress.in_doubt(3) and not progress.written(3)
 
 
 def test_a_settled_write_is_written_once() -> None:
     progress = Progress()
-    progress.sending(3)
+    progress.sending(3, "ui")
     progress.settle(3, lane="api", verdict="done")
 
     assert progress.written(3) and not progress.in_doubt(3)
@@ -65,10 +65,10 @@ def test_a_settled_write_is_written_once() -> None:
 
 def test_a_done_mark_is_never_overwritten() -> None:
     progress = Progress()
-    progress.sending(3)
+    progress.sending(3, "ui")
     progress.settle(3, lane="api", verdict="done")
 
-    progress.sending(3)
+    progress.sending(3, "ui")
     progress.settle(3, lane="ui", verdict="failed", never_left=True)
 
     assert progress.written(3) and not progress.in_doubt(3)
@@ -77,7 +77,7 @@ def test_a_done_mark_is_never_overwritten() -> None:
 
 def test_settle_unknown_leaves_the_write_in_doubt() -> None:
     progress = Progress()
-    progress.sending(3)
+    progress.sending(3, "ui")
     progress.settle(3, lane="ui", verdict="unknown")
 
     assert progress.in_doubt(3) and not progress.written(3)
@@ -87,7 +87,7 @@ def test_settle_failed_without_confirmation_is_still_in_doubt() -> None:
     """A lane that fails after its write may already have sent it -- so a bare
     `failed` must never read as "safe to retry"."""
     progress = Progress()
-    progress.sending(3)
+    progress.sending(3, "ui")
     progress.settle(3, lane="ui", verdict="failed")
 
     assert progress.in_doubt(3) and not progress.written(3)
@@ -95,7 +95,7 @@ def test_settle_failed_without_confirmation_is_still_in_doubt() -> None:
 
 def test_settle_failed_that_never_left_clears_the_mark() -> None:
     progress = Progress()
-    progress.sending(3)
+    progress.sending(3, "ui")
     progress.settle(3, lane="ui", verdict="failed", never_left=True)
 
     assert not progress.in_doubt(3) and not progress.written(3)
@@ -136,3 +136,17 @@ def test_the_budget_grows_with_what_the_operator_took() -> None:
     slow, quick = timed_job(seconds=600, steps=5), timed_job(seconds=20, steps=5)
 
     assert run_budget(*slow) > run_budget(*quick) >= K_BUDGET_FLOOR_S
+
+
+def test_a_write_left_unknown_keeps_its_sender_and_whether_the_session_expired() -> None:
+    progress = Progress()
+    progress.sending(3, "sight")
+    progress.settle(3, lane="sight", verdict="unknown", expired=True)
+
+    again = Progress.of(progress.as_json())
+
+    assert (again.marks[3].lane, again.marks[3].wrote, again.marks[3].expired) == (
+        "sight",
+        "unknown",
+        True,
+    )

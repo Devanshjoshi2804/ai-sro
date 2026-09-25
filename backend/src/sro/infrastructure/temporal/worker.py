@@ -4,7 +4,7 @@ import asyncio
 import logging
 import os
 import socket
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from temporalio.client import Client
 from temporalio.worker import Worker
@@ -12,6 +12,7 @@ from temporalio.worker import Worker
 from sro.application.observation.mining_pass import rekey_workflows
 from sro.config import Settings, get_settings
 from sro.container import Container, build_container
+from sro.domain.execution.progress import K_STEP_HEARTBEAT_S
 from sro.infrastructure.temporal.activities import Activities, RunActivities
 from sro.infrastructure.temporal.queues import DEFAULT_QUEUE, RUNS_QUEUE
 from sro.infrastructure.temporal.workflows import ExecutionWorkflow, RunWorkflow, TriggerWorkflow
@@ -134,6 +135,7 @@ async def run() -> None:
         client,
         identity=me,
         task_queue=RUNS_QUEUE,
+        graceful_shutdown_timeout=timedelta(seconds=K_STEP_HEARTBEAT_S),
         workflows=[RunWorkflow],
         activities=[
             run_activities.prepare,

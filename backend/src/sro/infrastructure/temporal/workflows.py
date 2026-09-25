@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from temporalio import workflow
 from temporalio.common import RetryPolicy
@@ -38,7 +38,13 @@ _QUEUE_RETRY = RetryPolicy(
     maximum_attempts=0,
     non_retryable_error_types=_NEVER_AGAIN,
 )
+_PREPARE_RETRY = RetryPolicy(
+    initial_interval=timedelta(seconds=1),
+    maximum_attempts=3,
+    non_retryable_error_types=_NEVER_AGAIN,
+)
 _SHORT = timedelta(seconds=60)
+_AT_LEAST = timedelta(seconds=1)
 
 
 @workflow.defn
@@ -106,25 +112,23 @@ class TriggerWorkflow:
 class RunWorkflow:
     @workflow.run
     async def run(self, ref: RunRef) -> str:
+        deadline = workflow.info().start_time + timedelta(seconds=ref.budget_s)
         try:
             prepared: Prepared = await workflow.execute_activity(
                 "run.prepare",
                 ref,
                 result_type=Prepared,
                 start_to_close_timeout=_SHORT,
-                retry_policy=_READ_RETRY,
+                retry_policy=_PREPARE_RETRY,
             )
-            if prepared.browser:
-                await workflow.execute_activity(
-                    "run.acquire",
-                    ref,
-                    start_to_close_timeout=timedelta(seconds=K_STEP_LIMIT_S),
-                    retry_policy=_QUEUE_RETRY,
-                )
-            while True:
-                outcome = await self._step(ref)
-                if outcome.asking or not outcome.more:
+            asking = prepared.asking
+            if prepared.browser and not asking:
+                asking = await self._driven(ref, "run.acquire", deadline, str, _QUEUE_RETRY)
+            while not asking and deadline > workflow.now():
+                outcome = await self._driven(ref, "run.step", deadline, StepOutcome, _STEP_RETRY)
+                if not outcome.more:
                     break
+                asking = outcome.asking
         finally:
             try:
                 await workflow.execute_activity(
@@ -136,14 +140,22 @@ class RunWorkflow:
                 )
         return ref.run_id
 
-    async def _step(self, ref: RunRef) -> StepOutcome:
-        outcome: StepOutcome = await workflow.execute_activity(
-            "run.step",
+    async def _driven[T](
+        self,
+        ref: RunRef,
+        name: str,
+        deadline: datetime,
+        answer: type[T],
+        retry: RetryPolicy,
+    ) -> T:
+        done: T = await workflow.execute_activity(
+            name,
             ref,
-            result_type=StepOutcome,
+            result_type=answer,
+            schedule_to_close_timeout=max(deadline - workflow.now(), _AT_LEAST),
             start_to_close_timeout=timedelta(seconds=K_STEP_LIMIT_S),
             heartbeat_timeout=timedelta(seconds=K_STEP_HEARTBEAT_S),
-            retry_policy=_STEP_RETRY,
+            retry_policy=retry,
             cancellation_type=workflow.ActivityCancellationType.WAIT_CANCELLATION_COMPLETED,
         )
-        return outcome
+        return done

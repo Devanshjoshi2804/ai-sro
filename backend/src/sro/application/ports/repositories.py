@@ -409,7 +409,12 @@ class WorkflowRunRepository(Protocol):
     async def save(self, run: WorkflowRun) -> None: ...
 
     async def record_progress(
-        self, tenant_id: TenantId, run_id: str, progress: dict[str, object]
+        self,
+        tenant_id: TenantId,
+        run_id: str,
+        progress: dict[str, object],
+        *,
+        was: Mapping[str, object] | None = None,
     ) -> bool: ...
 
     async def get(self, tenant_id: TenantId, run_id: str) -> WorkflowRun | None: ...

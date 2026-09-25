@@ -56,7 +56,7 @@ Code: `K_BUDGET_FACTOR = 4`
 > practised operator's click-through, so the budget scales the demonstrated
 > span by four rather than taking it at face value.
 
-## `Account`, [line 30](../../../../../../../backend/src/sro/domain/execution/progress.py#L30): Docstring
+## `Account`, [line 32](../../../../../../../backend/src/sro/domain/execution/progress.py#L32): Docstring
 
 > Which account is driving the run, never what proves it. `origin` and
 > `username` are the whole type -- not a `dict[str, str]` filtered at the
@@ -70,13 +70,13 @@ Code: `K_BUDGET_FACTOR = 4`
 > `workflow_runs` row, a log, or evidence through this field. Global
 > constraint 10 -- a credential lives in the vault only.
 
-## `Progress.account`, [line 42](../../../../../../../backend/src/sro/domain/execution/progress.py#L42): Comment
+## `Progress.account`, [line 44](../../../../../../../backend/src/sro/domain/execution/progress.py#L44): Comment
 
 Code: `account: Account = field(default_factory=Account)`
 
 > Typed, not filtered: see `Account`.
 
-## `Progress.of`, [line 47](../../../../../../../backend/src/sro/domain/execution/progress.py#L47): Docstring
+## `Progress.of`, [line 49](../../../../../../../backend/src/sro/domain/execution/progress.py#L49): Docstring
 
 > Raises on a malformed row rather than reading it as empty. `step` that is
 > not an integer, or a mark keyed by something that is not a step order,
@@ -86,7 +86,7 @@ Code: `account: Account = field(default_factory=Account)`
 > drops it to `""` rather than raising, since it names a state this code
 > never wrote and the safest reading of an unknown mark is "not sent".
 
-## `Progress.settle`, [line 78](../../../../../../../backend/src/sro/domain/execution/progress.py#L78): Docstring
+## `Progress.settle`, [line 80](../../../../../../../backend/src/sro/domain/execution/progress.py#L80): Docstring
 
 > `done` is sticky: both `sending` and `settle` return before touching a mark
 > already `done`, so nothing after the write was confirmed -- a retried
@@ -97,7 +97,7 @@ Code: `account: Account = field(default_factory=Account)`
 > with `never_left=True`, that this specific attempt is confirmed never to
 > have left -- the one case narrow enough to clear it outright.
 
-## `run_budget`, [line 122](../../../../../../../backend/src/sro/domain/execution/progress.py#L122): Docstring
+## `run_budget`, [line 133](../../../../../../../backend/src/sro/domain/execution/progress.py#L133): Docstring
 
 > Derived from the demonstration because nothing else in a `Workflow` carries
 > a duration -- it is a sequence of steps and cited gestures, not a timing.
@@ -112,9 +112,30 @@ Code: `account: Account = field(default_factory=Account)`
 > order. Trim idle gaps out of `shown`, or cap it outright, once a real job's
 > demonstrated pause makes a run's budget meaningless.
 
-## `Progress`, [line 44](../../../../../../../backend/src/sro/domain/execution/progress.py#L44): Note
+## `Progress`, [line 46](../../../../../../../backend/src/sro/domain/execution/progress.py#L46): Note
 
 Code: `asking: dict[str, str] = field(default_factory=dict)`
 
 > The question a step stands on (`id`, `kind`, `text`), written by D2 when
 > no lane can do the step and read by D5 when the answer comes.
+
+## `StepMark`, [line 28](../../../../../../../backend/src/sro/domain/execution/progress.py#L28): Note
+
+Code: `expired: bool = False`
+
+> Kept when a write is left `unknown` after the session expired, so the
+> read-back that settles it later signs in afresh first.
+
+## `Progress.sending`, [line 72](../../../../../../../backend/src/sro/domain/execution/progress.py#L72): Note
+
+Code: `mark.lane, mark.wrote = lane, "sending"`
+
+> The lane that is about to send, so a write settled after a crash is
+> credited to the lane that sent it.
+
+## module, [line 18](../../../../../../../backend/src/sro/domain/execution/progress.py#L18): Note
+
+Code: `K_BUDGET_MARGIN_S = 600`
+
+> What the workflow timeout adds to a run's budget: room for `finish` and
+> `release` with their retries after the workflow's own deadline.

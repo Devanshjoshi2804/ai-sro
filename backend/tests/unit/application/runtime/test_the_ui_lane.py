@@ -9,7 +9,7 @@ from sro.application.ports.page import PageAnswer, PageGone
 from sro.application.runtime.step import Stopped
 from sro.application.runtime.ui_lane import UiLane, same_call, ui_payload
 from sro.domain.execution.compose import Adding
-from sro.domain.execution.lanes import SeenCall
+from sro.domain.execution.lanes import Lane, SeenCall
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.observation.gesture import AfterState, Body, Call
 from tests.unit.runtime_support import (
@@ -33,7 +33,7 @@ async def test_a_write_the_page_confirms_is_done_with_no_model_and_no_sleep() ->
     step, by_id = save_step(status=201)
     written: list[int] = []
 
-    async def wrote() -> None:
+    async def wrote(lane: Lane) -> None:
         written.append(step.order)
 
     ctx = lane_context(by_id, about_to_write=wrote)

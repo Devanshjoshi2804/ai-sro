@@ -73,7 +73,7 @@ class ApiLane:
         if not _sendable(url, headers):
             return _unsent("the call cannot be built as recorded", "unsendable", path_shape(url))
         ctx.check_stop()
-        await ctx.about_to_write()
+        await ctx.about_to_write(self.lane)
         try:
             answered = await self._http.send(
                 method, url, headers=headers, body=body if isinstance(body, str) else None

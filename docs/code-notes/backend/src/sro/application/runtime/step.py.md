@@ -10,7 +10,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/step.
 > question and later call `SessionBroker.resume` on that tab. Unlike every
 > other `NeedsAPerson`, its tab must not be closed while the run waits.
 
-## `LaneContext`, [line 67](../../../../../../../backend/src/sro/application/runtime/step.py#L67): Note
+## `LaneContext`, [line 71](../../../../../../../backend/src/sro/application/runtime/step.py#L71): Note
 
 Code: `reauthed: bool = False`
 
@@ -20,8 +20,23 @@ Code: `reauthed: bool = False`
 > request log still holds the token from before the sign-in, and replaying
 > it would spend the only retry on a second refusal.
 
-## `ReadsBack`, [line 109](../../../../../../../backend/src/sro/application/runtime/step.py#L109): Note
+## `ReadsBack`, [line 113](../../../../../../../backend/src/sro/application/runtime/step.py#L113): Note
 
 > The API lane as the executor needs it: a lane that can also say whether
 > a read-back shows an `unknown` write's values, without sending the
 > write again.
+
+## `Superseded`, [line 50](../../../../../../../backend/src/sro/application/runtime/step.py#L50): Note
+
+Code: `class Superseded(Stopped):`
+
+> Another attempt holds the run (`progress` moved on since this one loaded
+> it). A `Stopped` so every lane lets it through untouched, but never
+> recorded as a stop and never barred from retry: the loser acts no further.
+
+## `LaneContext`, [line 70](../../../../../../../backend/src/sro/application/runtime/step.py#L70): Note
+
+Code: `about_to_write: Callable[[Lane], Awaitable[None]] = _nothing`
+
+> Each lane names itself as it marks a write, so the mark says which lane
+> sent it.

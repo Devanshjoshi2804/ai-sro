@@ -12,17 +12,20 @@ from typing import Any
 
 import pytest
 from temporalio import activity
-from temporalio.client import Client, WorkflowFailureError
+from temporalio.client import Client, WorkflowExecutionStatus, WorkflowFailureError
 from temporalio.worker import Worker
 
+from sro.application.context import RequestContext
 from sro.application.ports.locks import AccountBusy
 from sro.application.runtime.run_steps import Prepared, StepOutcome
 from sro.application.runtime.step import NeedsAPerson
+from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.infrastructure.temporal.activities import RunRef
+from sro.infrastructure.temporal.durable import TemporalDurableExecution
 from sro.infrastructure.temporal.workflows import RunWorkflow
 
 ADDRESS = "localhost:7233"
-REF = RunRef(tenant_id="acme", principal_id="clerk", run_id="run_wf")
+REF = RunRef(tenant_id="acme", principal_id="clerk", run_id="run_wf", budget_s=600.0)
 
 
 @pytest.fixture
@@ -39,18 +42,29 @@ class Stubs:
     of `outcomes` (or runs it, when it is a callable) and every call is kept
     in `called` in the order it happened."""
 
-    def __init__(self, *outcomes: StepOutcome | Callable[[], Any]) -> None:
+    def __init__(
+        self,
+        *outcomes: StepOutcome | Callable[[], Any],
+        prepared: Prepared = Prepared(browser=True),
+        acquire: Callable[[], Any] | None = None,
+    ) -> None:
         self.outcomes = list(outcomes)
         self.called: list[str] = []
+        self.prepared = prepared
+        self.acquiring = acquire
 
     @activity.defn(name="run.prepare")
     async def prepare(self, ref: RunRef) -> Prepared:
         self.called.append("prepare")
-        return Prepared(browser=True)
+        return self.prepared
 
     @activity.defn(name="run.acquire")
-    async def acquire(self, ref: RunRef) -> None:
+    async def acquire(self, ref: RunRef) -> str:
         self.called.append("acquire")
+        if self.acquiring is None:
+            return ""
+        asked: str = await self.acquiring()
+        return asked
 
     @activity.defn(name="run.step")
     async def step(self, ref: RunRef) -> StepOutcome:
@@ -159,3 +173,78 @@ async def test_a_cancelled_run_waits_for_its_step_then_finishes_and_releases(
 
     assert wound_down.is_set()
     assert stubs.called == ["prepare", "acquire", "step", "finish", "release"]
+
+
+async def _until_cancelled() -> StepOutcome:
+    while True:
+        activity.heartbeat()
+        await asyncio.sleep(0.1)
+
+
+async def test_a_run_past_its_budget_still_finishes_and_releases(client: Client) -> None:
+    stubs = Stubs(_until_cancelled)
+    short = RunRef(tenant_id="acme", principal_id="clerk", run_id="run_short", budget_s=2.0)
+
+    async with _worker(client, stubs) as queue:
+        with pytest.raises(WorkflowFailureError):
+            await client.execute_workflow(
+                RunWorkflow.run, short, id=f"workflow-run-{uuid.uuid4().hex}", task_queue=queue
+            )
+
+    assert stubs.called == ["prepare", "acquire", "step", "finish", "release"]
+
+
+async def test_a_question_at_prepare_or_acquire_runs_no_step(client: Client) -> None:
+    asked_early = Stubs(prepared=Prepared(browser=True, asking="q-prepare"))
+    await _run(client, asked_early)
+
+    async def asks() -> str:
+        return "q-acquire"
+
+    asked_at_acquire = Stubs(acquire=asks)
+    await _run(client, asked_at_acquire)
+
+    assert asked_early.called == ["prepare", "finish", "release"]
+    assert asked_at_acquire.called == ["prepare", "acquire", "finish", "release"]
+
+
+async def test_a_stop_during_acquire_waits_for_it_before_releasing(client: Client) -> None:
+    started = asyncio.Event()
+
+    async def signs_in() -> str:
+        started.set()
+        try:
+            while True:
+                activity.heartbeat()
+                await asyncio.sleep(0.1)
+        except asyncio.CancelledError:
+            stubs.called.append("acquired")
+            raise
+
+    stubs = Stubs(acquire=signs_in)
+    async with _worker(client, stubs) as queue:
+        handle = await client.start_workflow(
+            RunWorkflow.run, REF, id=f"workflow-run-{uuid.uuid4().hex}", task_queue=queue
+        )
+        await started.wait()
+        await handle.cancel()
+        with pytest.raises(WorkflowFailureError):
+            await handle.result()
+
+    assert stubs.called == ["prepare", "acquire", "acquired", "finish", "release"]
+
+
+async def test_a_finished_run_is_never_started_again(client: Client) -> None:
+    durable = TemporalDurableExecution(address=ADDRESS)
+    ctx = RequestContext(TenantId("acme"), PrincipalId("clerk"))
+    run_id = f"run_{uuid.uuid4().hex}"
+    await durable.start_run(ctx, run_id=run_id, budget_s=600.0)
+    handle = client.get_workflow_handle(f"workflow-run-{run_id}")
+    first = (await handle.describe()).run_id
+    await handle.terminate("the test is done with it")
+
+    await durable.start_run(ctx, run_id=run_id, budget_s=600.0)
+
+    described = await handle.describe()
+    assert described.run_id == first
+    assert described.status is WorkflowExecutionStatus.TERMINATED

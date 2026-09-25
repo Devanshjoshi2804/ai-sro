@@ -637,6 +637,33 @@ class TestProgressWrittenOnlyByRecordProgress:
 
         assert back is not None and back.progress == {"step": 0, "lease": "lse_1"}
 
+    async def test_record_progress_writes_only_over_the_progress_it_was_given(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A compare-and-set: of two attempts that loaded the same progress,
+        the second to write finds it changed and writes nothing."""
+        loaded = {"step": 0, "marks": {"0": {"lane": "", "verdict": "", "wrote": ""}}}
+        run = _run(executor="steel", device_id="", progress=loaded)
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+
+        outcomes = []
+        for lane in ("ui", "sight"):
+            sending = {"step": 0, "marks": {"0": {"lane": lane, "wrote": "sending"}}}
+            async with SqlUnitOfWork(session_factory) as uow:
+                outcomes.append(
+                    await uow.workflow_runs.record_progress(TENANT, run.id, sending, was=loaded)
+                )
+                await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            back = await uow.workflow_runs.get(TENANT, run.id)
+        assert outcomes == [True, False]
+        assert back is not None and back.progress["marks"] == {
+            "0": {"lane": "ui", "wrote": "sending"}
+        }
+
     async def test_record_progress_returns_false_for_an_unknown_run(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:

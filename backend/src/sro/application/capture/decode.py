@@ -5,7 +5,6 @@ from typing import Any
 
 from pydantic import TypeAdapter
 
-from sro.domain.recording.axgraph import AxGraph
 from sro.domain.recording.element import Bounds, ComponentIdentity, ElementFingerprint
 from sro.domain.recording.events import ActionKind, InputAction
 from sro.domain.recording.network import (
@@ -24,21 +23,6 @@ from sro.domain.recording.state import (
 )
 
 CdpPayload = dict[str, Any]
-
-_AX_STATE_PROPERTIES = frozenset(
-    {
-        "disabled",
-        "checked",
-        "expanded",
-        "selected",
-        "focused",
-        "required",
-        "invalid",
-        "busy",
-        "readonly",
-        "pressed",
-    }
-)
 
 _CONSOLE_LEVELS = {
     "log": ConsoleLevel.LOG,
@@ -160,67 +144,6 @@ def to_cookies(raw: list[CdpPayload] | None) -> tuple[Cookie, ...]:
             )
         )
     return tuple(cookies)
-
-
-def to_ax_graph(
-    payload: CdpPayload, *, url: str, taken_at: datetime, frame_url: str | None = None
-) -> AxGraph:
-    nodes: list[ElementFingerprint] = []
-    root_id: str | None = None
-
-    for raw in payload.get("nodes", []):
-        node_id = str(raw.get("nodeId")) if raw.get("nodeId") is not None else None
-        parent_id = str(raw["parentId"]) if raw.get("parentId") is not None else None
-        if parent_id is None and root_id is None and node_id is not None:
-            root_id = node_id
-
-        properties = {
-            str(p.get("name")): p.get("value", {}).get("value")
-            for p in raw.get("properties", [])
-            if isinstance(p, dict)
-        }
-        states = frozenset(
-            name
-            for name, value in properties.items()
-            if name in _AX_STATE_PROPERTIES and value not in (False, "false", None)
-        )
-
-        role = _ax_value(raw.get("role"))
-        name = _ax_value(raw.get("name"))
-        description = _ax_value(raw.get("description"))
-        value = _ax_value(raw.get("value"))
-
-        if not any((role, name, description, value, node_id)):
-            continue
-
-        nodes.append(
-            ElementFingerprint(
-                node_id=node_id,
-                parent_id=parent_id,
-                child_ids=tuple(str(child) for child in raw.get("childIds", [])),
-                role=role,
-                accessible_name=name,
-                description=description,
-                value=value,
-                states=states,
-                attributes={
-                    key: str(val)
-                    for key, val in properties.items()
-                    if key not in _AX_STATE_PROPERTIES and val is not None
-                },
-            )
-        )
-
-    return AxGraph(
-        taken_at=taken_at, url=url, frame_url=frame_url, nodes=tuple(nodes), root_id=root_id
-    )
-
-
-def _ax_value(raw: CdpPayload | None) -> str | None:
-    if not raw:
-        return None
-    value = raw.get("value")
-    return str(value) if value not in (None, "") else None
 
 
 def to_console_message(payload: CdpPayload, *, at: datetime) -> ConsoleMessage:

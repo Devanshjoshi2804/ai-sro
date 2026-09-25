@@ -1018,13 +1018,16 @@ Code: `const held = f.el && !isSecretField(f.el) && typeof f.el.value === "strin
 ## `fitted`, [line 197](../../../../../new-chrome-extension/src/page/page-code.js#L197): Function
 
 > Trims an outline to `OUTLINE_CHARS`, deterministically and in this order:
-> option lists from the last field back, then whole fields from the end,
-> then buttons, landmarks, messages, and headings last. Option lists go
+> option lists from the last field back, then whole headings, landmarks,
+> messages and buttons from the end, then fields last. Option lists go
 > first because they are the bulk and the least of what a run needs: the
 > field is found by its label, and its choices can be read off the live page.
-> The size is kept as a running total (each removal subtracts its own
-> serialized length) rather than re-serializing the outline per step. An
-> outline is never refused for size, so it never costs its gesture.
+> Fields go last, and headings first among the rest, because a field is what
+> a run fills by label (X10): a field missing from the outline reads as a
+> field that does not exist, while a dropped heading or landmark only costs
+> orientation. The size is kept as a running total (each removal subtracts
+> its own serialized length) rather than re-serializing the outline per
+> step. An outline is never refused for size, so it never costs its gesture.
 
 ## `outlineOf`, [line 212](../../../../../new-chrome-extension/src/page/page-code.js#L212): Function
 

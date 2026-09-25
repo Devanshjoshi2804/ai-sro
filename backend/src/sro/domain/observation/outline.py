@@ -76,7 +76,7 @@ def _fitted(outline: dict[str, object]) -> dict[str, object]:
         if isinstance(field, dict) and field["options"] is not None:
             size -= _size(field["options"]) - _size(None)
             field["options"] = None
-    for key in ("fields", "buttons", "landmarks", "messages", "headings"):
+    for key in ("headings", "landmarks", "messages", "buttons", "fields"):
         items = outline[key]
         while isinstance(items, list) and items and size > K_OUTLINE_CHARS:
             size -= _size(items.pop()) + (1 if items else 0)

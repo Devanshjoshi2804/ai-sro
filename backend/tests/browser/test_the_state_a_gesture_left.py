@@ -164,3 +164,15 @@ def test_a_gesture_the_worker_dropped_lends_nothing_to_the_next(page: Any) -> No
     went = _go(page)
 
     assert (went["prior"], went["prior_of"]) == (None, None)
+
+
+def test_a_gesture_refused_for_size_lends_nothing_to_the_next(page: Any) -> None:
+    # `observe.js` refuses an oversized gesture before it can be parsed, so it
+    # has no ref to name; it dispatches `sro:dropped` with `detail: null`,
+    # which must still mean "forget the gesture just recorded" (N2).
+    page.click("#agree")
+    page.evaluate("window.dispatchEvent(new CustomEvent('sro:dropped', {detail: null}))")
+
+    went = _go(page)
+
+    assert (went["prior"], went["prior_of"]) == (None, None)

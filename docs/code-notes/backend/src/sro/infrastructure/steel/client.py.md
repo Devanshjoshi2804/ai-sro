@@ -74,7 +74,7 @@ Code: `K_CONTEXT_PAGE_TIMEOUT_S = 10`
 > Steel's REST shape is confined to this module. The application only knows
 > ``BrowserProvider``, so replacing Steel is an adapter change.
 
-## `_held_by`, [line 431](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L431): Docstring
+## `_held_by`, [line 429](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L429): Docstring
 
 > Which sessions are holding the only browser, and since when.
 >
@@ -83,7 +83,7 @@ Code: `K_CONTEXT_PAGE_TIMEOUT_S = 10`
 > needs the same three facts either way -- who has it, how long they have had
 > it, and that a stuck one outlives its own Chrome.
 
-## `_path_of`, [line 464](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L464): Docstring
+## `_path_of`, [line 462](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L462): Docstring
 
 > Path and query of a URL, or "/" when there is nothing useful.
 
@@ -119,7 +119,7 @@ Code: `K_CONTEXT_PAGE_TIMEOUT_S = 10`
 
 > Sessions Steel currently believes are using the browser.
 
-## `cdp_origin`, [line 443](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L443): Docstring
+## `cdp_origin`, [line 441](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L441): Docstring
 
 > The CDP endpoint with its host resolved to an address.
 >
@@ -235,28 +235,28 @@ Code: `K_CONTEXT_PAGE_TIMEOUT_S = 10`
 > theirs, is useless against this system, and has no business in a vault
 > keyed by it.
 
-## `SteelClient.live_sessions`, [line 388](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L388): Docstring
+## `SteelClient.live_sessions`, [line 386](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L386): Docstring
 
 > Every session Steel currently has a browser for.
 
-## `SteelClient.debugger_url`, [line 391](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L391): Docstring
+## `SteelClient.debugger_url`, [line 389](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L389): Docstring
 
 > A self-hosted Steel has one browser, so this is the same endpoint for
 > every session it reports. Asked per session anyway, because that is what
 > the port promises and what a pool would have to honour.
 
-## `SteelClient.frames`, [line 394](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L394): Docstring
+## `SteelClient.frames`, [line 392](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L392): Docstring
 
 > The session's screen off CDP, rather than Steel's own viewer page.
 
-## `SteelClient.live_view_url`, [line 398](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L398): Docstring
+## `SteelClient.live_view_url`, [line 396](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L396): Docstring
 
 > Ask Steel where the session can be driven.
 >
 > A released session still answers, but with a status that says it is over;
 > there is nothing to point an operator at, so that is ``None``.
 
-## `SteelClient._viewer`, [line 406](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L406): Docstring
+## `SteelClient._viewer`, [line 404](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L404): Docstring
 
 > Steel's bare session player rather than its own console.
 >
@@ -418,27 +418,22 @@ Code: `live_view_url=self._viewer(body),`
 > (0.0.0.0:3000). Only the path is usable from out here; the host
 > comes from configuration, which knows the published ports.
 
-## `cdp_origin`, [line 452](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L452): Comment
+## `cdp_origin`, [line 450](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L450): Comment
 
 Code: `return f"{found[0][4][0]!s}:{port}"`
 
 > `sockaddr[0]` for AF_INET is the dotted address. `str()` rather than
 > a cast because the annotation admits shapes this family never has.
 
-## `SteelClient.session_headers.observe`, [line 368](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L368): Comment
-
-Code: `if "/data/" not in str(request.get("url", "")):`
-
-> Data calls only: the document request carries no token, and
-> its Referer is whatever the operator came from.
-
-## `SteelClient.session_headers`, [line 380](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L380): Comment
+## `SteelClient.session_headers`, [line 378](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L378): Comment
 
 Code: `await page.wait_for_timeout(6000)`
 
-> The data calls follow the document, not the other way round.
+> The page's own calls follow the document, not the other way round. Any
+> call to the system's host counts, whatever its path: the old ``/data/``
+> filter kept only one product's API (S10 review M10).
 
-## `SteelClient.live_view_url`, [line 402](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L402): Comment
+## `SteelClient.live_view_url`, [line 400](../../../../../../../backend/src/sro/infrastructure/steel/client.py#L400): Comment
 
 Code: `if str(matched.get("status", "")).lower() in {"released", "failed", "idle"}:`
 

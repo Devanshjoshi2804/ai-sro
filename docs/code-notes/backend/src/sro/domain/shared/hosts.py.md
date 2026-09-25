@@ -112,7 +112,23 @@ Comments and docstrings moved out of [`backend/src/sro/domain/shared/hosts.py`](
 > is true, and that is how a lookalike host reaches a cookie -- or, here, past
 > an exclusion.
 
-## `headers_without_markers`, [line 87](../../../../../../../backend/src/sro/domain/shared/hosts.py#L87): Docstring
+## `belongs_to`, [line 87](../../../../../../../backend/src/sro/domain/shared/hosts.py#L87): Docstring
+
+> Whether ``cookie`` would be sent to ``url``, by the browser's rules (RFC
+> 6265 §5.4). The domain must match (``domain_matches``); a domain with no
+> leading dot is host-only (how Chrome and Playwright report a cookie set
+> without a ``Domain`` attribute), so it goes to that exact host and not to
+> its subdomains -- an IdP's or a sibling app's session at ``by.example``
+> never reaches ``wms.by.example``. A ``Secure`` cookie goes only over
+> https. ``Path`` matches by prefix on a ``/`` boundary: ``/admin`` covers
+> ``/admin/users`` and not ``/administrator``. A url without a scheme has no
+> host here and so carries nothing (S10 review I3).
+>
+> ``domain_matches`` itself keeps a dotless domain matching its subdomains:
+> its other callers (observation policy's include/exclude lists, watch
+> hosts) are configuration, where ``acme.com`` means the whole domain.
+
+## `headers_without_markers`, [line 102](../../../../../../../backend/src/sro/domain/shared/hosts.py#L102): Docstring
 
 > The headers that can still be sent: a value the boundary struck out is
 > not a credential the browser can use, it is the marker's own text. Beside

@@ -31,7 +31,7 @@ from sro.domain.execution.lanes import SeenCall
 from sro.domain.observation.gesture import AfterState
 from sro.domain.observation.trim import path_shape
 from sro.domain.recording.sensitivity import Sensitivity, classify_header
-from sro.domain.shared.hosts import origin_of
+from sro.domain.shared.hosts import belongs_to, origin_of
 from sro.domain.skill.signing_in import PageSignals, a_navigation
 from sro.infrastructure.steel.capture import addressed
 from sro.infrastructure.steel.client import cdp_origin, websocket_debugger_url
@@ -41,6 +41,8 @@ K_ACTION_TIMEOUT_S = 15
 K_CALL_BODY_CHARS = 4096
 K_CALL_TYPES = frozenset({"fetch", "xhr"})
 K_NO_DOCUMENT = frozenset({204, 205})
+K_REQUESTS_KEPT = 200
+K_TOKENS = frozenset({Sensitivity.AUTH, Sensitivity.CSRF})
 
 _SIGNALS = "() => globalThis.sroPage.signals()"
 
@@ -51,6 +53,8 @@ _SEED_STORAGE = """(items) => {
 }"""
 
 T = TypeVar("T")
+
+type _Key = tuple[str, str]
 
 
 @dataclass
@@ -105,8 +109,9 @@ class SteelDriver:
         self._listeners: dict[tuple[str, str], list[tuple[str, Callable[..., Any]]]] = {}
         self._calls: dict[Page, _Calls] = {}
         self._tabs: dict[Page, _Tab] = {}
-        self._requests: dict[str, deque[tuple[str, dict[str, str]]]] = {}
-        self._seen: dict[str, asyncio.Event] = {}
+        self._requests: dict[_Key, deque[tuple[int, str, dict[str, str]]]] = {}
+        self._seen: dict[_Key, asyncio.Event] = {}
+        self._reading: set[asyncio.Task[None]] = set()
         self._seq = itertools.count(1)
 
     async def _lock_for(self, cdp_url: str) -> asyncio.Lock:
@@ -143,6 +148,7 @@ class SteelDriver:
                         await stale.browser.close()
             context = browser.contexts[0]
             already = list(context.pages)
+            browser.on("disconnected", lambda _: self._wake_all(cdp_url))
             context.on("page", lambda page: self._arrived(link, page, whole=True))
             for page in already:
                 await self._arrived(link, page, whole=False)
@@ -162,6 +168,7 @@ class SteelDriver:
 
         tab = self._tabs[page] = _Tab([] if whole else None, owner=owner)
         tab.settled.set()
+        key = (link.cdp_url, owner)
 
         def gone(_: Page) -> None:
             link.pages.pop(target_id, None)
@@ -169,6 +176,7 @@ class SteelDriver:
             self._tabs.pop(page, None)
             tab.pending.clear()
             tab.settled.set()
+            self._wake(key)
 
         page.once("close", gone)
         link.owners[target_id] = owner
@@ -204,6 +212,7 @@ class SteelDriver:
             tab.settle()
 
         page.on("request", started)
+        page.on("request", lambda request: self._saw(key, request))
         page.on("requestfailed", failed)
         page.on("response", navigated)
         page.on("domcontentloaded", loaded)
@@ -365,7 +374,11 @@ class SteelDriver:
         return PageSignals(a_navigation(page.url), visited, password, frozenset(autocomplete))
 
     async def on(self, session: SessionRef, event: str, handler: Callable[..., Any]) -> None:
-        link = await self._context(session)
+        self._listen(await self._context(session), session, event, handler)
+
+    def _listen(
+        self, link: _Link, session: SessionRef, event: str, handler: Callable[..., Any]
+    ) -> None:
         key = (session.cdp_url, session.context_id)
         self._listeners.setdefault(key, []).append((event, handler))
         for target_id, page in list(link.pages.items()):
@@ -396,18 +409,34 @@ class SteelDriver:
             return
         self._log(page).numbered[request] = _Sent(next(self._seq), own_frame, body, content_type)
 
-    def _saw(self, request: Request) -> None:
+    def _wake(self, key: _Key) -> None:
+        seen = self._seen.get(key)
+        if seen is not None:
+            seen.set()
+
+    def _wake_all(self, cdp_url: str) -> None:
+        for key in [key for key in self._seen if key[0] == cdp_url]:
+            self._wake(key)
+
+    def _saw(self, key: _Key, request: Request) -> None:
+        reading = asyncio.get_running_loop().create_task(self._keep(key, next(self._seq), request))
+        self._reading.add(reading)
+        reading.add_done_callback(self._reading.discard)
+
+    async def _keep(self, key: _Key, at: int, request: Request) -> None:
         try:
-            page = request.frame.page
-            headers = dict(request.headers)
+            headers = await request.all_headers()
         except PlaywrightError:
             return
-        tab = self._tabs.get(page)
-        if tab is None or not tab.owner:
-            return
-        queue = self._requests.setdefault(tab.owner, deque(maxlen=200))
-        queue.append((origin_of(request.url), headers))
-        self._seen.setdefault(tab.owner, asyncio.Event()).set()
+        kept = {
+            name.lower(): value
+            for name, value in headers.items()
+            if name.lower() != "cookie" and classify_header(name) in K_TOKENS
+        }
+        if kept:
+            log = self._requests.setdefault(key, deque(maxlen=K_REQUESTS_KEPT))
+            log.append((at, origin_of(request.url), kept))
+            self._wake(key)
 
     def _heard(self, response: Response) -> None:
         request = response.request
@@ -501,8 +530,9 @@ class SteelDriver:
         if ("request", self._sent) not in self._listeners.get(
             (session.cdp_url, session.context_id), []
         ):
-            await self.on(session, "request", self._sent)
-            await self.on(session, "response", self._heard)
+            link = self._links[session.cdp_url]
+            self._listen(link, session, "request", self._sent)
+            self._listen(link, session, "response", self._heard)
         self._log(page)
         return next(self._seq)
 
@@ -599,54 +629,39 @@ class SteelDriver:
         )
 
     async def headers_for(
-        self, session: SessionRef, origin: str, deadline_s: float
+        self, session: SessionRef, origin: str, deadline_s: float, *, since: int = 0
     ) -> dict[str, str]:
         await self._context(session)
-        if ("request", self._saw) not in self._listeners.get(
-            (session.cdp_url, session.context_id), []
-        ):
-            await self.on(session, "request", self._saw)
-        loop = asyncio.get_running_loop()
+        key = (session.cdp_url, session.context_id)
         wanted = origin_of(origin)
-        ends = loop.time() + deadline_s
-        while True:
-            for seen_origin, headers in reversed(self._requests.get(session.context_id) or ()):
-                if seen_origin != wanted:
-                    continue
-                kept = {
-                    name.lower(): value
-                    for name, value in headers.items()
-                    if classify_header(name) in (Sensitivity.AUTH, Sensitivity.CSRF)
-                    and name.lower() != "cookie"
-                }
-                if kept:
-                    return kept
-            left = ends - loop.time()
-            if left <= 0:
-                return {}
-            seen = self._seen.setdefault(session.context_id, asyncio.Event())
-            seen.clear()
-            try:
-                await asyncio.wait_for(seen.wait(), timeout=left)
-            except TimeoutError:
-                return {}
+        seen = self._seen.setdefault(key, asyncio.Event())
+        try:
+            async with asyncio.timeout(deadline_s):
+                while True:
+                    seen.clear()
+                    found = [
+                        (at, kept)
+                        for at, where, kept in self._requests.get(key, ())
+                        if at > since and where == wanted
+                    ]
+                    if found:
+                        return max(found, key=lambda one: one[0])[1]
+                    await seen.wait()
+                    await self._context(session)
+        except TimeoutError:
+            await self._context(session)
+            return {}
 
-    async def cookies_for(self, session: SessionRef, origin: str) -> str:
+    async def cookies_for(self, session: SessionRef, url: str) -> str:
         link = await self._context(session)
         found = await self._send(
             link, "Storage.getCookies", {"browserContextId": session.context_id}
         )
-        parsed = urlsplit(origin)
-        if not parsed.netloc:
-            parsed = urlsplit(f"//{origin}")
-        host = parsed.hostname or origin
-        matched = [
-            cookie
+        return "; ".join(
+            f"{cookie['name']}={cookie['value']}"
             for cookie in found["cookies"]
-            if host == str(cookie.get("domain", "")).lstrip(".")
-            or host.endswith("." + str(cookie.get("domain", "")).lstrip("."))
-        ]
-        return "; ".join(f"{cookie['name']}={cookie['value']}" for cookie in matched)
+            if belongs_to(cookie, url)
+        )
 
     async def restore_state(self, session: SessionRef, state: str) -> None:
         saved = json.loads(state)
@@ -683,6 +698,10 @@ class SteelDriver:
 
     async def forget(self, session: SessionRef) -> None:
         key = (session.cdp_url, session.context_id)
+        self._requests.pop(key, None)
+        seen = self._seen.pop(key, None)
+        if seen is not None:
+            seen.set()
         handlers = self._listeners.pop(key, [])
         link = self._links.get(session.cdp_url)
         if link is None or not handlers:

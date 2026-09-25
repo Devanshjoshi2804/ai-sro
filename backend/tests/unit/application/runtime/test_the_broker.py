@@ -280,6 +280,29 @@ async def test_the_api_lane_is_handed_the_session_s_cookie_and_token() -> None:
     assert said == {"cookie": "sid=abc", "x-csrf-token": "t1"}
 
 
+async def test_a_fresh_token_is_one_the_page_sent_after_the_reload() -> None:
+    uow, driver, vault = FakeUnitOfWork(), FakePageDriver(), FakeCredentialVault()
+    driver.headers = {"x-csrf-token": "t2"}
+    broker = _broker(uow, driver, vault)
+    held = await broker.acquire(CTX, LENA, APP, holder="run_1")
+    mark = driver.mark
+
+    async def marking(session: SessionRef, target_id: str) -> int:
+        at = await mark(session, target_id)
+        driver.calls.append(("mark", at))
+        return at
+
+    driver.mark = marking  # type: ignore[method-assign]
+    driver.calls.clear()
+
+    await broker.headers(CTX, held, "https://wms.example/app", fresh=True)
+
+    names = [call[0] for call in driver.calls]
+    assert names.index("mark") < names.index("goto") < names.index("headers_for")
+    at = driver.calls[names.index("mark")][1]
+    assert driver.calls[names.index("headers_for")][-1] == at
+
+
 async def test_the_lease_names_the_steel_session_and_the_context_apart() -> None:
     uow, driver, vault = FakeUnitOfWork(), FakePageDriver(), FakeCredentialVault()
     pool = FakeBrowserPool({STEEL: 5})

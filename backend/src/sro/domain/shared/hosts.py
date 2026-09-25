@@ -84,5 +84,20 @@ def domain_matches(host: str, domain: str) -> bool:
     return host == domain or host.endswith(f".{domain}")
 
 
+def belongs_to(cookie: Mapping[str, object], url: str) -> bool:
+    parts = urlsplit(url)
+    host, domain = parts.hostname or "", str(cookie.get("domain", ""))
+    if not domain_matches(host, domain):
+        return False
+    if not domain.startswith(".") and host.rstrip(".") != domain.lower().rstrip("."):
+        return False
+    if cookie.get("secure") and parts.scheme.lower() != "https":
+        return False
+    path, under = parts.path or "/", str(cookie.get("path") or "/")
+    return path == under or (
+        path.startswith(under) and (under.endswith("/") or path[len(under)] == "/")
+    )
+
+
 def headers_without_markers(headers: Mapping[str, str]) -> dict[str, str]:
     return {name: value for name, value in headers.items() if REDACTED not in value}

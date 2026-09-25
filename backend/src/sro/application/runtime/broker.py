@@ -98,16 +98,18 @@ class SessionBroker:
         return kept
 
     async def headers(
-        self, ctx: RequestContext, held: Held, origin: str, *, fresh: bool = False
+        self, ctx: RequestContext, held: Held, url: str, *, fresh: bool = False
     ) -> dict[str, str]:
+        since = 0
         if fresh:
+            since = await self._driver.mark(held.session, held.target_id)
             await self._driver.goto(
                 held.session,
                 held.target_id,
                 await self._driver.url_of(held.session, held.target_id),
             )
-        said = await self._driver.headers_for(held.session, origin, K_HEADERS_WAIT_S)
-        cookie = await self._driver.cookies_for(held.session, origin)
+        said = await self._driver.headers_for(held.session, url, K_HEADERS_WAIT_S, since=since)
+        cookie = await self._driver.cookies_for(held.session, url)
         return {"cookie": cookie, **said} if cookie else said
 
     async def _attach(

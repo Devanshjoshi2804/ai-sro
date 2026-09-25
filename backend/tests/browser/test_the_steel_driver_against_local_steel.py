@@ -224,24 +224,27 @@ async def test_a_s_csrf_token_and_cookie_are_never_b_s(
     driver: SteelDriver,  # noqa: F811
 ) -> None:
     _, _, a, b = accounts
-    app_origin = origin_of(steel_rig.url("/app"))
+    app_url = steel_rig.url("/app")
+    said: dict[str, dict[str, str]] = {}
+    cookie: dict[str, str] = {}
+    for who in (a, b):
+        tab = await driver.open_tab(who, steel_rig.url("/"))
+        await steel_rig.sign_in_in(driver, who, tab)
+        since = await driver.mark(who, tab)
+        await driver.evaluate(who, tab, "document.getElementById('save').click()")
+        assert await driver.wait_for_call(
+            who, tab, method="POST", shape="/api/customer-types", since=since, deadline_s=10.0
+        )
 
-    theirs = await driver.open_tab(b, steel_rig.url("/"))
-    await steel_rig.sign_in_in(driver, b, theirs)
-    await driver.headers_for(b, app_origin, 0.1)  # registers the request listener
-    await driver.evaluate(b, theirs, "document.getElementById('save').click()")
-    said_b = await driver.headers_for(b, app_origin, 10.0)
-    cookie_b = await driver.cookies_for(b, app_origin)
+    for name, who in (("a", a), ("b", b)):
+        said[name] = await driver.headers_for(who, origin_of(app_url), 10.0)
+        cookie[name] = await driver.cookies_for(who, app_url)
 
-    said_a = await driver.headers_for(a, app_origin, 1.0)
-    cookie_a = await driver.cookies_for(a, app_origin)
-
-    assert set(said_b) == {"x-csrf-token"}
-    assert said_b["x-csrf-token"]
-    assert cookie_b.startswith("sid=")
-    assert said_a == {}
-    assert cookie_a == ""
-    assert cookie_a != cookie_b
+    assert set(said["a"]) == set(said["b"]) == {"x-csrf-token"}
+    assert said["a"]["x-csrf-token"] != said["b"]["x-csrf-token"]
+    assert cookie["a"].startswith("sid=")
+    assert cookie["b"].startswith("sid=")
+    assert cookie["a"] != cookie["b"]
 
 
 async def test_a_tab_s_calls_are_forgotten_body_and_all(

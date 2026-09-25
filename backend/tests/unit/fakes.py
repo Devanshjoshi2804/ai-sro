@@ -1532,15 +1532,15 @@ class FakePageDriver:
         return self.tabs[target_id]
 
     async def headers_for(
-        self, session: SessionRef, origin: str, deadline_s: float
+        self, session: SessionRef, origin: str, deadline_s: float, *, since: int = 0
     ) -> dict[str, str]:
         self._live(session)
-        self.calls.append(("headers_for", session.context_id, origin))
+        self.calls.append(("headers_for", session.context_id, origin, since))
         return dict(self.headers)
 
-    async def cookies_for(self, session: SessionRef, origin: str) -> str:
+    async def cookies_for(self, session: SessionRef, url: str) -> str:
         self._live(session)
-        self.calls.append(("cookies_for", session.context_id, origin))
+        self.calls.append(("cookies_for", session.context_id, url))
         return self.cookie
 
     async def storage_state(self, session: SessionRef) -> str:

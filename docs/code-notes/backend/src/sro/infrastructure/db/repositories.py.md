@@ -101,12 +101,12 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/db/reposit
 > says so; it used to be `InvariantViolation`, which reads as a caller's own
 > mistake and answers 422, when the honest answer is "try again", 409.
 
-## `SqlToolCallRepository`, [line 998](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L998): Docstring
+## `SqlToolCallRepository`, [line 1010](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1010): Docstring
 
 > The claim is the insert. Two writers racing for one key both try it, the
 > primary key refuses one of them, and that refusal is the answer.
 
-## `SqlUnitOfWork`, [line 1091](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1091): Docstring
+## `SqlUnitOfWork`, [line 1103](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1103): Docstring
 
 > One session per block. The session opens on entry, not on construction,
 > so a unit of work can be built once and used per request.
@@ -130,7 +130,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/db/reposit
 > commits, as it did before; an exception inside a nested block rolls the
 > whole thing back at the outermost exit rather than half of it.
 
-## `SqlToolCallRepository.forget`, [line 1030](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1030): Docstring
+## `SqlToolCallRepository.forget`, [line 1042](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1042): Docstring
 
 > Delete the claim. Tenant-scoped, unlike the session sweep next door:
 > this is somebody's run giving back its own key, not crash recovery.
@@ -234,7 +234,7 @@ Code: `await self._session.flush()`
 > browser to somebody, and "who owns this" has to be settled before
 > they get it, not after the request has already done its work.
 
-## `SqlDeviceRepository.add`, [line 734](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L734): Comment
+## `SqlDeviceRepository.add`, [line 746](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L746): Comment
 
 Code: `await self._session.flush()`
 
@@ -243,7 +243,7 @@ Code: `await self._session.flush()`
 > let the second one 500 instead of finding the first via
 > `registered_as` the way RegisterDevice's own idempotency assumes.
 
-## `SqlDeviceRepository.since`, [line 766](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L766): Comment
+## `SqlDeviceRepository.since`, [line 778](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L778): Comment
 
 Code: `at = when(since)`
 
@@ -256,7 +256,7 @@ Code: `at = when(since)`
 > tenant's browsers by id. That is a leak rather than a rule, and it
 > does not travel.
 
-## `SqlDeviceRepository.since`, [line 773](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L773): Comment
+## `SqlDeviceRepository.since`, [line 785](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L785): Comment
 
 Code: `.order_by(AgentDeviceRow.registered_at.desc(), AgentDeviceRow.id.desc())`
 
@@ -269,7 +269,7 @@ Code: `.order_by(AgentDeviceRow.registered_at.desc(), AgentDeviceRow.id.desc())`
 > them two ways and a reader diffing the two saw a change nobody
 > made.
 
-## `SqlDeviceRepository.revoke`, [line 779](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L779): Comment
+## `SqlDeviceRepository.revoke`, [line 791](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L791): Comment
 
 Code: `row = await self._row(tenant_id, device_id, lock=True)`
 
@@ -285,7 +285,7 @@ Code: `row = await self._row(tenant_id, device_id, lock=True)`
 > and the second overwrites the instant the first recorded -- which is
 > precisely what this promises cannot happen.
 
-## `SqlDeviceRepository.revoke`, [line 781](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L781): Comment
+## `SqlDeviceRepository.revoke`, [line 793](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L793): Comment
 
 Code: `return False`
 
@@ -293,7 +293,7 @@ Code: `return False`
 > instant the authority ended -- that instant is what an audit of
 > what this browser was allowed to do is read against.
 
-## `SqlDeviceRepository.revoke`, [line 782](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L782): Comment
+## `SqlDeviceRepository.revoke`, [line 794](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L794): Comment
 
 Code: `row.revoked_at = when(at)`
 
@@ -301,7 +301,7 @@ Code: `row.revoked_at = when(at)`
 > local instant beside the aware ones reads as a revocation hours before
 > the browser registered.
 
-## `SqlDeviceRepository.restore`, [line 786](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L786): Comment
+## `SqlDeviceRepository.restore`, [line 798](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L798): Comment
 
 Code: `row = await self._row(tenant_id, device_id, lock=True)`
 
@@ -315,14 +315,14 @@ Code: `row = await self._row(tenant_id, device_id, lock=True)`
 > revoking never blanked it, and the extension is still holding the one
 > it was minted with.
 
-## `SqlDeviceRepository._row`, [line 800](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L800): Comment
+## `SqlDeviceRepository._row`, [line 812](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L812): Comment
 
 Code: `query = query.with_for_update()`
 
 > FOR UPDATE, and only where a caller is about to write what it
 > read. Every other read here is a read.
 
-## `SqlObservationRepository.add`, [line 814](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L814): Comment
+## `SqlObservationRepository.add`, [line 826](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L826): Comment
 
 Code: `await self._session.flush()`
 
@@ -330,14 +330,14 @@ Code: `await self._session.flush()`
 > whether this upload is a retry has to be settled before the
 > response says how many events were kept.
 
-## `SqlObservationRepository.between`, [line 835](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L835): Comment
+## `SqlObservationRepository.between`, [line 847](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L847): Comment
 
 Code: `query = select(ObservationBatchRow).where(`
 
 > Overlap, not containment: a batch that began before the window and
 > ended inside it holds events the window asked for.
 
-## `SqlCandidateRepository.add`, [line 887](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L887): Comment
+## `SqlCandidateRepository.add`, [line 899](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L899): Comment
 
 Code: `await self._session.flush()`
 
@@ -346,14 +346,14 @@ Code: `await self._session.flush()`
 > collision fails on its own row rather than rolling back every
 > candidate the rest of that mining pass already found.
 
-## `SqlCandidateRepository.list_for_tenant`, [line 915](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L915): Comment
+## `SqlCandidateRepository.list_for_tenant`, [line 927](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L927): Comment
 
 Code: `query = query.where(TaskCandidateRow.host == host.lower())`
 
 > Stored lowercased by the segmenter, so the caller's spelling of a
 > hostname does not decide whether their own tasks come back.
 
-## `SqlToolCallRepository.remember`, [line 1011](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1011): Comment
+## `SqlToolCallRepository.remember`, [line 1023](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1023): Comment
 
 Code: `insert = pg_insert(ToolCallRow).values(`
 
@@ -367,7 +367,7 @@ Code: `insert = pg_insert(ToolCallRow).values(`
 > statement, because a read-then-decide here is the race this class
 > exists to lose.
 
-## `SqlToolCallRepository.remember`, [line 1026](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1026): Comment
+## `SqlToolCallRepository.remember`, [line 1038](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1038): Comment
 
 Code: `).returning(ToolCallRow.idempotency_key)`
 
@@ -375,14 +375,14 @@ Code: `).returning(ToolCallRow.idempotency_key)`
 > driver's, and asking the statement to return the key it wrote
 > answers the same question in one shape everywhere.
 
-## `SqlUnitOfWork.__aexit__`, [line 1131](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1131): Comment
+## `SqlUnitOfWork.__aexit__`, [line 1143](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1143): Comment
 
 Code: `await session.rollback()`
 
 > At every depth: an inner block that raised must not leave its
 > half-written rows for the outer block to commit.
 
-## `SqlUnitOfWork.commit`, [line 1143](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1143): Comment
+## `SqlUnitOfWork.commit`, [line 1155](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1155): Comment
 
 Code: `await self._require_session().rollback()`
 
@@ -392,7 +392,7 @@ Code: `await self._require_session().rollback()`
 > because it is one: the caller decides whether to redo the work
 > against what is there now or to leave it to whoever comes next.
 
-## `_job_live`, [line 1083](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1083): Note
+## `_job_live`, [line 1095](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1095): Note
 
 > A trigger on a retired job is never chosen: `find` (how a schedule fires)
 > and `list_for_tenant` (how watches and arrivals are picked) both leave it
@@ -400,3 +400,11 @@ Code: `await self._require_session().rollback()`
 > instead of firing into `NotFound` every period with nobody told (final
 > review M-4, 2026-09-24). `get` still returns it by id, so switching it
 > off or deleting it still works.
+
+## `SqlBrowserSessionRepository.pinned_container`, [line 708](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L708): Note
+
+> The container of the account's most recent lease in any state -- an
+> expired or broken lease still says where the account lives, which is what
+> keeps it pinned across leases. No index of its own: it runs once per new
+> lease; an index on `(tenant_id, account_key, opened_at)` is the upgrade if
+> lease rows pile up.

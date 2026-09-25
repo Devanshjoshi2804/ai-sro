@@ -10,8 +10,10 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/pool
 > the first pass picked the first container with room, which packs one
 > container to capacity before touching a second).
 >
-> This does not pin an account to the container it lands on. `Lease.
-> container_url` already carries that once a lease exists; reading it back
-> here, so a returning account keeps its container instead of being
-> re-balanced onto whichever one is least loaded that moment, is S7's job,
-> not this one's.
+> `pinned` keeps a returning account on the container its last lease was
+> on (the broker reads it from `browser_sessions`, S7): when that container
+> is still one of the tenant's, it is the only candidate, and a full one is
+> `PoolFull` rather than a silent move -- the account's cookies, and
+> whatever the system bound to where they came from, stay put. A pinned
+> URL that is no longer configured for the tenant (a container removed) is
+> ignored and the account is placed least-loaded like a new one.

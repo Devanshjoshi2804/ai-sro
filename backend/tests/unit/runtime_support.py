@@ -5,6 +5,11 @@
 `lane_context` build a `Step`, its cited
 `Gesture`s and a `LaneContext` without every lane test re-typing the same
 evidence by hand.
+
+`with_a_recorded_sign_in` stores a tagged sign-in job typed on an identity
+provider (`IDP` unless told otherwise) that lands on a system, and
+`SigningLane` stands in for the UI lane that replays it against a
+`FakePageDriver`.
 """
 
 from __future__ import annotations
@@ -16,9 +21,10 @@ from types import MappingProxyType
 
 from sro.application.execution.mail_job import Written
 from sro.application.ports.page import PageAnswer, SessionRef
+from sro.application.ports.repositories import UnitOfWork
 from sro.application.runtime.step import Held, LaneContext
 from sro.domain.execution.account import Account, Lease, LeaseState
-from sro.domain.execution.lanes import SeenCall
+from sro.domain.execution.lanes import Lane, SeenCall, StepResult
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.observation.gesture import (
     Action,
@@ -27,9 +33,12 @@ from sro.domain.observation.gesture import (
     Call,
     Component,
     Gesture,
+    PageMark,
     Target,
 )
+from sro.domain.shared.hosts import origin_of
 from sro.domain.shared.identifiers import PrincipalId, TenantId
+from sro.domain.skill.signing_in import sign_in_chain
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.fakes import FakePageDriver
 
@@ -241,3 +250,95 @@ async def _sent(sent: list[Written], mail: Written, msg_id: str) -> tuple[str, s
 
 async def _answer(msg_id: str, why: str) -> tuple[str, str]:
     return msg_id, why
+
+
+IDP = "https://login.idp.example"
+
+
+async def with_a_recorded_sign_in(
+    uow: UnitOfWork,
+    *,
+    lands_on: str,
+    username: str | None,
+    at: str = IDP,
+    tenant: str = "greyorange",
+) -> Workflow:
+    lands = origin_of(lands_on)
+
+    def did(name: str, when: float, system: str, action: Action) -> Gesture:
+        return Gesture(
+            id=f"ges_{name}",
+            tenant=tenant,
+            stream_id="stream-sign-in",
+            batch_id="batch-sign-in",
+            at=when,
+            url=f"{system}/login",
+            system=system,
+            tab_id=1,
+            frame_url=None,
+            action=action,
+        )
+
+    go = did(
+        "go", 3.0, at, Action(kind="click", at=3.0, target=Target(tag="button", css_path="#go"))
+    )
+    go.page_events.append(PageMark(at=3.5, page_kind="load", url=f"{lands}/app"))
+    gestures = (
+        did(
+            "user",
+            1.0,
+            at,
+            Action(
+                kind="type",
+                at=1.0,
+                value=username,
+                target=Target(tag="input", css_path="#username"),
+            ),
+        ),
+        did(
+            "pass",
+            2.0,
+            at,
+            Action(
+                kind="type", at=2.0, target=Target(tag="input", css_path="#password", secret=True)
+            ),
+        ),
+        go,
+        did("there", 4.0, lands, Action(kind="click", at=4.0)),
+    )
+    job = Workflow(
+        id="wfl_sign_in",
+        tenant=tenant,
+        title="Sign in",
+        narrative="n",
+        steps=[
+            Step(order=n, says=f"sign-in step {n}", system=at, cites=[f"ges_{one}"])
+            for n, one in enumerate(("user", "pass", "go"))
+        ],
+        signs_in=True,
+    )
+    await uow.workflows.save(job)
+    await uow.gestures.add_gestures(gestures)
+    return job
+
+
+class SigningLane:
+    """Replays a sign-in chain against a `FakePageDriver`: it records the step
+    orders it was given in `stepped` and the secret it was handed in
+    `secret_seen`, and the chain's last step signs the context in unless the
+    driver `refuses`."""
+
+    lane = Lane.UI
+
+    def __init__(self, driver: FakePageDriver) -> None:
+        self._driver = driver
+        self.stepped: list[int] = []
+        self.secret_seen: str | None = None
+
+    async def execute(self, step: Step, values: Mapping[str, str], ctx: LaneContext) -> StepResult:
+        self.stepped.append(step.order)
+        self.secret_seen = ctx.secret or self.secret_seen
+        last = sign_in_chain(ctx.workflow, ctx.by_id)[-1]
+        if step.order == last.order and ctx.held is not None and not self._driver.refuses:
+            self._driver.signed.add(ctx.held.session.context_id)
+        return StepResult("done", Lane.UI)

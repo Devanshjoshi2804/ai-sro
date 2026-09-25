@@ -1,5 +1,6 @@
 import asyncio
 import time
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -229,3 +230,21 @@ async def test_a_stray_sweep_never_closes_a_leased_steel_session(
     await repo.claim(T, BrowserSessionId("capture-1"), PrincipalId("op"), NOW)
 
     assert await repo.leased_sessions() == frozenset({"s-lse_a"})
+
+
+async def test_an_account_is_pinned_to_the_container_of_its_latest_lease_live_or_not(
+    session: AsyncSession,
+) -> None:
+    repo = SqlBrowserSessionRepository(session)
+    assert await repo.pinned_container(T, LENA) is None
+
+    await repo.lease(T, _lease("lse_a", "http://steel-2:3000"))
+    assert await repo.expire(T, "lse_a", now=NOW + K_LEASE_TTL)
+    assert await repo.pinned_container(T, LENA) == "http://steel-2:3000"
+
+    later = replace(_lease("lse_b", "http://steel-3:3000"), heartbeat_at=NOW + K_LEASE_TTL)
+    await repo.lease(T, later)
+    assert await repo.pinned_container(T, LENA) == "http://steel-3:3000"
+    omar = Account.of("greyorange", "https://wms.example", "omar")
+    assert await repo.pinned_container(T, omar) is None
+    assert await repo.pinned_container(TenantId("acme"), LENA) is None

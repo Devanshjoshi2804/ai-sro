@@ -1010,6 +1010,16 @@ class FakeBrowserSessionRepository:
             held for held in self.leases.values() if held.state in LIVE and held.expires_at <= now
         )
 
+    async def pinned_container(self, tenant_id: TenantId, account: Account) -> str | None:
+        return next(
+            (
+                held.container_url
+                for held in reversed(self.leases.values())
+                if held.account.tenant == str(tenant_id) and held.account.key == account.key
+            ),
+            None,
+        )
+
     async def busy_containers(self, tenant_id: TenantId, *, now: datetime) -> tuple[str, ...]:
         return tuple(
             held.container_url
@@ -1368,8 +1378,10 @@ class FakeBrowserPool:
     picks the least-loaded container of the given tenant (`by_tenant`, empty
     unless a test needs tenant isolation, falling back to every container)
     that `busy` (supplied by the caller) has not filled, and hands back a
-    fresh `context_id`; `dead` names context ids a test has killed, so
-    `alive` can answer without a real Steel container behind it."""
+    fresh `context_id`, on `pinned` alone when it is one of the tenant's;
+    `dead` names context ids a test has killed, so `alive` can answer without
+    a real Steel container behind it, and `closes_hang` makes `close` never
+    return, the way a sibling's hung page has held a real disposal."""
 
     def __init__(
         self,
@@ -1382,10 +1394,15 @@ class FakeBrowserPool:
         self.opened: list[tuple[str, str]] = []
         self.closed: list[tuple[str, str]] = []
         self.dead: set[str] = set()
+        self.closes_hang = False
         self._next = count(1)
 
-    async def open(self, tenant: str, busy: Mapping[str, int]) -> tuple[str, str]:
+    async def open(
+        self, tenant: str, busy: Mapping[str, int], *, pinned: str | None = None
+    ) -> tuple[str, str]:
         urls = self._by_tenant.get(tenant, tuple(self._containers))
+        if pinned is not None and pinned in urls:
+            urls = (pinned,)
         candidates = [
             (busy.get(url, 0), url) for url in urls if busy.get(url, 0) < self._containers[url]
         ]
@@ -1397,6 +1414,8 @@ class FakeBrowserPool:
         return url, context_id
 
     async def close(self, container_url: str, context_id: str) -> None:
+        if self.closes_hang:
+            await asyncio.Event().wait()
         self.closed.append((container_url, context_id))
 
     async def alive(self, container_url: str, context_id: str) -> bool:
@@ -1415,6 +1434,11 @@ class FakePageDriver:
     context a lease no longer holds would. `calls` logs every tab-lifecycle
     call as a tuple starting with the method name, for tests that check what
     was asked of the driver rather than only its answers.
+
+    `signals` answers `signals_for_every_tab`, except that with
+    `shows_sign_in_until_signed` a context not yet in `signed` answers a
+    password form: whoever drives the recorded sign-in adds the context to
+    `signed`, unless `refuses` says the system turns the password away.
 
     `act`/`wait_for`/`calls_since` answer exactly what a test scripted, for
     the runtime lanes that drive a page through it (`UiLane` first). The call
@@ -1447,7 +1471,10 @@ class FakePageDriver:
         self._log = [(next(self._seq), call) for call in before]
         self._holds = holds
         self._unsettled = unsettled
-        self._signals = PageSignals(url or "https://wms.example/app", password=sign_in)
+        self.signals_for_every_tab = PageSignals(url or "https://wms.example/app", password=sign_in)
+        self.shows_sign_in_until_signed = False
+        self.refuses = False
+        self.signed: set[str] = set()
         self.acted: list[tuple[SessionRef, str, dict[str, object]]] = []
         self.waited_for: list[dict[str, object]] = []
 
@@ -1543,7 +1570,9 @@ class FakePageDriver:
     async def signals(self, session: SessionRef, target_id: str) -> PageSignals:
         if self._unsettled:
             raise PageUnsettled(f"tab {target_id} did not settle")
-        return self._signals
+        if self.shows_sign_in_until_signed and session.context_id not in self.signed:
+            return PageSignals(self.tabs.get(target_id, ""), password=True)
+        return self.signals_for_every_tab
 
 
 class FakeAccountLocks:

@@ -128,6 +128,7 @@ from sro.application.recording.attach_artifact import AttachArtifact
 from sro.application.recording.finish_recording import FinishRecording
 from sro.application.recording.ingest_capture_events import IngestCaptureEvents
 from sro.application.recording.start_recording import StartRecording
+from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.tool_lane import ToolLane
 from sro.application.runtime.ui_lane import UiLane
 from sro.application.skill.describe_skill import DescribeSkill
@@ -246,6 +247,17 @@ class Container:
 
     def ui_lane(self) -> UiLane:
         return UiLane(self.driver)
+
+    def session_broker(self) -> SessionBroker:
+        return SessionBroker(
+            self.unit_of_work(),
+            self.pool,
+            self.driver,
+            self.locks,
+            self.vault,
+            self.clock,
+            ui=self.ui_lane(),
+        )
 
     def unit_of_work(self) -> UnitOfWork:
         return SqlUnitOfWork(self.session_factory)

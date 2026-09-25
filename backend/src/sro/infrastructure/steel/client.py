@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import socket
 from collections.abc import AsyncIterator
@@ -10,6 +11,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import httpx
+import websockets
 from playwright.async_api import Browser, BrowserContext, CDPSession, Page, async_playwright
 from playwright.async_api import Error as PlaywrightError
 
@@ -118,10 +120,25 @@ class SteelClient:
         )
 
     async def _new_context(self) -> str:
-        async with self._attached() as browser:
-            raw = await browser.new_browser_cdp_session()
-            made = await raw.send("Target.createBrowserContext", {"disposeOnDetach": False})
-            return str(made["browserContextId"])
+        made = await self._browser_call("Target.createBrowserContext", {"disposeOnDetach": False})
+        return str(made["browserContextId"])
+
+    async def _browser_call(self, method: str, params: dict[str, object]) -> dict[str, Any]:
+        try:
+            async with websockets.connect(
+                await self._websocket_debugger_url(), max_size=None
+            ) as link:
+                await link.send(json.dumps({"id": 1, "method": method, "params": params}))
+                async for raw in link:
+                    said = json.loads(raw)
+                    if said.get("id") != 1:
+                        continue
+                    if "error" in said:
+                        raise BrowserUnavailable(f"{method} failed: {said['error']}")
+                    return dict(said["result"])
+        except (websockets.WebSocketException, OSError) as why:
+            raise BrowserUnavailable(f"{method} failed: {why}") from why
+        raise BrowserUnavailable(f"{method}: the browser closed the connection")
 
     async def _require_browser(self, session_id: BrowserSessionId, status: str) -> None:
         for attempt in range(_LIVE_ATTEMPTS):
@@ -177,18 +194,16 @@ class SteelClient:
         if sid in self._contexts:
             if self._session_id is None or (await self._status(self._session_id)).lower() != "live":
                 return False
-            async with self._attached() as browser:
-                raw = await browser.new_browser_cdp_session()
-                contexts = (await raw.send("Target.getBrowserContexts"))["browserContextIds"]
+            contexts = (await self._browser_call("Target.getBrowserContexts", {}))[
+                "browserContextIds"
+            ]
             return sid in contexts
         return (await self._status(session_id)).lower() == "live"
 
     async def close(self, session_id: BrowserSessionId) -> None:
         sid = str(session_id)
         if sid in self._contexts:
-            async with self._attached() as browser:
-                raw = await browser.new_browser_cdp_session()
-                await raw.send("Target.disposeBrowserContext", {"browserContextId": sid})
+            await self._browser_call("Target.disposeBrowserContext", {"browserContextId": sid})
             self._contexts.discard(sid)
             return
 

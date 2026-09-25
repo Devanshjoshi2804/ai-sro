@@ -96,9 +96,11 @@ class Rig:
     only once the test sets `answer`, so a navigation can be caught in flight.
     `POST /api/ping` answers 201 from any page and sets `pinged`; with `?hold`
     it answers only once `release` is set, so a test can hold a request open
-    across a mark."""
+    across a mark. With `idp_elsewhere` the identity provider answers on a
+    second port -- a second origin, as a real one is -- and `logins` counts
+    the credentials posted to it."""
 
-    def __init__(self, *, for_steel: bool = False) -> None:
+    def __init__(self, *, for_steel: bool = False, idp_elsewhere: bool = False) -> None:
         self._for_steel = for_steel
         self._sessions: dict[str, str] = {}
         self._codes: dict[str, tuple[str, str]] = {}
@@ -108,18 +110,27 @@ class Rig:
         self.answer = threading.Event()
         self.pinged = threading.Event()
         self.release = threading.Event()
+        self.logins = 0
         host = "0.0.0.0" if for_steel else "127.0.0.1"  # noqa: S104
-        self._port = _free_port()
-        self._server = ThreadingHTTPServer((host, self._port), _handler_for(self))
-        threading.Thread(target=self._server.serve_forever, daemon=True).start()
+        self._servers = [ThreadingHTTPServer((host, 0), _handler_for(self))]
+        if idp_elsewhere:
+            self._servers.append(ThreadingHTTPServer((host, 0), _handler_for(self)))
+        for server in self._servers:
+            threading.Thread(target=server.serve_forever, daemon=True).start()
 
-    def url(self, path: str) -> str:
+    def _at(self, server: ThreadingHTTPServer, path: str) -> str:
         host = (
             os.environ.get("SRO_STEEL_SEES_HOST", "host.docker.internal")
             if self._for_steel
             else "127.0.0.1"
         )
-        return f"http://{host}:{self._port}{path}"
+        return f"http://{host}:{server.server_address[1]}{path}"
+
+    def url(self, path: str) -> str:
+        return self._at(self._servers[0], path)
+
+    def idp_url(self, path: str) -> str:
+        return self._at(self._servers[-1], path)
 
     def expire(self) -> None:
         self._sessions.clear()
@@ -127,7 +138,8 @@ class Rig:
 
     def close(self) -> None:
         self.answer.set()
-        self._server.shutdown()
+        for server in self._servers:
+            server.shutdown()
 
     async def sign_in_in(
         self, driver: SteelDriver, session: SessionRef, target_id: str, *, lands: str = "/app"
@@ -212,14 +224,14 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
                         **{name: values[0] for name, values in query.items()},
                     }
                 )
-                self._redirect(rig.url(f"/idp/authorize?{params}"))
+                self._redirect(rig.idp_url(f"/idp/authorize?{params}"))
             elif path == "/idp/authorize":
                 state = query.get("state", [""])[0]
                 if query.get("prompt") == ["none"]:
                     back = urlencode({"error": "login_required", "state": state})
                     self._redirect(f"{query['redirect_uri'][0]}?{back}")
                 elif query.get("acr_values") == ["identifier"]:
-                    self._redirect(rig.url("/idp/identifier"))
+                    self._redirect(rig.idp_url("/idp/identifier"))
                 else:
                     mode = query.get("response_mode", ["query"])[0]
                     self._html(_LOGIN_PAGE.format(state=state, mode=mode))
@@ -272,6 +284,7 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
                     rig.release.wait(10)
                 self._json({"id": "ping-1"}, status=201)
             elif path == "/idp/login":
+                rig.logins += 1
                 form = parse_qs(body.decode())
                 username = form.get("username", [""])[0]
                 state = query.get("state", [""])[0]

@@ -9,7 +9,9 @@ class PoolFull(Exception):
 
 
 class BrowserPool(Protocol):
-    async def open(self, tenant: str, busy: Mapping[str, int]) -> tuple[str, str]: ...
+    async def open(
+        self, tenant: str, busy: Mapping[str, int], *, pinned: str | None = None
+    ) -> tuple[str, str]: ...
 
     async def close(self, container_url: str, context_id: str) -> None: ...
 

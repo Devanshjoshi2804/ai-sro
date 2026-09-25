@@ -26,8 +26,12 @@ class SteelPool:
     def _containers(self, tenant: str) -> tuple[str, ...]:
         return self._by_tenant.get(tenant, self._fallback)
 
-    async def open(self, tenant: str, busy: Mapping[str, int]) -> tuple[str, str]:
+    async def open(
+        self, tenant: str, busy: Mapping[str, int], *, pinned: str | None = None
+    ) -> tuple[str, str]:
         urls = self._containers(tenant)
+        if pinned is not None and pinned in urls:
+            urls = (pinned,)
         candidates = [(busy.get(url, 0), url) for url in urls if busy.get(url, 0) < self._per]
         if not candidates:
             raise PoolFull(

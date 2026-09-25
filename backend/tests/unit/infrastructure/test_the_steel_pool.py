@@ -79,3 +79,20 @@ async def test_a_tenant_never_overflows_into_another_tenants_container() -> None
 
     with pytest.raises(PoolFull):
         await pool.open("acme", {"http://steel:3000": 1})
+
+
+async def test_a_pinned_account_stays_on_its_container_while_it_is_the_tenants() -> None:
+    pool = _pool(
+        per_container=5,
+        containers_by_tenant={"acme": ("http://steel:3000", "http://steel-2:3000")},
+        steel=_Client("one"),
+        steel_2=_Client("two"),
+        steel_3=_Client("three"),
+    )
+    busy = {"http://steel:3000": 3, "http://steel-2:3000": 1}
+
+    pinned, _ = await pool.open("acme", busy, pinned="http://steel:3000")
+    elsewhere, _ = await pool.open("acme", busy, pinned="http://steel-3:3000")
+
+    assert pinned == "http://steel:3000"
+    assert elsewhere == "http://steel-2:3000"

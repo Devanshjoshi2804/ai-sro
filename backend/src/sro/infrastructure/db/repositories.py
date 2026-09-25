@@ -705,6 +705,18 @@ class SqlBrowserSessionRepository(BrowserSessionRepository):
         )
         return tuple(_lease_of(row) for row in rows)
 
+    async def pinned_container(self, tenant_id: TenantId, account: Account) -> str | None:
+        return await self._session.scalar(
+            select(BrowserSessionRow.container_url)
+            .where(
+                BrowserSessionRow.tenant_id == tenant_id.value,
+                BrowserSessionRow.account_key == account.key,
+                BrowserSessionRow.container_url.is_not(None),
+            )
+            .order_by(BrowserSessionRow.opened_at.desc())
+            .limit(1)
+        )
+
     async def busy_containers(self, tenant_id: TenantId, *, now: datetime) -> tuple[str, ...]:
         rows = await self._session.scalars(
             select(BrowserSessionRow.container_url).where(

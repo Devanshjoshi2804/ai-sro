@@ -557,7 +557,7 @@ class Container:
             self.unit_of_work(),
             self.browser,
             self.watch_browsers(),
-            self.pursuits,
+            self.session_broker(),
             self.clock,
         )
 

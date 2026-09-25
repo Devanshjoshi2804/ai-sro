@@ -45,7 +45,7 @@ async def keep_sessions_open(container: Container, every_seconds: float) -> None
             continue
         if swept.open_now or swept.unreachable or swept.released:
             logger.info(
-                "sessions kept open: %s; unreachable: %s; left alone: %s; browsers released: %s",
+                "sessions kept open: %s; unreachable: %s; left alone: %s; contexts released: %s",
                 ", ".join(swept.open_now) or "none",
                 ", ".join(swept.unreachable) or "none",
                 ", ".join(swept.left_alone) or "none",

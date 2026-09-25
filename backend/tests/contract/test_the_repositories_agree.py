@@ -1704,3 +1704,54 @@ class TestLeases:
             assert waiting is not None
             assert waiting.state is LeaseState.WAITING
             assert waiting.expires_at == until
+
+    async def test_settle_given_now_needs_its_old_deadline_not_yet_passed(
+        self, store: UnitOfWork
+    ) -> None:
+        deadline = _when(9)
+        fresh = deadline + K_LEASE_TTL
+        async with store as work:
+            await work.browser_sessions.lease(
+                TENANT, _lease("lse_a", state=LeaseState.WAITING, expires_at=deadline)
+            )
+            await work.commit()
+
+        async with store as work:
+            # At the deadline, not before it: this is the sweeper's own
+            # `expire` condition, and the two must never both succeed.
+            at_deadline = await work.browser_sessions.settle(
+                TENANT, "lse_a", state=LeaseState.READY, until=fresh, now=deadline
+            )
+            after_deadline = await work.browser_sessions.settle(
+                TENANT,
+                "lse_a",
+                state=LeaseState.READY,
+                until=fresh,
+                now=deadline + timedelta(minutes=1),
+            )
+            await work.commit()
+
+        assert at_deadline is False
+        assert after_deadline is False
+        async with store as work:
+            untouched = await work.browser_sessions.get_lease(TENANT, "lse_a")
+            assert untouched is not None
+            assert untouched.state is LeaseState.WAITING
+            assert untouched.expires_at == deadline
+
+        async with store as work:
+            before_deadline = await work.browser_sessions.settle(
+                TENANT,
+                "lse_a",
+                state=LeaseState.READY,
+                until=fresh,
+                now=deadline - timedelta(seconds=1),
+            )
+            await work.commit()
+
+        assert before_deadline is True
+        async with store as work:
+            revived = await work.browser_sessions.get_lease(TENANT, "lse_a")
+            assert revived is not None
+            assert revived.state is LeaseState.READY
+            assert revived.expires_at == fresh

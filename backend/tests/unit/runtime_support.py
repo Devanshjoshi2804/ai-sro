@@ -13,6 +13,8 @@ session headers.
 provider (`IDP` unless told otherwise) that lands on a system, and
 `SigningLane` stands in for the UI lane that replays it against a
 `FakePageDriver`.
+
+`lease_for` inserts a `ready` lease a sweeper test can expire.
 """
 
 from __future__ import annotations
@@ -25,9 +27,10 @@ from types import MappingProxyType
 from sro.application.execution.mail_job import Written
 from sro.application.ports.page import PageAnswer, SessionRef
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.ports.system import Clock
 from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.step import Held, LaneContext
-from sro.domain.execution.account import Account, Lease, LeaseState
+from sro.domain.execution.account import K_LEASE_TTL, Account, Lease, LeaseState, new_lease_id
 from sro.domain.execution.compose import Adding
 from sro.domain.execution.lanes import Lane, SeenCall, StepResult
 from sro.domain.execution.learned_step import LearnedStep
@@ -441,3 +444,25 @@ class SigningLane:
         if step.order == last.order and ctx.held is not None and not self._driver.refuses:
             self._driver.signed.add(ctx.held.session.context_id)
         return StepResult("done", Lane.UI)
+
+
+async def lease_for(uow: UnitOfWork, clock: Clock, *, holder: str = "run_1") -> Lease:
+    """Inserts a `ready` lease on a Steel session held in `http://steel:3000`,
+    its context id and steel session id deliberately distinct -- a sweeper
+    test has to tell which one a pool close was actually given."""
+    now = clock.now()
+    lease = Lease(
+        id=new_lease_id(),
+        account=Account.of(_TENANT, _SYSTEM, "clerk"),
+        container_url="http://steel:3000",
+        steel_session_id=new_lease_id(),
+        context_id=new_lease_id(),
+        holder=holder,
+        heartbeat_at=now,
+        expires_at=now + K_LEASE_TTL,
+        state=LeaseState.READY,
+    )
+    async with uow:
+        saved = await uow.browser_sessions.lease(TenantId(_TENANT), lease)
+        await uow.commit()
+    return saved

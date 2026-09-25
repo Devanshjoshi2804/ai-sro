@@ -63,28 +63,34 @@ Code: `released: tuple[str, ...] = ()`
 > nobody is named for, so without it every session-life claim the sweep
 > writes lost its embedding (final review I-2, 2026-09-24).
 
-## `KeepSessionsOpen._demonstrating`, [line 60](../../../../../../../backend/src/sro/application/connection/keep_open.py#L60): Docstring
+## `KeepSessionsOpen._demonstrating`, [line 64](../../../../../../../backend/src/sro/application/connection/keep_open.py#L64): Docstring
 
 > Whether anybody is teaching right now, anywhere in the deployment.
 >
-> Only reaping waits for this now. It used to be asked per tenant, of the
-> tenants with a connection, and to stop sign-ins too; the browser pool is
-> deployment-wide, so the question is too, the same one `ReleaseStrayBrowsers`
-> asks before it releases anything.
+> Only closing a stray capture browser waits for this -- a demonstration's
+> own browser can otherwise look exactly like litter in between opening it
+> and starting to record. It used to gate lease expiry too (S9 review, M2):
+> one demonstration, in any tenant, held up every account's expiry
+> everywhere, and a lease nobody was watching kept its context in the one
+> Chrome until the demonstration ended. Expiring a lease has nothing to do
+> with a demonstration in progress, so `sweep` no longer asks this before
+> `expire_leases`, only before `close_strays`.
 
 ## `KeepSessionsOpen.sweep`, [line 53](../../../../../../../backend/src/sro/application/connection/keep_open.py#L53): Comment
 
-Code: `released = (`
+Code: `released: tuple[str, ...] = ()`
 
-> Last, and only when nobody is demonstrating: a sign-in opens a
-> browser of its own, and reaping between opening and using it would
-> take the slot out from under the thing that just asked for it.
->
-> Kept on 2026-09-23 when the demonstration check stopped gating
-> sign-ins. Whether it is still needed is an open question:
-> `ReleaseStrayBrowsers` already spares a capturing recording's browser
-> and gives every claimed browser a grace period, and nothing here
-> depends on how many sessions an account may hold.
+> `expire_leases` always runs (S9): a dead lease's context has nothing to
+> do with anybody's demonstration. Only `close_strays` -- the legacy
+> capture-browser sweep -- waits for `_demonstrating`, and only when
+> nobody is demonstrating: a sign-in opens a browser of its own, and
+> reaping between opening and using it would take the slot out from under
+> the thing that just asked for it. `expired.steel_sessions`, already
+> known, is passed through so a context this same pass just closed for
+> its lease is never also treated as an unclaimed capture browser (S9
+> review, M6); `expired.contexts` -- never the shared Steel session id a
+> sibling lease still names -- is what `released` reports as closed (S9
+> re-review round 3, M4).
 
 ## `KeepSessionsOpen.sweep`, [line 49](../../../../../../../backend/src/sro/application/connection/keep_open.py#L49): Note on the line above
 

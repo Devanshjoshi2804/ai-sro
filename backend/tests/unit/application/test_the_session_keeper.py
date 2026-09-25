@@ -17,6 +17,7 @@ from dataclasses import dataclass
 import pytest
 
 from sro.application.connection.keep_open import KEEPER, KeepSessionsOpen
+from sro.application.connection.release_strays import Expired
 from sro.application.context import RequestContext
 from sro.application.ports.browser import BrowserUnavailable
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
@@ -126,11 +127,15 @@ async def test_every_tenant_is_swept_under_its_own_name(uow: FakeUnitOfWork) -> 
 
 
 class _Strays:
-    def __init__(self, released: tuple[str, ...] = ()) -> None:
+    def __init__(self, released: tuple[str, ...] = (), expired: tuple[str, ...] = ()) -> None:
         self.released = released
+        self.expired = expired
         self.asked = 0
 
-    async def execute(self) -> tuple[str, ...]:
+    async def expire_leases(self) -> Expired:
+        return Expired(contexts=self.expired, steel_sessions=self.expired)
+
+    async def close_strays(self, *, expired: tuple[str, ...] = ()) -> tuple[str, ...]:
         self.asked += 1
         return self.released
 
@@ -156,4 +161,20 @@ async def test_nothing_is_reaped_while_somebody_is_demonstrating(
     swept = await KeepSessionsOpen(uow, _Ensure(), strays).sweep()
 
     assert swept.released == ()
+    assert strays.asked == 0
+
+
+async def test_lease_expiry_is_never_held_up_by_somebody_elses_demonstration(
+    uow: FakeUnitOfWork,
+) -> None:
+    """A demonstration protects the capture browser it is using, not the
+    rest of the deployment. A dead lease's context must not pile up in the
+    one Chrome just because somebody, anywhere, is recording."""
+    await uow.connections.add(_connected())
+    await uow.recordings.add(f.recording())
+    strays = _Strays(expired=("dead-lease-session",))
+
+    swept = await KeepSessionsOpen(uow, _Ensure(), strays).sweep()
+
+    assert swept.released == ("dead-lease-session",)
     assert strays.asked == 0

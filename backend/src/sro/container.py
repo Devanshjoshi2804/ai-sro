@@ -553,7 +553,8 @@ class Container:
             self.unit_of_work(),
             self.browser,
             self.watch_browsers(),
-            self.pursuits,
+            self.pool,
+            self.driver,
             self.clock,
         )
 

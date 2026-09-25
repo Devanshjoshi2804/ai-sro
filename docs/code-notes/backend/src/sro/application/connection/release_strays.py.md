@@ -13,54 +13,31 @@ Comments and docstrings moved out of [`backend/src/sro/application/connection/re
 > Chrome behind it at all.
 >
 > What makes a session stray is not its age: it is that nothing in this system
-> claims it. A demonstration that is still open claims one. A pursuit driving a
-> screen claims one. Every browser this system opens now claims one durably, in
-> ``browser_sessions``, which is what makes the rest of this honest -- age used to
-> be measured from the first sweep that happened to notice a session, per process,
-> so a worker restart reset every clock and a browser could hold the slot forever.
+> claims it. A demonstration that is still open claims one; the Steel session a
+> live lease runs in claims one. A browser is held exactly as long as its lease
+> is live -- no in-memory list of who is working (that lived in one process's
+> memory, so a worker restart forgot it), no flat grace window either (a lease
+> that keeps beating survives any number of sweeps, and one that stops is
+> released the moment `expired()` says so, not some minutes later).
 
-## module, [line 12](../../../../../../../backend/src/sro/application/connection/release_strays.py#L12): Note on the line above
+## `ReleaseStrayBrowsers.execute`, [line 31](../../../../../../../backend/src/sro/application/connection/release_strays.py#L31): Docstring
 
-Code: `GRACE = timedelta(minutes=15)`
+> Release what nothing claims. Returns what was given back: every expired
+> lease's Steel session, then every stray capture browser.
 
-> How long a claimed browser nobody is using is left alone.
->
-> A claim says whose it is, not that anything is still doing something with it:
-> the pursuit that opened it registers in memory, in one process, and this sweep
-> runs in the other. So a claim young enough to belong to work in flight is left
-> alone, and one that has been idle for a quarter of an hour is the case that
-> actually holds the slot -- a sign-in window abandoned mid-login, a process that
-> restarted underneath its browser.
->
-> A session with no claim at all gets no grace. Nothing this system runs opened
-> it, and after the ownership record nothing ever will.
+## `ReleaseStrayBrowsers.execute`, [line 52](../../../../../../../backend/src/sro/application/connection/release_strays.py#L52): Comment
 
-## `ReleaseStrayBrowsers.execute`, [line 30](../../../../../../../backend/src/sro/application/connection/release_strays.py#L30): Docstring
-
-> Release what nothing claims. Returns what was given back.
-
-## `ReleaseStrayBrowsers._in_use`, [line 57](../../../../../../../backend/src/sro/application/connection/release_strays.py#L57): Docstring
-
-> Sessions something is doing something with: demonstrations, pursuits,
-> and the Steel session every live lease's context lives in. Without the
-> leases the sweep released the runtime's shared session after its grace,
-> ending every account on the container (S7 round 1, I3).
-
-## `ReleaseStrayBrowsers.execute`, [line 43](../../../../../../../backend/src/sro/application/connection/release_strays.py#L43): Comment
-
-Code: `claimed = opened_at.get(browser.session_id)`
-
-> This used to skip anything with a viewer, on the reading that a
-> viewer means somebody is watching. It does not: self-hosted Steel
-> answers with one deployment-wide debug URL for every live session,
-> so the guard was true of all of them and nothing was ever
-> released -- which is how an orphaned Chrome came to hold the only
-> browser for six hours.
-
-## `ReleaseStrayBrowsers.execute`, [line 53](../../../../../../../backend/src/sro/application/connection/release_strays.py#L53): Comment
-
-Code: `live = {browser.session_id for browser in open_now}`
+Code: `claimed = [str(held) for held, _ in await uow.browser_sessions.all_held()]`
 
 > Claims whose session the provider no longer has. Unreachable either
 > way -- every read intersects with what is live -- but a row kept
 > forever is a row a recycled id one day collides with.
+
+## `ReleaseStrayBrowsers._expired_leases`, [line 57](../../../../../../../backend/src/sro/application/connection/release_strays.py#L57): Docstring
+
+> Every lease `expired()` returns has its own account's context closed
+> through the pool -- never a second release path onto the Steel session
+> itself, which `SteelClient.close` already refuses while Chrome still lists
+> any context in it (S7's guard: self-hosted Steel releases its one browser
+> for any id sent to release) -- and is then settled `expired` by `expire`'s
+> compare-and-set, so a lease a waiter has since revived is left alone.

@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from datetime import timedelta
+import contextlib
 
 from sro.application.connection.watch_browser import WatchBrowsers
-from sro.application.execution.pursuits import Pursuits
 from sro.application.ports.browser import BrowserProvider, BrowserUnavailable
+from sro.application.ports.page import PageDriver
+from sro.application.ports.pool import BrowserPool
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
-from sro.domain.shared.identifiers import BrowserSessionId
-
-GRACE = timedelta(minutes=15)
+from sro.domain.shared.identifiers import BrowserSessionId, TenantId
 
 
 class ReleaseStrayBrowsers:
@@ -18,52 +17,57 @@ class ReleaseStrayBrowsers:
         uow: UnitOfWork,
         browser: BrowserProvider,
         watch: WatchBrowsers,
-        pursuits: Pursuits,
+        pool: BrowserPool,
+        driver: PageDriver,
         clock: Clock,
     ) -> None:
         self._uow = uow
         self._browser = browser
         self._watch = watch
-        self._pursuits = pursuits
+        self._pool = pool
+        self._driver = driver
         self._clock = clock
 
     async def execute(self) -> tuple[str, ...]:
+        expired = await self._expired_leases()
         open_now = await self._watch.all_in_deployment()
-        in_use = await self._in_use()
         async with self._uow as uow:
-            opened_at = {
-                str(session_id): when for session_id, when in await uow.browser_sessions.all_held()
-            }
-        now = self._clock.now()
-
-        released: list[str] = []
+            capturing = await uow.recordings.list_capturing()
+            leased = await uow.browser_sessions.leased_sessions()
+        in_use = {
+            str(one.browser_session_id) for one in capturing if one.browser_session_id is not None
+        }
+        strays: list[str] = []
         for browser in open_now:
-            if browser.session_id in in_use:
+            if browser.session_id in in_use or browser.session_id in leased:
                 continue
-            claimed = opened_at.get(browser.session_id)
-            if claimed is not None and now - claimed < GRACE:
+            if browser.session_id in expired:
                 continue
             try:
                 await self._browser.close(BrowserSessionId(browser.session_id))
             except BrowserUnavailable:
                 continue
-            released.append(browser.session_id)
-
-        await self._forget(released)
-        live = {browser.session_id for browser in open_now}
-        await self._forget([held for held in opened_at if held not in live])
-        return tuple(released)
-
-    async def _in_use(self) -> set[str]:
+            strays.append(browser.session_id)
         async with self._uow as uow:
-            capturing = await uow.recordings.list_capturing()
-            leased = await uow.browser_sessions.leased_sessions()
-        held = {
-            str(recording.browser_session_id)
-            for recording in capturing
-            if recording.browser_session_id is not None
-        }
-        return held | leased | {str(session) for session in self._pursuits.sessions()}
+            claimed = [str(held) for held, _ in await uow.browser_sessions.all_held()]
+        live = {browser.session_id for browser in open_now}
+        await self._forget([*strays, *(one for one in claimed if one not in live)])
+        return (*expired, *strays)
+
+    async def _expired_leases(self) -> tuple[str, ...]:
+        async with self._uow as uow:
+            gone = await uow.browser_sessions.expired(now=self._clock.now())
+        closed: list[str] = []
+        for lease in gone:
+            with contextlib.suppress(BrowserUnavailable):
+                await self._pool.close(lease.container_url, lease.context_id)
+            async with self._uow as uow:
+                await uow.browser_sessions.expire(
+                    TenantId(lease.account.tenant), lease.id, now=self._clock.now()
+                )
+                await uow.commit()
+            closed.append(lease.steel_session_id)
+        return tuple(closed)
 
     async def _forget(self, session_ids: list[str]) -> None:
         if not session_ids:

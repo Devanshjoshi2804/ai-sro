@@ -297,6 +297,33 @@ async def test_open_tab_closes_the_orphan_tab_when_it_is_gone_mid_navigation(
     assert await pages_in(one) == [], "the orphan tab was left behind"
 
 
+async def test_open_tab_cancelled_while_the_tab_is_being_made_leaves_no_tab(
+    monkeypatch: pytest.MonkeyPatch,
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    original_send = driver._send
+    making = asyncio.Event()
+
+    async def send_saying_when_making(link: Any, method: str, params: dict[str, Any]) -> Any:
+        if method == "Target.createTarget":
+            making.set()
+        return await original_send(link, method, params)
+
+    monkeypatch.setattr(driver, "_send", send_saying_when_making)
+    opening = asyncio.create_task(driver.open_tab(one, rig.url("/public")))
+    await making.wait()
+    opening.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await opening
+    link = driver._links[one.cdp_url]
+    await original_send(link, "Target.getTargets", {})
+
+    assert await pages_in(one) == [], "the tab made after the cancel was left behind"
+
+
 async def test_a_listener_survives_a_reconnect_while_the_context_stays_alive(
     rig: Rig,  # noqa: F811
     cdp_url: str,  # noqa: F811

@@ -290,11 +290,22 @@ class SteelDriver:
 
     async def open_tab(self, session: SessionRef, url: str) -> str:
         link = await self._context(session)
-        made = await self._send(
-            link,
-            "Target.createTarget",
-            {"url": "about:blank", "browserContextId": session.context_id},
+        making = asyncio.ensure_future(
+            self._send(
+                link,
+                "Target.createTarget",
+                {"url": "about:blank", "browserContextId": session.context_id},
+            )
         )
+        try:
+            made = await asyncio.shield(making)
+        except asyncio.CancelledError:
+            with contextlib.suppress(PageGone):
+                late = await asyncio.shield(making)
+                await asyncio.shield(
+                    self._send(link, "Target.closeTarget", {"targetId": str(late["targetId"])})
+                )
+            raise
         target_id = str(made["targetId"])
         try:
             page = link.pages.get(target_id)

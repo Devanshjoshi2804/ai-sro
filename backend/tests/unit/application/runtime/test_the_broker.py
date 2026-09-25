@@ -196,6 +196,37 @@ async def test_a_code_nobody_answers_in_time_is_taken_over() -> None:
     assert (STEEL, waiting.session.context_id) in pool.closed
 
 
+async def test_resume_past_its_deadline_goes_through_a_fresh_acquire_never_back_to_ready() -> None:
+    uow, driver, vault = await _signing_world()
+    pool, clock = FakeBrowserPool({STEEL: 5}), FakeClock()
+    broker = _broker(uow, driver, vault, pool=pool, clock=clock)
+    waiting = await _asked_for_a_code(uow, driver, broker)
+    clock.advance(int(K_CODE_WAIT.total_seconds()) + 1)
+    driver.signals_for_every_tab = PageSignals(APP)
+
+    held = await broker.resume(CTX, waiting.lease.id, waiting.target_id, APP, holder="run_1")
+
+    assert uow.browser_sessions.leases[waiting.lease.id].state is LeaseState.EXPIRED
+    assert held.lease.id != waiting.lease.id
+    assert held.lease.state is LeaseState.READY
+
+
+async def test_resume_when_the_code_page_now_shows_a_password_asks_for_a_password_not_a_code() -> (
+    None
+):
+    uow, driver, vault = await _signing_world()
+    pool, clock = FakeBrowserPool({STEEL: 5}), FakeClock()
+    broker = _broker(uow, driver, vault, pool=pool, clock=clock)
+    waiting = await _asked_for_a_code(uow, driver, broker)
+    driver.signals_for_every_tab = PageSignals(APP, password=True)
+
+    with pytest.raises(NeedsAPerson) as asked:
+        await broker.resume(CTX, waiting.lease.id, waiting.target_id, APP, holder="run_1")
+
+    assert asked.value.kind == "password"
+    assert uow.browser_sessions.leases[waiting.lease.id].state is LeaseState.WAITING
+
+
 async def test_no_stored_password_asks_for_one_and_types_nothing() -> None:
     uow, driver, vault = await _signing_world()
     await vault.delete(LENA.vault_key("password"))
@@ -499,7 +530,7 @@ async def test_reauth_forgets_the_password_call_once_it_signs_back_in() -> None:
     assert await driver.calls_since(held.session, held.target_id, -1) == ()
 
 
-async def test_a_password_refused_on_re_sign_in_asks_a_person_and_is_never_typed_again() -> None:
+async def test_a_password_refused_on_re_sign_in_parks_the_lease_for_the_queued_caller() -> None:
     uow, driver, vault = await _signing_world()
     lane = SigningLane(driver)
     broker = _broker(uow, driver, vault, lane)
@@ -507,15 +538,17 @@ async def test_a_password_refused_on_re_sign_in_asks_a_person_and_is_never_typed
     two = await broker.acquire(CTX, LENA, APP, holder="run_2")
     driver.expire_session()
     driver.refuses = True
+    before = lane.sign_ins
 
-    asked = await asyncio.gather(
+    first, second = await asyncio.gather(
         broker.reauth(CTX, one, APP), broker.reauth(CTX, two, APP), return_exceptions=True
     )
 
-    assert [type(one) for one in asked] == [NeedsAPerson, NeedsAPerson]
-    assert all(isinstance(one, NeedsAPerson) and one.kind == "password" for one in asked)
-    assert lane.sign_ins == 2
+    assert isinstance(first, NeedsAPerson) and first.kind == "password"
+    assert isinstance(second, AccountBusy)
+    assert lane.sign_ins == before + 1
     assert await vault.get(LENA.vault_key("password") + "#refused") is not None
+    assert uow.browser_sessions.leases[one.lease.id].state is LeaseState.WAITING
 
 
 async def test_a_code_asked_on_re_sign_in_holds_the_account_for_the_person() -> None:

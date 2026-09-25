@@ -5,7 +5,7 @@ import contextlib
 import logging
 from collections import Counter
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from sro.application.connection.refusals import RefusedCredentials, fingerprint
 from sro.application.connection.sign_in import tagged_logins
@@ -117,7 +117,12 @@ class SessionBroker:
             held = replace(held, lease=lease)
             await self._driver.goto(held.session, held.target_id, start_url)
             if a_sign_in_page(await self._driver.signals(held.session, held.target_id)):
-                await self._sign_in(ctx, held, start_url)
+                try:
+                    await self._sign_in(ctx, held, start_url)
+                except NeedsAPerson as asked:
+                    if asked.kind == "password":
+                        await self._park(ctx, held.lease.id)
+                    raise
                 await self._save_state(held)
                 await self._driver.forget_calls(held.session, held.target_id)
 
@@ -138,10 +143,18 @@ class SessionBroker:
         if lease is None or lease.state is not LeaseState.WAITING:
             raise PageGone(f"lease {lease_id} is not waiting for a person")
         async with self._locks.hold(lease.account):
+            if not lease.live(self._clock.now()):
+                return await self._ready(ctx, lease.account, start_url, holder=holder)
             held = Held(lease, target_id, await self._session(lease))
-            if a_sign_in_page(await self._driver.signals(held.session, target_id)):
+            signals = await self._driver.signals(held.session, target_id)
+            if asks_for_a_code(signals):
                 raise WaitingForAPerson(
                     f"{lease.account.origin} still asks for a one-time code", held=held
+                )
+            if a_sign_in_page(signals):
+                raise NeedsAPerson(
+                    f"{lease.account.origin} asks for a password now, not a code",
+                    kind="password",
                 )
             await self._driver.goto(held.session, target_id, start_url)
             await self._save_state(held)
@@ -320,19 +333,23 @@ class SessionBroker:
         await self._driver.goto(held.session, held.target_id, start_url)
 
     async def _wait_for_a_person(self, ctx: RequestContext, held: Held) -> None:
-        until = self._clock.now() + K_CODE_WAIT
-        async with self._uow as uow:
-            moved = await uow.browser_sessions.settle(
-                ctx.tenant_id, held.lease.id, state=LeaseState.WAITING, until=until
-            )
-            await uow.commit()
-        if not moved:
-            raise PageGone(f"lease {held.lease.id} was lost while it was signing in")
+        until = await self._park(ctx, held.lease.id)
         waiting = replace(held.lease, state=LeaseState.WAITING, expires_at=until)
         raise WaitingForAPerson(
             f"{held.lease.account.origin} asks for a one-time code",
             held=replace(held, lease=waiting),
         )
+
+    async def _park(self, ctx: RequestContext, lease_id: str) -> datetime:
+        until = self._clock.now() + K_CODE_WAIT
+        async with self._uow as uow:
+            moved = await uow.browser_sessions.settle(
+                ctx.tenant_id, lease_id, state=LeaseState.WAITING, until=until
+            )
+            await uow.commit()
+        if not moved:
+            raise PageGone(f"lease {lease_id} was lost while it was signing in")
+        return until
 
     async def _save_state(self, held: Held) -> None:
         state = await self._driver.storage_state(held.session)

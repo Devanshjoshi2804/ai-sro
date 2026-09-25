@@ -9,6 +9,7 @@ from sro.domain.chat.thread import Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.execution.account import Account, Lease, LeaseState
 from sro.domain.execution.belts import RunProof
+from sro.domain.execution.lanes import Broken, Lane
 from sro.domain.execution.learned_step import LearnedStep, Taught
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
@@ -489,6 +490,18 @@ class WorkflowRepository(Protocol):
     ) -> None: ...
 
     async def learned_for(self, workflow_id: str) -> tuple[LearnedStep, ...]: ...
+
+    async def break_lane(
+        self, tenant_id: TenantId, workflow_id: str, broken: Broken, *, cites: str, at: datetime
+    ) -> None: ...
+
+    async def broken_for(
+        self, tenant_id: TenantId, workflow_id: str, cites: Mapping[int, str]
+    ) -> tuple[Broken, ...]: ...
+
+    async def mend_lane(
+        self, tenant_id: TenantId, workflow_id: str, step: int, lane: Lane
+    ) -> None: ...
 
     async def taught_itself(self, workflow_id: str, limit: int = 50) -> tuple[Taught, ...]: ...
 

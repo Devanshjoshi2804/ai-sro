@@ -767,3 +767,31 @@ async def test_recover_keeps_a_lease_whose_context_the_pool_still_lists() -> Non
     assert again.lease.id == held.lease.id
     assert again.target_id != held.target_id
     assert pool.closed == []
+
+
+async def test_after_a_re_sign_in_no_token_the_page_sent_before_it_is_handed_out() -> None:
+    uow, driver, vault = FakeUnitOfWork(), FakePageDriver(), FakeCredentialVault()
+    await with_a_recorded_sign_in(uow, lands_on=APP, username="lena")
+    await vault.store(LENA.vault_key("password"), PASSWORD)
+    driver.headers = {"x-csrf-token": "before-the-sign-in"}
+    driver.headers_after_mark = {"x-csrf-token": "after-the-sign-in"}
+    broker = _broker(uow, driver, vault)
+    held = await broker.acquire(CTX, LENA, APP, holder="run_1")
+    assert (await broker.headers(CTX, held, APP))["x-csrf-token"] == "before-the-sign-in"
+    driver.expire_session()
+
+    await broker.reauth(CTX, held, APP)
+    later = _broker(uow, driver, vault)
+
+    assert (await later.headers(CTX, held, APP))["x-csrf-token"] == "after-the-sign-in"
+
+
+async def test_a_re_sign_in_asked_to_go_back_ends_on_that_page() -> None:
+    uow, driver, vault = await _signing_world()
+    broker = _broker(uow, driver, vault)
+    held = await broker.acquire(CTX, LENA, APP, holder="run_1")
+    driver.expire_session()
+
+    await broker.reauth(CTX, held, APP, back_to="https://wms.example/app/orders/7")
+
+    assert driver.tabs[held.target_id] == "https://wms.example/app/orders/7"

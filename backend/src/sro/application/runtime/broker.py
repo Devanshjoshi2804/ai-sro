@@ -139,12 +139,18 @@ class SessionBroker:
                 await self._driver.url_of(held.session, held.target_id),
             )
         said = await self._driver.headers_for(
-            held.session, url, K_HEADERS_WAIT_S, since=since, needs=needs
+            held.session,
+            url,
+            K_HEADERS_WAIT_S,
+            since=since,
+            needs=needs,
         )
         cookie = await self._driver.cookies_for(held.session, url)
         return {"cookie": cookie, **said} if cookie else said
 
-    async def reauth(self, ctx: RequestContext, held: Held, start_url: str) -> None:
+    async def reauth(
+        self, ctx: RequestContext, held: Held, start_url: str, *, back_to: str | None = None
+    ) -> None:
         async with self._locks.hold(held.lease.account):
             async with self._uow as uow:
                 lease = await uow.browser_sessions.get_lease(ctx.tenant_id, held.lease.id)
@@ -165,6 +171,8 @@ class SessionBroker:
                     raise
                 await self._save_state(held.lease, held.session)
                 await self._driver.forget_calls(held.session, held.target_id)
+            if back_to is not None:
+                await self._driver.goto(held.session, held.target_id, back_to)
 
     async def recover(
         self, ctx: RequestContext, lease_id: str, start_url: str, *, holder: str
@@ -349,6 +357,9 @@ class SessionBroker:
                 f"no usable password is stored for {account.username} at {account.origin}",
                 kind="password",
             )
+        await self._driver.forget_headers_before(
+            held.session, await self._driver.mark(held.session, held.target_id)
+        )
         if asks_for_a_code(await self._driver.signals(held.session, held.target_id)):
             await self._wait_for_a_person(ctx, held)
         lane = LaneContext.for_sign_in(ctx, job, seen, held, secret=password)

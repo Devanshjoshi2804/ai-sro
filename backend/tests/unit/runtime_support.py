@@ -15,6 +15,10 @@ provider (`IDP` unless told otherwise) that lands on a system, and
 `FakePageDriver`.
 
 `lease_for` inserts a `ready` lease a sweeper test can expire.
+
+For the executor, `RecordingLane` answers scripted results and counts its
+calls (`no_tool`, `no_api` and `never` are lanes the step must not reach),
+and `FakeBroker` counts its re-sign-ins.
 """
 
 from __future__ import annotations
@@ -24,6 +28,7 @@ from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from types import MappingProxyType
 
+from sro.application.context import RequestContext
 from sro.application.execution.mail_job import Written
 from sro.application.ports.page import PageAnswer, SessionRef
 from sro.application.ports.repositories import UnitOfWork
@@ -32,7 +37,7 @@ from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.step import Held, LaneContext
 from sro.domain.execution.account import K_LEASE_TTL, Account, Lease, LeaseState, new_lease_id
 from sro.domain.execution.compose import Adding
-from sro.domain.execution.lanes import Lane, SeenCall, StepResult
+from sro.domain.execution.lanes import Lane, SeenCall, StepResult, Verdict
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.observation.gesture import (
@@ -466,3 +471,75 @@ async def lease_for(uow: UnitOfWork, clock: Clock, *, holder: str = "run_1") -> 
         saved = await uow.browser_sessions.lease(TenantId(_TENANT), lease)
         await uow.commit()
     return saved
+
+
+APP = f"{_SYSTEM}/app"
+
+
+class RecordingLane:
+    """Answers each `execute` with the next of `results` and counts them in
+    `calls`, keeping each context it was handed in `contexts`; a lane given no
+    results is one the step must never reach. `read_back` answers `settles`
+    and counts itself in `read_backs`, as the API lane's read-back would."""
+
+    def __init__(self, lane: Lane, *results: StepResult, settles: Verdict | None = None) -> None:
+        self.lane = lane
+        self._results = list(results)
+        self.settles = settles
+        self.calls = 0
+        self.read_backs = 0
+        self.contexts: list[LaneContext] = []
+
+    async def execute(self, step: Step, values: Mapping[str, str], ctx: LaneContext) -> StepResult:
+        assert self._results, f"the {self.lane} lane was not expected to run"
+        self.calls += 1
+        self.contexts.append(ctx)
+        return self._results.pop(0)
+
+    async def read_back(
+        self, step: Step, values: Mapping[str, str], ctx: LaneContext
+    ) -> Verdict | None:
+        self.read_backs += 1
+        self.contexts.append(ctx)
+        return self.settles
+
+
+def no_tool() -> RecordingLane:
+    return RecordingLane(Lane.TOOL)
+
+
+def no_api() -> RecordingLane:
+    return RecordingLane(Lane.API)
+
+
+def never() -> RecordingLane:
+    return RecordingLane(Lane.SIGHT)
+
+
+class FakeBroker(SessionBroker):
+    """A `SessionBroker` whose `reauth` counts itself in `reauths`, keeps the
+    page it was asked to go back to in `back_tos`, and raises `refuses` when
+    set, the way a sign-in that needs a person does."""
+
+    def __init__(self, *, refuses: BaseException | None = None) -> None:
+        page = FakePageDriver()
+        super().__init__(
+            FakeUnitOfWork(),
+            FakeBrowserPool({}),
+            page,
+            FakeAccountLocks(),
+            FakeCredentialVault(),
+            FakeClock(),
+            ui=SigningLane(page),
+        )
+        self.reauths = 0
+        self.back_tos: list[str | None] = []
+        self.refuses = refuses
+
+    async def reauth(
+        self, ctx: RequestContext, held: Held, start_url: str, *, back_to: str | None = None
+    ) -> None:
+        self.reauths += 1
+        self.back_tos.append(back_to)
+        if self.refuses is not None:
+            raise self.refuses

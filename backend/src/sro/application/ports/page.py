@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Protocol
 
 from sro.application.ports.vision import Screen
-from sro.domain.execution.lanes import SeenCall
+from sro.domain.execution.lanes import SeenCall, StepResult
 from sro.domain.observation.gesture import AfterState
 from sro.domain.recording.events import ActionKind
 from sro.domain.skill.signing_in import PageSignals
@@ -32,6 +32,7 @@ class PageAnswer:
 
 class PageGone(Exception):
     code = "page_gone"
+    tried: tuple[StepResult, ...] = ()
 
 
 class PageUnsettled(Exception):
@@ -101,6 +102,8 @@ class PageDriver(Protocol):
     async def goto(self, session: SessionRef, target_id: str, url: str) -> None: ...
 
     async def url_of(self, session: SessionRef, target_id: str) -> str: ...
+
+    async def forget_headers_before(self, session: SessionRef, mark: int) -> None: ...
 
     async def headers_for(
         self,

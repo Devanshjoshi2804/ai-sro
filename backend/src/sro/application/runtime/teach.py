@@ -84,10 +84,6 @@ class Teach:
                         verified_by="status",
                         at=now.isoformat(),
                     )
-                    if not any(one.lane is Lane.API and one.verdict == "failed" for one in tried):
-                        await uow.workflows.mend_lane(
-                            ctx.tenant_id, workflow.id, step.order, Lane.API
-                        )
             await uow.commit()
 
 

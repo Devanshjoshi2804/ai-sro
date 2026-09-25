@@ -95,7 +95,7 @@ async def test_an_unknown_outcome_mends_nothing() -> None:
     )
 
 
-async def test_a_ui_write_the_page_confirmed_promotes_the_step_to_the_api_lane() -> None:
+async def test_a_promotion_never_mends_an_api_lane_broken_before() -> None:
     uow = FakeUnitOfWork()
     step, by_id, _ = proven_write_step(read_back="/api/customer-types/{name}")
     await uow.workflows.break_lane(
@@ -115,7 +115,11 @@ async def test_a_ui_write_the_page_confirmed_promotes_the_step_to_the_api_lane()
 
     ledger = await uow.workflows.learned_writes(TENANT)
     assert ("POST", "/api/customer-types") in {(one.method, one.path_pattern) for one in ledger}
-    assert await uow.workflows.broken_for(TENANT, WORKFLOW.id, {step.order: cites_key(step)}) == ()
+    # A lane is cleared only by its own success: a promotion that mended the
+    # API lane would send the rejected write again on the next run (X9 re-review).
+    assert await uow.workflows.broken_for(TENANT, WORKFLOW.id, {step.order: cites_key(step)}) == (
+        Broken(step.order, Lane.API, "a"),
+    )
 
 
 async def test_a_ui_write_with_no_read_back_is_not_promoted() -> None:

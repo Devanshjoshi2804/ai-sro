@@ -15,8 +15,10 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/teach
 >   next run succeeds on the UI lane (the repair).
 > - **UI succeeded on a write its own call confirmed**, and the step has a
 >   confirming read: the endpoint joins the verified-write ledger
->   (`verified_by="status"`) and the API lane is mended, so the next run
->   starts on the API lane (the promotion).
+>   (`verified_by="status"`), so a step whose API lane is not broken starts
+>   on the API lane next run (the promotion). The promotion never mends a
+>   broken API lane: only that lane's own success, or a new demonstration
+>   that changes the step's cites, clears it.
 
 ## `Teach.learn`, [line 37](../../../../../../../backend/src/sro/application/runtime/teach.py#L37): Note
 
@@ -49,7 +51,7 @@ Code: `own = next(`
 > recorded URL (`learned_pattern`), so a path that names the record becomes
 > `{id}` and a segment the recording holds fixed stays fixed.
 
-## `_sighted`, [line 94](../../../../../../../backend/src/sro/application/runtime/teach.py#L94): Function
+## `_sighted`, [line 90](../../../../../../../backend/src/sro/application/runtime/teach.py#L90): Function
 
 > The locator the sight lane learned from the element that satisfied the
 > check (X7 ruling), or nothing: a learned map without a `frame_path` is
@@ -59,11 +61,3 @@ Code: `own = next(`
 > `K_NAME`, the cap `learned_from` keeps (refused, not cut: a cut locator
 > matches nothing, or something else).
 
-## `Teach.learn`, [line 87](../../../../../../../backend/src/sro/application/runtime/teach.py#L87): Note
-
-Code: `if not any(one.lane is Lane.API and one.verdict == "failed" for one in tried):`
-
-> A lane is cleared only by its own success (§6.3). An API lane that failed
-> this run stays broken even when the UI lane's write promotes the
-> endpoint: mending it would send the same rejected call first on every
-> later run.

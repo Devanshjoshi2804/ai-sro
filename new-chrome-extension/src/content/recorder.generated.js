@@ -247,7 +247,7 @@
           field.options = null;
         }
       }
-      for (const key of ["fields", "buttons", "landmarks", "messages", "headings"]) {
+      for (const key of ["headings", "landmarks", "messages", "buttons", "fields"]) {
         const items = outline[key];
         while (items.length && size > OUTLINE_CHARS) size -= sizeOf(items.pop()) + (items.length ? 1 : 0);
       }
@@ -509,7 +509,10 @@
   };
 
   listen('sro:dropped', (e) => {
-    if (lastRef !== null && e.detail === lastRef) {
+    // `detail` names the dropped gesture's ref, or `null` when it was refused
+    // for size before it could be parsed and given one -- either way, it is
+    // always the gesture just recorded, so both mean "forget it".
+    if (e.detail === null || e.detail === lastRef) {
       last = null;
       lastRef = null;
     }

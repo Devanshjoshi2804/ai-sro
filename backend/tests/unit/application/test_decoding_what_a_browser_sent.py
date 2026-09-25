@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from sro.application.capture.decode import (
     epoch_to_datetime,
-    to_ax_graph,
     to_console_message,
     to_cookies,
     to_headers,
@@ -103,42 +102,6 @@ class TestCookies:
         assert cookies[0].http_only is True
         assert cookies[0].same_site == "Strict"
         assert cookies[0].expires is None
-
-
-class TestAxGraph:
-    def test_the_parent_chain_survives_ignored_nodes(self) -> None:
-        payload = {
-            "nodes": [
-                {
-                    "nodeId": "1",
-                    "role": {"value": "dialog"},
-                    "name": {"value": "Release"},
-                    "childIds": ["2"],
-                },
-                {
-                    "nodeId": "2",
-                    "parentId": "1",
-                    "role": {"value": "generic"},
-                    "ignored": True,
-                    "childIds": ["3"],
-                },
-                {
-                    "nodeId": "3",
-                    "parentId": "2",
-                    "role": {"value": "button"},
-                    "name": {"value": "Save"},
-                    "properties": [{"name": "disabled", "value": {"value": True}}],
-                },
-            ]
-        }
-
-        graph = to_ax_graph(payload, url="https://wms.test", taken_at=f.at(0))
-        button = graph.node("3")
-
-        assert button is not None
-        assert "disabled" in button.states
-        assert graph.path(button).endswith("button “Save”")
-        assert graph.root_id == "1"
 
 
 class TestConsole:

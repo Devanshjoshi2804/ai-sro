@@ -50,8 +50,10 @@ Explanations for [`backend/src/sro/domain/observation/outline.py`](../../../../.
 ## `_fitted`, [line 70](../../../../../../../backend/src/sro/domain/observation/outline.py#L70): Function
 
 > The page's `fitted`, in the same order: option lists from the last field
-> back, then fields, buttons, landmarks, messages, and headings last, until
-> the outline fits `K_OUTLINE_CHARS`.
+> back, then headings, landmarks, messages and buttons from the end, and
+> fields last, until the outline fits `K_OUTLINE_CHARS`. Fields go last
+> because a field is what a run fills by label (X10): a field missing from
+> the outline reads as a field that does not exist.
 
 ## `last_outline`, [line 134](../../../../../../../backend/src/sro/domain/observation/outline.py#L134): Function
 

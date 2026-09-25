@@ -6,7 +6,7 @@ import pytest
 from sro.application.ports.browser import BrowserUnavailable
 from sro.application.ports.locks import AccountBusy
 from sro.application.runtime.executor import StepExecutor
-from sro.application.runtime.step import NeedsAPerson
+from sro.application.runtime.step import NeedsAPerson, Stopped
 from sro.domain.execution.lanes import Broken, Lane, StepResult
 from sro.domain.observation.gesture import Target
 from sro.domain.skill.workflow import Step
@@ -251,6 +251,17 @@ async def test_a_cancellation_while_signing_back_in_still_propagates() -> None:
     broker = FakeBroker(refuses=asyncio.CancelledError())
 
     with pytest.raises(asyncio.CancelledError):
+        await StepExecutor(
+            no_tool(), no_api(), RecordingLane(Lane.UI, expired), never(), broker
+        ).run(step, {}, lane_context(by_id), broken=(), start_url=APP)
+
+
+async def test_a_stop_while_signing_back_in_still_propagates() -> None:
+    expired = StepResult("failed", Lane.UI, expired=True)
+    step, by_id = save_step(status=201)
+    broker = FakeBroker(refuses=Stopped("the operator stopped the run"))
+
+    with pytest.raises(Stopped):
         await StepExecutor(
             no_tool(), no_api(), RecordingLane(Lane.UI, expired), never(), broker
         ).run(step, {}, lane_context(by_id), broken=(), start_url=APP)

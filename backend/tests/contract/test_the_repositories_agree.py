@@ -1694,6 +1694,18 @@ class TestToolCalls:
     same job forever.
     """
 
+    async def test_a_claim_is_held_since_it_was_made_and_not_before(
+        self, store: UnitOfWork
+    ) -> None:
+        async with store as work:
+            await work.tool_calls.remember(TENANT, "mail:m-1", tool="s", at=_when(9))
+            await work.commit()
+        async with store as work:
+            assert await work.tool_calls.held(TENANT, "mail:m-1", since=_when(9))
+            assert not await work.tool_calls.held(TENANT, "mail:m-1", since=_when(10))
+            assert not await work.tool_calls.held(OTHER_TENANT, "mail:m-1", since=_when(9))
+            assert not await work.tool_calls.held(TENANT, "mail:m-2", since=_when(9))
+
     async def test_the_first_claim_is_the_one_that_writes(self, store: UnitOfWork) -> None:
         async with store as work:
             first = await work.tool_calls.remember(TENANT, "wfl_1:1:abc", tool="save", at=_when(9))

@@ -3142,6 +3142,11 @@ export interface components {
              * @default []
              */
             sent_to: string[];
+            /**
+             * Asked
+             * @default false
+             */
+            asked: boolean;
         };
         /**
          * Medium
@@ -4010,6 +4015,11 @@ export interface components {
              * @default
              */
             mail_thread: string;
+            /**
+             * Offer
+             * @default
+             */
+            offer: string;
             /**
              * Live
              * @default false

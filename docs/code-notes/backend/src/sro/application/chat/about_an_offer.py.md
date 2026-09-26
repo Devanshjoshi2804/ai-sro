@@ -235,6 +235,7 @@ Code: `"confirm": True,`
 > `Converse._say_yes_to_it` to the `resume` decision the browser starts with
 > the same `POST /v1/workflow-runs` a press makes; a no leaves it. `confirm`
 > marks it as a question: the panel draws Do it and Leave it under it, and
-> the heartbeat holds it like a `needs_values` question. Only the mail poll
-> asks this way (`ask_to_run`); the card's own door keeps answering `""` for
+> the heartbeat holds it like a `needs_values` question. Only a mail look
+> (`FromTheMail._settle`, for the heartbeat and the poll alike) asks this way
+> (`ask_to_run`); the card's own door keeps answering `""` for
 > an offer that needs nothing, because the card then simply starts it.

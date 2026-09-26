@@ -1872,6 +1872,7 @@ test("the answer that finishes a job resumes it where it stopped", async () => {
           from_step: 4,
           values: { workArea: "NSRO" },
           watched: true,
+          offer: "m-question",
         },
       },
     ],
@@ -1901,7 +1902,34 @@ test("the answer that finishes a job resumes it where it stopped", async () => {
   // defect that marked steps done nobody had done.
   assert.equal(started.matched, 0);
   assert.deepEqual(started.values, { workArea: "NSRO" });
+  // The offer it answers, so a second start of it is refused by the backend.
+  assert.equal(started.offer, "m-question");
   threadSaid = null;
+});
+
+test("a mail the backend already asked about in the conversation is not also a card", async () => {
+  ready();
+  mailLooked = {
+    offered: [
+      {
+        message: "m-8",
+        workflow_id: "wfl_1",
+        title: "Create a Customer Type",
+        values: { "Customer Type": "GT2" },
+        missing: [],
+        asked: true,
+      },
+    ],
+    read: 1,
+    why: "offered Create a Customer Type",
+  };
+
+  await lookInTheMail();
+
+  assert.ok(
+    !JSON.stringify(held.get("sro.nudges") || []).includes("m-8"),
+    "the question and a card are two answers to one mail",
+  );
 });
 
 test("a sentence typed under a standing question is not read a second time", async () => {

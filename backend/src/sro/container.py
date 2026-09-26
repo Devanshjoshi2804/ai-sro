@@ -794,14 +794,12 @@ class Container:
             else None,
             start=self.start_workflow_run(),
             attempts=self.record_attempt(),
+            asks=self.ask_about_the_offer(),
         )
 
     def look_in_the_mail_lately(self) -> LookInTheMailLately:
         return LookInTheMailLately(
-            self.unit_of_work(),
-            self.from_the_mail(),
-            self.ask_about_the_offer(),
-            self.start_workflow_run(),
+            self.unit_of_work(), self.from_the_mail(), self.settings.steel_tenants
         )
 
     @property

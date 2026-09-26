@@ -150,6 +150,7 @@ class StartWorkflowRun:
         run_id: str | None = None,
         conversation: tuple[str, str] = ("", ""),
         undoes_run: str = "",
+        offer: str = "",
     ) -> WorkflowRun:
         asker_or_refuse(self._asker)
         now: datetime = self._clock.now()
@@ -237,6 +238,7 @@ class StartWorkflowRun:
                 items=things,
                 awaiting=as_said(waiting_on(*conversation, now=now)),
                 undoes_run=undoes_run.strip() or None,
+                offer=offer.strip() or None,
             )
             await uow.workflow_runs.save(run)
             await uow.commit()

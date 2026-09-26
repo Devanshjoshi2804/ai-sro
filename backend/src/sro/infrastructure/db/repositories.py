@@ -508,8 +508,10 @@ class SqlThreadRepository(ThreadRepository):
         return tuple(row_to_thread(row) for row in rows)
 
     async def _row(self, tenant_id: TenantId, thread_id: ThreadId) -> ThreadRow:
-        query = select(ThreadRow).where(
-            ThreadRow.id == thread_id.value, ThreadRow.tenant_id == tenant_id.value
+        query = (
+            select(ThreadRow)
+            .where(ThreadRow.id == thread_id.value, ThreadRow.tenant_id == tenant_id.value)
+            .with_for_update()
         )
         row = (await self._session.execute(query)).scalar_one_or_none()
         if row is None:
@@ -1088,6 +1090,16 @@ class SqlToolCallRepository(ToolCallRepository):
                 ToolCallRow.idempotency_key == key,
             )
         )
+
+    async def held(self, tenant_id: TenantId, key: str, *, since: datetime) -> bool:
+        found = await self._session.scalar(
+            select(ToolCallRow.idempotency_key).where(
+                ToolCallRow.tenant_id == tenant_id.value,
+                ToolCallRow.idempotency_key == key,
+                ToolCallRow.claimed_at >= since,
+            )
+        )
+        return found is not None
 
 
 class SqlTriggerRepository(TriggerRepository):

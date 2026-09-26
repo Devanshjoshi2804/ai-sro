@@ -30,6 +30,7 @@ from sro.domain.chat.asking import (
     NEEDS,
     Pending,
     answered,
+    asked_under,
     let_go,
     offered_job,
     pending_job,
@@ -38,7 +39,7 @@ from sro.domain.chat.asking import (
     too_long_for,
 )
 from sro.domain.chat.is_it_an_answer import said_as_the_value
-from sro.domain.chat.thread import Message, Said, Speaker, Thread, ThreadId
+from sro.domain.chat.thread import Message, MessageId, Said, Speaker, Thread, ThreadId
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
 from sro.domain.lookup.asking import is_a_question
 from sro.domain.shared.errors import DomainError
@@ -46,6 +47,10 @@ from sro.domain.skill.learned import demanded
 from sro.domain.skill.skill import Skill
 
 logger = logging.getLogger(__name__)
+
+K_CLOSED = "That question is no longer open, so nothing was done."
+
+K_NOT_YOURS = "That question was asked of somebody else, so nothing was done."
 
 
 class StartThread:
@@ -134,19 +139,28 @@ class Converse:
         if run_id is not None:
             return await self._said_to_a_run(ctx, thread_id=thread_id, text=text, run_id=run_id)
         async with self._uow as uow:
-            said_before = (await uow.threads.get(ctx.tenant_id, thread_id)).messages
+            before = await uow.threads.get(ctx.tenant_id, thread_id)
+        said_before = before.messages
+        if answering is not None and before.opened_by != ctx.principal_id:
+            return await self._no_longer_open(ctx, thread_id=thread_id, text=text, said=K_NOT_YOURS)
         if (
             answering is not None
             and pending_job(said_before, answering) is None
             and offered_job(said_before, answering) is None
         ):
             return await self._no_longer_open(ctx, thread_id=thread_id, text=text)
+        asked = asked_under(said_before, answering)
         waiting = await self._still_wanted(ctx, pending_job(said_before, answering))
-        if waiting is not None:
+        if waiting is not None and asked is not None:
             answered_it, about = await self._is_it_an_answer(ctx, waiting, text)
             if answered_it is not None:
                 return await self._answer_the_question(
-                    ctx, thread_id=thread_id, text=answered_it, pending=waiting
+                    ctx,
+                    thread_id=thread_id,
+                    text=answered_it,
+                    pending=waiting,
+                    asked=asked.id,
+                    answering=answering,
                 )
             if about != "another_task":
                 await self._also_said(ctx, thread_id=thread_id, text=text)
@@ -176,25 +190,25 @@ class Converse:
         )
 
     async def _no_longer_open(
-        self, ctx: RequestContext, *, thread_id: ThreadId, text: str
+        self, ctx: RequestContext, *, thread_id: ThreadId, text: str, said: str = K_CLOSED
     ) -> Thread:
         async with self._uow as uow:
             thread = await uow.threads.get(ctx.tenant_id, thread_id)
-            for speaker, said in (
-                (Speaker.OPERATOR, text),
-                (Speaker.ASSISTANT, "That question is no longer open, so nothing was done."),
-            ):
-                thread.say(
-                    Message(
-                        id=self._ids.new_message_id(),
-                        speaker=speaker,
-                        text=said,
-                        said_at=self._clock.now(),
-                    )
-                )
+            self._told(thread, text, said)
             await uow.threads.save(thread)
             await uow.commit()
         return thread
+
+    def _told(self, thread: Thread, text: str, said: str) -> None:
+        for speaker, words in ((Speaker.OPERATOR, text), (Speaker.ASSISTANT, said)):
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=speaker,
+                    text=words,
+                    said_at=self._clock.now(),
+                )
+            )
 
     async def _carry_on(
         self,
@@ -211,8 +225,23 @@ class Converse:
         async with self._uow as uow:
             said_before = (await uow.threads.get(ctx.tenant_id, thread_id)).messages
         offered = offered_job(said_before, answering)
-        if offered is not None and (said_yes(text) or let_go(text)):
-            return await self._say_yes_to_it(ctx, thread_id=thread_id, text=text, offered=offered)
+        asked = asked_under(said_before, answering)
+        if offered is not None and asked is not None and (said_yes(text) or let_go(text)):
+            return await self._say_yes_to_it(
+                ctx,
+                thread_id=thread_id,
+                text=text,
+                offered=offered,
+                asked=asked.id,
+                answering=answering,
+            )
+        if offered is not None and answering is not None:
+            return await self._no_longer_open(
+                ctx,
+                thread_id=thread_id,
+                text=text,
+                said=f"Say yes to run {offered.title}, or no to leave it.",
+            )
         if isinstance(placed, _NotAsked):
             placed = await self._placed_by_the_rig(ctx, text)
         if placed is not None:
@@ -373,10 +402,23 @@ class Converse:
         return None, read.about
 
     async def _answer_the_question(
-        self, ctx: RequestContext, *, thread_id: ThreadId, text: str, pending: Pending
+        self,
+        ctx: RequestContext,
+        *,
+        thread_id: ThreadId,
+        text: str,
+        pending: Pending,
+        asked: MessageId,
+        answering: str | None,
     ) -> Thread:
         async with self._uow as uow:
             thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            still = asked_under(thread.messages, answering)
+            if still is None or still.id != asked:
+                self._told(thread, text, K_CLOSED)
+                await uow.threads.save(thread)
+                await uow.commit()
+                return thread
             now = self._clock.now()
             thread.say(
                 Message(
@@ -416,6 +458,7 @@ class Converse:
                             "can_find": self._can_gather,
                             "resume": True,
                             "watched": filled.watched,
+                            "offer": asked.value,
                         },
                     )
                     if filled.ready
@@ -455,11 +498,24 @@ class Converse:
         return thread
 
     async def _say_yes_to_it(
-        self, ctx: RequestContext, *, thread_id: ThreadId, text: str, offered: Pending
+        self,
+        ctx: RequestContext,
+        *,
+        thread_id: ThreadId,
+        text: str,
+        offered: Pending,
+        asked: MessageId,
+        answering: str | None,
     ) -> Thread:
         ready = offered.ready or self._can_gather
         async with self._uow as uow:
             thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            still = asked_under(thread.messages, answering)
+            if still is None or still.id != asked:
+                self._told(thread, text, K_CLOSED)
+                await uow.threads.save(thread)
+                await uow.commit()
+                return thread
             thread.say(
                 Message(
                     id=self._ids.new_message_id(),
@@ -480,6 +536,7 @@ class Converse:
                 "mail_thread": offered.mail_thread,
                 "can_find": self._can_gather,
                 "watched": offered.watched,
+                "offer": asked.value,
             }
             said = f"Running {offered.title} now." if ready else question(offered)
             if let_go(text):

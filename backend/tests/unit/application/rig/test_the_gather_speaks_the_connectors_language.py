@@ -189,3 +189,17 @@ def test_a_search_turns_the_page_the_look_asks_for() -> None:
     assert "page" in module.TOOLS[0]["inputSchema"]["properties"]
     assert listed.asked[0]["pageToken"] == "p-1"
     assert said["next_page"] == "p-2"
+
+
+def test_a_page_token_the_connector_did_not_mint_is_refused() -> None:
+    module = _connector()
+    listed = _Listed()
+    module.httpx = listed
+
+    try:
+        module._search("token", {"query": "q", "page": "p-1&q=in:anywhere"})
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("a page token of another shape reached Gmail")
+    assert listed.asked == []

@@ -11,14 +11,20 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.converse import Converse, StartThread
-from sro.application.chat.from_the_mail import K_LOOK, K_LOOK_PAGES, FromTheMail
+from sro.application.chat.from_the_mail import (
+    K_LEASE,
+    K_LOOK,
+    K_LOOK_PAGES,
+    FromTheMail,
+    _page_of,
+)
 from sro.application.chat.look_lately import LookInTheMailLately
 from sro.application.chat.mailbox import SERVER
 from sro.application.context import RequestContext
@@ -42,7 +48,7 @@ from sro.domain.knowledge.entry import (
     KnowledgeEntry,
     KnowledgeId,
 )
-from sro.domain.observation.gesture import GestureBatch
+from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer, ModelSpend
 from sro.domain.skill.workflow import Step, Workflow
@@ -205,6 +211,7 @@ def _look(
         cap_usd=cap_usd,
         start=start,
         attempts=RecordAttempt(uow, FakeIdFactory(), FakeClock()),
+        asks=AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()),
     )
 
 
@@ -226,9 +233,8 @@ class _MailWorld:
 
 
 def _poll(uow: FakeUnitOfWork, look: FromTheMail, start: StartWorkflowRun) -> LookInTheMailLately:
-    return LookInTheMailLately(
-        uow, look, AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()), start
-    )
+    """The poll over the tenants configured for Steel, and nothing else."""
+    return LookInTheMailLately(uow, look, (f.TENANT.value,) if start.runs_on_steel(CTX) else ())
 
 
 class _TemporalDown(FakeDurableExecution):
@@ -247,19 +253,10 @@ async def mail_world(
 ) -> _MailWorld:
     """One request mail naming the saved job, read as `sure` with `values`,
     for a tenant that runs on Steel or on the extension, whose operator has a
-    registered browser and whose tenant has captured something."""
+    registered browser."""
     uow, durable = FakeUnitOfWork(), durable or FakeDurableExecution()
     await save_job(uow, JOB)
     await uow.devices.add(f.device(principal_id=CTX.principal_id))
-    await uow.gestures.add_batch(
-        GestureBatch(
-            batch_id="bat-1",
-            device_id="dev-1",
-            tenant=f.TENANT.value,
-            mode="rig",
-            received_at=datetime.now(tz=UTC).isoformat(),
-        )
-    )
     mailbox = _Mailbox(
         search=_found("m-1"), **{"m-1": _mail("please add customer type GT2", thread)}
     )
@@ -292,6 +289,7 @@ async def test_a_sure_mail_with_every_value_starts_the_run_itself() -> None:
     assert len(world.durable.runs_started) == 1
     (run,) = await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)
     assert (run.executor, run.values) == ("steel", {"Customer Type": "GT2"})
+    assert run.offer == "mail:m-1", "a mail read twice could start its run twice"
 
 
 async def test_a_steel_mail_missing_a_value_is_only_offered() -> None:
@@ -606,9 +604,21 @@ async def test_do_it_on_the_question_starts_exactly_one_run_through_the_press() 
         live=True,
         allow_focus=True,
         conversation=(SERVER, str(go["mail_thread"])),
+        offer=str(go["offer"]),
     )
     await world.start.perform(CTX, run)
     assert len(world.durable.runs_started) == 1
+    # A second start of the same offer -- a second panel, a typed yes -- is refused.
+    with pytest.raises(Conflict):
+        await world.start.execute(
+            CTX,
+            workflow_id=str(go["workflow_id"]),
+            device_id=None,
+            values=go["values"],
+            live=True,
+            allow_focus=True,
+            offer=str(go["offer"]),
+        )
 
 
 async def test_leave_it_on_the_question_starts_nothing() -> None:
@@ -885,32 +895,6 @@ async def test_a_mail_is_offered_once_however_often_the_mailbox_is_read() -> Non
     assert len(first.offered) == 1
     assert second.offered == ()
     assert second.read == 0, "the second look read the mail again to decide it was the same one"
-
-
-async def test_a_reading_that_is_not_sure_says_nothing() -> None:
-    """Silence beats a wrong card. A mail nobody was asking about is the common
-    case in any mailbox, and a card per delivery notice is a panel nobody reads
-    by the fourth."""
-    uow = await _held()
-    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("here is your delivery note")})
-    reads = _Reads(_reading(JOB, sure=False))
-
-    looked = await _look(uow, mailbox, reads).execute(CTX)
-
-    assert looked.offered == ()
-    assert looked.read == 1, "it read the mail and decided, rather than never looking"
-    # Silent to the panel, and NOT silent about why.
-    #
-    # "none of them asks for a job this tenant holds" was what a look said
-    # here, and it is false: one of them asked, and the reading could not tell
-    # which job it meant. Measured on the deployment, 2026-09-17: the tenant
-    # held two workflows called `Create a Customer Type` -- one with six steps
-    # and sixty-one runs, one with two steps and none -- so every mail asking
-    # for one named both, `sure` went false, and the mail path was silent about
-    # a job the rig had otherwise learned to do. A look that reports the wrong
-    # absence is a look nobody investigates.
-    assert "none of them asks for a job" not in looked.why, looked.why
-    assert "more than one" in looked.why, looked.why
 
 
 async def test_a_mail_that_asks_for_nothing_this_tenant_does_is_not_forced_onto_a_job() -> None:
@@ -1846,3 +1830,209 @@ async def test_a_field_nothing_documents_is_still_something_this_job_cannot_set(
     assert one.unasked == ["Department"]
     assert "Department" not in one.values
     assert one.placed == {}
+
+
+class _Down(_Reads):
+    """The model answering 503: no reading at all, which is not "no job"."""
+
+    async def ask(self, *, evidence: str, **_: object) -> Answer:
+        self.saw.append(evidence)
+        return Answer(unpriced=True, error="ServiceUnavailable: 503")
+
+
+async def _said_or_ran(world: _MailWorld) -> bool:
+    thread = await _thread(world.uow)
+    said = [one for one in (thread.messages if thread else []) if one.decision]
+    return bool(world.durable.runs_started or said)
+
+
+async def test_a_model_outage_leaves_the_mail_for_the_next_look() -> None:
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True)
+
+    await world.polling(world.mailbox, _Down()).execute()
+    assert not await _said_or_ran(world)
+    await world.polling(world.mailbox, _sure()).execute()
+
+    assert len(world.durable.runs_started) == 1
+
+
+async def test_an_unreadable_mail_is_read_by_the_next_look() -> None:
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True)
+
+    class _Gone(_Mailbox):
+        async def call(self, *args: Any, **kwargs: Any) -> ToolResult:
+            if args[3] == "get_message":
+                raise ToolsUnavailable("connector 502")
+            return await super().call(*args, **kwargs)
+
+    await world.polling(_Gone(search=_found("m-1")), _sure()).execute()
+    await world.poll.execute()
+
+    assert len(world.durable.runs_started) == 1
+
+
+async def test_a_look_that_died_holding_a_mail_leaves_it_for_a_later_look() -> None:
+    """A worker restarted mid-look leaves its hold on the mail it was reading.
+    The hold lapses; it is not a mail read."""
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True)
+    await world.uow.tool_calls.remember(
+        f.TENANT,
+        "reading:m-1",
+        tool="read a mail for what it asks",
+        at=datetime.now(tz=UTC) - K_LEASE - timedelta(seconds=1),
+    )
+
+    await world.poll.execute()
+
+    assert len(world.durable.runs_started) == 1
+
+
+async def test_a_mail_another_look_is_reading_now_is_left_to_it() -> None:
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True)
+    await world.uow.tool_calls.remember(
+        f.TENANT, "reading:m-1", tool="read a mail for what it asks", at=datetime.now(tz=UTC)
+    )
+
+    await world.poll.execute()
+
+    assert world.reads.saw == [] and world.durable.runs_started == []
+
+
+async def test_an_unsure_reading_becomes_a_question() -> None:
+    world = await mail_world(sure=False, values=EVERY_VALUE, steel=True)
+
+    await world.poll.execute()
+
+    asked = await _should_we(world)
+    assert asked["workflow_id"] == JOB
+    assert world.durable.runs_started == []
+
+
+class _PageTwoDown(_Paged):
+    down = True
+
+    async def call(
+        self,
+        tenant_id: TenantId,
+        principal_id: PrincipalId,
+        server: str,
+        tool: str,
+        arguments: Mapping[str, str],
+    ) -> ToolResult:
+        if tool == "search_threads" and arguments.get("page") and self.down:
+            raise ToolsUnavailable("connector 502")
+        return await super().call(tenant_id, principal_id, server, tool, arguments)
+
+
+async def test_a_page_that_failed_leaves_older_mail_for_the_next_look() -> None:
+    uow = await _held()
+    mailbox, reads = _PageTwoDown(*(f"m-{n:03}" for n in range(9))), _Reads()
+    look = _look(uow, mailbox, reads)
+
+    await look.execute(CTX)
+    mailbox.down = False
+    await look.execute(CTX)
+
+    assert sum("<m-008>" in saw for saw in reads.saw) == 1
+
+
+async def test_a_look_that_caught_up_searches_no_further_back_than_it_did() -> None:
+    uow = await _held()
+    mailbox, reads = _Paged(*(f"m-{n:03}" for n in range(20))), _Reads()
+    look = _look(uow, mailbox, reads)
+    await look.execute(CTX)
+    mailbox.asked.clear()
+
+    await look.execute(CTX)
+
+    searches = [args for _, tool, args in mailbox.asked if tool == "search_threads"]
+    assert len(searches) == 1, searches
+
+
+async def test_a_value_reply_answers_the_question_asked_on_its_own_thread() -> None:
+    uow = await _held()
+    await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    asks = AskAboutTheOffer(uow, FakeClock(), FakeIdFactory())
+    await asks.execute(
+        CTX,
+        Pending(
+            workflow_id=JOB,
+            title="Create a Customer Type",
+            values={"Customer Type Description": "d"},
+            missing=("Customer Type",),
+            mail_thread="t-1",
+        ),
+        mail_thread="t-1",
+    )
+    await asks.execute(
+        CTX,
+        Pending(
+            workflow_id=JOB,
+            title="Create a Customer Type",
+            values={"Customer Type": "X", "Customer Type Description": "e"},
+            missing=(),
+            mail_thread="t-2",
+        ),
+        mail_thread="t-2",
+        ask_to_run=True,
+    )
+    mailbox = _Mailbox(search=_found("m-9"), **{"m-9": _mail("The code is GPX.", thread="t-1")})
+    reads = _Reads({"workflow_id": None, "values": [], "missing": [], "sure": True})
+
+    looked = await _look(uow, mailbox, reads).execute(CTX)
+
+    (answered,) = looked.offered
+    assert answered.thread == "t-1"
+
+
+async def test_a_press_by_another_operator_acts_on_nothing() -> None:
+    converse, thread, first, _second = await _two_questions()
+    colleague = RequestContext(tenant_id=f.TENANT, principal_id=PrincipalId("colleague"))
+
+    said = await converse.execute(colleague, thread_id=thread.id, text="yes", answering=first)
+
+    assert not any((one.decision or {}).get("resume") for one in said.messages)
+    assert offered_job(said.messages, first) is not None
+
+
+async def test_words_under_an_open_question_ask_again_for_yes_or_no() -> None:
+    converse, thread, first, _second = await _two_questions()
+
+    said = await converse.execute(CTX, thread_id=thread.id, text="maybe later", answering=first)
+
+    assert "yes" in said.messages[-1].text and "no" in said.messages[-1].text
+    assert offered_job(said.messages, first) is not None
+    assert not any((one.decision or {}).get("resume") for one in said.messages)
+
+
+async def test_a_look_cut_short_still_starts_what_it_already_read() -> None:
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True)
+
+    class _SecondGone(_Mailbox):
+        async def call(self, *args: Any, **kwargs: Any) -> ToolResult:
+            if args[3] == "get_message" and args[4].get("id") == "m-2":
+                raise ToolsUnavailable("connector 502")
+            return await super().call(*args, **kwargs)
+
+    mailbox = _SecondGone(
+        search=_found("m-1", "m-2"), **{"m-1": _mail("please add customer type GT2")}
+    )
+
+    looked = await world.look(mailbox, _sure()).execute(CTX)
+
+    assert [one.started for one in looked.offered] == [True]
+
+
+async def test_the_heartbeat_s_look_asks_the_same_question_the_poll_would() -> None:
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True)
+    mailbox = _addressed(OPERATOR, "colleague@example.com")
+
+    looked = await world.look(mailbox, _sure()).execute(CTX)
+
+    assert [one.asked for one in looked.offered] == [True]
+    assert (await _should_we(world))["sent_to"] == ["colleague@example.com"]
+
+
+def test_a_page_token_the_connector_did_not_mint_is_not_followed() -> None:
+    assert _page_of(json.dumps({"messages": [], "next_page": "12345"})) == "12345"
+    assert _page_of(json.dumps({"messages": [], "next_page": "x&q=in:anywhere"})) == ""

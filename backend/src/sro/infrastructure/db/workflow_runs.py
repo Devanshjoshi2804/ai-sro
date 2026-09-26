@@ -57,6 +57,7 @@ def _run_values(run: WorkflowRun) -> dict[str, Any]:
         "unpriced": run.unpriced,
         "progress": dict(run.progress),
         "executor": run.executor,
+        "offer": run.offer,
     }
 
 
@@ -154,10 +155,13 @@ def _row_to_run(row: WorkflowRunRow, steps: list[RunStep]) -> WorkflowRun:
         unpriced=row.unpriced,
         progress=dict(row.progress or {}),
         executor=cast(Executor, row.executor),
+        offer=row.offer,
     )
 
 
 _ONE_RUNNING = "uq_workflow_runs_one_running_per_device"
+
+_ONE_PER_OFFER = "uq_workflow_runs_one_per_offer"
 
 
 class SqlWorkflowRunRepository(WorkflowRunRepository):
@@ -186,6 +190,9 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
                 )
             )
         except IntegrityError as clash:
+            if _ONE_PER_OFFER in str(getattr(clash, "orig", clash)):
+                await self._session.rollback()
+                raise Conflict(f"the offer {run.offer} has already started a run") from clash
             if _ONE_RUNNING not in str(getattr(clash, "orig", clash)):
                 raise
             await self._session.rollback()

@@ -4,6 +4,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import secrets
 import sys
 import urllib.parse
@@ -291,15 +292,21 @@ def _answered(response: httpx.Response, what: str) -> dict[str, Any]:
     return dict(response.json())
 
 
+PAGE_TOKEN = re.compile(r"[A-Za-z0-9_-]{1,256}")
+
+
 def _search(token: str, arguments: dict[str, Any]) -> str:
     limit = str(arguments.get("limit", "10"))
+    page = str(arguments.get("page") or "")
+    if page and not PAGE_TOKEN.fullmatch(page):
+        raise ValueError("not a page token this connector handed out")
     listed = _answered(
         httpx.get(
             f"{GMAIL}/messages",
             params={
                 "q": arguments.get("query", ""),
                 "maxResults": limit,
-                **({"pageToken": arguments["page"]} if arguments.get("page") else {}),
+                **({"pageToken": page} if page else {}),
             },
             headers={"Authorization": f"Bearer {token}"},
             timeout=20.0,

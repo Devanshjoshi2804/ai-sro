@@ -187,6 +187,20 @@ def asked_under(messages: Sequence[Message], answering: str | None = None) -> Me
     return None if closed else messages[at]
 
 
+def waiting_on_mail(messages: Sequence[Message], mail_thread: str) -> Pending | None:
+    last = next(
+        (
+            one
+            for one in reversed(messages)
+            if one.speaker is Speaker.ASSISTANT
+            and one.decision
+            and one.decision.get("mail_thread") == mail_thread
+        ),
+        None,
+    )
+    return pending_job(messages, last.id.value) if last is not None else None
+
+
 def _offer(decision: Mapping[str, object]) -> tuple[str, str]:
     return str(decision.get("workflow_id") or ""), str(decision.get("mail_thread") or "")
 

@@ -2662,6 +2662,13 @@ class StartWorkflowRunRequest(BaseModel):
     they are not the one with this panel open. Empty for every press that was
     not a mail offer, which is most of them."""
 
+    offer: str = Field(default="", max_length=128)
+    """The conversation message this press answers, where it answers one.
+
+    A run records it under a unique index, so a second start of the same offer
+    -- a second panel, a typed yes beside a press -- is a 409 rather than a
+    second live write. Empty for a press that answers no question."""
+
     live: bool = False
     allow_focus: bool = True
 
@@ -3048,6 +3055,11 @@ class MailOfferModel(BaseModel):
     system should do it instead. Empty for every mail somebody else sent, and
     for one the operator addressed to themselves."""
 
+    asked: bool = False
+    """Already asked in the operator's conversation, as a question the panel
+    draws with its own answers. A browser draws no card for it: one mail, one
+    question, whichever look read it."""
+
 
 class AskAboutOfferRequest(BaseModel):
     """An offer the operator pressed that cannot simply be started.
@@ -3160,6 +3172,7 @@ class FromTheMailResponse(BaseModel):
                     unasked=list(one.unasked),
                     started=one.started,
                     sent_to=list(one.sent_to),
+                    asked=one.asked,
                 )
                 for one in looked.offered
             ],

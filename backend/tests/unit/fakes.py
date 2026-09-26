@@ -1941,6 +1941,10 @@ class FakeToolCallRepository:
         self.claimed.pop(where, None)
         self.when.pop(where, None)
 
+    async def held(self, tenant_id: TenantId, key: str, *, since: datetime) -> bool:
+        at = self.when.get((tenant_id.value, key))
+        return at is not None and at >= since
+
 
 def _read_clock(said: str) -> datetime | None:
     """A batch's timestamp as the store keeps it: a string, sometimes empty."""
@@ -2256,6 +2260,11 @@ class FakeWorkflowRunRepository:
             )
             if clash is not None:
                 raise Conflict(already_running(run.device_id, clash.id))
+        if run.offer is not None and any(
+            held.id != run.id and held.tenant == run.tenant and held.offer == run.offer
+            for held in self.rows.values()
+        ):
+            raise Conflict(f"the offer {run.offer} has already started a run")
         kept = deepcopy(run)
         # Both clocks as the store hands them back, not as the caller spelled
         # them: `started_at` is what three reads order on.

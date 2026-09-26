@@ -1003,6 +1003,11 @@ class SayRequest(BaseModel):
     nothing: putting "use the north yard address" through intent matching finds
     some other skill and offers to run it."""
 
+    answering: str | None = None
+    """The id of the question this answers, when it was pressed under one. The
+    answer acts on that question's offer and no other; a question that is no
+    longer open is answered with a refusal, never with another offer."""
+
 
 class MessageModel(BaseModel):
     id: str

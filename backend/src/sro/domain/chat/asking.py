@@ -166,31 +166,53 @@ def too_long_for(pending: Pending, said: str) -> int | None:
     return holds if holds is not None and len(value) > holds else None
 
 
-def pending_job(messages: Sequence[Message]) -> Pending | None:
-    for message in reversed(messages):
-        decision = message.decision
-        if message.speaker is not Speaker.ASSISTANT or not decision:
-            continue
-        if decision.get("kind") != NEEDS:
-            return None
-        listed = decision.get("missing")
-        missing = tuple(str(one) for one in listed) if isinstance(listed, list | tuple) else ()
-        if not missing or not decision.get("workflow_id"):
-            return None
-        items = decision.get("items")
-        return Pending(
-            workflow_id=str(decision["workflow_id"]),
-            title=str(decision.get("title") or ""),
-            values=_strings(decision.get("values")),
-            missing=missing,
-            offered=_pairs(decision.get("offered")),
-            items=tuple(_strings(one) for one in items) if isinstance(items, list | tuple) else (),
-            watched=bool(decision.get("watched", True)),
-            limits=_numbers(decision.get("limits")),
-            from_step=_step(decision.get("from_step")),
-            mail_thread=str(decision.get("mail_thread") or ""),
+def asked_under(messages: Sequence[Message], answering: str | None = None) -> Message | None:
+    if answering is None:
+        return next(
+            (
+                one
+                for one in reversed(messages)
+                if one.speaker is Speaker.ASSISTANT and one.decision
+            ),
+            None,
         )
-    return None
+    at = next((n for n, one in enumerate(messages) if one.id.value == answering), None)
+    if at is None or messages[at].speaker is not Speaker.ASSISTANT or not messages[at].decision:
+        return None
+    offer = _offer(messages[at].decision)
+    closed = any(
+        one.speaker is Speaker.ASSISTANT and one.decision and _offer(one.decision) == offer
+        for one in messages[at + 1 :]
+    )
+    return None if closed else messages[at]
+
+
+def _offer(decision: Mapping[str, object]) -> tuple[str, str]:
+    return str(decision.get("workflow_id") or ""), str(decision.get("mail_thread") or "")
+
+
+def pending_job(messages: Sequence[Message], answering: str | None = None) -> Pending | None:
+    asked = asked_under(messages, answering)
+    decision = asked.decision if asked is not None else None
+    if not decision or decision.get("kind") != NEEDS:
+        return None
+    listed = decision.get("missing")
+    missing = tuple(str(one) for one in listed) if isinstance(listed, list | tuple) else ()
+    if not missing or not decision.get("workflow_id"):
+        return None
+    items = decision.get("items")
+    return Pending(
+        workflow_id=str(decision["workflow_id"]),
+        title=str(decision.get("title") or ""),
+        values=_strings(decision.get("values")),
+        missing=missing,
+        offered=_pairs(decision.get("offered")),
+        items=tuple(_strings(one) for one in items) if isinstance(items, list | tuple) else (),
+        watched=bool(decision.get("watched", True)),
+        limits=_numbers(decision.get("limits")),
+        from_step=_step(decision.get("from_step")),
+        mail_thread=str(decision.get("mail_thread") or ""),
+    )
 
 
 def _pairs(said: object) -> tuple[tuple[str, str], ...]:
@@ -239,25 +261,24 @@ def _items(said: object) -> tuple[Mapping[str, str], ...]:
     return tuple(_strings(one) for one in said) if isinstance(said, list | tuple) else ()
 
 
-def offered_job(messages: Sequence[Message]) -> Pending | None:
-    for message in reversed(messages):
-        decision = message.decision
-        if message.speaker is not Speaker.ASSISTANT or not decision:
-            continue
-        if decision.get("kind") != JOB or not decision.get("workflow_id"):
-            return None
-        listed = decision.get("missing")
-        return Pending(
-            workflow_id=str(decision["workflow_id"]),
-            title=str(decision.get("title") or ""),
-            values=_strings(decision.get("values")),
-            missing=tuple(str(one) for one in listed) if isinstance(listed, list | tuple) else (),
-            items=_items(decision.get("items")),
-            watched=bool(decision.get("watched", True)),
-            can_find=bool(decision.get("can_find", False)),
-            mail_thread=str(decision.get("mail_thread") or ""),
-        )
-    return None
+def offered_job(messages: Sequence[Message], answering: str | None = None) -> Pending | None:
+    asked = asked_under(messages, answering)
+    decision = asked.decision if asked is not None else None
+    if not decision or decision.get("kind") != JOB or not decision.get("workflow_id"):
+        return None
+    if decision.get("resume"):
+        return None
+    listed = decision.get("missing")
+    return Pending(
+        workflow_id=str(decision["workflow_id"]),
+        title=str(decision.get("title") or ""),
+        values=_strings(decision.get("values")),
+        missing=tuple(str(one) for one in listed) if isinstance(listed, list | tuple) else (),
+        items=_items(decision.get("items")),
+        watched=bool(decision.get("watched", True)),
+        can_find=bool(decision.get("can_find", False)),
+        mail_thread=str(decision.get("mail_thread") or ""),
+    )
 
 
 def answered(pending: Pending, said: str) -> Pending:

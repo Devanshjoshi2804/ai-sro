@@ -3728,6 +3728,8 @@ export interface components {
             };
             /** Run Id */
             run_id?: string | null;
+            /** Answering */
+            answering?: string | null;
         };
         /**
          * SecretHeldModel

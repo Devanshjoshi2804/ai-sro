@@ -2707,7 +2707,7 @@ function show(thread, { asked = false } = {}) {
  * marked as not-yet-answered and replaced wholesale when the answer lands, so
  * the two can never disagree.
  */
-async function say(text) {
+async function say(text, answering) {
   if (!threadId) return conversation();
   // Said from Home, read in the conversation. The box is under their hand on
   // both panes; the answer to what they said is only in one of them, and a
@@ -2744,10 +2744,13 @@ async function say(text) {
   try {
     // `tabId` so an offer the sentence turns into is drawn beside the tab the
     // operator is working in -- `show` only draws an OPEN nudge for this tab.
+    // `answering` binds a press to the question it was pressed under, so the
+    // door acts on that question's offer and never on a newer one.
     answered = await ask({
       kind: "thread-say",
       threadId,
       text,
+      answering,
       tabId: tabHere.tabId,
     });
   } catch (error) {
@@ -2873,7 +2876,7 @@ async function answered(answer, message, where, button, values) {
   }
   if (answer === "say") {
     button.disabled = true;
-    return say(values?.said || "");
+    return say(values?.said || "", values?.answering);
   }
   // A rule that fired and stopped to ask, answered from where the operator is
   // rather than only in the console.

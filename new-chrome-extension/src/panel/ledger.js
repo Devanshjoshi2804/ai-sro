@@ -1001,7 +1001,7 @@ function saying(
       one.type = "button";
       one.textContent = label;
       one.addEventListener("click", () =>
-        onPress?.("say", message, item, one, { said }),
+        onPress?.("say", message, item, one, { said, answering: message.id }),
       );
       choosing.append(one);
     }

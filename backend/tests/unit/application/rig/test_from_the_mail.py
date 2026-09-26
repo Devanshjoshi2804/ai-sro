@@ -31,7 +31,7 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.tools import ToolResult, ToolsUnavailable
 from sro.application.runtime.answer_run import AnswerRun
 from sro.application.shared.refusals import OverCap
-from sro.domain.chat.asking import NEEDS, Pending, pending_job
+from sro.domain.chat.asking import NEEDS, Pending, offered_job, pending_job
 from sro.domain.chat.thread import Message, MessageId, Speaker
 from sro.domain.execution.gathering import Found, Gathered
 from sro.domain.execution.waiting import as_said, waiting_on
@@ -629,6 +629,88 @@ async def test_leave_it_on_the_question_starts_nothing() -> None:
     # Left, the question stops standing: a later yes has nothing to say yes to.
     assert not any((one.decision or {}).get("resume") for one in later.messages)
     assert world.durable.runs_started == []
+
+
+OTHER_JOB = "wfl_2"
+
+
+async def _two_questions() -> tuple[Converse, Any, str, str]:
+    """One poll, two mails the operator sent a colleague, for two jobs: two
+    questions standing in one thread."""
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True)
+    job = await world.uow.workflows.get(f.TENANT, JOB)
+    await world.uow.workflows.save(replace(job, id=OTHER_JOB, title="Create a Warehouse Type"))
+
+    def sent(n: str, thread: str) -> str:
+        return json.dumps(
+            {
+                "id": n,
+                "subject": f"request {n}",
+                "body": "please add customer type GT2",
+                "thread_id": thread,
+                "from": OPERATOR,
+                "to": "colleague@example.com",
+                "mailbox": "operator@example.com",
+            }
+        )
+
+    mailbox = _Mailbox(
+        search=_found("m-5", "m-6"), **{"m-5": sent("m-5", "t-5"), "m-6": sent("m-6", "t-6")}
+    )
+    reads = _Reads(
+        *(
+            {
+                "workflow_id": job,
+                "values": [{"name": "Customer Type", "value": "GT2"}],
+                "missing": [],
+                "sure": True,
+            }
+            for job in (JOB, OTHER_JOB)
+        )
+    )
+    await world.polling(mailbox, reads).execute()
+    thread = await _thread(world.uow)
+    first, second = (one.id.value for one in thread.messages if (one.decision or {}).get("confirm"))
+    converse = Converse(
+        world.uow,
+        ResolveIntent(world.uow, PlanTask(Retrieve(world.uow, FakeEmbedder()))),
+        FakeClock(),
+        FakeIdFactory(),
+    )
+    return converse, thread, first, second
+
+
+async def test_do_it_under_the_older_question_runs_that_question_s_job() -> None:
+    converse, thread, first, second = await _two_questions()
+
+    said = await converse.execute(CTX, thread_id=thread.id, text="yes", answering=first)
+
+    go = said.messages[-1].decision or {}
+    assert go.get("resume") is True and go["workflow_id"] == JOB, go
+    assert go["mail_thread"] == "t-5"
+    assert offered_job(said.messages, second) is not None, "the other question was closed"
+
+
+async def test_leave_it_under_the_older_question_leaves_the_newer_one_open() -> None:
+    converse, thread, first, second = await _two_questions()
+
+    said = await converse.execute(CTX, thread_id=thread.id, text="no", answering=first)
+
+    assert said.messages[-1].text.startswith("Left ")
+    assert offered_job(said.messages, first) is None
+    assert offered_job(said.messages, second) is not None
+    assert not any((one.decision or {}).get("resume") for one in said.messages)
+
+
+async def test_a_second_press_under_an_answered_question_starts_nothing() -> None:
+    converse, thread, first, second = await _two_questions()
+    await converse.execute(CTX, thread_id=thread.id, text="yes", answering=first)
+
+    again = await converse.execute(CTX, thread_id=thread.id, text="yes", answering=first)
+
+    assert sum(bool((one.decision or {}).get("resume")) for one in again.messages) == 1
+    assert "no longer" in again.messages[-1].text
+    assert offered_job(again.messages, second) is not None
 
 
 class _Paged(_Mailbox):

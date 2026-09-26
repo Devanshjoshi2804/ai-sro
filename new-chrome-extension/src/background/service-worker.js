@@ -2319,7 +2319,11 @@ async function handle(message, sender) {
       }));
     }
     case "thread-say": {
-      const said = await api.say(message.threadId, message.text);
+      const said = await api.say(
+        message.threadId,
+        message.text,
+        message.answering,
+      );
       // What the thread is waiting on NOW, off the reply that just changed it.
       //
       // `lookForAQuestion` is the only other writer and it runs on the minute

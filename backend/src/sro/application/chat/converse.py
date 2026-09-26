@@ -129,12 +129,19 @@ class Converse:
         system: str | None = None,
         parameters: dict[str, str] | None = None,
         run_id: RunId | None = None,
+        answering: str | None = None,
     ) -> Thread:
         if run_id is not None:
             return await self._said_to_a_run(ctx, thread_id=thread_id, text=text, run_id=run_id)
         async with self._uow as uow:
             said_before = (await uow.threads.get(ctx.tenant_id, thread_id)).messages
-        waiting = await self._still_wanted(ctx, pending_job(said_before))
+        if (
+            answering is not None
+            and pending_job(said_before, answering) is None
+            and offered_job(said_before, answering) is None
+        ):
+            return await self._no_longer_open(ctx, thread_id=thread_id, text=text)
+        waiting = await self._still_wanted(ctx, pending_job(said_before, answering))
         if waiting is not None:
             answered_it, about = await self._is_it_an_answer(ctx, waiting, text)
             if answered_it is not None:
@@ -160,8 +167,34 @@ class Converse:
                 ctx, thread_id=thread_id, pending=waiting, said_before=said_before
             )
         return await self._carry_on(
-            ctx, thread_id=thread_id, text=text, system=system, parameters=parameters
+            ctx,
+            thread_id=thread_id,
+            text=text,
+            system=system,
+            parameters=parameters,
+            answering=answering,
         )
+
+    async def _no_longer_open(
+        self, ctx: RequestContext, *, thread_id: ThreadId, text: str
+    ) -> Thread:
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            for speaker, said in (
+                (Speaker.OPERATOR, text),
+                (Speaker.ASSISTANT, "That question is no longer open, so nothing was done."),
+            ):
+                thread.say(
+                    Message(
+                        id=self._ids.new_message_id(),
+                        speaker=speaker,
+                        text=said,
+                        said_at=self._clock.now(),
+                    )
+                )
+            await uow.threads.save(thread)
+            await uow.commit()
+        return thread
 
     async def _carry_on(
         self,
@@ -173,10 +206,11 @@ class Converse:
         parameters: dict[str, str] | None = None,
         placed: Understood | _NotAsked | None = NOT_ASKED,
         standing: bool = False,
+        answering: str | None = None,
     ) -> Thread:
         async with self._uow as uow:
             said_before = (await uow.threads.get(ctx.tenant_id, thread_id)).messages
-        offered = offered_job(said_before)
+        offered = offered_job(said_before, answering)
         if offered is not None and (said_yes(text) or let_go(text)):
             return await self._say_yes_to_it(ctx, thread_id=thread_id, text=text, offered=offered)
         if isinstance(placed, _NotAsked):
@@ -357,7 +391,11 @@ class Converse:
             if let_go(text):
                 said, decision = (
                     f"Dropped {pending.title}.",
-                    {"kind": Said.NOTE, "workflow_id": pending.workflow_id},
+                    {
+                        "kind": Said.NOTE,
+                        "workflow_id": pending.workflow_id,
+                        "mail_thread": pending.mail_thread,
+                    },
                 )
             else:
                 filled = answered(pending, text)
@@ -446,7 +484,11 @@ class Converse:
             said = f"Running {offered.title} now." if ready else question(offered)
             if let_go(text):
                 said = f"Left {offered.title}."
-                decision = {"kind": Said.NOTE, "workflow_id": offered.workflow_id}
+                decision = {
+                    "kind": Said.NOTE,
+                    "workflow_id": offered.workflow_id,
+                    "mail_thread": offered.mail_thread,
+                }
             elif ready:
                 decision["resume"] = True
             else:

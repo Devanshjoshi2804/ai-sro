@@ -178,8 +178,8 @@ test("a mail the server will not run by itself asks do it or leave it", () => {
   of(item, "button")[0].listeners.click[0]();
   of(item, "button")[1].listeners.click[0]();
   assert.deepEqual(pressed, [
-    ["say", { said: "yes" }],
-    ["say", { said: "no" }],
+    ["say", { said: "yes", answering: "m1" }],
+    ["say", { said: "no", answering: "m1" }],
   ]);
 });
 

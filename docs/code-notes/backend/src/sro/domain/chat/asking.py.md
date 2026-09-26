@@ -277,7 +277,7 @@ Code: `limits: Mapping[str, int] = field(default_factory=dict)`
 > rather than as it was typed, so the answer this reports on is the one that
 > would be sent.
 
-## `pending_job`, [line 169](../../../../../../../backend/src/sro/domain/chat/asking.py#L169): Docstring
+## `pending_job`, [line 194](../../../../../../../backend/src/sro/domain/chat/asking.py#L194): Docstring
 
 > What the conversation is waiting on, or None.
 >
@@ -288,48 +288,48 @@ Code: `limits: Mapping[str, int] = field(default_factory=dict)`
 > as it should. Reading further back would let a job abandoned twenty minutes
 > ago claim the next sentence somebody typed.
 
-## `_pairs`, [line 196](../../../../../../../backend/src/sro/domain/chat/asking.py#L196): Docstring
+## `_pairs`, [line 218](../../../../../../../backend/src/sro/domain/chat/asking.py#L218): Docstring
 
 > The offered fields as the decision stores them: a list of two-item
 > lists, because JSON has no tuples. Anything else is nothing -- an offer
 > read out of a shape nobody wrote is an offer to fill a field that may not
 > exist.
 
-## `_step`, [line 206](../../../../../../../backend/src/sro/domain/chat/asking.py#L206): Docstring
+## `_step`, [line 228](../../../../../../../backend/src/sro/domain/chat/asking.py#L228): Docstring
 
 > Which step a stored decision names, or 0. A bool is an int in Python and
 > `from_step: true` would otherwise resume a job at its second step.
 
-## `_numbers`, [line 212](../../../../../../../backend/src/sro/domain/chat/asking.py#L212): Docstring
+## `_numbers`, [line 234](../../../../../../../backend/src/sro/domain/chat/asking.py#L234): Docstring
 
 > A decision's limits, as whole numbers. JSON off a row, so anything that
 > is not a usable count is not one -- a bool is an int in Python, and
 > `limits: {"Code": true}` would otherwise read as a one-character field.
 
-## `_strings`, [line 222](../../../../../../../backend/src/sro/domain/chat/asking.py#L222): Docstring
+## `_strings`, [line 244](../../../../../../../backend/src/sro/domain/chat/asking.py#L244): Docstring
 
 > A decision's mapping, as strings. A decision is JSON off a row and its
 > values are `object` to anything reading it honestly.
 
-## `let_go`, [line 226](../../../../../../../backend/src/sro/domain/chat/asking.py#L226): Docstring
+## `let_go`, [line 248](../../../../../../../backend/src/sro/domain/chat/asking.py#L248): Docstring
 
 > Whether that answer was somebody calling it off.
 
-## `said_yes`, [line 230](../../../../../../../backend/src/sro/domain/chat/asking.py#L230): Docstring
+## `said_yes`, [line 252](../../../../../../../backend/src/sro/domain/chat/asking.py#L252): Docstring
 
 > Whether that sentence agrees with what was just offered.
 
-## `_plainly`, [line 234](../../../../../../../backend/src/sro/domain/chat/asking.py#L234): Docstring
+## `_plainly`, [line 256](../../../../../../../backend/src/sro/domain/chat/asking.py#L256): Docstring
 
 > One answer, as it is matched: lowercased, without the punctuation
 > somebody types around a short word.
 
-## `_items`, [line 238](../../../../../../../backend/src/sro/domain/chat/asking.py#L238): Docstring
+## `_items`, [line 260](../../../../../../../backend/src/sro/domain/chat/asking.py#L260): Docstring
 
 > The things a job would be done for, as strings. A decision is JSON off a
 > row, so its `items` is `object` to anything reading it honestly.
 
-## `offered_job`, [line 242](../../../../../../../backend/src/sro/domain/chat/asking.py#L242): Docstring
+## `offered_job`, [line 264](../../../../../../../backend/src/sro/domain/chat/asking.py#L264): Docstring
 
 > The job this conversation has just offered to do, if it is still the
 > last thing said.
@@ -340,7 +340,7 @@ Code: `limits: Mapping[str, int] = field(default_factory=dict)`
 > value is NOT one of these -- `pending_job` owns that, and a sentence there
 > is the value rather than a yes.
 
-## `answered`, [line 263](../../../../../../../backend/src/sro/domain/chat/asking.py#L263): Docstring (debt)
+## `answered`, [line 284](../../../../../../../backend/src/sro/domain/chat/asking.py#L284): Docstring (debt)
 
 > The same job with this answer in it, and the next question outstanding.
 >
@@ -357,7 +357,7 @@ Code: `limits: Mapping[str, int] = field(default_factory=dict)`
 > the next pass that recognises it, and until then its offer still carries
 > two names for one field. Delete it once no stored job has a pair.
 
-## `_twins`, [line 284](../../../../../../../backend/src/sro/domain/chat/asking.py#L284): Docstring
+## `_twins`, [line 305](../../../../../../../backend/src/sro/domain/chat/asking.py#L305): Docstring
 
 > The other names for the field just answered.
 >
@@ -388,7 +388,7 @@ Code: `if also := also_set(pending):`
 > Before rather than after, because the question is what the next sentence
 > answers and a question buried above an offer gets the offer's answer.
 
-## `answered`, [line 267](../../../../../../../backend/src/sro/domain/chat/asking.py#L267): Comment
+## `answered`, [line 288](../../../../../../../backend/src/sro/domain/chat/asking.py#L288): Comment
 
 Code: `if too_long_for(pending, said) is not None:`
 
@@ -407,9 +407,30 @@ Code: `said.append(f"You sent this to {_listed(list(sent_to))}.")`
 > the operator asked somebody else to do it, and the question is whether this
 > system should do it instead.
 
-## `offered_job`, [line 258](../../../../../../../backend/src/sro/domain/chat/asking.py#L258): Note
+## `offered_job`, [line 280](../../../../../../../backend/src/sro/domain/chat/asking.py#L280): Note
 
 Code: `mail_thread=str(decision.get("mail_thread") or ""),`
 
 > Carried so a yes to a request read from mail starts a run a reply on that
 > mail's thread can find, as a press on the card would.
+
+## `asked_under`, [line 169](../../../../../../../backend/src/sro/domain/chat/asking.py#L169): Note
+
+Code: `def asked_under(messages: Sequence[Message], answering: str | None = None) -> Message | None:`
+
+> The one lookup `pending_job` and `offered_job` share: the question an answer
+> is bound to. With no id -- a sentence typed into the box -- it is the newest
+> assistant decision, as it always was, so a conversation that moved on is not
+> waiting on anything. With an id -- a press under a question -- it is that
+> message, and only while it is still open: a later assistant decision on the
+> same offer (same job, same mail thread: an answer, a re-ask, a run started or
+> a question left) closes it. So a press under an older question acts on that
+> question's offer, never on the newest one, and a press under a closed
+> question resolves to nothing, which the door refuses.
+
+## `offered_job`, [line 269](../../../../../../../backend/src/sro/domain/chat/asking.py#L269): Note
+
+Code: `if decision.get("resume"):`
+
+> A `resume` decision is a run already started, not an offer: a second "yes"
+> under it would start the same job again.

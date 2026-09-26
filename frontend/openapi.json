@@ -28320,6 +28320,17 @@
               }
             ],
             "title": "Run Id"
+          },
+          "answering": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answering"
           }
         },
         "type": "object",

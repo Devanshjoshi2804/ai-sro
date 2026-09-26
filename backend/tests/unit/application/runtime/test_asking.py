@@ -286,3 +286,37 @@ async def test_a_password_answer_never_ends_a_park_on_a_one_time_code() -> None:
 
     assert world.uow.browser_sessions.leases[lease] == parked
     assert parked.waits_for == "code"
+
+
+async def test_a_value_answer_s_text_is_never_kept_on_the_run() -> None:
+    world = await steel_run(steps=[save_step(status=201)])
+    await world.asks({"id": QID, "kind": "value", "text": "which type?"})
+
+    await AnswerRun(world.uow, world.durable).execute(
+        CTX, run_id=world.run_id, question_id=QID, value="GU9, pw Hunter2!"
+    )
+    kept = await world.saved_run()
+    await world.run_steps.finish(CTX, world.run_id)
+    await world.run_steps.release(CTX, world.run_id)
+
+    assert "Hunter2" not in str(kept.progress)
+    assert "Hunter2" not in str(await world.saved_run())
+
+
+async def test_a_code_question_withdrawn_under_the_wait_still_ends_its_park_when_the_run_ends() -> (
+    None
+):
+    world = await steel_run(steps=[save_step(status=201)])
+    await world.vault.store(world.account.vault_key("password"), "pw")
+    await world.run_steps.prepare(CTX, world.run_id)
+    world.driver.signals_for_every_tab = PageSignals(APP, autocomplete=frozenset({"one-time-code"}))
+    await world.run_steps.acquire(CTX, world.run_id)
+    await world.run_steps.release(CTX, world.run_id)
+    waiting = Progress.of((await world.saved_run()).progress)
+    await world.asks({})
+
+    await world.run_steps.finish(CTX, world.run_id)
+    await world.run_steps.release(CTX, world.run_id)
+
+    assert world.uow.browser_sessions.leases[waiting.lease].state is not LeaseState.WAITING
+    assert waiting.tabs[MAIN] not in world.driver.tabs

@@ -28,12 +28,14 @@ Code: `if not asking or asking.get("id") != question_id:`
 
 Code: `progress.asking = {**asking, **answer}`
 
-> The answer is kept on the run's own question, in one compare-and-set, so
-> the first answer wins: a different second one is refused, the same one
-> again is only signalled again (a retry after the signal failed). The
-> signal carries the question id and nothing else; the workflow's history is
-> not a vault (Global Constraint 10), and `RunSteps.answered` reads the
-> answer back from the run.
+> That the question was answered, and the verdict, are kept on the run's
+> own question in one compare-and-set, so the first answer wins: a different
+> second one is refused, the same one again is only signalled again (a retry
+> after the signal failed). No answer text is kept anywhere: nothing reads a
+> value yet, and a reply could carry a secret. The signal carries the
+> question id and nothing else; the workflow's history is not a vault
+> (Global Constraint 10), and `RunSteps.answered` reads the answer back
+> from the run.
 
 ## `WriteVerdict`, [line 13](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L13): Constant
 

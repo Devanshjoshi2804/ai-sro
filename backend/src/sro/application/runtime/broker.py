@@ -246,15 +246,17 @@ class SessionBroker:
                     and lease.state is LeaseState.WAITING
                     and lease.waits_for == waits_for
                 ):
-                    await uow.browser_sessions.settle(
+                    ended = await uow.browser_sessions.settle(
                         ctx.tenant_id,
                         lease_id,
                         state=LeaseState.WAITING,
                         until=now,
                         now=now,
                         waits_for=waits_for,
-                    )
+                    ) and await uow.browser_sessions.expire(ctx.tenant_id, lease_id, now=now)
                     await uow.commit()
+                    if ended:
+                        await self._close(lease)
 
     async def _attach(
         self, ctx: RequestContext, lease: Lease, start_url: str, holder: str | None

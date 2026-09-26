@@ -48,7 +48,7 @@ class AnswerRun:
             raise Conflict("only a question about a step takes a verdict")
         if kind == "step" and not verdict and progress.in_doubt(int(asking.get("step") or -1)):
             raise Conflict("say whether the write was done: its verdict is done or not_done")
-        answer = {"answered": "yes", "value": value, "verdict": verdict}
+        answer = {"answered": "yes", "verdict": verdict}
         if asking.get("answered"):
             if any(asking.get(key, "") != said for key, said in answer.items()):
                 raise Conflict("that question was already answered")

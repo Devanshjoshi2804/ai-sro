@@ -686,7 +686,8 @@ async def test_a_reply_on_a_steel_run_s_thread_answers_only_a_value_and_never_st
     assert saved is not None
     standing = saved.progress.get("asking", {})
     assert isinstance(standing, dict)
-    assert ("GU9 please" in str(standing.get("value", ""))) is answered
+    assert bool(standing.get("answered")) is answered
+    assert "GU9 please" not in str(saved.progress)
     assert looked.offered == ()
 
 

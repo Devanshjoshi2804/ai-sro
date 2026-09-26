@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import Any
 
 from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.read_chat import ReadChat
@@ -10,7 +11,7 @@ from sro.application.chat.reading_an_answer import Read
 from sro.application.chat.understand import Understood
 from sro.application.context import RequestContext
 from sro.application.intent.plan_task import PlanTask
-from sro.application.intent.resolve import ResolveIntent
+from sro.application.intent.resolve import Resolution, ResolveIntent
 from sro.application.knowledge.record_claim import Claim, RecordClaims
 from sro.application.knowledge.retrieve import Retrieve
 from sro.domain.chat.asking import NEEDS, pending_job
@@ -765,7 +766,7 @@ async def test_a_question_that_arrives_while_this_door_is_thinking_is_not_talked
     # has already read the thread and while it is still resolving.
     asked_late = False
 
-    async def _ask_while_resolving(*args: object, **kwargs: object) -> object:
+    async def _ask_while_resolving(*args: Any, **kwargs: Any) -> Resolution:
         nonlocal asked_late
         if not asked_late:
             asked_late = True

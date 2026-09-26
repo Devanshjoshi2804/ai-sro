@@ -192,7 +192,7 @@ def _short_job(**over: object) -> Pending:
         values={"Customer Type": "NRT2"},
         missing=("Customer Type Description",),
         limits={"Customer Type Description": 2000},
-        **over,  # type: ignore[arg-type]
+        **over,
     )
 
 

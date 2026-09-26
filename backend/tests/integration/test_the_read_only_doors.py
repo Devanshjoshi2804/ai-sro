@@ -76,7 +76,7 @@ async def test_shapes_is_answered_by_a_real_session(client: httpx.AsyncClient) -
     # demanding values a run would have gone and found. This assertion is here
     # to prove the door answers from a real session, so it names the whole
     # body rather than a subset -- and the whole body grew a field.
-    assert response.json() == {"shapes": [], "can_find": False}
+    assert response.json() == {"shapes": [], "can_find": False, "takes_over": False}
 
 
 async def test_spend_is_answered_by_a_real_session(client: httpx.AsyncClient) -> None:

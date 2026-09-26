@@ -4,10 +4,11 @@ import time
 from collections import defaultdict
 from collections.abc import Iterable
 
-from evals.model import K_COVERS, Case, Scored
+from evals.model import K_COVERS, K_OWN, Case, Scored
 from sro.application.observation.mining_pass import propose
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
+from sro.container import Container
 from sro.domain.execution.compose import normal
 from sro.domain.observation.trim import is_secret
 from sro.domain.observation.values import frequencies_over, shared_values
@@ -34,6 +35,9 @@ def _seen(workflow: Workflow) -> set[str]:
 class Mining:
     name = "mining"
     prompt = MINE
+
+    def asker(self, container: Container) -> Asker | None:
+        return container.mining_asker()
 
     async def cases(self, uow: UnitOfWork, tenant_id: TenantId) -> list[Case]:
         intents = {one.gesture_id: one for one in await uow.gestures.intents_for(tenant_id)}
@@ -110,7 +114,11 @@ class Mining:
         wanted = {str(one) for one in case.expected.get("cites", [])}  # type: ignore[attr-defined]
         values = {str(one) for one in case.expected.get("values", [])}  # type: ignore[attr-defined]
         passed = any(
-            len(wanted & cited_ids(one)) >= K_COVERS * len(wanted) and values <= _seen(one)
+            len(wanted & cited_ids(one)) >= K_COVERS * len(wanted)
+            and len(wanted & cited_ids(one)) >= K_OWN * len(cited_ids(one))
+            and values <= _seen(one)
             for one in proposed
         )
-        return Scored(case.id, passed, bool(proposed), answer.cost_usd, latency, answer.data)
+        return Scored(
+            case.id, passed, bool(proposed), answer.cost_usd, latency, answer.data, answer.error
+        )

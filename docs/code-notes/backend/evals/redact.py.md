@@ -1,29 +1,42 @@
 # Notes for `backend/evals/redact.py`
 
-How a real case becomes one that may be committed.
+How a real case becomes one that may be committed: every string is redacted by its role, and schema keys are never touched.
 
-## `_KEPT`, [line 9](../../../../backend/evals/redact.py#L9): Constant
+## `_VALUE_KEYS`, [line 14](../../../../backend/evals/redact.py#L14): Constant
 
-> Kept as they are: all-lowercase words (the prose of a mail and of the
-> evidence, and the schema's own keys) and this system's own ids (`ges_`,
-> `wfl_` plus 32 hex), which carry nothing of the customer's and which a
-> cite must still name. Everything else -- a capitalised word, a number, a
-> host, an address -- becomes its shape. An address is shaped even when its
-> parts are lowercase, and so is the tenant id (a reader case carries every
-> job's `tenant`). A lowercase customer word (a site name typed in lower
-> case) survives: that is why a person reads every candidate before it moves
-> to `ci/`.
+> Strings under these keys are values: typed and seen values, hosts, the
+> tenant, a search query, a job's shape key, and every value of a recorded
+> call's body. A value is shaped whole, whatever its case: `testsro` is
+> `aaaaaaa`. `_URL_KEYS` hold URLs and paths, whose host and every path
+> segment are shaped. The rest is prose.
 
-## `shape`, [line 13](../../../../backend/evals/redact.py#L13): Function
+## `_key`, [line 38](../../../../backend/evals/redact.py#L38): Design
+
+> A key is schema and is kept (`shape_key`, `seen_values` and `pass_id`
+> must still load into `Workflow` and still be read by the scoring). Only
+> two maps are keyed by data: `crossings` (keyed by a typed value, shaped
+> as a value) and a reader case's `expected.values` (keyed by a field
+> label, shaped as prose).
+
+## `_Shapes.learn`, [line 72](../../../../backend/evals/redact.py#L72): Design
+
+> The first pass collects every word of every value, URL and the tenant. In
+> the second pass prose keeps its lowercase words except those, so an
+> account typed into a login and named again in the mail is shaped in both.
+> Other lowercase prose (says, narrative, a mail body) is kept; a lowercase
+> customer word that is never a value survives, which is why a person reads
+> every candidate.
+
+## `shape`, [line 23](../../../../backend/evals/redact.py#L23): Function
 
 > Upper case to `A`, other letters to `a`, digits to `9`, anything else kept:
 > `GT-0042` is `AA-9999`. A shape keeps what a prompt reasons with (a code, a
 > date, a quantity) and drops what the value was.
 
-## `redacted`, [line 57](../../../../backend/evals/redact.py#L57): Design
+## `redacted`, [line 119](../../../../backend/evals/redact.py#L119): Design
 
 > One shape map per case, shared by the input, the expected and the recorded
-> answer: the same value becomes the same shape everywhere, so a quoted value
-> still occurs in its mail and an expected value still matches the answer.
-> Two values with one shape get `~2`, `~3`, so two values stay two values.
-> Keys are shaped too: a field label can carry a customer's word.
+> answer: the same value becomes the same shape everywhere, so an expected
+> value still matches the answer and a cite still names its gesture (this
+> system's ids are kept). Two values with one shape get `~2`, `~3`. A
+> redacted case loads and scores exactly as the raw one (the probe test).

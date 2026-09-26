@@ -38,7 +38,7 @@ Code: `_schema_announced: bool = field(default=False, init=False, repr=False)`
 Code: `_mining_asker: Asker | None = field(default=None, init=False, repr=False)`
 
 > The mining pass's own client, built on the first pass that needs one.
-> See `_patient_asker`: same model, its own patience.
+> See `mining_asker`: same model, its own patience.
 
 ## `Container`, [line 208](../../../../../backend/src/sro/container.py#L208): Note on the line above
 
@@ -327,7 +327,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > instead, and the clock ``clamped`` needs comes from here so that no
 > route reads one.
 
-## `Container._patient_asker`, [line 383](../../../../../backend/src/sro/container.py#L383): Docstring
+## `Container.mining_asker`, [line 383](../../../../../backend/src/sro/container.py#L383): Docstring
 
 > Built on the first pass that needs it -- a second SDK client is a
 > socket pool, and a deployment that never mines should not open one --

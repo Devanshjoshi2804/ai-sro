@@ -1,9 +1,21 @@
-from evals.model import Case, Report, Scored, gate, report
+import json
+from dataclasses import asdict, replace
+from pathlib import Path
+from tempfile import mkdtemp
+from types import SimpleNamespace
+
+import pytest
+from evals.__main__ import arguments
+from evals.model import K_COST_TOLERANCE, Case, Report, Scored, gate, report
 from evals.redact import redacted, shape
 from evals.replay import Replayed
+from evals.run import frozen, run_ci
 from evals.suites.mining import Mining, request_values
+from evals.suites.reader import Reader
 
 from sro.domain.prompts.mine import MINE
+from sro.domain.shared.prices import Answer
+from sro.domain.skill.workflow import Step, Workflow
 
 
 def _report(accuracy: float, wrong: float, cost: float) -> Report:
@@ -128,3 +140,209 @@ def test_the_tenant_is_shaped_though_it_is_a_lowercase_word() -> None:
     out = redacted(case, tenant="acme")
     assert "acme" not in str(out.input)
     assert out.input["said"] == "aaaa ships"
+
+
+GES = [f"ges_{n:032x}" for n in range(6)]
+URL = "http://bywms:8080/walmart/orders"
+
+
+def _workflow() -> Workflow:
+    return Workflow(
+        id="wfl_" + "c" * 32,
+        tenant="greyorange",
+        title="Create a Customer Type",
+        narrative="the operator created a customer type from a mail",
+        systems=["bywms"],
+        steps=[
+            Step(
+                order=0,
+                says="type the code GT0",
+                system="bywms",
+                cites=GES[:2],
+                parameters=["Customer Type"],
+            )
+        ],
+        parameters=[
+            {"name": "Customer Type", "seen_values": ["GT0", "GT1"]},
+            {"name": "Owner", "seen_values": ["testsro"]},
+        ],
+        shape_key=[["bywms", "type", "Customer Type"]],
+        same_as="wfl_" + "d" * 32,
+        pass_id="pas_" + "e" * 32,
+    )
+
+
+def _reader_case() -> Case:
+    job = _workflow()
+    return Case(
+        id=job.id,
+        suite="reader",
+        input={
+            "said": "please create customer type GT2 for testsro at " + URL,
+            "jobs": [asdict(job) | {"repeat": None}],
+            "asked_by": {job.id: ["create GT0 please"]},
+        },
+        expected={"jobs": [job.id], "values": {"Customer Type": "GT2"}},
+        answer={
+            "workflow_id": job.id,
+            "sure": True,
+            "also": [],
+            "values": [{"name": "Customer Type", "value": "GT2"}],
+            "missing": [],
+            "items": [],
+        },
+    )
+
+
+def _mining_case() -> Case:
+    day = [
+        {
+            "id": one,
+            "at": float(n),
+            "evidence": {
+                "id": one,
+                "system": "bywms",
+                "gesture": {"kind": "type", "url": URL, "value": "GT0" if n == 1 else "testsro"},
+                "intent": {
+                    "act": "types the code",
+                    "values_seen": [{"field": "Customer Type", "value": "GT0"}],
+                },
+            },
+        }
+        for n, one in enumerate(GES[:5])
+    ]
+    return Case(
+        id="wfl_" + "c" * 32,
+        suite="mining",
+        input={
+            "day": day,
+            "crossings": {"GT0": GES[:2], "greyorange": GES[2:4], "login testsro": GES[3:5]},
+        },
+        expected={"cites": GES[:5], "values": ["GT0"]},
+        answer={
+            "workflows": [
+                {
+                    "title": "Create a Customer Type",
+                    "systems": ["bywms"],
+                    "steps": [
+                        {"order": 0, "says": "type GT0", "system": "bywms", "cites": GES[:5]}
+                    ],
+                    "parameters": [{"name": "Customer Type", "seen_values": ["GT0"]}],
+                }
+            ]
+        },
+    )
+
+
+async def _scores(suite: Mining | Reader, case: Case) -> tuple[bool, bool]:
+    got = await suite.run(case, Replayed(case.answer))
+    return got.passed, got.sure
+
+
+async def test_a_redacted_case_loads_and_scores_exactly_as_the_raw_one() -> None:
+    for suite, case in ((Reader(), _reader_case()), (Mining(), _mining_case())):
+        raw = await _scores(suite, case)
+        out = redacted(case, tenant="greyorange")
+        assert raw == (True, True)
+        assert await _scores(suite, Case.load(out.save(Path(mkdtemp())))) == raw, suite.name
+
+
+def test_schema_keys_are_never_renamed() -> None:
+    out = redacted(_reader_case(), tenant="greyorange")
+    job = out.input["jobs"][0]
+    assert {"shape_key", "same_as", "pass_id", "signs_in", "parameters"} <= set(job)
+    assert set(job["parameters"][0]) == {"name", "seen_values"}
+
+
+def test_values_hosts_and_paths_are_shaped_whatever_their_case() -> None:
+    """A lowercase word is kept only as prose. A typed or seen value, a host, a
+    path, the tenant and a crossing are shaped, and so is their every occurrence
+    in the prose around them: the mail names the account the operator typed."""
+    for case in (_reader_case(), _mining_case()):
+        text = json.dumps(redacted(case, tenant="greyorange").__getattribute__("input"))
+        for word in ("testsro", "bywms", "walmart", "orders", "greyorange"):
+            assert word not in text, (case.suite, word)
+
+
+def test_a_crossing_key_is_a_value_and_keeps_its_gestures() -> None:
+    crossings = redacted(_mining_case(), tenant="greyorange").input["crossings"]
+    assert isinstance(crossings, dict)
+    assert not {"greyorange", "login testsro"} & set(crossings)
+    assert sorted(map(len, crossings.values())) == [2, 2, 2]
+
+
+class _Refusing:
+    async def ask(self, **_: object) -> Answer:
+        return Answer(error="RuntimeError: the client has been closed")
+
+
+async def test_an_errored_call_is_an_error_not_an_unsure_miss() -> None:
+    got = await Mining().run(_mining_case(), _Refusing())
+    assert got.error and not got.passed
+    scored = [got, Scored("b", passed=True, sure=True, cost_usd=0.01, latency_s=1.0)]
+    now = report("mining", MINE, scored)
+    assert now.errors == 1
+    assert gate(None, now) and gate(now, now), "a run with an error neither baselines nor passes"
+
+
+def test_the_gate_refuses_a_different_case_set() -> None:
+    before = replace(_report(0.8, 0.1, 0.02), case_ids=("a", "b"))
+    assert gate(before, replace(before, case_ids=("a",)))
+    assert gate(before, before) == []
+
+
+def test_cost_is_gated_with_a_tolerance_for_jitter() -> None:
+    before = _report(0.8, 0.1, 0.02)
+    assert gate(before, _report(0.8, 0.1, 0.02 * (1 + K_COST_TOLERANCE) * 0.99)) == []
+    assert gate(before, _report(0.8, 0.1, 0.02 * (1 + K_COST_TOLERANCE) * 1.01))
+
+
+async def test_the_case_set_is_built_once_and_then_read() -> None:
+    folder = Path(mkdtemp())
+    built: list[int] = []
+
+    async def build() -> list[Case]:
+        built.append(1)
+        return [_mining_case()]
+
+    first = await frozen(folder / "t" / "mining.json", build)
+    again = await frozen(folder / "t" / "mining.json", build)
+    assert first == again == [replace(_mining_case(), answer=None)]
+    assert len(built) == 1
+
+
+def test_each_suite_asks_through_the_asker_production_uses_for_its_prompt() -> None:
+    patient, plain = object(), object()
+    container = SimpleNamespace(asker=plain, mining_asker=lambda: patient)
+    assert Mining().asker(container) is patient
+    assert Reader().asker(container) is plain
+
+
+async def test_ci_fails_on_an_empty_set() -> None:
+    assert await run_ci(live=False, folder=Path(mkdtemp())) == 1
+
+
+async def test_a_job_lumping_the_whole_window_is_not_a_find() -> None:
+    case = _mining_case()
+    noise = [f"ges_{n:032x}" for n in range(100, 120)]
+    lumped = {
+        "workflows": [
+            {
+                "title": "Everything",
+                "steps": [{"order": 0, "says": "all", "cites": GES[:5] + noise}],
+                "parameters": [{"name": "Code", "seen_values": ["GT0"]}],
+            }
+        ]
+    }
+    got = await Mining().run(case, Replayed(lumped))
+    assert (got.passed, got.sure) == (False, True)
+
+
+def test_a_limit_is_at_least_one_and_never_a_baseline() -> None:
+    for argv in (
+        ["run", "--suite", "mining", "--tenant", "t", "--limit", "0"],
+        ["run", "--suite", "mining", "--tenant", "t", "--limit", "3", "--baseline"],
+    ):
+        with pytest.raises(SystemExit):
+            arguments(argv)
+    assert arguments(["run", "--suite", "mining", "--tenant", "t", "--limit", "3"]).limit == 3

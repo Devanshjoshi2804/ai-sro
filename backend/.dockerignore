@@ -29,6 +29,13 @@ client_secret*
 *.sqlite*
 *.log
 
+# Eval cases and results are operator data from a local database. The box runs
+# evals from a bind mount (docs/code-notes/backend/evals/run.py.md), never from
+# the image.
+evals/cases/
+evals/results/
+evals/candidates/
+
 # Build and test residue. None of it changes what runs.
 .venv/
 __pycache__/

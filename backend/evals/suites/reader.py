@@ -8,6 +8,7 @@ from evals.model import Case, Scored
 from sro.application.chat.understand import understand
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
+from sro.container import Container
 from sro.domain.chat.asked_by import mails_behind, texts
 from sro.domain.execution.compose import normal
 from sro.domain.prompts.read_request import READ_REQUEST
@@ -25,6 +26,9 @@ def _job(raw: dict[str, object]) -> Workflow:
 class Reader:
     name = "reader"
     prompt = READ_REQUEST
+
+    def asker(self, container: Container) -> Asker | None:
+        return container.asker
 
     async def cases(self, uow: UnitOfWork, tenant_id: TenantId) -> list[Case]:
         workflows = list(await uow.workflows.known(tenant_id))
@@ -78,4 +82,5 @@ class Reader:
             got.answer.cost_usd,
             latency,
             got.answer.data,
+            got.answer.error,
         )

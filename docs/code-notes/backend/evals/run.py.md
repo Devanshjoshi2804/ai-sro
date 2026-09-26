@@ -2,27 +2,45 @@
 
 The three commands behind `make eval`, `make eval-ci` and `make eval-redact`.
 
-## `run_suite`, [line 35](../../../../backend/evals/run.py#L35): Design
+## `frozen`, [line 52](../../../../backend/evals/run.py#L52): Design
 
-> LIVE: reads the local database and spends model money. Every case is saved
-> under `cases/` (gitignored) before it is run and again with the model's
-> answer after, so a later `eval-redact` has the recorded answer to replay.
-> The report is compared with `results/baseline-<suite>.json` if one exists;
-> `--baseline` replaces it only when the gate passed. `--limit` takes the
-> first N cases, for a bounded run; a baseline written from a limited run is
-> only comparable with runs of the same limit. The calls run under
-> `about(tenant=...)`: the meter refuses a call named for no tenant, and the
-> eval's spend is billed and capped like any other. `run_ci --live` bills
-> the tenant `eval`.
+> The case set is built from the database once, to
+> `cases/<tenant>/<suite>.json`, and every later run reads that file. On
+> the QA box mining keeps adding jobs and seen values, so cases rebuilt per
+> run would drift between the baseline and the candidate. To rebuild, delete
+> the file; the next run's case ids then differ from the baseline's, and the
+> gate says so until a new baseline is written.
 
-## `run_ci`, [line 60](../../../../backend/evals/run.py#L60): Design
+## `run_suite`, [line 57](../../../../backend/evals/run.py#L57): Design
+
+> LIVE: reads the database and spends model money, billed to the tenant
+> (`about(tenant=...)`): it lands in that tenant's `model_spend` and counts
+> toward `daily_usd_cap`, so a large run can make the cap refuse that day's
+> live mining or mail. Each suite asks through the asker production uses for
+> its prompt (`Suite.asker`: mining's is the patient one). Answered cases go
+> to `results/<tenant>/<suite>/` for `eval-redact`. `--baseline` writes
+> `results/<tenant>/baseline-<suite>.json` only when the gate passed;
+> `--limit` is refused with it.
+>
+> On the QA box, the image carries no `evals/` (`.dockerignore`); mount it:
+>
+>     docker compose -f infra/docker-compose.deploy.yml run --rm \
+>       -v <box>/backend/evals:/app/evals api \
+>       python -m evals run --suite mining --tenant greyorange --baseline
+>
+> The mount must be writable by the container's user `sro`, and the
+> service needs `SRO_INTERPRETATION_ENABLED=true` and the Gemini key (the
+> `api` service has both).
+
+## `run_ci`, [line 86](../../../../backend/evals/run.py#L86): Design
 
 > Offline: each committed case's recorded answer must conform to its prompt's
 > schema, and the production entry point, fed that answer through
 > `Replayed`, must still score it a pass. `--live` asks the real model
-> instead. An empty `ci/` passes.
+> through each suite's production asker, billed to the tenant `eval`. An
+> empty set fails: a guard with nothing in it guards nothing.
 
-## `write_candidates`, [line 78](../../../../backend/evals/run.py#L78): Design
+## `write_candidates`, [line 108](../../../../backend/evals/run.py#L108): Design
 
-> Writes redacted copies to `candidates/` (gitignored). Nothing moves to
-> `ci/` without a person reading the file.
+> Redacts the answered cases of one tenant into `candidates/<tenant>/<suite>/`
+> (gitignored). Nothing moves to `ci/` without a person reading the file.

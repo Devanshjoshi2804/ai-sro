@@ -8,6 +8,8 @@ from pathlib import Path
 from sro.domain.prompts.record import Prompt
 
 K_COVERS = 0.8
+K_OWN = 0.5
+K_COST_TOLERANCE = 0.1
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +40,7 @@ class Scored:
     cost_usd: float
     latency_s: float
     answer: dict[str, object] | None = None
+    error: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +55,13 @@ class Report:
     cost_per_case: float
     p50_s: float
     p95_s: float
+    errors: int = 0
+    case_ids: tuple[str, ...] = ()
+
+    @classmethod
+    def load(cls, path: Path) -> Report:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        return cls(**raw | {"case_ids": tuple(raw.get("case_ids", ()))})
 
 
 def _at(ordered: list[float], q: float) -> float:
@@ -72,18 +82,25 @@ def report(suite: str, prompt: Prompt, scored: Sequence[Scored]) -> Report:
         cost_per_case=sum(one.cost_usd for one in scored) / n,
         p50_s=_at(latencies, 0.5),
         p95_s=_at(latencies, 0.95),
+        errors=sum(one.error is not None for one in scored),
+        case_ids=tuple(sorted(one.case_id for one in scored)),
     )
 
 
-def gate(before: Report, after: Report) -> list[str]:
-    failed = []
+def gate(before: Report | None, after: Report) -> list[str]:
+    failed = [f"{after.errors} case(s) errored"] if after.errors else []
+    if before is None:
+        return failed
+    if after.case_ids != before.case_ids:
+        failed.append("the case set differs from the baseline's")
+        return failed
     if after.accuracy < before.accuracy:
         failed.append(f"accuracy fell: {before.accuracy:.1%} -> {after.accuracy:.1%}")
     if after.sure_but_wrong > before.sure_but_wrong:
         failed.append(
             f"sure-but-wrong rose: {before.sure_but_wrong:.1%} -> {after.sure_but_wrong:.1%}"
         )
-    if after.cost_per_case > before.cost_per_case:
+    if after.cost_per_case > before.cost_per_case * (1 + K_COST_TOLERANCE):
         failed.append(
             f"cost per case rose: ${before.cost_per_case:.5f} -> ${after.cost_per_case:.5f}"
         )
@@ -94,9 +111,10 @@ def as_markdown(report: Report, failed: Sequence[str]) -> str:
     rows = [
         f"### make eval — {report.suite}: {report.prompt} v{report.version} on {report.model}",
         "",
-        "| cases | accuracy | sure-but-wrong | cost/case | p50 | p95 |",
-        "|---|---|---|---|---|---|",
-        f"| {report.cases} | {report.accuracy:.1%} | {report.sure_but_wrong:.1%} | "
+        "| cases | errors | accuracy | sure-but-wrong | cost/case | p50 | p95 |",
+        "|---|---|---|---|---|---|---|",
+        f"| {report.cases} | {report.errors} | {report.accuracy:.1%} | "
+        f"{report.sure_but_wrong:.1%} | "
         f"${report.cost_per_case:.5f} | {report.p50_s:.2f} s | {report.p95_s:.2f} s |",
         "",
         "Gate: " + ("passed" if not failed else "FAILED — " + "; ".join(failed)),

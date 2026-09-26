@@ -141,7 +141,9 @@ Code: `_PREPARE_RETRY = RetryPolicy(`
 > `tests/replay/histories` replays on the current code in `make test` and
 > CI. After a change, `make record-histories` (real Temporal, `make up`)
 > adds the new shape's histories next to the old ones; delete an old one
-> only together with the branch it keeps. Reordering `finish` and
+> only together with the branch it keeps.
+> A set (files keyed by one hash of `RunWorkflow`'s source) can be deleted
+> once no deployed worker could still hold a run recorded under it. Reordering `finish` and
 > `release` without a patch fails all 17 recorded histories; the same
 > reorder behind `patched()` replays clean.
 

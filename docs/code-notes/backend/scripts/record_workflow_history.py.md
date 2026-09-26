@@ -2,7 +2,7 @@
 
 Notes on [`backend/scripts/record_workflow_history.py`](../../../../backend/scripts/record_workflow_history.py). Each note names the code it explains (function or class, then the line in the current file) and says what the code does and why.
 
-## `Recording`, [line 22](../../../../backend/scripts/record_workflow_history.py#L22): Class
+## `Recording`, [line 23](../../../../backend/scripts/record_workflow_history.py#L23): Class
 
 > The real-Temporal tests in `tests/integration/test_run_workflow.py` connect
 > through this client interceptor, which keeps the id of every workflow they
@@ -12,16 +12,17 @@ Notes on [`backend/scripts/record_workflow_history.py`](../../../../backend/scri
 > identity is `runs-test`, so no host name reaches a history; every run id,
 > tenant and value in them is the tests' own synthetic data.
 
-## module, [line 19](../../../../backend/scripts/record_workflow_history.py#L19): Note
+## module, [line 20](../../../../backend/scripts/record_workflow_history.py#L20): Note
 
-Code: `VERSION = hashlib.sha256(Path(workflows.__file__).read_bytes()).hexdigest()[:8]`
+Code: `VERSION = hashlib.sha256(inspect.getsource(RunWorkflow).encode()).hexdigest()[:8]`
 
-> Histories are named by a hash of `workflows.py`, so recording after a
-> workflow change adds the new shape's histories and never overwrites the
+> Histories are named by a hash of `RunWorkflow`'s own source, so an edit
+> elsewhere in `workflows.py` adds no duplicate set, and recording after a
+> `RunWorkflow` change adds the new shape's histories and never overwrites the
 > old ones: those are what prove a `workflow.patched()` branch still
 > replays the runs in flight from before the change.
 
-## `_without_stack_traces`, [line 47](../../../../backend/scripts/record_workflow_history.py#L47): Note
+## `_without_stack_traces`, [line 48](../../../../backend/scripts/record_workflow_history.py#L48): Note
 
 Code: `def _without_stack_traces(node: dict[str, Any]) -> dict[str, Any]:`
 

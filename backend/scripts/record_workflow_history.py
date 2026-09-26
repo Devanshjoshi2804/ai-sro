@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 from pathlib import Path
 from typing import Any
@@ -13,10 +14,10 @@ from temporalio.client import (
     WorkflowHandle,
 )
 
-from sro.infrastructure.temporal import workflows
+from sro.infrastructure.temporal.workflows import RunWorkflow
 
 HISTORIES = Path(__file__).resolve().parents[1] / "tests" / "replay" / "histories"
-VERSION = hashlib.sha256(Path(workflows.__file__).read_bytes()).hexdigest()[:8]
+VERSION = hashlib.sha256(inspect.getsource(RunWorkflow).encode()).hexdigest()[:8]
 
 
 class Recording(Interceptor):

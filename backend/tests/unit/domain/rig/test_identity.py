@@ -91,19 +91,6 @@ def test_a_small_job_inside_a_big_one_is_the_same_job_and_says_which_contains() 
     assert resolution.contains is False
 
 
-def test_the_models_own_opinion_decides_nothing() -> None:
-    """A model re-judging its earlier verdict disagrees with itself at roughly
-    90%, and same_as asks exactly that."""
-    known = _workflow(["ges_1"], SHAPE, id="wfl_known")
-    unrelated = _workflow(
-        ["ges_50"],
-        [["https://other.example", "wholly", "click"]],
-        same_as="wfl_known",
-    )
-
-    assert resolve(unrelated, [known]).kind == "new"
-
-
 def test_a_workflow_with_no_shape_is_new_rather_than_a_match() -> None:
     known = _workflow(["ges_1"], SHAPE, id="wfl_known")
 

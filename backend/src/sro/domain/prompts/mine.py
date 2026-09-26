@@ -48,13 +48,11 @@ beside `workflows`. It is what is left of the WINDOW when every job in it has
 been described -- not something belonging to any one job you found. Do not
 force it into a job.
 
-Say which values look like the same thing appearing in two systems.
-
 Do not invent a system that the evidence you cited does not touch."""
 
 MINE = Prompt(
     name="mine",
-    version=1,
+    version=2,
     model="gemini-3.8-flash",
     thinking="medium",
     role=_ROLE,

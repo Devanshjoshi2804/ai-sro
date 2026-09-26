@@ -40,7 +40,6 @@ class Workflow:
     steps: list[Step] = field(default_factory=list)
     parameters: list[dict[str, object]] = field(default_factory=list)
     shape_key: list[list[str]] = field(default_factory=list)
-    same_as: str | None = None
     pass_id: str = ""
 
     repeat: Repeat | None = None

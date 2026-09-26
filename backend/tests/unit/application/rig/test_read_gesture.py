@@ -58,7 +58,6 @@ def _answer(**data: object) -> Answer:
         "system": "http://127.0.0.1:63319",
         "page": "orders",
         "values_seen": [{"field": "clientCode", "value": "ACME-4471"}],
-        "continues": None,
         "confidence": "high",
         "why": "the field is labelled Client Code",
     }
@@ -297,17 +296,6 @@ async def test_the_model_is_told_what_to_do_and_given_a_response_schema() -> Non
         "confidence",
         "why",
     }
-
-
-async def test_an_empty_continues_is_not_a_continuation() -> None:
-    """No longer asked for, and still read tolerantly: an answer that carries
-    it anyway -- `""` for most gestures, as the old schema invited -- is
-    stored as no link rather than as an empty one."""
-    asker = FakeAsker(_answer(continues=""))
-
-    intent = await read_gesture(_gestures()[0], tail=[], asker=asker)
-
-    assert intent.continues is None
 
 
 async def test_one_gesture_is_one_call() -> None:

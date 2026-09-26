@@ -48,7 +48,7 @@ Code: `TAIL = 8`
 > but not the name it was run up against -- which is the one thing a reader of
 > a $0.00 row needs.
 
-## `_values_seen`, [line 57](../../../../../../../backend/src/sro/domain/observation/reading.py#L57): Docstring
+## `_values_seen`, [line 56](../../../../../../../backend/src/sro/domain/observation/reading.py#L56): Docstring
 
 > What the model reported the operator entering, with credentials blanked.
 >
@@ -60,7 +60,7 @@ Code: `TAIL = 8`
 > typed a password is worth reading, what they typed is not. This is the
 > single point every stored values_seen passes through.
 
-## `is_write`, [line 72](../../../../../../../backend/src/sro/domain/observation/reading.py#L72): Docstring
+## `is_write`, [line 71](../../../../../../../backend/src/sro/domain/observation/reading.py#L71): Docstring
 
 > Whether this gesture's own calls actually wrote something.
 >
@@ -68,7 +68,7 @@ Code: `TAIL = 8`
 > what it typed -- and it typed nothing: the click itself carries no value,
 > only the calls it caused prove a write happened at all.
 
-## `field_of`, [line 81](../../../../../../../backend/src/sro/domain/observation/reading.py#L81): Docstring
+## `field_of`, [line 80](../../../../../../../backend/src/sro/domain/observation/reading.py#L80): Docstring
 
 > What to call the box this value was typed into.
 >
@@ -79,7 +79,7 @@ Code: `TAIL = 8`
 > is the typed value itself, so a fold built on it would name every field
 > after its own contents.
 
-## `_typed_before`, [line 93](../../../../../../../backend/src/sro/domain/observation/reading.py#L93): Docstring
+## `_typed_before`, [line 92](../../../../../../../backend/src/sro/domain/observation/reading.py#L92): Docstring
 
 > (field, value) for every value RECORDED as typed just before this one.
 >
@@ -91,7 +91,7 @@ Code: `TAIL = 8`
 > lives, and a secret gesture contributes nothing rather than contributing a
 > blanked value that would then be matched against a request body.
 
-## `_carried_any`, [line 105](../../../../../../../backend/src/sro/domain/observation/reading.py#L105): Docstring
+## `_carried_any`, [line 104](../../../../../../../backend/src/sro/domain/observation/reading.py#L104): Docstring
 
 > Whether this gesture's writes actually sent something just typed.
 >
@@ -104,7 +104,7 @@ Code: `TAIL = 8`
 > so matching on one would hand the fold back to the telemetry post this
 > guard exists to refuse.
 
-## `with_recent_values`, [line 120](../../../../../../../backend/src/sro/domain/observation/reading.py#L120): Docstring
+## `with_recent_values`, [line 119](../../../../../../../backend/src/sro/domain/observation/reading.py#L119): Docstring
 
 > A write's reading folds in what was typed just before it.
 >
@@ -155,28 +155,6 @@ Code: `TAIL = 8`
 > holds the reading it just built, and a `with_` that quietly rewrites its
 > argument is the kind of surprise that costs an afternoon.
 
-## `intent_from`, [line 50](../../../../../../../backend/src/sro/domain/observation/reading.py#L50): Comment
-
-Code: `intent.continues = _string_field(data, "continues") or None`
-
-> No longer asked for (2026-09-23): nothing read it, and every reading paid
-> for the model to write it. Still read here, tolerantly, from an answer that
-> carries it anyway, and the column stays.
->
-> `or None`: the old schema said "empty unless it continues the last doing",
-> so "" is what a model returned for most gestures. Stored verbatim it is
-> neither a link nor an absence.
->
-> This comment used to end "and `continues` is what the mining pass walks
-> to join gestures into one doing", which is not true and was worth
-> checking rather than repeating: `mining_pass` does not contain the word,
-> and `window.as_evidence` -- the function that builds what the miner is
-> shown -- lists `act`, `object`, `page`, `why`, `confidence` and
-> `values_seen`, and not this. Nothing in the backend reads it. It is
-> stored because it is cheap to store and because the day something does
-> join a doing it will want it; it is not load-bearing today, and `TAIL`
-> above should not be defended on its account.
-
 ## module, [line 15](../../../../../../../backend/src/sro/domain/observation/reading.py#L15): Note on the line above
 
 Code: `CONFIDENCE = ["high", "medium", "low"]`
@@ -185,7 +163,7 @@ Code: `CONFIDENCE = ["high", "medium", "low"]`
 > enum is this list. `ask` refuses a word outside the enum, so a second copy
 > that drifted would refuse every answer carrying a word the schema offers.
 
-## `_values_seen`, [line 58](../../../../../../../backend/src/sro/domain/observation/reading.py#L58): Comment
+## `_values_seen`, [line 57](../../../../../../../backend/src/sro/domain/observation/reading.py#L57): Comment
 
 Code: `seen = cast(list[dict[str, str]], data.get("values_seen", []))`
 

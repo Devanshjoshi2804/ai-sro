@@ -167,7 +167,6 @@ def _workflow() -> Workflow:
             {"name": "Owner", "seen_values": ["testsro"]},
         ],
         shape_key=[["bywms", "type", "Customer Type"]],
-        same_as="wfl_" + "d" * 32,
         pass_id="pas_" + "e" * 32,
     )
 
@@ -247,10 +246,17 @@ async def test_a_redacted_case_loads_and_scores_exactly_as_the_raw_one() -> None
         assert await _scores(suite, Case.load(out.save(Path(mkdtemp())))) == raw, suite.name
 
 
+async def test_a_reader_case_captured_before_same_as_went_still_scores() -> None:
+    case = _reader_case()
+    case.input["jobs"][0]["same_as"] = "wfl_" + "d" * 32
+
+    assert await _scores(Reader(), case) == (True, True)
+
+
 def test_schema_keys_are_never_renamed() -> None:
     out = redacted(_reader_case(), tenant="greyorange")
     job = out.input["jobs"][0]
-    assert {"shape_key", "same_as", "pass_id", "signs_in", "parameters"} <= set(job)
+    assert {"shape_key", "pass_id", "signs_in", "parameters"} <= set(job)
     assert set(job["parameters"][0]) == {"name", "seen_values"}
 
 

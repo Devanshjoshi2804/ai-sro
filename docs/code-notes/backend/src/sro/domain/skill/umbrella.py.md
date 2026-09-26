@@ -114,7 +114,7 @@ Code: `parameters=[`
 > rule against the same-named field one level down; `.strip()` is here
 > too so that `{"name": "  "}` and `"  "` are refused alike.
 
-## `workflow_from`, [line 105](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L105): Comment
+## `workflow_from`, [line 104](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L104): Comment
 
 Code: `)`
 

@@ -640,6 +640,11 @@ Code: `same_as: Mapped[str | None] = mapped_column(String(64))`
 > No longer asked for (2026-09-23): the mining schema dropped the field, and
 > the column stays because no column is dropped in that wave. Old rows keep
 > what they had; new rows are NULL.
+>
+> Unmapped from the domain (M1, 2026-09-26): `Workflow` has no such field,
+> so nothing writes or reads this column. It stays declared here because the
+> column stays in the schema (no column is dropped), and a declaration the
+> migrations have and the models do not is drift.
 
 ## `WorkflowRow`, [line 722](../../../../../../../backend/src/sro/infrastructure/db/models.py#L722): Note on the line above
 ## `WorkflowRow`, [line 745](../../../../../../../backend/src/sro/infrastructure/db/models.py#L745): Note on the line above

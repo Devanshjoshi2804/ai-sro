@@ -113,11 +113,15 @@ def test_the_prompt_the_model_is_given_is_the_one_the_rig_measured() -> None:
     doing is the only thing `learn_parameters` can widen a parameter from, so
     skipping repeats also starved the one mechanism that makes a job general.
 
+    And it no longer asks which values look like the same thing appearing in
+    two systems. No field carried the answer and nothing read it; the code
+    computes those values itself and shows them as the `crossings` block.
+
     Changing the wording is allowed. Changing it silently is not: update this
     hash in the same commit and say why the model should read something else."""
     assert (
         hashlib.sha256(ROLE_AND_TASK.encode()).hexdigest()
-        == "9f381f4e57479495f76045256a307d8d2c39b09d2666376ee440e7807320fa84"
+        == "cd3d9fee825886d5c15884c3abe2787c75188311238cfb9e3012e084f21cdeed"
     )
     assert '"Create a Customer Type", never' in ROLE_AND_TASK
     assert "A stretch that only looked at things goes\nunder `unplaced`." in ROLE_AND_TASK
@@ -360,8 +364,8 @@ def test_a_crossing_too_big_to_fit_does_not_take_the_smaller_ones_with_it() -> N
 
 
 def test_a_proposal_missing_its_optional_fields_is_still_a_workflow() -> None:
-    """Everything here came off the model. `systems`, `parameters` and
-    `same_as` are all optional in practice -- a model that returned only the
+    """Everything here came off the model. `systems` and `parameters`
+    are both optional in practice -- a model that returned only the
     required fields would have crashed the parse on a missing key rather than
     being read as a workflow with none of them."""
     bare = {
@@ -375,25 +379,7 @@ def test_a_proposal_missing_its_optional_fields_is_still_a_workflow() -> None:
     assert workflow is not None
     assert workflow.title == "a job"
     assert (workflow.systems, workflow.parameters) == ([], [])
-    assert workflow.same_as is None
     assert workflow.steps[0].parameters == []
-
-
-def test_the_model_saying_which_job_this_already_is_survives_the_parse() -> None:
-    """`same_as` is how a proposal says it recognised an existing workflow, and
-    identity reads it. Dropped, every re-reading of a known job looks new."""
-    said = {
-        "title": "a job",
-        "narrative": "what happened",
-        "same_as": "wfl_already_known",
-        "steps": [{"order": 0, "says": "did a thing", "cites": ["ges_1"]}],
-    }
-
-    workflow = workflow_from(said, tenant="acme")
-
-    assert workflow is not None and workflow.same_as == "wfl_already_known"
-    also = workflow_from({**said, "same_as": 7}, tenant="acme")
-    assert also is not None and also.same_as is None, "and only a string"
 
 
 def _one(**over: object) -> dict[str, object]:
@@ -417,7 +403,6 @@ def _one(**over: object) -> dict[str, object]:
             }
         ],
         "parameters": [{"name": "code", "seen_values": ["ACME"]}],
-        "same_as": None,
     }
     return {**base, **over}
 
@@ -475,14 +460,13 @@ def test_a_junk_field_inside_a_step_falls_back_to_nothing() -> None:
 
 
 def test_a_junk_field_beside_the_steps_falls_back_to_nothing() -> None:
-    """title, narrative, systems and same_as."""
-    workflow = workflow_from(_one(title=7, narrative=7, systems="wms", same_as=7), tenant="acme")
+    """title, narrative and systems."""
+    workflow = workflow_from(_one(title=7, narrative=7, systems="wms"), tenant="acme")
     assert workflow is not None
 
     assert workflow.title == ""
     assert workflow.narrative == ""
     assert workflow.systems == []
-    assert workflow.same_as is None
 
     also = workflow_from(_one(systems=["a", 7]), tenant="acme")
     assert also is not None
@@ -576,5 +560,5 @@ def test_a_step_parameter_is_judged_by_the_same_rule() -> None:
 def test_the_schema_asks_for_nothing_nobody_reads() -> None:
     """`same_as` was the model's opinion that a proposal was one it had seen
     before. It decided nothing (identity is arithmetic) and every proposal paid
-    for it; the parser still takes it from an answer that carries it."""
+    for it, so the field is gone from the schema and the parse alike."""
     assert '"same_as"' not in json.dumps(dict(MINE.output_schema))

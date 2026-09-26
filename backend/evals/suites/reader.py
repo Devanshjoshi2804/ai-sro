@@ -20,6 +20,7 @@ from sro.domain.skill.workflow import Step, Workflow
 def _job(raw: dict[str, object]) -> Workflow:
     steps = [Step(**one) for one in raw.pop("steps", [])]  # type: ignore[attr-defined]
     raw.pop("repeat", None)
+    raw.pop("same_as", None)
     return Workflow(**raw, steps=steps)  # type: ignore[arg-type]
 
 

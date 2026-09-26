@@ -95,5 +95,5 @@ def test_the_rendered_mining_request_is_pinned() -> None:
     sent = MINE.instructions + "\n\n" + MINE.evidence({}, blocks)
     assert (
         hashlib.sha256(sent.encode()).hexdigest()
-        == "2435d41a2b3b7648fe69b6a02cc72b8ef8f7c09bf8abee0da08b9ed87babe956"
+        == "5ffe7e08fc0c8c94ef7a5fb836a17eb6157720dd3063a4ebaea14ad728d07c76"
     )

@@ -102,7 +102,6 @@ def _proposal(cites: list[str], **over: object) -> dict[str, object]:
             {"order": 1, "cites": cites, "says": "save it", "system": HOST, "parameters": []},
         ],
         "parameters": [],
-        "same_as": None,
     }
     return {**base, **over}
 

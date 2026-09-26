@@ -101,5 +101,4 @@ def workflow_from(raw: object, tenant: str) -> Workflow | None:
         ]
         if isinstance(raw.get("parameters"), list)
         else [],
-        same_as=raw["same_as"] if isinstance(raw.get("same_as"), str) else None,
     )

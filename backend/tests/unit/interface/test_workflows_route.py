@@ -216,7 +216,6 @@ def _workflow(
         ],
         parameters=[{"name": "clientCode", "evidence": "proven"}],
         shape_key=[["wms.test", "clientCode", "type"]],
-        same_as=None,
         pass_id="pas_7",  # noqa: S106 -- the mining pass that found it, not a password
     )
 

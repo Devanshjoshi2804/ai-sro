@@ -65,7 +65,7 @@ async def test_a_unit_that_is_not_a_list_is_still_no_answer() -> None:
 
     got = await ask(asker, MINE, trusted={}, untrusted={"day": "[]"})
 
-    assert got.data is None and got.error is not None and "mine v1" in got.error
+    assert got.data is None and got.error is not None and "mine v2" in got.error
 
 
 async def test_an_error_already_on_the_answer_is_never_overwritten() -> None:

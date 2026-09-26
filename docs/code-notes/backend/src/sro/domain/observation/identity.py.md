@@ -241,9 +241,9 @@ Code: `K_SAME_EVIDENCE = 0.5`
 > already processed. Whether it is the SAME JOB seen on different evidence needs a
 > key derived from the evidence, compared by containment.
 >
-> The model's own `same_as` is recorded and decides neither. A model asked to
-> re-judge its earlier verdict disagrees with itself at roughly 90%, and `same_as`
-> asks precisely that.
+> The model's own opinion (`same_as`, removed in M1) decided neither. A model
+> asked to re-judge its earlier verdict disagrees with itself at roughly 90%,
+> and `same_as` asked precisely that.
 
 ## module, [line 93](../../../../../../../backend/src/sro/domain/observation/identity.py#L93): Comment
 

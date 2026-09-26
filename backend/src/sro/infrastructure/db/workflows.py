@@ -49,7 +49,6 @@ def _workflow_values(workflow: Workflow) -> dict[str, Any]:
         "systems": list(workflow.systems),
         "parameters": list(workflow.parameters),
         "shape_key": [list(entry) for entry in workflow.shape_key],
-        "same_as": workflow.same_as,
         "repeat": (
             None
             if workflow.repeat is None
@@ -96,7 +95,6 @@ def _row_to_workflow(row: WorkflowRow, steps: list[Step]) -> Workflow:
         steps=steps,
         parameters=list(row.parameters),
         shape_key=[list(entry) for entry in row.shape_key],
-        same_as=row.same_as,
         pass_id=row.pass_id,
         repeat=(
             Repeat(

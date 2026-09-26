@@ -113,7 +113,6 @@ def _proposal(cites: list[str], **over: object) -> dict[str, object]:
             {"order": 1, "cites": cites, "says": "save it", "system": HOST, "parameters": []},
         ],
         "parameters": [],
-        "same_as": None,
     }
     return {**base, **over}
 
@@ -764,7 +763,7 @@ async def test_a_read_window_whose_answer_was_unusable_still_ages_the_pool() -> 
 
     result = await _mine(uow, FakeAsker(unusable))
 
-    assert result.error is not None and "mine v1" in result.error
+    assert result.error is not None and "mine v2" in result.error
     assert {entry.age for entry in await uow.pool.waiting(TENANT)} == {1}
 
 
@@ -1540,7 +1539,6 @@ def _answer(**over: object) -> Answer:
                     }
                 ],
                 "parameters": [{"name": "code", "seen_values": ["ACME"]}],
-                "same_as": None,
             }
         ]
     }
@@ -1576,7 +1574,7 @@ async def test_a_malformed_answer_does_not_take_the_pass_down() -> None:
     so `propose` never sees a `workflows` that is not a list."""
     for junk in ("not a list", {"a": "dict"}, 7, None):
         workflows, answer = await _proposed(FakeAsker(_answer(workflows=junk)))
-        assert answer.error is not None and "mine v1" in answer.error
+        assert answer.error is not None and "mine v2" in answer.error
 
         assert workflows == []
 

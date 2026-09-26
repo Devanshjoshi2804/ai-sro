@@ -1,8 +1,10 @@
 import json
+from dataclasses import replace
 
 import pytest
 
 from sro.application.runtime.teach import Teach
+from sro.domain.execution.compose import Composed
 from sro.domain.execution.lanes import Broken, Lane, SeenCall, StepResult, cites_key
 from tests.unit.fakes import FakeClock, FakeUnitOfWork
 from tests.unit.runtime_support import (
@@ -11,12 +13,67 @@ from tests.unit.runtime_support import (
     TENANT,
     WORKFLOW,
     proven_write_step,
+    running_steel_run,
     save_step,
 )
 
 FRAME = json.dumps([{"index": 1, "url": "https://wms.example/frames/form"}])
 SIGHTED = {"strategy": "component", "query": "#saveButton", "frame_path": FRAME}
 URL = "https://wms.example/api/customer-types"
+
+
+async def test_a_learned_field_moves_the_write_and_everything_known_about_it() -> None:
+    uow = FakeUnitOfWork()
+    step, _ = save_step(status=201)
+    job = replace(WORKFLOW, steps=[step])
+    await uow.workflows.save(job)
+    await uow.workflows.break_lane(
+        TENANT, job.id, Broken(step.order, Lane.API, "f"), cites=cites_key(step), at=NOW
+    )
+
+    await Teach(uow, FakeClock()).learn_field(
+        CTX,
+        job,
+        Composed("department", "Department", "combobox", step.order),
+        key="department",
+        value="Finance",
+        learned={"strategy": "role_and_name", "query": "combobox|Department"},
+        lane=Lane.UI,
+        run_id="run_1",
+    )
+
+    grown = await uow.workflows.get(TENANT, job.id)
+    assert [(one.order, one.says) for one in grown.steps] == [
+        (1, "Fill Department"),
+        (2, "Save the customer type"),
+    ]
+    moved = {2: cites_key(step)}
+    assert await uow.workflows.broken_for(TENANT, job.id, moved) == (Broken(2, Lane.API, "f"),)
+    assert [(one.ord, one.found_by) for one in await uow.workflows.learned_for(job.id)] == [
+        (1, "composed")
+    ]
+
+
+async def test_a_field_is_never_learned_under_another_run_of_the_job_still_going() -> None:
+    uow = FakeUnitOfWork()
+    step, _ = save_step(status=201)
+    job = replace(WORKFLOW, steps=[step])
+    await uow.workflows.save(job)
+    sibling = await running_steel_run(uow, "run_2")
+    await uow.workflow_runs.save(replace(sibling, workflow_id=job.id))
+
+    await Teach(uow, FakeClock()).learn_field(
+        CTX,
+        job,
+        Composed("department", "Department", "combobox", step.order),
+        key="department",
+        value="Finance",
+        learned={},
+        lane=Lane.UI,
+        run_id="run_1",
+    )
+
+    assert [one.says for one in (await uow.workflows.get(TENANT, job.id)).steps] == [step.says]
 
 
 async def test_a_sight_success_is_learned_into_the_ui_lane() -> None:

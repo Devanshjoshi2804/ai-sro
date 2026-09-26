@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.recording.background import is_background_traffic
 from sro.domain.shared.hosts import same_screen, screen_of, system_of
-from sro.domain.skill.workflow import Step, Workflow
+from sro.domain.skill.workflow import Step, Workflow, field_key
 
 _UNTARGETED = frozenset({"scroll"})
 
@@ -123,7 +123,11 @@ def unperformable(
     workflow: Workflow, by_id: Mapping[str, Gesture], *, from_step: int
 ) -> Step | None:
     for step in sorted(workflow.steps, key=lambda step: step.order):
-        if step.order >= from_step and primary_gesture(step, by_id) is None:
+        if (
+            step.order >= from_step
+            and primary_gesture(step, by_id) is None
+            and not field_key(workflow, step)
+        ):
             return step
     return None
 

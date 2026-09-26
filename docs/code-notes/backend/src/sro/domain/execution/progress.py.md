@@ -76,7 +76,7 @@ Code: `account: Account = field(default_factory=Account)`
 
 > Typed, not filtered: see `Account`.
 
-## `Progress.of`, [line 49](../../../../../../../backend/src/sro/domain/execution/progress.py#L49): Docstring
+## `Progress.of`, [line 51](../../../../../../../backend/src/sro/domain/execution/progress.py#L51): Docstring
 
 > Raises on a malformed row rather than reading it as empty. `step` that is
 > not an integer, or a mark keyed by something that is not a step order,
@@ -86,7 +86,7 @@ Code: `account: Account = field(default_factory=Account)`
 > drops it to `""` rather than raising, since it names a state this code
 > never wrote and the safest reading of an unknown mark is "not sent".
 
-## `Progress.settle`, [line 80](../../../../../../../backend/src/sro/domain/execution/progress.py#L80): Docstring
+## `Progress.settle`, [line 84](../../../../../../../backend/src/sro/domain/execution/progress.py#L84): Docstring
 
 > `done` is sticky: both `sending` and `settle` return before touching a mark
 > already `done`, so nothing after the write was confirmed -- a retried
@@ -97,7 +97,7 @@ Code: `account: Account = field(default_factory=Account)`
 > with `never_left=True`, that this specific attempt is confirmed never to
 > have left -- the one case narrow enough to clear it outright.
 
-## `run_budget`, [line 133](../../../../../../../backend/src/sro/domain/execution/progress.py#L133): Docstring
+## `run_budget`, [line 145](../../../../../../../backend/src/sro/domain/execution/progress.py#L145): Docstring
 
 > Derived from the demonstration because nothing else in a `Workflow` carries
 > a duration -- it is a sequence of steps and cited gestures, not a timing.
@@ -126,7 +126,7 @@ Code: `expired: bool = False`
 > Kept when a write is left `unknown` after the session expired, so the
 > read-back that settles it later signs in afresh first.
 
-## `Progress.sending`, [line 72](../../../../../../../backend/src/sro/domain/execution/progress.py#L72): Note
+## `Progress.sending`, [line 76](../../../../../../../backend/src/sro/domain/execution/progress.py#L76): Note
 
 Code: `mark.lane, mark.wrote = lane, "sending"`
 
@@ -139,3 +139,28 @@ Code: `K_BUDGET_MARGIN_S = 600`
 
 > What the workflow timeout adds to a run's budget: room for `finish` and
 > `release` with their retries after the workflow's own deadline.
+
+## `Progress.composed`, [line 47](../../../../../../../backend/src/sro/domain/execution/progress.py#L47): Note
+
+Code: `composed: list[dict[str, object]] = field(default_factory=list)`
+
+> The fields this run composed (X10): `{name, label, role, before, options,
+> lane, verdict, key}` plus the locator it was found by (`learned`). `lane` and
+> `verdict` are empty until the field is filled, `unknown` once it is, and
+> `done` with the body `key` only when the write's own call carried it. Labels,
+> roles and options only: never a value.
+
+## `Progress.filled`, [line 48](../../../../../../../backend/src/sro/domain/execution/progress.py#L48): Note
+
+Code: `filled: dict[str, str] = field(default_factory=dict)`
+
+> For each learned field step filled this run, the value its control held after
+> the fill -- what the save's own call must carry for the key to count. It is
+> kept because the field step and its write run in separate activities. A
+> secret control holds nothing (`isSecretField`), so no credential lands here.
+
+## `_composed`, [line 113](../../../../../../../backend/src/sro/domain/execution/progress.py#L113): Note
+
+> A `composed` that is not a list of objects raises, like every other field a
+> hand-edited or truncated row could spoil: a run must not silently forget
+> which fields it filled.

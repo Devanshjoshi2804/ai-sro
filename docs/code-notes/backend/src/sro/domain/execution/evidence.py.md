@@ -169,11 +169,11 @@ Code: `PUTS_A_VALUE = frozenset({"type", "select", "upload"})`
 > a silent "from the beginning" for a caller resuming halfway, which would
 > refuse a run over evidence for steps it was never going to attempt.
 
-## `_caused_by`, [line 131](../../../../../../../backend/src/sro/domain/execution/evidence.py#L131): Docstring
+## `_caused_by`, [line 135](../../../../../../../backend/src/sro/domain/execution/evidence.py#L135): Docstring
 
 > Whether this gesture is what made this call. See `K_CAUSED_S`.
 
-## `recorded_call`, [line 137](../../../../../../../backend/src/sro/domain/execution/evidence.py#L137): Docstring
+## `recorded_call`, [line 141](../../../../../../../backend/src/sro/domain/execution/evidence.py#L141): Docstring
 
 > The call this step's evidence made: a mutation that came back `CREATED`
 > if there is one, else the first mutation, else the first call at all. What
@@ -247,11 +247,11 @@ Code: `PUTS_A_VALUE = frozenset({"type", "select", "upload"})`
 > -- it picks the create over the keep-alive by rule rather than by the luck
 > of which one the browser happened to fire first.
 
-## `writes`, [line 164](../../../../../../../backend/src/sro/domain/execution/evidence.py#L164): Docstring
+## `writes`, [line 168](../../../../../../../backend/src/sro/domain/execution/evidence.py#L168): Docstring
 
 > Whether performing this step changes something. A dry run withholds it.
 
-## `route_for`, [line 169](../../../../../../../backend/src/sro/domain/execution/evidence.py#L169): Docstring
+## `route_for`, [line 173](../../../../../../../backend/src/sro/domain/execution/evidence.py#L173): Docstring
 
 > Where this step leaves the browser, when leaving it somewhere is all it
 > does -- and there is no other way to know.
@@ -285,13 +285,13 @@ Code: `PUTS_A_VALUE = frozenset({"type", "select", "upload"})`
 > **The next step is on the same page**, so this step did not move the
 > browser and a navigate would be a command that changes nothing.
 
-## `_agreed`, [line 182](../../../../../../../backend/src/sro/domain/execution/evidence.py#L182): Docstring
+## `_agreed`, [line 186](../../../../../../../backend/src/sro/domain/execution/evidence.py#L186): Docstring
 
 > The page this step's doings have in common. `screen_of` keeps what every
 > visit agrees on and drops what varies, so a session token or one record's
 > id cannot become the page a run is sent to.
 
-## `stood_on`, [line 187](../../../../../../../backend/src/sro/domain/execution/evidence.py#L187): Docstring
+## `stood_on`, [line 191](../../../../../../../backend/src/sro/domain/execution/evidence.py#L191): Docstring
 
 > Every system the operator was actually ON while doing this job.
 >
@@ -307,7 +307,7 @@ Code: `PUTS_A_VALUE = frozenset({"type", "select", "upload"})`
 > operator's browser to -- on the evidence of a telemetry beacon, for a job
 > about warehouse customer types. No gesture ever happened there.
 
-## `allowlist`, [line 200](../../../../../../../backend/src/sro/domain/execution/evidence.py#L200): Docstring
+## `allowlist`, [line 204](../../../../../../../backend/src/sro/domain/execution/evidence.py#L204): Docstring
 
 > Where a call this job's evidence already made may be replayed to.
 >
@@ -343,7 +343,7 @@ Code: `leaf = _stable_leaf(target.css_path)`
 > several would get its first. Name the row by its cell text when a
 > job selects among many.
 
-## `recorded_call`, [line 150](../../../../../../../backend/src/sro/domain/execution/evidence.py#L150): Comment
+## `recorded_call`, [line 154](../../../../../../../backend/src/sro/domain/execution/evidence.py#L154): Comment
 
 Code: `if is_background_traffic(request.url):`
 
@@ -352,7 +352,7 @@ Code: `if is_background_traffic(request.url):`
 > dialog was a "write" by `sessionKeepAlive` and `perftrace` alone,
 > and a run could not step over it.
 
-## `route_for`, [line 173](../../../../../../../backend/src/sro/domain/execution/evidence.py#L173): Comment
+## `route_for`, [line 177](../../../../../../../backend/src/sro/domain/execution/evidence.py#L177): Comment
 
 Code: `if not cited or any(one.action.kind != "click" or one.action.value for one in cited):`
 
@@ -363,3 +363,11 @@ Code: `if not cited or any(one.action.kind != "click" or one.action.value for on
 > The suite said so the first time this rule was tried -- a run navigated
 > instead of filling in the form. A step whose every gesture is a click is
 > a step made of moving about.
+
+## `unperformable`, [line 129](../../../../../../../backend/src/sro/domain/execution/evidence.py#L129): Note
+
+Code: `and not field_key(workflow, step)`
+
+> A learned field step has no recorded gesture by design: it is filled by its
+> label on the form of the write after it. Refusing it here would make every job
+> that learned a field unstartable.

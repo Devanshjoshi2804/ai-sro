@@ -82,3 +82,16 @@ def cited_ids(workflow: Workflow) -> set[str]:
 
 def ordered_cites(workflow: Workflow) -> list[str]:
     return [cited for step in sorted(workflow.steps, key=lambda s: s.order) for cited in step.cites]
+
+
+def field_key(workflow: Workflow, step: Step) -> str:
+    if step.cites or len(step.parameters) != 1:
+        return ""
+    return next(
+        (
+            str(one["key"])
+            for one in workflow.parameters
+            if one.get("name") == step.parameters[0] and one.get("key")
+        ),
+        "",
+    )

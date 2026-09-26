@@ -44,6 +44,8 @@ class Progress:
     account: Account = field(default_factory=Account)
     start_url: str = ""
     asking: dict[str, str] = field(default_factory=dict)
+    composed: list[dict[str, object]] = field(default_factory=list)
+    filled: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def of(cls, raw: Mapping[str, object] | None) -> Progress:
@@ -58,6 +60,8 @@ class Progress:
             account=_account(raw.get("account")),
             start_url=str(raw.get("start_url") or ""),
             asking=_strings(raw.get("asking")),
+            composed=_composed(raw.get("composed")),
+            filled=_strings(raw.get("filled")),
         )
 
     def as_json(self) -> dict[str, object]:
@@ -104,6 +108,14 @@ def _strings(value: object) -> dict[str, str]:
     if not isinstance(value, Mapping):
         return {}
     return {str(key): str(one) for key, one in value.items()}
+
+
+def _composed(value: object) -> list[dict[str, object]]:
+    if value is None:
+        return []
+    if not isinstance(value, list) or not all(isinstance(one, Mapping) for one in value):
+        raise ValueError(f"progress.composed is not a list of fields: {value!r:.80}")
+    return [dict(one) for one in value]
 
 
 def _account(value: object) -> Account:

@@ -7,7 +7,7 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.application.runtime.ui_lane import same_call
 from sro.domain.execution.belts import confirming_read, expected_statuses
-from sro.domain.execution.compose import Adding
+from sro.domain.execution.compose import Adding, Composed, with_field
 from sro.domain.execution.evidence import recorded_call
 from sro.domain.execution.lanes import Broken, Lane, StepResult, accepts, cites_key
 from sro.domain.execution.learned_step import K_NAME, LearnedStep
@@ -84,6 +84,46 @@ class Teach:
                         verified_by="status",
                         at=now.isoformat(),
                     )
+            await uow.commit()
+
+    async def learn_field(
+        self,
+        ctx: RequestContext,
+        workflow: Workflow,
+        field: Composed,
+        *,
+        key: str,
+        value: str,
+        learned: Mapping[str, str],
+        lane: Lane,
+        run_id: str,
+    ) -> None:
+        if any(one.get("name") == field.name and one.get("key") for one in workflow.parameters):
+            return
+        grown, moved = with_field(workflow, field, key=key, value=value)
+        async with self._uow as uow:
+            runs = await uow.workflow_runs.for_workflow(ctx.tenant_id, workflow.id)
+            if any(one.outcome == "running" and one.id != run_id for one in runs):
+                return
+            await uow.workflows.grew(grown, moved=moved)
+            strategy, query = learned.get("strategy", ""), learned.get("query", "")
+            if (
+                strategy
+                and query
+                and len(query) <= K_NAME
+                and value.casefold() not in query.casefold()
+            ):
+                await uow.workflows.remember_locator(
+                    workflow.id,
+                    LearnedStep(
+                        field.before,
+                        strategy,
+                        query,
+                        "sight" if lane is Lane.SIGHT else "composed",
+                        frame_path=learned.get("frame_path"),
+                    ),
+                    by_run=run_id,
+                )
             await uow.commit()
 
 

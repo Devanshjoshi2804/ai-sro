@@ -22,15 +22,20 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > fill the wrong control on a live system, so anything short of an exact match is
 > asked, never inferred.
 
-## `compose`, [line 62](../../../../../../../backend/src/sro/domain/execution/compose.py#L62): Docstring
+## `compose`, [line 79](../../../../../../../backend/src/sro/domain/execution/compose.py#L79): Docstring
 
-> A name is composed only when it has a value, no step already names it, it is
+> A name is composed only when it has a value, no step already names it and the
+> job declares no parameter by it (X10b: the candidates are the names the
+> operator asked for that the job has no parameter for -- `WorkflowRun.unasked`
+> and the mail's aside values; a declared parameter belongs to the job's own
+> steps, and composing it would put a question in front of every run of a job
+> whose parameter no step happens to name), it is
 > not a credential name (`is_secret_field`: a password is never typed into a
 > field chosen by its label), and it equals exactly one label on exactly one write
 > step's last outline. No label, or more than one, is an `Unplaced` the run asks
 > about with every label it saw; it is never guessed.
 
-## `keyed`, [line 87](../../../../../../../backend/src/sro/domain/execution/compose.py#L87): Docstring
+## `keyed`, [line 99](../../../../../../../backend/src/sro/domain/execution/compose.py#L99): Docstring
 
 > The pairing rule for the save call's new body keys (spec §6.6.4, X10a review
 > I1/I2). `extra` is the keys the recorded body lacks, each with the value sent.
@@ -47,7 +52,7 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > `unknown` even when the write is `done`: a fill alone never confirms anything
 > (spec §6.2), only the write's own call does.
 
-## `with_field`, [line 99](../../../../../../../backend/src/sro/domain/execution/compose.py#L99): Docstring
+## `with_field`, [line 111](../../../../../../../backend/src/sro/domain/execution/compose.py#L111): Docstring
 
 > Learning a confirmed field: the step goes in at the write's order, and every
 > later step, its `uses` and the repeat bounds shift by one. `moved` maps every
@@ -61,3 +66,15 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > learned step is dropped. Its parameter stays, and the next run with that value
 > composes it again from the outline. Upgrade path: carry learned field steps
 > through re-derivation as their own kind of step.
+
+## `labels`, [line 62](../../../../../../../backend/src/sro/domain/execution/compose.py#L62): Docstring
+
+> Every label on the last outline of every write step, once each, in order: the
+> choices a field question offers when a name matches no label, or more than one.
+
+## `placed`, [line 68](../../../../../../../backend/src/sro/domain/execution/compose.py#L68): Docstring
+
+> The fields labelled `label` (after `normal`) on those outlines, as `Composed`
+> for `name`. `compose` places a name by its own words; an operator's answer to a
+> field question places it by the label they chose -- the same exact-label rule,
+> never a guess.

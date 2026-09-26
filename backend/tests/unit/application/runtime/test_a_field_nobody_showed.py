@@ -1,15 +1,31 @@
+import asyncio
+import json
 from collections.abc import Mapping
+from dataclasses import replace
 
 import pytest
 
 from sro.application.ports.page import PageAnswer
 from sro.application.runtime.fill_field import Filled, FillField
 from sro.application.runtime.step import LaneContext
-from sro.domain.execution.compose import Composed
+from sro.domain.execution.compose import Adding, Composed, with_field
 from sro.domain.execution.lanes import Lane, StepResult
 from sro.domain.execution.learned_step import LearnedStep
+from sro.domain.execution.progress import Progress
+from sro.domain.observation.gesture import Outline, OutlineField
+from sro.domain.shared.errors import Conflict
 from sro.domain.skill.workflow import Step
-from tests.unit.runtime_support import lane_context, save_step, scripted_driver
+from tests.unit.runtime_support import (
+    CTX,
+    WORKFLOW,
+    SteelRun,
+    lane_context,
+    save_step,
+    scripted_driver,
+    steel_run,
+)
+
+DEPARTMENT = OutlineField("combobox", "Department", None, ("Finance", "Operations"))
 
 DEPARTMENT_OUTLINE = {
     "fields": [{"role": "combobox", "label": "Department", "options": ["Finance", "Operations"]}]
@@ -240,3 +256,173 @@ async def test_the_operators_value_never_reaches_the_detail() -> None:
 def test_a_held_value_never_reaches_a_repr() -> None:
     assert "4111" not in repr(PageAnswer(ok=True, held="4111111111111111"))
     assert "4111" not in repr(Filled(Lane.UI, held="4111111111111111"))
+
+
+async def _started(world: SteelRun) -> None:
+    await world.run_steps.prepare(CTX, world.run_id)
+    await world.run_steps.acquire(CTX, world.run_id)
+
+
+async def test_a_value_with_no_field_on_the_form_is_asked_before_any_step_runs() -> None:
+    world = await steel_run(
+        steps=[save_step(status=201, outline=Outline())], values={"department": "Finance"}
+    )
+    await _started(world)
+
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert outcome.asking
+    asking = world.progress().asking
+    assert (asking["kind"], asking["name"]) == ("field", "department")
+    assert world.lanes.ui.calls == 0
+
+
+async def test_leaving_the_field_out_drops_the_value_and_names_it_unasked() -> None:
+    world = await steel_run(
+        steps=[save_step(status=201, outline=Outline())], values={"department": "Finance"}
+    )
+    await _started(world)
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    await world.answer(outcome.asking, value="")
+
+    run = await world.saved_run()
+    assert "department" not in run.values
+    assert run.unasked == ["department"]
+
+
+async def test_a_field_question_takes_only_a_label_it_offered_and_that_label_places_it() -> None:
+    dept = OutlineField("combobox", "Dept", None, ("Finance",))
+    world = await steel_run(
+        steps=[save_step(status=201, outline=Outline(fields=(dept,)))],
+        values={"department": "Finance"},
+    )
+    await _started(world)
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    said = (await world.thread_says())[-1]["decision"]
+
+    with pytest.raises(Conflict):
+        await world.answer(outcome.asking, value="Sales")
+    await world.answer(outcome.asking, value="Dept")
+
+    assert isinstance(said, dict) and (said["name"], said["choices"]) == ("department", ["Dept"])
+    (field,) = world.progress().composed
+    assert (field["name"], field["label"], field["before"]) == ("department", "Dept", 0)
+    assert world.progress().asking == {}
+
+
+async def test_an_option_the_dropdown_lacks_is_asked_and_the_one_chosen_replaces_it() -> None:
+    world = await steel_run(
+        steps=[save_step(status=201, outline=Outline(fields=(DEPARTMENT,)))],
+        values={"department": "Legal"},
+    )
+    world.fill.answers(Filled(None, "no_option", options=("Finance", "Operations")))
+    await _started(world)
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    await world.answer(outcome.asking, value="Operations")
+
+    assert world.lanes.ui.calls == 0
+    assert (await world.saved_run()).values["department"] == "Operations"
+
+
+async def test_a_field_the_save_call_carried_is_done_and_learned_into_the_job() -> None:
+    world = await steel_run(
+        steps=[save_step(status=201, outline=Outline(fields=(DEPARTMENT,)))],
+        values={"department": "Finance"},
+    )
+    world.fill.answers(
+        Filled(
+            Lane.UI,
+            learned={"strategy": "role_and_name", "query": "combobox|Department"},
+            held="Finance",
+        )
+    )
+    world.lanes.ui.answers(StepResult("done", Lane.UI, keyed={"department": "department"}))
+    await _started(world)
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    await world.run_steps.finish(CTX, world.run_id)
+
+    assert world.lanes.ui.contexts[-1].adding[0] == Adding(fresh={"department": "Finance"})
+    (field,) = world.progress().composed
+    assert (field["lane"], field["verdict"], field["key"]) == ("ui", "done", "department")
+    job = await world.job()
+    assert job.steps[0].parameters == ["department"]
+    assert job.parameters[-1]["key"] == "department"
+    assert [(one.strategy, one.found_by) for one in await world.learned()] == [
+        ("role_and_name", "composed")
+    ]
+    assert (await world.saved_run()).outcome == "held"
+
+
+async def test_a_field_the_save_call_did_not_carry_is_unknown_and_not_learned() -> None:
+    world = await steel_run(
+        steps=[save_step(status=201, outline=Outline(fields=(DEPARTMENT,)))],
+        values={"department": "Finance"},
+    )
+    world.fill.answers(
+        Filled(Lane.UI, learned={"strategy": "role_and_name", "query": "combobox|Department"})
+    )
+    world.lanes.ui.answers(StepResult("done", Lane.UI))
+    await _started(world)
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    await world.run_steps.finish(CTX, world.run_id)
+
+    (field,) = world.progress().composed
+    assert field["verdict"] == "unknown"
+    assert [one.parameters for one in (await world.job()).steps] == [[]]
+    assert (await world.saved_run()).outcome == "failed"
+
+
+async def _a_learned_field(values: Mapping[str, str]) -> SteelRun:
+    step, by_id = save_step(status=201, outline=Outline(fields=(DEPARTMENT,)))
+    job, _ = with_field(
+        replace(WORKFLOW, steps=[replace(step, order=0)]),
+        Composed("department", "Department", "combobox", 0, DEPARTMENT.options),
+        key="department",
+        value="Finance",
+    )
+    world = await steel_run(steps=[(step, by_id)], job=job, values=values)
+    await world.uow.workflows.remember_locator(
+        job.id, LearnedStep(0, "role_and_name", "combobox|Department", "composed")
+    )
+    await _started(world)
+    return world
+
+
+async def test_a_learned_field_is_filled_by_its_locator_and_settled_by_its_known_key() -> None:
+    world = await _a_learned_field({"department": "Operations"})
+    world.fill.answers(Filled(Lane.UI, held="Operations"))
+    world.lanes.ui.answers(StepResult("done", Lane.UI, keyed={"department": "department"}))
+
+    for _ in range(2):
+        await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    outcome = await world.run_steps.finish(CTX, world.run_id)
+
+    ((field, value, learned),) = world.fill.filled
+    assert (field.label, value) == ("Department", "Operations")
+    assert learned is not None and learned.query == "combobox|Department"
+    assert world.lanes.ui.contexts[-1].adding[1] == Adding(
+        known={"department": "department"}, fresh={"department": "Operations"}
+    )
+    assert world.progress().composed == []
+    assert outcome == "held"
+    assert len((await world.job()).steps) == 2
+
+
+async def test_a_learned_field_with_no_value_is_passed_over() -> None:
+    world = await _a_learned_field({})
+    world.lanes.ui.answers(StepResult("done", Lane.UI))
+
+    for _ in range(2):
+        await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert world.fill.filled == []
+    assert dict(world.lanes.ui.contexts[-1].adding) == {}
+
+
+def test_a_malformed_composed_list_is_refused_like_any_other_progress() -> None:
+    with pytest.raises(ValueError, match="composed"):
+        Progress.of({"composed": [json.dumps({"name": "x"})]})

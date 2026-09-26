@@ -25,7 +25,10 @@ Type", with its evidence.
 
 `steel_run` builds a whole Steel run for `RunSteps`: the run, its job and
 gestures and a recorded sign-in in a `FakeUnitOfWork`, a real `SessionBroker`
-on fakes, and an executor over four `RecordingLane`s.
+on fakes, and an executor over four `RecordingLane`s. It runs with `values`
+(or a given `job`); its `fill` is a `ScriptedFill` answering each field fill
+from `answers`, and `progress()`, `job()` and `learned()` read back the run's
+progress, the stored job and its learned locators.
 
 For the executor, `RecordingLane` answers scripted results and counts its
 calls (`no_tool`, `no_api` and `never` are lanes the step must not reach),
@@ -51,11 +54,12 @@ from sro.application.ports.system import Clock
 from sro.application.runtime.answer_run import AnswerRun, WriteVerdict
 from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.executor import StepExecutor
+from sro.application.runtime.fill_field import Filled, FillField
 from sro.application.runtime.run_steps import RunSteps
 from sro.application.runtime.step import Held, LaneContext
 from sro.application.runtime.teach import Teach
 from sro.domain.execution.account import K_LEASE_TTL, Account, Lease, LeaseState, new_lease_id
-from sro.domain.execution.compose import Adding
+from sro.domain.execution.compose import Adding, Composed
 from sro.domain.execution.lanes import Lane, SeenCall, StepResult, Verdict
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.progress import Progress
@@ -68,6 +72,7 @@ from sro.domain.observation.gesture import (
     Call,
     Component,
     Gesture,
+    Outline,
     PageMark,
     Target,
 )
@@ -192,7 +197,11 @@ def lane_context(
 
 
 def save_step(
-    *, status: int = 201, after: AfterState | None = None, body: Body | None = None
+    *,
+    status: int = 201,
+    after: AfterState | None = None,
+    body: Body | None = None,
+    outline: Outline | None = None,
 ) -> tuple[Step, dict[str, Gesture]]:
     gesture = Gesture(
         id="ges_save",
@@ -204,7 +213,13 @@ def save_step(
         system=_SYSTEM,
         tab_id=1,
         frame_url=None,
-        action=Action(kind="click", at=1.0, target=Target(role="button", name="Save"), after=after),
+        action=Action(
+            kind="click",
+            at=1.0,
+            target=Target(role="button", name="Save"),
+            after=after,
+            outlines=() if outline is None else (outline,),
+        ),
         requests=[
             Call(
                 method="POST",
@@ -676,6 +691,33 @@ class FakeBroker(SessionBroker):
 STEEL = "http://steel:3000"
 
 
+class ScriptedFill(FillField):
+    """Answers each `fill` with the next of the `Filled` given to `answers`,
+    keeping what it was asked in `filled` as (field, value, learned locator);
+    a fill given no answers is one the run must never make."""
+
+    def __init__(self) -> None:
+        super().__init__(FakePageDriver(), None)
+        self._results: list[Filled] = []
+        self.filled: list[tuple[Composed, str, LearnedStep | None]] = []
+
+    def answers(self, *filled: Filled) -> None:
+        self._results.extend(filled)
+
+    async def fill(
+        self,
+        composed: Composed,
+        value: str,
+        write: Step,
+        ctx: LaneContext,
+        *,
+        learned: LearnedStep | None = None,
+    ) -> Filled:
+        self.filled.append((composed, value, learned))
+        assert self._results, "no field was expected to be filled"
+        return self._results.pop(0)
+
+
 @dataclass
 class Lanes:
     tool: RecordingLane
@@ -701,6 +743,16 @@ class SteelRun:
     vault: FakeCredentialVault
     clock: FakeClock
     durable: FakeDurableExecution
+    fill: ScriptedFill
+
+    def progress(self) -> Progress:
+        return Progress.of(self.uow.workflow_runs.rows[self.run_id].progress)
+
+    async def job(self) -> Workflow:
+        return await self.uow.workflows.get(TENANT, _WORKFLOW.id)
+
+    async def learned(self) -> tuple[LearnedStep, ...]:
+        return await self.uow.workflows.learned_for(_WORKFLOW.id)
 
     async def answer(
         self, question_id: str, *, value: str = "", verdict: WriteVerdict = ""
@@ -729,7 +781,7 @@ class SteelRun:
         """The run's steps as a fresh worker process drives them: a new broker
         and executor over the same database and the same browser, holding
         nothing the old process knew."""
-        return _worker(self.uow, self.driver, self.vault, self.clock, self.lanes)[1]
+        return _worker(self.uow, self.driver, self.vault, self.clock, self.lanes, self.fill)[1]
 
     async def saved_run(self, run_id: str = "") -> WorkflowRun:
         run = await self.uow.workflow_runs.get(TENANT, run_id or self.run_id)
@@ -752,6 +804,8 @@ async def steel_run(
     live: bool = True,
     run_id: str = "run_a",
     recorded_sign_in: bool = True,
+    values: Mapping[str, str] = MappingProxyType({"Customer Type": "GT1"}),
+    job: Workflow | None = None,
 ) -> SteelRun:
     uow, driver, clock, vault = (
         FakeUnitOfWork(),
@@ -759,7 +813,9 @@ async def steel_run(
         FakeClock(NOW),
         FakeCredentialVault(),
     )
-    job = replace(_WORKFLOW, steps=[replace(step, order=n) for n, (step, _) in enumerate(steps)])
+    job = job or replace(
+        _WORKFLOW, steps=[replace(step, order=n) for n, (step, _) in enumerate(steps)]
+    )
     by_id = {
         one: replace(seen, tenant=_TENANT) for _, cited in steps for one, seen in cited.items()
     }
@@ -775,7 +831,7 @@ async def steel_run(
             tenant=_TENANT,
             workflow_id=job.id,
             device_id="",
-            values={"Customer Type": "GT1"},
+            values=dict(values),
             started_by="clerk",
             live=live,
             allow_focus=False,
@@ -786,9 +842,20 @@ async def steel_run(
     lanes = Lanes(
         *(RecordingLane(lane, settles=None) for lane in (Lane.TOOL, Lane.API, Lane.UI, Lane.SIGHT))
     )
-    broker, run_steps = _worker(uow, driver, vault, clock, lanes)
+    fill = ScriptedFill()
+    broker, run_steps = _worker(uow, driver, vault, clock, lanes, fill)
     return SteelRun(
-        uow, run_id, run_steps, lanes, broker, driver, account, vault, clock, FakeDurableExecution()
+        uow,
+        run_id,
+        run_steps,
+        lanes,
+        broker,
+        driver,
+        account,
+        vault,
+        clock,
+        FakeDurableExecution(),
+        fill,
     )
 
 
@@ -798,6 +865,7 @@ def _worker(
     vault: FakeCredentialVault,
     clock: FakeClock,
     lanes: Lanes,
+    fill: FillField | None = None,
 ) -> tuple[SessionBroker, RunSteps]:
     broker = SessionBroker(
         uow,
@@ -810,7 +878,14 @@ def _worker(
     )
     executor = StepExecutor(lanes.tool, lanes.api, lanes.ui, lanes.sight, broker)
     return broker, RunSteps(
-        uow, broker, executor, Teach(uow, clock), lanes.api, clock, FakeIdFactory()
+        uow,
+        broker,
+        executor,
+        Teach(uow, clock),
+        lanes.api,
+        clock,
+        FakeIdFactory(),
+        fill=fill or ScriptedFill(),
     )
 
 

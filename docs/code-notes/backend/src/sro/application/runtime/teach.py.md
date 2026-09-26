@@ -51,7 +51,7 @@ Code: `own = next(`
 > recorded URL (`learned_pattern`), so a path that names the record becomes
 > `{id}` and a segment the recording holds fixed stays fixed.
 
-## `_sighted`, [line 90](../../../../../../../backend/src/sro/application/runtime/teach.py#L90): Function
+## `_sighted`, [line 130](../../../../../../../backend/src/sro/application/runtime/teach.py#L130): Function
 
 > The locator the sight lane learned from the element that satisfied the
 > check (X7 ruling), or nothing: a learned map without a `frame_path` is
@@ -61,3 +61,23 @@ Code: `own = next(`
 > `K_NAME`, the cap `learned_from` keeps (refused, not cut: a cut locator
 > matches nothing, or something else).
 
+## `Teach.learn_field`, [line 89](../../../../../../../backend/src/sro/application/runtime/teach.py#L89): Docstring
+
+> A composed field the save's own call confirmed becomes part of the job: `grew`
+> with `with_field`'s result, then its locator (`found_by` `composed` from the
+> page code, `sight` from sight), in one unit of work. A field the job already
+> learned is not learned twice (a retried `finish`, or two runs that both
+> confirmed it), and a locator that would carry the value is not kept.
+
+## `Teach.learn_field`, [line 105](../../../../../../../backend/src/sro/application/runtime/teach.py#L105): Note
+
+Code: `runs = await uow.workflow_runs.for_workflow(ctx.tenant_id, workflow.id)`
+
+> Never while another run of the job is still going: growing renumbers the steps
+> under it, and a run whose `progress.step` and marks point at the old numbers
+> could perform a write twice. The field is not lost: the next run with that
+> value composes it again from the outline and learns it then.
+>
+> **Ceiling.** The check and the growth are two statements, so a run that starts
+> in between is not seen. The upgrade is a shape version on the run, checked by
+> `step`. A mining pass that grows a job (`_grow`) has no such check at all.

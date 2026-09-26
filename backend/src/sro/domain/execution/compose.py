@@ -59,28 +59,40 @@ def _screens(
     return found
 
 
+def labels(workflow: Workflow, by_id: Mapping[str, Gesture]) -> tuple[str, ...]:
+    return tuple(
+        dict.fromkeys(one.label for _, fields in _screens(workflow, by_id) for one in fields)
+    )
+
+
+def placed(
+    workflow: Workflow, by_id: Mapping[str, Gesture], name: str, label: str
+) -> tuple[Composed, ...]:
+    return tuple(
+        Composed(name, one.label, one.role, step.order, one.options)
+        for step, fields in _screens(workflow, by_id)
+        for one in fields
+        if normal(one.label) == normal(label)
+    )
+
+
 def compose(
     workflow: Workflow, by_id: Mapping[str, Gesture], values: Mapping[str, str]
 ) -> tuple[tuple[Composed, ...], tuple[Unplaced, ...]]:
-    filled = {name for step in workflow.steps for name in step.parameters}
-    screens = _screens(workflow, by_id)
-    labels = tuple(dict.fromkeys(one.label for _, fields in screens for one in fields))
+    filled = {name for step in workflow.steps for name in step.parameters} | {
+        str(one.get("name")) for one in workflow.parameters
+    }
     composed: list[Composed] = []
     unplaced: list[Unplaced] = []
     for name, value in values.items():
         if name in filled or not value.strip() or is_secret_field(name):
             continue
-        hits = [
-            (step, one)
-            for step, fields in screens
-            for one in fields
-            if normal(one.label) == normal(name)
-        ]
+        hits = placed(workflow, by_id, name, name)
         if len(hits) == 1:
-            step, one = hits[0]
-            composed.append(Composed(name, one.label, one.role, step.order, one.options))
+            composed.append(hits[0])
         else:
-            unplaced.append(Unplaced(name, "ambiguous" if hits else "no_field", labels))
+            why: Literal["no_field", "ambiguous"] = "ambiguous" if hits else "no_field"
+            unplaced.append(Unplaced(name, why, labels(workflow, by_id)))
     return tuple(composed), tuple(unplaced)
 
 

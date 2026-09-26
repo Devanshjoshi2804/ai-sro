@@ -1,6 +1,7 @@
 from dataclasses import replace
 
 from sro.domain.execution.compose import Adding, Composed, compose, keyed, with_field
+from sro.domain.execution.evidence import unperformable
 from sro.domain.observation.gesture import Gesture, Outline, OutlineField
 from sro.domain.skill.workflow import Workflow
 from tests.unit.runtime_support import save_step
@@ -51,6 +52,13 @@ def test_a_credential_or_a_name_a_step_already_fills_is_never_composed() -> None
     job.steps[0].parameters = ["Customer Type"]
 
     assert compose(job, by_id, {"Password": "hunter2", "Customer Type": "GT2"}) == ((), ())
+
+
+def test_a_name_the_job_already_has_a_parameter_for_is_never_composed() -> None:
+    job, by_id = _job(OutlineField("combobox", "Department"))
+    job.parameters = [{"name": "Department", "required": False}]
+
+    assert compose(job, by_id, {"Department": "Finance"}) == ((), ())
 
 
 def test_a_new_key_pairs_only_with_the_value_its_control_holds() -> None:
@@ -117,3 +125,14 @@ def test_learning_the_field_puts_its_step_before_the_write_and_keeps_it_optional
         "names": ["Department"],
         "key": "department",
     }
+
+
+def test_a_learned_field_step_is_performable_though_nobody_demonstrated_it() -> None:
+    job, by_id = _job(OutlineField("combobox", "Department"))
+    write = job.steps[0].order
+
+    grown, _ = with_field(
+        job, Composed("department", "Department", "combobox", write), key="department", value="F"
+    )
+
+    assert unperformable(grown, by_id, from_step=0) is None

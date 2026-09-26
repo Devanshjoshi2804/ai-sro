@@ -246,6 +246,19 @@ async def test_a_sure_mail_with_every_value_starts_the_run_itself() -> None:
     assert (run.executor, run.values) == ("steel", {"Customer Type": "GT2"})
 
 
+async def test_a_value_the_job_has_no_parameter_for_rides_into_the_run_it_starts() -> None:
+    world = await mail_world(
+        sure=True,
+        values={"Customer Type": "GT2", "Department": "Finance", "Password": "hunter2"},
+        steel=True,
+    )
+
+    await world.from_the_mail.execute(CTX)
+
+    (run,) = await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)
+    assert run.values == {"Customer Type": "GT2", "Department": "Finance"}
+
+
 async def test_a_steel_mail_missing_a_value_is_only_offered() -> None:
     world = await mail_world(sure=True, values={}, steel=True)
 
@@ -926,7 +939,14 @@ async def test_a_reply_carries_on_the_run_that_was_waiting_for_it() -> None:
 
 @pytest.mark.parametrize(
     ("asking", "answered"),
-    [("value", True), ("step", False), ("password", False), ("code", False), ("", False)],
+    [
+        ("value", True),
+        ("step", False),
+        ("password", False),
+        ("code", False),
+        ("field", False),
+        ("", False),
+    ],
 )
 async def test_a_reply_on_a_steel_run_s_thread_answers_only_a_value_and_never_starts_another(
     asking: str, answered: bool

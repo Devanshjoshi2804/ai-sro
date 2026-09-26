@@ -4,7 +4,7 @@ from sro.domain.execution.field_classes import FieldLimits, field_classes
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.observation.gesture import Gesture, Outline, OutlineField
 from sro.domain.skill.workflow import Step, Workflow
-from tests.unit.runtime_support import type_then_save_step
+from tests.unit.runtime_support import save_step, type_then_save_step
 
 OUTLINE = Outline(
     fields=(
@@ -87,3 +87,29 @@ def test_a_knowledge_base_only_limit_is_still_enforced_even_when_the_page_is_loo
     got = {one.name: one.limits for one in field_classes(job, by_id, learned, declared)}
 
     assert got["Customer Type"].max_length == 4
+
+
+def test_a_label_on_two_write_screens_with_different_data_is_dropped_not_guessed() -> None:
+    step1, by_id1 = save_step(
+        gid="ges_save1",
+        at=1.0,
+        outline=Outline(fields=(OutlineField("textbox", "Department", required=True),)),
+    )
+    step2, by_id2 = save_step(
+        gid="ges_save2",
+        at=2.0,
+        outline=Outline(fields=(OutlineField("combobox", "Department", options=("A", "B")),)),
+    )
+    by_id = {**by_id1, **by_id2}
+    job = Workflow(
+        id="wfl_ambiguous",
+        tenant="acme",
+        title="Two screens",
+        narrative="",
+        steps=[replace(step1, order=1), replace(step2, order=2)],
+        parameters=[],
+    )
+
+    got = {one.name: one for one in field_classes(job, by_id, {})}
+
+    assert "Department" not in got

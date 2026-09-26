@@ -38,3 +38,12 @@ Notes for [`backend/src/sro/domain/execution/field_classes.py`](../../../../../.
 > password is never offered or limited by label). `declared` defaults to
 > empty so a caller with no knowledge-base lookup in hand (a unit test, a
 > caller that has not wired one) still gets the page-only limits.
+>
+> A label seen on two different write screens with different data (round 1,
+> M1) is dropped rather than guessed at, the same rule `compose.choices()`'s
+> `twice` set already applies to compose's own field questions: `on_screen`
+> keeps the first occurrence and marks the label ambiguous the moment a
+> later one disagrees, then every ambiguous label is dropped before
+> classification -- so it neither lends the wrong screen's `required`/
+> `options` to a bound parameter nor appears as a `never` field for a screen
+> it may not even be on.

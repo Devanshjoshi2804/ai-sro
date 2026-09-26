@@ -173,6 +173,38 @@ async def test_another_screen_s_form_lends_this_one_nothing() -> None:
     assert limits == {"Customer Type": 60}
 
 
+async def test_a_field_s_own_screens_list_keeps_it_off_a_job_it_does_not_belong_to() -> None:
+    """The real collision: a uniquely-labelled field the dictionary scopes to
+    other screens must not attach a limit here just because it shares no name
+    with anything on this one -- and a field the dictionary does scope to this
+    screen still attaches."""
+    uow = await _knows(
+        FakeUnitOfWork(),
+        _claim(
+            EntryKind.FORM,
+            "#wm.config/wm.config.partners.customers.types////",
+            {"label": "Customer Types"},
+            EvidenceLevel.OBSERVED,
+        ),
+        _claim(
+            EntryKind.FIELD,
+            "customerType",
+            {"labels": ["Customer Type"], "max_length": 4, "screens": ["Customer Types"]},
+            EvidenceLevel.ASSERTED,
+        ),
+        _claim(
+            EntryKind.FIELD,
+            "widgetCount",
+            {"labels": ["Widget Count"], "max_length": 9, "screens": ["Something Else"]},
+            EvidenceLevel.ASSERTED,
+        ),
+    )
+
+    limits = await declared_limits(uow, f.TENANT, ["Customer Type", "Widget Count"], SCREEN)
+
+    assert limits == {"Customer Type": 4}
+
+
 async def test_a_label_two_keys_answer_to_declares_nothing() -> None:
     """`Description` is a label on ten different keys on this deployment,
     holding anywhere from 20 characters to 2000. A guess between them is a

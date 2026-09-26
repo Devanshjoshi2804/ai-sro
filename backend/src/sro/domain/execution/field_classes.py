@@ -59,9 +59,16 @@ def field_classes(
     declared: Mapping[str, int] = MappingProxyType({}),
 ) -> tuple[FieldClass, ...]:
     on_screen: dict[str, OutlineField] = {}
+    ambiguous: set[str] = set()
     for _, fields in screens(workflow, by_id):
         for one in fields:
-            on_screen.setdefault(normal(one.label), one)
+            key = normal(one.label)
+            if key in on_screen and on_screen[key] != one:
+                ambiguous.add(key)
+                continue
+            on_screen.setdefault(key, one)
+    for key in ambiguous:
+        on_screen.pop(key, None)
     held = limits_for(workflow.steps, learned.values(), declared)
     typed = _typed_caps(workflow, by_id)
     found: list[FieldClass] = []

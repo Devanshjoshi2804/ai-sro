@@ -32,18 +32,27 @@ Notes for [`backend/src/sro/application/skill/job_facts.py`](../../../../../../.
 > broken lanes have cooled down (`K_BROKEN_COOL_DOWN`), the same way the run
 > itself decides.
 >
-> ponytail: 2N+2 queries for N jobs -- one ledger read and one gesture read,
-> then one `learned_for` and one `broken_for` per job -- on every mail tick
-> per operator and every chat sentence. Upgrade path: batch `learned_for` and
-> `broken_for` by tenant when a tenant holds hundreds of jobs.
+> ponytail: 2N+4 queries for N jobs where at least one declares a
+> parameter, else 2N+2 -- one ledger read, one gesture read and (round 1)
+> one field-claim read and one form-claim read (`kb_rows`, tenant-wide, not
+> per job), then one `learned_for` and one `broken_for` per job -- on every
+> mail tick per operator and every chat sentence. Upgrade path: batch
+> `learned_for` and `broken_for` by tenant when a tenant holds hundreds of
+> jobs.
 >
-> `declared` (C2 round 0b): the knowledge base's field limits for this job,
-> read once per job through the same helpers `_ask_for_values`
-> (`application.execution.workflow_runs`) already used for a pending
-> question -- `names_of`, `screen_for` and `declared_limits`
-> (`application.execution.declared`) -- so every caller of `job_facts`, not
-> only the one that was already asking, compiles a job whose `Compiled
-> .fields` carry a knowledge-base-only limit (spec's controller amendment,
-> 2026-09-26: the stricter of page and knowledge base wins, and a limit the
-> page never shows is still enforced). Skipped when the job declares no
-> parameters, since `declared_limits` has nothing to look up.
+> `declared` (C2 round 0b, corrected round 1 I2): the knowledge base's field
+> limits for this job, so every caller of `job_facts`, not only the pending
+> question `_ask_for_values` (`application.execution.workflow_runs`) already
+> asked, compiles a job whose `Compiled.fields` carry a knowledge-base-only
+> limit (spec's controller amendment, 2026-09-26: the stricter of page and
+> knowledge base wins, and a limit the page never shows is still enforced).
+>
+> Round 0b called `declared_limits`/`screen_for` per workflow, which read the
+> same tenant-wide field and form claims once per job and re-fetched
+> gestures `job_facts` already had (Important #2 of the C2 review). This now
+> reads the claims once (`kb_rows`, only when some job declares a parameter)
+> and resolves each job's own screen from the gestures already loaded into
+> `by_id` (`screen_of_loaded`, no second `gestures_for`), then joins per job
+> with the pure `limits_from_rows` -- one tenant-wide knowledge read for
+> however many jobs this call compiles, not one per job. Skipped entirely
+> when no job in the call declares a parameter.

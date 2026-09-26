@@ -38,7 +38,7 @@ Comments and docstrings for [`backend/src/sro/infrastructure/gemini/metered.py`]
 > knowledge CLIs. A negative cap -- the shipped default -- is then answered
 > without a query.
 
-## `_caller`, [line 128](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L128): Docstring
+## `_caller`, [line 129](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L129): Docstring
 
 > Who wanted the refused call: the nearest frame outside the adapters, the
 > metered client and asyncio -- the use case, as `module.function`. The refusal
@@ -67,14 +67,25 @@ Comments and docstrings for [`backend/src/sro/infrastructure/gemini/metered.py`]
 > `client.aio.models.embed_content`. Failed calls are not billed -- they raise
 > before `record` -- and a retry that answers is billed once for that answer.
 
-## `Metered.generate_content`, [line 96](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L96): Comment
+## `Metered.__init__`, [line 87](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L87): Comment
+
+Code: `self._client = client`
+
+> Held, never read. `client.aio.models` alone does not keep the genai client
+> alive: the client was collected as soon as `metered_client` returned, and
+> its AsyncClient's finaliser scheduled `aclose()` on the running loop -- so
+> a container built inside a loop (the API lifespan, `asyncio.run` in the
+> scripts and evals) had every model call fail with "Cannot send a request,
+> as the client has been closed".
+
+## `Metered.generate_content`, [line 97](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L97): Comment
 
 Code: `tools = getattr(usage, "tool_use_prompt_token_count", None) or 0`
 
 > The computer-use driver's tool prompt is input the model is billed for, and
 > it is reported beside the prompt, not inside it.
 
-## `Metered.embed_content`, [line 108](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L108): Comment (debt)
+## `Metered.embed_content`, [line 109](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L109): Comment (debt)
 
 Code: `sent = sum(len(str(one)) for one in contents)`
 

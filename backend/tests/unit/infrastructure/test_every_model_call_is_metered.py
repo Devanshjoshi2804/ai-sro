@@ -9,6 +9,8 @@ decides whether the day's bill sees it.
 
 from __future__ import annotations
 
+import asyncio
+import gc
 import json
 from datetime import UTC, datetime
 from types import SimpleNamespace
@@ -33,7 +35,7 @@ from sro.infrastructure.gemini.asker import GeminiAsker
 from sro.infrastructure.gemini.computer_use import GeminiVisionDriver
 from sro.infrastructure.gemini.intent import GeminiIntentParser
 from sro.infrastructure.gemini.interpreter import GeminiInterpreter
-from sro.infrastructure.gemini.metered import Meter, Metered, Unattributed
+from sro.infrastructure.gemini.metered import Meter, Metered, Unattributed, metered_client
 from sro.infrastructure.knowledge.embedding import GeminiEmbedder
 from sro.infrastructure.transcription.gemini import GeminiTranscriber
 from sro.whose import about
@@ -432,3 +434,16 @@ async def test_a_keeper_sweep_embeds_its_session_claim_and_bills_the_connections
 
     assert [row.tenant for row in _rows(uow)] == ["acme"]
     assert [bool(entry.embedding) for entry in uow.knowledge.rows.values()] == [True]
+
+
+async def test_a_metered_client_built_inside_a_running_loop_stays_open() -> None:
+    """The container is built inside the API's lifespan and inside
+    `asyncio.run` for the scripts. Holding only `client.aio.models` let the
+    genai client be collected at once, and its AsyncClient's finaliser scheduled
+    `aclose()` on the running loop: every later call failed with "Cannot send a
+    request, as the client has been closed", before the meter or the model."""
+    metered = metered_client("not-a-key", Meter(FakeUnitOfWork, clock=FakeClock(), cap_usd=-1.0))
+    gc.collect()
+    await asyncio.gather(*(one for one in asyncio.all_tasks() if one is not asyncio.current_task()))
+
+    assert not metered._models._api_client._async_httpx_client.is_closed

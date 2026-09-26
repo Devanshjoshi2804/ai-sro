@@ -13,15 +13,15 @@ from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
+from sro.application.shared.asking import ask
 from sro.domain.chat.thread import Speaker
 from sro.domain.execution.mail_job import (
-    MAIL_INSTRUCTIONS,
-    MAIL_SCHEMA,
     addresses_in,
     recipient_allowed,
 )
 from sro.domain.execution.waiting import read_wait
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.prompts.write_mail import WRITE_MAIL
 from sro.domain.shared.identifiers import PrincipalId
 from sro.domain.skill.workflow import Workflow
 
@@ -51,36 +51,39 @@ async def write_the_mail(
     *,
     tools: ToolCaller,
     asker: Asker,
-    model: str,
 ) -> Written | str:
     conversation = await _conversation(ctx, tools, thread) if thread else []
     known = addresses_in(values.values()) | addresses_in(
         str(one.get("from") or "") for one in conversation
     )
-    evidence = json.dumps(
-        {
+    written = await ask(
+        asker,
+        WRITE_MAIL,
+        trusted={
             "job": workflow.title,
-            "what_it_does": workflow.narrative,
-            "steps": [step.says for step in sorted(workflow.steps, key=lambda one: one.order)],
-            "values": dict(values),
             "operator": ctx.principal_id.value,
-            "conversation": [
-                {
-                    "from": str(one.get("from") or ""),
-                    "subject": str(one.get("subject") or ""),
-                    "body": str(one.get("body") or "")[:K_BODY],
-                }
-                for one in conversation[-K_MESSAGES:]
-            ],
         },
-        indent=2,
-        ensure_ascii=False,
-    )
-    written = await asker.ask(
-        model=model,
-        instructions=MAIL_INSTRUCTIONS,
-        evidence=evidence,
-        schema=MAIL_SCHEMA,
+        untrusted={
+            "what_it_does": workflow.narrative,
+            "steps": json.dumps(
+                [step.says for step in sorted(workflow.steps, key=lambda one: one.order)],
+                indent=2,
+                ensure_ascii=False,
+            ),
+            "values": json.dumps(dict(values), indent=2, ensure_ascii=False),
+            "conversation": json.dumps(
+                [
+                    {
+                        "from": str(one.get("from") or ""),
+                        "subject": str(one.get("subject") or ""),
+                        "body": str(one.get("body") or "")[:K_BODY],
+                    }
+                    for one in conversation[-K_MESSAGES:]
+                ],
+                indent=2,
+                ensure_ascii=False,
+            ),
+        },
     )
     data: Mapping[str, object] = written.data or {}
     to = " ".join(str(data.get("to") or "").split())
@@ -155,15 +158,12 @@ async def draft_the_mail_job(
     uow: UnitOfWork,
     tools: ToolCaller,
     asker: Asker,
-    model: str,
     clock: Clock,
     ids: IdFactory,
 ) -> WorkflowRun:
     waiting = read_wait(run.awaiting) if run.awaiting else None
     thread = waiting.thread if waiting else ""
-    written = await write_the_mail(
-        ctx, workflow, run.values, thread, tools=tools, asker=asker, model=model
-    )
+    written = await write_the_mail(ctx, workflow, run.values, thread, tools=tools, asker=asker)
     if isinstance(written, str):
         return await _stop(uow, run, written)
 

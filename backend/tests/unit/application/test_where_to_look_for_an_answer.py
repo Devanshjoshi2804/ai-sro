@@ -91,7 +91,6 @@ def _planner(
             FakeUnitOfWork(),
             _Knows(KNOWN if entries is None else entries),
             asker,
-            model="m",
             clock=FakeClock(),
             cap_usd=cap_usd,
         ),
@@ -344,12 +343,12 @@ async def test_a_fan_out_wider_than_a_question_anybody_framed_is_cut() -> None:
 
 
 async def test_a_model_that_answered_nothing_usable_is_a_refusal_not_a_plan() -> None:
-    planner, _ = _planner(Answer(data={}, error="the model returned nothing"))
+    planner, _ = _planner(Answer(data={}))
 
     planned = await planner.execute(CTX, question="which suppliers are set up at SG")
 
     assert planned.plan.lookups == ()
-    assert planned.refused == "the model returned nothing"
+    assert planned.refused == "plan_lookup v1: the answer does not match its schema"
 
 
 @pytest.mark.parametrize("how", ["post", "delete", "write", ""])

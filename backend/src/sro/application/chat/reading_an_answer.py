@@ -1,17 +1,14 @@
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import dataclass
 
 from sro.application.context import RequestContext
 from sro.application.ports.model import Asker
+from sro.application.shared.asking import ask
 from sro.domain.chat.asking import Pending, question
-from sro.domain.chat.is_it_an_answer import (
-    HOW_TO_READ,
-    IS_IT_AN_ANSWER_SCHEMA,
-    plainly_a_value,
-)
+from sro.domain.chat.is_it_an_answer import plainly_a_value
+from sro.domain.prompts.is_it_an_answer import IS_IT_AN_ANSWER
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +22,8 @@ class Read:
 
 
 class IsItAnAnswer:
-    def __init__(self, asker: Asker | None, *, model: str) -> None:
+    def __init__(self, asker: Asker | None) -> None:
         self._asker = asker
-        self._model = model
 
     async def execute(self, ctx: RequestContext, pending: Pending, said: str) -> Read:
         if plainly_a_value(pending, said):
@@ -35,15 +31,11 @@ class IsItAnAnswer:
         if self._asker is None:
             return Read(answers=None, why="no model to ask")
         try:
-            answer = await self._asker.ask(
-                model=self._model,
-                instructions=HOW_TO_READ,
-                evidence=json.dumps(
-                    {"asked": question(pending), "field": pending.asking_for, "typed": said},
-                    indent=2,
-                    ensure_ascii=False,
-                ),
-                schema=IS_IT_AN_ANSWER_SCHEMA,
+            answer = await ask(
+                self._asker,
+                IS_IT_AN_ANSWER,
+                trusted={"asked": question(pending), "field": pending.asking_for},
+                untrusted={"typed": said},
             )
         except Exception:
             logger.info("%s: the answer could not be read; asking again", ctx.tenant_id.value)

@@ -844,7 +844,6 @@ class TestTheMiningPass:
                     tenant_id=TENANT,
                     asker=asker,
                     locks=FakeAccountLocks(),
-                    model="gemini-3.1-pro",
                     now=datetime(2025, 2, 11, 23, tzinfo=UTC),
                     cap_usd=100.0,
                 )

@@ -16,19 +16,19 @@ from sro.application.ports.blob import BlobStore
 from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
+from sro.application.shared.asking import ask
 from sro.application.shared.locks import one_at_a_time
 from sro.application.shared.refusals import OverCap
 from sro.domain.observation.driving import WAS_OUR_OWN_DRIVING, our_own_driving
 from sro.domain.observation.gesture import Gesture, Intent
 from sro.domain.observation.reading import (
-    INSTRUCTIONS,
-    INTENT_SCHEMA,
     TAIL,
     intent_from,
     one_line,
     with_recent_values,
 )
 from sro.domain.observation.trim import thin, trim
+from sro.domain.prompts.read_gesture import READ_GESTURE
 from sro.domain.shared.identifiers import BatchId, TenantId
 
 logger = logging.getLogger(__name__)
@@ -41,25 +41,20 @@ async def read_gesture(
     *,
     tail: list[Intent],
     asker: Asker,
-    model: str,
     image: bytes | None = None,
 ) -> Intent:
     recent = [one_line(intent) for intent in tail]
-    evidence = json.dumps(
-        {"gesture": trim(gesture), "just_before": recent},
-        indent=2,
-        sort_keys=True,
-        ensure_ascii=False,
-    )
-
-    answer = await asker.ask(
-        model=model,
-        instructions=INSTRUCTIONS,
-        evidence=evidence,
-        schema=INTENT_SCHEMA,
+    answer = await ask(
+        asker,
+        READ_GESTURE,
+        trusted={},
+        untrusted={
+            "gesture": json.dumps(trim(gesture), indent=2, sort_keys=True, ensure_ascii=False),
+            "just_before": json.dumps(recent, indent=2, ensure_ascii=False),
+        },
         image=image if thin(gesture.action.target) else None,
     )
-    return intent_from(answer.data, gesture, answer, model=model)
+    return intent_from(answer.data, gesture, answer, model=READ_GESTURE.model)
 
 
 async def read_new_gestures(
@@ -67,7 +62,6 @@ async def read_new_gestures(
     *,
     tenant_id: TenantId,
     asker: Asker,
-    model: str,
     now: datetime,
     cap_usd: float,
     limit: int = READING_LIMIT,
@@ -80,7 +74,6 @@ async def read_new_gestures(
             uow,
             tenant_id=tenant_id,
             asker=asker,
-            model=model,
             now=now,
             cap_usd=cap_usd,
             limit=limit,
@@ -120,7 +113,6 @@ async def _read_unread(
     *,
     tenant_id: TenantId,
     asker: Asker,
-    model: str,
     now: datetime,
     cap_usd: float,
     limit: int,
@@ -158,7 +150,6 @@ async def _read_unread(
             asked,
             already=already,
             asker=asker,
-            model=model,
             tail=lambda gesture: (
                 _tail_for(ordered, intents, gesture)[-tail_size:] if tail_size else []
             ),
@@ -192,7 +183,6 @@ async def _ask_group(
     *,
     already: dict[str, Intent],
     asker: Asker,
-    model: str,
     tail: Callable[[Gesture], list[Intent]],
 ) -> tuple[dict[str, Intent], BaseException | None]:
     questions: dict[str | None, tuple[Gesture, bytes | None]] = {}
@@ -205,9 +195,7 @@ async def _ask_group(
     async def one(
         key: str | None, gesture: Gesture, image: bytes | None
     ) -> tuple[str | None, Intent]:
-        return key, await read_gesture(
-            gesture, tail=tail(gesture), asker=asker, model=model, image=image
-        )
+        return key, await read_gesture(gesture, tail=tail(gesture), asker=asker, image=image)
 
     done = await asyncio.gather(
         *(one(key, gesture, image) for key, (gesture, image) in questions.items()),
@@ -317,7 +305,6 @@ class ReadGestures:
         uow: UnitOfWork,
         *,
         asker: Asker | None,
-        model: str,
         clock: Clock,
         cap_usd: float,
         blobs: BlobStore | None = None,
@@ -326,7 +313,6 @@ class ReadGestures:
     ) -> None:
         self._uow = uow
         self._asker = asker
-        self._model = model
         self._clock = clock
         self._cap_usd = cap_usd
         self._blobs = blobs
@@ -344,7 +330,6 @@ class ReadGestures:
                 uow,
                 tenant_id=ctx.tenant_id,
                 asker=asker,
-                model=self._model,
                 now=now,
                 cap_usd=self._cap_usd,
                 blobs=self._blobs,

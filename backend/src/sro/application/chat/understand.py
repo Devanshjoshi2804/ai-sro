@@ -8,8 +8,10 @@ from types import MappingProxyType
 
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.shared.asking import ask
 from sro.domain.chat.asked_by import mails_behind, texts
-from sro.domain.chat.reading import INSTRUCTIONS, UNDERSTAND_SCHEMA, ChatReading, new_chat_id
+from sro.domain.chat.reading import ChatReading, new_chat_id
+from sro.domain.prompts.read_request import READ_REQUEST
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.learned import demanded
@@ -37,7 +39,6 @@ async def understand(
     utterance: str,
     workflows: list[Workflow],
     asker: Asker,
-    model: str,
     asked_by: Mapping[str, Sequence[str]] = MappingProxyType({}),
 ) -> Understood:
     held = [
@@ -54,15 +55,13 @@ async def understand(
         }
         for w in workflows
     ]
-    answer = await asker.ask(
-        model=model,
-        instructions=INSTRUCTIONS,
-        evidence=json.dumps(
-            {"said": utterance, "jobs": held},
-            indent=2,
-            ensure_ascii=False,
-        ),
-        schema=UNDERSTAND_SCHEMA,
+    answer = await ask(
+        asker,
+        READ_REQUEST,
+        trusted={},
+        untrusted={
+            "request": json.dumps({"said": utterance, "jobs": held}, indent=2, ensure_ascii=False)
+        },
     )
     if answer.data is None:
         return Understood(None, answer)
@@ -149,7 +148,6 @@ async def read_utterance(
     tenant_id: TenantId,
     utterance: str,
     asker: Asker,
-    model: str,
     now: datetime,
 ) -> Understood:
     workflows = list(await uow.workflows.known(tenant_id))
@@ -159,7 +157,7 @@ async def read_utterance(
     by_id = {gesture.id: gesture for gesture in cited}
     asked_by = {w.id: texts(mails_behind(w, by_id)) for w in workflows}
     got = await understand(
-        utterance, workflows, asker, model, {w: said for w, said in asked_by.items() if said}
+        utterance, workflows, asker, {w: said for w, said in asked_by.items() if said}
     )
     answer = got.answer
     await uow.chats.record(

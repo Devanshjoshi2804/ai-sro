@@ -41,56 +41,6 @@ class Plan:
         return self.asks is None and bool(self.lookups)
 
 
-LOOKUP_SCHEMA: dict[str, object] = {
-    "type": "object",
-    "properties": {
-        "why": {"type": "string"},
-        "lookups": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "why": {"type": "string"},
-                    "system": {"type": "string"},
-                    "how": {"type": "string", "enum": list(HOW)},
-                    "target": {"type": "string"},
-                    "params": {"type": "object"},
-                    "cites": {"type": "array", "items": {"type": "string"}},
-                },
-                "required": ["why", "system", "how", "target", "cites"],
-                "propertyOrdering": ["why", "system", "how", "target", "params", "cites"],
-            },
-        },
-    },
-    "required": ["why", "lookups"],
-    "propertyOrdering": ["why", "lookups"],
-}
-
-
-INSTRUCTIONS = """You are deciding where to look for the answer to one question.
-
-You are given the question and what this deployment knows about the systems the
-operator works in: endpoints it has seen, screens it has seen, what the fields
-mean, and the quirks that say where a system misreports its own data.
-
-For each system that could answer, give one lookup. Prefer `call` over
-`screen`: a call is an endpoint from the knowledge you were given, and its
-answer is data. Use `screen` only where no endpoint answers the question, and
-give the route exactly as the knowledge names it.
-
-Cite the knowledge you used. Every lookup must name at least one key from what
-you were given, and its `target` must be one of those keys. Do not invent a
-path that looks like the others -- an endpoint nobody here has seen is a guess
-with a URL in it, and it will be refused.
-
-Only reads. You cannot create, update or delete anything from here, and a
-question that asks you to is a question to decline.
-
-If the question cannot be answered from what you were given, return no lookups
-and say so in `why`. An empty answer is a useful one; an invented endpoint is
-not."""
-
-
 def unknown_targets(lookups: list[Lookup], known: list[KnowledgeEntry]) -> list[str]:
     keys = {entry.key for entry in known}
     return sorted({lookup.target for lookup in lookups if lookup.target not in keys})

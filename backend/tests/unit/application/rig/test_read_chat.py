@@ -30,7 +30,8 @@ from sro.application.chat.read_chat import ReadChat
 from sro.application.context import RequestContext
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
-from sro.domain.chat.reading import UNDERSTAND_SCHEMA, ChatReading
+from sro.domain.chat.reading import ChatReading
+from sro.domain.prompts.read_request import READ_REQUEST
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer, ModelSpend
 from sro.domain.skill.workflow import Step, Workflow
@@ -39,11 +40,6 @@ from tests.unit.fakes import FakeAsker, FakeChatRepository, FakeClock, FakeUnitO
 
 TENANT = TenantId("acme")
 RIVAL = TenantId("rival")
-MODEL = "gemini-3.8-flash-preview"
-"""Deliberately not the shipped `gemini_plan_model` and not the mining one
-either, so a use case wired to a literal -- or to the wrong one of the model
-settings -- fails rather than agreeing with a default."""
-
 NOW = datetime(2025, 2, 11, 23, 0, tzinfo=UTC)
 """23:00, one hour before a midnight. `over_cap` sums the day from the midnight
 BEFORE `now`, so an hour's advance moves this into the next day and out of
@@ -78,7 +74,6 @@ def _read(
     *,
     asker: FakeAsker | None,
     clock: FakeClock | None = None,
-    model: str = MODEL,
     cap_usd: float = CAP,
 ) -> ReadChat:
     # `hand_out`, as a container hands one out: strict, and not yet entered. A
@@ -87,7 +82,6 @@ def _read(
     return ReadChat(
         uow.hand_out(),
         asker=asker,
-        model=model,
         clock=clock or FakeClock(NOW),
         cap_usd=cap_usd,
     )
@@ -101,7 +95,7 @@ async def _held(tenant: TenantId = TENANT) -> FakeUnitOfWork:
 
 def _answer(workflow_id: str | None, values: list[dict[str, str]], **over: object) -> Answer:
     return Answer(
-        data={"workflow_id": workflow_id, "values": values, "missing": []},
+        data={"workflow_id": workflow_id, "values": values, "missing": [], "sure": True},
         **over,
     )
 
@@ -263,16 +257,18 @@ async def test_the_jobs_it_is_read_against_are_the_ones_this_tenant_holds() -> N
     assert [row.tenant for row in _billed_rows(uow)] == ["rival"], "billed to the wrong tenant"
 
 
-async def test_the_model_asked_is_the_one_this_deployment_configured() -> None:
-    """Several model settings, and the plan one is the only one this door may
-    spend on -- a person is standing at a screen waiting for the answer."""
+async def test_the_model_asked_is_the_one_the_record_names() -> None:
+    """A model change is a prompt change, so the record names it and nothing
+    a deployment configures can move it."""
     uow = await _held()
     asker = FakeAsker(_answer("wfl_1", []))
 
-    await _read(uow, asker=asker, model="gemini-3.1-pro-preview").execute(_ctx(), utterance=SAID)
+    await _read(uow, asker=asker).execute(_ctx(), utterance=SAID)
 
-    assert [one["model"] for one in asker.asked] == ["gemini-3.1-pro-preview"]
-    assert asker.asked[0]["schema"] is UNDERSTAND_SCHEMA, "structured output, or it is prose"
+    assert [one["model"] for one in asker.asked] == [READ_REQUEST.model]
+    assert asker.asked[0]["schema"] == dict(READ_REQUEST.output_schema), (
+        "structured output, or it is prose"
+    )
 
 
 async def test_the_bill_is_stamped_with_the_containers_clock() -> None:
@@ -299,7 +295,7 @@ async def test_a_sentence_naming_no_job_still_writes_the_bill() -> None:
     """
     both: tuple[dict[str, object] | None, ...] = (
         None,
-        {"workflow_id": "wfl_nope", "values": [], "missing": []},
+        {"workflow_id": "wfl_nope", "values": [], "missing": [], "sure": True},
     )
     for data in both:
         uow = await _held()
@@ -384,7 +380,7 @@ NAMES = [
 
 class _Asker:
     async def ask(self, **_: object) -> Answer:
-        return Answer(data={"workflow_id": "wfl_8", "values": [], "missing": []})
+        return Answer(data={"workflow_id": "wfl_8", "values": [], "missing": [], "sure": True})
 
 
 held = Workflow(
@@ -394,7 +390,7 @@ held = Workflow(
     narrative="n",
     parameters=[{"name": name, "required": True} for name in NAMES],
 )
-print(",".join(asyncio.run(understand("x", [held], _Asker(), "m")).missing))
+print(",".join(asyncio.run(understand("x", [held], _Asker())).missing))
 """
 """One reading, in a fresh interpreter, printing the order its fields came back
 in. Runs `understand` rather than `ReadChat` because that is where the set is

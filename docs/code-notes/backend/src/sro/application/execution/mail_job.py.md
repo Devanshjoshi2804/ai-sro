@@ -42,19 +42,19 @@ Code: `K_BODY = 2000`
 > a mail that cannot be taken back, so the model is only allowed to copy a
 > recipient -- from the values, or from the conversation it answers.
 
-## `send_the_mail`, [line 106](../../../../../../../backend/src/sro/application/execution/mail_job.py#L106): Docstring
+## `send_the_mail`, [line 109](../../../../../../../backend/src/sro/application/execution/mail_job.py#L109): Docstring
 
 > Send it, and say what Gmail answered: its id, or why it did not go.
 >
 > The id is remembered as a mail this system sent, exactly as `SendTheDraft`
 > does, so the next look in the mailbox does not read it as a request.
 
-## `MailHand`, [line 145](../../../../../../../backend/src/sro/application/execution/mail_job.py#L145): Docstring
+## `MailHand`, [line 148](../../../../../../../backend/src/sro/application/execution/mail_job.py#L148): Docstring
 
 > A run's way to write and send a mail through the mailbox's API, for a
 > step that sends one in a job that does other things too.
 
-## `draft_the_mail_job`, [line 150](../../../../../../../backend/src/sro/application/execution/mail_job.py#L150): Docstring
+## `draft_the_mail_job`, [line 153](../../../../../../../backend/src/sro/application/execution/mail_job.py#L153): Docstring
 
 > Write the mail this job sends and park the run on the operator's press.
 >

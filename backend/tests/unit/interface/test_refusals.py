@@ -67,24 +67,21 @@ def test_a_bare_429_still_has_a_slug_and_not_error() -> None:
 @pytest.mark.parametrize(
     ("name", "expected"),
     [
-        ("gemini_mine_model", "gemini-3.8-flash"),
         ("gemini_plan_model", "gemini-3.8-flash"),
         ("gemini_rescue_model", "gemini-3.1-pro-preview"),
     ],
 )
-def test_the_three_model_names_are_the_rigs(name: str, expected: str) -> None:
+def test_the_model_names_are_the_rigs(name: str, expected: str) -> None:
     """Rule 4: `new_agent_arch/src/rig/config.py` lines 41 and 45 are the
     measured choices -- the pro model truncates a plan and the flash model
     cannot rescue one. A drift there is a different system wearing the same
     numbers.
 
-    **The mine model is deliberately no longer the rig's**, and it is the one
-    of the three that was measured HERE rather than inherited: pro and flash
-    over identical copies of the deployed store, 2026-09-21, both proposing
-    zero new jobs, pro at twice the price and straddling its own timeout. The
-    reasoning is in `config.gemini_mine_model`. This line is still the guard
-    it always was -- a change to any of the three has to come with a
-    measurement, and changing it without one turns this red.
+    The mine model is no longer a setting: it is `MINE.model`, on the prompt
+    record, where a change is a prompt change and goes through the eval gate.
+    This line is still the guard it always was for the two left -- a change
+    to either has to come with a measurement, and changing it without one
+    turns this red.
 
     `_env_file=None` like every other Settings assertion in this suite: the
     default is what is being asserted, and a developer with the name in their
@@ -93,17 +90,6 @@ def test_the_three_model_names_are_the_rigs(name: str, expected: str) -> None:
     from sro.config import Settings
 
     assert getattr(Settings(_env_file=None), name) == expected
-
-
-def test_the_mine_model_is_not_the_interpreters() -> None:
-    """They hold the same string today and answer different questions. One
-    setting serving two purposes means re-tuning one silently re-tunes the
-    other."""
-    from sro.config import Settings
-
-    fields = Settings.model_fields
-    assert "gemini_mine_model" in fields
-    assert "gemini_interpreter_model" in fields
 
 
 def test_a_run_that_is_not_yours_is_a_403_and_not_a_500() -> None:

@@ -586,63 +586,6 @@ Code: `gemini_interpreter_model: str = "gemini-3.1-pro-preview"`
 
 ## `Settings`, [line 181](../../../../../backend/src/sro/config.py#L181): Note on the line above
 
-Code: `gemini_mine_model: str = "gemini-3.8-flash"`
-
-> The model one mining pass asks. The rig's `mine_model`
-> (`new_agent_arch/src/rig/config.py:20`) was `gemini-3.1-pro-preview`, and
-> this is the one of the three model names that is deliberately no longer
-> the rig's.
->
-> **Measured, 2026-09-21, against pro on identical copies of the deployed
-> store** -- 904 gestures, the same 22 known workflows, the same
-> `K_EFFORT="medium"`, the same window budget:
->
->     pro    8 passes, 2 of 5 finished inside the shipped timeout,
->            107s / 135s / 217s, mean $0.493, 3-10 proposals
->     flash  5 passes, 5 of 5 finished, ~115s, mean $0.235, 9-12 proposals
->
-> and, on the number that decides it, **0 new jobs each**. Every proposal
-> from both resolved as a job already stored or the same evidence read
-> twice, because the store had converged.
->
-> So this is not "flash mines better"; nothing here shows that, and a
-> converged store cannot show it. It is the rule `gemini_rescue_model` below
-> already states -- the expensive model earns its price where depth per call
-> is the product -- applied to the call that is its opposite. A mining pass
-> is 162,000 input tokens, one shallow judgement, and then the nine rules in
-> `validate` that do the actual discrimination. The miner's job is recall;
-> recall is the cheaper thing to buy, and `validate` is what refuses. Pro
-> earns its price at the rescue rung, once per failure, and stays there.
->
-> **And then it was re-run, on exactly that.** An operator demonstrated
-> `Create a Transport Equipment Type` three times -- a screen this store had
-> never held a job for -- and both models were given the same 159,929-token
-> prompt over identical copies with that job rolled back:
->
->     flash  learned it,  10 proposed (1 new, 3 same_job, 6 same_occurrence),
->            nothing wrongly refused,   91s,  $0.2396
->     pro    learned it,   8 proposed (1 new, 2 same_job, 4 same_occurrence),
->            nothing wrongly refused,  338s,  $0.5032
->
-> The same answer, 2.1x the price and 3.7x the wall clock. Flash gets there
-> by thinking four times as hard -- 21,278 thought tokens against 4,821 --
-> and still costs less, because thinking is billed at its own output rate.
-> Note pro's 338 seconds: under the 120s that shipped before
-> `gemini_mine_timeout_ms`, that pass would have died.
->
-> So the choice is measured on novel evidence now and not only on a
-> converged store. It is still n=1 on a job of this shape, on this
-> application: a subtler one -- more steps, more interleaving, two systems --
-> is the moment to run it again rather than assume, which costs $0.75 and
-> ten minutes and has these numbers to beat.
->
-> Both models at `K_EFFORT="high"` spend their whole output budget thinking
-> and are truncated with nothing kept. The run and all of its numbers are at
-> `domain/skill/umbrella.py:23` -- cited and not copied, because a
-> measurement kept in two places is one that drifts.
-
-## `Settings`, [line 183](../../../../../backend/src/sro/config.py#L183): Note on the line above
-
 Code: `gemini_plan_model: str = "gemini-3.8-flash"`
 
 > What plans each step of a workflow run.
@@ -656,7 +599,7 @@ Code: `gemini_plan_model: str = "gemini-3.8-flash"`
 > (`config.py:41`). Deliberately the fast model: a run plans once per step and
 > a slow plan is felt by an operator standing at a screen.
 
-## `Settings`, [line 185](../../../../../backend/src/sro/config.py#L185): Note on the line above
+## `Settings`, [line 183](../../../../../backend/src/sro/config.py#L183): Note on the line above
 
 Code: `gemini_rescue_model: str = "gemini-3.1-pro-preview"`
 
@@ -664,29 +607,7 @@ Code: `gemini_rescue_model: str = "gemini-3.1-pro-preview"`
 > (`config.py:45`). The expensive model earns its price here and not above:
 > it is asked once per failure, not once per step.
 
-## `Settings`, [line 187](../../../../../backend/src/sro/config.py#L187): Note on the line above
-
-Code: `gemini_read_model: str = "gemini-3.8-flash"`
-
-> What reads one gesture into an intent -- `sro.domain.observation.
-> reading`, called once per gesture, hundreds a day. The rig's own
-> `intent_model` (`new_agent_arch/src/rig/config.py:19`), renamed here
-> because this deployment's `gemini_intent_model` above already names an
-> unrelated door -- reading one sentence out of a chat message, not one
-> gesture out of a browser.
->
-> A real bake-off against gemini-3.1-flash-lite and gemini-3.1-pro-preview,
-> on real captured gestures, measured this one paying $0.0024/gesture at
-> ~4.1s against flash-lite's $0.0003/gesture at ~1.2s and pro-preview's
-> $0.0140/gesture at ~11.5s -- and, checked against ground truth rather than
-> against each other, this one and pro-preview read the real DOM identifiers
-> correctly while flash-lite drifted onto the wrong screen entirely once its
-> own wrong reading entered its tail. Pro-preview bought nothing over this
-> one on the same evidence. Worth re-running once `with_recent_values` and
-> the thin-gesture picture are live in production: both were missing when
-> that bake-off ran.
-
-## `Settings`, [line 189](../../../../../backend/src/sro/config.py#L189): Note on the line above
+## `Settings`, [line 185](../../../../../backend/src/sro/config.py#L185): Note on the line above
 
 Code: `interpretation_enabled: bool = False`
 
@@ -696,7 +617,7 @@ Code: `interpretation_enabled: bool = False`
 > becomes a skill -- with mechanical step descriptions and no proposed
 > parameters.
 
-## `Settings`, [line 191](../../../../../backend/src/sro/config.py#L191): Note on the line above
+## `Settings`, [line 187](../../../../../backend/src/sro/config.py#L187): Note on the line above
 
 Code: `vision_enabled: bool = False`
 
@@ -714,7 +635,7 @@ Code: `vision_enabled: bool = False`
 > `keycloak_client_secret`, documenting nothing -- a second orphan of the same
 > move this docstring already records.)
 
-## `Settings`, [line 193](../../../../../backend/src/sro/config.py#L193): Note on the line above
+## `Settings`, [line 189](../../../../../backend/src/sro/config.py#L189): Note on the line above
 
 Code: `keycloak_realm_url: str = ""`
 
@@ -723,7 +644,7 @@ Code: `keycloak_realm_url: str = ""`
 > Empty means no token source: runs authenticate with the session cookies,
 > which work and expire on the identity provider's schedule.
 
-## `Settings`, [line 197](../../../../../backend/src/sro/config.py#L197): Note on the line above
+## `Settings`, [line 193](../../../../../backend/src/sro/config.py#L193): Note on the line above
 
 Code: `keycloak_client_secret: str = ""`
 
@@ -732,7 +653,7 @@ Code: `keycloak_client_secret: str = ""`
 > -- so this is set when the realm says the client is confidential rather
 > than guessed at.
 
-## `Settings`, [line 198](../../../../../backend/src/sro/config.py#L198): Note on the line above
+## `Settings`, [line 194](../../../../../backend/src/sro/config.py#L194): Note on the line above
 
 Code: `knowledge_embeddings_enabled: bool = False`
 

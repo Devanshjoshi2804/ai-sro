@@ -70,14 +70,7 @@ class MineLately:
         newest = await uow.gestures.newest_arrival(tenant_id)
         if newest is not None and newest >= _when(last.started_at):
             return True
-        if not last.left_out:
-            return False
-        if newest is None:
-            return False
-        held = max(1, last.window_size)
-        windows = -(-(held + last.left_out) // held)
-        since_anybody_worked = sum(1 for one in passes if _when(one.started_at) > newest)
-        return since_anybody_worked < windows
+        return last.left_out > 0 and last.in_tokens > 0
 
     async def _decide(self) -> None:
         async with self._uow as uow:

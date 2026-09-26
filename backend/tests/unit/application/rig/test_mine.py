@@ -46,9 +46,20 @@ from sro.domain.observation.gesture import (
     Target,
     ValueSeen,
 )
-from sro.domain.observation.pool import K_POOL_AGE, RETIRED_DRIVING
+from sro.domain.observation.pool import (
+    K_MINE_ATTEMPTS,
+    K_POOL_AGE,
+    RETIRED_DRIVING,
+    RETIRED_UNMINABLE,
+)
 from sro.domain.observation.trim import is_secret
-from sro.domain.observation.window import K_WINDOW_TOKENS, Packed, Window
+from sro.domain.observation.window import (
+    K_LEAD_UP_S,
+    K_READ_CONTEXT,
+    K_WINDOW_TOKENS,
+    Packed,
+    Window,
+)
 from sro.domain.prompts.mine import MINE
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
@@ -594,7 +605,9 @@ async def test_a_pooled_gesture_the_pass_cited_leaves_the_pool() -> None:
     await _mine(uow, FakeAsker(_found()))
     assert await _pool_ids(uow) == set(ids), "nothing was cited, so everything waits"
 
-    await uow.gestures.add_gestures((replace(_rows(uow)[ids[-1]], id="ges_new", at=1e10),))
+    await uow.gestures.add_gestures(
+        (replace(_rows(uow)[ids[-1]], id="ges_new", at=_rows(uow)[ids[-1]].at + 1),)
+    )
     await _mine(uow, FakeAsker(_found(_proposal(ids[:2]))))
 
     assert await _pool_ids(uow) == set(ids[2:]) | {"ges_new"}
@@ -616,7 +629,9 @@ async def test_a_pooled_gesture_whose_row_is_gone_is_named_not_dropped(
         assert caplog.text == ""
 
         del _rows(uow)[ids[0]]
-        await uow.gestures.add_gestures((replace(_rows(uow)[ids[-1]], id="ges_new", at=1e10),))
+        await uow.gestures.add_gestures(
+            (replace(_rows(uow)[ids[-1]], id="ges_new", at=_rows(uow)[ids[-1]].at + 1),)
+        )
         result = await _mine(uow, FakeAsker(_found()))
 
     assert result.lost_pool == [ids[0]]
@@ -718,15 +733,15 @@ async def test_a_gesture_the_budget_left_out_is_read_by_the_next_pass() -> None:
     tail = weak_ids[:5]
     asker = FakeAsker(
         _found(_proposal(strong_ids + weak_ids[-5:])),
-        _found(_proposal(tail, title="the tail")),
+        _found(_proposal(tail)),
     )
 
     await _mine(uow, asker, kb=CROWDED_KB)
     second = await _mine(uow, asker, kb=CROWDED_KB)
 
     assert [r.reason for r in second.rejections] == []
-    # Cited, not kept. The tail's proposal has the shape of the job the first
-    # pass already stored, so `resolve` now folds it in rather than minting a
+    # Cited, not kept. The tail's proposal carries the title of the job the
+    # first pass already stored, so `resolve` folds it in rather than minting a
     # second row -- which is the point of `resolve` and not of this test. What
     # this test is about is that the tail was SHOWN: nothing the window held
     # went uncited, and a tail still outside the window would have been refused
@@ -774,25 +789,47 @@ async def test_a_day_of_refused_calls_does_not_retire_the_pool() -> None:
     assert {entry.age for entry in await uow.pool.waiting(TENANT)} == {0}
 
 
-async def test_a_read_window_whose_answer_was_unusable_still_ages_the_pool() -> None:
-    """The model was shown the pool and billed for reading it; an answer that
-    breaks its schema is still a reading. Not ageing it hands the same window
-    back with its bonus, billed again, forever."""
+async def test_an_unusable_answer_leaves_its_window_unread() -> None:
+    """GC 10: an answer that breaks its schema -- a truncated one included --
+    is unsure, not an answer. It was billed, and its window is still unread:
+    the next pass reads it again rather than calling it mined."""
     uow, ids = await _day()
-    await uow.pool.add_unclaimed(TENANT, window_ids=tuple(ids), claimed=frozenset())
     unusable = Answer(data={"workflows": "not a list"}, in_tokens=900, cost_usd=0.2)
+    asker = FakeAsker(unusable, _found())
 
-    result = await _mine(uow, FakeAsker(unusable))
+    first = await _mine(uow, asker)
+    second = await _mine(uow, asker)
 
-    assert result.error is not None and "mine v2" in result.error
+    assert first.error is not None and "mine v2" in first.error
+    assert first.left_out == len(ids)
+    assert len(asker.asked) == 2 and second.window_size == len(ids)
     assert {entry.age for entry in await uow.pool.waiting(TENANT)} == {1}
+
+
+async def test_a_window_no_answer_can_read_retires_unminable_and_is_not_billed_again(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A window whose answer is truncated every time would otherwise be billed
+    on every pass, for ever. It gets K_MINE_ATTEMPTS readings."""
+    uow, ids = await _day()
+    truncated = Answer(data=None, error="the answer was truncated", in_tokens=5000, cost_usd=0.1)
+    asker = FakeAsker(*[truncated] * (K_MINE_ATTEMPTS + 2))
+
+    with caplog.at_level(logging.INFO, logger="sro.application.observation.mining_pass"):
+        passes = [await _mine(uow, asker) for _ in range(K_MINE_ATTEMPTS + 1)]
+
+    assert len(asker.asked) == K_MINE_ATTEMPTS
+    assert passes[-1].window_size == 0
+    gone = {entry.gesture_id: entry.reason for entry in await uow.pool.retired(TENANT)}
+    assert gone == dict.fromkeys(ids, RETIRED_UNMINABLE)
+    assert "unminable" in caplog.text
 
 
 # --------------------------------------------------------------------------
 # what a pass mined is not mined again
 
 
-async def test_the_walk_through_a_long_day_reads_each_window_once() -> None:
+async def test_the_walk_asks_until_nothing_is_unread_and_then_stops() -> None:
     """`left_out` walks a day bigger than one window. It stops when every
     gesture has been read, not when some count of passes has gone by."""
     uow, _strong, weak_ids = await _crowded_day(strong=20, weak=10)
@@ -824,11 +861,33 @@ async def test_what_was_left_out_comes_before_what_was_already_read() -> None:
     assert result.left_out == 0
 
 
+async def test_read_evidence_joins_only_beside_unread_work_and_only_so_much() -> None:
+    """One new gesture used to buy a full window of leftovers already read --
+    the same leftovers that minted wfl_88bc. What was read rides along only as
+    the unread gesture's own neighbours (same tab, within K_LEAD_UP_S), and at
+    most K_READ_CONTEXT of them."""
+    uow, _strong, weak_ids = await _crowded_day(strong=0, weak=K_READ_CONTEXT + 10)
+    await _mine(uow, FakeAsker(_found()))
+    last = _rows(uow)[weak_ids[-1]]
+    await uow.gestures.add_gestures((replace(last, id="ges_far", at=last.at + 10 * K_LEAD_UP_S),))
+    asker = FakeAsker(_found(), _found())
+
+    far = await _mine(uow, asker)
+    await uow.gestures.add_gestures((replace(last, id="ges_near", at=last.at + 1),))
+    near = await _mine(uow, asker)
+
+    assert far.window_size == 1, "nothing read is near it, so nothing read joins it"
+    assert near.window_size == 1 + K_READ_CONTEXT
+    assert weak_ids[-1] in str(asker.asked[1]["evidence"]), "the nearest joins first"
+
+
 async def test_new_capture_is_mined_once_beside_what_waits_for_it() -> None:
     uow, ids = await _day()
     asker = FakeAsker(_found(), _found(), _found())
     await _mine(uow, asker)
-    await uow.gestures.add_gestures((replace(_rows(uow)[ids[-1]], id="ges_new", at=1e10),))
+    await uow.gestures.add_gestures(
+        (replace(_rows(uow)[ids[-1]], id="ges_new", at=_rows(uow)[ids[-1]].at + 1),)
+    )
 
     await _mine(uow, asker)
     again = await _mine(uow, asker)
@@ -838,11 +897,11 @@ async def test_new_capture_is_mined_once_beside_what_waits_for_it() -> None:
     assert again.window_size == 0
 
 
-async def test_a_pass_that_failed_after_the_call_leaves_its_window_to_be_read_again(
+async def test_a_pass_that_raised_before_marking_its_window_read_leaves_it_unread(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Crash between the answer and the commit: nothing the pass read is
-    recorded as read, so the next pass reads it rather than losing it."""
+    """An exception after the answer and before `pool.age`, the pass's last
+    write: the window is not recorded as read, so the next pass reads it."""
     uow, ids = await _day()
 
     async def boom(tenant_id: TenantId, **_: object) -> int:
@@ -901,6 +960,8 @@ def _creates_a_customer_type(start: int, at: float, code: str, says: str) -> lis
         _did(start + 5, at + 28, WMS, "click", "customertype-longDescription"),
         _did(start + 6, at + 35, WMS, "type", "customertype-longDescription", says),
         _did(start + 7, at + 40, WMS, "click", "saveButton"),
+        _did(start + 8, at + 30, WMS, "type", "customertype-shortDescription", f"{code} short"),
+        _did(start + 9, at + 32, WMS, "type", "customertype-owner", f"owner of {code}"),
     ]
 
 
@@ -926,48 +987,87 @@ def _the_job(doing: list[Gesture]) -> dict[str, object]:
                 "system": WMS,
                 "parameters": ["customertype-longDescription"],
             },
-            {"order": 3, "cites": [ids[7]], "says": "Click Save", "system": WMS},
+            {
+                "order": 3,
+                "cites": ids[8:10],
+                "says": "Type the short description and the owner",
+                "system": WMS,
+                "parameters": ["customertype-shortDescription", "customertype-owner"],
+            },
+            {"order": 4, "cites": [ids[7]], "says": "Click Save", "system": WMS},
         ],
         "parameters": [
-            {"name": "customertype-customerType", "seen_values": [doing[3].action.value]},
-            {"name": "customertype-longDescription", "seen_values": [doing[6].action.value]},
+            {"name": name, "seen_values": [doing[at].action.value]}
+            for name, at in (
+                ("customertype-customerType", 3),
+                ("customertype-longDescription", 6),
+                ("customertype-shortDescription", 8),
+                ("customertype-owner", 9),
+            )
         ],
     }
+
+
+def _fragment(later: list[Gesture], title: str, *cites: Gesture) -> dict[str, object]:
+    return {
+        "title": title,
+        "narrative": "the operator read the instructions",
+        "systems": sorted({one.system or "" for one in cites}),
+        "steps": [
+            {"order": n, "cites": [one.id], "says": "Read email instructions", "system": one.system}
+            for n, one in enumerate(cites)
+        ],
+        "parameters": [],
+    }
+
+
+async def _a_stored_customer_type(asker: FakeAsker) -> tuple[FakeUnitOfWork, list[Gesture]]:
+    uow = FakeUnitOfWork()
+    first = _creates_a_customer_type(0, 1000.0, "NEWS", "leaning SRO")
+    later = _creates_a_customer_type(100, 90_000.0, "GDD", "leaning new SRO type 004")
+    await uow.gestures.add_gestures(tuple(first))
+    await _mine(uow, asker)
+    [job] = await uow.workflows.known(TENANT)
+    assert len(job.parameters) == 4, "the fixture did not store the four-parameter job"
+    await uow.gestures.add_gestures(tuple(later))
+    return uow, later
 
 
 async def test_a_new_doing_grows_the_job_and_no_empty_copy_is_minted() -> None:
     """The QA store's 'Create a Customer Type' (wfl_4857, four parameters)
     sits beside copies with none (wfl_88bc, wfl_464d). wfl_88bc cites the two
-    mail clicks and a Save from a later doing -- the leftovers of a doing whose
-    real steps a pass had already recognised as wfl_4857's, re-read by thirty
-    passes over the same evidence until one proposed them as a job of their
-    own. Recognised once, the doing grows the job, and its leftovers are
-    never offered to the model again."""
-    uow = FakeUnitOfWork()
+    mail clicks and a Save from a later doing, under the job's own title. The
+    fragment is in the same answer as the real doing here, on a pass with new
+    capture -- the case that still minted once idle passes stopped asking."""
     first = _creates_a_customer_type(0, 1000.0, "NEWS", "leaning SRO")
-    later = _creates_a_customer_type(100, 90_000.0, "GDD", "leaning new SRO type 004")
-    fragment = {
-        "title": "Create a Customer Type",
-        "narrative": "the operator read the instructions",
-        "systems": [MAIL],
-        "steps": [
-            {"order": 0, "cites": [later[0].id], "says": "Read email instructions", "system": MAIL},
-            {"order": 1, "cites": [later[4].id], "says": "Read email instructions", "system": MAIL},
-        ],
-        "parameters": [],
-    }
-    asker = FakeAsker(_found(_the_job(first)), _found(_the_job(later)), _found(fragment))
-    await uow.gestures.add_gestures(tuple(first))
-    await _mine(uow, asker)
-    await uow.gestures.add_gestures(tuple(later))
+    asker = FakeAsker(_found(_the_job(first)))
+    uow, later = await _a_stored_customer_type(asker)
+    fragment = _fragment(later, "Create a Customer Type", later[0], later[4])
+    asker = FakeAsker(_found(_the_job(later), fragment))
 
     grown = await _mine(uow, asker)
-    idle = await _mine(uow, asker)
 
-    assert [one.kind for one in grown.resolutions] == ["same_job"]
-    assert idle.window_size == 0 and len(asker.asked) == 2
+    assert [one.kind for one in grown.resolutions] == ["same_job", "same_job"]
     [job] = await uow.workflows.known(TENANT)
+    assert len(job.parameters) == 4
     assert "GDD" in _seen(job.parameters, "customertype-customerType")
+
+
+async def test_a_nameless_fragment_of_a_stored_job_is_refused_by_name() -> None:
+    """Under a title of its own the fragment is not recognised by name; it has
+    no parameters and shares a step with the job, so it is a piece of that job
+    and not a job."""
+    first = _creates_a_customer_type(0, 1000.0, "NEWS", "leaning SRO")
+    uow, later = await _a_stored_customer_type(FakeAsker(_found(_the_job(first))))
+    fragment = _fragment(later, "Read the instructions and save", later[0], later[7])
+
+    result = await _mine(uow, FakeAsker(_found(fragment)))
+
+    assert [(one.reason, one.detail) for one in result.rejections] == [
+        ("fragment of a known job", (await uow.workflows.known(TENANT))[0].id)
+    ]
+    [job] = await uow.workflows.known(TENANT)
+    assert len(job.parameters) == 4
 
 
 # --------------------------------------------------------------------------
@@ -1009,18 +1109,18 @@ async def test_the_bill_belongs_to_the_pass_and_is_recorded_once() -> None:
     how well the pass did: three workflows out of this $0.04 call summed to
     $0.12, and a four-workflow pass would have said $0.16."""
     uow, ids = await _day()
-    three = [
+    # Two and not three: the fixture day's middle slice has no parameters and
+    # shares a control with the first, so `resolve` now refuses it as a
+    # fragment of that job.
+    two = [
         _proposal(ids[0:2], title="create a work operation"),
-        _proposal(ids[2:4], title="receive a shipment"),
         _proposal(ids[4:6], title="correct a count"),
     ]
-    asker = FakeAsker(
-        Answer(data={"workflows": three}, in_tokens=900, out_tokens=100, cost_usd=0.04)
-    )
+    asker = FakeAsker(Answer(data={"workflows": two}, in_tokens=900, out_tokens=100, cost_usd=0.04))
 
     result = await _mine(uow, asker)
 
-    assert result.kept == 3
+    assert result.kept == 2
     billed = await uow.workflows.passes(TENANT)
     # One row, at the real figure -- not 0.04 * 3.
     assert len(billed) == 1

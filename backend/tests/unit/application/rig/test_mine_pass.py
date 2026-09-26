@@ -809,7 +809,9 @@ def _shown(asker: FakeAsker) -> str:
 
 async def _new_capture(uow: FakeUnitOfWork, ids: list[str]) -> None:
     """One gesture no pass has read, so the next pass has something to ask about."""
-    await uow.gestures.add_gestures((replace(_rows(uow)[ids[-1]], id="ges_new", at=1e10),))
+    await uow.gestures.add_gestures(
+        (replace(_rows(uow)[ids[-1]], id="ges_new", at=_rows(uow)[ids[-1]].at + 1),)
+    )
 
 
 async def test_what_a_stored_job_cites_is_not_read_again() -> None:

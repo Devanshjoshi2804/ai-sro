@@ -15,6 +15,7 @@ K_POOL_WAIT = 0.5
 K_POOL_BONUS = 0.5
 K_MAX_TEXT_CHARS = 400
 K_MAX_ITEMS = 40
+K_READ_CONTEXT = 20
 
 
 def tokens(text: str) -> int:
@@ -197,8 +198,9 @@ def pack(
         - tokens(json.dumps(known, indent=1, ensure_ascii=False))
         - tokens(kb)
     )
+    unread = [item for item in candidates if item.gesture_id not in read]
     by_stream: dict[str, list[Packed]] = {}
-    for item in candidates:
+    for item in unread:
         by_stream.setdefault(item.stream_id, []).append(item)
     for run in by_stream.values():
         run.sort(key=lambda item: item.at)
@@ -206,7 +208,7 @@ def pack(
     chosen: list[Packed] = []
     taken: set[str] = set()
     spent = 0
-    for item in sorted(candidates, key=lambda i: (i.gesture_id in read, -i.strength, -i.at)):
+    for item in sorted(unread, key=lambda i: (-i.strength, -i.at)):
         if item.gesture_id in taken:
             continue
         group = [item]
@@ -226,6 +228,25 @@ def pack(
         chosen.extend(group)
         taken |= {one.gesture_id for one in group}
         spent += cost
+
+    beside: dict[str, list[float]] = {}
+    for one in chosen:
+        beside.setdefault(one.stream_id, []).append(one.at)
+
+    def distance(item: Packed) -> float:
+        return min(
+            (abs(item.at - at) for at in beside.get(item.stream_id, ())), default=K_LEAD_UP_S + 1
+        )
+
+    context = [
+        item for item in candidates if item.gesture_id in read and distance(item) <= K_LEAD_UP_S
+    ]
+    for item in sorted(context, key=lambda i: (distance(i), -i.strength))[:K_READ_CONTEXT]:
+        if spent + item.tokens > room:
+            continue
+        chosen.append(item)
+        taken.add(item.gesture_id)
+        spent += item.tokens
     left_out = [one.gesture_id for one in candidates if one.gesture_id not in taken]
 
     chosen.sort(key=lambda item: item.at)

@@ -171,12 +171,15 @@ def resolve(
                 "same_job", twin.id, 1.0, contains=_in_order(twin.shape_key, proposal.shape_key)
             )
 
+    eligible = [
+        other
+        for other in peers
+        if not (here and other.signs_in and lands.get(other.id, here) != here)
+    ]
     best: Workflow | None = None
     best_score = 0.0
     best_matched = 0
-    for other in peers:
-        if here and other.signs_in and lands.get(other.id, here) != here:
-            continue
+    for other in eligible:
         theirs = _shape_set(other)
         matched = _shared(shape, theirs)
         score = matched / min(len(shape), len(theirs)) if shape and theirs else 0.0
@@ -195,4 +198,14 @@ def resolve(
             best_score,
             contains=_in_order(best.shape_key, proposal.shape_key),
         )
+    named = _as_words(proposal.title)
+    for other in eligible:
+        if named and named == _as_words(other.title):
+            return Resolution(
+                "same_job", other.id, 1.0, contains=_in_order(other.shape_key, proposal.shape_key)
+            )
+    if not proposal.parameters:
+        for other in eligible:
+            if _shared(shape, _shape_set(other)):
+                return Resolution("fragment", other.id)
     return Resolution("new")

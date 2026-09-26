@@ -162,14 +162,15 @@ class SqlWorkflowRepository(WorkflowRepository):
         self._session = session
 
     async def save(self, workflow: Workflow) -> None:
-        statement = pg_insert(WorkflowRow).values(**_workflow_values(workflow))
+        values = _workflow_values(workflow)
+        statement = pg_insert(WorkflowRow).values(**values)
         await self._session.execute(
             statement.on_conflict_do_update(
                 index_elements=["id"],
                 set_={
-                    column.name: statement.excluded[column.name]
-                    for column in WorkflowRow.__table__.columns
-                    if column.name not in ("id", "retired_at", "created_at")
+                    name: statement.excluded[name]
+                    for name in values
+                    if name not in ("id", "retired_at", "created_at")
                 },
             )
         )

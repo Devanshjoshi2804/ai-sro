@@ -154,24 +154,28 @@ Code: `if newest is not None and newest >= _when(last.started_at):`
 > tenant's work. `newest_arrival` is the same `received_at` column, scoped
 > to `tenant_id` the way the question actually is.
 
-## `MineLately._worth_a_pass`, [line 74](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L74): Comment
+## `MineLately._worth_a_pass`, [line 73](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L73): Comment
 
-Code: `return False`
+Code: `return last.left_out > 0 and last.in_tokens > 0`
 
-> Evidence this tenant no longer has, or never had by this route.
-> Nothing to sweep and nothing to count passes against.
+> The walk reads what remains, not a count of passes (M1 round 1). `left_out`
+> is what the last pass left unread, so the walk goes on while unread work
+> remains AND the last pass made progress: the model read its window
+> (`in_tokens > 0`). It stops when nothing is unread, or when a pass read
+> nothing (a refused call), so a day of 503s does not re-ask on every
+> sweep; the next arrival starts it again.
+>
+> It used to count passes since the last arrival against
+> `ceil((window + left_out) / window)`, which assumed `left_out` stayed
+> constant from pass to pass. Once `left_out` shrank as the walk read
+> it, that count stopped about halfway: 100 unread over a window of 25
+> stopped with 25 unread.
+>
+> A pass whose answer was unusable read its window (`in_tokens > 0`) but
+> left it unread, so the walk goes on. `pool.age(failed=True)` bounds it:
+> K_MINE_ATTEMPTS of those and the entries retire as unminable.
 
-## `MineLately._worth_a_pass`, [line 77](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L77): Comment
-
-Code: `held = max(1, last.window_size)`
-
-> How many windows this store takes, from what the last pass actually
-> saw rather than from a count of the table: the window is what the
-> budget allowed, and `left_out` is what no pass has read yet. Since M1 the
-> walk also ends by itself: a pass whose window holds nothing unread asks
-> nothing and writes `left_out` 0.
-
-## `MineLately.execute`, [line 106](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L106): Comment
+## `MineLately.execute`, [line 99](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L99): Comment
 
 Code: `still_going = set(`
 
@@ -180,7 +184,7 @@ Code: `still_going = set(`
 > column, because the port already answers that question and a
 > second way to ask it is a second thing to keep true.
 
-## `MineLately.execute`, [line 116](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L116): Comment
+## `MineLately.execute`, [line 109](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L109): Comment
 
 Code: `logger.info("%s: still working; leaving this one to settle", tenant_id.value)`
 
@@ -191,7 +195,7 @@ Code: `logger.info("%s: still working; leaving this one to settle", tenant_id.va
 > half done. Waiting costs one interval and nothing else: the
 > evidence does not go anywhere.
 
-## `MineLately.execute`, [line 128](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L128): Comment
+## `MineLately.execute`, [line 121](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L121): Comment
 
 Code: `logger.info("%s: %s", tenant_id.value, reached)`
 
@@ -200,7 +204,7 @@ Code: `logger.info("%s: %s", tenant_id.value, reached)`
 > logged an exception for it would cry wolf every hour after
 > the budget was spent.
 
-## `MineLately._decide`, [line 82](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L82): Note on the function
+## `MineLately._decide`, [line 75](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L75): Note on the function
 
 > Runs first on every sweep, before the mining window and the "nothing new
 > since the last pass" gate, so an undecided job is decided whether or not

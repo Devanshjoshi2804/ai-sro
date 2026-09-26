@@ -13,10 +13,15 @@ from sro.domain.skill.workflow import Step, Workflow
 
 
 def _workflow(cites: list[str], shape: list[list[str]], **over: object) -> Workflow:
+    """A job as the miner proposes one: named after itself, and with a value
+    that varies. A title and whether it has parameters both decide identity
+    now (an equal title is the same job; a parameterless piece of a stored job
+    is a fragment), so a fixture has to say them rather than share one default."""
     base: dict[str, object] = {
         "id": "wfl_x",
         "tenant": "acme",
-        "title": "a job",
+        "title": f"a job {over.get('id', 'wfl_x')}",
+        "parameters": [{"name": "value", "seen_values": ["1"]}],
         "narrative": "",
         "systems": ["https://wms.example"],
         "steps": [
@@ -731,3 +736,41 @@ def test_the_sign_in_twin_whose_shape_is_closest_wins() -> None:
     lands = {"wfl_older": key, "wfl_closer": key, doing.id: key}
 
     assert resolve(doing, [older, closer], signs_in_to=lands).workflow_id == "wfl_closer"
+
+
+MAIL_CLICK = ["https://mail.example", "anon|click", "click"]
+
+
+def test_a_proposal_under_a_stored_job_s_own_title_is_that_job() -> None:
+    """wfl_88bc: two mail clicks and a Save, titled exactly as the job it is a
+    piece of. Its shape shares one step with the job, so the shape alone called
+    it new and it was stored with no parameters."""
+    known = _workflow(["ges_1", "ges_2"], SHAPE, id="wfl_known", title="Create a Customer Type")
+    fragment = _workflow(["ges_50", "ges_51"], [MAIL_CLICK, SHAPE[1]], title="create customer type")
+
+    resolution = resolve(fragment, [known])
+
+    assert (resolution.kind, resolution.workflow_id) == ("same_job", "wfl_known")
+
+
+def test_a_nameless_fragment_with_no_parameters_overlapping_a_job_is_a_fragment() -> None:
+    known = _workflow(["ges_1", "ges_2"], SHAPE, id="wfl_known", title="Create a Supplier")
+    fragment = _workflow(
+        ["ges_50", "ges_51"], [MAIL_CLICK, SHAPE[1]], title="Read and save", parameters=[]
+    )
+
+    resolution = resolve(fragment, [known])
+
+    assert (resolution.kind, resolution.workflow_id) == ("fragment", "wfl_known")
+
+
+def test_a_job_with_parameters_sharing_one_step_is_still_new() -> None:
+    known = _workflow(["ges_1", "ges_2"], SHAPE, id="wfl_known", title="Create a Supplier")
+    other = _workflow(
+        ["ges_50", "ges_51"],
+        [MAIL_CLICK, SHAPE[1]],
+        title="Reply to a supplier",
+        parameters=[{"name": "body", "seen_values": ["hi"]}],
+    )
+
+    assert resolve(other, [known]).kind == "new"

@@ -349,7 +349,7 @@ Code: `here = lands.get(proposal.id) if proposal.signs_in else None`
 > are never folded by their shape either: identical password pages in front
 > of two applications look the same and are not.
 
-## `resolve`, [line 181](../../../../../../../backend/src/sro/domain/observation/identity.py#L181): Comment
+## `resolve`, [line 184](../../../../../../../backend/src/sro/domain/observation/identity.py#L184): Comment
 
 Code: `matched = _shared(shape, theirs)`
 
@@ -359,7 +359,7 @@ Code: `matched = _shared(shape, theirs)`
 > step aliases a named one scored as though it had not, and `Reply to
 > Email` cleared K_SAME_JOB at exactly 0.5 by arithmetic coincidence.
 
-## `resolve`, [line 183](../../../../../../../backend/src/sro/domain/observation/identity.py#L183): Comment
+## `resolve`, [line 186](../../../../../../../backend/src/sro/domain/observation/identity.py#L186): Comment
 
 Code: `whole = matched >= K_MIN_SHARED_STEPS`
 
@@ -384,7 +384,7 @@ Code: `whole = matched >= K_MIN_SHARED_STEPS`
 > Ranked by how many steps are shared, then by containment, so a one-entry
 > stub 1.0-contained by the proposal cannot beat the real match behind it.
 
-## `resolve`, [line 184](../../../../../../../backend/src/sro/domain/observation/identity.py#L184): Comment
+## `resolve`, [line 187](../../../../../../../backend/src/sro/domain/observation/identity.py#L187): Comment
 
 Code: `if (`
 
@@ -392,3 +392,38 @@ Code: `if (`
 > whose shapes are equally generic -- a mailbox's `Reply`, `Forward`
 > and `Send` -- have nothing else left to be told apart by. See
 > `K_SAME_NAME`.
+
+## `resolve`, [line 201](../../../../../../../backend/src/sro/domain/observation/identity.py#L201): Comment
+
+Code: `named = _as_words(proposal.title)`
+
+> Extend, never mint (M1 round 1). The shape rules above could only say
+> `new` for wfl_88bc: two mail clicks and a Save from a later doing, one step
+> shared with wfl_4857, which is under the bar. It carried the job's own
+> title. A proposal whose title, with punctuation and stop words gone, is a
+> stored job's title is a doing of that job. The model names jobs from the
+> "Jobs already proven" list, so an equal title is its recognition, and
+> two live jobs under one title are what the operator could never pick
+> between ("Did you mean X or X?").
+>
+> After the shape rules, so a shape match still wins, and after the
+> sign-in filter, so two sign-ins that land in different places are not
+> joined by a title.
+
+## `resolve`, [line 207](../../../../../../../backend/src/sro/domain/observation/identity.py#L207): Comment
+
+Code: `if not proposal.parameters:`
+
+> A proposal with nothing that varies, sharing even one step with a stored
+> job, and resolving to nothing else, is a fragment of that job, never a
+> new one. The keep path refuses it by name. A proposal WITH parameters that
+> shares one step stays new: the absolute bar above exists for real jobs
+> that share a lookup or a Save.
+>
+> The review also asked that "steps covered by a stored job" resolve to that
+> job. That is already the shape rule when two or more steps are shared and
+> the names are alike. Below that, two measured cases forbid it:
+> `test_a_doing_of_one_distinct_step_does_not_fold_into_a_bigger_job` and
+> `test_forwarding_is_not_replying_however_alike_the_clicks_are`. So a
+> covered proposal that fails those guards is refused as a fragment if it
+> has no parameters, and is otherwise new.

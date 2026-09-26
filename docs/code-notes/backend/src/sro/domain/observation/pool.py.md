@@ -36,6 +36,17 @@ Code: `K_POOL_AGE = 6`
 > readings. Since a pass with nothing unread no longer reads anything, those
 > readings are spent only when new capture arrives, and not by idle passes.
 
+## module, [line 14](../../../../../../../backend/src/sro/domain/observation/pool.py#L14): Note on the line above
+
+Code: `K_MINE_ATTEMPTS = 3`
+
+> Unusable answers a window may get before its entries retire as
+> "unminable". An answer that breaks MINE's schema, or is truncated, does
+> not mine its window (GC 10), so the window is read again. Without a bound,
+> a window the model always truncates would be billed on every pass for
+> ever. Three: one retry for a flake, one more for a second, and then it is
+> the window.
+
 ## module, [line 7](../../../../../../../backend/src/sro/domain/observation/pool.py#L7): Note on the line above
 
 Code: `K_POOL_DAYS = 7`
@@ -51,7 +62,7 @@ Code: `K_POOL_DAYS = 7`
 > without ever being read. Unread entries are packed first, so the next pass
 > that runs reads them.
 
-## `PoolEntry`, [line 15](../../../../../../../backend/src/sro/domain/observation/pool.py#L15): Docstring
+## `PoolEntry`, [line 18](../../../../../../../backend/src/sro/domain/observation/pool.py#L18): Docstring
 
 > One gesture waiting for a better reading, and how long it has waited.
 >

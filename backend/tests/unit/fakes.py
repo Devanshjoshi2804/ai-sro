@@ -109,10 +109,12 @@ from sro.domain.observation.identity import ShapeKey
 from sro.domain.observation.mining import MiningPass
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.observation.pool import (
+    K_MINE_ATTEMPTS,
     K_POOL_AGE,
     K_POOL_DAYS,
     RETIRED_PASSES,
     RETIRED_STALE,
+    RETIRED_UNMINABLE,
     PoolEntry,
 )
 from sro.domain.observation.trim import path_shape
@@ -2199,7 +2201,9 @@ class FakePoolRepository:
             added += 1
         return added
 
-    async def age(self, tenant_id: TenantId, *, shown: tuple[str, ...] | None = None) -> int:
+    async def age(
+        self, tenant_id: TenantId, *, shown: tuple[str, ...] | None = None, failed: bool = False
+    ) -> int:
         stale_before = datetime.now(tz=UTC) - timedelta(days=K_POOL_DAYS)
         retired = 0
         for key, entry in list(self.rows.items()):
@@ -2207,6 +2211,8 @@ class FakePoolRepository:
                 continue
             if shown is None:
                 entry = replace(entry, age=entry.age + 1)
+            elif entry.gesture_id in shown and failed:
+                entry = replace(entry, failed=entry.failed + 1)
             elif entry.gesture_id in shown:
                 entry = replace(entry, age=entry.age + 1, waited=0)
             else:
@@ -2217,6 +2223,8 @@ class FakePoolRepository:
                 entry = replace(entry, reason=RETIRED_PASSES)
             elif entry.age > 0 and when(entry.entered_at) < stale_before:
                 entry = replace(entry, reason=RETIRED_STALE)
+            elif entry.failed >= K_MINE_ATTEMPTS:
+                entry = replace(entry, reason=RETIRED_UNMINABLE)
             if entry.reason:
                 self.retired_ids.add(key)
                 retired += 1

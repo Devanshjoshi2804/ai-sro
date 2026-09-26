@@ -18,7 +18,7 @@ from sro.domain.observation.driving import was_our_own_driving
 from sro.domain.observation.gesture import Gesture, Intent
 from sro.domain.observation.identity import Resolution, resolve, shape_key
 from sro.domain.observation.mining import MiningPass
-from sro.domain.observation.pool import RETIRED_DRIVING
+from sro.domain.observation.pool import K_MINE_ATTEMPTS, RETIRED_DRIVING
 from sro.domain.observation.values import (
     frequencies_over,
     shared_values,
@@ -442,11 +442,7 @@ async def _one_pass(
         window_size=len(window.items),
         left_out=len(
             unread
-            - (
-                {item.gesture_id for item in window.items}
-                if answer.error is None or answer.in_tokens
-                else set()
-            )
+            - ({item.gesture_id for item in window.items} if answer.data is not None else set())
         ),
         unplaced=len(residue) if isinstance(residue, list) else 0,
         dropped=answer.dropped,
@@ -521,6 +517,18 @@ async def _one_pass(
             if where is not None:
                 lands[proposal.id] = where
             resolution = resolve(proposal, known + kept, signs_in_to=lands)
+            if resolution.kind == "fragment":
+                fragment = Rejection(
+                    proposal.title, "fragment of a known job", resolution.workflow_id or ""
+                )
+                result.rejections.append(fragment)
+                logger.info(
+                    "%s: refused -- %s (%s)",
+                    fragment.workflow_title,
+                    fragment.reason,
+                    fragment.detail,
+                )
+                continue
             result.resolutions.append(resolution)
             logger.info(
                 "%s: %s%s",
@@ -573,8 +581,19 @@ async def _one_pass(
             window_ids=tuple(item.gesture_id for item in window.items) + tuple(window.left_out),
             claimed=claimed,
         )
-        if result.error is None or answer.in_tokens:
-            await uow.pool.age(tenant_id, shown=tuple(item.gesture_id for item in window.items))
+        packed = tuple(item.gesture_id for item in window.items)
+        if answer.data is not None:
+            await uow.pool.age(tenant_id, shown=packed)
+        elif answer.in_tokens:
+            gone = await uow.pool.age(tenant_id, shown=packed, failed=True)
+            logger.warning(
+                "%s: the answer could not be used, so its %d gesture(s) stay unread; "
+                "%d retired unminable after %d unusable answers",
+                tenant_id.value,
+                len(packed),
+                gone,
+                K_MINE_ATTEMPTS,
+            )
     finally:
         billed = _billed(pass_id, tenant_id, started_at, result)
         try:

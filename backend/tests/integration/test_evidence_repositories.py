@@ -12,7 +12,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.domain.observation.gesture import (
@@ -279,6 +279,27 @@ class TestGestures:
             cited = await uow.gestures.gestures_for(TENANT, ids=("ges_3", "ges_1"))
 
         assert [gesture.id for gesture in cited] == ["ges_1", "ges_3"], "ordered by at"
+
+    async def test_a_new_reading_keeps_a_column_nothing_maps_any_more(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """`intents.continues` stays in the schema with nothing writing it
+        (GC 17). A re-reading replaces what it supplies, and only that."""
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.gestures.add_gestures((_gesture("ges_1"),))
+            await uow.gestures.save_intent(Intent(gesture_id="ges_1", tenant="acme", act="a"))
+            await uow.commit()
+        async with session_factory() as session:
+            await session.execute(text("UPDATE intents SET continues = 'ges_0'"))
+            await session.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.gestures.save_intent(Intent(gesture_id="ges_1", tenant="acme", act="b"))
+            await uow.commit()
+
+        async with session_factory() as session:
+            kept = await session.scalar(text("SELECT continues FROM intents"))
+        assert kept == "ges_0"
 
     async def test_an_intent_replaces_the_reading_before_it(
         self, session_factory: async_sessionmaker[AsyncSession]

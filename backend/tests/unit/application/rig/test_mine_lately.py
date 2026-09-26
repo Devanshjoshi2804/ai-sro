@@ -20,14 +20,16 @@ import pytest
 
 from sro.application.context import RequestContext
 from sro.application.observation.mine_lately import MineLately
-from sro.application.observation.mining_pass import MineResult
+from sro.application.observation.mining_pass import MineResult, mine
 from sro.application.shared.refusals import OverCap
 from sro.domain.observation.gesture import Action, Gesture, GestureBatch
 from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.identifiers import TenantId
+from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow
 from sro.whose import about, whose
-from tests.unit.fakes import FakeAccountLocks, FakeUnitOfWork
+from tests.unit.domain.rig.conftest import gestures as _gestures
+from tests.unit.fakes import FakeAccountLocks, FakeAsker, FakeUnitOfWork
 from tests.unit.scripts.test_migrate_vault_keys import _job as _signing_in_job
 from tests.unit.scripts.test_migrate_vault_keys import _sign_in
 
@@ -266,6 +268,7 @@ async def _mined(
     left_out: int,
     at: datetime,
     window_size: int = 0,
+    in_tokens: int = 0,
 ) -> None:
     await uow.workflows.add_pass(
         MiningPass(
@@ -274,6 +277,7 @@ async def _mined(
             started_at=at.isoformat(),
             left_out=left_out,
             window_size=window_size,
+            in_tokens=in_tokens,
         )
     )
 
@@ -306,14 +310,14 @@ async def test_evidence_that_arrived_since_the_last_pass_is_worth_paying_for() -
     assert mined["acme"].kept == 1
 
 
-async def test_a_pass_that_could_not_hold_the_day_is_worth_another_one() -> None:
-    """A day too big for one window is read across several passes, and the
-    carry-over pool rotates which part: ten simulated passes went 81% then 96%
-    coverage, with nineteen gestures never shown. So a pass with evidence it
-    could not hold has more to say about a day nobody added to."""
+async def test_a_pass_that_read_and_left_unread_work_is_worth_another_one() -> None:
+    """`left_out` is what the last pass left unread. A pass that read something
+    and left more is worth another, whatever came in since."""
     uow = FakeUnitOfWork()
     await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
-    await _mined(uow, "acme", left_out=1_204, at=NOW - timedelta(hours=1))
+    await _mined(
+        uow, "acme", left_out=75, window_size=25, in_tokens=900, at=NOW - timedelta(hours=1)
+    )
     passes = _Passes()
 
     mined = await _swept(uow, passes)
@@ -322,42 +326,64 @@ async def test_a_pass_that_could_not_hold_the_day_is_worth_another_one() -> None
     assert mined["acme"].kept == 1
 
 
-async def test_the_day_too_big_for_one_window_is_swept_once_and_then_left_alone() -> None:
-    """The loop this branch became, measured on the deployment 2026-09-21.
-
-    A store bigger than one window leaves evidence out of EVERY pass -- 1,981
-    of 2,066 there, an average of 444 gestures against a window of 154 -- so
-    `left_out` was permanently true, the "has anything new arrived" question
-    below it was never reached, and the sweep paid for a pass a minute over
-    evidence nobody had added to. 463 passes on a day that captured 56
-    gestures, $220.95 of them, every captured gesture read about 352 times.
-
-    Enough passes to sweep the store once is what "more to say" is worth. The
-    pool rotates which part of a day gets read; after it has been round once,
-    a further pass sees what an earlier one already saw.
-    """
+async def test_a_pass_that_read_nothing_stops_the_walk() -> None:
+    """A refused call left the same work unread and read none of it. Walking on
+    would ask again every sweep for a day nobody added to; new capture, or the
+    next sweep after an arrival, starts it again."""
     uow = FakeUnitOfWork()
     await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
-    # A window that holds a tenth of what there is: ten passes to sweep it.
-    for nth in range(9):
-        await _mined(
-            uow,
-            "acme",
-            left_out=90,
-            window_size=10,
-            at=NOW - timedelta(minutes=50 - nth),
-        )
+    await _mined(uow, "acme", left_out=75, window_size=25, at=NOW - timedelta(hours=1))
     passes = _Passes()
 
-    assert (await _swept(uow, passes))["acme"].kept == 1, "it stopped before one sweep"
+    assert await _swept(uow, passes) == {}
+    assert passes.asked == []
 
-    # And the tenth closes it. Nothing has arrived since, so there is nothing
-    # left for an eleventh to see.
-    await _mined(uow, "acme", left_out=90, window_size=10, at=NOW - timedelta(minutes=40))
-    quiet = _Passes()
 
-    assert await _swept(uow, quiet) == {}
-    assert quiet.asked == [], "it went on paying for a day nobody added to"
+async def test_a_day_four_windows_long_is_read_in_four_passes_and_then_left_alone() -> None:
+    """Through the sweep and the real pass: 100 unread gestures, a window of
+    25. The gate once counted passes against a `left_out` it assumed constant;
+    once `left_out` shrank as the walk read it, that count stopped the walk
+    with a quarter of the day unread."""
+    uow = FakeUnitOfWork()
+    plain = next(g for g in _gestures("acme") if not g.requests and g.action.kind == "click")
+    await uow.gestures.add_batch(
+        GestureBatch(
+            batch_id=plain.batch_id,
+            tenant="acme",
+            device_id="dev_1",
+            mode="watch",
+            received_at=SETTLED.isoformat(),
+        )
+    )
+    await uow.gestures.add_gestures(
+        tuple(replace(plain, id=f"ges_{i:03d}", at=1000.0 + i * 1000) for i in range(100))
+    )
+    asker = FakeAsker(*[Answer(data={"workflows": []}, in_tokens=900) for _ in range(10)])
+
+    class _Mines:
+        """The real pass, one second later each time, as production's clock is."""
+
+        ran = 0
+
+        async def execute(self, ctx: RequestContext) -> MineResult:
+            _Mines.ran += 1
+            async with uow:
+                return await mine(
+                    uow,
+                    tenant_id=ctx.tenant_id,
+                    asker=asker,
+                    locks=FakeAccountLocks(),
+                    now=NOW + timedelta(seconds=_Mines.ran),
+                    cap_usd=100.0,
+                    kb="x" * 600_000,
+                )
+
+    swept = [await _swept(uow, _Mines()) for _ in range(6)]
+
+    assert [one["acme"].left_out for one in swept[:4]] == [75, 50, 25, 0]
+    assert swept[4:] == [{}, {}]
+    assert len(asker.asked) == 4
+    assert all(entry.age > 0 for entry in await uow.pool.waiting(TenantId("acme")))
 
 
 async def test_evidence_arriving_starts_the_sweep_again() -> None:
@@ -366,8 +392,9 @@ async def test_evidence_arriving_starts_the_sweep_again() -> None:
     something new to read."""
     uow = FakeUnitOfWork()
     await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
-    for nth in range(12):
-        await _mined(uow, "acme", left_out=90, window_size=10, at=NOW - timedelta(minutes=50 - nth))
+    await _mined(
+        uow, "acme", left_out=0, window_size=10, in_tokens=900, at=NOW - timedelta(minutes=50)
+    )
     assert await _swept(uow, _Passes()) == {}, "the fixture was not swept out to begin with"
 
     # Somebody works. The batch is newer than every pass above it.

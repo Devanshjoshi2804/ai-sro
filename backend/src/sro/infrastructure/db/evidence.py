@@ -22,10 +22,12 @@ from sro.domain.observation.gesture import (
     ValueSeen,
 )
 from sro.domain.observation.pool import (
+    K_MINE_ATTEMPTS,
     K_POOL_AGE,
     K_POOL_DAYS,
     RETIRED_PASSES,
     RETIRED_STALE,
+    RETIRED_UNMINABLE,
     PoolEntry,
 )
 from sro.domain.shared.errors import Conflict
@@ -248,16 +250,16 @@ class SqlGestureRepository(GestureRepository):
         return tuple(TenantId(tenant) for tenant in rows.scalars())
 
     async def save_intent(self, intent: Intent) -> None:
-        statement = pg_insert(IntentRow).values(
-            **_intent_values(intent, created_at=datetime.now(tz=UTC))
-        )
+        values = _intent_values(intent, created_at=datetime.now(tz=UTC))
+        statement = pg_insert(IntentRow).values(**values)
         await self._session.execute(
             statement.on_conflict_do_update(
                 index_elements=["gesture_id"],
                 set_={
                     column.name: statement.excluded[column.name]
-                    for column in IntentRow.__table__.columns
-                    if column.name != "gesture_id"
+                    for attribute in IntentRow.__mapper__.column_attrs
+                    if attribute.key in values and attribute.key != "gesture_id"
+                    for column in attribute.columns
                 },
             )
         )
@@ -375,7 +377,9 @@ class SqlPoolRepository(PoolRepository):
         )
         return len(added.all())
 
-    async def age(self, tenant_id: TenantId, *, shown: tuple[str, ...] | None = None) -> int:
+    async def age(
+        self, tenant_id: TenantId, *, shown: tuple[str, ...] | None = None, failed: bool = False
+    ) -> int:
         live: tuple[ColumnElement[bool], ...] = (
             PoolRow.tenant_id == tenant_id.value,
             PoolRow.retired.is_(False),
@@ -393,8 +397,11 @@ class SqlPoolRepository(PoolRepository):
                     self._bump(
                         *live,
                         PoolRow.gesture_id.in_(ids),
-                        age=PoolRow.age + 1,
-                        waited=0,
+                        **(
+                            {"failed": PoolRow.failed + 1}
+                            if failed
+                            else {"age": PoolRow.age + 1, "waited": 0}
+                        ),
                     )
                 )
                 await self._session.execute(
@@ -415,7 +422,15 @@ class SqlPoolRepository(PoolRepository):
                 reason=RETIRED_STALE,
             ).returning(PoolRow.gesture_id)
         )
-        return len(passes.all()) + len(stale.all())
+        unminable = await self._session.execute(
+            self._bump(
+                *live,
+                PoolRow.failed >= K_MINE_ATTEMPTS,
+                retired=True,
+                reason=RETIRED_UNMINABLE,
+            ).returning(PoolRow.gesture_id)
+        )
+        return len(passes.all()) + len(stale.all()) + len(unminable.all())
 
     async def waiting(self, tenant_id: TenantId) -> tuple[PoolEntry, ...]:
         return await self._entries(tenant_id, retired=False)
@@ -458,6 +473,7 @@ class SqlPoolRepository(PoolRepository):
                 PoolRow.entered_at,
                 PoolRow.reason,
                 PoolRow.waited,
+                PoolRow.failed,
             )
             .where(PoolRow.tenant_id == tenant_id.value, PoolRow.retired.is_(retired))
             .order_by(PoolRow.entered_at, PoolRow.gesture_id)
@@ -471,6 +487,7 @@ class SqlPoolRepository(PoolRepository):
                 entered_at=entered_at.isoformat(),
                 reason=reason,
                 waited=waited,
+                failed=failed,
             )
-            for gesture_id, tenant, age, entered_at, reason, waited in rows
+            for gesture_id, tenant, age, entered_at, reason, waited, failed in rows
         )

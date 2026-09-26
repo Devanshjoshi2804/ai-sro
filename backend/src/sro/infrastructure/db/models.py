@@ -574,6 +574,7 @@ class PoolRow(Base):
 
     age: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     waited: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     retired: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 

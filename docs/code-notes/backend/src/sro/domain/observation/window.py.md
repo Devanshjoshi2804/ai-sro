@@ -138,7 +138,7 @@ Code: `K_MAX_ITEMS = 40`
 > with it, and needing its own re-measurement every time _clip changes. The
 > ladder already covers the case those numbers would be guarding against.
 
-## `tokens`, [line 20](../../../../../../../backend/src/sro/domain/observation/window.py#L20): Docstring (debt)
+## `tokens`, [line 21](../../../../../../../backend/src/sro/domain/observation/window.py#L21): Docstring (debt)
 
 > Four characters to a token, and it UNDER-counts what this module ships.
 >
@@ -164,7 +164,7 @@ Code: `K_MAX_ITEMS = 40`
 > # once, the day a SECOND cap acquires an external referent the way
 > # K_WINDOW_TOKENS has.
 
-## `evidence_tokens`, [line 24](../../../../../../../backend/src/sro/domain/observation/window.py#L24): Docstring
+## `evidence_tokens`, [line 25](../../../../../../../backend/src/sro/domain/observation/window.py#L25): Docstring
 
 > One item measured the way umbrella.mining_blocks will actually ship it.
 >
@@ -178,7 +178,7 @@ Code: `K_MAX_ITEMS = 40`
 > One function rather than the expression, because pack() and the mining use
 > case both build a Packed and the two counts must be the same count.
 
-## `Packed`, [line 36](../../../../../../../backend/src/sro/domain/observation/window.py#L36): Note on the line above
+## `Packed`, [line 37](../../../../../../../backend/src/sro/domain/observation/window.py#L37): Note on the line above
 
 Code: `stream_id: str = ""`
 
@@ -186,7 +186,7 @@ Code: `stream_id: str = ""`
 > from somebody else's work at the same moment. Defaulted because a hand-built
 > item in a test is not about two streams.
 
-## `_clip`, [line 46](../../../../../../../backend/src/sro/domain/observation/window.py#L46): Docstring
+## `_clip`, [line 47](../../../../../../../backend/src/sro/domain/observation/window.py#L47): Docstring
 
 > Bound every string anywhere in the evidence.
 >
@@ -203,19 +203,19 @@ Code: `stream_id: str = ""`
 > better, by keeping all forty-five and dropping only their detail. Nothing
 > loses an item except on a path that has already said `truncated`.
 
-## `_map`, [line 56](../../../../../../../backend/src/sro/domain/observation/window.py#L56): Docstring
+## `_map`, [line 57](../../../../../../../backend/src/sro/domain/observation/window.py#L57): Docstring
 
 > `_clip` returns `object` because it takes one. Every use of these two
 > reads back a shape this module built a line earlier; the empty fallback is
 > what a `cast` would have written as a lie.
 
-## `as_evidence`, [line 64](../../../../../../../backend/src/sro/domain/observation/window.py#L64): Docstring
+## `as_evidence`, [line 65](../../../../../../../backend/src/sro/domain/observation/window.py#L65): Docstring
 
 > One gesture as the umbrella pass sees it: what it was, and what a model
 > already made of it. Capped -- and the cap is a guarantee rather than an
 > attempt: nothing over K_MAX_GESTURE_TOKENS leaves here by any route.
 
-## `_wrote`, [line 123](../../../../../../../backend/src/sro/domain/observation/window.py#L123): Docstring
+## `_wrote`, [line 124](../../../../../../../backend/src/sro/domain/observation/window.py#L124): Docstring
 
 > Whether a packed item's trimmed evidence still shows a write.
 >
@@ -223,13 +223,13 @@ Code: `stream_id: str = ""`
 > trim keeps each call's method -- so the same question is answerable, just
 > from the other side.
 
-## `strength`, [line 136](../../../../../../../backend/src/sro/domain/observation/window.py#L136): Docstring
+## `strength`, [line 137](../../../../../../../backend/src/sro/domain/observation/window.py#L137): Docstring
 
 > What earns a place at the ends of the window. Never stated in the prompt:
 > telling a model which evidence is most relevant was measured to reduce
 > accuracy in all five languages tested.
 
-## `arrange`, [line 149](../../../../../../../backend/src/sro/domain/observation/window.py#L149): Docstring
+## `arrange`, [line 150](../../../../../../../backend/src/sro/domain/observation/window.py#L150): Docstring
 
 > Strongest at both ends, weakest in the middle.
 >
@@ -248,11 +248,11 @@ Code: `stream_id: str = ""`
 > workflow is a sequence -- scrambling it to chase a position effect would
 > trade the thing we are reading for points on somebody else's benchmark.
 
-## `pack`, [line 162](../../../../../../../backend/src/sro/domain/observation/window.py#L162): Docstring
+## `pack`, [line 163](../../../../../../../backend/src/sro/domain/observation/window.py#L163): Docstring
 
 > Fill the window strongest-first, then put it back in time order.
 
-## `as_evidence`, [line 65](../../../../../../../backend/src/sro/domain/observation/window.py#L65): Comment
+## `as_evidence`, [line 66](../../../../../../../backend/src/sro/domain/observation/window.py#L66): Comment
 
 Code: `hide = is_secret(gesture)`
 
@@ -261,7 +261,7 @@ Code: `hide = is_secret(gesture)`
 > password the model echoed into a field it had named went into the window
 > intact. Same rule, same gesture, applied on both paths.
 
-## `as_evidence`, [line 92](../../../../../../../backend/src/sro/domain/observation/window.py#L92): Comment
+## `as_evidence`, [line 93](../../../../../../../backend/src/sro/domain/observation/window.py#L93): Comment
 
 Code: `body["truncated"] = True`
 
@@ -270,7 +270,7 @@ Code: `body["truncated"] = True`
 > bounded only if that is still not enough. The full evidence stays in the
 > store, reachable by this id.
 
-## `as_evidence`, [line 101](../../../../../../../backend/src/sro/domain/observation/window.py#L101): Comment
+## `as_evidence`, [line 102](../../../../../../../backend/src/sro/domain/observation/window.py#L102): Comment
 
 Code: `trimmed["calls"] = _seq(trimmed["calls"])[:K_MAX_ITEMS]`
 
@@ -278,7 +278,7 @@ Code: `trimmed["calls"] = _seq(trimmed["calls"])[:K_MAX_ITEMS]`
 > than on the way in, so that a gesture only ever loses an item on a path
 > that has already said so.
 
-## `as_evidence`, [line 109](../../../../../../../backend/src/sro/domain/observation/window.py#L109): Comment
+## `as_evidence`, [line 110](../../../../../../../backend/src/sro/domain/observation/window.py#L110): Comment
 
 Code: `return {`
 
@@ -286,7 +286,7 @@ Code: `return {`
 > identifies the gesture and nothing else: one unreadable item in a window
 > is worth more than a window that could not be built.
 
-## `pack`, [line 176](../../../../../../../backend/src/sro/domain/observation/window.py#L176): Comment
+## `pack`, [line 177](../../../../../../../backend/src/sro/domain/observation/window.py#L177): Comment
 
 Code: `writing = {gesture.id for gesture in gestures if _mutates(gesture)}`
 
@@ -294,7 +294,7 @@ Code: `writing = {gesture.id for gesture in gestures if _mutates(gesture)}`
 > reaching back for the Gesture -- a pooled item arrives already packed and
 > has none to reach for.
 
-## `pack`, [line 192](../../../../../../../backend/src/sro/domain/observation/window.py#L192): Comment
+## `pack`, [line 193](../../../../../../../backend/src/sro/domain/observation/window.py#L193): Comment
 
 Code: `from sro.domain.skill.umbrella import PROMPT_OVERHEAD_TOKENS`
 
@@ -305,7 +305,7 @@ Code: `from sro.domain.skill.umbrella import PROMPT_OVERHEAD_TOKENS`
 > the task twice plus the response schema plus the crossings block came
 > to ~2,600 tokens nothing subtracted.
 
-## `pack`, [line 200](../../../../../../../backend/src/sro/domain/observation/window.py#L200): Comment (debt)
+## `pack`, [line 202](../../../../../../../backend/src/sro/domain/observation/window.py#L202): Comment (debt)
 
 Code: `by_stream: dict[str, list[Packed]] = {}`
 
@@ -339,17 +339,33 @@ Code: `by_stream: dict[str, list[Packed]] = {}`
 > sittings; this is the smallest thing that stops the splitting, and it is
 > measurable against the same store that found it.
 
-## `pack`, [line 209](../../../../../../../backend/src/sro/domain/observation/window.py#L209): Comment
+## `pack`, [line 211](../../../../../../../backend/src/sro/domain/observation/window.py#L211): Comment
 
-Code: `for item in sorted(candidates, key=lambda i: (i.gesture_id in read, -i.strength, -i.at)):`
+Code: `for item in sorted(unread, key=lambda i: (-i.strength, -i.at)):`
 
-> Unread first, whatever the strength. `read` is the pooled evidence a pass
-> has already read. It is carried for context, and a strong read entry must
-> never take the place of an unread one. If it did, a pool bigger than one
-> window would leave the unread out, the pass would find nothing unread in
-> its window, and nothing would ever be read again.
+> Only unread evidence fills the window. `read` is the pooled evidence a
+> pass has already read. Once it sorted after the unread and still filled
+> whatever budget they left, so one new gesture bought a window of up to
+> ~190 leftovers already read, the same leftovers that minted wfl_88bc on
+> the QA box. A strong read entry must not take an unread one's place
+> either: a pool bigger than a window would then leave the unread out for
+> good.
 
-## `pack`, [line 223](../../../../../../../backend/src/sro/domain/observation/window.py#L223): Comment
+## `pack`, [line 244](../../../../../../../backend/src/sro/domain/observation/window.py#L244): Comment
+
+Code: `for item in sorted(context, key=lambda i: (distance(i), -i.strength))[:K_READ_CONTEXT]:`
+
+> What was read joins only as context for what is unread: the same tab
+> (stream) within K_LEAD_UP_S of an unread gesture in the window, nearest
+> first, at most K_READ_CONTEXT, and only in the room the unread left. That
+> is where the other half of a job that reached two passes would be. A read
+> entry with no unread neighbour is not sent.
+>
+> ponytail: K_READ_CONTEXT = 20 is a guess, not a measurement. It bounds
+> what one new gesture can re-send. Tune it with the mining eval if jobs
+> spanning two passes stop being put together.
+
+## `pack`, [line 225](../../../../../../../backend/src/sro/domain/observation/window.py#L225): Comment
 
 Code: `if len(chosen) >= K_MIN_GESTURES:`
 
@@ -359,7 +375,7 @@ Code: `if len(chosen) >= K_MIN_GESTURES:`
 > is what it has always done: a window of nothing is worse than a
 > window over its estimate.
 
-## `pack`, [line 229](../../../../../../../backend/src/sro/domain/observation/window.py#L229): Comment
+## `pack`, [line 250](../../../../../../../backend/src/sro/domain/observation/window.py#L250): Comment
 
 Code: `left_out = [one.gesture_id for one in candidates if one.gesture_id not in taken]`
 

@@ -21,6 +21,7 @@ from typing import Any
 
 import pytest
 from sqlalchemy import select, text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from sro.application.context import RequestContext
@@ -811,6 +812,68 @@ class TestStaleSteps:
 class TestWhatAPassHasMined:
     """What a pass read is recorded in the same transaction as what it kept,
     under the tenant's mining lock -- proved against the real lock and store."""
+
+    async def test_a_re_saved_job_keeps_a_column_nothing_maps_any_more(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """`workflows.same_as` stays in the schema with nothing writing it
+        (GC 17). A re-save replaces what it supplies, and only that."""
+        job = _workflow()
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(job)
+            await uow.commit()
+        async with session_factory() as session:
+            await session.execute(text("UPDATE workflows SET same_as = 'wfl_older'"))
+            await session.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(replace(job, title="renamed"))
+            await uow.commit()
+
+        async with session_factory() as session:
+            kept = await session.scalar(text("SELECT same_as FROM workflows"))
+        assert kept == "wfl_older"
+
+    async def test_the_bill_is_written_on_a_session_the_save_killed(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A pass whose workflow will not go into the store is still a pass that
+        was billed. Postgres refuses every further statement on a transaction
+        whose statement failed, so without the rollback-and-retry in `_one_pass`'s
+        `finally` the bill went with it. The statement is killed here by a NUL in
+        a step's text, which a model can write and Postgres refuses."""
+        gestures = _gestures(TENANT.value)
+        proposal = {
+            "title": "create a work operation",
+            "narrative": "n",
+            "systems": [gestures[0].system],
+            "steps": [
+                {"order": 0, "cites": [gestures[0].id], "says": "do it"},
+                {"order": 1, "cites": [gestures[0].id], "says": "save\x00it"},
+            ],
+        }
+        asker = FakeAsker(Answer(data={"workflows": [proposal]}, cost_usd=0.04))
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.gestures.add_gestures(tuple(gestures))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            with pytest.raises(DBAPIError):
+                await mine(
+                    uow,
+                    tenant_id=TENANT,
+                    asker=asker,
+                    locks=FakeAccountLocks(),
+                    now=datetime(2025, 2, 11, 23, tzinfo=UTC),
+                    cap_usd=100.0,
+                )
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            billed = await uow.workflows.passes(TENANT)
+            kept = await uow.workflows.known(TENANT)
+        assert [one.cost_usd for one in billed] == [0.04]
+        assert billed[0].proposed == 1
+        assert kept == ()
 
     async def test_two_passes_at_once_ask_the_model_once(
         self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine

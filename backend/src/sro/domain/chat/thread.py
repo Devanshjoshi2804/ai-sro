@@ -59,6 +59,7 @@ class Thread:
     opened_by: PrincipalId
     opened_at: datetime
     _messages: list[Message] = field(default_factory=list, repr=False)
+    _kept: int = field(default=0, repr=False)
 
     def __post_init__(self) -> None:
         if self.opened_at.tzinfo is None:
@@ -85,3 +86,9 @@ class Thread:
     def say(self, message: Message) -> Message:
         self._messages.append(message)
         return message
+
+    def unsaved(self) -> tuple[Message, ...]:
+        return tuple(self._messages[self._kept :])
+
+    def saved(self) -> None:
+        self._kept = len(self._messages)

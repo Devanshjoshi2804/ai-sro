@@ -30,3 +30,11 @@ Code: `with about(tenant=tenant.value, principal=principal):`
 
 > Every model call the look makes runs attributed to this tenant and
 > operator; the metered asker refuses a call with no tenant.
+
+## `LookInTheMailLately.execute`, [line 43](../../../../../../../backend/src/sro/application/chat/look_lately.py#L43): Note
+
+Code: `except Exception:`
+
+> One operator's look failing -- a connector down, a bug on one mail -- is
+> logged and the tick goes on to the next operator and tenant. The mail it
+> was reading was released by the look itself, so the next tick reads it.

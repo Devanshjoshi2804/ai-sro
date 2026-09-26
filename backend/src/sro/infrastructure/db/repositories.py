@@ -17,6 +17,7 @@ from sqlalchemy import (
     text,
     update,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -69,7 +70,7 @@ from sro.domain.skill.skill import Skill
 from sro.domain.trigger.confirmation import Answer, Confirmation
 from sro.domain.trigger.trigger import Trigger
 from sro.infrastructure.db.attempts import SqlAttemptRepository
-from sro.infrastructure.db.codec import dump_policy, when
+from sro.infrastructure.db.codec import dump_messages, dump_policy, when
 from sro.infrastructure.db.evidence import SqlGestureRepository, SqlPoolRepository
 from sro.infrastructure.db.mappers import (
     batch_to_row,
@@ -107,7 +108,6 @@ from sro.infrastructure.db.mappers import (
     update_recording_row,
     update_run_row,
     update_skill_row,
-    update_thread_row,
     update_trigger_row,
 )
 from sro.infrastructure.db.models import (
@@ -485,6 +485,7 @@ class SqlThreadRepository(ThreadRepository):
 
     async def add(self, thread: Thread) -> None:
         self._session.add(thread_to_row(thread))
+        thread.saved()
 
     async def get(self, tenant_id: TenantId, thread_id: ThreadId) -> Thread:
         return row_to_thread(await self._row(tenant_id, thread_id))
@@ -493,7 +494,16 @@ class SqlThreadRepository(ThreadRepository):
         return row_to_thread(await self._row(tenant_id, thread_id, lock=True))
 
     async def save(self, thread: Thread) -> None:
-        update_thread_row(await self._row(thread.tenant_id, thread.id), thread)
+        fresh = thread.unsaved()
+        appended = await self._session.execute(
+            update(ThreadRow)
+            .where(ThreadRow.id == thread.id.value, ThreadRow.tenant_id == thread.tenant_id.value)
+            .values(messages=ThreadRow.messages.op("||")(literal(dump_messages(fresh), JSONB)))
+            .execution_options(synchronize_session=False)
+        )
+        if cast(CursorResult[Any], appended).rowcount == 0:
+            raise NotFound(f"thread {thread.id} not found")
+        thread.saved()
 
     async def list_for_tenant(
         self,
@@ -513,8 +523,10 @@ class SqlThreadRepository(ThreadRepository):
     async def _row(
         self, tenant_id: TenantId, thread_id: ThreadId, *, lock: bool = False
     ) -> ThreadRow:
-        query = select(ThreadRow).where(
-            ThreadRow.id == thread_id.value, ThreadRow.tenant_id == tenant_id.value
+        query = (
+            select(ThreadRow)
+            .where(ThreadRow.id == thread_id.value, ThreadRow.tenant_id == tenant_id.value)
+            .execution_options(populate_existing=True)
         )
         if lock:
             query = query.with_for_update()

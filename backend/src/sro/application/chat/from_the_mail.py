@@ -32,7 +32,7 @@ from sro.application.runtime.answer_run import K_ANSWER, AnswerRun
 from sro.application.shared.refusals import OverCap
 from sro.domain.chat.asked_by import mails_behind, texts
 from sro.domain.chat.asking import NEEDS, Pending, question, waiting_on_mail
-from sro.domain.chat.thread import Speaker
+from sro.domain.chat.thread import Said, Speaker
 from sro.domain.execution.learned_step import limits_for, too_long
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.waiting import read_wait, still_waiting
@@ -348,6 +348,7 @@ class FromTheMail:
             mail_thread=one.thread,
             ask_to_run=True,
             sent_to=one.sent_to,
+            offer=_mail_key(one.message),
         )
         return replace(one, asked=True)
 
@@ -516,9 +517,9 @@ class FromTheMail:
             len(asked.missing) - len(missing),
             len(asked.missing),
         )
-        started = await self._the_question_is_answered(ctx, asked, values, missing, said_by=subject)
+        await self._the_question_is_answered(ctx, asked, values, missing, said_by=subject)
         return Offered(
-            started=started,
+            sure=asked.confirmed,
             message=message,
             workflow_id=asked.workflow_id,
             title=asked.title,
@@ -559,13 +560,13 @@ class FromTheMail:
         missing: Sequence[str],
         *,
         said_by: str = "",
-    ) -> bool:
+    ) -> None:
         if self._clock is None or self._ids is None:
-            return False
+            return
         try:
             found = await ReadThreads(self._uow).current(ctx)
             if found is None:
-                return False
+                return
             filled = {name: values[name] for name in asked.missing if values.get(name)}
             named = ", ".join(f"{name} {value}" for name, value in filled.items())
             about = f" to {said_by}" if said_by.strip() else ""
@@ -581,7 +582,7 @@ class FromTheMail:
                 mail_thread=asked.mail_thread,
             )
             said = f"A reply{about} answered: {named or 'nothing I could use'}." + (
-                f" {question(still)}" if missing else f" Running {still.title} now."
+                f" {question(still)}" if missing else ""
             )
             await SayWhatHappened(self._uow, self._clock, self._ids).execute(
                 ctx,
@@ -603,24 +604,14 @@ class FromTheMail:
                     }
                     if missing
                     else {
-                        "kind": "job",
+                        "kind": Said.NOTE,
                         "workflow_id": still.workflow_id,
-                        "title": still.title,
-                        "values": dict(still.values),
-                        "items": [dict(one) for one in still.items],
-                        "missing": [],
-                        "limits": dict(still.limits),
-                        "from_step": still.from_step,
                         "mail_thread": still.mail_thread,
-                        "watched": still.watched,
-                        "resume": True,
                     }
                 ),
             )
         except Exception:
             logger.exception("the answered question could not be closed")
-            return False
-        return not missing
 
     async def _what_will_not_fit(
         self, ctx: RequestContext, offered: Sequence[Offered], jobs: Sequence[Workflow]

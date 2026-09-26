@@ -70,6 +70,8 @@ class Pending:
 
     limits: Mapping[str, int] = field(default_factory=dict)
 
+    confirmed: bool = True
+
     @property
     def asking_for(self) -> str:
         return self.missing[0] if self.missing else ""
@@ -226,6 +228,7 @@ def pending_job(messages: Sequence[Message], answering: str | None = None) -> Pe
         limits=_numbers(decision.get("limits")),
         from_step=_step(decision.get("from_step")),
         mail_thread=str(decision.get("mail_thread") or ""),
+        confirmed=not decision.get("unconfirmed"),
     )
 
 

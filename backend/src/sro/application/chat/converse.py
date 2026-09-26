@@ -536,7 +536,7 @@ class Converse:
                 "mail_thread": offered.mail_thread,
                 "can_find": self._can_gather,
                 "watched": offered.watched,
-                "offer": asked.value,
+                "offer": str((still.decision or {}).get("offer") or asked.value),
             }
             said = f"Running {offered.title} now." if ready else question(offered)
             if let_go(text):

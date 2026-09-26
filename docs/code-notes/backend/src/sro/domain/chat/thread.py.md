@@ -86,7 +86,7 @@ Code: `decision: dict[str, object] = field(default_factory=dict)`
 > Kept structured as well as in prose because "why did it do that" is
 > answered by the resolution, not by the sentence that reported it.
 
-## `Thread.title`, [line 72](../../../../../../../backend/src/sro/domain/chat/thread.py#L72): Docstring
+## `Thread.title`, [line 73](../../../../../../../backend/src/sro/domain/chat/thread.py#L73): Docstring
 
 > What this conversation was about, and what came of it.
 >
@@ -95,10 +95,18 @@ Code: `decision: dict[str, object] = field(default_factory=dict)`
 > other. What tells them apart is what was done in them, so the last task
 > that actually ran is added when there was one.
 
-## `Thread._what_was_done`, [line 77](../../../../../../../backend/src/sro/domain/chat/thread.py#L77): Docstring
+## `Thread._what_was_done`, [line 78](../../../../../../../backend/src/sro/domain/chat/thread.py#L78): Docstring
 
 > The last thing this conversation actually performed, if anything.
 
-## `Thread.say`, [line 85](../../../../../../../backend/src/sro/domain/chat/thread.py#L85): Docstring
+## `Thread.say`, [line 86](../../../../../../../backend/src/sro/domain/chat/thread.py#L86): Docstring
 
 > Append. Nothing in a thread is ever edited or removed.
+
+## `Thread.unsaved`, [line 91](../../../../../../../backend/src/sro/domain/chat/thread.py#L91): Note
+
+Code: `return tuple(self._messages[self._kept :])`
+
+> What this copy said since it was read or last saved: the part a save
+> appends. The store adds only these, so two copies of one thread never
+> overwrite each other.

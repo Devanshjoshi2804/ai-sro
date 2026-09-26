@@ -49,7 +49,7 @@ from sro.domain.knowledge.entry import (
     KnowledgeId,
 )
 from sro.domain.shared.errors import Conflict
-from sro.domain.shared.identifiers import PrincipalId, TenantId
+from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.shared.prices import Answer, ModelSpend
 from sro.domain.skill.workflow import Step, Workflow
 from sro.interface.http.schemas import FromTheMailResponse
@@ -1627,18 +1627,13 @@ async def test_a_question_a_reply_answered_stops_standing() -> None:
     assert "NGSL" in said.messages[-1].text
 
 
-async def test_an_answer_that_completes_a_request_starts_it_rather_than_asking_again() -> None:
-    """A card here is the same permission twice.
-
-    The operator pressed Yes on this request; that press is what sent the mail
+async def test_an_answer_that_completes_a_pressed_request_starts_one_run() -> None:
+    """The operator pressed Yes on this request; that press is what sent the mail
     asking for what was missing, and the reply filled the one blank the press
-    could not. The chat path has said so since it was built -- "they already
-    said yes; asking twice for the same permission is how a system teaches
-    somebody to stop reading what it asks" -- and the mail path was asking
-    again anyway.
-    """
-    uow = await _held()
-    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    could not. The run starts through the one start path a press uses -- not a
+    `resume` in the thread that no browser acts on for a mail reply."""
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True)
+    thread = await StartThread(world.uow, FakeClock(), FakeIdFactory()).execute(CTX)
     thread.say(
         Message(
             id=MessageId("msg_asked"),
@@ -1649,7 +1644,7 @@ async def test_an_answer_that_completes_a_request_starts_it_rather_than_asking_a
                 "kind": NEEDS,
                 "workflow_id": JOB,
                 "title": "Create a Customer Type",
-                "values": {"Customer Type Description": "Leaning new SRO type 059"},
+                "values": {},
                 "missing": ["Customer Type"],
                 "items": [],
                 "mail_thread": "t-37",
@@ -1657,10 +1652,8 @@ async def test_an_answer_that_completes_a_request_starts_it_rather_than_asking_a
             },
         )
     )
-    await uow.threads.save(thread)
-    mailbox = _Mailbox(
-        search=_found("m-1"), **{"m-1": _mail("customer type :- NGSL", thread="t-37")}
-    )
+    await world.uow.threads.save(thread)
+    reply = _Mailbox(search=_found("m-1"), **{"m-1": _mail("customer type :- NGSL", "t-37")})
     reads = _Reads(
         {
             "workflow_id": JOB,
@@ -1670,17 +1663,16 @@ async def test_an_answer_that_completes_a_request_starts_it_rather_than_asking_a
         }
     )
 
-    looked = await _look(uow, mailbox, reads, _Gathers()).execute(CTX)
+    looked = await world.look(reply, reads).execute(CTX)
 
-    # The browser is told to start it, and told not to draw a card for it.
     (one,) = looked.offered
-    assert one.started is True, "it asked for the same permission twice"
-    last = (await _thread(uow)).messages[-1]
-    assert last.decision is not None
-    assert last.decision["kind"] == "job"
-    assert last.decision["resume"] is True, "the browser was given no cue to start"
-    assert last.decision["values"]["Customer Type"] == "NGSL"
-    assert last.decision["missing"] == []
+    assert one.started is True
+    assert len(world.durable.runs_started) == 1
+    (run,) = await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)
+    assert run.values == {"Customer Type": "NGSL"}
+    said = (await _thread(world.uow)).messages
+    assert not any((m.decision or {}).get("resume") for m in said), "a cue no browser acts on"
+    assert pending_job(said) is None, "the answered question still stands"
 
 
 async def test_an_answer_that_leaves_something_missing_asks_for_the_rest() -> None:
@@ -2036,3 +2028,40 @@ async def test_the_heartbeat_s_look_asks_the_same_question_the_poll_would() -> N
 def test_a_page_token_the_connector_did_not_mint_is_not_followed() -> None:
     assert _page_of(json.dumps({"messages": [], "next_page": "12345"})) == "12345"
     assert _page_of(json.dumps({"messages": [], "next_page": "x&q=in:anywhere"})) == ""
+
+
+async def test_the_question_about_a_mail_is_keyed_to_that_mail() -> None:
+    """A mail read again after a crash is asked about again; its Do it must be
+    refused if that mail already started its run."""
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True)
+    await world.polling(_addressed(OPERATOR, "colleague@example.com"), _sure()).execute()
+    asked = await _should_we(world)
+    assert asked["offer"] == "mail:m-5"
+    thread = await _thread(world.uow)
+    converse = Converse(
+        world.uow,
+        ResolveIntent(world.uow, PlanTask(Retrieve(world.uow, FakeEmbedder()))),
+        FakeClock(),
+        FakeIdFactory(),
+    )
+
+    said = await converse.execute(CTX, thread_id=thread.id, text="yes")
+
+    assert (said.messages[-1].decision or {}).get("offer") == "mail:m-5"
+
+
+async def test_one_operator_s_failing_look_does_not_end_the_tick() -> None:
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True)
+    await world.uow.devices.add(f.device(id=DeviceId("dev-2"), principal_id=PrincipalId("alice")))
+
+    class _AliceBroken(_Mailbox):
+        async def call(self, *args: Any, **kwargs: Any) -> ToolResult:
+            if args[1].value == "alice":
+                raise RuntimeError("alice's connector fell over")
+            return await super().call(*args, **kwargs)
+
+    mailbox = _AliceBroken(search=_found("m-1"), **{"m-1": _mail("please add customer type GT2")})
+
+    await world.polling(mailbox, _sure()).execute()
+
+    assert len(world.durable.runs_started) == 1

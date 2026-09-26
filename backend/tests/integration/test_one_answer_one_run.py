@@ -19,6 +19,7 @@ from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
 from sro.application.knowledge.retrieve import Retrieve
 from sro.domain.chat.asking import Pending
+from sro.domain.chat.thread import Message, MessageId, Speaker
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.shared.errors import Conflict
 from sro.infrastructure.db.repositories import SqlUnitOfWork
@@ -103,3 +104,51 @@ async def test_two_starts_of_one_offer_make_one_run(
     assert any(isinstance(one, Conflict) for one in done)
     async with SqlUnitOfWork(session_factory) as uow:
         assert len(await uow.workflow_runs.for_workflow(f.TENANT, "wfl_ct")) == 1
+
+
+async def test_a_write_begun_before_an_answer_keeps_the_answer(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    """The poll reads the thread, the operator leaves the question, then the
+    poll writes. A thread that is written whole would put the question back."""
+    uow = await _held_in(SqlUnitOfWork(session_factory))
+    thread = await StartThread(uow, FakeClock(), UuidFactory()).execute(CTX)
+    await AskAboutTheOffer(uow, FakeClock(), UuidFactory()).execute(
+        CTX,
+        Pending(
+            workflow_id=JOB,
+            title="Create a Customer Type",
+            values={"Customer Type": "X", "Customer Type Description": "e"},
+            missing=(),
+            mail_thread="t-2",
+        ),
+        mail_thread="t-2",
+        ask_to_run=True,
+    )
+    async with SqlUnitOfWork(session_factory) as reading:
+        question = (await reading.threads.get(CTX.tenant_id, thread.id)).messages[-1].id.value
+
+    async with SqlUnitOfWork(session_factory) as poll:
+        seen = await poll.threads.get(CTX.tenant_id, thread.id)
+        await _converse(session_factory).execute(
+            CTX, thread_id=thread.id, text="no", answering=question
+        )
+        seen.say(
+            Message(
+                id=MessageId("msg_later"),
+                speaker=Speaker.ASSISTANT,
+                text="something the poll had to say",
+                said_at=FakeClock().now(),
+            )
+        )
+        await poll.threads.save(seen)
+        await poll.commit()
+
+    async with SqlUnitOfWork(session_factory) as reading:
+        said = (await reading.threads.get(CTX.tenant_id, thread.id)).messages
+    assert any(m.text.startswith("Left ") for m in said), [m.text for m in said]
+    assert said[-1].text == "something the poll had to say"
+    again = await _converse(session_factory).execute(
+        CTX, thread_id=thread.id, text="yes", answering=question
+    )
+    assert not any((m.decision or {}).get("resume") for m in again.messages)

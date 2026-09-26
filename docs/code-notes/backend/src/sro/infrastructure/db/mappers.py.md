@@ -31,7 +31,7 @@ Code: `may_change_the_system=False,`
 > re-litigate that. A read-only assisted run has no authoriser by
 > design, and re-checking would make it unreadable ever afterwards.
 
-## `update_device_row`, [line 486](../../../../../../../backend/src/sro/infrastructure/db/mappers.py#L486): Comment
+## `update_device_row`, [line 487](../../../../../../../backend/src/sro/infrastructure/db/mappers.py#L487): Comment
 
 Code: `row.grants = dump_grants(device.grants)`
 
@@ -40,7 +40,7 @@ Code: `row.grants = dump_grants(device.grants)`
 > revoked and saved after would otherwise undo the revocation with a
 > heartbeat. `revoked_at` leaves the store on read and never returns.
 
-## `update_trigger_row`, [line 570](../../../../../../../backend/src/sro/infrastructure/db/mappers.py#L570): Comment
+## `update_trigger_row`, [line 571](../../../../../../../backend/src/sro/infrastructure/db/mappers.py#L571): Comment
 
 Code: `row.from_message = [] if trigger.watch else list(trigger.from_message)`
 
@@ -48,7 +48,7 @@ Code: `row.from_message = [] if trigger.watch else list(trigger.from_message)`
 > that list too would be the same names written down twice -- and two
 > lists of the same names are two lists that can disagree.
 
-## `update_candidate_row`, [line 640](../../../../../../../backend/src/sro/infrastructure/db/mappers.py#L640): Comment
+## `update_candidate_row`, [line 641](../../../../../../../backend/src/sro/infrastructure/db/mappers.py#L641): Comment
 
 Code: `row.times_seen = candidate.times_seen`
 

@@ -987,11 +987,14 @@ Code: `if still is None or still.id != asked:`
 
 ## `Converse._say_yes_to_it`, [line 539](../../../../../../../backend/src/sro/application/chat/converse.py#L539): Note
 
-Code: `"offer": asked.value,`
+Code: `"offer": str((still.decision or {}).get("offer") or asked.value),`
 
-> The question this yes answers rides on the `resume` decision to the browser,
+> The offer this yes answers rides on the `resume` decision to the browser,
 > which starts the run with it as `offer`, so the store refuses a second run
-> of it however the second start arrives.
+> of it however the second start arrives. A question about a mail carries the
+> mail as its offer (`mail:{id}`), so a mail read again after a crash, whose
+> run already started, is refused its second run; any other question is its
+> own offer.
 
 ## `Converse._carry_on`, [line 243](../../../../../../../backend/src/sro/application/chat/converse.py#L243): Note
 

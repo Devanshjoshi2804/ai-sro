@@ -40,4 +40,8 @@ class LookInTheMailLately:
                             "%s: the mail poll stopped at the cap -- %s", tenant.value, reached
                         )
                         break
+                    except Exception:
+                        logger.exception(
+                            "%s/%s: the mail poll could not look", tenant.value, principal
+                        )
         return looked

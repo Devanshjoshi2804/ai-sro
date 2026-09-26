@@ -63,7 +63,12 @@ class AskAboutTheOffer:
         return known
 
     async def _should_we(
-        self, ctx: RequestContext, pending: Pending, about: str, sent_to: Sequence[str]
+        self,
+        ctx: RequestContext,
+        pending: Pending,
+        about: str,
+        sent_to: Sequence[str],
+        offer: str,
     ) -> str:
         asked = should_we(pending, about, sent_to)
         await SayWhatHappened(self._uow, self._clock, self._ids).execute(
@@ -82,6 +87,7 @@ class AskAboutTheOffer:
                 "mail_thread": pending.mail_thread,
                 "sent_to": list(sent_to),
                 "watched": pending.watched,
+                **({"offer": offer} if offer else {}),
             },
         )
         logger.info(
@@ -98,6 +104,7 @@ class AskAboutTheOffer:
         mail_thread: str = "",
         ask_to_run: bool = False,
         sent_to: Sequence[str] = (),
+        offer: str = "",
     ) -> str:
         pending = replace(pending, limits=await self._what_the_boxes_hold(ctx, pending))
         pending = replace(
@@ -108,7 +115,7 @@ class AskAboutTheOffer:
             offered=await self._also_settable(ctx, pending),
         )
         if pending.ready:
-            return await self._should_we(ctx, pending, about, sent_to) if ask_to_run else ""
+            return await self._should_we(ctx, pending, about, sent_to, offer) if ask_to_run else ""
         asked = opening(pending, about)
         await SayWhatHappened(self._uow, self._clock, self._ids).execute(
             ctx,
@@ -127,6 +134,7 @@ class AskAboutTheOffer:
                 "mail_thread": pending.mail_thread,
                 "from_step": pending.from_step,
                 "watched": pending.watched,
+                **({"unconfirmed": True} if ask_to_run else {}),
             },
         )
         if self._drafts is not None and mail_thread.strip():

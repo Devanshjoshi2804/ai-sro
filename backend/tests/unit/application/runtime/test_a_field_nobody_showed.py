@@ -607,3 +607,62 @@ async def test_a_save_sent_while_its_learned_field_is_filled_again_is_never_sent
 
     assert world.lanes.ui.calls == 1
     assert world.progress().step == 2
+
+
+NOTES = OutlineField("textbox", "Notes")
+
+
+async def _two_learned_fields() -> SteelRun:
+    step, by_id = save_step(status=201, outline=Outline(fields=(DEPARTMENT, NOTES)))
+    job, _ = with_field(
+        replace(WORKFLOW, steps=[replace(step, order=0)]),
+        Composed("department", "Department", "combobox", 0, DEPARTMENT.options),
+        key="department",
+        value="Finance",
+    )
+    job, _ = with_field(job, Composed("notes", "Notes", "textbox", 1), key="notes", value="rush")
+    world = await steel_run(
+        steps=[(step, by_id)], job=job, values={"department": "Operations", "notes": "rush"}
+    )
+    await _started(world)
+    return world
+
+
+async def test_a_save_one_field_sent_is_never_sent_again_by_the_next_field() -> None:
+    world = await _two_learned_fields()
+    world.fill.answers(SENT)
+
+    for _ in range(2):
+        await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    asked = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    assert world.progress().asking["kind"] == "step"
+    await world.answer(asked.asking, verdict="done")
+
+    assert len(world.fill.filled) == 1
+    assert world.lanes.ui.calls == 0
+    assert world.lanes.api.read_backs == 1
+    assert world.progress().step == 3
+
+
+async def test_a_retry_after_the_save_was_marked_sent_does_not_fill_again() -> None:
+    world = await _a_learned_field({"department": "Operations"})
+    await world.mark_sending(1, Lane.SIGHT)
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    asked = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert world.fill.filled == []
+    assert world.progress().asking["kind"] == "step"
+    assert asked.asking
+
+
+async def test_a_question_with_no_field_to_choose_only_offers_to_leave_it_out() -> None:
+    world = await steel_run(
+        steps=[save_step(status=201, outline=Outline())], values={"department": "Finance"}
+    )
+    await _started(world)
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    text = world.progress().asking["text"]
+    assert "choose" not in text and "leave it out" in text

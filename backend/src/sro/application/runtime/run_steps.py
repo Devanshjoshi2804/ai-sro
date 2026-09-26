@@ -136,7 +136,8 @@ class RunSteps:
                 asked = NeedsAPerson(
                     f"'{one.name}' matches "
                     + ("more than one field" if one.why == "ambiguous" else "no field")
-                    + " on the form; choose the field it goes in, or leave it out",
+                    + " on the form; "
+                    + _choose(one.labels),
                     kind="field",
                 )
                 return StepOutcome(
@@ -649,6 +650,10 @@ class RunSteps:
         name = step.parameters[0]
         field = field_of(lane.workflow, lane.by_id, step)
         write = None if field is None else _step_at(ordered, field.before)
+        if write is not None and (progress.in_doubt(write.order) or progress.written(write.order)):
+            mark = progress.marks[write.order]
+            gone = StepResult("unknown", _lane_of(mark.lane), "its save was already sent")
+            return await self._advance(ctx, run, progress, step, ordered, index, gone)
         if field is None or write is None:
             filled = Filled(None, detail="the form its save shows has no such field any more")
         else:
@@ -699,7 +704,7 @@ class RunSteps:
             ]
             asked = NeedsAPerson(
                 f"the page shows {'more than one' if filled.asks == 'ambiguous' else 'no'} "
-                f"field labelled '{field.label}'; choose the field it goes in, or leave it out",
+                f"field labelled '{field.label}'; " + _choose(offered),
                 kind="field",
             )
             about = (field.name, filled.asks, offered)
@@ -879,6 +884,14 @@ def _settle_fields(
                 else "the save it went with failed",
             )
         )
+
+
+def _choose(offered: Sequence[str]) -> str:
+    return (
+        "choose the field it goes in, or leave it out"
+        if offered
+        else "the only answer is to leave it out"
+    )
 
 
 def _step_at(ordered: list[Step], order: int) -> Step | None:

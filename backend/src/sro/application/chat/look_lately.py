@@ -67,6 +67,8 @@ class LookInTheMailLately:
                                 ),
                                 about=one.subject,
                                 mail_thread=one.thread,
+                                ask_to_run=True,
+                                sent_to=one.sent_to,
                             )
                 looked[f"{tenant.value}/{principal}"] = found
         return looked

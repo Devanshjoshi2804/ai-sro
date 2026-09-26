@@ -140,6 +140,49 @@ test("two jobs it could have meant are drawn as a question, not started", () => 
   ]);
 });
 
+test("a mail the server will not run by itself asks do it or leave it", () => {
+  // The press says the answer back into the conversation, the way a typed
+  // "yes" would: the door turns it into the same start a press makes.
+  const pressed = [];
+  const item = messages(
+    ledger(
+      {
+        id: "thr-1",
+        messages: [
+          {
+            id: "m1",
+            speaker: "assistant",
+            said_at: WHEN,
+            text: "Create a Customer Type. You sent this to colleague@example.com. Should our system do it?",
+            decision: {
+              kind: "job",
+              confirm: true,
+              workflow_id: "wfl_1",
+              sent_to: ["colleague@example.com"],
+            },
+          },
+        ],
+      },
+      {},
+      {
+        onPress: (answer, _message, _where, _button, values) =>
+          pressed.push([answer, values]),
+      },
+    ),
+  )[0];
+
+  assert.deepEqual(
+    of(item, "button").map((one) => one.textContent),
+    ["Do it", "Leave it"],
+  );
+  of(item, "button")[0].listeners.click[0]();
+  of(item, "button")[1].listeners.click[0]();
+  assert.deepEqual(pressed, [
+    ["say", { said: "yes" }],
+    ["say", { said: "no" }],
+  ]);
+});
+
 test("a decision this panel does not know renders its words and no buttons", () => {
   // Forward compatibility. The backend can reach a kind this copy of the
   // extension has never heard of, and every browser in the field is a copy

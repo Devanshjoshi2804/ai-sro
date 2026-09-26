@@ -35,10 +35,13 @@ Code: `with about(tenant=tenant.value, principal=principal):`
 
 Code: `if not one.started:`
 
-> With no browser asking, an offer the look did not start becomes the
-> `needs_values` question in the operator's thread, which the panel draws and
-> the heartbeat's `lookForAQuestion` finds. `AskAboutTheOffer` asks nothing
-> for an offer with nothing missing and nothing too long.
+> With no browser asking, every offer the look did not start becomes a
+> question in the operator's thread, so nothing the poll reads is dropped. One
+> still missing a value is the `needs_values` question; one that is complete
+> -- held back because the operator sent it to somebody else, or because its
+> thread already started a run -- is asked as "should our system do it?"
+> (`ask_to_run`), naming the recipients, with a do-it and a leave-it. The panel
+> draws both, and the heartbeat's `lookForAQuestion` finds both.
 
 ## `K_EVER`, [line 18](../../../../../../../backend/src/sro/application/chat/look_lately.py#L18): Note
 

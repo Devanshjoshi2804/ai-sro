@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import replace
 
 from sro.application.chat.announce import SayWhatHappened
@@ -9,7 +9,7 @@ from sro.application.context import RequestContext
 from sro.application.execution.declared import declared_limits, names_of, screen_for
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
-from sro.domain.chat.asking import NEEDS, Pending, opening, unusable
+from sro.domain.chat.asking import JOB, NEEDS, Pending, opening, should_we, unusable
 from sro.domain.chat.thread import Said, Speaker
 from sro.domain.shared.identifiers import PrincipalId
 from sro.domain.skill.learned import offerable
@@ -62,6 +62,33 @@ class AskAboutTheOffer:
             known[name] = min(holds, known[name]) if name in known else holds
         return known
 
+    async def _should_we(
+        self, ctx: RequestContext, pending: Pending, about: str, sent_to: Sequence[str]
+    ) -> str:
+        asked = should_we(pending, about, sent_to)
+        await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+            ctx,
+            for_operator=PrincipalId(ctx.principal_id.value),
+            text=asked,
+            speaker=Speaker.ASSISTANT,
+            decision={
+                "kind": JOB,
+                "confirm": True,
+                "workflow_id": pending.workflow_id,
+                "title": pending.title,
+                "values": dict(pending.values),
+                "missing": [],
+                "items": [dict(one) for one in pending.items],
+                "mail_thread": pending.mail_thread,
+                "sent_to": list(sent_to),
+                "watched": pending.watched,
+            },
+        )
+        logger.info(
+            "%s: asking whether to run %s in the conversation", ctx.tenant_id.value, pending.title
+        )
+        return asked
+
     async def execute(
         self,
         ctx: RequestContext,
@@ -69,6 +96,8 @@ class AskAboutTheOffer:
         *,
         about: str = "",
         mail_thread: str = "",
+        ask_to_run: bool = False,
+        sent_to: Sequence[str] = (),
     ) -> str:
         pending = replace(pending, limits=await self._what_the_boxes_hold(ctx, pending))
         pending = replace(
@@ -79,7 +108,7 @@ class AskAboutTheOffer:
             offered=await self._also_settable(ctx, pending),
         )
         if pending.ready:
-            return ""
+            return await self._should_we(ctx, pending, about, sent_to) if ask_to_run else ""
         asked = opening(pending, about)
         await SayWhatHappened(self._uow, self._clock, self._ids).execute(
             ctx,

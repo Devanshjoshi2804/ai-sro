@@ -99,14 +99,7 @@ K_SHOWN = 90
 
 
 def opening(pending: Pending, about: str = "") -> str:
-    said = [f"{pending.title}{f' — {about}' if about.strip() else ''}."]
-    held = [
-        f"{name}: {_short(value)}"
-        for name, value in pending.values.items()
-        if name not in pending.missing and value.strip()
-    ]
-    if held:
-        said.append("I have " + "; ".join(held) + ".")
+    said = [f"{pending.title}{f' — {about}' if about.strip() else ''}.", *_held(pending)]
     for name in pending.missing:
         holds, was = pending.limits.get(name), pending.values.get(name, "")
         if holds is not None and was.strip():
@@ -115,6 +108,24 @@ def opening(pending: Pending, about: str = "") -> str:
         said.append(also)
     said.append(question(pending))
     return " ".join(said)
+
+
+def should_we(pending: Pending, about: str = "", sent_to: Sequence[str] = ()) -> str:
+    said = [f"{pending.title}{f' — {about}' if about.strip() else ''}."]
+    if sent_to:
+        said.append(f"You sent this to {_listed(list(sent_to))}.")
+    said.extend(_held(pending))
+    said.append("Should our system do it? Say yes to run it, or no to leave it.")
+    return " ".join(said)
+
+
+def _held(pending: Pending) -> list[str]:
+    held = [
+        f"{name}: {_short(value)}"
+        for name, value in pending.values.items()
+        if name not in pending.missing and value.strip()
+    ]
+    return ["I have " + "; ".join(held) + "."] if held else []
 
 
 def also_set(pending: Pending) -> str:
@@ -244,6 +255,7 @@ def offered_job(messages: Sequence[Message]) -> Pending | None:
             items=_items(decision.get("items")),
             watched=bool(decision.get("watched", True)),
             can_find=bool(decision.get("can_find", False)),
+            mail_thread=str(decision.get("mail_thread") or ""),
         )
     return None
 

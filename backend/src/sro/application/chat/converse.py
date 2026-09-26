@@ -177,7 +177,7 @@ class Converse:
         async with self._uow as uow:
             said_before = (await uow.threads.get(ctx.tenant_id, thread_id)).messages
         offered = offered_job(said_before)
-        if offered is not None and said_yes(text):
+        if offered is not None and (said_yes(text) or let_go(text)):
             return await self._say_yes_to_it(ctx, thread_id=thread_id, text=text, offered=offered)
         if isinstance(placed, _NotAsked):
             placed = await self._placed_by_the_rig(ctx, text)
@@ -443,7 +443,11 @@ class Converse:
                 "can_find": self._can_gather,
                 "watched": offered.watched,
             }
-            if ready:
+            said = f"Running {offered.title} now." if ready else question(offered)
+            if let_go(text):
+                said = f"Left {offered.title}."
+                decision = {"kind": Said.NOTE, "workflow_id": offered.workflow_id}
+            elif ready:
                 decision["resume"] = True
             else:
                 decision["kind"] = NEEDS
@@ -451,7 +455,7 @@ class Converse:
                 Message(
                     id=self._ids.new_message_id(),
                     speaker=Speaker.ASSISTANT,
-                    text=(f"Running {offered.title} now." if ready else question(offered)),
+                    text=said,
                     said_at=self._clock.now(),
                     decision=decision,
                 )

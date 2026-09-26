@@ -2871,6 +2871,10 @@ async function answered(answer, message, where, button, values) {
     button.disabled = true;
     return say(values?.title || button.textContent || "");
   }
+  if (answer === "say") {
+    button.disabled = true;
+    return say(values?.said || "");
+  }
   // A rule that fired and stopped to ask, answered from where the operator is
   // rather than only in the console.
   if (answer === "waiting-approve" || answer === "waiting-decline") {

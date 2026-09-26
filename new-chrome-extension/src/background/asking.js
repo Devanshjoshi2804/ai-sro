@@ -41,7 +41,8 @@ export function questionIn(thread) {
   for (const message of [...messages].reverse()) {
     if (message.speaker !== "assistant") continue;
     const decision = message.decision || {};
-    if (decision.kind !== NEEDS || !decision.workflow_id) return null;
+    const asks = decision.kind === NEEDS || (decision.kind === "job" && decision.confirm);
+    if (!asks || !decision.workflow_id) return null;
     return {
       id: message.id,
       text: message.text || "",

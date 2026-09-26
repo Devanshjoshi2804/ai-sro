@@ -17,11 +17,15 @@ from typing import Any
 import pytest
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
-from sro.application.chat.converse import StartThread
+from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.from_the_mail import K_LOOK, K_LOOK_PAGES, FromTheMail
 from sro.application.chat.look_lately import LookInTheMailLately
+from sro.application.chat.mailbox import SERVER
 from sro.application.context import RequestContext
 from sro.application.execution.workflow_runs import StartWorkflowRun
+from sro.application.intent.plan_task import PlanTask
+from sro.application.intent.resolve import ResolveIntent
+from sro.application.knowledge.retrieve import Retrieve
 from sro.application.observation.record_attempt import RecordAttempt
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.tools import ToolResult, ToolsUnavailable
@@ -46,7 +50,13 @@ from sro.interface.http.schemas import FromTheMailResponse
 from sro.whose import whose
 from tests import factories as f
 from tests.unit.application.rig.test_start_workflow_run import _starter
-from tests.unit.fakes import FakeClock, FakeDurableExecution, FakeIdFactory, FakeUnitOfWork
+from tests.unit.fakes import (
+    FakeClock,
+    FakeDurableExecution,
+    FakeEmbedder,
+    FakeIdFactory,
+    FakeUnitOfWork,
+)
 from tests.unit.runtime_support import save_job
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=PrincipalId("devansh"))
@@ -211,6 +221,15 @@ class _MailWorld:
     def look(self, mailbox: _Mailbox, reads: _Reads) -> FromTheMail:
         return _look(self.uow, mailbox, reads, start=self.start)
 
+    def polling(self, mailbox: _Mailbox, reads: _Reads) -> LookInTheMailLately:
+        return _poll(self.uow, self.look(mailbox, reads), self.start)
+
+
+def _poll(uow: FakeUnitOfWork, look: FromTheMail, start: StartWorkflowRun) -> LookInTheMailLately:
+    return LookInTheMailLately(
+        uow, look, AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()), start
+    )
+
 
 class _TemporalDown(FakeDurableExecution):
     async def start_run(self, ctx: RequestContext, *, run_id: str, budget_s: float) -> None:
@@ -261,10 +280,7 @@ async def mail_world(
         **({} if start_cap_usd is None else {"cap_usd": start_cap_usd}),
     )
     look = _look(uow, mailbox, reads, start=start)
-    poll = LookInTheMailLately(
-        uow, look, AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()), start
-    )
-    return _MailWorld(uow, look, durable, start, poll, mailbox, reads)
+    return _MailWorld(uow, look, durable, start, _poll(uow, look, start), mailbox, reads)
 
 
 async def test_a_sure_mail_with_every_value_starts_the_run_itself() -> None:
@@ -530,6 +546,89 @@ async def test_a_cap_reached_while_starting_the_run_leaves_the_mail_unread() -> 
     assert world.uow.tool_calls.claimed == {}
     assert world.durable.runs_started == []
     assert looked[f"{f.TENANT.value}/{CTX.principal_id.value}"].offered == ()
+
+
+async def _should_we(world: _MailWorld) -> dict[str, Any]:
+    last = (await _thread(world.uow)).messages[-1]
+    assert last.decision is not None and last.decision.get("confirm") is True, last
+    return dict(last.decision)
+
+
+async def test_the_operator_s_mail_to_a_colleague_is_asked_about_and_never_run() -> None:
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True)
+    mailbox = _addressed(OPERATOR, "Colleague <colleague@example.com>")
+
+    await world.polling(mailbox, _sure()).execute()
+
+    asked = await _should_we(world)
+    assert asked["kind"] == "job" and asked["workflow_id"] == JOB
+    assert asked["sent_to"] == ["colleague@example.com"]
+    assert asked["values"] == EVERY_VALUE
+    last = (await _thread(world.uow)).messages[-1]
+    assert "colleague@example.com" in last.text and asked["title"] in last.text
+    assert world.durable.runs_started == []
+
+
+async def test_a_quoted_reply_on_a_thread_with_a_run_is_asked_about_not_run_again() -> None:
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True, thread="t-9")
+    await world.from_the_mail.execute(CTX)
+    quoted = "thanks!\n\n> please create customer type GT2"
+    reply = _Mailbox(search=_found("m-2"), **{"m-2": _mail(quoted, "t-9")})
+
+    await world.polling(reply, _sure()).execute()
+
+    asked = await _should_we(world)
+    assert asked["mail_thread"] == "t-9" and asked["sent_to"] == []
+    assert len(world.durable.runs_started) == 1
+
+
+async def test_do_it_on_the_question_starts_exactly_one_run_through_the_press() -> None:
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True)
+    await world.polling(_addressed(OPERATOR, "colleague@example.com"), _sure()).execute()
+    thread = await _thread(world.uow)
+    converse = Converse(
+        world.uow,
+        ResolveIntent(world.uow, PlanTask(Retrieve(world.uow, FakeEmbedder()))),
+        FakeClock(),
+        FakeIdFactory(),
+    )
+
+    said = await converse.execute(CTX, thread_id=thread.id, text="yes")
+
+    go = said.messages[-1].decision
+    assert go is not None and go["kind"] == "job" and go["resume"] is True
+    # What the panel's press sends, as `POST /v1/workflow-runs` does it.
+    run = await world.start.execute(
+        CTX,
+        workflow_id=str(go["workflow_id"]),
+        device_id=None,
+        values=go["values"],
+        live=True,
+        allow_focus=True,
+        conversation=(SERVER, str(go["mail_thread"])),
+    )
+    await world.start.perform(CTX, run)
+    assert len(world.durable.runs_started) == 1
+
+
+async def test_leave_it_on_the_question_starts_nothing() -> None:
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True)
+    await world.polling(_addressed(OPERATOR, "colleague@example.com"), _sure()).execute()
+    thread = await _thread(world.uow)
+    converse = Converse(
+        world.uow,
+        ResolveIntent(world.uow, PlanTask(Retrieve(world.uow, FakeEmbedder()))),
+        FakeClock(),
+        FakeIdFactory(),
+    )
+
+    left = await converse.execute(CTX, thread_id=thread.id, text="leave it")
+    assert left.messages[-1].text.startswith("Left "), left.messages[-1].text
+    later = await converse.execute(CTX, thread_id=thread.id, text="yes")
+
+    # Left, the question stops standing: a later yes has nothing to say yes to.
+    assert not any((one.decision or {}).get("resume") for one in later.messages)
+    assert world.durable.runs_started == []
 
 
 class _Paged(_Mailbox):

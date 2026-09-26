@@ -17,6 +17,7 @@ from sro.application.chat.about_an_offer import AskAboutTheOffer, SayTheRunStart
 from sro.application.chat.ask_the_asker import DraftForTheAsker, SendTheDraft
 from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.from_the_mail import FromTheMail
+from sro.application.chat.look_lately import LookInTheMailLately
 from sro.application.chat.read_chat import ReadChat
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.chat.reading_an_answer import IsItAnAnswer
@@ -793,6 +794,14 @@ class Container:
             else None,
             start=self.start_workflow_run(),
             attempts=self.record_attempt(),
+        )
+
+    def look_in_the_mail_lately(self) -> LookInTheMailLately:
+        return LookInTheMailLately(
+            self.unit_of_work(),
+            self.from_the_mail(),
+            self.ask_about_the_offer(),
+            self.start_workflow_run(),
         )
 
     @property

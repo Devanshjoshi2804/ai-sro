@@ -53,6 +53,7 @@ TOOLS = [
             "properties": {
                 "query": {"type": "string", "description": "Gmail search syntax"},
                 "limit": {"type": "string"},
+                "page": {"type": "string", "description": "next_page of the search before"},
             },
             "required": ["query"],
         },
@@ -295,7 +296,11 @@ def _search(token: str, arguments: dict[str, Any]) -> str:
     listed = _answered(
         httpx.get(
             f"{GMAIL}/messages",
-            params={"q": arguments.get("query", ""), "maxResults": limit},
+            params={
+                "q": arguments.get("query", ""),
+                "maxResults": limit,
+                **({"pageToken": arguments["page"]} if arguments.get("page") else {}),
+            },
             headers={"Authorization": f"Bearer {token}"},
             timeout=20.0,
         ),
@@ -322,7 +327,7 @@ def _search(token: str, arguments: dict[str, Any]) -> str:
                 "snippet": full.get("snippet", ""),
             }
         )
-    return json.dumps({"messages": found}, indent=1)
+    return json.dumps({"messages": found, "next_page": listed.get("nextPageToken", "")}, indent=1)
 
 
 MAILBOXES: dict[tuple[str, str], str] = {}

@@ -18,10 +18,12 @@ import pytest
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.converse import StartThread
-from sro.application.chat.from_the_mail import FromTheMail
+from sro.application.chat.from_the_mail import K_LOOK, K_LOOK_PAGES, FromTheMail
+from sro.application.chat.look_lately import LookInTheMailLately
 from sro.application.context import RequestContext
 from sro.application.execution.workflow_runs import StartWorkflowRun
 from sro.application.observation.record_attempt import RecordAttempt
+from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.tools import ToolResult, ToolsUnavailable
 from sro.application.runtime.answer_run import AnswerRun
 from sro.application.shared.refusals import OverCap
@@ -36,10 +38,12 @@ from sro.domain.knowledge.entry import (
     KnowledgeEntry,
     KnowledgeId,
 )
+from sro.domain.observation.gesture import GestureBatch
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer, ModelSpend
 from sro.domain.skill.workflow import Step, Workflow
 from sro.interface.http.schemas import FromTheMailResponse
+from sro.whose import whose
 from tests import factories as f
 from tests.unit.application.rig.test_start_workflow_run import _starter
 from tests.unit.fakes import FakeClock, FakeDurableExecution, FakeIdFactory, FakeUnitOfWork
@@ -83,9 +87,11 @@ class _Reads:
     def __init__(self, *answers: dict[str, object]) -> None:
         self._answers = list(answers)
         self.saw: list[str] = []
+        self.tenants: list[object] = []
 
     async def ask(self, *, evidence: str, **_: object) -> Answer:
         self.saw.append(evidence)
+        self.tenants.append(whose().get("tenant"))
         if not self._answers:
             return Answer(data={"workflow_id": None, "values": [], "missing": [], "sure": True})
         return Answer(data=self._answers.pop(0), cost_usd=0.001)
@@ -140,24 +146,30 @@ def _reading(
 
 
 async def _held() -> FakeUnitOfWork:
-    uow = FakeUnitOfWork()
-    await uow.workflows.save(
-        Workflow(
-            id=JOB,
-            tenant=f.TENANT.value,
-            title="Create a Customer Type",
-            narrative="open the screen, type the code, save",
-            steps=[Step(order=0, says="type the code", system=None, cites=["g"])],
-            parameters=[
-                {"name": "Customer Type", "seen_values": ["GGD"], "required": True},
-                {
-                    "name": "Customer Type Description",
-                    "seen_values": ["leaning new SRO type 01"],
-                    "required": True,
-                },
-            ],
+    return await _held_in(FakeUnitOfWork())
+
+
+async def _held_in[U: UnitOfWork](uow: U) -> U:
+    """The one mined job, saved and committed in whichever store `uow` is."""
+    async with uow:
+        await uow.workflows.save(
+            Workflow(
+                id=JOB,
+                tenant=f.TENANT.value,
+                title="Create a Customer Type",
+                narrative="open the screen, type the code, save",
+                steps=[Step(order=0, says="type the code", system=None, cites=["g"])],
+                parameters=[
+                    {"name": "Customer Type", "seen_values": ["GGD"], "required": True},
+                    {
+                        "name": "Customer Type Description",
+                        "seen_values": ["leaning new SRO type 01"],
+                        "required": True,
+                    },
+                ],
+            )
         )
-    )
+        await uow.commit()
     return uow
 
 
@@ -192,6 +204,9 @@ class _MailWorld:
     from_the_mail: FromTheMail
     durable: FakeDurableExecution
     start: StartWorkflowRun
+    poll: LookInTheMailLately
+    mailbox: _Mailbox
+    reads: _Reads
 
     def look(self, mailbox: _Mailbox, reads: _Reads) -> FromTheMail:
         return _look(self.uow, mailbox, reads, start=self.start)
@@ -209,11 +224,23 @@ async def mail_world(
     steel: bool,
     thread: str = "",
     durable: FakeDurableExecution | None = None,
+    start_cap_usd: float | None = None,
 ) -> _MailWorld:
     """One request mail naming the saved job, read as `sure` with `values`,
-    for a tenant that runs on Steel or on the extension."""
+    for a tenant that runs on Steel or on the extension, whose operator has a
+    registered browser and whose tenant has captured something."""
     uow, durable = FakeUnitOfWork(), durable or FakeDurableExecution()
     await save_job(uow, JOB)
+    await uow.devices.add(f.device(principal_id=CTX.principal_id))
+    await uow.gestures.add_batch(
+        GestureBatch(
+            batch_id="bat-1",
+            device_id="dev-1",
+            tenant=f.TENANT.value,
+            mode="rig",
+            received_at=datetime.now(tz=UTC).isoformat(),
+        )
+    )
     mailbox = _Mailbox(
         search=_found("m-1"), **{"m-1": _mail("please add customer type GT2", thread)}
     )
@@ -231,8 +258,13 @@ async def mail_world(
         steel_tenants=frozenset({f.TENANT.value}) if steel else frozenset(),
         # The wait a mail-started run keeps is read against the wall clock.
         clock=FakeClock(datetime.now(tz=UTC)),
+        **({} if start_cap_usd is None else {"cap_usd": start_cap_usd}),
     )
-    return _MailWorld(uow, _look(uow, mailbox, reads, start=start), durable, start)
+    look = _look(uow, mailbox, reads, start=start)
+    poll = LookInTheMailLately(
+        uow, look, AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()), start
+    )
+    return _MailWorld(uow, look, durable, start, poll, mailbox, reads)
 
 
 async def test_a_sure_mail_with_every_value_starts_the_run_itself() -> None:
@@ -439,6 +471,123 @@ async def test_an_extension_tenant_is_unchanged() -> None:
     looked = await world.from_the_mail.execute(CTX)
 
     assert not looked.offered[0].started and world.durable.runs_started == []
+
+
+EVERY_VALUE = {"Customer Type": "GT2"}
+
+
+async def test_the_poll_reads_as_each_operator_and_starts_a_sure_complete_request() -> None:
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True)
+
+    await world.poll.execute()
+
+    assert {who for who, _, _ in world.mailbox.asked} == {CTX.principal_id.value}
+    assert len(world.durable.runs_started) == 1
+
+
+async def test_a_mail_the_heartbeat_already_read_is_not_read_again_by_the_poll() -> None:
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True)
+
+    await world.from_the_mail.execute(CTX)
+    await world.poll.execute()
+
+    assert len(world.reads.saw) == 1
+    assert len(world.durable.runs_started) == 1
+
+
+async def test_a_request_missing_a_value_becomes_a_question_in_the_operator_s_thread() -> None:
+    world = await mail_world(sure=True, values={}, steel=True)
+
+    await world.poll.execute()
+
+    last = (await _thread(world.uow)).messages[-1]
+    assert last.decision["kind"] == NEEDS
+    assert last.decision["missing"] == ["Customer Type"]
+    assert world.durable.runs_started == []
+
+
+async def test_the_poll_leaves_an_extension_tenant_s_mail_to_its_browser() -> None:
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=False)
+
+    await world.poll.execute()
+
+    assert world.mailbox.asked == [] and world.uow.tool_calls.claimed == {}
+
+
+async def test_every_model_call_the_poll_makes_is_the_tenant_s() -> None:
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True)
+
+    await world.poll.execute()
+
+    assert world.reads.tenants == [f.TENANT.value]
+
+
+async def test_a_cap_reached_while_starting_the_run_leaves_the_mail_unread() -> None:
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True, start_cap_usd=0.0)
+
+    looked = await world.poll.execute()
+
+    assert world.uow.tool_calls.claimed == {}
+    assert world.durable.runs_started == []
+    assert looked[f"{f.TENANT.value}/{CTX.principal_id.value}"].offered == ()
+
+
+class _Paged(_Mailbox):
+    """A mailbox whose search answers one page at a time, newest first."""
+
+    def __init__(self, *ids: str) -> None:
+        super().__init__()
+        self.ids = list(ids)
+
+    async def call(
+        self,
+        tenant_id: TenantId,
+        principal_id: PrincipalId,
+        server: str,
+        tool: str,
+        arguments: Mapping[str, str],
+    ) -> ToolResult:
+        self.asked.append((principal_id.value, tool, dict(arguments)))
+        if tool != "search_threads":
+            return ToolResult(text=_mail(f"<{arguments['id']}>"))
+        at, limit = int(arguments.get("page") or 0), int(arguments["limit"])
+        more = at + limit < len(self.ids)
+        return ToolResult(
+            text=json.dumps(
+                {
+                    "messages": [{"id": one} for one in self.ids[at : at + limit]],
+                    "next_page": str(at + limit) if more else "",
+                }
+            )
+        )
+
+
+async def test_twenty_mails_arriving_between_looks_are_each_read_once() -> None:
+    uow = await _held()
+    older = [f"m-{n:03}" for n in range(5)]
+    newer = [f"m-{n:03}" for n in range(100, 120)]
+    mailbox, reads = _Paged(*older), _Reads()
+    look = _look(uow, mailbox, reads)
+    await look.execute(CTX)
+
+    mailbox.ids = newer[::-1] + older
+    await look.execute(CTX)
+    await look.execute(CTX)
+
+    for one in newer:
+        assert sum(f"<{one}>" in saw for saw in reads.saw) == 1, one
+    assert len(reads.saw) == len(older) + len(newer)
+
+
+async def test_a_look_pages_back_no_further_than_its_cap(caplog: pytest.LogCaptureFixture) -> None:
+    uow = await _held()
+    flood = K_LOOK * K_LOOK_PAGES + 1
+    mailbox, reads = _Paged(*(f"m-{n:03}" for n in range(flood))), _Reads()
+
+    await _look(uow, mailbox, reads).execute(CTX)
+
+    assert len(reads.saw) == K_LOOK * K_LOOK_PAGES
+    assert "pages of new mail" in caplog.text
 
 
 class _Gathers:

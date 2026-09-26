@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Mapping, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from types import MappingProxyType
@@ -42,6 +42,8 @@ from sro.domain.skill.learned import offerable
 from sro.domain.skill.workflow import Workflow
 
 K_LOOK = 8
+
+K_LOOK_PAGES = 10
 
 K_THREAD = 8000
 
@@ -151,7 +153,7 @@ class FromTheMail:
         held = {w.id: w for w in workflows}
 
         try:
-            arrivals = await self._recent(ctx, limit)
+            arrivals, more = await self._recent(ctx, limit)
         except ToolsUnavailable as gone:
             return LookedInTheMail(why=f"the mailbox could not be reached: {gone}")
 
@@ -160,9 +162,7 @@ class FromTheMail:
         read = 0
         unsure = 0
         tenant = ctx.tenant_id.value
-        for message in arrivals:
-            if not await self._first_time(ctx, message, now=now):
-                continue
+        async for message in self._unclaimed(ctx, arrivals, more, limit, now=now):
             try:
                 try:
                     said, thread, subject, sent_to = await self._body(ctx, message)
@@ -288,17 +288,16 @@ class FromTheMail:
                 await self._forget(ctx, message)
                 logger.info("%s: the look stopped at the cap -- %s", tenant, reached)
                 return LookedInTheMail(
-                    offered=await self._what_will_not_fit(ctx, offered, workflows),
+                    offered=await self._start_each(
+                        ctx, await self._what_will_not_fit(ctx, offered, workflows)
+                    ),
                     read=read,
                     why=str(reached),
                     spent=spent,
                 )
         looked = LookedInTheMail(
-            offered=tuple(
-                [
-                    await self._started(ctx, one)
-                    for one in await self._what_will_not_fit(ctx, offered, workflows)
-                ]
+            offered=await self._start_each(
+                ctx, await self._what_will_not_fit(ctx, offered, workflows)
             ),
             read=read,
             why=_sentence(offered, read, unsure),
@@ -312,6 +311,23 @@ class FromTheMail:
             looked.why,
         )
         return looked
+
+    async def _start_each(
+        self, ctx: RequestContext, offered: Sequence[Offered]
+    ) -> tuple[Offered, ...]:
+        started: list[Offered] = []
+        for one in offered:
+            try:
+                started.append(await self._started(ctx, one))
+            except OverCap as reached:
+                await self._forget(ctx, one.message)
+                logger.info(
+                    "%s: %s left unread, its run refused at the cap -- %s",
+                    ctx.tenant_id.value,
+                    one.message,
+                    reached,
+                )
+        return tuple(started)
 
     async def _started(self, ctx: RequestContext, one: Offered) -> Offered:
         if (
@@ -342,6 +358,8 @@ class FromTheMail:
                 allow_focus=False,
                 conversation=(SERVER, one.thread),
             )
+        except OverCap:
+            raise
         except Exception:
             logger.exception(
                 "%s: a sure, complete mail could not start its run", ctx.tenant_id.value
@@ -618,26 +636,63 @@ class FromTheMail:
                 )
         return tuple(_told(one, limits, placeable) for one in offered)
 
-    async def _recent(self, ctx: RequestContext, limit: int) -> list[str]:
+    async def _unclaimed(
+        self,
+        ctx: RequestContext,
+        arrivals: list[str],
+        more: str,
+        limit: int,
+        *,
+        now: datetime,
+    ) -> AsyncIterator[str]:
+        pages = 1
+        while True:
+            fresh = False
+            for message in arrivals:
+                if await self._first_time(ctx, message, now=now):
+                    fresh = True
+                    yield message
+            if not fresh or not more:
+                return
+            if pages == K_LOOK_PAGES:
+                logger.warning(
+                    "%s: %d pages of new mail in one look; older mail in the window is not read",
+                    ctx.tenant_id.value,
+                    K_LOOK_PAGES,
+                )
+                return
+            try:
+                arrivals, more = await self._recent(ctx, limit, page=more)
+            except ToolsUnavailable as gone:
+                logger.info(
+                    "%s: the next page of mail could not be read -- %s", ctx.tenant_id.value, gone
+                )
+                return
+            pages += 1
+
+    async def _recent(
+        self, ctx: RequestContext, limit: int, *, page: str = ""
+    ) -> tuple[list[str], str]:
         answered = await self._tools.call(
             ctx.tenant_id,
             ctx.principal_id,
             SERVER,
             "search_threads",
-            {"query": K_RECENT, "limit": str(limit)},
+            {"query": K_RECENT, "limit": str(limit), **({"page": page} if page else {})},
         )
         try:
             said = json.loads(answered.text)
         except ValueError:
-            return []
+            return [], ""
         rows = said.get("messages") if isinstance(said, dict) else None
         if not isinstance(rows, list):
-            return []
+            return [], ""
+        more = said.get("next_page")
         return [
             str(row["id"])
             for row in rows
             if isinstance(row, dict) and isinstance(row.get("id"), str)
-        ][:limit]
+        ][:limit], more if isinstance(more, str) else ""
 
     async def _body(
         self, ctx: RequestContext, message: str

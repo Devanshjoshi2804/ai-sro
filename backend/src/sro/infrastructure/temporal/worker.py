@@ -100,6 +100,22 @@ async def mine_the_rig_lately(container: Container, every_seconds: float) -> Non
                 )
 
 
+async def look_in_the_mail_lately(container: Container, every_seconds: float) -> None:
+    if every_seconds <= 0:
+        logger.info("the mail poll is off (mail_sweep_seconds=0)")
+        return
+    while True:
+        await asyncio.sleep(every_seconds)
+        try:
+            looked = await container.look_in_the_mail_lately().execute()
+        except Exception:
+            logger.exception("the mail poll could not finish")
+            continue
+        for who, one in looked.items():
+            if one.read:
+                logger.info("%s: %s mail(s) read -- %s", who, one.read, one.why)
+
+
 async def retain_lately(container: Container, every_seconds: float) -> None:
     while True:
         await asyncio.sleep(every_seconds)
@@ -176,12 +192,14 @@ async def run() -> None:
     keeper = asyncio.create_task(keep_sessions_open(container, settings.session_sweep_seconds))
     rig_miner = asyncio.create_task(mine_the_rig_lately(container, settings.rig_sweep_seconds))
     retainer = asyncio.create_task(retain_lately(container, settings.retention_sweep_seconds))
+    mailer = asyncio.create_task(look_in_the_mail_lately(container, settings.mail_sweep_seconds))
     try:
         await until_signalled(default, runs)
     finally:
         keeper.cancel()
         rig_miner.cancel()
         retainer.cancel()
+        mailer.cancel()
         await container.driver.aclose()
 
 

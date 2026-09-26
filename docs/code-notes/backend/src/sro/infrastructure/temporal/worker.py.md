@@ -54,7 +54,7 @@ Code: `expired = await container.expire_confirmations().execute()`
 > Sleeps first. A worker restarting in a crash loop would otherwise fire the
 > most expensive call in the system on every start.
 
-## `retain_lately`, [line 103](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L103): Docstring
+## `retain_lately`, [line 119](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L119): Docstring
 
 > Delete evidence that has aged out of its tenant's own window.
 >
@@ -62,7 +62,7 @@ Code: `expired = await container.expire_confirmations().execute()`
 > replaying, and a missed sweep costs one more day of storage rather than a
 > broken promise -- the next sweep finds the same rows and removes them.
 
-## `rekey_everything`, [line 118](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L118): Docstring
+## `rekey_everything`, [line 134](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L134): Docstring
 
 > Recompute every stored workflow's shape key, once, at startup.
 >
@@ -104,14 +104,14 @@ Code: `logger.exception("the session keeper could not finish its sweep")`
 > A keeper that dies quietly is worse than no keeper: the sessions
 > look fine until the morning somebody needs one.
 
-## `run`, [line 169](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L169): Comment
+## `run`, [line 185](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L185): Comment
 
 Code: `try:`
 
 > Before anything mines, because a pass that runs against stale keys is a
 > pass that proposes a duplicate of a job the rig already holds.
 
-## `run`, [line 158](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L158): Note
+## `run`, [line 174](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L174): Note
 
 Code: `graceful_shutdown_timeout=timedelta(seconds=K_STEP_HEARTBEAT_S),`
 
@@ -129,3 +129,15 @@ Code: `loop.add_signal_handler(one, stopping.set)`
 > `graceful_shutdown_timeout` to finish before it is cancelled. Without a
 > handler, Python as PID 1 ignored SIGTERM and Docker killed it mid-write.
 > The handlers are removed afterwards, so the signal's default comes back.
+
+## `look_in_the_mail_lately`, [line 103](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L103): Note
+
+Code: `async def look_in_the_mail_lately(container: Container, every_seconds: float) -> None:`
+
+> Read each operator's mailbox from the server (spec §2 "Mail poll"). A loop
+> in the worker beside the keeper, the miner and the retention sweep, not a
+> Temporal schedule: that is the repository's pattern for recurring platform
+> work, and schedules are kept for operators' own triggers. It sleeps before
+> the first look, as the miner does, so a worker in a crash loop does not
+> spend the model on every start. The heartbeat's look runs beside it during
+> rollout; the per-message claim keeps the two from reading one mail twice.

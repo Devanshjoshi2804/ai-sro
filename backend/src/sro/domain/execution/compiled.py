@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from types import MappingProxyType
 from urllib.parse import urlsplit
 
 from sro.domain.chat.asked_by import only_reads_the_mail
 from sro.domain.execution.belts import confirming_read, expected_statuses
 from sro.domain.execution.compose import alias_map, field_of, normal
 from sro.domain.execution.evidence import locators_for, primary_gesture, recorded_call, writes
+from sro.domain.execution.field_classes import FieldClass, field_classes
 from sro.domain.execution.lanes import Broken, Lane, accepts, lanes_for
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.mail_job import sends_mail
@@ -32,6 +34,7 @@ class Compiled:
     reasons: tuple[Reason, ...]
     view: dict[str, object]
     warnings: tuple[Reason, ...] = ()
+    fields: tuple[FieldClass, ...] = ()
 
 
 def why_not(reasons: Iterable[Reason]) -> list[str]:
@@ -62,6 +65,7 @@ def compile_job(
     aliases: Sequence[JobAlias] = (),
     values: Mapping[str, str] | None = None,
     from_step: int = 0,
+    declared: Mapping[str, int] = MappingProxyType({}),
 ) -> Compiled:
     reasons: list[Reason] = []
     warnings: list[Reason] = []
@@ -158,6 +162,7 @@ def compile_job(
         return [{"code": one.code, "step": one.step, "detail": one.detail} for one in found]
 
     reasons = [one for one in reasons if one.step is None or one.step >= from_step]
+    fields = field_classes(workflow, by_id, learned, declared)
     view: dict[str, object] = {
         "job": workflow.id,
         "title": workflow.title,
@@ -169,5 +174,16 @@ def compile_job(
         ],
         "aliases": [{"wording": one.wording, "field": one.field} for one in aliases],
         "steps": steps,
+        "fields": [
+            {
+                "name": one.name,
+                "kind": one.kind,
+                "labels": list(one.labels),
+                "max_length": one.limits.max_length,
+                "options": list(one.limits.options) if one.limits.options is not None else None,
+                "required_on_screen": one.limits.required_on_screen,
+            }
+            for one in fields
+        ],
     }
-    return Compiled(not reasons, tuple(reasons), view, tuple(warnings))
+    return Compiled(not reasons, tuple(reasons), view, tuple(warnings), fields)

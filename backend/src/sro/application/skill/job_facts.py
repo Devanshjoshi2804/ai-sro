@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
+from sro.application.execution.declared import kb_rows, limits_from_rows, names_of, screen_of_loaded
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.execution.compiled import Compiled, compile_job
 from sro.domain.execution.lanes import Broken, cites_key
@@ -50,6 +51,8 @@ async def job_facts(
     ledger = await uow.workflows.learned_writes(tenant_id)
     ids = tuple(sorted({one for w in workflows for step in w.steps for one in step.cites}))
     gestures = {g.id: g for g in await uow.gestures.gestures_for(tenant_id, ids=ids)} if ids else {}
+    names_by_workflow = {workflow.id: names_of(workflow) for workflow in workflows}
+    fields, forms = await kb_rows(uow, tenant_id) if any(names_by_workflow.values()) else ((), ())
     found = []
     for workflow in workflows:
         by_id = {
@@ -63,6 +66,12 @@ async def job_facts(
             now=now,
         )
         aliases: tuple[JobAlias, ...] = ()
+        names = names_by_workflow[workflow.id]
+        declared = (
+            limits_from_rows(names, fields, forms, screen_of_loaded(by_id, workflow))
+            if names
+            else {}
+        )
         compiled = compile_job(
             workflow,
             by_id,
@@ -72,6 +81,7 @@ async def job_facts(
             aliases=aliases,
             values=values,
             from_step=from_step,
+            declared=declared,
         )
         if values is None and not from_step:
             _say_once(tenant_id, workflow.id, compiled)

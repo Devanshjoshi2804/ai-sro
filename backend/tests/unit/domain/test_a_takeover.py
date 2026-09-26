@@ -110,8 +110,14 @@ def test_an_unanswered_or_broken_save_is_in_doubt() -> None:
 
 
 def test_a_refused_save_proves_it_was_not_written_and_it_is_made_again() -> None:
-    for status in (409, 422):
+    for status in (400, 403, 404, 422):
         assert took_over(3, [operator_saved(100.0, status=status)]) == Takeover(0), status
+
+
+def test_a_conflicting_save_may_be_this_one_and_is_in_doubt() -> None:
+    took = took_over(3, [operator_saved(100.0, status=409)])
+
+    assert took == Takeover(replay_from=0, in_doubt=(1,))
 
 
 def test_another_tab_s_save_proves_nothing_and_is_never_ignored() -> None:

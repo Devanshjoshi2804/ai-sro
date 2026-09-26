@@ -80,7 +80,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/sight
 > - **Reasons.** A refusal is forgotten once a later point is made, so a
 >   step pro acted on never reports flash's refusal (M6).
 
-## `_taught`, [line 372](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L372): Function
+## `_taught`, [line 373](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L373): Function
 
 > What a hit test teaches (X2 ruling). `None` (nothing, or no unique
 > locator) and `unreachable` (a cross-origin frame) teach nothing, and so

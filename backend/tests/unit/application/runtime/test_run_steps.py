@@ -647,3 +647,55 @@ async def test_a_save_past_a_stale_offer_is_read_back_or_asked_about_never_sent(
             assert second.asking and progress.asking["kind"] == "step"
         else:
             assert progress.written(1) and progress.step == 2
+
+
+async def _operator_answered(status: int) -> SteelRun:
+    """A Steel run that takes over after the operator's own first save, which the
+    system answered `status`."""
+    steps = two_saves()
+    job = replace(
+        WORKFLOW,
+        steps=[replace(step, order=n) for n, (step, _) in enumerate(steps)],
+        parameters=[
+            {"name": "First", "seen_values": ["A1", "A2"]},
+            {"name": "Second", "seen_values": ["B1", "B2"]},
+        ],
+    )
+    by_id = {one: seen for _, cited in steps for one, seen in cited.items()}
+    world = await steel_run(steps=steps)
+    await operator_did(
+        world.uow, device="dev-1", tab=7, at=100.0, calls=[posted("GT1", 100.0, status)]
+    )
+    seen = await world.uow.gestures.gestures_for(TENANT, stream_id="dev-1")
+    took = take_over(
+        job,
+        by_id,
+        matched=2,
+        took=Took(7, 90.0, 100.0),
+        seen=seen,
+        values={"First": "GT1", "Second": "GT2"},
+    )
+    await world.uow.workflow_runs.record_progress(TENANT, world.run_id, took.progress().as_json())
+    return world
+
+
+async def test_an_operator_save_answered_409_is_read_back_or_asked_never_sent_again() -> None:
+    world = await _operator_answered(409)
+    world.lanes.ui.answers(StepResult("done", Lane.UI))
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    asked = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert world.lanes.ui.calls == 1 and world.lanes.api.read_backs == 1
+    assert asked.asking
+
+
+async def test_an_operator_save_answered_422_is_made_by_the_run() -> None:
+    world = await _operator_answered(422)
+    world.lanes.ui.answers(StepResult("done", Lane.UI), StepResult("done", Lane.UI))
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert world.lanes.ui.calls == 2 and world.lanes.api.read_backs == 0
+    assert Progress.of((await world.saved_run()).progress).step == 2

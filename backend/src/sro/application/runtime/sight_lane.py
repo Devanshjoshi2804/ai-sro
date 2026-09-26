@@ -261,6 +261,7 @@ class SightLane:
                     "failed",
                     Lane.SIGHT,
                     "the system rejected the write",
+                    never_left=True,
                     calls=calls,
                     fingerprint=fingerprint_of(Lane.SIGHT, "rejected", str(recorded)),
                 )

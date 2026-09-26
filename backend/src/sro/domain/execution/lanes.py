@@ -14,6 +14,7 @@ from sro.domain.observation.trim import body_key_set, parsed_body, path_shape
 from sro.domain.skill.workflow import Step
 
 K_SIGHT_ACTIONS = 6
+K_CONFLICT = 409
 
 
 class Lane(StrEnum):
@@ -104,7 +105,7 @@ def write_confirmed(
     ]
     if any(accepts(status, wanted) for status in statuses):
         return "done"
-    if any(status >= 500 for status in statuses):
+    if any(status >= 500 or status == K_CONFLICT for status in statuses):
         return "unknown"
     if any(400 <= status < 500 for status in statuses):
         return "failed"

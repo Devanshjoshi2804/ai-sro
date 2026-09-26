@@ -109,6 +109,7 @@ class ApiLane:
                 "failed",
                 Lane.API,
                 f"the system answered {status}",
+                never_left=True,
                 fingerprint=fingerprint_of(Lane.API, str(status), path_shape(url)),
             )
         made = made_by({"status": status, "body": answered.text})

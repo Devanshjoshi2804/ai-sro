@@ -177,6 +177,7 @@ class UiLane:
                     "failed",
                     Lane.UI,
                     "the system rejected the write",
+                    never_left=True,
                     calls=calls,
                     fingerprint=fingerprint_of(Lane.UI, "rejected", str(recorded)),
                 )

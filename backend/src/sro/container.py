@@ -367,7 +367,7 @@ class Container:
         return ServeShapes(self.unit_of_work(), self.clock)
 
     def read_workflows(self) -> ReadWorkflows:
-        return ReadWorkflows(self.unit_of_work())
+        return ReadWorkflows(self.unit_of_work(), self.clock)
 
     def retire_workflow(self) -> RetireWorkflow:
         return RetireWorkflow(self.unit_of_work(), self.clock)

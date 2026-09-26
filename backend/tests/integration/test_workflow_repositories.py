@@ -538,9 +538,11 @@ class TestEffects:
             )
             assert learnt[0].query == "#save"
             assert await uow.workflows.stale_count(workflow.id) == 1
-            assert await uow.workflows.broken_for(TenantId("acme"), workflow.id, {2: "g1"}) == (
-                Broken(2, Lane.API, "fp"),
-            ), "a lane known broken stayed on a step that is now somebody else's"
+            assert await uow.workflows.broken_for(
+                TenantId("acme"), workflow.id, {2: "g1"}, now=datetime(2026, 9, 21, tzinfo=UTC)
+            ) == (Broken(2, Lane.API, "fp"),), (
+                "a lane known broken stayed on a step that is now somebody else's"
+            )
 
     async def test_a_step_left_behind_takes_its_learning_with_it(
         self, session_factory: async_sessionmaker[AsyncSession]

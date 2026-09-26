@@ -28,7 +28,7 @@ from sro.application.chat.from_the_mail import (
 from sro.application.chat.look_lately import LookInTheMailLately
 from sro.application.chat.mailbox import SERVER
 from sro.application.context import RequestContext
-from sro.application.execution.workflow_runs import StartWorkflowRun
+from sro.application.execution.workflow_runs import RunRefused, StartWorkflowRun
 from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
 from sro.application.knowledge.retrieve import Retrieve
@@ -40,6 +40,7 @@ from sro.application.shared.refusals import OverCap
 from sro.domain.chat.asking import NEEDS, Pending, offered_job, pending_job
 from sro.domain.chat.thread import Message, MessageId, Speaker
 from sro.domain.execution.gathering import Found, Gathered
+from sro.domain.execution.lanes import Broken, Lane, cites_key
 from sro.domain.execution.waiting import as_said, waiting_on
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.knowledge.entry import (
@@ -63,7 +64,7 @@ from tests.unit.fakes import (
     FakeIdFactory,
     FakeUnitOfWork,
 )
-from tests.unit.runtime_support import save_job
+from tests.unit.runtime_support import save_job, save_step
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=PrincipalId("devansh"))
 JOB = "wfl_1"
@@ -181,7 +182,15 @@ async def _held_in[U: UnitOfWork](uow: U) -> U:
                 tenant=f.TENANT.value,
                 title="Create a Customer Type",
                 narrative="open the screen, type the code, save",
-                steps=[Step(order=0, says="type the code", system=None, cites=["g"])],
+                steps=[
+                    Step(
+                        order=0,
+                        says="type the code",
+                        system=None,
+                        cites=["g"],
+                        parameters=["Customer Type", "Customer Type Description"],
+                    )
+                ],
                 parameters=[
                     {"name": "Customer Type", "seen_values": ["GGD"], "required": True},
                     {
@@ -192,6 +201,8 @@ async def _held_in[U: UnitOfWork](uow: U) -> U:
                 ],
             )
         )
+        # A cited, proven save, so the job compiles: only a runnable job is offered.
+        await uow.gestures.add_gestures(tuple(save_step(gid="g")[1].values()))
         await uow.commit()
     return uow
 
@@ -321,8 +332,12 @@ async def test_a_steel_mail_missing_a_value_is_only_offered() -> None:
 
 async def test_a_run_the_press_refuses_leaves_the_offer_and_the_look_standing() -> None:
     world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
-    job = await world.uow.workflows.get(f.TENANT, JOB)
-    await world.uow.workflows.save(replace(job, steps=[replace(job.steps[0], cites=["gone"])]))
+
+    async def refused(*_: object, **__: object) -> WorkflowRun:
+        raise RunRefused("the press refused this run for a reason of its own")
+
+    # A job that compiles, and a press that refuses it for a reason of its own.
+    world.start.execute = refused  # type: ignore[method-assign]
 
     looked = await world.from_the_mail.execute(CTX)
 
@@ -1105,7 +1120,14 @@ async def test_an_offer_says_which_of_its_values_the_job_s_own_boxes_will_not_ho
                     system=None,
                     cites=["g"],
                     parameters=["Customer Type Description"],
-                )
+                ),
+                Step(
+                    order=1,
+                    says="type the code",
+                    system=None,
+                    cites=["g"],
+                    parameters=["Customer Type"],
+                ),
             ],
             parameters=[
                 {"name": "Customer Type", "seen_values": ["GGD"], "required": True},
@@ -2091,3 +2113,45 @@ async def test_one_operator_s_failing_look_does_not_end_the_tick() -> None:
     await world.polling(mailbox, _sure()).execute()
 
     assert len(world.durable.runs_started) == 1
+
+
+async def test_a_mail_for_a_job_that_cannot_run_is_answered_with_why_never_dropped() -> None:
+    """Invariant 6: the reader sees every job, and a request for one that does
+    not compile becomes a message in the thread naming the reasons. It is never
+    read as asking for nothing and kept in silence."""
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+    job = await world.uow.workflows.get(f.TENANT, JOB)
+    await world.uow.workflows.save(replace(job, steps=[replace(job.steps[0], cites=["gone"])]))
+
+    looked = await world.from_the_mail.execute(CTX)
+
+    (one,) = looked.offered
+    assert one.workflow_id == JOB and not one.started and one.asked
+    assert one.cannot_run == [
+        "Step 0: has no evidence a browser can act on: Type the customer type"
+    ]
+    assert world.durable.runs_started == []
+    last = (await _thread(world.uow)).messages[-1]
+    assert "cannot run yet" in last.text and "has no evidence" in last.text
+    assert last.decision["kind"] == "note" and last.decision["workflow_id"] == JOB
+
+
+async def test_an_outage_that_broke_every_browser_lane_still_leaves_the_mail_a_run() -> None:
+    """The reviewer's scenario: an outage marks UI and sight broken, and the
+    next request mail must still come to something, not be kept in silence."""
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+    job = await world.uow.workflows.get(f.TENANT, JOB)
+    for lane in (Lane.UI, Lane.SIGHT):
+        await world.uow.workflows.break_lane(
+            f.TENANT,
+            JOB,
+            Broken(job.steps[0].order, lane, "outage"),
+            cites=cites_key(job.steps[0]),
+            at=datetime.now(tz=UTC),
+        )
+
+    looked = await world.from_the_mail.execute(CTX)
+
+    (one,) = looked.offered
+    assert one.workflow_id == JOB and one.cannot_run == []
+    assert one.started or one.asked

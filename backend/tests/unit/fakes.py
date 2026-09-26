@@ -86,7 +86,7 @@ from sro.domain.chat.thread import MessageId, Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
 from sro.domain.execution.account import K_LEASE_TTL, LIVE, Account, Lease, LeaseState
 from sro.domain.execution.belts import RunProof, state_verified
-from sro.domain.execution.lanes import Broken, Lane, SeenCall
+from sro.domain.execution.lanes import K_BROKEN_COOL_DOWN, Broken, Lane, SeenCall
 from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
@@ -2583,7 +2583,7 @@ class FakeWorkflowRepository:
         self.learned: dict[tuple[str, int], LearnedStep] = {}
         # Each known-broken lane, keyed as the store's primary key, to the
         # step's cites key when it last broke.
-        self.broken: dict[tuple[str, str, int, Lane, str], str] = {}
+        self.broken: dict[tuple[str, str, int, Lane, str], tuple[str, datetime]] = {}
         # Append-only, like the store's: a history that can be edited is a
         # history nobody can rely on.
         self.taught: dict[str, list[Taught]] = {}
@@ -2749,15 +2749,19 @@ class FakeWorkflowRepository:
         self, tenant_id: TenantId, workflow_id: str, broken: Broken, *, cites: str, at: datetime
     ) -> None:
         key = (tenant_id.value, workflow_id, broken.step, broken.lane, broken.fingerprint)
-        self.broken[key] = cites
+        self.broken[key] = (cites, at)
 
     async def broken_for(
-        self, tenant_id: TenantId, workflow_id: str, cites: Mapping[int, str]
+        self, tenant_id: TenantId, workflow_id: str, cites: Mapping[int, str], *, now: datetime
     ) -> tuple[Broken, ...]:
         return tuple(
             Broken(step, lane, fingerprint)
-            for (tenant, workflow, step, lane, fingerprint), was in sorted(self.broken.items())
-            if (tenant, workflow) == (tenant_id.value, workflow_id) and cites.get(step) == was
+            for (tenant, workflow, step, lane, fingerprint), (was, at) in sorted(
+                self.broken.items()
+            )
+            if (tenant, workflow) == (tenant_id.value, workflow_id)
+            and cites.get(step) == was
+            and at > now - K_BROKEN_COOL_DOWN
         )
 
     async def mend_lane(self, tenant_id: TenantId, workflow_id: str, step: int, lane: Lane) -> None:

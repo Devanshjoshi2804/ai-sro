@@ -516,7 +516,7 @@ class WorkflowRepository(Protocol):
     ) -> None: ...
 
     async def broken_for(
-        self, tenant_id: TenantId, workflow_id: str, cites: Mapping[int, str]
+        self, tenant_id: TenantId, workflow_id: str, cites: Mapping[int, str], *, now: datetime
     ) -> tuple[Broken, ...]: ...
 
     async def mend_lane(

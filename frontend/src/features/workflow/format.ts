@@ -49,3 +49,14 @@ export function startOfToday(now: Date = new Date()): string {
 export function outcomeLabel(run: { outcome: string; live: boolean }): string {
   return run.live ? run.outcome : `${run.outcome} (dry)`;
 }
+
+/** Why a job cannot run, one line per reason, each said once; empty when it can. */
+export function whyNotRunnable(
+  reasons: { code: string; step: number | null; detail: string }[],
+): string[] {
+  return [
+    ...new Set(
+      reasons.map((one) => (one.step === null ? one.detail : `Step ${one.step}: ${one.detail}`)),
+    ),
+  ];
+}

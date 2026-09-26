@@ -17,6 +17,7 @@ months from any wall clock this runs against, so a route that reached for
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -35,8 +36,10 @@ from sro.interface.http.deps import get_container
 from tests import factories as f
 from tests.unit.fakes import FakeAsker, FakeChatRepository, FakeClock, FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer, token_for
+from tests.unit.runtime_support import save_step
 
 TENANT = TenantId("acme")
+EIGHT = ["zone", "clientCode", "statusCombo", "areaName", "ownerCode", "dockId", "siteCode", "lane"]
 LAPTOP = DeviceId("dev-1")
 HERS = "the-secret-the-laptop-was-minted"
 
@@ -81,13 +84,17 @@ async def held(uow: FakeUnitOfWork) -> Workflow:
         tenant=TENANT.value,
         title="create a work area",
         narrative="the operator created a work area",
-        steps=[Step(order=0, says="s", system=None, cites=["ges_1"])],
+        steps=[
+            Step(order=0, says="s", system=None, cites=["ges_1"], parameters=["areaName", "zone"])
+        ],
         parameters=[
             {"name": "areaName", "seen_values": ["NEWTESTS"], "required": True},
             {"name": "zone", "seen_values": ["3"], "required": True},
         ],
     )
     await uow.workflows.save(workflow)
+    # A cited, proven save, so the job compiles: only a runnable job is offered.
+    await uow.gestures.add_gestures(tuple(save_step(gid="ges_1")[1].values()))
     return workflow
 
 
@@ -255,6 +262,18 @@ async def test_the_offer_and_the_bill_both_reach_the_wire(
     assert (body["job"]["cost_usd"], body["job"]["unpriced"]) == (0.0007, False)
 
 
+async def test_a_job_that_cannot_run_reaches_the_wire_with_why(
+    container: _FakeContainer, client: httpx.AsyncClient, uow: FakeUnitOfWork, held: Workflow
+) -> None:
+    await uow.workflows.save(replace(held, steps=[replace(held.steps[0], cites=["gone"])]))
+    container.asker = FakeAsker(_answer("wfl_1", []))
+
+    body = (await client.post("/v1/ask", json={"said": SAID})).json()
+
+    assert body["job"]["workflow_id"] == "wfl_1"
+    assert body["job"]["cannot_run"] == ["Step 0: has no evidence a browser can act on: s"]
+
+
 async def test_a_sentence_naming_no_job_is_an_offer_of_nothing_and_still_a_bill(
     container: _FakeContainer, client: httpx.AsyncClient, uow: FakeUnitOfWork, held: Workflow
 ) -> None:
@@ -337,6 +356,7 @@ async def test_what_is_missing_comes_back_in_the_order_the_reader_sorted_it(
             tenant=TENANT.value,
             title="t",
             narrative="n",
+            steps=[Step(order=0, says="s", system=None, cites=["ges_1"], parameters=EIGHT)],
             parameters=[
                 {"name": "zone", "required": True},
                 {"name": "clientCode", "required": True},
@@ -349,6 +369,7 @@ async def test_what_is_missing_comes_back_in_the_order_the_reader_sorted_it(
             ],
         )
     )
+    await uow.gestures.add_gestures(tuple(save_step(gid="ges_1")[1].values()))
     container.asker = FakeAsker(_answer("wfl_8", []))
 
     body = (await client.post("/v1/ask", json={"said": SAID})).json()

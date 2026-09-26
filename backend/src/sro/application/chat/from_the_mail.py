@@ -30,9 +30,11 @@ from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.application.runtime.answer_run import K_ANSWER, AnswerRun
 from sro.application.shared.refusals import OverCap
+from sro.application.skill.job_facts import job_facts
 from sro.domain.chat.asked_by import mails_behind, texts
 from sro.domain.chat.asking import NEEDS, Pending, question, waiting_on_mail
 from sro.domain.chat.thread import Said, Speaker
+from sro.domain.execution.compiled import why_not
 from sro.domain.execution.learned_step import limits_for, too_long
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.waiting import read_wait, still_waiting
@@ -100,6 +102,8 @@ class Offered:
 
     asked: bool = False
 
+    cannot_run: Sequence[str] = ()
+
 
 @dataclass(frozen=True, slots=True)
 class LookedInTheMail:
@@ -152,14 +156,17 @@ class FromTheMail:
             workflows = list(await uow.workflows.known(ctx.tenant_id))
             if not workflows:
                 return LookedInTheMail(why="this tenant has no mined jobs to recognise")
-            cited = await uow.gestures.gestures_for(
-                ctx.tenant_id,
-                ids=tuple(
-                    sorted({one for w in workflows for step in w.steps for one in step.cites})
-                ),
-            )
-        by_id = {gesture.id: gesture for gesture in cited}
-        asked_by = {w.id: mails for w in workflows if (mails := texts(mails_behind(w, by_id)))}
+            facts = await job_facts(uow, ctx.tenant_id, workflows, now=now)
+        cannot_run = {
+            one.workflow.id: why_not(one.compiled.reasons)
+            for one in facts
+            if not one.compiled.runnable
+        }
+        asked_by = {
+            one.workflow.id: mails
+            for one in facts
+            if (mails := texts(mails_behind(one.workflow, one.by_id)))
+        }
         titles = {w.id: w.title for w in workflows}
         held = {w.id: w for w in workflows}
 
@@ -171,7 +178,7 @@ class FromTheMail:
         offered: list[Offered] = []
         look = _Look()
         reach = _Reach()
-        known = _Known(workflows, asker, asked_by, titles, held)
+        known = _Known(workflows, asker, asked_by, titles, held, cannot_run)
         tenant = ctx.tenant_id.value
         async for message in self._unclaimed(ctx, arrivals, more, limit, now=now, reach=reach):
             try:
@@ -319,12 +326,23 @@ class FromTheMail:
             aside={**got.aside, **said_besides},
             sure=got.sure,
             sent_to=sent_to,
+            cannot_run=known.cannot_run.get(got.workflow_id, []),
         )
 
     async def _settle(
         self, ctx: RequestContext, one: Offered, workflows: Sequence[Workflow]
     ) -> Offered:
         (one,) = await self._what_will_not_fit(ctx, [one], workflows)
+        if one.cannot_run and self._asks is not None:
+            await self._asks.cannot_run(
+                ctx,
+                workflow_id=one.workflow_id,
+                title=one.title,
+                reasons=one.cannot_run,
+                about=one.subject,
+                mail_thread=one.thread,
+            )
+            return replace(one, asked=True)
         one = await self._started(ctx, one)
         if (
             one.started
@@ -354,6 +372,7 @@ class FromTheMail:
     async def _started(self, ctx: RequestContext, one: Offered) -> Offered:
         if (
             not one.sure
+            or one.cannot_run
             or one.missing
             or one.too_long
             or one.started
@@ -835,6 +854,7 @@ class _Known:
     asked_by: dict[str, list[str]]
     titles: Mapping[str, str]
     held: Mapping[str, Workflow]
+    cannot_run: Mapping[str, list[str]]
 
 
 def _page_of(answered: str) -> str:

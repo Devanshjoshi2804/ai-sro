@@ -1,12 +1,12 @@
 from dataclasses import replace
 
+from sro.domain.execution.compiled import compile_job
 from sro.domain.execution.compose import (
     Adding,
     Composed,
     choices,
     compose,
     keyed,
-    unperformable,
     with_field,
 )
 from sro.domain.observation.gesture import Gesture, Outline, OutlineField
@@ -144,7 +144,9 @@ def test_a_learned_field_step_is_performable_though_nobody_demonstrated_it() -> 
         job, Composed("department", "Department", "combobox", write), key="department", value="F"
     )
 
-    assert unperformable(grown, by_id, {"department": "F"}, from_step=0) is None
+    assert compile_job(
+        grown, by_id, learned={}, ledger=(), broken=(), values={"department": "F"}
+    ).runnable
 
 
 def test_a_learned_field_its_form_no_longer_shows_is_refused_before_the_run_starts() -> None:
@@ -154,10 +156,14 @@ def test_a_learned_field_its_form_no_longer_shows_is_refused_before_the_run_star
         job, Composed("department", "Department", "combobox", write), key="department", value="F"
     )
 
-    refused = unperformable(grown, by_id, {"department": "F"}, from_step=0)
+    refused = compile_job(
+        grown, by_id, learned={}, ledger=(), broken=(), values={"department": "F"}
+    )
 
-    assert refused is not None and refused.says == "Fill Department"
-    assert unperformable(grown, by_id, {}, from_step=0) is None
+    assert not refused.runnable
+    assert [(one.code, one.step) for one in refused.reasons] == [("field_gone", write)]
+    assert [one.says for one in grown.steps if one.order == write] == ["Fill Department"]
+    assert compile_job(grown, by_id, learned={}, ledger=(), broken=(), values={}).runnable
 
 
 def test_a_label_on_the_form_twice_is_offered_told_apart_or_not_at_all() -> None:

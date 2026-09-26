@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/domain/execution/lanes.py`](../../../../../../../backend/src/sro/domain/execution/lanes.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## module, [line 16](../../../../../../../backend/src/sro/domain/execution/lanes.py#L16): Note on the line above
+## module, [line 17](../../../../../../../backend/src/sro/domain/execution/lanes.py#L17): Note on the line above
 
 Code: `K_SIGHT_ACTIONS = 6`
 
@@ -11,7 +11,7 @@ Code: `K_SIGHT_ACTIONS = 6`
 > calls and cost against a job that has already gone wrong, rather than fail
 > and hand the step to the operator (D4).
 
-## `Lane`, [line 20](../../../../../../../backend/src/sro/domain/execution/lanes.py#L20): Docstring
+## `Lane`, [line 22](../../../../../../../backend/src/sro/domain/execution/lanes.py#L22): Docstring
 
 > The four lanes an executor actually runs a step on (§6.1): a tool call, an
 > API replay, the UI, or the sight model. `operator` (D7) is deliberately
@@ -26,7 +26,7 @@ Code: `K_SIGHT_ACTIONS = 6`
 > literal `"operator"` differently) rather than teaching this enum a state
 > that never executes anything.
 
-## `Verdict`, [line 27](../../../../../../../backend/src/sro/domain/execution/lanes.py#L27): Note on the line above
+## `Verdict`, [line 29](../../../../../../../backend/src/sro/domain/execution/lanes.py#L29): Note on the line above
 
 Code: `Verdict = Literal["done", "read", "failed", "unknown"]`
 
@@ -40,7 +40,7 @@ Code: `Verdict = Literal["done", "read", "failed", "unknown"]`
 > two only ever meet at `StepResult.verdict`, which is one of the inputs
 > `Progress.settle` takes to decide the other.
 
-## `StepResult.never_left`, [line 46](../../../../../../../backend/src/sro/domain/execution/lanes.py#L46): Comment
+## `StepResult.never_left`, [line 48](../../../../../../../backend/src/sro/domain/execution/lanes.py#L48): Comment
 
 Code: `never_left: bool = False`
 
@@ -57,7 +57,7 @@ Code: `never_left: bool = False`
 > `never_left_step` combines every attempt tried for the step (X8's job)
 > before it reaches `settle`.
 
-## `never_left_step`, [line 141](../../../../../../../backend/src/sro/domain/execution/lanes.py#L141): Docstring
+## `never_left_step`, [line 143](../../../../../../../backend/src/sro/domain/execution/lanes.py#L143): Docstring
 
 > ANDs `never_left` across every lane tried for one step: the step itself
 > never left only if none of its attempts did. One lane that reached the
@@ -67,7 +67,7 @@ Code: `never_left: bool = False`
 > `True` on no attempts, which never happens through `RunSteps.step` (a
 > step always tries at least one lane) but keeps the function total.
 
-## `fingerprint_of`, [line 70](../../../../../../../backend/src/sro/domain/execution/lanes.py#L70): Docstring
+## `fingerprint_of`, [line 72](../../../../../../../backend/src/sro/domain/execution/lanes.py#L72): Docstring
 
 > Names a failure by its lane, its kind, and the evidence it happened
 > against -- not just the lane and the kind. §6.3's known-broken list is
@@ -79,7 +79,7 @@ Code: `never_left: bool = False`
 > the same broken entry, and a repaired step would still read as broken
 > against a doing that never actually failed on it.
 
-## `lanes_for`, [line 74](../../../../../../../backend/src/sro/domain/execution/lanes.py#L74): Docstring
+## `lanes_for`, [line 76](../../../../../../../backend/src/sro/domain/execution/lanes.py#L76): Docstring
 
 > §3's ladder, walked once per step per run: tool if the step uses one,
 > else API before UI before sight for a browser step, and never more than
@@ -95,13 +95,13 @@ Code: `never_left: bool = False`
 > A step with no lane at all (no tool, no replay, no gesture to aim at)
 > has an empty ladder: `()`, never an index into nothing.
 
-## `accepts`, [line 89](../../../../../../../backend/src/sro/domain/execution/lanes.py#L89): Docstring
+## `accepts`, [line 91](../../../../../../../backend/src/sro/domain/execution/lanes.py#L91): Docstring
 
 > The status test `write_confirmed` applies to a write's own call: one of the
 > statuses the belts expect, or any 2xx when none is recorded. Shared so a lane
 > can name the call that confirmed the write.
 
-## module, [line 17](../../../../../../../backend/src/sro/domain/execution/lanes.py#L17): Note
+## module, [line 19](../../../../../../../backend/src/sro/domain/execution/lanes.py#L19): Note
 
 Code: `K_CONFLICT = 409`
 
@@ -110,7 +110,7 @@ Code: `K_CONFLICT = 409`
 > through (an operator's save, an earlier attempt). So it is in doubt, like a
 > 5xx: settled by a read-back or a question, never sent again.
 
-## `write_confirmed`, [line 108](../../../../../../../backend/src/sro/domain/execution/lanes.py#L108): Note
+## `write_confirmed`, [line 110](../../../../../../../backend/src/sro/domain/execution/lanes.py#L110): Note
 
 Code: `if any(status >= 500 or status == K_CONFLICT for status in statuses):`
 
@@ -123,7 +123,7 @@ Code: `if any(status >= 500 or status == K_CONFLICT for status in statuses):`
 > without `never_left`: the API lane's 409 then fell through to the UI lane,
 > which sent the write a second time, and a refused write was left in doubt.
 
-## `same_call`, [line 115](../../../../../../../backend/src/sro/domain/execution/lanes.py#L115): Docstring
+## `same_call`, [line 117](../../../../../../../backend/src/sro/domain/execution/lanes.py#L117): Docstring
 
 > Whether a seen call is the recorded one: same method, same path shape, same
 > host, sent from the frame this step acted in (`SeenCall.own_frame`, set by
@@ -137,3 +137,11 @@ Code: `if any(status >= 500 or status == K_CONFLICT for status in statuses):`
 >
 > Here, in the domain beside `write_confirmed`, rather than in the UI lane:
 > a takeover (spec §7.6) confirms the operator's own writes by the same rule.
+
+## `K_BROKEN_COOL_DOWN`, [line 18](../../../../../../../backend/src/sro/domain/execution/lanes.py#L18): Constant
+
+> How long a lane marked broken stays skipped. Only a winning run mends a lane,
+> so without this one outage kept a lane (and, in the compile check, a job)
+> skipped forever. After the cool-down `broken_for` stops returning the row,
+> the lane is tried once more, and a second failure re-stamps it
+> (`break_lane` upserts `at`) for another cool-down: one retry per cool-down.

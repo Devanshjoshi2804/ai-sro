@@ -48,7 +48,9 @@ async def test_a_learned_field_moves_the_write_and_everything_known_about_it() -
         (2, "Save the customer type"),
     ]
     moved = {2: cites_key(step)}
-    assert await uow.workflows.broken_for(TENANT, job.id, moved) == (Broken(2, Lane.API, "f"),)
+    assert await uow.workflows.broken_for(TENANT, job.id, moved, now=NOW) == (
+        Broken(2, Lane.API, "f"),
+    )
     assert [(one.ord, one.found_by) for one in await uow.workflows.learned_for(job.id)] == [
         (1, "composed")
     ]
@@ -121,7 +123,10 @@ async def test_a_sight_success_is_learned_into_the_ui_lane() -> None:
     assert [(one.strategy, one.query, one.found_by, one.frame_path) for one in learned] == [
         ("component", "#saveButton", "sight", FRAME)
     ]
-    assert await uow.workflows.broken_for(TENANT, WORKFLOW.id, {step.order: cites_key(step)}) == ()
+    assert (
+        await uow.workflows.broken_for(TENANT, WORKFLOW.id, {step.order: cites_key(step)}, now=NOW)
+        == ()
+    )
 
 
 async def test_a_sight_hit_without_its_frame_path_teaches_no_locator() -> None:
@@ -151,9 +156,9 @@ async def test_a_failed_lane_joins_the_known_broken_list_but_a_session_problem_d
         CTX, WORKFLOW, by_id, step, tried, run_id="run_1", values={}
     )
 
-    assert await uow.workflows.broken_for(TENANT, WORKFLOW.id, {step.order: cites_key(step)}) == (
-        Broken(step.order, Lane.SIGHT, "sight_refused"),
-    )
+    assert await uow.workflows.broken_for(
+        TENANT, WORKFLOW.id, {step.order: cites_key(step)}, now=NOW
+    ) == (Broken(step.order, Lane.SIGHT, "sight_refused"),)
 
 
 async def test_an_unknown_outcome_mends_nothing() -> None:
@@ -173,9 +178,9 @@ async def test_an_unknown_outcome_mends_nothing() -> None:
         values={},
     )
 
-    assert await uow.workflows.broken_for(TENANT, WORKFLOW.id, {step.order: cites_key(step)}) == (
-        Broken(step.order, Lane.UI, "f"),
-    )
+    assert await uow.workflows.broken_for(
+        TENANT, WORKFLOW.id, {step.order: cites_key(step)}, now=NOW
+    ) == (Broken(step.order, Lane.UI, "f"),)
 
 
 async def test_a_promotion_never_mends_an_api_lane_broken_before() -> None:
@@ -200,9 +205,9 @@ async def test_a_promotion_never_mends_an_api_lane_broken_before() -> None:
     assert ("POST", "/api/customer-types") in {(one.method, one.path_pattern) for one in ledger}
     # A lane is cleared only by its own success: a promotion that mended the
     # API lane would send the rejected write again on the next run (X9 re-review).
-    assert await uow.workflows.broken_for(TENANT, WORKFLOW.id, {step.order: cites_key(step)}) == (
-        Broken(step.order, Lane.API, "a"),
-    )
+    assert await uow.workflows.broken_for(
+        TENANT, WORKFLOW.id, {step.order: cites_key(step)}, now=NOW
+    ) == (Broken(step.order, Lane.API, "a"),)
 
 
 async def test_a_ui_write_with_no_read_back_is_not_promoted() -> None:
@@ -268,9 +273,9 @@ async def test_a_promotion_never_clears_an_api_lane_that_failed_this_run() -> No
         CTX, WORKFLOW, by_id, step, tried, run_id="run_1", values={"Customer Type": "GT2"}
     )
 
-    assert await uow.workflows.broken_for(TENANT, WORKFLOW.id, {step.order: cites_key(step)}) == (
-        Broken(step.order, Lane.API, "api422"),
-    )
+    assert await uow.workflows.broken_for(
+        TENANT, WORKFLOW.id, {step.order: cites_key(step)}, now=NOW
+    ) == (Broken(step.order, Lane.API, "api422"),)
 
 
 @pytest.mark.parametrize(

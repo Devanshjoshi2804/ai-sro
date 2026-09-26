@@ -2517,6 +2517,8 @@ export interface components {
             cost_usd: number;
             /** Unpriced */
             unpriced: boolean;
+            /** Cannot Run */
+            cannot_run: string[];
         };
         /**
          * ChoiceModel
@@ -3519,6 +3521,18 @@ export interface components {
              * @default
              */
             skill_id: string;
+        };
+        /**
+         * ReasonModel
+         * @description One reason a job cannot run: what is missing, and at which step (None for the job).
+         */
+        ReasonModel: {
+            /** Code */
+            code: string;
+            /** Step */
+            step: number | null;
+            /** Detail */
+            detail: string;
         };
         /**
          * RecordOfferRequest
@@ -4526,6 +4540,12 @@ export interface components {
             /** Steps */
             steps: components["schemas"]["WorkflowStepModel"][];
             runs: components["schemas"]["WorkflowHistoryModel"];
+            /** Runnable */
+            runnable: boolean;
+            /** Reasons */
+            reasons: components["schemas"]["ReasonModel"][];
+            /** Warnings */
+            warnings: components["schemas"]["ReasonModel"][];
         };
         /**
          * WorkflowRunModel

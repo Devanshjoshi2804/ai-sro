@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.read_chat import ReadChat
 from sro.application.chat.reading_an_answer import Read
@@ -279,6 +281,23 @@ async def test_a_sentence_about_a_mined_job_is_answered_by_the_rig() -> None:
     assert "Voice Code" in last.text, "what it still needs is what the operator has to answer"
     assert last.decision is not None
     assert last.decision["kind"] == "job" and last.decision["workflow_id"] == "wfl_1"
+
+
+async def test_a_job_that_cannot_run_is_named_with_why_and_never_offered_to_press() -> None:
+    """A request for a job that does not compile is answered with the reasons,
+    not with "no such job" and not with a card whose press the start refuses."""
+    uow = FakeUnitOfWork()
+    placed = replace(_understood("wfl_1"), cannot_run=["Step 0: has no evidence"])
+    converse = await _with_a_job(uow, placed)
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+
+    said = await converse.execute(CTX, thread_id=thread.id, text="create equipment type")
+
+    last = said.messages[-1]
+    assert "Create a Warehouse Equipment Type" in last.text
+    assert "cannot run yet: Step 0: has no evidence" in last.text
+    assert last.decision is not None
+    assert last.decision["kind"] == "note" and last.decision["workflow_id"] == "wfl_1"
 
 
 async def test_what_a_press_needs_is_in_the_decision() -> None:

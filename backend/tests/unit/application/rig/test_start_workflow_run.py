@@ -33,12 +33,13 @@ from sro.application.execution.stops import Stops
 from sro.application.execution.workflow_runs import RunRefused, StartWorkflowRun
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
+from sro.domain.execution.compose import Composed, with_field
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.takeover import Took
 from sro.domain.execution.waiting import K_PATIENCE, read_wait, still_waiting
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.device import AgentDevice
-from sro.domain.observation.gesture import Action, Gesture
+from sro.domain.observation.gesture import Action, Gesture, Outline, OutlineField, Target
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.shared.prices import ModelSpend
@@ -59,6 +60,7 @@ from tests.unit.runtime_support import (
     posted,
     running_steel_run,
     save_job,
+    save_step,
     two_writes_job,
 )
 from tests.unit.runtime_support import CTX as STEEL_CTX
@@ -150,7 +152,12 @@ def _gesture(gesture_id: str, *, tenant: TenantId = TENANT, kind: str = "click")
         system=WMS,
         tab_id=7,
         frame_url=None,
-        action=Action(kind=kind, at=1_739_314_800.0, url=f"{WMS}/work-areas"),
+        action=Action(
+            kind=kind,
+            at=1_739_314_800.0,
+            url=f"{WMS}/work-areas",
+            target=Target(role="button", name="Save"),
+        ),
     )
 
 
@@ -228,6 +235,64 @@ async def test_a_steel_tenant_s_press_starts_a_durable_run_and_drives_no_browser
     assert channel.sent == []
     saved = await uow.workflow_runs.get(TENANT, run.id)
     assert saved is not None and saved.executor == "steel"
+
+
+async def test_every_start_goes_through_the_compile_check() -> None:
+    """M6: the gate is inside the start, so the panel press, the console's Run
+    button and a mail's answer are all refused alike for a job that cannot run."""
+    uow = FakeUnitOfWork()
+    job = await save_job(uow, "wfl_unproven")
+    step, by_id = save_step(status=400)
+    await uow.gestures.add_gestures(tuple(by_id.values()))
+    await uow.workflows.save(replace(job, steps=[*job.steps, replace(step, order=1)]))
+
+    with pytest.raises(RunRefused, match="cannot run yet: Step 1: no recorded status proves"):
+        await _on_steel(uow).execute(
+            CTX,
+            workflow_id="wfl_unproven",
+            device_id=None,
+            values={"Customer Type": "GT2"},
+            live=True,
+            allow_focus=False,
+        )
+    assert await uow.workflow_runs.for_workflow(TENANT, "wfl_unproven") == ()
+
+
+async def test_a_learned_field_its_form_lost_stops_the_start_only_when_given_a_value() -> None:
+    """X10b's value-aware rule, now inside the start's compile gate."""
+    uow = FakeUnitOfWork()
+    step, by_id = save_step(status=201)
+    save = by_id["ges_save"]
+    by_id["ges_save"] = replace(
+        save,
+        action=replace(
+            save.action, outlines=(Outline(fields=(OutlineField("combobox", "Dept"),)),)
+        ),
+    )
+    job = Workflow(id="wfl_field", tenant=TENANT.value, title="t", narrative="", steps=[step])
+    grown, _ = with_field(
+        job,
+        Composed("department", "Department", "combobox", step.order),
+        key="department",
+        value="F",
+    )
+    await uow.workflows.save(grown)
+    await uow.gestures.add_gestures(tuple(by_id.values()))
+    starter = _on_steel(uow)
+
+    with pytest.raises(RunRefused, match="has no department field any more"):
+        await starter.execute(
+            CTX,
+            workflow_id="wfl_field",
+            device_id=None,
+            values={"department": "F"},
+            live=True,
+            allow_focus=False,
+        )
+    run = await starter.execute(
+        CTX, workflow_id="wfl_field", device_id=None, values={}, live=True, allow_focus=False
+    )
+    assert run.workflow_id == "wfl_field"
 
 
 def _on_steel(uow: FakeUnitOfWork) -> StartWorkflowRun:

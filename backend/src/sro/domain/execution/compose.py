@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Literal
 
@@ -8,6 +8,7 @@ from sro.domain.execution.evidence import primary_gesture, writes
 from sro.domain.observation.gesture import Gesture, OutlineField
 from sro.domain.observation.outline import last_outline
 from sro.domain.recording.sensitivity import is_secret_field
+from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.checks import bindable
 from sro.domain.skill.repeats import Repeat
 from sro.domain.skill.workflow import Step, Workflow, field_key
@@ -43,6 +44,10 @@ class Adding:
 
 def normal(label: str) -> str:
     return " ".join(label.replace("*", " ").split()).casefold()
+
+
+def alias_map(aliases: Iterable[JobAlias]) -> dict[str, str]:
+    return {normal(one.wording): one.field for one in aliases}
 
 
 def _screens(
@@ -131,20 +136,6 @@ def field_of(workflow: Workflow, by_id: Mapping[str, Gesture], step: Step) -> Co
         if write is not None and one.before == write.order
     ]
     return hits[0] if len(hits) == 1 else None
-
-
-def unperformable(
-    workflow: Workflow, by_id: Mapping[str, Gesture], values: Mapping[str, str], *, from_step: int
-) -> Step | None:
-    for step in sorted(workflow.steps, key=lambda step: step.order):
-        if step.order < from_step:
-            continue
-        if not field_key(workflow, step):
-            if primary_gesture(step, by_id) is None:
-                return step
-        elif values.get(step.parameters[0], "").strip() and field_of(workflow, by_id, step) is None:
-            return step
-    return None
 
 
 def keyed(extra: Mapping[str, str], adding: Adding) -> dict[str, str] | None:

@@ -1714,6 +1714,14 @@ class WorkflowStepModel(BaseModel):
     parameters: list[str]
 
 
+class ReasonModel(BaseModel):
+    """One reason a job cannot run: what is missing, and at which step (None for the job)."""
+
+    code: str
+    step: int | None
+    detail: str
+
+
 class WorkflowModel(BaseModel):
     id: str
     title: str
@@ -1731,6 +1739,15 @@ class WorkflowModel(BaseModel):
 
     steps: list[WorkflowStepModel]
     runs: WorkflowHistoryModel
+    runnable: bool
+    """Whether the compile check passes. Only a runnable job is offered to a request."""
+
+    reasons: list[ReasonModel]
+    """Why it cannot run, empty when it can."""
+
+    warnings: list[ReasonModel]
+    """What a reader should know although the job runs: values fixed at
+    recording (`fixed_values`), every lane failing lately (`every_lane_broken`)."""
 
     @classmethod
     def of(cls, known: KnownWorkflow) -> WorkflowModel:
@@ -1760,6 +1777,15 @@ class WorkflowModel(BaseModel):
                 proven=known.proven,
                 needed=K_EARNED_RUNS,
             ),
+            runnable=known.compiled.runnable,
+            reasons=[
+                ReasonModel(code=one.code, step=one.step, detail=one.detail)
+                for one in known.compiled.reasons
+            ],
+            warnings=[
+                ReasonModel(code=one.code, step=one.step, detail=one.detail)
+                for one in known.compiled.warnings
+            ],
         )
 
 
@@ -2530,6 +2556,11 @@ class ChatResponse(BaseModel):
 
     unpriced: bool
 
+    cannot_run: list[str]
+    """Why the job named cannot run yet, one line per reason; empty when it can.
+    A job that cannot run is still named, so the answer is "it cannot, because",
+    never "no such job"."""
+
     @classmethod
     def of(cls, got: Understood) -> ChatResponse:
         return cls(
@@ -2543,6 +2574,7 @@ class ChatResponse(BaseModel):
             thought_tokens=got.answer.thought_tokens,
             cost_usd=got.answer.cost_usd,
             unpriced=got.answer.unpriced,
+            cannot_run=list(got.cannot_run),
         )
 
 

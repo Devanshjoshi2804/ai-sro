@@ -14,6 +14,7 @@ from sro.domain.execution.progress import MAIN, Progress, StepMark
 from sro.domain.execution.takeover import OPERATOR, Takeover, Took, take_over
 from tests.unit.runtime_support import (
     CTX,
+    NOW,
     TENANT,
     WORKFLOW,
     SteelRun,
@@ -152,9 +153,9 @@ async def test_a_busy_account_is_taught_what_was_tried_and_raised_for_a_retry() 
 
     job = await world.uow.workflows.get(TENANT, "wfl_test")
     step = job.steps[0]
-    assert await world.uow.workflows.broken_for(TENANT, job.id, {step.order: cites_key(step)}) == (
-        Broken(0, Lane.UI, "f"),
-    )
+    assert await world.uow.workflows.broken_for(
+        TENANT, job.id, {step.order: cites_key(step)}, now=NOW
+    ) == (Broken(0, Lane.UI, "f"),)
     assert Progress.of((await world.saved_run()).progress).step == 0
 
 

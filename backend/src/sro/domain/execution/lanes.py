@@ -4,6 +4,7 @@ import hashlib
 import json
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field
+from datetime import timedelta
 from enum import StrEnum
 from typing import Literal
 from urllib.parse import urlsplit
@@ -14,6 +15,7 @@ from sro.domain.observation.trim import body_key_set, parsed_body, path_shape
 from sro.domain.skill.workflow import Step
 
 K_SIGHT_ACTIONS = 6
+K_BROKEN_COOL_DOWN = timedelta(hours=1)
 K_CONFLICT = 409
 
 

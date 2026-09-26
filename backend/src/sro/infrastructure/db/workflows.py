@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sro.application.ports.repositories import WorkflowRepository
 from sro.domain.execution.belts import RunProof, state_verified
-from sro.domain.execution.lanes import Broken, Lane
+from sro.domain.execution.lanes import K_BROKEN_COOL_DOWN, Broken, Lane
 from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.observation.identity import ShapeKey
@@ -486,7 +486,7 @@ class SqlWorkflowRepository(WorkflowRepository):
         )
 
     async def broken_for(
-        self, tenant_id: TenantId, workflow_id: str, cites: Mapping[int, str]
+        self, tenant_id: TenantId, workflow_id: str, cites: Mapping[int, str], *, now: datetime
     ) -> tuple[Broken, ...]:
         rows = (
             await self._session.execute(
@@ -494,6 +494,7 @@ class SqlWorkflowRepository(WorkflowRepository):
                 .where(
                     KnownBrokenRow.tenant_id == tenant_id.value,
                     KnownBrokenRow.workflow_id == workflow_id,
+                    KnownBrokenRow.at > now - K_BROKEN_COOL_DOWN,
                 )
                 .order_by(KnownBrokenRow.ord, KnownBrokenRow.lane, KnownBrokenRow.fingerprint)
             )

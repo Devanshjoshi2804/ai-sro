@@ -2253,6 +2253,8 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 
 ## C2: Optional-field classes and field limits (spec §3 "Optional fields"; A5)
 
+> **Controller amendment (user decision 2026-09-26):** field limits and required-ness come from BOTH the live page (outline) AND the matching hand-written knowledge-base recipe (`knowledge-base/recipes/<area>/<screen>.md`, e.g. customer-types.md: `Customer Type` code max 4 chars, *silently truncates* `ZZAUDIT`→`ZZAU`; Customer Type + Description required). Parse the recipe's Fields/Buttons tables into limits; the stricter of page and KB wins; a limit found only in the KB is still enforced. Test: a 5-char code for Customer Type is flagged as over the limit. If `make ingest-kb` / an existing KB index already parses these, reuse it — never a second parser.
+
 Depends on:
 - **C1:** `Compiled`, `compile_job`, `JobFacts`.
 
@@ -2454,6 +2456,8 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 
 ---
 ## R1: The request reader — candidates ranked in code, the whole thread, every value quoted and checked (spec §4.1; A6)
+
+> **Controller amendment (user decision 2026-09-26):** R1 refuses or asks about a value that breaks a C2 limit, including KB-sourced ones (a 5-char Customer Type code is never silently truncated to 4). Add the real duplicate-jobs case as a test: two 0-parameter 'Create a Customer Type' copies beside the 4-parameter canonical job — the reader offers only the canonical one.
 
 Depends on:
 - **P1:** `READ_REQUEST`, `ask`, `quoted_in`.
@@ -3828,6 +3832,8 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 
 ---
 ## M1: Miner fixes — no field nobody reads, no sentence nothing answers (spec §4.3; A7)
+
+> **Controller amendment (2026-09-26):** add the real duplicate-jobs case: mining must extend the existing 'Create a Customer Type' job (4 parameters) rather than create 0-parameter copies (local DB has wfl_88bc…, wfl_464d… beside wfl_4857…). Test: a new doing of the same work grows the existing job; no new job with 0 parameters is minted.
 
 Depends on:
 - **P1:** `MINE` (the record whose task text changes), the fenced mining blocks.

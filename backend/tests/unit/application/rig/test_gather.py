@@ -72,10 +72,14 @@ def _gather(tools: Any, asker: Any) -> GatherContext:
     return GatherContext(tools=tools, asker=asker)
 
 
-def _shown(evidence: str) -> dict[str, object]:
+def _fence(evidence: str, name: str) -> Any:
+    inside = evidence.split(f'<untrusted name="{name}">\n', 1)[1]
+    return json.loads(inside.split("\n</untrusted>", 1)[0])
+
+
+def _shown(evidence: str) -> dict[str, Any]:
     said = json.loads(evidence.split("\n\n", 1)[0])
-    fence = evidence.split('<untrusted name="already_looked_at">\n', 1)[1]
-    return {**said, "already_looked_at": json.loads(fence.split("\n</untrusted>", 1)[0])}
+    return {**said, "already_looked_at": _fence(evidence, "already_looked_at")}
 
 
 async def test_a_value_the_triggering_message_does_not_carry_is_still_found() -> None:
@@ -273,8 +277,9 @@ async def test_what_was_demonstrated_is_shown_as_a_shape_and_not_offered_as_an_a
         CTX, job="a job", wanted=[CODE], seen={CODE: ["GGD", "GKB"]}
     )
 
-    shown = _shown(asker.saw[0])
-    assert shown["seen_before"] == {CODE: ["GGD", "GKB"]}
+    # Inside a fence: the miner read these off pages and mail somebody wrote.
+    assert _fence(asker.saw[0], "seen_before") == {CODE: ["GGD", "GKB"]}
+    assert "seen_before" not in json.loads(asker.saw[0].split("\n\n", 1)[0])
 
 
 async def test_the_history_shown_to_the_model_is_notes_rather_than_mail() -> None:

@@ -7,7 +7,7 @@ to a model.
 
 from sro.domain.observation.gesture import Action, Body, Call, Gesture, Intent, Target, ValueSeen
 from sro.domain.observation.reading import (
-    CONFIDENCE_VALUES,
+    CONFIDENCE,
     is_write,
     one_line,
     with_recent_values,
@@ -146,16 +146,14 @@ def test_one_line_is_one_line() -> None:
 
 
 def test_the_confidence_vocabulary_is_the_schemas_own() -> None:
-    """`CONFIDENCE_VALUES` is the same list the schema offers the model, not a
-    second copy of it. Restated, the two drift: the schema grows a fourth word,
-    the model starts returning it, and the guard that reads this frozenset nulls
-    every one of them -- silently, because a nulled confidence looks exactly
-    like a model that declined to give one.
+    """`CONFIDENCE` is the list the schema offers the model, not a second copy
+    of it: `ask` refuses a word outside the schema's enum, so a restated list
+    that drifted would refuse every answer carrying the new word.
     """
     declared = _in_schema("properties", "confidence", "enum")
     assert isinstance(declared, list)
 
-    assert frozenset(declared) == CONFIDENCE_VALUES
+    assert declared is CONFIDENCE
     assert set(declared) == {"high", "medium", "low"}
 
 

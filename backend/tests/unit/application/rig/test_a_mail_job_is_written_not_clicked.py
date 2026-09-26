@@ -253,3 +253,29 @@ async def test_the_press_sends_it_and_gmails_answer_finishes_the_run() -> None:
     fresh = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
     said = fresh[0].messages[-1].text
     assert said.startswith("Sent to alex.r@example.com")
+
+
+async def test_what_the_job_does_reaches_the_model_only_inside_a_fence() -> None:
+    """The narrative and the steps were read by a model off captured pages and
+    mail, so they are data like the conversation is, never instructions."""
+    uow, mailbox = FakeUnitOfWork(), _Mailbox()
+    asker = _written("alex.r@example.com")
+
+    await draft_the_mail_job(
+        CTX,
+        await _a_run(uow),
+        _reply_job(),
+        uow=uow,
+        tools=mailbox,
+        asker=asker,
+        clock=FakeClock(),
+        ids=FakeIdFactory(),
+    )
+
+    sent = str(asker.asked[0]["evidence"])
+    for name, said in (
+        ("what_it_does", "the operator answered the mail"),
+        ("steps", "Click Reply, write it, Send"),
+    ):
+        inside = sent.split(f'<untrusted name="{name}">', 1)[1].split("</untrusted>", 1)[0]
+        assert said in inside and sent.count(said) == 1, name

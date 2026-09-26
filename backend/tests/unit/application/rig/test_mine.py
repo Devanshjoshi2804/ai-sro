@@ -754,6 +754,20 @@ async def test_a_day_of_refused_calls_does_not_retire_the_pool() -> None:
     assert {entry.age for entry in await uow.pool.waiting(TENANT)} == {0}
 
 
+async def test_a_read_window_whose_answer_was_unusable_still_ages_the_pool() -> None:
+    """The model was shown the pool and billed for reading it; an answer that
+    breaks its schema is still a reading. Not ageing it hands the same window
+    back with its bonus, billed again, forever."""
+    uow, ids = await _day()
+    await uow.pool.add_unclaimed(TENANT, window_ids=tuple(ids), claimed=frozenset())
+    unusable = Answer(data={"workflows": "not a list"}, in_tokens=900, cost_usd=0.2)
+
+    result = await _mine(uow, FakeAsker(unusable))
+
+    assert result.error is not None and "mine v1" in result.error
+    assert {entry.age for entry in await uow.pool.waiting(TENANT)} == {1}
+
+
 # --------------------------------------------------------------------------
 # the bill
 
@@ -1541,12 +1555,12 @@ async def test_a_refusal_proposes_nothing_and_says_why() -> None:
 
 
 async def test_a_malformed_answer_does_not_take_the_pass_down() -> None:
-    """The schema is advisory. A model returning workflows as a string, or a
-    step as a number, must cost the pass -- not the process. This one is
-    `propose`'s own guard rather than `workflow_from`'s: nothing below it ever
-    sees a `workflows` that is not a list."""
+    """A model returning workflows as a string, or a step as a number, must
+    cost the pass -- not the process. `ask` refuses it against MINE's schema,
+    so `propose` never sees a `workflows` that is not a list."""
     for junk in ("not a list", {"a": "dict"}, 7, None):
-        workflows, _ = await _proposed(FakeAsker(_answer(workflows=junk)))
+        workflows, answer = await _proposed(FakeAsker(_answer(workflows=junk)))
+        assert answer.error is not None and "mine v1" in answer.error
 
         assert workflows == []
 

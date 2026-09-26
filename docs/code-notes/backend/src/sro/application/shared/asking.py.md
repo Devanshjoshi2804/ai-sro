@@ -14,7 +14,9 @@ Comments and docstrings moved out of [`backend/src/sro/application/shared/asking
 > through the eval gate (Global Constraint 9). A setting could move it
 > silently.
 >
-> An answer that does not match the record's schema comes back with no data
-> and an error naming the record and its version, and keeps what it cost: the
-> call was made and billed, and a caller reads "no data" as unsure, never as
-> an answer (Global Constraint 10).
+> First the record's `unit` drops the items that break the schema
+> (`Prompt.kept`). An answer that still does not match comes back with no
+> data and an error naming the record and its version, and keeps what it
+> cost: the call was made and billed, and a caller reads "no data" as
+> unsure, never as an answer (Global Constraint 10). An error the asker
+> already set is kept rather than overwritten: it is the truer cause.

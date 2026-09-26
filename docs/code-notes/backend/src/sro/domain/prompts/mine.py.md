@@ -87,14 +87,14 @@ Code: `thinking="medium",`
 > made without them -- and because the first was recorded for one model and not
 > applied to the one actually configured, which is how the $2.00 was spent.
 
-## module, [line 68](../../../../../../../backend/src/sro/domain/prompts/mine.py#L68): Comment
+## module, [line 70](../../../../../../../backend/src/sro/domain/prompts/mine.py#L70): Comment
 
 Code: `"properties": {`
 
 > cites before says: identifying the evidence before
 > composing the answer measurably beats the reverse.
 
-## module, [line 91](../../../../../../../backend/src/sro/domain/prompts/mine.py#L91): Comment
+## module, [line 93](../../../../../../../backend/src/sro/domain/prompts/mine.py#L93): Comment
 
 Code: `"parameters": {`
 
@@ -109,7 +109,7 @@ Code: `"parameters": {`
 > empty every time, on jobs whose evidence plainly showed
 > four different customer types being typed.
 
-## module, [line 113](../../../../../../../backend/src/sro/domain/prompts/mine.py#L113): Comment
+## module, [line 115](../../../../../../../backend/src/sro/domain/prompts/mine.py#L115): Comment
 
 Code: `"unplaced": {"type": "array", "items": {"type": "string"}},`
 

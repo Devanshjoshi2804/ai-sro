@@ -60,8 +60,10 @@ MINE = Prompt(
     role=_ROLE,
     task=_TASK,
     input_contract=(
-        "`day` (the window's gestures as JSON), `crossings`, `known` and `knowledge`, each an "
-        "untrusted block. `known` is the list the task calls Jobs already proven."
+        "Four untrusted blocks. `day` is the window's gestures as JSON. `crossings` is "
+        '"Values appearing in more than one system": each value, with the gestures it was '
+        "seen on. `known` is the list the task calls Jobs already proven. `knowledge` is "
+        '"What is known about these systems".'
     ),
     output_schema={
         "type": "object",
@@ -114,6 +116,7 @@ MINE = Prompt(
         },
         "required": ["workflows"],
     },
+    unit="workflows",
     edge_cases=(
         EdgeCase(
             "four customer types created one after another from four emails",

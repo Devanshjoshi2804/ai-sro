@@ -46,7 +46,7 @@ Code: `SERVER = "gmail"`
 
 > Find a job's values in the mailbox, or say which ones are missing.
 
-## `_values_in`, [line 170](../../../../../../../backend/src/sro/application/execution/gather.py#L170): Docstring
+## `_values_in`, [line 174](../../../../../../../backend/src/sro/application/execution/gather.py#L174): Docstring
 
 > The model's reported values, as far as they are the right shape.
 >
@@ -54,7 +54,7 @@ Code: `SERVER = "gmail"`
 > two must not lose the good one, and a value with no message behind it is
 > dropped by `keep` a moment later anyway.
 
-## `_ran_out`, [line 190](../../../../../../../backend/src/sro/application/execution/gather.py#L190): Docstring
+## `_ran_out`, [line 194](../../../../../../../backend/src/sro/application/execution/gather.py#L194): Docstring
 
 > What happened when the clock beat the mailbox.
 >
@@ -62,11 +62,11 @@ Code: `SERVER = "gmail"`
 > value nobody found is to ask a person, and that is the same move it makes
 > for a mailbox that genuinely does not hold one.
 
-## `_sentence`, [line 195](../../../../../../../backend/src/sro/application/execution/gather.py#L195): Docstring
+## `_sentence`, [line 199](../../../../../../../backend/src/sro/application/execution/gather.py#L199): Docstring
 
 > What happened, for a person reading the run rather than the code.
 
-## `_also`, [line 203](../../../../../../../backend/src/sro/application/execution/gather.py#L203): Docstring
+## `_also`, [line 207](../../../../../../../backend/src/sro/application/execution/gather.py#L207): Docstring
 
 > The bill so far. Kept because a loop that can ask six times is a loop
 > somebody will want the cost of.
@@ -87,7 +87,7 @@ Code: `SERVER = "gmail"`
 > demonstration's record again, which is the defect the whole replay path
 > exists to have fixed.
 
-## `GatherContext._look`, [line 134](../../../../../../../backend/src/sro/application/execution/gather.py#L134): Docstring
+## `GatherContext._look`, [line 138](../../../../../../../backend/src/sro/application/execution/gather.py#L138): Docstring
 
 > One call to the mailbox, as this operator. What was asked, and what
 > came back -- both as text, because history is a note and not a payload.
@@ -97,11 +97,11 @@ Code: `SERVER = "gmail"`
 > loop then has a chance to try a different query rather than the whole
 > gather failing on one bad call.
 
-## `GatherContext._search`, [line 153](../../../../../../../backend/src/sro/application/execution/gather.py#L153): Docstring
+## `GatherContext._search`, [line 157](../../../../../../../backend/src/sro/application/execution/gather.py#L157): Docstring
 
 > One search, by whatever words were chosen for it.
 
-## `GatherContext._ask_the_mailbox`, [line 158](../../../../../../../backend/src/sro/application/execution/gather.py#L158): Docstring
+## `GatherContext._ask_the_mailbox`, [line 162](../../../../../../../backend/src/sro/application/execution/gather.py#L162): Docstring
 
 > One call, as this operator. What was asked, and what came back.
 >
@@ -161,14 +161,14 @@ Code: `return Gathered(`
 > person is asked. What WAS found is kept -- a code read in the
 > first round is not less true for the second round being slow.
 
-## `GatherContext.execute`, [line 114](../../../../../../../backend/src/sro/application/execution/gather.py#L114): Comment
+## `GatherContext.execute`, [line 118](../../../../../../../backend/src/sro/application/execution/gather.py#L118): Comment
 
 Code: `unasked |= set(dropped(offered, wanted))`
 
 > What it offered that this job has no parameter for, kept so
 > somebody can be told. See `dropped`.
 
-## `GatherContext.execute`, [line 122](../../../../../../../backend/src/sro/application/execution/gather.py#L122): Comment
+## `GatherContext.execute`, [line 126](../../../../../../../backend/src/sro/application/execution/gather.py#L126): Comment
 
 Code: `history.append(note("nothing was asked", str(answer.data.get("why") or "")))`
 
@@ -177,7 +177,7 @@ Code: `history.append(note("nothing was asked", str(answer.data.get("why") or ""
 > so would the next answer. Stopping is cheaper than spending
 > the rest of the budget proving it.
 
-## `GatherContext._look`, [line 147](../../../../../../../backend/src/sro/application/execution/gather.py#L147): Comment
+## `GatherContext._look`, [line 151](../../../../../../../backend/src/sro/application/execution/gather.py#L151): Comment
 
 Code: `tool, arguments = "get_message", {"id": message}`
 

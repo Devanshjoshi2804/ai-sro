@@ -28,7 +28,7 @@ WRITE_MAIL = Prompt(
     role=_ROLE,
     task=_TASK,
     input_contract=(
-        "`job`, `what_it_does`, `steps` and `operator` as JSON; the run's `values` and the "
+        "`job` and `operator` as JSON; `what_it_does`, `steps`, the run's `values` and the "
         "`conversation` (up to the last five messages, each with from, subject and body) "
         "each in its own untrusted block."
     ),

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import replace
+from typing import cast
 
 from sro.domain.observation.gesture import Gesture, Intent, ValueSeen
 from sro.domain.observation.redaction import is_secret_name
@@ -12,8 +13,6 @@ from sro.domain.shared.prices import Answer
 TAIL = 8
 
 CONFIDENCE = ["high", "medium", "low"]
-
-CONFIDENCE_VALUES = frozenset(CONFIDENCE)
 
 
 def one_line(intent: Intent) -> str:
@@ -49,32 +48,22 @@ def intent_from(
     intent.object = _string_field(data, "object")
     intent.page = _string_field(data, "page")
     intent.continues = _string_field(data, "continues") or None
-    confidence = _string_field(data, "confidence")
-    intent.confidence = confidence if confidence in CONFIDENCE_VALUES else None
+    intent.confidence = _string_field(data, "confidence")
     intent.why = _string_field(data, "why")
     intent.values_seen = _values_seen(data, hide=is_secret(gesture))
     return intent
 
 
 def _values_seen(data: dict[str, object], *, hide: bool) -> list[ValueSeen]:
-    seen_list = data.get("values_seen")
-    found: list[ValueSeen] = []
-    for seen in seen_list if isinstance(seen_list, list) else []:
-        if not isinstance(seen, dict):
-            continue
-        field = seen.get("field")
-        if not isinstance(field, str) or not field:
-            continue
-        value = seen.get("value")
-        found.append(
-            ValueSeen(
-                field=field,
-                value=""
-                if hide or is_secret_name(field)
-                else (value if isinstance(value, str) else ""),
-            )
+    seen = cast(list[dict[str, str]], data.get("values_seen", []))
+    return [
+        ValueSeen(
+            field=one["field"],
+            value="" if hide or is_secret_name(one["field"]) else one["value"],
         )
-    return found
+        for one in seen
+        if one["field"]
+    ]
 
 
 _WRITE_METHODS = frozenset({"POST", "PUT", "PATCH"})

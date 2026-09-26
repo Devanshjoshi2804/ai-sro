@@ -29,10 +29,14 @@ async def ask(
         images=images,
         effort=prompt.thinking,
     )
-    if answer.data is not None and not conforms(answer.data, prompt.output_schema):
+    if answer.data is None:
+        return answer
+    data = prompt.kept(answer.data)
+    if not conforms(data, prompt.output_schema):
         return replace(
             answer,
             data=None,
-            error=f"{prompt.name} v{prompt.version}: the answer does not match its schema",
+            error=answer.error
+            or f"{prompt.name} v{prompt.version}: the answer does not match its schema",
         )
-    return answer
+    return answer if data is answer.data else replace(answer, data=data)

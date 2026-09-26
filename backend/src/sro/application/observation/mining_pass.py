@@ -6,6 +6,7 @@ from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import datetime
+from typing import cast
 
 from sro.application.intent.spend import over_cap
 from sro.application.ports.locks import AccountLocks
@@ -117,9 +118,7 @@ async def propose(
     if answer.data is None:
         return [], answer
 
-    raw = answer.data.get("workflows")
-    if not isinstance(raw, list):
-        return [], answer
+    raw = cast(list[object], answer.data["workflows"])
 
     proposed = [workflow_from(item, tenant) for item in raw]
     return [w for w in proposed if w is not None], answer
@@ -542,7 +541,7 @@ async def _one_pass(
             window_ids=tuple(item.gesture_id for item in window.items) + tuple(window.left_out),
             claimed=claimed,
         )
-        if result.error is None:
+        if result.error is None or answer.in_tokens:
             await uow.pool.age(tenant_id, shown=tuple(item.gesture_id for item in window.items))
     finally:
         billed = _billed(pass_id, tenant_id, started_at, result)

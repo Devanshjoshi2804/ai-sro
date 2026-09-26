@@ -80,9 +80,13 @@ class GatherContext:
                         trusted={
                             "job": job,
                             "still_needed": list(missing),
-                            "seen_before": {name: list(seen.get(name, ())) for name in missing},
                         },
                         untrusted={
+                            "seen_before": json.dumps(
+                                {name: list(seen.get(name, ())) for name in missing},
+                                indent=2,
+                                ensure_ascii=False,
+                            ),
                             "asked_for": because,
                             "already_looked_at": json.dumps(history, indent=2, ensure_ascii=False),
                         },

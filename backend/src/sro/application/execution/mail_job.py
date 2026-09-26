@@ -61,11 +61,15 @@ async def write_the_mail(
         WRITE_MAIL,
         trusted={
             "job": workflow.title,
-            "what_it_does": workflow.narrative,
-            "steps": [step.says for step in sorted(workflow.steps, key=lambda one: one.order)],
             "operator": ctx.principal_id.value,
         },
         untrusted={
+            "what_it_does": workflow.narrative,
+            "steps": json.dumps(
+                [step.says for step in sorted(workflow.steps, key=lambda one: one.order)],
+                indent=2,
+                ensure_ascii=False,
+            ),
             "values": json.dumps(dict(values), indent=2, ensure_ascii=False),
             "conversation": json.dumps(
                 [

@@ -178,11 +178,13 @@ async def test_a_stray_type_in_values_seen_is_no_reading() -> None:
 
 async def test_a_wrong_typed_field_does_not_poison_a_later_gestures_reading() -> None:
     """A list where act should be a string used to reach one_line() unguarded,
-    and crash on the NEXT gesture that pulled this intent into its tail."""
+    and crash on the NEXT gesture that pulled this intent into its tail. It
+    breaks the schema, so `ask` makes it no reading at all."""
     asker = FakeAsker(_answer(act=["typed", "something"]))
 
     intent = await read_gesture(_gestures()[0], tail=[], asker=asker)
     assert intent.act is None  # unusable, not fabricated
+    assert intent.error is not None and "read_gesture v1" in intent.error
 
     downstream = FakeAsker(_answer())
     await read_gesture(_gestures()[1], tail=[intent], asker=downstream)
@@ -209,13 +211,15 @@ async def test_a_wrong_typed_values_seen_entry_is_no_reading() -> None:
 
 
 async def test_an_undeclared_confidence_value_is_unusable() -> None:
-    """confidence is declared enum ["high","medium","low"] but nothing checked
-    it; a model returning "very high" must not store it verbatim."""
+    """confidence is declared enum ["high","medium","low"]; a model returning
+    "very high" breaks the schema, so the reading is no reading and nothing is
+    stored verbatim."""
     asker = FakeAsker(_answer(confidence="very high"))
 
     intent = await read_gesture(_gestures()[0], tail=[], asker=asker)
 
     assert intent.confidence is None
+    assert intent.error is not None and "read_gesture v1" in intent.error
 
 
 async def test_a_reading_it_could_not_price_says_so() -> None:

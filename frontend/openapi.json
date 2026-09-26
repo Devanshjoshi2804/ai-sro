@@ -25672,6 +25672,13 @@
           "unpriced": {
             "type": "boolean",
             "title": "Unpriced"
+          },
+          "cannot_run": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Cannot Run"
           }
         },
         "type": "object",
@@ -25685,7 +25692,8 @@
           "out_tokens",
           "thought_tokens",
           "cost_usd",
-          "unpriced"
+          "unpriced",
+          "cannot_run"
         ],
         "title": "ChatResponse",
         "description": "Which job one sentence turned out to be, and what reading it cost.\n\nAn offer, never a start. The form renders `workflow_id` with `values`\nfilled in and `missing` asked for; pressing start is a different door.\n\nThe sentence is not echoed back, and that is deliberate rather than\nincidental: `ChatReading` has no column for an operator's words about their\nown warehouse, and a response model carrying them would put them into every\nproxy log and browser history the answer passes through, which is exactly\nwhat having no column was for.\n\nThe bill is here and it is not in the rig, which answered the three fields\nabove and dropped what it had just spent. A reading that cost money and\nnamed no job is indistinguishable from a sentence about nothing without\n`error` beside it -- and a day summed on `cost_usd` alone reads as free\nwhile it spends, which is what `unpriced` says."
@@ -30170,6 +30178,13 @@
             },
             "type": "array",
             "title": "Reasons"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/ReasonModel"
+            },
+            "type": "array",
+            "title": "Warnings"
           }
         },
         "type": "object",
@@ -30183,7 +30198,8 @@
           "steps",
           "runs",
           "runnable",
-          "reasons"
+          "reasons",
+          "warnings"
         ],
         "title": "WorkflowModel"
       },

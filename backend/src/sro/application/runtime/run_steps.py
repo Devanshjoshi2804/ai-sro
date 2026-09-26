@@ -149,7 +149,10 @@ class RunSteps:
                 )
             async with self._uow as uow:
                 broken = await uow.workflows.broken_for(
-                    ctx.tenant_id, workflow.id, {one.order: cites_key(one) for one in ordered}
+                    ctx.tenant_id,
+                    workflow.id,
+                    {one.order: cites_key(one) for one in ordered},
+                    now=self._clock.now(),
                 )
             tried = await self._executor.run(
                 step, values, lane, broken=broken, start_url=progress.start_url

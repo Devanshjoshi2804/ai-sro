@@ -40,6 +40,7 @@ from sro.application.shared.refusals import OverCap
 from sro.domain.chat.asking import NEEDS, Pending, offered_job, pending_job
 from sro.domain.chat.thread import Message, MessageId, Speaker
 from sro.domain.execution.gathering import Found, Gathered
+from sro.domain.execution.lanes import Broken, Lane, cites_key
 from sro.domain.execution.waiting import as_said, waiting_on
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.knowledge.entry import (
@@ -314,7 +315,7 @@ async def test_a_run_the_press_refuses_leaves_the_offer_and_the_look_standing() 
     world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
 
     async def refused(*_: object, **__: object) -> WorkflowRun:
-        raise RunRefused("this job needs a value for: Customer Type")
+        raise RunRefused("the press refused this run for a reason of its own")
 
     # A job that compiles, and a press that refuses it for a reason of its own.
     world.start.execute = refused  # type: ignore[method-assign]
@@ -2088,22 +2089,43 @@ async def test_one_operator_s_failing_look_does_not_end_the_tick() -> None:
     assert len(world.durable.runs_started) == 1
 
 
-async def test_a_job_that_cannot_run_is_never_offered_from_the_mail() -> None:
-    """Only a job that compiles is offered: the model reading the mail is never
-    shown a job the runtime could not run."""
-    uow = await _held()
-    await uow.workflows.save(
-        Workflow(
-            id="wfl_cannot",
-            tenant=f.TENANT.value,
-            title="Create a Department",
-            narrative="n",
-            steps=[Step(order=0, says="s", system=None, cites=["gone"])],
+async def test_a_mail_for_a_job_that_cannot_run_is_answered_with_why_never_dropped() -> None:
+    """Invariant 6: the reader sees every job, and a request for one that does
+    not compile becomes a message in the thread naming the reasons. It is never
+    read as asking for nothing and kept in silence."""
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+    job = await world.uow.workflows.get(f.TENANT, JOB)
+    await world.uow.workflows.save(replace(job, steps=[replace(job.steps[0], cites=["gone"])]))
+
+    looked = await world.from_the_mail.execute(CTX)
+
+    (one,) = looked.offered
+    assert one.workflow_id == JOB and not one.started and one.asked
+    assert one.cannot_run == [
+        "Step 0: has no evidence a browser can act on: Type the customer type"
+    ]
+    assert world.durable.runs_started == []
+    last = (await _thread(world.uow)).messages[-1]
+    assert "cannot run yet" in last.text and "has no evidence" in last.text
+    assert last.decision["kind"] == "note" and last.decision["workflow_id"] == JOB
+
+
+async def test_an_outage_that_broke_every_browser_lane_still_leaves_the_mail_a_run() -> None:
+    """The reviewer's scenario: an outage marks UI and sight broken, and the
+    next request mail must still come to something, not be kept in silence."""
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+    job = await world.uow.workflows.get(f.TENANT, JOB)
+    for lane in (Lane.UI, Lane.SIGHT):
+        await world.uow.workflows.break_lane(
+            f.TENANT,
+            JOB,
+            Broken(job.steps[0].order, lane, "outage"),
+            cites=cites_key(job.steps[0]),
+            at=datetime.now(tz=UTC),
         )
-    )
-    reads = _Reads()
 
-    await _look(uow, _Mailbox(search=_found("m-1"), **{"m-1": _mail("hi")}), reads).execute(CTX)
+    looked = await world.from_the_mail.execute(CTX)
 
-    (saw,) = reads.saw
-    assert [one["id"] for one in json.loads(saw)["jobs"]] == [JOB]
+    (one,) = looked.offered
+    assert one.workflow_id == JOB and one.cannot_run == []
+    assert one.started or one.asked

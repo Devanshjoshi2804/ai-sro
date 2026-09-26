@@ -95,6 +95,35 @@ class AskAboutTheOffer:
         )
         return asked
 
+    async def cannot_run(
+        self,
+        ctx: RequestContext,
+        *,
+        workflow_id: str,
+        title: str,
+        reasons: Sequence[str],
+        about: str = "",
+        mail_thread: str = "",
+    ) -> str:
+        said = (
+            f"{title}{f' — {about}' if about.strip() else ''}. A request asks for this job, "
+            f"but it cannot run yet: {'; '.join(reasons)}. Nothing was started."
+        )
+        await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+            ctx,
+            for_operator=PrincipalId(ctx.principal_id.value),
+            text=said,
+            speaker=Speaker.ASSISTANT,
+            decision={
+                "kind": Said.NOTE,
+                "workflow_id": workflow_id,
+                "cannot_run": list(reasons),
+                "mail_thread": mail_thread,
+            },
+        )
+        logger.info("%s: a request asks for %s, which cannot run", ctx.tenant_id.value, workflow_id)
+        return said
+
     async def execute(
         self,
         ctx: RequestContext,

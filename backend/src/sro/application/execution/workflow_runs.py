@@ -33,9 +33,10 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.vault import CredentialVault
 from sro.application.shared.refusals import OverCap
+from sro.application.skill.job_facts import job_facts
 from sro.domain.chat.asking import NEEDS, Pending, also_set, question
 from sro.domain.chat.thread import Speaker
-from sro.domain.execution.evidence import unperformable
+from sro.domain.execution.compiled import why_not
 from sro.domain.execution.gathering import Gathered
 from sro.domain.execution.learned_step import limits_for
 from sro.domain.execution.mail_job import is_mail_only
@@ -247,11 +248,12 @@ class StartWorkflowRun:
                 already = await uow.workflow_runs.taken_back_by(ctx.tenant_id, undoes_run.strip())
                 if already is not None:
                     raise RunRefused(f"{undoes_run.strip()} was already taken back by {already}")
-            undoable = unperformable(workflow, by_id, from_step=check_from)
-            if undoable is not None:
-                raise RunRefused(
-                    f"step {undoable.order} has no evidence a browser can act on: {undoable.says}"
-                )
+            (facts,) = await job_facts(uow, ctx.tenant_id, [workflow], now=now)
+            blocking = [
+                one for one in facts.compiled.reasons if one.step is None or one.step >= check_from
+            ]
+            if blocking:
+                raise RunRefused(f"this job cannot run yet: {'; '.join(why_not(blocking))}")
             run = WorkflowRun(
                 id=run_id or new_run_id(),
                 tenant=ctx.tenant_id.value,

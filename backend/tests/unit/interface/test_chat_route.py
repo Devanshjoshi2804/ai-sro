@@ -17,6 +17,7 @@ months from any wall clock this runs against, so a route that reached for
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -264,6 +265,18 @@ async def test_the_offer_and_the_bill_both_reach_the_wire(
         40,
     )
     assert (body["job"]["cost_usd"], body["job"]["unpriced"]) == (0.0007, False)
+
+
+async def test_a_job_that_cannot_run_reaches_the_wire_with_why(
+    container: _FakeContainer, client: httpx.AsyncClient, uow: FakeUnitOfWork, held: Workflow
+) -> None:
+    await uow.workflows.save(replace(held, steps=[replace(held.steps[0], cites=["gone"])]))
+    container.asker = FakeAsker(_answer("wfl_1", []))
+
+    body = (await client.post("/v1/ask", json={"said": SAID})).json()
+
+    assert body["job"]["workflow_id"] == "wfl_1"
+    assert body["job"]["cannot_run"] == ["Step 0: has no evidence a browser can act on: s"]
 
 
 async def test_a_sentence_naming_no_job_is_an_offer_of_nothing_and_still_a_bill(

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+from datetime import UTC, datetime
 
 from sro.application.skill.job_facts import job_facts
 from sro.container import build_container
@@ -36,7 +37,7 @@ async def main(tenant: str, job: str) -> int:
     container = build_container()
     async with container.unit_of_work() as uow:
         workflow = await uow.workflows.get(TenantId(tenant), job)
-        (facts,) = await job_facts(uow, TenantId(tenant), [workflow])
+        (facts,) = await job_facts(uow, TenantId(tenant), [workflow], now=datetime.now(tz=UTC))
     print("\n".join(as_yaml(facts.compiled.view)))
     return 0
 

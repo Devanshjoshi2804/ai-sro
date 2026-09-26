@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.ports.system import Clock
 from sro.application.skill.job_facts import job_facts
 from sro.domain.execution.belts import earned_from, proven_runs
 from sro.domain.execution.compiled import Compiled
@@ -30,8 +31,9 @@ class CitedEvidence:
 
 
 class ReadWorkflows:
-    def __init__(self, uow: UnitOfWork) -> None:
+    def __init__(self, uow: UnitOfWork, clock: Clock) -> None:
         self._uow = uow
+        self._clock = clock
 
     async def one(self, ctx: RequestContext, *, workflow_id: str) -> Workflow:
         async with self._uow as uow:
@@ -42,7 +44,7 @@ class ReadWorkflows:
             tallied = await uow.workflow_runs.tallies(ctx.tenant_id)
             known = []
             for facts in await job_facts(
-                uow, ctx.tenant_id, await uow.workflows.known(ctx.tenant_id)
+                uow, ctx.tenant_id, await uow.workflows.known(ctx.tenant_id), now=self._clock.now()
             ):
                 workflow = facts.workflow
                 total, held = tallied.get(workflow.id, (0, 0))

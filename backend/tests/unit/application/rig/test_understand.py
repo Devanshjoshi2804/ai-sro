@@ -843,18 +843,35 @@ async def test_a_job_is_still_recognised_after_it_learns_an_optional_field() -> 
     assert got.missing == []
 
 
-async def test_a_job_that_cannot_run_is_never_shown_to_the_reader() -> None:
-    """Only a job that compiles is offered: the model is never shown one it
-    could pick and the runtime could not run."""
+async def test_a_job_that_cannot_run_is_read_and_says_why_it_cannot() -> None:
+    """The reader sees every job, so a request for one that cannot run is
+    recognised and answered with its reasons, never read as asking for nothing."""
     uow = FakeUnitOfWork()
     step, by_id = save_step()
     await uow.gestures.add_gestures(tuple(by_id.values()))
     runs = Workflow(id="wfl_runs", tenant=TENANT.value, title="t", narrative="n", steps=[step])
     await uow.workflows.save(runs)
     await uow.workflows.save(replace(runs, id="wfl_cannot", steps=[replace(step, cites=["gone"])]))
-    asker = FakeAsker(_answer("wfl_runs", []))
 
-    await read_utterance(uow, tenant_id=TENANT, utterance="s", asker=asker, model="m", now=NOW)
+    got = await read_utterance(
+        uow,
+        tenant_id=TENANT,
+        utterance="s",
+        asker=FakeAsker(_answer("wfl_cannot", [])),
+        model="m",
+        now=NOW,
+    )
 
-    jobs = json.loads(str(asker.asked[0]["evidence"]))["jobs"]
-    assert [one["id"] for one in jobs] == ["wfl_runs"]
+    assert got.workflow_id == "wfl_cannot"
+    assert got.cannot_run == [
+        "Step 1: has no evidence a browser can act on: Save the customer type"
+    ]
+    ran = await read_utterance(
+        uow,
+        tenant_id=TENANT,
+        utterance="s",
+        asker=FakeAsker(_answer("wfl_runs", [])),
+        model="m",
+        now=NOW,
+    )
+    assert ran.cannot_run == []

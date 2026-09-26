@@ -32,7 +32,7 @@ from sro.application.execution.workflow_runs import StartWorkflowRun
 from sro.application.trigger.answer_confirmation import AnswerConfirmation
 from sro.application.trigger.create_trigger import CreateTrigger, NewTrigger, TriggerRefused
 from sro.application.trigger.fire_trigger import FireTrigger
-from sro.domain.observation.gesture import Action, Gesture
+from sro.domain.observation.gesture import Action, Gesture, Target
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId, TenantId
 from sro.domain.skill.locator import ControlLocator, LocatorStrategy
@@ -107,7 +107,12 @@ def _gesture(gesture_id: str) -> Gesture:
         system=WMS,
         tab_id=7,
         frame_url=None,
-        action=Action(kind="click", at=1_739_314_800.0, url=f"{WMS}/work-areas"),
+        action=Action(
+            kind="click",
+            at=1_739_314_800.0,
+            url=f"{WMS}/work-areas",
+            target=Target(role="button", name="Save"),
+        ),
     )
 
 

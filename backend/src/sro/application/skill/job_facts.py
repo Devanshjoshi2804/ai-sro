@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.execution.compiled import Compiled, compile_job
@@ -15,6 +16,8 @@ from sro.domain.skill.workflow import Workflow
 
 logger = logging.getLogger(__name__)
 
+_SAID: dict[tuple[str, str], tuple[str, ...]] = {}
+
 
 @dataclass(frozen=True, slots=True)
 class JobFacts:
@@ -26,8 +29,17 @@ class JobFacts:
     compiled: Compiled
 
 
+def _say_once(tenant_id: TenantId, workflow_id: str, compiled: Compiled) -> None:
+    codes = tuple(one.code for one in compiled.reasons)
+    if _SAID.get((tenant_id.value, workflow_id), ()) == codes:
+        return
+    _SAID[(tenant_id.value, workflow_id)] = codes
+    if codes:
+        logger.info("%s: %s cannot run: %s", tenant_id.value, workflow_id, ", ".join(codes))
+
+
 async def job_facts(
-    uow: UnitOfWork, tenant_id: TenantId, workflows: Sequence[Workflow]
+    uow: UnitOfWork, tenant_id: TenantId, workflows: Sequence[Workflow], *, now: datetime
 ) -> tuple[JobFacts, ...]:
     ledger = await uow.workflows.learned_writes(tenant_id)
     ids = tuple(sorted({one for w in workflows for step in w.steps for one in step.cites}))
@@ -39,26 +51,15 @@ async def job_facts(
         }
         learned = {one.ord: one for one in await uow.workflows.learned_for(workflow.id)}
         broken = await uow.workflows.broken_for(
-            tenant_id, workflow.id, {step.order: cites_key(step) for step in workflow.steps}
+            tenant_id,
+            workflow.id,
+            {step.order: cites_key(step) for step in workflow.steps},
+            now=now,
         )
         aliases: tuple[JobAlias, ...] = ()
         compiled = compile_job(
             workflow, by_id, learned=learned, ledger=ledger, broken=broken, aliases=aliases
         )
+        _say_once(tenant_id, workflow.id, compiled)
         found.append(JobFacts(workflow, by_id, learned, tuple(broken), aliases, compiled))
     return tuple(found)
-
-
-async def runnable_jobs(
-    uow: UnitOfWork, tenant_id: TenantId, workflows: Sequence[Workflow]
-) -> tuple[JobFacts, ...]:
-    facts = await job_facts(uow, tenant_id, workflows)
-    for one in facts:
-        if not one.compiled.runnable:
-            logger.info(
-                "%s: %s cannot run and is not offered: %s",
-                tenant_id.value,
-                one.workflow.id,
-                ", ".join(reason.code for reason in one.compiled.reasons),
-            )
-    return tuple(one for one in facts if one.compiled.runnable)

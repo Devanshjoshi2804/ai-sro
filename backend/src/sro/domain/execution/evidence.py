@@ -119,15 +119,6 @@ def control_names(gesture: Gesture) -> set[str]:
     }
 
 
-def unperformable(
-    workflow: Workflow, by_id: Mapping[str, Gesture], *, from_step: int
-) -> Step | None:
-    for step in sorted(workflow.steps, key=lambda step: step.order):
-        if step.order >= from_step and primary_gesture(step, by_id) is None:
-            return step
-    return None
-
-
 def _caused_by(gesture: Gesture, call: Call) -> bool:
     if call.started_at is None or gesture.at is None:
         return True

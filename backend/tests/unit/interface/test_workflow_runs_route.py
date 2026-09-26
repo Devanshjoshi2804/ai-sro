@@ -57,7 +57,7 @@ from sro.application.execution.pursuits import Pursuits
 from sro.config import Settings
 from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
-from sro.domain.observation.gesture import Action, Body, Call, Gesture
+from sro.domain.observation.gesture import Action, Body, Call, Gesture, Target
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import DeviceId, SkillId, TenantId
 from sro.domain.shared.prices import ModelSpend
@@ -193,7 +193,12 @@ def _gesture(gesture_id: str, *, tenant: TenantId = TENANT) -> Gesture:
         system=WMS,
         tab_id=7,
         frame_url=None,
-        action=Action(kind="click", at=1_739_314_800.0, url=f"{WMS}/work-areas"),
+        action=Action(
+            kind="click",
+            at=1_739_314_800.0,
+            url=f"{WMS}/work-areas",
+            target=Target(role="button", name="Save"),
+        ),
     )
 
 

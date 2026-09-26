@@ -8,7 +8,7 @@ from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.observation.gesture import Target
 from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.workflow import Step, Workflow
-from tests.unit.runtime_support import mail_send_step, proven_write_step, save_step
+from tests.unit.runtime_support import GMAIL, mail_send_step, proven_write_step, save_step
 
 
 def _job(*steps: Step, parameters: Sequence[dict[str, object]] = ()) -> Workflow:
@@ -24,6 +24,10 @@ def _job(*steps: Step, parameters: Sequence[dict[str, object]] = ()) -> Workflow
 
 def _codes(compiled: Compiled) -> list[str]:
     return [one.code for one in compiled.reasons]
+
+
+def _warned(compiled: Compiled) -> list[str]:
+    return [one.code for one in compiled.warnings]
 
 
 def test_a_proven_write_with_a_locator_compiles() -> None:
@@ -103,16 +107,52 @@ def test_a_ui_step_with_no_recorded_or_learned_locator_does_not_compile() -> Non
     )
 
 
-def test_a_step_broken_on_every_lane_does_not_compile_and_one_live_lane_is_enough() -> None:
+def test_a_step_broken_on_every_lane_is_a_warning_and_the_job_stays_runnable() -> None:
     step, by_id, ledger = proven_write_step(read_back=None)
+    job = _job(step, parameters=[{"name": "Customer Type", "required": True}])
     every = [Broken(step.order, lane, "f") for lane in (Lane.API, Lane.UI, Lane.SIGHT)]
 
-    assert "every_lane_broken" in _codes(
-        compile_job(_job(step), by_id, learned={}, ledger=ledger, broken=every)
+    got = compile_job(job, by_id, learned={}, ledger=ledger, broken=every)
+
+    assert got.runnable and got.reasons == ()
+    assert _warned(got) == ["every_lane_broken"]
+    assert _warned(compile_job(job, by_id, learned={}, ledger=ledger, broken=every[:2])) == []
+
+
+def test_a_failed_write_is_not_proven_by_its_status() -> None:
+    step, by_id = save_step(status=400)
+
+    got = compile_job(_job(step), by_id, learned={}, ledger=(), broken=())
+
+    assert not got.runnable and _codes(got) == ["unproven_write"]
+
+
+def test_a_job_with_no_parameters_that_writes_captured_values_is_warned_not_refused() -> None:
+    step, by_id, ledger = proven_write_step(read_back=None)
+    fixed = _job(replace(step, parameters=[]))
+
+    got = compile_job(fixed, by_id, learned={}, ledger=ledger, broken=())
+
+    assert got.runnable and _warned(got) == ["fixed_values"]
+    assert got.view["warnings"][0]["step"] == step.order
+    bound = _job(step, parameters=[{"name": "Customer Type", "required": True}])
+    assert _warned(compile_job(bound, by_id, learned={}, ledger=ledger, broken=())) == []
+
+
+def test_a_mail_read_step_with_only_a_scroll_has_no_lane_as_the_start_says() -> None:
+    step, by_id = save_step()
+    (gesture,) = by_id.values()
+    scrolled = replace(
+        gesture,
+        url=GMAIL,
+        system=GMAIL,
+        requests=[],
+        action=replace(gesture.action, kind="scroll", target=None),
     )
-    assert "every_lane_broken" not in _codes(
-        compile_job(_job(step), by_id, learned={}, ledger=ledger, broken=every[:2])
-    )
+
+    got = compile_job(_job(step), {gesture.id: scrolled}, learned={}, ledger=(), broken=())
+
+    assert not got.runnable and _codes(got) == ["no_lane"]
 
 
 def test_a_step_with_no_evidence_has_no_lane_even_with_a_learned_locator() -> None:

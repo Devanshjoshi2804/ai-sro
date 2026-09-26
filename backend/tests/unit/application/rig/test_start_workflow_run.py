@@ -38,7 +38,7 @@ from sro.domain.execution.takeover import Took
 from sro.domain.execution.waiting import K_PATIENCE, read_wait, still_waiting
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.device import AgentDevice
-from sro.domain.observation.gesture import Action, Gesture
+from sro.domain.observation.gesture import Action, Gesture, Target
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.shared.prices import ModelSpend
@@ -59,6 +59,7 @@ from tests.unit.runtime_support import (
     posted,
     running_steel_run,
     save_job,
+    save_step,
     two_writes_job,
 )
 from tests.unit.runtime_support import CTX as STEEL_CTX
@@ -150,7 +151,12 @@ def _gesture(gesture_id: str, *, tenant: TenantId = TENANT, kind: str = "click")
         system=WMS,
         tab_id=7,
         frame_url=None,
-        action=Action(kind=kind, at=1_739_314_800.0, url=f"{WMS}/work-areas"),
+        action=Action(
+            kind=kind,
+            at=1_739_314_800.0,
+            url=f"{WMS}/work-areas",
+            target=Target(role="button", name="Save"),
+        ),
     )
 
 
@@ -228,6 +234,27 @@ async def test_a_steel_tenant_s_press_starts_a_durable_run_and_drives_no_browser
     assert channel.sent == []
     saved = await uow.workflow_runs.get(TENANT, run.id)
     assert saved is not None and saved.executor == "steel"
+
+
+async def test_every_start_goes_through_the_compile_check() -> None:
+    """M6: the gate is inside the start, so the panel press, the console's Run
+    button and a mail's answer are all refused alike for a job that cannot run."""
+    uow = FakeUnitOfWork()
+    job = await save_job(uow, "wfl_unproven")
+    step, by_id = save_step(status=400)
+    await uow.gestures.add_gestures(tuple(by_id.values()))
+    await uow.workflows.save(replace(job, steps=[*job.steps, replace(step, order=1)]))
+
+    with pytest.raises(RunRefused, match="cannot run yet: Step 1: no recorded status proves"):
+        await _on_steel(uow).execute(
+            CTX,
+            workflow_id="wfl_unproven",
+            device_id=None,
+            values={"Customer Type": "GT2"},
+            live=True,
+            allow_focus=False,
+        )
+    assert await uow.workflow_runs.for_workflow(TENANT, "wfl_unproven") == ()
 
 
 def _on_steel(uow: FakeUnitOfWork) -> StartWorkflowRun:

@@ -11,34 +11,48 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 > recipe (L1). The job is compiled again on every read, so what it says is
 > what the evidence says today.
 
-## `Reason`, [line 22](../../../../../../../backend/src/sro/domain/execution/compiled.py#L22): Docstring
+## `Reason`, [line 23](../../../../../../../backend/src/sro/domain/execution/compiled.py#L23): Docstring
 
-> One reason a job cannot run, and the step it is about (`None` for the job
-> as a whole). Each code enforces one line of spec §3:
+> One reason a job cannot run (or, in `Compiled.warnings`, something a reader
+> should know although it runs), and the step it is about (`None` for the job).
+> Each refusal enforces one line of spec §3:
 >
 > - `unbound_parameter` -- "every required parameter is bound to a step,
->   directly or through an alias". Required is `demanded`, the rule the
->   runner and the run's question already read.
-> - `unproven_write` -- "every write step has a proof: a recorded call with an
->   expected status". A write whose recorded call carries no status (or only
->   failed ones) can never be settled by its status.
+>   directly or through an alias". Required is `demanded`.
+> - `unproven_write` -- "a recorded call with an expected status". Only a 2xx
+>   proves a write: `expected_statuses` also collects 4xx and 5xx, and a job
+>   "proven" by its recorded 400 would have the runtime's `accepts` call a
+>   rejected write done.
 > - `no_locator` -- "every UI step has at least one locator, recorded or
->   learned". Only asked where the UI lane is on the step's ladder.
-> - `no_lane` -- a step no lane can run at all (no mail tool, no replayable
->   call, no gesture a browser can act on). The start path refuses the same
->   job with "has no evidence a browser can act on"; this says so before a
->   request is ever offered it.
-> - `every_lane_broken` -- "no step is in the known-broken list for its
->   current cites on every lane". One live lane is enough.
+>   learned". Asked only where the UI lane is on the step's ladder.
+> - `no_lane` -- a step with no primary gesture. This is exactly the rule the
+>   start used to apply on its own (`unperformable`, now deleted), mail-read
+>   steps included: a mail-read step cited only by a scroll was runnable here
+>   and refused at the start. One rule, so the two cannot disagree.
+>
+> Warnings, never refusals:
+>
+> - `every_lane_broken` -- every lane that could run the step failed lately.
+>   A refusal here locked a job out for good: only a winning run mends a lane,
+>   and a job no one is offered never runs. Broken lanes cool down instead
+>   (`K_BROKEN_COOL_DOWN`), so after an outage the lane is tried again.
+> - `fixed_values` -- user decision 2026-09-26: a job with no parameters whose
+>   write sends a body of captured values runs, and the console says every run
+>   writes the recorded values. A mining-quality case, not a runtime refusal.
 
-## `Compiled`, [line 29](../../../../../../../backend/src/sro/domain/execution/compiled.py#L29): Docstring
+## `Compiled`, [line 30](../../../../../../../backend/src/sro/domain/execution/compiled.py#L30): Docstring
 
-> `runnable` is "no reasons". `view` is plain data for reading
-> (`make recipe`, the console): each step's lanes, the lanes known broken,
-> its locators with the learned one first, and the proof of its write. It is
-> never an import format (L1).
+> `runnable` is "no reasons"; warnings never change it. `view` is plain data for
+> reading (`make recipe`, the console): each step's lanes, the lanes known
+> broken, its locators with the learned one first, and the proof of its write.
+> It is never an import format (L1).
 
-## `_ladder`, [line 35](../../../../../../../backend/src/sro/domain/execution/compiled.py#L35): Docstring
+## `why_not`, [line 37](../../../../../../../backend/src/sro/domain/execution/compiled.py#L37): Docstring
+
+> The reasons as sentences, "Step N: ..." where a step is named, each said
+> once. What the chat, the mail thread and the start's refusal all say.
+
+## `_ladder`, [line 45](../../../../../../../backend/src/sro/domain/execution/compiled.py#L45): Docstring
 
 > The ladder the executor would climb, built with the executor's own
 > `lanes_for` and the same three inputs: `sends_mail` for the tool lane, a
@@ -49,19 +63,16 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 >
 > A learned locator does not give a step with no cited gesture a browser lane:
 > the executor opens the browser lanes only on a primary gesture. Learned
-> field steps (`field_key`, X10b) are not merged yet; when they are, this is
-> the one line that learns about them.
+> field steps (`field_key`, X10b) are not merged yet; when they are, this and
+> `no_lane` are the lines that learn about them.
 >
 > `broken` is passed empty so the ladder is the whole one; the known-broken
 > lanes are compared against it in `compile_job`, because `lanes_for` never
-> drops the last lane and so could never say "every lane is broken".
+> drops the last lane.
 
-## `compile_job`, [line 45](../../../../../../../backend/src/sro/domain/execution/compiled.py#L45): Docstring
+## `compile_job`, [line 55](../../../../../../../backend/src/sro/domain/execution/compiled.py#L55): Docstring
 
 > A missing read-back is shown in the view and not refused. Spec §3 asks for a
 > read-back "where one is known", so a write proven by its status alone
-> compiles, and the view's `read_back: null` tells a reader which writes
-> have no second witness.
->
-> A step that only reads the mail the run came from has no ladder and is not
-> a `no_lane`: the executor answers it as already read.
+> compiles, and the view's `read_back: null` says which writes have no second
+> witness.

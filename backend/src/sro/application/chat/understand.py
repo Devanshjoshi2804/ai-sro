@@ -2,15 +2,16 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from types import MappingProxyType
 
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
-from sro.application.skill.job_facts import runnable_jobs
+from sro.application.skill.job_facts import job_facts
 from sro.domain.chat.asked_by import mails_behind, texts
 from sro.domain.chat.reading import INSTRUCTIONS, UNDERSTAND_SCHEMA, ChatReading, new_chat_id
+from sro.domain.execution.compiled import why_not
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.learned import demanded
@@ -32,6 +33,8 @@ class Understood:
     aside: dict[str, str] = field(default_factory=dict)
 
     unasked: list[str] = field(default_factory=list)
+
+    cannot_run: list[str] = field(default_factory=list)
 
 
 async def understand(
@@ -153,12 +156,15 @@ async def read_utterance(
     model: str,
     now: datetime,
 ) -> Understood:
-    facts = await runnable_jobs(uow, tenant_id, await uow.workflows.known(tenant_id))
+    facts = await job_facts(uow, tenant_id, await uow.workflows.known(tenant_id), now=now)
     workflows = [one.workflow for one in facts]
     asked_by = {one.workflow.id: texts(mails_behind(one.workflow, one.by_id)) for one in facts}
     got = await understand(
         utterance, workflows, asker, model, {w: said for w, said in asked_by.items() if said}
     )
+    picked = next((one.compiled for one in facts if one.workflow.id == got.workflow_id), None)
+    if picked is not None and not picked.runnable:
+        got = replace(got, cannot_run=why_not(picked.reasons))
     answer = got.answer
     await uow.chats.record(
         ChatReading(

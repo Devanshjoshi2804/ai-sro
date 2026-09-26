@@ -181,6 +181,23 @@ export function WorkflowDetail({ workflowId }: { workflowId: string }) {
         </Card>
       )}
 
+      {/* Runs, but a reader should know: values fixed at recording, or every
+          lane failing lately (tried again after a cool-down). */}
+      {job.warnings.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Runs, with a warning</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc space-y-1 pl-5 text-sm">
+              {whyNotRunnable(job.warnings).map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
       <RunIt job={job} />
 
       <Parameters job={job} />

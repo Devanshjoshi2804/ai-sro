@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator
+from dataclasses import replace
 
 import httpx
 import pytest
@@ -50,6 +51,7 @@ from sro.interface.http.deps import get_container
 from tests import factories as f
 from tests.unit.fakes import FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer, token_for
+from tests.unit.runtime_support import proven_write_step
 
 LAPTOP = DeviceId("dev-1")
 HERS = "the-secret-the-laptop-was-minted"
@@ -452,6 +454,7 @@ async def test_a_mined_job_reaches_the_wire_whole(
         "runs": {"total": 0, "held": 0, "stale": 0, "earned": False, "proven": 0, "needed": 3},
         "runnable": True,
         "reasons": [],
+        "warnings": [],
     }
 
 
@@ -1027,5 +1030,29 @@ async def test_a_job_that_cannot_run_says_why_on_the_wire(
             "step": None,
             "detail": "Department is required and no step fills it",
         },
-        {"code": "no_lane", "step": 0, "detail": "no evidence can run it"},
+        {"code": "no_lane", "step": 0, "detail": "has no evidence a browser can act on: s"},
     ]
+    assert row["warnings"] == []
+
+
+async def test_a_job_that_writes_fixed_values_runs_and_is_warned_on_the_wire(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """User decision 2026-09-26: a job with no parameters whose write carries
+    captured values stays runnable, with a warning the console shows."""
+    step, by_id, _ = proven_write_step(read_back=None)
+    await uow.gestures.add_gestures(tuple(by_id.values()))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_fixed",
+            tenant="acme",
+            title="t",
+            narrative="n",
+            steps=[replace(step, parameters=[])],
+        )
+    )
+
+    (row,) = (await _listed(client)).json()["workflows"]
+
+    assert row["runnable"] is True
+    assert [one["code"] for one in row["warnings"]] == ["fixed_values"]

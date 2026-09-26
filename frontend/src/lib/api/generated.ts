@@ -2509,6 +2509,8 @@ export interface components {
             cost_usd: number;
             /** Unpriced */
             unpriced: boolean;
+            /** Cannot Run */
+            cannot_run: string[];
         };
         /**
          * ChoiceModel
@@ -4534,6 +4536,8 @@ export interface components {
             runnable: boolean;
             /** Reasons */
             reasons: components["schemas"]["ReasonModel"][];
+            /** Warnings */
+            warnings: components["schemas"]["ReasonModel"][];
         };
         /**
          * WorkflowRunModel

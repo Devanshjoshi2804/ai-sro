@@ -8,7 +8,7 @@ Notes for [`backend/scripts/recipe.py`](../../../../backend/scripts/recipe.py). 
 > for reading. It is not an import format (L1): nothing reads it back, and
 > the job is compiled fresh from its evidence each time.
 
-## `as_yaml`, [line 12](../../../../backend/scripts/recipe.py#L12): Docstring
+## `as_yaml`, [line 13](../../../../backend/scripts/recipe.py#L13): Docstring
 
 > A twenty-line emitter rather than PyYAML: PyYAML is only installed
 > transitively, and the view is plain data (dicts, lists, strings, numbers,

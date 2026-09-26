@@ -591,7 +591,12 @@ class Converse:
                     choices=[placed.workflow_id, *placed.also],
                     titles=titles,
                 )
-            if placed.missing and self._can_gather:
+            if placed.cannot_run:
+                said = (
+                    f"{title} does that, but it cannot run yet: "
+                    f"{'; '.join(placed.cannot_run)}. Nothing was started."
+                )
+            elif placed.missing and self._can_gather:
                 said = (
                     f"{title} does that. I will look in your mail for "
                     f"{', '.join(placed.missing)} — say the word and I will run it,"
@@ -623,6 +628,12 @@ class Converse:
                     text=said,
                     said_at=self._clock.now(),
                     decision={
+                        "kind": Said.NOTE,
+                        "workflow_id": placed.workflow_id,
+                        "cannot_run": list(placed.cannot_run),
+                    }
+                    if placed.cannot_run
+                    else {
                         "kind": "job",
                         "workflow_id": placed.workflow_id,
                         "title": title,

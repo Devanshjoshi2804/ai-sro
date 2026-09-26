@@ -63,6 +63,7 @@ def _screens(
 def choices(workflow: Workflow, by_id: Mapping[str, Gesture]) -> dict[str, Composed]:
     hits = [(step, one) for step, fields in _screens(workflow, by_id) for one in fields]
     found: dict[str, Composed] = {}
+    twice: set[str] = set()
     for step, one in hits:
         same = [(at, it) for at, it in hits if normal(it.label) == normal(one.label)]
         role = [at for at, it in same if it.role == one.role]
@@ -74,8 +75,10 @@ def choices(workflow: Workflow, by_id: Mapping[str, Gesture]) -> dict[str, Compo
             said = f"{one.label} ({one.role}, before '{step.says}')"
         else:
             continue
+        if said in found:
+            twice.add(said)
         found[said] = Composed("", one.label, one.role, step.order, one.options)
-    return found
+    return {said: one for said, one in found.items() if said not in twice}
 
 
 def placed(

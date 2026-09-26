@@ -137,12 +137,28 @@ async def test_a_control_that_will_not_take_the_value_falls_back_to_sight(
     assert sight.checked[-1]["expect"] == {"value": "Finance"}
 
 
+async def test_a_sight_fill_that_sent_the_write_says_so() -> None:
+    driver = scripted_driver(
+        resolved=PageAnswer(ok=True, candidates=1),
+        answer=PageAnswer(ok=False, error_kind="not_actionable"),
+        outline={"fields": []},
+    )
+    sight = RecordingSight(StepResult("unknown", Lane.SIGHT, "the write was sent"))
+    write, by_id = save_step(status=201)
+
+    filled = await FillField(driver, sight).fill(
+        _field(write.order), "Finance", write, lane_context(by_id)
+    )
+
+    assert (filled.lane, filled.sent) == (None, True)
+
+
 async def test_a_sight_fill_it_cannot_confirm_is_not_a_fill() -> None:
     driver = scripted_driver(
         resolved=PageAnswer(ok=True, candidates=1, matched_by="within_role_name"),
         answer=PageAnswer(ok=False, error_kind="not_actionable"),
     )
-    sight = RecordingSight(StepResult("unknown", Lane.SIGHT, "only the model says so"))
+    sight = RecordingSight(StepResult("failed", Lane.SIGHT, "only the model says so"))
     write, by_id = save_step(status=201)
 
     filling = FillField(driver, sight)
@@ -535,3 +551,59 @@ async def test_a_learned_field_that_failed_is_tried_again_when_the_operator_choo
 
     assert len(world.fill.filled) == 2
     assert world.progress().composed == []
+
+
+SENT = Filled(None, detail="the write was sent while filling a field", sent=True)
+
+
+async def _asked_about_the_write(world: SteelRun) -> str:
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    assert not outcome.asking
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    assert world.progress().asking["kind"] == "step"
+    return outcome.asking
+
+
+async def test_a_save_sent_while_filling_a_field_is_asked_about_and_never_sent_again() -> None:
+    world = await steel_run(
+        steps=[save_step(status=201, outline=Outline(fields=(DEPARTMENT,)))],
+        values={"department": "Finance"},
+    )
+    world.fill.answers(SENT)
+    await _started(world)
+
+    asked = await _asked_about_the_write(world)
+    await world.answer(asked, verdict="done")
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert world.lanes.ui.calls == 0
+    assert world.lanes.api.read_backs == 1
+    assert world.progress().step == 1
+
+
+async def test_a_save_sent_while_filling_a_learned_field_is_never_sent_again() -> None:
+    world = await _a_learned_field({"department": "Operations"})
+    world.fill.answers(SENT)
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    asked = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    await world.answer(asked.asking, verdict="done")
+
+    assert world.lanes.ui.calls == 0
+    assert world.progress().step == 2
+
+
+async def test_a_save_sent_while_its_learned_field_is_filled_again_is_never_sent_again() -> None:
+    world = await _a_learned_field({"department": "Operations"})
+    world.fill.answers(Filled(Lane.UI, held="Operations"), SENT)
+    world.lanes.ui.answers(StepResult("failed", Lane.UI, "the page reloaded", never_left=True))
+    world.lanes.sight.answers(StepResult("failed", Lane.SIGHT, "the page reloaded"))
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    first = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    await world.answer(first.asking)
+
+    asked = await _asked_about_the_write(world)
+    await world.answer(asked, verdict="done")
+
+    assert world.lanes.ui.calls == 1
+    assert world.progress().step == 2

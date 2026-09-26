@@ -91,7 +91,7 @@ Code: `async def _ask(`
 > where and why the run stopped. Asked from prepare and acquire too, at the
 > step the run stands on.
 
-## `RunSteps._write`, [line 730](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L730): Note
+## `RunSteps._write`, [line 753](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L753): Note
 
 Code: `ctx.tenant_id, run.id, now, was=run.progress`
 
@@ -101,7 +101,7 @@ Code: `ctx.tenant_id, run.id, now, was=run.progress`
 > changed and stops with `Superseded`, so one write is never sent twice and
 > a step is never skipped.
 
-## `RunSteps._run`, [line 745](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L745): Note
+## `RunSteps._run`, [line 768](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L768): Note
 
 Code: `raise Stopped(f"run {run_id} is not known")`
 
@@ -115,7 +115,7 @@ Code: `last = {one.of_step: one.verdict for one in sorted(run.steps, key=lambda 
 > Judged by each step's last row: an `unclear` a read-back later settled as
 > `held` is history, not the step's result.
 
-## `RunSteps._write`, [line 723](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L723): Note
+## `RunSteps._write`, [line 746](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L746): Note
 
 Code: `if (index is not None and loaded.step != index) or (`
 
@@ -207,7 +207,7 @@ Code: `absent = [name for name in step.parameters if not values.get(name, "").st
 > recorded `skipped`, which `finish` counts as kept. A step that carries some
 > of its values is performed with those.
 
-## `_demanded`, [line 760](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L760): Note
+## `_demanded`, [line 783](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L783): Note
 
 > The job's required parameter names, by the same `demanded` rule the press
 > and the mail reading use.
@@ -284,14 +284,14 @@ Code: `if kind == "field":`
 > was reloaded under it) fills its learned fields again too, as it does its
 > composed ones: the value that was on the page may be gone.
 
-## `RunSteps._fill_step`, [line 622](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L622): Note
+## `RunSteps._fill_step`, [line 638](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L638): Note
 
 > A learned field step: filled by its learned locator on the form of the next
 > write, recorded `unknown` until that write's own call carries its key. A run
 > with no value for it passes over it the way it passes over any step whose
 > optional values are all absent (`skipped`).
 
-## `RunSteps._fill_asks`, [line 652](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L652): Note
+## `RunSteps._fill_asks`, [line 675](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L675): Note
 
 > What a fill that could not be made asks; every such question can be
 > answered "leave it out". A dropdown without the option, or with two options
@@ -301,13 +301,22 @@ Code: `if kind == "field":`
 > step, which has no composed field to re-place -- offers the field itself,
 > to try again. The question never carries the value.
 
-## `_fields_for`, [line 804](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L804): Note
+## `_fields_for`, [line 827](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L827): Note
 
 > The learned field steps filled this run just before the write at `index`.
 
-## `_settle_fields`, [line 816](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L816): Note
+## `_settle_fields`, [line 839](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L839): Note
 
 > Each field filled for this write takes `done` and its key only when the write
 > is `done` and its own call carried the key; it becomes `failed` when the write
 > failed, and otherwise stays `unknown`. A composed field a `done` save did not
 > carry gets its own `unclear` row, so a run that fails for it says why.
+
+## `RunSteps._not_filled`, [line 622](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L622): Note
+
+> A fill that sent the write (sight pressed Save, or Enter submitted the form)
+> is not a field that failed: the write is marked sent and goes down its own
+> in-doubt path -- read back, else a step question with `done`/`not_done` --
+> and is never offered "try again" or "leave it out", both of which would send
+> it a second time. On a learned field step the field step is recorded
+> `unknown` and the next write is the one in doubt.

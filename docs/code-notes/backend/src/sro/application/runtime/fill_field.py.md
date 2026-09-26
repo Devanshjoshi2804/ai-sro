@@ -2,7 +2,7 @@
 
 Comments and docstrings for [`backend/src/sro/application/runtime/fill_field.py`](../../../../../../../backend/src/sro/application/runtime/fill_field.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the text, which says what the code does and why.
 
-## `FillField.fill`, [line 36](../../../../../../../backend/src/sro/application/runtime/fill_field.py#L36): Docstring
+## `FillField.fill`, [line 37](../../../../../../../backend/src/sro/application/runtime/fill_field.py#L37): Docstring
 
 > Fills a composed field on the live page by its label, inside the write's
 > recorded frame and landmarks, as a non-write (`write: False`; `type`/`select`
@@ -30,3 +30,9 @@ Comments and docstrings for [`backend/src/sro/application/runtime/fill_field.py`
 > form. Ceiling: a second control with the same role and label outside the form
 > (a list filter) makes every later run `ambiguous`. Upgrade path: learn the
 > locator with the write's landmarks and scope `byLearned` to them.
+
+## `Filled.sent`, [line 26](../../../../../../../backend/src/sro/application/runtime/fill_field.py#L26): Note
+
+> Sight's `unknown` on a fill means the write it watches was (or may have
+> been) sent while it filled the field. That is its own outcome, never folded
+> into "could not set the field": the run must treat the write as in doubt.

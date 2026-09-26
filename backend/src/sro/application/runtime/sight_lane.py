@@ -97,14 +97,14 @@ class SightLane:
             hit = tried.points[-1][1] if tried.points else None
             pin = hit.get("pin") if hit else None
             if not (isinstance(pin, str) and pin and _taught(hit)):
-                return StepResult(
-                    "unknown", Lane.SIGHT, tried.why or "sight never reached the field"
-                )
+                why = tried.why or "sight never reached the field"
+                return StepResult("failed", Lane.SIGHT, why, never_left=True)
             if await self._driver.wait_for(
                 held.session, held.target_id, {**check, "pin": pin}, self._wait_s
             ):
                 return StepResult("done", Lane.SIGHT, learned=_taught(hit))
-            return StepResult("unknown", Lane.SIGHT, "the field sight set does not hold the value")
+            why = "the field sight set does not hold the value"
+            return StepResult("failed", Lane.SIGHT, why, never_left=True)
 
         return await self._guarded(
             says, write.order, primary, watched, watched, ctx, held, settle, writing=False

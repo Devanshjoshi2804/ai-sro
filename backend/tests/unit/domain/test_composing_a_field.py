@@ -174,3 +174,13 @@ def test_a_label_on_the_form_twice_is_offered_told_apart_or_not_at_all() -> None
     assert asked.labels == ("Department (combobox)", "Department (textbox)")
     assert offered["Department (textbox)"].role == "textbox"
     assert not any(one.startswith("Notes") for one in offered)
+
+
+def test_a_choice_two_writes_would_both_answer_to_is_never_offered() -> None:
+    job, by_id = _job(OutlineField("textbox", "Notes"))
+    save = by_id["ges_save"]
+    later = [replace(one, started_at=(one.started_at or 0) + 5) for one in save.requests]
+    by_id["ges_save_2"] = replace(save, id="ges_save_2", at=save.at + 5, requests=later)
+    job.steps.append(replace(job.steps[0], order=job.steps[0].order + 1, cites=["ges_save_2"]))
+
+    assert not any(one.startswith("Notes") for one in choices(job, by_id))

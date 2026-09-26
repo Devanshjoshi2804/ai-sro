@@ -186,9 +186,9 @@ class RunSteps:
                 broken = await uow.workflows.broken_for(
                     ctx.tenant_id, workflow.id, {one.order: cites_key(one) for one in ordered}
                 )
-            adding, asking = await self._fill_for(ctx, run, progress, ordered, index, values, lane)
-            if asking:
-                return StepOutcome(more=True, asking=asking)
+            adding, stopped = await self._fill_for(ctx, run, progress, ordered, index, values, lane)
+            if stopped is not None:
+                return stopped
             if adding is not None:
                 lane = replace(lane, adding={step.order: adding})
             tried = await self._executor.run(
@@ -571,7 +571,7 @@ class RunSteps:
         index: int,
         values: dict[str, str],
         lane: LaneContext,
-    ) -> tuple[Adding | None, str]:
+    ) -> tuple[Adding | None, StepOutcome | None]:
         step = ordered[index]
         earlier = _fields_for(lane.workflow, ordered, index, progress.filled)
         known = {field_key(lane.workflow, one): one.parameters[0] for one in earlier}
@@ -591,7 +591,7 @@ class RunSteps:
                     )
                 )
                 if again.lane is None:
-                    return None, await self._fill_asks(
+                    return None, await self._not_filled(
                         ctx,
                         run,
                         step,
@@ -607,7 +607,7 @@ class RunSteps:
             field = _composed(one)
             filled = await self._fill.fill(field, values.get(field.name, ""), step, lane)
             if filled.lane is None:
-                return None, await self._fill_asks(ctx, run, step, index, field, filled, lane)
+                return None, await self._not_filled(ctx, run, step, index, field, filled, lane)
             one |= {
                 "lane": filled.lane.value,
                 "verdict": "unknown",
@@ -615,9 +615,25 @@ class RunSteps:
             }
             fresh[field.name] = filled.held
         if not known and not composing:
-            return None, ""
+            return None, None
         await self._write(ctx, run, progress, index=index)
-        return Adding(known=known, fresh=fresh), ""
+        return Adding(known=known, fresh=fresh), None
+
+    async def _not_filled(
+        self,
+        ctx: RequestContext,
+        run: WorkflowRun,
+        write: Step,
+        index: int,
+        field: Composed,
+        filled: Filled,
+        lane: LaneContext,
+    ) -> StepOutcome:
+        if filled.sent:
+            await self._sending(ctx, run.id, write.order, Lane.SIGHT, again=False)
+            return StepOutcome(more=True)
+        asking = await self._fill_asks(ctx, run, write, index, field, filled, lane)
+        return StepOutcome(more=True, asking=asking)
 
     async def _fill_step(
         self,
@@ -638,6 +654,13 @@ class RunSteps:
         else:
             filled = await self._fill.fill(
                 field, values[name], write, lane, learned=lane.learned.get(step.order)
+            )
+        if filled.sent and write is not None:
+            await self._sending(ctx, run.id, write.order, Lane.SIGHT, again=False)
+            run = await self._run(ctx, run.id)
+            said = StepResult("unknown", Lane.SIGHT, filled.detail)
+            return await self._advance(
+                ctx, run, Progress.of(run.progress), step, ordered, index, said
             )
         if filled.lane is None:
             label = step.says.removeprefix("Fill ")

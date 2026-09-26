@@ -23,6 +23,7 @@ class Filled:
     learned: Mapping[str, str] = field(default_factory=dict)
     detail: str = ""
     held: str = field(default="", repr=False)
+    sent: bool = False
 
 
 class FillField:
@@ -102,6 +103,8 @@ class FillField:
             return Filled(None, detail="the control did not take the value")
         else:
             result = await self._sight.fill(f"Set {composed.label} to {value}", write, ctx, check)
+            if result.verdict == "unknown":
+                return Filled(None, detail="the write was sent while filling a field", sent=True)
             if result.verdict != "done":
                 return Filled(None, detail="sight could not set the field")
             lane, taught = Lane.SIGHT, dict(result.learned)

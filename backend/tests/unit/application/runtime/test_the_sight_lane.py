@@ -520,7 +520,7 @@ def types_then_done() -> FakeVisionDriver:
     )
 
 
-@pytest.mark.parametrize(("holds", "verdict"), [(True, "done"), (False, "unknown")])
+@pytest.mark.parametrize(("holds", "verdict"), [(True, "done"), (False, "failed")])
 async def test_a_field_sight_fills_is_done_only_when_the_labelled_control_holds_it(
     holds: bool, verdict: str
 ) -> None:

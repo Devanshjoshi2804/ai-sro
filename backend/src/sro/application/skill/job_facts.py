@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
+from sro.application.execution.declared import declared_limits, names_of, screen_for
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.execution.compiled import Compiled, compile_job
 from sro.domain.execution.lanes import Broken, cites_key
@@ -63,6 +64,12 @@ async def job_facts(
             now=now,
         )
         aliases: tuple[JobAlias, ...] = ()
+        names = names_of(workflow)
+        declared = (
+            await declared_limits(uow, tenant_id, names, await screen_for(uow, tenant_id, workflow))
+            if names
+            else {}
+        )
         compiled = compile_job(
             workflow,
             by_id,
@@ -72,6 +79,7 @@ async def job_facts(
             aliases=aliases,
             values=values,
             from_step=from_step,
+            declared=declared,
         )
         if values is None and not from_step:
             _say_once(tenant_id, workflow.id, compiled)

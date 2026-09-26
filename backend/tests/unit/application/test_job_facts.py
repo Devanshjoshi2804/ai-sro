@@ -6,9 +6,10 @@ import pytest
 from sro.application.skill.job_facts import job_facts
 from sro.domain.execution.lanes import K_BROKEN_COOL_DOWN, Broken, Lane, cites_key
 from sro.domain.execution.learned_step import LearnedStep
+from sro.domain.knowledge.entry import EntryKind, EvidenceLevel, KnowledgeEntry, KnowledgeId
 from sro.domain.skill.workflow import Workflow
 from tests.unit.fakes import FakeUnitOfWork
-from tests.unit.runtime_support import NOW, TENANT, proven_write_step, save_step
+from tests.unit.runtime_support import NOW, TENANT, proven_write_step, save_job, save_step
 
 
 async def test_facts_load_what_the_runtime_loads_and_compile_it() -> None:
@@ -75,3 +76,28 @@ async def test_a_lane_broken_before_its_cool_down_is_not_a_fact_any_more() -> No
 
     assert fresh.broken == (broke,)
     assert cooled.broken == ()
+
+
+async def test_a_knowledge_base_limit_reaches_compiled_fields_for_a_page_with_none() -> None:
+    uow = FakeUnitOfWork()
+    job = await save_job(uow, "wfl_kb_limit")
+    await uow.knowledge.add(
+        KnowledgeEntry(
+            id=KnowledgeId("kn-customerType"),
+            tenant_id=TENANT,
+            system="blue_yonder",
+            kind=EntryKind.FIELD,
+            key="customerType",
+            title="Customer Type (customerType)",
+            body={"labels": ["Customer Type"], "max_length": 4},
+            source="catalogue",
+            evidence=EvidenceLevel.ASSERTED,
+            observed_at=NOW,
+        )
+    )
+
+    async with uow:
+        (facts,) = await job_facts(uow, TENANT, [job], now=NOW)
+
+    fields = {one.name: one for one in facts.compiled.fields}
+    assert fields["Customer Type"].limits.max_length == 4

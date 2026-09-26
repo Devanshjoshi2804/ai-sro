@@ -1048,7 +1048,7 @@ async def test_a_request_sent_before_the_mark_is_never_the_steps_own_call(
     target = await driver.open_tab(one, rig.url("/public"))
     first = await driver.mark(one, target)
     await driver.evaluate(one, target, "void fetch('/api/ping?hold', {method: 'POST'})")
-    assert await asyncio.to_thread(rig.pinged.wait, 10)
+    assert await asyncio.to_thread(rig.holding.wait, 10)
 
     mark = await driver.mark(one, target)
     rig.release.set()
@@ -1179,7 +1179,7 @@ async def test_a_call_sent_and_not_yet_answered_is_already_in_the_log(
     target = await driver.open_tab(one, rig.url("/public"))
     mark = await driver.mark(one, target)
     await driver.evaluate(one, target, "void fetch('/api/ping?hold', {method: 'POST'})")
-    assert await asyncio.to_thread(rig.pinged.wait, 10)
+    assert await asyncio.to_thread(rig.holding.wait, 10)
 
     pending = await driver.calls_since(one, target, mark)
     rig.release.set()

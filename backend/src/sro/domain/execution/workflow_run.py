@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 OUTCOMES = ("running", "held", "stopped", "refused", "aborted", "failed")
+ENDED = ("held", "aborted", "failed")
 
 Executor = Literal["extension", "steel"]
 

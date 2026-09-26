@@ -593,10 +593,13 @@ class GetWorkflowRun:
 
 
 class AbortWorkflowRun:
-    def __init__(self, uow: UnitOfWork, stops: Stops, approvals: Approvals) -> None:
+    def __init__(
+        self, uow: UnitOfWork, stops: Stops, approvals: Approvals, *, durable: DurableExecution
+    ) -> None:
         self._uow = uow
         self._stops = stops
         self._approvals = approvals
+        self._durable = durable
 
     async def execute(self, ctx: RequestContext, *, run_id: str) -> WorkflowRun:
         async with self._uow as uow:
@@ -605,6 +608,9 @@ class AbortWorkflowRun:
             raise NotFound("no such run")
         if run.outcome != "running":
             raise CannotStop(f"that run already {run.outcome}")
+        if run.executor == "steel":
+            await self._durable.cancel_run(run.id)
+            return run
         if not run.device_id:
             raise CannotStop(NOT_IN_A_BROWSER_HERE)
         self._stops.ask(run.id)

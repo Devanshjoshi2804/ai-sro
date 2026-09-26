@@ -725,6 +725,12 @@ class SteelRun:
         progress.asking = question
         assert await self.uow.workflow_runs.record_progress(TENANT, self.run_id, progress.as_json())
 
+    def restarted(self) -> RunSteps:
+        """The run's steps as a fresh worker process drives them: a new broker
+        and executor over the same database and the same browser, holding
+        nothing the old process knew."""
+        return _worker(self.uow, self.driver, self.vault, self.clock, self.lanes)[1]
+
     async def saved_run(self, run_id: str = "") -> WorkflowRun:
         run = await self.uow.workflow_runs.get(TENANT, run_id or self.run_id)
         assert run is not None
@@ -780,6 +786,19 @@ async def steel_run(
     lanes = Lanes(
         *(RecordingLane(lane, settles=None) for lane in (Lane.TOOL, Lane.API, Lane.UI, Lane.SIGHT))
     )
+    broker, run_steps = _worker(uow, driver, vault, clock, lanes)
+    return SteelRun(
+        uow, run_id, run_steps, lanes, broker, driver, account, vault, clock, FakeDurableExecution()
+    )
+
+
+def _worker(
+    uow: FakeUnitOfWork,
+    driver: FakePageDriver,
+    vault: FakeCredentialVault,
+    clock: FakeClock,
+    lanes: Lanes,
+) -> tuple[SessionBroker, RunSteps]:
     broker = SessionBroker(
         uow,
         FakeBrowserPool({STEEL: 2}),
@@ -790,11 +809,8 @@ async def steel_run(
         ui=SigningLane(driver),
     )
     executor = StepExecutor(lanes.tool, lanes.api, lanes.ui, lanes.sight, broker)
-    run_steps = RunSteps(
+    return broker, RunSteps(
         uow, broker, executor, Teach(uow, clock), lanes.api, clock, FakeIdFactory()
-    )
-    return SteelRun(
-        uow, run_id, run_steps, lanes, broker, driver, account, vault, clock, FakeDurableExecution()
     )
 
 
@@ -819,4 +835,22 @@ async def asking_steel_run(uow: UnitOfWork, *, kind: str) -> WorkflowRun:
     async with uow:
         await uow.workflow_runs.save(run)
         await uow.commit()
+    return run
+
+
+async def running_steel_run(uow: FakeUnitOfWork, run_id: str = "run_steel") -> WorkflowRun:
+    """A live run on Steel, still `running`, stored in `uow` under `CTX`."""
+    run = WorkflowRun(
+        id=run_id,
+        tenant=_TENANT,
+        workflow_id=_WORKFLOW.id,
+        device_id="",
+        values={},
+        started_by="clerk",
+        live=True,
+        allow_focus=False,
+        started_at=NOW.isoformat(),
+        executor="steel",
+    )
+    await uow.workflow_runs.save(run)
     return run

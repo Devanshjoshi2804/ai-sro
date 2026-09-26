@@ -1117,6 +1117,39 @@ class TestWorkflowRuns:
         assert [step.order for step in elsewhere.steps] == [0]
         assert elsewhere.steps[0].reason == "the worker restarted"
 
+    async def test_an_ended_run_is_never_saved_back_to_running(self, store: UnitOfWork) -> None:
+        async with store as work:
+            await work.workflow_runs.save(
+                _run("run_steel", executor="steel", outcome="aborted", finished_at=_at(11))
+            )
+            await work.workflow_runs.save(
+                _run(
+                    "run_steel",
+                    executor="steel",
+                    outcome="running",
+                    finished_at=None,
+                    steps=[RunStep(order=0, says="save", verdict="failed")],
+                )
+            )
+            await work.commit()
+            run = await work.workflow_runs.get(TENANT, "run_steel")
+
+        assert run is not None
+        assert (run.outcome, run.finished_at) == ("aborted", _at(11))
+        assert [one.verdict for one in run.steps] == ["failed"]
+
+    async def test_a_stopped_run_is_still_given_its_finish_time(self, store: UnitOfWork) -> None:
+        async with store as work:
+            await work.workflow_runs.save(_run("run_steel", executor="steel", outcome="aborted"))
+            await work.workflow_runs.save(
+                _run("run_steel", executor="steel", outcome="failed", finished_at=_at(12))
+            )
+            await work.commit()
+            run = await work.workflow_runs.get(TENANT, "run_steel")
+
+        assert run is not None
+        assert (run.outcome, run.finished_at) == ("aborted", _at(12))
+
 
 class TestOffers:
     async def test_newest_is_at_descending_with_arrival_as_the_tiebreak(

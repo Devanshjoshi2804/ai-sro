@@ -161,6 +161,7 @@ async def run() -> None:
             run_activities.prepare,
             run_activities.acquire,
             run_activities.step,
+            run_activities.stopped,
             run_activities.finish,
             run_activities.release,
         ],

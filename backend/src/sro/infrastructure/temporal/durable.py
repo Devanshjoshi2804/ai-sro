@@ -101,6 +101,9 @@ class TemporalDurableExecution:
         handle = (await self._connect()).get_workflow_handle(f"workflow-run-{run_id}")
         await handle.signal(RunWorkflow.answer, question_id)
 
+    async def cancel_run(self, run_id: str) -> None:
+        await (await self._connect()).get_workflow_handle(f"workflow-run-{run_id}").cancel()
+
 
 def _root_message(error: BaseException) -> str:
     current: BaseException = error

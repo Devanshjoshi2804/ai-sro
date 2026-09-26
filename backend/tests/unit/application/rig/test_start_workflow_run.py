@@ -50,7 +50,8 @@ from tests.unit.fakes import (
     FakeIdFactory,
     FakeUnitOfWork,
 )
-from tests.unit.runtime_support import CTX, save_job
+from tests.unit.runtime_support import CTX, running_steel_run, save_job
+from tests.unit.runtime_support import CTX as STEEL_CTX
 
 TENANT = TenantId("acme")
 RIVAL = TenantId("rival")
@@ -1260,3 +1261,16 @@ async def test_another_tenants_undo_does_not_block_this_one() -> None:
     await _finished(uow, theirs, "held")
 
     assert (await _press(_starter(uow), undoes_run=made.id)).undoes_run == made.id
+
+
+async def test_stopping_a_steel_run_cancels_its_workflow_and_touches_no_browser() -> None:
+    uow, durable, stops = FakeUnitOfWork(), FakeDurableExecution(), Stops()
+    run = await running_steel_run(uow)
+
+    stopping = await door.AbortWorkflowRun(uow, stops, Approvals(), durable=durable).execute(
+        STEEL_CTX, run_id=run.id
+    )
+
+    assert durable.cancelled == [run.id]
+    assert stopping.outcome == "running"
+    assert not stops.asked(run.id)

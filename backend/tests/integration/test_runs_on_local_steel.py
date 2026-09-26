@@ -17,6 +17,10 @@ session is in use.
 this process as well as loading pages in Steel, so the rig's host must resolve
 on both sides: set `SRO_STEEL_SEES_HOST` to this machine's LAN address
 (`host.docker.internal` resolves only inside the container).
+
+The tests that drive a whole run do it through `RunWorkflow` on the real
+Temporal server from `make up` (`localhost:7233`), on a task queue of their
+own, and are skipped when it does not answer.
 """
 
 from __future__ import annotations
@@ -26,19 +30,30 @@ import contextlib
 import json
 import os
 import time
+import uuid
 from collections.abc import AsyncIterator, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING, cast
 from urllib.parse import urlsplit
 
 import docker
 import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from temporalio.api.enums.v1 import EventType
+from temporalio.client import Client, WorkflowExecutionStatus, WorkflowFailureError
+from temporalio.worker import Worker
 
 from sro.application.context import RequestContext
+from sro.application.execution.approvals import Approvals
+from sro.application.execution.read_runs import CannotStop
+from sro.application.execution.stops import Stops
+from sro.application.execution.workflow_runs import AbortWorkflowRun
 from sro.application.lookup.run_lookups import RunLookups
 from sro.application.ports.browser import BrowserUnavailable
+from sro.application.ports.page import SessionRef
+from sro.application.runtime.api_lane import ApiLane
 from sro.application.runtime.broker import K_CLOSE_S, SessionBroker
 from sro.application.runtime.executor import StepExecutor
 from sro.application.runtime.run_steps import RunSteps
@@ -51,7 +66,14 @@ from sro.domain.execution.lanes import Lane
 from sro.domain.execution.progress import MAIN, Progress
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.lookup.plan import Lookup, Plan
-from sro.domain.observation.gesture import Action, Call, Gesture, GestureBatch, Target
+from sro.domain.observation.gesture import (
+    Action,
+    Body,
+    Call,
+    Gesture,
+    GestureBatch,
+    Target,
+)
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.skill.workflow import Step, Workflow
@@ -61,6 +83,10 @@ from sro.infrastructure.http.httpx_caller import HttpxCaller
 from sro.infrastructure.steel.client import SteelClient
 from sro.infrastructure.steel.driver import SteelDriver
 from sro.infrastructure.steel.pool import SteelPool
+from sro.infrastructure.system import UuidFactory
+from sro.infrastructure.temporal.activities import RunActivities, RunRef
+from sro.infrastructure.temporal.durable import TemporalDurableExecution
+from sro.infrastructure.temporal.workflows import RunWorkflow
 from tests.browser.steel_rig import Rig, pages_in
 from tests.browser.test_the_steel_pool_against_local_steel import (
     CDP_URL,
@@ -71,6 +97,9 @@ from tests.browser.test_the_steel_pool_against_local_steel import (
 )
 from tests.unit.fakes import FakeClock, FakeCredentialVault, FakeIdFactory
 from tests.unit.runtime_support import RecordingLane, with_a_recorded_sign_in
+
+if TYPE_CHECKING:
+    from sro.container import Container
 
 pytestmark = pytest.mark.browser
 
@@ -112,6 +141,7 @@ class World:
     vault: FakeCredentialVault
     clock: FakeClock
     drivers: list[SteelDriver]
+    sessions: async_sessionmaker[AsyncSession]
 
     def broker(self, pool: SteelPool | None = None) -> tuple[SessionBroker, SteelDriver]:
         driver = SteelDriver(get_settings().page_code_path)
@@ -146,6 +176,7 @@ async def world(
         FakeCredentialVault(),
         FakeClock(datetime.now(UTC)),
         [],
+        session_factory,
     )
     try:
         yield made
@@ -489,3 +520,278 @@ async def test_a_crashed_container_is_replaced_and_its_saved_state_restored(
     assert old.state is LeaseState.BROKEN
     assert second.lease.id != first.lease.id
     assert urlsplit(await driver.url_of(second.session, second.target_id)).path == "/app"
+
+
+TEMPORAL = "localhost:7233"
+
+
+@pytest.fixture
+async def temporal() -> Client:
+    try:
+        async with asyncio.timeout(5):
+            return await Client.connect(TEMPORAL)
+    except Exception as exc:
+        pytest.skip(f"Temporal is not reachable at {TEMPORAL}: {exc}")
+
+
+def _did(world: World, gesture_id: str, action: Action, *requests: Call) -> Gesture:
+    return Gesture(
+        id=gesture_id,
+        tenant=TENANT,
+        stream_id="stream-job",
+        batch_id="batch-sign-in",
+        at=action.at,
+        url=world.rig.url("/app"),
+        system=world.rig.url(""),
+        tab_id=1,
+        frame_url=None,
+        action=action,
+        requests=list(requests),
+    )
+
+
+def _steps(world: World) -> dict[str, tuple[Step, Gesture]]:
+    """The rig's `/app` as it was recorded: a Refresh that reads the list, a
+    typed customer type, and the Save that writes it."""
+    refresh = _did(
+        world,
+        "ges_refresh",
+        Action(kind="click", at=10.0, target=Target(role="button", name="Refresh")),
+        Call("GET", world.rig.url("/api/customer-types?hold"), started_at=10.0, status=200),
+    )
+    typed = _did(
+        world,
+        "ges_type",
+        Action(
+            kind="type", at=11.0, value="GT1", target=Target(role="textbox", name="Customer Type")
+        ),
+    )
+    save = _did(
+        world,
+        "ges_save",
+        Action(kind="click", at=12.0, target=Target(role="button", name="Save")),
+        Call(
+            "POST",
+            world.rig.url("/api/customer-types"),
+            started_at=12.0,
+            status=201,
+            request_body=Body(text='{"name": "GT1"}', mime_type="application/json"),
+        ),
+    )
+    return {
+        "refresh": (
+            Step(order=0, says="Refresh the list", system=None, cites=[refresh.id]),
+            refresh,
+        ),
+        "type": (
+            Step(
+                order=0,
+                says="Type the customer type",
+                system=None,
+                cites=[typed.id],
+                parameters=["Customer Type"],
+            ),
+            typed,
+        ),
+        "save": (Step(order=0, says="Save it", system=None, cites=[save.id]), save),
+    }
+
+
+async def _a_run(world: World, *names: str) -> str:
+    """A live Steel run of a job made of the named recorded steps, in order."""
+    await _recorded(world)
+    known = _steps(world)
+    chosen = [known[name] for name in names]
+    job = Workflow(
+        id="wfl_whole_run",
+        tenant=TENANT,
+        title="Add a customer type",
+        narrative="",
+        steps=[replace(step, order=n) for n, (step, _) in enumerate(chosen)],
+    )
+    run_id = f"run_{uuid.uuid4().hex}"
+    async with world.uow as uow:
+        await uow.gestures.add_gestures(tuple(seen for _, seen in chosen))
+        await uow.workflows.save(job)
+        await uow.workflow_runs.save(
+            WorkflowRun(
+                id=run_id,
+                tenant=TENANT,
+                workflow_id=job.id,
+                device_id="",
+                values={"Customer Type": "GT2"},
+                started_by="op",
+                live=True,
+                allow_focus=False,
+                started_at=datetime.now(UTC).isoformat(),
+                executor="steel",
+            )
+        )
+        await uow.commit()
+    return run_id
+
+
+class _Process:
+    """What `RunActivities` asks of the container, as one worker process has
+    it: one driver of its own, and a fresh unit of work behind every
+    `run_steps`, over the shared database and Steel."""
+
+    def __init__(self, world: World) -> None:
+        self._world = world
+        self._driver = SteelDriver(get_settings().page_code_path)
+        world.drivers.append(self._driver)
+
+    def run_steps(self) -> RunSteps:
+        world, driver = self._world, self._driver
+        uow = SqlUnitOfWork(world.sessions)
+        broker = SessionBroker(
+            uow, world.pool, driver, world.locks, world.vault, world.clock, ui=UiLane(driver)
+        )
+        api = ApiLane(HttpxCaller(), broker)
+        executor = StepExecutor(
+            RecordingLane(Lane.TOOL), api, UiLane(driver), RecordingLane(Lane.SIGHT), broker
+        )
+        return RunSteps(
+            uow, broker, executor, Teach(uow, world.clock), api, world.clock, UuidFactory()
+        )
+
+
+def _worker(world: World, temporal: Client, queue: str) -> Worker:
+    runs = RunActivities(cast("Container", _Process(world)))
+    return Worker(
+        temporal,
+        task_queue=queue,
+        workflows=[RunWorkflow],
+        activities=[
+            runs.prepare,
+            runs.acquire,
+            runs.step,
+            runs.answered,
+            runs.stopped,
+            runs.finish,
+            runs.release,
+        ],
+        # A worker stopped mid-run leaves its workflow unfinished; uncached, the
+        # next worker replays it from history rather than a sticky queue.
+        max_cached_workflows=0,
+    )
+
+
+async def _saved(world: World, run_id: str) -> WorkflowRun:
+    async with world.uow as uow:
+        run = await uow.workflow_runs.get(CTX.tenant_id, run_id)
+    assert run is not None
+    return run
+
+
+async def test_a_stop_mid_step_lets_the_step_finish_and_sends_nothing_after_it(
+    world: World, temporal: Client
+) -> None:
+    run_id = await _a_run(world, "refresh", "save")
+    queue = f"runs-test-{uuid.uuid4().hex}"
+    stopping = AbortWorkflowRun(
+        world.uow, Stops(), Approvals(), durable=TemporalDurableExecution(address=TEMPORAL)
+    )
+    async with _worker(world, temporal, queue):
+        handle = await temporal.start_workflow(
+            RunWorkflow.run,
+            RunRef(tenant_id=TENANT, principal_id="op", run_id=run_id, budget_s=300.0),
+            id=f"workflow-run-{run_id}",
+            task_queue=queue,
+        )
+        assert await asyncio.to_thread(world.rig.asked.wait, 60)
+
+        answered = await stopping.execute(CTX, run_id=run_id)
+        world.rig.answer.set()
+
+        with pytest.raises(WorkflowFailureError):
+            await handle.result()
+
+    assert answered.outcome == "running"
+    assert (await handle.describe()).status is WorkflowExecutionStatus.CANCELED
+    assert world.rig.saved == []
+    run = await _saved(world, run_id)
+    assert run.outcome == "aborted"
+    assert [(one.of_step, one.verdict) for one in run.steps] == [(0, "held")]
+    assert Progress.of(run.progress).tabs == {}
+    assert run.finished_at is not None
+    with pytest.raises(CannotStop, match="aborted"):
+        await stopping.execute(CTX, run_id=run_id)
+
+
+async def test_a_stop_while_the_run_waits_for_a_code_aborts_it_holding_nothing(
+    world: World, temporal: Client
+) -> None:
+    run_id = await _a_run(world, "refresh")
+    world.rig.asks_a_code = True
+    queue = f"runs-test-{uuid.uuid4().hex}"
+    stopping = AbortWorkflowRun(
+        world.uow, Stops(), Approvals(), durable=TemporalDurableExecution(address=TEMPORAL)
+    )
+    async with _worker(world, temporal, queue):
+        handle = await temporal.start_workflow(
+            RunWorkflow.run,
+            RunRef(tenant_id=TENANT, principal_id="op", run_id=run_id, budget_s=300.0),
+            id=f"workflow-run-{run_id}",
+            task_queue=queue,
+        )
+        async with asyncio.timeout(60):
+            async for event in handle.fetch_history_events(wait_new_event=True):
+                if event.event_type == EventType.EVENT_TYPE_TIMER_STARTED:
+                    break
+        parked = Progress.of((await _saved(world, run_id)).progress)
+        async with world.uow as uow:
+            lease = await uow.browser_sessions.get_lease(CTX.tenant_id, parked.lease)
+        assert lease is not None
+        assert lease.state is LeaseState.WAITING
+        assert lease.holder == run_id
+
+        await stopping.execute(CTX, run_id=run_id)
+        with pytest.raises(WorkflowFailureError):
+            await handle.result()
+
+    assert (await handle.describe()).status is WorkflowExecutionStatus.CANCELED
+    run = await _saved(world, run_id)
+    assert run.outcome == "aborted"
+    assert run.finished_at is not None
+    assert Progress.of(run.progress).tabs == {}
+    async with world.uow as uow:
+        lease = await uow.browser_sessions.get_lease(CTX.tenant_id, parked.lease)
+    assert lease is not None
+    assert lease.state is not LeaseState.WAITING
+
+
+async def test_a_worker_killed_mid_write_resumes_the_run_and_never_sends_it_again(
+    world: World, temporal: Client
+) -> None:
+    run_id = await _a_run(world, "type", "save")
+    world.rig.hold_saves = True
+    queue = f"runs-test-{uuid.uuid4().hex}"
+    first = asyncio.create_task(_worker(world, temporal, queue).run())
+    handle = await temporal.start_workflow(
+        RunWorkflow.run,
+        RunRef(tenant_id=TENANT, principal_id="op", run_id=run_id, budget_s=300.0),
+        id=f"workflow-run-{run_id}",
+        task_queue=queue,
+    )
+    assert await asyncio.to_thread(world.rig.asked.wait, 60)
+    tab = Progress.of((await _saved(world, run_id)).progress).tabs[MAIN]
+
+    first.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await first
+    world.rig.answer.set()
+    async with _worker(world, temporal, queue):
+        await handle.result()
+
+    assert world.rig.saved == [{"name": "GT2"}]
+    assert world.rig.logins == 1
+    run = await _saved(world, run_id)
+    assert [(one.of_step, one.verdict) for one in run.steps] == [(0, "held"), (1, "unclear")]
+    progress = Progress.of(run.progress)
+    assert progress.in_doubt(1)
+    async with world.uow as uow:
+        lease = await uow.browser_sessions.get_lease(CTX.tenant_id, progress.lease)
+    assert lease is not None
+    session = SessionRef(lease.context_id, await world.pool.cdp_url(lease.container_url))
+    assert tab not in await pages_in(session)

@@ -228,7 +228,7 @@ Code: `K_EVERY_FORM = 400`
 > the loop rather than moving here because the loop is what holds the socket
 > and knows the run is really over.
 
-## `NotDrivingThisRun`, [line 615](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L615): Docstring
+## `NotDrivingThisRun`, [line 621](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L621): Docstring
 
 > This browser is not the one driving the run it is trying to release.
 >
@@ -248,7 +248,7 @@ Code: `K_EVERY_FORM = 400`
 > neither `NotYours` had a handler registered, so both reached a caller as a
 > 500 and inheriting would have inherited it. `0302584` fixed that door.
 
-## `ApproveWorkflowStep`, [line 619](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L619): Docstring
+## `ApproveWorkflowStep`, [line 625](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L625): Docstring
 
 > A person saw the write the panel showed and said go.
 >
@@ -570,7 +570,7 @@ Code: `steel = self.runs_on_steel(ctx)`
 > reason that sentence gives. A run that made two would need two deletes,
 > and an undo that takes back half of what a run did is worse than none.
 
-## `ApproveWorkflowStep.execute`, [line 625](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L625): Docstring
+## `ApproveWorkflowStep.execute`, [line 631](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L631): Docstring
 
 > (the step authorised, whether this tap was the one, whether anything woke).
 
@@ -1088,14 +1088,23 @@ Code: `if asks is None:`
 > name a parameter the job does not have, and the run would refuse
 > it as a value nobody supplied.
 
-## `AbortWorkflowRun.execute`, [line 604](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L604): Comment
+## `AbortWorkflowRun.execute`, [line 607](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L607): Comment
 
 Code: `if run is None:`
 
 > A run of another tenant takes the same path as one that never
 > existed, for `GetWorkflowRun`'s reason: a 403 confirms the id exists.
 
-## `AbortWorkflowRun.execute`, [line 608](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L608): Comment
+## `AbortWorkflowRun.execute`, [line 611](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L611): Note
+
+Code: `if run.executor == "steel":`
+
+> A Steel run is stopped by cancelling its workflow (spec §7.4), never through
+> `Stops`: no browser of the operator's drives it. The row answered still says
+> `running`; the step that was running finishes its current primitive and the
+> workflow records the run `aborted` (`run.stopped`) before it releases.
+
+## `AbortWorkflowRun.execute`, [line 614](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L614): Comment
 
 Code: `if not run.device_id:`
 
@@ -1105,7 +1114,7 @@ Code: `if not run.device_id:`
 > writes such a row: what a stop control must never do is answer
 > "stopping" for a run nothing in this process is driving.
 
-## `AbortWorkflowRun.execute`, [line 612](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L612): Comment (debt)
+## `AbortWorkflowRun.execute`, [line 618](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L618): Comment (debt)
 
 Code: `return run`
 
@@ -1113,7 +1122,7 @@ Code: `return run`
 > worker, so stopping must land there too -- sticky-route by device_id
 > if this is ever run with more than one.
 
-## `ApproveWorkflowStep.execute`, [line 635](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L635): Comment
+## `ApproveWorkflowStep.execute`, [line 641](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L641): Comment
 
 Code: `if run.outcome != "running" or not parked:`
 
@@ -1122,7 +1131,7 @@ Code: `if run.outcome != "running" or not parked:`
 > failed is not waiting on anybody, and a tap on it would record a
 > person letting out a write nothing is holding open.
 
-## `ApproveWorkflowStep.execute`, [line 644](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L644): Comment
+## `ApproveWorkflowStep.execute`, [line 650](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L650): Comment
 
 Code: `await uow.commit()`
 
@@ -1130,7 +1139,7 @@ Code: `await uow.commit()`
 > is durable before anything can act on the event. The other order
 > would let a write out on a transaction that then rolled back.
 
-## `ApproveWorkflowStep.execute`, [line 645](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L645): Comment
+## `ApproveWorkflowStep.execute`, [line 651](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L651): Comment
 
 Code: `resumed = self._approvals.approve(run.id)`
 

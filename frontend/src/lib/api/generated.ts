@@ -1925,6 +1925,10 @@ export interface paths {
          *     also what a tap is: a route that 422s one is a Stop-shaped button that
          *     sometimes does nothing.
          *
+         *     **A run on Steel** is stopped by cancelling its workflow: the step it is in
+         *     finishes its current action, and the run is recorded `aborted` before its
+         *     browser tab is released.
+         *
          *     A run of another tenant is a 404 and never a 403, for `get_workflow_run`'s
          *     reason. A run that is not `running`, or one naming no browser, is the 409
          *     `CannotStop` already carries -- it subclasses `Conflict`, so `errors` maps

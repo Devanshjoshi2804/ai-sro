@@ -234,6 +234,23 @@ async def test_a_stop_during_a_write_still_propagates(error: BaseException) -> N
         await SightLane(driver, clicks_then_done(), None).execute(step, {}, lane_context(by_id))
 
 
+async def test_a_stop_after_the_write_went_out_settles_the_write_it_saw() -> None:
+    driver = scripted_driver(url=APP, hit=HIT, calls=[SAVED])
+    step, by_id = save_step(status=201)
+    stopping: list[asyncio.Event] = []
+
+    async def stop_now(lane: Lane) -> None:
+        stopping[0].set()
+
+    ctx = lane_context(by_id, about_to_write=stop_now)
+    stopping.append(ctx.stop)
+
+    result = await SightLane(driver, clicks_then_done(), None).execute(step, {}, ctx)
+
+    assert result.verdict == "done"
+    assert driver.pointed == [("click", 400, 20, None)]
+
+
 DEPARTMENT = {
     "strategy": "role_and_name",
     "query": "textbox|Customer Type",

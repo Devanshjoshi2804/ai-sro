@@ -3,10 +3,12 @@ from dataclasses import replace
 
 import pytest
 
+from sro.application.context import RequestContext
 from sro.application.ports.locks import AccountBusy
 from sro.application.ports.page import PageGone
 from sro.application.runtime.step import LaneContext, Superseded
-from sro.domain.execution.account import LeaseState
+from sro.application.runtime.ui_lane import UiLane
+from sro.domain.execution.account import Account, LeaseState
 from sro.domain.execution.lanes import Broken, Lane, StepResult, cites_key
 from sro.domain.execution.progress import MAIN, Progress, StepMark
 from tests.unit.runtime_support import (
@@ -163,6 +165,68 @@ async def test_a_stopped_step_aborts_the_run_and_says_where() -> None:
     run = await world.saved_run()
     assert run.outcome == "aborted"
     assert await world.run_steps.finish(CTX, world.run_id) == "aborted"
+
+
+async def test_a_stop_is_seen_before_the_next_primitive() -> None:
+    step, by_id = save_step(status=201)
+    world = await steel_run(steps=[(step, by_id)])
+    await world.run_steps.prepare(CTX, world.run_id)
+    await world.run_steps.acquire(CTX, world.run_id)
+    stop = asyncio.Event()
+    stop.set()
+
+    async def really_acts(ctx: LaneContext) -> None:
+        await UiLane(world.driver).execute(step, {}, ctx)
+
+    world.lanes.ui.on_execute(really_acts)
+
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=stop)
+
+    assert outcome.failed and not outcome.more
+    assert (await world.saved_run()).outcome == "aborted"
+    assert world.driver.acted == []
+
+
+async def test_stopped_aborts_a_running_run_and_leaves_a_finished_one_alone() -> None:
+    world = await steel_run(steps=[save_step(status=201)])
+    other = await steel_run(steps=[save_step(status=201)])
+
+    await world.run_steps.stopped(CTX, world.run_id)
+    assert await other.run_steps.finish(CTX, other.run_id) == "failed"
+    await other.run_steps.stopped(CTX, other.run_id)
+
+    assert (await world.saved_run()).outcome == "aborted"
+    assert (await other.saved_run()).outcome == "failed"
+
+
+async def test_a_prepare_that_asks_after_a_stop_never_reopens_the_run() -> None:
+    world = await steel_run(steps=[save_step(status=201)], recorded_sign_in=False)
+    asks = world.broker.account_for
+
+    async def stopped_meanwhile(ctx: RequestContext, url: str) -> Account:
+        await world.restarted().stopped(CTX, world.run_id)
+        return await asks(ctx, url)
+
+    world.broker.account_for = stopped_meanwhile  # type: ignore[method-assign,assignment]
+
+    prepared = await world.run_steps.prepare(CTX, world.run_id)
+
+    assert prepared.asking
+    run = await world.saved_run()
+    assert (run.outcome, run.finished_at) == ("aborted", None)
+
+
+async def test_a_restarted_worker_finds_the_run_s_tab_by_its_target_id() -> None:
+    world = await steel_run(steps=[type_step(), save_step(status=201)])
+    await world.run_steps.prepare(CTX, world.run_id)
+    await world.run_steps.acquire(CTX, world.run_id)
+    tab = Progress.of((await world.saved_run()).progress).tabs[MAIN]
+    opened = dict(world.driver.tabs)
+
+    await world.restarted().acquire(CTX, world.run_id)
+
+    assert Progress.of((await world.saved_run()).progress).tabs[MAIN] == tab
+    assert world.driver.tabs == opened
 
 
 async def test_a_dry_run_withholds_the_write() -> None:

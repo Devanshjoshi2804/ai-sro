@@ -110,3 +110,10 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/sight
 > settling), settle. An exception after the first point, when a write is watched,
 > is `unknown` -- "the write may have gone" -- because the point may have sent it;
 > before any point it propagates. `Stopped` and cancellation always propagate.
+
+## `SightLane._drive`, [line 162](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L162): Note
+
+Code: `if await self._sent(held, watched, tried):`
+
+> Checked before the stop: a write already seen going out settles as done
+> rather than being left in doubt by a stop that landed after the point.

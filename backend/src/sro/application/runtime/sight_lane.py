@@ -159,9 +159,9 @@ class SightLane:
         for model in self._models:
             history: list[str] = []
             for _ in range(K_SIGHT_ACTIONS):
-                ctx.check_stop()
                 if await self._sent(held, watched, tried):
                     return
+                ctx.check_stop()
                 if not await self._at_home(held, home):
                     tried.why = _LEFT
                     return

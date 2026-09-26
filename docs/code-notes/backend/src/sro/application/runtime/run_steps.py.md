@@ -45,20 +45,20 @@ Code: `async def finish(self, ctx: RequestContext, run_id: str) -> str:`
 > `held` only when every step was reached and each is held or withheld;
 > an outcome already set (a stop's `aborted`) is kept.
 
-## `RunSteps.beat`, [line 260](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L260): Note
+## `RunSteps.beat`, [line 269](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L269): Note
 
 Code: `if progress.lease and not await self._broker.beat(ctx, progress.lease, holder=run_id):`
 
 > A beat the lease no longer answers is a lost lease: the lost-page path.
 
-## `RunSteps._keep_tab`, [line 309](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L309): Note
+## `RunSteps._keep_tab`, [line 318](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L318): Note
 
 Code: `except BaseException:`
 
 > A tab this attempt opened but could not record is closed at once; a retry
 > would open another, and nothing would ever release the first.
 
-## `RunSteps._sending`, [line 352](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L352): Note
+## `RunSteps._sending`, [line 361](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L361): Note
 
 Code: `if again and wrote == "sending":`
 
@@ -66,7 +66,7 @@ Code: `if again and wrote == "sending":`
 > marked; any other mark means another attempt got there first, and this one
 > sends nothing.
 
-## `RunSteps._settled`, [line 359](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L359): Note
+## `RunSteps._settled`, [line 368](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L368): Note
 
 Code: `async def _settled(`
 
@@ -74,7 +74,7 @@ Code: `async def _settled(`
 > signed in afresh when the result says the session expired; nothing to read
 > back means a person is asked and the mark stays in doubt.
 
-## `RunSteps._advance`, [line 405](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L405): Note
+## `RunSteps._advance`, [line 414](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L414): Note
 
 Code: `progress.step, progress.asking = index + 1, {}`
 
@@ -82,7 +82,7 @@ Code: `progress.step, progress.asking = index + 1, {}`
 > follows the unclear one, and D5 takes an answer to a withdrawn question as
 > already answered.
 
-## `RunSteps._ask`, [line 421](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L421): Note
+## `RunSteps._ask`, [line 430](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L430): Note
 
 Code: `async def _ask(`
 
@@ -125,7 +125,7 @@ Code: `if (index is not None and loaded.step != index) or (`
 > zombie whose lane fails after the retry already held the step asks nothing
 > and adds no row.
 
-## `RunSteps.release`, [line 209](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L209): Note
+## `RunSteps.release`, [line 218](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L218): Note
 
 Code: `if run.outcome == "running" and waits == "code":`
 
@@ -145,7 +145,7 @@ Code: `if run.outcome == "running" and waits == "code":`
 > the tab is closed: an ended park is no longer live and its tab could not
 > be reached.
 
-## `RunSteps.answered`, [line 229](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L229): Note
+## `RunSteps.answered`, [line 238](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L238): Note
 
 Code: `if asking.get("id") != question_id or not asking.get("answered"):`
 
@@ -153,7 +153,7 @@ Code: `if asking.get("id") != question_id or not asking.get("answered"):`
 > only woke the workflow. A question no longer standing, or not answered,
 > changes nothing: the step has moved on, or is asked again.
 
-## `RunSteps.answered`, [line 233](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L233): Note
+## `RunSteps.answered`, [line 242](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L242): Note
 
 Code: `await self._broker.unpark(ctx, progress.lease, "password")`
 
@@ -161,7 +161,7 @@ Code: `await self._broker.unpark(ctx, progress.lease, "password")`
 > on the one question. Once the person has stored a new password the park is
 > ended at once, never waited out, and the next acquire signs in afresh.
 
-## `RunSteps._acquire`, [line 274](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L274): Note
+## `RunSteps._acquire`, [line 283](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L283): Note
 
 Code: `if kept.lease.state is not LeaseState.WAITING:`
 
@@ -170,7 +170,7 @@ Code: `if kept.lease.state is not LeaseState.WAITING:`
 > it is. A code the page still asks for, or a password page in its place, is
 > asked again.
 
-## `RunSteps._ask`, [line 440](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L440): Note
+## `RunSteps._ask`, [line 449](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L449): Note
 
 Code: `if isinstance(asked, WaitingForAPerson):`
 
@@ -188,7 +188,7 @@ Code: `run.awaiting = None`
 > Once it has finished with nothing left to ask, a reply there is a new
 > request again, as the extension's `perform` settles it.
 
-## `RunSteps.answered`, [line 235](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L235): Note
+## `RunSteps.answered`, [line 244](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L244): Note
 
 Code: `if kind == "step" and verdict:`
 
@@ -211,3 +211,12 @@ Code: `absent = [name for name in step.parameters if not values.get(name, "").st
 
 > The job's required parameter names, by the same `demanded` rule the press
 > and the mail reading use.
+
+## `RunSteps.stopped`, [line 205](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L205): Note
+
+Code: `async def stopped(self, ctx: RequestContext, run_id: str) -> None:`
+
+> The one place a stopped run is recorded `aborted`: the workflow calls it
+> after the operator's cancel, and `acquire` calls it when the stop arrived
+> while it was signing in. A run the step already closed (a lane raised
+> `Stopped`, or it held) is left as it is.

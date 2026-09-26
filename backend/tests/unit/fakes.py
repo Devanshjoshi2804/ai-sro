@@ -92,7 +92,7 @@ from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.waiting import asks_a_person
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
+from sro.domain.execution.workflow_run import ENDED, RunStep, WorkflowRun, already_running
 from sro.domain.knowledge.entry import (
     EntryKind,
     EvidenceLevel,
@@ -415,6 +415,8 @@ class FakeDurableExecution:
 
         self.runs_started: list[tuple[str, float]] = []
         """One `(run_id, budget_s)` per `start_run` call."""
+        self.cancelled: list[str] = []
+        """One run id per `cancel_run` call."""
 
         self.answered: list[tuple[str, ...]] = []
         """Every argument of each `answer_run` call, in order: what a signal
@@ -458,6 +460,9 @@ class FakeDurableExecution:
 
     async def answer_run(self, run_id: str, question_id: str) -> None:
         self.answered.append((run_id, question_id))
+
+    async def cancel_run(self, run_id: str) -> None:
+        self.cancelled.append(run_id)
 
 
 class FakeRecordingRepository:
@@ -2264,6 +2269,12 @@ class FakeWorkflowRunRepository:
         # roll that mark back -- only `record_progress` ever changes it again.
         existing = self.rows.get(run.id)
         kept.progress = dict(run.progress) if existing is None else dict(existing.progress)
+        # An ended run keeps how and when it ended, same as the store's
+        # `CASE` on `outcome`/`finished_at`: a stale copy saved by a worker
+        # that loaded the run before a stop cannot reopen it.
+        if existing is not None and existing.outcome in ENDED:
+            kept.outcome = existing.outcome
+            kept.finished_at = existing.finished_at or kept.finished_at
         # Steps are upserted by `order`, same as the real store's per-step
         # `ON CONFLICT DO UPDATE`, and never deleted: a step the run being
         # saved does not carry stays exactly as the row already has it, so a

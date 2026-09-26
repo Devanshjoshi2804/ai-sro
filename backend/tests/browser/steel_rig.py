@@ -40,8 +40,12 @@ _APP_PAGE = """<!doctype html><html><head><meta name="csrf-token" content="{toke
       <option value=""></option><option>Finance</option><option>Operations</option>
     </select>
     <button id="save" type="button">Save</button>
+    <button id="refresh" type="button">Refresh</button>
   </form>
   <script>
+    document.getElementById("refresh").addEventListener("click", () => {{
+      fetch("/api/customer-types?hold");
+    }});
     document.getElementById("save").addEventListener("click", async () => {{
       const token = document.querySelector("meta[name=csrf-token]").content;
       const name = document.getElementById("ct").value;
@@ -67,6 +71,12 @@ _IDENTIFIER_PAGE = """<!doctype html><html><body>
   <form method="post" action="/idp/next">
     <input id="username" name="username" autocomplete="username webauthn">
     <button id="next" type="submit">Next</button>
+  </form>
+</body></html>"""
+
+_CODE_PAGE = """<!doctype html><html><body>
+  <form method="post" action="/idp/code">
+    <input id="code" name="code" autocomplete="one-time-code">
   </form>
 </body></html>"""
 
@@ -103,10 +113,15 @@ class Rig:
     on to an identifier-first page with no password field. `/held-login` answers
     only once the test sets `answer`, so a navigation can be caught in flight.
     `POST /api/ping` answers 201 from any page and sets `pinged`; with `?hold`
-    it answers only once `release` is set, so a test can hold a request open
-    across a mark. With `idp_elsewhere` the identity provider answers on a
+    it sets `holding` and answers only once `release` is set, so a test can
+    hold a request open across a mark. `/app`'s Refresh reads `/api/customer-types?hold`, which
+    sets `asked` and answers only once `answer` is set; with `hold_saves` a
+    save is kept and sets `asked`, and its answer waits the same way, so a
+    test can act while a read or a write is in flight. With `idp_elsewhere`
+    the identity provider answers on a
     second port -- a second origin, as a real one is -- and `logins` counts
-    the credentials posted to it."""
+    the credentials posted to it. With `asks_a_code` the login answers with a
+    one-time-code form and goes no further."""
 
     def __init__(self, *, for_steel: bool = False, idp_elsewhere: bool = False) -> None:
         self._for_steel = for_steel
@@ -118,6 +133,9 @@ class Rig:
         self.answer = threading.Event()
         self.pinged = threading.Event()
         self.release = threading.Event()
+        self.holding = threading.Event()
+        self.hold_saves = False
+        self.asks_a_code = False
         self.logins = 0
         host = "0.0.0.0" if for_steel else "127.0.0.1"  # noqa: S104
         self._servers = [ThreadingHTTPServer((host, 0), _handler_for(self))]
@@ -209,7 +227,7 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
 
         def do_GET(self) -> None:
             split = urlsplit(self.path)
-            path, query = split.path, parse_qs(split.query)
+            path, query = split.path, parse_qs(split.query, keep_blank_values=True)
             sid = self._cookie()
 
             if path == "/public":
@@ -274,6 +292,9 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
                     self.send_response(401)
                     self.end_headers()
                     return
+                if "hold" in query:
+                    rig.asked.set()
+                    rig.answer.wait(_HELD_S)
                 self._json(rig.saved)
             else:
                 self.send_response(404)
@@ -293,16 +314,20 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
 
         def do_POST(self) -> None:
             split = urlsplit(self.path)
-            path, query = split.path, parse_qs(split.query)
+            path, query = split.path, parse_qs(split.query, keep_blank_values=True)
             body = self.rfile.read(int(self.headers.get("content-length") or 0))
 
             if path == "/api/ping":
                 rig.pinged.set()
                 if "hold" in query:
+                    rig.holding.set()
                     rig.release.wait(10)
                 self._json({"id": "ping-1"}, status=201)
             elif path == "/idp/login":
                 rig.logins += 1
+                if rig.asks_a_code:
+                    self._html(_CODE_PAGE)
+                    return
                 form = parse_qs(body.decode())
                 username = form.get("username", [""])[0]
                 state = query.get("state", [""])[0]
@@ -329,6 +354,9 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
                     self.end_headers()
                     return
                 rig.saved.append(json.loads(body or b"{}"))
+                if rig.hold_saves:
+                    rig.asked.set()
+                    rig.answer.wait(_HELD_S)
                 self._json({"ok": True}, status=201)
             else:
                 self.send_response(404)

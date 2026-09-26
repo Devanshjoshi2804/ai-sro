@@ -206,6 +206,11 @@ class RunActivities:
         ctx = _context(ref.tenant_id, ref.principal_id)
         return await self._container.run_steps().finish(ctx, ref.run_id)
 
+    @activity.defn(name="run.stopped")
+    async def stopped(self, ref: RunRef) -> None:
+        ctx = _context(ref.tenant_id, ref.principal_id)
+        await self._container.run_steps().stopped(ctx, ref.run_id)
+
     @activity.defn(name="run.release")
     async def release(self, ref: RunRef) -> None:
         ctx = _context(ref.tenant_id, ref.principal_id)

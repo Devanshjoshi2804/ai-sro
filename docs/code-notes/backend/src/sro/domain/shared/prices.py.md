@@ -114,3 +114,11 @@ Code: `truncated: bool = False`
 > or the SDK did not give back real usage counts. A $0.00 row and an
 > honestly-unpriced row look the same in cost_usd alone -- this is what
 > tells them apart.
+
+## `Answer`, [line 71](../../../../../../../backend/src/sro/domain/shared/prices.py#L71): Comment
+
+Code: `dropped: int = 0`
+
+> How many items of the prompt record's `unit` `ask` dropped for breaking
+> the schema, so an eval can report a drop rate. A count and never the items:
+> they are a model's reading of somebody's mail and pages.

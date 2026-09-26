@@ -68,3 +68,4 @@ class Answer:
 
     unpriced: bool = False
     error: str | None = None
+    dropped: int = 0

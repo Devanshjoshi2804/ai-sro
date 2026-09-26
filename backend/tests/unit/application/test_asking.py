@@ -1,3 +1,7 @@
+import logging
+
+import pytest
+
 from sro.application.shared.asking import ask
 from sro.domain.prompts.gather import GATHER
 from sro.domain.prompts.mine import MINE
@@ -71,3 +75,25 @@ async def test_an_error_already_on_the_answer_is_never_overwritten() -> None:
 
     assert got.data is None
     assert got.error == "the model returned nothing"
+
+
+async def test_what_was_dropped_is_counted_and_logged_without_its_content(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    good, bad = _job("create a supplier", ["code"]), _job("create a site SECRET-9", [7])
+    asker = FakeAsker(Answer(data={"workflows": [good, bad, bad]}))
+
+    with caplog.at_level(logging.INFO, logger="sro.application.shared.asking"):
+        got = await ask(asker, MINE, trusted={}, untrusted={"day": "[]"})
+
+    assert got.dropped == 2
+    assert "mine" in caplog.text and "2" in caplog.text
+    assert "SECRET-9" not in caplog.text
+
+
+async def test_nothing_dropped_is_a_zero() -> None:
+    asker = FakeAsker(Answer(data={"workflows": [_job("create a supplier", ["code"])]}))
+
+    got = await ask(asker, MINE, trusted={}, untrusted={"day": "[]"})
+
+    assert got.dropped == 0

@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/application/shared/asking.py`](../../../../../../../backend/src/sro/application/shared/asking.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `ask`, [line 14](../../../../../../../backend/src/sro/application/shared/asking.py#L14): Docstring
+## `ask`, [line 17](../../../../../../../backend/src/sro/application/shared/asking.py#L17): Docstring
 
 > The one way a prompt record is sent. The record decides the model, the
 > thinking, the instructions and the schema; the caller decides only what the
@@ -20,3 +20,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/shared/asking
 > cost: the call was made and billed, and a caller reads "no data" as
 > unsure, never as an answer (Global Constraint 10). An error the asker
 > already set is kept rather than overwritten: it is the truer cause.
+>
+> What was dropped is counted on the answer (`Answer.dropped`) and logged
+> as the record's name, version and the count -- never the items, which are
+> a model's reading of somebody's mail and pages.

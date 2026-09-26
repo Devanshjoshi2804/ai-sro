@@ -474,20 +474,27 @@ def test_a_junk_field_beside_the_steps_falls_back_to_nothing() -> None:
     assert also.systems == ["a"]
 
 
-def test_steps_the_model_numbered_itself_keep_their_numbering() -> None:
-    """Renumbering is for a repeated order, not for every answer."""
+def test_a_step_order_is_a_sort_key_and_the_steps_are_numbered_by_position() -> None:
+    """A model's order past a Postgres integer failed in the driver, before the
+    server, so the transaction lived on and the pass committed a job row with
+    no steps. The order only says where a step goes."""
     workflow = workflow_from(
         _one(
             steps=[
+                {"order": 2**40, "cites": ["ges_2"], "says": "second"},
                 {"order": 5, "cites": ["ges_1"], "says": "first"},
-                {"order": 9, "cites": ["ges_2"], "says": "second"},
+                {"order": 2**31, "cites": ["ges_3"], "says": "between"},
             ]
         ),
         tenant="acme",
     )
     assert workflow is not None
 
-    assert [step.order for step in workflow.steps] == [5, 9]
+    assert [(step.order, step.says) for step in workflow.steps] == [
+        (0, "first"),
+        (1, "between"),
+        (2, "second"),
+    ]
 
 
 def test_a_step_order_of_true_is_not_a_step_order() -> None:

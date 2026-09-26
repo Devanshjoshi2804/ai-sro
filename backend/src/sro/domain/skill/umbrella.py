@@ -81,9 +81,8 @@ def workflow_from(raw: object, tenant: str) -> Workflow | None:
         )
 
     steps.sort(key=lambda step: step.order)
-    if len({step.order for step in steps}) != len(steps):
-        for position, step_out in enumerate(steps):
-            step_out.order = position
+    for position, step_out in enumerate(steps):
+        step_out.order = position
 
     return Workflow(
         id=new_workflow_id(),

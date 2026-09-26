@@ -99,13 +99,15 @@ Code: `parameters=[`
 
 Code: `steps.sort(key=lambda step: step.order)`
 
-> Renumbered only when the model repeated itself. The workflow-step table
-> declares PRIMARY KEY (workflow_id, ord), so two steps at order 1 is a
-> workflow that cannot be saved -- and "order": 1 twice is schema-valid, so
-> it is an ordinary model slip rather than a broken answer. An answer that
-> numbered its steps correctly keeps its own numbering.
+> The model's order is only a sort key: every step is renumbered to its
+> position, 0..n-1 (M1 round 2). The workflow-step table declares PRIMARY
+> KEY (workflow_id, ord) on an integer, and "order": 1 twice or an order
+> past int32 are both schema-valid answers. The second failed in the
+> driver, before the server, so the transaction lived on and the pass
+> committed a job row with no steps. The rule was once to renumber only
+> on a repeat; nothing reads a model's own numbering.
 
-## `workflow_from`, [line 97](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L97): Comment
+## `workflow_from`, [line 96](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L96): Comment
 
 Code: `parameters=[`
 
@@ -114,7 +116,7 @@ Code: `parameters=[`
 > rule against the same-named field one level down; `.strip()` is here
 > too so that `{"name": "  "}` and `"  "` are refused alike.
 
-## `workflow_from`, [line 104](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L104): Comment
+## `workflow_from`, [line 103](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L103): Comment
 
 Code: `)`
 

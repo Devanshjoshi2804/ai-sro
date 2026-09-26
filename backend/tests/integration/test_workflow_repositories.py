@@ -875,6 +875,60 @@ class TestWhatAPassHasMined:
         assert billed[0].proposed == 1
         assert kept == ()
 
+    async def test_a_job_whose_steps_fail_is_not_stored_and_the_job_before_it_is(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Saving one job is one savepoint. A step insert that fails takes that
+        job's row back with it, and the pass's `finally` -- which commits the
+        bill -- can then never commit a job without its steps. The job kept
+        earlier in the same pass is untouched."""
+        day = _gestures(TENANT.value)
+        gestures = {g.action.kind: g for g in day}
+        typed, picked = gestures["type"], gestures["select"]
+        good = {
+            "title": "create a work operation",
+            "narrative": "n",
+            "systems": [typed.system],
+            "steps": [
+                {"order": 0, "cites": [typed.id], "says": "type it"},
+                {"order": 1, "cites": [typed.id], "says": "save it"},
+            ],
+        }
+        bad = {
+            "title": "pick a dock",
+            "narrative": "n",
+            "systems": [picked.system],
+            "steps": [
+                {"order": 0, "cites": [picked.id], "says": "pick it"},
+                {"order": 1, "cites": [picked.id], "says": "keep\x00it"},
+            ],
+        }
+        asker = FakeAsker(Answer(data={"workflows": [good, bad]}, cost_usd=0.04))
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.gestures.add_gestures(tuple(day))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            with pytest.raises(DBAPIError):
+                await mine(
+                    uow,
+                    tenant_id=TENANT,
+                    asker=asker,
+                    locks=FakeAccountLocks(),
+                    now=datetime(2025, 2, 11, 23, tzinfo=UTC),
+                    cap_usd=100.0,
+                )
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            kept = await uow.workflows.known(TENANT)
+            billed = await uow.workflows.passes(TENANT)
+        async with session_factory() as session:
+            rows = await session.scalar(text("SELECT count(*) FROM workflows"))
+            steps = await session.scalar(text("SELECT count(*) FROM workflow_steps"))
+        assert [one.title for one in kept] == ["create a work operation"]
+        assert (rows, steps) == (1, len(kept[0].steps))
+        assert [one.cost_usd for one in billed] == [0.04]
+
     async def test_two_passes_at_once_ask_the_model_once(
         self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
     ) -> None:

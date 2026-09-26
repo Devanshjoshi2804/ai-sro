@@ -30,9 +30,10 @@ Code: `K_REMEMBER = timedelta(days=30)`
 
 ## `sent_to_others`, [line 11](../../../../../../../backend/src/sro/application/chat/mailbox.py#L11): Note
 
-> Who a request went to when the operator sent it to somebody else: the To and
-> Cc addresses, when the sender is the mailbox's own address and none of the
-> recipients is. Empty for mail from anyone else, and for a request the
-> operator addressed to themselves -- that is how a person forwards themselves
+> Who else a request went to when the operator sent it: every To and Cc
+> address other than the mailbox's own, when the sender is the mailbox. So a
+> request the operator also copied a colleague on is a card that asks (decided
+> 2026-09-26: "there is no harm in asking"). Empty for mail from anyone else,
+> and for a request addressed ONLY to the operator -- that is how a person forwards themselves
 > work, and how every test request on this deployment is written. Addresses
 > are compared case-folded; `email.utils` does the parsing.

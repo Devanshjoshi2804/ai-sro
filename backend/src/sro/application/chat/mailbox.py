@@ -12,7 +12,6 @@ def sent_to_others(sender: str, to: str, cc: str, mailbox: str) -> tuple[str, ..
     me = mailbox.strip().casefold()
     if not me or parseaddr(sender)[1].casefold() != me:
         return ()
-    got = [address for _, address in getaddresses([to, cc]) if address]
-    if any(address.casefold() == me for address in got):
-        return ()
-    return tuple(got)
+    return tuple(
+        address for _, address in getaddresses([to, cc]) if address and address.casefold() != me
+    )

@@ -348,6 +348,17 @@ async def test_a_mail_the_operator_sent_a_colleague_is_a_card_naming_them() -> N
     assert wired.sent_to == ["colleague@example.com", "boss@example.com"]
 
 
+async def test_a_mail_to_the_operator_with_a_colleague_copied_is_a_card() -> None:
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+    mailbox = _addressed(OPERATOR, "operator@example.com", "Colleague <colleague@example.com>")
+
+    looked = await world.look(mailbox, _sure()).execute(CTX)
+
+    (card,) = looked.offered
+    assert not card.started and world.durable.runs_started == []
+    assert list(card.sent_to) == ["colleague@example.com"]
+
+
 async def test_a_colleague_s_mail_to_the_operator_starts_as_it_always_did() -> None:
     world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
     mailbox = _addressed("Colleague <colleague@example.com>", OPERATOR)

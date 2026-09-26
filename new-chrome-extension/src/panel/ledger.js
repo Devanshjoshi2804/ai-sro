@@ -745,6 +745,16 @@ function offeringToFinish(nudge, onPress) {
     item.append(cannot);
   }
 
+  // A request the operator sent to somebody else: their job, not ours, so it
+  // never started by itself. Say who, and ask.
+  if ((nudge.sentTo || []).length) {
+    const theirs = document.createElement("p");
+    theirs.className = "detail";
+    theirs.dataset.kind = "sent-to";
+    theirs.textContent = `You sent this to ${nudge.sentTo.join(", ")}. Should we do it?`;
+    item.append(theirs);
+  }
+
   // And what it could ALSO set, which nobody has to answer.
   //
   // The line above says what this job CANNOT set. This one says what it can

@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from types import MappingProxyType
 
 from sro.application.chat.announce import SayWhatHappened
-from sro.application.chat.mailbox import K_REMEMBER, SERVER
+from sro.application.chat.mailbox import K_REMEMBER, SERVER, sent_to_others
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.chat.understand import understand
 from sro.application.context import RequestContext
@@ -81,6 +81,8 @@ class Offered:
     too_long: Mapping[str, int] = field(default_factory=dict)
 
     sure: bool = False
+
+    sent_to: Sequence[str] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,7 +160,7 @@ class FromTheMail:
                 continue
             try:
                 try:
-                    said, thread, subject = await self._body(ctx, message)
+                    said, thread, subject, sent_to = await self._body(ctx, message)
                 except ToolsUnavailable as gone:
                     return LookedInTheMail(
                         offered=tuple(offered), read=read, why=str(gone), spent=spent
@@ -271,6 +273,7 @@ class FromTheMail:
                         unasked=sorted({*got.unasked, *asked_for_too}),
                         aside={**got.aside, **said_besides},
                         sure=True,
+                        sent_to=sent_to,
                     )
                 )
             except OverCap as reached:
@@ -308,6 +311,7 @@ class FromTheMail:
             or one.missing
             or one.too_long
             or one.started
+            or one.sent_to
             or self._start is None
             or not self._start.runs_on_steel(ctx)
         ):
@@ -604,16 +608,18 @@ class FromTheMail:
             if isinstance(row, dict) and isinstance(row.get("id"), str)
         ][:limit]
 
-    async def _body(self, ctx: RequestContext, message: str) -> tuple[str, str, str]:
+    async def _body(
+        self, ctx: RequestContext, message: str
+    ) -> tuple[str, str, str, tuple[str, ...]]:
         answered = await self._tools.call(
             ctx.tenant_id, ctx.principal_id, SERVER, "get_message", {"id": message}
         )
         try:
             said = json.loads(answered.text)
         except ValueError:
-            return "", "", ""
+            return "", "", "", ()
         if not isinstance(said, dict):
-            return "", "", ""
+            return "", "", "", ()
         whole = " ".join(
             str(said.get(part) or "").strip() for part in ("subject", "body", "snippet")
         )
@@ -622,6 +628,9 @@ class FromTheMail:
             whole[:K_TEXT],
             str(said.get("thread_id") or ""),
             " ".join(str(said.get("subject") or "").split())[:K_SUBJECT],
+            sent_to_others(
+                *(str(said.get(part) or "") for part in ("from", "to", "cc", "mailbox"))
+            ),
         )
 
     async def _conversation(self, ctx: RequestContext, thread: str) -> str:

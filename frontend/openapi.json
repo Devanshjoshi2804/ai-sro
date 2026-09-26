@@ -26608,6 +26608,14 @@
             "type": "boolean",
             "title": "Started",
             "default": false
+          },
+          "sent_to": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sent To",
+            "default": []
           }
         },
         "type": "object",

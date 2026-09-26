@@ -3007,6 +3007,30 @@ test("what a mail's job could also set reaches the card", async () => {
   assert.deepEqual(card.unasked, ["Region"], "what this job cannot set never reached the card");
 });
 
+test("who the operator sent a request to reaches the card", async () => {
+  ready();
+  mailLooked = {
+    offered: [
+      {
+        message: "m-10",
+        workflow_id: "wfl_1",
+        title: "Create a Customer Type",
+        values: { "Customer Type": "GT2" },
+        missing: [],
+        sent_to: ["colleague@example.com"],
+      },
+    ],
+    read: 1,
+    why: "offered Create a Customer Type",
+  };
+
+  await lookInTheMail();
+
+  const [card] = held.get("sro.nudges") || [];
+  assert.ok(card, "a mail that asked for a job produced no card");
+  assert.deepEqual(card.sentTo, ["colleague@example.com"]);
+});
+
 test("a question that has stopped standing is put down as soon as the reply says so", async () => {
   // Measured on the deployment 2026-09-22 at 01:24. The operator was four
   // answers into `Create a Customer Type`, could not supply Manufacturer, and

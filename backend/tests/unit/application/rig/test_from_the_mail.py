@@ -38,6 +38,7 @@ from sro.domain.knowledge.entry import (
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer, ModelSpend
 from sro.domain.skill.workflow import Step, Workflow
+from sro.interface.http.schemas import FromTheMailResponse
 from tests import factories as f
 from tests.unit.application.rig.test_start_workflow_run import _starter
 from tests.unit.fakes import FakeClock, FakeDurableExecution, FakeIdFactory, FakeUnitOfWork
@@ -293,6 +294,68 @@ async def test_a_quoted_reply_on_a_finished_mail_run_s_thread_is_a_card_never_a_
     assert [one.started for one in later.offered] == [False]
     assert len(world.durable.runs_started) == 1
     assert len(await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)) == 1
+
+
+OPERATOR = "Operator <operator@example.com>"
+
+
+def _addressed(sender: str, to: str, cc: str = "") -> _Mailbox:
+    """One request with its envelope, read from the operator's own mailbox."""
+    said = {
+        "id": "m-5",
+        "subject": "new customer type",
+        "body": "please add customer type GT2",
+        "thread_id": "t-5",
+        "from": sender,
+        "to": to,
+        "cc": cc,
+        "mailbox": "Operator@Example.COM",
+    }
+    return _Mailbox(search=_found("m-5"), **{"m-5": json.dumps(said)})
+
+
+def _sure() -> _Reads:
+    return _Reads(
+        {
+            "workflow_id": JOB,
+            "values": [{"name": "Customer Type", "value": "GT2"}],
+            "missing": [],
+            "sure": True,
+        }
+    )
+
+
+async def test_a_mail_the_operator_sent_themselves_starts_its_run() -> None:
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+
+    looked = await world.look(_addressed(OPERATOR, "operator@EXAMPLE.com"), _sure()).execute(CTX)
+
+    assert [one.started for one in looked.offered] == [True]
+    assert len(world.durable.runs_started) == 1
+
+
+async def test_a_mail_the_operator_sent_a_colleague_is_a_card_naming_them() -> None:
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+    mailbox = _addressed(OPERATOR, "Colleague <colleague@example.com>", "boss@example.com")
+
+    looked = await world.look(mailbox, _sure()).execute(CTX)
+
+    (card,) = looked.offered
+    assert not card.started and world.durable.runs_started == []
+    assert list(card.sent_to) == ["colleague@example.com", "boss@example.com"]
+    assert (card.workflow_id, dict(card.values)) == (JOB, {"Customer Type": "GT2"})
+    (wired,) = FromTheMailResponse.of(looked).offered
+    assert wired.sent_to == ["colleague@example.com", "boss@example.com"]
+
+
+async def test_a_colleague_s_mail_to_the_operator_starts_as_it_always_did() -> None:
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+    mailbox = _addressed("Colleague <colleague@example.com>", OPERATOR)
+
+    looked = await world.look(mailbox, _sure()).execute(CTX)
+
+    assert [one.started for one in looked.offered] == [True]
+    assert list(looked.offered[0].sent_to) == []
 
 
 async def test_a_reply_to_a_run_asking_a_person_is_offered_never_started() -> None:

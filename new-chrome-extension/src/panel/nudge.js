@@ -158,6 +158,8 @@ export function fire(candidate, now, { tabId = null, visit = "" } = {}) {
     // because a mail supplying everything required produces no question, and
     // the question is the only other place these are offered.
     offers: candidate.offers || [],
+    // Who the operator sent this request to, when it was somebody else.
+    sentTo: candidate.sent_to || [],
     parameters: candidate.parameters || [],
     // What pressing this would WRITE, read off the job's own evidence: one
     // entry per writing step, `{does, record, on}`. The card names the values

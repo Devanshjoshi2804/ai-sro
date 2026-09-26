@@ -10,14 +10,14 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/mailbox.
 > `mail_job`, and `mail_job` used to take these from the two chat modules --
 > a cycle.
 
-## module, [line 5](../../../../../../../backend/src/sro/application/chat/mailbox.py#L5): Note on the line above
+## module, [line 6](../../../../../../../backend/src/sro/application/chat/mailbox.py#L6): Note on the line above
 
 Code: `SERVER = "gmail"`
 
 > The connector this looks in, named rather than every connector a deployment
 > holds. `gather.SERVER` says the whole of why.
 
-## module, [line 7](../../../../../../../backend/src/sro/application/chat/mailbox.py#L7): Note on the line above
+## module, [line 8](../../../../../../../backend/src/sro/application/chat/mailbox.py#L8): Note on the line above
 
 Code: `K_REMEMBER = timedelta(days=30)`
 
@@ -27,3 +27,12 @@ Code: `K_REMEMBER = timedelta(days=30)`
 > that the ledger does not grow forever. A mail older than this that somehow
 > comes round again is one nobody acted on in a month, and offering it a second
 > time is not the worst thing this could do.
+
+## `sent_to_others`, [line 11](../../../../../../../backend/src/sro/application/chat/mailbox.py#L11): Note
+
+> Who a request went to when the operator sent it to somebody else: the To and
+> Cc addresses, when the sender is the mailbox's own address and none of the
+> recipients is. Empty for mail from anyone else, and for a request the
+> operator addressed to themselves -- that is how a person forwards themselves
+> work, and how every test request on this deployment is written. Addresses
+> are compared case-folded; `email.utils` does the parsing.

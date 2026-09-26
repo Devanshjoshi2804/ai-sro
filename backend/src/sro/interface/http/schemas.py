@@ -3008,6 +3008,15 @@ class MailOfferModel(BaseModel):
     with nothing missing and every one of them is a card. What makes this one
     different is that somebody already said yes to it."""
 
+    sent_to: list[str] = []
+    """Who the operator sent this request to, when the operator sent it to
+    somebody else.
+
+    Such a mail is a job the operator asked another person to do, so it never
+    starts by itself: the card names who it went to and asks whether this
+    system should do it instead. Empty for every mail somebody else sent, and
+    for one the operator addressed to themselves."""
+
 
 class AskAboutOfferRequest(BaseModel):
     """An offer the operator pressed that cannot simply be started.
@@ -3119,6 +3128,7 @@ class FromTheMailResponse(BaseModel):
                     offers=[[name, was] for name, was in one.offers],
                     unasked=list(one.unasked),
                     started=one.started,
+                    sent_to=list(one.sent_to),
                 )
                 for one in looked.offered
             ],

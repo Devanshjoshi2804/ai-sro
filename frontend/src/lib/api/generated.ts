@@ -3065,6 +3065,11 @@ export interface components {
              * @default false
              */
             started: boolean;
+            /**
+             * Sent To
+             * @default []
+             */
+            sent_to: string[];
         };
         /**
          * Medium

@@ -120,3 +120,45 @@ class _Said:
 
     def json(self) -> dict[str, Any]:
         return self._body
+
+
+class _Routed:
+    """`httpx` answering the profile and one message, counting profile reads."""
+
+    def __init__(self, message: dict[str, Any]) -> None:
+        self._message = message
+        self.profiles = 0
+
+    def get(self, url: str, *_args: Any, **_kwargs: Any) -> Any:
+        if url.endswith("/profile"):
+            self.profiles += 1
+            return _Said({"emailAddress": "Operator@Example.com"})
+        return _Said(self._message)
+
+
+def test_a_message_says_whose_mailbox_it_is_and_who_it_went_to() -> None:
+    module = _connector()
+    routed = _Routed(
+        {
+            "id": "m-1",
+            "threadId": "t-1",
+            "payload": {
+                "headers": [
+                    {"name": "From", "value": "Operator <operator@example.com>"},
+                    {"name": "To", "value": "Colleague <colleague@example.com>"},
+                    {"name": "Cc", "value": "boss@example.com"},
+                ],
+                "body": {},
+            },
+        }
+    )
+    module.httpx = routed
+    grant = {"tenant": "acme", "operator": "op", "refresh_token": "r"}
+
+    first = json.loads(module._get("token", {"id": "m-1"}, module._mailbox(grant, "token")))
+    module._mailbox(grant, "token")
+
+    assert first["mailbox"] == "Operator@Example.com"
+    assert first["to"] == "Colleague <colleague@example.com>"
+    assert first["cc"] == "boss@example.com"
+    assert routed.profiles == 1

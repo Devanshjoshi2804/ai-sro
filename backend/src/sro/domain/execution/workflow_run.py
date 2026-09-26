@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import secrets
 from copy import deepcopy
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from typing import Literal
 
-from sro.domain.skill.repeats import Repeat
-from sro.domain.skill.workflow import Step, Workflow
+from sro.domain.skill.workflow import Workflow
 
 OUTCOMES = ("running", "held", "stopped", "refused", "aborted", "failed")
 ENDED = ("held", "aborted", "failed")
@@ -115,27 +114,8 @@ class WorkflowRun:
 
     offer: str | None = None
 
-    pinned: Pinned | None = None
+    pinned: Workflow | None = None
 
 
-@dataclass(frozen=True, slots=True)
-class Pinned:
-    steps: list[Step]
-    parameters: list[dict[str, object]]
-    repeat: Repeat | None = None
-
-
-def pin(workflow: Workflow) -> Pinned:
-    return Pinned(deepcopy(workflow.steps), deepcopy(workflow.parameters), workflow.repeat)
-
-
-def pinned_job(run: WorkflowRun, workflow: Workflow) -> Workflow:
-    held = run.pinned
-    if held is None:
-        return workflow
-    return replace(
-        workflow,
-        steps=deepcopy(held.steps),
-        parameters=deepcopy(held.parameters),
-        repeat=held.repeat,
-    )
+def pin(workflow: Workflow) -> Workflow:
+    return deepcopy(workflow)

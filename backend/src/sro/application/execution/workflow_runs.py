@@ -291,7 +291,11 @@ class StartWorkflowRun:
             if self._durable is None:
                 raise RunRefused("this process cannot start a Steel run")
             async with self._uow as uow:
-                workflow = await uow.workflows.get(ctx.tenant_id, run.workflow_id)
+                workflow = (
+                    run.pinned
+                    if run.pinned is not None
+                    else await uow.workflows.get(ctx.tenant_id, run.workflow_id)
+                )
                 cited = await uow.gestures.gestures_for(
                     ctx.tenant_id, ids=tuple(sorted(cited_ids(workflow)))
                 )

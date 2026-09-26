@@ -163,7 +163,7 @@ async def learn_parameters(
     intents: dict[str, Intent],
 ) -> int:
     try:
-        stored = await uow.workflows.get(tenant_id, known_id)
+        stored = await uow.workflows.get(tenant_id, known_id, lock=True)
     except NotFound:
         return 0
     folded = _folded(stored.parameters)
@@ -580,23 +580,28 @@ def _billed(pass_id: str, tenant_id: TenantId, started_at: str, result: MineResu
 async def fill_in_passwords(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
     changed = 0
     by_id = {gesture.id: gesture for gesture in await uow.gestures.gestures_for(tenant_id)}
-    for workflow in await uow.workflows.known(tenant_id):
-        if not _evidenced(workflow, by_id):
+    for listed in await uow.workflows.known(tenant_id):
+        if not _evidenced(listed, by_id) or not _healed(listed, by_id):
             continue
-        found = repeated_block(workflow, by_id)
-        changed_here = with_passwords(workflow, by_id) + with_the_press(workflow, by_id)
-        if workflow.repeat != found:
-            workflow.repeat = found
-            changed_here += 1
-        marked = _judged(workflow, by_id)
-        if workflow.signs_in != marked:
-            workflow.signs_in = marked
-            changed_here += 1
-        if not changed_here:
+        workflow = await uow.workflows.get(tenant_id, listed.id, lock=True)
+        if not _healed(workflow, by_id):
             continue
         await uow.workflows.save(workflow)
         changed += 1
         logger.info("%s: healed the steps no model got right", workflow.title)
+    return changed
+
+
+def _healed(workflow: Workflow, by_id: dict[str, Gesture]) -> int:
+    found = repeated_block(workflow, by_id)
+    changed = with_passwords(workflow, by_id) + with_the_press(workflow, by_id)
+    if workflow.repeat != found:
+        workflow.repeat = found
+        changed += 1
+    marked = _judged(workflow, by_id)
+    if workflow.signs_in != marked:
+        workflow.signs_in = marked
+        changed += 1
     return changed
 
 

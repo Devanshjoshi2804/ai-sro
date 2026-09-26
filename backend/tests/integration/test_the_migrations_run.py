@@ -22,6 +22,7 @@ from sqlalchemy import Connection, insert, inspect, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from sro.infrastructure.db.models import Base, WorkflowRow, WorkflowRunRow, WorkflowStepRow
+from sro.infrastructure.db.workflows import workflow_from_json
 
 
 async def test_upgrading_from_nothing_builds_the_schema(postgres_url: str) -> None:
@@ -309,32 +310,15 @@ async def test_0081_pins_every_steel_run_still_going_and_back(postgres_url: str)
     finally:
         await engine.dispose()
 
-    assert upgraded == {
-        "run_ended": None,
-        "run_extension": None,
-        "run_going": {
-            "steps": [
-                {
-                    "order": 0,
-                    "says": "type",
-                    "system": "https://wms.example",
-                    "cites": ["g1"],
-                    "parameters": ["who"],
-                    "uses": [],
-                },
-                {
-                    "order": 1,
-                    "says": "save",
-                    "system": None,
-                    "cites": ["g2"],
-                    "parameters": [],
-                    "uses": [],
-                },
-            ],
-            "parameters": [{"name": "who"}],
-            "repeat": None,
-        },
-    }
+    assert (upgraded["run_ended"], upgraded["run_extension"]) == (None, None)
+    going = workflow_from_json(upgraded["run_going"])
+    assert (going.id, going.parameters, going.repeat) == ("wfl_1", [{"name": "who"}], None)
+    assert [
+        (one.order, one.says, one.system, one.cites, one.parameters) for one in going.steps
+    ] == [
+        (0, "type", "https://wms.example", ["g1"], ["who"]),
+        (1, "save", None, ["g2"], []),
+    ]
     assert "pinned" not in columns
 
 

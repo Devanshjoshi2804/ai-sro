@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/application/runtime/teach.py`](../../../../../../../backend/src/sro/application/runtime/teach.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `Teach`, [line 19](../../../../../../../backend/src/sro/application/runtime/teach.py#L19): Class
+## `Teach`, [line 20](../../../../../../../backend/src/sro/application/runtime/teach.py#L20): Class
 
 > Each lane teaches the one above (spec §6.3), per step and in data:
 >
@@ -20,7 +20,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/teach
 >   broken API lane: only that lane's own success, or a new demonstration
 >   that changes the step's cites, clears it.
 
-## `Teach.learn`, [line 36](../../../../../../../backend/src/sro/application/runtime/teach.py#L36): Note
+## `Teach.learn`, [line 37](../../../../../../../backend/src/sro/application/runtime/teach.py#L37): Note
 
 Code: `won = tried[-1] if tried and tried[-1].verdict in ("done", "read") else None`
 
@@ -51,7 +51,7 @@ Code: `own = next(`
 > recorded URL (`learned_pattern`), so a path that names the record becomes
 > `{id}` and a segment the recording holds fixed stays fixed.
 
-## `_sighted`, [line 133](../../../../../../../backend/src/sro/application/runtime/teach.py#L133): Function
+## `_sighted`, [line 144](../../../../../../../backend/src/sro/application/runtime/teach.py#L144): Function
 
 > The locator the sight lane learned from the element that satisfied the
 > check (X7 ruling), or nothing: a learned map without a `frame_path` is
@@ -61,34 +61,32 @@ Code: `own = next(`
 > `K_NAME`, the cap `learned_from` keeps (refused, not cut: a cut locator
 > matches nothing, or something else).
 
-## `Teach.learn_field`, [line 91](../../../../../../../backend/src/sro/application/runtime/teach.py#L91): Docstring
+## `Teach.learn_field`, [line 97](../../../../../../../backend/src/sro/application/runtime/teach.py#L97): Docstring
 
 > A composed field the save's own call confirmed becomes part of the job: `grew`
 > with `with_field`'s result, then its locator (`found_by` `composed` from the
 > page code, `sight` from sight), in one unit of work that reads the job
-> itself under its row lock. `pinned` is the run's own version, whose numbering
-> the field's `before` is in; the version the grow made is returned, for the
-> run's next field to be checked against, or None when the job is no longer
-> `pinned`. A field a step of the job already fills is not learned twice
-> (a retried `finish`, or a sibling that learned it first) and `pinned` is
-> returned unchanged; a field whose step a regrowth lost is learned again,
-> under its one parameter. A locator that would carry the value is not kept.
+> itself under its row lock. `pinned` is the version whose numbering the
+> field's `before` is in, and the grow happens only while the job still is it.
+> A field a step of the job already fills is not learned twice (a retried
+> `finish`, or a sibling that learned it first); a field whose step a regrowth
+> lost is learned again, under its one parameter. A locator that would carry the value is not kept.
 
-## `Teach.learn_field`, [line 105](../../../../../../../backend/src/sro/application/runtime/teach.py#L105): Note
+## `Teach.learn_field`, [line 110](../../../../../../../backend/src/sro/application/runtime/teach.py#L110): Note
 
-Code: `if workflow.steps != pinned.steps:`
+Code: `workflow = await _still(uow, ctx, pinned)`
 
 > A compare-and-set against the run's own version, under the job's row lock.
 > The field's `before` is a step number of that version, so it is placed only
 > while the job still is that version. A run still going is no reason to wait:
-> it reads its pinned steps (`pinned_job`), never the grown ones, so growing
+> it reads its pin, never the grown steps, so growing
 > under it cannot make it skip a step or send a write twice. A field refused
 > here is not lost: the next run with that value composes it again against the
 > job as it then is, and learns it then.
 
-## `Teach.learn`, [line 38](../../../../../../../backend/src/sro/application/runtime/teach.py#L38): Note
+## `Teach.learn`, [line 39](../../../../../../../backend/src/sro/application/runtime/teach.py#L39): Note
 
-Code: `job = await uow.workflows.get(ctx.tenant_id, workflow.id, lock=True)`
+Code: `if await _still(uow, ctx, workflow) is None:`
 
 > What `learn` writes -- broken lanes, mends, locators -- is keyed by the job's
 > step numbers, and `workflow` here is the run's pinned version. It teaches only
@@ -96,3 +94,17 @@ Code: `job = await uow.workflows.get(ctx.tenant_id, workflow.id, lock=True)`
 > nothing, rather than a locator under a number that is now another step's. The
 > row lock keeps a grow from renumbering the job between this check and the
 > writes.
+
+## `Teach.locators`, [line 91](../../../../../../../backend/src/sro/application/runtime/teach.py#L91): Docstring
+
+> The job's learned locators, for a run whose steps are `workflow`: all of them
+> while the job still has those steps, none once it has grown past them (or was
+> retired). The check and the read share the row lock, so a grow cannot commit
+> between them and hand the run the new numbering's locators.
+
+## `_still`, [line 136](../../../../../../../backend/src/sro/application/runtime/teach.py#L136): Docstring
+
+> The job, read under its row lock, if it still has `workflow`'s steps; None if
+> it has been renumbered or retired since. Everything this class learns or reads
+> by step number goes through here, and so does every grow's own read (`_grow`,
+> `learn_parameters`, `fill_in_passwords` take the same lock).

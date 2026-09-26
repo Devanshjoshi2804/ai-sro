@@ -1,7 +1,7 @@
 """a run keeps the version of its job it started with
 
-`pinned` holds the job's steps, parameters and repeat as they stood when the
-run started. Growing a job renumbers its steps; a run reads its pin instead,
+`pinned` holds the job, its row and its steps' rows, as it stood when the run
+started. Growing a job renumbers its steps; a run reads its pin instead,
 so its `progress.step` and its marks keep meaning the steps they meant. Every
 run still going is pinned to its job as it stands now, which is the version
 it has been reading. Null on an extension run, which holds its job in memory.
@@ -28,26 +28,12 @@ def upgrade() -> None:
         """
         UPDATE workflow_runs AS run
         SET pinned = jsonb_build_object(
+            'workflow', to_jsonb(job) - 'created_at' - 'retired_at',
             'steps', (
-                SELECT coalesce(
-                    jsonb_agg(
-                        jsonb_build_object(
-                            'order', step.ord,
-                            'says', step.says,
-                            'system', step.system,
-                            'cites', step.cites,
-                            'parameters', step.parameters,
-                            'uses', step.uses
-                        )
-                        ORDER BY step.ord
-                    ),
-                    '[]'::jsonb
-                )
+                SELECT coalesce(jsonb_agg(to_jsonb(step) ORDER BY step.ord), '[]'::jsonb)
                 FROM workflow_steps AS step
                 WHERE step.workflow_id = job.id
-            ),
-            'parameters', job.parameters,
-            'repeat', job.repeat
+            )
         )
         FROM workflows AS job
         WHERE job.id = run.workflow_id AND run.outcome = 'running' AND run.executor = 'steel'

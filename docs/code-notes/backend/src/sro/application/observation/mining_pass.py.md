@@ -274,7 +274,7 @@ Code: `unplaced: int = 0`
 > job was mined has to reach the jobs mined before it, or the fix only helps
 > whoever arrives next.
 
-## `rekey_workflows`, [line 649](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L649): Docstring
+## `rekey_workflows`, [line 654](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L654): Docstring
 
 > Every stored workflow's shape key recomputed from its cited gestures,
 > and how many changed.
@@ -941,7 +941,7 @@ Code: `by_id = {gesture.id: gesture for gesture in await uow.gestures.gestures_f
 > ponytail: whole-store read per pass; a `between(first, last)` query when
 > a tenant's day stops fitting comfortably in memory.
 
-## `fill_in_passwords`, [line 586](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L586): Comment
+## `_healed`, [line 596](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L596): Comment
 
 Code: `found = repeated_block(workflow, by_id)`
 
@@ -951,7 +951,7 @@ Code: `found = repeated_block(workflow, by_id)`
 > it; and the repeat is what the evidence says about how many times the
 > block was done.
 
-## `fill_in_passwords`, [line 588](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L588): Comment
+## `_healed`, [line 598](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L598): Comment
 
 Code: `if workflow.repeat != found:`
 
@@ -960,7 +960,7 @@ Code: `if workflow.repeat != found:`
 > to a job that does one thing once rather than keeping a block nothing
 > supports.
 
-## `rekey_workflows`, [line 659](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L659): Comment
+## `rekey_workflows`, [line 664](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L664): Comment
 
 Code: `if any(cited not in by_id for cited in wanted):`
 
@@ -1008,7 +1008,7 @@ Code: `lands = {`
 > a proposal adds itself below once it has been marked, so two proposals of
 > one sign-in inside one pass fold too.
 
-## `fill_in_passwords`, [line 591](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L591): Comment
+## `_healed`, [line 601](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L601): Comment
 
 Code: `marked = _judged(workflow, by_id)`
 
@@ -1017,12 +1017,12 @@ Code: `marked = _judged(workflow, by_id)`
 > evidence is read here, and one whose evidence now says otherwise is
 > corrected rather than left to a run.
 
-## `_evidenced`, [line 603](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L603): Note on the function
+## `_evidenced`, [line 608](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L608): Note on the function
 
 > Whether every gesture a job cites is stored -- the one precondition for
 > judging it from its evidence.
 
-## `_judged`, [line 608](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L608): Note on the function
+## `_judged`, [line 613](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L613): Note on the function
 
 > The one decider of `signs_in`, used by `fill_in_passwords` and
 > `decide_sign_ins` alike, and always after the password steps and presses
@@ -1036,7 +1036,7 @@ Code: `marked = _judged(workflow, by_id)`
 > `false` hides nothing, and the job is not left undecided to be re-read on
 > every sweep.
 
-## `evidence_of`, [line 617](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L617): Note on the function
+## `evidence_of`, [line 622](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L622): Note on the function
 
 > The cited gestures of some jobs, widened to the sitting around each
 > (`K_SITTING_GAP_S`): everything `signs_in`, `with_passwords` (between the
@@ -1044,7 +1044,7 @@ Code: `marked = _judged(workflow, by_id)`
 > `signs_in_to` and `recorded_login` read. Bounded by the jobs asked about,
 > never the tenant's whole history. Shared with `scripts/migrate_vault_keys.py`.
 
-## `mining_lock`, [line 637](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L637): Note on the function
+## `mining_lock`, [line 642](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L642): Note on the function
 
 > The name of a tenant's mining lock (`AccountLocks.hold_named`), held by
 > `mine` -- and so by the `fill_in_passwords` healing inside it, which saves
@@ -1052,7 +1052,7 @@ Code: `marked = _judged(workflow, by_id)`
 > A Postgres advisory lock, so it holds across workers; an in-process lock
 > let two workers mine, heal and grow one tenant at once.
 
-## `decide_sign_ins`, [line 641](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L641): Note on the function
+## `decide_sign_ins`, [line 646](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L646): Note on the function
 
 > Decides one tenant's undecided jobs (live, `signs_in IS NULL`), new
 > gestures or not: 0069 stored `false` on every existing job and only new
@@ -1075,3 +1075,23 @@ Code: `day = [item.evidence for item in arrange(window.items)]`
 > here, at the one place the evidence becomes a prompt, exactly as
 > algorithms.md's pseudocode has it: `chosen.sort(key=at)` upstream,
 > `arrange(chosen)` at assembly.
+
+## `fill_in_passwords`, [line 583](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L583): Note
+
+Code: `for listed in await uow.workflows.known(tenant_id):`
+
+> The listing is read without a lock, only to find the jobs that need healing.
+> A job that does is read again under its row lock and healed from that read, so
+> a `learn_field` that grew it meanwhile is saved with it, not overwritten by the
+> listing's copy -- `save` writes the whole job, steps and all. Only the jobs
+> that change are locked, so a pass that heals nothing holds no job's row across
+> its model call.
+
+## `learn_parameters`, [line 166](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L166): Note
+
+Code: `stored = await uow.workflows.get(tenant_id, known_id, lock=True)`
+
+> Locked: this read ends in a `save` of the whole job, and a job grown by
+> `learn_field` between an unlocked read and that save lost its field step while
+> its learned locators stayed renumbered -- the next run pinned those steps and
+> drove a save with a field's locator.

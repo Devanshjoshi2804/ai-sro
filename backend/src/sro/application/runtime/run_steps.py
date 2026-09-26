@@ -30,13 +30,14 @@ from sro.application.runtime.teach import Teach
 from sro.domain.chat.asked_by import only_reads_the_mail
 from sro.domain.chat.thread import Speaker
 from sro.domain.execution.account import Account, LeaseState
-from sro.domain.execution.compose import Adding, Composed, choices, compose, field_of
+from sro.domain.execution.compose import Adding, Composed, choices, compose, field_of, with_field
 from sro.domain.execution.evidence import primary_gesture, writes
 from sro.domain.execution.lanes import Lane, StepResult, cites_key
 from sro.domain.execution.mail_job import sends_mail
 from sro.domain.execution.progress import MAIN, Progress, StepMark
+from sro.domain.execution.takeover import OPERATOR
 from sro.domain.execution.waiting import read_wait
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun, pinned_job
+from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.identifiers import PrincipalId
 from sro.domain.skill.learned import demanded
@@ -92,7 +93,9 @@ class RunSteps:
         known = {one.get("name") for one in progress.composed}
         resume = ordered[progress.step].order if progress.step < len(ordered) else math.inf
         fresh = [
-            _entry(one) for one in compose(workflow, by_id, run.values)[0] if one.before >= resume
+            _entry(one)
+            for one in compose(workflow, by_id, run.values)[0]
+            if one.before >= resume and progress.marks.get(one.before, StepMark()).lane != OPERATOR
         ]
         if fresh := [one for one in fresh if one["name"] not in known]:
             progress.composed += fresh
@@ -240,21 +243,21 @@ class RunSteps:
         run, workflow, _ = await self._load(ctx, run_id)
         progress = Progress.of(run.progress)
         confirmed = [one for one in progress.composed if one.get("verdict") == "done"]
-        version: Workflow | None = workflow
+        version = workflow
         for one in sorted(confirmed, key=lambda one: int(str(one["before"])), reverse=True):
-            if version is None:
-                break
-            learned = one.get("learned")
-            version = await self._teach.learn_field(
+            field, key = _composed(one), str(one["key"])
+            value = run.values.get(field.name, "")
+            await self._teach.learn_field(
                 ctx,
                 version,
-                _composed(one),
-                key=str(one["key"]),
-                value=run.values.get(str(one["name"]), ""),
-                learned=_strings(learned),
+                field,
+                key=key,
+                value=value,
+                learned=_strings(one.get("learned")),
                 lane=_lane_of(str(one.get("lane") or "")),
                 run_id=run.id,
             )
+            version = with_field(version, field, key=key, value=value)[0]
         if run.outcome == "running":
             last = {one.of_step: one.verdict for one in sorted(run.steps, key=lambda s: s.order)}
             done = progress.step >= len(workflow.steps)
@@ -412,13 +415,8 @@ class RunSteps:
         stop: asyncio.Event,
         step: Step,
     ) -> LaneContext:
+        learned = await self._teach.locators(ctx, workflow)
         async with self._uow as uow:
-            job = await uow.workflows.get(ctx.tenant_id, workflow.id)
-            learned = (
-                {one.ord: one for one in await uow.workflows.learned_for(workflow.id)}
-                if job.steps == workflow.steps
-                else {}
-            )
             ledger = await uow.workflows.learned_writes(ctx.tenant_id)
         waiting = read_wait(run.awaiting)
         marked: list[Lane] = []
@@ -790,7 +788,11 @@ class RunSteps:
     ) -> tuple[WorkflowRun, Workflow, dict[str, Gesture]]:
         run = await self._run(ctx, run_id)
         async with self._uow as uow:
-            workflow = pinned_job(run, await uow.workflows.get(ctx.tenant_id, run.workflow_id))
+            workflow = (
+                run.pinned
+                if run.pinned is not None
+                else await uow.workflows.get(ctx.tenant_id, run.workflow_id)
+            )
             cited = await uow.gestures.gestures_for(
                 ctx.tenant_id, ids=tuple(sorted(cited_ids(workflow)))
             )

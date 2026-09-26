@@ -110,6 +110,22 @@ def _row_to_workflow(row: WorkflowRow, steps: list[Step]) -> Workflow:
     )
 
 
+def workflow_json(workflow: Workflow) -> dict[str, Any]:
+    columns = _workflow_values(workflow)
+    del columns["created_at"]
+    return {
+        "workflow": columns,
+        "steps": [_step_values(workflow.id, step) for step in workflow.steps],
+    }
+
+
+def workflow_from_json(held: dict[str, Any]) -> Workflow:
+    return _row_to_workflow(
+        WorkflowRow(**held["workflow"]),
+        [_row_to_step(WorkflowStepRow(**step)) for step in held["steps"]],
+    )
+
+
 def _row_to_pass(row: MiningPassRow) -> MiningPass:
     return MiningPass(
         id=row.id,

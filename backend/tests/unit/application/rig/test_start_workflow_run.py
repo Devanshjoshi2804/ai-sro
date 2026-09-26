@@ -243,7 +243,7 @@ async def test_a_steel_run_is_never_started_part_way_through_a_job() -> None:
     assert uow.workflow_runs.rows == {}
 
 
-TOOK = Took(tab_id=7, since=90.0, through=100.0)
+TOOK = Took(tab_id=7, since=90.0, through=100.0, newest=100.0)
 OPERATOR_S = "s-operator"
 COLLEAGUE_S = "s-colleague"
 
@@ -274,9 +274,11 @@ async def _taken_over(
     device: str = "dev-1",
     secret: str = OPERATOR_S,
     took: Took | None = TOOK,
+    seeded: bool = False,
 ) -> WorkflowRun:
-    await two_writes_job(uow, "wfl_two")
-    await _devices(uow)
+    if not seeded:
+        await two_writes_job(uow, "wfl_two")
+        await _devices(uow)
     return await _on_steel(uow).execute(
         CTX,
         workflow_id="wfl_two",
@@ -305,6 +307,7 @@ async def test_a_takeover_starts_after_the_operator_s_own_save() -> None:
 async def test_another_browser_s_save_is_not_the_operator_s() -> None:
     uow = FakeUnitOfWork()
     await operator_did(uow, device="dev-2", tab=7, at=100.0, calls=[posted("GT1", 100.0)])
+    await operator_did(uow, device="dev-1", tab=7, at=100.0, calls=[])
 
     run = await _taken_over(uow)
 
@@ -317,6 +320,24 @@ async def test_a_save_after_the_span_confirms_nothing() -> None:
     await operator_did(uow, device="dev-1", tab=7, at=101.0, calls=[posted("GT1", 101.0)])
 
     run = await _taken_over(uow)
+
+    assert Progress.of(run.progress).in_doubt(1)
+
+
+async def test_a_press_before_the_operator_s_recent_work_has_uploaded_is_refused() -> None:
+    """The probe: an offer on tab 7 made at k=1 through t=95; the operator saves
+    GT1 in a popup (tab 8) at t=100; the upload is slow; they press. The press
+    says its newest gesture was at t=100, which the server has not received."""
+    uow = FakeUnitOfWork()
+    typed = Took(tab_id=7, since=90.0, through=95.0, newest=100.0)
+    await operator_did(uow, device="dev-1", tab=7, at=95.0, calls=[])
+
+    with pytest.raises(RunRefused, match="still uploading"):
+        await _taken_over(uow, matched=1, took=typed)
+    assert uow.workflow_runs.rows == {}
+
+    await operator_did(uow, device="dev-1", tab=8, at=100.0, calls=[posted("GT1", 100.0)])
+    run = await _taken_over(uow, matched=1, took=typed, seeded=True)
 
     assert Progress.of(run.progress).in_doubt(1)
 

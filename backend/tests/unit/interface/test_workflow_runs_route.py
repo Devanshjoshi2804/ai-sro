@@ -579,7 +579,7 @@ async def test_from_step_true_does_not_become_step_one(
 async def test_a_takeover_that_ends_before_it_begins_answers_422(
     client: httpx.AsyncClient, uow: FakeUnitOfWork, held: Workflow, spawned: _Spawned
 ) -> None:
-    took = {"tab_id": 7, "since": 100.0, "through": 90.0}
+    took = {"tab_id": 7, "since": 100.0, "through": 90.0, "newest": 100.0}
 
     landed = await client.post("/v1/workflow-runs", json=_body(matched=3, took_over=took))
 
@@ -601,7 +601,7 @@ async def test_a_takeover_proves_the_browser_it_names_with_its_secret(
             raise NotFound(f"device {given['device_id']} was not found")
 
     monkeypatch.setattr(container, "start_workflow_run", _Refusing)
-    took = {"tab_id": 7, "since": 90.0, "through": 100.0}
+    took = {"tab_id": 7, "since": 90.0, "through": 100.0, "newest": 100.0}
     proof = "the-browser-s-proof"
 
     landed = await client.post(
@@ -618,7 +618,7 @@ async def test_a_takeover_proves_the_browser_it_names_with_its_secret(
 async def test_a_takeover_s_tab_is_a_number_never_true(
     client: httpx.AsyncClient, uow: FakeUnitOfWork, held: Workflow
 ) -> None:
-    took = {"tab_id": True, "since": 90.0, "through": 100.0}
+    took = {"tab_id": True, "since": 90.0, "through": 100.0, "newest": 100.0}
 
     landed = await client.post("/v1/workflow-runs", json=_body(matched=3, took_over=took))
 

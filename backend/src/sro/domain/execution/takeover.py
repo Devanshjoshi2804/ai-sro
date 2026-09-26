@@ -22,10 +22,13 @@ class Took:
     tab_id: int
     since: float
     through: float
+    newest: float
 
     def __post_init__(self) -> None:
         if self.since > self.through:
             raise InvariantViolation("a takeover's gestures cannot end before they begin")
+        if self.newest < self.through:
+            raise InvariantViolation("a takeover's newest gesture cannot precede its last one")
 
 
 @dataclass(frozen=True, slots=True)

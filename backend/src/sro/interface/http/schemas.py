@@ -2609,6 +2609,11 @@ class TookOverModel(BaseModel):
     tab_id: StrictInt = Field(ge=0)
     since: float = Field(ge=0)
     through: float = Field(ge=0)
+    newest: float = Field(ge=0)
+    """The recorder time of the newest gesture this browser recorded before the
+    press, on any tab. The press is refused until the server has received it:
+    work still uploading -- a save in a popup, say -- is otherwise invisible,
+    and a Steel run would make that save a second time."""
 
 
 class StartWorkflowRunRequest(BaseModel):

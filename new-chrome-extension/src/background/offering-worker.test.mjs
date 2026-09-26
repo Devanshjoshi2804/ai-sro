@@ -230,6 +230,9 @@ const rigServer = async (url, options = {}) => {
       can_find: shapesCanFind,
       takes_over: shapesTakesOver,
     });
+  // The evidence door takes what this browser recorded, as the backend does.
+  if (path === "/v1/observations") return json({ accepted: 1, rejected: [] });
+  if (path === "/v1/observations/artifacts") return json({}, 201);
   if (path === "/v1/threads/thr-1/messages")
     return json(threadSaid || { id: "thr-1", messages: [] });
   if (path === "/v1/chat")
@@ -736,7 +739,7 @@ test("a press Steel takes over uploads this browser's work first and says which 
 
   assert.ok(uploadsBeforePress() > 0, "the press went before the operator's own work was uploaded");
   const started = JSON.parse(calls.find((call) => call.path === "/v1/workflow-runs").body);
-  assert.deepEqual(started.took_over, { tab_id: TAB, since: 1, through: 1 });
+  assert.deepEqual(started.took_over, { tab_id: TAB, since: 1, through: 1, newest: 1 });
 });
 
 test("a press the browser itself runs waits on no upload", async () => {
@@ -748,7 +751,18 @@ test("a press the browser itself runs waits on no upload", async () => {
   assert.equal(uploadsBeforePress(), 0);
 });
 
-test("an upload that hangs holds a Steel press only so long, and the panel is told", async () => {
+test("a Steel press names the newest gesture on any tab, so work past the offer is waited for", async () => {
+  ready();
+  const offer = await offered({ steel: true });
+  held.set("sro.tails", { ...held.get("sro.tails"), 8: [{ triple: [H, "save", "click"], at: 7 }] });
+
+  await send({ kind: "start-rig-run", nudgeId: offer.id, values: {} });
+
+  const started = JSON.parse(calls.find((call) => call.path === "/v1/workflow-runs").body);
+  assert.equal(started.took_over.newest, 7);
+});
+
+test("an upload that hangs holds a Steel press only so long, and then nothing is pressed", async () => {
   ready();
   const offer = await offered({ steel: true });
   globalThis.fetch = (url, options) =>
@@ -758,8 +772,11 @@ test("an upload that hangs holds a Steel press only so long, and the panel is to
 
   const answer = await send({ kind: "start-rig-run", nudgeId: offer.id, values: {} });
 
-  assert.equal(answer.ok, true, answer.error || "the press never started");
-  assert.match(String(held.get("sro.lastError") || ""), /still uploading/);
+  assert.equal(answer.ok, false, "a press went ahead of the operator's own uploads");
+  assert.match(answer.error, /still uploading; press again in a moment/);
+  assert.equal(calls.filter((call) => call.path === "/v1/workflow-runs").length, 0);
+  assert.doesNotMatch(String(held.get("sro.lastError") || ""), /rather than do them again/);
+  assert.equal(openOnes().length, 1, "the offer did not go back to being the operator's");
 });
 
 test("yes starts the run, and marks the offer accepted on the list as it is then", async () => {
@@ -1004,6 +1021,7 @@ test("marking accepted does not write back a list read before the run started", 
     }
     if (path === "/v1/offers") return json({ offer_id: "off_1" }, 201);
     if (path === "/v1/shapes") return json({ shapes: shapesServed });
+    if (path === "/v1/observations") return json({ accepted: 1, rejected: [] });
     return json({ detail: "no" }, 404);
   };
 

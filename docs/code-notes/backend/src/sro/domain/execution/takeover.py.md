@@ -10,7 +10,7 @@ Code: `OPERATOR = "operator"`
 > Steel took the job over. Not a `Lane`: no lane of this runtime sent it, and
 > the mark and the step row say who did.
 
-## `Took`, [line 27](../../../../../../../backend/src/sro/domain/execution/takeover.py#L27): Note
+## `Took`, [line 28](../../../../../../../backend/src/sro/domain/execution/takeover.py#L28): Note
 
 Code: `if self.since > self.through:`
 
@@ -18,7 +18,15 @@ Code: `if self.since > self.through:`
 > the extension's match used. A span that ends before it begins is a caller's
 > mistake, refused rather than read as "nothing was done".
 
-## `Takeover.progress`, [line 40](../../../../../../../backend/src/sro/domain/execution/takeover.py#L40): Note
+## `Took`, [line 30](../../../../../../../backend/src/sro/domain/execution/takeover.py#L30): Note
+
+Code: `if self.newest < self.through:`
+
+> `newest` is the recorder time of the newest gesture the browser recorded
+> before the press, on any tab -- never earlier than the last gesture the
+> match used. The press is refused until the server holds it.
+
+## `Takeover.progress`, [line 43](../../../../../../../backend/src/sro/domain/execution/takeover.py#L43): Note
 
 Code: `progress.sending(order, OPERATOR)`
 
@@ -27,7 +35,7 @@ Code: `progress.sending(order, OPERATOR)`
 > runtime never sends it again; a mark left `sending` is in doubt, and a doubt
 > is settled by a read-back or a question -- never by sending it again.
 
-## `take_over`, [line 55](../../../../../../../backend/src/sro/domain/execution/takeover.py#L55): Note
+## `take_over`, [line 58](../../../../../../../backend/src/sro/domain/execution/takeover.py#L58): Note
 
 Code: `reached = {gesture.id for gesture, _ in walkable(cited_pairs(workflow, by_id))[:matched]}`
 
@@ -36,14 +44,14 @@ Code: `reached = {gesture.id for gesture, _ in walkable(cited_pairs(workflow, by
 > and its steps are simply replayed. The count is not the only witness: see
 > the note on `could`.
 
-## `take_over`, [line 57](../../../../../../../backend/src/sro/domain/execution/takeover.py#L57): Note
+## `take_over`, [line 60](../../../../../../../backend/src/sro/domain/execution/takeover.py#L60): Note
 
 Code: `uploaded = any(one.at >= took.through for one in since)`
 
 > Nothing is proven until the uploads reach the last gesture the match used.
 > An upload still on its way is not evidence of absence.
 
-## `take_over`, [line 59](../../../../../../../backend/src/sro/domain/execution/takeover.py#L59): Note
+## `take_over`, [line 62](../../../../../../../backend/src/sro/domain/execution/takeover.py#L62): Note
 
 Code: `(_seen(call), uploaded and one.tab_id == took.tab_id and one.at <= took.through)`
 
@@ -53,7 +61,7 @@ Code: `(_seen(call), uploaded and one.tab_id == took.tab_id and one.at <= took.t
 > a save made past a stale offer's count, or in a popup, is a write that may
 > have happened, and it is never ignored.
 
-## `take_over`, [line 66](../../../../../../../backend/src/sro/domain/execution/takeover.py#L66): Note
+## `take_over`, [line 69](../../../../../../../backend/src/sro/domain/execution/takeover.py#L69): Note
 
 Code: `claims = [`
 
@@ -65,7 +73,7 @@ Code: `claims = [`
 > write whose values are not known (demonstrated once) cannot be proven by a
 > call at all -- it is read back or asked about.
 
-## `take_over`, [line 74](../../../../../../../backend/src/sro/domain/execution/takeover.py#L74): Note
+## `take_over`, [line 77](../../../../../../../backend/src/sro/domain/execution/takeover.py#L77): Note
 
 Code: `could = [`
 
@@ -76,7 +84,7 @@ Code: `could = [`
 > write -- or a reached write the uploads say nothing about -- is in doubt,
 > settled by a read-back or a question and never sent again.
 
-## `take_over`, [line 86](../../../../../../../backend/src/sro/domain/execution/takeover.py#L86): Note
+## `take_over`, [line 89](../../../../../../../backend/src/sro/domain/execution/takeover.py#L89): Note
 
 Code: `replay_from = 0`
 

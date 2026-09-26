@@ -12,7 +12,7 @@ from sro.domain.skill.workflow import Step, Workflow
 SYSTEM = "https://wms.example"
 APP = f"{SYSTEM}/app"
 SAVE = f"{SYSTEM}/api/customer-types"
-TOOK = Took(tab_id=7, since=90.0, through=100.0)
+TOOK = Took(tab_id=7, since=90.0, through=100.0, newest=100.0)
 VALUES = {"First": "GT1", "Second": "GT2"}
 
 
@@ -94,11 +94,11 @@ def test_a_save_the_operator_s_own_call_confirms_is_done_and_the_run_begins_afte
 def test_a_form_the_operator_only_filled_is_replayed_from_the_start() -> None:
     typed = gesture("t", 95.0, "type", stream="dev-1", tab=7)
 
-    assert took_over(1, [typed], Took(7, 90.0, 95.0)) == Takeover(replay_from=0)
+    assert took_over(1, [typed], Took(7, 90.0, 95.0, 95.0)) == Takeover(replay_from=0)
 
 
 def test_a_save_not_yet_uploaded_is_in_doubt_never_assumed() -> None:
-    took = took_over(3, [operator_saved(100.0)], Took(7, 90.0, 105.0))
+    took = took_over(3, [operator_saved(100.0)], Took(7, 90.0, 105.0, 105.0))
 
     assert took == Takeover(replay_from=0, in_doubt=(1,))
 
@@ -129,14 +129,14 @@ def test_a_save_made_before_this_doing_began_proves_nothing() -> None:
 
 
 def test_the_first_gesture_of_the_doing_counts() -> None:
-    assert took_over(3, [operator_saved(100.0)], Took(7, 100.0, 100.0)).done == (1,)
+    assert took_over(3, [operator_saved(100.0)], Took(7, 100.0, 100.0, 100.0)).done == (1,)
 
 
 def test_a_save_past_a_stale_offer_is_in_doubt_never_sent_again() -> None:
     typed = gesture("t", 95.0, "type", stream="dev-1", tab=7)
 
     for tab in (7, 8):
-        took = took_over(1, [typed, operator_saved(100.0, tab=tab)], Took(7, 90.0, 95.0))
+        took = took_over(1, [typed, operator_saved(100.0, tab=tab)], Took(7, 90.0, 95.0, 100.0))
         assert took == Takeover(replay_from=0, in_doubt=(1,)), tab
 
 
@@ -166,7 +166,9 @@ def test_a_job_the_operator_finished_leaves_nothing_to_replay() -> None:
 
 def test_a_takeover_cannot_end_before_it_begins() -> None:
     with pytest.raises(InvariantViolation):
-        Took(tab_id=7, since=100.0, through=90.0)
+        Took(tab_id=7, since=100.0, through=90.0, newest=100.0)
+    with pytest.raises(InvariantViolation):
+        Took(tab_id=7, since=90.0, through=100.0, newest=95.0)
 
 
 def test_a_takeover_s_progress_never_sends_the_operator_s_write_again() -> None:

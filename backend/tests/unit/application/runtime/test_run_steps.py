@@ -627,7 +627,7 @@ async def test_a_save_past_a_stale_offer_is_read_back_or_asked_about_never_sent(
             job,
             by_id,
             matched=1,
-            took=Took(7, 90.0, 95.0),
+            took=Took(7, 90.0, 95.0, 100.0),
             seen=seen,
             values={"First": "GT1", "Second": "GT2"},
         )
@@ -671,7 +671,7 @@ async def _operator_answered(status: int) -> SteelRun:
         job,
         by_id,
         matched=2,
-        took=Took(7, 90.0, 100.0),
+        took=Took(7, 90.0, 100.0, 100.0),
         seen=seen,
         values={"First": "GT1", "Second": "GT2"},
     )

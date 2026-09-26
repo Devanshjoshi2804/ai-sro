@@ -4269,6 +4269,8 @@ export interface components {
             since: number;
             /** Through */
             through: number;
+            /** Newest */
+            newest: number;
         };
         /** ToolPlanModel */
         ToolPlanModel: {

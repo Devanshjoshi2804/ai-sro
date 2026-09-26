@@ -92,6 +92,9 @@ def _asking(needs: Sequence[str], title: str, limits: Mapping[str, int]) -> str:
     )
 
 
+STILL_UPLOADING = "your recent work is still uploading; press again in a moment"
+
+
 class StartWorkflowRun:
     def __init__(
         self,
@@ -224,6 +227,8 @@ class StartWorkflowRun:
                     stream_id=device_id.value,
                     after=math.nextafter(took_over.since, -math.inf),
                 )
+                if not any(one.at >= took_over.newest for one in seen):
+                    raise RunRefused(STILL_UPLOADING)
                 took = take_over(
                     workflow, by_id, matched=matched or 0, took=took_over, seen=seen, values=given
                 )

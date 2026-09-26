@@ -2119,17 +2119,17 @@ async function handle(message, sender) {
       // would make three identical records.
       const items = Array.isArray(nudge.items) ? nudge.items : [];
       // A Steel run that takes this job over reads what the operator already
-      // did from their uploaded gestures, so those are sent first: a save
-      // still in this queue would be one the backend cannot prove, and it
-      // would ask about it rather than know. Bounded, so a slow upload never
-      // holds the press; the operator is told the run will check instead.
+      // did from their uploaded gestures, so those go first. A save still in
+      // this queue -- in a popup, past the offer -- is invisible to the server,
+      // which would make it a second time. So a press that cannot empty the
+      // queue within the bound does not happen: the operator presses again in
+      // a moment. The server refuses it too, until it holds `newest`.
       const tookOver = nudge.tabId != null && nudge.since != null;
-      if (tookOver && nudge.takesOver && !(await drainedWithin(K_PRESS_DRAIN_MS)))
-        await state.setLastError(
-          "your last steps were still uploading when the run started; it will check them rather than do them again",
-        );
+      const newest = tookOver ? newestGesture(await state.tails(), nudge.through) : null;
       let started;
       try {
+        if (tookOver && nudge.takesOver && !(await drainedWithin(K_PRESS_DRAIN_MS)))
+          throw new Error(STILL_UPLOADING);
         // No `started_by`. The backend reads who authorised the press off the
         // credential it arrived on; a body field saying so is a signature
         // nobody checked, written into the row an audit reads first.
@@ -2152,7 +2152,7 @@ async function handle(message, sender) {
           // counted. Absent for an offer not made from gestures (a mail
           // offer), and a Steel run is then never started part way through.
           took_over: tookOver
-            ? { tab_id: nudge.tabId, since: nudge.since, through: nudge.through }
+            ? { tab_id: nudge.tabId, since: nudge.since, through: nudge.through, newest }
             : undefined,
           // Somebody is looking at this. The press came from an open panel, so
           // the run does the job ON THE SCREEN -- it types into the form and
@@ -3068,17 +3068,32 @@ const MOST_BATCHES = 50;
  * the operator asking to flush before closing the laptop. The alarm stays one
  * batch a tick, which is what paces a busy day.
  */
-/** How long a Steel press waits for this browser's uploads before it goes. */
+/** How long a Steel press waits for this browser's uploads before it gives up. */
 const K_PRESS_DRAIN_MS = 4000;
 
-/** Whether `drain` finished within `ms`. The upload carries on either way. */
+/** What the panel says when it gives up. The same words the server refuses with. */
+const STILL_UPLOADING = "your recent work is still uploading; press again in a moment";
+
+/** The recorder time of the newest gesture this browser holds, on any tab: the
+ * tails keep every watched tab's recent gestures. Never earlier than `through`. */
+function newestGesture(tails, through) {
+  const times = Object.values(tails || {})
+    .flat()
+    .map((entry) => entry?.at)
+    .filter((at) => typeof at === "number");
+  return Math.max(through, ...times);
+}
+
+/** Whether `drain` emptied the queue within `ms`. The upload carries on either way. */
 async function drainedWithin(ms) {
   let timer;
   const late = new Promise((resolve) => {
     timer = setTimeout(() => resolve(false), ms);
   });
   try {
-    return await Promise.race([drain().then(() => true), late]);
+    // An upload that failed, or left some behind, has not emptied the queue.
+    const emptied = drain().then((last) => !last.error && !last.remaining);
+    return await Promise.race([emptied, late]);
   } finally {
     clearTimeout(timer);
   }

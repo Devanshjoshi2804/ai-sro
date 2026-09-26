@@ -896,7 +896,7 @@ async def test_a_takeover_after_the_operator_s_own_save_sends_only_the_rest(
         live=True,
         allow_focus=False,
         matched=2,
-        took_over=Took(tab_id=7, since=90.0, through=100.0),
+        took_over=Took(tab_id=7, since=90.0, through=100.0, newest=100.0),
     )
     queue = f"runs-test-{uuid.uuid4().hex}"
     async with _worker(world, temporal, queue):

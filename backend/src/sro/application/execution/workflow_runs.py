@@ -248,12 +248,13 @@ class StartWorkflowRun:
                 already = await uow.workflow_runs.taken_back_by(ctx.tenant_id, undoes_run.strip())
                 if already is not None:
                     raise RunRefused(f"{undoes_run.strip()} was already taken back by {already}")
-            (facts,) = await job_facts(uow, ctx.tenant_id, [workflow], now=now)
-            blocking = [
-                one for one in facts.compiled.reasons if one.step is None or one.step >= check_from
-            ]
-            if blocking:
-                raise RunRefused(f"this job cannot run yet: {'; '.join(why_not(blocking))}")
+            (facts,) = await job_facts(
+                uow, ctx.tenant_id, [workflow], now=now, values=given, from_step=check_from
+            )
+            if not facts.compiled.runnable:
+                raise RunRefused(
+                    f"this job cannot run yet: {'; '.join(why_not(facts.compiled.reasons))}"
+                )
             run = WorkflowRun(
                 id=run_id or new_run_id(),
                 tenant=ctx.tenant_id.value,

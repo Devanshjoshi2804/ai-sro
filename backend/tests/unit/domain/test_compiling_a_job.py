@@ -3,9 +3,10 @@ from dataclasses import replace
 from datetime import UTC, datetime
 
 from sro.domain.execution.compiled import Compiled, compile_job
+from sro.domain.execution.compose import Composed, with_field
 from sro.domain.execution.lanes import Broken, Lane
 from sro.domain.execution.learned_step import LearnedStep
-from sro.domain.observation.gesture import Target
+from sro.domain.observation.gesture import Gesture, Outline, OutlineField, Target
 from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.runtime_support import GMAIL, mail_send_step, proven_write_step, save_step
@@ -163,3 +164,48 @@ def test_a_step_with_no_evidence_has_no_lane_even_with_a_learned_locator() -> No
 
     assert "no_lane" in _codes(compile_job(job, by_id, learned={}, ledger=(), broken=()))
     assert "no_lane" in _codes(compile_job(job, by_id, learned=learned, ledger=(), broken=()))
+
+
+def _learned_field(label: str) -> tuple[Workflow, dict[str, Gesture], int]:
+    step, by_id = save_step(status=201)
+    save = by_id["ges_save"]
+    by_id["ges_save"] = replace(
+        save,
+        action=replace(save.action, outlines=(Outline(fields=(OutlineField("combobox", label),)),)),
+    )
+    job = _job(step)
+    grown, _ = with_field(
+        job,
+        Composed("department", "Department", "combobox", step.order),
+        key="department",
+        value="F",
+    )
+    return grown, by_id, step.order
+
+
+def test_compile_agrees_with_the_value_aware_start_rule_for_a_learned_field() -> None:
+    """X10b's rule, now the compile check's: a learned field step is refused only
+    when a value is given for it and its label is gone from the write's latest
+    outline; with no value it is passed over; the offer view (no values yet)
+    compiles."""
+    gone, by_id, field = _learned_field("Dept")
+
+    given = compile_job(gone, by_id, learned={}, ledger=(), broken=(), values={"department": "F"})
+    assert not given.runnable
+    assert [(one.code, one.step) for one in given.reasons] == [("field_gone", field)]
+    assert compile_job(gone, by_id, learned={}, ledger=(), broken=(), values={}).runnable
+    assert compile_job(gone, by_id, learned={}, ledger=(), broken=()).runnable
+    shown, by_id, _ = _learned_field("Department")
+    assert compile_job(
+        shown, by_id, learned={}, ledger=(), broken=(), values={"department": "F"}
+    ).runnable
+
+
+def test_a_step_before_the_start_point_is_not_asked_about() -> None:
+    """D7's takeover: the steps before `from_step` were done by the operator and
+    are never sent, so evidence they no longer have does not stop the run."""
+    step, by_id = save_step()
+    job = _job(replace(step, order=0, cites=["gone"]), replace(step, order=1))
+
+    assert "no_lane" in _codes(compile_job(job, by_id, learned={}, ledger=(), broken=()))
+    assert compile_job(job, by_id, learned={}, ledger=(), broken=(), from_step=1).runnable

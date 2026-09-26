@@ -29,6 +29,11 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 >   start used to apply on its own (`unperformable`, now deleted), mail-read
 >   steps included: a mail-read step cited only by a scroll was runnable here
 >   and refused at the start. One rule, so the two cannot disagree.
+> - `field_gone` -- X10b's value-aware rule, carried from `unperformable`. A
+>   learned field step (`field_key`) has no gesture by design. It is refused
+>   only when the run gives it a value and its label is no longer on its
+>   write's latest outline (`field_of`). With no value it is passed over, and
+>   the job-level view (`values=None`, no run yet) never asks.
 >
 > Warnings, never refusals:
 >
@@ -72,6 +77,11 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 
 ## `compile_job`, [line 55](../../../../../../../backend/src/sro/domain/execution/compiled.py#L55): Docstring
 
+> `values` and `from_step` are the run's: the start passes its given values
+> and D7's `check_from`, and reasons at steps before `from_step` are dropped,
+> because those steps were done by the operator and are never sent. The offer
+> view and the console compile with neither.
+>
 > A missing read-back is shown in the view and not refused. Spec §3 asks for a
 > read-back "where one is known", so a write proven by its status alone
 > compiles, and the view's `read_back: null` says which writes have no second

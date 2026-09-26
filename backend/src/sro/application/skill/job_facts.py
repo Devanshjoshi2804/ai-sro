@@ -39,7 +39,13 @@ def _say_once(tenant_id: TenantId, workflow_id: str, compiled: Compiled) -> None
 
 
 async def job_facts(
-    uow: UnitOfWork, tenant_id: TenantId, workflows: Sequence[Workflow], *, now: datetime
+    uow: UnitOfWork,
+    tenant_id: TenantId,
+    workflows: Sequence[Workflow],
+    *,
+    now: datetime,
+    values: Mapping[str, str] | None = None,
+    from_step: int = 0,
 ) -> tuple[JobFacts, ...]:
     ledger = await uow.workflows.learned_writes(tenant_id)
     ids = tuple(sorted({one for w in workflows for step in w.steps for one in step.cites}))
@@ -58,8 +64,16 @@ async def job_facts(
         )
         aliases: tuple[JobAlias, ...] = ()
         compiled = compile_job(
-            workflow, by_id, learned=learned, ledger=ledger, broken=broken, aliases=aliases
+            workflow,
+            by_id,
+            learned=learned,
+            ledger=ledger,
+            broken=broken,
+            aliases=aliases,
+            values=values,
+            from_step=from_step,
         )
-        _say_once(tenant_id, workflow.id, compiled)
+        if values is None and not from_step:
+            _say_once(tenant_id, workflow.id, compiled)
         found.append(JobFacts(workflow, by_id, learned, tuple(broken), aliases, compiled))
     return tuple(found)

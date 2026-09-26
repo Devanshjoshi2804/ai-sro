@@ -33,7 +33,7 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > step's last outline. No label, or more than one, is an `Unplaced` the run asks
 > about with every label it saw; it is never guessed.
 
-## `keyed`, [line 155](../../../../../../../backend/src/sro/domain/execution/compose.py#L155): Docstring
+## `keyed`, [line 141](../../../../../../../backend/src/sro/domain/execution/compose.py#L141): Docstring
 
 > The pairing rule for the save call's new body keys (spec §6.6.4, X10a review
 > I1/I2). `extra` is the keys the recorded body lacks, each with the value sent.
@@ -50,7 +50,7 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > `unknown` even when the write is `done`: a fill alone never confirms anything
 > (spec §6.2), only the write's own call does.
 
-## `with_field`, [line 167](../../../../../../../backend/src/sro/domain/execution/compose.py#L167): Docstring
+## `with_field`, [line 153](../../../../../../../backend/src/sro/domain/execution/compose.py#L153): Docstring
 
 > Learning a confirmed field: the step goes in at the write's order, and every
 > later step, its `uses` and the repeat bounds shift by one. `moved` maps every
@@ -86,21 +86,6 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > The field a learned field step fills: its label (the parameter's first
 > name) on the latest outline of the write right after it, found exactly
 > once. None when that form no longer shows it, or shows it twice.
-
-## `unperformable`, [line 141](../../../../../../../backend/src/sro/domain/execution/compose.py#L141): Docstring
-
-> The first step this job could not be asked to do, or None if it can.
->
-> `primary_gesture`'s question asked of the whole job before it starts, not
-> of one step in the middle of it. A step whose every citation is gone or
-> untargeted gets no locator, no origin and no plan, so the runner records it
-> skipped and stops -- with the steps before it already sent, which leaves a
-> warehouse task half performed and a browser open on it.
->
-> A learned field step has no gesture by design; it is asked instead whether
-> its field is still on its write's form (`field_of`), and only when the run
-> has a value for it -- without one the step is passed over. Moved here from
-> `evidence` because that question is this module's.
 
 ## `alias_map`, [line 49](../../../../../../../backend/src/sro/domain/execution/compose.py#L49): Docstring
 

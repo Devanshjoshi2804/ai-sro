@@ -6,7 +6,7 @@ from urllib.parse import urlsplit
 
 from sro.domain.chat.asked_by import only_reads_the_mail
 from sro.domain.execution.belts import confirming_read, expected_statuses
-from sro.domain.execution.compose import alias_map, normal
+from sro.domain.execution.compose import alias_map, field_of, normal
 from sro.domain.execution.evidence import locators_for, primary_gesture, recorded_call, writes
 from sro.domain.execution.lanes import Broken, Lane, accepts, lanes_for
 from sro.domain.execution.learned_step import LearnedStep
@@ -16,7 +16,7 @@ from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.trim import body_key_set
 from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.learned import demanded
-from sro.domain.skill.workflow import Step, Workflow
+from sro.domain.skill.workflow import Step, Workflow, field_key
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,6 +60,8 @@ def compile_job(
     ledger: Sequence[VerifiedWrite],
     broken: Collection[Broken],
     aliases: Sequence[JobAlias] = (),
+    values: Mapping[str, str] | None = None,
+    from_step: int = 0,
 ) -> Compiled:
     reasons: list[Reason] = []
     warnings: list[Reason] = []
@@ -88,7 +90,17 @@ def compile_job(
         ]
         if mine is not None and mine.usable:
             found.insert(0, f"{mine.strategy}:{mine.query} (learned by {mine.found_by})")
-        if primary is None:
+        if field_key(workflow, step):
+            name = step.parameters[0]
+            if (values or {}).get(name, "").strip() and field_of(workflow, by_id, step) is None:
+                reasons.append(
+                    Reason(
+                        "field_gone",
+                        step.order,
+                        f"the form its save shows has no {name} field any more",
+                    )
+                )
+        elif primary is None:
             reasons.append(
                 Reason("no_lane", step.order, f"has no evidence a browser can act on: {step.says}")
             )
@@ -145,6 +157,7 @@ def compile_job(
     def listed(found: list[Reason]) -> list[dict[str, object]]:
         return [{"code": one.code, "step": one.step, "detail": one.detail} for one in found]
 
+    reasons = [one for one in reasons if one.step is None or one.step >= from_step]
     view: dict[str, object] = {
         "job": workflow.id,
         "title": workflow.title,

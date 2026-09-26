@@ -33,12 +33,13 @@ from sro.application.execution.stops import Stops
 from sro.application.execution.workflow_runs import RunRefused, StartWorkflowRun
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
+from sro.domain.execution.compose import Composed, with_field
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.takeover import Took
 from sro.domain.execution.waiting import K_PATIENCE, read_wait, still_waiting
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.device import AgentDevice
-from sro.domain.observation.gesture import Action, Gesture, Target
+from sro.domain.observation.gesture import Action, Gesture, Outline, OutlineField, Target
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.shared.prices import ModelSpend
@@ -255,6 +256,43 @@ async def test_every_start_goes_through_the_compile_check() -> None:
             allow_focus=False,
         )
     assert await uow.workflow_runs.for_workflow(TENANT, "wfl_unproven") == ()
+
+
+async def test_a_learned_field_its_form_lost_stops_the_start_only_when_given_a_value() -> None:
+    """X10b's value-aware rule, now inside the start's compile gate."""
+    uow = FakeUnitOfWork()
+    step, by_id = save_step(status=201)
+    save = by_id["ges_save"]
+    by_id["ges_save"] = replace(
+        save,
+        action=replace(
+            save.action, outlines=(Outline(fields=(OutlineField("combobox", "Dept"),)),)
+        ),
+    )
+    job = Workflow(id="wfl_field", tenant=TENANT.value, title="t", narrative="", steps=[step])
+    grown, _ = with_field(
+        job,
+        Composed("department", "Department", "combobox", step.order),
+        key="department",
+        value="F",
+    )
+    await uow.workflows.save(grown)
+    await uow.gestures.add_gestures(tuple(by_id.values()))
+    starter = _on_steel(uow)
+
+    with pytest.raises(RunRefused, match="has no department field any more"):
+        await starter.execute(
+            CTX,
+            workflow_id="wfl_field",
+            device_id=None,
+            values={"department": "F"},
+            live=True,
+            allow_focus=False,
+        )
+    run = await starter.execute(
+        CTX, workflow_id="wfl_field", device_id=None, values={}, live=True, allow_focus=False
+    )
+    assert run.workflow_id == "wfl_field"
 
 
 def _on_steel(uow: FakeUnitOfWork) -> StartWorkflowRun:

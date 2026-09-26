@@ -138,20 +138,6 @@ def field_of(workflow: Workflow, by_id: Mapping[str, Gesture], step: Step) -> Co
     return hits[0] if len(hits) == 1 else None
 
 
-def unperformable(
-    workflow: Workflow, by_id: Mapping[str, Gesture], values: Mapping[str, str], *, from_step: int
-) -> Step | None:
-    for step in sorted(workflow.steps, key=lambda step: step.order):
-        if step.order < from_step:
-            continue
-        if not field_key(workflow, step):
-            if primary_gesture(step, by_id) is None:
-                return step
-        elif values.get(step.parameters[0], "").strip() and field_of(workflow, by_id, step) is None:
-            return step
-    return None
-
-
 def keyed(extra: Mapping[str, str], adding: Adding) -> dict[str, str] | None:
     found: dict[str, str] = {}
     for key, said in extra.items():

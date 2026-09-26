@@ -19,7 +19,9 @@ Notes for [`backend/src/sro/application/skill/job_facts.py`](../../../../../../.
 ## `_say_once`, [line 32](../../../../../../../backend/src/sro/application/skill/job_facts.py#L32): Docstring
 
 > Logs "cannot run: <codes>" when a job's reasons change, and forgets a job that
-> compiles again so its next breakage is logged afresh.
+> compiles again so its next breakage is logged afresh. Only the job-level view
+> is logged: a start's compile, with its own values and start point, is the
+> run's business and is said in the start's refusal.
 
 ## `job_facts`, [line 41](../../../../../../../backend/src/sro/application/skill/job_facts.py#L41): Docstring
 

@@ -895,6 +895,9 @@ class FakeThreadRepository:
     async def add(self, thread: Thread) -> None:
         self.rows[(str(thread.tenant_id), str(thread.id))] = thread
 
+    async def get_for_answer(self, tenant_id: TenantId, thread_id: ThreadId) -> Thread:
+        return await self.get(tenant_id, thread_id)
+
     async def get(self, tenant_id: TenantId, thread_id: ThreadId) -> Thread:
         try:
             return self.rows[(str(tenant_id), str(thread_id))]

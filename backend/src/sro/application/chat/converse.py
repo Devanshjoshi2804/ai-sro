@@ -412,7 +412,7 @@ class Converse:
         answering: str | None,
     ) -> Thread:
         async with self._uow as uow:
-            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            thread = await uow.threads.get_for_answer(ctx.tenant_id, thread_id)
             still = asked_under(thread.messages, answering)
             if still is None or still.id != asked:
                 self._told(thread, text, K_CLOSED)
@@ -509,7 +509,7 @@ class Converse:
     ) -> Thread:
         ready = offered.ready or self._can_gather
         async with self._uow as uow:
-            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            thread = await uow.threads.get_for_answer(ctx.tenant_id, thread_id)
             still = asked_under(thread.messages, answering)
             if still is None or still.id != asked:
                 self._told(thread, text, K_CLOSED)

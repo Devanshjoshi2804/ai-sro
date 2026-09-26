@@ -489,6 +489,9 @@ class SqlThreadRepository(ThreadRepository):
     async def get(self, tenant_id: TenantId, thread_id: ThreadId) -> Thread:
         return row_to_thread(await self._row(tenant_id, thread_id))
 
+    async def get_for_answer(self, tenant_id: TenantId, thread_id: ThreadId) -> Thread:
+        return row_to_thread(await self._row(tenant_id, thread_id, lock=True))
+
     async def save(self, thread: Thread) -> None:
         update_thread_row(await self._row(thread.tenant_id, thread.id), thread)
 
@@ -507,12 +510,14 @@ class SqlThreadRepository(ThreadRepository):
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(row_to_thread(row) for row in rows)
 
-    async def _row(self, tenant_id: TenantId, thread_id: ThreadId) -> ThreadRow:
-        query = (
-            select(ThreadRow)
-            .where(ThreadRow.id == thread_id.value, ThreadRow.tenant_id == tenant_id.value)
-            .with_for_update()
+    async def _row(
+        self, tenant_id: TenantId, thread_id: ThreadId, *, lock: bool = False
+    ) -> ThreadRow:
+        query = select(ThreadRow).where(
+            ThreadRow.id == thread_id.value, ThreadRow.tenant_id == tenant_id.value
         )
+        if lock:
+            query = query.with_for_update()
         row = (await self._session.execute(query)).scalar_one_or_none()
         if row is None:
             raise NotFound(f"thread {thread_id} not found")

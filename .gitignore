@@ -95,3 +95,7 @@ artifacts/
 # it is deleted for anybody, and none of it is ever committed back by a stray
 # `git add -A`.
 new_agent_arch/
+# Eval cases and results hold operator data: never committed. The redacted set is backend/evals/ci/.
+backend/evals/cases/
+backend/evals/results/
+backend/evals/candidates/

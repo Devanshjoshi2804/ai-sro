@@ -4,8 +4,8 @@ import asyncio
 
 import pytest
 
-from sro.application.execution.mail_job import MailHand, Written
-from sro.application.runtime.step import Stopped
+from sro.application.execution.mail_job import MailHand, Unaddressed, Written
+from sro.application.runtime.step import NeedsAPerson, Stopped
 from sro.application.runtime.tool_lane import ToolLane
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.runtime_support import _answer, _sent, lane_context, mail_send_step, write_ok
@@ -111,3 +111,21 @@ async def test_a_send_that_answered_no_id_is_never_sent_again_blindly() -> None:
     result = await lane.execute(step, {}, lane_context(by_id, held=None))
 
     assert (result.verdict, result.never_left) == ("unknown", False)
+
+
+async def test_a_mail_nobody_may_be_sent_is_a_question_of_who_it_goes_to() -> None:
+    async def write(
+        workflow: Workflow, values: object, thread: str, by_id: object
+    ) -> Written | str:
+        return Unaddressed("the mail is addressed outside the conversation: eve@evil.example")
+
+    sent: list[Written] = []
+    lane = ToolLane(lambda ctx: MailHand(write=write, send=lambda m: _sent(sent, m, "msg-1")))
+    step, by_id = mail_send_step()
+
+    with pytest.raises(NeedsAPerson) as asked:
+        await lane.execute(step, {}, lane_context(by_id, held=None))
+
+    assert asked.value.kind == "recipient"
+    assert "eve@evil.example" in asked.value.question
+    assert sent == []

@@ -803,6 +803,16 @@ class KnownBrokenRow(Base):
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class JobRecipientRow(Base):
+    __tablename__ = "job_recipients"
+
+    tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    workflow_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    address: Mapped[str] = mapped_column(String(320), primary_key=True)
+    confirmed_by: Mapped[str] = mapped_column(String(128), nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class WorkflowLearnedHistoryRow(Base):
     __tablename__ = "workflow_learned_history"
     __table_args__ = (Index("ix_workflow_learned_history_job", "workflow_id", "at"),)

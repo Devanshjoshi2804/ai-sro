@@ -11,6 +11,7 @@ import urllib.parse
 import uuid
 import webbrowser
 from email.message import EmailMessage
+from email.utils import getaddresses
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -88,6 +89,7 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "to": {"type": "string"},
+                "bcc": {"type": "string"},
                 "subject": {"type": "string"},
                 "body": {"type": "string"},
                 "thread_id": {
@@ -376,6 +378,8 @@ def _get(token: str, arguments: dict[str, Any], mailbox: str = "") -> str:
             "from": head.get("from", ""),
             "to": head.get("to", ""),
             "cc": head.get("cc", ""),
+            "bcc": head.get("bcc", ""),
+            "sent": "SENT" in (full.get("labelIds") or []),
             "mailbox": mailbox,
             "subject": head.get("subject", ""),
             "body": _body_of(payload),
@@ -405,6 +409,7 @@ def _thread(token: str, arguments: dict[str, Any]) -> str:
                 "from": head.get("from", ""),
                 "to": head.get("to", ""),
                 "cc": head.get("cc", ""),
+                "sent": "SENT" in (one.get("labelIds") or []),
                 "date": head.get("date", ""),
                 "subject": head.get("subject", ""),
                 "body": _body_of(payload),
@@ -416,6 +421,8 @@ def _thread(token: str, arguments: dict[str, Any]) -> str:
 def _send(token: str, arguments: dict[str, Any]) -> str:
     mail = EmailMessage()
     mail["To"] = str(arguments.get("to", ""))
+    if arguments.get("bcc"):
+        mail["Bcc"] = str(arguments["bcc"])
     mail["Subject"] = str(arguments.get("subject", ""))
     mail.set_content(str(arguments.get("body", "")))
     within = str(arguments.get("thread_id", "")).strip()
@@ -432,7 +439,7 @@ def _send(token: str, arguments: dict[str, Any]) -> str:
     )
     if answer.status_code >= 400:
         raise RuntimeError(f"Gmail refused the send ({answer.status_code}): {answer.text[:200]}")
-    print(f"  → sent to {arguments.get('to')}")
+    print(f"  → sent to {len(getaddresses([str(arguments.get('to', ''))]))} recipient(s)")
     return json.dumps({"status": "sent", "id": answer.json().get("id", "")})
 
 

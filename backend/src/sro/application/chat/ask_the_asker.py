@@ -164,6 +164,7 @@ class SendTheDraft:
                 "send_message",
                 {
                     "to": to,
+                    **({"bcc": str(draft["bcc"])} if draft.get("bcc") else {}),
                     "subject": str(draft.get("subject") or ""),
                     "body": str(draft.get("body") or ""),
                     "thread_id": str(draft.get("thread") or ""),

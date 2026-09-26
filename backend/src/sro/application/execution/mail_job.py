@@ -15,7 +15,7 @@ from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.application.shared.asking import ask
 from sro.domain.chat.thread import Speaker
-from sro.domain.execution.mail_job import check_draft, sent_to
+from sro.domain.execution.mail_job import Allowed, check_draft, mailboxes, sent_messages
 from sro.domain.execution.waiting import read_wait
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Gesture
@@ -39,6 +39,11 @@ class Written:
     body: str
     thread: str
     in_reply_to: str
+    bcc: str = ""
+
+
+class Unaddressed(str):
+    __slots__ = ()
 
 
 async def write_the_mail(
@@ -48,18 +53,19 @@ async def write_the_mail(
     thread: str,
     *,
     by_id: Mapping[str, Gesture],
+    uow: UnitOfWork,
     tools: ToolCaller,
     asker: Asker,
 ) -> Written | str:
     conversation = await _conversation(ctx, tools, thread) if thread else []
-    sent_before = sent_to(workflow, by_id)
+    allowed = await _allowed(ctx, uow, tools, workflow, by_id)
     written = await ask(
         asker,
         WRITE_MAIL,
         trusted={
             "job": workflow.title,
             "operator": ctx.principal_id.value,
-            "sent_before": sorted(sent_before),
+            "sent_before": sorted(allowed.to | allowed.bcc),
         },
         untrusted={
             "what_it_does": workflow.narrative,
@@ -76,6 +82,7 @@ async def write_the_mail(
                         "from": str(one.get("from") or ""),
                         "to": str(one.get("to") or ""),
                         "cc": str(one.get("cc") or ""),
+                        "by_the_operator": one.get("sent") is True,
                         "subject": str(one.get("subject") or ""),
                         "body": str(one.get("body") or "")[:K_BODY],
                     }
@@ -92,24 +99,66 @@ async def write_the_mail(
     if not body:
         return f"the mail could not be written: {written.error or 'the model said nothing'}"
     cited = data.get("cited")
-    why = check_draft(
+    checked = check_draft(
         to=to,
         body=body,
         cited=[one for one in cited if isinstance(one, Mapping)] if isinstance(cited, list) else [],
         conversation=conversation,
         values=values,
-        sent_before=sent_before,
+        allowed=allowed,
     )
-    if why:
-        return f"{why} -- nothing was sent; say who it goes to and what it says"
+    if checked.why:
+        logger.info(
+            "%s: the draft of %s was refused: %s", ctx.tenant_id.value, workflow.id, checked.logged
+        )
+        if checked.recipient:
+            return Unaddressed(f"{checked.why} -- nothing was sent; who does this mail go to?")
+        return f"{checked.why} -- nothing was sent"
     latest = conversation[-1] if conversation else {}
     return Written(
-        to=to,
+        to=", ".join(checked.to),
         subject=" ".join(str(data.get("subject") or "").split()),
         body=body,
         thread=thread,
         in_reply_to=str(latest.get("rfc822_message_id") or ""),
+        bcc=", ".join(checked.bcc),
     )
+
+
+async def _allowed(
+    ctx: RequestContext,
+    uow: UnitOfWork,
+    tools: ToolCaller,
+    workflow: Workflow,
+    by_id: Mapping[str, Gesture],
+) -> Allowed:
+    to: set[str] = set()
+    bcc: set[str] = set()
+    for named in sent_messages(workflow, by_id):
+        sent = [
+            one
+            for one in [await _message(ctx, tools, id_) for id_ in named]
+            if one.get("sent") is True
+        ]
+        if len(sent) != 1:
+            continue
+        for key, into in (("to", to), ("cc", to), ("bcc", bcc)):
+            into.update(mailboxes(str(sent[0].get(key) or "")) or ())
+    async with uow as unit:
+        confirmed = await unit.workflows.recipients_for(ctx.tenant_id, workflow.id)
+    to.update(one.address for one in confirmed)
+    return Allowed(to=frozenset(to), bcc=frozenset(bcc - to))
+
+
+async def _message(ctx: RequestContext, tools: ToolCaller, message: str) -> dict[str, object]:
+    try:
+        answered = await tools.call(
+            ctx.tenant_id, ctx.principal_id, SERVER, "get_message", {"id": message}
+        )
+        said = json.loads(answered.text)
+    except (ToolsUnavailable, ValueError):
+        return {}
+    return said if isinstance(said, dict) and not answered.failed else {}
 
 
 async def send_the_mail(
@@ -123,6 +172,7 @@ async def send_the_mail(
             "send_message",
             {
                 "to": mail.to,
+                **({"bcc": mail.bcc} if mail.bcc else {}),
                 "subject": mail.subject,
                 "body": mail.body,
                 "thread_id": mail.thread,
@@ -173,7 +223,7 @@ async def draft_the_mail_job(
     waiting = read_wait(run.awaiting) if run.awaiting else None
     thread = waiting.thread if waiting else ""
     written = await write_the_mail(
-        ctx, workflow, run.values, thread, by_id=by_id, tools=tools, asker=asker
+        ctx, workflow, run.values, thread, by_id=by_id, uow=uow, tools=tools, asker=asker
     )
     if isinstance(written, str):
         return await _stop(uow, run, written)
@@ -187,6 +237,7 @@ async def draft_the_mail_job(
             "kind": DRAFTED,
             "run_id": run.id,
             "to": written.to,
+            **({"bcc": written.bcc} if written.bcc else {}),
             "subject": written.subject,
             "body": written.body,
             "thread": written.thread,
@@ -207,7 +258,7 @@ async def draft_the_mail_job(
     )
     run.outcome = "stopped"
     await _save(uow, run)
-    logger.info("%s: drafted %s's mail to %s", run.id, workflow.title, written.to)
+    logger.info("%s: drafted %s's mail", run.id, workflow.id)
     return run
 
 
@@ -242,7 +293,7 @@ async def _stop(uow: UnitOfWork, run: WorkflowRun, why: str) -> WorkflowRun:
     )
     run.outcome = "stopped"
     await _save(uow, run)
-    logger.info("%s: %s", run.id, why)
+    logger.info("%s: the mail was not written, so nothing was sent", run.id)
     return run
 
 

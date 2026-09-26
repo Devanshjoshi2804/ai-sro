@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass
+from datetime import datetime
+from email.utils import getaddresses
 from urllib.parse import urlsplit
 
-from sro.domain.observation.gesture import Gesture
+from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.prompts.record import quoted_in
 from sro.domain.shared.hosts import origin_of
 from sro.domain.skill.workflow import Step, Workflow
@@ -51,39 +54,90 @@ def _pressed_send(gesture: Gesture) -> bool:
     return (target.role or "button") == "button" and name.startswith("send")
 
 
-_ADDRESS = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+_ADDRESS = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
+
+_JOINED = r"(?:[\w-]|(?<=\d)[,./:](?=\d))"
+
+_VALUE_LIKE = re.compile(
+    r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|" + _JOINED + r"*\d" + _JOINED + "*"
+)
+
+_SEND_CALL = re.compile(r"/sync/u/\d+/i/s")
+
+_SENT_ID = re.compile(r"msg-f:(\d+)")
+
+K_SENT_IDS = 10
 
 
-def addresses_in(texts: Iterable[str]) -> frozenset[str]:
-    return frozenset(found.lower() for text in texts for found in _ADDRESS.findall(str(text or "")))
+@dataclass(frozen=True, slots=True)
+class JobRecipient:
+    address: str
+    confirmed_by: str
+    at: datetime
 
 
-_VALUE_LIKE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|\b[\w-]*\d[\w-]*\b")
+@dataclass(frozen=True, slots=True)
+class Allowed:
+    to: frozenset[str] = frozenset()
+    bcc: frozenset[str] = frozenset()
 
-_RECIPIENT_FIELD = re.compile(r"(to|cc|bcc)( recipients)?")
+
+@dataclass(frozen=True, slots=True)
+class Checked:
+    why: str = ""
+    logged: str = ""
+    recipient: bool = False
+    to: tuple[str, ...] = ()
+    bcc: tuple[str, ...] = ()
+
+
+def mailboxes(text: str) -> tuple[str, ...] | None:
+    found = getaddresses([text])
+    if not found or any(not _ADDRESS.fullmatch(address) for _, address in found):
+        return None
+    return tuple(dict.fromkeys(address.casefold() for _, address in found))
 
 
 def participants(conversation: Sequence[Mapping[str, object]]) -> frozenset[str]:
-    return addresses_in(
-        str(one.get(key) or "") for one in conversation for key in ("from", "to", "cc")
+    headers = [str(one.get("from") or "") for one in conversation] + [
+        str(one.get(key) or "")
+        for one in conversation
+        if one.get("sent") is True
+        for key in ("to", "cc")
+    ]
+    return frozenset(address for header in headers for address in mailboxes(header) or ())
+
+
+def sent_messages(workflow: Workflow, by_id: Mapping[str, Gesture]) -> tuple[tuple[str, ...], ...]:
+    found = []
+    for step in workflow.steps:
+        for cited in step.cites:
+            gesture = by_id.get(cited)
+            if gesture is None or not on_the_mailbox(gesture) or not _pressed_send(gesture):
+                continue
+            named = tuple(
+                dict.fromkeys(
+                    format(int(number), "x")
+                    for call in gesture.requests
+                    if _sends(call)
+                    for number in _SENT_ID.findall(_answer_of(call))
+                )
+            )
+            found.append(named if len(named) <= K_SENT_IDS else ())
+    return tuple(found)
+
+
+def _answer_of(call: Call) -> str:
+    return (call.response_body.text if call.response_body else "") or ""
+
+
+def _sends(call: Call) -> bool:
+    return (
+        call.method.upper() == "POST"
+        and call.status is not None
+        and 200 <= call.status < 300
+        and _SEND_CALL.fullmatch(urlsplit(call.url).path) is not None
     )
-
-
-def sent_to(workflow: Workflow, by_id: Mapping[str, Gesture]) -> frozenset[str]:
-    return addresses_in(
-        by_id[cited].action.value or ""
-        for step in workflow.steps
-        for cited in step.cites
-        if cited in by_id and _into_a_recipient_field(by_id[cited])
-    )
-
-
-def _into_a_recipient_field(gesture: Gesture) -> bool:
-    target = gesture.action.target
-    if gesture.action.kind != "type" or gesture.action.secret or target is None:
-        return False
-    name = " ".join((target.name or "").split()).lower()
-    return on_the_mailbox(gesture) and _RECIPIENT_FIELD.fullmatch(name) is not None
 
 
 def check_draft(
@@ -93,25 +147,42 @@ def check_draft(
     cited: Sequence[Mapping[str, object]],
     conversation: Sequence[Mapping[str, object]],
     values: Mapping[str, str],
-    sent_before: frozenset[str] = frozenset(),
-) -> str:
-    wanted = addresses_in([to])
-    if not wanted:
-        return "the mail names nobody to send it to"
-    strangers = wanted - participants(conversation) - sent_before
+    allowed: Allowed,
+) -> Checked:
+    wanted = mailboxes(to)
+    if wanted is None:
+        return Checked(
+            "the mail's recipients could not be read: " + (to or "it names nobody"),
+            "the recipients could not be read",
+            recipient=True,
+        )
+    open_to = participants(conversation) | allowed.to
+    strangers = [one for one in wanted if one not in open_to | allowed.bcc]
     if strangers:
-        return "the mail is addressed outside the conversation: " + ", ".join(sorted(strangers))
-    said = {str(one.get("id") or ""): str(one.get("body") or "") for one in conversation}
-    proven = _values_in(values.values())
-    for one in cited:
-        value, message = str(one.get("value") or ""), str(one.get("message") or "")
-        if not quoted_in(value, said.get(message, "")):
-            return f"the mail cites {value!r} to a message that does not say it"
-        proven |= _values_in([value])
-    loose = sorted({token for token in _VALUE_LIKE.findall(body) if token.casefold() not in proven})
+        return Checked(
+            "the mail is addressed outside the conversation: " + ", ".join(strangers),
+            f"{len(strangers)} recipient(s) outside the conversation",
+            recipient=True,
+        )
+    said = {
+        str(one.get("id") or ""): f"{one.get('subject') or ''} {one.get('body') or ''}"
+        for one in conversation
+    }
+    proven = _values_in(values.values()) | _values_in(
+        str(one.get("value") or "")
+        for one in cited
+        if quoted_in(str(one.get("value") or ""), said.get(str(one.get("message") or ""), ""))
+    )
+    loose = list(dict.fromkeys(t for t in _VALUE_LIKE.findall(body) if t.casefold() not in proven))
     if loose:
-        return "the mail carries values nobody gave it: " + ", ".join(loose)
-    return ""
+        return Checked(
+            "the mail carries values nobody gave it: " + ", ".join(loose),
+            f"{len(loose)} value(s) in the body nobody gave",
+        )
+    return Checked(
+        to=tuple(one for one in wanted if one in open_to),
+        bcc=tuple(one for one in wanted if one not in open_to),
+    )
 
 
 def _values_in(texts: Iterable[str]) -> set[str]:

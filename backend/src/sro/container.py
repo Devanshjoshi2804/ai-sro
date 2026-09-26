@@ -879,6 +879,7 @@ class Container:
                 values,
                 thread,
                 by_id=by_id,
+                uow=self.unit_of_work(),
                 tools=self.tools,
                 asker=asker,
             )

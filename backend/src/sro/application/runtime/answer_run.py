@@ -6,6 +6,7 @@ from typing import Literal
 from sro.application.context import RequestContext
 from sro.application.ports.durable import DurableExecution
 from sro.application.ports.repositories import UnitOfWork
+from sro.domain.execution.mail_job import mailboxes
 from sro.domain.execution.progress import Progress
 from sro.domain.shared.errors import Conflict, NotFound
 
@@ -39,7 +40,9 @@ class AnswerRun:
         if not asking or asking.get("id") != question_id:
             raise Conflict("that is not the question this run is waiting on")
         kind = asking.get("kind")
-        if value and kind not in ("value", "field"):
+        if kind == "recipient" and run.started_by and run.started_by != ctx.principal_id.value:
+            raise Conflict("only the operator who started this run says who its mail goes to")
+        if value and kind not in ("value", "field", "recipient"):
             raise Conflict(
                 "only a question for a value takes one: a password is stored with "
                 "PUT /v1/secrets, a one-time code is typed on the page, and a step "
@@ -55,6 +58,11 @@ class AnswerRun:
         answer = {"answered": "yes", "verdict": verdict}
         if kind == "field":
             answer["choice"] = chosen
+        if kind == "recipient":
+            named = mailboxes(chosen)
+            if not named:
+                raise Conflict("who a mail goes to is answered with one or more addresses")
+            answer |= {"address": ", ".join(named), "by": ctx.principal_id.value}
         if asking.get("answered"):
             if any(asking.get(key, "") != said for key, said in answer.items()):
                 raise Conflict("that question was already answered")

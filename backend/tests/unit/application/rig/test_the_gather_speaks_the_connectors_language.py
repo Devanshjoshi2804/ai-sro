@@ -14,11 +14,14 @@ was a spelling.
 
 from __future__ import annotations
 
+import base64
 import importlib.util
 import json
 from pathlib import Path
 from types import ModuleType
 from typing import Any
+
+import pytest
 
 from sro.application.execution.gather import SERVER
 
@@ -112,6 +115,7 @@ def test_a_conversation_says_who_each_mail_went_to() -> None:
             "messages": [
                 {
                     "id": "1a0b5053",
+                    "labelIds": ["INBOX"],
                     "payload": {
                         "headers": [
                             {"name": "From", "value": "asker@example.com"},
@@ -127,7 +131,7 @@ def test_a_conversation_says_who_each_mail_went_to() -> None:
 
     (one,) = json.loads(module._thread("token", {"id": "t-1"}))["messages"]
 
-    assert (one["to"], one["cc"]) == ("ops@example.com", "lead@example.com")
+    assert (one["to"], one["cc"], one["sent"]) == ("ops@example.com", "lead@example.com", False)
 
 
 class _Answers:
@@ -170,11 +174,13 @@ def test_a_message_says_whose_mailbox_it_is_and_who_it_went_to() -> None:
         {
             "id": "m-1",
             "threadId": "t-1",
+            "labelIds": ["SENT"],
             "payload": {
                 "headers": [
                     {"name": "From", "value": "Operator <operator@example.com>"},
                     {"name": "To", "value": "Colleague <colleague@example.com>"},
                     {"name": "Cc", "value": "boss@example.com"},
+                    {"name": "Bcc", "value": "audit@example.com"},
                 ],
                 "body": {},
             },
@@ -189,6 +195,8 @@ def test_a_message_says_whose_mailbox_it_is_and_who_it_went_to() -> None:
     assert first["mailbox"] == "Operator@Example.com"
     assert first["to"] == "Colleague <colleague@example.com>"
     assert first["cc"] == "boss@example.com"
+    # Gmail keeps Bcc on the sender's own copy, and SENT says it is that copy.
+    assert (first["bcc"], first["sent"]) == ("audit@example.com", True)
     assert routed.profiles == 1
 
 
@@ -231,3 +239,27 @@ def test_a_page_token_the_connector_did_not_mint_is_refused() -> None:
     else:
         raise AssertionError("a page token of another shape reached Gmail")
     assert listed.asked == []
+
+
+class _Posted:
+    """`httpx` taking one send, keeping the raw mail it was given."""
+
+    def __init__(self) -> None:
+        self.raw = b""
+
+    def post(self, *_args: Any, json: dict[str, Any], **_kwargs: Any) -> Any:
+        self.raw = base64.urlsafe_b64decode(json["raw"])
+        return _Said({"id": "gm-1"})
+
+
+def test_a_bcc_goes_out_as_bcc_and_the_console_line_names_nobody(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    module = _connector()
+    posted = _Posted()
+    module.httpx = posted
+
+    module._send("token", {"to": "a@example.com", "bcc": "b@example.com", "body": "hi"})
+
+    assert b"To: a@example.com" in posted.raw and b"Bcc: b@example.com" in posted.raw
+    assert "@" not in capsys.readouterr().out

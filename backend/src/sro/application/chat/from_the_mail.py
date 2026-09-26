@@ -231,7 +231,7 @@ class FromTheMail:
         look.read += 1
         back = await self._answering(ctx, thread)
         if back is not None and back.executor == "steel":
-            await self._answer_the_run(ctx, back, said)
+            await self._answer_the_run(ctx, back, said, message)
             return None
         if back is not None:
             return await self._carrying_on(ctx, message, back, said, thread, subject, titles, held)
@@ -436,12 +436,18 @@ class FromTheMail:
             return None
         return waiting
 
-    async def _answer_the_run(self, ctx: RequestContext, run: WorkflowRun, said: str) -> None:
+    async def _answer_the_run(
+        self, ctx: RequestContext, run: WorkflowRun, said: str, message: str
+    ) -> None:
         asking = Progress.of(run.progress).asking
-        if run.outcome != "running" or asking.get("kind") != "value":
+        kind = asking.get("kind") if run.outcome == "running" else None
+        if kind == "recipient":
+            said = await self._operator_s_first_line(ctx, message)
+        if kind not in ("value", "recipient") or not said:
             logger.info(
                 "%s: a reply on %s's thread answers nothing: only a value is taken from mail, "
-                "and whatever %s asks stands in the panel",
+                "a recipient only from the operator's own, and whatever %s asks stands in "
+                "the panel",
                 ctx.tenant_id.value,
                 run.id,
                 run.id,
@@ -458,6 +464,19 @@ class FromTheMail:
                 run.id,
                 refused,
             )
+
+    async def _operator_s_first_line(self, ctx: RequestContext, message: str) -> str:
+        answered = await self._tools.call(
+            ctx.tenant_id, ctx.principal_id, SERVER, "get_message", {"id": message}
+        )
+        try:
+            said = json.loads(answered.text)
+        except ValueError:
+            return ""
+        if not isinstance(said, dict) or said.get("sent") is not True:
+            return ""
+        lines = (one.strip() for one in str(said.get("body") or "").splitlines())
+        return next((one for one in lines if one), "")[:K_ANSWER]
 
     async def _was_asked(self, ctx: RequestContext, thread: str) -> Pending | None:
         if not thread.strip():

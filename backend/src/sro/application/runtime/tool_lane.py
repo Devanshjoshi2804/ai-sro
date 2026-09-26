@@ -4,8 +4,8 @@ import asyncio
 from collections.abc import Callable, Mapping
 
 from sro.application.context import RequestContext
-from sro.application.execution.mail_job import MailHand
-from sro.application.runtime.step import LaneContext, Stopped
+from sro.application.execution.mail_job import MailHand, Unaddressed
+from sro.application.runtime.step import LaneContext, NeedsAPerson, Stopped
 from sro.domain.execution.lanes import Lane, StepResult, fingerprint_of
 from sro.domain.execution.mail_job import sends_mail
 from sro.domain.skill.workflow import Step
@@ -24,6 +24,8 @@ class ToolLane:
             )
         hand = self._hand(ctx.ctx)
         written = await hand.write(ctx.workflow, values, ctx.thread, ctx.by_id)
+        if isinstance(written, Unaddressed):
+            raise NeedsAPerson(str(written), kind="recipient")
         if isinstance(written, str):
             return StepResult(
                 "failed",

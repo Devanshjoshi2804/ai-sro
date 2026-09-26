@@ -1968,9 +1968,10 @@ export interface paths {
          *
          *     A run of another tenant is a 404. A 409 `Conflict` for: a run no longer
          *     running; no question standing, or another one than `question_id`; a
-         *     question already answered differently; a value on anything but a value
-         *     or field question; a field answer that is not one of its choices; a
-         *     missing verdict on a write in doubt. Only the question id
+         *     question already answered differently; a value on anything but a value,
+         *     field or recipient question; a field answer that is not one of its
+         *     choices; a recipient answer that is not an address, or not from the
+         *     operator who started the run; a missing verdict on a write in doubt. Only the question id
          *     reaches the run's workflow; the answer itself is kept on the run.
          */
         post: operations["answer_workflow_run_v1_workflow_runs__run_id__answer_post"];
@@ -2076,6 +2077,14 @@ export interface components {
          *     options, or -- after a fill that failed -- the field itself, to try it
          *     again. It is answered with one of `choices`, or an empty `value` to leave
          *     the value out; anything else is a 409.
+         *
+         *     A recipient question (`asks: "recipient"`) is a mail job whose draft named
+         *     somebody neither in the conversation nor an address the job was shown
+         *     sending to; its text quotes the draft's address, which came from a model
+         *     reading untrusted mail. It is answered with the address(es) to send to --
+         *     only by the operator who started the run, and only with addresses that
+         *     read cleanly (anything else is a 409). The answer is kept on the job, so
+         *     its next run writes to that address without asking.
          */
         AnswerRunRequest: {
             /** Question Id */

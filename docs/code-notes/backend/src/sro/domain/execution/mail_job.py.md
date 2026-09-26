@@ -22,7 +22,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/execution/mail_job
 > Pure: what counts as a mail job and who may be written to. What the model
 > is asked is the `WRITE_MAIL` record, in `sro.domain.prompts.write_mail`. The reading, the drafting and the sending are the application's.
 
-## module, [line 12](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L12): Note on the line above
+## module, [line 15](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L15): Note on the line above
 
 Code: `MAILBOXES = frozenset({"mail.google.com"})`
 
@@ -30,14 +30,14 @@ Code: `MAILBOXES = frozenset({"mail.google.com"})`
 > `origin_of` answers, scheme and all left off. One, because the connector is
 > Gmail's; a second provider is a second connector before it is a line here.
 
-## module, [line 43](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L43): Note on the line above
+## module, [line 46](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L46): Note on the line above
 
 Code: `MAILBOX_HOSTS = frozenset({"mail.google.com", "outlook.office.com", "outlook.live.com"})`
 
 > Every mailbox a person reads requests in. Wider than `MAILBOXES`, which is
 > only the one the connector can also write through.
 
-## `is_mail_only`, [line 15](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L15): Docstring
+## `is_mail_only`, [line 18](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L18): Docstring
 
 > Whether every step of this job happened in the mailbox.
 >
@@ -46,7 +46,7 @@ Code: `MAILBOX_HOSTS = frozenset({"mail.google.com", "outlook.office.com", "outl
 > a sign-in, a warehouse screen -- is not a mail job: its mail half is read
 > by the gather rung, and the rest is a page that has to be driven.
 
-## `sends_mail`, [line 31](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L31): Docstring
+## `sends_mail`, [line 34](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L34): Docstring
 
 > Whether this step pressed a mailbox's Send button.
 >
@@ -59,45 +59,102 @@ Code: `MAILBOX_HOSTS = frozenset({"mail.google.com", "outlook.office.com", "outl
 > that sends one, clicked a button named `Send (⌘Enter)`, and no other
 > mailbox step did.
 
-## `on_the_mailbox`, [line 39](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L39): Docstring
+## `on_the_mailbox`, [line 42](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L42): Docstring
 
 > Whether this happened on a mailbox's own page -- by where it happened,
 > not by the system it was filed under. `Log in to Google Account` is filed
 > under the mailbox and types its password on `accounts.google.com`.
 
-## `addresses_in`, [line 57](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L57): Docstring
+## `_VALUE_LIKE`, [line 61](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L61): Note on the line above
 
-> Every email address named anywhere in these, lowercased.
+Code: `_VALUE_LIKE = re.compile(`
 
-## `participants`, [line 66](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L66): Docstring
-
-> Everyone a conversation's headers name: each message's sender and its `to`
-> and `cc`. Headers, never bodies -- an address a message's text names is the
-> sender's say-so, and mail text is untrusted.
-
-## `sent_to`, [line 72](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L72): Docstring
-
-> The addresses this job's own evidence sent to when it was demonstrated: what
-> the operator typed into a mailbox's To, Cc or Bcc field (Gmail names them
-> `To recipients`, Outlook `To`) in a gesture a step of the job cites.
+> What counts as a value in a mail body: an address, or a token with a digit in
+> it, where digits joined by `, . / :` stay one token -- `1,200`, `12/10/2026`,
+> `3,450.00`, `10:30`. Split at the punctuation, `200` was "proven" by a cited
+> `1,200` and a date with its day and month swapped by the date itself. The body,
+> the cited values and the run's values are all read by this one pattern.
 >
-> Only the recipient field. A search box, the body, a page off the mailbox and
-> a secret field all carry addresses nobody sent to. The send call's own body
-> is not read either: Gmail's reply carries the quoted mail it answers, so an
-> address the asker wrote would read as one the operator sent to.
->
-> Ceiling: a recipient picked from Gmail's suggestions after typing a part of
-> it (`de` then a click on the contact) is not seen, because neither gesture
-> carries the address -- that job asks. Reading the chosen chip is the upgrade.
+> Ceiling (M3): a value with no digit and no `@` is not seen as one -- a number
+> in words ("twelve hundred"), a weekday or a month name, an address spelled
+> out. Those pass unchecked. The upgrade is a model check of the body against
+> the thread, which the eval would have to measure first.
 
-## `check_draft`, [line 89](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L89): Docstring
+## `K_SENT_IDS`, [line 69](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L69): Note on the line above
 
-> `""` when the draft may go, else why not.
+Code: `K_SENT_IDS = 10`
+
+> A send call that names more messages than this is answering with a whole
+> thread, not naming the one it sent, so it grants nobody.
+
+## `JobRecipient`, [line 73](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L73): Docstring
+
+> An address the job's operator said its mail goes to, answering the run's
+> `recipient` question -- with who said it and when, as an alias is kept. Only
+> that answer writes one (`RunSteps.answered`); a model never does.
+
+## `Allowed`, [line 80](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L80): Docstring
+
+> Who a draft may go to besides the conversation's participants: `to` holds the
+> To and Cc of the mail the job's demonstration sent, and the addresses its
+> operator confirmed; `bcc` holds the Bcc of that mail, which stays Bcc.
+
+## `Checked`, [line 86](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L86): Docstring
+
+> A draft's verdict. `why` is empty when it may go, and says what was refused
+> otherwise -- the address, or the value -- for the operator's question. `logged`
+> says the same in counts only: an address or a body token never reaches a log
+> line. `recipient` marks a refusal of who it goes to, which the operator can
+> answer; `to` and `bcc` are the addresses checked, and the only ones a header
+> is built from.
+
+## `mailboxes`, [line 94](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L94): Docstring
+
+> The addresses a header or an answer names, casefolded, or `None` when any
+> entry does not read as a plain ASCII address. Parsed by
+> `email.utils.getaddresses` (strict), the way a mail client reads a header, so
+> what is checked is exactly what is sent: `eve@[10.0.0.1]`, `evé@evil.com`,
+> `eve!ana@acme.example`, a `;` list or a trailing comma are refused whole
+> rather than half-read by a pattern. An internationalised address is refused
+> too; the operator is asked instead.
+
+## `participants`, [line 101](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L101): Docstring
+
+> Who the conversation lets a draft go to: the sender of every message, and the
+> To and Cc of every message the operator's own mailbox sent (`sent`, Gmail's
+> SENT label -- not the `From` header, which any sender can write).
 >
-> `to` names at least one address and only participants or addresses the job
-> was demonstrated sending to. Each citation names a message whose body says
-> its value; one that does not is a model claiming what the thread did not
-> say, and refuses the whole draft. Every value-like token in the body -- an
-> address, or a token with a digit in it -- is a whole token of a cited value
-> or of one of the run's values (which include its read results). A piece of
-> one does not count: `44` is not proven by `PO-4411`.
+> A Cc on an incoming mail is the sender's say-so and names nobody (M4, against
+> invariant 7): a reply-all to somebody only a sender cc'd asks first. Headers,
+> never bodies.
+
+## `sent_messages`, [line 111](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L111): Docstring
+
+> For each Send the job's evidence pressed, the Gmail ids of the messages its
+> own send call (`POST mail.google.com/sync/u/N/i/s`, answered 2xx) names --
+> `msg-f:<decimal>`, whose hex is the API's id. The recipients are then read from
+> that message's own To, Cc and Bcc through the connector: what was sent, never
+> what was typed (a typo typed and deleted, or a fragment autocomplete replaced,
+> would otherwise count).
+>
+> Unverified against a captured send: the local store holds no Send click with
+> its i/s call, so the `msg-f` id in its answer is Gmail web's known form, not a
+> measured one. When it is not there, the job's demonstration grants nobody and
+> the operator is asked -- it fails closed.
+
+## `check_draft`, [line 143](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L143): Docstring
+
+> Whether a draft may go, and to whom (`Checked`).
+>
+> - `to` parses (`mailboxes`) and every address in it is a participant, or
+>   allowed (`Allowed`); otherwise the refusal is a `recipient` one.
+> - Each citation is kept only if its message -- subject or body -- says its
+>   value; a bad one is dropped, never the whole draft (invariant 14), and the
+>   token check decides.
+> - Every value-like token of the body is a whole token of a kept citation or
+>   of one of the run's values (which include its read results).
+>
+> A demonstrated Bcc that is nobody's To stays Bcc (M1).
+>
+> Accepted (M5): an address the mail's text names can be put in the body when
+> cited to that mail ("please reply to eve@..."). It is never a recipient.

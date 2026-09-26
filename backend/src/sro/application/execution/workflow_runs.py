@@ -471,7 +471,14 @@ class StartWorkflowRun:
             by_id: Mapping[str, Gesture],
         ) -> Written | str:
             return await write_the_mail(
-                ctx, workflow, values, thread, by_id=by_id, tools=tools, asker=asker
+                ctx,
+                workflow,
+                values,
+                thread,
+                by_id=by_id,
+                uow=self._uow,
+                tools=tools,
+                asker=asker,
             )
 
         async def send(mail: Written) -> tuple[str, str]:

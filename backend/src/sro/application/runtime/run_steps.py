@@ -33,7 +33,7 @@ from sro.domain.execution.account import Account, LeaseState
 from sro.domain.execution.compose import Adding, Composed, choices, compose, field_of, with_field
 from sro.domain.execution.evidence import primary_gesture, writes
 from sro.domain.execution.lanes import Lane, StepResult, cites_key
-from sro.domain.execution.mail_job import sends_mail
+from sro.domain.execution.mail_job import JobRecipient, mailboxes, sends_mail
 from sro.domain.execution.progress import MAIN, Progress, StepMark
 from sro.domain.execution.takeover import OPERATOR
 from sro.domain.execution.waiting import read_wait
@@ -330,6 +330,15 @@ class RunSteps:
                 pass
             elif (hit := choices(workflow, by_id).get(choice)) is not None:
                 progress.composed = [*others, _entry(replace(hit, name=name))]
+        if kind == "recipient":
+            async with self._uow as uow:
+                for address in mailboxes(asking.get("address", "")) or ():
+                    await uow.workflows.confirm_recipient(
+                        ctx.tenant_id,
+                        workflow.id,
+                        JobRecipient(address, asking.get("by", ""), self._clock.now()),
+                    )
+                await uow.commit()
         if kind == "step" and verdict:
             ordered = _ordered(workflow)
             index = progress.step

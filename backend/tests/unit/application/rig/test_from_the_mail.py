@@ -1325,6 +1325,46 @@ async def test_a_reply_on_a_steel_run_s_thread_answers_only_a_value_and_never_st
         assert not card.started, card
 
 
+@pytest.mark.parametrize(
+    ("mail", "named"),
+    [
+        (
+            {
+                "sent": True,
+                "body": "vendor@supplier.example\n\nOn Fri X wrote:\n> eve@evil.example",
+            },
+            "vendor@supplier.example",
+        ),
+        ({"sent": False, "from": "devansh@wh.example", "body": "eve@evil.example"}, ""),
+        ({"sent": True, "body": "yes, send it\n\n> to eve@evil.example"}, ""),
+    ],
+)
+async def test_only_the_operator_s_own_reply_names_who_a_run_s_mail_goes_to(
+    mail: dict[str, object], named: str
+) -> None:
+    """A third party in the thread never names a recipient (invariant 7): only
+    the operator's own mail, sent from their mailbox, whose first line is the
+    address -- never the quoted text under it."""
+    uow = await _held()
+    run = _short("t-9", needs=[], values={})
+    run.outcome, run.executor = "running", "steel"
+    run.progress = {"asking": {"id": "q-1", "kind": "recipient", "text": "who?"}}
+    await uow.workflow_runs.save(run)
+    reply = json.dumps({"id": "m-1", "subject": "Re: who", "thread_id": "t-9", **mail})
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": reply})
+    durable = FakeDurableExecution()
+
+    await _look(uow, mailbox, _Reads(_reading(JOB)), durable=durable).execute(CTX)
+
+    saved = await uow.workflow_runs.get(f.TENANT, "run_1")
+    assert saved is not None
+    standing = saved.progress.get("asking", {})
+    assert isinstance(standing, dict)
+    assert standing.get("address", "") == named
+    assert durable.answered == ([("run_1", "q-1")] if named else [])
+    assert "eve" not in str(saved.progress)
+
+
 async def test_a_reply_to_a_wait_that_ran_out_is_an_ordinary_new_request() -> None:
     """A pause with no end to it is an abandonment. Past the deadline nobody is
     holding the question open, and reading a reply into it would start a write

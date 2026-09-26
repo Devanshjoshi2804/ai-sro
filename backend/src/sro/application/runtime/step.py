@@ -33,7 +33,7 @@ class NeedsAPerson(DomainError):
         self,
         question: str,
         *,
-        kind: Literal["password", "value", "step", "code", "field"] = "step",
+        kind: Literal["password", "value", "step", "code", "field", "recipient"] = "step",
     ) -> None:
         super().__init__(question)
         self.question = question

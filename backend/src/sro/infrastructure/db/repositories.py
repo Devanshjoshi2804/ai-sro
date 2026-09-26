@@ -664,10 +664,13 @@ class SqlBrowserSessionRepository(BrowserSessionRepository):
         until: datetime | None = None,
         now: datetime | None = None,
         waits_for: str = "",
+        holder: str | None = None,
     ) -> bool:
         if state is LeaseState.EXPIRED:
             raise ValueError("settle cannot move a lease to expired; use expire")
         values: dict[str, object] = {"state": state.value, "waits_for": waits_for or None}
+        if holder is not None:
+            values["holder"] = holder
         if until is not None:
             values["expires_at"] = until
         conditions = [
@@ -709,7 +712,10 @@ class SqlBrowserSessionRepository(BrowserSessionRepository):
             ),
         }
         if holder is not None:
-            values["holder"] = holder
+            values["holder"] = case(
+                (BrowserSessionRow.state == LeaseState.WAITING.value, BrowserSessionRow.holder),
+                else_=holder,
+            )
         result = await self._session.execute(
             update(BrowserSessionRow)
             .where(

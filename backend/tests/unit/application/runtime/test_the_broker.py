@@ -433,15 +433,15 @@ async def test_reattach_finds_the_tab_and_a_dead_lease_or_tab_is_page_gone() -> 
     broker = _broker(uow, driver, vault, clock=clock)
     held = await broker.acquire(CTX, LENA, APP, holder="run_1")
 
-    assert await broker.reattach(CTX, held.lease.id, held.target_id) == held
+    assert await broker.reattach(CTX, held.lease.id, held.target_id, holder="run_1") == held
     with pytest.raises(PageGone):
-        await broker.reattach(CTX, held.lease.id, "tab-99")
+        await broker.reattach(CTX, held.lease.id, "tab-99", holder="run_1")
     await broker.release(CTX, held)
     with pytest.raises(PageGone):
-        await broker.reattach(CTX, held.lease.id, held.target_id)
+        await broker.reattach(CTX, held.lease.id, held.target_id, holder="run_1")
     clock.advance(int(K_LEASE_TTL.total_seconds()) + 1)
     with pytest.raises(PageGone):
-        await broker.reattach(CTX, held.lease.id, held.target_id)
+        await broker.reattach(CTX, held.lease.id, held.target_id, holder="run_1")
 
 
 async def test_a_beat_says_whether_the_holder_still_has_the_lease() -> None:
@@ -588,7 +588,9 @@ async def test_a_page_gone_context_the_pool_still_lists_survives_with_a_new_tab(
     assert third.session.context_id == first.session.context_id
     assert third.target_id not in {first.target_id, sibling.target_id}
     assert (STEEL, first.session.context_id) not in pool.closed
-    still_there = await broker.reattach(CTX, sibling.lease.id, sibling.target_id)
+    still_there = await broker.reattach(
+        CTX, sibling.lease.id, sibling.target_id, holder=sibling.lease.holder
+    )
     assert still_there.target_id == sibling.target_id
     assert still_there.session == sibling.session
 

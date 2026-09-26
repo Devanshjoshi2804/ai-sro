@@ -992,6 +992,7 @@ class FakeBrowserSessionRepository:
         until: datetime | None = None,
         now: datetime | None = None,
         waits_for: str = "",
+        holder: str | None = None,
     ) -> bool:
         if state is LeaseState.EXPIRED:
             raise ValueError("settle cannot move a lease to expired; use expire")
@@ -1005,6 +1006,7 @@ class FakeBrowserSessionRepository:
             state=state,
             expires_at=found.expires_at if until is None else until,
             waits_for=waits_for,
+            holder=found.holder if holder is None else holder,
         )
         return True
 
@@ -1032,7 +1034,9 @@ class FakeBrowserSessionRepository:
             expires_at=(
                 found.expires_at if found.state is LeaseState.WAITING else now + K_LEASE_TTL
             ),
-            holder=found.holder if holder is None else holder,
+            holder=(
+                found.holder if holder is None or found.state is LeaseState.WAITING else holder
+            ),
         )
         return True
 

@@ -3,6 +3,7 @@ import asyncio
 import pytest
 
 from sro.application.runtime.answer_run import AnswerRun
+from sro.application.runtime.step import WaitingForAPerson
 from sro.domain.execution.account import K_LEASE_TTL, LeaseState
 from sro.domain.execution.lanes import Lane, StepResult
 from sro.domain.execution.progress import MAIN, Progress
@@ -320,3 +321,30 @@ async def test_a_code_question_withdrawn_under_the_wait_still_ends_its_park_when
 
     assert world.uow.browser_sessions.leases[waiting.lease].state is not LeaseState.WAITING
     assert waiting.tabs[MAIN] not in world.driver.tabs
+
+
+async def test_a_run_ends_only_its_own_park_never_one_a_sibling_on_its_account_made() -> None:
+    world = await steel_run(steps=[save_step(status=201)])
+    await world.another_run("run_b")
+    await world.vault.store(world.account.vault_key("password"), "pw")
+    for run_id in (world.run_id, "run_b"):
+        await world.run_steps.prepare(CTX, run_id)
+        await world.run_steps.acquire(CTX, run_id)
+    mine = Progress.of((await world.saved_run()).progress)
+    world.driver.expire_session()
+    world.driver.shows_sign_in_until_signed = False
+    world.driver.signals_for_every_tab = PageSignals(APP, autocomplete=frozenset({"one-time-code"}))
+    held = await world.broker.reattach(CTX, mine.lease, mine.tabs[MAIN], holder=world.run_id)
+    with pytest.raises(WaitingForAPerson):
+        await world.broker.reauth(CTX, held, APP)
+    await world.run_steps.beat(CTX, "run_b")
+
+    await world.run_steps.finish(CTX, "run_b")
+    await world.run_steps.release(CTX, "run_b")
+    after_b = world.uow.browser_sessions.leases[mine.lease]
+    await world.run_steps.finish(CTX, world.run_id)
+    await world.run_steps.release(CTX, world.run_id)
+
+    assert (after_b.state, after_b.holder) == (LeaseState.WAITING, world.run_id)
+    assert world.uow.browser_sessions.leases[mine.lease].state is not LeaseState.WAITING
+    assert mine.tabs[MAIN] not in world.driver.tabs

@@ -194,14 +194,16 @@ class RunSteps:
             return
         if progress.tabs.get(MAIN):
             with contextlib.suppress(PageGone):
-                held = await self._broker.reattach(ctx, progress.lease, progress.tabs[MAIN])
+                held = await self._broker.reattach(
+                    ctx, progress.lease, progress.tabs[MAIN], holder=run.id
+                )
                 await self._broker.release(ctx, held)
             progress.tabs = {}
             await self._write(ctx, run, progress)
         if run.outcome != "running" and progress.lease:
             async with self._uow as uow:
                 lease = await uow.browser_sessions.get_lease(ctx.tenant_id, progress.lease)
-            if lease is not None and lease.state is LeaseState.WAITING:
+            if lease is not None and lease.state is LeaseState.WAITING and lease.holder == run.id:
                 await self._broker.unpark(ctx, lease.id, lease.waits_for)
 
     async def answered(self, ctx: RequestContext, run_id: str, question_id: str) -> None:
@@ -250,7 +252,9 @@ class RunSteps:
         try:
             if progress.lease and progress.tabs.get(MAIN):
                 with contextlib.suppress(PageGone):
-                    kept = await self._broker.reattach(ctx, progress.lease, progress.tabs[MAIN])
+                    kept = await self._broker.reattach(
+                        ctx, progress.lease, progress.tabs[MAIN], holder=run.id
+                    )
                     if kept.lease.state is not LeaseState.WAITING:
                         return ""
                     held = await self._broker.resume(
@@ -272,7 +276,7 @@ class RunSteps:
         if not tab:
             return None
         try:
-            return await self._broker.reattach(ctx, progress.lease, tab)
+            return await self._broker.reattach(ctx, progress.lease, tab, holder=run.id)
         except PageGone:
             held = await self._broker.recover(
                 ctx, progress.lease, progress.start_url, holder=run.id

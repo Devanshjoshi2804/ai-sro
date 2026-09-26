@@ -39,10 +39,11 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/db/evidenc
 
 > The rig's ``pool`` module, one storage layer down.
 >
-> Live and retired are two reads because a retired entry is still a row: it
-> stops being offered ahead of fresh evidence and goes on being packed on its
-> own merits, so nothing here ever deletes one. The only entry that leaves is
-> one a pass cited, and it leaves because it was placed.
+> Live and retired are two reads because a retired entry is still a row. It
+> is the record that the gesture has been mined (read K_POOL_AGE + 1 times,
+> read and gone stale, or this browser's own driving), so no pass packs it
+> again, and nothing here ever deletes one. The only entry that leaves is one
+> a pass cited, and it leaves because it was placed.
 
 ## `SqlGestureRepository.add_batch`, [line 153](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L153): Comment
 
@@ -255,12 +256,13 @@ Code: `passes = await self._session.execute(`
 > retires an entry a busy tenant has already reconsidered fifty times.
 > Whichever comes first, and the row says which -- both filtered on
 > `retired = 0`, so nothing is retired twice or re-reported by the
-> other cap.
+> other cap. The stale cap takes only what has been read (`age > 0`):
+> retired is never mined again, and an unread entry is backlog.
 > RETURNING rather than ``rowcount``, as in ``add_unclaimed``: which
 > rows actually retired is the answer, and it is one shape everywhere
 > rather than the driver's own count.
 
-## `SqlPoolRepository._bump`, [line 430](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L430): Comment
+## `SqlPoolRepository._bump`, [line 445](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L445): Comment
 
 Code: `return (`
 

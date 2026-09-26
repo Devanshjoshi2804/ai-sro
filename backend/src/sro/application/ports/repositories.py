@@ -411,6 +411,10 @@ class PoolRepository(Protocol):
 
     async def retired(self, tenant_id: TenantId) -> tuple[PoolEntry, ...]: ...
 
+    async def retire(
+        self, tenant_id: TenantId, gesture_ids: tuple[str, ...], *, reason: str
+    ) -> int: ...
+
 
 class WorkflowRunRepository(Protocol):
     async def save(self, run: WorkflowRun) -> None: ...

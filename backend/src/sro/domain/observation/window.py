@@ -167,6 +167,7 @@ def pack(
     kb: str,
     budget: int = K_WINDOW_TOKENS,
     linked: set[str] | None = None,
+    read: frozenset[str] = frozenset(),
 ) -> Window:
     linked = linked or set()
     candidates: list[Packed] = [
@@ -205,7 +206,7 @@ def pack(
     chosen: list[Packed] = []
     taken: set[str] = set()
     spent = 0
-    for item in sorted(candidates, key=lambda i: (-i.strength, -i.at)):
+    for item in sorted(candidates, key=lambda i: (i.gesture_id in read, -i.strength, -i.at)):
         if item.gesture_id in taken:
             continue
         group = [item]

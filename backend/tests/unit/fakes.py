@@ -2174,7 +2174,7 @@ class FakePoolRepository:
 
     Faithful rather than convenient: an entry ages only when it was shown, an
     empty window still moves everything's waiting, and retirement is a flag
-    rather than a delete -- a retired entry is still packed on its own merits.
+    rather than a delete -- and a retired entry has been mined, so no pass packs it again.
     """
 
     def __init__(self) -> None:
@@ -2215,7 +2215,7 @@ class FakePoolRepository:
                 entry = replace(entry, waited=entry.waited + 1)
             if entry.age > K_POOL_AGE:
                 entry = replace(entry, reason=RETIRED_PASSES)
-            elif when(entry.entered_at) < stale_before:
+            elif entry.age > 0 and when(entry.entered_at) < stale_before:
                 entry = replace(entry, reason=RETIRED_STALE)
             if entry.reason:
                 self.retired_ids.add(key)
@@ -2231,6 +2231,19 @@ class FakePoolRepository:
 
     async def retired(self, tenant_id: TenantId) -> tuple[PoolEntry, ...]:
         return self._entries(tenant_id, retired=True)
+
+    async def retire(
+        self, tenant_id: TenantId, gesture_ids: tuple[str, ...], *, reason: str
+    ) -> int:
+        gone = 0
+        for gesture_id in dict.fromkeys(gesture_ids):
+            key = (tenant_id.value, gesture_id)
+            if key not in self.rows or key in self.retired_ids:
+                continue
+            self.rows[key] = replace(self.rows[key], reason=reason)
+            self.retired_ids.add(key)
+            gone += 1
+        return gone
 
     def _entries(self, tenant_id: TenantId, *, retired: bool) -> tuple[PoolEntry, ...]:
         found = [

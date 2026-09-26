@@ -409,6 +409,7 @@ class SqlPoolRepository(PoolRepository):
         stale = await self._session.execute(
             self._bump(
                 *live,
+                PoolRow.age > 0,
                 PoolRow.entered_at < datetime.now(tz=UTC) - timedelta(days=K_POOL_DAYS),
                 retired=True,
                 reason=RETIRED_STALE,
@@ -424,6 +425,20 @@ class SqlPoolRepository(PoolRepository):
 
     async def retired(self, tenant_id: TenantId) -> tuple[PoolEntry, ...]:
         return await self._entries(tenant_id, retired=True)
+
+    async def retire(
+        self, tenant_id: TenantId, gesture_ids: tuple[str, ...], *, reason: str
+    ) -> int:
+        gone = await self._session.execute(
+            self._bump(
+                PoolRow.tenant_id == tenant_id.value,
+                PoolRow.retired.is_(False),
+                PoolRow.gesture_id.in_(gesture_ids),
+                retired=True,
+                reason=reason,
+            ).returning(PoolRow.gesture_id)
+        )
+        return len(gone.all())
 
     @staticmethod
     def _bump(*where: ColumnElement[bool], **values: Any) -> Update:

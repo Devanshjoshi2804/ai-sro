@@ -286,7 +286,7 @@ Code: `return {`
 > identifies the gesture and nothing else: one unreadable item in a window
 > is worth more than a window that could not be built.
 
-## `pack`, [line 175](../../../../../../../backend/src/sro/domain/observation/window.py#L175): Comment
+## `pack`, [line 176](../../../../../../../backend/src/sro/domain/observation/window.py#L176): Comment
 
 Code: `writing = {gesture.id for gesture in gestures if _mutates(gesture)}`
 
@@ -294,7 +294,7 @@ Code: `writing = {gesture.id for gesture in gestures if _mutates(gesture)}`
 > reaching back for the Gesture -- a pooled item arrives already packed and
 > has none to reach for.
 
-## `pack`, [line 191](../../../../../../../backend/src/sro/domain/observation/window.py#L191): Comment
+## `pack`, [line 192](../../../../../../../backend/src/sro/domain/observation/window.py#L192): Comment
 
 Code: `from sro.domain.skill.umbrella import PROMPT_OVERHEAD_TOKENS`
 
@@ -305,7 +305,7 @@ Code: `from sro.domain.skill.umbrella import PROMPT_OVERHEAD_TOKENS`
 > the task twice plus the response schema plus the crossings block came
 > to ~2,600 tokens nothing subtracted.
 
-## `pack`, [line 199](../../../../../../../backend/src/sro/domain/observation/window.py#L199): Comment (debt)
+## `pack`, [line 200](../../../../../../../backend/src/sro/domain/observation/window.py#L200): Comment (debt)
 
 Code: `by_stream: dict[str, list[Packed]] = {}`
 
@@ -339,7 +339,17 @@ Code: `by_stream: dict[str, list[Packed]] = {}`
 > sittings; this is the smallest thing that stops the splitting, and it is
 > measurable against the same store that found it.
 
-## `pack`, [line 222](../../../../../../../backend/src/sro/domain/observation/window.py#L222): Comment
+## `pack`, [line 209](../../../../../../../backend/src/sro/domain/observation/window.py#L209): Comment
+
+Code: `for item in sorted(candidates, key=lambda i: (i.gesture_id in read, -i.strength, -i.at)):`
+
+> Unread first, whatever the strength. `read` is the pooled evidence a pass
+> has already read. It is carried for context, and a strong read entry must
+> never take the place of an unread one. If it did, a pool bigger than one
+> window would leave the unread out, the pass would find nothing unread in
+> its window, and nothing would ever be read again.
+
+## `pack`, [line 223](../../../../../../../backend/src/sro/domain/observation/window.py#L223): Comment
 
 Code: `if len(chosen) >= K_MIN_GESTURES:`
 
@@ -349,7 +359,7 @@ Code: `if len(chosen) >= K_MIN_GESTURES:`
 > is what it has always done: a window of nothing is worse than a
 > window over its estimate.
 
-## `pack`, [line 228](../../../../../../../backend/src/sro/domain/observation/window.py#L228): Comment
+## `pack`, [line 229](../../../../../../../backend/src/sro/domain/observation/window.py#L229): Comment
 
 Code: `left_out = [one.gesture_id for one in candidates if one.gesture_id not in taken]`
 

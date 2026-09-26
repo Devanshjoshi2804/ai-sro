@@ -49,6 +49,7 @@ from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow, new_workflow_id
+from sro.infrastructure.db.locks import PostgresAccountLocks
 from sro.infrastructure.db.models import WorkflowEffectRow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from tests.unit.domain.rig.conftest import gestures as _gestures
@@ -805,6 +806,50 @@ class TestStaleSteps:
 
         async with SqlUnitOfWork(session_factory) as uow:
             assert await uow.workflows.stale_count(workflow.id) == 0
+
+
+class TestWhatAPassHasMined:
+    """What a pass read is recorded in the same transaction as what it kept,
+    under the tenant's mining lock -- proved against the real lock and store."""
+
+    async def test_two_passes_at_once_ask_the_model_once(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        gestures = _gestures(TENANT.value)
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.gestures.add_gestures(tuple(gestures))
+            await uow.commit()
+        proposal = {
+            "title": "create a work operation",
+            "narrative": "n",
+            "systems": [gestures[0].system],
+            "steps": [
+                {"order": 0, "cites": [gestures[0].id], "says": "do it"},
+                {"order": 1, "cites": [gestures[0].id], "says": "save it"},
+            ],
+        }
+        asker = FakeAsker(*[Answer(data={"workflows": [proposal]}, cost_usd=0.01)] * 2)
+        locks = PostgresAccountLocks(engine)
+
+        async def mines() -> None:
+            async with SqlUnitOfWork(session_factory) as uow:
+                await mine(
+                    uow,
+                    tenant_id=TENANT,
+                    asker=asker,
+                    locks=locks,
+                    now=datetime(2025, 2, 11, 23, tzinfo=UTC),
+                    cap_usd=100.0,
+                )
+
+        await asyncio.gather(mines(), mines())
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            kept = await uow.workflows.known(TENANT)
+            billed = await uow.workflows.passes(TENANT)
+        assert len(asker.asked) == 1
+        assert len(kept) == 1
+        assert sorted(one.cost_usd for one in billed) == [0.0, 0.01]
 
 
 class TestAStepNamesWhatItUses:

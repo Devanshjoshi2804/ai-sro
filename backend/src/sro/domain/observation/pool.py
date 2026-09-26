@@ -8,6 +8,7 @@ K_POOL_DAYS = 7
 
 RETIRED_PASSES = "passes"
 RETIRED_STALE = "stale"
+RETIRED_DRIVING = "own driving"
 
 
 @dataclass(frozen=True, slots=True)

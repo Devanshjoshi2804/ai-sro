@@ -77,7 +77,7 @@ from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Action, Gesture, GestureBatch, Intent
 from sro.domain.observation.mining import MiningPass
-from sro.domain.observation.pool import K_POOL_AGE, RETIRED_PASSES
+from sro.domain.observation.pool import K_POOL_AGE, RETIRED_DRIVING, RETIRED_PASSES
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import (
     ConfirmationId,
@@ -1600,6 +1600,23 @@ class TestPool:
             assert await work.pool.waiting(TENANT) == ()
             gone = await work.pool.retired(TENANT)
         assert [(one.gesture_id, one.reason) for one in gone] == [("ges_1", RETIRED_PASSES)]
+
+    async def test_an_entry_retired_by_name_says_why_and_only_once(self, store: UnitOfWork) -> None:
+        """A pass retires what it will never mine -- this browser's own driving
+        -- by name, and only the tenant's own live entries."""
+        async with store as work:
+            await work.pool.add_unclaimed(
+                TENANT, window_ids=("ges_1", "ges_2"), claimed=frozenset()
+            )
+            assert await work.pool.retire(TENANT, ("ges_1", "ges_9"), reason=RETIRED_DRIVING) == 1
+            assert await work.pool.retire(TENANT, ("ges_1",), reason=RETIRED_DRIVING) == 0
+            assert await work.pool.retire(OTHER_TENANT, ("ges_2",), reason=RETIRED_DRIVING) == 0
+            await work.commit()
+
+        async with store as work:
+            assert await work.pool.ids(TENANT) == ("ges_2",)
+            gone = await work.pool.retired(TENANT)
+        assert [(one.gesture_id, one.reason) for one in gone] == [("ges_1", RETIRED_DRIVING)]
 
     async def test_ageing_one_tenant_does_not_age_another(self, store: UnitOfWork) -> None:
         """Retiring on a tenant filter while counting passes without one is the

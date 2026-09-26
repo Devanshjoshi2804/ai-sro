@@ -167,7 +167,9 @@ Code: `held = max(1, last.window_size)`
 
 > How many windows this store takes, from what the last pass actually
 > saw rather than from a count of the table: the window is what the
-> budget allowed, and `left_out` is what would not fit beside it.
+> budget allowed, and `left_out` is what no pass has read yet. Since M1 the
+> walk also ends by itself: a pass whose window holds nothing unread asks
+> nothing and writes `left_out` 0.
 
 ## `MineLately.execute`, [line 106](../../../../../../../backend/src/sro/application/observation/mine_lately.py#L106): Comment
 

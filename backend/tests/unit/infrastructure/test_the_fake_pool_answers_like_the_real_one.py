@@ -8,7 +8,10 @@ rig's `age_pool` that are easy to get wrong in memory, and the one of
 
 from __future__ import annotations
 
-from sro.domain.observation.pool import K_POOL_AGE, RETIRED_PASSES
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
+
+from sro.domain.observation.pool import K_POOL_AGE, K_POOL_DAYS, RETIRED_PASSES, RETIRED_STALE
 from sro.domain.shared.identifiers import TenantId
 from tests.unit.fakes import FakePoolRepository
 
@@ -68,3 +71,18 @@ async def test_re_entering_does_not_reset_the_clock_and_a_citation_leaves() -> N
 
     assert added == 1
     assert await pool.ids(TENANT) == ("ges_new",)
+
+
+async def test_only_an_entry_that_was_read_goes_stale() -> None:
+    pool = FakePoolRepository()
+    await pool.add_unclaimed(TENANT, window_ids=("ges_unread", "ges_read"), claimed=frozenset())
+    long_ago = (datetime.now(tz=UTC) - timedelta(days=K_POOL_DAYS + 1)).isoformat()
+    for key, entry in pool.rows.items():
+        pool.rows[key] = replace(entry, entered_at=long_ago)
+
+    await pool.age(TENANT, shown=("ges_read",))
+
+    assert await pool.ids(TENANT) == ("ges_unread",)
+    assert [(one.gesture_id, one.reason) for one in await pool.retired(TENANT)] == [
+        ("ges_read", RETIRED_STALE)
+    ]

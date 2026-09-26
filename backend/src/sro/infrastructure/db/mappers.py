@@ -461,6 +461,7 @@ def row_to_thread(row: ThreadRow) -> Thread:
         opened_at=row.opened_at,
     )
     thread._messages.extend(load_messages(row.messages))
+    thread.saved()
     return thread
 
 

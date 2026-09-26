@@ -987,6 +987,25 @@ function saying(
       choosing.append(one);
     }
     item.append(choosing);
+  } else if (kind === "job" && message.decision.confirm) {
+    // A request the server would not run by itself -- the operator's mail to
+    // somebody else, or one on a thread that already ran. The press says the
+    // answer into the conversation, and the door's yes is a press's start.
+    const choosing = document.createElement("div");
+    choosing.className = "row";
+    for (const [label, said] of [
+      ["Do it", "yes"],
+      ["Leave it", "no"],
+    ]) {
+      const one = document.createElement("button");
+      one.type = "button";
+      one.textContent = label;
+      one.addEventListener("click", () =>
+        onPress?.("say", message, item, one, { said, answering: message.id }),
+      );
+      choosing.append(one);
+    }
+    item.append(choosing);
   } else if (kind === "question") {
     asking(item, message, onPress);
   } else if (kind === "failure") {

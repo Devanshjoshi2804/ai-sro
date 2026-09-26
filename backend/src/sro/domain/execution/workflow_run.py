@@ -108,3 +108,5 @@ class WorkflowRun:
     progress: dict[str, object] = field(default_factory=dict)
 
     executor: Executor = "extension"
+
+    offer: str | None = None

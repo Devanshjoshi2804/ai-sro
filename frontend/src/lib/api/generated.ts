@@ -3142,6 +3142,11 @@ export interface components {
              * @default []
              */
             sent_to: string[];
+            /**
+             * Asked
+             * @default false
+             */
+            asked: boolean;
         };
         /**
          * Medium
@@ -3728,6 +3733,8 @@ export interface components {
             };
             /** Run Id */
             run_id?: string | null;
+            /** Answering */
+            answering?: string | null;
         };
         /**
          * SecretHeldModel
@@ -4008,6 +4015,11 @@ export interface components {
              * @default
              */
             mail_thread: string;
+            /**
+             * Offer
+             * @default
+             */
+            offer: string;
             /**
              * Live
              * @default false

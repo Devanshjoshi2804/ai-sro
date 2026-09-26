@@ -147,6 +147,8 @@ class Settings(BaseSettings):
 
     rig_sweep_seconds: float = 60.0
 
+    mail_sweep_seconds: float = 60.0
+
     mining_window_hours: int = 24
 
     session_sweep_seconds: float = 600.0

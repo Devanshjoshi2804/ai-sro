@@ -893,16 +893,28 @@ class FakeThreadRepository:
         self.rows: dict[tuple[str, str], Thread] = {}
 
     async def add(self, thread: Thread) -> None:
-        self.rows[(str(thread.tenant_id), str(thread.id))] = thread
+        self.rows[(str(thread.tenant_id), str(thread.id))] = _copied(thread)
+        thread.saved()
+
+    async def get_for_answer(self, tenant_id: TenantId, thread_id: ThreadId) -> Thread:
+        return await self.get(tenant_id, thread_id)
 
     async def get(self, tenant_id: TenantId, thread_id: ThreadId) -> Thread:
         try:
-            return self.rows[(str(tenant_id), str(thread_id))]
+            return _copied(self.rows[(str(tenant_id), str(thread_id))])
         except KeyError:
             raise NotFound(f"thread {thread_id} not found") from None
 
     async def save(self, thread: Thread) -> None:
-        await self.add(thread)
+        # An append, as the store's `messages || :new` is: a writer that read
+        # the thread before somebody else wrote to it adds its messages after
+        # theirs rather than writing its stale copy over them.
+        held = self.rows.get((str(thread.tenant_id), str(thread.id)))
+        if held is None:
+            raise NotFound(f"thread {thread.id} not found")
+        for message in thread.unsaved():
+            held.say(message)
+        thread.saved()
 
     async def list_for_tenant(
         self,
@@ -918,7 +930,20 @@ class FakeThreadRepository:
             if tenant == str(tenant_id) and (opened_by is None or t.opened_by == opened_by)
         ]
         rows.sort(key=lambda thread: thread.opened_at, reverse=True)
-        return tuple(rows[offset : offset + limit])
+        return tuple(_copied(one) for one in rows[offset : offset + limit])
+
+
+def _copied(thread: Thread) -> Thread:
+    copy = Thread(
+        id=thread.id,
+        tenant_id=thread.tenant_id,
+        opened_by=thread.opened_by,
+        opened_at=thread.opened_at,
+    )
+    for message in thread.messages:
+        copy.say(message)
+    copy.saved()
+    return copy
 
 
 class FakeModelCallRepository:
@@ -1941,6 +1966,10 @@ class FakeToolCallRepository:
         self.claimed.pop(where, None)
         self.when.pop(where, None)
 
+    async def held(self, tenant_id: TenantId, key: str, *, since: datetime) -> bool:
+        at = self.when.get((tenant_id.value, key))
+        return at is not None and at >= since
+
 
 def _read_clock(said: str) -> datetime | None:
     """A batch's timestamp as the store keeps it: a string, sometimes empty."""
@@ -2256,6 +2285,11 @@ class FakeWorkflowRunRepository:
             )
             if clash is not None:
                 raise Conflict(already_running(run.device_id, clash.id))
+        if run.offer is not None and any(
+            held.id != run.id and held.tenant == run.tenant and held.offer == run.offer
+            for held in self.rows.values()
+        ):
+            raise Conflict(f"the offer {run.offer} has already started a run")
         kept = deepcopy(run)
         # Both clocks as the store hands them back, not as the caller spelled
         # them: `started_at` is what three reads order on.

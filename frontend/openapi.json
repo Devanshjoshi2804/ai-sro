@@ -26938,6 +26938,11 @@
             "type": "array",
             "title": "Sent To",
             "default": []
+          },
+          "asked": {
+            "type": "boolean",
+            "title": "Asked",
+            "default": false
           }
         },
         "type": "object",
@@ -28320,6 +28325,17 @@
               }
             ],
             "title": "Run Id"
+          },
+          "answering": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answering"
           }
         },
         "type": "object",
@@ -28851,6 +28867,12 @@
           "mail_thread": {
             "type": "string",
             "title": "Mail Thread",
+            "default": ""
+          },
+          "offer": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Offer",
             "default": ""
           },
           "live": {

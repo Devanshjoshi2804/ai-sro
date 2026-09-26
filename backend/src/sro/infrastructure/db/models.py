@@ -640,8 +640,17 @@ class WorkflowRunRow(Base):
         String(16), nullable=False, default="extension", server_default="extension"
     )
 
+    offer: Mapped[str | None] = mapped_column(String(128))
+
     __table_args__ = (
         Index("ix_workflow_runs_tenant_workflow", "tenant_id", "workflow_id", "started_at"),
+        Index(
+            "uq_workflow_runs_one_per_offer",
+            "tenant_id",
+            "offer",
+            unique=True,
+            postgresql_where=text("offer IS NOT NULL"),
+        ),
         Index("ix_workflow_runs_undoes", "undoes_run"),
         Index("ix_workflow_runs_tenant_device", "tenant_id", "device_id", "outcome"),
         Index(

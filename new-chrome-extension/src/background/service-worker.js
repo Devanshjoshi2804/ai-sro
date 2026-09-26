@@ -671,6 +671,10 @@ async function resumeTheJob(placed) {
       // sent the request can see.
       mail_thread: placed.mail_thread || "",
       watched: placed.watched !== false,
+      // The question this answers. The backend records the run against it
+      // under a unique index, so a second start of it -- a second panel, a
+      // typed yes beside a press -- is refused rather than a second write.
+      ...(placed.offer ? { offer: placed.offer } : {}),
     });
     await state.setActiveRun({
       runId: started.id,
@@ -744,6 +748,12 @@ async function offerFromMail(offer) {
     await narrate(
       `${offer.title || offer.workflow_id} is running on the answer that came back`,
     );
+    return;
+  }
+  // Already a question in the conversation, with its own Do it and Leave it.
+  // A card beside it would be a second answer to one mail.
+  if (offer.asked) {
+    await narrate(`${offer.title || offer.workflow_id} is asked in the conversation`);
     return;
   }
   const shape = (await shapesFor()).find((one) => one.id === offer.workflow_id);
@@ -2319,7 +2329,11 @@ async function handle(message, sender) {
       }));
     }
     case "thread-say": {
-      const said = await api.say(message.threadId, message.text);
+      const said = await api.say(
+        message.threadId,
+        message.text,
+        message.answering,
+      );
       // What the thread is waiting on NOW, off the reply that just changed it.
       //
       // `lookForAQuestion` is the only other writer and it runs on the minute

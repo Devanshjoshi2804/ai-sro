@@ -39,3 +39,20 @@ test("an empty conversation is waiting on nothing", () => {
   assert.equal(questionIn(null), null);
   assert.equal(questionIn({ messages: [{ speaker: "operator", text: "hello" }] }), null);
 });
+
+test("a request the server will not run by itself is waiting on the operator", () => {
+  const found = questionIn({
+    messages: [
+      {
+        id: "msg_2",
+        speaker: "assistant",
+        text: "Create a Customer Type. Should our system do it?",
+        decision: { kind: "job", confirm: true, workflow_id: "wfl_1", title: "Create a Customer Type" },
+      },
+    ],
+  });
+  assert.equal(found.workflowId, "wfl_1");
+  assert.deepEqual(found.missing, []);
+  const offered = { speaker: "assistant", text: "x", decision: { kind: "job", workflow_id: "wfl_1" } };
+  assert.equal(questionIn({ messages: [offered] }), null);
+});

@@ -162,3 +162,44 @@ def test_a_message_says_whose_mailbox_it_is_and_who_it_went_to() -> None:
     assert first["to"] == "Colleague <colleague@example.com>"
     assert first["cc"] == "boss@example.com"
     assert routed.profiles == 1
+
+
+class _Listed:
+    """`httpx` answering a message list with a next page, recording what it was asked."""
+
+    def __init__(self) -> None:
+        self.asked: list[dict[str, Any]] = []
+
+    def get(self, url: str, *_args: Any, params: dict[str, Any], **_kwargs: Any) -> Any:
+        self.asked.append(params)
+        if url.endswith("/messages"):
+            return _Said({"messages": [{"id": "m-9"}], "nextPageToken": "p-2"})
+        return _Said({"id": "m-9", "payload": {"headers": []}})
+
+
+def test_a_search_turns_the_page_the_look_asks_for() -> None:
+    """`_recent` pages back with `page` until a page brings nothing new; the
+    connector hands Gmail's token over and back under those names."""
+    module = _connector()
+    listed = _Listed()
+    module.httpx = listed
+
+    said = json.loads(module._search("token", {"query": "q", "limit": "8", "page": "p-1"}))
+
+    assert "page" in module.TOOLS[0]["inputSchema"]["properties"]
+    assert listed.asked[0]["pageToken"] == "p-1"
+    assert said["next_page"] == "p-2"
+
+
+def test_a_page_token_the_connector_did_not_mint_is_refused() -> None:
+    module = _connector()
+    listed = _Listed()
+    module.httpx = listed
+
+    try:
+        module._search("token", {"query": "q", "page": "p-1&q=in:anywhere"})
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("a page token of another shape reached Gmail")
+    assert listed.asked == []

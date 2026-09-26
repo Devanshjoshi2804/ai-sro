@@ -135,6 +135,7 @@ async def start_workflow_run(
         matched=body.matched,
         conversation=(SERVER, body.mail_thread),
         undoes_run=body.undoes_run,
+        offer=body.offer,
     )
     container.pursuits.spawn(starter.perform(ctx, claimed))
     await container.record_attempt().execute(

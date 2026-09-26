@@ -639,10 +639,10 @@ export const api = {
 
   /** Say something into it. Answers with the whole thread, which is why the
    * panel re-renders from the reply rather than appending locally. */
-  say: (threadId, text) =>
+  say: (threadId, text, answering) =>
     call(`/v1/threads/${encodeURIComponent(threadId)}/messages`, {
       method: "POST",
-      body: { text },
+      body: answering ? { text, answering } : { text },
     }),
 
   /** The press. Promotes the version a preview just showed and starts it in

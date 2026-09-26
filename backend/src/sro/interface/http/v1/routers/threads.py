@@ -214,6 +214,7 @@ async def say(
         system=body.system,
         parameters=body.parameters,
         run_id=RunId(body.run_id) if body.run_id else None,
+        answering=body.answering,
     )
     last = thread.messages[-1] if thread.messages else None
     decided = str((last.decision or {}).get("kind") or "") if last else ""

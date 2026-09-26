@@ -26,14 +26,17 @@ from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
+from sro.application.runtime.answer_run import K_ANSWER, AnswerRun
 from sro.application.shared.refusals import OverCap
 from sro.domain.chat.asked_by import mails_behind, texts
 from sro.domain.chat.asking import NEEDS, Pending, pending_job, question
 from sro.domain.chat.thread import Speaker
 from sro.domain.execution.learned_step import limits_for, too_long
+from sro.domain.execution.progress import Progress
 from sro.domain.execution.waiting import read_wait, still_waiting
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.observation.attempts import DONE
+from sro.domain.shared.errors import Conflict
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.learned import offerable
 from sro.domain.skill.workflow import Workflow
@@ -101,6 +104,7 @@ class FromTheMail:
         asker: Asker | None,
         *,
         model: str,
+        answer: AnswerRun,
         gather: GatherContext | None = None,
         clock: Clock | None = None,
         ids: IdFactory | None = None,
@@ -114,6 +118,7 @@ class FromTheMail:
         self._tools = tools
         self._asker = asker
         self._model = model
+        self._answer = answer
         self._gather = gather
         self._clock = clock
         self._ids = ids
@@ -169,6 +174,9 @@ class FromTheMail:
                     continue
                 read += 1
                 back = await self._answering(ctx, thread)
+                if back is not None and back.executor == "steel":
+                    await self._answer_the_run(ctx, back, said)
+                    continue
                 if back is not None:
                     offered.append(
                         await self._carrying_on(
@@ -360,6 +368,29 @@ class FromTheMail:
         if waiting is None or not still_waiting(read_wait(waiting.awaiting), datetime.now(tz=UTC)):
             return None
         return waiting
+
+    async def _answer_the_run(self, ctx: RequestContext, run: WorkflowRun, said: str) -> None:
+        asking = Progress.of(run.progress).asking
+        if run.outcome != "running" or asking.get("kind") != "value":
+            logger.info(
+                "%s: a reply on %s's thread answers nothing: only a value is taken from mail, "
+                "and whatever %s asks stands in the panel",
+                ctx.tenant_id.value,
+                run.id,
+                run.id,
+            )
+            return
+        try:
+            await self._answer.execute(
+                ctx, run_id=run.id, question_id=asking["id"], value=said[:K_ANSWER]
+            )
+        except Conflict as refused:
+            logger.info(
+                "%s: a reply on %s's thread was not taken as its answer: %s",
+                ctx.tenant_id.value,
+                run.id,
+                refused,
+            )
 
     async def _was_asked(self, ctx: RequestContext, thread: str) -> Pending | None:
         if not thread.strip():

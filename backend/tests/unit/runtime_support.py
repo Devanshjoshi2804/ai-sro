@@ -41,12 +41,14 @@ from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from types import MappingProxyType
 
+from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.execution.mail_job import Written
 from sro.application.lookup.run_lookups import RunLookups
 from sro.application.ports.page import PageAnswer, SessionRef
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
+from sro.application.runtime.answer_run import AnswerRun, WriteVerdict
 from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.executor import StepExecutor
 from sro.application.runtime.run_steps import RunSteps
@@ -78,7 +80,9 @@ from tests.unit.fakes import (
     FakeBrowserPool,
     FakeClock,
     FakeCredentialVault,
+    FakeDurableExecution,
     FakeHttpCaller,
+    FakeIdFactory,
     FakePageDriver,
     FakeUnitOfWork,
 )
@@ -694,6 +698,32 @@ class SteelRun:
     broker: SessionBroker
     driver: FakePageDriver
     account: Account
+    vault: FakeCredentialVault
+    clock: FakeClock
+    durable: FakeDurableExecution
+
+    async def answer(
+        self, question_id: str, *, value: str = "", verdict: WriteVerdict = ""
+    ) -> None:
+        """Answers as the panel does, then runs what the workflow runs on it."""
+        await AnswerRun(self.uow, self.durable).execute(
+            CTX, run_id=self.run_id, question_id=question_id, value=value, verdict=verdict
+        )
+        await self.run_steps.answered(CTX, self.run_id, question_id)
+
+    async def thread_says(self) -> list[dict[str, object]]:
+        """What the run's operator (`clerk`) has been told in their own thread,
+        oldest first, each message as its `text` and `decision`."""
+        found = await ReadThreads(self.uow).current(CTX)
+        if found is None:
+            return []
+        return [{"text": one.text, "decision": one.decision} for one in found.messages]
+
+    async def asks(self, question: dict[str, str]) -> None:
+        """Leaves `question` standing on the run, as a step that asked it would."""
+        progress = Progress.of((await self.saved_run()).progress)
+        progress.asking = question
+        assert await self.uow.workflow_runs.record_progress(TENANT, self.run_id, progress.as_json())
 
     async def saved_run(self, run_id: str = "") -> WorkflowRun:
         run = await self.uow.workflow_runs.get(TENANT, run_id or self.run_id)
@@ -760,5 +790,33 @@ async def steel_run(
         ui=SigningLane(driver),
     )
     executor = StepExecutor(lanes.tool, lanes.api, lanes.ui, lanes.sight, broker)
-    run_steps = RunSteps(uow, broker, executor, Teach(uow, clock), lanes.api, clock)
-    return SteelRun(uow, run_id, run_steps, lanes, broker, driver, account)
+    run_steps = RunSteps(
+        uow, broker, executor, Teach(uow, clock), lanes.api, clock, FakeIdFactory()
+    )
+    return SteelRun(
+        uow, run_id, run_steps, lanes, broker, driver, account, vault, clock, FakeDurableExecution()
+    )
+
+
+QID = "q-run_ask-0-0"
+
+
+async def asking_steel_run(uow: UnitOfWork, *, kind: str) -> WorkflowRun:
+    """A running Steel run whose standing question is `QID`, of `kind`."""
+    run = WorkflowRun(
+        id="run_ask",
+        tenant=_TENANT,
+        workflow_id=_WORKFLOW.id,
+        device_id="",
+        values={},
+        started_by="clerk",
+        live=True,
+        allow_focus=False,
+        started_at=NOW.isoformat(),
+        executor="steel",
+        progress={"asking": {"id": QID, "kind": kind, "text": "what now?"}},
+    )
+    async with uow:
+        await uow.workflow_runs.save(run)
+        await uow.commit()
+    return run

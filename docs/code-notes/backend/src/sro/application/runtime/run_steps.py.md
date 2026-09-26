@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/application/runtime/run_steps.py`](../../../../../../../backend/src/sro/application/runtime/run_steps.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `RunSteps`, [line 52](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L52): Class
+## `RunSteps`, [line 57](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L57): Class
 
 > A Steel run's activities (spec §7.2): prepare, acquire, one step per call,
 > finish, release, beat. Each loads the run and its `progress` afresh, so a
@@ -11,7 +11,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/run_s
 > the outcome. None of them acts on a run that is no longer `running`. A code
 > change here is live only after the worker restarts (AGENTS.md).
 
-## `RunSteps.step`, [line 133](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L133): Note
+## `RunSteps.step`, [line 139](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L139): Note
 
 Code: `if progress.in_doubt(step.order):`
 
@@ -20,7 +20,7 @@ Code: `if progress.in_doubt(step.order):`
 > write by the API lane's read-back -- signed in afresh when the mark says the
 > session had expired, credited to the lane that sent it -- else it asks.
 
-## `RunSteps.step`, [line 155](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L155): Note
+## `RunSteps.step`, [line 161](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L161): Note
 
 Code: `except (NeedsAPerson, AccountBusy, PageGone) as why:`
 
@@ -30,14 +30,14 @@ Code: `except (NeedsAPerson, AccountBusy, PageGone) as why:`
 > the activity to retry. `Superseded` is raised untouched: another attempt
 > holds the run.
 
-## `RunSteps.step`, [line 181](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L181): Note
+## `RunSteps.step`, [line 187](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L187): Note
 
 Code: `await self._teach.learn(ctx, workflow, by_id, step, tried, run_id=run_id, values=values)`
 
 > Taught after the step is recorded, so a teaching failure never turns a
 > write proven done back into one in doubt.
 
-## `RunSteps.finish`, [line 184](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L184): Note
+## `RunSteps.finish`, [line 190](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L190): Note
 
 Code: `async def finish(self, ctx: RequestContext, run_id: str) -> str:`
 
@@ -45,20 +45,20 @@ Code: `async def finish(self, ctx: RequestContext, run_id: str) -> str:`
 > `held` only when every step was reached and each is held or withheld;
 > an outcome already set (a stop's `aborted`) is kept.
 
-## `RunSteps.beat`, [line 210](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L210): Note
+## `RunSteps.beat`, [line 260](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L260): Note
 
 Code: `if progress.lease and not await self._broker.beat(ctx, progress.lease, holder=run_id):`
 
 > A beat the lease no longer answers is a lost lease: the lost-page path.
 
-## `RunSteps._keep_tab`, [line 251](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L251): Note
+## `RunSteps._keep_tab`, [line 309](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L309): Note
 
 Code: `except BaseException:`
 
 > A tab this attempt opened but could not record is closed at once; a retry
 > would open another, and nothing would ever release the first.
 
-## `RunSteps._sending`, [line 294](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L294): Note
+## `RunSteps._sending`, [line 352](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L352): Note
 
 Code: `if again and wrote == "sending":`
 
@@ -66,7 +66,7 @@ Code: `if again and wrote == "sending":`
 > marked; any other mark means another attempt got there first, and this one
 > sends nothing.
 
-## `RunSteps._settled`, [line 301](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L301): Note
+## `RunSteps._settled`, [line 359](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L359): Note
 
 Code: `async def _settled(`
 
@@ -74,7 +74,7 @@ Code: `async def _settled(`
 > signed in afresh when the result says the session expired; nothing to read
 > back means a person is asked and the mark stays in doubt.
 
-## `RunSteps._advance`, [line 347](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L347): Note
+## `RunSteps._advance`, [line 405](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L405): Note
 
 Code: `progress.step, progress.asking = index + 1, {}`
 
@@ -82,7 +82,7 @@ Code: `progress.step, progress.asking = index + 1, {}`
 > follows the unclear one, and D5 takes an answer to a withdrawn question as
 > already answered.
 
-## `RunSteps._ask`, [line 363](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L363): Note
+## `RunSteps._ask`, [line 421](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L421): Note
 
 Code: `async def _ask(`
 
@@ -91,7 +91,7 @@ Code: `async def _ask(`
 > where and why the run stopped. Asked from prepare and acquire too, at the
 > step the run stands on.
 
-## `RunSteps._write`, [line 445](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L445): Note
+## `RunSteps._write`, [line 522](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L522): Note
 
 Code: `ctx.tenant_id, run.id, now, was=run.progress`
 
@@ -101,21 +101,21 @@ Code: `ctx.tenant_id, run.id, now, was=run.progress`
 > changed and stops with `Superseded`, so one write is never sent twice and
 > a step is never skipped.
 
-## `RunSteps._run`, [line 460](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L460): Note
+## `RunSteps._run`, [line 537](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L537): Note
 
 Code: `raise Stopped(f"run {run_id} is not known")`
 
 > A run this tenant does not hold is a stop: nothing more may be done for it,
 > and retrying cannot bring it back.
 
-## `RunSteps.finish`, [line 187](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L187): Note
+## `RunSteps.finish`, [line 193](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L193): Note
 
 Code: `last = {one.of_step: one.verdict for one in sorted(run.steps, key=lambda s: s.order)}`
 
 > Judged by each step's last row: an `unclear` a read-back later settled as
 > `held` is history, not the step's result.
 
-## `RunSteps._write`, [line 438](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L438): Note
+## `RunSteps._write`, [line 515](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L515): Note
 
 Code: `if (index is not None and loaded.step != index) or (`
 
@@ -125,7 +125,78 @@ Code: `if (index is not None and loaded.step != index) or (`
 > zombie whose lane fails after the retry already held the step asks nothing
 > and adds no row.
 
-## `RunSteps.step`, [line 109](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L109): Note
+## `RunSteps.release`, [line 209](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L209): Note
+
+Code: `if run.outcome == "running" and waits == "code":`
+
+> A waiting run holds nothing (spec §7.4): its tab is closed while it waits
+> and a browser is taken again after the answer. The one exception is a
+> one-time code. The code belongs to the page that asked for it, so that tab
+> and its WAITING lease are kept across the release and resumed on the answer
+> (`SessionBroker.resume`).
+>
+> A run that has ended (its answer never came in time, it was stopped, or
+> its question was withdrawn under the wait) closes its tab and ends its own
+> park, whatever kind it is, so the account is not held for a person nobody
+> is waiting on any more. Decided by the lease, not by whether a question
+> still stands: WAITING, and parked by this run (the lease's `holder`, which
+> `_park` sets and no sibling's beat renames). A lease is per account, so a
+> park another run made on it is that run's to end. The park is ended after
+> the tab is closed: an ended park is no longer live and its tab could not
+> be reached.
+
+## `RunSteps.answered`, [line 229](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L229): Note
+
+Code: `if asking.get("id") != question_id or not asking.get("answered"):`
+
+> The answer is read from the run, where `AnswerRun` kept it; the signal
+> only woke the workflow. A question no longer standing, or not answered,
+> changes nothing: the step has moved on, or is asked again.
+
+## `RunSteps.answered`, [line 233](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L233): Note
+
+Code: `await self._broker.unpark(ctx, progress.lease, "password")`
+
+> A refused re-sign-in parks the account's lease WAITING so queued runs wait
+> on the one question. Once the person has stored a new password the park is
+> ended at once, never waited out, and the next acquire signs in afresh.
+
+## `RunSteps._acquire`, [line 274](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L274): Note
+
+Code: `if kept.lease.state is not LeaseState.WAITING:`
+
+> A tab still held after an answer is a one-time code's page on a WAITING
+> lease: it is resumed (the person dealt with the code there), never used as
+> it is. A code the page still asks for, or a password page in its place, is
+> asked again.
+
+## `RunSteps._ask`, [line 440](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L440): Note
+
+Code: `if isinstance(asked, WaitingForAPerson):`
+
+> A one-time code keeps the page that asked for it; recording that tab and
+> lease as the run's own is what lets `release` keep it and `acquire` resume
+> it. The question is said in the operator's thread only after it is written,
+> so an attempt another one superseded says nothing. Its id is random, so an
+> answer cannot be sent ahead for a question not yet asked.
+
+## `RunSteps.finish`, [line 198](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L198): Note
+
+Code: `run.awaiting = None`
+
+> A run started from a mail waits on that mail's conversation for a reply.
+> Once it has finished with nothing left to ask, a reply there is a new
+> request again, as the extension's `perform` settles it.
+
+## `RunSteps.answered`, [line 235](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L235): Note
+
+Code: `if kind == "step" and verdict:`
+
+> The operator's verdict on the step the run asked about. `done` settles it
+> done by the operator and the run moves on: no lane runs it again. `not_done`
+> records the write as never sent, which is the one thing that lets the lanes
+> try a write that was in doubt again.
+## `RunSteps.step`, [line 115](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L115): Note
 
 Code: `absent = [name for name in step.parameters if not values.get(name, "").strip()]`
 
@@ -136,7 +207,7 @@ Code: `absent = [name for name in step.parameters if not values.get(name, "").st
 > recorded `skipped`, which `finish` counts as kept. A step that carries some
 > of its values is performed with those.
 
-## `_demanded`, [line 475](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L475): Note
+## `_demanded`, [line 552](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L552): Note
 
 > The job's required parameter names, by the same `demanded` rule the press
 > and the mail reading use.

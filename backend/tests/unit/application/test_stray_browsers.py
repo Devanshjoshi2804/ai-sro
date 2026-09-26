@@ -380,7 +380,7 @@ async def test_the_sweeper_never_closes_a_lease_resume_just_revived() -> None:
     lease = Lease(
         "lse_wait", Account.of(f.TENANT.value, "https://wms.example", "lena"),
         "http://steel:3000", "sess-1", "ctx-1", "run_1",
-        now, now + timedelta(seconds=5), LeaseState.WAITING,
+        now, now + timedelta(seconds=5), LeaseState.WAITING, waits_for="code",
     )  # fmt: skip
     async with uow:
         await uow.browser_sessions.lease(f.TENANT, lease)

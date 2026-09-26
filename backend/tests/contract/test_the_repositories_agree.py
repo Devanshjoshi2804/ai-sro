@@ -1868,6 +1868,26 @@ class TestLeases:
             assert waiting.state is LeaseState.WAITING
             assert waiting.expires_at == until
 
+    async def test_a_park_names_the_run_that_parked_and_a_sibling_s_beat_never_renames_it(
+        self, store: UnitOfWork
+    ) -> None:
+        until = _when(9) + timedelta(minutes=10)
+        async with store as work:
+            await work.browser_sessions.lease(TENANT, _lease("lse_a"))
+            await work.browser_sessions.settle(
+                TENANT, "lse_a", state=LeaseState.WAITING, until=until, holder="run_a"
+            )
+            await work.commit()
+
+        async with store as work:
+            assert await work.browser_sessions.beat(TENANT, "lse_a", now=_when(9), holder="run_b")
+            await work.commit()
+
+        async with store as work:
+            waiting = await work.browser_sessions.get_lease(TENANT, "lse_a")
+            assert waiting is not None
+            assert waiting.holder == "run_a"
+
     async def test_settle_given_now_needs_its_old_deadline_not_yet_passed(
         self, store: UnitOfWork
     ) -> None:

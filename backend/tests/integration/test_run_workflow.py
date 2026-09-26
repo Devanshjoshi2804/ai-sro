@@ -23,7 +23,7 @@ from sro.application.ports.locks import AccountBusy
 from sro.application.runtime.run_steps import Prepared, StepOutcome
 from sro.application.runtime.step import NeedsAPerson
 from sro.domain.shared.identifiers import PrincipalId, TenantId
-from sro.infrastructure.temporal.activities import RunRef
+from sro.infrastructure.temporal.activities import RunAnswer, RunRef
 from sro.infrastructure.temporal.durable import TemporalDurableExecution
 from sro.infrastructure.temporal.worker import until_signalled
 from sro.infrastructure.temporal.workflows import RunWorkflow
@@ -42,9 +42,10 @@ async def client() -> Client:
 
 
 class Stubs:
-    """The five activities by their contract names. `step` answers the next
+    """The six activities by their contract names. `step` answers the next
     of `outcomes` (or runs it, when it is a callable) and every call is kept
-    in `called` in the order it happened."""
+    in `called` in the order it happened. An answer stops `prepare` asking,
+    as the real one stops once the question it raised is answered."""
 
     def __init__(
         self,
@@ -79,6 +80,11 @@ class Stubs:
         answer: StepOutcome = await next_one()
         return answer
 
+    @activity.defn(name="run.answered")
+    async def answered(self, answer: RunAnswer) -> None:
+        self.called.append(f"answered {answer.question_id}")
+        self.prepared = Prepared(browser=self.prepared.browser)
+
     @activity.defn(name="run.finish")
     async def finish(self, ref: RunRef) -> str:
         self.called.append("finish")
@@ -96,7 +102,14 @@ async def _worker(client: Client, stubs: Stubs) -> AsyncIterator[str]:
         client,
         task_queue=queue,
         workflows=[RunWorkflow],
-        activities=[stubs.prepare, stubs.acquire, stubs.step, stubs.finish, stubs.release],
+        activities=[
+            stubs.prepare,
+            stubs.acquire,
+            stubs.step,
+            stubs.answered,
+            stubs.finish,
+            stubs.release,
+        ],
     ):
         yield queue
 
@@ -119,12 +132,48 @@ async def test_the_step_activity_loops_until_nothing_is_left_then_finishes_and_r
     assert stubs.called == ["prepare", "acquire", "step", "step", "step", "finish", "release"]
 
 
-async def test_a_step_that_asks_ends_the_loop_and_still_releases(client: Client) -> None:
+async def _answered(client: Client, stubs: Stubs, question_id: str) -> None:
+    async with _worker(client, stubs) as queue:
+        handle = await client.start_workflow(
+            RunWorkflow.run, REF, id=f"workflow-run-{uuid.uuid4().hex}", task_queue=queue
+        )
+        await handle.signal(RunWorkflow.answer, question_id)
+        await handle.result()
+
+
+async def test_a_step_that_asks_lets_go_waits_for_the_answer_and_carries_on(
+    client: Client,
+) -> None:
+    stubs = Stubs(StepOutcome(more=True, asking="q-1"), StepOutcome(more=False))
+
+    await _answered(client, stubs, "q-1")
+
+    assert stubs.called == [
+        "prepare",
+        "acquire",
+        "step",
+        "release",
+        "answered q-1",
+        "prepare",
+        "acquire",
+        "step",
+        "finish",
+        "release",
+    ]
+
+
+async def test_a_question_nobody_answers_before_the_budget_ends_still_finishes_and_releases(
+    client: Client,
+) -> None:
     stubs = Stubs(StepOutcome(more=True, asking="q-1"))
+    short = RunRef(tenant_id="acme", principal_id="clerk", run_id="run_short", budget_s=2.0)
 
-    await _run(client, stubs)
+    async with _worker(client, stubs) as queue:
+        await client.execute_workflow(
+            RunWorkflow.run, short, id=f"workflow-run-{uuid.uuid4().hex}", task_queue=queue
+        )
 
-    assert stubs.called == ["prepare", "acquire", "step", "finish", "release"]
+    assert stubs.called == ["prepare", "acquire", "step", "release", "finish", "release"]
 
 
 async def test_a_step_that_needs_a_person_is_not_retried(client: Client) -> None:
@@ -198,18 +247,43 @@ async def test_a_run_past_its_budget_still_finishes_and_releases(client: Client)
     assert stubs.called == ["prepare", "acquire", "step", "finish", "release"]
 
 
-async def test_a_question_at_prepare_or_acquire_runs_no_step(client: Client) -> None:
-    asked_early = Stubs(prepared=Prepared(browser=True, asking="q-prepare"))
-    await _run(client, asked_early)
+async def test_a_question_at_prepare_or_acquire_runs_no_step_until_it_is_answered(
+    client: Client,
+) -> None:
+    asked_early = Stubs(
+        StepOutcome(more=False), prepared=Prepared(browser=True, asking="q-prepare")
+    )
+    await _answered(client, asked_early, "q-prepare")
+
+    questions = ["q-acquire", ""]
 
     async def asks() -> str:
-        return "q-acquire"
+        return questions.pop(0)
 
-    asked_at_acquire = Stubs(acquire=asks)
-    await _run(client, asked_at_acquire)
+    asked_at_acquire = Stubs(StepOutcome(more=False), acquire=asks)
+    await _answered(client, asked_at_acquire, "q-acquire")
 
-    assert asked_early.called == ["prepare", "finish", "release"]
-    assert asked_at_acquire.called == ["prepare", "acquire", "finish", "release"]
+    assert asked_early.called == [
+        "prepare",
+        "release",
+        "answered q-prepare",
+        "prepare",
+        "acquire",
+        "step",
+        "finish",
+        "release",
+    ]
+    assert asked_at_acquire.called == [
+        "prepare",
+        "acquire",
+        "release",
+        "answered q-acquire",
+        "prepare",
+        "acquire",
+        "step",
+        "finish",
+        "release",
+    ]
 
 
 async def test_a_stop_during_acquire_waits_for_it_before_releasing(client: Client) -> None:
@@ -272,7 +346,14 @@ async def test_a_sigterm_mid_step_lets_the_step_finish_before_the_worker_exits(
         client,
         task_queue=queue,
         workflows=[RunWorkflow],
-        activities=[stubs.prepare, stubs.acquire, stubs.step, stubs.finish, stubs.release],
+        activities=[
+            stubs.prepare,
+            stubs.acquire,
+            stubs.step,
+            stubs.answered,
+            stubs.finish,
+            stubs.release,
+        ],
         graceful_shutdown_timeout=timedelta(seconds=30),
         # The workflow is left mid-run when this worker stops; uncached, its
         # instance is closed by the worker instead of by the garbage collector

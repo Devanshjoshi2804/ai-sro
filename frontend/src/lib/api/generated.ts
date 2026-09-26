@@ -1937,6 +1937,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workflow-runs/{run_id}/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer Workflow Run
+         * @description Answer the question a Steel run is waiting on.
+         *
+         *     A run that asks lets go of its browser tab and waits; this hands it the
+         *     answer and it takes a browser again and carries on from the step that
+         *     asked, never from the start. 202 because the run carries on after this
+         *     returns, in its own workflow.
+         *
+         *     A one-time code is the one question a run waits on while keeping its page,
+         *     because the code belongs to that page: the person types it there, then
+         *     answers here with an empty value. A password question is answered the
+         *     same way, after the password is stored with `PUT /v1/secrets`. A question
+         *     about a write the run sent and could not confirm needs the operator's
+         *     `verdict`: `done` settles it, `not_done` lets the run try it again.
+         *
+         *     A run of another tenant is a 404. A 409 `Conflict` for: a run no longer
+         *     running; no question standing, or another one than `question_id`; a
+         *     question already answered differently; a value on anything but a value
+         *     question; a missing verdict on a write in doubt. Only the question id
+         *     reaches the run's workflow; the answer itself is kept on the run.
+         */
+        post: operations["answer_workflow_run_v1_workflow_runs__run_id__answer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workflow-runs/{run_id}/approve": {
         parameters: {
             query?: never;
@@ -2011,6 +2049,36 @@ export interface components {
             key: string;
             /** Chosen */
             chosen: string;
+        };
+        /**
+         * AnswerRunRequest
+         * @description The operator's answer to the question a Steel run is waiting on.
+         *
+         *     `question_id` is the one the run is asking now (`decision.question_id` on
+         *     the `run_asks` message in the operator's thread); any other id, or an
+         *     answer when nothing is asked, is a 409. The first answer to a question is
+         *     the one kept: a different second answer is a 409, the same one again is
+         *     accepted.
+         *
+         *     `value` is given only for a question that asks for a value; for any other
+         *     it must be empty, or the answer is a 409. A password is stored with
+         *     `PUT /v1/secrets`, a one-time code is typed on the page, and a step is
+         *     answered by its `verdict`, so no secret or free text ever rides along.
+         */
+        AnswerRunRequest: {
+            /** Question Id */
+            question_id: string;
+            /**
+             * Value
+             * @default
+             */
+            value: string;
+            /**
+             * Verdict
+             * @default
+             * @enum {string}
+             */
+            verdict: "" | "done" | "not_done";
         };
         /** AnsweredModel */
         AnsweredModel: {
@@ -14829,6 +14897,134 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkflowRunModel"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    answer_workflow_run_v1_workflow_runs__run_id__answer_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description No credential, or one this deployment rejects. */

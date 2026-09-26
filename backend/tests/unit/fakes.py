@@ -416,6 +416,10 @@ class FakeDurableExecution:
         self.runs_started: list[tuple[str, float]] = []
         """One `(run_id, budget_s)` per `start_run` call."""
 
+        self.answered: list[tuple[str, ...]] = []
+        """Every argument of each `answer_run` call, in order: what a signal
+        to the run's workflow would carry into its history."""
+
     async def execute_skill(
         self,
         ctx: RequestContext,
@@ -451,6 +455,9 @@ class FakeDurableExecution:
 
     async def start_run(self, ctx: RequestContext, *, run_id: str, budget_s: float) -> None:
         self.runs_started.append((run_id, budget_s))
+
+    async def answer_run(self, run_id: str, question_id: str) -> None:
+        self.answered.append((run_id, question_id))
 
 
 class FakeRecordingRepository:
@@ -985,6 +992,8 @@ class FakeBrowserSessionRepository:
         state: LeaseState,
         until: datetime | None = None,
         now: datetime | None = None,
+        waits_for: str = "",
+        holder: str | None = None,
     ) -> bool:
         if state is LeaseState.EXPIRED:
             raise ValueError("settle cannot move a lease to expired; use expire")
@@ -994,7 +1003,11 @@ class FakeBrowserSessionRepository:
         if now is not None and found.expires_at <= now:
             return False
         self.leases[lease_id] = replace(
-            found, state=state, expires_at=found.expires_at if until is None else until
+            found,
+            state=state,
+            expires_at=found.expires_at if until is None else until,
+            waits_for=waits_for,
+            holder=found.holder if holder is None else holder,
         )
         return True
 
@@ -1022,7 +1035,9 @@ class FakeBrowserSessionRepository:
             expires_at=(
                 found.expires_at if found.state is LeaseState.WAITING else now + K_LEASE_TTL
             ),
-            holder=found.holder if holder is None else holder,
+            holder=(
+                found.holder if holder is None or found.state is LeaseState.WAITING else holder
+            ),
         )
         return True
 

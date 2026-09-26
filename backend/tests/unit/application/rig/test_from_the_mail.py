@@ -23,6 +23,7 @@ from sro.application.context import RequestContext
 from sro.application.execution.workflow_runs import StartWorkflowRun
 from sro.application.observation.record_attempt import RecordAttempt
 from sro.application.ports.tools import ToolResult, ToolsUnavailable
+from sro.application.runtime.answer_run import AnswerRun
 from sro.application.shared.refusals import OverCap
 from sro.domain.chat.asking import NEEDS, Pending, pending_job
 from sro.domain.chat.thread import Message, MessageId, Speaker
@@ -168,12 +169,14 @@ def _look(
     *,
     cap_usd: float = -1.0,
     start: StartWorkflowRun | None = None,
+    durable: FakeDurableExecution | None = None,
 ) -> FromTheMail:
     return FromTheMail(
         uow,
         mailbox,
         reads,
         model="m",
+        answer=AnswerRun(uow, durable or FakeDurableExecution()),
         gather=gather,
         clock=FakeClock(),
         ids=FakeIdFactory(),
@@ -273,13 +276,15 @@ async def test_a_later_mail_on_a_started_thread_starts_nothing() -> None:
     assert len(world.durable.runs_started) == 1
 
 
-async def test_a_quoted_reply_on_a_finished_mail_run_s_thread_is_a_card_never_a_second_run() -> (
-    None
-):
+@pytest.mark.parametrize("outcome", ["held", "running"])
+async def test_a_quoted_reply_on_a_mail_run_s_thread_is_a_card_never_a_second_run(
+    outcome: str,
+) -> None:
+    # Finished or still running, a run that asks nothing is not answered by mail.
     world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True, thread="t-9")
     await world.from_the_mail.execute(CTX)
     (run,) = await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)
-    await world.uow.workflow_runs.save(replace(run, outcome="held"))
+    await world.uow.workflow_runs.save(replace(run, outcome=outcome))
     quoted = "thanks!\n\n> please create customer type GT2, description north"
     reply = _Mailbox(search=_found("m-2"), **{"m-2": _mail(quoted, "t-9")})
     sure = {
@@ -369,7 +374,10 @@ async def test_a_colleague_s_mail_to_the_operator_starts_as_it_always_did() -> N
     assert list(looked.offered[0].sent_to) == []
 
 
-async def test_a_reply_to_a_run_asking_a_person_is_offered_never_started() -> None:
+async def test_a_reply_to_a_run_asking_a_step_question_never_starts_or_answers() -> None:
+    # D3 + D5: mail is untrusted, so a reply never answers a step question and
+    # never starts a second run; the step question stands in the panel, which is
+    # where the operator answers it, so the reply adds no card either.
     world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True, thread="t-9")
     await world.from_the_mail.execute(CTX)
     (run,) = await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)
@@ -379,8 +387,10 @@ async def test_a_reply_to_a_run_asking_a_person_is_offered_never_started() -> No
 
     later = await world.look(reply, _Reads()).execute(CTX)
 
-    assert [one.started for one in later.offered] == [False]
+    assert not later.offered
     assert len(world.durable.runs_started) == 1
+    (still,) = await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)
+    assert still.progress.get("asking", {}).get("id") == "q-1"
 
 
 async def test_a_start_temporal_refuses_leaves_the_card_and_closes_the_row() -> None:
@@ -912,6 +922,45 @@ async def test_a_reply_carries_on_the_run_that_was_waiting_for_it() -> None:
     # re-classified against every job this tenant holds reads as no job at all
     # and is dropped -- which is the failure this path exists to prevent.
     assert [json.loads(seen)["jobs"][0]["id"] for seen in reads.saw] == [JOB]
+
+
+@pytest.mark.parametrize(
+    ("asking", "answered"),
+    [("value", True), ("step", False), ("password", False), ("code", False), ("", False)],
+)
+async def test_a_reply_on_a_steel_run_s_thread_answers_only_a_value_and_never_starts_another(
+    asking: str, answered: bool
+) -> None:
+    """Mail is untrusted: a reply may give a value the run asked for, but never
+    tells a step to go again or says a write was done. That question stands in
+    the panel."""
+    uow = await _held()
+    run = _short("t-9", needs=[], values={})
+    run.outcome, run.executor = "running", "steel"
+    if asking:
+        run.progress = {"asking": {"id": "q-1", "kind": asking, "text": "which one?"}}
+    await uow.workflow_runs.save(run)
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("GU9 please", thread="t-9")})
+    durable = FakeDurableExecution()
+
+    looked = await _look(uow, mailbox, _Reads(_reading(JOB)), durable=durable).execute(CTX)
+
+    assert durable.answered == ([("run_1", "q-1")] if answered else [])
+    saved = await uow.workflow_runs.get(f.TENANT, "run_1")
+    assert saved is not None
+    standing = saved.progress.get("asking", {})
+    assert isinstance(standing, dict)
+    assert bool(standing.get("answered")) is answered
+    assert "GU9 please" not in str(saved.progress)
+    assert not durable.runs_started
+    if asking:
+        # A question stands: the reply answers it (value) or it stays in the panel.
+        assert looked.offered == ()
+    else:
+        # The run is not asking anything, so the thread's reply is a card, never a
+        # second run: this thread already started one.
+        (card,) = looked.offered
+        assert not card.started, card
 
 
 async def test_a_reply_to_a_wait_that_ran_out_is_an_ordinary_new_request() -> None:

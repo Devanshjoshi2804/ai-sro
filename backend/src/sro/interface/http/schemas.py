@@ -27,6 +27,7 @@ from sro.application.lookup.answer import as_seen
 from sro.application.lookup.plan_lookups import Planned
 from sro.application.lookup.run_lookups import Answers, Looked
 from sro.application.observation.read_shots import PlayableShot
+from sro.application.runtime.answer_run import K_ANSWER, WriteVerdict
 from sro.application.skill.read_workflows import CitedEvidence, KnownWorkflow
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread
@@ -2554,6 +2555,31 @@ class AskResponse(BaseModel):
 
     job: ChatResponse | None = None
     lookup: LookupResponse | None = None
+
+
+class AnswerRunRequest(BaseModel):
+    """The operator's answer to the question a Steel run is waiting on.
+
+    `question_id` is the one the run is asking now (`decision.question_id` on
+    the `run_asks` message in the operator's thread); any other id, or an
+    answer when nothing is asked, is a 409. The first answer to a question is
+    the one kept: a different second answer is a 409, the same one again is
+    accepted.
+
+    `value` is given only for a question that asks for a value; for any other
+    it must be empty, or the answer is a 409. A password is stored with
+    `PUT /v1/secrets`, a one-time code is typed on the page, and a step is
+    answered by its `verdict`, so no secret or free text ever rides along.
+    """
+
+    question_id: str
+    value: str = Field(default="", max_length=K_ANSWER)
+    verdict: WriteVerdict = ""
+    """The operator's word on a step the run asked about. `done`: it was done,
+    so the step is settled and never tried again. `not_done`: it was not, so
+    the run tries it again. Required when the step is a write the run sent
+    and nothing confirmed (a 409 without it, and the question stands); never
+    given for any question but a step's."""
 
 
 class StartWorkflowRunRequest(BaseModel):

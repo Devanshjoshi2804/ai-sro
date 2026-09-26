@@ -1363,6 +1363,16 @@ class ShapesResponse(BaseModel):
     demanded every missing value and left its own button disabled: the same
     job, offered two ways, disagreeing about whether it needs you to type."""
 
+    takes_over: bool = False
+    """Whether a press of one of these starts a server (Steel) run, which takes
+    the job over from where the operator got to and reads what they already
+    did from this browser's uploads.
+
+    A fact about the tenant's rollout, not about a job. The browser needs it to
+    know whether a press is worth waiting on its own uploads for: a run the
+    browser drives itself reads no evidence, and a Steel run that cannot see a
+    save still in the queue has to ask about it rather than know."""
+
 
 class RecordOfferRequest(BaseModel):
     """What a browser showed, and what became of it.
@@ -2587,6 +2597,30 @@ class AnswerRunRequest(BaseModel):
     given for any question but a step's."""
 
 
+class TookOverModel(BaseModel):
+    """The operator's own doing a Steel run takes over: the browser tab it
+    happened in and the recorder times of the first and last gesture the
+    match used.
+
+    The server reads the operator's uploaded gestures from that tab in that
+    span, and a write counts as theirs only when its own call is among them
+    and confirmed it. Anything the uploads cannot prove is left in doubt and
+    settled by a read-back or a question, never sent again.
+
+    Whose uploads is proven, not claimed: the press carries the browser's own
+    `X-Device-Secret` for the `device_id` it names, and that browser must be
+    the pressing operator's. Otherwise it is the 404 an unknown browser gets."""
+
+    tab_id: StrictInt = Field(ge=0)
+    since: float = Field(ge=0)
+    through: float = Field(ge=0)
+    newest: float = Field(ge=0)
+    """The recorder time of the newest gesture this browser recorded before the
+    press, on any tab. The press is refused until the server has received it:
+    work still uploading -- a save in a popup, say -- is otherwise invisible,
+    and a Steel run would make that save a second time."""
+
+
 class StartWorkflowRunRequest(BaseModel):
     """The press: which job, in which browser, with what, live or dry.
 
@@ -2697,6 +2731,10 @@ class StartWorkflowRunRequest(BaseModel):
     `from_step` really is a step: somebody reading a run and resuming it names
     one. Two callers, two honest numbers. Given both, this one wins, because
     only a browser sends it and only a browser knows what it matched."""
+    took_over: TookOverModel | None = None
+    """The span of the operator's own gestures `matched` counted, when a
+    browser pressed to hand a job it had started to a Steel run. Absent, a
+    Steel run is never started part way through."""
 
 
 class WorkflowRunStepModel(BaseModel):

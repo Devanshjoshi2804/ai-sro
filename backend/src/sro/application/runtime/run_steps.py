@@ -73,12 +73,12 @@ class RunSteps:
         if run.outcome != "running":
             return Prepared(browser=False)
         ordered = _ordered(workflow)
+        progress = Progress.of(run.progress)
         browser = [
             one
-            for one in ordered
+            for one in ordered[progress.step :]
             if not sends_mail(one, by_id) and not only_reads_the_mail(one, by_id)
         ]
-        progress = Progress.of(run.progress)
         if browser and not progress.start_url:
             first = primary_gesture(browser[0], by_id)
             progress.start_url = (first.page_url or first.url or "") if first else ""

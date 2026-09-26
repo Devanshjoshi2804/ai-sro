@@ -286,10 +286,16 @@ export function match(tail, shapes, page = null) {
   // very gestures that took it there.
   if (!best || shared) return null;
   const { values, missing } = valuesFrom(tail, best.shape, best.at);
+  // The recorder times of the first and last gesture this match used. A Steel
+  // takeover reads the operator's own uploads in this span, and nothing older:
+  // a save from an earlier doing of the same job is not this one's.
+  const used = [...best.at.values()];
   return {
     workflowId: best.workflowId,
     title: best.title,
     k: best.k,
+    since: tail[Math.min(...used)].at,
+    through: tail[Math.max(...used)].at,
     values,
     missing,
     parameters: (best.shape.parameters || []).map((p) => p.name),

@@ -7,9 +7,9 @@ import pytest
 
 from sro.application.ports.page import PageAnswer, PageGone
 from sro.application.runtime.step import Stopped
-from sro.application.runtime.ui_lane import UiLane, same_call, ui_payload
+from sro.application.runtime.ui_lane import UiLane, ui_payload
 from sro.domain.execution.compose import Adding
-from sro.domain.execution.lanes import Lane, SeenCall
+from sro.domain.execution.lanes import Lane, SeenCall, same_call
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.observation.gesture import (
     Action,
@@ -245,7 +245,9 @@ async def test_an_after_state_that_does_not_hold_turns_a_confirmed_write_unknown
     assert result.verdict == "unknown"
 
 
-@pytest.mark.parametrize(("status", "verdict"), [(422, "failed"), (503, "unknown")])
+@pytest.mark.parametrize(
+    ("status", "verdict"), [(422, "failed"), (409, "unknown"), (503, "unknown")]
+)
 async def test_an_after_state_never_turns_a_rejected_or_unanswered_write_done(
     status: int, verdict: str
 ) -> None:
@@ -258,6 +260,7 @@ async def test_an_after_state_never_turns_a_rejected_or_unanswered_write_done(
     result = await UiLane(driver).execute(step, {}, lane_context(by_id))
 
     assert result.verdict == verdict
+    assert result.never_left is (verdict == "failed"), "a refusal is a write never made"
 
 
 async def test_the_created_record_comes_only_from_the_writes_own_call() -> None:

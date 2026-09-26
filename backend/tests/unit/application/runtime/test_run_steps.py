@@ -9,15 +9,20 @@ from sro.application.ports.page import PageGone
 from sro.application.runtime.step import LaneContext, Superseded
 from sro.application.runtime.ui_lane import UiLane
 from sro.domain.execution.account import Account, LeaseState
-from sro.domain.execution.lanes import Broken, Lane, StepResult, cites_key
+from sro.domain.execution.lanes import Broken, Lane, StepResult, Verdict, cites_key
 from sro.domain.execution.progress import MAIN, Progress, StepMark
+from sro.domain.execution.takeover import OPERATOR, Takeover, Took, take_over
 from tests.unit.runtime_support import (
     CTX,
     TENANT,
+    WORKFLOW,
     SteelRun,
     mail_send_step,
+    operator_did,
+    posted,
     save_step,
     steel_run,
+    two_saves,
     type_step,
 )
 
@@ -543,3 +548,154 @@ async def test_a_required_value_nobody_gave_is_asked_for_never_guessed() -> None
     progress = Progress.of((await world.saved_run()).progress)
     assert progress.asking["kind"] == "value"
     assert "Customer Type" in progress.asking["text"]
+
+
+FORM = "https://wms.example/app/customer-types/new"
+
+
+async def test_a_taken_over_run_skips_the_operator_s_save_and_replays_only_what_leads_on() -> None:
+    world = await steel_run(
+        steps=two_saves(FORM), progress=Takeover(replay_from=2, done=(1,)).progress()
+    )
+    world.lanes.ui.answers(StepResult("done", Lane.UI), StepResult("done", Lane.UI))
+
+    while (await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())).more:
+        pass
+
+    run = await world.saved_run()
+    assert world.lanes.ui.calls == 2
+    assert [one.of_step for one in run.steps] == [2, 3]
+    assert Progress.of(run.progress).marks[1].lane == OPERATOR
+
+
+async def test_a_write_the_operator_made_is_passed_over_as_theirs() -> None:
+    world = await steel_run(
+        steps=[save_step(status=201)], progress=Takeover(replay_from=0, done=(0,)).progress()
+    )
+
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert outcome.more is False and world.lanes.ui.calls == 0
+    assert (await world.saved_run()).steps[-1].verdict_by == OPERATOR
+
+
+async def test_an_operator_s_write_in_doubt_is_read_back_never_sent_again() -> None:
+    world = await steel_run(
+        steps=[save_step(status=201)], progress=Takeover(replay_from=0, in_doubt=(0,)).progress()
+    )
+    world.lanes.api.settles = "done"
+
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert outcome.more is False and world.lanes.api.read_backs == 1
+    assert world.lanes.ui.calls == 0
+    assert Progress.of((await world.saved_run()).progress).written(0)
+
+
+async def test_a_takeover_opens_steel_on_the_page_of_its_first_replayed_step() -> None:
+    world = await steel_run(
+        steps=two_saves(FORM), progress=Takeover(replay_from=2, done=(1,)).progress()
+    )
+
+    await world.run_steps.prepare(CTX, world.run_id)
+
+    assert Progress.of((await world.saved_run()).progress).start_url == FORM
+
+
+async def test_a_save_past_a_stale_offer_is_read_back_or_asked_about_never_sent() -> None:
+    """An open offer made at k=2, then the operator's own Save -- in the same tab
+    or in a popup -- then the press: the run never sends that save again."""
+    cases: tuple[tuple[int, Verdict | None], ...] = ((7, None), (8, None), (7, "done"))
+    for tab, reads_back in cases:
+        steps = two_saves()
+        job = replace(
+            WORKFLOW,
+            steps=[replace(step, order=n) for n, (step, _) in enumerate(steps)],
+            parameters=[
+                {"name": "First", "seen_values": ["A1", "A2"]},
+                {"name": "Second", "seen_values": ["B1", "B2"]},
+            ],
+        )
+        by_id = {one: seen for _, cited in steps for one, seen in cited.items()}
+        world = await steel_run(steps=steps)
+        await operator_did(world.uow, device="dev-1", tab=7, at=95.0, calls=[])
+        await operator_did(
+            world.uow, device="dev-1", tab=tab, at=100.0, calls=[posted("GT1", 100.0)]
+        )
+        seen = await world.uow.gestures.gestures_for(TENANT, stream_id="dev-1")
+        took = take_over(
+            job,
+            by_id,
+            matched=1,
+            took=Took(7, 90.0, 95.0, 100.0),
+            seen=seen,
+            values={"First": "GT1", "Second": "GT2"},
+        )
+        await world.uow.workflow_runs.record_progress(
+            TENANT, world.run_id, took.progress().as_json()
+        )
+        world.lanes.ui.answers(StepResult("done", Lane.UI))
+        world.lanes.api.settles = reads_back
+
+        await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+        second = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+        assert world.lanes.ui.calls == 1, tab
+        assert world.lanes.api.read_backs == 1, tab
+        progress = Progress.of((await world.saved_run()).progress)
+        if reads_back is None:
+            assert second.asking and progress.asking["kind"] == "step"
+        else:
+            assert progress.written(1) and progress.step == 2
+
+
+async def _operator_answered(status: int) -> SteelRun:
+    """A Steel run that takes over after the operator's own first save, which the
+    system answered `status`."""
+    steps = two_saves()
+    job = replace(
+        WORKFLOW,
+        steps=[replace(step, order=n) for n, (step, _) in enumerate(steps)],
+        parameters=[
+            {"name": "First", "seen_values": ["A1", "A2"]},
+            {"name": "Second", "seen_values": ["B1", "B2"]},
+        ],
+    )
+    by_id = {one: seen for _, cited in steps for one, seen in cited.items()}
+    world = await steel_run(steps=steps)
+    await operator_did(
+        world.uow, device="dev-1", tab=7, at=100.0, calls=[posted("GT1", 100.0, status)]
+    )
+    seen = await world.uow.gestures.gestures_for(TENANT, stream_id="dev-1")
+    took = take_over(
+        job,
+        by_id,
+        matched=2,
+        took=Took(7, 90.0, 100.0, 100.0),
+        seen=seen,
+        values={"First": "GT1", "Second": "GT2"},
+    )
+    await world.uow.workflow_runs.record_progress(TENANT, world.run_id, took.progress().as_json())
+    return world
+
+
+async def test_an_operator_save_answered_409_is_read_back_or_asked_never_sent_again() -> None:
+    world = await _operator_answered(409)
+    world.lanes.ui.answers(StepResult("done", Lane.UI))
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    asked = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert world.lanes.ui.calls == 1 and world.lanes.api.read_backs == 1
+    assert asked.asking
+
+
+async def test_an_operator_save_answered_422_is_made_by_the_run() -> None:
+    world = await _operator_answered(422)
+    world.lanes.ui.answers(StepResult("done", Lane.UI), StepResult("done", Lane.UI))
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert world.lanes.ui.calls == 2 and world.lanes.api.read_backs == 0
+    assert Progress.of((await world.saved_run()).progress).step == 2

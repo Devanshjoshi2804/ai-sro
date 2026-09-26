@@ -38,10 +38,11 @@ from typing import Annotated
 from fastapi import APIRouter, Query, status
 
 from sro.application.chat.mailbox import SERVER
+from sro.domain.execution.takeover import Took
 from sro.domain.observation.attempts import DONE, NOTHING
 from sro.domain.shared.identifiers import DeviceId
 from sro.interface.http.asking import AskingDeviceDep
-from sro.interface.http.deps import ContainerDep, ContextDep
+from sro.interface.http.deps import ContainerDep, ContextDep, DeviceSecretDep
 from sro.interface.http.schemas import (
     AnswerRunRequest,
     StartWorkflowRunRequest,
@@ -99,7 +100,10 @@ in this file had drifted by a hunk or more.
 
 @router.post("/workflow-runs", status_code=status.HTTP_201_CREATED)
 async def start_workflow_run(
-    body: StartWorkflowRunRequest, container: ContainerDep, ctx: ContextDep
+    body: StartWorkflowRunRequest,
+    container: ContainerDep,
+    ctx: ContextDep,
+    x_device_secret: DeviceSecretDep = "",
 ) -> WorkflowRunModel:
     """Start one run of a mined job, and answer with the row it claimed.
 
@@ -133,6 +137,8 @@ async def start_workflow_run(
         watched=body.watched,
         from_step=body.from_step,
         matched=body.matched,
+        took_over=Took(**body.took_over.model_dump()) if body.took_over else None,
+        device_secret=x_device_secret,
         conversation=(SERVER, body.mail_thread),
         undoes_run=body.undoes_run,
         offer=body.offer,

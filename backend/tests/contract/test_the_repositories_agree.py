@@ -1327,6 +1327,25 @@ class TestGestures:
             assert await work.gestures.gestures_for(TENANT, ids=()) == ()
             assert len(await work.gestures.gestures_for(TENANT, ids=None)) == 2
 
+    async def test_one_browser_s_gestures_are_read_by_its_stream_from_an_instant(
+        self, store: UnitOfWork
+    ) -> None:
+        """A takeover reads only the pressing browser's uploads since its doing
+        began: another browser's gesture, and one before `after`, are not it."""
+        async with store as work:
+            await work.gestures.add_gestures(
+                (
+                    _gesture("ges_1", at=1.0),
+                    _gesture("ges_2", at=2.0),
+                    _gesture("ges_3", at=2.0, stream_id="dev_2"),
+                )
+            )
+            await work.commit()
+
+        async with store as work:
+            found = await work.gestures.gestures_for(TENANT, stream_id="dev_1", after=1.5)
+            assert [one.id for one in found] == ["ges_2"]
+
     async def test_gestures_and_unread_are_oldest_first_and_a_reading_is_never_reoffered(
         self, store: UnitOfWork
     ) -> None:

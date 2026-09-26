@@ -172,8 +172,11 @@ class SqlGestureRepository(GestureRepository):
         ids: tuple[str, ...] | None = None,
         after: float | None = None,
         before: float | None = None,
+        stream_id: str | None = None,
     ) -> tuple[Gesture, ...]:
         query = select(GestureRow).where(GestureRow.tenant_id == tenant_id.value)
+        if stream_id is not None:
+            query = query.where(GestureRow.stream_id == stream_id)
         if ids is not None:
             query = query.where(GestureRow.id.in_(ids))
         if after is not None:

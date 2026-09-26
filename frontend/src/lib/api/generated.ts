@@ -3820,6 +3820,11 @@ export interface components {
              * @default false
              */
             can_find: boolean;
+            /**
+             * Takes Over
+             * @default false
+             */
+            takes_over: boolean;
         };
         /**
          * ShotModel
@@ -4042,6 +4047,7 @@ export interface components {
             from_step: number;
             /** Matched */
             matched?: number | null;
+            took_over?: components["schemas"]["TookOverModel"] | null;
         };
         /** StepModel */
         StepModel: {
@@ -4252,6 +4258,31 @@ export interface components {
             target_system: string;
             /** Held */
             held: boolean;
+        };
+        /**
+         * TookOverModel
+         * @description The operator's own doing a Steel run takes over: the browser tab it
+         *     happened in and the recorder times of the first and last gesture the
+         *     match used.
+         *
+         *     The server reads the operator's uploaded gestures from that tab in that
+         *     span, and a write counts as theirs only when its own call is among them
+         *     and confirmed it. Anything the uploads cannot prove is left in doubt and
+         *     settled by a read-back or a question, never sent again.
+         *
+         *     Whose uploads is proven, not claimed: the press carries the browser's own
+         *     `X-Device-Secret` for the `device_id` it names, and that browser must be
+         *     the pressing operator's. Otherwise it is the 404 an unknown browser gets.
+         */
+        TookOverModel: {
+            /** Tab Id */
+            tab_id: number;
+            /** Since */
+            since: number;
+            /** Through */
+            through: number;
+            /** Newest */
+            newest: number;
         };
         /** ToolPlanModel */
         ToolPlanModel: {
@@ -14647,6 +14678,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                "X-Device-Secret"?: string;
                 authorization?: string | null;
             };
             path?: never;

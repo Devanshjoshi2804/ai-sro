@@ -2026,12 +2026,14 @@ class FakeGestureRepository:
         ids: tuple[str, ...] | None = None,
         after: float | None = None,
         before: float | None = None,
+        stream_id: str | None = None,
     ) -> tuple[Gesture, ...]:
         self.gestures_for_calls += 1
         found = [
             gesture
             for gesture in self.rows.values()
             if gesture.tenant == tenant_id.value
+            and (stream_id is None or gesture.stream_id == stream_id)
             and (ids is None or gesture.id in ids)
             and (after is None or gesture.at > after)
             and (before is None or gesture.at <= before)

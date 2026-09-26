@@ -33,8 +33,11 @@ from sro.application.execution.stops import Stops
 from sro.application.execution.workflow_runs import RunRefused, StartWorkflowRun
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
+from sro.domain.execution.progress import Progress
+from sro.domain.execution.takeover import Took
 from sro.domain.execution.waiting import K_PATIENCE, read_wait, still_waiting
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
@@ -50,7 +53,14 @@ from tests.unit.fakes import (
     FakeIdFactory,
     FakeUnitOfWork,
 )
-from tests.unit.runtime_support import CTX, running_steel_run, save_job
+from tests.unit.runtime_support import (
+    CTX,
+    operator_did,
+    posted,
+    running_steel_run,
+    save_job,
+    two_writes_job,
+)
 from tests.unit.runtime_support import CTX as STEEL_CTX
 
 TENANT = TenantId("acme")
@@ -227,9 +237,124 @@ def _on_steel(uow: FakeUnitOfWork) -> StartWorkflowRun:
 async def test_a_steel_run_is_never_started_part_way_through_a_job() -> None:
     uow = await _held()
 
-    with pytest.raises(RunRefused, match="from step 0"):
+    with pytest.raises(RunRefused, match="which of your gestures"):
         await _press(_on_steel(uow), values={"clientCode": "NEWTESTS"}, from_step=2)
 
+    assert uow.workflow_runs.rows == {}
+
+
+TOOK = Took(tab_id=7, since=90.0, through=100.0, newest=100.0)
+OPERATOR_S = "s-operator"
+COLLEAGUE_S = "s-colleague"
+
+
+async def _devices(uow: FakeUnitOfWork) -> None:
+    for device, owner, secret in (
+        ("dev-1", CTX.principal_id, OPERATOR_S),
+        ("dev-2", PrincipalId("colleague"), COLLEAGUE_S),
+    ):
+        await uow.devices.add(
+            AgentDevice(
+                id=DeviceId(device),
+                tenant_id=CTX.tenant_id,
+                principal_id=owner,
+                label=device,
+                extension_version="1",
+                registered_at=NOW,
+                last_seen_at=NOW,
+                secret=secret,
+            )
+        )
+
+
+async def _taken_over(
+    uow: FakeUnitOfWork,
+    *,
+    matched: int = 3,
+    device: str = "dev-1",
+    secret: str = OPERATOR_S,
+    took: Took | None = TOOK,
+    seeded: bool = False,
+) -> WorkflowRun:
+    if not seeded:
+        await two_writes_job(uow, "wfl_two")
+        await _devices(uow)
+    return await _on_steel(uow).execute(
+        CTX,
+        workflow_id="wfl_two",
+        device_id=DeviceId(device),
+        device_secret=secret,
+        values={"First": "GT1", "Second": "GT2"},
+        live=True,
+        allow_focus=False,
+        matched=matched,
+        took_over=took,
+    )
+
+
+async def test_a_takeover_starts_after_the_operator_s_own_save() -> None:
+    uow = FakeUnitOfWork()
+    await operator_did(uow, device="dev-1", tab=7, at=100.0, calls=[posted("GT1", 100.0)])
+
+    run = await _taken_over(uow)
+
+    progress = Progress.of(run.progress)
+    assert progress.step == 2 and progress.written(1)
+    saved = await uow.workflow_runs.get(TENANT, run.id)
+    assert saved is not None and saved.progress == run.progress
+
+
+async def test_another_browser_s_save_is_not_the_operator_s() -> None:
+    uow = FakeUnitOfWork()
+    await operator_did(uow, device="dev-2", tab=7, at=100.0, calls=[posted("GT1", 100.0)])
+    await operator_did(uow, device="dev-1", tab=7, at=100.0, calls=[])
+
+    run = await _taken_over(uow)
+
+    assert Progress.of(run.progress).in_doubt(1)
+
+
+async def test_a_save_after_the_span_confirms_nothing() -> None:
+    uow = FakeUnitOfWork()
+    await operator_did(uow, device="dev-1", tab=7, at=100.0, calls=[])
+    await operator_did(uow, device="dev-1", tab=7, at=101.0, calls=[posted("GT1", 101.0)])
+
+    run = await _taken_over(uow)
+
+    assert Progress.of(run.progress).in_doubt(1)
+
+
+async def test_a_press_before_the_operator_s_recent_work_has_uploaded_is_refused() -> None:
+    """The probe: an offer on tab 7 made at k=1 through t=95; the operator saves
+    GT1 in a popup (tab 8) at t=100; the upload is slow; they press. The press
+    says its newest gesture was at t=100, which the server has not received."""
+    uow = FakeUnitOfWork()
+    typed = Took(tab_id=7, since=90.0, through=95.0, newest=100.0)
+    await operator_did(uow, device="dev-1", tab=7, at=95.0, calls=[])
+
+    with pytest.raises(RunRefused, match="still uploading"):
+        await _taken_over(uow, matched=1, took=typed)
+    assert uow.workflow_runs.rows == {}
+
+    await operator_did(uow, device="dev-1", tab=8, at=100.0, calls=[posted("GT1", 100.0)])
+    run = await _taken_over(uow, matched=1, took=typed, seeded=True)
+
+    assert Progress.of(run.progress).in_doubt(1)
+
+
+async def test_a_takeover_that_names_a_colleague_s_browser_is_refused() -> None:
+    for device, secret in (("dev-2", COLLEAGUE_S), ("dev-1", COLLEAGUE_S), ("dev-1", "")):
+        uow = FakeUnitOfWork()
+        with pytest.raises(NotFound):
+            await _taken_over(uow, device=device, secret=secret)
+        assert uow.workflow_runs.rows == {}, (device, secret)
+
+
+async def test_a_steel_run_that_matched_without_its_evidence_is_refused_by_name() -> None:
+    uow = FakeUnitOfWork()
+
+    with pytest.raises(RunRefused, match="which of your gestures"):
+        await _taken_over(uow, took=None)
     assert uow.workflow_runs.rows == {}
 
 

@@ -79,7 +79,7 @@ Code: `if missing:`
 > person answers `AccountBusy` and the run queues -- and retries with
 > fresh headers.
 
-## `ApiLane._confirmed`, [line 140](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L140): Comment
+## `ApiLane._confirmed`, [line 141](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L141): Comment
 
 > One check for `execute` and `read_back`. The confirming read goes only to
 > the write's own origin (a GET recorded after the write may be analytics or
@@ -89,7 +89,7 @@ Code: `if missing:`
 > string is not the record this run wrote. A write with no filled slots is
 > never confirmed by a read-back.
 
-## `_aimed`, [line 235](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L235): Comment
+## `_aimed`, [line 236](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L236): Comment
 
 > The recorded read names the recorded record. A path segment equal to a value
 > the recording saw for a filled parameter is replaced by this run's value. A
@@ -107,7 +107,7 @@ Code: `if status in K_AUTH_REFUSED and ctx.reauthed:`
 > the lane's own failure, with a fingerprint, and the step joins the
 > known-broken list instead of signing in again on every run.
 
-## `session_headers`, [line 176](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L176): Note on the line above
+## `session_headers`, [line 177](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L177): Note on the line above
 
 Code: `async def session_headers(`
 
@@ -117,7 +117,7 @@ Code: `async def session_headers(`
 > session did not answer itself. `wait_s` is how long the broker may wait for
 > the headers `needs` names; a caller with a budget passes what is left of it.
 
-## `needs_of`, [line 166](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L166): Note on the line above
+## `needs_of`, [line 167](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L167): Note on the line above
 
 Code: `def needs_of(recorded: Mapping[str, str]) -> list[str]:`
 

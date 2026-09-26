@@ -359,6 +359,7 @@ class GestureRepository(Protocol):
         ids: tuple[str, ...] | None = None,
         after: float | None = None,
         before: float | None = None,
+        stream_id: str | None = None,
     ) -> tuple[Gesture, ...]: ...
 
     async def uploads_for(

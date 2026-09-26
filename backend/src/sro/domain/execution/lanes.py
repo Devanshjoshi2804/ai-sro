@@ -1,16 +1,20 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Literal
+from urllib.parse import urlsplit
 
-from sro.domain.observation.gesture import Call
-from sro.domain.observation.trim import path_shape
+from sro.domain.execution.compose import Adding, keyed
+from sro.domain.observation.gesture import Body, Call
+from sro.domain.observation.trim import body_key_set, parsed_body, path_shape
 from sro.domain.skill.workflow import Step
 
 K_SIGHT_ACTIONS = 6
+K_CONFLICT = 409
 
 
 class Lane(StrEnum):
@@ -101,11 +105,37 @@ def write_confirmed(
     ]
     if any(accepts(status, wanted) for status in statuses):
         return "done"
-    if any(status >= 500 for status in statuses):
+    if any(status >= 500 or status == K_CONFLICT for status in statuses):
         return "unknown"
     if any(400 <= status < 500 for status in statuses):
         return "failed"
     return None
+
+
+def same_call(seen: SeenCall, recorded: Call, adding: Adding) -> dict[str, str] | None:
+    if not (
+        seen.own_frame
+        and seen.method.upper() == recorded.method.upper()
+        and path_shape(seen.url) == path_shape(recorded.url)
+        and urlsplit(seen.url).netloc == urlsplit(recorded.url).netloc
+    ):
+        return None
+    wanted = body_key_set(recorded.request_body)
+    if wanted is None:
+        return {}
+    sent = (
+        parsed_body(Body(text=seen.request_body, mime_type=seen.request_content_type))
+        if seen.request_body
+        else None
+    )
+    if not isinstance(sent, dict) or not wanted <= sent.keys():
+        return None
+    extra = {
+        str(key): said if isinstance(said, str) else json.dumps(said)
+        for key, said in sent.items()
+        if key not in wanted
+    }
+    return keyed(extra, adding)
 
 
 def never_left_step(tried: Collection[StepResult]) -> bool:

@@ -117,6 +117,20 @@ async def test_a_rejected_replay_hands_the_step_to_the_ui_lane() -> None:
     )
 
     assert result.verdict == "failed" and not result.expired and result.fingerprint
+    assert result.never_left, "a refused write was never made"
+    assert len(http.sent) == 1
+
+
+async def test_a_conflicting_replay_is_in_doubt_and_never_handed_on() -> None:
+    http = FakeHttpCaller()
+    http.answer(409, '{"error": "exists"}')
+    step, by_id, ledger = proven_write_step(read_back=LIST)
+
+    result = await ApiLane(http, headers_broker({})).execute(
+        step, RUN, lane_context(by_id, ledger=ledger)
+    )
+
+    assert result.verdict == "unknown" and not result.never_left
     assert len(http.sent) == 1
 
 

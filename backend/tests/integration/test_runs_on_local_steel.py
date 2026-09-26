@@ -47,9 +47,10 @@ from temporalio.worker import Worker
 
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
+from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.read_runs import CannotStop
 from sro.application.execution.stops import Stops
-from sro.application.execution.workflow_runs import AbortWorkflowRun
+from sro.application.execution.workflow_runs import AbortWorkflowRun, StartWorkflowRun
 from sro.application.lookup.run_lookups import RunLookups
 from sro.application.ports.browser import BrowserUnavailable
 from sro.application.ports.page import SessionRef
@@ -64,8 +65,10 @@ from sro.config import get_settings
 from sro.domain.execution.account import K_LEASE_TTL, Account, LeaseState
 from sro.domain.execution.lanes import Lane
 from sro.domain.execution.progress import MAIN, Progress
+from sro.domain.execution.takeover import Took
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.lookup.plan import Lookup, Plan
+from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.gesture import (
     Action,
     Body,
@@ -75,7 +78,7 @@ from sro.domain.observation.gesture import (
     Target,
 )
 from sro.domain.shared.hosts import REDACTED
-from sro.domain.shared.identifiers import PrincipalId, TenantId
+from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.db.locks import PostgresAccountLocks
 from sro.infrastructure.db.repositories import SqlUnitOfWork
@@ -95,7 +98,14 @@ from tests.browser.test_the_steel_pool_against_local_steel import (
     status_of,
     tracking_contexts,
 )
-from tests.unit.fakes import FakeClock, FakeCredentialVault, FakeIdFactory
+from tests.unit.fakes import (
+    FakeAsker,
+    FakeChannel,
+    FakeClock,
+    FakeCredentialVault,
+    FakeDurableExecution,
+    FakeIdFactory,
+)
 from tests.unit.runtime_support import RecordingLane, with_a_recorded_sign_in
 
 if TYPE_CHECKING:
@@ -795,3 +805,109 @@ async def test_a_worker_killed_mid_write_resumes_the_run_and_never_sends_it_agai
     assert lease is not None
     session = SessionRef(lease.context_id, await world.pool.cdp_url(lease.container_url))
     assert tab not in await pages_in(session)
+
+
+async def test_a_takeover_after_the_operator_s_own_save_sends_only_the_rest(
+    world: World, temporal: Client
+) -> None:
+    await _recorded(world)
+    known = _steps(world)
+    typed, save = known["type"][1], known["save"][1]
+
+    def did(gid: str, like: Gesture, at: float, name: str | None = None) -> Gesture:
+        body = Body(text=json.dumps({"name": name}), mime_type="application/json")
+        return replace(
+            like,
+            id=gid,
+            at=at,
+            action=replace(like.action, at=at),
+            requests=[replace(call, started_at=at, request_body=body) for call in like.requests]
+            if name
+            else [],
+        )
+
+    cited = [
+        [did("t0", typed, 11.0)],
+        [did("s1a", save, 12.0, "A1"), did("s1b", save, 112.0, "A2")],
+        [did("t2", typed, 13.0)],
+        [did("s3a", save, 14.0, "B1"), did("s3b", save, 114.0, "B2")],
+    ]
+    says = ["Type the first", "Save it", "Type the second", "Save it"]
+    takes = [["First"], [], ["Second"], []]
+    job = Workflow(
+        id="wfl_two_saves",
+        tenant=TENANT,
+        title="Add two customer types",
+        narrative="",
+        steps=[
+            Step(
+                order=n,
+                says=says[n],
+                system=None,
+                cites=[one.id for one in cited[n]],
+                parameters=takes[n],
+            )
+            for n in range(4)
+        ],
+        parameters=[
+            {"name": "First", "seen_values": ["A1", "A2"]},
+            {"name": "Second", "seen_values": ["B1", "B2"]},
+        ],
+    )
+    world.rig.saved.append({"name": "GT1"})
+    proof = uuid.uuid4().hex
+    theirs = replace(did("ges_operator_save", save, 100.0, "GT1"), stream_id="dev-1", tab_id=7)
+    async with world.uow as uow:
+        await uow.gestures.add_gestures((*(one for each in cited for one in each), theirs))
+        await uow.workflows.save(job)
+        await uow.devices.add(
+            AgentDevice(
+                id=DeviceId("dev-1"),
+                tenant_id=CTX.tenant_id,
+                principal_id=CTX.principal_id,
+                label="the operator's browser",
+                extension_version="1",
+                registered_at=datetime.now(UTC),
+                last_seen_at=datetime.now(UTC),
+                secret=proof,
+            )
+        )
+        await uow.commit()
+    starter = StartWorkflowRun(
+        world.uow,
+        channel=FakeChannel(),
+        asker=FakeAsker(),
+        plan_model="plan",
+        rescue_model="rescue",
+        clock=world.clock,
+        cap_usd=5.0,
+        stops=Stops(),
+        approvals=Approvals(),
+        one_time_secrets=OneTimeSecrets(),
+        durable=FakeDurableExecution(),
+        steel_tenants=frozenset({TENANT}),
+    )
+    run = await starter.execute(
+        CTX,
+        workflow_id=job.id,
+        device_id=DeviceId("dev-1"),
+        device_secret=proof,
+        values={"First": "GT1", "Second": "GT2"},
+        live=True,
+        allow_focus=False,
+        matched=2,
+        took_over=Took(tab_id=7, since=90.0, through=100.0, newest=100.0),
+    )
+    queue = f"runs-test-{uuid.uuid4().hex}"
+    async with _worker(world, temporal, queue):
+        await temporal.execute_workflow(
+            RunWorkflow.run,
+            RunRef(tenant_id=TENANT, principal_id="op", run_id=run.id, budget_s=300.0),
+            id=f"workflow-run-{run.id}",
+            task_queue=queue,
+        )
+
+    assert world.rig.saved == [{"name": "GT1"}, {"name": "GT2"}]
+    finished = await _saved(world, run.id)
+    assert finished.outcome == "held"
+    assert [one.of_step for one in finished.steps] == [2, 3]

@@ -81,18 +81,6 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > threshold, not necessarily the recorded one, so with its state holding or
 > no state recorded at all it is `unknown` (X2's binding rule; X4 review I1).
 
-## `same_call`, [line 246](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L246): Docstring
-
-> Whether a seen call is the recorded one: same method, same path shape, same
-> host, sent from the frame this step acted in (`SeenCall.own_frame`, set by
-> the driver when the request went out), and -- when the recorded call has a
-> JSON or form body -- the same top-level request body keys. Method and path
-> shape alone let any background call to the same RPC-style endpoint (a
-> poller, an iframe widget, another host reusing the path) settle the write;
-> the frame and body checks are what a strict "own call" means (X4 re-review
-> R1). Values are never compared, only keys: a legitimate retry that resends
-> the same fields with a different value is still this step's call.
-
 ## `UiLane._perform`, [line 118](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L118): Comment
 
 > S6 re-review round 2 (N1): a failed act's own `signals` read can itself
@@ -103,7 +91,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > `about_to_write` has run the step may already have taken effect, so it
 > is `unknown`, the same verdict every other unconfirmed write gets.
 
-## `UiLane._holds`, [line 225](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L225): Docstring
+## `UiLane._holds`, [line 226](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L226): Docstring
 
 > Whether the element `act` touched -- not a fresh resolve -- now shows what
 > the recording says it should. `value` wins over `after.value` when set: the
@@ -116,7 +104,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/ui_la
 > re-resolving is exactly what let a wrong repair verify itself as `done`
 > before that fix.
 
-## `confirming`, [line 272](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L272): Docstring
+## `confirming`, [line 247](../../../../../../../backend/src/sro/application/runtime/ui_lane.py#L247): Docstring
 
 > The keys come from the call that confirmed the write -- the own call whose
 > status `write_confirmed` accepts (`accepts`) -- never simply the first own call:

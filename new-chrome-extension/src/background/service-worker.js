@@ -535,6 +535,7 @@ async function shapesFor() {
   // that has not been restarted after a backend deploy keeps offering.
   const served = Array.isArray(answered) ? answered : answered?.shapes;
   canFind = Array.isArray(answered) ? canFind : Boolean(answered?.canFind);
+  takesOver = Array.isArray(answered) ? takesOver : Boolean(answered?.takesOver);
   const usable = Array.isArray(served)
     ? served.filter((shape) => shape && Array.isArray(shape.shape) && shape.id)
     : [];
@@ -563,6 +564,12 @@ async function shapesFor() {
  * that promises to find a value on a deployment with no mailbox costs them a
  * run that stops at the first step. */
 let canFind = false;
+
+/** Whether a press here is run on the server (Steel), which takes the job over
+ * and reads what the operator already did from this browser's uploads. Only
+ * then is a press worth waiting on an upload for. False until the first
+ * answer: a press that skips the wait leaves the server in doubt, never wrong. */
+let takesOver = false;
 
 function originOf(url) {
   try {
@@ -1025,8 +1032,8 @@ async function considerOffer(tabId, gesture) {
       // dismissal every time the operator typed the next field.
       const made =
         open && open.source === "rig" && open.state === "open"
-          ? { ...open, ...replace, id: open.id, at: open.at, tabId, canFind }
-          : { ...replace, tabId, canFind };
+          ? { ...open, ...replace, id: open.id, at: open.at, tabId, canFind, takesOver }
+          : { ...replace, tabId, canFind, takesOver };
       // The one it supersedes stops being open: two open at once is the queue
       // this design exists to not be. On an upgrade that is the same record,
       // and `made` puts it straight back with what it has just learned. A
@@ -2121,8 +2128,18 @@ async function handle(message, sender) {
       // things behind it, so a typed value that overwrote each thing's own
       // would make three identical records.
       const items = Array.isArray(nudge.items) ? nudge.items : [];
+      // A Steel run that takes this job over reads what the operator already
+      // did from their uploaded gestures, so those go first. A save still in
+      // this queue -- in a popup, past the offer -- is invisible to the server,
+      // which would make it a second time. So a press that cannot empty the
+      // queue within the bound does not happen: the operator presses again in
+      // a moment. The server refuses it too, until it holds `newest`.
+      const tookOver = nudge.tabId != null && nudge.since != null;
+      const newest = tookOver ? newestGesture(await state.tails(), nudge.through) : null;
       let started;
       try {
+        if (tookOver && nudge.takesOver && !(await drainedWithin(K_PRESS_DRAIN_MS)))
+          throw new Error(STILL_UPLOADING);
         // No `started_by`. The backend reads who authorised the press off the
         // credential it arrived on; a body field saying so is a signature
         // nobody checked, written into the row an audit reads first.
@@ -2141,6 +2158,12 @@ async function handle(message, sender) {
           live: true,
           allow_focus: true,
           matched: nudge.k || 0,
+          // Which tab and which span of the operator's own gestures `matched`
+          // counted. Absent for an offer not made from gestures (a mail
+          // offer), and a Steel run is then never started part way through.
+          took_over: tookOver
+            ? { tab_id: nudge.tabId, since: nudge.since, through: nudge.through, newest }
+            : undefined,
           // Somebody is looking at this. The press came from an open panel, so
           // the run does the job ON THE SCREEN -- it types into the form and
           // presses Save -- instead of replaying the call the demonstration
@@ -3059,6 +3082,37 @@ const MOST_BATCHES = 50;
  * the operator asking to flush before closing the laptop. The alarm stays one
  * batch a tick, which is what paces a busy day.
  */
+/** How long a Steel press waits for this browser's uploads before it gives up. */
+const K_PRESS_DRAIN_MS = 4000;
+
+/** What the panel says when it gives up. The same words the server refuses with. */
+const STILL_UPLOADING = "your recent work is still uploading; press again in a moment";
+
+/** The recorder time of the newest gesture this browser holds, on any tab: the
+ * tails keep every watched tab's recent gestures. Never earlier than `through`. */
+function newestGesture(tails, through) {
+  const times = Object.values(tails || {})
+    .flat()
+    .map((entry) => entry?.at)
+    .filter((at) => typeof at === "number");
+  return Math.max(through, ...times);
+}
+
+/** Whether `drain` emptied the queue within `ms`. The upload carries on either way. */
+async function drainedWithin(ms) {
+  let timer;
+  const late = new Promise((resolve) => {
+    timer = setTimeout(() => resolve(false), ms);
+  });
+  try {
+    // An upload that failed, or left some behind, has not emptied the queue.
+    const emptied = drain().then((last) => !last.error && !last.remaining);
+    return await Promise.race([emptied, late]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function drain() {
   let last = { uploaded: 0 };
   for (let batch = 0; batch < MOST_BATCHES; batch += 1) {

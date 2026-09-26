@@ -5,11 +5,10 @@ from collections.abc import Mapping, Sequence
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
-from sro.application.runtime.ui_lane import same_call
 from sro.domain.execution.belts import confirming_read, expected_statuses
 from sro.domain.execution.compose import Adding
 from sro.domain.execution.evidence import recorded_call
-from sro.domain.execution.lanes import Broken, Lane, StepResult, accepts, cites_key
+from sro.domain.execution.lanes import Broken, Lane, StepResult, accepts, cites_key, same_call
 from sro.domain.execution.learned_step import K_NAME, LearnedStep
 from sro.domain.execution.verified_writes import learned_pattern
 from sro.domain.observation.gesture import Gesture

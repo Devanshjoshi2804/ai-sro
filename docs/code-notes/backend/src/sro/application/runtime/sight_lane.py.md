@@ -2,13 +2,13 @@
 
 Comments and docstrings moved out of [`backend/src/sro/application/runtime/sight_lane.py`](../../../../../../../backend/src/sro/application/runtime/sight_lane.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `ALLOWED`, [line 33](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L33): Constant
+## `ALLOWED`, [line 34](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L34): Constant
 
 > The gestures sight may propose (spec §6.1 Sight). Navigation, dragging and
 > anything outside the account's own tab are not offered to the model at all;
 > the Computer Use adapter turns anything else it proposes into a refusal.
 
-## `SightLane`, [line 46](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L46): Class
+## `SightLane`, [line 47](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L47): Class
 
 > The last lane: `gemini-3.8-flash` with the Computer Use tool looks at a
 > screenshot of the account's own Steel tab and names one point at a time,
@@ -50,7 +50,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/sight
 >   only in the loop iteration that asked about it; it is never logged, put in
 >   a result, or kept in the history the model is given.
 > - **Settling.** The model saying "done" confirms nothing.
->   - A write is done only by X4's own-call rule (`ui_lane.same_call`:
+>   - A write is done only by X4's own-call rule (`lanes.same_call`:
 >     acting frame, host, path shape, body keys, numbered after the mark)
 >     with a wanted status; a 4xx is failed, anything else unknown.
 >   - A read is `read` only when its own call answered 2xx.
@@ -80,7 +80,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/sight
 > - **Reasons.** A refusal is forgotten once a later point is made, so a
 >   step pro acted on never reports flash's refusal (M6).
 
-## `_taught`, [line 371](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L371): Function
+## `_taught`, [line 373](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L373): Function
 
 > What a hit test teaches (X2 ruling). `None` (nothing, or no unique
 > locator) and `unreachable` (a cross-origin frame) teach nothing, and so
@@ -91,7 +91,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/sight
 > its query, its `;params` or its fragment, and the driver matches a hop by
 > `path_shape` and `index` alone, so nothing else is ever stored.
 
-## `SightLane.fill`, [line 85](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L85): Docstring
+## `SightLane.fill`, [line 86](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L86): Docstring
 
 > Sight for a composed field that exists but will not take the value, through
 > `execute`'s own guarded loop (`_guarded`), with the goal `says`, the write's
@@ -103,7 +103,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/sight
 > (`check`, the fill's payload) resolves to exactly the last hit's nearest
 > actionable control and holds the value; the locator is learned from that hit.
 
-## `SightLane._guarded`, [line 113](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L113): Docstring
+## `SightLane._guarded`, [line 114](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L114): Docstring
 
 > The one loop both `execute` and `fill` run: drive, wait on the awaited call
 > after the last point (so a call the last point caused is in the log before
@@ -111,7 +111,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/sight
 > is `unknown` -- "the write may have gone" -- because the point may have sent it;
 > before any point it propagates. `Stopped` and cancellation always propagate.
 
-## `SightLane._drive`, [line 162](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L162): Note
+## `SightLane._drive`, [line 163](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L163): Note
 
 Code: `if await self._sent(held, watched, tried):`
 

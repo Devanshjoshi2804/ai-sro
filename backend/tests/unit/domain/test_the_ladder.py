@@ -43,7 +43,7 @@ def test_a_step_whose_lanes_are_all_broken_still_offers_sight() -> None:
 def test_the_page_s_own_call_confirms_a_write() -> None:
     recorded = Call(method="POST", url="https://wms.example/api/customer-types")
     seen = [SeenCall("POST", "https://wms.example/api/customer-types", 201)]
-    rejected = [SeenCall("POST", "https://wms.example/api/customer-types", 409)]
+    rejected = [SeenCall("POST", "https://wms.example/api/customer-types", 422)]
 
     assert write_confirmed(recorded=recorded, wanted={201}, calls=seen) == "done"
     assert write_confirmed(recorded=recorded, wanted={201}, calls=rejected) == "failed"
@@ -67,8 +67,15 @@ def test_a_gateway_5xx_with_no_success_is_unknown_not_failed() -> None:
 
 def test_a_4xx_with_no_success_is_failed() -> None:
     recorded = Call(method="POST", url="https://wms.example/api/customer-types")
+    for status in (400, 401, 403, 404, 422):
+        calls = [SeenCall("POST", "https://wms.example/api/customer-types", status)]
+        assert write_confirmed(recorded=recorded, wanted={201}, calls=calls) == "failed", status
+
+
+def test_a_conflict_is_in_doubt_because_the_record_may_be_this_write_s() -> None:
+    recorded = Call(method="POST", url="https://wms.example/api/customer-types")
     calls = [SeenCall("POST", "https://wms.example/api/customer-types", 409)]
-    assert write_confirmed(recorded=recorded, wanted={201}, calls=calls) == "failed"
+    assert write_confirmed(recorded=recorded, wanted={201}, calls=calls) == "unknown"
 
 
 def test_never_left_is_true_only_when_no_attempt_left() -> None:

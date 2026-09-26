@@ -2111,6 +2111,12 @@ async function handle(message, sender) {
       // things behind it, so a typed value that overwrote each thing's own
       // would make three identical records.
       const items = Array.isArray(nudge.items) ? nudge.items : [];
+      // A Steel run that takes this job over reads what the operator already
+      // did from their uploaded gestures, so those are sent first: a save
+      // still in this queue would be one the backend cannot prove, and it
+      // would ask about it rather than know.
+      const tookOver = nudge.tabId != null && nudge.since != null;
+      if (tookOver) await drain();
       let started;
       try {
         // No `started_by`. The backend reads who authorised the press off the
@@ -2131,6 +2137,12 @@ async function handle(message, sender) {
           live: true,
           allow_focus: true,
           matched: nudge.k || 0,
+          // Which tab and which span of the operator's own gestures `matched`
+          // counted. Absent for an offer not made from gestures (a mail
+          // offer), and a Steel run is then never started part way through.
+          took_over: tookOver
+            ? { tab_id: nudge.tabId, since: nudge.since, through: nudge.through }
+            : undefined,
           // Somebody is looking at this. The press came from an open panel, so
           // the run does the job ON THE SCREEN -- it types into the form and
           // presses Save -- instead of replaying the call the demonstration

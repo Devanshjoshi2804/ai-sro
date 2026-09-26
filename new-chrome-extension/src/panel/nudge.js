@@ -128,6 +128,11 @@ export function fire(candidate, now, { tabId = null, visit = "" } = {}) {
     source: candidate.source || "backend",
     workflowId: candidate.workflow_id || null,
     k: candidate.k || 0,
+    // The span of the operator's own gestures the match used, so a Steel run
+    // that takes the job over reads only this doing's uploads. Null for an
+    // offer that was not made from gestures.
+    since: candidate.since ?? null,
+    through: candidate.through ?? null,
     values: candidate.values || {},
     missing: candidate.missing || [],
     // Whether a run can go and find what nobody typed. The deployment's

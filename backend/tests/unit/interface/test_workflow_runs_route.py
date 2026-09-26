@@ -575,6 +575,27 @@ async def test_from_step_true_does_not_become_step_one(
     assert spawned.handed_over == 0
 
 
+async def test_a_takeover_that_ends_before_it_begins_answers_422(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, held: Workflow, spawned: _Spawned
+) -> None:
+    took = {"tab_id": 7, "since": 100.0, "through": 90.0}
+
+    landed = await client.post("/v1/workflow-runs", json=_body(matched=3, took_over=took))
+
+    assert landed.status_code == 422
+    assert uow.workflow_runs.rows == {} and spawned.handed_over == 0
+
+
+async def test_a_takeover_s_tab_is_a_number_never_true(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, held: Workflow
+) -> None:
+    took = {"tab_id": True, "since": 90.0, "through": 100.0}
+
+    landed = await client.post("/v1/workflow-runs", json=_body(matched=3, took_over=took))
+
+    assert landed.status_code == 422 and uow.workflow_runs.rows == {}
+
+
 async def test_a_nested_object_in_values_is_refused_and_not_stringified(
     client: httpx.AsyncClient, uow: FakeUnitOfWork, held: Workflow
 ) -> None:

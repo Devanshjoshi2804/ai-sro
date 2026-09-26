@@ -47,9 +47,10 @@ from temporalio.worker import Worker
 
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
+from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.read_runs import CannotStop
 from sro.application.execution.stops import Stops
-from sro.application.execution.workflow_runs import AbortWorkflowRun
+from sro.application.execution.workflow_runs import AbortWorkflowRun, StartWorkflowRun
 from sro.application.lookup.run_lookups import RunLookups
 from sro.application.ports.browser import BrowserUnavailable
 from sro.application.ports.page import SessionRef
@@ -64,6 +65,7 @@ from sro.config import get_settings
 from sro.domain.execution.account import K_LEASE_TTL, Account, LeaseState
 from sro.domain.execution.lanes import Lane
 from sro.domain.execution.progress import MAIN, Progress
+from sro.domain.execution.takeover import Took
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.lookup.plan import Lookup, Plan
 from sro.domain.observation.gesture import (
@@ -75,7 +77,7 @@ from sro.domain.observation.gesture import (
     Target,
 )
 from sro.domain.shared.hosts import REDACTED
-from sro.domain.shared.identifiers import PrincipalId, TenantId
+from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.db.locks import PostgresAccountLocks
 from sro.infrastructure.db.repositories import SqlUnitOfWork
@@ -95,7 +97,14 @@ from tests.browser.test_the_steel_pool_against_local_steel import (
     status_of,
     tracking_contexts,
 )
-from tests.unit.fakes import FakeClock, FakeCredentialVault, FakeIdFactory
+from tests.unit.fakes import (
+    FakeAsker,
+    FakeChannel,
+    FakeClock,
+    FakeCredentialVault,
+    FakeDurableExecution,
+    FakeIdFactory,
+)
 from tests.unit.runtime_support import RecordingLane, with_a_recorded_sign_in
 
 if TYPE_CHECKING:
@@ -795,3 +804,76 @@ async def test_a_worker_killed_mid_write_resumes_the_run_and_never_sends_it_agai
     assert lease is not None
     session = SessionRef(lease.context_id, await world.pool.cdp_url(lease.container_url))
     assert tab not in await pages_in(session)
+
+
+async def test_a_takeover_after_the_operator_s_own_save_sends_only_the_rest(
+    world: World, temporal: Client
+) -> None:
+    await _recorded(world)
+    known = _steps(world)
+    again = {
+        name: (
+            step,
+            replace(
+                seen,
+                id=f"{seen.id}_2",
+                at=seen.at + 2.0,
+                action=replace(seen.action, at=seen.at + 2.0),
+                requests=[replace(call, started_at=seen.at + 2.0) for call in seen.requests],
+            ),
+        )
+        for name, (step, seen) in known.items()
+    }
+    chosen = [known["type"], known["save"], again["type"], again["save"]]
+    job = Workflow(
+        id="wfl_two_saves",
+        tenant=TENANT,
+        title="Add two customer types",
+        narrative="",
+        steps=[replace(step, order=n, cites=[seen.id]) for n, (step, seen) in enumerate(chosen)],
+    )
+    world.rig.saved.append({"name": "GT1"})
+    theirs = replace(
+        known["save"][1], id="ges_operator_save", stream_id="dev-1", tab_id=7, at=100.0
+    )
+    async with world.uow as uow:
+        await uow.gestures.add_gestures((*(seen for _, seen in chosen), theirs))
+        await uow.workflows.save(job)
+        await uow.commit()
+    starter = StartWorkflowRun(
+        world.uow,
+        channel=FakeChannel(),
+        asker=FakeAsker(),
+        plan_model="plan",
+        rescue_model="rescue",
+        clock=world.clock,
+        cap_usd=5.0,
+        stops=Stops(),
+        approvals=Approvals(),
+        one_time_secrets=OneTimeSecrets(),
+        durable=FakeDurableExecution(),
+        steel_tenants=frozenset({TENANT}),
+    )
+    run = await starter.execute(
+        CTX,
+        workflow_id=job.id,
+        device_id=DeviceId("dev-1"),
+        values={"Customer Type": "GT2"},
+        live=True,
+        allow_focus=False,
+        matched=2,
+        took_over=Took(tab_id=7, since=90.0, through=100.0),
+    )
+    queue = f"runs-test-{uuid.uuid4().hex}"
+    async with _worker(world, temporal, queue):
+        await temporal.execute_workflow(
+            RunWorkflow.run,
+            RunRef(tenant_id=TENANT, principal_id="op", run_id=run.id, budget_s=300.0),
+            id=f"workflow-run-{run.id}",
+            task_queue=queue,
+        )
+
+    assert world.rig.saved == [{"name": "GT1"}, {"name": "GT2"}]
+    finished = await _saved(world, run.id)
+    assert finished.outcome == "held"
+    assert [one.of_step for one in finished.steps] == [2, 3]

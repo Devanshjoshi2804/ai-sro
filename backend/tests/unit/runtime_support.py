@@ -191,26 +191,34 @@ def lane_context(
     )
 
 
+SAVE_URL = f"{_SYSTEM}/api/customer-types"
+
+
 def save_step(
-    *, status: int = 201, after: AfterState | None = None, body: Body | None = None
+    *,
+    status: int = 201,
+    after: AfterState | None = None,
+    body: Body | None = None,
+    gid: str = "ges_save",
+    at: float = 1.0,
 ) -> tuple[Step, dict[str, Gesture]]:
     gesture = Gesture(
-        id="ges_save",
+        id=gid,
         tenant=_TENANT,
         stream_id="stream-1",
         batch_id="batch-1",
-        at=1.0,
+        at=at,
         url=f"{_SYSTEM}/app",
         system=_SYSTEM,
         tab_id=1,
         frame_url=None,
-        action=Action(kind="click", at=1.0, target=Target(role="button", name="Save"), after=after),
+        action=Action(kind="click", at=at, target=Target(role="button", name="Save"), after=after),
         requests=[
             Call(
                 method="POST",
-                url=f"{_SYSTEM}/api/customer-types",
+                url=SAVE_URL,
                 status=status,
-                started_at=1.0,
+                started_at=at,
                 request_body=body,
             )
         ],
@@ -330,20 +338,26 @@ def read_step(
     return step, {gesture.id: gesture}
 
 
-def type_step(*, after: AfterState | None = None) -> tuple[Step, dict[str, Gesture]]:
+def type_step(
+    *,
+    after: AfterState | None = None,
+    page: str = f"{_SYSTEM}/app",
+    gid: str = "ges_type",
+    at: float = 1.0,
+) -> tuple[Step, dict[str, Gesture]]:
     gesture = Gesture(
-        id="ges_type",
+        id=gid,
         tenant=_TENANT,
         stream_id="stream-1",
         batch_id="batch-1",
-        at=1.0,
-        url=f"{_SYSTEM}/app",
+        at=at,
+        url=page,
         system=_SYSTEM,
         tab_id=1,
         frame_url=None,
         action=Action(
             kind="type",
-            at=1.0,
+            at=at,
             value="GT1",
             target=Target(
                 role="textbox",
@@ -375,6 +389,60 @@ async def save_job(uow: UnitOfWork, workflow_id: str) -> Workflow:
     await uow.workflows.save(job)
     await uow.gestures.add_gestures(tuple(by_id.values()))
     return job
+
+
+def two_saves(form: str = f"{_SYSTEM}/app") -> list[tuple[Step, dict[str, Gesture]]]:
+    """Type, save, type on `form`, save: each save a `POST SAVE_URL` -> 201."""
+    return [
+        type_step(gid="ges_type_0", at=1.0),
+        save_step(gid="ges_save_1", at=2.0),
+        type_step(gid="ges_type_2", at=3.0, page=form),
+        save_step(gid="ges_save_3", at=4.0),
+    ]
+
+
+async def two_writes_job(uow: UnitOfWork, workflow_id: str) -> Workflow:
+    steps = two_saves()
+    job = replace(
+        _WORKFLOW,
+        id=workflow_id,
+        steps=[replace(step, order=n) for n, (step, _) in enumerate(steps)],
+        parameters=[{"name": "Customer Type", "seen_values": ["GT1"], "required": True}],
+    )
+    await uow.workflows.save(job)
+    await uow.gestures.add_gestures(tuple(g for _, cited in steps for g in cited.values()))
+    return job
+
+
+async def operator_did(
+    uow: UnitOfWork,
+    *,
+    device: str,
+    tab: int,
+    at: float,
+    calls: Sequence[tuple[str, str, int | None]],
+) -> None:
+    """One gesture uploaded from `device`'s browser tab `tab`, carrying `calls`."""
+    await uow.gestures.add_gestures(
+        (
+            Gesture(
+                id=f"ges_{device}_{at}",
+                tenant=_TENANT,
+                stream_id=device,
+                batch_id="batch-op",
+                at=at,
+                url=f"{_SYSTEM}/app",
+                system=_SYSTEM,
+                tab_id=tab,
+                frame_url=None,
+                action=Action(kind="click", at=at, target=Target(role="button", name="Save")),
+                requests=[
+                    Call(method=method, url=url, status=status, started_at=at)
+                    for method, url, status in calls
+                ],
+            ),
+        )
+    )
 
 
 def mail_send_step() -> tuple[Step, dict[str, Gesture]]:
@@ -752,6 +820,7 @@ async def steel_run(
     live: bool = True,
     run_id: str = "run_a",
     recorded_sign_in: bool = True,
+    progress: Progress | None = None,
 ) -> SteelRun:
     uow, driver, clock, vault = (
         FakeUnitOfWork(),
@@ -781,6 +850,7 @@ async def steel_run(
             allow_focus=False,
             started_at=NOW.isoformat(),
             executor="steel",
+            progress=progress.as_json() if progress else {},
         )
     )
     lanes = Lanes(

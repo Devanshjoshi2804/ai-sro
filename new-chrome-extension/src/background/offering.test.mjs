@@ -69,3 +69,10 @@ test("a concrete rig offer outranks an arrival nudge", () => {
   assert.equal(end, null);
   assert.equal(replace.source, "rig");
 });
+
+test("a rig offer keeps the span of the gestures it was made from", () => {
+  const tail = tailWith(tailWith([], { ...typed("a", "NEW"), at: 10 }), { ...typed("b", "x"), at: 12 });
+  const { replace } = decideOffer({ tail, shapes: [shape], open: null, origin: H, now: 1000 });
+  assert.equal(replace.since, 10);
+  assert.equal(replace.through, 12);
+});

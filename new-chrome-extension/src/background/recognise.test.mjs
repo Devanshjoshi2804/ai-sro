@@ -452,3 +452,14 @@ test("the query is not what makes it a different screen", () => {
 
   assert.equal(found?.workflowId, "wfl_supplier");
 });
+
+test("a match says when the gestures it used began and ended, so a takeover reads only this doing", () => {
+  let tail = tailWith([], typed("wm.workAreas.code", "NEWTESTS", { at: 100 }));
+  tail = tailWith(tail, { triple: [H, "grid|Customers", "click"], value: null, secret: false, at: 101 });
+  tail = tailWith(tail, typed("wm.workAreas.desc", "north dock", { at: 102 }));
+
+  const got = match(tail, [workArea]);
+
+  assert.equal(got.since, 100);
+  assert.equal(got.through, 102);
+});

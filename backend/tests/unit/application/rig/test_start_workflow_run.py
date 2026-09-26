@@ -33,6 +33,8 @@ from sro.application.execution.stops import Stops
 from sro.application.execution.workflow_runs import RunRefused, StartWorkflowRun
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
+from sro.domain.execution.progress import Progress
+from sro.domain.execution.takeover import Took
 from sro.domain.execution.waiting import K_PATIENCE, read_wait, still_waiting
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Action, Gesture
@@ -50,7 +52,14 @@ from tests.unit.fakes import (
     FakeIdFactory,
     FakeUnitOfWork,
 )
-from tests.unit.runtime_support import CTX, running_steel_run, save_job
+from tests.unit.runtime_support import (
+    CTX,
+    SAVE_URL,
+    operator_did,
+    running_steel_run,
+    save_job,
+    two_writes_job,
+)
 from tests.unit.runtime_support import CTX as STEEL_CTX
 
 TENANT = TenantId("acme")
@@ -231,6 +240,57 @@ async def test_a_steel_run_is_never_started_part_way_through_a_job() -> None:
         await _press(_on_steel(uow), values={"clientCode": "NEWTESTS"}, from_step=2)
 
     assert uow.workflow_runs.rows == {}
+
+
+async def _taken_over(uow: FakeUnitOfWork, *, matched: int = 3) -> WorkflowRun:
+    await two_writes_job(uow, "wfl_two")
+    return await _on_steel(uow).execute(
+        CTX,
+        workflow_id="wfl_two",
+        device_id=DeviceId("dev-1"),
+        values={"Customer Type": "GT2"},
+        live=True,
+        allow_focus=False,
+        matched=matched,
+        took_over=Took(tab_id=7, since=90.0, through=100.0),
+    )
+
+
+async def test_a_takeover_starts_after_the_operator_s_own_save() -> None:
+    uow = FakeUnitOfWork()
+    await operator_did(uow, device="dev-1", tab=7, at=100.0, calls=[("POST", SAVE_URL, 201)])
+
+    run = await _taken_over(uow)
+
+    progress = Progress.of(run.progress)
+    assert progress.step == 2 and progress.written(1)
+    saved = await uow.workflow_runs.get(TENANT, run.id)
+    assert saved is not None and saved.progress == run.progress
+
+
+async def test_another_browser_s_save_is_not_the_operator_s() -> None:
+    uow = FakeUnitOfWork()
+    await operator_did(uow, device="dev-2", tab=7, at=100.0, calls=[("POST", SAVE_URL, 201)])
+
+    run = await _taken_over(uow)
+
+    assert Progress.of(run.progress).in_doubt(1)
+
+
+async def test_a_steel_run_that_matched_without_its_evidence_is_still_refused() -> None:
+    uow = FakeUnitOfWork()
+    await two_writes_job(uow, "wfl_two")
+
+    with pytest.raises(RunRefused, match="from step 0"):
+        await _on_steel(uow).execute(
+            CTX,
+            workflow_id="wfl_two",
+            device_id=DeviceId("dev-1"),
+            values={"Customer Type": "GT2"},
+            live=True,
+            allow_focus=False,
+            matched=3,
+        )
 
 
 async def test_a_steel_run_of_several_things_is_refused_rather_than_done_once() -> None:

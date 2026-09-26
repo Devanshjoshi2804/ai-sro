@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import datetime
 
@@ -38,6 +39,7 @@ from sro.domain.execution.gathering import Gathered
 from sro.domain.execution.learned_step import limits_for
 from sro.domain.execution.mail_job import is_mail_only
 from sro.domain.execution.progress import run_budget
+from sro.domain.execution.takeover import Took, take_over
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.waiting import as_said, waiting_on
 from sro.domain.execution.workflow_run import (
@@ -150,6 +152,7 @@ class StartWorkflowRun:
         run_id: str | None = None,
         conversation: tuple[str, str] = ("", ""),
         undoes_run: str = "",
+        took_over: Took | None = None,
     ) -> WorkflowRun:
         asker_or_refuse(self._asker)
         now: datetime = self._clock.now()
@@ -207,7 +210,20 @@ class StartWorkflowRun:
             last = max(step.order for step in workflow.steps)
             if isinstance(from_step, bool) or not 0 <= from_step <= last:
                 raise RunRefused(f"from_step must be a step of this job (0..{last})")
-            if steel and from_step:
+            first_progress: dict[str, object] = {}
+            check_from = from_step
+            if steel and matched and took_over is not None and device_id is not None:
+                uploaded = await uow.gestures.gestures_for(
+                    ctx.tenant_id, after=math.nextafter(took_over.since, -math.inf)
+                )
+                seen = [one for one in uploaded if one.stream_id == device_id.value]
+                took = take_over(workflow, by_id, matched=matched, took=took_over, seen=seen)
+                first_progress = took.progress().as_json()
+                ordered = sorted(workflow.steps, key=lambda step: step.order)
+                check_from = (
+                    ordered[took.replay_from].order if took.replay_from < len(ordered) else last + 1
+                )
+            elif steel and from_step:
                 raise RunRefused(
                     "a Steel run starts from step 0; taking over part way through is not "
                     "supported yet"
@@ -216,7 +232,7 @@ class StartWorkflowRun:
                 already = await uow.workflow_runs.taken_back_by(ctx.tenant_id, undoes_run.strip())
                 if already is not None:
                     raise RunRefused(f"{undoes_run.strip()} was already taken back by {already}")
-            undoable = unperformable(workflow, by_id, from_step=from_step)
+            undoable = unperformable(workflow, by_id, from_step=check_from)
             if undoable is not None:
                 raise RunRefused(
                     f"step {undoable.order} has no evidence a browser can act on: {undoable.says}"
@@ -237,6 +253,7 @@ class StartWorkflowRun:
                 items=things,
                 awaiting=as_said(waiting_on(*conversation, now=now)),
                 undoes_run=undoes_run.strip() or None,
+                progress=first_progress,
             )
             await uow.workflow_runs.save(run)
             await uow.commit()

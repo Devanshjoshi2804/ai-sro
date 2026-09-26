@@ -2582,6 +2582,21 @@ class AnswerRunRequest(BaseModel):
     given for any question but a step's."""
 
 
+class TookOverModel(BaseModel):
+    """The operator's own doing a Steel run takes over: the browser tab it
+    happened in and the recorder times of the first and last gesture the
+    match used.
+
+    The server reads the operator's uploaded gestures from that tab in that
+    span, and a write counts as theirs only when its own call is among them
+    and confirmed it. Anything the uploads cannot prove is left in doubt and
+    settled by a read-back or a question, never sent again."""
+
+    tab_id: StrictInt = Field(ge=0)
+    since: float = Field(ge=0)
+    through: float = Field(ge=0)
+
+
 class StartWorkflowRunRequest(BaseModel):
     """The press: which job, in which browser, with what, live or dry.
 
@@ -2685,6 +2700,10 @@ class StartWorkflowRunRequest(BaseModel):
     `from_step` really is a step: somebody reading a run and resuming it names
     one. Two callers, two honest numbers. Given both, this one wins, because
     only a browser sends it and only a browser knows what it matched."""
+    took_over: TookOverModel | None = None
+    """The span of the operator's own gestures `matched` counted, when a
+    browser pressed to hand a job it had started to a Steel run. Absent, a
+    Steel run is never started part way through."""
 
 
 class WorkflowRunStepModel(BaseModel):

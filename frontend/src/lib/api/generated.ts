@@ -4030,6 +4030,7 @@ export interface components {
             from_step: number;
             /** Matched */
             matched?: number | null;
+            took_over?: components["schemas"]["TookOverModel"] | null;
         };
         /** StepModel */
         StepModel: {
@@ -4240,6 +4241,25 @@ export interface components {
             target_system: string;
             /** Held */
             held: boolean;
+        };
+        /**
+         * TookOverModel
+         * @description The operator's own doing a Steel run takes over: the browser tab it
+         *     happened in and the recorder times of the first and last gesture the
+         *     match used.
+         *
+         *     The server reads the operator's uploaded gestures from that tab in that
+         *     span, and a write counts as theirs only when its own call is among them
+         *     and confirmed it. Anything the uploads cannot prove is left in doubt and
+         *     settled by a read-back or a question, never sent again.
+         */
+        TookOverModel: {
+            /** Tab Id */
+            tab_id: number;
+            /** Since */
+            since: number;
+            /** Through */
+            through: number;
         };
         /** ToolPlanModel */
         ToolPlanModel: {

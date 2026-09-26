@@ -27,6 +27,7 @@ export function decideOffer({ tail, shapes, open, origin, page = null, now }) {
   const replace = fire(
     { id: found.workflowId, title: found.title, starts_on: shape?.starts_on || origin,
       source: "rig", workflow_id: found.workflowId, k: found.k,
+      since: found.since, through: found.through,
       values: found.values, missing: found.missing, parameters: found.parameters,
       writes: shape?.writes || [] },
     now,

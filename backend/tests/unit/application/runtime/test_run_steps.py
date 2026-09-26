@@ -11,6 +11,7 @@ from sro.application.runtime.ui_lane import UiLane
 from sro.domain.execution.account import Account, LeaseState
 from sro.domain.execution.lanes import Broken, Lane, StepResult, cites_key
 from sro.domain.execution.progress import MAIN, Progress, StepMark
+from sro.domain.execution.takeover import OPERATOR, Takeover
 from tests.unit.runtime_support import (
     CTX,
     TENANT,
@@ -18,6 +19,7 @@ from tests.unit.runtime_support import (
     mail_send_step,
     save_step,
     steel_run,
+    two_saves,
     type_step,
 )
 
@@ -543,3 +545,55 @@ async def test_a_required_value_nobody_gave_is_asked_for_never_guessed() -> None
     progress = Progress.of((await world.saved_run()).progress)
     assert progress.asking["kind"] == "value"
     assert "Customer Type" in progress.asking["text"]
+
+
+FORM = "https://wms.example/app/customer-types/new"
+
+
+async def test_a_taken_over_run_skips_the_operator_s_save_and_replays_only_what_leads_on() -> None:
+    world = await steel_run(
+        steps=two_saves(FORM), progress=Takeover(replay_from=2, done=(1,)).progress()
+    )
+    world.lanes.ui.answers(StepResult("done", Lane.UI), StepResult("done", Lane.UI))
+
+    while (await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())).more:
+        pass
+
+    run = await world.saved_run()
+    assert world.lanes.ui.calls == 2
+    assert [one.of_step for one in run.steps] == [2, 3]
+    assert Progress.of(run.progress).marks[1].lane == OPERATOR
+
+
+async def test_a_write_the_operator_made_is_passed_over_as_theirs() -> None:
+    world = await steel_run(
+        steps=[save_step(status=201)], progress=Takeover(replay_from=0, done=(0,)).progress()
+    )
+
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert outcome.more is False and world.lanes.ui.calls == 0
+    assert (await world.saved_run()).steps[-1].verdict_by == OPERATOR
+
+
+async def test_an_operator_s_write_in_doubt_is_read_back_never_sent_again() -> None:
+    world = await steel_run(
+        steps=[save_step(status=201)], progress=Takeover(replay_from=0, in_doubt=(0,)).progress()
+    )
+    world.lanes.api.settles = "done"
+
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert outcome.more is False and world.lanes.api.read_backs == 1
+    assert world.lanes.ui.calls == 0
+    assert Progress.of((await world.saved_run()).progress).written(0)
+
+
+async def test_a_takeover_opens_steel_on_the_page_of_its_first_replayed_step() -> None:
+    world = await steel_run(
+        steps=two_saves(FORM), progress=Takeover(replay_from=2, done=(1,)).progress()
+    )
+
+    await world.run_steps.prepare(CTX, world.run_id)
+
+    assert Progress.of((await world.saved_run()).progress).start_url == FORM

@@ -220,3 +220,12 @@ Code: `async def stopped(self, ctx: RequestContext, run_id: str) -> None:`
 > after the operator's cancel, and `acquire` calls it when the stop arrived
 > while it was signing in. A run the step already closed (a lane raised
 > `Stopped`, or it held) is left as it is.
+
+## `RunSteps.prepare`, [line 79](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L79): Note
+
+Code: `for one in ordered[progress.step :]`
+
+> The start page and the account are those of the first browser step still to
+> run. A run that takes over a job part way through (spec §7.6) begins at its
+> first progress's `step`, so Steel opens on the page that step was recorded
+> on rather than on a form the operator already saved.

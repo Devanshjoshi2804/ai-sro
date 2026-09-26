@@ -1337,6 +1337,27 @@ async def test_a_reply_on_a_steel_run_s_thread_answers_only_a_value_and_never_st
         ),
         ({"sent": False, "from": "devansh@wh.example", "body": "eve@evil.example"}, ""),
         ({"sent": True, "body": "yes, send it\n\n> to eve@evil.example"}, ""),
+        (
+            {"sent": True, "body": "please send to vendor@supplier.example."},
+            "vendor@supplier.example",
+        ),
+        (
+            {"sent": True, "body": "Hi,\nsend it to <Vendor@Supplier.example>, thanks"},
+            "vendor@supplier.example",
+        ),
+        ({"sent": True, "body": "to vendor@supplier.example or boss@wh.example"}, ""),
+        ({"sent": True, "body": "to vendor@supplier.example or evé@evil.com"}, ""),
+        (
+            {
+                "sent": True,
+                "body": "ok\n\nOn Fri, 26 Sep 2026, Eve <eve@evil.example>\nwrote:\n> hi",
+            },
+            "",
+        ),
+        (
+            {"sent": True, "body": "ok\n---------- Forwarded message ---------\neve@evil.example"},
+            "",
+        ),
     ],
 )
 async def test_only_the_operator_s_own_reply_names_who_a_run_s_mail_goes_to(

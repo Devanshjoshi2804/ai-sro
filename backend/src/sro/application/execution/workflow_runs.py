@@ -15,6 +15,7 @@ from sro.application.execution.mail_job import (
     MailHand,
     Written,
     draft_the_mail_job,
+    redraft_the_mail_job,
     send_the_mail,
     write_the_mail,
 )
@@ -291,6 +292,24 @@ class StartWorkflowRun:
             )
         by_id = {gesture.id: gesture for gesture in cited}
         return (workflow, by_id) if is_mail_only(workflow, by_id) else None
+
+    async def answered(self, ctx: RequestContext, run_id: str) -> None:
+        async with self._uow as uow:
+            run = await uow.workflow_runs.get(ctx.tenant_id, run_id)
+        mail = await self._a_mail_job(ctx, run) if run is not None else None
+        if run is None or mail is None or self._gather is None or self._ids is None:
+            return
+        await redraft_the_mail_job(
+            ctx,
+            run,
+            mail[0],
+            mail[1],
+            uow=self._uow,
+            tools=self._gather.tools,
+            asker=asker_or_refuse(self._asker),
+            clock=self._clock,
+            ids=self._ids,
+        )
 
     async def start_on_steel(self, ctx: RequestContext, run: WorkflowRun) -> bool:
         try:

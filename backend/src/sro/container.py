@@ -310,7 +310,9 @@ class Container:
         )
 
     def answer_run(self) -> AnswerRun:
-        return AnswerRun(self.unit_of_work(), self.durable)
+        return AnswerRun(
+            self.unit_of_work(), self.durable, resume=self.start_workflow_run().answered
+        )
 
     def unit_of_work(self) -> UnitOfWork:
         return SqlUnitOfWork(self.session_factory)

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import logging
+import secrets
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
+from datetime import datetime
 
 from sro.application.chat.announce import SayWhatHappened
 from sro.application.chat.ask_the_asker import DRAFTED
@@ -15,7 +17,14 @@ from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.application.shared.asking import ask
 from sro.domain.chat.thread import Speaker
-from sro.domain.execution.mail_job import Allowed, check_draft, mailboxes, sent_messages
+from sro.domain.execution.mail_job import (
+    Allowed,
+    JobRecipient,
+    check_draft,
+    mailboxes,
+    sent_messages,
+)
+from sro.domain.execution.progress import Progress
 from sro.domain.execution.waiting import read_wait
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Gesture
@@ -225,6 +234,8 @@ async def draft_the_mail_job(
     written = await write_the_mail(
         ctx, workflow, run.values, thread, by_id=by_id, uow=uow, tools=tools, asker=asker
     )
+    if isinstance(written, Unaddressed):
+        return await _ask_who(ctx, uow, run, written, clock=clock, ids=ids)
     if isinstance(written, str):
         return await _stop(uow, run, written)
 
@@ -278,6 +289,92 @@ async def _conversation(
         return []
     rows = said.get("messages") if isinstance(said, dict) else None
     return [one for one in rows if isinstance(one, dict)] if isinstance(rows, list) else []
+
+
+async def redraft_the_mail_job(
+    ctx: RequestContext,
+    run: WorkflowRun,
+    workflow: Workflow,
+    by_id: Mapping[str, Gesture],
+    *,
+    uow: UnitOfWork,
+    tools: ToolCaller,
+    asker: Asker,
+    clock: Clock,
+    ids: IdFactory,
+) -> WorkflowRun:
+    progress = Progress.of(run.progress)
+    if progress.asking.get("kind") != "recipient" or not progress.asking.get("answered"):
+        return run
+    await keep_the_named(ctx, uow, workflow.id, progress.asking, at=clock.now())
+    was, progress.asking = run.progress, {}
+    async with uow as unit:
+        taken = await unit.workflow_runs.record_progress(
+            ctx.tenant_id, run.id, progress.as_json(), was=was
+        )
+        await unit.commit()
+    if not taken:
+        return run
+    run.progress = progress.as_json()
+    return await draft_the_mail_job(
+        ctx, run, workflow, by_id, uow=uow, tools=tools, asker=asker, clock=clock, ids=ids
+    )
+
+
+async def keep_the_named(
+    ctx: RequestContext,
+    uow: UnitOfWork,
+    workflow_id: str,
+    asking: Mapping[str, str],
+    *,
+    at: datetime,
+) -> None:
+    async with uow as unit:
+        for address in mailboxes(asking.get("address", "")) or ():
+            await unit.workflows.confirm_recipient(
+                ctx.tenant_id, workflow_id, JobRecipient(address, asking.get("by", ""), at)
+            )
+        await unit.commit()
+
+
+async def _ask_who(
+    ctx: RequestContext,
+    uow: UnitOfWork,
+    run: WorkflowRun,
+    why: str,
+    *,
+    clock: Clock,
+    ids: IdFactory,
+) -> WorkflowRun:
+    progress = Progress.of(run.progress)
+    progress.asking = {
+        "id": f"q_{secrets.token_hex(16)}",
+        "kind": "recipient",
+        "text": why,
+        "step": "0",
+    }
+    await _stop(uow, run, why)
+    async with uow as unit:
+        asked = await unit.workflow_runs.record_progress(
+            ctx.tenant_id, run.id, progress.as_json(), was=run.progress
+        )
+        await unit.commit()
+    if not asked:
+        return run
+    run.progress = progress.as_json()
+    await SayWhatHappened(uow, clock, ids).execute(
+        ctx,
+        for_operator=PrincipalId(run.started_by) if run.started_by else ctx.principal_id,
+        text=why,
+        speaker=Speaker.ASSISTANT,
+        decision={
+            "kind": "run_asks",
+            "run_id": run.id,
+            "question_id": progress.asking["id"],
+            "asks": "recipient",
+        },
+    )
+    return run
 
 
 async def _stop(uow: UnitOfWork, run: WorkflowRun, why: str) -> WorkflowRun:

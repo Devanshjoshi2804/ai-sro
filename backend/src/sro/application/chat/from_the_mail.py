@@ -36,6 +36,7 @@ from sro.domain.chat.asking import NEEDS, Pending, question, waiting_on_mail
 from sro.domain.chat.thread import Said, Speaker
 from sro.domain.execution.compiled import why_not
 from sro.domain.execution.learned_step import limits_for, too_long
+from sro.domain.execution.mail_job import one_address_in
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.waiting import read_wait, still_waiting
 from sro.domain.execution.workflow_run import WorkflowRun
@@ -442,7 +443,7 @@ class FromTheMail:
         asking = Progress.of(run.progress).asking
         kind = asking.get("kind") if run.outcome == "running" else None
         if kind == "recipient":
-            said = await self._operator_s_first_line(ctx, message)
+            said = await self._address_the_operator_named(ctx, message)
         if kind not in ("value", "recipient") or not said:
             logger.info(
                 "%s: a reply on %s's thread answers nothing: only a value is taken from mail, "
@@ -465,7 +466,7 @@ class FromTheMail:
                 refused,
             )
 
-    async def _operator_s_first_line(self, ctx: RequestContext, message: str) -> str:
+    async def _address_the_operator_named(self, ctx: RequestContext, message: str) -> str:
         answered = await self._tools.call(
             ctx.tenant_id, ctx.principal_id, SERVER, "get_message", {"id": message}
         )
@@ -475,8 +476,7 @@ class FromTheMail:
             return ""
         if not isinstance(said, dict) or said.get("sent") is not True:
             return ""
-        lines = (one.strip() for one in str(said.get("body") or "").splitlines())
-        return next((one for one in lines if one), "")[:K_ANSWER]
+        return one_address_in(str(said.get("body") or ""))
 
     async def _was_asked(self, ctx: RequestContext, thread: str) -> Pending | None:
         if not thread.strip():

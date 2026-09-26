@@ -2631,7 +2631,9 @@ class AnswerRunRequest(BaseModel):
     reading untrusted mail. It is answered with the address(es) to send to --
     only by the operator who started the run, and only with addresses that
     read cleanly (anything else is a 409). The answer is kept on the job, so
-    its next run writes to that address without asking.
+    its next run writes to that address without asking. On a mail job drafted
+    for a press (not on Steel) the run waits `stopped`, holding no browser, and
+    this answer redrafts it.
     """
 
     question_id: str

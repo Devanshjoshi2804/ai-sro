@@ -2,13 +2,13 @@
 
 Comments and docstrings moved out of [`backend/src/sro/application/runtime/answer_run.py`](../../../../../../../backend/src/sro/application/runtime/answer_run.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `K_ANSWER`, [line 13](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L13): Constant
+## `K_ANSWER`, [line 14](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L14): Constant
 
 > The longest answer a run is handed, in characters. An answer is a choice,
 > a value or a short "done it"; a mail reply carries its whole quoted thread,
 > which is cut here rather than kept whole.
 
-## `AnswerRun.execute`, [line 40](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L40): Note
+## `AnswerRun.execute`, [line 50](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L50): Note
 
 Code: `if not asking or asking.get("id") != question_id:`
 
@@ -24,7 +24,7 @@ Code: `if not asking or asking.get("id") != question_id:`
 > operator's verdict. Without one the question stands and the write stays in
 > doubt, never sent again.
 
-## `AnswerRun.execute`, [line 70](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L70): Note
+## `AnswerRun.execute`, [line 79](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L79): Note
 
 Code: `progress.asking = {**asking, **answer}`
 
@@ -37,13 +37,13 @@ Code: `progress.asking = {**asking, **answer}`
 > (Global Constraint 10), and `RunSteps.answered` reads the answer back
 > from the run.
 
-## `WriteVerdict`, [line 15](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L15): Constant
+## `WriteVerdict`, [line 16](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L16): Constant
 
 > The operator's word on a step the run asked about: `done` settles it,
 > `not_done` says the write never happened so the lanes may try it again,
 > and empty says nothing about it.
 
-## `AnswerRun.execute`, [line 52](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L52): Note
+## `AnswerRun.execute`, [line 61](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L61): Note
 
 Code: `if kind == "field" and chosen and chosen not in json.loads(asking.get("choices") or "[]"):`
 
@@ -52,7 +52,7 @@ Code: `if kind == "field" and chosen and chosen not in json.loads(asking.get("ch
 > choice is kept on the question, because it is one the page offered and so no
 > secret; the signal still carries only the question id.
 
-## `AnswerRun.execute`, [line 43](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L43): Comment
+## `AnswerRun.execute`, [line 52](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L52): Comment
 
 Code: `if kind == "recipient" and run.started_by and run.started_by != ctx.principal_id.value:`
 
@@ -61,3 +61,12 @@ Code: `if kind == "recipient" and run.started_by and run.started_by != ctx.princ
 > addresses that read cleanly (`mailboxes`) -- the same parser the draft's own
 > recipients go through. The answer keeps the addresses and who gave them; the
 > first answer wins, as for every question.
+
+## `AnswerRun.execute`, [line 47](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L47): Comment
+
+Code: `drafted = run.executor != "steel" and kind == "recipient"`
+
+> A drafted (non-Steel) mail job asks who its mail goes to from a stopped run --
+> it holds no browser while it waits -- so that one question is answered on a
+> stopped run, and carried out by `resume` (the job redrafted) instead of a
+> Temporal signal, which no workflow would receive.

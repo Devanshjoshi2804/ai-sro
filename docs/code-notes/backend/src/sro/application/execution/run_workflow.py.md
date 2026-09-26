@@ -3046,3 +3046,9 @@ Code: `await forget_effects(uow.workflows, run)`
 > because the step body is not reached when a browser goes away
 > mid-write -- and that run wrote, was never shown to have held, and
 > would have kept its autonomy.
+
+## `_through_the_mailbox`, [line 543](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L543): Note
+
+> Legacy (the extension-driven runtime; QA runs on Steel). A draft refused for
+> who it goes to only stops this step with the reason -- it does not ask the
+> `recipient` question the Steel and draft paths ask. Ruled 2026-09-26.

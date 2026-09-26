@@ -115,4 +115,4 @@ def test_only_an_operator_s_answer_names_a_recipient() -> None:
         if "confirm_recipient(" in (text := path.read_text(encoding="utf-8"))
         and "def confirm_recipient(" not in text
     )
-    assert writers == ["application/runtime/run_steps.py"]
+    assert writers == ["application/execution/mail_job.py"]

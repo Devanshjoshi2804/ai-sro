@@ -23,22 +23,38 @@ import pytest
 
 from sro.application.chat.ask_the_asker import DRAFTED, SendTheDraft
 from sro.application.context import RequestContext
+from sro.application.execution.approvals import Approvals
+from sro.application.execution.gather import GatherContext
 from sro.application.execution.mail_job import (
     Unaddressed,
     Written,
     draft_the_mail_job,
+    redraft_the_mail_job,
     write_the_mail,
 )
+from sro.application.execution.one_time_secrets import OneTimeSecrets
+from sro.application.execution.stops import Stops
+from sro.application.execution.workflow_runs import StartWorkflowRun
 from sro.application.ports.tools import ToolResult
+from sro.application.runtime.answer_run import AnswerRun
 from sro.domain.execution.mail_job import JobRecipient, is_mail_only
+from sro.domain.execution.progress import Progress
 from sro.domain.execution.waiting import as_said, waiting_on
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.observation.gesture import Action, Body, Call, Gesture, Target
+from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow
 from tests import factories as f
-from tests.unit.fakes import FakeAsker, FakeClock, FakeIdFactory, FakeUnitOfWork
+from tests.unit.fakes import (
+    FakeAsker,
+    FakeChannel,
+    FakeClock,
+    FakeDurableExecution,
+    FakeIdFactory,
+    FakeUnitOfWork,
+)
 
 NOW = datetime(2026, 9, 26, tzinfo=UTC)
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=PrincipalId("devansh"))
@@ -499,3 +515,159 @@ async def test_a_demonstrated_bcc_is_pressed_out_as_bcc() -> None:
 
     (sent,) = mailbox.sent
     assert (sent["to"], sent["bcc"]) == ("alex.r@example.com", "boss@wh.example")
+
+
+async def _asked_who(uow: FakeUnitOfWork) -> WorkflowRun:
+    return await draft_the_mail_job(
+        CTX,
+        await _a_run(uow),
+        _reply_job(),
+        {},
+        uow=uow,
+        tools=_Mailbox(),
+        asker=_written("vendor@supplier.example"),
+        clock=FakeClock(),
+        ids=FakeIdFactory(),
+    )
+
+
+def _answering(uow: FakeUnitOfWork, mailbox: _Mailbox, durable: FakeDurableExecution) -> AnswerRun:
+    async def resume(ctx: RequestContext, run_id: str) -> None:
+        run = await uow.workflow_runs.get(ctx.tenant_id, run_id)
+        assert run is not None
+        await redraft_the_mail_job(
+            ctx,
+            run,
+            _reply_job(),
+            {},
+            uow=uow,
+            tools=mailbox,
+            asker=_written("vendor@supplier.example"),
+            clock=FakeClock(),
+            ids=FakeIdFactory(),
+        )
+
+    return AnswerRun(uow, durable, resume=resume)
+
+
+async def _decisions(uow: FakeUnitOfWork) -> list[dict[str, Any]]:
+    threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
+    return [dict(one.decision or {}) for one in threads[0].messages]
+
+
+async def test_a_draft_to_somebody_nobody_named_asks_who_it_goes_to() -> None:
+    uow = FakeUnitOfWork()
+
+    done = await _asked_who(uow)
+
+    asking = Progress.of(done.progress).asking
+    assert (done.outcome, done.steps[-1].verdict, asking["kind"]) == (
+        "stopped",
+        "failed",
+        "recipient",
+    )
+    assert "vendor@supplier.example" in asking["text"]
+    asks = [one for one in await _decisions(uow) if one.get("kind") == "run_asks"]
+    assert [(one["asks"], one["question_id"]) for one in asks] == [("recipient", asking["id"])]
+
+
+async def test_the_operator_s_answer_redrafts_to_the_address_they_named() -> None:
+    uow, mailbox, durable = FakeUnitOfWork(), _Mailbox(), FakeDurableExecution()
+    asked = Progress.of((await _asked_who(uow)).progress).asking["id"]
+
+    await _answering(uow, mailbox, durable).execute(
+        CTX, run_id="run_mail", question_id=asked, value="Vendor <vendor@supplier.example>"
+    )
+
+    (named,) = await uow.workflows.recipients_for(f.TENANT, "wfl_reply")
+    assert (named.address, named.confirmed_by) == ("vendor@supplier.example", "devansh")
+    drafted = [one for one in await _decisions(uow) if one.get("kind") == DRAFTED]
+    assert [one["to"] for one in drafted] == ["vendor@supplier.example"]
+    assert mailbox.sent == [] and durable.answered == []
+    saved = await uow.workflow_runs.get(f.TENANT, "run_mail")
+    assert saved is not None and Progress.of(saved.progress).asking == {}
+
+
+async def test_two_presses_of_one_answer_draft_once_and_a_different_one_is_refused() -> None:
+    uow, mailbox, durable = FakeUnitOfWork(), _Mailbox(), FakeDurableExecution()
+    asked = Progress.of((await _asked_who(uow)).progress).asking["id"]
+    answer = _answering(uow, mailbox, durable)
+
+    await answer.execute(CTX, run_id="run_mail", question_id=asked, value="vendor@supplier.example")
+    for value in ("vendor@supplier.example", "eve@evil.example"):
+        with pytest.raises(Conflict):
+            await answer.execute(CTX, run_id="run_mail", question_id=asked, value=value)
+
+    drafted = [one for one in await _decisions(uow) if one.get("kind") == DRAFTED]
+    assert len(drafted) == 1
+
+
+async def test_an_answer_carried_out_twice_drafts_once() -> None:
+    """A second resume of one answer -- a retry, a crash before it returned --
+    finds the question already taken and drafts nothing more."""
+    uow, mailbox = FakeUnitOfWork(), _Mailbox()
+    run = await _asked_who(uow)
+    asking = Progress.of(run.progress).asking
+    answered = {
+        **run.progress,
+        "asking": {
+            **asking,
+            "answered": "yes",
+            "verdict": "",
+            "address": "vendor@supplier.example",
+            "by": "devansh",
+        },
+    }
+    assert await uow.workflow_runs.record_progress(f.TENANT, run.id, answered)
+
+    for _ in range(2):
+        again = await uow.workflow_runs.get(f.TENANT, run.id)
+        assert again is not None
+        await redraft_the_mail_job(
+            CTX,
+            again,
+            _reply_job(),
+            {},
+            uow=uow,
+            tools=mailbox,
+            asker=_written("vendor@supplier.example"),
+            clock=FakeClock(),
+            ids=FakeIdFactory(),
+        )
+
+    assert len([one for one in await _decisions(uow) if one.get("kind") == DRAFTED]) == 1
+
+
+async def test_the_answer_s_resume_redrafts_the_run_s_own_mail_job() -> None:
+    """What `AnswerRun` is handed for a drafted run: the job and its evidence
+    are the run's own, loaded again, and only an answered question redrafts."""
+    uow, mailbox = FakeUnitOfWork(), _Mailbox()
+    await uow.workflows.save(_reply_job())
+    await uow.gestures.add_gestures((_gesture("g-open", GMAIL), _gesture("g-send", GMAIL)))
+    run = await _asked_who(uow)
+    starter = StartWorkflowRun(
+        uow,
+        channel=FakeChannel(),
+        asker=_written("vendor@supplier.example"),
+        plan_model="plan",
+        rescue_model="rescue",
+        clock=FakeClock(),
+        cap_usd=1.0,
+        stops=Stops(),
+        approvals=Approvals(),
+        one_time_secrets=OneTimeSecrets(),
+        gather=GatherContext(tools=mailbox, asker=_written("vendor@supplier.example")),
+        ids=FakeIdFactory(),
+    )
+    await starter.answered(CTX, run.id)
+    assert [one for one in await _decisions(uow) if one.get("kind") == DRAFTED] == []
+
+    await AnswerRun(uow, FakeDurableExecution(), resume=starter.answered).execute(
+        CTX,
+        run_id=run.id,
+        question_id=Progress.of(run.progress).asking["id"],
+        value="vendor@supplier.example",
+    )
+
+    drafted = [one for one in await _decisions(uow) if one.get("kind") == DRAFTED]
+    assert [one["to"] for one in drafted] == ["vendor@supplier.example"]

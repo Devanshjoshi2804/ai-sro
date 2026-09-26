@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Awaitable, Callable
 from typing import Literal
 
 from sro.application.context import RequestContext
@@ -16,9 +17,16 @@ WriteVerdict = Literal["", "done", "not_done"]
 
 
 class AnswerRun:
-    def __init__(self, uow: UnitOfWork, durable: DurableExecution) -> None:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        durable: DurableExecution,
+        *,
+        resume: Callable[[RequestContext, str], Awaitable[None]] | None = None,
+    ) -> None:
         self._uow = uow
         self._durable = durable
+        self._resume = resume
 
     async def execute(
         self,
@@ -33,13 +41,14 @@ class AnswerRun:
             run = await uow.workflow_runs.get(ctx.tenant_id, run_id)
         if run is None:
             raise NotFound("no such run")
-        if run.outcome != "running":
-            raise Conflict("that run is no longer running")
         progress = Progress.of(run.progress)
         asking = progress.asking
+        kind = asking.get("kind")
+        drafted = run.executor != "steel" and kind == "recipient"
+        if run.outcome != ("stopped" if drafted else "running"):
+            raise Conflict("that run is no longer running")
         if not asking or asking.get("id") != question_id:
             raise Conflict("that is not the question this run is waiting on")
-        kind = asking.get("kind")
         if kind == "recipient" and run.started_by and run.started_by != ctx.principal_id.value:
             raise Conflict("only the operator who started this run says who its mail goes to")
         if value and kind not in ("value", "field", "recipient"):
@@ -76,4 +85,7 @@ class AnswerRun:
                     await uow.commit()
             if not kept:
                 raise Conflict("that question was answered, or the run moved on, meanwhile")
+        if drafted and self._resume is not None:
+            await self._resume(ctx, run_id)
+            return
         await self._durable.answer_run(run_id, question_id)

@@ -118,7 +118,7 @@ Code: `K_SENT_IDS = 10`
 > rather than half-read by a pattern. An internationalised address is refused
 > too; the operator is asked instead.
 
-## `participants`, [line 101](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L101): Docstring
+## `participants`, [line 119](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L119): Docstring
 
 > Who the conversation lets a draft go to: the sender of every message, and the
 > To and Cc of every message the operator's own mailbox sent (`sent`, Gmail's
@@ -128,7 +128,7 @@ Code: `K_SENT_IDS = 10`
 > invariant 7): a reply-all to somebody only a sender cc'd asks first. Headers,
 > never bodies.
 
-## `sent_messages`, [line 111](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L111): Docstring
+## `sent_messages`, [line 129](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L129): Docstring
 
 > For each Send the job's evidence pressed, the Gmail ids of the messages its
 > own send call (`POST mail.google.com/sync/u/N/i/s`, answered 2xx) names --
@@ -142,7 +142,7 @@ Code: `K_SENT_IDS = 10`
 > measured one. When it is not there, the job's demonstration grants nobody and
 > the operator is asked -- it fails closed.
 
-## `check_draft`, [line 143](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L143): Docstring
+## `check_draft`, [line 161](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L161): Docstring
 
 > Whether a draft may go, and to whom (`Checked`).
 >
@@ -158,3 +158,16 @@ Code: `K_SENT_IDS = 10`
 >
 > Accepted (M5): an address the mail's text names can be put in the body when
 > cited to that mail ("please reply to eve@..."). It is never a recipient.
+
+## `one_address_in`, [line 104](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L104): Docstring
+
+> The one address an operator's reply names in its own text, or `""`. Its own
+> text is every line before the first that starts a quote: `>`, `On ` (the
+> "On …, X <x@y> wrote:" line, which mail clients wrap), `--` (a forward or a
+> signature) or `From: `. Each word with an `@`, stripped of the punctuation
+> around it, must read as one address (`mailboxes`, i.e. getaddresses); exactly
+> one distinct address answers, so "please send to x@y." counts, and two
+> addresses, an unreadable one, or none leave the question open.
+>
+> Ceiling: an operator whose own sentence starts with `On ` ("On second
+> thought, x@y") is cut there, and asked again -- it fails closed.

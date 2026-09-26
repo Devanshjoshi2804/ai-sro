@@ -98,6 +98,24 @@ def mailboxes(text: str) -> tuple[str, ...] | None:
     return tuple(dict.fromkeys(address.casefold() for _, address in found))
 
 
+_QUOTED = re.compile(r"(>|On\s|-{2,}|From:\s)")
+
+
+def one_address_in(reply: str) -> str:
+    own = []
+    for line in reply.splitlines():
+        if _QUOTED.match(line.strip()):
+            break
+        own.append(line)
+    named = {
+        mailboxes(word.strip("<>()[]{},.;:!?'\"")) for word in " ".join(own).split() if "@" in word
+    }
+    if len(named) != 1:
+        return ""
+    (only,) = named
+    return only[0] if only and len(only) == 1 else ""
+
+
 def participants(conversation: Sequence[Mapping[str, object]]) -> frozenset[str]:
     headers = [str(one.get("from") or "") for one in conversation] + [
         str(one.get(key) or "")

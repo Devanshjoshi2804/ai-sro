@@ -321,7 +321,6 @@ class StartWorkflowRun:
                     uow=self._uow,
                     tools=self._gather.tools,
                     asker=asker,
-                    model=self._plan_model,
                     clock=self._clock,
                     ids=self._ids,
                 )
@@ -457,9 +456,7 @@ class StartWorkflowRun:
         async def write(
             workflow: Workflow, values: Mapping[str, str], thread: str
         ) -> Written | str:
-            return await write_the_mail(
-                ctx, workflow, values, thread, tools=tools, asker=asker, model=self._plan_model
-            )
+            return await write_the_mail(ctx, workflow, values, thread, tools=tools, asker=asker)
 
         async def send(mail: Written) -> tuple[str, str]:
             return await send_the_mail(ctx, self._uow, tools, mail, clock=self._clock)

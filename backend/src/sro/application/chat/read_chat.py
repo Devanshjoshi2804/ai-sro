@@ -19,13 +19,11 @@ class ReadChat:
         uow: UnitOfWork,
         *,
         asker: Asker | None,
-        model: str,
         clock: Clock,
         cap_usd: float,
     ) -> None:
         self._uow = uow
         self._asker = asker
-        self._model = model
         self._clock = clock
         self._cap_usd = cap_usd
 
@@ -41,6 +39,5 @@ class ReadChat:
                 tenant_id=ctx.tenant_id,
                 utterance=utterance,
                 asker=asker,
-                model=self._model,
                 now=now,
             )

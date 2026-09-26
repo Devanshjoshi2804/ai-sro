@@ -272,8 +272,8 @@ async def test_a_look_in_the_mail_and_its_gather_are_billed() -> None:
     not carry with it too; both used to return their spend and drop it."""
     from sro.application.chat.from_the_mail import FromTheMail
     from sro.application.context import RequestContext
-    from sro.application.execution.gather import INSTRUCTIONS as GATHERING
     from sro.application.execution.gather import GatherContext
+    from sro.domain.prompts.gather import GATHER
     from sro.domain.shared.identifiers import PrincipalId
     from tests.unit.application.rig.test_from_the_mail import (
         JOB,
@@ -294,7 +294,7 @@ async def test_a_look_in_the_mail_and_its_gather_are_billed() -> None:
         async def generate_content(self, **kw: Any) -> Any:
             contents = kw["contents"]
             self.called += 1
-            self.gathered += GATHERING in contents
+            self.gathered += GATHER.instructions in contents
             text = self._said.pop(0) if self._said else "{}"
             return SimpleNamespace(text=text, usage_metadata=_usage(), candidates=[])
 
@@ -308,9 +308,8 @@ async def test_a_look_in_the_mail_and_its_gather_are_billed() -> None:
         uow,
         mailbox,
         asker,
-        model=MODEL,
         answer=AnswerRun(uow, FakeDurableExecution()),
-        gather=GatherContext(tools=mailbox, asker=asker, model=MODEL),
+        gather=GatherContext(tools=mailbox, asker=asker),
         clock=FakeClock(NOW),
         ids=FakeIdFactory(),
     )

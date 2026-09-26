@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from urllib.parse import urlsplit
 
 from sro.domain.chat.asked_by import K_MAILBOXES
@@ -12,7 +12,7 @@ from sro.domain.observation.identity import shape_key, target_identity
 from sro.domain.shared.hosts import page_of, system_of
 from sro.domain.skill.learned import control_names
 from sro.domain.skill.offers import K_OFFER_AFTER, Counsel
-from sro.domain.skill.workflow import Step, Workflow, ordered_cites
+from sro.domain.skill.workflow import Step, Workflow, field_key, ordered_cites
 
 
 @dataclass(frozen=True, slots=True)
@@ -148,6 +148,34 @@ def where_steps_moved(
         if same:
             moved[step.order] = same.pop(0)
     return moved
+
+
+def keeping_fields(
+    was: Workflow, now: Sequence[Step], by_id: Mapping[str, Gesture]
+) -> tuple[list[Step], dict[int, int]]:
+    fields = [one for one in was.steps if field_key(was, one)]
+    moved = where_steps_moved([one for one in was.steps if one not in fields], now, by_id)
+    before: dict[int, list[Step]] = {}
+    waiting: list[Step] = []
+    for one in sorted(was.steps, key=lambda step: step.order):
+        if one in fields:
+            waiting.append(one)
+        elif one.order in moved and waiting:
+            before.setdefault(moved[one.order], []).extend(waiting)
+            waiting = []
+    placed: list[tuple[Step, bool]] = []
+    for one in sorted(now, key=lambda step: step.order):
+        placed += [(field, True) for field in before.get(one.order, [])]
+        placed.append((one, False))
+    renumber = {one.order: n for n, (one, kept) in enumerate(placed) if not kept}
+    steps = [
+        replace(one, order=n)
+        if kept
+        else replace(one, order=n, uses=[renumber.get(use, use) for use in one.uses])
+        for n, (one, kept) in enumerate(placed)
+    ]
+    kept_at = {one.order: n for n, (one, kept) in enumerate(placed) if kept}
+    return steps, {**{old: renumber[new] for old, new in moved.items()}, **kept_at}
 
 
 def _did(step: Step, by_id: Mapping[str, Gesture]) -> tuple[tuple[str, ...], ...]:

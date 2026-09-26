@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import replace
+from typing import cast
 
 from sro.domain.observation.gesture import Gesture, Intent, ValueSeen
 from sro.domain.observation.redaction import is_secret_name
@@ -11,52 +12,7 @@ from sro.domain.shared.prices import Answer
 
 TAIL = 8
 
-INSTRUCTIONS = """You are reading one thing a warehouse operator just did in a browser.
-
-You are given the gesture, the control it touched, the network calls it caused,
-and a few lines of what the same person did just before.
-
-First say why: point at the one piece of evidence (the control's label, its
-component metadata, the request body, the picture) that tells you what
-happened. Only then name the act, in the words an operator would use, and the
-object they were working on. List the values you can see them entering.
-
-If the evidence is thin -- an icon with no label, no field, nothing typed --
-say so in why and mark confidence low, rather than guessing at a specific act.
-
-Do not guess at a value you cannot see. Do not describe the HTML."""
-
-_CONFIDENCE = ["high", "medium", "low"]
-
-INTENT_SCHEMA: dict[str, object] = {
-    "type": "object",
-    "properties": {
-        "why": {"type": "string", "description": "one sentence, naming the evidence"},
-        "act": {"type": "string", "description": "what the person did, in their words"},
-        "object": {"type": "string", "description": "the thing they were working on"},
-        "page": {"type": "string"},
-        "values_seen": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {"field": {"type": "string"}, "value": {"type": "string"}},
-                "required": ["field", "value"],
-            },
-        },
-        "confidence": {"type": "string", "enum": _CONFIDENCE},
-    },
-    "propertyOrdering": [
-        "why",
-        "act",
-        "object",
-        "page",
-        "values_seen",
-        "confidence",
-    ],
-    "required": ["act", "why"],
-}
-
-CONFIDENCE_VALUES = frozenset(_CONFIDENCE)
+CONFIDENCE = ["high", "medium", "low"]
 
 
 def one_line(intent: Intent) -> str:
@@ -92,32 +48,22 @@ def intent_from(
     intent.object = _string_field(data, "object")
     intent.page = _string_field(data, "page")
     intent.continues = _string_field(data, "continues") or None
-    confidence = _string_field(data, "confidence")
-    intent.confidence = confidence if confidence in CONFIDENCE_VALUES else None
+    intent.confidence = _string_field(data, "confidence")
     intent.why = _string_field(data, "why")
     intent.values_seen = _values_seen(data, hide=is_secret(gesture))
     return intent
 
 
 def _values_seen(data: dict[str, object], *, hide: bool) -> list[ValueSeen]:
-    seen_list = data.get("values_seen")
-    found: list[ValueSeen] = []
-    for seen in seen_list if isinstance(seen_list, list) else []:
-        if not isinstance(seen, dict):
-            continue
-        field = seen.get("field")
-        if not isinstance(field, str) or not field:
-            continue
-        value = seen.get("value")
-        found.append(
-            ValueSeen(
-                field=field,
-                value=""
-                if hide or is_secret_name(field)
-                else (value if isinstance(value, str) else ""),
-            )
+    seen = cast(list[dict[str, str]], data.get("values_seen", []))
+    return [
+        ValueSeen(
+            field=one["field"],
+            value="" if hide or is_secret_name(one["field"]) else one["value"],
         )
-    return found
+        for one in seen
+        if one["field"]
+    ]
 
 
 _WRITE_METHODS = frozenset({"POST", "PUT", "PATCH"})

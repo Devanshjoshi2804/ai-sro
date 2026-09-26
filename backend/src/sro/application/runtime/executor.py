@@ -52,7 +52,9 @@ class StepExecutor:
         if only_reads_the_mail(step, ctx.by_id):
             return (StepResult("read", Lane.TOOL, "the mail this run came from is already read"),)
         tool = sends_mail(step, ctx.by_id)
-        api = not tool and replay_of(step, values, ctx) is not None
+        api = (
+            not tool and not ctx.adding.get(step.order) and replay_of(step, values, ctx) is not None
+        )
         primary = None if tool else primary_gesture(step, ctx.by_id)
         page = None if primary is None else primary.page_url or primary.url
         tried: list[StepResult] = []

@@ -2790,6 +2790,15 @@ class FakeWorkflowRepository:
             for (one, ord_), mark in self.stale.items()
             if one != workflow.id or ord_ in moved
         }
+        self.broken = {
+            (
+                (tenant, one, moved[ord_], lane, fingerprint)
+                if one == workflow.id
+                else (tenant, one, ord_, lane, fingerprint)
+            ): cites
+            for (tenant, one, ord_, lane, fingerprint), cites in self.broken.items()
+            if one != workflow.id or ord_ in moved
+        }
         history = self.taught.get(workflow.id)
         if history is not None:
             self.taught[workflow.id] = [

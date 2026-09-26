@@ -178,13 +178,9 @@ class Settings(BaseSettings):
 
     gemini_interpreter_model: str = "gemini-3.1-pro-preview"
 
-    gemini_mine_model: str = "gemini-3.8-flash"
-
     gemini_plan_model: str = "gemini-3.8-flash"
 
     gemini_rescue_model: str = "gemini-3.1-pro-preview"
-
-    gemini_read_model: str = "gemini-3.8-flash"
 
     interpretation_enabled: bool = False
 

@@ -7,6 +7,7 @@ from sro.application.ports.browser import BrowserUnavailable
 from sro.application.ports.locks import AccountBusy
 from sro.application.runtime.executor import StepExecutor
 from sro.application.runtime.step import NeedsAPerson, Stopped
+from sro.domain.execution.compose import Adding
 from sro.domain.execution.lanes import Broken, Lane, StepResult
 from sro.domain.observation.gesture import Target
 from sro.domain.skill.workflow import Step
@@ -38,6 +39,18 @@ async def test_the_first_trusted_lane_goes_first_and_the_first_success_ends_it()
 
     assert [one.lane for one in tried] == [Lane.API, Lane.UI]
     assert sight.calls == 0
+
+
+async def test_a_write_that_carries_a_new_field_is_never_offered_the_api_lane() -> None:
+    ui = RecordingLane(Lane.UI, StepResult("done", Lane.UI))
+    step, by_id, ledger = proven_write_step(read_back="/api/x/GT2")
+    adding = {step.order: Adding(fresh={"department": "Finance"})}
+
+    tried = await StepExecutor(no_tool(), no_api(), ui, never(), FakeBroker()).run(
+        step, VALUES, lane_context(by_id, ledger=ledger, adding=adding), broken=(), start_url=APP
+    )
+
+    assert [one.lane for one in tried] == [Lane.UI]
 
 
 async def test_an_expired_session_is_signed_back_in_and_the_lane_retried_once() -> None:

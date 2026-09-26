@@ -35,16 +35,16 @@ from sro.domain.observation.gesture import (
     Intent,
     Target,
 )
-from sro.domain.observation.reading import INSTRUCTIONS, INTENT_SCHEMA, TAIL
+from sro.domain.observation.reading import TAIL
 from sro.domain.observation.redaction import is_secret_name
 from sro.domain.observation.trim import is_secret
+from sro.domain.prompts.read_gesture import READ_GESTURE
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.shared.identifiers import BatchId, DeviceId, PrincipalId, TenantId
 from sro.domain.shared.prices import Answer, ModelSpend
 from tests.unit.domain.rig.conftest import gestures as _gestures
 from tests.unit.fakes import FakeAsker, FakeBlobStore, FakeClock, FakeUnitOfWork
 
-MODEL = "gemini-3.8-flash"
 TENANT = TenantId("acme")
 OTHER = TenantId("other-corp")
 NOW = datetime(2026, 9, 7, 12, 0, tzinfo=UTC)
@@ -69,7 +69,7 @@ async def test_a_gesture_becomes_an_intent() -> None:
     gesture = _gestures()[0]
     asker = FakeAsker(_answer())
 
-    intent = await read_gesture(gesture, tail=[], asker=asker, model=MODEL)
+    intent = await read_gesture(gesture, tail=[], asker=asker)
 
     assert intent.gesture_id == gesture.id
     assert intent.act == "typed a client code"
@@ -80,19 +80,19 @@ async def test_a_gesture_becomes_an_intent() -> None:
 async def test_the_cost_of_the_call_lands_on_the_intent() -> None:
     asker = FakeAsker(_answer())
 
-    intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+    intent = await read_gesture(_gestures()[0], tail=[], asker=asker)
 
     assert intent.in_tokens == 400
     assert intent.out_tokens == 60
     assert intent.cost_usd > 0
-    assert intent.model == MODEL
+    assert intent.model == READ_GESTURE.model
 
 
 async def test_a_refusal_leaves_an_intent_that_says_so() -> None:
     """A failed reading must not lose the gesture; the window still gets it."""
     asker = FakeAsker(Answer(error="503 from the model"))
 
-    intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+    intent = await read_gesture(_gestures()[0], tail=[], asker=asker)
 
     assert intent.act is None
     assert intent.error == "503 from the model"
@@ -110,7 +110,7 @@ async def test_every_intent_it_is_handed_is_carried_as_context() -> None:
     tail = [Intent(gesture_id=f"ges_{n}", tenant="new", act=f"did {n}") for n in range(3)]
     asker = FakeAsker(_answer())
 
-    await read_gesture(_gestures()[0], tail=tail, asker=asker, model=MODEL)
+    await read_gesture(_gestures()[0], tail=tail, asker=asker)
 
     sent = asker.asked[0]["evidence"]
     assert isinstance(sent, str)
@@ -121,7 +121,7 @@ async def test_a_thin_target_is_asked_about_with_a_picture() -> None:
     thin_one = next(g for g in _gestures() if g.action.secret)  # no name, no label
     asker = FakeAsker(_answer(), _answer())
 
-    await read_gesture(thin_one, tail=[], asker=asker, model=MODEL, image=b"PNG")
+    await read_gesture(thin_one, tail=[], asker=asker, image=b"PNG")
 
     assert asker.asked[0]["image"] == b"PNG"
 
@@ -130,7 +130,7 @@ async def test_a_named_target_is_asked_about_without_one() -> None:
     named = next(g for g in _gestures() if g.action.kind == "select")
     asker = FakeAsker(_answer())
 
-    await read_gesture(named, tail=[], asker=asker, model=MODEL, image=b"PNG")
+    await read_gesture(named, tail=[], asker=asker, image=b"PNG")
 
     assert asker.asked[0]["image"] is None
 
@@ -150,7 +150,7 @@ async def test_no_credential_value_reaches_the_prompt() -> None:
     ordinary.action = replace(ordinary.action, target=replace(target, secret=True))
     asker = FakeAsker(_answer())
 
-    await read_gesture(ordinary, tail=[], asker=asker, model=MODEL)
+    await read_gesture(ordinary, tail=[], asker=asker)
 
     sent = asker.asked[0]["evidence"]
     assert isinstance(sent, str)
@@ -158,41 +158,42 @@ async def test_no_credential_value_reaches_the_prompt() -> None:
     assert '"value": null' in sent
 
 
-async def test_a_stray_type_in_values_seen_does_not_crash_the_reading() -> None:
-    """The schema is advisory. A model returning values_seen as anything but a
-    list must not take the gesture down with it.
+async def test_a_stray_type_in_values_seen_is_no_reading() -> None:
+    """A model returning values_seen as anything but a list must not take the
+    gesture down with it, and must not be half-believed either: an answer that
+    breaks its schema is no answer, and the reading says why.
 
-    A string here proved nothing: iterating it yields characters, and the
-    per-entry dict guard downstream drops every one of them -- so the outer
-    `isinstance(seen_list, list)` could be deleted with this green. One
-    container checked and its sibling walked past. The values that
-    discriminate are the ones that are not iterable at all, and the mapping
-    that iterates as its own keys.
+    The values that discriminate are the ones that are not iterable at all,
+    and the mapping that iterates as its own keys.
     """
     for stray in (7, None, True, {"clientCode": "ACME-4471"}, "none that I can see"):
         asker = FakeAsker(_answer(values_seen=stray))
 
-        intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+        intent = await read_gesture(_gestures()[0], tail=[], asker=asker)
 
         assert intent.values_seen == [], stray
-        assert intent.error is None, stray
+        assert intent.act is None, stray
+        assert intent.error is not None and "read_gesture v1" in intent.error, stray
 
 
 async def test_a_wrong_typed_field_does_not_poison_a_later_gestures_reading() -> None:
     """A list where act should be a string used to reach one_line() unguarded,
-    and crash on the NEXT gesture that pulled this intent into its tail."""
+    and crash on the NEXT gesture that pulled this intent into its tail. It
+    breaks the schema, so `ask` makes it no reading at all."""
     asker = FakeAsker(_answer(act=["typed", "something"]))
 
-    intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+    intent = await read_gesture(_gestures()[0], tail=[], asker=asker)
     assert intent.act is None  # unusable, not fabricated
+    assert intent.error is not None and "read_gesture v1" in intent.error
 
     downstream = FakeAsker(_answer())
-    await read_gesture(_gestures()[1], tail=[intent], asker=downstream, model=MODEL)
+    await read_gesture(_gestures()[1], tail=[intent], asker=downstream)
 
 
-async def test_a_wrong_typed_values_seen_entry_is_dropped_not_coerced() -> None:
-    """A non-str field is unusable (dropped, not str()'d into a fake one); a
-    non-str value is treated as unseen ("") rather than fabricated."""
+async def test_a_wrong_typed_values_seen_entry_is_no_reading() -> None:
+    """A non-str field or value is not str()'d into a fake one, and the
+    entries beside it are not kept either: one entry breaking the schema makes
+    the whole answer no answer."""
     asker = FakeAsker(
         _answer(
             values_seen=[
@@ -203,28 +204,29 @@ async def test_a_wrong_typed_values_seen_entry_is_dropped_not_coerced() -> None:
         )
     )
 
-    intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+    intent = await read_gesture(_gestures()[0], tail=[], asker=asker)
 
-    assert [seen.field for seen in intent.values_seen] == ["qty", "clientCode"]
-    assert intent.values_seen[0].value == ""
-    assert intent.values_seen[1].value == "ACME-4471"
+    assert intent.values_seen == []
+    assert intent.error is not None and "read_gesture v1" in intent.error
 
 
 async def test_an_undeclared_confidence_value_is_unusable() -> None:
-    """confidence is declared enum ["high","medium","low"] but nothing checked
-    it; a model returning "very high" must not store it verbatim."""
+    """confidence is declared enum ["high","medium","low"]; a model returning
+    "very high" breaks the schema, so the reading is no reading and nothing is
+    stored verbatim."""
     asker = FakeAsker(_answer(confidence="very high"))
 
-    intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+    intent = await read_gesture(_gestures()[0], tail=[], asker=asker)
 
     assert intent.confidence is None
+    assert intent.error is not None and "read_gesture v1" in intent.error
 
 
 async def test_a_reading_it_could_not_price_says_so() -> None:
     """Deleting the unpriced hop in read_gesture left the whole suite green."""
     asker = FakeAsker(Answer(data={"act": "did a thing", "why": "because"}, unpriced=True))
 
-    intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+    intent = await read_gesture(_gestures()[0], tail=[], asker=asker)
 
     assert intent.unpriced is True
 
@@ -244,7 +246,7 @@ async def test_a_credential_the_model_echoed_back_is_never_stored() -> None:
     assert not is_secret_name("Employee Code")  # nothing else can blank this
     asker = FakeAsker(_answer(values_seen=[{"field": "Employee Code", "value": "hunter2"}]))
 
-    intent = await read_gesture(gesture, tail=[], asker=asker, model=MODEL)
+    intent = await read_gesture(gesture, tail=[], asker=asker)
 
     assert [seen.value for seen in intent.values_seen] == [""]
     assert [seen.field for seen in intent.values_seen] == ["Employee Code"]
@@ -257,14 +259,14 @@ async def test_a_credential_named_by_the_model_is_dropped_on_a_public_gesture() 
     assert not is_secret(gesture)
     asker = FakeAsker(_answer(values_seen=[{"field": "password", "value": "hunter2"}]))
 
-    intent = await read_gesture(gesture, asker=asker, model=MODEL, tail=[])
+    intent = await read_gesture(gesture, asker=asker, tail=[])
 
     assert [seen.value for seen in intent.values_seen] == [""]
     assert [seen.field for seen in intent.values_seen] == ["password"]
 
 
 async def test_the_model_is_told_what_to_do_and_given_a_response_schema() -> None:
-    """`INSTRUCTIONS = ""` and `INTENT_SCHEMA = {}` both left the suite green.
+    """An empty prompt and an empty schema both left the suite green.
 
     Nothing asserted that the prompt or the schema ever reach the API. For a
     system whose measured claim is that citation-forcing cut hallucinated steps
@@ -274,7 +276,7 @@ async def test_the_model_is_told_what_to_do_and_given_a_response_schema() -> Non
     """
     asker = FakeAsker(_answer())
 
-    await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+    await read_gesture(_gestures()[0], tail=[], asker=asker)
 
     asked = asker.asked[0]
     instructions = asked["instructions"]
@@ -282,11 +284,11 @@ async def test_the_model_is_told_what_to_do_and_given_a_response_schema() -> Non
     schema = asked["schema"]
     assert isinstance(schema, dict)
 
-    assert instructions == INSTRUCTIONS
+    assert instructions == READ_GESTURE.instructions
     assert "Do not guess at a value you cannot see" in instructions
     assert "Do not describe the HTML" in instructions
 
-    assert schema == INTENT_SCHEMA
+    assert schema == dict(READ_GESTURE.output_schema)
     assert set(schema["required"]) == {"act", "why"}
     assert set(schema["properties"]) >= {
         "act",
@@ -303,7 +305,7 @@ async def test_an_empty_continues_is_not_a_continuation() -> None:
     stored as no link rather than as an empty one."""
     asker = FakeAsker(_answer(continues=""))
 
-    intent = await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+    intent = await read_gesture(_gestures()[0], tail=[], asker=asker)
 
     assert intent.continues is None
 
@@ -315,7 +317,7 @@ async def test_one_gesture_is_one_call() -> None:
     picture -- would double the most-billed path in the system."""
     asker = FakeAsker(_answer(), _answer())
 
-    await read_gesture(_gestures()[0], tail=[], asker=asker, model=MODEL)
+    await read_gesture(_gestures()[0], tail=[], asker=asker)
 
     assert len(asker.asked) == 1
 
@@ -341,7 +343,7 @@ async def test_the_redaction_marker_reaches_the_prompt_as_itself() -> None:
     ]
     asker = FakeAsker(_answer())
 
-    await read_gesture(gesture, tail=[], asker=asker, model=MODEL)
+    await read_gesture(gesture, tail=[], asker=asker)
 
     sent = asker.asked[0]["evidence"]
     assert isinstance(sent, str)
@@ -370,9 +372,7 @@ async def test_every_unread_gesture_of_this_tenant_gets_one_reading() -> None:
     uow, day = await _stored(TENANT)
     asker = FakeAsker(*_answers(len(day)))
 
-    written = await read_new_gestures(
-        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP
-    )
+    written = await read_new_gestures(uow, tenant_id=TENANT, asker=asker, now=NOW, cap_usd=NO_CAP)
 
     assert written == len(day)
     assert len(asker.asked) == len(day)
@@ -397,9 +397,7 @@ async def test_what_this_browser_did_while_driving_a_run_is_not_read_at_all() ->
     await _driving(uow, day)
     asker = FakeAsker(*_answers(len(day)))
 
-    written = await read_new_gestures(
-        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP
-    )
+    written = await read_new_gestures(uow, tenant_id=TENANT, asker=asker, now=NOW, cap_usd=NO_CAP)
 
     assert written == 0
     assert asker.asked == [], "a replay was read on the tenant's bill"
@@ -416,9 +414,7 @@ async def test_the_same_browser_working_before_the_run_is_read_as_usual() -> Non
     await _driving(uow, day, from_after_them=True)
     asker = FakeAsker(*_answers(len(day)))
 
-    written = await read_new_gestures(
-        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP
-    )
+    written = await read_new_gestures(uow, tenant_id=TENANT, asker=asker, now=NOW, cap_usd=NO_CAP)
 
     assert written == len(day)
     assert len(asker.asked) == len(day)
@@ -486,9 +482,7 @@ async def test_a_second_tenants_gestures_are_not_read_on_this_ones_bill() -> Non
     await uow.gestures.add_gestures(tuple(other))
     asker = FakeAsker(*_answers(len(day)))
 
-    written = await read_new_gestures(
-        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP
-    )
+    written = await read_new_gestures(uow, tenant_id=TENANT, asker=asker, now=NOW, cap_usd=NO_CAP)
 
     assert written == len(day)
     assert len(asker.asked) == len(day)
@@ -510,16 +504,12 @@ async def test_a_reading_that_came_back_broken_is_never_asked_again() -> None:
     broken = [Answer(error="503 from the model"), _answer(act=["typed", "something"])]
     asker = FakeAsker(*broken, *_answers(len(day) - 2))
 
-    await read_new_gestures(
-        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP
-    )
+    await read_new_gestures(uow, tenant_id=TENANT, asker=asker, now=NOW, cap_usd=NO_CAP)
     stored = await uow.gestures.intents_for(TENANT)
     assert [intent for intent in stored if intent.error or intent.act is None]
 
     again = FakeAsker(*_answers(len(day)))
-    written = await read_new_gestures(
-        uow, tenant_id=TENANT, asker=again, model=MODEL, now=NOW, cap_usd=NO_CAP
-    )
+    written = await read_new_gestures(uow, tenant_id=TENANT, asker=again, now=NOW, cap_usd=NO_CAP)
 
     assert written == 0
     assert again.asked == []
@@ -533,9 +523,7 @@ async def test_the_cap_stops_the_reading_before_it_asks_anything() -> None:
     uow, day = await _stored(TENANT)
     asker = FakeAsker(*_answers(len(day)))
 
-    written = await read_new_gestures(
-        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=0.0
-    )
+    written = await read_new_gestures(uow, tenant_id=TENANT, asker=asker, now=NOW, cap_usd=0.0)
 
     assert written == 0
     assert asker.asked == []
@@ -552,8 +540,8 @@ async def test_two_loops_over_one_tenant_do_not_bill_the_same_gesture_twice() ->
     asker = FakeAsker(*_answers(len(day) * 2))
 
     await asyncio.gather(
-        read_new_gestures(uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP),
-        read_new_gestures(uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP),
+        read_new_gestures(uow, tenant_id=TENANT, asker=asker, now=NOW, cap_usd=NO_CAP),
+        read_new_gestures(uow, tenant_id=TENANT, asker=asker, now=NOW, cap_usd=NO_CAP),
     )
 
     assert len(asker.asked) == len(day)
@@ -588,12 +576,11 @@ async def test_two_tenants_read_at_the_same_time_rather_than_in_turn() -> None:
             uow,
             tenant_id=TENANT,
             asker=Recording(TENANT.value),
-            model=MODEL,
             now=NOW,
             cap_usd=NO_CAP,
         ),
         read_new_gestures(
-            uow, tenant_id=OTHER, asker=Recording(OTHER.value), model=MODEL, now=NOW, cap_usd=NO_CAP
+            uow, tenant_id=OTHER, asker=Recording(OTHER.value), now=NOW, cap_usd=NO_CAP
         ),
     )
 
@@ -608,9 +595,7 @@ async def test_each_reading_is_committed_before_the_next_one_is_asked() -> None:
     uow, day = await _stored(TENANT)
     asker = FakeAsker(*_answers(len(day)))
 
-    await read_new_gestures(
-        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP
-    )
+    await read_new_gestures(uow, tenant_id=TENANT, asker=asker, now=NOW, cap_usd=NO_CAP)
 
     assert uow.commits == len(day)
 
@@ -634,9 +619,7 @@ async def test_a_gesture_is_read_against_what_its_streams_last_readings_said() -
         *_answers(len(day)),
     )
 
-    await read_new_gestures(
-        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP
-    )
+    await read_new_gestures(uow, tenant_id=TENANT, asker=asker, now=NOW, cap_usd=NO_CAP)
 
     read = [_evidence(asker, nth) for nth in range(len(asker.asked))]
     # The other tab is read first -- it is the oldest -- and belongs in nobody
@@ -683,9 +666,7 @@ async def test_only_the_last_eight_readings_of_a_stream_are_carried() -> None:
     uow, day = await _one_stream(TENANT, 12)
     asker = FakeAsker(*[_answer(act=f"did {n}") for n in range(len(day))])
 
-    await read_new_gestures(
-        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP
-    )
+    await read_new_gestures(uow, tenant_id=TENANT, asker=asker, now=NOW, cap_usd=NO_CAP)
 
     last = _evidence(asker, len(day) - 1)
     assert "did 10" in last
@@ -706,7 +687,7 @@ async def test_with_no_tail_the_same_evidence_is_read_once_and_billed_once() -> 
     asker = FakeAsker(_answer(act="opened the client form"))
 
     written = await read_new_gestures(
-        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP, tail_size=0
+        uow, tenant_id=TENANT, asker=asker, now=NOW, cap_usd=NO_CAP, tail_size=0
     )
 
     assert written == 2
@@ -730,9 +711,7 @@ async def test_with_a_tail_identical_evidence_is_still_two_readings() -> None:
     await uow.gestures.add_gestures((first, twin))
     asker = FakeAsker(_answer(), _answer())
 
-    await read_new_gestures(
-        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP
-    )
+    await read_new_gestures(uow, tenant_id=TENANT, asker=asker, now=NOW, cap_usd=NO_CAP)
 
     assert len(asker.asked) == 2
     assert all(intent.cost_usd > 0 for intent in await uow.gestures.intents_for(TENANT))
@@ -747,7 +726,7 @@ async def test_one_pass_reads_no_more_than_its_limit() -> None:
     asker = FakeAsker(*_answers(len(day)))
 
     written = await read_new_gestures(
-        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP, limit=2
+        uow, tenant_id=TENANT, asker=asker, now=NOW, cap_usd=NO_CAP, limit=2
     )
 
     assert written == 2
@@ -793,7 +772,7 @@ async def test_a_call_that_raised_is_never_filed_as_a_reading_that_happened() ->
 
     with pytest.raises(RuntimeError):
         await read_new_gestures(
-            uow, tenant_id=TENANT, asker=_Collapses(after=2), model=MODEL, now=NOW, cap_usd=NO_CAP
+            uow, tenant_id=TENANT, asker=_Collapses(after=2), now=NOW, cap_usd=NO_CAP
         )
 
     assert len(await uow.gestures.intents_for(TENANT)) == 2
@@ -855,9 +834,7 @@ async def test_a_write_gestures_reading_folds_in_what_was_just_typed() -> None:
         _answer(values_seen=[{"field": "customerType", "value": "CCD0002"}]),
     )
 
-    await read_new_gestures(
-        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP
-    )
+    await read_new_gestures(uow, tenant_id=TENANT, asker=asker, now=NOW, cap_usd=NO_CAP)
 
     filed = {intent.gesture_id: intent for intent in await uow.gestures.intents_for(TENANT)}
     assert {seen.field: seen.value for seen in filed["ges_save"].values_seen} == {
@@ -917,7 +894,7 @@ async def test_a_reading_reused_from_the_cascade_gets_its_own_fold() -> None:
     asker = FakeAsker(*_answers(4))
 
     await read_new_gestures(
-        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP, tail_size=0
+        uow, tenant_id=TENANT, asker=asker, now=NOW, cap_usd=NO_CAP, tail_size=0
     )
 
     # Three calls for four gestures: the second save is the cascade.
@@ -966,7 +943,6 @@ async def test_with_no_tail_a_group_of_readings_goes_out_together() -> None:
         uow,
         tenant_id=TENANT,
         asker=asker,
-        model=MODEL,
         now=NOW,
         cap_usd=NO_CAP,
         tail_size=0,
@@ -992,7 +968,6 @@ async def test_a_tail_is_read_one_at_a_time_however_wide_the_batch() -> None:
         uow,
         tenant_id=TENANT,
         asker=asker,
-        model=MODEL,
         now=NOW,
         cap_usd=NO_CAP,
         tail_size=8,
@@ -1021,7 +996,6 @@ async def test_the_same_evidence_inside_one_group_is_still_asked_once() -> None:
         uow,
         tenant_id=TENANT,
         asker=asker,
-        model=MODEL,
         now=NOW,
         cap_usd=NO_CAP,
         tail_size=0,
@@ -1061,7 +1035,6 @@ async def test_every_sharer_of_one_answer_is_filed_under_its_own_id() -> None:
         uow,
         tenant_id=TENANT,
         asker=asker,
-        model=MODEL,
         now=NOW,
         cap_usd=NO_CAP,
         tail_size=0,
@@ -1095,7 +1068,6 @@ async def test_one_call_raising_does_not_lose_what_the_rest_of_its_group_paid_fo
             uow,
             tenant_id=TENANT,
             asker=asker,
-            model=MODEL,
             now=NOW,
             cap_usd=NO_CAP,
             tail_size=0,
@@ -1167,7 +1139,7 @@ async def test_a_thin_gesture_is_asked_about_with_its_real_picture() -> None:
     asker = FakeAsker(_answer())
 
     await read_new_gestures(
-        uow, tenant_id=tenant, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP, blobs=blobs
+        uow, tenant_id=tenant, asker=asker, now=NOW, cap_usd=NO_CAP, blobs=blobs
     )
 
     assert asker.asked[0]["image"] == b"PNG-BYTES"
@@ -1179,9 +1151,7 @@ async def test_with_no_blob_store_a_thin_gesture_is_asked_about_without_a_pictur
     uow, day = await _stored(TENANT)
     asker = FakeAsker(*_answers(len(day)))
 
-    await read_new_gestures(
-        uow, tenant_id=TENANT, asker=asker, model=MODEL, now=NOW, cap_usd=NO_CAP
-    )
+    await read_new_gestures(uow, tenant_id=TENANT, asker=asker, now=NOW, cap_usd=NO_CAP)
 
     assert all(asked["image"] is None for asked in asker.asked)
 
@@ -1198,15 +1168,12 @@ def _door(
     *,
     asker: FakeAsker | None,
     clock: FakeClock | None = None,
-    model: str = MODEL,
     cap_usd: float = NO_CAP,
 ) -> ReadGestures:
     # `hand_out`, as a container hands one out: strict, and not yet entered. A
     # door that read a repository without opening its own session would be an
     # AttributeError here rather than a green test and a 500 in production.
-    return ReadGestures(
-        uow.hand_out(), asker=asker, model=model, clock=clock or FakeClock(NOW), cap_usd=cap_usd
-    )
+    return ReadGestures(uow.hand_out(), asker=asker, clock=clock or FakeClock(NOW), cap_usd=cap_usd)
 
 
 async def _billed(uow: FakeUnitOfWork, *, cost_usd: float, at: datetime) -> None:
@@ -1275,13 +1242,13 @@ async def test_the_tenant_read_is_the_ones_on_the_context_and_never_the_stores()
     assert len(await uow.gestures.intents_for(OTHER)) == len(other_day)
 
 
-async def test_the_model_asked_is_the_one_this_deployment_configured() -> None:
+async def test_the_model_asked_is_the_one_the_record_names() -> None:
     uow, day = await _stored(TENANT)
     asker = FakeAsker(*_answers(len(day)))
 
-    await _door(uow, asker=asker, model="gemini-3.1-flash-preview").execute(_ctx())
+    await _door(uow, asker=asker).execute(_ctx())
 
-    assert [one["model"] for one in asker.asked] == ["gemini-3.1-flash-preview"] * len(day)
+    assert [one["model"] for one in asker.asked] == [READ_GESTURE.model] * len(day)
 
 
 async def test_the_cap_is_checked_against_the_doors_own_clock() -> None:

@@ -21,7 +21,6 @@ class MinePass:
         *,
         asker: Asker | None,
         locks: AccountLocks,
-        model: str,
         clock: Clock,
         cap_usd: float,
         ours: frozenset[str] = frozenset(),
@@ -29,7 +28,6 @@ class MinePass:
         self._uow = uow
         self._asker = asker
         self._locks = locks
-        self._model = model
         self._clock = clock
         self._cap_usd = cap_usd
         self._ours = ours
@@ -46,7 +44,6 @@ class MinePass:
                 tenant_id=ctx.tenant_id,
                 asker=asker,
                 locks=self._locks,
-                model=self._model,
                 now=now,
                 cap_usd=self._cap_usd,
                 ours=self._ours,

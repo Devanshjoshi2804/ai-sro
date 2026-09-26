@@ -39,7 +39,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/read_cha
 > the cap is summed from. Raised here, the door answers 503 and 429, which is
 > what those two facts are.
 
-## `ReadChat.execute`, [line 33](../../../../../../../backend/src/sro/application/chat/read_chat.py#L33): Comment
+## `ReadChat.execute`, [line 31](../../../../../../../backend/src/sro/application/chat/read_chat.py#L31): Comment
 
 Code: `asker = asker_or_refuse(self._asker)`
 
@@ -47,7 +47,7 @@ Code: `asker = asker_or_refuse(self._asker)`
 > 503 that first took a connection is a 503 that made the outage
 > slightly worse.
 
-## `ReadChat.execute`, [line 35](../../../../../../../backend/src/sro/application/chat/read_chat.py#L35): Comment
+## `ReadChat.execute`, [line 33](../../../../../../../backend/src/sro/application/chat/read_chat.py#L33): Comment
 
 Code: `async with self._uow as uow:`
 

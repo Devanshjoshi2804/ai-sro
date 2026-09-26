@@ -114,6 +114,13 @@ class _Reads:
         return Answer(data=self._answers.pop(0), cost_usd=0.001)
 
 
+def _request(evidence: str) -> dict[str, Any]:
+    fence = evidence.split('<untrusted name="request">\n', 1)[1]
+    said = json.loads(fence.split("\n</untrusted>", 1)[0])
+    assert isinstance(said, dict)
+    return said
+
+
 def _found(*ids: str) -> str:
     return json.dumps({"messages": [{"id": one} for one in ids]})
 
@@ -214,7 +221,6 @@ def _look(
         uow,
         mailbox,
         reads,
-        model="m",
         answer=AnswerRun(uow, durable or FakeDurableExecution()),
         gather=gather,
         clock=FakeClock(),
@@ -301,6 +307,19 @@ async def test_a_sure_mail_with_every_value_starts_the_run_itself() -> None:
     (run,) = await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)
     assert (run.executor, run.values) == ("steel", {"Customer Type": "GT2"})
     assert run.offer == "mail:m-1", "a mail read twice could start its run twice"
+
+
+async def test_a_value_the_job_has_no_parameter_for_rides_into_the_run_it_starts() -> None:
+    world = await mail_world(
+        sure=True,
+        values={"Customer Type": "GT2", "Department": "Finance", "Password": "hunter2"},
+        steel=True,
+    )
+
+    await world.from_the_mail.execute(CTX)
+
+    (run,) = await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)
+    assert run.values == {"Customer Type": "GT2", "Department": "Finance"}
 
 
 async def test_a_steel_mail_missing_a_value_is_only_offered() -> None:
@@ -1257,12 +1276,19 @@ async def test_a_reply_carries_on_the_run_that_was_waiting_for_it() -> None:
     # the thread already settled and nothing to choose between. A bare `GU9`
     # re-classified against every job this tenant holds reads as no job at all
     # and is dropped -- which is the failure this path exists to prevent.
-    assert [json.loads(seen)["jobs"][0]["id"] for seen in reads.saw] == [JOB]
+    assert [_request(seen)["jobs"][0]["id"] for seen in reads.saw] == [JOB]
 
 
 @pytest.mark.parametrize(
     ("asking", "answered"),
-    [("value", True), ("step", False), ("password", False), ("code", False), ("", False)],
+    [
+        ("value", True),
+        ("step", False),
+        ("password", False),
+        ("code", False),
+        ("field", False),
+        ("", False),
+    ],
 )
 async def test_a_reply_on_a_steel_run_s_thread_answers_only_a_value_and_never_starts_another(
     asking: str, answered: bool
@@ -1542,7 +1568,7 @@ async def test_a_reply_answers_the_question_standing_in_the_conversation() -> No
     assert one.missing == []
     # Read for its VALUES against the one settled job, never re-classified: a
     # reading that named no job at all did not stop the answer landing.
-    assert [json.loads(seen)["jobs"][0]["id"] for seen in reads.saw] == [JOB]
+    assert [_request(seen)["jobs"][0]["id"] for seen in reads.saw] == [JOB]
 
 
 async def test_the_reply_itself_answers_when_the_mailbox_search_finds_nothing() -> None:

@@ -37,7 +37,6 @@ async def test_the_heartbeat_look_and_the_poll_racing_read_one_mail_once(
             SqlUnitOfWork(session_factory),
             mailbox,
             reads,
-            model="m",
             answer=AnswerRun(SqlUnitOfWork(session_factory), FakeDurableExecution()),
             clock=FakeClock(),
             ids=FakeIdFactory(),

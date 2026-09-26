@@ -64,7 +64,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/db/workflo
 > The one query the history is for. A history nobody can read in one page
 > is a log, which is why there is a limit and why it is small.
 
-## `SqlWorkflowRepository._steps_of`, [line 690](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L690): Docstring
+## `SqlWorkflowRepository._steps_of`, [line 691](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L691): Docstring
 
 > One query for every workflow's steps rather than one per workflow.
 
@@ -210,14 +210,14 @@ Code: `keyed_by_ord: tuple[type[Any], ...] = (`
 > update that moved 3 to 5 while 5 was still there would collide on a
 > primary key for no reason but the order the rows came back in.
 
-## `SqlWorkflowRepository.grew`, [line 574](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L574): Comment
+## `SqlWorkflowRepository.grew`, [line 575](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L575): Comment
 
 Code: `if kept:`
 
 > A step the new shape does not have is a step nobody performs,
 > and a locator for it is one nobody can check. Dropped with it.
 
-## `SqlWorkflowRepository.remember_write`, [line 590](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L590): Comment
+## `SqlWorkflowRepository.remember_write`, [line 591](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L591): Comment
 
 Code: `if not state_verified(verified_by):`
 
@@ -226,7 +226,7 @@ Code: `if not state_verified(verified_by):`
 > a picture is not evidence that an endpoint works, and this is the
 > fact that licenses sending one without a click.
 
-## `SqlWorkflowRepository.remember_write`, [line 602](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L602): Comment
+## `SqlWorkflowRepository.remember_write`, [line 603](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L603): Comment
 
 Code: `await self._session.execute(`
 
@@ -234,7 +234,7 @@ Code: `await self._session.execute(`
 > run first earned the endpoint, which is what somebody asking "why is
 > this being sent without a click" needs in order to go and read it.
 
-## `SqlWorkflowRepository.record_effect`, [line 617](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L617): Comment
+## `SqlWorkflowRepository.record_effect`, [line 618](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L618): Comment
 
 Code: `if not state_verified(verified_by):`
 
@@ -243,7 +243,7 @@ Code: `if not state_verified(verified_by):`
 > was written. Dropped rather than stored-and-filtered, so nothing
 > downstream has to remember to ask again.
 
-## `SqlWorkflowRepository.record_effect`, [line 626](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L626): Comment
+## `SqlWorkflowRepository.record_effect`, [line 627](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L627): Comment
 
 Code: `await self._session.execute(`
 
@@ -251,7 +251,7 @@ Code: `await self._session.execute(`
 > is verified -- a write rescued to the second rung verifies at the
 > same step, and that is not two proofs.
 
-## `SqlWorkflowRepository.forget_effects`, [line 637](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L637): Comment
+## `SqlWorkflowRepository.forget_effects`, [line 638](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L638): Comment
 
 Code: `gone = await self._session.execute(`
 
@@ -259,13 +259,13 @@ Code: `gone = await self._session.execute(`
 > a job had earned is the answer the caller wants, and a driver's
 > rowcount is not the same promise across drivers.
 
-## `SqlWorkflowRepository.proofs`, [line 661](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L661): Comment
+## `SqlWorkflowRepository.proofs`, [line 662](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L662): Comment
 
 Code: `wrote: defaultdict[str, set[int]] = defaultdict(set)`
 
 > Three queries whatever the number of runs, rather than two per run.
 
-## `SqlWorkflowRepository.proofs`, [line 668](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L668): Comment
+## `SqlWorkflowRepository.proofs`, [line 669](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L669): Comment
 
 Code: `if result and result.get("wrote"):`
 
@@ -285,3 +285,11 @@ Code: `if result and result.get("wrote"):`
 > the job (new evidence, so new cites) gives every lane a fresh chance
 > without anyone deleting a row. The filter is in Python: a job has a
 > handful of rows.
+
+## `SqlWorkflowRepository.grew`, [line 556](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L556): Note
+
+Code: `KnownBrokenRow,`
+
+> A lane known broken on a step moves with it too: left behind, it would skip a
+> working lane on the step that now has that number, and leave the moved step
+> retrying one that is known not to work.

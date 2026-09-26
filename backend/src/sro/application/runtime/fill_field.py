@@ -23,6 +23,7 @@ class Filled:
     learned: Mapping[str, str] = field(default_factory=dict)
     detail: str = ""
     held: str = field(default="", repr=False)
+    sent: bool = False
 
 
 class FillField:
@@ -80,7 +81,9 @@ class FillField:
         if composed.action == "select":
             live = await self._driver.outline(held.session, held.target_id, frame_path)
             options = _options(live, composed)
-            same = [one for one in options if one.casefold() == value.strip().casefold()]
+            same = [one for one in options if one == value.strip()] or [
+                one for one in options if one.casefold() == value.strip().casefold()
+            ]
             if options and len(same) != 1:
                 return Filled(None, "ambiguous" if same else "no_option", options=options)
             value = same[0] if same else value
@@ -100,6 +103,8 @@ class FillField:
             return Filled(None, detail="the control did not take the value")
         else:
             result = await self._sight.fill(f"Set {composed.label} to {value}", write, ctx, check)
+            if result.verdict == "unknown":
+                return Filled(None, detail="the write was sent while filling a field", sent=True)
             if result.verdict != "done":
                 return Filled(None, detail="sight could not set the field")
             lane, taught = Lane.SIGHT, dict(result.learned)

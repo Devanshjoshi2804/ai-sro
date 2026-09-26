@@ -77,7 +77,7 @@ async def test_question_ids_cannot_be_guessed_from_the_run_or_its_step() -> None
     assert one.run_id not in first and two.run_id not in second
 
 
-@pytest.mark.parametrize("kind", ["password", "code", "step"])
+@pytest.mark.parametrize("kind", ["password", "code", "step", "field"])
 async def test_only_a_question_for_a_value_takes_one_and_nothing_else_reaches_the_signal(
     kind: str,
 ) -> None:

@@ -1969,7 +1969,8 @@ export interface paths {
          *     A run of another tenant is a 404. A 409 `Conflict` for: a run no longer
          *     running; no question standing, or another one than `question_id`; a
          *     question already answered differently; a value on anything but a value
-         *     question; a missing verdict on a write in doubt. Only the question id
+         *     or field question; a field answer that is not one of its choices; a
+         *     missing verdict on a write in doubt. Only the question id
          *     reaches the run's workflow; the answer itself is kept on the run.
          */
         post: operations["answer_workflow_run_v1_workflow_runs__run_id__answer_post"];
@@ -2068,6 +2069,13 @@ export interface components {
          *     it must be empty, or the answer is a 409. A password is stored with
          *     `PUT /v1/secrets`, a one-time code is typed on the page, and a step is
          *     answered by its `verdict`, so no secret or free text ever rides along.
+         *
+         *     A field question (`asks: "field"`, about a value the job has no field
+         *     for) carries the value's `name` and its `choices` on the `run_asks`
+         *     message: the form's fields (each choice names exactly one), a dropdown's
+         *     options, or -- after a fill that failed -- the field itself, to try it
+         *     again. It is answered with one of `choices`, or an empty `value` to leave
+         *     the value out; anything else is a 409.
          */
         AnswerRunRequest: {
             /** Question Id */

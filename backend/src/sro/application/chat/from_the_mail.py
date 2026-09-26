@@ -40,6 +40,7 @@ from sro.domain.execution.progress import Progress
 from sro.domain.execution.waiting import read_wait, still_waiting
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.observation.attempts import DONE
+from sro.domain.recording.sensitivity import is_secret_field
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.learned import offerable
@@ -119,7 +120,6 @@ class FromTheMail:
         tools: ToolCaller,
         asker: Asker | None,
         *,
-        model: str,
         answer: AnswerRun,
         gather: GatherContext | None = None,
         clock: Clock | None = None,
@@ -135,7 +135,6 @@ class FromTheMail:
         self._attempts = attempts
         self._tools = tools
         self._asker = asker
-        self._model = model
         self._answer = answer
         self._gather = gather
         self._clock = clock
@@ -239,7 +238,7 @@ class FromTheMail:
         asked = await self._was_asked(ctx, thread)
         if asked is not None:
             return await self._answered_by_mail(ctx, message, asked, said, thread, subject, held)
-        got = await understand(said, workflows, asker, self._model, asked_by)
+        got = await understand(said, workflows, asker, asked_by)
         look.spent = _also(look.spent, got.answer)
         if got.answer.data is None:
             raise Unread(got.answer.error or "the model gave no reading")
@@ -268,7 +267,7 @@ class FromTheMail:
                 elif whole == said:
                     logger.info("%s: %s -- the conversation is only this mail", tenant, job_)
                 else:
-                    again = await understand(whole, workflows, asker, self._model, asked_by)
+                    again = await understand(whole, workflows, asker, asked_by)
                     look.spent = _also(look.spent, again.answer)
                     if again.workflow_id != got.workflow_id:
                         logger.info(
@@ -395,7 +394,14 @@ class FromTheMail:
                 ctx,
                 workflow_id=one.workflow_id,
                 device_id=None,
-                values=dict(one.values),
+                values={
+                    **{
+                        name: one.aside[name]
+                        for name in one.unasked
+                        if name in one.aside and not is_secret_field(name)
+                    },
+                    **one.values,
+                },
                 live=True,
                 allow_focus=False,
                 conversation=(SERVER, one.thread),
@@ -557,7 +563,7 @@ class FromTheMail:
     ) -> dict[str, str]:
         if not wanted or job is None or self._asker is None or not said.strip():
             return {}
-        read = await understand(said, [job], self._asker, self._model)
+        read = await understand(said, [job], self._asker)
         got = {
             name: value
             for name, value in read.values.items()

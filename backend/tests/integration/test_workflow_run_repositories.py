@@ -328,15 +328,19 @@ class TestWorkflowRuns:
             # And nothing has taken back the undo itself.
             assert await uow.workflow_runs.taken_back_by(TENANT, undo.id) is None
 
-        undo.outcome = "failed"
+        # An ended outcome is never rewritten (D4), so an undo that failed is its
+        # own run from the start, not the held undo turned failed.
+        other = _run(device_id="dev_3")
+        failed = _run(device_id="dev_4", undoes_run=other.id, outcome="failed")
         async with SqlUnitOfWork(session_factory) as uow:
-            await uow.workflow_runs.save(undo)
+            await uow.workflow_runs.save(other)
+            await uow.workflow_runs.save(failed)
             await uow.commit()
 
         async with SqlUnitOfWork(session_factory) as uow:
             # An undo that did not work is not a record that is gone, and the
             # second press is the one that might still remove it.
-            assert await uow.workflow_runs.taken_back_by(TENANT, made.id) is None
+            assert await uow.workflow_runs.taken_back_by(TENANT, other.id) is None
 
     async def test_a_run_is_found_again_by_the_conversation_it_answers_to(
         self, session_factory: async_sessionmaker[AsyncSession]

@@ -113,6 +113,13 @@ class _Reads:
         return Answer(data=self._answers.pop(0), cost_usd=0.001)
 
 
+def _request(evidence: str) -> dict[str, Any]:
+    fence = evidence.split('<untrusted name="request">\n', 1)[1]
+    said = json.loads(fence.split("\n</untrusted>", 1)[0])
+    assert isinstance(said, dict)
+    return said
+
+
 def _found(*ids: str) -> str:
     return json.dumps({"messages": [{"id": one} for one in ids]})
 
@@ -203,7 +210,6 @@ def _look(
         uow,
         mailbox,
         reads,
-        model="m",
         answer=AnswerRun(uow, durable or FakeDurableExecution()),
         gather=gather,
         clock=FakeClock(),
@@ -1235,7 +1241,7 @@ async def test_a_reply_carries_on_the_run_that_was_waiting_for_it() -> None:
     # the thread already settled and nothing to choose between. A bare `GU9`
     # re-classified against every job this tenant holds reads as no job at all
     # and is dropped -- which is the failure this path exists to prevent.
-    assert [json.loads(seen)["jobs"][0]["id"] for seen in reads.saw] == [JOB]
+    assert [_request(seen)["jobs"][0]["id"] for seen in reads.saw] == [JOB]
 
 
 @pytest.mark.parametrize(
@@ -1520,7 +1526,7 @@ async def test_a_reply_answers_the_question_standing_in_the_conversation() -> No
     assert one.missing == []
     # Read for its VALUES against the one settled job, never re-classified: a
     # reading that named no job at all did not stop the answer landing.
-    assert [json.loads(seen)["jobs"][0]["id"] for seen in reads.saw] == [JOB]
+    assert [_request(seen)["jobs"][0]["id"] for seen in reads.saw] == [JOB]
 
 
 async def test_the_reply_itself_answers_when_the_mailbox_search_finds_nothing() -> None:

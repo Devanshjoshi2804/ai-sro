@@ -391,7 +391,6 @@ class Container:
             self.unit_of_work(),
             asker=self._patient_asker(),
             locks=self.locks,
-            model=self.settings.gemini_mine_model,
             clock=self.clock,
             cap_usd=self.settings.daily_usd_cap,
             ours=frozenset(host_port for host_port, _ in self.settings.our_own_origins()),
@@ -410,7 +409,6 @@ class Container:
         return ReadGestures(
             self.unit_of_work(),
             asker=self.asker,
-            model=self.settings.gemini_read_model,
             clock=self.clock,
             cap_usd=self.settings.daily_usd_cap,
             blobs=self.blobs,
@@ -422,7 +420,6 @@ class Container:
         return ReadChat(
             self.unit_of_work(),
             asker=self.asker,
-            model=self.settings.gemini_plan_model,
             clock=self.clock,
             cap_usd=self.settings.daily_usd_cap,
         )
@@ -432,7 +429,6 @@ class Container:
             self.unit_of_work(),
             self.retrieve_knowledge(),
             self.asker,
-            model=self.settings.gemini_plan_model,
             clock=self.clock,
             cap_usd=self.settings.daily_usd_cap,
         )
@@ -762,7 +758,7 @@ class Container:
             can_gather=self.can_gather,
             plan_lookups=self.plan_lookups(),
             run_lookups=self.run_lookups(),
-            answers=IsItAnAnswer(self.asker, model=self.settings.gemini_plan_model),
+            answers=IsItAnAnswer(self.asker),
         )
 
     def ask_about_the_offer(self) -> AskAboutTheOffer:
@@ -782,14 +778,11 @@ class Container:
             self.unit_of_work(),
             self.tools,
             self.asker,
-            model=self.settings.gemini_plan_model,
             clock=self.clock,
             ids=self.ids,
             cap_usd=self.settings.daily_usd_cap,
             answer=self.answer_run(),
-            gather=GatherContext(
-                tools=self.tools, asker=self.asker, model=self.settings.gemini_plan_model
-            )
+            gather=GatherContext(tools=self.tools, asker=self.asker)
             if self.asker is not None
             else None,
             start=self.start_workflow_run(),
@@ -853,9 +846,7 @@ class Container:
             verified_writes=load_verified_writes(),
             vault=self.vault,
             retrieve=self.retrieve_knowledge(),
-            gather=GatherContext(
-                tools=self.tools, asker=self.asker, model=self.settings.gemini_plan_model
-            )
+            gather=GatherContext(tools=self.tools, asker=self.asker)
             if self.asker is not None
             else None,
             ids=self.ids,
@@ -880,7 +871,6 @@ class Container:
                 thread,
                 tools=self.tools,
                 asker=asker,
-                model=self.settings.gemini_plan_model,
             )
 
         async def send(mail: Written) -> tuple[str, str]:

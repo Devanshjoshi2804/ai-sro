@@ -19,8 +19,8 @@ Comments and docstrings moved out of [`backend/src/sro/domain/execution/mail_job
 > page at all: a model writes the mail, the operator reads it, and their press
 > sends it through the connector, whose answer is the verdict.
 >
-> Pure: what counts as a mail job, what the model is asked, and who may be
-> written to. The reading, the drafting and the sending are the application's.
+> Pure: what counts as a mail job and who may be written to. What the model
+> is asked is the `WRITE_MAIL` record, in `sro.domain.prompts.write_mail`. The reading, the drafting and the sending are the application's.
 
 ## module, [line 11](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L11): Note on the line above
 
@@ -65,11 +65,11 @@ Code: `MAILBOX_HOSTS = frozenset({"mail.google.com", "outlook.office.com", "outl
 > not by the system it was filed under. `Log in to Google Account` is filed
 > under the mailbox and types its password on `accounts.google.com`.
 
-## `addresses_in`, [line 85](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L85): Docstring
+## `addresses_in`, [line 56](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L56): Docstring
 
 > Every email address named anywhere in these, lowercased.
 
-## `recipient_allowed`, [line 89](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L89): Docstring
+## `recipient_allowed`, [line 60](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L60): Docstring
 
 > Whether every address the model put in `to` was already on the page.
 >

@@ -40,15 +40,15 @@ from sro.domain.observation.gesture import Gesture, Intent, Target, ValueSeen
 from sro.domain.observation.pool import K_POOL_AGE
 from sro.domain.observation.trim import is_secret
 from sro.domain.observation.window import K_WINDOW_TOKENS, Packed, Window
+from sro.domain.prompts.mine import MINE
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
-from sro.domain.skill.umbrella import INSTRUCTIONS, K_EFFORT, K_SAMPLES
+from sro.domain.skill.umbrella import K_SAMPLES
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.domain.rig.conftest import gestures as _gestures
 from tests.unit.fakes import FakeAccountLocks, FakeAsker, FakeGestureRepository, FakeUnitOfWork
 
 TENANT = TenantId("acme")
-MODEL = "gemini-3.1-pro"
 HOST = "http://127.0.0.1:63319"
 
 NOW = datetime(2025, 2, 11, 23, tzinfo=UTC)
@@ -81,7 +81,6 @@ async def _mine(
     asker: FakeAsker,
     *,
     kb: str = "",
-    model: str = MODEL,
     cap_usd: float = CAP,
     tenant: TenantId = TENANT,
     ours: frozenset[str] = frozenset(),
@@ -92,7 +91,6 @@ async def _mine(
         tenant_id=tenant,
         asker=asker,
         locks=locks or FakeAccountLocks(),
-        model=model,
         now=NOW,
         cap_usd=cap_usd,
         kb=kb,
@@ -380,7 +378,6 @@ async def test_two_tenants_mine_at_the_same_time_rather_than_in_turn() -> None:
                 tenant_id=TENANT,
                 asker=Gated(waits=True),
                 locks=locks,
-                model=MODEL,
                 now=NOW,
                 cap_usd=CAP,
             ),
@@ -389,7 +386,6 @@ async def test_two_tenants_mine_at_the_same_time_rather_than_in_turn() -> None:
                 tenant_id=TenantId("other-corp"),
                 asker=Gated(waits=False),
                 locks=locks,
-                model=MODEL,
                 now=NOW,
                 cap_usd=CAP,
             ),
@@ -485,7 +481,7 @@ async def test_the_key_a_pass_mints_is_a_sequence_and_not_a_set() -> None:
 
 
 async def test_the_jobs_already_proven_are_paid_for_out_of_the_window() -> None:
-    """`summary` goes to `build_prompt`, so it is billed as input, AND to
+    """`summary` goes to `mining_blocks`, so it is billed as input, AND to
     `pack`, so it comes off the budget. `pack`'s subtraction is guarded in the
     domain; the caller handing it over was not, and a caller that passed `[]`
     measured the prompt smaller than it ships.
@@ -549,7 +545,7 @@ async def test_a_gesture_linked_across_two_systems_earns_its_place() -> None:
     result = await _mine(uow, asker, kb=CROWDED_KB)
     # Before the crossings block, so a linked id is read where it was PACKED
     # rather than where it was hinted at.
-    day = str(asker.asked[0]["evidence"]).split("## Values appearing in more than one system")[0]
+    day = str(asker.asked[0]["evidence"]).split('<untrusted name="crossings">')[0]
 
     assert result.window_size == 25
     assert weak_ids[0] in day and weak_ids[1] in day, "a crossing is what pulls evidence in"
@@ -779,7 +775,7 @@ async def test_the_cost_of_the_pass_is_recorded() -> None:
     assert result.cost_usd == 0.037
     billed = await uow.workflows.passes(TENANT)
     assert [one.cost_usd for one in billed] == [0.037]
-    # The tokens as well, and `thought_tokens` above all: K_EFFORT
+    # The tokens as well, and `thought_tokens` above all: MINE.thinking
     # exists to spend those, and a row that reports the dollars without them
     # cannot say what the pass was thinking with.
     assert (billed[0].in_tokens, billed[0].out_tokens, billed[0].thought_tokens) == (900, 100, 40)
@@ -1473,11 +1469,10 @@ async def test_the_prompt_never_names_a_crossing_the_window_left_out() -> None:
 
     result = await _mine(uow, asker, kb=CROWDED_KB)
     prompt = str(asker.asked[0]["evidence"])
-    # json.dumps(indent=1) never writes a blank line, so the blank line after
-    # the block is where it ends. Both values also appear in the evidence of
+    # The fence's close is where the block ends. Both values also appear in the evidence of
     # the gestures carrying them, which is what makes the block the only place
     # this can be read.
-    block = prompt.split("## Values appearing in more than one system\n")[1].split("\n\n")[0]
+    block = prompt.split('<untrusted name="crossings">\n')[1].split("</untrusted>")[0]
 
     assert result.window_size == 25
     assert result.left_out == 5, "the window must be smaller than the evidence"
@@ -1523,15 +1518,13 @@ def _answer(**over: object) -> Answer:
 
 
 async def _proposed(asker: FakeAsker) -> tuple[list[object], Answer]:
-    workflows, answer = await propose(
-        _window(), {}, [], "", asker=asker, model=MODEL, tenant=TENANT.value
-    )
+    workflows, answer = await propose(_window(), {}, [], "", asker=asker, tenant=TENANT.value)
     return list(workflows), answer
 
 
 async def test_a_proposal_becomes_a_workflow() -> None:
     workflows, answer = await propose(
-        _window(), {}, [], "", asker=FakeAsker(_answer()), model=MODEL, tenant=TENANT.value
+        _window(), {}, [], "", asker=FakeAsker(_answer()), tenant=TENANT.value
     )
 
     assert len(workflows) == 1
@@ -1567,16 +1560,16 @@ async def test_one_sample_by_default() -> None:
     assert K_SAMPLES == 1
 
 
-async def test_the_task_is_not_repeated_outside_the_prompt() -> None:
-    """`build_prompt` states the task at both ends, which is the measured
-    decision. Sending it as the instruction too put it in three times, twice
-    adjacently, on the most expensive call in the system."""
+async def test_the_task_is_said_once_before_the_evidence_and_once_after() -> None:
+    """Stating the task at both ends is the measured decision. Saying it twice
+    at one end put it in three times, twice adjacently, on the most expensive
+    call in the system."""
     asker = FakeAsker(_answer())
 
     await _proposed(asker)
 
-    assert asker.asked[0]["instructions"] == ""
-    assert str(asker.asked[0]["evidence"]).count(INSTRUCTIONS.strip()) == 2
+    assert str(asker.asked[0]["instructions"]).count(MINE.task) == 1
+    assert str(asker.asked[0]["evidence"]).count(MINE.task) == 1
 
 
 async def test_the_pass_asks_for_the_effort_it_names() -> None:
@@ -1586,7 +1579,7 @@ async def test_the_pass_asks_for_the_effort_it_names() -> None:
 
     await _proposed(asker)
 
-    assert asker.asked[0]["effort"] == K_EFFORT
+    assert asker.asked[0]["effort"] == MINE.thinking
     # And the value, not only the constant. Comparing a call against the
     # constant it was made from passes whatever the constant says, so it cannot
     # fail when the value changes -- and this value cost $2.00 to establish: at
@@ -1612,7 +1605,7 @@ async def test_two_steps_claiming_the_same_order_can_still_be_stored() -> None:
         ]
     )
     workflows, _ = await propose(
-        _window(), {}, [], "", asker=FakeAsker(answer), model=MODEL, tenant=TENANT.value
+        _window(), {}, [], "", asker=FakeAsker(answer), tenant=TENANT.value
     )
     uow = FakeUnitOfWork()
 

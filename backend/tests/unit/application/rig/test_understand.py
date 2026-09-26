@@ -4,8 +4,8 @@ Ported from `new_agent_arch/tests/test_entry.py`, names unchanged. Eight of its
 nine are here; the ninth --
 `test_no_schema_in_the_package_uses_what_the_developer_api_refuses` -- already
 lives in `tests/unit/domain/rig/test_planning.py`, where it walks every schema
-under `sro.domain` rather than one. `UNDERSTAND_SCHEMA` is declared in
-`sro.domain.chat.reading` so that walker reaches it: a second copy of that rule
+under `sro.domain` rather than one. `READ_REQUEST` is declared in
+`sro.domain.prompts.read_request` so that walker reaches it: a second copy of that rule
 over here would be a rule the next schema can be written outside of.
 
 Everything below the ported eight is this port's own, and each one stands under
@@ -17,10 +17,12 @@ in, and the row that carries the bill and never the sentence.
 import json
 from dataclasses import asdict, replace
 from datetime import UTC, datetime
+from typing import Any
 
 from sro.application.chat.understand import read_utterance, understand
-from sro.domain.chat.reading import INSTRUCTIONS, UNDERSTAND_SCHEMA, ChatReading
+from sro.domain.chat.reading import ChatReading
 from sro.domain.observation.gesture import Action, Gesture, Target
+from sro.domain.prompts.read_request import READ_REQUEST
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow
@@ -60,7 +62,14 @@ SECOND = Workflow(
 
 
 def _answer(workflow_id: str | None, values: list[dict[str, str]]) -> Answer:
-    return Answer(data={"workflow_id": workflow_id, "values": values, "missing": []})
+    return Answer(data={"workflow_id": workflow_id, "values": values, "missing": [], "sure": True})
+
+
+def _request(asker: FakeAsker) -> dict[str, Any]:
+    fence = str(asker.asked[0]["evidence"]).split('<untrusted name="request">\n', 1)[1]
+    said = json.loads(fence.split("\n</untrusted>", 1)[0])
+    assert isinstance(said, dict)
+    return said
 
 
 async def test_an_utterance_is_read_against_the_workflows_held_and_asks_for_what_is_missing() -> (
@@ -72,10 +81,11 @@ async def test_an_utterance_is_read_against_the_workflows_held_and_asks_for_what
                 "workflow_id": "wfl_1",
                 "values": [{"name": "clientCode", "value": "NEW9"}],
                 "missing": [],
+                "sure": True,
             }
         )
     )
-    got = await understand("create client NEW9", WFS, asker, "m")
+    got = await understand("create client NEW9", WFS, asker)
     assert got.workflow_id == "wfl_1" and got.values == {"clientCode": "NEW9"} and got.missing == []
     assert "create a client" in str(asker.asked[0]["evidence"]), (
         "the workflows are what it reads against"
@@ -86,8 +96,9 @@ async def test_a_workflow_the_rig_does_not_hold_is_not_offered() -> None:
     got = await understand(
         "x",
         WFS,
-        FakeAsker(Answer(data={"workflow_id": "wfl_nope", "values": [], "missing": []})),
-        "m",
+        FakeAsker(
+            Answer(data={"workflow_id": "wfl_nope", "values": [], "missing": [], "sure": True})
+        ),
     )
     assert got.workflow_id is None
 
@@ -105,16 +116,16 @@ async def test_a_value_for_a_parameter_the_workflow_does_not_declare_is_dropped(
                         {"name": "evil", "value": "b"},
                     ],
                     "missing": [],
+                    "sure": True,
                 }
             )
         ),
-        "m",
     )
     assert got.values == {"clientCode": "A"}
 
 
 def test_the_schema_is_the_specs() -> None:
-    properties = UNDERSTAND_SCHEMA["properties"]
+    properties = READ_REQUEST.output_schema["properties"]
     assert isinstance(properties, dict)
     assert set(properties) == {"workflow_id", "values", "missing", "items", "sure", "also"}
 
@@ -127,8 +138,7 @@ async def test_a_parameter_with_no_value_is_missing_whatever_the_model_says() ->
     got = await understand(
         "make one",
         WFS,
-        FakeAsker(Answer(data={"workflow_id": "wfl_1", "values": [], "missing": []})),
-        "m",
+        FakeAsker(Answer(data={"workflow_id": "wfl_1", "values": [], "missing": [], "sure": True})),
     )
     assert got.missing == ["clientCode"]
 
@@ -143,10 +153,10 @@ async def test_a_value_the_model_invented_a_name_for_leaves_its_parameter_missin
                     "workflow_id": "wfl_1",
                     "values": [{"name": "evil", "value": "b"}],
                     "missing": ["nothing"],
+                    "sure": True,
                 }
             )
         ),
-        "m",
     )
     assert got.values == {} and got.missing == ["clientCode"]
 
@@ -156,25 +166,31 @@ async def test_the_model_that_named_nothing_still_hands_back_what_it_cost() -> N
     carried on all three ways out, so the caller can bill it."""
     both: tuple[dict[str, object] | None, ...] = (
         None,
-        {"workflow_id": "wfl_nope", "values": [], "missing": []},
+        {"workflow_id": "wfl_nope", "values": [], "missing": [], "sure": True},
     )
     for data in both:
         answer = Answer(data=data, cost_usd=0.0003, in_tokens=120)
-        got = await understand("x", WFS, FakeAsker(answer), "m")
+        got = await understand("x", WFS, FakeAsker(answer))
         assert got.workflow_id is None
         assert got.answer is answer
 
-    named = Answer(data={"workflow_id": "wfl_1", "values": [], "missing": []}, cost_usd=0.0009)
-    got = await understand("x", WFS, FakeAsker(named), "m")
+    named = Answer(
+        data={"workflow_id": "wfl_1", "values": [], "missing": [], "sure": True}, cost_usd=0.0009
+    )
+    got = await understand("x", WFS, FakeAsker(named))
     assert got.answer is named
 
 
-async def test_the_reading_is_asked_of_the_model_it_was_given_under_the_declared_schema() -> None:
-    asker = FakeAsker(Answer(data={"workflow_id": "wfl_1", "values": [], "missing": []}))
-    await understand("x", WFS, asker, "gemini-3.8-flash")
+async def test_the_reading_is_asked_of_the_model_its_record_names_under_its_schema() -> None:
+    asker = FakeAsker(
+        Answer(data={"workflow_id": "wfl_1", "values": [], "missing": [], "sure": True})
+    )
+    await understand("x", WFS, asker)
     [asked] = asker.asked
-    assert asked["model"] == "gemini-3.8-flash"
-    assert asked["schema"] is UNDERSTAND_SCHEMA, "structured output, or the reading is prose"
+    assert asked["model"] == READ_REQUEST.model
+    assert asked["schema"] == dict(READ_REQUEST.output_schema), (
+        "structured output, or the reading is prose"
+    )
     assert asked["instructions"], "a model told nothing answers about nothing"
 
 
@@ -189,9 +205,12 @@ def test_a_job_is_a_kind_of_work_not_the_one_time_it_was_done() -> None:
     door still runs, still costs money and still offers nothing, which is why
     the sentence is a test and not a note.
     """
-    assert "A job is a kind of work, not the one time it was done." in INSTRUCTIONS
-    assert "Match on what the job does." in INSTRUCTIONS
-    assert "Answer null only\nwhen no job here does that kind of work at all." in INSTRUCTIONS
+    assert "A job is a kind of work, not the one time it was done." in READ_REQUEST.instructions
+    assert "Match on what the job does." in READ_REQUEST.instructions
+    assert (
+        "Answer null only\nwhen no job here does that kind of work at all."
+        in READ_REQUEST.instructions
+    )
 
 
 async def test_the_job_offered_is_the_one_the_model_named() -> None:
@@ -203,7 +222,6 @@ async def test_the_job_offered_is_the_one_the_model_named() -> None:
         "create work area NEWTEST9",
         [*WFS, SECOND],
         FakeAsker(_answer("wfl_2", [{"name": "areaName", "value": "NEWTEST9"}])),
-        "m",
     )
     assert got.workflow_id == "wfl_2"
     assert got.values == {"areaName": "NEWTEST9"} and got.missing == []
@@ -241,7 +259,7 @@ async def test_what_is_missing_comes_back_in_one_order() -> None:
             {"name": "lane", "required": True},
         ],
     )
-    got = await understand("make one", [eight], FakeAsker(_answer("wfl_3", [])), "m")
+    got = await understand("make one", [eight], FakeAsker(_answer("wfl_3", [])))
     assert got.missing == [
         "areaName",
         "clientCode",
@@ -262,7 +280,7 @@ async def test_the_prompt_spells_the_redaction_marker_the_way_the_rest_of_the_sy
         id="wfl_4", tenant=TENANT.value, title="create a client for «redacted»", narrative="n"
     )
     asker = FakeAsker(_answer(None, []))
-    await understand("x", [redacted], asker, "m")
+    await understand("x", [redacted], asker)
     assert "«redacted»" in str(asker.asked[0]["evidence"])
 
 
@@ -283,7 +301,6 @@ async def _read(*answers: Answer, workflows: list[Workflow] | None = None) -> Fa
             tenant_id=TENANT,
             utterance="create client NEWTEST9 at the Coventry dock",
             asker=FakeAsker(answer),
-            model="m",
             now=NOW,
         )
     return uow
@@ -294,7 +311,7 @@ async def test_what_the_reading_cost_is_written_down() -> None:
     client's, so this row is what the chat door shows, not what the cap sums."""
     uow = await _read(
         Answer(
-            data={"workflow_id": "wfl_1", "values": [], "missing": []},
+            data={"workflow_id": "wfl_1", "values": [], "missing": [], "sure": True},
             in_tokens=120,
             out_tokens=30,
             thought_tokens=7,
@@ -364,10 +381,10 @@ async def test_three_things_in_one_sentence_are_three_things() -> None:
                         {"clientCode": "8STANDUP"},
                         {"clientCode": "8REACHT"},
                     ),
+                    "sure": True,
                 }
             )
         ),
-        "m",
     )
 
     assert got.items == [
@@ -390,10 +407,10 @@ async def test_one_thing_names_no_items_at_all() -> None:
                     "workflow_id": "wfl_1",
                     "values": [{"name": "clientCode", "value": "ONE"}],
                     "missing": [],
+                    "sure": True,
                 }
             )
         ),
-        "m",
     )
 
     assert got.items == []
@@ -414,10 +431,10 @@ async def test_a_parameter_one_thing_lacks_is_missing() -> None:
                     "values": [],
                     "missing": [],
                     "items": _said({"clientCode": "8SITDOWN"}, {}),
+                    "sure": True,
                 }
             )
         ),
-        "m",
     )
 
     assert got.items == [{"clientCode": "8SITDOWN"}], "a thing naming nothing is not a thing"
@@ -437,10 +454,10 @@ async def test_a_key_this_job_never_declared_is_dropped_from_a_thing_too() -> No
                     "values": [],
                     "missing": [],
                     "items": _said({"clientCode": "A", "sudo": "yes"}),
+                    "sure": True,
                 }
             )
         ),
-        "m",
     )
 
     assert got.items == [{"clientCode": "A"}]
@@ -472,7 +489,6 @@ async def test_a_reading_that_is_not_sure_says_so() -> None:
                 }
             )
         ),
-        "m",
     )
 
     assert got.workflow_id == "wfl_1", "it still answers its best reading"
@@ -497,7 +513,6 @@ async def test_naming_another_job_it_might_have_meant_is_not_being_sure() -> Non
                 }
             )
         ),
-        "m",
     )
 
     assert got.sure is False
@@ -521,7 +536,6 @@ async def test_a_job_this_tenant_does_not_hold_is_not_an_alternative() -> None:
                 }
             )
         ),
-        "m",
     )
 
     assert got.also == [], "an id nobody holds, and its own answer, are not alternatives"
@@ -541,7 +555,6 @@ async def test_a_plain_reading_is_sure_and_says_nothing_else() -> None:
                 }
             )
         ),
-        "m",
     )
 
     assert got.sure is True and got.also == []
@@ -562,15 +575,14 @@ async def test_the_mails_a_job_was_asked_for_by_reach_the_model() -> None:
         "a customer type please",
         WFS,
         asker,
-        "m",
         {"wfl_1": ["a customer type :- GKB description :- leaning new SRO type 002"]},
     )
 
-    (job,) = json.loads(str(asker.asked[0]["evidence"]))["jobs"]
+    (job,) = _request(asker)["jobs"]
     assert job["asked_by"] == ["a customer type :- GKB description :- leaning new SRO type 002"]
     # And the prompt says what to do with them. A model that answered with a
     # code out of an old request would create that record a second time.
-    assert "Never take a value out of one" in INSTRUCTIONS
+    assert "Never take a value out of one" in READ_REQUEST.instructions
 
 
 async def test_a_job_nobody_mailed_about_carries_no_empty_list_to_argue_with() -> None:
@@ -578,9 +590,9 @@ async def test_a_job_nobody_mailed_about_carries_no_empty_list_to_argue_with() -
     is a claim about the tenant's history rather than about the job."""
     asker = FakeAsker(_answer("wfl_1", []))
 
-    await understand("a customer type please", WFS, asker, "m")
+    await understand("a customer type please", WFS, asker)
 
-    (job,) = json.loads(str(asker.asked[0]["evidence"]))["jobs"]
+    (job,) = _request(asker)["jobs"]
     assert "asked_by" not in job
 
 
@@ -617,11 +629,10 @@ async def test_the_examples_are_read_off_the_gestures_the_jobs_cite() -> None:
         tenant_id=TENANT,
         utterance="new client for Coventry",
         asker=asker,
-        model="m",
         now=NOW,
     )
 
-    (job,) = json.loads(str(asker.asked[0]["evidence"]))["jobs"]
+    (job,) = _request(asker)["jobs"]
     assert job["asked_by"] == ["please create a client for the Coventry dock"]
 
 
@@ -646,7 +657,6 @@ async def test_a_request_naming_a_field_this_job_has_no_parameter_for_says_which
                 ],
             )
         ),
-        "m",
     )
 
     # Still dropped from the values: a key the workflow never declared is a
@@ -664,7 +674,6 @@ async def test_a_request_this_job_can_write_whole_names_nothing_extra() -> None:
         "create client NEW9",
         WFS,
         FakeAsker(_answer("wfl_1", [{"name": "clientCode", "value": "NEW9"}])),
-        "m",
     )
 
     assert got.unasked == []
@@ -698,7 +707,6 @@ async def test_a_job_this_sentence_could_not_fill_is_not_an_alternative() -> Non
                 }
             )
         ),
-        "m",
     )
 
     assert got.workflow_id == "wfl_1"
@@ -727,7 +735,6 @@ async def test_an_alternative_the_sentence_could_equally_fill_still_stands() -> 
                 }
             )
         ),
-        "m",
     )
 
     assert got.also == ["wfl_2"]
@@ -751,7 +758,6 @@ async def test_a_sentence_that_fills_neither_stays_unsure() -> None:
                 }
             )
         ),
-        "m",
     )
 
     assert got.also == ["wfl_2"]
@@ -781,8 +787,7 @@ async def test_a_field_the_page_never_asked_for_is_not_missing() -> None:
     got = await understand(
         "create a customer type",
         [job],
-        FakeAsker(Answer(data={"workflow_id": job.id, "values": [], "missing": []})),
-        "m",
+        FakeAsker(Answer(data={"workflow_id": job.id, "values": [], "missing": [], "sure": True})),
     )
 
     assert got.missing == ["Customer Type"], "a field the page never asked for was demanded"
@@ -832,7 +837,6 @@ async def test_a_job_is_still_recognised_after_it_learns_an_optional_field() -> 
                 }
             )
         ),
-        "m",
     )
 
     assert got.sure is True, "a job whose every demanded field was given was still ambiguous"

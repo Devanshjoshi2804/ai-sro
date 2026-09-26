@@ -29,7 +29,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/m
 > get 200s describing its own refusals. Raised here, the door answers 503 and
 > 429, which is what those two facts are.
 
-## `MinePass.execute`, [line 38](../../../../../../../backend/src/sro/application/observation/mine_pass.py#L38): Comment
+## `MinePass.execute`, [line 36](../../../../../../../backend/src/sro/application/observation/mine_pass.py#L36): Comment
 
 Code: `asker = asker_or_refuse(self._asker)`
 
@@ -37,7 +37,7 @@ Code: `asker = asker_or_refuse(self._asker)`
 > neither refusal needs a database, and a 503 that first took a
 > connection is a 503 that made the outage slightly worse.
 
-## `MinePass.execute`, [line 40](../../../../../../../backend/src/sro/application/observation/mine_pass.py#L40): Comment
+## `MinePass.execute`, [line 38](../../../../../../../backend/src/sro/application/observation/mine_pass.py#L38): Comment
 
 Code: `async with self._uow as uow:`
 

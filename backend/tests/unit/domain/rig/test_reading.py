@@ -8,12 +8,11 @@ to a model.
 from sro.domain.observation.gesture import Action, Body, Call, Gesture, Intent, Target, ValueSeen
 from sro.domain.observation.reading import (
     CONFIDENCE_VALUES,
-    INSTRUCTIONS,
-    INTENT_SCHEMA,
     is_write,
     one_line,
     with_recent_values,
 )
+from sro.domain.prompts.read_gesture import READ_GESTURE
 
 
 def _gesture(*, kind: str = "click", requests: list[Call] | None = None) -> Gesture:
@@ -62,7 +61,7 @@ def _write_call(*, status: int = 201, method: str = "POST") -> Call:
 def _in_schema(*path: str) -> object:
     """One key at a time, because a JSON schema is `dict[str, object]` and the
     layer's own rule is that nothing here reaches for `Any`."""
-    found: object = INTENT_SCHEMA
+    found: object = READ_GESTURE.output_schema
     for key in path:
         assert isinstance(found, dict)
         found = found[key]
@@ -125,14 +124,18 @@ def test_every_field_asked_of_the_reading_is_a_field_something_reads() -> None:
         "values_seen",  # typed_values, values.crossings, learn_parameters
         "confidence",  # read before a reading is trusted
     }
-    assert "continu" not in INSTRUCTIONS, "the words still ask for a field nobody reads"
+    assert "continu" not in READ_GESTURE.instructions, (
+        "the words still ask for a field nobody reads"
+    )
 
 
 def test_the_words_ask_for_the_order_the_schema_imposes() -> None:
     """A prompt that asks for one order while the schema imposes another is a
     prompt arguing with itself, which is what shipped once already."""
-    assert "First say why" in INSTRUCTIONS
-    assert INSTRUCTIONS.index("First say why") < INSTRUCTIONS.index("name the act")
+    assert "First say why" in READ_GESTURE.instructions
+    assert READ_GESTURE.instructions.index("First say why") < READ_GESTURE.instructions.index(
+        "name the act"
+    )
 
 
 def test_one_line_is_one_line() -> None:

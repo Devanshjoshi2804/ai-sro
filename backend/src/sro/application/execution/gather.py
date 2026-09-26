@@ -9,6 +9,7 @@ from types import MappingProxyType
 from sro.application.context import RequestContext
 from sro.application.ports.model import Asker
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
+from sro.application.shared.asking import ask
 from sro.domain.execution.gathering import (
     K_PATIENCE_S,
     K_ROUNDS,
@@ -19,64 +20,16 @@ from sro.domain.execution.gathering import (
     note,
     still_wanted,
 )
+from sro.domain.prompts.gather import GATHER
 from sro.domain.shared.prices import Answer
 
 SERVER = "gmail"
 
-STEP_SCHEMA: dict[str, object] = {
-    "type": "object",
-    "properties": {
-        "action": {"type": "string", "enum": ["search", "read", "done"]},
-        "query": {"type": "string", "nullable": True},
-        "message_id": {"type": "string", "nullable": True},
-        "values": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string"},
-                    "value": {"type": "string"},
-                    "from_message": {"type": "string"},
-                    "quoting": {"type": "string"},
-                },
-                "required": ["name", "value", "from_message"],
-            },
-        },
-        "why": {"type": "string"},
-    },
-    "required": ["action", "why"],
-    "propertyOrdering": ["action", "query", "message_id", "values", "why"],
-}
-
-INSTRUCTIONS = """You are finding the values a warehouse job needs, in the operator's mailbox.
-
-You are given the job, the values it still needs, what each has been seen
-taking before, and what you have already looked at. Choose ONE action:
-
-- search: a Gmail query. Use it to find candidate messages.
-- read: a message id from a previous search, to see its whole body.
-- done: you have found values, or you are certain the mailbox does not hold
-  them. Put what you found in `values`.
-
-Every value you report must carry `from_message` -- the id of the message you
-read it out of -- and `quoting`, the few words it appeared in. A value you
-cannot point at a message for is a value you must not report.
-
-Report only the values asked for. Do not invent one, do not carry one over
-from an example, and do not report a value you inferred rather than read. If
-the mailbox does not hold a value, say `done` and leave it out: somebody will
-be asked for it, which is far better than a wrong record in a warehouse.
-
-The value is often NOT in the message that mentions the job. A request may say
-"as discussed" or point at an earlier thread, so read the thread rather than
-stopping at the first hit."""
-
 
 class GatherContext:
-    def __init__(self, tools: ToolCaller, asker: Asker, model: str) -> None:
+    def __init__(self, tools: ToolCaller, asker: Asker) -> None:
         self._tools = tools
         self._asker = asker
-        self._model = model
 
     @property
     def tools(self) -> ToolCaller:
@@ -121,22 +74,18 @@ class GatherContext:
                 )
             try:
                 answer = await asyncio.wait_for(
-                    self._asker.ask(
-                        model=self._model,
-                        instructions=INSTRUCTIONS,
-                        evidence=json.dumps(
-                            {
-                                "job": job,
-                                "asked_for": because,
-                                "still_needed": list(missing),
-                                "seen_before": {name: list(seen.get(name, ())) for name in missing},
-                                "already_looked_at": history,
-                            },
-                            indent=2,
-                            ensure_ascii=False,
-                        ),
-                        schema=STEP_SCHEMA,
-                        effort=None,
+                    ask(
+                        self._asker,
+                        GATHER,
+                        trusted={
+                            "job": job,
+                            "still_needed": list(missing),
+                            "seen_before": {name: list(seen.get(name, ())) for name in missing},
+                        },
+                        untrusted={
+                            "asked_for": because,
+                            "already_looked_at": json.dumps(history, indent=2, ensure_ascii=False),
+                        },
                     ),
                     left,
                 )

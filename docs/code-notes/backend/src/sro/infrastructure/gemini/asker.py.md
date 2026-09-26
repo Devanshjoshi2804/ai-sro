@@ -183,7 +183,7 @@ Code: `thought_tokens = getattr(usage, "thoughts_token_count", None) or 0`
 > and candidates_token_count does not include them -- the SDK carries
 > them separately. Reading only candidates_token_count understated every
 > figure this rig has ever produced, and understated them by more the
-> harder the prompt was. K_EFFORT = "high" exists to spend these, so a
+> harder the prompt was. A record's `thinking` exists to spend these, so a
 > short visible answer can carry thousands of billed tokens the bill
 > showed and we did not.
 

@@ -166,9 +166,9 @@ Code: `K_MAX_ITEMS = 40`
 
 ## `evidence_tokens`, [line 24](../../../../../../../backend/src/sro/domain/observation/window.py#L24): Docstring
 
-> One item measured the way umbrella.build_prompt will actually ship it.
+> One item measured the way umbrella.mining_blocks will actually ship it.
 >
-> Inside a list, at indent=1 -- because that is what build_prompt writes, and
+> Inside a list, at indent=1 -- because that is what mining_blocks writes, and
 > budgeting it compact was a 17.6% under-count on the real acme window (22,593
 > counted against 26,566 shipped). K_WINDOW_TOKENS is a PROMPT budget whose
 > whole purpose is the 200K boundary where Gemini 3.1 Pro's input price
@@ -302,7 +302,7 @@ Code: `from sro.domain.skill.umbrella import PROMPT_OVERHEAD_TOKENS`
 > at import time is a cycle. The subtraction belongs HERE, with `known` and
 > `kb`, rather than at a call site -- a budget that leaves out the fixed
 > cost of the prompt it is budgeting is not a prompt budget, and
-> INSTRUCTIONS twice plus the response schema plus the crossings block came
+> the task twice plus the response schema plus the crossings block came
 > to ~2,600 tokens nothing subtracted.
 
 ## `pack`, [line 199](../../../../../../../backend/src/sro/domain/observation/window.py#L199): Comment (debt)

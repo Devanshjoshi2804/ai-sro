@@ -49,6 +49,7 @@ from sro.domain.execution.planning import (
     value_for,
 )
 from sro.domain.observation.gesture import Body, Call, Gesture
+from sro.domain.prompts.record import Prompt
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.skill.workflow import Step
 from tests.unit.domain.rig.conftest import gestures as _gestures
@@ -191,9 +192,11 @@ def test_no_schema_in_the_package_uses_what_the_developer_api_refuses() -> None:
     for info in pkgutil.walk_packages(sro.__path__, prefix="sro."):
         module = importlib.import_module(info.name)
         for name in dir(module):
-            if name.endswith("_SCHEMA") and isinstance(getattr(module, name), dict):
+            value = getattr(module, name)
+            schema = value.output_schema if isinstance(value, Prompt) else value
+            if (name.endswith("_SCHEMA") or isinstance(value, Prompt)) and isinstance(schema, dict):
                 walked += 1
-                offenders += walk(getattr(module, name), f"{info.name}.{name}")
+                offenders += walk(schema, f"{info.name}.{name}")
     assert offenders == [], offenders
     # Not just truthy: narrowing the walk back to `sro.domain` still finds six
     # schemas and would pass a bare `assert walked`, which is how the widening

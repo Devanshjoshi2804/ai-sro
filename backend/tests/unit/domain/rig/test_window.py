@@ -22,7 +22,6 @@ from sro.domain.observation.window import (
     K_MIN_GESTURES,
     K_WINDOW_TOKENS,
     Packed,
-    Window,
     arrange,
     as_evidence,
     evidence_tokens,
@@ -30,7 +29,8 @@ from sro.domain.observation.window import (
     strength,
     tokens,
 )
-from sro.domain.skill.umbrella import build_prompt
+from sro.domain.prompts.mine import MINE
+from sro.domain.skill.umbrella import mining_blocks
 from tests.unit.domain.rig.conftest import gestures as _gestures
 
 
@@ -84,7 +84,7 @@ def test_the_budget_stays_under_the_price_boundary_in_real_tokens() -> None:
 
 
 def test_evidence_is_measured_the_way_the_prompt_ships_it() -> None:
-    """`evidence_tokens` counts an item the way `umbrella.build_prompt` writes
+    """`evidence_tokens` counts an item the way `umbrella.mining_blocks` writes
     it -- inside a list, at indent=1, with the text left alone -- and that is
     an equality with another module rather than a preference.
 
@@ -105,9 +105,8 @@ def test_evidence_is_measured_the_way_the_prompt_ships_it() -> None:
     gesture = copy.deepcopy(_gestures()[0])
     gesture.action = replace(gesture.action, value="ACME-4471 -- Größe · naïve ¥ € ½ Ω")
     evidence = as_evidence(gesture, None)
-    item = Packed(gesture.id, gesture.at, evidence, 1.0, evidence_tokens(evidence))
 
-    shipped = build_prompt(Window(items=[item]), {}, [], "")
+    shipped = MINE.evidence({}, mining_blocks([evidence], {}, [], ""))
 
     block = json.dumps([evidence], indent=1, ensure_ascii=False)
     assert block in shipped, "the shape measured is not the shape the prompt ships"

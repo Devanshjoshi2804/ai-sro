@@ -173,7 +173,6 @@ async def test_the_mail_is_written_and_put_in_front_of_the_operator_unsent() -> 
         uow=uow,
         tools=mailbox,
         asker=_written("alex.r@example.com"),
-        model="flash",
         clock=FakeClock(),
         ids=FakeIdFactory(),
     )
@@ -204,7 +203,6 @@ async def test_a_mail_to_somebody_nobody_named_is_never_drafted() -> None:
         uow=uow,
         tools=mailbox,
         asker=_written("stranger@example.com"),
-        model="flash",
         clock=FakeClock(),
         ids=FakeIdFactory(),
     )
@@ -225,7 +223,6 @@ async def test_the_press_sends_it_and_gmails_answer_finishes_the_run() -> None:
         uow=uow,
         tools=mailbox,
         asker=_written("alex.r@example.com"),
-        model="flash",
         clock=FakeClock(),
         ids=FakeIdFactory(),
     )

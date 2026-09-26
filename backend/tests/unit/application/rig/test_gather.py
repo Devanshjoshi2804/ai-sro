@@ -69,7 +69,13 @@ class _Steps:
 
 
 def _gather(tools: Any, asker: Any) -> GatherContext:
-    return GatherContext(tools=tools, asker=asker, model="flash")
+    return GatherContext(tools=tools, asker=asker)
+
+
+def _shown(evidence: str) -> dict[str, object]:
+    said = json.loads(evidence.split("\n\n", 1)[0])
+    fence = evidence.split('<untrusted name="already_looked_at">\n', 1)[1]
+    return {**said, "already_looked_at": json.loads(fence.split("\n</untrusted>", 1)[0])}
 
 
 async def test_a_value_the_triggering_message_does_not_carry_is_still_found() -> None:
@@ -267,7 +273,7 @@ async def test_what_was_demonstrated_is_shown_as_a_shape_and_not_offered_as_an_a
         CTX, job="a job", wanted=[CODE], seen={CODE: ["GGD", "GKB"]}
     )
 
-    shown = json.loads(asker.saw[0])
+    shown = _shown(asker.saw[0])
     assert shown["seen_before"] == {CODE: ["GGD", "GKB"]}
 
 
@@ -284,7 +290,7 @@ async def test_the_history_shown_to_the_model_is_notes_rather_than_mail() -> Non
 
     await _gather(mailbox, asker).execute(CTX, job="a job", wanted=[CODE])
 
-    second = json.loads(asker.saw[1])
+    second = _shown(asker.saw[1])
     assert len(second["already_looked_at"]) == 2, "the opening search, then the model's"
     assert all(len(one) < 400 for one in second["already_looked_at"]), (
         "the whole mail went into the prompt"
@@ -311,7 +317,7 @@ async def test_the_mailbox_is_always_looked_in_before_anything_is_concluded() ->
     assert got.looked == ("search 'Create a Customer Type'",)
     assert got.missing == (CODE,)
     # And the model was asked with that search already in its history.
-    assert "Create a Customer Type" in json.loads(asker.saw[0])["already_looked_at"][0]
+    assert "Create a Customer Type" in _shown(asker.saw[0])["already_looked_at"][0]
 
 
 async def test_the_reason_the_run_was_started_beats_the_job_name_as_an_opening() -> None:

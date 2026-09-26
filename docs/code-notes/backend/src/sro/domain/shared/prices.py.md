@@ -97,7 +97,7 @@ Code: `Effort = Literal["minimal", "low", "medium", "high"]`
 > because google-genai does not reject an unknown one: ThinkingLevel("nonsense")
 > returns a pseudo-member carrying the typo straight to the API on 2.22.0. A
 > constant that silently means "model default" is the exact failure wiring
-> K_EFFORT was meant to close, one layer down, so mypy catches it instead.
+> a record's `thinking` was meant to close, one layer down, so mypy catches it instead.
 
 ## `Answer`, [line 65](../../../../../../../backend/src/sro/domain/shared/prices.py#L65): Comment
 

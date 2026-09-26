@@ -37,7 +37,7 @@ Code: `READING_LIMIT = 200`
 > it here also made the cascade unsound, since the answer cached under a piece
 > of evidence would carry the first gesture's fold into the second's reading.
 
-## `read_new_gestures`, [line 65](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L65): Docstring (debt)
+## `read_new_gestures`, [line 60](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L60): Docstring (debt)
 
 > Every stored gesture of THIS TENANT with no intent gets exactly one reading.
 >
@@ -71,7 +71,7 @@ Code: `READING_LIMIT = 200`
 > store wired to this pass is not a broken one; it is one asking the same
 > question this always asked, without the one extra source a picture is.
 
-## `_not_our_own_driving`, [line 93](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L93): Docstring
+## `_not_our_own_driving`, [line 86](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L86): Docstring
 
 > The ones an operator made, with this system's own replays taken out.
 >
@@ -92,7 +92,7 @@ Code: `READING_LIMIT = 200`
 > which run it was -- so somebody reading the evidence can tell a replay
 > from a gap.
 
-## `_ask_group`, [line 190](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L190): Docstring
+## `_ask_group`, [line 181](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L181): Docstring
 
 > Every distinct question in this group, asked once and all at once.
 >
@@ -112,7 +112,7 @@ Code: `READING_LIMIT = 200`
 > raised here: the answers that did come back have been paid for, and a
 > raise on the way out of this function would discard them unsaved.
 
-## `_same_evidence`, [line 241](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L241): Docstring
+## `_same_evidence`, [line 229](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L229): Docstring
 
 > A name for exactly what the model would be shown about this gesture.
 >
@@ -128,7 +128,7 @@ Code: `READING_LIMIT = 200`
 > the same gesture asked about without one are two different questions, and
 > only the first is worth the token it costs.
 
-## `_reread`, [line 248](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L248): Docstring
+## `_reread`, [line 236](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L236): Docstring
 
 > The same answer, filed against this gesture, and billed to nobody.
 >
@@ -138,7 +138,7 @@ Code: `READING_LIMIT = 200`
 > total, which is the same arithmetic error `MineResult` fixed by putting
 > the bill on the pass instead of on each workflow it found.
 
-## `_thin_shot`, [line 261](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L261): Docstring
+## `_thin_shot`, [line 249](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L249): Docstring
 
 > The picture behind one thin gesture, or `None` when there is not one.
 >
@@ -154,7 +154,7 @@ Code: `READING_LIMIT = 200`
 > gestures from a handful of batches would otherwise re-list the object
 > store and re-parse the same NDJSON payload for every thin gesture in it.
 
-## `_gestures_before`, [line 298](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L298): Docstring
+## `_gestures_before`, [line 286](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L286): Docstring
 
 > The recorded gestures of this stream that came before this one, oldest first.
 >
@@ -169,7 +169,7 @@ Code: `READING_LIMIT = 200`
 > Same stream, same reason: a value typed in the operator's other tab was
 > never on this form.
 
-## `_tail_for`, [line 304](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L304): Docstring
+## `_tail_for`, [line 292](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L292): Docstring
 
 > The readings of this stream that came before this gesture, oldest first.
 >
@@ -180,7 +180,7 @@ Code: `READING_LIMIT = 200`
 > handed, and one function knowing that number is one place for it to be
 > wrong.
 
-## `ReadGestures`, [line 314](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L314): Docstring
+## `ReadGestures`, [line 302](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L302): Docstring
 
 > Read this tenant's unread gestures, once, and bill it.
 >
@@ -192,7 +192,7 @@ Code: `READING_LIMIT = 200`
 > told. Raised here, the door answers 503 and 429, which is what those two
 > facts are.
 
-## `read_gesture`, [line 47](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L47): Comment
+## `read_gesture`, [line 46](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L46): Comment
 
 Code: `recent = [one_line(intent) for intent in tail]`
 
@@ -201,18 +201,7 @@ Code: `recent = [one_line(intent) for intent in tail]`
 > `tail_size` unenforceable from above: a caller asking for none still
 > got eight if it handed eight over.
 
-## `read_gesture`, [line 52](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L52): Comment
-
-Code: `ensure_ascii=False,`
-
-> The redaction marker is «redacted», and the default ensure_ascii
-> writes it into the prompt as \u00abredacted\u00bb -- a form
-> nothing else in this system uses. The model was being asked to understand a
-> marker written one way here and another way everywhere else, and a
-> reviewer grepping stored prompts for it found nothing. Every
-> json.dumps on a path to a prompt or to the store says so.
-
-## `read_gesture`, [line 60](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L60): Comment
+## `read_gesture`, [line 55](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L55): Comment
 
 Code: `image=image if thin(gesture.action.target) else None,`
 
@@ -221,7 +210,7 @@ Code: `image=image if thin(gesture.action.target) else None,`
 > bill, and on a named control it tells the model nothing the
 > field label already did.
 
-## `_read_unread`, [line 131](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L131): Comment
+## `_read_unread`, [line 123](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L123): Comment
 
 Code: `rows = await uow.gestures.unread(tenant_id, limit=limit)`
 
@@ -234,7 +223,7 @@ Code: `rows = await uow.gestures.unread(tenant_id, limit=limit)`
 > as unusable and the gestures route returns an intent rather than null.
 > Not both billed and hidden -- pick one, and this picks visible.
 
-## `_read_unread`, [line 136](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L136): Comment
+## `_read_unread`, [line 128](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L128): Comment
 
 Code: `logger.warning("%s for %s, %d gesture(s) unread", why, tenant_id.value, len(rows))`
 
@@ -244,7 +233,7 @@ Code: `logger.warning("%s for %s, %d gesture(s) unread", why, tenant_id.value, l
 > loop asks anything: a cap checked per gesture is a cap that has
 > already paid for the gesture it stops on.
 
-## `_read_unread`, [line 139](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L139): Comment (debt)
+## `_read_unread`, [line 131](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L131): Comment (debt)
 
 Code: `ordered = await uow.gestures.gestures_for(tenant_id)`
 
@@ -258,7 +247,7 @@ Code: `ordered = await uow.gestures.gestures_for(tenant_id)`
 > `GestureRepository.tail_for(stream_id, before)`: the rig had that query in
 > SQL, and a port is exactly the seam it belongs on.
 
-## `_read_unread`, [line 144](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L144): Comment
+## `_read_unread`, [line 136](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L136): Comment
 
 Code: `already: dict[str, Intent] = {}`
 
@@ -272,7 +261,7 @@ Code: `already: dict[str, Intent] = {}`
 > which ends with the last eight readings -- it is 0.0%. Every gesture has
 > a tail nothing else has, so with one, nothing is ever reusable.
 
-## `_read_unread`, [line 147](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L147): Comment
+## `_read_unread`, [line 139](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L139): Comment
 
 Code: `asked: list[tuple[Gesture, bytes | None, str | None]] = []`
 
@@ -281,7 +270,7 @@ Code: `asked: list[tuple[Gesture, bytes | None, str | None]] = []`
 > through the same session every other query here uses, and a session
 > is not a thing two coroutines may hold at once.
 
-## `_read_unread`, [line 171](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L171): Comment
+## `_read_unread`, [line 162](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L162): Comment
 
 Code: `continue`
 
@@ -290,7 +279,7 @@ Code: `continue`
 > -- which is what `unread` means and what the next pass will
 > pick up.
 
-## `_read_unread`, [line 172](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L172): Comment
+## `_read_unread`, [line 163](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L163): Comment
 
 Code: `intent = with_recent_values(intent, gesture, _gestures_before(ordered, gesture))`
 
@@ -301,7 +290,7 @@ Code: `intent = with_recent_values(intent, gesture, _gestures_before(ordered, ge
 > piece of evidence gets THIS gesture's fold rather than inheriting
 > the first one's.
 
-## `_read_unread`, [line 174](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L174): Comment
+## `_read_unread`, [line 165](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L165): Comment
 
 Code: `intents[gesture.id] = intent`
 
@@ -311,7 +300,7 @@ Code: `intents[gesture.id] = intent`
 > So the next gesture of this stream is read against what this one
 > said, exactly as the rig's per-gesture query was.
 
-## `_read_unread`, [line 178](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L178): Comment
+## `_read_unread`, [line 169](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L169): Comment
 
 Code: `await uow.commit()`
 
@@ -321,7 +310,7 @@ Code: `await uow.commit()`
 > `FakeUnitOfWork.commits` is a number a test can read and the
 > per-reading commit rule is worth keeping legible.
 
-## `_read_unread`, [line 181](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L181): Comment
+## `_read_unread`, [line 172](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L172): Comment
 
 Code: `raise failure`
 
@@ -329,14 +318,14 @@ Code: `raise failure`
 > Swallowing it would turn a broken deployment into a pass that
 > quietly reads nothing every night.
 
-## `_ask_group`, [line 201](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L201): Comment
+## `_ask_group`, [line 191](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L191): Comment
 
 Code: `questions[gesture.id] = (gesture, image)`
 
 > With a tail there is no shared question -- every gesture trails
 > a different one -- so it is keyed by itself and the group is one.
 
-## `_ask_group`, [line 203](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L203): Comment
+## `_ask_group`, [line 193](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L193): Comment
 
 Code: `questions[key] = (gesture, image)`
 
@@ -347,14 +336,14 @@ Code: `questions[key] = (gesture, image)`
 > back is stamped with that gesture's id, and every other sharer
 > needs it re-stamped with its own. See below.
 
-## `_ask_group`, [line 222](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L222): Comment
+## `_ask_group`, [line 210](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L210): Comment
 
 Code: `continue`
 
 > This one's own call raised. Every other member of the group is
 > unaffected, and this gesture stays unread.
 
-## `_ask_group`, [line 235](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L235): Comment
+## `_ask_group`, [line 223](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L223): Comment
 
 Code: `if answered.gesture_id != gesture.id:`
 
@@ -369,16 +358,27 @@ Code: `if answered.gesture_id != gesture.id:`
 > again on the next pass. A real 164-gesture pass reported 169 readings
 > for 164 rows, which is how it was found.
 
-## `_thin_shot`, [line 273](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L273): Comment
+## `_thin_shot`, [line 261](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L261): Comment
 
 Code: `cache[gesture.batch_id] = None`
 
 > The evidence aged out from under the gesture that cites it.
 
-## `ReadGestures.execute`, [line 337](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L337): Comment
+## `ReadGestures.execute`, [line 323](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L323): Comment
 
 Code: `asker = asker_or_refuse(self._asker)`
 
 > Before the session is opened: neither refusal needs a database, and
 > a 503 that first took a connection is a 503 that made the outage
 > slightly worse.
+
+## `read_gesture`, [line 52](../../../../../../../backend/src/sro/application/observation/read_gesture.py#L52): Comment
+
+Code: `"gesture": json.dumps(trim(gesture), indent=2, sort_keys=True, ensure_ascii=False),`
+
+> The redaction marker is «redacted», and the default ensure_ascii
+> writes it into the prompt as \u00abredacted\u00bb -- a form
+> nothing else in this system uses. The model was being asked to understand a
+> marker written one way here and another way everywhere else, and a
+> reviewer grepping stored prompts for it found nothing. Every
+> json.dumps on a path to a prompt or to the store says so.

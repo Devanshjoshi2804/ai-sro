@@ -115,7 +115,6 @@ class FromTheMail:
         tools: ToolCaller,
         asker: Asker | None,
         *,
-        model: str,
         answer: AnswerRun,
         gather: GatherContext | None = None,
         clock: Clock | None = None,
@@ -131,7 +130,6 @@ class FromTheMail:
         self._attempts = attempts
         self._tools = tools
         self._asker = asker
-        self._model = model
         self._answer = answer
         self._gather = gather
         self._clock = clock
@@ -232,7 +230,7 @@ class FromTheMail:
         asked = await self._was_asked(ctx, thread)
         if asked is not None:
             return await self._answered_by_mail(ctx, message, asked, said, thread, subject, held)
-        got = await understand(said, workflows, asker, self._model, asked_by)
+        got = await understand(said, workflows, asker, asked_by)
         look.spent = _also(look.spent, got.answer)
         if got.answer.data is None:
             raise Unread(got.answer.error or "the model gave no reading")
@@ -261,7 +259,7 @@ class FromTheMail:
                 elif whole == said:
                     logger.info("%s: %s -- the conversation is only this mail", tenant, job_)
                 else:
-                    again = await understand(whole, workflows, asker, self._model, asked_by)
+                    again = await understand(whole, workflows, asker, asked_by)
                     look.spent = _also(look.spent, again.answer)
                     if again.workflow_id != got.workflow_id:
                         logger.info(
@@ -538,7 +536,7 @@ class FromTheMail:
     ) -> dict[str, str]:
         if not wanted or job is None or self._asker is None or not said.strip():
             return {}
-        read = await understand(said, [job], self._asker, self._model)
+        read = await understand(said, [job], self._asker)
         got = {
             name: value
             for name, value in read.values.items()

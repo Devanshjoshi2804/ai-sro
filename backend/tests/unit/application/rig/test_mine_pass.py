@@ -26,6 +26,7 @@ from sro.application.shared.refusals import OverCap
 from sro.application.skill.serve_shapes import shapes_for
 from sro.domain.observation.driving import WAS_OUR_OWN_DRIVING
 from sro.domain.observation.gesture import Gesture, Intent, PageMark
+from sro.domain.prompts.mine import MINE
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer, ModelSpend
 from sro.infrastructure.db.codec import when
@@ -40,7 +41,6 @@ from tests.unit.fakes import (
 
 TENANT = TenantId("acme")
 RIVAL = TenantId("rival")
-MODEL = "gemini-3.1-pro-preview"
 HOST = "http://127.0.0.1:63319"
 APP = "https://app.example"
 
@@ -62,7 +62,6 @@ def _pass(
     *,
     asker: FakeAsker | None,
     clock: FakeClock | None = None,
-    model: str = MODEL,
     cap_usd: float = CAP,
     ours: frozenset[str] = frozenset(),
 ) -> MinePass:
@@ -74,7 +73,6 @@ def _pass(
         uow.hand_out(),
         asker=asker,
         locks=FakeAccountLocks(),
-        model=model,
         clock=clock or FakeClock(NOW),
         cap_usd=cap_usd,
         ours=ours,
@@ -711,16 +709,15 @@ async def test_the_day_the_pass_is_billed_to_is_the_clocks_and_not_the_servers()
     assert when(row.started_at) == NOW
 
 
-async def test_the_model_asked_is_the_one_this_deployment_configured() -> None:
-    """Not the shipped default and not a literal: the pass carries the name it
-    was built with, so a deployment that pinned another one is billed for the
-    model it chose."""
+async def test_the_model_asked_is_the_one_the_record_names() -> None:
+    """A model change is a prompt change, so the pass asks the model its
+    record names and nothing a deployment configures can move it."""
     uow, ids = await _day()
     asker = FakeAsker(_answer(ids[:2]))
 
-    await _pass(uow, asker=asker, model="gemini-3.1-flash-preview").execute(_ctx())
+    await _pass(uow, asker=asker).execute(_ctx())
 
-    assert [one["model"] for one in asker.asked] == ["gemini-3.1-flash-preview"]
+    assert [one["model"] for one in asker.asked] == [MINE.model]
 
 
 async def test_the_day_the_cap_judges_is_the_callers_and_never_a_neighbours() -> None:

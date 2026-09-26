@@ -26,8 +26,10 @@ Comments and docstrings moved out of [`backend/src/sro/domain/chat/is_it_an_answ
 > value goes to the model, which is asked one question and given the words that
 > were actually said.
 >
-> Pure. The model call lives in `application.chat.reading_an_answer`; what is
-> here is the shape of the question and the half that needs nobody to answer it.
+> Pure. The model call lives in `application.chat.reading_an_answer`, and the
+> question it asks is the `IS_IT_AN_ANSWER` record in
+> `sro.domain.prompts.is_it_an_answer`; what is here is the half that needs
+> nobody to answer it.
 
 ## module, [line 5](../../../../../../../backend/src/sro/domain/chat/is_it_an_answer.py#L5): Note on the line above
 
@@ -125,11 +127,3 @@ Code: `return holds is None or len(value) <= holds`
 > And it has to fit the box it is for. A lone word too long for the field
 > is already refused further down, but it is not OBVIOUSLY a value either,
 > and the question this asks is about obviousness.
-
-## module, [line 78](../../../../../../../backend/src/sro/domain/chat/is_it_an_answer.py#L78): Comment
-
-Code: `"required": ["answers", "value", "why", "about"],`
-
-> No `additionalProperties`: the developer API refuses a schema carrying
-> it, and `test_no_schema_in_the_package_uses_what_the_developer_api_refuses`
-> walks every `*_SCHEMA` in the package to keep it that way.

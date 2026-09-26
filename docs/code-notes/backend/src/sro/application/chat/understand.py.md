@@ -19,7 +19,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/understa
 > reached `understand`, and a cap checked after the call is a cap that has
 > already paid for the call it stops.
 
-## `Understood`, [line 20](../../../../../../../backend/src/sro/application/chat/understand.py#L20): Docstring
+## `Understood`, [line 22](../../../../../../../backend/src/sro/application/chat/understand.py#L22): Docstring
 
 > What one sentence came to, and what reading it cost.
 >
@@ -28,7 +28,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/understa
 > went through the model and has to be billed for. A reading the caller
 > cannot bill is a model call nobody can defend at the end of the month.
 
-## `Understood`, [line 25](../../../../../../../backend/src/sro/application/chat/understand.py#L25): Note on the line above
+## `Understood`, [line 27](../../../../../../../backend/src/sro/application/chat/understand.py#L27): Note on the line above
 
 Code: `sure: bool = True`
 
@@ -40,14 +40,14 @@ Code: `sure: bool = True`
 > on, because a guess that creates one wrong record is a nuisance and the
 > same guess against a list of twenty is twenty wrong records.
 
-## `Understood`, [line 27](../../../../../../../backend/src/sro/application/chat/understand.py#L27): Note on the line above
+## `Understood`, [line 29](../../../../../../../backend/src/sro/application/chat/understand.py#L29): Note on the line above
 
 Code: `also: list[str] = field(default_factory=list)`
 
 > The other jobs it nearly said, ids only, for the question a person is
 > asked. Filtered to jobs this tenant actually holds, like `workflow_id`.
 
-## `Understood`, [line 29](../../../../../../../backend/src/sro/application/chat/understand.py#L29): Note on the line above
+## `Understood`, [line 31](../../../../../../../backend/src/sro/application/chat/understand.py#L31): Note on the line above
 
 Code: `items: list[dict[str, str]] = field(default_factory=list)`
 
@@ -57,7 +57,7 @@ Code: `items: list[dict[str, str]] = field(default_factory=list)`
 > performs exactly as a job run for none, so a caller that ignores this is
 > not wrong, only limited to the first thing somebody asked for.
 
-## `Understood`, [line 31](../../../../../../../backend/src/sro/application/chat/understand.py#L31): Note on the line above
+## `Understood`, [line 33](../../../../../../../backend/src/sro/application/chat/understand.py#L33): Note on the line above
 
 Code: `aside: dict[str, str] = field(default_factory=dict)`
 
@@ -68,7 +68,7 @@ Code: `aside: dict[str, str] = field(default_factory=dict)`
 > value this threw away. Set aside rather than in `values`, because `values`
 > is what the job itself declares and this is not that.
 
-## `Understood`, [line 33](../../../../../../../backend/src/sro/application/chat/understand.py#L33): Note on the line above
+## `Understood`, [line 35](../../../../../../../backend/src/sro/application/chat/understand.py#L35): Note on the line above
 
 Code: `unasked: list[str] = field(default_factory=list)`
 
@@ -84,7 +84,7 @@ Code: `unasked: list[str] = field(default_factory=list)`
 > The run already says this after the press. Nobody can consent to a write
 > they cannot see, and after the press is after the record.
 
-## `understand`, [line 36](../../../../../../../backend/src/sro/application/chat/understand.py#L36): Docstring
+## `understand`, [line 38](../../../../../../../backend/src/sro/application/chat/understand.py#L38): Docstring
 
 > Which of these jobs the operator meant, with what values, missing what.
 >
@@ -94,7 +94,7 @@ Code: `unasked: list[str] = field(default_factory=list)`
 > like, as opposed to what the job is called. A job with none is matched on
 > its title and narrative exactly as it always was.
 
-## `_fills`, [line 117](../../../../../../../backend/src/sro/application/chat/understand.py#L117): Docstring
+## `_fills`, [line 116](../../../../../../../backend/src/sro/application/chat/understand.py#L116): Docstring
 
 > Whether this sentence named every parameter that job declares.
 >
@@ -115,7 +115,7 @@ Code: `unasked: list[str] = field(default_factory=list)`
 > request was dropped with "asked for a job this tenant holds more than one
 > of". Learning two fields cost the job the ability to be recognised at all.
 
-## `_things`, [line 126](../../../../../../../backend/src/sro/application/chat/understand.py#L126): Docstring
+## `_things`, [line 125](../../../../../../../backend/src/sro/application/chat/understand.py#L125): Docstring
 
 > One set of values per thing the operator named, in the order they named
 > them.
@@ -131,7 +131,7 @@ Code: `unasked: list[str] = field(default_factory=list)`
 > can be handed, because the body performed for it would repeat the previous
 > thing's values.
 
-## `read_utterance`, [line 146](../../../../../../../backend/src/sro/application/chat/understand.py#L146): Docstring
+## `read_utterance`, [line 145](../../../../../../../backend/src/sro/application/chat/understand.py#L145): Docstring
 
 > One sentence, read against this tenant's jobs, with the bill written down.
 >
@@ -144,7 +144,7 @@ Code: `unasked: list[str] = field(default_factory=list)`
 > money and returned nothing. `now` is the caller's clock rather than one
 > read here, so a test can move it.
 
-## `understand`, [line 53](../../../../../../../backend/src/sro/application/chat/understand.py#L53): Comment
+## `understand`, [line 54](../../../../../../../backend/src/sro/application/chat/understand.py#L54): Comment
 
 Code: `**({"asked_by": list(said)} if (said := asked_by.get(w.id)) else {}),`
 
@@ -152,23 +152,14 @@ Code: `**({"asked_by": list(said)} if (said := asked_by.get(w.id)) else {}),`
 > `[]` invites "this job is never asked for by mail", which is a
 > claim about the tenant's history and not about the job.
 
-## `understand`, [line 63](../../../../../../../backend/src/sro/application/chat/understand.py#L63): Comment
-
-Code: `ensure_ascii=False,`
-
-> The redaction marker is «redacted», and the default ensure_ascii
-> writes it into the prompt as \u00abredacted\u00bb -- a form
-> nothing else in this system uses. Every json.dumps on a path to a
-> prompt or to the store says so.
-
-## `understand`, [line 69](../../../../../../../backend/src/sro/application/chat/understand.py#L69): Comment
+## `understand`, [line 68](../../../../../../../backend/src/sro/application/chat/understand.py#L68): Comment
 
 Code: `by_id = {w.id: w for w in workflows}`
 
 > A job the rig does not hold is not a job: the model naming one is a
 > hallucination, not an offer, and the form has nothing to render for it.
 
-## `understand`, [line 73](../../../../../../../backend/src/sro/application/chat/understand.py#L73): Comment
+## `understand`, [line 72](../../../../../../../backend/src/sro/application/chat/understand.py#L72): Comment
 
 Code: `declared = {p.get("name") for p in chosen.parameters if isinstance(p, dict)}`
 
@@ -177,7 +168,7 @@ Code: `declared = {p.get("name") for p in chosen.parameters if isinstance(p, dic
 > could have written -- so the offer carries only the parameters this
 > workflow itself names.
 
-## `understand`, [line 82](../../../../../../../backend/src/sro/application/chat/understand.py#L82): Comment
+## `understand`, [line 81](../../../../../../../backend/src/sro/application/chat/understand.py#L81): Comment
 
 Code: `unasked = sorted({k for k, _ in read if k not in declared})`
 
@@ -194,7 +185,7 @@ Code: `unasked = sorted({k for k, _ in read if k not in declared})`
 > A run says so after the press (`run.unasked`). Nobody can consent to a
 > write they cannot see, and after the press is after the record.
 
-## `understand`, [line 83](../../../../../../../backend/src/sro/application/chat/understand.py#L83): Comment
+## `understand`, [line 82](../../../../../../../backend/src/sro/application/chat/understand.py#L82): Comment
 
 Code: `aside = {k: v for k, v in read if k not in declared}`
 
@@ -205,7 +196,7 @@ Code: `aside = {k: v for k, v in read if k not in declared}`
 > than a job varies, so where the dictionary names the slot the write can
 > fill it after all -- and it cannot fill what was thrown away here.
 
-## `understand`, [line 85](../../../../../../../backend/src/sro/application/chat/understand.py#L85): Comment
+## `understand`, [line 84](../../../../../../../backend/src/sro/application/chat/understand.py#L84): Comment
 
 Code: `nearly = answer.data.get("also")`
 
@@ -225,7 +216,7 @@ Code: `nearly = answer.data.get("also")`
 > another job it might have meant instead: a reading that offers an
 > alternative has already said it was choosing.
 
-## `understand`, [line 91](../../../../../../../backend/src/sro/application/chat/understand.py#L91): Comment
+## `understand`, [line 90](../../../../../../../backend/src/sro/application/chat/understand.py#L90): Comment
 
 Code: `named = {name for name, _ in read}`
 
@@ -249,7 +240,7 @@ Code: `named = {name for name, _ in read}`
 > fills neither is genuinely ambiguous, and this must not make it sure by
 > eliminating everything.
 
-## `understand`, [line 97](../../../../../../../backend/src/sro/application/chat/understand.py#L97): Comment
+## `understand`, [line 96](../../../../../../../backend/src/sro/application/chat/understand.py#L96): Comment
 
 Code: `sure = (bool(answer.data.get("sure", True)) or settled) and not also`
 
@@ -258,7 +249,7 @@ Code: `sure = (bool(answer.data.get("sure", True)) or settled) and not also`
 > parameters and none of theirs. A model unsure for some OTHER reason
 > names nothing to be unsure between, and is left exactly as it was.
 
-## `understand`, [line 99](../../../../../../../backend/src/sro/application/chat/understand.py#L99): Comment
+## `understand`, [line 98](../../../../../../../backend/src/sro/application/chat/understand.py#L98): Comment
 
 Code: `items = [item for item in items if item]`
 
@@ -267,7 +258,7 @@ Code: `items = [item for item in items if item]`
 > what was asked -- so the parameters that thing did not name are missing,
 > the form asks for them, and nothing starts on a guess.
 
-## `understand`, [line 100](../../../../../../../backend/src/sro/application/chat/understand.py#L100): Comment
+## `understand`, [line 99](../../../../../../../backend/src/sro/application/chat/understand.py#L99): Comment
 
 Code: `wanted = {`
 
@@ -286,7 +277,7 @@ Code: `wanted = {`
 > run and `581b0941` what its question says, and neither reached the door
 > that places a sentence against the jobs.
 
-## `read_utterance`, [line 156](../../../../../../../backend/src/sro/application/chat/understand.py#L156): Comment
+## `read_utterance`, [line 154](../../../../../../../backend/src/sro/application/chat/understand.py#L154): Comment
 
 Code: `cited = await uow.gestures.gestures_for(`
 
@@ -295,10 +286,19 @@ Code: `cited = await uow.gestures.gestures_for(`
 > the alternative is a round trip per workflow on the door an operator
 > waits at.
 
-## `read_utterance`, [line 170](../../../../../../../backend/src/sro/application/chat/understand.py#L170): Comment
+## `read_utterance`, [line 168](../../../../../../../backend/src/sro/application/chat/understand.py#L168): Comment
 
 Code: `workflow_id=got.workflow_id,`
 
 > What the offer came to, which is None when the model named a job
 > nobody holds. The sentence it read is not here and has nowhere to
 > go: `ChatReading` has no field for it.
+
+## `understand`, [line 63](../../../../../../../backend/src/sro/application/chat/understand.py#L63): Comment
+
+Code: `"request": json.dumps({"said": utterance, "jobs": held}, indent=2, ensure_ascii=False)`
+
+> The redaction marker is «redacted», and the default ensure_ascii
+> writes it into the prompt as \u00abredacted\u00bb -- a form
+> nothing else in this system uses. Every json.dumps on a path to a
+> prompt or to the store says so.

@@ -11,6 +11,7 @@ from sro.application.intent.spend import over_cap
 from sro.application.ports.locks import AccountLocks
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.shared.asking import ask
 from sro.domain.execution.uses_edges import uses_edges
 from sro.domain.observation.driving import was_our_own_driving
 from sro.domain.observation.gesture import Gesture, Intent
@@ -25,11 +26,13 @@ from sro.domain.observation.window import (
     K_POOL_WAIT,
     Packed,
     Window,
+    arrange,
     as_evidence,
     evidence_tokens,
     pack,
     strength,
 )
+from sro.domain.prompts.mine import MINE
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
@@ -53,12 +56,7 @@ from sro.domain.skill.passwords import with_passwords
 from sro.domain.skill.presses import with_the_press
 from sro.domain.skill.repeats import detect as repeated_block
 from sro.domain.skill.shape import in_time_order, where_steps_moved
-from sro.domain.skill.umbrella import (
-    K_EFFORT,
-    WORKFLOW_SCHEMA,
-    build_prompt,
-    workflow_from,
-)
+from sro.domain.skill.umbrella import mining_blocks, workflow_from
 from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
 from sro.whose import attribute
 
@@ -112,16 +110,10 @@ async def propose(
     kb: str,
     *,
     asker: Asker,
-    model: str,
     tenant: str,
 ) -> tuple[list[Workflow], Answer]:
-    answer = await asker.ask(
-        model=model,
-        instructions="",
-        evidence=build_prompt(window, crossings, known, kb),
-        schema=WORKFLOW_SCHEMA,
-        effort=K_EFFORT,
-    )
+    day = [item.evidence for item in arrange(window.items)]
+    answer = await ask(asker, MINE, trusted={}, untrusted=mining_blocks(day, crossings, known, kb))
     if answer.data is None:
         return [], answer
 
@@ -139,7 +131,6 @@ async def mine(
     tenant_id: TenantId,
     asker: Asker,
     locks: AccountLocks,
-    model: str,
     now: datetime,
     cap_usd: float,
     kb: str = "",
@@ -157,7 +148,6 @@ async def mine(
             uow,
             tenant_id=tenant_id,
             asker=asker,
-            model=model,
             now=now,
             kb=kb,
             ours=ours,
@@ -348,7 +338,6 @@ async def _one_pass(
     *,
     tenant_id: TenantId,
     asker: Asker,
-    model: str,
     now: datetime,
     kb: str,
     ours: frozenset[str] = frozenset(),
@@ -413,7 +402,7 @@ async def _one_pass(
 
     window = pack(fresh, intents, pooled, summary, kb, linked=linked)
     proposals, answer = await propose(
-        window, crossings, summary, kb, asker=asker, model=model, tenant=tenant_id.value
+        window, crossings, summary, kb, asker=asker, tenant=tenant_id.value
     )
 
     residue = (answer.data or {}).get("unplaced")

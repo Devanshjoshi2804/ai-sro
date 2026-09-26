@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 
 from temporalio import workflow
 from temporalio.common import RetryPolicy
+from temporalio.exceptions import is_cancelled_exception
 
 with workflow.unsafe.imports_passed_through():
     from sro.application.runtime.run_steps import Prepared, StepOutcome
@@ -43,6 +44,12 @@ _PREPARE_RETRY = RetryPolicy(
     initial_interval=timedelta(seconds=1),
     maximum_attempts=3,
     non_retryable_error_types=_NEVER_AGAIN,
+)
+_UNTIL_RECORDED = RetryPolicy(
+    initial_interval=timedelta(seconds=1),
+    maximum_interval=timedelta(seconds=60),
+    maximum_attempts=0,
+    non_retryable_error_types=["Stopped"],
 )
 _SHORT = timedelta(seconds=60)
 _AT_LEAST = timedelta(seconds=1)
@@ -132,20 +139,33 @@ class RunWorkflow:
                 asking = outcome.asking
         except (Exception, asyncio.CancelledError):
             if workflow.cancellation_reason() is not None:
-                await workflow.execute_activity(
-                    "run.stopped", ref, start_to_close_timeout=_SHORT, retry_policy=_READ_RETRY
-                )
+                await self._stopped(ref)
             raise
         finally:
             try:
-                await workflow.execute_activity(
-                    "run.finish", ref, start_to_close_timeout=_SHORT, retry_policy=_READ_RETRY
-                )
+                await self._cleanup(ref, "run.finish")
             finally:
-                await workflow.execute_activity(
-                    "run.release", ref, start_to_close_timeout=_SHORT, retry_policy=_READ_RETRY
-                )
+                await self._cleanup(ref, "run.release")
         return ref.run_id
+
+    async def _stopped(self, ref: RunRef) -> None:
+        await workflow.execute_activity(
+            "run.stopped", ref, start_to_close_timeout=_SHORT, retry_policy=_UNTIL_RECORDED
+        )
+
+    async def _cleanup(self, ref: RunRef, name: str) -> None:
+        try:
+            await workflow.execute_activity(
+                name, ref, start_to_close_timeout=_SHORT, retry_policy=_READ_RETRY
+            )
+        except (Exception, asyncio.CancelledError) as why:
+            if not is_cancelled_exception(why):
+                raise
+            await self._stopped(ref)
+            await workflow.execute_activity(
+                name, ref, start_to_close_timeout=_SHORT, retry_policy=_READ_RETRY
+            )
+            raise
 
     async def _driven[T](
         self,

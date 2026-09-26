@@ -107,8 +107,8 @@ class Rig:
     on to an identifier-first page with no password field. `/held-login` answers
     only once the test sets `answer`, so a navigation can be caught in flight.
     `POST /api/ping` answers 201 from any page and sets `pinged`; with `?hold`
-    it answers only once `release` is set, so a test can hold a request open
-    across a mark. `/app`'s Refresh reads `/api/customer-types?hold`, which
+    it sets `holding` and answers only once `release` is set, so a test can
+    hold a request open across a mark. `/app`'s Refresh reads `/api/customer-types?hold`, which
     sets `asked` and answers only once `answer` is set; with `hold_saves` a
     save is kept and sets `asked`, and its answer waits the same way, so a
     test can act while a read or a write is in flight. With `idp_elsewhere`
@@ -126,6 +126,7 @@ class Rig:
         self.answer = threading.Event()
         self.pinged = threading.Event()
         self.release = threading.Event()
+        self.holding = threading.Event()
         self.hold_saves = False
         self.logins = 0
         host = "0.0.0.0" if for_steel else "127.0.0.1"  # noqa: S104
@@ -311,6 +312,7 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
             if path == "/api/ping":
                 rig.pinged.set()
                 if "hold" in query:
+                    rig.holding.set()
                     rig.release.wait(10)
                 self._json({"id": "ping-1"}, status=201)
             elif path == "/idp/login":

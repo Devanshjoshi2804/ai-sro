@@ -46,6 +46,7 @@ from temporalio.worker import Worker
 
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
+from sro.application.execution.read_runs import CannotStop
 from sro.application.execution.stops import Stops
 from sro.application.execution.workflow_runs import AbortWorkflowRun
 from sro.application.lookup.run_lookups import RunLookups
@@ -707,6 +708,9 @@ async def test_a_stop_mid_step_lets_the_step_finish_and_sends_nothing_after_it(
     assert run.outcome == "aborted"
     assert [(one.of_step, one.verdict) for one in run.steps] == [(0, "held")]
     assert Progress.of(run.progress).tabs == {}
+    assert run.finished_at is not None
+    with pytest.raises(CannotStop, match="aborted"):
+        await stopping.execute(CTX, run_id=run_id)
 
 
 async def test_a_worker_killed_mid_write_resumes_the_run_and_never_sends_it_again(

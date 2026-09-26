@@ -91,7 +91,7 @@ from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
 from sro.domain.execution.verified_writes import VerifiedWrite
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
+from sro.domain.execution.workflow_run import ENDED, RunStep, WorkflowRun, already_running
 from sro.domain.knowledge.entry import (
     EntryKind,
     EvidenceLevel,
@@ -2239,6 +2239,12 @@ class FakeWorkflowRunRepository:
         # roll that mark back -- only `record_progress` ever changes it again.
         existing = self.rows.get(run.id)
         kept.progress = dict(run.progress) if existing is None else dict(existing.progress)
+        # An ended run keeps how and when it ended, same as the store's
+        # `CASE` on `outcome`/`finished_at`: a stale copy saved by a worker
+        # that loaded the run before a stop cannot reopen it.
+        if existing is not None and existing.outcome in ENDED:
+            kept.outcome = existing.outcome
+            kept.finished_at = existing.finished_at or kept.finished_at
         # Steps are upserted by `order`, same as the real store's per-step
         # `ON CONFLICT DO UPDATE`, and never deleted: a step the run being
         # saved does not carry stays exactly as the row already has it, so a

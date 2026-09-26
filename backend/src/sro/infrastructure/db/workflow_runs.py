@@ -5,13 +5,19 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any, cast
 
-from sqlalchemy import Select, func, select, update
+from sqlalchemy import Select, case, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sro.application.ports.repositories import WorkflowRunRepository
-from sro.domain.execution.workflow_run import Executor, RunStep, WorkflowRun, already_running
+from sro.domain.execution.workflow_run import (
+    ENDED,
+    Executor,
+    RunStep,
+    WorkflowRun,
+    already_running,
+)
 from sro.domain.observation.driving import Driving
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import DeviceId, TenantId
@@ -160,12 +166,20 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
 
     async def save(self, run: WorkflowRun) -> None:
         statement = pg_insert(WorkflowRunRow).values(**_run_values(run))
+        ended = WorkflowRunRow.outcome.in_(ENDED)
+        kept = {
+            "outcome": case((ended, WorkflowRunRow.outcome), else_=statement.excluded.outcome),
+            "finished_at": case(
+                (ended, func.coalesce(WorkflowRunRow.finished_at, statement.excluded.finished_at)),
+                else_=statement.excluded.finished_at,
+            ),
+        }
         try:
             await self._session.execute(
                 statement.on_conflict_do_update(
                     index_elements=["id"],
                     set_={
-                        column.name: statement.excluded[column.name]
+                        column.name: kept.get(column.name, statement.excluded[column.name])
                         for column in WorkflowRunRow.__table__.columns
                         if column.name not in ("id", "progress")
                     },

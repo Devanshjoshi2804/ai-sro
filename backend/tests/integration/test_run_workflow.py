@@ -44,7 +44,9 @@ async def client() -> Client:
 class Stubs:
     """The six activities by their contract names. `step` answers the next
     of `outcomes` (or runs it, when it is a callable) and every call is kept
-    in `called` in the order it happened."""
+    in `called` in the order it happened. `first` maps an activity's name to
+    what its first call runs before it answers (`stopped`, `finish` and
+    `release` only), so a test can hold a cleanup open or fail it once."""
 
     def __init__(
         self,
@@ -56,6 +58,12 @@ class Stubs:
         self.called: list[str] = []
         self.prepared = prepared
         self.acquiring = acquire
+        self.first: dict[str, Callable[[], Any]] = {}
+
+    async def _first(self, name: str) -> None:
+        self.called.append(name)
+        if (once := self.first.pop(name, None)) is not None:
+            await once()
 
     @activity.defn(name="run.prepare")
     async def prepare(self, ref: RunRef) -> Prepared:
@@ -81,16 +89,16 @@ class Stubs:
 
     @activity.defn(name="run.stopped")
     async def stopped(self, ref: RunRef) -> None:
-        self.called.append("stopped")
+        await self._first("stopped")
 
     @activity.defn(name="run.finish")
     async def finish(self, ref: RunRef) -> str:
-        self.called.append("finish")
+        await self._first("finish")
         return "held"
 
     @activity.defn(name="run.release")
     async def release(self, ref: RunRef) -> None:
-        self.called.append("release")
+        await self._first("release")
 
 
 @contextlib.asynccontextmanager
@@ -214,6 +222,79 @@ async def test_a_stop_that_lands_as_a_step_completes_runs_no_further_step(
 
     assert stubs.called == ["prepare", "acquire", "step", "stopped", "finish", "release"]
     assert (await handle.describe()).status is WorkflowExecutionStatus.CANCELED
+
+
+@pytest.mark.parametrize("cleanup", ["finish", "release"])
+async def test_a_stop_that_lands_during_the_cleanup_never_cancels_it(
+    client: Client, cleanup: str
+) -> None:
+    started, go_on = asyncio.Event(), asyncio.Event()
+
+    async def held_open() -> None:
+        started.set()
+        await go_on.wait()
+
+    stubs = Stubs(StepOutcome(more=False))
+    stubs.first[cleanup] = held_open
+    async with _worker(client, stubs) as queue:
+        handle = await client.start_workflow(
+            RunWorkflow.run, REF, id=f"workflow-run-{uuid.uuid4().hex}", task_queue=queue
+        )
+        await started.wait()
+        await handle.cancel()
+        with pytest.raises(WorkflowFailureError):
+            await handle.result()
+        go_on.set()
+
+    ends = {
+        "finish": ["finish", "stopped", "finish", "release"],
+        "release": ["finish", "release", "stopped", "release"],
+    }
+    assert stubs.called == ["prepare", "acquire", "step", *ends[cleanup]]
+    assert (await handle.describe()).status is WorkflowExecutionStatus.CANCELED
+
+
+async def test_a_stop_is_recorded_before_the_run_finishes_even_when_recording_it_fails(
+    client: Client,
+) -> None:
+    started = asyncio.Event()
+    failures = 3
+
+    async def until_cancelled() -> StepOutcome:
+        started.set()
+        while True:
+            activity.heartbeat()
+            await asyncio.sleep(0.1)
+
+    async def fails() -> None:
+        nonlocal failures
+        failures -= 1
+        stubs.first["stopped"] = fails
+        if failures >= 0:
+            raise RuntimeError("the database is away")
+
+    stubs = Stubs(until_cancelled)
+    stubs.first["stopped"] = fails
+    async with _worker(client, stubs) as queue:
+        handle = await client.start_workflow(
+            RunWorkflow.run, REF, id=f"workflow-run-{uuid.uuid4().hex}", task_queue=queue
+        )
+        await started.wait()
+        await handle.cancel()
+        with pytest.raises(WorkflowFailureError):
+            await handle.result()
+
+    assert stubs.called == [
+        "prepare",
+        "acquire",
+        "step",
+        "stopped",
+        "stopped",
+        "stopped",
+        "stopped",
+        "finish",
+        "release",
+    ]
 
 
 async def _until_cancelled() -> StepOutcome:

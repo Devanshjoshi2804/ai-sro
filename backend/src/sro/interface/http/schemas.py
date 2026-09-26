@@ -2585,6 +2585,13 @@ class AnswerRunRequest(BaseModel):
     it must be empty, or the answer is a 409. A password is stored with
     `PUT /v1/secrets`, a one-time code is typed on the page, and a step is
     answered by its `verdict`, so no secret or free text ever rides along.
+
+    A field question (`asks: "field"`, about a value the job has no field
+    for) carries the value's `name` and its `choices` on the `run_asks`
+    message: the form's fields (each choice names exactly one), a dropdown's
+    options, or -- after a fill that failed -- the field itself, to try it
+    again. It is answered with one of `choices`, or an empty `value` to leave
+    the value out; anything else is a 409.
     """
 
     question_id: str

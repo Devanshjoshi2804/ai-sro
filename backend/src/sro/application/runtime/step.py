@@ -30,7 +30,10 @@ class NeedsAPerson(DomainError):
     tried: tuple[StepResult, ...] = ()
 
     def __init__(
-        self, question: str, *, kind: Literal["password", "value", "step", "code"] = "step"
+        self,
+        question: str,
+        *,
+        kind: Literal["password", "value", "step", "code", "field"] = "step",
     ) -> None:
         super().__init__(question)
         self.question = question

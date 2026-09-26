@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Literal
 
 from sro.application.context import RequestContext
@@ -38,17 +39,22 @@ class AnswerRun:
         if not asking or asking.get("id") != question_id:
             raise Conflict("that is not the question this run is waiting on")
         kind = asking.get("kind")
-        if value and kind != "value":
+        if value and kind not in ("value", "field"):
             raise Conflict(
                 "only a question for a value takes one: a password is stored with "
                 "PUT /v1/secrets, a one-time code is typed on the page, and a step "
                 "is answered by its verdict"
             )
+        chosen = value.strip()
+        if kind == "field" and chosen and chosen not in json.loads(asking.get("choices") or "[]"):
+            raise Conflict("a field is answered by one of the choices it offered, or left out")
         if verdict and kind != "step":
             raise Conflict("only a question about a step takes a verdict")
         if kind == "step" and not verdict and progress.in_doubt(int(asking.get("step") or -1)):
             raise Conflict("say whether the write was done: its verdict is done or not_done")
         answer = {"answered": "yes", "verdict": verdict}
+        if kind == "field":
+            answer["choice"] = chosen
         if asking.get("answered"):
             if any(asking.get(key, "") != said for key, said in answer.items()):
                 raise Conflict("that question was already answered")

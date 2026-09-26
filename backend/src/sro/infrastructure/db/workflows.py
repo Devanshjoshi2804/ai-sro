@@ -552,6 +552,7 @@ class SqlWorkflowRepository(WorkflowRepository):
             WorkflowLearnedRow,
             WorkflowStaleRow,
             WorkflowLearnedHistoryRow,
+            KnownBrokenRow,
         )
         for table in keyed_by_ord:
             rows = (

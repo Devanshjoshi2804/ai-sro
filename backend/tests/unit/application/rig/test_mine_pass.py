@@ -24,11 +24,14 @@ from sro.application.observation.mine_pass import MinePass
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
 from sro.application.skill.serve_shapes import shapes_for
+from sro.domain.execution.compose import Composed, with_field
+from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.observation.driving import WAS_OUR_OWN_DRIVING
 from sro.domain.observation.gesture import Gesture, Intent, PageMark
 from sro.domain.prompts.mine import MINE
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer, ModelSpend
+from sro.domain.skill.workflow import field_key
 from sro.infrastructure.db.codec import when
 from tests.unit.domain.rig.conftest import gestures as _gestures
 from tests.unit.fakes import (
@@ -335,6 +338,52 @@ async def test_a_doing_that_contains_the_job_grows_it() -> None:
     [grown] = await uow.workflows.known(TENANT)
     assert grown.id == stored.id, "it stored a second copy instead of growing the first"
     assert len(grown.steps) == 3, "the job did not take the step it had just watched"
+
+
+async def test_a_doing_that_grows_the_job_keeps_the_field_a_run_learned_into_it() -> None:
+    """A learned field step cites nothing a doing shows, so a re-derived shape
+    never has it. Dropped, its parameter would stay declared with its key and
+    nothing would fill it: every later run would leave the field out and hold."""
+    uow, ids = await _day()
+    first = FakeAsker(Answer(data={"workflows": [_proposal(ids[:2])]}, cost_usd=0.01))
+    await _pass(uow, asker=first).execute(_ctx())
+    [stored] = await uow.workflows.known(TENANT)
+    write = sorted(stored.steps, key=lambda one: one.order)[1]
+    learned, moved = with_field(
+        stored,
+        Composed("department", "Department", "combobox", write.order),
+        key="department",
+        value="Finance",
+    )
+    await uow.workflows.grew(learned, moved=moved)
+    await uow.workflows.remember_locator(
+        stored.id, LearnedStep(write.order, "role_and_name", "combobox|Department", "composed")
+    )
+
+    again = await _did_it_again(uow, ids[:3])
+    wider = _proposal(again[:2])
+    wider["steps"] = [
+        *wider["steps"],  # type: ignore[misc]
+        {
+            "order": 2,
+            "cites": [again[2]],
+            "says": "and the extra field",
+            "system": HOST,
+            "parameters": [],
+        },
+    ]
+    await _pass(uow, asker=FakeAsker(Answer(data={"workflows": [wider]}, cost_usd=0.01))).execute(
+        _ctx()
+    )
+
+    [grown] = await uow.workflows.known(TENANT)
+    says = [one.says for one in sorted(grown.steps, key=lambda one: one.order)]
+    assert len(says) == 4 and says[1] == "Fill Department" and says[3] == "and the extra field"
+    fill = sorted(grown.steps, key=lambda one: one.order)[1]
+    assert field_key(grown, fill) == "department"
+    assert [(one.ord, one.query) for one in await uow.workflows.learned_for(grown.id)] == [
+        (1, "combobox|Department")
+    ]
 
 
 async def test_a_doing_that_adds_a_password_does_not_grow_the_job() -> None:

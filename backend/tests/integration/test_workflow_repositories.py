@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.application.observation.mining_pass import mine
 from sro.domain.execution.belts import RunProof, earned_from
+from sro.domain.execution.lanes import Broken, Lane
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
@@ -510,6 +511,13 @@ class TestEffects:
             await uow.workflows.mark_stale(
                 workflow.id, 1, matched_by="text", noticed_at="2026-09-21T10:00:00+00:00"
             )
+            await uow.workflows.break_lane(
+                TenantId("acme"),
+                workflow.id,
+                Broken(1, Lane.API, "fp"),
+                cites="g1",
+                at=datetime(2026, 9, 21, tzinfo=UTC),
+            )
             await uow.commit()
 
         # It grows: what was step 1 is now step 2, with a new step between.
@@ -530,6 +538,9 @@ class TestEffects:
             )
             assert learnt[0].query == "#save"
             assert await uow.workflows.stale_count(workflow.id) == 1
+            assert await uow.workflows.broken_for(TenantId("acme"), workflow.id, {2: "g1"}) == (
+                Broken(2, Lane.API, "fp"),
+            ), "a lane known broken stayed on a step that is now somebody else's"
 
     async def test_a_step_left_behind_takes_its_learning_with_it(
         self, session_factory: async_sessionmaker[AsyncSession]

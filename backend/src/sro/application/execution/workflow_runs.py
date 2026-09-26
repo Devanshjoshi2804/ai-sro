@@ -35,7 +35,7 @@ from sro.application.ports.vault import CredentialVault
 from sro.application.shared.refusals import OverCap
 from sro.domain.chat.asking import NEEDS, Pending, also_set, question
 from sro.domain.chat.thread import Speaker
-from sro.domain.execution.evidence import unperformable
+from sro.domain.execution.compose import unperformable
 from sro.domain.execution.gathering import Gathered
 from sro.domain.execution.learned_step import limits_for
 from sro.domain.execution.mail_job import is_mail_only
@@ -247,7 +247,7 @@ class StartWorkflowRun:
                 already = await uow.workflow_runs.taken_back_by(ctx.tenant_id, undoes_run.strip())
                 if already is not None:
                     raise RunRefused(f"{undoes_run.strip()} was already taken back by {already}")
-            undoable = unperformable(workflow, by_id, from_step=check_from)
+            undoable = unperformable(workflow, by_id, given, from_step=check_from)
             if undoable is not None:
                 raise RunRefused(
                     f"step {undoable.order} has no evidence a browser can act on: {undoable.says}"

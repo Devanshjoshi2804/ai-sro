@@ -187,7 +187,7 @@ Code: `quiet_until: str | None = None`
 > mapping, and its learning is dropped: the step is gone, and a locator for
 > a step nobody performs is a locator nobody can check.
 
-## `_did`, [line 153](../../../../../../../backend/src/sro/domain/skill/shape.py#L153): Docstring
+## `_did`, [line 181](../../../../../../../backend/src/sro/domain/skill/shape.py#L181): Docstring
 
 > What one step did, as the shape key says it: which control, on which
 > screen, touched how -- in the order it happened.
@@ -329,3 +329,12 @@ Code: `moved[step.order] = same.pop(0)`
 
 > First unclaimed, so a job that does one thing twice keeps both
 > rather than folding two steps onto one.
+
+## `keeping_fields`, [line 153](../../../../../../../backend/src/sro/domain/skill/shape.py#L153): Docstring
+
+> `where_steps_moved` for a job that learned fields (X10). A learned field
+> step cites nothing, so no doing re-derives it: it is carried over, in its
+> order, before the step it stood before, and `moved` maps it to its new
+> place so its locator follows. The later steps' `uses` are renumbered. A
+> field whose write the new shape lost is left out: its parameter stays, and
+> `compose` places the value again from the outline.

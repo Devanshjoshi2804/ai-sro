@@ -56,7 +56,7 @@ from sro.domain.skill.learned import LearnedParameter, parameters_across, same_c
 from sro.domain.skill.passwords import with_passwords
 from sro.domain.skill.presses import with_the_press
 from sro.domain.skill.repeats import detect as repeated_block
-from sro.domain.skill.shape import in_time_order, where_steps_moved
+from sro.domain.skill.shape import in_time_order, keeping_fields
 from sro.domain.skill.umbrella import mining_blocks, workflow_from
 from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
 from sro.whose import attribute
@@ -308,8 +308,7 @@ async def _grow(
         logger.info("%s: not grown -- the doing types a credential the job never did", stored.title)
         return
     await uow.workflows.place(tenant_id, stored.id, tuple(ordered_cites(stored)))
-    moved = where_steps_moved(stored.steps, proposal.steps, by_id)
-    stored.steps = list(proposal.steps)
+    stored.steps, moved = keeping_fields(stored, proposal.steps, by_id)
     stored.signs_in = proposal.signs_in
     stored.shape_key = [list(entry) for entry in shape_key(in_time_order(stored, by_id))]
     await uow.workflows.grew(stored, moved=moved)

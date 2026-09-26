@@ -147,3 +147,9 @@ Code: `signs_in: bool | None = None`
 > sweep decides it (`mining_pass.decide_sign_ins`). A job starts undecided;
 > the mining pass decides a proposal before it is stored.
 
+## `field_key`, [line 87](../../../../../../../backend/src/sro/domain/skill/workflow.py#L87): Docstring
+
+> The body key of a learned field step (X10, `with_field`), or "". Such a step
+> cites no gesture and fills one parameter that the job declares with the `key`
+> the save's own call confirmed it by -- that `key` exists nowhere else, so it is
+> what tells a field nobody demonstrated from a step with its evidence missing.

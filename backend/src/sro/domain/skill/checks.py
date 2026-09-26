@@ -134,6 +134,15 @@ def _did_business(gesture: Gesture) -> bool:
 
 
 def undeliverable(workflow: Workflow, gestures: dict[str, Gesture]) -> list[str]:
+    can = bindable(workflow, gestures)
+    return [
+        str(declared["name"])
+        for declared in workflow.parameters
+        if declared.get("name") and str(declared["name"]) not in can
+    ]
+
+
+def bindable(workflow: Workflow, gestures: Mapping[str, Gesture]) -> set[str]:
     bindable: set[str] = set()
     for step in workflow.steps:
         bindable.update(step.parameters)
@@ -148,11 +157,7 @@ def undeliverable(workflow: Workflow, gestures: dict[str, Gesture]) -> list[str]
             ):
                 if name:
                     bindable.add(name)
-    return [
-        str(declared["name"])
-        for declared in workflow.parameters
-        if declared.get("name") and str(declared["name"]) not in bindable
-    ]
+    return bindable
 
 
 def _during(workflow: Workflow, gestures: Mapping[str, Gesture]) -> list[Gesture]:

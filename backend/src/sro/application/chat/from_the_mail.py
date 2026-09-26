@@ -38,6 +38,7 @@ from sro.domain.execution.progress import Progress
 from sro.domain.execution.waiting import read_wait, still_waiting
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.observation.attempts import DONE
+from sro.domain.recording.sensitivity import is_secret_field
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.learned import offerable
@@ -374,7 +375,14 @@ class FromTheMail:
                 ctx,
                 workflow_id=one.workflow_id,
                 device_id=None,
-                values=dict(one.values),
+                values={
+                    **{
+                        name: one.aside[name]
+                        for name in one.unasked
+                        if name in one.aside and not is_secret_field(name)
+                    },
+                    **one.values,
+                },
                 live=True,
                 allow_focus=False,
                 conversation=(SERVER, one.thread),

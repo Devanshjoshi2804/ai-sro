@@ -102,6 +102,9 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/sight
 > the fill `unknown`, never `done`. It is `done` only when the labelled control
 > (`check`, the fill's payload) resolves to exactly the last hit's nearest
 > actionable control and holds the value; the locator is learned from that hit.
+> Anything else that sent nothing is `failed` (`never_left`): so `unknown` on a
+> fill means exactly "the write may have gone", which the run settles as a
+> write in doubt.
 
 ## `SightLane._guarded`, [line 114](../../../../../../../backend/src/sro/application/runtime/sight_lane.py#L114): Docstring
 

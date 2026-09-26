@@ -133,6 +133,7 @@ from sro.application.runtime.answer_run import AnswerRun
 from sro.application.runtime.api_lane import ApiLane
 from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.executor import StepExecutor
+from sro.application.runtime.fill_field import FillField
 from sro.application.runtime.run_steps import RunSteps
 from sro.application.runtime.sight_lane import SightLane
 from sro.application.runtime.teach import Teach
@@ -292,6 +293,9 @@ class Container:
     def teach(self) -> Teach:
         return Teach(self.unit_of_work(), self.clock)
 
+    def fill_field(self) -> FillField:
+        return FillField(self.driver, self.sight_lane())
+
     def run_steps(self) -> RunSteps:
         return RunSteps(
             self.unit_of_work(),
@@ -301,6 +305,7 @@ class Container:
             self.api_lane(),
             self.clock,
             self.ids,
+            fill=self.fill_field(),
         )
 
     def answer_run(self) -> AnswerRun:

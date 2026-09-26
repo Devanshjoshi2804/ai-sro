@@ -57,6 +57,7 @@ from sro.application.ports.page import SessionRef
 from sro.application.runtime.api_lane import ApiLane
 from sro.application.runtime.broker import K_CLOSE_S, SessionBroker
 from sro.application.runtime.executor import StepExecutor
+from sro.application.runtime.fill_field import FillField
 from sro.application.runtime.run_steps import RunSteps
 from sro.application.runtime.step import Held
 from sro.application.runtime.teach import Teach
@@ -75,6 +76,8 @@ from sro.domain.observation.gesture import (
     Call,
     Gesture,
     GestureBatch,
+    Outline,
+    OutlineField,
     Target,
 )
 from sro.domain.shared.hosts import REDACTED
@@ -459,7 +462,7 @@ async def test_two_runs_of_one_job_share_the_account_s_lease_as_two_tabs(world: 
                 )
             )
         await uow.commit()
-    broker, _ = world.broker()
+    broker, driver = world.broker()
     tool, api, ui, sight = (RecordingLane(lane) for lane in Lane)
     steps = RunSteps(
         world.uow,
@@ -469,6 +472,7 @@ async def test_two_runs_of_one_job_share_the_account_s_lease_as_two_tabs(world: 
         api,
         world.clock,
         FakeIdFactory(),
+        fill=FillField(driver, None),
     )
 
     for run_id in ("run_tab_1", "run_tab_2"):
@@ -608,7 +612,8 @@ def _steps(world: World) -> dict[str, tuple[Step, Gesture]]:
 
 
 async def _a_run(world: World, *names: str) -> str:
-    """A live Steel run of a job made of the named recorded steps, in order."""
+    """A live Steel run of a job made of the named recorded steps, in order,
+    shaped as mining leaves a job: a parameter only where a step fills it."""
     await _recorded(world)
     known = _steps(world)
     chosen = [known[name] for name in names]
@@ -619,6 +624,8 @@ async def _a_run(world: World, *names: str) -> str:
         narrative="",
         steps=[replace(step, order=n) for n, (step, _) in enumerate(chosen)],
     )
+    typed = any("Customer Type" in step.parameters for step in job.steps)
+    job.parameters = [{"name": "Customer Type", "required": False}] if typed else []
     run_id = f"run_{uuid.uuid4().hex}"
     async with world.uow as uow:
         await uow.gestures.add_gestures(tuple(seen for _, seen in chosen))
@@ -629,7 +636,7 @@ async def _a_run(world: World, *names: str) -> str:
                 tenant=TENANT,
                 workflow_id=job.id,
                 device_id="",
-                values={"Customer Type": "GT2"},
+                values={"Customer Type": "GT2"} if typed else {},
                 started_by="op",
                 live=True,
                 allow_focus=False,
@@ -662,7 +669,14 @@ class _Process:
             RecordingLane(Lane.TOOL), api, UiLane(driver), RecordingLane(Lane.SIGHT), broker
         )
         return RunSteps(
-            uow, broker, executor, Teach(uow, world.clock), api, world.clock, UuidFactory()
+            uow,
+            broker,
+            executor,
+            Teach(uow, world.clock),
+            api,
+            world.clock,
+            UuidFactory(),
+            fill=FillField(driver, None),
         )
 
 
@@ -911,3 +925,98 @@ async def test_a_takeover_after_the_operator_s_own_save_sends_only_the_rest(
     finished = await _saved(world, run.id)
     assert finished.outcome == "held"
     assert [one.of_step for one in finished.steps] == [2, 3]
+
+
+async def _run_to_its_end(
+    world: World, temporal: Client, queue: str, values: dict[str, str]
+) -> WorkflowRun:
+    run_id = f"run_{uuid.uuid4().hex}"
+    async with world.uow as uow:
+        await uow.workflow_runs.save(
+            WorkflowRun(
+                id=run_id,
+                tenant=TENANT,
+                workflow_id="wfl_whole_run",
+                device_id="",
+                values=values,
+                started_by="op",
+                live=True,
+                allow_focus=False,
+                started_at=datetime.now(UTC).isoformat(),
+                executor="steel",
+            )
+        )
+        await uow.commit()
+    handle = await temporal.start_workflow(
+        RunWorkflow.run,
+        RunRef(tenant_id=TENANT, principal_id="op", run_id=run_id, budget_s=300.0),
+        id=f"workflow-run-{run_id}",
+        task_queue=queue,
+    )
+    await handle.result()
+    return await _saved(world, run_id)
+
+
+async def test_a_field_nobody_demonstrated_is_filled_confirmed_by_the_save_and_learned(
+    world: World, temporal: Client
+) -> None:
+    """The job was recorded typing a Customer Type and pressing Save; it never
+    touched Department, so its recorded body is `{name}`. A run asked for a
+    Department fills it by its label on the form the save's screen outlined,
+    and only the save's own call carrying `department` confirms and teaches it."""
+    unused = await _a_run(world, "type", "save")
+    known = _steps(world)
+    save = known["save"][1]
+    outlined = replace(
+        save,
+        id="ges_save_outlined",
+        action=replace(
+            save.action,
+            outlines=(
+                Outline(
+                    fields=(
+                        OutlineField("textbox", "Customer Type"),
+                        OutlineField("combobox", "Department", None, ("Finance", "Operations")),
+                    )
+                ),
+            ),
+        ),
+    )
+    async with world.uow as uow:
+        await uow.gestures.add_gestures((outlined,))
+        job = await uow.workflows.get(CTX.tenant_id, "wfl_whole_run")
+        job.steps[1].cites = [outlined.id]
+        await uow.workflows.save(job)
+        never_run = await uow.workflow_runs.get(CTX.tenant_id, unused)
+        assert never_run is not None
+        await uow.workflow_runs.save(replace(never_run, outcome="aborted"))
+        await uow.commit()
+    queue = f"runs-test-{uuid.uuid4().hex}"
+
+    async with _worker(world, temporal, queue):
+        first = await _run_to_its_end(
+            world, temporal, queue, {"Customer Type": "GT9", "department": "Operations"}
+        )
+        assert world.rig.saved[-1] == {"name": "GT9", "department": "Operations"}
+        (field,) = Progress.of(first.progress).composed
+        assert (field["lane"], field["verdict"], field["key"]) == ("ui", "done", "department")
+        assert first.outcome == "held"
+        async with world.uow as uow:
+            grown = await uow.workflows.get(CTX.tenant_id, "wfl_whole_run")
+        assert [one.says for one in grown.steps] == [
+            "Type the customer type",
+            "Fill Department",
+            "Save it",
+        ]
+        assert grown.parameters[-1]["required"] is False
+
+        second = await _run_to_its_end(
+            world, temporal, queue, {"Customer Type": "GT10", "department": "Finance"}
+        )
+        assert Progress.of(second.progress).composed == []
+        assert world.rig.saved[-1] == {"name": "GT10", "department": "Finance"}
+        assert second.outcome == "held"
+
+        third = await _run_to_its_end(world, temporal, queue, {"Customer Type": "GT11"})
+        assert world.rig.saved[-1] == {"name": "GT11"}
+        assert third.outcome == "held"

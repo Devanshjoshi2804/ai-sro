@@ -11,7 +11,7 @@ Code: `clean_runs_needed: int = REQUIRED_CLEAN_RUNS`
 > would go on saying 10 the day `REQUIRED_CLEAN_RUNS` moved, and the bar
 > would disagree with the rule that actually refuses the promotion.
 
-## `SpendResponse.of`, [line 1656](../../../../../../../backend/src/sro/interface/http/schemas.py#L1656): Comment
+## `SpendResponse.of`, [line 1666](../../../../../../../backend/src/sro/interface/http/schemas.py#L1666): Comment
 
 Code: `return cls(cost_usd=round(day.cost_usd, 6), unpriced=day.blind, cap_usd=cap_usd)`
 
@@ -28,7 +28,7 @@ Code: `return cls(cost_usd=round(day.cost_usd, 6), unpriced=day.blind, cap_usd=c
 > resolution a dollar cap has -- so the rounding belongs on the way
 > out, where it is a display decision, and nowhere else.
 
-## `WorkflowModel.of`, [line 1730](../../../../../../../backend/src/sro/interface/http/schemas.py#L1730): Comment
+## `WorkflowModel.of`, [line 1740](../../../../../../../backend/src/sro/interface/http/schemas.py#L1740): Comment
 
 Code: `steps=[`
 
@@ -37,7 +37,7 @@ Code: `steps=[`
 > step list served in storage order is a job served in the wrong
 > order, and it reads as a plausible one.
 
-## `EvidenceResponse.of`, [line 1822](../../../../../../../backend/src/sro/interface/http/schemas.py#L1822): Comment
+## `EvidenceResponse.of`, [line 1832](../../../../../../../backend/src/sro/interface/http/schemas.py#L1832): Comment
 
 Code: `calls[gesture.id] = whole.pop("requests")`
 
@@ -45,7 +45,7 @@ Code: `calls[gesture.id] = whole.pop("requests")`
 > with them -- the caller proved which tenant it is to get here,
 > and echoing it back is one more field to keep true.
 
-## `LookupResponse.of`, [line 2457](../../../../../../../backend/src/sro/interface/http/schemas.py#L2457): Comment
+## `LookupResponse.of`, [line 2467](../../../../../../../backend/src/sro/interface/http/schemas.py#L2467): Comment
 
 Code: `answers=[`
 

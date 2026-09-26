@@ -36,5 +36,7 @@ async def shapes(
     """Every proven workflow of this tenant, as the extension needs it."""
     served = await container.serve_shapes().execute(ctx, device_id=asking)
     return ShapesResponse(
-        shapes=[shape.as_json() for shape in served], can_find=container.can_gather
+        shapes=[shape.as_json() for shape in served],
+        can_find=container.can_gather,
+        takes_over=container.start_workflow_run().runs_on_steel(ctx),
     )

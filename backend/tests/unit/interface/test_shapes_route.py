@@ -270,7 +270,21 @@ async def test_a_tenant_with_nothing_proven_is_answered_with_an_empty_list(
     # `can_find` rides along on every answer: it is a fact about the
     # deployment rather than about a job, and the browser needs it to draw an
     # offer it builds itself. False here -- this container has no connector.
-    assert (await client.get("/v1/shapes")).json() == {"shapes": [], "can_find": False}
+    assert (await client.get("/v1/shapes")).json() == {
+        "shapes": [],
+        "can_find": False,
+        "takes_over": False,
+    }
+
+
+async def test_a_steel_tenant_s_browser_is_told_its_presses_are_taken_over(
+    client: httpx.AsyncClient, container: _FakeContainer
+) -> None:
+    """The browser waits on its own uploads before a press only when the server
+    will read them: when this tenant's runs start on Steel."""
+    container.settings = container.settings.model_copy(update={"steel_tenants": (f.TENANT.value,)})
+
+    assert (await client.get("/v1/shapes")).json()["takes_over"] is True
 
 
 async def test_no_credential_is_refused_before_anything_is_read(
@@ -440,6 +454,6 @@ async def test_another_tenants_credential_is_served_its_own_nothing(
         answered = await rival.get("/v1/shapes")
 
     assert answered.status_code == 200
-    assert answered.json() == {"shapes": [], "can_find": False}, (
+    assert answered.json() == {"shapes": [], "can_find": False, "takes_over": False}, (
         "another tenant's proven job was served"
     )

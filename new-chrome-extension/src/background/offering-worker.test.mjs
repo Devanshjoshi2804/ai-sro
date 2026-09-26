@@ -169,6 +169,8 @@ let rigRunServed = { id: "run-9", outcome: "held", steps: [] };
 let rigRunFails = false;
 let shapesServed = [SHAPE];
 let shapesCanFind = false;
+/** Whether this deployment runs a press on Steel, which takes the job over. */
+let shapesTakesOver = false;
 /** How the backend answers the approve door, for the test that a refusal is
  * one. `null` is the door letting the write out. */
 let approveRefusal = null;
@@ -223,7 +225,11 @@ const rigServer = async (url, options = {}) => {
   if (path.endsWith("/heartbeat"))
     return json({ policy_version: 0, policy: null, pause: false });
   if (path === "/v1/shapes")
-    return json({ shapes: shapesServed, can_find: shapesCanFind });
+    return json({
+      shapes: shapesServed,
+      can_find: shapesCanFind,
+      takes_over: shapesTakesOver,
+    });
   if (path === "/v1/threads/thr-1/messages")
     return json(threadSaid || { id: "thr-1", messages: [] });
   if (path === "/v1/chat")
@@ -339,6 +345,7 @@ function ready() {
   reloadedForUpdate.length = 0;
   shapesServed = [SHAPE];
   shapesCanFind = false;
+  shapesTakesOver = false;
   rigRunServed = { id: "run-9", outcome: "held", steps: [] };
   rigRunFails = false;
   approveRefusal = null;
@@ -434,6 +441,7 @@ test("an empty answer is not cached, and the shapes asked for are this browser's
   // shapes to be read again: the worker holds them for five minutes, and the
   // whole file runs in two seconds.
   shapesCanFind = true;
+  shapesTakesOver = true;
   await gesture("a", "NEW");
   await gesture("b", "north");
   await until(
@@ -449,6 +457,7 @@ test("an empty answer is not cached, and the shapes asked for are this browser's
     true,
     "the prefix card asked for what the run can find",
   );
+  assert.equal(openOnes()[0].takesOver, true, "a Steel deployment's offer did not say so");
 });
 
 test("two gestures into a proven job become one offer, and a third upgrades it", async () => {
@@ -698,6 +707,59 @@ test("an ordinary press takes nothing back", async () => {
     undefined,
     "an ordinary run claimed to undo something",
   );
+});
+
+// -- a press Steel takes over ------------------------------------------------
+
+const uploadsBeforePress = () => {
+  const press = calls.findIndex((call) => call.path === "/v1/workflow-runs");
+  assert.ok(press >= 0, "the press never reached `POST /v1/workflow-runs`");
+  return calls.slice(0, press).filter((call) => call.path === "/v1/observations").length;
+};
+
+/** An open offer, made on a deployment that runs presses on Steel or not.
+ * Set on the offer rather than served: the worker holds the shapes for five
+ * minutes, and the one test that reads them afresh checks the serving. */
+async function offered({ steel = false } = {}) {
+  await gesture("a", "NEW");
+  await gesture("b", "north");
+  await until(() => openOnes().length === 1, "no offer to accept");
+  held.set("sro.nudges", nudges().map((n) => ({ ...n, takesOver: steel })));
+  return openOnes()[0];
+}
+
+test("a press Steel takes over uploads this browser's work first and says which it counted", async () => {
+  ready();
+  const offer = await offered({ steel: true });
+
+  await send({ kind: "start-rig-run", nudgeId: offer.id, values: {} });
+
+  assert.ok(uploadsBeforePress() > 0, "the press went before the operator's own work was uploaded");
+  const started = JSON.parse(calls.find((call) => call.path === "/v1/workflow-runs").body);
+  assert.deepEqual(started.took_over, { tab_id: TAB, since: 1, through: 1 });
+});
+
+test("a press the browser itself runs waits on no upload", async () => {
+  ready();
+  const offer = await offered();
+
+  await send({ kind: "start-rig-run", nudgeId: offer.id, values: {} });
+
+  assert.equal(uploadsBeforePress(), 0);
+});
+
+test("an upload that hangs holds a Steel press only so long, and the panel is told", async () => {
+  ready();
+  const offer = await offered({ steel: true });
+  globalThis.fetch = (url, options) =>
+    String(url).endsWith("/v1/observations")
+      ? new Promise(() => {})
+      : rigServer(url, options);
+
+  const answer = await send({ kind: "start-rig-run", nudgeId: offer.id, values: {} });
+
+  assert.equal(answer.ok, true, answer.error || "the press never started");
+  assert.match(String(held.get("sro.lastError") || ""), /still uploading/);
 });
 
 test("yes starts the run, and marks the offer accepted on the list as it is then", async () => {
@@ -1579,7 +1641,7 @@ test("the shapes read are the ones the named browser is served, and a refusal is
   // offer out of these shapes cannot know it any other way.
   assert.deepEqual(
     await api.shapes("dev-other-6b90"),
-    { shapes: [SHAPE], canFind: false },
+    { shapes: [SHAPE], canFind: false, takesOver: false },
     "a served list came back as nothing",
   );
   assert.equal(
@@ -1595,7 +1657,7 @@ test("the shapes read are the ones the named browser is served, and a refusal is
   globalThis.fetch = async () => json({ detail: "device was not found" }, 404);
   assert.deepEqual(
     await api.shapes("dev-other-6b90"),
-    { shapes: [], canFind: false },
+    { shapes: [], canFind: false, takesOver: false },
     "a refused read threw on the gesture path",
   );
   globalThis.fetch = rigServer;
@@ -3131,3 +3193,4 @@ test("a popup says which tab opened it", async () => {
   assert.equal(mark.tab_id, 2);
   assert.equal(mark.opener_tab_id, TAB);
 });
+

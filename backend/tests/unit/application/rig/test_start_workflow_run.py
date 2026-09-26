@@ -37,6 +37,7 @@ from sro.domain.execution.progress import Progress
 from sro.domain.execution.takeover import Took
 from sro.domain.execution.waiting import K_PATIENCE, read_wait, still_waiting
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
@@ -54,8 +55,8 @@ from tests.unit.fakes import (
 )
 from tests.unit.runtime_support import (
     CTX,
-    SAVE_URL,
     operator_did,
+    posted,
     running_steel_run,
     save_job,
     two_writes_job,
@@ -236,29 +237,62 @@ def _on_steel(uow: FakeUnitOfWork) -> StartWorkflowRun:
 async def test_a_steel_run_is_never_started_part_way_through_a_job() -> None:
     uow = await _held()
 
-    with pytest.raises(RunRefused, match="from step 0"):
+    with pytest.raises(RunRefused, match="which of your gestures"):
         await _press(_on_steel(uow), values={"clientCode": "NEWTESTS"}, from_step=2)
 
     assert uow.workflow_runs.rows == {}
 
 
-async def _taken_over(uow: FakeUnitOfWork, *, matched: int = 3) -> WorkflowRun:
+TOOK = Took(tab_id=7, since=90.0, through=100.0)
+OPERATOR_S = "s-operator"
+COLLEAGUE_S = "s-colleague"
+
+
+async def _devices(uow: FakeUnitOfWork) -> None:
+    for device, owner, secret in (
+        ("dev-1", CTX.principal_id, OPERATOR_S),
+        ("dev-2", PrincipalId("colleague"), COLLEAGUE_S),
+    ):
+        await uow.devices.add(
+            AgentDevice(
+                id=DeviceId(device),
+                tenant_id=CTX.tenant_id,
+                principal_id=owner,
+                label=device,
+                extension_version="1",
+                registered_at=NOW,
+                last_seen_at=NOW,
+                secret=secret,
+            )
+        )
+
+
+async def _taken_over(
+    uow: FakeUnitOfWork,
+    *,
+    matched: int = 3,
+    device: str = "dev-1",
+    secret: str = OPERATOR_S,
+    took: Took | None = TOOK,
+) -> WorkflowRun:
     await two_writes_job(uow, "wfl_two")
+    await _devices(uow)
     return await _on_steel(uow).execute(
         CTX,
         workflow_id="wfl_two",
-        device_id=DeviceId("dev-1"),
-        values={"Customer Type": "GT2"},
+        device_id=DeviceId(device),
+        device_secret=secret,
+        values={"First": "GT1", "Second": "GT2"},
         live=True,
         allow_focus=False,
         matched=matched,
-        took_over=Took(tab_id=7, since=90.0, through=100.0),
+        took_over=took,
     )
 
 
 async def test_a_takeover_starts_after_the_operator_s_own_save() -> None:
     uow = FakeUnitOfWork()
-    await operator_did(uow, device="dev-1", tab=7, at=100.0, calls=[("POST", SAVE_URL, 201)])
+    await operator_did(uow, device="dev-1", tab=7, at=100.0, calls=[posted("GT1", 100.0)])
 
     run = await _taken_over(uow)
 
@@ -270,27 +304,37 @@ async def test_a_takeover_starts_after_the_operator_s_own_save() -> None:
 
 async def test_another_browser_s_save_is_not_the_operator_s() -> None:
     uow = FakeUnitOfWork()
-    await operator_did(uow, device="dev-2", tab=7, at=100.0, calls=[("POST", SAVE_URL, 201)])
+    await operator_did(uow, device="dev-2", tab=7, at=100.0, calls=[posted("GT1", 100.0)])
 
     run = await _taken_over(uow)
 
     assert Progress.of(run.progress).in_doubt(1)
 
 
-async def test_a_steel_run_that_matched_without_its_evidence_is_still_refused() -> None:
+async def test_a_save_after_the_span_confirms_nothing() -> None:
     uow = FakeUnitOfWork()
-    await two_writes_job(uow, "wfl_two")
+    await operator_did(uow, device="dev-1", tab=7, at=100.0, calls=[])
+    await operator_did(uow, device="dev-1", tab=7, at=101.0, calls=[posted("GT1", 101.0)])
 
-    with pytest.raises(RunRefused, match="from step 0"):
-        await _on_steel(uow).execute(
-            CTX,
-            workflow_id="wfl_two",
-            device_id=DeviceId("dev-1"),
-            values={"Customer Type": "GT2"},
-            live=True,
-            allow_focus=False,
-            matched=3,
-        )
+    run = await _taken_over(uow)
+
+    assert Progress.of(run.progress).in_doubt(1)
+
+
+async def test_a_takeover_that_names_a_colleague_s_browser_is_refused() -> None:
+    for device, secret in (("dev-2", COLLEAGUE_S), ("dev-1", COLLEAGUE_S), ("dev-1", "")):
+        uow = FakeUnitOfWork()
+        with pytest.raises(NotFound):
+            await _taken_over(uow, device=device, secret=secret)
+        assert uow.workflow_runs.rows == {}, (device, secret)
+
+
+async def test_a_steel_run_that_matched_without_its_evidence_is_refused_by_name() -> None:
+    uow = FakeUnitOfWork()
+
+    with pytest.raises(RunRefused, match="which of your gestures"):
+        await _taken_over(uow, took=None)
+    assert uow.workflow_runs.rows == {}
 
 
 async def test_a_steel_run_of_several_things_is_refused_rather_than_done_once() -> None:

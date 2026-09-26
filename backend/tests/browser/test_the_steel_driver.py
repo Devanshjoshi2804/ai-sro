@@ -17,9 +17,9 @@ from playwright.async_api import async_playwright
 from sro.application.ports.page import PageGone, PageUnsettled, SessionRef
 from sro.application.ports.vision import ProposedGesture
 from sro.application.runtime.sight_lane import SightLane
-from sro.application.runtime.ui_lane import same_call
 from sro.config import get_settings
 from sro.domain.execution.compose import Adding
+from sro.domain.execution.lanes import same_call
 from sro.domain.observation.gesture import AfterState, Body, Call
 from sro.domain.recording.events import ActionKind
 from sro.domain.shared.hosts import origin_of, system_of

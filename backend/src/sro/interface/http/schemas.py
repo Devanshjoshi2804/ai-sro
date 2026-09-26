@@ -1358,6 +1358,16 @@ class ShapesResponse(BaseModel):
     demanded every missing value and left its own button disabled: the same
     job, offered two ways, disagreeing about whether it needs you to type."""
 
+    takes_over: bool = False
+    """Whether a press of one of these starts a server (Steel) run, which takes
+    the job over from where the operator got to and reads what they already
+    did from this browser's uploads.
+
+    A fact about the tenant's rollout, not about a job. The browser needs it to
+    know whether a press is worth waiting on its own uploads for: a run the
+    browser drives itself reads no evidence, and a Steel run that cannot see a
+    save still in the queue has to ask about it rather than know."""
+
 
 class RecordOfferRequest(BaseModel):
     """What a browser showed, and what became of it.
@@ -2590,7 +2600,11 @@ class TookOverModel(BaseModel):
     The server reads the operator's uploaded gestures from that tab in that
     span, and a write counts as theirs only when its own call is among them
     and confirmed it. Anything the uploads cannot prove is left in doubt and
-    settled by a read-back or a question, never sent again."""
+    settled by a read-back or a question, never sent again.
+
+    Whose uploads is proven, not claimed: the press carries the browser's own
+    `X-Device-Secret` for the `device_id` it names, and that browser must be
+    the pressing operator's. Otherwise it is the 404 an unknown browser gets."""
 
     tab_id: StrictInt = Field(ge=0)
     since: float = Field(ge=0)

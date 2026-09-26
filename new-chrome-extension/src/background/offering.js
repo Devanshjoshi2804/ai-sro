@@ -10,7 +10,7 @@
 // which is what makes the whole of it testable without a browser.
 
 import { fire } from "../panel/nudge.js";
-import { diverged, match } from "./recognise.js";
+import { covered, diverged, match } from "./recognise.js";
 
 export function decideOffer({ tail, shapes, open, origin, page = null, now }) {
   const rigOpen = open && open.source === "rig" && open.state === "open" && open.k > 0 ? open : null;
@@ -18,6 +18,11 @@ export function decideOffer({ tail, shapes, open, origin, page = null, now }) {
   // counts every prefix at least as long as the offer's as still on it, so the
   // match below is free to find the longer `k` and replace the offer with it.
   if (rigOpen && diverged(tail, rigOpen, shapes)) return { replace: null, end: "diverged" };
+  // A tail that reached the end of the job is a job the operator finished:
+  // the offer ends, so a press can never hand Steel a count behind what they did.
+  const rigShape = rigOpen && shapes.find((s) => s.id === rigOpen.workflowId);
+  if (rigShape && covered(tail, rigShape.shape).k >= rigShape.shape.length)
+    return { replace: null, end: "did_it" };
   const found = match(tail, shapes, page);
   if (!found) return { replace: null, end: null };
   // A shorter or equal prefix is the same offer said again, and an offer that

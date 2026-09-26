@@ -9,14 +9,17 @@ from sro.application.ports.page import PageGone
 from sro.application.runtime.step import LaneContext, Superseded
 from sro.application.runtime.ui_lane import UiLane
 from sro.domain.execution.account import Account, LeaseState
-from sro.domain.execution.lanes import Broken, Lane, StepResult, cites_key
+from sro.domain.execution.lanes import Broken, Lane, StepResult, Verdict, cites_key
 from sro.domain.execution.progress import MAIN, Progress, StepMark
-from sro.domain.execution.takeover import OPERATOR, Takeover
+from sro.domain.execution.takeover import OPERATOR, Takeover, Took, take_over
 from tests.unit.runtime_support import (
     CTX,
     TENANT,
+    WORKFLOW,
     SteelRun,
     mail_send_step,
+    operator_did,
+    posted,
     save_step,
     steel_run,
     two_saves,
@@ -597,3 +600,50 @@ async def test_a_takeover_opens_steel_on_the_page_of_its_first_replayed_step() -
     await world.run_steps.prepare(CTX, world.run_id)
 
     assert Progress.of((await world.saved_run()).progress).start_url == FORM
+
+
+async def test_a_save_past_a_stale_offer_is_read_back_or_asked_about_never_sent() -> None:
+    """An open offer made at k=2, then the operator's own Save -- in the same tab
+    or in a popup -- then the press: the run never sends that save again."""
+    cases: tuple[tuple[int, Verdict | None], ...] = ((7, None), (8, None), (7, "done"))
+    for tab, reads_back in cases:
+        steps = two_saves()
+        job = replace(
+            WORKFLOW,
+            steps=[replace(step, order=n) for n, (step, _) in enumerate(steps)],
+            parameters=[
+                {"name": "First", "seen_values": ["A1", "A2"]},
+                {"name": "Second", "seen_values": ["B1", "B2"]},
+            ],
+        )
+        by_id = {one: seen for _, cited in steps for one, seen in cited.items()}
+        world = await steel_run(steps=steps)
+        await operator_did(world.uow, device="dev-1", tab=7, at=95.0, calls=[])
+        await operator_did(
+            world.uow, device="dev-1", tab=tab, at=100.0, calls=[posted("GT1", 100.0)]
+        )
+        seen = await world.uow.gestures.gestures_for(TENANT, stream_id="dev-1")
+        took = take_over(
+            job,
+            by_id,
+            matched=1,
+            took=Took(7, 90.0, 95.0),
+            seen=seen,
+            values={"First": "GT1", "Second": "GT2"},
+        )
+        await world.uow.workflow_runs.record_progress(
+            TENANT, world.run_id, took.progress().as_json()
+        )
+        world.lanes.ui.answers(StepResult("done", Lane.UI))
+        world.lanes.api.settles = reads_back
+
+        await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+        second = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+        assert world.lanes.ui.calls == 1, tab
+        assert world.lanes.api.read_backs == 1, tab
+        progress = Progress.of((await world.saved_run()).progress)
+        if reads_back is None:
+            assert second.asking and progress.asking["kind"] == "step"
+        else:
+            assert progress.written(1) and progress.step == 2

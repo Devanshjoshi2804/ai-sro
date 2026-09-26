@@ -76,3 +76,15 @@ test("a rig offer keeps the span of the gestures it was made from", () => {
   assert.equal(replace.since, 10);
   assert.equal(replace.through, 12);
 });
+
+test("a tail that finishes the job ends its offer: the operator did it", () => {
+  const tail = tailWith(tailWith([], typed("a", "NEW")), typed("b", "x"));
+  const first = decideOffer({ tail, shapes: [shape], open: null, origin: H, now: 1000 }).replace;
+  const saved = tailWith(tail, { triple: [H, "save", "click"], value: null, secret: false, at: 3 });
+  const done = tailWith(saved, { triple: [H, "confirm", "click"], value: null, secret: false, at: 4 });
+
+  const { replace, end } = decideOffer({ tail: done, shapes: [shape], open: first, origin: H, now: 4000 });
+
+  assert.equal(end, "did_it");
+  assert.equal(replace, null);
+});

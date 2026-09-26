@@ -9,7 +9,7 @@ from urllib.parse import urlparse, urlsplit
 from sro.application.ports.page import PageDriver, PageUnsettled
 from sro.application.ports.vision import VisionDriver
 from sro.application.runtime.step import Held, LaneContext, Stopped
-from sro.application.runtime.ui_lane import K_UI_WAIT_S, confirming, same_call, ui_payload
+from sro.application.runtime.ui_lane import K_UI_WAIT_S, confirming, ui_payload
 from sro.domain.execution.belts import expected_statuses
 from sro.domain.execution.compose import Adding
 from sro.domain.execution.evidence import READ_METHODS, primary_gesture, recorded_call, writes
@@ -18,6 +18,7 @@ from sro.domain.execution.lanes import (
     Lane,
     StepResult,
     fingerprint_of,
+    same_call,
     write_confirmed,
 )
 from sro.domain.execution.planning import shown_after, value_for

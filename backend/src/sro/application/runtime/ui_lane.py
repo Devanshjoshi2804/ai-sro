@@ -4,12 +4,11 @@ import asyncio
 import json
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import asdict
-from urllib.parse import urlsplit
 
 from sro.application.ports.page import PageAnswer, PageDriver, PageUnsettled
 from sro.application.runtime.step import Held, LaneContext, Stopped
 from sro.domain.execution.belts import expected_statuses
-from sro.domain.execution.compose import Adding, keyed
+from sro.domain.execution.compose import Adding
 from sro.domain.execution.evidence import (
     PUTS_A_VALUE,
     READ_METHODS,
@@ -23,14 +22,15 @@ from sro.domain.execution.lanes import (
     StepResult,
     accepts,
     fingerprint_of,
+    same_call,
     write_confirmed,
 )
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.planning import value_for
 from sro.domain.execution.records import made_by, names_in
 from sro.domain.execution.secrets import needs_a_secret
-from sro.domain.observation.gesture import AfterState, Body, Call, Gesture
-from sro.domain.observation.trim import body_key_set, parsed_body, path_shape
+from sro.domain.observation.gesture import AfterState, Gesture
+from sro.domain.observation.trim import path_shape
 from sro.domain.skill.signing_in import expired
 from sro.domain.skill.workflow import Step
 
@@ -241,32 +241,6 @@ class UiLane:
             {**payload, "pin": answer.pin, "expect": expect},
             self._wait_s,
         )
-
-
-def same_call(seen: SeenCall, recorded: Call, adding: Adding) -> dict[str, str] | None:
-    if not (
-        seen.own_frame
-        and seen.method.upper() == recorded.method.upper()
-        and path_shape(seen.url) == path_shape(recorded.url)
-        and urlsplit(seen.url).netloc == urlsplit(recorded.url).netloc
-    ):
-        return None
-    wanted = body_key_set(recorded.request_body)
-    if wanted is None:
-        return {}
-    sent = (
-        parsed_body(Body(text=seen.request_body, mime_type=seen.request_content_type))
-        if seen.request_body
-        else None
-    )
-    if not isinstance(sent, dict) or not wanted <= sent.keys():
-        return None
-    extra = {
-        str(key): said if isinstance(said, str) else json.dumps(said)
-        for key, said in sent.items()
-        if key not in wanted
-    }
-    return keyed(extra, adding)
 
 
 def confirming(

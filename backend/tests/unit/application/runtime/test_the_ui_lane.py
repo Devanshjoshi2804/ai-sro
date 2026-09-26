@@ -7,9 +7,9 @@ import pytest
 
 from sro.application.ports.page import PageAnswer, PageGone
 from sro.application.runtime.step import Stopped
-from sro.application.runtime.ui_lane import UiLane, same_call, ui_payload
+from sro.application.runtime.ui_lane import UiLane, ui_payload
 from sro.domain.execution.compose import Adding
-from sro.domain.execution.lanes import Lane, SeenCall
+from sro.domain.execution.lanes import Lane, SeenCall, same_call
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.observation.gesture import (
     Action,

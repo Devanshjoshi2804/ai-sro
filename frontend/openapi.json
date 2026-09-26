@@ -22883,6 +22883,16 @@
         "operationId": "start_workflow_run_v1_workflow_runs_post",
         "parameters": [
           {
+            "name": "X-Device-Secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Device-Secret"
+            }
+          },
+          {
             "name": "authorization",
             "in": "header",
             "required": false,
@@ -28473,6 +28483,11 @@
             "type": "boolean",
             "title": "Can Find",
             "default": false
+          },
+          "takes_over": {
+            "type": "boolean",
+            "title": "Takes Over",
+            "default": false
           }
         },
         "type": "object",
@@ -29486,7 +29501,7 @@
           "through"
         ],
         "title": "TookOverModel",
-        "description": "The operator's own doing a Steel run takes over: the browser tab it\nhappened in and the recorder times of the first and last gesture the\nmatch used.\n\nThe server reads the operator's uploaded gestures from that tab in that\nspan, and a write counts as theirs only when its own call is among them\nand confirmed it. Anything the uploads cannot prove is left in doubt and\nsettled by a read-back or a question, never sent again."
+        "description": "The operator's own doing a Steel run takes over: the browser tab it\nhappened in and the recorder times of the first and last gesture the\nmatch used.\n\nThe server reads the operator's uploaded gestures from that tab in that\nspan, and a write counts as theirs only when its own call is among them\nand confirmed it. Anything the uploads cannot prove is left in doubt and\nsettled by a read-back or a question, never sent again.\n\nWhose uploads is proven, not claimed: the press carries the browser's own\n`X-Device-Secret` for the `device_id` it names, and that browser must be\nthe pressing operator's. Otherwise it is the 404 an unknown browser gets."
       },
       "ToolPlanModel": {
         "properties": {

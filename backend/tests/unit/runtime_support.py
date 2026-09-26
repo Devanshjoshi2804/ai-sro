@@ -391,13 +391,32 @@ async def save_job(uow: UnitOfWork, workflow_id: str) -> Workflow:
     return job
 
 
+def posted(name: str, at: float, status: int | None = 201) -> Call:
+    """A `POST SAVE_URL` whose body names `name`, as the page sends it."""
+    body = Body(text=json.dumps({"name": name}), mime_type="application/json")
+    return Call(method="POST", url=SAVE_URL, status=status, started_at=at, request_body=body)
+
+
+def demonstrated_save(
+    gid: str, at: float, names: tuple[str, str]
+) -> tuple[Step, dict[str, Gesture]]:
+    """A save demonstrated twice, ten seconds apart, once with each of `names`:
+    two demonstrations are what say which parameter a write carries."""
+    by_id: dict[str, Gesture] = {}
+    for n, name in enumerate(names):
+        _, one = save_step(gid=f"{gid}_{n}", at=at + 10 * n)
+        (gesture,) = one.values()
+        by_id[gesture.id] = replace(gesture, requests=[posted(name, at + 10 * n)])
+    return Step(order=0, says="Save it", system=_SYSTEM, cites=list(by_id)), by_id
+
+
 def two_saves(form: str = f"{_SYSTEM}/app") -> list[tuple[Step, dict[str, Gesture]]]:
-    """Type, save, type on `form`, save: each save a `POST SAVE_URL` -> 201."""
+    """Type, save `First`, type on `form`, save `Second`."""
     return [
         type_step(gid="ges_type_0", at=1.0),
-        save_step(gid="ges_save_1", at=2.0),
+        demonstrated_save("ges_save_1", 2.0, ("A1", "A2")),
         type_step(gid="ges_type_2", at=3.0, page=form),
-        save_step(gid="ges_save_3", at=4.0),
+        demonstrated_save("ges_save_3", 4.0, ("B1", "B2")),
     ]
 
 
@@ -407,7 +426,10 @@ async def two_writes_job(uow: UnitOfWork, workflow_id: str) -> Workflow:
         _WORKFLOW,
         id=workflow_id,
         steps=[replace(step, order=n) for n, (step, _) in enumerate(steps)],
-        parameters=[{"name": "Customer Type", "seen_values": ["GT1"], "required": True}],
+        parameters=[
+            {"name": "First", "seen_values": ["A1", "A2"]},
+            {"name": "Second", "seen_values": ["B1", "B2"]},
+        ],
     )
     await uow.workflows.save(job)
     await uow.gestures.add_gestures(tuple(g for _, cited in steps for g in cited.values()))
@@ -415,12 +437,7 @@ async def two_writes_job(uow: UnitOfWork, workflow_id: str) -> Workflow:
 
 
 async def operator_did(
-    uow: UnitOfWork,
-    *,
-    device: str,
-    tab: int,
-    at: float,
-    calls: Sequence[tuple[str, str, int | None]],
+    uow: UnitOfWork, *, device: str, tab: int, at: float, calls: Sequence[Call]
 ) -> None:
     """One gesture uploaded from `device`'s browser tab `tab`, carrying `calls`."""
     await uow.gestures.add_gestures(
@@ -436,10 +453,7 @@ async def operator_did(
                 tab_id=tab,
                 frame_url=None,
                 action=Action(kind="click", at=at, target=Target(role="button", name="Save")),
-                requests=[
-                    Call(method=method, url=url, status=status, started_at=at)
-                    for method, url, status in calls
-                ],
+                requests=list(calls),
             ),
         )
     )

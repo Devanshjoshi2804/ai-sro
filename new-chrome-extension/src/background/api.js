@@ -326,12 +326,15 @@ export const api = {
       // `can_find` rides along: whether a run can go and find a value nobody
       // typed is a fact about the deployment, and a browser building an offer
       // out of these shapes cannot know it any other way.
+      // `takes_over` likewise: whether a press here is run on the server,
+      // which reads what the operator already did from their uploads.
       return {
         shapes: answered.shapes || [],
         canFind: Boolean(answered.can_find),
+        takesOver: Boolean(answered.takes_over),
       };
     } catch {
-      return { shapes: [], canFind: false };
+      return { shapes: [], canFind: false, takesOver: false };
     }
   },
 

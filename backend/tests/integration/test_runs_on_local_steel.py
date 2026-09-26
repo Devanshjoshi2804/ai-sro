@@ -68,6 +68,7 @@ from sro.domain.execution.progress import MAIN, Progress
 from sro.domain.execution.takeover import Took
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.lookup.plan import Lookup, Plan
+from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.gesture import (
     Action,
     Body,
@@ -811,34 +812,66 @@ async def test_a_takeover_after_the_operator_s_own_save_sends_only_the_rest(
 ) -> None:
     await _recorded(world)
     known = _steps(world)
-    again = {
-        name: (
-            step,
-            replace(
-                seen,
-                id=f"{seen.id}_2",
-                at=seen.at + 2.0,
-                action=replace(seen.action, at=seen.at + 2.0),
-                requests=[replace(call, started_at=seen.at + 2.0) for call in seen.requests],
-            ),
+    typed, save = known["type"][1], known["save"][1]
+
+    def did(gid: str, like: Gesture, at: float, name: str | None = None) -> Gesture:
+        body = Body(text=json.dumps({"name": name}), mime_type="application/json")
+        return replace(
+            like,
+            id=gid,
+            at=at,
+            action=replace(like.action, at=at),
+            requests=[replace(call, started_at=at, request_body=body) for call in like.requests]
+            if name
+            else [],
         )
-        for name, (step, seen) in known.items()
-    }
-    chosen = [known["type"], known["save"], again["type"], again["save"]]
+
+    cited = [
+        [did("t0", typed, 11.0)],
+        [did("s1a", save, 12.0, "A1"), did("s1b", save, 112.0, "A2")],
+        [did("t2", typed, 13.0)],
+        [did("s3a", save, 14.0, "B1"), did("s3b", save, 114.0, "B2")],
+    ]
+    says = ["Type the first", "Save it", "Type the second", "Save it"]
+    takes = [["First"], [], ["Second"], []]
     job = Workflow(
         id="wfl_two_saves",
         tenant=TENANT,
         title="Add two customer types",
         narrative="",
-        steps=[replace(step, order=n, cites=[seen.id]) for n, (step, seen) in enumerate(chosen)],
+        steps=[
+            Step(
+                order=n,
+                says=says[n],
+                system=None,
+                cites=[one.id for one in cited[n]],
+                parameters=takes[n],
+            )
+            for n in range(4)
+        ],
+        parameters=[
+            {"name": "First", "seen_values": ["A1", "A2"]},
+            {"name": "Second", "seen_values": ["B1", "B2"]},
+        ],
     )
     world.rig.saved.append({"name": "GT1"})
-    theirs = replace(
-        known["save"][1], id="ges_operator_save", stream_id="dev-1", tab_id=7, at=100.0
-    )
+    proof = uuid.uuid4().hex
+    theirs = replace(did("ges_operator_save", save, 100.0, "GT1"), stream_id="dev-1", tab_id=7)
     async with world.uow as uow:
-        await uow.gestures.add_gestures((*(seen for _, seen in chosen), theirs))
+        await uow.gestures.add_gestures((*(one for each in cited for one in each), theirs))
         await uow.workflows.save(job)
+        await uow.devices.add(
+            AgentDevice(
+                id=DeviceId("dev-1"),
+                tenant_id=CTX.tenant_id,
+                principal_id=CTX.principal_id,
+                label="the operator's browser",
+                extension_version="1",
+                registered_at=datetime.now(UTC),
+                last_seen_at=datetime.now(UTC),
+                secret=proof,
+            )
+        )
         await uow.commit()
     starter = StartWorkflowRun(
         world.uow,
@@ -858,7 +891,8 @@ async def test_a_takeover_after_the_operator_s_own_save_sends_only_the_rest(
         CTX,
         workflow_id=job.id,
         device_id=DeviceId("dev-1"),
-        values={"Customer Type": "GT2"},
+        device_secret=proof,
+        values={"First": "GT1", "Second": "GT2"},
         live=True,
         allow_focus=False,
         matched=2,

@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/application/runtime/teach.py`](../../../../../../../backend/src/sro/application/runtime/teach.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `Teach`, [line 20](../../../../../../../backend/src/sro/application/runtime/teach.py#L20): Class
+## `Teach`, [line 19](../../../../../../../backend/src/sro/application/runtime/teach.py#L19): Class
 
 > Each lane teaches the one above (spec §6.3), per step and in data:
 >
@@ -20,14 +20,14 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/teach
 >   broken API lane: only that lane's own success, or a new demonstration
 >   that changes the step's cites, clears it.
 
-## `Teach.learn`, [line 37](../../../../../../../backend/src/sro/application/runtime/teach.py#L37): Note
+## `Teach.learn`, [line 36](../../../../../../../backend/src/sro/application/runtime/teach.py#L36): Note
 
 Code: `won = tried[-1] if tried and tried[-1].verdict in ("done", "read") else None`
 
 > Only `done` or `read` is a success. An `unknown` is a write nobody
 > confirmed; it mends nothing and teaches nothing.
 
-## `Teach.learn`, [line 40](../../../../../../../backend/src/sro/application/runtime/teach.py#L40): Note
+## `Teach.learn`, [line 39](../../../../../../../backend/src/sro/application/runtime/teach.py#L39): Note
 
 Code: `if result.verdict == "failed" and result.fingerprint and not result.expired:`
 
@@ -35,7 +35,7 @@ Code: `if result.verdict == "failed" and result.fingerprint and not result.expir
 > `missing_header` never breaks a lane), and a failure with no fingerprint
 > has nothing to be known by.
 
-## `Teach.learn`, [line 66](../../../../../../../backend/src/sro/application/runtime/teach.py#L66): Note
+## `Teach.learn`, [line 65](../../../../../../../backend/src/sro/application/runtime/teach.py#L65): Note
 
 Code: `own = next(`
 
@@ -51,7 +51,7 @@ Code: `own = next(`
 > recorded URL (`learned_pattern`), so a path that names the record becomes
 > `{id}` and a segment the recording holds fixed stays fixed.
 
-## `_sighted`, [line 90](../../../../../../../backend/src/sro/application/runtime/teach.py#L90): Function
+## `_sighted`, [line 89](../../../../../../../backend/src/sro/application/runtime/teach.py#L89): Function
 
 > The locator the sight lane learned from the element that satisfied the
 > check (X7 ruling), or nothing: a learned map without a `frame_path` is

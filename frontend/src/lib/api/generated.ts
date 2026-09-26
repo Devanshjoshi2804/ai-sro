@@ -3813,6 +3813,11 @@ export interface components {
              * @default false
              */
             can_find: boolean;
+            /**
+             * Takes Over
+             * @default false
+             */
+            takes_over: boolean;
         };
         /**
          * ShotModel
@@ -4252,6 +4257,10 @@ export interface components {
          *     span, and a write counts as theirs only when its own call is among them
          *     and confirmed it. Anything the uploads cannot prove is left in doubt and
          *     settled by a read-back or a question, never sent again.
+         *
+         *     Whose uploads is proven, not claimed: the press carries the browser's own
+         *     `X-Device-Secret` for the `device_id` it names, and that browser must be
+         *     the pressing operator's. Otherwise it is the 404 an unknown browser gets.
          */
         TookOverModel: {
             /** Tab Id */
@@ -14655,6 +14664,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                "X-Device-Secret"?: string;
                 authorization?: string | null;
             };
             path?: never;

@@ -535,6 +535,7 @@ async function shapesFor() {
   // that has not been restarted after a backend deploy keeps offering.
   const served = Array.isArray(answered) ? answered : answered?.shapes;
   canFind = Array.isArray(answered) ? canFind : Boolean(answered?.canFind);
+  takesOver = Array.isArray(answered) ? takesOver : Boolean(answered?.takesOver);
   const usable = Array.isArray(served)
     ? served.filter((shape) => shape && Array.isArray(shape.shape) && shape.id)
     : [];
@@ -563,6 +564,12 @@ async function shapesFor() {
  * that promises to find a value on a deployment with no mailbox costs them a
  * run that stops at the first step. */
 let canFind = false;
+
+/** Whether a press here is run on the server (Steel), which takes the job over
+ * and reads what the operator already did from this browser's uploads. Only
+ * then is a press worth waiting on an upload for. False until the first
+ * answer: a press that skips the wait leaves the server in doubt, never wrong. */
+let takesOver = false;
 
 function originOf(url) {
   try {
@@ -1015,8 +1022,8 @@ async function considerOffer(tabId, gesture) {
       // dismissal every time the operator typed the next field.
       const made =
         open && open.source === "rig" && open.state === "open"
-          ? { ...open, ...replace, id: open.id, at: open.at, tabId, canFind }
-          : { ...replace, tabId, canFind };
+          ? { ...open, ...replace, id: open.id, at: open.at, tabId, canFind, takesOver }
+          : { ...replace, tabId, canFind, takesOver };
       // The one it supersedes stops being open: two open at once is the queue
       // this design exists to not be. On an upgrade that is the same record,
       // and `made` puts it straight back with what it has just learned. A
@@ -2114,9 +2121,13 @@ async function handle(message, sender) {
       // A Steel run that takes this job over reads what the operator already
       // did from their uploaded gestures, so those are sent first: a save
       // still in this queue would be one the backend cannot prove, and it
-      // would ask about it rather than know.
+      // would ask about it rather than know. Bounded, so a slow upload never
+      // holds the press; the operator is told the run will check instead.
       const tookOver = nudge.tabId != null && nudge.since != null;
-      if (tookOver) await drain();
+      if (tookOver && nudge.takesOver && !(await drainedWithin(K_PRESS_DRAIN_MS)))
+        await state.setLastError(
+          "your last steps were still uploading when the run started; it will check them rather than do them again",
+        );
       let started;
       try {
         // No `started_by`. The backend reads who authorised the press off the
@@ -3057,6 +3068,22 @@ const MOST_BATCHES = 50;
  * the operator asking to flush before closing the laptop. The alarm stays one
  * batch a tick, which is what paces a busy day.
  */
+/** How long a Steel press waits for this browser's uploads before it goes. */
+const K_PRESS_DRAIN_MS = 4000;
+
+/** Whether `drain` finished within `ms`. The upload carries on either way. */
+async function drainedWithin(ms) {
+  let timer;
+  const late = new Promise((resolve) => {
+    timer = setTimeout(() => resolve(false), ms);
+  });
+  try {
+    return await Promise.race([drain().then(() => true), late]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function drain() {
   let last = { uploaded: 0 };
   for (let batch = 0; batch < MOST_BATCHES; batch += 1) {

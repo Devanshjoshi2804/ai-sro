@@ -25,6 +25,7 @@ from sro.application.execution.run_workflow import GatherValues, KnownFields, ru
 from sro.application.execution.stops import Stops
 from sro.application.intent.spend import over_cap
 from sro.application.knowledge.retrieve import Question, Retrieve
+from sro.application.observation.register import refuse_unless_itself
 from sro.application.ports.channel import Channel
 from sro.application.ports.durable import DurableExecution
 from sro.application.ports.model import Asker, asker_or_refuse
@@ -153,6 +154,7 @@ class StartWorkflowRun:
         conversation: tuple[str, str] = ("", ""),
         undoes_run: str = "",
         took_over: Took | None = None,
+        device_secret: str = "",
     ) -> WorkflowRun:
         asker_or_refuse(self._asker)
         now: datetime = self._clock.now()
@@ -212,12 +214,19 @@ class StartWorkflowRun:
                 raise RunRefused(f"from_step must be a step of this job (0..{last})")
             first_progress: dict[str, object] = {}
             check_from = from_step
-            if steel and matched and took_over is not None and device_id is not None:
-                uploaded = await uow.gestures.gestures_for(
-                    ctx.tenant_id, after=math.nextafter(took_over.since, -math.inf)
+            if steel and took_over is not None and device_id is not None:
+                device = await uow.devices.get(ctx.tenant_id, device_id)
+                refuse_unless_itself(device, device_secret, device_id)
+                if device.principal_id != ctx.principal_id:
+                    raise NotFound(f"device {device_id} was not found")
+                seen = await uow.gestures.gestures_for(
+                    ctx.tenant_id,
+                    stream_id=device_id.value,
+                    after=math.nextafter(took_over.since, -math.inf),
                 )
-                seen = [one for one in uploaded if one.stream_id == device_id.value]
-                took = take_over(workflow, by_id, matched=matched, took=took_over, seen=seen)
+                took = take_over(
+                    workflow, by_id, matched=matched or 0, took=took_over, seen=seen, values=given
+                )
                 first_progress = took.progress().as_json()
                 ordered = sorted(workflow.steps, key=lambda step: step.order)
                 check_from = (
@@ -225,8 +234,8 @@ class StartWorkflowRun:
                 )
             elif steel and from_step:
                 raise RunRefused(
-                    "a Steel run starts from step 0; taking over part way through is not "
-                    "supported yet"
+                    "this press did not say which of your gestures it counted, so a Steel run "
+                    "cannot tell what you already did; update the extension and press again"
                 )
             if undoes_run.strip():
                 already = await uow.workflow_runs.taken_back_by(ctx.tenant_id, undoes_run.strip())

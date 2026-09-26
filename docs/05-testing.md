@@ -96,6 +96,25 @@ Two habits, both learned the hard way:
 - Steel needs `shm_size: 2gb`. Chrome crashes with Docker's 64 MB default, and
   the failure looks like a random disconnect rather than an out-of-memory error.
 - `make reset` destroys all local data and re-migrates.
+- Each worktree runs its Steel-backed tests against its own Steel. One shared
+  Steel runs out of contexts when two or three agents test at once (502 on
+  `/json/version`, "no browser attached"), so:
+
+  ```bash
+  make steel-up      # container `steel-<worktree>`, ports fixed per worktree in 13000-13999
+  cd backend && uv run pytest tests/integration/test_runs_on_local_steel.py -q
+  make steel-down    # removes only this worktree's Steel and its .env.steel
+  ```
+
+  `steel-up` waits for the container's healthcheck and writes the gitignored
+  `.env.steel` at the worktree root: `SRO_STEEL_BASE_URL`, `SRO_STEEL_CDP_URL`,
+  and `SRO_STEEL_SEES_HOST` (the host address Steel's Chrome reaches the
+  test's own server at, found by trying each one from inside the container).
+  `backend/tests/conftest.py` loads it; a variable already in the shell wins.
+  Without `.env.steel` the tests use the settings' defaults, which is the dev
+  stack's `ai-sro-steel-1`. Running it again is safe: a running Steel keeps
+  its ports and only `.env.steel` is rewritten. `eval "$(make -s steel-env)"`
+  points a shell (an API or worker) at the same Steel.
 
 ## Frontend
 

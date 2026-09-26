@@ -19,14 +19,15 @@ import httpx
 import pytest
 
 from sro.application.ports.browser import BrowserUnavailable
+from sro.config import get_settings
 from sro.domain.shared.identifiers import BrowserSessionId
 from sro.infrastructure.steel.client import SteelClient
 from sro.infrastructure.steel.pool import SteelPool
 
 pytestmark = pytest.mark.browser
 
-STEEL_URL = "http://localhost:3010"
-CDP_URL = "http://localhost:9223"
+STEEL_URL = get_settings().steel_base_url
+CDP_URL = get_settings().steel_cdp_url
 
 
 @pytest.fixture

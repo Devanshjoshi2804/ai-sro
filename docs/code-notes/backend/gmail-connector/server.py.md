@@ -175,7 +175,7 @@ Code: `SCOPES = [`
 > wearing the face of a success, which is worse than an error because nobody
 > goes looking for the cause of nothing.
 
-## `_thread`, [line 353](../../../../backend/gmail-connector/server.py#L353): Docstring
+## `_thread`, [line 375](../../../../backend/gmail-connector/server.py#L375): Docstring
 
 > Every mail in one conversation, oldest first.
 >
@@ -183,7 +183,7 @@ Code: `SCOPES = [`
 > replies to holds them, and which mail that is, is a fact Gmail already
 > knows. Searching for it is guessing at something nobody has to guess at.
 
-## `Connector`, [line 403](../../../../backend/gmail-connector/server.py#L403): Docstring
+## `Connector`, [line 425](../../../../backend/gmail-connector/server.py#L425): Docstring
 
 > The MCP half: greet, hand out a session, then answer calls.
 >
@@ -204,7 +204,7 @@ Code: `"access_type": "offline",`
 > Offline and forced, so a refresh token comes back. Google sends
 > one only on the first consent unless asked again.
 
-## `_get`, [line 343](../../../../backend/gmail-connector/server.py#L343): Comment
+## `_get`, [line 362](../../../../backend/gmail-connector/server.py#L362): Comment
 
 Code: `"thread_id": full.get("threadId", ""),`
 
@@ -219,7 +219,7 @@ Code: `"thread_id": full.get("threadId", ""),`
 > 21:26: "gathered 0 of 2 ... the mailbox holds none of the values
 > this job needs", about values sitting one mail away.
 
-## `_get`, [line 344](../../../../backend/gmail-connector/server.py#L344): Comment
+## `_get`, [line 363](../../../../backend/gmail-connector/server.py#L363): Comment
 
 Code: `"rfc822_message_id": head.get("message-id", ""),`
 
@@ -227,7 +227,7 @@ Code: `"rfc822_message_id": head.get("message-id", ""),`
 > reply names it in `In-Reply-To`, and Gmail's internal id is not
 > one any other client can thread on.
 
-## `_thread`, [line 370](../../../../backend/gmail-connector/server.py#L370): Comment
+## `_thread`, [line 392](../../../../backend/gmail-connector/server.py#L392): Comment
 
 Code: `"rfc822_message_id": head.get("message-id", ""),`
 
@@ -244,7 +244,7 @@ Code: `"rfc822_message_id": head.get("message-id", ""),`
 > sent arrived in the recipient's mailbox as a NEW
 > conversation, not under the request it was answering.
 
-## `_send`, [line 385](../../../../backend/gmail-connector/server.py#L385): Comment
+## `_send`, [line 407](../../../../backend/gmail-connector/server.py#L407): Comment
 
 Code: `within = str(arguments.get("thread_id", "")).strip()`
 
@@ -256,7 +256,7 @@ Code: `within = str(arguments.get("thread_id", "")).strip()`
 > `In-Reply-To` header is what every OTHER mail client uses, and without it
 > the person who receives this sees an orphan.
 
-## `Connector.do_POST`, [line 441](../../../../backend/gmail-connector/server.py#L441): Comment
+## `Connector.do_POST`, [line 463](../../../../backend/gmail-connector/server.py#L463): Comment
 
 Code: `bearer = self.headers.get("Authorization", "").removeprefix("Bearer ").strip()`
 
@@ -265,7 +265,7 @@ Code: `bearer = self.headers.get("Authorization", "").removeprefix("Bearer ").st
 > is the first thing that would. An unknown bearer reaches no
 > grant, so it reaches no mail.
 
-## `Connector.do_POST`, [line 479](../../../../backend/gmail-connector/server.py#L479): Comment
+## `Connector.do_POST`, [line 501](../../../../backend/gmail-connector/server.py#L501): Comment
 
 Code: `print(f"  ! {refused}")`
 
@@ -273,8 +273,16 @@ Code: `print(f"  ! {refused}")`
 > treats "it refused" and "there was nothing to ask" differently,
 > and both arriving as an exception would collapse them.
 
-## module, [line 529](../../../../backend/gmail-connector/server.py#L529): Inline
+## module, [line 551](../../../../backend/gmail-connector/server.py#L551): Inline
 
 Code: `_client()`
 
 > fail now, with a sentence, rather than on the first call
+
+## `_mailbox`, [line 331](../../../../backend/gmail-connector/server.py#L331): Note
+
+> The grant's own address, from Gmail's `users.getProfile`, so the backend can
+> tell the operator's own mail from everybody else's. Read once per grant and
+> kept in `MAILBOXES` for the life of the process: an address does not change
+> under a grant, and each message would otherwise cost a second request. A
+> failed read is not kept, so the next message tries again.

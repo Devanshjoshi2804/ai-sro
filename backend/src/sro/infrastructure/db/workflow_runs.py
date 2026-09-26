@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any, cast
 
-from sqlalchemy import Select, func, select, update
+from sqlalchemy import Select, and_, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -351,6 +351,13 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
                 WorkflowRunRow.awaiting.isnot(None),
                 WorkflowRunRow.awaiting["server"].astext == server.strip(),
                 WorkflowRunRow.awaiting["thread"].astext == thread.strip(),
+                or_(
+                    func.jsonb_array_length(WorkflowRunRow.needs) > 0,
+                    and_(
+                        WorkflowRunRow.outcome == "running",
+                        WorkflowRunRow.progress["asking"]["id"].astext != "",
+                    ),
+                ),
             )
             .order_by(WorkflowRunRow.started_at.desc(), WorkflowRunRow.id.desc())
             .limit(1)
@@ -358,6 +365,21 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
         rows = (await self._session.execute(query)).scalars().all()
         found = await self._with_steps(rows)
         return found[0] if found else None
+
+    async def started_on(self, tenant_id: TenantId, *, server: str, thread: str) -> bool:
+        if not server.strip() or not thread.strip():
+            return False
+        found = await self._session.scalar(
+            select(WorkflowRunRow.id)
+            .where(
+                WorkflowRunRow.tenant_id == tenant_id.value,
+                WorkflowRunRow.awaiting.isnot(None),
+                WorkflowRunRow.awaiting["server"].astext == server.strip(),
+                WorkflowRunRow.awaiting["thread"].astext == thread.strip(),
+            )
+            .limit(1)
+        )
+        return found is not None
 
     async def awaiting(self, tenant_id: TenantId) -> tuple[tuple[str, int, str], ...]:
         query = (

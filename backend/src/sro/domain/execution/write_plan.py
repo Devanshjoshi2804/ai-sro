@@ -128,6 +128,14 @@ def _slots(bodies: list[dict[str, object]]) -> frozenset[str]:
     )
 
 
+def _taken(bodies: list[dict[str, object]], slot: str) -> set[str]:
+    return {
+        value if isinstance(value, str) else json.dumps(value)
+        for body in bodies
+        if slot in body and not isinstance(value := body[slot], dict | list)
+    }
+
+
 def wanted_by(
     step: Step,
     by_id: Mapping[str, Gesture],
@@ -142,7 +150,7 @@ def wanted_by(
         return frozenset({owner}) if owner else frozenset()
     owners: set[str] = {owner} if owner else set()
     for slot in sorted(_slots(bodies)):
-        taken = {body[slot] for body in bodies if isinstance(body.get(slot), str)}
+        taken = _taken(bodies, slot)
         if not taken:
             continue
         claiming = [name for name, observed in seen.items() if taken <= observed]
@@ -161,11 +169,13 @@ def _assigned(
     claimed: dict[str, str] = {}
     placed: set[str] = set()
     for slot in sorted(slots):
-        taken = {body[slot] for body in bodies if isinstance(body.get(slot), str)}
+        taken = _taken(bodies, slot)
         if not taken:
             continue
         owners = [name for name, observed in seen.items() if name in values and taken <= observed]
         if len({values[name] for name in owners}) > 1:
+            return None
+        if owners and not isinstance(bodies[0][slot], str):
             return None
         if owners:
             claimed[slot] = owners[0]
@@ -179,6 +189,21 @@ def _assigned(
     ):
         return None
     return claimed
+
+
+def _owned_by_nobody_given(
+    slots: frozenset[str],
+    bodies: list[dict[str, object]],
+    values: Mapping[str, str],
+    seen: Mapping[str, frozenset[str]],
+) -> frozenset[str]:
+    left_out: set[str] = set()
+    for slot in slots:
+        taken = _taken(bodies, slot)
+        owners = [name for name, observed in seen.items() if taken and taken <= observed]
+        if len(owners) == 1 and not values.get(owners[0], "").strip():
+            left_out.add(slot)
+    return frozenset(left_out)
 
 
 def write_plan_for(
@@ -207,6 +232,9 @@ def write_plan_for(
     bodies = _bodies_of(step, by_id, call)
     if not bodies:
         return _path_plan(step, by_id, call, values, seen, entry)
+    owner = _path_owner(step, by_id, call, seen)
+    if owner and not values.get(owner, "").strip():
+        return None
 
     slots = _slots(bodies)
     echoed = _echoed(step, by_id, call)
@@ -218,7 +246,8 @@ def write_plan_for(
     if not claimed:
         return None
 
-    aimed = dict(bodies[0])
+    left_out = _owned_by_nobody_given(slots, bodies, values, seen)
+    aimed = {key: value for key, value in bodies[0].items() if key not in left_out}
     for slot, parameter in claimed.items():
         aimed[slot] = values[parameter]
     aimed.update(also)

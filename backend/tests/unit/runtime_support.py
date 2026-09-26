@@ -18,6 +18,9 @@ provider (`IDP` unless told otherwise) that lands on a system, and
 on their system, and builds `RunLookups` over a real `SessionBroker` on fakes;
 `reauths` counts the broker's `reauth` calls.
 
+`save_job` stores a one-step job typing its one required value, "Customer
+Type", with its evidence.
+
 `lease_for` inserts a `ready` lease a sweeper test can expire.
 
 `steel_run` builds a whole Steel run for `RunSteps`: the run, its job and
@@ -32,6 +35,7 @@ and `FakeBroker` counts its re-sign-ins.
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
@@ -164,11 +168,12 @@ def lane_context(
     thread: str = "",
     reauthed: bool = False,
     adding: Mapping[int, Adding] = MappingProxyType({}),
+    workflow: Workflow = _WORKFLOW,
 ) -> LaneContext:
     return LaneContext(
         tenant_id=TenantId(_TENANT),
         principal_id=PrincipalId("clerk"),
-        workflow=_WORKFLOW,
+        workflow=workflow,
         by_id=by_id,
         learned=learned,
         ledger=ledger,
@@ -230,9 +235,13 @@ def proven_write_step(
     read_back: str | None,
     request_headers: Mapping[str, str] = MappingProxyType({"Content-Type": "application/json"}),
     read_headers: Mapping[str, str] = MappingProxyType({}),
+    described: tuple[str, str] | None = None,
 ) -> tuple[Step, dict[str, Gesture], tuple[VerifiedWrite, ...]]:
     by_id: dict[str, Gesture] = {}
     for nth, name in enumerate(("GT0", "GT1")):
+        sent: dict[str, str] = {"name": name}
+        if described is not None:
+            sent["description"] = described[nth]
         at = float(nth + 1)
         requests = [
             Call(
@@ -240,7 +249,7 @@ def proven_write_step(
                 url=f"{_SYSTEM}/api/customer-types",
                 status=201,
                 started_at=at,
-                request_body=Body(text=f'{{"name": "{name}"}}', mime_type="application/json"),
+                request_body=Body(text=json.dumps(sent), mime_type="application/json"),
                 request_headers=dict(request_headers),
             )
         ]
@@ -275,7 +284,7 @@ def proven_write_step(
         says="Save the customer type",
         system=_SYSTEM,
         cites=list(by_id),
-        parameters=["Customer Type"],
+        parameters=["Customer Type", *(["Description"] if described else [])],
     )
     return step, by_id, (VerifiedWrite("POST", "/api/customer-types"),)
 
@@ -349,6 +358,19 @@ def type_step(*, after: AfterState | None = None) -> tuple[Step, dict[str, Gestu
         parameters=["Customer Type"],
     )
     return step, by_id
+
+
+async def save_job(uow: UnitOfWork, workflow_id: str) -> Workflow:
+    step, by_id = type_step()
+    job = replace(
+        _WORKFLOW,
+        id=workflow_id,
+        steps=[replace(step, order=0)],
+        parameters=[{"name": "Customer Type", "seen_values": ["GT0", "GT1"], "required": True}],
+    )
+    await uow.workflows.save(job)
+    await uow.gestures.add_gestures(tuple(by_id.values()))
+    return job
 
 
 def mail_send_step() -> tuple[Step, dict[str, Gesture]]:

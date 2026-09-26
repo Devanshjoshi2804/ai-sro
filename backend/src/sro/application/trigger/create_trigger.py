@@ -4,6 +4,7 @@ import secrets
 from dataclasses import dataclass
 
 from sro.application.context import RequestContext
+from sro.application.execution.workflow_runs import StartWorkflowRun
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.schedule import Scheduler
 from sro.application.ports.system import Clock, IdFactory
@@ -52,8 +53,10 @@ class CreateTrigger:
         ids: IdFactory,
         scheduler: Scheduler,
         can_gather: bool = False,
+        start_run: StartWorkflowRun | None = None,
     ) -> None:
         self._uow = uow
+        self._start_run = start_run
         self._clock = clock
         self._ids = ids
         self._scheduler = scheduler
@@ -179,7 +182,9 @@ class CreateTrigger:
             workflow = await uow.workflows.get(ctx.tenant_id, str(request.workflow_id))
             if request.kind is TriggerKind.ARRIVAL and request.arrival is None:
                 raise TriggerRefused("an arrival trigger needs the page it fires on")
-            if request.device_id is None:
+            on_steel = self._start_run is not None and self._start_run.runs_on_steel(ctx)
+            seen_in_a_browser = request.kind in (TriggerKind.ARRIVAL, TriggerKind.WATCH)
+            if request.device_id is None and (seen_in_a_browser or not on_steel):
                 raise TriggerRefused("a job runs in a browser: name a device")
             if not request.authorized_by:
                 raise TriggerRefused(

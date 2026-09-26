@@ -39,15 +39,18 @@ from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.shared.prices import ModelSpend
+from sro.domain.skill.repeats import Repeat
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.fakes import (
     FakeAsker,
     FakeChannel,
     FakeClock,
+    FakeDurableExecution,
     FakeGestureRepository,
     FakeIdFactory,
     FakeUnitOfWork,
 )
+from tests.unit.runtime_support import CTX, save_job
 
 TENANT = TenantId("acme")
 RIVAL = TenantId("rival")
@@ -172,6 +175,9 @@ def _starter(
     cap_usd: float = CAP,
     stops: Stops | None = None,
     approvals: Approvals | None = None,
+    durable: FakeDurableExecution | None = None,
+    steel_tenants: frozenset[str] = frozenset(),
+    clock: FakeClock | None = None,
 ) -> StartWorkflowRun:
     return StartWorkflowRun(
         uow,
@@ -179,12 +185,78 @@ def _starter(
         asker=asker,
         plan_model=PLAN,
         rescue_model=RESCUE,
-        clock=FakeClock(NOW),
+        clock=clock or FakeClock(NOW),
         cap_usd=cap_usd,
         stops=stops or Stops(),
         approvals=approvals or Approvals(),
         one_time_secrets=OneTimeSecrets(),
+        durable=durable,
+        steel_tenants=steel_tenants,
     )
+
+
+async def test_a_steel_tenant_s_press_starts_a_durable_run_and_drives_no_browser() -> None:
+    uow, durable, channel = FakeUnitOfWork(), FakeDurableExecution(), FakeChannel()
+    await save_job(uow, "wfl_ct")
+    starter = _starter(
+        uow, channel=channel, durable=durable, steel_tenants=frozenset({TENANT.value})
+    )
+
+    run = await starter.execute(
+        CTX,
+        workflow_id="wfl_ct",
+        device_id=DeviceId("offline"),
+        values={"Customer Type": "GT2"},
+        live=True,
+        allow_focus=False,
+    )
+    await starter.perform(CTX, run)
+
+    assert (run.executor, run.device_id) == ("steel", "")
+    assert [one for one, _ in durable.runs_started] == [run.id]
+    assert channel.sent == []
+    saved = await uow.workflow_runs.get(TENANT, run.id)
+    assert saved is not None and saved.executor == "steel"
+
+
+def _on_steel(uow: FakeUnitOfWork) -> StartWorkflowRun:
+    return _starter(uow, durable=FakeDurableExecution(), steel_tenants=frozenset({TENANT.value}))
+
+
+async def test_a_steel_run_is_never_started_part_way_through_a_job() -> None:
+    uow = await _held()
+
+    with pytest.raises(RunRefused, match="from step 0"):
+        await _press(_on_steel(uow), values={"clientCode": "NEWTESTS"}, from_step=2)
+
+    assert uow.workflow_runs.rows == {}
+
+
+async def test_a_steel_run_of_several_things_is_refused_rather_than_done_once() -> None:
+    job = _workflow()
+    job.repeat = Repeat(first_step=0, last_step=1)
+    uow = await _held(job)
+
+    with pytest.raises(RunRefused, match="one thing"):
+        await _on_steel(uow).execute(
+            _ctx(),
+            workflow_id="wfl_1",
+            device_id=None,
+            values={},
+            items=[{"clientCode": "A"}, {"clientCode": "B"}],
+            live=True,
+            allow_focus=False,
+        )
+
+    assert uow.workflow_runs.rows == {}
+
+
+async def test_a_steel_run_starts_without_an_optional_value_it_will_skip() -> None:
+    uow = await _held(_workflow(parameters=[{"name": "clientCode", "required": False}]))
+
+    run = await _press(_on_steel(uow), values={})
+
+    assert run.executor == "steel"
 
 
 async def _press(

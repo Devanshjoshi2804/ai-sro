@@ -11,7 +11,17 @@ from sro.application.runtime.ui_lane import UiLane, same_call, ui_payload
 from sro.domain.execution.compose import Adding
 from sro.domain.execution.lanes import Lane, SeenCall
 from sro.domain.execution.learned_step import LearnedStep
-from sro.domain.observation.gesture import AfterState, Body, Call
+from sro.domain.observation.gesture import (
+    Action,
+    AfterState,
+    Body,
+    Call,
+    Component,
+    Gesture,
+    Target,
+)
+from sro.domain.skill.workflow import Step
+from tests.unit.fakes import FakePageDriver
 from tests.unit.runtime_support import (
     lane_context,
     read_step,
@@ -498,3 +508,60 @@ async def test_the_keys_come_from_the_call_that_confirmed_the_write() -> None:
     result = await UiLane(driver).execute(step, {}, ctx)
 
     assert (result.verdict, dict(result.keyed)) == ("done", {})
+
+
+def _two_fields(*labels: str) -> tuple[Step, dict[str, Gesture]]:
+    """One step typing two fields, as demonstrated: "GT1" and "north"."""
+    by_id: dict[str, Gesture] = {}
+    for nth, (label, typed) in enumerate(zip(labels, ("GT1", "north"), strict=True)):
+        gesture = Gesture(
+            id=f"ges_field_{nth}",
+            tenant="acme",
+            stream_id="stream-1",
+            batch_id="batch-1",
+            at=float(nth + 1),
+            url="https://wms.example/app",
+            system="https://wms.example",
+            tab_id=1,
+            frame_url=None,
+            action=Action(
+                kind="type",
+                at=float(nth + 1),
+                value=typed,
+                target=Target(role="textbox", name=label, component=Component(field_label=label)),
+            ),
+        )
+        by_id[gesture.id] = gesture
+    step = Step(
+        order=0,
+        says="Fill the customer type",
+        system="https://wms.example",
+        cites=list(by_id),
+        parameters=["Customer Type", "Description"],
+    )
+    return step, by_id
+
+
+def _typed(driver: FakePageDriver) -> list[object]:
+    return [payload.get("value") for _, _, payload in driver.acted]
+
+
+async def test_a_step_with_one_of_its_two_values_types_only_that_one() -> None:
+    driver = scripted_driver(answer=PageAnswer(ok=True, matched_by="component"), holds=True)
+    step, by_id = _two_fields("Customer Type", "Description")
+
+    await UiLane(driver).execute(step, {"Description": "south"}, lane_context(by_id))
+
+    assert _typed(driver) == ["south"]
+    assert driver.acted[0][2]["target"]["name"] == "Description"
+
+
+async def test_a_control_whose_own_value_is_absent_is_never_typed_another_s() -> None:
+    driver = scripted_driver(answer=PageAnswer(ok=True, matched_by="component"), holds=True)
+    step, by_id = _two_fields("Type", "Desc")
+
+    result = await UiLane(driver).execute(step, {"Description": "south"}, lane_context(by_id))
+
+    assert result.verdict == "failed"
+    assert _typed(driver) == []
+    assert not {"GT1", "north", "south"} & {str(one) for one in _typed(driver)}

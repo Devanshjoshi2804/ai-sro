@@ -86,6 +86,7 @@ class Settings(BaseSettings):
 
     steel_urls: dict[str, tuple[tuple[str, str], ...]] = Field(default_factory=dict)
     steel_sessions_per_container: int = 20
+    steel_tenants: tuple[str, ...] = ()
 
     def steel_containers(self, tenant: str) -> tuple[tuple[str, str], ...]:
         return self.steel_urls.get(tenant) or ((self.steel_base_url, self.steel_cdp_url),)

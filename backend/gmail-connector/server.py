@@ -325,7 +325,26 @@ def _search(token: str, arguments: dict[str, Any]) -> str:
     return json.dumps({"messages": found}, indent=1)
 
 
-def _get(token: str, arguments: dict[str, Any]) -> str:
+MAILBOXES: dict[tuple[str, str], str] = {}
+
+
+def _mailbox(grant: dict[str, str], token: str) -> str:
+    whose = (grant.get("tenant", ""), grant.get("operator", ""))
+    if whose not in MAILBOXES:
+        MAILBOXES[whose] = str(
+            _answered(
+                httpx.get(
+                    f"{GMAIL}/profile",
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=20.0,
+                ),
+                "the mailbox's own address",
+            ).get("emailAddress", "")
+        )
+    return MAILBOXES[whose]
+
+
+def _get(token: str, arguments: dict[str, Any], mailbox: str = "") -> str:
     full = _answered(
         httpx.get(
             f"{GMAIL}/messages/{arguments.get('id', '')}",
@@ -343,6 +362,9 @@ def _get(token: str, arguments: dict[str, Any]) -> str:
             "thread_id": full.get("threadId", ""),
             "rfc822_message_id": head.get("message-id", ""),
             "from": head.get("from", ""),
+            "to": head.get("to", ""),
+            "cc": head.get("cc", ""),
+            "mailbox": mailbox,
             "subject": head.get("subject", ""),
             "body": _body_of(payload),
         },
@@ -458,7 +480,7 @@ class Connector(BaseHTTPRequestHandler):
                 if name == "search_threads":
                     text = _search(token, arguments)
                 elif name == "get_message":
-                    text = _get(token, arguments)
+                    text = _get(token, arguments, _mailbox(grant, token))
                 elif name == "get_thread":
                     text = _thread(token, arguments)
                 elif name == "send_message":

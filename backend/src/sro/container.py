@@ -441,6 +441,7 @@ class Container:
             self.ids,
             self.scheduler,
             can_gather=self.can_gather,
+            start_run=self.start_workflow_run(),
         )
 
     def read_triggers(self) -> ReadTriggers:
@@ -784,6 +785,8 @@ class Container:
             )
             if self.asker is not None
             else None,
+            start=self.start_workflow_run(),
+            attempts=self.record_attempt(),
         )
 
     @property
@@ -844,6 +847,8 @@ class Container:
             else None,
             ids=self.ids,
             asker_drafts=self._drafting,
+            durable=self.durable,
+            steel_tenants=frozenset(self.settings.steel_tenants),
         )
 
     def tool_lane(self) -> ToolLane:

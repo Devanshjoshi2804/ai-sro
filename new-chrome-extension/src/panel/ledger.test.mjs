@@ -926,6 +926,27 @@ test("a request this job can write whole says nothing about fields", () => {
   assert.doesNotMatch(words(item), /cannot set/);
 });
 
+test("a request the operator sent somebody else names them and asks", () => {
+  const item = renderNudge({
+    id: "n_15",
+    state: "open",
+    source: "rig",
+    title: "Create a Customer Type",
+    startsOn: "wms.test/portal",
+    workflowId: "wfl_1",
+    k: 0,
+    values: { "Customer Type": "GT2" },
+    missing: [],
+    sentTo: ["colleague@example.com", "boss@example.com"],
+  });
+
+  assert.match(
+    words(item),
+    /You sent this to colleague@example\.com, boss@example\.com\. Should we do it\?/,
+  );
+  assert.ok(labelled(item, /Yes, do it/));
+});
+
 test("the card says what the press would write, before it is pressed", () => {
   // The card named the values and never the act. A person pressing yes is
   // agreeing to a record being made in a warehouse, and until this the only

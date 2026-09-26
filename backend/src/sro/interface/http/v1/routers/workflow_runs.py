@@ -37,7 +37,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
-from sro.application.chat.from_the_mail import SERVER
+from sro.application.chat.mailbox import SERVER
 from sro.domain.observation.attempts import DONE, NOTHING
 from sro.domain.shared.identifiers import DeviceId
 from sro.interface.http.asking import AskingDeviceDep
@@ -124,7 +124,7 @@ async def start_workflow_run(
     claimed = await starter.execute(
         ctx,
         workflow_id=body.workflow_id,
-        device_id=DeviceId(body.device_id),
+        device_id=DeviceId(body.device_id) if body.device_id else None,
         values=body.values,
         items=body.items,
         live=body.live,
@@ -143,7 +143,7 @@ async def start_workflow_run(
         about={
             "run": claimed.id,
             "workflow": body.workflow_id,
-            "device": body.device_id,
+            "device": body.device_id or "",
         },
     )
     return WorkflowRunModel.of(claimed)

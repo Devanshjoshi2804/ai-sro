@@ -774,6 +774,9 @@ async function offerFromMail(offer) {
       // so for somebody who works out of their mailbox, an optional field
       // could never be set at all.
       offers: offer.offers || [],
+      // Who the operator sent this request to, when it was somebody else:
+      // their job, so it never starts by itself and the card asks instead.
+      sent_to: offer.sent_to || [],
       can_find: true,
       parameters: (shape?.parameters || []).map((one) => one.name),
       writes: shape?.writes || [],

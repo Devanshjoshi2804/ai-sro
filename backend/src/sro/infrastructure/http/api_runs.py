@@ -75,7 +75,7 @@ class ApiRunDispatcher(RunDispatcher):
         ctx: RequestContext,
         *,
         workflow_id: str,
-        device_id: DeviceId,
+        device_id: DeviceId | None,
         values: Mapping[str, str],
         allow_focus: bool = False,
     ) -> RunId:
@@ -85,7 +85,7 @@ class ApiRunDispatcher(RunDispatcher):
         )
         body = {
             "workflow_id": workflow_id,
-            "device_id": device_id.value,
+            "device_id": device_id.value if device_id is not None else None,
             "values": dict(values),
             "live": True,
             "allow_focus": allow_focus,

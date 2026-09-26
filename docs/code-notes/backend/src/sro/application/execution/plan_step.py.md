@@ -97,7 +97,7 @@ Code: `VALUED = ("type", "select", "upload", "press")`
 > evidence decides on its own -- so what goes on the wire cannot differ by
 > who asked for it.
 
-## `replay_without_asking`, [line 84](../../../../../../../backend/src/sro/application/execution/plan_step.py#L84): Docstring
+## `replay_without_asking`, [line 85](../../../../../../../backend/src/sro/application/execution/plan_step.py#L85): Docstring
 
 > The one command a step can be planned without asking anybody.
 >
@@ -121,7 +121,7 @@ Code: `VALUED = ("type", "select", "upload", "press")`
 > clicking Save is the right next move, and `run_workflow` puts this first in
 > the ladder rather than in place of it.
 
-## `_a_cascade`, [line 118](../../../../../../../backend/src/sro/application/execution/plan_step.py#L118): Docstring
+## `_a_cascade`, [line 119](../../../../../../../backend/src/sro/application/execution/plan_step.py#L119): Docstring
 
 > Whether the doing this call came from wrote more than once.
 >
@@ -155,7 +155,7 @@ Code: `VALUED = ("type", "select", "upload", "press")`
 > `webPerformanceEntries/batch` are in this evidence -- and a rule that
 > counted those would refuse every real write on the platform.
 
-## `_primary`, [line 125](../../../../../../../backend/src/sro/application/execution/plan_step.py#L125): Docstring
+## `_primary`, [line 126](../../../../../../../backend/src/sro/application/execution/plan_step.py#L126): Docstring
 
 > The gesture this step is planned from.
 >
@@ -167,7 +167,7 @@ Code: `VALUED = ("type", "select", "upload", "press")`
 > control this run has a value for is aimed at that typing. A blank is not a
 > value, for `typed_values`' reason.
 
-## `_ladder`, [line 131](../../../../../../../backend/src/sro/application/execution/plan_step.py#L131): Docstring
+## `_ladder`, [line 132](../../../../../../../backend/src/sro/application/execution/plan_step.py#L132): Docstring
 
 > The demonstration's ladder, with what a run learned on top.
 >
@@ -176,11 +176,11 @@ Code: `VALUED = ("type", "select", "upload", "press")`
 > learned locator that has itself gone stale is one rung that misses rather
 > than a step with nothing to try.
 
-## `_clicking`, [line 139](../../../../../../../backend/src/sro/application/execution/plan_step.py#L139): Docstring
+## `_clicking`, [line 140](../../../../../../../backend/src/sro/application/execution/plan_step.py#L140): Docstring
 
 > A click on the control this ladder names, carrying no value.
 
-## `_option_named`, [line 357](../../../../../../../backend/src/sro/application/execution/plan_step.py#L357): Docstring
+## `_option_named`, [line 358](../../../../../../../backend/src/sro/application/execution/plan_step.py#L358): Docstring
 
 > The row this step's demonstration chose, said for THIS run's value.
 >
@@ -207,14 +207,14 @@ Code: `VALUED = ("type", "select", "upload", "press")`
 > ending so both answer, and on the component rather than the DOM, because a
 > bound list renders as anonymous divs with generated ids.
 
-## `_point_on`, [line 376](../../../../../../../backend/src/sro/application/execution/plan_step.py#L376): Docstring
+## `_point_on`, [line 377](../../../../../../../backend/src/sro/application/execution/plan_step.py#L377): Docstring
 
 > A point the model gave, if it is inside the picture it was shown.
 >
 > Off the viewport is a guess, and this rung's whole rule is that it does not
 > guess: the picture IS the viewport, so a point outside it was not seen.
 
-## `plan_by_sight`, [line 385](../../../../../../../backend/src/sro/application/execution/plan_step.py#L385): Docstring
+## `plan_by_sight`, [line 386](../../../../../../../backend/src/sro/application/execution/plan_step.py#L386): Docstring
 
 > The rung below the locator ladder: find the control by looking.
 >
@@ -224,9 +224,9 @@ Code: `VALUED = ("type", "select", "upload", "press")`
 > job stale, the same instinct as `css_path` catching what `component` and
 > `role_and_name` missed -- one rung lower down.
 
-## `_replay_of`, [line 64](../../../../../../../backend/src/sro/application/execution/plan_step.py#L64): Comment
+## `_replay_of`, [line 65](../../../../../../../backend/src/sro/application/execution/plan_step.py#L65): Comment
 
-Code: `if verified and any(not values.get(name, "").strip() for name in wanted_by(step, by_id, seen)):`
+Code: `if verified and wanted and not any(values.get(name, "").strip() for name in wanted):`
 
 > And the same refusal for a run that was given NOTHING.
 >
@@ -242,8 +242,13 @@ Code: `if verified and any(not values.get(name, "").strip() for name in wanted_b
 > THIS call's body carry. A call that carries none still replays exactly as
 > it was demonstrated, which is what most calls are and what they have
 > always done.
+>
+> Refused when NONE of them was given. When some were, the replay goes out
+> with those and without the rest: `write_plan_for` drops the body key of
+> every parameter nobody gave, and refuses a call whose path names one, so
+> an absent optional value is never sent from the recording (§6.6.6).
 
-## `_replay_of`, [line 66](../../../../../../../backend/src/sro/application/execution/plan_step.py#L66): Comment
+## `_replay_of`, [line 67](../../../../../../../backend/src/sro/application/execution/plan_step.py#L67): Comment
 
 Code: `recorded = call.request_body.text if call.request_body else None`
 
@@ -252,14 +257,14 @@ Code: `recorded = call.request_body.text if call.request_body else None`
 > demonstrated, which is what it has always done and what most calls still
 > are.
 
-## `_replay_of`, [line 69](../../../../../../../backend/src/sro/application/execution/plan_step.py#L69): Comment
+## `_replay_of`, [line 70](../../../../../../../backend/src/sro/application/execution/plan_step.py#L70): Comment
 
 Code: `"url": aimed.url if aimed is not None else call.url,`
 
 > The plan's url where there is a plan: a delete's value is in its
 > path, and the recording's url names the demonstration's record.
 
-## `_replay_of`, [line 73](../../../../../../../backend/src/sro/application/execution/plan_step.py#L73): Comment
+## `_replay_of`, [line 74](../../../../../../../backend/src/sro/application/execution/plan_step.py#L74): Comment
 
 Code: `if verified:`
 
@@ -272,7 +277,7 @@ Code: `if verified:`
 > fetches the value itself, off the page it is already in, and it never
 > reaches the backend at all.
 
-## `replay_without_asking`, [line 105](../../../../../../../backend/src/sro/application/execution/plan_step.py#L105): Comment
+## `replay_without_asking`, [line 106](../../../../../../../backend/src/sro/application/execution/plan_step.py#L106): Comment
 
 Code: `payload["starts_on"] = starts_on`
 
@@ -287,7 +292,7 @@ Code: `payload["starts_on"] = starts_on`
 > `starts_on` naming another system, so this can only open the page the
 > call is going to.
 
-## `plan_step`, [line 184](../../../../../../../backend/src/sro/application/execution/plan_step.py#L184): Comment
+## `plan_step`, [line 185](../../../../../../../backend/src/sro/application/execution/plan_step.py#L185): Comment
 
 Code: `"step_page": (primary.page_url or primary.url) if primary else None,`
 
@@ -295,7 +300,7 @@ Code: `"step_page": (primary.page_url or primary.url) if primary else None,`
 > job was demonstrated on a specific screen, and the planner can only
 > say "navigate there first" if it is told where there is.
 
-## `plan_step`, [line 186](../../../../../../../backend/src/sro/application/execution/plan_step.py#L186): Comment
+## `plan_step`, [line 187](../../../../../../../backend/src/sro/application/execution/plan_step.py#L187): Comment
 
 Code: `"previous_attempt_left": None`
 
@@ -303,21 +308,21 @@ Code: `"previous_attempt_left": None`
 > page the failed attempt left behind (second), named here so the
 > model knows which is which.
 
-## `plan_step`, [line 191](../../../../../../../backend/src/sro/application/execution/plan_step.py#L191): Comment
+## `plan_step`, [line 192](../../../../../../../backend/src/sro/application/execution/plan_step.py#L192): Comment
 
 Code: `"screenshot": None`
 
 > Named by position: second when the page as it is now was
 > photographed too, the only image when it was not.
 
-## `plan_step`, [line 197](../../../../../../../backend/src/sro/application/execution/plan_step.py#L197): Comment
+## `plan_step`, [line 198](../../../../../../../backend/src/sro/application/execution/plan_step.py#L198): Comment
 
 Code: `ensure_ascii=False,`
 
 > The redaction marker is «redacted»; the default ensure_ascii would
 > write it into the prompt in a form nothing else in this system uses.
 
-## `plan_step`, [line 238](../../../../../../../backend/src/sro/application/execution/plan_step.py#L238): Comment
+## `plan_step`, [line 239](../../../../../../../backend/src/sro/application/execution/plan_step.py#L239): Comment
 
 Code: `payload["starts_on"] = starts_on`
 
@@ -328,7 +333,7 @@ Code: `payload["starts_on"] = starts_on`
 > lands on one of those, and without this it answers
 > `no_tab_for_origin` to an operator who has no tab there.
 
-## `plan_step`, [line 249](../../../../../../../backend/src/sro/application/execution/plan_step.py#L249): Comment
+## `plan_step`, [line 250](../../../../../../../backend/src/sro/application/execution/plan_step.py#L250): Comment
 
 Code: `why = f"recorded call is not replayable; {why}"`
 
@@ -336,7 +341,7 @@ Code: `why = f"recorded call is not replayable; {why}"`
 > "none": a step the operator performed by clicking Save is still
 > performable by clicking Save, and planning nothing burns it.
 
-## `plan_step`, [line 251](../../../../../../../backend/src/sro/application/execution/plan_step.py#L251): Comment
+## `plan_step`, [line 252](../../../../../../../backend/src/sro/application/execution/plan_step.py#L252): Comment
 
 Code: `why = f"the recorded body cannot be re-aimed at this run's values; {why}"`
 
@@ -362,7 +367,7 @@ Code: `why = f"the recorded body cannot be re-aimed at this run's values; {why}"
 > the demonstrated value inside the bytes would find nothing and
 > send the truncation.
 
-## `plan_step`, [line 253](../../../../../../../backend/src/sro/application/execution/plan_step.py#L253): Comment
+## `plan_step`, [line 254](../../../../../../../backend/src/sro/application/execution/plan_step.py#L254): Comment
 
 Code: `asked = data.get("action") if data.get("action") in ACTIONS else primary.action.kind`
 
@@ -370,7 +375,7 @@ Code: `asked = data.get("action") if data.get("action") in ACTIONS else primary.
 > cannot be replayed. One path, so the downgrade cannot drift from the plan
 > it is downgrading to.
 
-## `plan_step`, [line 254](../../../../../../../backend/src/sro/application/execution/plan_step.py#L254): Comment
+## `plan_step`, [line 255](../../../../../../../backend/src/sro/application/execution/plan_step.py#L255): Comment
 
 Code: `action = primary.action.kind if needs_a_secret(primary) and asked not in VALUED else asked`
 
@@ -388,7 +393,7 @@ Code: `action = primary.action.kind if needs_a_secret(primary) and asked not in 
 > credential step exists to put a credential in a box, and an action that
 > cannot carry a value is not a way of doing that.
 
-## `plan_step`, [line 256](../../../../../../../backend/src/sro/application/execution/plan_step.py#L256): Comment
+## `plan_step`, [line 257](../../../../../../../backend/src/sro/application/execution/plan_step.py#L257): Comment
 
 Code: `if action not in VALUED:`
 
@@ -434,7 +439,7 @@ Code: `if action not in VALUED:`
 > sends from, and safe there for the same reason: opening a list, like
 > going to a page, is not the writing.
 
-## `plan_step`, [line 284](../../../../../../../backend/src/sro/application/execution/plan_step.py#L284): Comment
+## `plan_step`, [line 285](../../../../../../../backend/src/sro/application/execution/plan_step.py#L285): Comment
 
 Code: `secret = None`
 
@@ -447,7 +452,7 @@ Code: `secret = None`
 > a login form: a blank submits, fails, and looks to everybody like the job
 > being broken.
 
-## `plan_step`, [line 293](../../../../../../../backend/src/sro/application/execution/plan_step.py#L293): Comment
+## `plan_step`, [line 294](../../../../../../../backend/src/sro/application/execution/plan_step.py#L294): Comment
 
 Code: `here = look.url or (look.elsewhere if look.elsewhere_is_ours else "")`
 
@@ -473,7 +478,7 @@ Code: `here = look.url or (look.elsewhere if look.elsewhere_is_ours else "")`
 > window happened to be open is a credential prompt for a system
 > nobody named.
 
-## `plan_step`, [line 215](../../../../../../../backend/src/sro/application/execution/plan_step.py#L215): Comment
+## `plan_step`, [line 300](../../../../../../../backend/src/sro/application/execution/plan_step.py#L300): Comment
 
 Code: `return Planned(`
 
@@ -484,14 +489,14 @@ Code: `return Planned(`
 > able to draw "this job needs your password for <system>" and a
 > box -- which it cannot do by parsing a sentence.
 
-## `plan_step`, [line 314](../../../../../../../backend/src/sro/application/execution/plan_step.py#L314): Comment
+## `plan_step`, [line 315](../../../../../../../backend/src/sro/application/execution/plan_step.py#L315): Comment
 
 Code: `"value": secret`
 
 > str(), because nothing validates the model's answer against the
 > schema: a `"value": 123` otherwise reaches the extension as an int.
 
-## `plan_step`, [line 319](../../../../../../../backend/src/sro/application/execution/plan_step.py#L319): Comment
+## `plan_step`, [line 320](../../../../../../../backend/src/sro/application/execution/plan_step.py#L320): Comment
 
 Code: `"locators": [rung.as_payload() for rung in _ladder(primary, learned)],`
 
@@ -506,7 +511,7 @@ Code: `"locators": [rung.as_payload() for rung in _ladder(primary, learned)],`
 > afternoon each spent two model calls and a screenshot re-deriving
 > that the control is called "Customer Types".
 
-## `plan_step`, [line 326](../../../../../../../backend/src/sro/application/execution/plan_step.py#L326): Comment
+## `plan_step`, [line 327](../../../../../../../backend/src/sro/application/execution/plan_step.py#L327): Comment
 
 Code: `chosen = str(payload["value"]) if action in VALUED and payload.get("value") else ""`
 
@@ -540,7 +545,7 @@ Code: `chosen = str(payload["value"]) if action in VALUED and payload.get("value
 > chose is known either way; the value is the run's own, under whatever
 > name the box answers to.
 
-## `plan_by_sight`, [line 399](../../../../../../../backend/src/sro/application/execution/plan_step.py#L399): Comment
+## `plan_by_sight`, [line 400](../../../../../../../backend/src/sro/application/execution/plan_step.py#L400): Comment
 
 Code: `why = f"no screen to look at: {look.refused}" if look.refused else "no screen to look at"`
 
@@ -549,7 +554,7 @@ Code: `why = f"no screen to look at: {look.refused}" if look.refused else "no sc
 > away and a picture of zero size, and a step that fails for a reason
 > nobody can read is a step nobody can fix.
 
-## `plan_by_sight`, [line 427](../../../../../../../backend/src/sro/application/execution/plan_step.py#L427): Comment
+## `plan_by_sight`, [line 428](../../../../../../../backend/src/sro/application/execution/plan_step.py#L428): Comment
 
 Code: `found = points_at == "the_control" if points_at else bool(data.get("found"))`
 
@@ -558,7 +563,7 @@ Code: `found = points_at == "the_control" if points_at else bool(data.get("found
 > answers without `points_at` at all, and its answers still mean what they
 > always did.
 
-## `plan_by_sight`, [line 429](../../../../../../../backend/src/sro/application/execution/plan_step.py#L429): Comment
+## `plan_by_sight`, [line 430](../../../../../../../backend/src/sro/application/execution/plan_step.py#L430): Comment
 
 Code: `clearing = points_at in ("what_reveals_it", "what_is_in_the_way")`
 
@@ -584,7 +589,7 @@ Code: `clearing = points_at in ("what_reveals_it", "what_is_in_the_way")`
 > click it and look again. A menu to open is the control being
 > somewhere else; a dialog to dismiss is something on top of it.
 
-## `plan_by_sight`, [line 445](../../../../../../../backend/src/sro/application/execution/plan_step.py#L445): Comment
+## `plan_by_sight`, [line 446](../../../../../../../backend/src/sro/application/execution/plan_step.py#L446): Comment
 
 Code: `offered = {"x": data.get("x"), "y": data.get("y")} if clearing else None`
 
@@ -592,13 +597,13 @@ Code: `offered = {"x": data.get("x"), "y": data.get("y")} if clearing else None`
 > alternative is reading the same prose twice and not knowing whether
 > the model would not point or pointed off the picture.
 
-## `plan_by_sight`, [line 453](../../../../../../../backend/src/sro/application/execution/plan_step.py#L453): Comment
+## `plan_by_sight`, [line 454](../../../../../../../backend/src/sro/application/execution/plan_step.py#L454): Comment
 
 Code: `if not (`
 
 > Inside the picture, or nowhere: a point off the viewport is a guess.
 
-## `plan_by_sight`, [line 457](../../../../../../../backend/src/sro/application/execution/plan_step.py#L457): Comment
+## `plan_by_sight`, [line 458](../../../../../../../backend/src/sro/application/execution/plan_step.py#L458): Comment
 
 Code: `action = data.get("action")`
 

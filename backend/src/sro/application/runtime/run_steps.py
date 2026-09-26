@@ -29,10 +29,11 @@ from sro.domain.execution.progress import MAIN, Progress, StepMark
 from sro.domain.execution.waiting import read_wait
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Gesture
+from sro.domain.skill.learned import demanded
 from sro.domain.skill.workflow import Step, Workflow, cited_ids
 
 _RUN_VERDICT = {"done": "held", "read": "held", "failed": "failed", "unknown": "unclear"}
-_KEPT = ("held", "withheld")
+_KEPT = ("held", "withheld", "skipped")
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,10 +106,25 @@ class RunSteps:
             done = StepResult("done", Lane.UI, "already done")
             by = progress.marks[step.order].lane
             return await self._advance(ctx, run, progress, step, ordered, index, done, by=by)
+        absent = [name for name in step.parameters if not values.get(name, "").strip()]
+        required = [name for name in absent if name in _demanded(workflow)]
+        if required:
+            asked = NeedsAPerson(
+                f"'{step.says}' needs a value for {', '.join(required)} and none was given",
+                kind="value",
+            )
+            return StepOutcome(
+                more=True, asking=await self._ask(ctx, run, step, asked, index=index)
+            )
+        if absent and len(absent) == len(step.parameters):
+            left_out = StepResult("read", Lane.UI, f"no value was given for {', '.join(absent)}")
+            return await self._advance(
+                ctx, run, progress, step, ordered, index, left_out, verdict="skipped"
+            )
         if not run.live and writes(step, by_id):
             withheld = StepResult("read", Lane.UI, "a dry run: withheld")
             return await self._advance(
-                ctx, run, progress, step, ordered, index, withheld, withheld=True
+                ctx, run, progress, step, ordered, index, withheld, verdict="withheld"
             )
         tried: tuple[StepResult, ...] = ()
         try:
@@ -317,7 +333,7 @@ class RunSteps:
         result: StepResult,
         *,
         by: str = "",
-        withheld: bool = False,
+        verdict: str = "",
     ) -> StepOutcome:
         by = by or result.lane.value
         progress.settle(
@@ -334,7 +350,7 @@ class RunSteps:
                 order=len(run.steps),
                 of_step=step.order,
                 says=step.says,
-                verdict="withheld" if withheld else _RUN_VERDICT[result.verdict],
+                verdict=verdict or _RUN_VERDICT[result.verdict],
                 verdict_by=by,
                 planned_by=by,
                 reason=result.reason,
@@ -454,6 +470,14 @@ class RunSteps:
                 ctx.tenant_id, ids=tuple(sorted(cited_ids(workflow)))
             )
         return run, workflow, {one.id: one for one in cited}
+
+
+def _demanded(workflow: Workflow) -> set[str]:
+    return {
+        str(parameter["name"])
+        for parameter in workflow.parameters
+        if parameter.get("name") and demanded(parameter)
+    }
 
 
 def _ordered(workflow: Workflow) -> list[Step]:

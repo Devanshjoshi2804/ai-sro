@@ -3065,6 +3065,11 @@ export interface components {
              * @default false
              */
             started: boolean;
+            /**
+             * Sent To
+             * @default []
+             */
+            sent_to: string[];
         };
         /**
          * Medium
@@ -3912,7 +3917,7 @@ export interface components {
             /** Workflow Id */
             workflow_id: string;
             /** Device Id */
-            device_id: string;
+            device_id?: string | null;
             /** Values */
             values?: {
                 [key: string]: string;

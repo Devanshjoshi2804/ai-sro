@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -19,6 +20,8 @@ from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.converse import StartThread
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.context import RequestContext
+from sro.application.execution.workflow_runs import StartWorkflowRun
+from sro.application.observation.record_attempt import RecordAttempt
 from sro.application.ports.tools import ToolResult, ToolsUnavailable
 from sro.application.shared.refusals import OverCap
 from sro.domain.chat.asking import NEEDS, Pending, pending_job
@@ -35,8 +38,11 @@ from sro.domain.knowledge.entry import (
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer, ModelSpend
 from sro.domain.skill.workflow import Step, Workflow
+from sro.interface.http.schemas import FromTheMailResponse
 from tests import factories as f
-from tests.unit.fakes import FakeClock, FakeIdFactory, FakeUnitOfWork
+from tests.unit.application.rig.test_start_workflow_run import _starter
+from tests.unit.fakes import FakeClock, FakeDurableExecution, FakeIdFactory, FakeUnitOfWork
+from tests.unit.runtime_support import save_job
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=PrincipalId("devansh"))
 JOB = "wfl_1"
@@ -161,6 +167,7 @@ def _look(
     gather: Any = None,
     *,
     cap_usd: float = -1.0,
+    start: StartWorkflowRun | None = None,
 ) -> FromTheMail:
     return FromTheMail(
         uow,
@@ -171,7 +178,257 @@ def _look(
         clock=FakeClock(),
         ids=FakeIdFactory(),
         cap_usd=cap_usd,
+        start=start,
+        attempts=RecordAttempt(uow, FakeIdFactory(), FakeClock()),
     )
+
+
+@dataclass
+class _MailWorld:
+    uow: FakeUnitOfWork
+    from_the_mail: FromTheMail
+    durable: FakeDurableExecution
+    start: StartWorkflowRun
+
+    def look(self, mailbox: _Mailbox, reads: _Reads) -> FromTheMail:
+        return _look(self.uow, mailbox, reads, start=self.start)
+
+
+class _TemporalDown(FakeDurableExecution):
+    async def start_run(self, ctx: RequestContext, *, run_id: str, budget_s: float) -> None:
+        raise RuntimeError("temporal is not answering")
+
+
+async def mail_world(
+    *,
+    sure: bool,
+    values: Mapping[str, str],
+    steel: bool,
+    thread: str = "",
+    durable: FakeDurableExecution | None = None,
+) -> _MailWorld:
+    """One request mail naming the saved job, read as `sure` with `values`,
+    for a tenant that runs on Steel or on the extension."""
+    uow, durable = FakeUnitOfWork(), durable or FakeDurableExecution()
+    await save_job(uow, JOB)
+    mailbox = _Mailbox(
+        search=_found("m-1"), **{"m-1": _mail("please add customer type GT2", thread)}
+    )
+    reads = _Reads(
+        {
+            "workflow_id": JOB,
+            "values": [{"name": name, "value": value} for name, value in values.items()],
+            "missing": [name for name in ("Customer Type",) if name not in values],
+            "sure": sure,
+        }
+    )
+    start = _starter(
+        uow,
+        durable=durable,
+        steel_tenants=frozenset({f.TENANT.value}) if steel else frozenset(),
+        # The wait a mail-started run keeps is read against the wall clock.
+        clock=FakeClock(datetime.now(tz=UTC)),
+    )
+    return _MailWorld(uow, _look(uow, mailbox, reads, start=start), durable, start)
+
+
+async def test_a_sure_mail_with_every_value_starts_the_run_itself() -> None:
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+
+    looked = await world.from_the_mail.execute(CTX)
+
+    assert looked.offered[0].started
+    assert len(world.durable.runs_started) == 1
+    (run,) = await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)
+    assert (run.executor, run.values) == ("steel", {"Customer Type": "GT2"})
+
+
+async def test_a_steel_mail_missing_a_value_is_only_offered() -> None:
+    world = await mail_world(sure=True, values={}, steel=True)
+
+    looked = await world.from_the_mail.execute(CTX)
+
+    assert not looked.offered[0].started and world.durable.runs_started == []
+
+
+async def test_a_run_the_press_refuses_leaves_the_offer_and_the_look_standing() -> None:
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+    job = await world.uow.workflows.get(f.TENANT, JOB)
+    await world.uow.workflows.save(replace(job, steps=[replace(job.steps[0], cites=["gone"])]))
+
+    looked = await world.from_the_mail.execute(CTX)
+
+    assert [one.started for one in looked.offered] == [False]
+    assert world.durable.runs_started == []
+
+
+async def test_a_later_mail_on_a_started_thread_starts_nothing() -> None:
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True, thread="t-9")
+    await world.from_the_mail.execute(CTX)
+    thanks = _Mailbox(search=_found("m-2"), **{"m-2": _mail("thanks!", "t-9")})
+
+    later = await world.look(thanks, _Reads()).execute(CTX)
+
+    assert later.offered == ()
+    assert len(world.durable.runs_started) == 1
+
+
+async def test_a_quoted_reply_on_a_finished_mail_run_s_thread_is_a_card_never_a_second_run() -> (
+    None
+):
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True, thread="t-9")
+    await world.from_the_mail.execute(CTX)
+    (run,) = await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)
+    await world.uow.workflow_runs.save(replace(run, outcome="held"))
+    quoted = "thanks!\n\n> please create customer type GT2, description north"
+    reply = _Mailbox(search=_found("m-2"), **{"m-2": _mail(quoted, "t-9")})
+    sure = {
+        "workflow_id": JOB,
+        "values": [{"name": "Customer Type", "value": "GT2"}],
+        "missing": [],
+        "sure": True,
+    }
+
+    later = await world.look(reply, _Reads(sure)).execute(CTX)
+
+    assert [one.started for one in later.offered] == [False]
+    assert len(world.durable.runs_started) == 1
+    assert len(await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)) == 1
+
+
+OPERATOR = "Operator <operator@example.com>"
+
+
+def _addressed(sender: str, to: str, cc: str = "") -> _Mailbox:
+    """One request with its envelope, read from the operator's own mailbox."""
+    said = {
+        "id": "m-5",
+        "subject": "new customer type",
+        "body": "please add customer type GT2",
+        "thread_id": "t-5",
+        "from": sender,
+        "to": to,
+        "cc": cc,
+        "mailbox": "Operator@Example.COM",
+    }
+    return _Mailbox(search=_found("m-5"), **{"m-5": json.dumps(said)})
+
+
+def _sure() -> _Reads:
+    return _Reads(
+        {
+            "workflow_id": JOB,
+            "values": [{"name": "Customer Type", "value": "GT2"}],
+            "missing": [],
+            "sure": True,
+        }
+    )
+
+
+async def test_a_mail_the_operator_sent_themselves_starts_its_run() -> None:
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+
+    looked = await world.look(_addressed(OPERATOR, "operator@EXAMPLE.com"), _sure()).execute(CTX)
+
+    assert [one.started for one in looked.offered] == [True]
+    assert len(world.durable.runs_started) == 1
+
+
+async def test_a_mail_the_operator_sent_a_colleague_is_a_card_naming_them() -> None:
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+    mailbox = _addressed(OPERATOR, "Colleague <colleague@example.com>", "boss@example.com")
+
+    looked = await world.look(mailbox, _sure()).execute(CTX)
+
+    (card,) = looked.offered
+    assert not card.started and world.durable.runs_started == []
+    assert list(card.sent_to) == ["colleague@example.com", "boss@example.com"]
+    assert (card.workflow_id, dict(card.values)) == (JOB, {"Customer Type": "GT2"})
+    (wired,) = FromTheMailResponse.of(looked).offered
+    assert wired.sent_to == ["colleague@example.com", "boss@example.com"]
+
+
+async def test_a_mail_to_the_operator_with_a_colleague_copied_is_a_card() -> None:
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+    mailbox = _addressed(OPERATOR, "operator@example.com", "Colleague <colleague@example.com>")
+
+    looked = await world.look(mailbox, _sure()).execute(CTX)
+
+    (card,) = looked.offered
+    assert not card.started and world.durable.runs_started == []
+    assert list(card.sent_to) == ["colleague@example.com"]
+
+
+async def test_a_colleague_s_mail_to_the_operator_starts_as_it_always_did() -> None:
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+    mailbox = _addressed("Colleague <colleague@example.com>", OPERATOR)
+
+    looked = await world.look(mailbox, _sure()).execute(CTX)
+
+    assert [one.started for one in looked.offered] == [True]
+    assert list(looked.offered[0].sent_to) == []
+
+
+async def test_a_reply_to_a_run_asking_a_person_is_offered_never_started() -> None:
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True, thread="t-9")
+    await world.from_the_mail.execute(CTX)
+    (run,) = await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)
+    asking = {"asking": {"id": "q-1", "kind": "step", "text": "which?"}}
+    assert await world.uow.workflow_runs.record_progress(f.TENANT, run.id, asking, was={})
+    reply = _Mailbox(search=_found("m-2"), **{"m-2": _mail("go ahead", "t-9")})
+
+    later = await world.look(reply, _Reads()).execute(CTX)
+
+    assert [one.started for one in later.offered] == [False]
+    assert len(world.durable.runs_started) == 1
+
+
+async def test_a_start_temporal_refuses_leaves_the_card_and_closes_the_row() -> None:
+    world = await mail_world(
+        sure=True, values={"Customer Type": "GT2"}, steel=True, durable=_TemporalDown()
+    )
+
+    looked = await world.from_the_mail.execute(CTX)
+
+    assert [one.started for one in looked.offered] == [False]
+    (run,) = await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)
+    assert run.outcome != "running"
+
+
+async def test_a_shared_inbox_s_mail_starts_one_run_whoever_looks() -> None:
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+    await world.from_the_mail.execute(CTX)
+    colleague = RequestContext(tenant_id=f.TENANT, principal_id=PrincipalId("colleague"))
+    same = _Mailbox(search=_found("m-1"), **{"m-1": _mail("please add customer type GT2")})
+    reading = {
+        "workflow_id": JOB,
+        "values": [{"name": "Customer Type", "value": "GT2"}],
+        "missing": [],
+        "sure": True,
+    }
+
+    await world.look(same, _Reads(reading)).execute(colleague)
+
+    assert len(world.durable.runs_started) == 1
+
+
+async def test_a_run_a_mail_started_is_on_the_record_as_an_attempt() -> None:
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+
+    await world.from_the_mail.execute(CTX)
+
+    (run,) = await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)
+    (attempt,) = world.uow.attempts.rows
+    assert (attempt.asked_for, attempt.came_of) == ("start a job from a mail", "done")
+    assert attempt.about["run"] == run.id
+
+
+async def test_an_extension_tenant_is_unchanged() -> None:
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=False)
+
+    looked = await world.from_the_mail.execute(CTX)
+
+    assert not looked.offered[0].started and world.durable.runs_started == []
 
 
 class _Gathers:

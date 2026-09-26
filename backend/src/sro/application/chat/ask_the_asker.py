@@ -4,7 +4,7 @@ import json
 import logging
 
 from sro.application.chat.announce import SayWhatHappened
-from sro.application.chat.from_the_mail import K_REMEMBER
+from sro.application.chat.mailbox import K_REMEMBER, SERVER
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
@@ -17,8 +17,6 @@ from sro.domain.execution.waiting import read_wait
 from sro.domain.shared.identifiers import PrincipalId
 
 logger = logging.getLogger(__name__)
-
-SERVER = "gmail"
 
 DRAFTED = "mail_draft"
 

@@ -164,7 +164,9 @@ class FireTrigger:
     ) -> Fired:
         if self._start_run is None and self._dispatcher is None:
             return Fired(trigger.id, skipped="this process cannot start a job")
-        if trigger.device_id is None:
+        if trigger.device_id is None and not (
+            self._start_run is not None and self._start_run.runs_on_steel(ctx)
+        ):
             trigger.disable("a job runs in a browser: name a device")
             await uow.triggers.save(trigger)
             await uow.commit()
@@ -269,7 +271,7 @@ async def start_job_for(
     named = authorized_by or (trigger.authorized_by.value if trigger.authorized_by else None)
     if named is None and trigger.writes:
         raise DispatchFailed("this trigger writes and names nobody who authorised it")
-    if trigger.device_id is None:
+    if trigger.device_id is None and not (start_run is not None and start_run.runs_on_steel(ctx)):
         raise DispatchFailed("a job runs in a browser: this trigger names none")
 
     if dispatcher is not None:

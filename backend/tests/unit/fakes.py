@@ -91,6 +91,7 @@ from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
 from sro.domain.execution.verified_writes import VerifiedWrite
+from sro.domain.execution.waiting import asks_a_person
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
 from sro.domain.knowledge.entry import (
     EntryKind,
@@ -1810,7 +1811,7 @@ class FakeRunDispatcher:
 
     def __init__(self, *, reachable: bool = True) -> None:
         self.reachable = reachable
-        self.asked: list[tuple[str, str]] = []
+        self.asked: list[tuple[str, str | None]] = []
         self.with_values: list[dict[str, str]] = []
         self.may_take_focus = False
 
@@ -1838,7 +1839,7 @@ class FakeRunDispatcher:
         ctx: RequestContext,
         *,
         workflow_id: str,
-        device_id: DeviceId,
+        device_id: DeviceId | None,
         values: Mapping[str, str],
         allow_focus: bool = False,
     ) -> RunId:
@@ -1846,7 +1847,7 @@ class FakeRunDispatcher:
         the same thing: which browser, and with what."""
         if not self.reachable:
             raise DispatchFailed(f"{device_id} has no channel open anywhere")
-        self.asked.append((workflow_id, device_id.value))
+        self.asked.append((workflow_id, device_id.value if device_id is not None else None))
         self.with_values.append(dict(values))
         self.may_take_focus = allow_focus
         return RunId(f"run-dispatched-{len(self.asked)}")
@@ -2414,9 +2415,20 @@ class FakeWorkflowRunRepository:
             if run.tenant == tenant_id.value
             and (run.awaiting or {}).get("server") == server.strip()
             and (run.awaiting or {}).get("thread") == thread.strip()
+            and asks_a_person(run)
         ]
         asked.sort(key=lambda run: (when(run.started_at), run.id), reverse=True)
         return asked[0] if asked else None
+
+    async def started_on(self, tenant_id: TenantId, *, server: str, thread: str) -> bool:
+        if not server.strip() or not thread.strip():
+            return False
+        return any(
+            run.tenant == tenant_id.value
+            and (run.awaiting or {}).get("server") == server.strip()
+            and (run.awaiting or {}).get("thread") == thread.strip()
+            for run in self.rows.values()
+        )
 
     async def awaiting(self, tenant_id: TenantId) -> tuple[tuple[str, int, str], ...]:
         parked = [

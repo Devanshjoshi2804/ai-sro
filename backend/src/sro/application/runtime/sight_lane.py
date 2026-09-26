@@ -20,7 +20,7 @@ from sro.domain.execution.lanes import (
     fingerprint_of,
     write_confirmed,
 )
-from sro.domain.execution.planning import value_for
+from sro.domain.execution.planning import shown_after, value_for
 from sro.domain.execution.records import made_by, names_in
 from sro.domain.execution.secrets import needs_a_secret
 from sro.domain.observation.gesture import Call, Gesture
@@ -327,7 +327,7 @@ class SightLane:
         payload = ui_payload(step, primary, value, None, ctx.by_id)
         payload.pop("write", None)
         expect = {
-            "value": value if value is not None or after is None else after.value,
+            "value": shown_after(step, primary, value),
             "visible": None if after is None else after.visible,
             "enabled": None if after is None else after.enabled,
         }
@@ -390,6 +390,6 @@ def _goal(step: Step, values: Mapping[str, str], primary: Gesture) -> str:
     given = ", ".join(f"{name} = {value}" for name, value in values.items() if value.strip())
     after = primary.action.after
     value = value_for(step, primary, values, None)
-    shown = value if value is not None or after is None else after.value
+    shown = shown_after(step, primary, value)
     wanted = f" Afterwards the control should show {shown!r}." if after and shown else ""
     return f"{step.says}.{wanted}" + (f" Values: {given}." if given else "")

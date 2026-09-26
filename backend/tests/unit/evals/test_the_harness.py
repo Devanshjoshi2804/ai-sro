@@ -115,3 +115,16 @@ def test_a_doing_is_expected_to_hold_what_its_job_was_seen_to_vary() -> None:
     seen = {"GT0", "Chilled goods", "GT1", "priority 9"}
     assert request_values(typed, seen) == ["Chilled goods", "GT0"]
     assert request_values(typed, set()) == []
+
+
+def test_the_tenant_is_shaped_though_it_is_a_lowercase_word() -> None:
+    """Lowercase words are kept as prose; a tenant id is one and names a customer."""
+    case = Case(
+        id="c1",
+        suite="reader",
+        input={"jobs": [{"tenant": "acme"}], "said": "acme ships"},
+        expected={},
+    )
+    out = redacted(case, tenant="acme")
+    assert "acme" not in str(out.input)
+    assert out.input["said"] == "aaaa ships"

@@ -18,7 +18,8 @@ def shape(value: str) -> str:
 
 
 class _Shapes:
-    def __init__(self) -> None:
+    def __init__(self, tenant: str) -> None:
+        self.tenant = tenant.lower()
         self.given: dict[str, str] = {}
         self.taken: dict[str, str] = {}
 
@@ -36,7 +37,7 @@ class _Shapes:
         addresses = addresses_in([text])
         out = []
         for token in _TOKEN.findall(text):
-            kept = _KEPT.fullmatch(token) and token.lower() not in addresses
+            kept = _KEPT.fullmatch(token) and token.lower() not in {*addresses, self.tenant}
             out.append(token if kept or not re.search(r"\w", token) else self.of(token))
         return "".join(out)
 
@@ -53,8 +54,8 @@ class _Shapes:
         return value
 
 
-def redacted(case: Case) -> Case:
-    shapes = _Shapes()
+def redacted(case: Case, *, tenant: str = "") -> Case:
+    shapes = _Shapes(tenant)
     return replace(
         case,
         input=shapes.walk(case.input),  # type: ignore[arg-type]

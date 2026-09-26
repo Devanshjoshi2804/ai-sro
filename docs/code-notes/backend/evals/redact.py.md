@@ -9,7 +9,8 @@ How a real case becomes one that may be committed.
 > `wfl_` plus 32 hex), which carry nothing of the customer's and which a
 > cite must still name. Everything else -- a capitalised word, a number, a
 > host, an address -- becomes its shape. An address is shaped even when its
-> parts are lowercase. A lowercase customer word (a site name typed in lower
+> parts are lowercase, and so is the tenant id (a reader case carries every
+> job's `tenant`). A lowercase customer word (a site name typed in lower
 > case) survives: that is why a person reads every candidate before it moves
 > to `ci/`.
 
@@ -19,7 +20,7 @@ How a real case becomes one that may be committed.
 > `GT-0042` is `AA-9999`. A shape keeps what a prompt reasons with (a code, a
 > date, a quantity) and drops what the value was.
 
-## `redacted`, [line 56](../../../../backend/evals/redact.py#L56): Design
+## `redacted`, [line 57](../../../../backend/evals/redact.py#L57): Design
 
 > One shape map per case, shared by the input, the expected and the recorded
 > answer: the same value becomes the same shape everywhere, so a quoted value

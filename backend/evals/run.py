@@ -78,6 +78,6 @@ async def run_ci(*, live: bool) -> int:
 async def write_candidates(name: str, tenant: str) -> int:
     folder = HERE / "cases" / name
     for path in sorted(folder.glob("*.json")):
-        redacted(Case.load(path)).save(HERE / "candidates" / name)
+        redacted(Case.load(path), tenant=tenant).save(HERE / "candidates" / name)
     print(f"read every file in {HERE / 'candidates' / name} before moving any to ci/{name}")  # noqa: T201
     return 0

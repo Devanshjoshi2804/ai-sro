@@ -19,13 +19,14 @@ from playwright.async_api import async_playwright
 
 from sro.application.capture.assemble import assemble_frames
 from sro.application.capture.events import InputEvent, RequestEvent
+from sro.config import get_settings
 from sro.domain.recording.network import InitiatorKind
 from sro.infrastructure.steel.capture import CaptureSession
 from sro.infrastructure.steel.client import SteelClient
 from tests.unit.fakes import FakeBlobStore
 
-STEEL_URL = "http://localhost:3010"
-CDP_URL = "http://localhost:9223"
+STEEL_URL = get_settings().steel_base_url
+CDP_URL = get_settings().steel_cdp_url
 
 PAGE = """
 <!doctype html>

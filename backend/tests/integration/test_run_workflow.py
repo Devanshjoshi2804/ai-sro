@@ -14,6 +14,7 @@ from datetime import timedelta
 from typing import Any
 
 import pytest
+from scripts.record_workflow_history import Recording, save
 from temporalio import activity
 from temporalio.api.enums.v1 import EventType
 from temporalio.client import Client, WorkflowExecutionStatus, WorkflowFailureError
@@ -34,12 +35,18 @@ REF = RunRef(tenant_id="acme", principal_id="clerk", run_id="run_wf", budget_s=6
 
 
 @pytest.fixture
-async def client() -> Client:
+async def client(request: pytest.FixtureRequest) -> AsyncIterator[Client]:
+    recording = Recording()
     try:
         async with asyncio.timeout(5):
-            return await Client.connect(ADDRESS)
+            connected = await Client.connect(
+                ADDRESS, identity="runs-test", interceptors=[recording]
+            )
     except Exception as exc:
         pytest.skip(f"Temporal is not reachable at {ADDRESS}: {exc}")
+    yield connected
+    if os.environ.get("SRO_RECORD_HISTORIES"):
+        await save(connected, recording.started, request.node.name)
 
 
 class Stubs:
@@ -110,8 +117,8 @@ class Stubs:
 
 
 @contextlib.asynccontextmanager
-async def _worker(client: Client, stubs: Stubs) -> AsyncIterator[str]:
-    queue = f"runs-test-{uuid.uuid4().hex}"
+async def _worker(client: Client, stubs: Stubs, queue: str = "") -> AsyncIterator[str]:
+    queue = queue or f"runs-test-{uuid.uuid4().hex}"
     async with Worker(
         client,
         task_queue=queue,
@@ -516,5 +523,35 @@ async def test_a_sigterm_mid_step_lets_the_step_finish_before_the_worker_exits(
 
         assert finished == ["finished, not cancelled"]
         assert signal.getsignal(signal.SIGTERM) is signal.SIG_DFL
+
+        async with _worker(client, stubs, queue):
+            assert await handle.result() == REF.run_id
+        assert stubs.called == ["prepare", "acquire", "step", "finish", "release"]
     finally:
-        await handle.terminate("the test is done with it")
+        with contextlib.suppress(Exception):
+            await handle.terminate("the test is done with it")
+
+
+async def test_a_step_whose_worker_went_silent_is_tried_again_and_its_late_answer_is_dropped(
+    client: Client,
+) -> None:
+    timed_out, zombie_done = asyncio.Event(), asyncio.Event()
+
+    async def goes_silent() -> StepOutcome:
+        await timed_out.wait()
+        zombie_done.set()
+        return StepOutcome(more=True)
+
+    async def answers() -> StepOutcome:
+        timed_out.set()
+        return StepOutcome(more=False)
+
+    stubs = Stubs(goes_silent, answers)
+    async with _worker(client, stubs) as queue:
+        result = await client.execute_workflow(
+            RunWorkflow.run, REF, id=f"workflow-run-{uuid.uuid4().hex}", task_queue=queue
+        )
+        await zombie_done.wait()
+
+    assert result == REF.run_id
+    assert stubs.called == ["prepare", "acquire", "step", "step", "finish", "release"]

@@ -175,7 +175,7 @@ async def test_steel_s_http_cdp_url_connects_and_a_stale_one_is_page_gone(
     driver: SteelDriver,  # noqa: F811
 ) -> None:
     _, _, a, _ = accounts
-    by_name = SessionRef(a.context_id, "http://localhost:9223")
+    by_name = SessionRef(a.context_id, get_settings().steel_cdp_url)
     target = await driver.open_tab(by_name, steel_rig.url("/public"))
     assert (await driver.url_of(by_name, target)).endswith("/public")
 

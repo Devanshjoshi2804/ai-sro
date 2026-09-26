@@ -15,8 +15,10 @@ FRONTEND := cd frontend &&
 .DEFAULT_GOAL := help
 .PHONY: help up down ps logs reset install migrate revision api worker status web vault-key one-whole-run \
         lint lint-backend check-code-notes lint-frontend format test test-unit test-integration \
+        test-replay record-histories \
         test-contract test-browser types check ingest-kb gen-recorder \
-        mutants-backend images smoke gen-deployment migrate-vault-keys
+        mutants-backend images smoke gen-deployment migrate-vault-keys \
+        steel-up steel-down steel-env
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -40,6 +42,15 @@ reset: ## Destroy all local data and start clean
 	$(COMPOSE) down -v
 	$(MAKE) up
 	$(MAKE) migrate
+
+steel-up: ## This worktree's own Steel; its URLs go to .env.steel, which the tests load
+	$(BACKEND) uv run python scripts/steel_worktree.py up
+
+steel-down: ## Stop and remove this worktree's own Steel, and its .env.steel
+	$(BACKEND) uv run python scripts/steel_worktree.py down
+
+steel-env: ## Point a shell at this worktree's Steel: eval "$$(make -s steel-env)"
+	@sed 's/^/export /' .env.steel
 
 # --- backend ----------------------------------------------------------------
 
@@ -172,10 +183,16 @@ format: ## Autoformat both sides
 	$(BACKEND) uv run ruff format .
 	$(FRONTEND) npm run format
 
-test: test-unit test-integration ## Unit + integration tests
+test: test-unit test-replay test-integration ## Unit + replay + integration tests
 
 test-unit: ## Fast tests. No Docker, no network.
 	$(BACKEND) uv run pytest tests/unit -q
+
+test-replay: ## Every recorded RunWorkflow history replays on the current workflow code
+	$(BACKEND) uv run pytest tests/replay -q
+
+record-histories: ## Record RunWorkflow histories from the real-Temporal tests (needs `make up`)
+	$(BACKEND) SRO_RECORD_HISTORIES=1 uv run pytest tests/integration/test_run_workflow.py -q
 
 test-integration: ## Tests against real Postgres/MinIO via testcontainers
 	$(BACKEND) uv run pytest tests/integration -q

@@ -130,6 +130,22 @@ Code: `_PREPARE_RETRY = RetryPolicy(`
 > run is prepared and acquired again and carries on from the step that asked,
 > never from step 0. A code change is live
 > only after the worker restarts (AGENTS.md).
+>
+> The patching rule. A run paused across a deploy (waiting on an answer,
+> parked on a code, mid-retry) is replayed against the new code, and a
+> replay that issues different commands fails the run. So any change to
+> this workflow's commands -- activity order or names, timers, signals,
+> waits -- goes behind `workflow.patched("<id>")`, and the old branch stays
+> until no history still in flight needs it (then `deprecate_patch`, then
+> delete). `tests/replay` proves it: every history in
+> `tests/replay/histories` replays on the current code in `make test` and
+> CI. After a change, `make record-histories` (real Temporal, `make up`)
+> adds the new shape's histories next to the old ones; delete an old one
+> only together with the branch it keeps.
+> A set (files keyed by one hash of `RunWorkflow`'s source) can be deleted
+> once no deployed worker could still hold a run recorded under it. Reordering `finish` and
+> `release` without a patch fails all 17 recorded histories; the same
+> reorder behind `patched()` replays clean.
 
 ## `RunWorkflow.run`, [line 127](../../../../../../../backend/src/sro/infrastructure/temporal/workflows.py#L127): Note
 

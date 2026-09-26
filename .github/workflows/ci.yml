@@ -126,10 +126,10 @@ jobs:
         env:
           SRO_DATABASE_URL: postgresql+asyncpg://sro:sro@localhost:5432/sro_test
         run: uv run alembic upgrade head
-      - name: Unit and contract
+      - name: Unit, contract and workflow replay
         env:
           SRO_DATABASE_URL: postgresql+asyncpg://sro:sro@localhost:5432/sro_test
-        run: uv run pytest tests/unit tests/contract -q
+        run: uv run pytest tests/unit tests/contract tests/replay -q
       # Integration points at the service container rather than starting its
       # own. A disposable database by name: the integration fixtures truncate
       # every table and refuse to run against anything not marked as such.

@@ -1,0 +1,22 @@
+# One Steel for one worktree, so parallel agents stop sharing `ai-sro-steel-1`.
+# Started and stopped only by `make steel-up` / `make steel-down`, which pick
+# the host ports (backend/scripts/steel_worktree.py) and pass them in as
+# STEEL_API_PORT / STEEL_CDP_PORT under the project name `steel-<worktree>`.
+#
+# The body is the dev `steel` service, taken whole through `extends`: image,
+# restart, init, shm_size, healthcheck and NODE_OPTIONS stay defined once, in
+# docker-compose.yml. Only what is per-worktree is set here: the host ports and
+# the DOMAIN/CDP_DOMAIN Steel builds its URLs from. The ports default to 0 only
+# so `steel-down` can name the project without knowing them.
+
+services:
+  steel:
+    extends:
+      file: docker-compose.yml
+      service: steel
+    environment:
+      DOMAIN: "localhost:${STEEL_API_PORT:-0}"
+      CDP_DOMAIN: "localhost:${STEEL_CDP_PORT:-0}"
+    ports: !override
+      - "${STEEL_API_PORT:-0}:3000"
+      - "${STEEL_CDP_PORT:-0}:9223"

@@ -26,6 +26,7 @@ from collections.abc import AsyncIterator
 import pytest
 from playwright.async_api import async_playwright
 
+from sro.config import get_settings
 from sro.domain.shared.identifiers import BrowserSessionId
 from sro.infrastructure.steel.client import SteelClient
 from tests.browser.test_the_steel_pool_against_local_steel import (
@@ -35,8 +36,8 @@ from tests.browser.test_the_steel_pool_against_local_steel import (
 
 pytestmark = pytest.mark.browser
 
-STEEL_URL = "http://localhost:3010"
-CDP_URL = "http://localhost:9223"
+STEEL_URL = get_settings().steel_base_url
+CDP_URL = get_settings().steel_cdp_url
 
 _ROUNDS = 20
 _POPUP_ROUND = 10

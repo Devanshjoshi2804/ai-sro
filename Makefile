@@ -16,7 +16,8 @@ FRONTEND := cd frontend &&
 .PHONY: help up down ps logs reset install migrate revision api worker status web vault-key one-whole-run \
         lint lint-backend check-code-notes lint-frontend format test test-unit test-integration \
         test-contract test-browser types check ingest-kb gen-recorder \
-        mutants-backend images smoke gen-deployment migrate-vault-keys
+        mutants-backend images smoke gen-deployment migrate-vault-keys \
+        steel-up steel-down steel-env
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -40,6 +41,15 @@ reset: ## Destroy all local data and start clean
 	$(COMPOSE) down -v
 	$(MAKE) up
 	$(MAKE) migrate
+
+steel-up: ## This worktree's own Steel; its URLs go to .env.steel, which the tests load
+	$(BACKEND) uv run python scripts/steel_worktree.py up
+
+steel-down: ## Stop and remove this worktree's own Steel, and its .env.steel
+	$(BACKEND) uv run python scripts/steel_worktree.py down
+
+steel-env: ## Point a shell at this worktree's Steel: eval "$$(make -s steel-env)"
+	@sed 's/^/export /' .env.steel
 
 # --- backend ----------------------------------------------------------------
 

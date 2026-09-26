@@ -171,8 +171,8 @@ lint-backend: ## ruff + mypy --strict + import-linter
 check-code-notes: ## docs/code-notes/ anchors still point at the line they name
 	$(BACKEND) uv run python scripts/check_code_notes.py
 
-eval: ## LIVE EVAL (spends model money): real local cases, report + gate: make eval suite=reader tenant=acme [baseline=1] [limit=N]
-	$(BACKEND) uv run python -m evals run --suite $(suite) --tenant $(tenant) $(if $(baseline),--baseline,) $(if $(limit),--limit $(limit),)
+eval: ## LIVE EVAL (spends model money): real local cases, report + gate: make eval suite=reader tenant=acme [baseline=1] [limit=N] [rebuild=1]
+	$(BACKEND) uv run python -m evals run --suite $(suite) --tenant $(tenant) $(if $(baseline),--baseline,) $(if $(limit),--limit $(limit),) $(if $(rebuild),--rebuild,)
 
 eval-ci: ## The committed redacted cases, offline: prompts render, answers conform, scores hold [live=1]
 	$(BACKEND) uv run python -m evals ci $(if $(live),--live,)

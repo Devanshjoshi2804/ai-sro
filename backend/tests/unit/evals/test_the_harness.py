@@ -9,7 +9,7 @@ from evals.__main__ import arguments
 from evals.model import K_COST_TOLERANCE, Case, Report, Scored, gate, report
 from evals.redact import redacted, shape
 from evals.replay import Replayed
-from evals.run import frozen, run_ci
+from evals.run import frozen, run_ci, write_candidates
 from evals.suites.mining import Mining, request_values
 from evals.suites.reader import Reader
 
@@ -298,17 +298,58 @@ def test_cost_is_gated_with_a_tolerance_for_jitter() -> None:
 
 
 async def test_the_case_set_is_built_once_and_then_read() -> None:
-    folder = Path(mkdtemp())
+    root = Path(mkdtemp())
     built: list[int] = []
 
     async def build() -> list[Case]:
         built.append(1)
         return [_mining_case()]
 
-    first = await frozen(folder / "t" / "mining.json", build)
-    again = await frozen(folder / "t" / "mining.json", build)
+    first = await frozen(root, "t", "mining", build)
+    again = await frozen(root, "t", "mining", build)
     assert first == again == [replace(_mining_case(), answer=None)]
     assert len(built) == 1
+
+
+async def test_a_rebuild_retires_the_baseline_and_the_old_answers(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A rebuilt case set is a new set: the old baseline could only refuse it,
+    and the old answers belong to cases that are gone."""
+    root = Path(mkdtemp())
+
+    async def build() -> list[Case]:
+        return [_mining_case()]
+
+    await frozen(root, "t", "mining", build)
+    results = root / "results" / "t"
+    replace(_mining_case(), id="wfl_" + "0" * 32).save(results / "mining")
+    (results / "baseline-mining.json").write_text("{}")
+    (results / "baseline-reader.json").write_text("{}")
+
+    await frozen(root, "t", "mining", build, rebuild=True)
+
+    assert not (results / "baseline-mining.json").exists()
+    assert not (results / "mining").exists()
+    assert (results / "baseline-reader.json").exists(), "another suite's baseline stays"
+    assert "retired" in capsys.readouterr().out
+
+
+async def test_candidates_come_only_from_the_current_case_set() -> None:
+    root = Path(mkdtemp())
+
+    async def build() -> list[Case]:
+        return [_mining_case()]
+
+    await frozen(root, "t", "mining", build)
+    results = root / "results" / "t" / "mining"
+    _mining_case().save(results)
+    replace(_mining_case(), id="wfl_" + "0" * 32).save(results)
+
+    await write_candidates("mining", "t", root=root)
+
+    made = sorted(one.stem for one in (root / "candidates" / "t" / "mining").glob("*.json"))
+    assert made == [_mining_case().id]
 
 
 def test_each_suite_asks_through_the_asker_production_uses_for_its_prompt() -> None:

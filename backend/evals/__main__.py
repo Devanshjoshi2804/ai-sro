@@ -21,6 +21,7 @@ def arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     one.add_argument("--tenant", required=True)
     one.add_argument("--baseline", action="store_true")
     one.add_argument("--limit", type=_at_least_one)
+    one.add_argument("--rebuild", action="store_true")
     ci = sub.add_parser("ci")
     ci.add_argument("--live", action="store_true")
     red = sub.add_parser("redact")
@@ -36,7 +37,13 @@ def main() -> int:
     args = arguments()
     if args.command == "run":
         return asyncio.run(
-            run_suite(args.suite, args.tenant, baseline=args.baseline, limit=args.limit)
+            run_suite(
+                args.suite,
+                args.tenant,
+                baseline=args.baseline,
+                limit=args.limit,
+                rebuild=args.rebuild,
+            )
         )
     if args.command == "ci":
         return asyncio.run(run_ci(live=args.live))

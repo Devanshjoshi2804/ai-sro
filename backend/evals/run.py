@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from collections.abc import Awaitable, Callable
 from dataclasses import asdict, replace
 from pathlib import Path
@@ -49,12 +50,37 @@ def _freeze(path: Path, cases: list[Case]) -> list[Case]:
     return _thawed(path) or []
 
 
-async def frozen(path: Path, build: Callable[[], Awaitable[list[Case]]]) -> list[Case]:
-    found = _thawed(path)
-    return found if found is not None else _freeze(path, await build())
+def _retire(root: Path, tenant: str, name: str) -> None:
+    results = root / "results" / tenant
+    base = results / f"baseline-{name}.json"
+    old = results / name
+    gone = [str(one) for one in (base, old) if one.exists()]
+    base.unlink(missing_ok=True)
+    shutil.rmtree(old, ignore_errors=True)
+    if gone:
+        print(f"a new case set: retired {', '.join(gone)}")  # noqa: T201
 
 
-async def run_suite(name: str, tenant: str, *, baseline: bool, limit: int | None = None) -> int:
+async def frozen(
+    root: Path,
+    tenant: str,
+    name: str,
+    build: Callable[[], Awaitable[list[Case]]],
+    *,
+    rebuild: bool = False,
+) -> list[Case]:
+    path = root / "cases" / tenant / f"{name}.json"
+    found = None if rebuild else _thawed(path)
+    if found is not None:
+        return found
+    cases = await build()
+    _retire(root, tenant, name)
+    return _freeze(path, cases)
+
+
+async def run_suite(
+    name: str, tenant: str, *, baseline: bool, limit: int | None = None, rebuild: bool = False
+) -> int:
     suite, container = SUITES[name], build_container()
     asker = suite.asker(container)
     if asker is None:
@@ -64,7 +90,7 @@ async def run_suite(name: str, tenant: str, *, baseline: bool, limit: int | None
         async with container.unit_of_work() as uow:
             return await suite.cases(uow, TenantId(tenant))
 
-    cases = (await frozen(HERE / "cases" / tenant / f"{name}.json", build))[:limit]
+    cases = (await frozen(HERE, tenant, name, build, rebuild=rebuild))[:limit]
     results = HERE / "results" / tenant
     scored = []
     with about(tenant=tenant):
@@ -105,9 +131,12 @@ async def run_ci(*, live: bool, folder: Path = HERE / "ci") -> int:
     return 1 if bad else 0
 
 
-async def write_candidates(name: str, tenant: str) -> int:
-    folder = HERE / "results" / tenant / name
-    for path in sorted(folder.glob("*.json")):
-        redacted(Case.load(path), tenant=tenant).save(HERE / "candidates" / tenant / name)
-    print(f"read every file in {HERE / 'candidates' / tenant / name} before moving any to ci/")  # noqa: T201
+async def write_candidates(name: str, tenant: str, *, root: Path = HERE) -> int:
+    current = {one.id for one in _thawed(root / "cases" / tenant / f"{name}.json") or []}
+    out = root / "candidates" / tenant / name
+    for path in sorted((root / "results" / tenant / name).glob("*.json")):
+        case = Case.load(path)
+        if case.id in current:
+            redacted(case, tenant=tenant).save(out)
+    print(f"read every file in {out} before moving any to ci/")  # noqa: T201
     return 0

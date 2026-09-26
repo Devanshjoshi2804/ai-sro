@@ -301,7 +301,7 @@ async def _grow(
     by_id: Mapping[str, Gesture],
 ) -> None:
     try:
-        stored = await uow.workflows.get(tenant_id, known_id)
+        stored = await uow.workflows.get(tenant_id, known_id, lock=True)
     except NotFound:
         return
     if credentials_typed(proposal, by_id) - credentials_typed(stored, by_id):

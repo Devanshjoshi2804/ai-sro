@@ -207,7 +207,7 @@ class SqlWorkflowRepository(WorkflowRepository):
             for row in (await self._session.execute(query)).all()
         )
 
-    async def get(self, tenant_id: TenantId, workflow_id: str) -> Workflow:
+    async def get(self, tenant_id: TenantId, workflow_id: str, *, lock: bool = False) -> Workflow:
         query = (
             select(WorkflowRow)
             .where(
@@ -217,6 +217,8 @@ class SqlWorkflowRepository(WorkflowRepository):
             )
             .execution_options(populate_existing=True)
         )
+        if lock:
+            query = query.with_for_update()
         row = (await self._session.execute(query)).scalar_one_or_none()
         if row is None:
             raise NotFound(f"workflow {workflow_id} was not found")

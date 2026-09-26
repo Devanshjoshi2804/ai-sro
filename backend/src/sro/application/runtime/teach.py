@@ -35,6 +35,9 @@ class Teach:
         now = self._clock.now()
         won = tried[-1] if tried and tried[-1].verdict in ("done", "read") else None
         async with self._uow as uow:
+            job = await uow.workflows.get(ctx.tenant_id, workflow.id, lock=True)
+            if job.steps != workflow.steps:
+                return
             for result in tried:
                 if result.verdict == "failed" and result.fingerprint and not result.expired:
                     await uow.workflows.break_lane(
@@ -88,7 +91,7 @@ class Teach:
     async def learn_field(
         self,
         ctx: RequestContext,
-        workflow_id: str,
+        pinned: Workflow,
         field: Composed,
         *,
         key: str,
@@ -96,14 +99,13 @@ class Teach:
         learned: Mapping[str, str],
         lane: Lane,
         run_id: str,
-    ) -> None:
+    ) -> Workflow | None:
         async with self._uow as uow:
-            workflow = await uow.workflows.get(ctx.tenant_id, workflow_id)
+            workflow = await uow.workflows.get(ctx.tenant_id, pinned.id, lock=True)
+            if workflow.steps != pinned.steps:
+                return None
             if any(field.name in one.parameters for one in workflow.steps):
-                return
-            runs = await uow.workflow_runs.for_workflow(ctx.tenant_id, workflow.id)
-            if any(one.outcome == "running" and one.id != run_id for one in runs):
-                return
+                return workflow
             grown, moved = with_field(workflow, field, key=key, value=value)
             await uow.workflows.grew(grown, moved=moved)
             strategy, query = learned.get("strategy", ""), learned.get("query", "")
@@ -125,6 +127,7 @@ class Teach:
                     by_run=run_id,
                 )
             await uow.commit()
+        return grown
 
 
 def _sighted(step: Step, won: StepResult, values: Mapping[str, str]) -> LearnedStep | None:

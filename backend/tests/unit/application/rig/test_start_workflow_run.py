@@ -36,7 +36,7 @@ from sro.application.shared.refusals import OverCap
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.takeover import Took
 from sro.domain.execution.waiting import K_PATIENCE, read_wait, still_waiting
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.execution.workflow_run import RunStep, WorkflowRun, pin
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.shared.errors import Conflict, NotFound
@@ -383,6 +383,27 @@ async def test_a_steel_run_starts_without_an_optional_value_it_will_skip() -> No
     run = await _press(_on_steel(uow), values={})
 
     assert run.executor == "steel"
+
+
+async def test_each_steel_run_keeps_the_steps_its_job_had_when_it_started() -> None:
+    uow = await _held(_workflow(parameters=[{"name": "clientCode", "required": False}]))
+    first = await _press(_on_steel(uow), values={})
+    job = await uow.workflows.get(TENANT, "wfl_1")
+    grown = replace(
+        job,
+        steps=[
+            Step(order=0, says="open the menu", system=None, cites=["ges-0"]),
+            *(replace(one, order=one.order + 1) for one in job.steps),
+        ],
+    )
+    await uow.workflows.grew(grown, moved={one.order: one.order + 1 for one in job.steps})
+
+    second = await _press(_on_steel(uow), values={})
+
+    assert first.pinned == pin(job)
+    assert second.pinned == pin(grown)
+    saved = await uow.workflow_runs.get(TENANT, first.id)
+    assert saved is not None and saved.pinned == pin(job)
 
 
 async def _press(

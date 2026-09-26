@@ -14,6 +14,7 @@ from sro.application.ports.repositories import WorkflowRunRepository
 from sro.domain.execution.workflow_run import (
     ENDED,
     Executor,
+    Pinned,
     RunStep,
     WorkflowRun,
     already_running,
@@ -21,6 +22,8 @@ from sro.domain.execution.workflow_run import (
 from sro.domain.observation.driving import Driving
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import DeviceId, TenantId
+from sro.domain.skill.repeats import Repeat
+from sro.domain.skill.workflow import Step
 from sro.infrastructure.db.codec import when
 from sro.infrastructure.db.models import ApprovalRow, WorkflowRunRow, WorkflowRunStepRow
 
@@ -58,7 +61,47 @@ def _run_values(run: WorkflowRun) -> dict[str, Any]:
         "progress": dict(run.progress),
         "executor": run.executor,
         "offer": run.offer,
+        "pinned": None if run.pinned is None else _pinned_json(run.pinned),
     }
+
+
+def _pinned_json(pinned: Pinned) -> dict[str, Any]:
+    return {
+        "steps": [
+            {
+                "order": one.order,
+                "says": one.says,
+                "system": one.system,
+                "cites": list(one.cites),
+                "parameters": list(one.parameters),
+                "uses": list(one.uses),
+            }
+            for one in pinned.steps
+        ],
+        "parameters": [dict(one) for one in pinned.parameters],
+        "repeat": None
+        if pinned.repeat is None
+        else {"first_step": pinned.repeat.first_step, "last_step": pinned.repeat.last_step},
+    }
+
+
+def _pinned_from_json(held: dict[str, Any]) -> Pinned:
+    repeat = held["repeat"]
+    return Pinned(
+        [
+            Step(
+                order=int(one["order"]),
+                says=str(one["says"]),
+                system=one["system"],
+                cites=list(one["cites"]),
+                parameters=list(one["parameters"]),
+                uses=list(one["uses"]),
+            )
+            for one in held["steps"]
+        ],
+        [dict(one) for one in held["parameters"]],
+        None if repeat is None else Repeat(int(repeat["first_step"]), int(repeat["last_step"])),
+    )
 
 
 def _step_values(run_id: str, step: RunStep) -> dict[str, Any]:
@@ -156,6 +199,7 @@ def _row_to_run(row: WorkflowRunRow, steps: list[RunStep]) -> WorkflowRun:
         progress=dict(row.progress or {}),
         executor=cast(Executor, row.executor),
         offer=row.offer,
+        pinned=None if row.pinned is None else _pinned_from_json(row.pinned),
     )
 
 
@@ -185,7 +229,7 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
                     set_={
                         column.name: kept.get(column.name, statement.excluded[column.name])
                         for column in WorkflowRunRow.__table__.columns
-                        if column.name not in ("id", "progress")
+                        if column.name not in ("id", "progress", "pinned")
                     },
                 )
             )

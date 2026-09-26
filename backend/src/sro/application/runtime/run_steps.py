@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import math
 import secrets
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
@@ -35,7 +36,7 @@ from sro.domain.execution.lanes import Lane, StepResult, cites_key
 from sro.domain.execution.mail_job import sends_mail
 from sro.domain.execution.progress import MAIN, Progress, StepMark
 from sro.domain.execution.waiting import read_wait
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.execution.workflow_run import RunStep, WorkflowRun, pinned_job
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.identifiers import PrincipalId
 from sro.domain.skill.learned import demanded
@@ -89,7 +90,10 @@ class RunSteps:
             and primary_gesture(one, by_id) is not None
         ]
         known = {one.get("name") for one in progress.composed}
-        fresh = [_entry(one) for one in compose(workflow, by_id, run.values)[0]]
+        resume = ordered[progress.step].order if progress.step < len(ordered) else math.inf
+        fresh = [
+            _entry(one) for one in compose(workflow, by_id, run.values)[0] if one.before >= resume
+        ]
         if fresh := [one for one in fresh if one["name"] not in known]:
             progress.composed += fresh
             await self._write(ctx, run, progress)
@@ -236,11 +240,14 @@ class RunSteps:
         run, workflow, _ = await self._load(ctx, run_id)
         progress = Progress.of(run.progress)
         confirmed = [one for one in progress.composed if one.get("verdict") == "done"]
+        version: Workflow | None = workflow
         for one in sorted(confirmed, key=lambda one: int(str(one["before"])), reverse=True):
+            if version is None:
+                break
             learned = one.get("learned")
-            await self._teach.learn_field(
+            version = await self._teach.learn_field(
                 ctx,
-                workflow.id,
+                version,
                 _composed(one),
                 key=str(one["key"]),
                 value=run.values.get(str(one["name"]), ""),
@@ -406,7 +413,12 @@ class RunSteps:
         step: Step,
     ) -> LaneContext:
         async with self._uow as uow:
-            learned = {one.ord: one for one in await uow.workflows.learned_for(workflow.id)}
+            job = await uow.workflows.get(ctx.tenant_id, workflow.id)
+            learned = (
+                {one.ord: one for one in await uow.workflows.learned_for(workflow.id)}
+                if job.steps == workflow.steps
+                else {}
+            )
             ledger = await uow.workflows.learned_writes(ctx.tenant_id)
         waiting = read_wait(run.awaiting)
         marked: list[Lane] = []
@@ -778,7 +790,7 @@ class RunSteps:
     ) -> tuple[WorkflowRun, Workflow, dict[str, Gesture]]:
         run = await self._run(ctx, run_id)
         async with self._uow as uow:
-            workflow = await uow.workflows.get(ctx.tenant_id, run.workflow_id)
+            workflow = pinned_job(run, await uow.workflows.get(ctx.tenant_id, run.workflow_id))
             cited = await uow.gestures.gestures_for(
                 ctx.tenant_id, ids=tuple(sorted(cited_ids(workflow)))
             )

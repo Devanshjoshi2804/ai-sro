@@ -48,6 +48,7 @@ from sro.domain.execution.workflow_run import (
     WorkflowRun,
     already_running,
     new_run_id,
+    pin,
 )
 from sro.domain.execution.write_plan import begins_again_at, seen_values
 from sro.domain.knowledge.entry import EntryKind
@@ -270,6 +271,7 @@ class StartWorkflowRun:
                 undoes_run=undoes_run.strip() or None,
                 offer=offer.strip() or None,
                 progress=first_progress,
+                pinned=pin(workflow),
             )
             await uow.workflow_runs.save(run)
             await uow.commit()

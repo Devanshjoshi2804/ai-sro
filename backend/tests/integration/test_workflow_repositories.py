@@ -13,6 +13,9 @@ rest are the effects and stale rules, which plan 1 ported as pure rules in
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Awaitable
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -21,21 +24,30 @@ from sqlalchemy import select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from sro.application.context import RequestContext
 from sro.application.observation.mining_pass import mine
+from sro.application.runtime.teach import Teach
 from sro.domain.execution.belts import RunProof, earned_from
+from sro.domain.execution.compose import Composed
 from sro.domain.execution.lanes import Broken, Lane
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.verified_writes import VerifiedWrite
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
+from sro.domain.execution.workflow_run import (
+    RunStep,
+    WorkflowRun,
+    new_run_id,
+    pin,
+    pinned_job,
+)
 from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.errors import Conflict, NotFound
-from sro.domain.shared.identifiers import TenantId
+from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow, new_workflow_id
 from sro.infrastructure.db.models import WorkflowEffectRow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from tests.unit.domain.rig.conftest import gestures as _gestures
-from tests.unit.fakes import FakeAccountLocks, FakeAsker
+from tests.unit.fakes import FakeAccountLocks, FakeAsker, FakeClock
 
 FOUND_BY = "pas_abcdef"
 
@@ -1022,3 +1034,60 @@ class TestWhatAJobTaughtItself:
 
         async with SqlUnitOfWork(session_factory) as uow:
             assert len(await uow.workflows.taught_itself("wfl_1")) == 1
+
+
+class TestARunKeepsItsVersion:
+    """X11: a grow renumbers the job's steps, so two grows from one version
+    must not both land, and a run's pin is written once."""
+
+    async def test_two_runs_learning_on_one_version_grow_the_job_once(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        job = _workflow()
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(job)
+            await uow.workflows.remember_locator(
+                job.id, LearnedStep(1, "component", "status", "evidence")
+            )
+            await uow.commit()
+        ctx = RequestContext(tenant_id=TENANT, principal_id=PrincipalId("clerk"))
+
+        def learns(name: str) -> Awaitable[Workflow | None]:
+            return Teach(SqlUnitOfWork(session_factory), FakeClock()).learn_field(
+                ctx,
+                job,
+                Composed(name, name.title(), "combobox", 1),
+                key=name,
+                value="x",
+                learned={},
+                lane=Lane.UI,
+                run_id=f"run_{name}",
+            )
+
+        grown = await asyncio.gather(learns("department"), learns("region"))
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            now = await uow.workflows.get(TENANT, job.id)
+            learned = await uow.workflows.learned_for(job.id)
+        assert sum(one is not None for one in grown) == 1
+        assert [one.order for one in now.steps] == [0, 1, 2]
+        assert [(one.ord, one.query) for one in learned] == [(2, "status")]
+
+    async def test_a_run_s_pin_is_written_once(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        job = _workflow()
+        run = _run(job.id, outcome="running", pinned=pin(job))
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(job)
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(replace(run, pinned=pin(replace(job, steps=[]))))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            back = await uow.workflow_runs.get(TENANT, run.id)
+            job_back = await uow.workflows.get(TENANT, job.id)
+        assert back is not None and back.pinned == pin(job)
+        assert pinned_job(back, replace(job_back, steps=[])) == job_back

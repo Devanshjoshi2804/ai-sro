@@ -66,7 +66,7 @@ from sro.domain.execution.lanes import Lane, SeenCall, StepResult, Verdict
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.verified_writes import VerifiedWrite
-from sro.domain.execution.workflow_run import WorkflowRun
+from sro.domain.execution.workflow_run import WorkflowRun, pin
 from sro.domain.observation.gesture import (
     Action,
     AfterState,
@@ -927,6 +927,7 @@ async def steel_run(
             started_at=NOW.isoformat(),
             executor="steel",
             progress=progress.as_json() if progress else {},
+            pinned=pin(job),
         )
     )
     lanes = Lanes(

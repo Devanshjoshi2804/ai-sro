@@ -21,7 +21,7 @@ from alembic.migration import MigrationContext
 from sqlalchemy import Connection, insert, inspect, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from sro.infrastructure.db.models import Base, WorkflowRow, WorkflowRunRow
+from sro.infrastructure.db.models import Base, WorkflowRow, WorkflowRunRow, WorkflowStepRow
 
 
 async def test_upgrading_from_nothing_builds_the_schema(postgres_url: str) -> None:
@@ -229,6 +229,113 @@ async def test_0078_makes_every_stored_job_undecided_and_back(postgres_url: str)
         ("wfl_new", False),
         ("wfl_old", False),
     ]
+
+
+async def test_0081_pins_every_steel_run_still_going_and_back(postgres_url: str) -> None:
+    """A Steel run going when 0081 lands has been reading its job as it
+    stands, so that is the version it is pinned to; an ended run and an
+    extension run are left unpinned. The downgrade drops the pin."""
+    engine = create_async_engine(postgres_url)
+    now = datetime.now(tz=UTC)
+    try:
+        async with engine.begin() as connection:
+            await connection.execute(text("DROP SCHEMA public CASCADE"))
+            await connection.execute(text("CREATE SCHEMA public"))
+            await connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        await _alembic(postgres_url, "upgrade", "0080")
+        async with engine.begin() as connection:
+            await connection.execute(
+                insert(WorkflowRow.__table__),
+                [
+                    {
+                        "id": "wfl_1",
+                        "tenant_id": "acme",
+                        "created_at": now,
+                        "parameters": [{"name": "who"}],
+                    }
+                ],
+            )
+            await connection.execute(
+                insert(WorkflowStepRow.__table__),
+                [
+                    {
+                        "workflow_id": "wfl_1",
+                        "ord": 1,
+                        "says": "save",
+                        "cites": ["g2"],
+                        "parameters": [],
+                        "system": None,
+                    },
+                    {
+                        "workflow_id": "wfl_1",
+                        "ord": 0,
+                        "says": "type",
+                        "cites": ["g1"],
+                        "parameters": ["who"],
+                        "system": "https://wms.example",
+                    },
+                ],
+            )
+            await connection.execute(
+                insert(WorkflowRunRow.__table__),
+                [
+                    {
+                        "id": run_id,
+                        "tenant_id": "acme",
+                        "workflow_id": "wfl_1",
+                        "device_id": "",
+                        "started_at": now,
+                        "outcome": outcome,
+                        "executor": executor,
+                    }
+                    for run_id, outcome, executor in (
+                        ("run_going", "running", "steel"),
+                        ("run_ended", "held", "steel"),
+                        ("run_extension", "running", "extension"),
+                    )
+                ],
+            )
+        read = text("SELECT id, pinned FROM workflow_runs ORDER BY id")
+
+        await _alembic(postgres_url, "upgrade", "0081")
+        async with engine.begin() as connection:
+            upgraded = dict(tuple(row) for row in (await connection.execute(read)).all())
+        await _alembic(postgres_url, "downgrade", "0080")
+        async with engine.connect() as connection:
+            columns = await connection.run_sync(
+                lambda sync: {one["name"] for one in inspect(sync).get_columns("workflow_runs")}
+            )
+        await _alembic(postgres_url, "upgrade", "head")
+    finally:
+        await engine.dispose()
+
+    assert upgraded == {
+        "run_ended": None,
+        "run_extension": None,
+        "run_going": {
+            "steps": [
+                {
+                    "order": 0,
+                    "says": "type",
+                    "system": "https://wms.example",
+                    "cites": ["g1"],
+                    "parameters": ["who"],
+                    "uses": [],
+                },
+                {
+                    "order": 1,
+                    "says": "save",
+                    "system": None,
+                    "cites": ["g2"],
+                    "parameters": [],
+                    "uses": [],
+                },
+            ],
+            "parameters": [{"name": "who"}],
+            "repeat": None,
+        },
+    }
+    assert "pinned" not in columns
 
 
 # Every test in this directory already runs against the migrated schema --

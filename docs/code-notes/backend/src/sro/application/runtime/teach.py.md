@@ -27,7 +27,7 @@ Code: `won = tried[-1] if tried and tried[-1].verdict in ("done", "read") else N
 > Only `done` or `read` is a success. An `unknown` is a write nobody
 > confirmed; it mends nothing and teaches nothing.
 
-## `Teach.learn`, [line 39](../../../../../../../backend/src/sro/application/runtime/teach.py#L39): Note
+## `Teach.learn`, [line 42](../../../../../../../backend/src/sro/application/runtime/teach.py#L42): Note
 
 Code: `if result.verdict == "failed" and result.fingerprint and not result.expired:`
 
@@ -35,7 +35,7 @@ Code: `if result.verdict == "failed" and result.fingerprint and not result.expir
 > `missing_header` never breaks a lane), and a failure with no fingerprint
 > has nothing to be known by.
 
-## `Teach.learn`, [line 65](../../../../../../../backend/src/sro/application/runtime/teach.py#L65): Note
+## `Teach.learn`, [line 68](../../../../../../../backend/src/sro/application/runtime/teach.py#L68): Note
 
 Code: `own = next(`
 
@@ -51,7 +51,7 @@ Code: `own = next(`
 > recorded URL (`learned_pattern`), so a path that names the record becomes
 > `{id}` and a segment the recording holds fixed stays fixed.
 
-## `_sighted`, [line 130](../../../../../../../backend/src/sro/application/runtime/teach.py#L130): Function
+## `_sighted`, [line 133](../../../../../../../backend/src/sro/application/runtime/teach.py#L133): Function
 
 > The locator the sight lane learned from the element that satisfied the
 > check (X7 ruling), or nothing: a learned map without a `frame_path` is
@@ -61,26 +61,38 @@ Code: `own = next(`
 > `K_NAME`, the cap `learned_from` keeps (refused, not cut: a cut locator
 > matches nothing, or something else).
 
-## `Teach.learn_field`, [line 88](../../../../../../../backend/src/sro/application/runtime/teach.py#L88): Docstring
+## `Teach.learn_field`, [line 91](../../../../../../../backend/src/sro/application/runtime/teach.py#L91): Docstring
 
 > A composed field the save's own call confirmed becomes part of the job: `grew`
 > with `with_field`'s result, then its locator (`found_by` `composed` from the
 > page code, `sight` from sight), in one unit of work that reads the job
-> itself -- never a copy read earlier, which a sibling's `finish` may have
-> grown since. A field a step of the job already fills is not learned twice
-> (a retried `finish`, or a sibling that learned it first); a field whose step
-> a regrowth lost is learned again, under its one parameter. A locator that
-> would carry the value is not kept.
+> itself under its row lock. `pinned` is the run's own version, whose numbering
+> the field's `before` is in; the version the grow made is returned, for the
+> run's next field to be checked against, or None when the job is no longer
+> `pinned`. A field a step of the job already fills is not learned twice
+> (a retried `finish`, or a sibling that learned it first) and `pinned` is
+> returned unchanged; a field whose step a regrowth lost is learned again,
+> under its one parameter. A locator that would carry the value is not kept.
 
-## `Teach.learn_field`, [line 104](../../../../../../../backend/src/sro/application/runtime/teach.py#L104): Note
+## `Teach.learn_field`, [line 105](../../../../../../../backend/src/sro/application/runtime/teach.py#L105): Note
 
-Code: `runs = await uow.workflow_runs.for_workflow(ctx.tenant_id, workflow.id)`
+Code: `if workflow.steps != pinned.steps:`
 
-> Never while another run of the job is still going: growing renumbers the steps
-> under it, and a run whose `progress.step` and marks point at the old numbers
-> could perform a write twice. The field is not lost: the next run with that
-> value composes it again from the outline and learns it then.
->
-> **Ceiling.** The check and the growth are two statements, so a run that starts
-> in between is not seen. The upgrade is a shape version on the run, checked by
-> `step`. A mining pass that grows a job (`_grow`) has no such check at all.
+> A compare-and-set against the run's own version, under the job's row lock.
+> The field's `before` is a step number of that version, so it is placed only
+> while the job still is that version. A run still going is no reason to wait:
+> it reads its pinned steps (`pinned_job`), never the grown ones, so growing
+> under it cannot make it skip a step or send a write twice. A field refused
+> here is not lost: the next run with that value composes it again against the
+> job as it then is, and learns it then.
+
+## `Teach.learn`, [line 38](../../../../../../../backend/src/sro/application/runtime/teach.py#L38): Note
+
+Code: `job = await uow.workflows.get(ctx.tenant_id, workflow.id, lock=True)`
+
+> What `learn` writes -- broken lanes, mends, locators -- is keyed by the job's
+> step numbers, and `workflow` here is the run's pinned version. It teaches only
+> while that is still the job's numbering; a run the job has grown past teaches
+> nothing, rather than a locator under a number that is now another step's. The
+> row lock keeps a grow from renumbering the job between this check and the
+> writes.

@@ -2598,6 +2598,8 @@ class FakeWorkflowRepository:
         """(tenant, gesture) -> the job a folded doing was placed against."""
         """Retired jobs by id, as the store's ``retired_at``: the row stays,
         and a re-save does not bring it back."""
+        self.save_kills = False
+        """The next `save` is the statement that fails, and kills the session."""
         self._saved = count()
         self._created: dict[str, int] = {}
         self.created_at: dict[str, datetime] = {}
@@ -2608,6 +2610,9 @@ class FakeWorkflowRepository:
 
     async def save(self, workflow: Workflow) -> None:
         self._alive()
+        if self.save_kills:
+            self.poisoned = True
+            raise RuntimeError("value too long for type character varying(64)")
         self.rows[workflow.id] = deepcopy(workflow)
         # A re-save keeps the creation time, as the store's upsert does.
         if workflow.id not in self._created:

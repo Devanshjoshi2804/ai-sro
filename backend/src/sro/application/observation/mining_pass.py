@@ -140,9 +140,10 @@ async def mine(
         if why:
             logger.warning("%s for %s, nothing mined", why, tenant_id.value)
             return MineResult(error=why)
-        filled = await fill_in_passwords(uow, tenant_id=tenant_id)
-        if filled:
+        if await fill_in_passwords(uow, tenant_id=tenant_id):
             await uow.commit()
+        else:
+            await uow.rollback()
         return await _one_pass(
             uow,
             tenant_id=tenant_id,

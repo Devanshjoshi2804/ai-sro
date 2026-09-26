@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sro.application.context import RequestContext
 from sro.application.observation.mining_pass import (
     _grow,
+    _healed,
     fill_in_passwords,
     learn_parameters,
     mine,
@@ -1181,6 +1182,50 @@ class TestARunKeepsItsVersion:
         assert steps == ["type it", "Fill Region", "save it"]
         assert learned == [(2, "#save")]
 
+    async def test_a_mining_pass_holds_no_job_s_row_while_it_asks_the_model(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        """The pass's listing says the job needs healing; by the locked re-read a
+        heal has landed and there is nothing left to do. That re-read's lock must
+        still end before the model is asked -- a call of up to minutes -- or every
+        run's learning on the job waits for it."""
+        job, by_id = await _a_real_job(session_factory)
+        asker = _AsksAndWaits()
+
+        async def mines() -> None:
+            async with SqlUnitOfWork(session_factory) as uow:
+                await mine(
+                    uow,
+                    tenant_id=TENANT,
+                    asker=asker,
+                    locks=FakeAccountLocks(),
+                    now=datetime(2025, 2, 11, 23, tzinfo=UTC),
+                    cap_usd=100.0,
+                )
+
+        async with SqlUnitOfWork(session_factory) as healer:
+            held = await healer.workflows.get(TENANT, job.id, lock=True)
+            assert _healed(held, by_id)
+            await healer.workflows.save(held)
+            mining = asyncio.ensure_future(mines())
+            await _until_it_waits_or_ends(engine, mining)
+            await healer.commit()
+        asking = asyncio.ensure_future(asker.asked_at.wait())
+        await asyncio.wait({mining, asking}, return_when=asyncio.FIRST_COMPLETED)
+        assert asker.asked_at.is_set()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            healed = await uow.workflows.get(TENANT, job.id)
+        learning = asyncio.ensure_future(_learns(session_factory, healed, "department"))
+        await _until_it_waits_or_ends(engine, learning)
+        learned_while_asking = learning.done()
+        asker.answer.set()
+        await asyncio.gather(mining, learning)
+
+        assert learned_while_asking
+        steps, _ = await _now(session_factory, job)
+        assert "Fill Department" in steps
+
     async def test_a_run_s_pin_is_written_once(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
@@ -1265,20 +1310,39 @@ async def _against_an_open_grow[T](
             job.id, LearnedStep(1, "role_and_name", "combobox|Department", "composed")
         )
         running = asyncio.ensure_future(other())
-        async with engine.connect() as watching:
-            while not running.done():
-                waiting = await watching.scalar(
-                    text(
-                        "SELECT count(*) FROM pg_stat_activity"
-                        " WHERE datname = current_database() AND wait_event_type = 'Lock'"
-                    )
-                )
-                if waiting:
-                    break
-                await asyncio.sleep(0.01)
+        await _until_it_waits_or_ends(engine, running)
         if not stopped:
             await grow.commit()
     return await running
+
+
+async def _until_it_waits_or_ends(engine: AsyncEngine, running: asyncio.Future[Any]) -> None:
+    """Returns once some session waits on a lock, or `running` has finished."""
+    async with engine.connect() as watching:
+        while not running.done():
+            waiting = await watching.scalar(
+                text(
+                    "SELECT count(*) FROM pg_stat_activity"
+                    " WHERE datname = current_database() AND wait_event_type = 'Lock'"
+                )
+            )
+            if waiting:
+                return
+            await asyncio.sleep(0.01)
+
+
+class _AsksAndWaits(FakeAsker):
+    """A model call that holds until `answer` is set, and says when it began."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.asked_at = asyncio.Event()
+        self.answer = asyncio.Event()
+
+    async def ask(self, **question: Any) -> Answer:
+        self.asked_at.set()
+        await self.answer.wait()
+        return await super().ask(**question)
 
 
 async def _now(

@@ -121,9 +121,14 @@ def workflow_json(workflow: Workflow) -> dict[str, Any]:
 
 def workflow_from_json(held: dict[str, Any]) -> Workflow:
     return _row_to_workflow(
-        WorkflowRow(**held["workflow"]),
-        [_row_to_step(WorkflowStepRow(**step)) for step in held["steps"]],
+        WorkflowRow(**_known(WorkflowRow, held["workflow"])),
+        [_row_to_step(WorkflowStepRow(**_known(WorkflowStepRow, step))) for step in held["steps"]],
     )
+
+
+def _known(table: type[Any], columns: dict[str, Any]) -> dict[str, Any]:
+    names = table.__table__.columns.keys()
+    return {name: value for name, value in columns.items() if name in names}
 
 
 def _row_to_pass(row: MiningPassRow) -> MiningPass:

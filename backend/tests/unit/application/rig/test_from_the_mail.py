@@ -28,7 +28,7 @@ from sro.application.chat.from_the_mail import (
 from sro.application.chat.look_lately import LookInTheMailLately
 from sro.application.chat.mailbox import SERVER
 from sro.application.context import RequestContext
-from sro.application.execution.workflow_runs import StartWorkflowRun
+from sro.application.execution.workflow_runs import RunRefused, StartWorkflowRun
 from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
 from sro.application.knowledge.retrieve import Retrieve
@@ -63,7 +63,7 @@ from tests.unit.fakes import (
     FakeIdFactory,
     FakeUnitOfWork,
 )
-from tests.unit.runtime_support import save_job
+from tests.unit.runtime_support import save_job, save_step
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=PrincipalId("devansh"))
 JOB = "wfl_1"
@@ -174,7 +174,15 @@ async def _held_in[U: UnitOfWork](uow: U) -> U:
                 tenant=f.TENANT.value,
                 title="Create a Customer Type",
                 narrative="open the screen, type the code, save",
-                steps=[Step(order=0, says="type the code", system=None, cites=["g"])],
+                steps=[
+                    Step(
+                        order=0,
+                        says="type the code",
+                        system=None,
+                        cites=["g"],
+                        parameters=["Customer Type", "Customer Type Description"],
+                    )
+                ],
                 parameters=[
                     {"name": "Customer Type", "seen_values": ["GGD"], "required": True},
                     {
@@ -185,6 +193,8 @@ async def _held_in[U: UnitOfWork](uow: U) -> U:
                 ],
             )
         )
+        # A cited, proven save, so the job compiles: only a runnable job is offered.
+        await uow.gestures.add_gestures(tuple(save_step(gid="g")[1].values()))
         await uow.commit()
     return uow
 
@@ -302,8 +312,12 @@ async def test_a_steel_mail_missing_a_value_is_only_offered() -> None:
 
 async def test_a_run_the_press_refuses_leaves_the_offer_and_the_look_standing() -> None:
     world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
-    job = await world.uow.workflows.get(f.TENANT, JOB)
-    await world.uow.workflows.save(replace(job, steps=[replace(job.steps[0], cites=["gone"])]))
+
+    async def refused(*_: object, **__: object) -> WorkflowRun:
+        raise RunRefused("this job needs a value for: Customer Type")
+
+    # A job that compiles, and a press that refuses it for a reason of its own.
+    world.start.execute = refused  # type: ignore[method-assign]
 
     looked = await world.from_the_mail.execute(CTX)
 
@@ -1086,7 +1100,14 @@ async def test_an_offer_says_which_of_its_values_the_job_s_own_boxes_will_not_ho
                     system=None,
                     cites=["g"],
                     parameters=["Customer Type Description"],
-                )
+                ),
+                Step(
+                    order=1,
+                    says="type the code",
+                    system=None,
+                    cites=["g"],
+                    parameters=["Customer Type"],
+                ),
             ],
             parameters=[
                 {"name": "Customer Type", "seen_values": ["GGD"], "required": True},
@@ -2065,3 +2086,24 @@ async def test_one_operator_s_failing_look_does_not_end_the_tick() -> None:
     await world.polling(mailbox, _sure()).execute()
 
     assert len(world.durable.runs_started) == 1
+
+
+async def test_a_job_that_cannot_run_is_never_offered_from_the_mail() -> None:
+    """Only a job that compiles is offered: the model reading the mail is never
+    shown a job the runtime could not run."""
+    uow = await _held()
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_cannot",
+            tenant=f.TENANT.value,
+            title="Create a Department",
+            narrative="n",
+            steps=[Step(order=0, says="s", system=None, cites=["gone"])],
+        )
+    )
+    reads = _Reads()
+
+    await _look(uow, _Mailbox(search=_found("m-1"), **{"m-1": _mail("hi")}), reads).execute(CTX)
+
+    (saw,) = reads.saw
+    assert [one["id"] for one in json.loads(saw)["jobs"]] == [JOB]

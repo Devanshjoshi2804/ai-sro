@@ -21,7 +21,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from dataclasses import fields
+from dataclasses import fields, replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -36,6 +36,7 @@ from sro.domain.shared.prices import Answer, ModelSpend
 from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.db.codec import when
 from tests.unit.fakes import FakeAsker, FakeChatRepository, FakeClock, FakeUnitOfWork
+from tests.unit.runtime_support import save_step
 
 TENANT = TenantId("acme")
 RIVAL = TenantId("rival")
@@ -68,7 +69,7 @@ def _workflow(tenant: TenantId = TENANT) -> Workflow:
         tenant=tenant.value,
         title="create a work area",
         narrative="the operator created a work area",
-        steps=[Step(order=0, says="s", system=None, cites=["ges_1"])],
+        steps=[Step(order=0, says="s", system=None, cites=["ges_1"], parameters=["areaName"])],
         parameters=[{"name": "areaName", "seen_values": ["NEWTESTS"], "required": True}],
     )
 
@@ -96,6 +97,11 @@ def _read(
 async def _held(tenant: TenantId = TENANT) -> FakeUnitOfWork:
     uow = FakeUnitOfWork()
     await uow.workflows.save(_workflow(tenant))
+    # A cited, proven save, so the job compiles: only a runnable job is offered.
+    _, by_id = save_step(gid="ges_1")
+    await uow.gestures.add_gestures(
+        tuple(replace(one, tenant=tenant.value) for one in by_id.values())
+    )
     return uow
 
 

@@ -34,8 +34,10 @@ from sro.interface.http.deps import get_container
 from tests import factories as f
 from tests.unit.fakes import FakeAsker, FakeChatRepository, FakeClock, FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer, token_for
+from tests.unit.runtime_support import save_step
 
 TENANT = TenantId("acme")
+EIGHT = ["zone", "clientCode", "statusCombo", "areaName", "ownerCode", "dockId", "siteCode", "lane"]
 LAPTOP = DeviceId("dev-1")
 HERS = "the-secret-the-laptop-was-minted"
 
@@ -86,13 +88,17 @@ async def held(uow: FakeUnitOfWork) -> Workflow:
         tenant=TENANT.value,
         title="create a work area",
         narrative="the operator created a work area",
-        steps=[Step(order=0, says="s", system=None, cites=["ges_1"])],
+        steps=[
+            Step(order=0, says="s", system=None, cites=["ges_1"], parameters=["areaName", "zone"])
+        ],
         parameters=[
             {"name": "areaName", "seen_values": ["NEWTESTS"], "required": True},
             {"name": "zone", "seen_values": ["3"], "required": True},
         ],
     )
     await uow.workflows.save(workflow)
+    # A cited, proven save, so the job compiles: only a runnable job is offered.
+    await uow.gestures.add_gestures(tuple(save_step(gid="ges_1")[1].values()))
     return workflow
 
 
@@ -342,6 +348,7 @@ async def test_what_is_missing_comes_back_in_the_order_the_reader_sorted_it(
             tenant=TENANT.value,
             title="t",
             narrative="n",
+            steps=[Step(order=0, says="s", system=None, cites=["ges_1"], parameters=EIGHT)],
             parameters=[
                 {"name": "zone", "required": True},
                 {"name": "clientCode", "required": True},
@@ -354,6 +361,7 @@ async def test_what_is_missing_comes_back_in_the_order_the_reader_sorted_it(
             ],
         )
     )
+    await uow.gestures.add_gestures(tuple(save_step(gid="ges_1")[1].values()))
     container.asker = FakeAsker(_answer("wfl_8", []))
 
     body = (await client.post("/v1/ask", json={"said": SAID})).json()

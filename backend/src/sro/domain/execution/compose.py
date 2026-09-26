@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Literal
 
@@ -8,6 +8,7 @@ from sro.domain.execution.evidence import primary_gesture, writes
 from sro.domain.observation.gesture import Gesture, OutlineField
 from sro.domain.observation.outline import last_outline
 from sro.domain.recording.sensitivity import is_secret_field
+from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.repeats import Repeat
 from sro.domain.skill.workflow import Step, Workflow
 
@@ -42,6 +43,10 @@ class Adding:
 
 def normal(label: str) -> str:
     return " ".join(label.replace("*", " ").split()).casefold()
+
+
+def alias_map(aliases: Iterable[JobAlias]) -> dict[str, str]:
+    return {normal(one.wording): one.field for one in aliases}
 
 
 def _screens(

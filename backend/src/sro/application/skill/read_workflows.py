@@ -4,7 +4,9 @@ from dataclasses import dataclass
 
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.skill.job_facts import job_facts
 from sro.domain.execution.belts import earned_from, proven_runs
+from sro.domain.execution.compiled import Compiled
 from sro.domain.observation.gesture import Gesture
 from sro.domain.skill.workflow import Workflow, ordered_cites
 
@@ -17,6 +19,7 @@ class KnownWorkflow:
     stale: int
     earned: bool
     proven: int
+    compiled: Compiled
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,7 +41,10 @@ class ReadWorkflows:
         async with self._uow as uow:
             tallied = await uow.workflow_runs.tallies(ctx.tenant_id)
             known = []
-            for workflow in await uow.workflows.known(ctx.tenant_id):
+            for facts in await job_facts(
+                uow, ctx.tenant_id, await uow.workflows.known(ctx.tenant_id)
+            ):
+                workflow = facts.workflow
                 total, held = tallied.get(workflow.id, (0, 0))
                 proofs = await uow.workflows.proofs(ctx.tenant_id, workflow.id)
                 known.append(
@@ -49,6 +55,7 @@ class ReadWorkflows:
                         stale=await uow.workflows.stale_count(workflow.id),
                         earned=earned_from(proofs),
                         proven=proven_runs(proofs),
+                        compiled=facts.compiled,
                     )
                 )
             return tuple(known)

@@ -28,7 +28,7 @@ Code: `return cls(cost_usd=round(day.cost_usd, 6), unpriced=day.blind, cap_usd=c
 > resolution a dollar cap has -- so the rounding belongs on the way
 > out, where it is a display decision, and nowhere else.
 
-## `WorkflowModel.of`, [line 1745](../../../../../../../backend/src/sro/interface/http/schemas.py#L1745): Comment
+## `WorkflowModel.of`, [line 1758](../../../../../../../backend/src/sro/interface/http/schemas.py#L1758): Comment
 
 Code: `steps=[`
 
@@ -37,7 +37,7 @@ Code: `steps=[`
 > step list served in storage order is a job served in the wrong
 > order, and it reads as a plausible one.
 
-## `EvidenceResponse.of`, [line 1837](../../../../../../../backend/src/sro/interface/http/schemas.py#L1837): Comment
+## `EvidenceResponse.of`, [line 1855](../../../../../../../backend/src/sro/interface/http/schemas.py#L1855): Comment
 
 Code: `calls[gesture.id] = whole.pop("requests")`
 
@@ -45,7 +45,7 @@ Code: `calls[gesture.id] = whole.pop("requests")`
 > with them -- the caller proved which tenant it is to get here,
 > and echoing it back is one more field to keep true.
 
-## `LookupResponse.of`, [line 2472](../../../../../../../backend/src/sro/interface/http/schemas.py#L2472): Comment
+## `LookupResponse.of`, [line 2490](../../../../../../../backend/src/sro/interface/http/schemas.py#L2490): Comment
 
 Code: `answers=[`
 

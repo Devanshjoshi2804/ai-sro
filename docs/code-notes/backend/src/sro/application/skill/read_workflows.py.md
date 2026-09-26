@@ -52,7 +52,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/skill/read_wo
 > listing that answered "this job cites nothing" to a job that does not exist
 > would tell a caller their bridge is fine and their workflow is empty.
 
-## `KnownWorkflow`, [line 13](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L13): Docstring
+## `KnownWorkflow`, [line 15](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L15): Docstring
 
 > One workflow with what has become of it.
 >
@@ -64,7 +64,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/skill/read_wo
 > window that arrived attached to whichever job the model happened to emit,
 > and four readers took it for a property of that job.
 
-## `KnownWorkflow`, [line 19](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L19): Note on the line above
+## `KnownWorkflow`, [line 21](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L21): Note on the line above
 
 Code: `proven: int`
 
@@ -72,7 +72,7 @@ Code: `proven: int`
 > same proofs the verdict is read from, so the count and the yes cannot
 > disagree.
 
-## `CitedEvidence`, [line 23](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L23): Docstring
+## `CitedEvidence`, [line 26](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L26): Docstring
 
 > What one workflow cites, in the shape a runner's bridge consumes.
 >
@@ -88,7 +88,7 @@ Code: `proven: int`
 > gesture, so the bridge builds a plan missing a step and, without this,
 > nothing tells the caller before it runs one.
 
-## `ReadWorkflows`, [line 29](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L29): Docstring
+## `ReadWorkflows`, [line 32](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L32): Docstring
 
 > The console's list of this tenant's jobs.
 >
@@ -100,11 +100,11 @@ Code: `proven: int`
 > tenant boundary in the interface layer at the one seam where passing the
 > wrong tenant is the failure.
 
-## `ReadEvidence`, [line 57](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L57): Docstring
+## `ReadEvidence`, [line 64](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L64): Docstring
 
 > Everything one workflow cites, for the bridge that replays it.
 
-## `ReadWorkflows.one`, [line 33](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L33): Docstring
+## `ReadWorkflows.one`, [line 36](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L36): Docstring
 
 > One job, by id, with nothing counted.
 >
@@ -113,34 +113,34 @@ Code: `proven: int`
 > the question "what is this one called and what does it declare" -- asked
 > by a browser once per frame it sees a matching mail in.
 
-## `ReadWorkflows.execute`, [line 39](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L39): Comment
+## `ReadWorkflows.execute`, [line 42](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L42): Comment
 
 Code: `tallied = await uow.workflow_runs.tallies(ctx.tenant_id)`
 
 > One grouped read for the tenant, before the loop, and never one
 > per row: see the module docstring.
 
-## `ReadWorkflows.execute`, [line 42](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L42): Comment
+## `ReadWorkflows.execute`, [line 48](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L48): Comment
 
 Code: `total, held = tallied.get(workflow.id, (0, 0))`
 
 > Absent means never run, which the store's GROUP BY gives no
 > row for at all.
 
-## `ReadWorkflows.execute`, [line 43](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L43): Comment
+## `ReadWorkflows.execute`, [line 49](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L49): Comment
 
 Code: `proofs = await uow.workflows.proofs(ctx.tenant_id, workflow.id)`
 
 > Read once for both: `earned` is this count against a floor.
 
-## `ReadEvidence.execute`, [line 63](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L63): Comment
+## `ReadEvidence.execute`, [line 70](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L70): Comment
 
 Code: `workflow = await uow.workflows.get(ctx.tenant_id, workflow_id)`
 
 > Tenant-scoped, and this is the whole of the 404: a workflow of
 > somebody else's is not found rather than read.
 
-## `ReadEvidence.execute`, [line 64](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L64): Comment
+## `ReadEvidence.execute`, [line 71](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L71): Comment
 
 Code: `cited = tuple(dict.fromkeys(ordered_cites(workflow)))`
 
@@ -152,14 +152,14 @@ Code: `cited = tuple(dict.fromkeys(ordered_cites(workflow)))`
 > back on their own clock -- so this is reuse and not a guarantee.
 > `recordings` below is where the order is load-bearing.
 
-## `ReadEvidence.execute`, [line 65](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L65): Comment
+## `ReadEvidence.execute`, [line 72](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L72): Comment
 
 Code: `gestures = await uow.gestures.gestures_for(ctx.tenant_id, ids=cited) if cited else ()`
 
 > Not a null check. `gestures_for` with no ids is `IN ()` against
 > Postgres, and a workflow that cites nothing is a real row.
 
-## `ReadEvidence.execute`, [line 69](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L69): Comment
+## `ReadEvidence.execute`, [line 76](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L76): Comment
 
 Code: `recordings=tuple(dict.fromkeys(gesture.stream_id for gesture in gestures)),`
 
@@ -167,7 +167,7 @@ Code: `recordings=tuple(dict.fromkeys(gesture.stream_id for gesture in gestures)
 > and not sorted: a `Provenance` reads these as the streams a
 > job's evidence arrived on, oldest first.
 
-## `ReadEvidence.execute`, [line 70](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L70): Comment
+## `ReadEvidence.execute`, [line 77](../../../../../../../backend/src/sro/application/skill/read_workflows.py#L77): Comment
 
 Code: `missing=tuple(gid for gid in cited if gid not in held),`
 

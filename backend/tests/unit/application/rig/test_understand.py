@@ -25,6 +25,7 @@ from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.fakes import FakeAsker, FakeChatRepository, FakeUnitOfWork
+from tests.unit.runtime_support import save_step
 
 # Every parameter in this file is marked `required`, because these tests are
 # about what a sentence failed to supply for a job that needs it. Since
@@ -44,7 +45,7 @@ WFS = [
         tenant=TENANT.value,
         title="create a client",
         narrative="n",
-        steps=[Step(order=0, says="s", system=None, cites=["g"])],
+        steps=[Step(order=0, says="s", system=None, cites=["g"], parameters=["clientCode"])],
         parameters=[{"name": "clientCode", "seen_values": ["A"], "required": True}],
     )
 ]
@@ -54,7 +55,7 @@ SECOND = Workflow(
     tenant=TENANT.value,
     title="create a work area",
     narrative="n",
-    steps=[Step(order=0, says="s", system=None, cites=["g"])],
+    steps=[Step(order=0, says="s", system=None, cites=["g"], parameters=["areaName"])],
     parameters=[{"name": "areaName", "seen_values": ["NEWTESTS"], "required": True}],
 )
 
@@ -275,6 +276,8 @@ def _rows(uow: FakeUnitOfWork) -> list[ChatReading]:
 
 async def _read(*answers: Answer, workflows: list[Workflow] | None = None) -> FakeUnitOfWork:
     uow = FakeUnitOfWork()
+    # A cited, proven save, so every job compiles: only a runnable job is offered.
+    await uow.gestures.add_gestures(tuple(save_step(gid="g")[1].values()))
     for workflow in workflows if workflows is not None else WFS:
         await uow.workflows.save(workflow)
     for answer in answers:
@@ -838,3 +841,20 @@ async def test_a_job_is_still_recognised_after_it_learns_an_optional_field() -> 
     assert got.sure is True, "a job whose every demanded field was given was still ambiguous"
     assert got.workflow_id == grown.id
     assert got.missing == []
+
+
+async def test_a_job_that_cannot_run_is_never_shown_to_the_reader() -> None:
+    """Only a job that compiles is offered: the model is never shown one it
+    could pick and the runtime could not run."""
+    uow = FakeUnitOfWork()
+    step, by_id = save_step()
+    await uow.gestures.add_gestures(tuple(by_id.values()))
+    runs = Workflow(id="wfl_runs", tenant=TENANT.value, title="t", narrative="n", steps=[step])
+    await uow.workflows.save(runs)
+    await uow.workflows.save(replace(runs, id="wfl_cannot", steps=[replace(step, cites=["gone"])]))
+    asker = FakeAsker(_answer("wfl_runs", []))
+
+    await read_utterance(uow, tenant_id=TENANT, utterance="s", asker=asker, model="m", now=NOW)
+
+    jobs = json.loads(str(asker.asked[0]["evidence"]))["jobs"]
+    assert [one["id"] for one in jobs] == ["wfl_runs"]

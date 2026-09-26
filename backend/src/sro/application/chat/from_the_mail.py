@@ -30,6 +30,7 @@ from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.application.runtime.answer_run import K_ANSWER, AnswerRun
 from sro.application.shared.refusals import OverCap
+from sro.application.skill.job_facts import runnable_jobs
 from sro.domain.chat.asked_by import mails_behind, texts
 from sro.domain.chat.asking import NEEDS, Pending, question, waiting_on_mail
 from sro.domain.chat.thread import Said, Speaker
@@ -153,14 +154,12 @@ class FromTheMail:
             workflows = list(await uow.workflows.known(ctx.tenant_id))
             if not workflows:
                 return LookedInTheMail(why="this tenant has no mined jobs to recognise")
-            cited = await uow.gestures.gestures_for(
-                ctx.tenant_id,
-                ids=tuple(
-                    sorted({one for w in workflows for step in w.steps for one in step.cites})
-                ),
-            )
-        by_id = {gesture.id: gesture for gesture in cited}
-        asked_by = {w.id: mails for w in workflows if (mails := texts(mails_behind(w, by_id)))}
+            facts = await runnable_jobs(uow, ctx.tenant_id, workflows)
+        asked_by = {
+            one.workflow.id: mails
+            for one in facts
+            if (mails := texts(mails_behind(one.workflow, one.by_id)))
+        }
         titles = {w.id: w.title for w in workflows}
         held = {w.id: w for w in workflows}
 
@@ -172,7 +171,7 @@ class FromTheMail:
         offered: list[Offered] = []
         look = _Look()
         reach = _Reach()
-        known = _Known(workflows, asker, asked_by, titles, held)
+        known = _Known([one.workflow for one in facts], asker, asked_by, titles, held)
         tenant = ctx.tenant_id.value
         async for message in self._unclaimed(ctx, arrivals, more, limit, now=now, reach=reach):
             try:

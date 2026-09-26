@@ -1714,6 +1714,14 @@ class WorkflowStepModel(BaseModel):
     parameters: list[str]
 
 
+class ReasonModel(BaseModel):
+    """One reason a job cannot run: what is missing, and at which step (None for the job)."""
+
+    code: str
+    step: int | None
+    detail: str
+
+
 class WorkflowModel(BaseModel):
     id: str
     title: str
@@ -1731,6 +1739,11 @@ class WorkflowModel(BaseModel):
 
     steps: list[WorkflowStepModel]
     runs: WorkflowHistoryModel
+    runnable: bool
+    """Whether the compile check passes. Only a runnable job is offered to a request."""
+
+    reasons: list[ReasonModel]
+    """Why it cannot run, empty when it can."""
 
     @classmethod
     def of(cls, known: KnownWorkflow) -> WorkflowModel:
@@ -1760,6 +1773,11 @@ class WorkflowModel(BaseModel):
                 proven=known.proven,
                 needed=K_EARNED_RUNS,
             ),
+            runnable=known.compiled.runnable,
+            reasons=[
+                ReasonModel(code=one.code, step=one.step, detail=one.detail)
+                for one in known.compiled.reasons
+            ],
         )
 
 

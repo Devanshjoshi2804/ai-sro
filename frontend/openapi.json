@@ -27840,6 +27840,37 @@
         ],
         "title": "PursuitProgressModel"
       },
+      "ReasonModel": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "step",
+          "detail"
+        ],
+        "title": "ReasonModel",
+        "description": "One reason a job cannot run: what is missing, and at which step (None for the job)."
+      },
       "RecordOfferRequest": {
         "properties": {
           "workflow_id": {
@@ -30128,6 +30159,17 @@
           },
           "runs": {
             "$ref": "#/components/schemas/WorkflowHistoryModel"
+          },
+          "runnable": {
+            "type": "boolean",
+            "title": "Runnable"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/ReasonModel"
+            },
+            "type": "array",
+            "title": "Reasons"
           }
         },
         "type": "object",
@@ -30139,7 +30181,9 @@
           "pass_id",
           "parameters",
           "steps",
-          "runs"
+          "runs",
+          "runnable",
+          "reasons"
         ],
         "title": "WorkflowModel"
       },

@@ -3513,6 +3513,18 @@ export interface components {
             skill_id: string;
         };
         /**
+         * ReasonModel
+         * @description One reason a job cannot run: what is missing, and at which step (None for the job).
+         */
+        ReasonModel: {
+            /** Code */
+            code: string;
+            /** Step */
+            step: number | null;
+            /** Detail */
+            detail: string;
+        };
+        /**
          * RecordOfferRequest
          * @description What a browser showed, and what became of it.
          *
@@ -4518,6 +4530,10 @@ export interface components {
             /** Steps */
             steps: components["schemas"]["WorkflowStepModel"][];
             runs: components["schemas"]["WorkflowHistoryModel"];
+            /** Runnable */
+            runnable: boolean;
+            /** Reasons */
+            reasons: components["schemas"]["ReasonModel"][];
         };
         /**
          * WorkflowRunModel

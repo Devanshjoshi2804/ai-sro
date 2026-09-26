@@ -14,7 +14,7 @@ FRONTEND := cd frontend &&
 
 .DEFAULT_GOAL := help
 .PHONY: help up down ps logs reset install migrate revision api worker status web vault-key one-whole-run \
-        lint lint-backend check-code-notes lint-frontend format test test-unit test-integration \
+        lint lint-backend recipe check-code-notes lint-frontend format test test-unit test-integration \
         test-replay record-histories \
         test-contract test-browser types check ingest-kb gen-recorder \
         mutants-backend images smoke gen-deployment migrate-vault-keys \
@@ -167,6 +167,9 @@ lint-backend: ## ruff + mypy --strict + import-linter
 	$(BACKEND) uv run ruff format --check .
 	$(BACKEND) uv run mypy src tests
 	$(BACKEND) uv run lint-imports
+
+recipe: ## A job's compiled view, for reading (never an import format): make recipe job=wfl_… tenant=acme
+	$(BACKEND) uv run python scripts/recipe.py --tenant $(tenant) --job $(job)
 
 check-code-notes: ## docs/code-notes/ anchors still point at the line they name
 	$(BACKEND) uv run python scripts/check_code_notes.py

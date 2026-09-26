@@ -9,12 +9,12 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > it, from the outline stored with that write's gesture (E6). The outline holds
 > labels, roles, required flags and options, never values.
 
-## `SELECTS`, [line 14](../../../../../../../backend/src/sro/domain/execution/compose.py#L14): Constant
+## `SELECTS`, [line 15](../../../../../../../backend/src/sro/domain/execution/compose.py#L15): Constant
 
 > The roles that are chosen, not typed: a combobox or listbox gets `select`,
 > anything else gets `type` (spec §6.6 step 2).
 
-## `normal`, [line 43](../../../../../../../backend/src/sro/domain/execution/compose.py#L43): Docstring
+## `normal`, [line 44](../../../../../../../backend/src/sro/domain/execution/compose.py#L44): Docstring
 
 > The exact-label rule. A name matches a label only after normalising case,
 > spacing and a required star, nothing more. Finding a field from other wording
@@ -22,7 +22,7 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > fill the wrong control on a live system, so anything short of an exact match is
 > asked, never inferred.
 
-## `compose`, [line 62](../../../../../../../backend/src/sro/domain/execution/compose.py#L62): Docstring
+## `compose`, [line 67](../../../../../../../backend/src/sro/domain/execution/compose.py#L67): Docstring
 
 > A name is composed only when it has a value, no step already names it, it is
 > not a credential name (`is_secret_field`: a password is never typed into a
@@ -30,7 +30,7 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > step's last outline. No label, or more than one, is an `Unplaced` the run asks
 > about with every label it saw; it is never guessed.
 
-## `keyed`, [line 87](../../../../../../../backend/src/sro/domain/execution/compose.py#L87): Docstring
+## `keyed`, [line 92](../../../../../../../backend/src/sro/domain/execution/compose.py#L92): Docstring
 
 > The pairing rule for the save call's new body keys (spec §6.6.4, X10a review
 > I1/I2). `extra` is the keys the recorded body lacks, each with the value sent.
@@ -47,7 +47,7 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > `unknown` even when the write is `done`: a fill alone never confirms anything
 > (spec §6.2), only the write's own call does.
 
-## `with_field`, [line 99](../../../../../../../backend/src/sro/domain/execution/compose.py#L99): Docstring
+## `with_field`, [line 104](../../../../../../../backend/src/sro/domain/execution/compose.py#L104): Docstring
 
 > Learning a confirmed field: the step goes in at the write's order, and every
 > later step, its `uses` and the repeat bounds shift by one. `moved` maps every
@@ -61,3 +61,9 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > learned step is dropped. Its parameter stays, and the next run with that value
 > composes it again from the outline. Upgrade path: carry learned field steps
 > through re-derivation as their own kind of step.
+
+## `alias_map`, [line 48](../../../../../../../backend/src/sro/domain/execution/compose.py#L48): Docstring
+
+> A job's aliases as `normal(wording) -> field`, so a required parameter named
+> in a request's words binds to the field a step fills. Keyed by `normal`,
+> the same folding the composer matches labels with.

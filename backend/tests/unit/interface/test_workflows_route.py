@@ -450,6 +450,8 @@ async def test_a_mined_job_reaches_the_wire_whole(
             },
         ],
         "runs": {"total": 0, "held": 0, "stale": 0, "earned": False, "proven": 0, "needed": 3},
+        "runnable": True,
+        "reasons": [],
     }
 
 
@@ -999,3 +1001,31 @@ async def test_a_browser_may_not_retire_a_job(
 
     assert answered.status_code == 403
     assert (await _listed(client)).json()["workflows"][0]["id"] == JOB
+
+
+async def test_a_job_that_cannot_run_says_why_on_the_wire(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The compile check's reasons reach the console's job page."""
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_cannot",
+            tenant="acme",
+            title="t",
+            narrative="n",
+            steps=[Step(order=0, says="s", system=None, cites=["gone"])],
+            parameters=[{"name": "Department", "required": True}],
+        )
+    )
+
+    (row,) = (await _listed(client)).json()["workflows"]
+
+    assert row["runnable"] is False
+    assert row["reasons"] == [
+        {
+            "code": "unbound_parameter",
+            "step": None,
+            "detail": "Department is required and no step fills it",
+        },
+        {"code": "no_lane", "step": 0, "detail": "no evidence can run it"},
+    ]

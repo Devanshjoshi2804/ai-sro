@@ -8,6 +8,7 @@ from types import MappingProxyType
 
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.skill.job_facts import runnable_jobs
 from sro.domain.chat.asked_by import mails_behind, texts
 from sro.domain.chat.reading import INSTRUCTIONS, UNDERSTAND_SCHEMA, ChatReading, new_chat_id
 from sro.domain.shared.identifiers import TenantId
@@ -152,12 +153,9 @@ async def read_utterance(
     model: str,
     now: datetime,
 ) -> Understood:
-    workflows = list(await uow.workflows.known(tenant_id))
-    cited = await uow.gestures.gestures_for(
-        tenant_id, ids=tuple(sorted({one for w in workflows for s in w.steps for one in s.cites}))
-    )
-    by_id = {gesture.id: gesture for gesture in cited}
-    asked_by = {w.id: texts(mails_behind(w, by_id)) for w in workflows}
+    facts = await runnable_jobs(uow, tenant_id, await uow.workflows.known(tenant_id))
+    workflows = [one.workflow for one in facts]
+    asked_by = {one.workflow.id: texts(mails_behind(one.workflow, one.by_id)) for one in facts}
     got = await understand(
         utterance, workflows, asker, model, {w: said for w, said in asked_by.items() if said}
     )

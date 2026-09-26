@@ -16,12 +16,12 @@ async def test_an_answer_that_breaks_its_schema_is_no_answer() -> None:
     got = await ask(asker, WRITE_MAIL, trusted={"job": "x"}, untrusted={"conversation": "y"})
 
     assert got.data is None
-    assert got.error is not None and "write_mail v1" in got.error
+    assert got.error is not None and "write_mail v2" in got.error
     assert got.cost_usd == 0.01
 
 
 async def test_the_record_decides_model_thinking_instructions_and_schema() -> None:
-    asker = FakeAsker(Answer(data={"to": "", "subject": "", "body": "b"}))
+    asker = FakeAsker(Answer(data={"to": "", "subject": "", "body": "b", "cited": []}))
 
     got = await ask(asker, WRITE_MAIL, trusted={}, untrusted={"conversation": "hello"})
 
@@ -30,7 +30,7 @@ async def test_the_record_decides_model_thinking_instructions_and_schema() -> No
     assert asked["instructions"] == WRITE_MAIL.instructions
     assert asked["schema"] == dict(WRITE_MAIL.output_schema)
     assert '<untrusted name="conversation">' in str(asked["evidence"])
-    assert got.data == {"to": "", "subject": "", "body": "b"}
+    assert got.data == {"to": "", "subject": "", "body": "b", "cited": []}
 
 
 def _job(title: str, parameters: list[object]) -> dict[str, object]:

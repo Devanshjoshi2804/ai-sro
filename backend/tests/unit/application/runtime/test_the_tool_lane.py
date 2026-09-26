@@ -11,8 +11,27 @@ from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.runtime_support import _answer, _sent, lane_context, mail_send_step, write_ok
 
 
-async def write_unwritten(workflow: Workflow, values: object, thread: str) -> Written | str:
+async def write_unwritten(
+    workflow: Workflow, values: object, thread: str, by_id: object
+) -> Written | str:
     return "no addressee found"
+
+
+async def test_the_writer_is_given_the_evidence_the_job_was_shown_with() -> None:
+    seen: list[object] = []
+
+    async def write(
+        workflow: Workflow, values: object, thread: str, by_id: object
+    ) -> Written | str:
+        seen.append(by_id)
+        return "no addressee found"
+
+    lane = ToolLane(lambda ctx: MailHand(write=write, send=lambda m: _sent([], m, "msg-1")))
+    step, by_id = mail_send_step()
+
+    await lane.execute(step, {}, lane_context(by_id, held=None))
+
+    assert seen == [by_id]
 
 
 async def test_a_step_that_sends_nothing_never_left() -> None:

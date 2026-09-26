@@ -15,12 +15,10 @@ from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.application.shared.asking import ask
 from sro.domain.chat.thread import Speaker
-from sro.domain.execution.mail_job import (
-    addresses_in,
-    recipient_allowed,
-)
+from sro.domain.execution.mail_job import check_draft, sent_to
 from sro.domain.execution.waiting import read_wait
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.observation.gesture import Gesture
 from sro.domain.prompts.write_mail import WRITE_MAIL
 from sro.domain.shared.identifiers import PrincipalId
 from sro.domain.skill.workflow import Workflow
@@ -49,19 +47,19 @@ async def write_the_mail(
     values: Mapping[str, str],
     thread: str,
     *,
+    by_id: Mapping[str, Gesture],
     tools: ToolCaller,
     asker: Asker,
 ) -> Written | str:
     conversation = await _conversation(ctx, tools, thread) if thread else []
-    known = addresses_in(values.values()) | addresses_in(
-        str(one.get("from") or "") for one in conversation
-    )
+    sent_before = sent_to(workflow, by_id)
     written = await ask(
         asker,
         WRITE_MAIL,
         trusted={
             "job": workflow.title,
             "operator": ctx.principal_id.value,
+            "sent_before": sorted(sent_before),
         },
         untrusted={
             "what_it_does": workflow.narrative,
@@ -74,7 +72,10 @@ async def write_the_mail(
             "conversation": json.dumps(
                 [
                     {
+                        "id": str(one.get("id") or ""),
                         "from": str(one.get("from") or ""),
+                        "to": str(one.get("to") or ""),
+                        "cc": str(one.get("cc") or ""),
                         "subject": str(one.get("subject") or ""),
                         "body": str(one.get("body") or "")[:K_BODY],
                     }
@@ -90,12 +91,17 @@ async def write_the_mail(
     body = str(data.get("body") or "").strip()
     if not body:
         return f"the mail could not be written: {written.error or 'the model said nothing'}"
-    if not recipient_allowed(to, known):
-        return (
-            "the mail is written but names nobody this job was given to send it to"
-            + (f" ({to})" if to else "")
-            + " -- start it from the mail it answers, or give it a recipient"
-        )
+    cited = data.get("cited")
+    why = check_draft(
+        to=to,
+        body=body,
+        cited=[one for one in cited if isinstance(one, Mapping)] if isinstance(cited, list) else [],
+        conversation=conversation,
+        values=values,
+        sent_before=sent_before,
+    )
+    if why:
+        return f"{why} -- nothing was sent; say who it goes to and what it says"
     latest = conversation[-1] if conversation else {}
     return Written(
         to=to,
@@ -146,7 +152,9 @@ async def send_the_mail(
 
 @dataclass(frozen=True, slots=True)
 class MailHand:
-    write: Callable[[Workflow, Mapping[str, str], str], Awaitable[Written | str]]
+    write: Callable[
+        [Workflow, Mapping[str, str], str, Mapping[str, Gesture]], Awaitable[Written | str]
+    ]
     send: Callable[[Written], Awaitable[tuple[str, str]]]
 
 
@@ -154,6 +162,7 @@ async def draft_the_mail_job(
     ctx: RequestContext,
     run: WorkflowRun,
     workflow: Workflow,
+    by_id: Mapping[str, Gesture],
     *,
     uow: UnitOfWork,
     tools: ToolCaller,
@@ -163,7 +172,9 @@ async def draft_the_mail_job(
 ) -> WorkflowRun:
     waiting = read_wait(run.awaiting) if run.awaiting else None
     thread = waiting.thread if waiting else ""
-    written = await write_the_mail(ctx, workflow, run.values, thread, tools=tools, asker=asker)
+    written = await write_the_mail(
+        ctx, workflow, run.values, thread, by_id=by_id, tools=tools, asker=asker
+    )
     if isinstance(written, str):
         return await _stop(uow, run, written)
 

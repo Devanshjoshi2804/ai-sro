@@ -403,6 +403,8 @@ def _thread(token: str, arguments: dict[str, Any]) -> str:
                 "id": one.get("id", ""),
                 "rfc822_message_id": head.get("message-id", ""),
                 "from": head.get("from", ""),
+                "to": head.get("to", ""),
+                "cc": head.get("cc", ""),
                 "date": head.get("date", ""),
                 "subject": head.get("subject", ""),
                 "body": _body_of(payload),

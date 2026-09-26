@@ -53,6 +53,7 @@ from sro.domain.execution.workflow_run import (
 )
 from sro.domain.execution.write_plan import begins_again_at, seen_values
 from sro.domain.knowledge.entry import EntryKind
+from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.errors import Conflict, DomainError, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId
 from sro.domain.skill.learned import demanded, offerable
@@ -280,14 +281,16 @@ class StartWorkflowRun:
             await uow.commit()
             return run
 
-    async def _a_mail_job(self, ctx: RequestContext, run: WorkflowRun) -> Workflow | None:
+    async def _a_mail_job(
+        self, ctx: RequestContext, run: WorkflowRun
+    ) -> tuple[Workflow, dict[str, Gesture]] | None:
         async with self._uow as uow:
             workflow = await uow.workflows.get(ctx.tenant_id, run.workflow_id)
             cited = await uow.gestures.gestures_for(
                 ctx.tenant_id, ids=tuple(ordered_cites(workflow))
             )
         by_id = {gesture.id: gesture for gesture in cited}
-        return workflow if is_mail_only(workflow, by_id) else None
+        return (workflow, by_id) if is_mail_only(workflow, by_id) else None
 
     async def start_on_steel(self, ctx: RequestContext, run: WorkflowRun) -> bool:
         try:
@@ -324,7 +327,8 @@ class StartWorkflowRun:
                 await draft_the_mail_job(
                     ctx,
                     run,
-                    mail,
+                    mail[0],
+                    mail[1],
                     uow=self._uow,
                     tools=self._gather.tools,
                     asker=asker,
@@ -461,9 +465,14 @@ class StartWorkflowRun:
         tools = self._gather.tools
 
         async def write(
-            workflow: Workflow, values: Mapping[str, str], thread: str
+            workflow: Workflow,
+            values: Mapping[str, str],
+            thread: str,
+            by_id: Mapping[str, Gesture],
         ) -> Written | str:
-            return await write_the_mail(ctx, workflow, values, thread, tools=tools, asker=asker)
+            return await write_the_mail(
+                ctx, workflow, values, thread, by_id=by_id, tools=tools, asker=asker
+            )
 
         async def send(mail: Written) -> tuple[str, str]:
             return await send_the_mail(ctx, self._uow, tools, mail, clock=self._clock)

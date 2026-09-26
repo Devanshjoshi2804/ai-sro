@@ -102,6 +102,34 @@ def test_a_conversation_carries_each_mail_s_own_id() -> None:
     assert one["id"] == "1a0b5053"
 
 
+def test_a_conversation_says_who_each_mail_went_to() -> None:
+    """A draft may go only to the conversation's participants, and a
+    participant is a recipient as much as a sender."""
+    module = _connector()
+    module.httpx = _Answers(
+        {
+            "id": "t-1",
+            "messages": [
+                {
+                    "id": "1a0b5053",
+                    "payload": {
+                        "headers": [
+                            {"name": "From", "value": "asker@example.com"},
+                            {"name": "To", "value": "ops@example.com"},
+                            {"name": "Cc", "value": "lead@example.com"},
+                        ],
+                        "body": {},
+                    },
+                }
+            ],
+        }
+    )
+
+    (one,) = json.loads(module._thread("token", {"id": "t-1"}))["messages"]
+
+    assert (one["to"], one["cc"]) == ("ops@example.com", "lead@example.com")
+
+
 class _Answers:
     """`httpx`, answering one body. The connector calls `httpx.get` directly."""
 

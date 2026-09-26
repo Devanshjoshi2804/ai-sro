@@ -22,7 +22,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/execution/mail_job
 > Pure: what counts as a mail job and who may be written to. What the model
 > is asked is the `WRITE_MAIL` record, in `sro.domain.prompts.write_mail`. The reading, the drafting and the sending are the application's.
 
-## module, [line 11](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L11): Note on the line above
+## module, [line 12](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L12): Note on the line above
 
 Code: `MAILBOXES = frozenset({"mail.google.com"})`
 
@@ -30,14 +30,14 @@ Code: `MAILBOXES = frozenset({"mail.google.com"})`
 > `origin_of` answers, scheme and all left off. One, because the connector is
 > Gmail's; a second provider is a second connector before it is a line here.
 
-## module, [line 42](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L42): Note on the line above
+## module, [line 43](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L43): Note on the line above
 
 Code: `MAILBOX_HOSTS = frozenset({"mail.google.com", "outlook.office.com", "outlook.live.com"})`
 
 > Every mailbox a person reads requests in. Wider than `MAILBOXES`, which is
 > only the one the connector can also write through.
 
-## `is_mail_only`, [line 14](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L14): Docstring
+## `is_mail_only`, [line 15](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L15): Docstring
 
 > Whether every step of this job happened in the mailbox.
 >
@@ -46,7 +46,7 @@ Code: `MAILBOX_HOSTS = frozenset({"mail.google.com", "outlook.office.com", "outl
 > a sign-in, a warehouse screen -- is not a mail job: its mail half is read
 > by the gather rung, and the rest is a page that has to be driven.
 
-## `sends_mail`, [line 30](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L30): Docstring
+## `sends_mail`, [line 31](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L31): Docstring
 
 > Whether this step pressed a mailbox's Send button.
 >
@@ -59,21 +59,45 @@ Code: `MAILBOX_HOSTS = frozenset({"mail.google.com", "outlook.office.com", "outl
 > that sends one, clicked a button named `Send (⌘Enter)`, and no other
 > mailbox step did.
 
-## `on_the_mailbox`, [line 38](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L38): Docstring
+## `on_the_mailbox`, [line 39](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L39): Docstring
 
 > Whether this happened on a mailbox's own page -- by where it happened,
 > not by the system it was filed under. `Log in to Google Account` is filed
 > under the mailbox and types its password on `accounts.google.com`.
 
-## `addresses_in`, [line 56](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L56): Docstring
+## `addresses_in`, [line 57](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L57): Docstring
 
 > Every email address named anywhere in these, lowercased.
 
-## `recipient_allowed`, [line 60](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L60): Docstring
+## `participants`, [line 66](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L66): Docstring
 
-> Whether every address the model put in `to` was already on the page.
+> Everyone a conversation's headers name: each message's sender and its `to`
+> and `cc`. Headers, never bodies -- an address a message's text names is the
+> sender's say-so, and mail text is untrusted.
+
+## `sent_to`, [line 72](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L72): Docstring
+
+> The addresses this job's own evidence sent to when it was demonstrated: what
+> the operator typed into a mailbox's To, Cc or Bcc field (Gmail names them
+> `To recipients`, Outlook `To`) in a gesture a step of the job cites.
 >
-> A mail sent to an address nobody gave is the one mistake this job cannot
-> take back, so the rule is the evidence's: an address in the run's values
-> or in the conversation being answered, and nothing else. `to` may list
-> several; every one of them has to pass.
+> Only the recipient field. A search box, the body, a page off the mailbox and
+> a secret field all carry addresses nobody sent to. The send call's own body
+> is not read either: Gmail's reply carries the quoted mail it answers, so an
+> address the asker wrote would read as one the operator sent to.
+>
+> Ceiling: a recipient picked from Gmail's suggestions after typing a part of
+> it (`de` then a click on the contact) is not seen, because neither gesture
+> carries the address -- that job asks. Reading the chosen chip is the upgrade.
+
+## `check_draft`, [line 89](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L89): Docstring
+
+> `""` when the draft may go, else why not.
+>
+> `to` names at least one address and only participants or addresses the job
+> was demonstrated sending to. Each citation names a message whose body says
+> its value; one that does not is a model claiming what the thread did not
+> say, and refuses the whole draft. Every value-like token in the body -- an
+> address, or a token with a digit in it -- is a whole token of a cited value
+> or of one of the run's values (which include its read results). A piece of
+> one does not count: `44` is not proven by `PO-4411`.

@@ -183,7 +183,7 @@ Code: `SCOPES = [`
 > replies to holds them, and which mail that is, is a fact Gmail already
 > knows. Searching for it is guessing at something nobody has to guess at.
 
-## `Connector`, [line 437](../../../../backend/gmail-connector/server.py#L437): Docstring
+## `Connector`, [line 439](../../../../backend/gmail-connector/server.py#L439): Docstring
 
 > The MCP half: greet, hand out a session, then answer calls.
 >
@@ -244,7 +244,7 @@ Code: `"rfc822_message_id": head.get("message-id", ""),`
 > sent arrived in the recipient's mailbox as a NEW
 > conversation, not under the request it was answering.
 
-## `_send`, [line 419](../../../../backend/gmail-connector/server.py#L419): Comment
+## `_send`, [line 421](../../../../backend/gmail-connector/server.py#L421): Comment
 
 Code: `within = str(arguments.get("thread_id", "")).strip()`
 
@@ -256,7 +256,7 @@ Code: `within = str(arguments.get("thread_id", "")).strip()`
 > `In-Reply-To` header is what every OTHER mail client uses, and without it
 > the person who receives this sees an orphan.
 
-## `Connector.do_POST`, [line 475](../../../../backend/gmail-connector/server.py#L475): Comment
+## `Connector.do_POST`, [line 477](../../../../backend/gmail-connector/server.py#L477): Comment
 
 Code: `bearer = self.headers.get("Authorization", "").removeprefix("Bearer ").strip()`
 
@@ -265,7 +265,7 @@ Code: `bearer = self.headers.get("Authorization", "").removeprefix("Bearer ").st
 > is the first thing that would. An unknown bearer reaches no
 > grant, so it reaches no mail.
 
-## `Connector.do_POST`, [line 513](../../../../backend/gmail-connector/server.py#L513): Comment
+## `Connector.do_POST`, [line 515](../../../../backend/gmail-connector/server.py#L515): Comment
 
 Code: `print(f"  ! {refused}")`
 
@@ -273,7 +273,7 @@ Code: `print(f"  ! {refused}")`
 > treats "it refused" and "there was nothing to ask" differently,
 > and both arriving as an exception would collapse them.
 
-## module, [line 563](../../../../backend/gmail-connector/server.py#L563): Inline
+## module, [line 565](../../../../backend/gmail-connector/server.py#L565): Inline
 
 Code: `_client()`
 
@@ -286,3 +286,11 @@ Code: `_client()`
 > kept in `MAILBOXES` for the life of the process: an address does not change
 > under a grant, and each message would otherwise cost a second request. A
 > failed read is not kept, so the next message tries again.
+
+## `_thread`, [line 406](../../../../backend/gmail-connector/server.py#L406): Comment
+
+Code: `"to": head.get("to", ""),`
+
+> Who each mail went to, `to` and `cc` both. A draft may go only to the
+> conversation's participants, and a participant is a recipient as much as a
+> sender -- with `from` alone, everyone but the senders was invisible.

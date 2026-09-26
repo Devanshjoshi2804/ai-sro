@@ -80,7 +80,9 @@ class FillField:
         if composed.action == "select":
             live = await self._driver.outline(held.session, held.target_id, frame_path)
             options = _options(live, composed)
-            same = [one for one in options if one.casefold() == value.strip().casefold()]
+            same = [one for one in options if one == value.strip()] or [
+                one for one in options if one.casefold() == value.strip().casefold()
+            ]
             if options and len(same) != 1:
                 return Filled(None, "ambiguous" if same else "no_option", options=options)
             value = same[0] if same else value

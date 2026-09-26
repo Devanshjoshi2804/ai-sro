@@ -25,10 +25,12 @@ Type", with its evidence.
 
 `steel_run` builds a whole Steel run for `RunSteps`: the run, its job and
 gestures and a recorded sign-in in a `FakeUnitOfWork`, a real `SessionBroker`
-on fakes, and an executor over four `RecordingLane`s. It runs with `values`
-(or a given `job`); its `fill` is a `ScriptedFill` answering each field fill
-from `answers`, and `progress()`, `job()` and `learned()` read back the run's
-progress, the stored job and its learned locators.
+on fakes, and an executor over four `RecordingLane`s. The job has the shape
+mining gives it -- no declared parameter that no step can fill -- and runs with
+`values`, by default a value for each declared parameter (or a given `job`);
+its `fill` is a `ScriptedFill` answering each field fill from `answers`, and
+`progress()`, `job()` and `learned()` read back the run's progress, the stored
+job and its learned locators.
 
 For the executor, `RecordingLane` answers scripted results and counts its
 calls (`no_tool`, `no_api` and `never` are lanes the step must not reach),
@@ -78,6 +80,7 @@ from sro.domain.observation.gesture import (
 )
 from sro.domain.shared.hosts import origin_of
 from sro.domain.shared.identifiers import PrincipalId, TenantId
+from sro.domain.skill.checks import undeliverable
 from sro.domain.skill.signing_in import sign_in_chain
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.fakes import (
@@ -804,7 +807,7 @@ async def steel_run(
     live: bool = True,
     run_id: str = "run_a",
     recorded_sign_in: bool = True,
-    values: Mapping[str, str] = MappingProxyType({"Customer Type": "GT1"}),
+    values: Mapping[str, str] | None = None,
     job: Workflow | None = None,
 ) -> SteelRun:
     uow, driver, clock, vault = (
@@ -813,12 +816,18 @@ async def steel_run(
         FakeClock(NOW),
         FakeCredentialVault(),
     )
-    job = job or replace(
-        _WORKFLOW, steps=[replace(step, order=n) for n, (step, _) in enumerate(steps)]
-    )
     by_id = {
         one: replace(seen, tenant=_TENANT) for _, cited in steps for one, seen in cited.items()
     }
+    if job is None:
+        job = replace(
+            _WORKFLOW, steps=[replace(step, order=n) for n, (step, _) in enumerate(steps)]
+        )
+        kept = set(undeliverable(job, by_id))
+        job.parameters = [one for one in job.parameters if one["name"] not in kept]
+    if values is None:
+        declared = {str(one["name"]) for one in job.parameters}
+        values = {name: "GT1" for name in ("Customer Type",) if name in declared}
     await uow.workflows.save(job)
     await uow.gestures.add_gestures(tuple(by_id.values()))
     if recorded_sign_in:

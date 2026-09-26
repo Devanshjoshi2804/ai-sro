@@ -187,6 +187,24 @@ async def test_the_operators_value_is_the_outlines_own_option_label() -> None:
     assert driver.waited_for[-1]["expect"] == {"value": "Operations"}
 
 
+async def test_an_option_named_exactly_is_the_one_chosen_though_another_differs_by_case() -> None:
+    twice = {"fields": [{"role": "combobox", "label": "Department", "options": ["IT", "It"]}]}
+    driver = scripted_driver(
+        resolved=PageAnswer(ok=True, candidates=1, matched_by="within_role_name"),
+        answer=PageAnswer(ok=True, matched_by="within_role_name", pin="p1"),
+        outline=twice,
+        holds=True,
+    )
+    write, by_id = save_step(status=201)
+
+    filled = await FillField(driver, None).fill(
+        _field(write.order), "It", write, lane_context(by_id)
+    )
+
+    assert filled.lane is Lane.UI
+    assert driver.acted[-1][2]["value"] == "It"
+
+
 async def test_two_options_equal_but_for_case_are_asked_not_picked() -> None:
     twice = {"fields": [{"role": "combobox", "label": "Department", "options": ["IT", "It"]}]}
     driver = scripted_driver(
@@ -426,3 +444,94 @@ async def test_a_learned_field_with_no_value_is_passed_over() -> None:
 def test_a_malformed_composed_list_is_refused_like_any_other_progress() -> None:
     with pytest.raises(ValueError, match="composed"):
         Progress.of({"composed": [json.dumps({"name": "x"})]})
+
+
+async def test_options_equal_but_for_case_are_offered_as_the_options() -> None:
+    world = await steel_run(
+        steps=[save_step(status=201, outline=Outline(fields=(DEPARTMENT,)))],
+        values={"department": "it"},
+    )
+    world.fill.answers(Filled(None, "ambiguous", options=("IT", "It")))
+    await _started(world)
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert json.loads(world.progress().asking["choices"]) == ["IT", "It"]
+    await world.answer(outcome.asking, value="It")
+    assert (await world.saved_run()).values["department"] == "It"
+
+
+async def test_a_duplicate_label_is_answered_by_the_choice_that_tells_it_apart() -> None:
+    fields = (OutlineField("combobox", "Department"), OutlineField("textbox", "Department"))
+    world = await steel_run(
+        steps=[save_step(status=201, outline=Outline(fields=fields))],
+        values={"department": "Finance"},
+    )
+    await _started(world)
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    await world.answer(outcome.asking, value="Department (textbox)")
+
+    (field,) = world.progress().composed
+    assert (field["label"], field["role"]) == ("Department", "textbox")
+
+
+async def test_a_save_that_did_not_carry_the_field_says_so_in_its_own_row() -> None:
+    world = await steel_run(
+        steps=[save_step(status=201, outline=Outline(fields=(DEPARTMENT,)))],
+        values={"department": "Finance"},
+    )
+    world.fill.answers(Filled(Lane.UI, held="Finance"))
+    world.lanes.ui.answers(StepResult("done", Lane.UI))
+    await _started(world)
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    rows = [(one.says, one.verdict) for one in (await world.saved_run()).steps]
+    assert ("Fill Department", "unclear") in rows
+
+
+async def test_a_learned_field_that_cannot_be_filled_may_be_left_out() -> None:
+    world = await _a_learned_field({"department": "Operations"})
+    world.fill.answers(Filled(None, detail="the control did not take the value"))
+    world.lanes.ui.answers(StepResult("done", Lane.UI))
+
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    assert world.progress().asking["kind"] == "field"
+    await world.answer(outcome.asking, value="")
+    for _ in range(2):
+        await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert "department" not in (await world.saved_run()).values
+    assert world.lanes.ui.calls == 1
+
+
+async def test_a_learned_field_is_filled_again_when_its_save_is_tried_again() -> None:
+    world = await _a_learned_field({"department": "Operations"})
+    world.fill.answers(Filled(Lane.UI, held="Operations"), Filled(Lane.UI, held="Operations"))
+    world.lanes.ui.answers(
+        StepResult("failed", Lane.UI, "the page reloaded", never_left=True),
+        StepResult("done", Lane.UI, keyed={"department": "department"}),
+    )
+    world.lanes.sight.answers(StepResult("failed", Lane.SIGHT, "the page reloaded"))
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    asked = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    await world.answer(asked.asking)
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert len(world.fill.filled) == 2
+    assert await world.run_steps.finish(CTX, world.run_id) == "held"
+
+
+async def test_a_learned_field_that_failed_is_tried_again_when_the_operator_chooses_it() -> None:
+    world = await _a_learned_field({"department": "Operations"})
+    world.fill.answers(
+        Filled(None, detail="the control did not take the value"), Filled(Lane.UI, held="x")
+    )
+
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    await world.answer(outcome.asking, value="Department")
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert len(world.fill.filled) == 2
+    assert world.progress().composed == []

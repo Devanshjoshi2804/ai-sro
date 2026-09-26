@@ -8,8 +8,9 @@ from sro.domain.execution.evidence import primary_gesture, writes
 from sro.domain.observation.gesture import Gesture, OutlineField
 from sro.domain.observation.outline import last_outline
 from sro.domain.recording.sensitivity import is_secret_field
+from sro.domain.skill.checks import bindable
 from sro.domain.skill.repeats import Repeat
-from sro.domain.skill.workflow import Step, Workflow
+from sro.domain.skill.workflow import Step, Workflow, field_key
 
 SELECTS = frozenset({"combobox", "listbox"})
 
@@ -59,10 +60,22 @@ def _screens(
     return found
 
 
-def labels(workflow: Workflow, by_id: Mapping[str, Gesture]) -> tuple[str, ...]:
-    return tuple(
-        dict.fromkeys(one.label for _, fields in _screens(workflow, by_id) for one in fields)
-    )
+def choices(workflow: Workflow, by_id: Mapping[str, Gesture]) -> dict[str, Composed]:
+    hits = [(step, one) for step, fields in _screens(workflow, by_id) for one in fields]
+    found: dict[str, Composed] = {}
+    for step, one in hits:
+        same = [(at, it) for at, it in hits if normal(it.label) == normal(one.label)]
+        role = [at for at, it in same if it.role == one.role]
+        if len(same) == 1:
+            said = one.label
+        elif len(role) == 1:
+            said = f"{one.label} ({one.role})"
+        elif [at.order for at in role].count(step.order) == 1:
+            said = f"{one.label} ({one.role}, before '{step.says}')"
+        else:
+            continue
+        found[said] = Composed("", one.label, one.role, step.order, one.options)
+    return found
 
 
 def placed(
@@ -79,9 +92,7 @@ def placed(
 def compose(
     workflow: Workflow, by_id: Mapping[str, Gesture], values: Mapping[str, str]
 ) -> tuple[tuple[Composed, ...], tuple[Unplaced, ...]]:
-    filled = {name for step in workflow.steps for name in step.parameters} | {
-        str(one.get("name")) for one in workflow.parameters
-    }
+    filled = bindable(workflow, by_id)
     composed: list[Composed] = []
     unplaced: list[Unplaced] = []
     for name, value in values.items():
@@ -92,8 +103,45 @@ def compose(
             composed.append(hits[0])
         else:
             why: Literal["no_field", "ambiguous"] = "ambiguous" if hits else "no_field"
-            unplaced.append(Unplaced(name, why, labels(workflow, by_id)))
+            unplaced.append(Unplaced(name, why, tuple(choices(workflow, by_id))))
     return tuple(composed), tuple(unplaced)
+
+
+def field_of(workflow: Workflow, by_id: Mapping[str, Gesture], step: Step) -> Composed | None:
+    name = step.parameters[0]
+    said = next(
+        (
+            str(names[0])
+            for one in workflow.parameters
+            if one.get("name") == name and isinstance(names := one.get("names"), list) and names
+        ),
+        name,
+    )
+    later = sorted(
+        (one for one in workflow.steps if one.order > step.order and not field_key(workflow, one)),
+        key=lambda one: one.order,
+    )
+    write = later[0] if later and writes(later[0], by_id) else None
+    hits = [
+        one
+        for one in placed(workflow, by_id, name, said)
+        if write is not None and one.before == write.order
+    ]
+    return hits[0] if len(hits) == 1 else None
+
+
+def unperformable(
+    workflow: Workflow, by_id: Mapping[str, Gesture], values: Mapping[str, str], *, from_step: int
+) -> Step | None:
+    for step in sorted(workflow.steps, key=lambda step: step.order):
+        if step.order < from_step:
+            continue
+        if not field_key(workflow, step):
+            if primary_gesture(step, by_id) is None:
+                return step
+        elif values.get(step.parameters[0], "").strip() and field_of(workflow, by_id, step) is None:
+            return step
+    return None
 
 
 def keyed(extra: Mapping[str, str], adding: Adding) -> dict[str, str] | None:
@@ -144,7 +192,10 @@ def with_field(
     grown = replace(
         workflow,
         steps=sorted(steps, key=lambda one: one.order),
-        parameters=[*workflow.parameters, parameter],
+        parameters=[
+            *(one for one in workflow.parameters if one.get("name") != composed.name),
+            parameter,
+        ],
         repeat=repeat,
     )
     return grown, moved

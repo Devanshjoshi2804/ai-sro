@@ -51,7 +51,7 @@ Code: `own = next(`
 > recorded URL (`learned_pattern`), so a path that names the record becomes
 > `{id}` and a segment the recording holds fixed stays fixed.
 
-## `_sighted`, [line 130](../../../../../../../backend/src/sro/application/runtime/teach.py#L130): Function
+## `_sighted`, [line 131](../../../../../../../backend/src/sro/application/runtime/teach.py#L131): Function
 
 > The locator the sight lane learned from the element that satisfied the
 > check (X7 ruling), or nothing: a learned map without a `frame_path` is
@@ -65,9 +65,12 @@ Code: `own = next(`
 
 > A composed field the save's own call confirmed becomes part of the job: `grew`
 > with `with_field`'s result, then its locator (`found_by` `composed` from the
-> page code, `sight` from sight), in one unit of work. A field the job already
-> learned is not learned twice (a retried `finish`, or two runs that both
-> confirmed it), and a locator that would carry the value is not kept.
+> page code, `sight` from sight), in one unit of work that reads the job
+> itself -- never a copy read earlier, which a sibling's `finish` may have
+> grown since. A field a step of the job already fills is not learned twice
+> (a retried `finish`, or a sibling that learned it first); a field whose step
+> a regrowth lost is learned again, under its one parameter. A locator that
+> would carry the value is not kept.
 
 ## `Teach.learn_field`, [line 105](../../../../../../../backend/src/sro/application/runtime/teach.py#L105): Note
 

@@ -1,7 +1,14 @@
 from dataclasses import replace
 
-from sro.domain.execution.compose import Adding, Composed, compose, keyed, with_field
-from sro.domain.execution.evidence import unperformable
+from sro.domain.execution.compose import (
+    Adding,
+    Composed,
+    choices,
+    compose,
+    keyed,
+    unperformable,
+    with_field,
+)
 from sro.domain.observation.gesture import Gesture, Outline, OutlineField
 from sro.domain.skill.workflow import Workflow
 from tests.unit.runtime_support import save_step
@@ -44,7 +51,7 @@ def test_a_name_no_field_has_or_two_fields_have_is_asked_never_guessed() -> None
 
     assert [one.why for one in twice] == ["ambiguous"]
     assert [one.why for one in nowhere] == ["no_field"]
-    assert nowhere[0].labels == ("Department",)
+    assert nowhere[0].labels == ("Department (combobox)", "Department (textbox)")
 
 
 def test_a_credential_or_a_name_a_step_already_fills_is_never_composed() -> None:
@@ -54,11 +61,13 @@ def test_a_credential_or_a_name_a_step_already_fills_is_never_composed() -> None
     assert compose(job, by_id, {"Password": "hunter2", "Customer Type": "GT2"}) == ((), ())
 
 
-def test_a_name_the_job_already_has_a_parameter_for_is_never_composed() -> None:
+def test_a_learned_field_whose_step_was_lost_is_composed_again_never_dropped() -> None:
     job, by_id = _job(OutlineField("combobox", "Department"))
-    job.parameters = [{"name": "Department", "required": False}]
+    job.parameters = [{"name": "department", "required": False, "key": "department"}]
 
-    assert compose(job, by_id, {"Department": "Finance"}) == ((), ())
+    composed, _ = compose(job, by_id, {"department": "Finance"})
+
+    assert [one.label for one in composed] == ["Department"]
 
 
 def test_a_new_key_pairs_only_with_the_value_its_control_holds() -> None:
@@ -135,4 +144,33 @@ def test_a_learned_field_step_is_performable_though_nobody_demonstrated_it() -> 
         job, Composed("department", "Department", "combobox", write), key="department", value="F"
     )
 
-    assert unperformable(grown, by_id, from_step=0) is None
+    assert unperformable(grown, by_id, {"department": "F"}, from_step=0) is None
+
+
+def test_a_learned_field_its_form_no_longer_shows_is_refused_before_the_run_starts() -> None:
+    job, by_id = _job(OutlineField("combobox", "Dept"))
+    write = job.steps[0].order
+    grown, _ = with_field(
+        job, Composed("department", "Department", "combobox", write), key="department", value="F"
+    )
+
+    refused = unperformable(grown, by_id, {"department": "F"}, from_step=0)
+
+    assert refused is not None and refused.says == "Fill Department"
+    assert unperformable(grown, by_id, {}, from_step=0) is None
+
+
+def test_a_label_on_the_form_twice_is_offered_told_apart_or_not_at_all() -> None:
+    job, by_id = _job(
+        OutlineField("combobox", "Department"),
+        OutlineField("textbox", "Department"),
+        OutlineField("textbox", "Notes"),
+        OutlineField("textbox", "Notes"),
+    )
+
+    _, (asked,) = compose(job, by_id, {"department": "Finance"})
+    offered = choices(job, by_id)
+
+    assert asked.labels == ("Department (combobox)", "Department (textbox)")
+    assert offered["Department (textbox)"].role == "textbox"
+    assert not any(one.startswith("Notes") for one in offered)

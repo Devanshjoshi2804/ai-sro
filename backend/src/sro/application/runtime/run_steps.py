@@ -29,7 +29,7 @@ from sro.application.runtime.teach import Teach
 from sro.domain.chat.asked_by import only_reads_the_mail
 from sro.domain.chat.thread import Speaker
 from sro.domain.execution.account import Account, LeaseState
-from sro.domain.execution.compose import Adding, Composed, compose, labels, placed
+from sro.domain.execution.compose import Adding, Composed, choices, compose, field_of
 from sro.domain.execution.evidence import primary_gesture, writes
 from sro.domain.execution.lanes import Lane, StepResult, cites_key
 from sro.domain.execution.mail_job import sends_mail
@@ -236,12 +236,10 @@ class RunSteps:
         progress = Progress.of(run.progress)
         confirmed = [one for one in progress.composed if one.get("verdict") == "done"]
         for one in sorted(confirmed, key=lambda one: int(str(one["before"])), reverse=True):
-            async with self._uow as uow:
-                job = await uow.workflows.get(ctx.tenant_id, workflow.id)
             learned = one.get("learned")
             await self._teach.learn_field(
                 ctx,
-                job,
+                workflow.id,
                 _composed(one),
                 key=str(one["key"]),
                 value=run.values.get(str(one["name"]), ""),
@@ -314,8 +312,10 @@ class RunSteps:
                 progress.composed = others
             elif asking.get("why") == "no_option":
                 run.values[name] = choice
-            elif len(hits := placed(workflow, by_id, name, choice)) == 1:
-                progress.composed = [*others, _entry(hits[0])]
+            elif asking.get("why") == "failed":
+                pass
+            elif (hit := choices(workflow, by_id).get(choice)) is not None:
+                progress.composed = [*others, _entry(replace(hit, name=name))]
         if kind == "step" and verdict:
             ordered = _ordered(workflow)
             index = progress.step
@@ -575,6 +575,32 @@ class RunSteps:
         step = ordered[index]
         earlier = _fields_for(lane.workflow, ordered, index, progress.filled)
         known = {field_key(lane.workflow, one): one.parameters[0] for one in earlier}
+        if any(row.of_step == step.order for row in run.steps):
+            for before in earlier:
+                field = field_of(lane.workflow, lane.by_id, before)
+                name = before.parameters[0]
+                again = (
+                    Filled(None, detail="the form its save shows has no such field any more")
+                    if field is None
+                    else await self._fill.fill(
+                        field,
+                        values.get(name, ""),
+                        step,
+                        lane,
+                        learned=lane.learned.get(before.order),
+                    )
+                )
+                if again.lane is None:
+                    return None, await self._fill_asks(
+                        ctx,
+                        run,
+                        step,
+                        index,
+                        field or Composed(name, name, "", step.order),
+                        again,
+                        lane,
+                    )
+                progress.filled[name] = again.held
         fresh = {name: progress.filled[name] for name in known.values()}
         composing = [one for one in progress.composed if one.get("before") == step.order]
         for one in composing:
@@ -605,32 +631,18 @@ class RunSteps:
     ) -> StepOutcome:
         step = ordered[index]
         name = step.parameters[0]
-        write = next((one for one in ordered[index + 1 :] if writes(one, lane.by_id)), None)
-        said = next(
-            (
-                str(names[0])
-                for one in lane.workflow.parameters
-                if one.get("name") == name and isinstance(names := one.get("names"), list) and names
-            ),
-            name,
-        )
-        field = next(
-            (
-                one
-                for one in placed(lane.workflow, lane.by_id, name, said)
-                if write is not None and one.before == write.order
-            ),
-            None,
-        )
+        field = field_of(lane.workflow, lane.by_id, step)
+        write = None if field is None else _step_at(ordered, field.before)
         if field is None or write is None:
-            filled = Filled(None, detail=f"the form its save shows has no '{said}' any more")
+            filled = Filled(None, detail="the form its save shows has no such field any more")
         else:
             filled = await self._fill.fill(
                 field, values[name], write, lane, learned=lane.learned.get(step.order)
             )
         if filled.lane is None:
+            label = step.says.removeprefix("Fill ")
             asking = await self._fill_asks(
-                ctx, run, step, index, field or Composed(name, said, "", step.order), filled, lane
+                ctx, run, step, index, field or Composed(name, label, "", step.order), filled, lane
             )
             return StepOutcome(more=True, asking=asking)
         progress.filled[name] = filled.held
@@ -647,25 +659,35 @@ class RunSteps:
         filled: Filled,
         lane: LaneContext,
     ) -> str:
-        about: tuple[str, str, Sequence[str]] | None
-        if filled.asks == "no_option":
+        about: tuple[str, str, Sequence[str]]
+        if filled.options:
+            many = "more than one option" if filled.asks == "ambiguous" else "no option"
             asked = NeedsAPerson(
-                f"'{field.label}' has no option like the value asked for; "
-                "choose one, or leave it out",
+                f"'{field.label}' has {many} like the value asked for; choose one, or leave it out",
                 kind="field",
             )
-            about = (field.name, filled.asks, filled.options)
+            about = (field.name, "no_option", filled.options)
         elif filled.asks and not field_key(lane.workflow, step):
+            same = (field.label, field.role, field.before)
+            offered = [
+                said
+                for said, one in choices(lane.workflow, lane.by_id).items()
+                if (one.label, one.role, one.before) != same
+            ]
             asked = NeedsAPerson(
                 f"the page shows {'more than one' if filled.asks == 'ambiguous' else 'no'} "
                 f"field labelled '{field.label}'; choose the field it goes in, or leave it out",
                 kind="field",
             )
-            about = (field.name, filled.asks, labels(lane.workflow, lane.by_id))
+            about = (field.name, filled.asks, offered)
         else:
             reason = filled.detail or f"the page has no single field labelled '{field.label}'"
-            asked = NeedsAPerson(f"'Fill {field.label}' could not be done: {reason}", kind="step")
-            about = None
+            asked = NeedsAPerson(
+                f"'Fill {field.label}' could not be done: {reason}; choose "
+                f"'{field.label}' to try it again, or leave it out",
+                kind="field",
+            )
+            about = (field.name, "failed", (field.label,))
         return await self._ask(ctx, run, step, asked, index=index, about=about)
 
     async def _stopped(self, ctx: RequestContext, run_id: str, step: Step) -> StepOutcome:
@@ -803,6 +825,18 @@ def _settle_fields(
             one |= {"verdict": "done", "key": keyed[name]}
         elif last.verdict == "failed":
             one["verdict"] = "failed"
+        elif last.verdict == "done":
+            run.steps.append(
+                RunStep(
+                    order=len(run.steps),
+                    of_step=step.order,
+                    says=f"Fill {one['label']}",
+                    verdict="unclear",
+                    verdict_by=str(one["lane"]),
+                    planned_by=str(one["lane"]),
+                    reason="the save did not carry it",
+                )
+            )
     for field in earlier:
         name = field.parameters[0]
         verdict = "held" if name in keyed else "failed" if last.verdict == "failed" else ""
@@ -822,6 +856,10 @@ def _settle_fields(
                 else "the save it went with failed",
             )
         )
+
+
+def _step_at(ordered: list[Step], order: int) -> Step | None:
+    return next((one for one in ordered if one.order == order), None)
 
 
 def _lane_of(value: str) -> Lane:

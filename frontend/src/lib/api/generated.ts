@@ -2072,9 +2072,10 @@ export interface components {
          *
          *     A field question (`asks: "field"`, about a value the job has no field
          *     for) carries the value's `name` and its `choices` on the `run_asks`
-         *     message: the form's labels, or a dropdown's options. It is answered with
-         *     one of `choices`, or an empty `value` to leave the value out; anything
-         *     else is a 409.
+         *     message: the form's fields (each choice names exactly one), a dropdown's
+         *     options, or -- after a fill that failed -- the field itself, to try it
+         *     again. It is answered with one of `choices`, or an empty `value` to leave
+         *     the value out; anything else is a 409.
          */
         AnswerRunRequest: {
             /** Question Id */

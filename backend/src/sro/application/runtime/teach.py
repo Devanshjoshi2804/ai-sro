@@ -89,7 +89,7 @@ class Teach:
     async def learn_field(
         self,
         ctx: RequestContext,
-        workflow: Workflow,
+        workflow_id: str,
         field: Composed,
         *,
         key: str,
@@ -98,13 +98,14 @@ class Teach:
         lane: Lane,
         run_id: str,
     ) -> None:
-        if any(one.get("name") == field.name and one.get("key") for one in workflow.parameters):
-            return
-        grown, moved = with_field(workflow, field, key=key, value=value)
         async with self._uow as uow:
+            workflow = await uow.workflows.get(ctx.tenant_id, workflow_id)
+            if any(field.name in one.parameters for one in workflow.steps):
+                return
             runs = await uow.workflow_runs.for_workflow(ctx.tenant_id, workflow.id)
             if any(one.outcome == "running" and one.id != run_id for one in runs):
                 return
+            grown, moved = with_field(workflow, field, key=key, value=value)
             await uow.workflows.grew(grown, moved=moved)
             strategy, query = learned.get("strategy", ""), learned.get("query", "")
             if (

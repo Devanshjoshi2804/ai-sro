@@ -602,7 +602,8 @@ def _steps(world: World) -> dict[str, tuple[Step, Gesture]]:
 
 
 async def _a_run(world: World, *names: str) -> str:
-    """A live Steel run of a job made of the named recorded steps, in order."""
+    """A live Steel run of a job made of the named recorded steps, in order,
+    shaped as mining leaves a job: a parameter only where a step fills it."""
     await _recorded(world)
     known = _steps(world)
     chosen = [known[name] for name in names]
@@ -612,8 +613,9 @@ async def _a_run(world: World, *names: str) -> str:
         title="Add a customer type",
         narrative="",
         steps=[replace(step, order=n) for n, (step, _) in enumerate(chosen)],
-        parameters=[{"name": "Customer Type", "required": False}],
     )
+    typed = any("Customer Type" in step.parameters for step in job.steps)
+    job.parameters = [{"name": "Customer Type", "required": False}] if typed else []
     run_id = f"run_{uuid.uuid4().hex}"
     async with world.uow as uow:
         await uow.gestures.add_gestures(tuple(seen for _, seen in chosen))
@@ -624,7 +626,7 @@ async def _a_run(world: World, *names: str) -> str:
                 tenant=TENANT,
                 workflow_id=job.id,
                 device_id="",
-                values={"Customer Type": "GT2"},
+                values={"Customer Type": "GT2"} if typed else {},
                 started_by="op",
                 live=True,
                 allow_focus=False,

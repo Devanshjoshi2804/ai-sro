@@ -33,7 +33,7 @@ async def test_a_learned_field_moves_the_write_and_everything_known_about_it() -
 
     await Teach(uow, FakeClock()).learn_field(
         CTX,
-        job,
+        job.id,
         Composed("department", "Department", "combobox", step.order),
         key="department",
         value="Finance",
@@ -54,6 +54,32 @@ async def test_a_learned_field_moves_the_write_and_everything_known_about_it() -
     ]
 
 
+async def test_a_field_whose_step_was_lost_is_learned_again_under_its_one_parameter() -> None:
+    uow = FakeUnitOfWork()
+    step, _ = save_step(status=201)
+    was = [{"name": "department", "required": False, "key": "department"}]
+    job = replace(WORKFLOW, steps=[step], parameters=was)
+    await uow.workflows.save(job)
+    field = Composed("department", "Department", "combobox", step.order)
+    teach = Teach(uow, FakeClock())
+
+    for _ in range(2):
+        await teach.learn_field(
+            CTX,
+            job.id,
+            field,
+            key="department",
+            value="Finance",
+            learned={},
+            lane=Lane.UI,
+            run_id="run_1",
+        )
+
+    grown = await uow.workflows.get(TENANT, job.id)
+    assert [one.says for one in grown.steps] == ["Fill Department", step.says]
+    assert [one["name"] for one in grown.parameters] == ["department"]
+
+
 async def test_a_field_is_never_learned_under_another_run_of_the_job_still_going() -> None:
     uow = FakeUnitOfWork()
     step, _ = save_step(status=201)
@@ -64,7 +90,7 @@ async def test_a_field_is_never_learned_under_another_run_of_the_job_still_going
 
     await Teach(uow, FakeClock()).learn_field(
         CTX,
-        job,
+        job.id,
         Composed("department", "Department", "combobox", step.order),
         key="department",
         value="Finance",

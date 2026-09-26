@@ -11,7 +11,7 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 > recipe (L1). The job is compiled again on every read, so what it says is
 > what the evidence says today.
 
-## `Reason`, [line 23](../../../../../../../backend/src/sro/domain/execution/compiled.py#L23): Docstring
+## `Reason`, [line 25](../../../../../../../backend/src/sro/domain/execution/compiled.py#L25): Docstring
 
 > One reason a job cannot run (or, in `Compiled.warnings`, something a reader
 > should know although it runs), and the step it is about (`None` for the job).
@@ -45,19 +45,22 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 >   write sends a body of captured values runs, and the console says every run
 >   writes the recorded values. A mining-quality case, not a runtime refusal.
 
-## `Compiled`, [line 30](../../../../../../../backend/src/sro/domain/execution/compiled.py#L30): Docstring
+## `Compiled`, [line 32](../../../../../../../backend/src/sro/domain/execution/compiled.py#L32): Docstring
 
 > `runnable` is "no reasons"; warnings never change it. `view` is plain data for
 > reading (`make recipe`, the console): each step's lanes, the lanes known
 > broken, its locators with the learned one first, and the proof of its write.
-> It is never an import format (L1).
+> It is never an import format (L1). `fields` (C2) is every field the job
+> could be given, classed `required`/`always`/`sometimes`/`never` with its
+> limits -- computed by `field_classes` and mirrored into `view["fields"]`
+> for a reader that only sees the wire shape.
 
-## `why_not`, [line 37](../../../../../../../backend/src/sro/domain/execution/compiled.py#L37): Docstring
+## `why_not`, [line 40](../../../../../../../backend/src/sro/domain/execution/compiled.py#L40): Docstring
 
 > The reasons as sentences, "Step N: ..." where a step is named, each said
 > once. What the chat, the mail thread and the start's refusal all say.
 
-## `_ladder`, [line 45](../../../../../../../backend/src/sro/domain/execution/compiled.py#L45): Docstring
+## `_ladder`, [line 48](../../../../../../../backend/src/sro/domain/execution/compiled.py#L48): Docstring
 
 > The ladder the executor would climb, built with the executor's own
 > `lanes_for` and the same three inputs: `sends_mail` for the tool lane, a
@@ -75,7 +78,7 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 > lanes are compared against it in `compile_job`, because `lanes_for` never
 > drops the last lane.
 
-## `compile_job`, [line 55](../../../../../../../backend/src/sro/domain/execution/compiled.py#L55): Docstring
+## `compile_job`, [line 58](../../../../../../../backend/src/sro/domain/execution/compiled.py#L58): Docstring
 
 > `values` and `from_step` are the run's: the start passes its given values
 > and D7's `check_from`, and reasons at steps before `from_step` are dropped,
@@ -86,3 +89,10 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 > read-back "where one is known", so a write proven by its status alone
 > compiles, and the view's `read_back: null` says which writes have no second
 > witness.
+>
+> `declared` (C2) is the knowledge base's field limits, keyed by parameter
+> name -- a caller with a unit of work in hand (`application.execution
+> .declared.declared_limits`, already reading the KB's parsed recipe index)
+> passes it here; a caller with none gets the page's own limits alone. It
+> reaches `field_classes` unchanged: the stricter of page and knowledge base
+> wins there, not in this function.

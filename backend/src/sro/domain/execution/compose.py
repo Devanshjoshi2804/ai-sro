@@ -50,7 +50,7 @@ def alias_map(aliases: Iterable[JobAlias]) -> dict[str, str]:
     return {normal(one.wording): one.field for one in aliases}
 
 
-def _screens(
+def screens(
     workflow: Workflow, by_id: Mapping[str, Gesture]
 ) -> list[tuple[Step, tuple[OutlineField, ...]]]:
     gestures = sorted(by_id.values(), key=lambda one: one.at)
@@ -66,7 +66,7 @@ def _screens(
 
 
 def choices(workflow: Workflow, by_id: Mapping[str, Gesture]) -> dict[str, Composed]:
-    hits = [(step, one) for step, fields in _screens(workflow, by_id) for one in fields]
+    hits = [(step, one) for step, fields in screens(workflow, by_id) for one in fields]
     found: dict[str, Composed] = {}
     twice: set[str] = set()
     for step, one in hits:
@@ -91,7 +91,7 @@ def placed(
 ) -> tuple[Composed, ...]:
     return tuple(
         Composed(name, one.label, one.role, step.order, one.options)
-        for step, fields in _screens(workflow, by_id)
+        for step, fields in screens(workflow, by_id)
         for one in fields
         if normal(one.label) == normal(label)
     )

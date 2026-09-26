@@ -71,11 +71,11 @@ async def test_a_mining_case_passes_when_one_job_covers_most_of_its_cites() -> N
     assert scored.passed and scored.sure
 
 
-async def test_a_mining_case_misses_when_a_value_from_two_systems_is_not_a_parameter() -> None:
-    """A value typed in the mail and again in the app is what the request asked
-    for. A job that covers the cites but keeps that value as fixed step text
-    (Create a Customer Type, mined with no parameters) cannot run the next
-    request, so it is a miss."""
+async def test_a_mining_case_misses_when_a_value_the_request_asked_for_is_not_a_parameter() -> None:
+    """A value the request mail gave and the operator typed is what the next
+    request will change. A job that covers the cites but keeps that value as
+    fixed step text (Create a Customer Type, mined with no parameters) cannot
+    run the next request, so it is a miss."""
     ids = [f"ges_{n:032x}" for n in range(5)]
     case = Case(
         id="wfl_x",
@@ -84,7 +84,7 @@ async def test_a_mining_case_misses_when_a_value_from_two_systems_is_not_a_param
             "day": [
                 {"id": one, "at": float(n), "evidence": {"id": one}} for n, one in enumerate(ids)
             ],
-            "crossings": {"GT0": [ids[0], ids[3]]},
+            "crossings": {},
         },
         expected={"cites": ids, "values": ["GT0"]},
     )
@@ -107,7 +107,11 @@ async def test_a_mining_case_misses_when_a_value_from_two_systems_is_not_a_param
     assert found.passed
 
 
-async def test_a_mining_case_expects_the_crossing_values_on_its_own_cites() -> None:
-    ids = [f"ges_{n:032x}" for n in range(3)]
-    crossings = {"GT0": [ids[0], ids[2]], "elsewhere": ["ges_" + "f" * 32, "ges_" + "e" * 32]}
-    assert request_values(ids, crossings) == ["GT0"]
+def test_a_doing_is_expected_to_hold_what_its_job_was_seen_to_vary() -> None:
+    """Expected values are the values typed in this doing that any job of the
+    same title holds as a parameter: a duplicate mined with no parameters is
+    then a miss on its own doing, and the job that varies them passes."""
+    typed = ["GT0", "9", "Chilled goods", ""]
+    seen = {"GT0", "Chilled goods", "GT1", "priority 9"}
+    assert request_values(typed, seen) == ["Chilled goods", "GT0"]
+    assert request_values(typed, set()) == []

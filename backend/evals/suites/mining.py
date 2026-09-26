@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import time
+from collections import defaultdict
+from collections.abc import Iterable
 
 from evals.model import K_COVERS, Case, Scored
 from sro.application.observation.mining_pass import propose
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
+from sro.domain.execution.compose import normal
+from sro.domain.observation.trim import is_secret
 from sro.domain.observation.values import frequencies_over, shared_values
 from sro.domain.observation.window import Packed, Window, as_evidence, evidence_tokens
 from sro.domain.prompts.mine import MINE
@@ -15,8 +19,8 @@ from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
 K_NOISE_S = 300.0
 
 
-def request_values(cites: list[str], crossings: dict[str, list[str]]) -> list[str]:
-    return sorted(value for value, ids in crossings.items() if set(ids) & set(cites))
+def request_values(typed: Iterable[str], seen: set[str]) -> list[str]:
+    return sorted({value for value in typed if value in seen})
 
 
 def _seen(workflow: Workflow) -> set[str]:
@@ -33,8 +37,12 @@ class Mining:
 
     async def cases(self, uow: UnitOfWork, tenant_id: TenantId) -> list[Case]:
         intents = {one.gesture_id: one for one in await uow.gestures.intents_for(tenant_id)}
+        known = await uow.workflows.known(tenant_id)
+        family: dict[str, set[str]] = defaultdict(set)
+        for one in known:
+            family[normal(one.title)] |= _seen(one)
         found = []
-        for workflow in await uow.workflows.known(tenant_id):
+        for workflow in known:
             cites = ordered_cites(workflow)
             cited = await uow.gestures.gestures_for(tenant_id, ids=tuple(cites))
             if not cited:
@@ -47,6 +55,11 @@ class Mining:
             )
             day = [one for one in around if one.stream_id in streams]
             crossings = shared_values(day, intents, frequencies_over(day, intents))
+            typed = [
+                str(one.action.value).strip()
+                for one in day
+                if one.action.value and not is_secret(one)
+            ]
             found.append(
                 Case(
                     id=workflow.id,
@@ -64,7 +77,7 @@ class Mining:
                     },
                     expected={
                         "cites": list(dict.fromkeys(cites)),
-                        "values": request_values(cites, crossings),
+                        "values": request_values(typed, family[normal(workflow.title)]),
                     },
                 )
             )

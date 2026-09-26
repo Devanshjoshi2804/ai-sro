@@ -15,6 +15,7 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.container import build_container
 from sro.domain.prompts.record import Prompt, conforms
 from sro.domain.shared.identifiers import TenantId
+from sro.whose import about
 
 HERE = Path(__file__).parent
 
@@ -38,11 +39,12 @@ async def run_suite(name: str, tenant: str, *, baseline: bool, limit: int | None
     async with container.unit_of_work() as uow:
         cases = (await suite.cases(uow, TenantId(tenant)))[:limit]
     scored = []
-    for case in cases:
-        case.save(HERE / "cases" / name)
-        one = await suite.run(case, container.asker)
-        replace(case, answer=one.answer).save(HERE / "cases" / name)
-        scored.append(one)
+    with about(tenant=tenant):
+        for case in cases:
+            case.save(HERE / "cases" / name)
+            one = await suite.run(case, container.asker)
+            replace(case, answer=one.answer).save(HERE / "cases" / name)
+            scored.append(one)
     now = report(name, suite.prompt, scored)
     base = HERE / "results" / f"baseline-{name}.json"
     failed = gate(Report(**json.loads(base.read_text())), now) if base.is_file() else []
@@ -64,7 +66,8 @@ async def run_ci(*, live: bool) -> int:
             if case.answer is not None and not conforms(case.answer, suite.prompt.output_schema):
                 bad.append(f"{path.name}: the recorded answer does not match {suite.prompt.name}")
                 continue
-            one = await suite.run(case, asker or Replayed(case.answer))
+            with about(tenant="eval"):
+                one = await suite.run(case, asker or Replayed(case.answer))
             if not one.passed:
                 bad.append(f"{path.name}: expected to pass, did not")
     for line in bad:

@@ -385,7 +385,7 @@ class Container:
     def record_offer(self) -> RecordOffer:
         return RecordOffer(self.unit_of_work(), self.clock)
 
-    def _patient_asker(self) -> Asker | None:
+    def mining_asker(self) -> Asker | None:
         if self._mining_asker is None or self._mining_asker_from is not self.asker:
             self._mining_asker_from = self.asker
             self._mining_asker = _patient_asker_for(self.settings, self.asker, self.meter)
@@ -394,7 +394,7 @@ class Container:
     def mine_pass(self) -> MinePass:
         return MinePass(
             self.unit_of_work(),
-            asker=self._patient_asker(),
+            asker=self.mining_asker(),
             locks=self.locks,
             clock=self.clock,
             cap_usd=self.settings.daily_usd_cap,

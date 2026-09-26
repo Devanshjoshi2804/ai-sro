@@ -84,6 +84,7 @@ class Meter:
 
 class Metered:
     def __init__(self, client: Any, meter: Meter) -> None:
+        self._client = client
         self._models = client.aio.models
         self._meter = meter
         self.aio = SimpleNamespace(models=self)

@@ -16,7 +16,7 @@ FRONTEND := cd frontend &&
 .PHONY: help up down ps logs reset install migrate revision api worker status web vault-key one-whole-run \
         lint lint-backend recipe check-code-notes lint-frontend format test test-unit test-integration \
         test-replay record-histories \
-        test-contract test-browser types check ingest-kb gen-recorder \
+        test-contract test-browser types check ingest-kb gen-recorder eval eval-ci eval-redact \
         mutants-backend images smoke gen-deployment migrate-vault-keys \
         steel-up steel-down steel-env
 
@@ -165,7 +165,7 @@ lint: lint-backend lint-frontend lint-extension ## Run every linter
 lint-backend: ## ruff + mypy --strict + import-linter
 	$(BACKEND) uv run ruff check .
 	$(BACKEND) uv run ruff format --check .
-	$(BACKEND) uv run mypy src tests
+	$(BACKEND) uv run mypy src tests evals
 	$(BACKEND) uv run lint-imports
 
 recipe: ## A job's compiled view, for reading (never an import format): make recipe job=wfl_… tenant=acme
@@ -173,6 +173,15 @@ recipe: ## A job's compiled view, for reading (never an import format): make rec
 
 check-code-notes: ## docs/code-notes/ anchors still point at the line they name
 	$(BACKEND) uv run python scripts/check_code_notes.py
+
+eval: ## LIVE EVAL (spends model money): real local cases, report + gate: make eval suite=reader tenant=acme [baseline=1] [limit=N] [rebuild=1]
+	$(BACKEND) uv run python -m evals run --suite $(suite) --tenant $(tenant) $(if $(baseline),--baseline,) $(if $(limit),--limit $(limit),) $(if $(rebuild),--rebuild,)
+
+eval-ci: ## The committed redacted cases, offline: prompts render, answers conform, scores hold [live=1]
+	$(BACKEND) uv run python -m evals ci $(if $(live),--live,)
+
+eval-redact: ## Redacted copies of the local cases, for a person to read before committing any
+	$(BACKEND) uv run python -m evals redact --suite $(suite) --tenant $(tenant)
 
 lint-frontend: ## eslint + tsc
 	$(FRONTEND) npm run lint

@@ -869,6 +869,7 @@ class MiningPassRow(Base):
     window_size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     left_out: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     unplaced: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    dropped: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     error: Mapped[str | None] = mapped_column(Text)
 

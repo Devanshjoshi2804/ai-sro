@@ -312,6 +312,14 @@ class FromTheMail:
             or not self._start.runs_on_steel(ctx)
         ):
             return one
+        async with self._uow as uow:
+            if await uow.workflow_runs.started_on(ctx.tenant_id, server=SERVER, thread=one.thread):
+                logger.info(
+                    "%s: %s already started a run, so this mail is only offered",
+                    ctx.tenant_id.value,
+                    one.thread,
+                )
+                return one
         try:
             run = await self._start.execute(
                 ctx,

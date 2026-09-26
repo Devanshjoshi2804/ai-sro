@@ -97,6 +97,15 @@ def test_a_control_whose_own_parameter_is_absent_takes_no_other_parameter() -> N
     assert value_for(step, gesture, {"clientName": "ACME"}, None) is None
 
 
+def test_a_label_that_differs_only_in_case_or_spacing_still_names_its_parameter() -> None:
+    gesture = _typed()
+    step = replace(_step(gesture), parameters=[" CLIENTcode *", "clientName"])
+
+    assert value_for(step, gesture, {" CLIENTcode *": "THIRD", "clientName": "ACME"}, None) == (
+        "THIRD"
+    )
+
+
 def test_a_secret_gesture_carries_no_value_from_anywhere() -> None:
     """The second belt `trim.is_secret` wears, and for the same reason: the
     wire validator that nulled the value does not re-run when a nested Target

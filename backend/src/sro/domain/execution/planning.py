@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 
+from sro.domain.execution.compose import normal
 from sro.domain.execution.evidence import control_names
 from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.observation.trim import is_secret
@@ -93,7 +94,8 @@ class Planned:
 
 
 def own_parameter(step: Step, gesture: Gesture) -> str | None:
-    named = [name for name in step.parameters if name in control_names(gesture)]
+    names = {normal(name) for name in control_names(gesture)}
+    named = [name for name in step.parameters if normal(name) in names]
     if named:
         return named[0]
     return step.parameters[0] if len(step.parameters) == 1 else None

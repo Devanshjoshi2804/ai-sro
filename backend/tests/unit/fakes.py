@@ -2406,6 +2406,16 @@ class FakeWorkflowRunRepository:
         asked.sort(key=lambda run: (when(run.started_at), run.id), reverse=True)
         return asked[0] if asked else None
 
+    async def started_on(self, tenant_id: TenantId, *, server: str, thread: str) -> bool:
+        if not server.strip() or not thread.strip():
+            return False
+        return any(
+            run.tenant == tenant_id.value
+            and (run.awaiting or {}).get("server") == server.strip()
+            and (run.awaiting or {}).get("thread") == thread.strip()
+            for run in self.rows.values()
+        )
+
     async def awaiting(self, tenant_id: TenantId) -> tuple[tuple[str, int, str], ...]:
         parked = [
             (when(run.started_at), run.id, step.order, step.says)

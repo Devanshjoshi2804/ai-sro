@@ -32,13 +32,13 @@ Comments and docstrings moved out of [`backend/src/sro/domain/execution/planning
 > rule and the replayability rule -- which is everything a test can pin without
 > a model behind it.
 
-## module, [line 14](../../../../../../../backend/src/sro/domain/execution/planning.py#L14): Note on the line above
+## module, [line 15](../../../../../../../backend/src/sro/domain/execution/planning.py#L15): Note on the line above
 
 Code: `KINDS = frozenset({"ui.perform", "http.send", "navigate"})`
 
 > What a PLAN may name. The model chooses one of these three.
 
-## module, [line 16](../../../../../../../backend/src/sro/domain/execution/planning.py#L16): Note on the line above
+## module, [line 17](../../../../../../../backend/src/sro/domain/execution/planning.py#L17): Note on the line above
 
 Code: `COMMAND_KINDS = KINDS | frozenset(`
 
@@ -68,7 +68,7 @@ Code: `COMMAND_KINDS = KINDS | frozenset(`
 > `test_the_extension_answers_every_command_this_backend_can_send` holds the two
 > lists together.
 
-## module, [line 20](../../../../../../../backend/src/sro/domain/execution/planning.py#L20): Note on the line above
+## module, [line 21](../../../../../../../backend/src/sro/domain/execution/planning.py#L21): Note on the line above
 
 Code: `LIVE_FETCHABLE_HEADERS = frozenset({"csrf-encrypt-token", "x-requested-with"})`
 
@@ -91,7 +91,7 @@ Code: `LIVE_FETCHABLE_HEADERS = frozenset({"csrf-encrypt-token", "x-requested-wi
 > stop redacting it, which would have put a value this deployment has no use for
 > into every stored request; asking the page is the narrower change.
 
-## `Look`, [line 65](../../../../../../../backend/src/sro/domain/execution/planning.py#L65): Note on the line above
+## `Look`, [line 66](../../../../../../../backend/src/sro/domain/execution/planning.py#L66): Note on the line above
 
 Code: `refused: str = ""`
 
@@ -106,7 +106,7 @@ Code: `refused: str = ""`
 >
 > Empty where a picture arrived, and where there was never one asked for.
 
-## `Look`, [line 67](../../../../../../../backend/src/sro/domain/execution/planning.py#L67): Note on the line above
+## `Look`, [line 68](../../../../../../../backend/src/sro/domain/execution/planning.py#L68): Note on the line above
 
 Code: `elsewhere: str = ""`
 
@@ -128,7 +128,7 @@ Code: `elsewhere: str = ""`
 > Empty when the browser is where the step expected it, and when there was
 > no tab at all to ask about.
 
-## `Look`, [line 69](../../../../../../../backend/src/sro/domain/execution/planning.py#L69): Note on the line above
+## `Look`, [line 70](../../../../../../../backend/src/sro/domain/execution/planning.py#L70): Note on the line above
 
 Code: `elsewhere_is_ours: bool = False`
 
@@ -149,7 +149,7 @@ Code: `elsewhere_is_ours: bool = False`
 > password*. A credential in the wrong system's box is worse than a step
 > that fails: it spends an account's lockout budget.
 
-## `Look`, [line 71](../../../../../../../backend/src/sro/domain/execution/planning.py#L71): Note on the line above
+## `Look`, [line 72](../../../../../../../backend/src/sro/domain/execution/planning.py#L72): Note on the line above
 
 Code: `signed_out: bool = False`
 
@@ -171,7 +171,7 @@ Code: `signed_out: bool = False`
 > False wherever nothing could be asked. This is a reason to stop and it must
 > never be a reason invented by a failure to look.
 
-## `Look`, [line 73](../../../../../../../backend/src/sro/domain/execution/planning.py#L73): Note on the line above
+## `Look`, [line 74](../../../../../../../backend/src/sro/domain/execution/planning.py#L74): Note on the line above
 
 Code: `dialog: str = ""`
 
@@ -190,7 +190,7 @@ Code: `dialog: str = ""`
 > -- it is the evidence, and it is the whole answer to why the step did
 > nothing.
 
-## `Look`, [line 75](../../../../../../../backend/src/sro/domain/execution/planning.py#L75): Note on the line above
+## `Look`, [line 76](../../../../../../../backend/src/sro/domain/execution/planning.py#L76): Note on the line above
 
 Code: `loading: bool = False`
 
@@ -207,7 +207,7 @@ Code: `loading: bool = False`
 > minutes ago and is now fetching the screen, and `readyState` has said
 > `complete` the whole time.
 
-## `Planned`, [line 84](../../../../../../../backend/src/sro/domain/execution/planning.py#L84): Note on the line above
+## `Planned`, [line 85](../../../../../../../backend/src/sro/domain/execution/planning.py#L85): Note on the line above
 
 Code: `opens: bool = False`
 
@@ -218,7 +218,7 @@ Code: `opens: bool = False`
 >
 > Set for the first half of a pick from a dropdown. See `plan_step`.
 
-## `Planned`, [line 86](../../../../../../../backend/src/sro/domain/execution/planning.py#L86): Note on the line above
+## `Planned`, [line 87](../../../../../../../backend/src/sro/domain/execution/planning.py#L87): Note on the line above
 
 Code: `rewrote: bool = False`
 
@@ -235,7 +235,7 @@ Code: `rewrote: bool = False`
 > a create asking for a five-character code is answered **201** and the record
 > is four characters long, with nobody told.
 
-## `Planned`, [line 88](../../../../../../../backend/src/sro/domain/execution/planning.py#L88): Note on the line above
+## `Planned`, [line 89](../../../../../../../backend/src/sro/domain/execution/planning.py#L89): Note on the line above
 
 Code: `filled: Mapping[str, str] = MappingProxyType({})`
 
@@ -246,7 +246,7 @@ Code: `filled: Mapping[str, str] = MappingProxyType({})`
 > write. `confirm` below is this narrowed to the slots a read can settle;
 > both are needed, and for different questions.
 
-## `Planned`, [line 90](../../../../../../../backend/src/sro/domain/execution/planning.py#L90): Note on the line above
+## `Planned`, [line 91](../../../../../../../backend/src/sro/domain/execution/planning.py#L91): Note on the line above
 
 Code: `confirm: Mapping[str, str] = MappingProxyType({})`
 
@@ -259,7 +259,7 @@ Code: `confirm: Mapping[str, str] = MappingProxyType({})`
 > server rewrites every slot this run filled -- in which case there is
 > nothing a read could settle and the status is the whole of the evidence.
 
-## `Planned`, [line 92](../../../../../../../backend/src/sro/domain/execution/planning.py#L92): Note on the line above
+## `Planned`, [line 93](../../../../../../../backend/src/sro/domain/execution/planning.py#L93): Note on the line above
 
 Code: `by: str = ""`
 
@@ -271,7 +271,7 @@ Code: `by: str = ""`
 > is the kind that survives: the row looks exactly like a step the model got
 > right. Empty means the model named at the call site planned it.
 
-## `value_for`, [line 102](../../../../../../../backend/src/sro/domain/execution/planning.py#L102): Docstring
+## `value_for`, [line 104](../../../../../../../backend/src/sro/domain/execution/planning.py#L104): Docstring
 
 > The run's value for this control, else what the model said, else what
 > was recorded. The run's values win: they are what the person asked for.
@@ -292,7 +292,7 @@ Code: `by: str = ""`
 > second belt `trim.is_secret` wears -- and for the same reason: that
 > validator does not re-run if a nested Target is mutated afterwards.
 
-## `unreplayable`, [line 130](../../../../../../../backend/src/sro/domain/execution/planning.py#L130): Docstring
+## `unreplayable`, [line 132](../../../../../../../backend/src/sro/domain/execution/planning.py#L132): Docstring
 
 > Whether replaying this call would send something other than what the
 > operator sent.
@@ -311,27 +311,27 @@ Code: `by: str = ""`
 > an analytics beacon carrying a cookie as a parameter: replayed, it would
 > send the marker's own text where the cookie was.
 
-## module, [line 24](../../../../../../../backend/src/sro/domain/execution/planning.py#L24): Comment
+## module, [line 25](../../../../../../../backend/src/sro/domain/execution/planning.py#L25): Comment
 
 Code: `"properties": {`
 
 > kind first, why last: decide, then explain.
 
-## `Look`, [line 63](../../../../../../../backend/src/sro/domain/execution/planning.py#L63): Comment
+## `Look`, [line 64](../../../../../../../backend/src/sro/domain/execution/planning.py#L64): Comment
 
 Code: `width: int = 0`
 
 > The CSS viewport the picture shows, which is the space `ui.perform_at`
 > acts in. Zero when the browser gave no picture.
 
-## module, [line 147](../../../../../../../backend/src/sro/domain/execution/planning.py#L147): Comment
+## module, [line 149](../../../../../../../backend/src/sro/domain/execution/planning.py#L149): Comment
 
 Code: `"action": {"type": "string", "enum": ["click", "type", "press"]},`
 
 > No select: `sroPage.performAt` has no way to choose an option at a
 > point, and an action the browser cannot take is a step that stops.
 
-## module, [line 149](../../../../../../../backend/src/sro/domain/execution/planning.py#L149): Comment
+## module, [line 151](../../../../../../../backend/src/sro/domain/execution/planning.py#L151): Comment
 
 Code: `"points_at": {`
 
@@ -349,16 +349,24 @@ Code: `"points_at": {`
 > picture; `nothing` is nowhere to point, which is the honest refusal
 > this rung must always be able to give.
 
-## `own_parameter`, [line 95](../../../../../../../backend/src/sro/domain/execution/planning.py#L95): Note
+## `own_parameter`, [line 96](../../../../../../../backend/src/sro/domain/execution/planning.py#L96): Note
 
 > Which of the step's parameters this control carries: the one its own names
 > (item id, field label, accessible name) match, or the step's only
 > parameter. A step of several parameters whose control matches none of them
 > has no parameter this control can be bound to, and gets none.
 
-## `shown_after`, [line 123](../../../../../../../backend/src/sro/domain/execution/planning.py#L123): Note
+## `shown_after`, [line 125](../../../../../../../backend/src/sro/domain/execution/planning.py#L125): Note
 
 > What the control should show after the step: the run's value, else what the
 > demonstration left there -- but never the demonstration's value for a step
 > that carries a parameter. Sight is told what to aim for from this, and a
 > recorded value in its goal is a recorded value it would type.
+
+## `own_parameter`, [line 97](../../../../../../../backend/src/sro/domain/execution/planning.py#L97): Comment
+
+Code: `names = {normal(name) for name in control_names(gesture)}`
+
+> Names are compared as `compose.normal` reads a label -- asterisks out,
+> whitespace collapsed, case folded -- so a drafter's "Customer Type" still
+> names the control labelled "customer  type *".

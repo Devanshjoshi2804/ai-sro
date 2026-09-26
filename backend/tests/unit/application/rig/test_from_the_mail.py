@@ -272,6 +272,29 @@ async def test_a_later_mail_on_a_started_thread_starts_nothing() -> None:
     assert len(world.durable.runs_started) == 1
 
 
+async def test_a_quoted_reply_on_a_finished_mail_run_s_thread_is_a_card_never_a_second_run() -> (
+    None
+):
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True, thread="t-9")
+    await world.from_the_mail.execute(CTX)
+    (run,) = await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)
+    await world.uow.workflow_runs.save(replace(run, outcome="held"))
+    quoted = "thanks!\n\n> please create customer type GT2, description north"
+    reply = _Mailbox(search=_found("m-2"), **{"m-2": _mail(quoted, "t-9")})
+    sure = {
+        "workflow_id": JOB,
+        "values": [{"name": "Customer Type", "value": "GT2"}],
+        "missing": [],
+        "sure": True,
+    }
+
+    later = await world.look(reply, _Reads(sure)).execute(CTX)
+
+    assert [one.started for one in later.offered] == [False]
+    assert len(world.durable.runs_started) == 1
+    assert len(await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)) == 1
+
+
 async def test_a_reply_to_a_run_asking_a_person_is_offered_never_started() -> None:
     world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True, thread="t-9")
     await world.from_the_mail.execute(CTX)

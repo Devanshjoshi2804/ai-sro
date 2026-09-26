@@ -1188,3 +1188,42 @@ def test_a_create_is_not_admitted_by_its_demonstrations() -> None:
     )
 
     assert demonstrated_writes(job, by_id) == ()
+
+
+def _counted(qty: object) -> dict[str, object]:
+    return {"name": "GT0", "qty": qty}
+
+
+QTY: dict[str, frozenset[str]] = {
+    "Name": frozenset({"GT0", "GT1"}),
+    "Quantity": frozenset({"10", "20"}),
+}
+
+
+def test_an_absent_number_is_never_sent_as_the_demonstration_s() -> None:
+    doings = _twice(_counted(10), {"name": "GT1", "qty": 20})
+
+    plan = write_plan_for(_step("g1", "g2"), doings, {"Name": "GT2"}, LEDGER, QTY)
+
+    assert plan is not None
+    assert json.loads(plan.body or "{}") == {"name": "GT2"}
+    assert wanted_by(_step("g1", "g2"), doings, QTY) == {"Name", "Quantity"}
+
+
+def test_an_absent_bool_or_null_is_never_sent_either() -> None:
+    for first, second, seen in ((True, False, {"true", "false"}), (None, "x", {"null", "x"})):
+        doings = _twice({"name": "GT0", "flag": first}, {"name": "GT1", "flag": second})
+        both = {"Name": frozenset({"GT0", "GT1"}), "Flag": frozenset(seen)}
+
+        plan = write_plan_for(_step("g1", "g2"), doings, {"Name": "GT2"}, LEDGER, both)
+
+        assert plan is not None
+        assert json.loads(plan.body or "{}") == {"name": "GT2"}
+
+
+def test_a_given_number_does_not_replay_as_a_string() -> None:
+    doings = _twice(_counted(10), {"name": "GT1", "qty": 20})
+
+    plan = write_plan_for(_step("g1", "g2"), doings, {"Name": "GT2", "Quantity": "30"}, LEDGER, QTY)
+
+    assert plan is None

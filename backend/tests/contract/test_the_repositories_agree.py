@@ -985,6 +985,23 @@ class TestWorkflowRuns:
             found = await work.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-9")
             assert found is not None and found.id == "run_parked"
 
+    async def test_started_on_counts_every_run_a_conversation_started(
+        self, store: UnitOfWork
+    ) -> None:
+        wait = {"server": "gmail", "thread": "t-9", "until": _at(12)}
+        async with store as work:
+            assert not await work.workflow_runs.started_on(TENANT, server="gmail", thread="t-9")
+            await work.workflow_runs.save(_run("run_done", awaiting=wait))
+            await work.commit()
+
+        async with store as work:
+            assert await work.workflow_runs.started_on(TENANT, server="gmail", thread="t-9")
+            assert not await work.workflow_runs.started_on(TENANT, server="gmail", thread="t-8")
+            assert not await work.workflow_runs.started_on(
+                OTHER_TENANT, server="gmail", thread="t-9"
+            )
+            assert not await work.workflow_runs.started_on(TENANT, server="gmail", thread=" ")
+
     async def test_in_flight_names_the_run_this_browser_is_already_driving(
         self, store: UnitOfWork
     ) -> None:

@@ -366,6 +366,21 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
         found = await self._with_steps(rows)
         return found[0] if found else None
 
+    async def started_on(self, tenant_id: TenantId, *, server: str, thread: str) -> bool:
+        if not server.strip() or not thread.strip():
+            return False
+        found = await self._session.scalar(
+            select(WorkflowRunRow.id)
+            .where(
+                WorkflowRunRow.tenant_id == tenant_id.value,
+                WorkflowRunRow.awaiting.isnot(None),
+                WorkflowRunRow.awaiting["server"].astext == server.strip(),
+                WorkflowRunRow.awaiting["thread"].astext == thread.strip(),
+            )
+            .limit(1)
+        )
+        return found is not None
+
     async def awaiting(self, tenant_id: TenantId) -> tuple[tuple[str, int, str], ...]:
         query = (
             select(WorkflowRunStepRow.run_id, WorkflowRunStepRow.ord, WorkflowRunStepRow.says)

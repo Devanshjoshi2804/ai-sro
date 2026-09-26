@@ -12,6 +12,7 @@ from sro.domain.prompts.read_gesture import READ_GESTURE
 from sro.domain.prompts.read_request import READ_REQUEST
 from sro.domain.prompts.record import UNTRUSTED_RULE, Prompt, conforms, fenced, quoted_in
 from sro.domain.prompts.write_mail import WRITE_MAIL
+from sro.domain.skill.umbrella import mining_blocks
 
 RECORDS = (MINE, READ_GESTURE, READ_REQUEST, IS_IT_AN_ANSWER, PLAN_LOOKUP, WRITE_MAIL, GATHER)
 
@@ -88,9 +89,11 @@ def test_the_mining_request_says_what_each_block_holds() -> None:
 def test_the_rendered_mining_request_is_pinned() -> None:
     """A change to what MINE sends is a prompt change: update this hash in the
     same commit as the record's version, with the eval that measured it."""
-    blocks = {"day": "[]", "crossings": "{}", "known": "[]", "knowledge": "kb"}
+    day: list[dict[str, object]] = [{"id": "ges_a", "act": "type"}, {"id": "ges_b", "act": "save"}]
+    blocks = mining_blocks(day, {"PO 4411": ["ges_a", "ges_b"]}, [{"title": "a job"}], "kb")
+    assert set(blocks) == {"day", "crossings", "known", "knowledge"}
     sent = MINE.instructions + "\n\n" + MINE.evidence({}, blocks)
     assert (
         hashlib.sha256(sent.encode()).hexdigest()
-        == "e9d4711d6102d80ee246d25a1c7f863a4963fb57ccb4bfe0acf05517fc4560b3"
+        == "2435d41a2b3b7648fe69b6a02cc72b8ef8f7c09bf8abee0da08b9ed87babe956"
     )

@@ -395,6 +395,7 @@ class TestWorkflows:
                     coverage=0.9,
                     skew=-0.5,
                     lopsided=True,
+                    dropped=6,
                     error="the model would not answer",
                 )
             )
@@ -409,6 +410,7 @@ class TestWorkflows:
         assert (made.proposed, made.kept, made.rejected) == (5, 4, 3)
         assert made.learned_parameters == 2
         assert (made.coverage, made.skew, made.lopsided) == (0.9, -0.5, True)
+        assert made.dropped == 6
         assert made.error == "the model would not answer"
 
     async def test_a_pass_id_is_stored_once(self, store: UnitOfWork) -> None:

@@ -829,15 +829,15 @@ Code: `unplaced: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 > whose window already held everything. See `MiningPass`.
 
 ## `MiningPassRow`, [line 847](../../../../../../../backend/src/sro/infrastructure/db/models.py#L847): Note on the line above
-## `MiningPassRow`, [line 873](../../../../../../../backend/src/sro/infrastructure/db/models.py#L873): Note on the line above
+## `MiningPassRow`, [line 874](../../../../../../../backend/src/sro/infrastructure/db/models.py#L874): Note on the line above
 
 Code: `error: Mapped[str | None] = mapped_column(Text)`
 
 > Why it found nothing, when it found nothing for a reason the API gave.
 > An honest zero and a refused call are the same row without this.
 
-## `AttemptRow`, [line 878](../../../../../../../backend/src/sro/infrastructure/db/models.py#L878): Docstring
-## `AttemptRow`, [line 878](../../../../../../../backend/src/sro/infrastructure/db/models.py#L878): Docstring
+## `AttemptRow`, [line 879](../../../../../../../backend/src/sro/infrastructure/db/models.py#L879): Docstring
+## `AttemptRow`, [line 879](../../../../../../../backend/src/sro/infrastructure/db/models.py#L879): Docstring
 
 > Something a person asked this system for, and what came of it.
 >
@@ -846,8 +846,8 @@ Code: `error: Mapped[str | None] = mapped_column(Text)`
 > something. See `sro.domain.observation.attempts` for what belongs here and
 > what does not.
 
-## `OfferRow`, [line 893](../../../../../../../backend/src/sro/infrastructure/db/models.py#L893): Docstring
-## `OfferRow`, [line 893](../../../../../../../backend/src/sro/infrastructure/db/models.py#L893): Docstring
+## `OfferRow`, [line 894](../../../../../../../backend/src/sro/infrastructure/db/models.py#L894): Docstring
+## `OfferRow`, [line 894](../../../../../../../backend/src/sro/infrastructure/db/models.py#L894): Docstring
 
 > One offer the extension made from a recognised prefix, and its fate.
 >
@@ -861,8 +861,8 @@ Code: `error: Mapped[str | None] = mapped_column(Text)`
 > mean arrival order once ``at`` ties, and Postgres promises no order at all
 > without a column to say so.
 
-## `OfferRow`, [line 893](../../../../../../../backend/src/sro/infrastructure/db/models.py#L893): Note on the line above
-## `OfferRow`, [line 902](../../../../../../../backend/src/sro/infrastructure/db/models.py#L902): Note on the line above
+## `OfferRow`, [line 894](../../../../../../../backend/src/sro/infrastructure/db/models.py#L894): Note on the line above
+## `OfferRow`, [line 903](../../../../../../../backend/src/sro/infrastructure/db/models.py#L903): Note on the line above
 
 Code: `k: Mapped[int] = mapped_column(Integer, nullable=False)`
 
@@ -870,8 +870,8 @@ Code: `k: Mapped[int] = mapped_column(Integer, nullable=False)`
 > arrival nudge -- "you have been here before", nothing typed -- which is
 > neither kind of evidence and is filtered out of the counsel window.
 
-## `ChatRow`, [line 929](../../../../../../../backend/src/sro/infrastructure/db/models.py#L929): Docstring
-## `ChatRow`, [line 929](../../../../../../../backend/src/sro/infrastructure/db/models.py#L929): Docstring
+## `ChatRow`, [line 930](../../../../../../../backend/src/sro/infrastructure/db/models.py#L930): Docstring
+## `ChatRow`, [line 930](../../../../../../../backend/src/sro/infrastructure/db/models.py#L930): Docstring
 
 > One sentence the chat door read, and what the reading cost.
 >
@@ -879,22 +879,22 @@ Code: `k: Mapped[int] = mapped_column(Integer, nullable=False)`
 > words about their warehouse, and the row exists for the cap and the spend
 > line, neither of which needs them.
 
-## `ChatRow`, [line 929](../../../../../../../backend/src/sro/infrastructure/db/models.py#L929): Note on the line above
-## `ChatRow`, [line 934](../../../../../../../backend/src/sro/infrastructure/db/models.py#L934): Note on the line above
+## `ChatRow`, [line 930](../../../../../../../backend/src/sro/infrastructure/db/models.py#L930): Note on the line above
+## `ChatRow`, [line 935](../../../../../../../backend/src/sro/infrastructure/db/models.py#L935): Note on the line above
 
 Code: `workflow_id: Mapped[str | None] = mapped_column(String(64))`
 
 > The job the sentence turned out to be about, when it was about one.
 
-## `ChatRow`, [line 929](../../../../../../../backend/src/sro/infrastructure/db/models.py#L929): Note on the line above
-## `ChatRow`, [line 938](../../../../../../../backend/src/sro/infrastructure/db/models.py#L938): Note on the line above
+## `ChatRow`, [line 930](../../../../../../../backend/src/sro/infrastructure/db/models.py#L930): Note on the line above
+## `ChatRow`, [line 939](../../../../../../../backend/src/sro/infrastructure/db/models.py#L939): Note on the line above
 
 Code: `thought_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)`
 
 > Inside out_tokens, not beside them.
 
-## `ChatRow`, [line 929](../../../../../../../backend/src/sro/infrastructure/db/models.py#L929): Note on the line above
-## `ChatRow`, [line 941](../../../../../../../backend/src/sro/infrastructure/db/models.py#L941): Note on the line above
+## `ChatRow`, [line 930](../../../../../../../backend/src/sro/infrastructure/db/models.py#L930): Note on the line above
+## `ChatRow`, [line 942](../../../../../../../backend/src/sro/infrastructure/db/models.py#L942): Note on the line above
 
 Code: `unpriced: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)`
 
@@ -1233,8 +1233,8 @@ Code: `__table_args__ = (Index("ix_workflow_learned_history_job", "workflow_id",
 > test -- and an index in one and not the other is a query that is fast in
 > development and a sequential scan in production.
 
-## `AttemptRow`, [line 878](../../../../../../../backend/src/sro/infrastructure/db/models.py#L878): Comment
-## `AttemptRow`, [line 880](../../../../../../../backend/src/sro/infrastructure/db/models.py#L880): Comment
+## `AttemptRow`, [line 879](../../../../../../../backend/src/sro/infrastructure/db/models.py#L879): Comment
+## `AttemptRow`, [line 881](../../../../../../../backend/src/sro/infrastructure/db/models.py#L881): Comment
 
 Code: `__table_args__ = (Index("ix_attempts_tenant_at", "tenant_id", "at"),)`
 
@@ -1242,8 +1242,8 @@ Code: `__table_args__ = (Index("ix_attempts_tenant_at", "tenant_id", "at"),)`
 > since when. A plain index on the tenant would make Postgres sort a
 > tenant's whole history to answer it.
 
-## `AttemptRow`, [line 878](../../../../../../../backend/src/sro/infrastructure/db/models.py#L878): Comment
-## `AttemptRow`, [line 883](../../../../../../../backend/src/sro/infrastructure/db/models.py#L883): Comment
+## `AttemptRow`, [line 879](../../../../../../../backend/src/sro/infrastructure/db/models.py#L879): Comment
+## `AttemptRow`, [line 884](../../../../../../../backend/src/sro/infrastructure/db/models.py#L884): Comment
 
 Code: `seq: Mapped[int] = mapped_column(BigInteger, Identity(), nullable=False)`
 

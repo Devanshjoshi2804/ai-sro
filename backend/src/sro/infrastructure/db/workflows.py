@@ -130,6 +130,7 @@ def _row_to_pass(row: MiningPassRow) -> MiningPass:
         window_size=row.window_size,
         left_out=row.left_out,
         unplaced=row.unplaced,
+        dropped=row.dropped,
         error=row.error,
     )
 
@@ -322,6 +323,7 @@ class SqlWorkflowRepository(WorkflowRepository):
                     window_size=mining_pass.window_size,
                     left_out=mining_pass.left_out,
                     unplaced=mining_pass.unplaced,
+                    dropped=mining_pass.dropped,
                     error=mining_pass.error,
                 )
             )

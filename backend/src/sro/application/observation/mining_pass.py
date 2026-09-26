@@ -102,6 +102,7 @@ class MineResult:
     lost_pool: list[str] = field(default_factory=list)
     lopsided: bool = False
     unplaced: int = 0
+    dropped: int = 0
 
 
 async def propose(
@@ -418,6 +419,7 @@ async def _one_pass(
         window_size=len(window.items),
         left_out=len(window.left_out),
         unplaced=len(residue) if isinstance(residue, list) else 0,
+        dropped=answer.dropped,
         lost_pool=lost,
     )
 
@@ -574,6 +576,7 @@ def _billed(pass_id: str, tenant_id: TenantId, started_at: str, result: MineResu
         window_size=result.window_size,
         left_out=result.left_out,
         unplaced=result.unplaced,
+        dropped=result.dropped,
         error=result.error,
     )
 

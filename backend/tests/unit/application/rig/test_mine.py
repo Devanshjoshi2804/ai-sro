@@ -841,6 +841,20 @@ async def test_a_pass_whose_price_is_unknown_says_so_in_its_row() -> None:
     assert row.unpriced is True
 
 
+async def test_a_pass_whose_every_job_was_dropped_says_so_in_its_row() -> None:
+    """Per-item validation drops a job that breaks MINE's schema. A pass whose
+    every job was dropped proposes nothing, and without the count its row reads
+    as a day with nothing in it rather than a model answering badly."""
+    uow, ids = await _day()
+    broken = {"title": "no steps at all"}
+
+    result = await _mine(uow, FakeAsker(_found(broken, {**_proposal(ids[0:2]), "steps": 7})))
+
+    assert (result.proposed, result.dropped) == (0, 2)
+    row = (await uow.workflows.passes(TENANT))[0]
+    assert (row.proposed, row.dropped, row.error) == (0, 2, None)
+
+
 async def test_a_refusal_costs_the_pass_and_not_the_process() -> None:
     uow, _ = await _day()
 

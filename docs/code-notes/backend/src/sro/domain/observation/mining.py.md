@@ -67,7 +67,7 @@ Code: `unplaced: int = 0`
 > The model's own claim, unverified and high by construction: it cites about
 > one gesture per step and calls the rest unplaced.
 
-## `MiningPass`, [line 29](../../../../../../../backend/src/sro/domain/observation/mining.py#L29): Note on the line above
+## `MiningPass`, [line 30](../../../../../../../backend/src/sro/domain/observation/mining.py#L30): Note on the line above
 
 Code: `error: str | None = None`
 

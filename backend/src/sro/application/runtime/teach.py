@@ -12,6 +12,7 @@ from sro.domain.execution.lanes import Broken, Lane, StepResult, accepts, cites_
 from sro.domain.execution.learned_step import K_NAME, LearnedStep
 from sro.domain.execution.verified_writes import learned_pattern
 from sro.domain.observation.gesture import Gesture
+from sro.domain.shared.errors import NotFound
 from sro.domain.shared.hosts import origin_of
 from sro.domain.skill.workflow import Step, Workflow
 
@@ -35,6 +36,8 @@ class Teach:
         now = self._clock.now()
         won = tried[-1] if tried and tried[-1].verdict in ("done", "read") else None
         async with self._uow as uow:
+            if await _still(uow, ctx, workflow) is None:
+                return
             for result in tried:
                 if result.verdict == "failed" and result.fingerprint and not result.expired:
                     await uow.workflows.break_lane(
@@ -85,10 +88,16 @@ class Teach:
                     )
             await uow.commit()
 
+    async def locators(self, ctx: RequestContext, workflow: Workflow) -> dict[int, LearnedStep]:
+        async with self._uow as uow:
+            if await _still(uow, ctx, workflow) is None:
+                return {}
+            return {one.ord: one for one in await uow.workflows.learned_for(workflow.id)}
+
     async def learn_field(
         self,
         ctx: RequestContext,
-        workflow_id: str,
+        pinned: Workflow,
         field: Composed,
         *,
         key: str,
@@ -98,11 +107,8 @@ class Teach:
         run_id: str,
     ) -> None:
         async with self._uow as uow:
-            workflow = await uow.workflows.get(ctx.tenant_id, workflow_id)
-            if any(field.name in one.parameters for one in workflow.steps):
-                return
-            runs = await uow.workflow_runs.for_workflow(ctx.tenant_id, workflow.id)
-            if any(one.outcome == "running" and one.id != run_id for one in runs):
+            workflow = await _still(uow, ctx, pinned)
+            if workflow is None or any(field.name in one.parameters for one in workflow.steps):
                 return
             grown, moved = with_field(workflow, field, key=key, value=value)
             await uow.workflows.grew(grown, moved=moved)
@@ -125,6 +131,14 @@ class Teach:
                     by_run=run_id,
                 )
             await uow.commit()
+
+
+async def _still(uow: UnitOfWork, ctx: RequestContext, workflow: Workflow) -> Workflow | None:
+    try:
+        job = await uow.workflows.get(ctx.tenant_id, workflow.id, lock=True)
+    except NotFound:
+        return None
+    return job if job.steps == workflow.steps else None
 
 
 def _sighted(step: Step, won: StepResult, values: Mapping[str, str]) -> LearnedStep | None:

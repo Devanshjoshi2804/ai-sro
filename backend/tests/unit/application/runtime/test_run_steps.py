@@ -535,12 +535,13 @@ async def test_an_optional_value_nobody_gave_skips_its_step() -> None:
 
 
 async def test_a_required_value_nobody_gave_is_asked_for_never_guessed() -> None:
-    world = await steel_run(steps=[type_step()])
-    job = await world.uow.workflows.get(TENANT, (await world.saved_run()).workflow_id)
-    await world.uow.workflows.save(
-        replace(job, parameters=[{"name": "Customer Type", "required": True}])
+    step, by_id = type_step()
+    job = replace(
+        WORKFLOW,
+        steps=[replace(step, order=0)],
+        parameters=[{"name": "Customer Type", "required": True}],
     )
-    await world.uow.workflow_runs.save(replace(await world.saved_run(), values={}))
+    world = await steel_run(steps=[(step, by_id)], job=job, values={})
 
     outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
 

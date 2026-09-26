@@ -13,29 +13,47 @@ rest are the effects and stale rules, which plan 1 ported as pure rules in
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Awaitable, Callable, Mapping
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from sro.application.observation.mining_pass import mine
+from sro.application.context import RequestContext
+from sro.application.observation.mining_pass import (
+    _grow,
+    _healed,
+    fill_in_passwords,
+    learn_parameters,
+    mine,
+)
+from sro.application.runtime.teach import Teach
 from sro.domain.execution.belts import RunProof, earned_from
-from sro.domain.execution.lanes import Broken, Lane
+from sro.domain.execution.compose import Composed, with_field
+from sro.domain.execution.lanes import Broken, Lane, StepResult
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.verified_writes import VerifiedWrite
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
+from sro.domain.execution.workflow_run import (
+    RunStep,
+    WorkflowRun,
+    new_run_id,
+    pin,
+)
+from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.errors import Conflict, NotFound
-from sro.domain.shared.identifiers import TenantId
+from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow, new_workflow_id
 from sro.infrastructure.db.models import WorkflowEffectRow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from tests.unit.domain.rig.conftest import gestures as _gestures
-from tests.unit.fakes import FakeAccountLocks, FakeAsker
+from tests.unit.fakes import FakeAccountLocks, FakeAsker, FakeClock
 
 FOUND_BY = "pas_abcdef"
 
@@ -1024,3 +1042,315 @@ class TestWhatAJobTaughtItself:
 
         async with SqlUnitOfWork(session_factory) as uow:
             assert len(await uow.workflows.taught_itself("wfl_1")) == 1
+
+
+class TestARunKeepsItsVersion:
+    """X11: a grow renumbers the job's steps and what the job learned by step
+    number. Every writer that renumbers, and every reader or teacher that
+    trusts the numbering, holds the job's row lock; each test here holds a
+    grow open on the row and runs one of them against it, and goes red if
+    that one does not take the lock."""
+
+    async def test_two_runs_learning_on_one_version_grow_the_job_once(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        job = _workflow()
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(job)
+            await uow.workflows.remember_locator(
+                job.id, LearnedStep(1, "component", "status", "evidence")
+            )
+            await uow.commit()
+
+        await asyncio.gather(
+            _learns(session_factory, job, "department"), _learns(session_factory, job, "region")
+        )
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            now = await uow.workflows.get(TENANT, job.id)
+            learned = await uow.workflows.learned_for(job.id)
+        assert [one.order for one in now.steps] == [0, 1, 2]
+        assert [(one.ord, one.query) for one in learned] == [(2, "status")]
+
+    async def test_a_mining_grow_waits_for_a_learned_field_and_keeps_it(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        job, by_id = await _a_real_job(session_factory)
+        proposal = replace(
+            job,
+            steps=[
+                *job.steps,
+                Step(order=2, says="press it", system=SYSTEM, cites=[_GESTURES[4].id]),
+            ],
+        )
+
+        async def grows() -> None:
+            async with SqlUnitOfWork(session_factory) as uow:
+                await _grow(uow, tenant_id=TENANT, known_id=job.id, proposal=proposal, by_id=by_id)
+                await uow.commit()
+
+        await _against_an_open_grow(session_factory, engine, job, grows)
+
+        steps, learned = await _now(session_factory, job)
+        assert steps == ["type it", "Fill Department", "save it", "press it"]
+        assert learned == [(1, "combobox|Department"), (2, "#save")]
+
+    async def test_a_run_teaches_nothing_under_a_numbering_a_grow_is_replacing(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        job, by_id = await _a_real_job(session_factory)
+        sighted = {"strategy": "css", "query": "#seen", "frame_path": "[]"}
+
+        async def teaches() -> None:
+            await Teach(SqlUnitOfWork(session_factory), FakeClock()).learn(
+                CTX,
+                job,
+                by_id,
+                job.steps[1],
+                (StepResult("done", Lane.SIGHT, learned=sighted),),
+                run_id="run_old",
+                values={},
+            )
+
+        await _against_an_open_grow(session_factory, engine, job, teaches)
+
+        _, learned = await _now(session_factory, job)
+        assert learned == [(1, "combobox|Department"), (2, "#save")]
+
+    async def test_a_run_reads_no_locator_under_a_numbering_a_grow_is_replacing(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        job, _ = await _a_real_job(session_factory)
+
+        async def reads() -> Mapping[int, LearnedStep]:
+            return await Teach(SqlUnitOfWork(session_factory), FakeClock()).locators(CTX, job)
+
+        assert await _against_an_open_grow(session_factory, engine, job, reads) == {}
+
+    async def test_learning_parameters_waits_for_a_learned_field_and_keeps_it(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        twice = [{"name": "a", "key": "k"}, {"name": "b", "key": "k"}]
+        job, _ = await _a_real_job(session_factory, parameters=twice)
+
+        async def learns() -> None:
+            async with SqlUnitOfWork(session_factory) as uow:
+                await learn_parameters(
+                    uow,
+                    tenant_id=TENANT,
+                    known_id=job.id,
+                    proposal=replace(job, steps=[]),
+                    by_id={},
+                    intents={},
+                )
+                await uow.commit()
+
+        await _against_an_open_grow(session_factory, engine, job, learns)
+
+        steps, learned = await _now(session_factory, job)
+        assert steps == ["type it", "Fill Department", "save it"]
+        assert learned == [(1, "combobox|Department"), (2, "#save")]
+
+    async def test_healing_the_steps_waits_for_a_learned_field_and_keeps_it(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        job, _ = await _a_real_job(session_factory)
+
+        async def heals() -> None:
+            async with SqlUnitOfWork(session_factory) as uow:
+                assert await fill_in_passwords(uow, tenant_id=TENANT) == 1
+                await uow.commit()
+
+        await _against_an_open_grow(session_factory, engine, job, heals)
+
+        steps, learned = await _now(session_factory, job)
+        assert steps == ["type it", "Fill Department", "save it"]
+        assert learned == [(1, "combobox|Department"), (2, "#save")]
+
+    async def test_a_grow_stopped_mid_way_leaves_the_job_to_the_learning_that_waited(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        job, _ = await _a_real_job(session_factory)
+
+        await _against_an_open_grow(
+            session_factory,
+            engine,
+            job,
+            lambda: _learns(session_factory, job, "region"),
+            stopped=True,
+        )
+
+        steps, learned = await _now(session_factory, job)
+        assert steps == ["type it", "Fill Region", "save it"]
+        assert learned == [(2, "#save")]
+
+    async def test_a_mining_pass_holds_no_job_s_row_while_it_asks_the_model(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        """The pass's listing says the job needs healing; by the locked re-read a
+        heal has landed and there is nothing left to do. That re-read's lock must
+        still end before the model is asked -- a call of up to minutes -- or every
+        run's learning on the job waits for it."""
+        job, by_id = await _a_real_job(session_factory)
+        asker = _AsksAndWaits()
+
+        async def mines() -> None:
+            async with SqlUnitOfWork(session_factory) as uow:
+                await mine(
+                    uow,
+                    tenant_id=TENANT,
+                    asker=asker,
+                    locks=FakeAccountLocks(),
+                    now=datetime(2025, 2, 11, 23, tzinfo=UTC),
+                    cap_usd=100.0,
+                )
+
+        async with SqlUnitOfWork(session_factory) as healer:
+            held = await healer.workflows.get(TENANT, job.id, lock=True)
+            assert _healed(held, by_id)
+            await healer.workflows.save(held)
+            mining = asyncio.ensure_future(mines())
+            await _until_it_waits_or_ends(engine, mining)
+            await healer.commit()
+        asking = asyncio.ensure_future(asker.asked_at.wait())
+        await asyncio.wait({mining, asking}, return_when=asyncio.FIRST_COMPLETED)
+        assert asker.asked_at.is_set()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            healed = await uow.workflows.get(TENANT, job.id)
+        learning = asyncio.ensure_future(_learns(session_factory, healed, "department"))
+        await _until_it_waits_or_ends(engine, learning)
+        learned_while_asking = learning.done()
+        asker.answer.set()
+        await asyncio.gather(mining, learning)
+
+        assert learned_while_asking
+        steps, _ = await _now(session_factory, job)
+        assert "Fill Department" in steps
+
+    async def test_a_run_s_pin_is_written_once(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        job = _workflow()
+        run = _run(job.id, outcome="running", pinned=pin(job))
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(job)
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(replace(run, pinned=pin(replace(job, steps=[]))))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            back = await uow.workflow_runs.get(TENANT, run.id)
+        assert back is not None and back.pinned == job
+
+
+CTX = RequestContext(tenant_id=TENANT, principal_id=PrincipalId("clerk"))
+_GESTURES = _gestures(TENANT.value)
+SYSTEM = _GESTURES[0].system
+
+
+async def _a_real_job(
+    session_factory: async_sessionmaker[AsyncSession],
+    *,
+    parameters: list[dict[str, object]] | None = None,
+) -> tuple[Workflow, dict[str, Gesture]]:
+    """Type, then save, citing real gestures, stored with them and with a
+    locator learned for the save."""
+    job = _workflow(
+        systems=[SYSTEM],
+        steps=[
+            Step(order=0, says="type it", system=SYSTEM, cites=[_GESTURES[0].id]),
+            Step(order=1, says="save it", system=SYSTEM, cites=[_GESTURES[3].id]),
+        ],
+        parameters=parameters or [],
+        signs_in=None,
+    )
+    async with SqlUnitOfWork(session_factory) as uow:
+        await uow.gestures.add_gestures(tuple(_GESTURES))
+        await uow.workflows.save(job)
+        await uow.workflows.remember_locator(job.id, LearnedStep(1, "css", "#save", "sight"))
+        await uow.commit()
+    return job, {one.id: one for one in _GESTURES}
+
+
+async def _learns(
+    session_factory: async_sessionmaker[AsyncSession], job: Workflow, name: str
+) -> None:
+    await Teach(SqlUnitOfWork(session_factory), FakeClock()).learn_field(
+        CTX,
+        job,
+        Composed(name, name.title(), "combobox", 1),
+        key=name,
+        value="x",
+        learned={},
+        lane=Lane.UI,
+        run_id=f"run_{name}",
+    )
+
+
+async def _against_an_open_grow[T](
+    session_factory: async_sessionmaker[AsyncSession],
+    engine: AsyncEngine,
+    job: Workflow,
+    other: Callable[[], Awaitable[T]],
+    *,
+    stopped: bool = False,
+) -> T:
+    """Grows `job` by a Department field before its save, as `learn_field`
+    does, and holds that open while `other` runs; commits once `other` is
+    waiting on a lock (or has finished without one), or rolls back when
+    `stopped`."""
+    async with SqlUnitOfWork(session_factory) as grow:
+        held = await grow.workflows.get(TENANT, job.id, lock=True)
+        grown, moved = with_field(
+            held, Composed("department", "Department", "combobox", 1), key="department", value="x"
+        )
+        await grow.workflows.grew(grown, moved=moved)
+        await grow.workflows.remember_locator(
+            job.id, LearnedStep(1, "role_and_name", "combobox|Department", "composed")
+        )
+        running = asyncio.ensure_future(other())
+        await _until_it_waits_or_ends(engine, running)
+        if not stopped:
+            await grow.commit()
+    return await running
+
+
+async def _until_it_waits_or_ends(engine: AsyncEngine, running: asyncio.Future[Any]) -> None:
+    """Returns once some session waits on a lock, or `running` has finished."""
+    async with engine.connect() as watching:
+        while not running.done():
+            waiting = await watching.scalar(
+                text(
+                    "SELECT count(*) FROM pg_stat_activity"
+                    " WHERE datname = current_database() AND wait_event_type = 'Lock'"
+                )
+            )
+            if waiting:
+                return
+            await asyncio.sleep(0.01)
+
+
+class _AsksAndWaits(FakeAsker):
+    """A model call that holds until `answer` is set, and says when it began."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.asked_at = asyncio.Event()
+        self.answer = asyncio.Event()
+
+    async def ask(self, **question: Any) -> Answer:
+        self.asked_at.set()
+        await self.answer.wait()
+        return await super().ask(**question)
+
+
+async def _now(
+    session_factory: async_sessionmaker[AsyncSession], job: Workflow
+) -> tuple[list[str], list[tuple[int, str]]]:
+    async with SqlUnitOfWork(session_factory) as uow:
+        now = await uow.workflows.get(TENANT, job.id)
+        learned = await uow.workflows.learned_for(job.id)
+    return [one.says for one in now.steps], sorted((one.ord, one.query) for one in learned)

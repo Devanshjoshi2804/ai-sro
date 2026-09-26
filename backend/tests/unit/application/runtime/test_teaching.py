@@ -13,7 +13,6 @@ from tests.unit.runtime_support import (
     TENANT,
     WORKFLOW,
     proven_write_step,
-    running_steel_run,
     save_step,
 )
 
@@ -33,7 +32,7 @@ async def test_a_learned_field_moves_the_write_and_everything_known_about_it() -
 
     await Teach(uow, FakeClock()).learn_field(
         CTX,
-        job.id,
+        job,
         Composed("department", "Department", "combobox", step.order),
         key="department",
         value="Finance",
@@ -68,7 +67,7 @@ async def test_a_field_whose_step_was_lost_is_learned_again_under_its_one_parame
     for _ in range(2):
         await teach.learn_field(
             CTX,
-            job.id,
+            job,
             field,
             key="department",
             value="Finance",
@@ -82,30 +81,9 @@ async def test_a_field_whose_step_was_lost_is_learned_again_under_its_one_parame
     assert [one["name"] for one in grown.parameters] == ["department"]
 
 
-async def test_a_field_is_never_learned_under_another_run_of_the_job_still_going() -> None:
-    uow = FakeUnitOfWork()
-    step, _ = save_step(status=201)
-    job = replace(WORKFLOW, steps=[step])
-    await uow.workflows.save(job)
-    sibling = await running_steel_run(uow, "run_2")
-    await uow.workflow_runs.save(replace(sibling, workflow_id=job.id))
-
-    await Teach(uow, FakeClock()).learn_field(
-        CTX,
-        job.id,
-        Composed("department", "Department", "combobox", step.order),
-        key="department",
-        value="Finance",
-        learned={},
-        lane=Lane.UI,
-        run_id="run_1",
-    )
-
-    assert [one.says for one in (await uow.workflows.get(TENANT, job.id)).steps] == [step.says]
-
-
 async def test_a_sight_success_is_learned_into_the_ui_lane() -> None:
     uow = FakeUnitOfWork()
+    await uow.workflows.save(WORKFLOW)
     step, by_id = save_step(status=201)
     await uow.workflows.break_lane(
         TENANT, WORKFLOW.id, Broken(step.order, Lane.UI, "f"), cites=cites_key(step), at=NOW
@@ -131,6 +109,7 @@ async def test_a_sight_success_is_learned_into_the_ui_lane() -> None:
 
 async def test_a_sight_hit_without_its_frame_path_teaches_no_locator() -> None:
     uow = FakeUnitOfWork()
+    await uow.workflows.save(WORKFLOW)
     step, by_id = save_step(status=201)
     tried = (
         StepResult("done", Lane.SIGHT, learned={"strategy": "component", "query": "#saveButton"}),
@@ -145,6 +124,7 @@ async def test_a_sight_hit_without_its_frame_path_teaches_no_locator() -> None:
 
 async def test_a_failed_lane_joins_the_known_broken_list_but_a_session_problem_does_not() -> None:
     uow = FakeUnitOfWork()
+    await uow.workflows.save(WORKFLOW)
     step, by_id = save_step(status=201)
     tried = (
         StepResult("failed", Lane.API, "missing_header", expired=True),
@@ -163,6 +143,7 @@ async def test_a_failed_lane_joins_the_known_broken_list_but_a_session_problem_d
 
 async def test_an_unknown_outcome_mends_nothing() -> None:
     uow = FakeUnitOfWork()
+    await uow.workflows.save(WORKFLOW)
     step, by_id = save_step(status=201)
     await uow.workflows.break_lane(
         TENANT, WORKFLOW.id, Broken(step.order, Lane.UI, "f"), cites=cites_key(step), at=NOW
@@ -185,6 +166,7 @@ async def test_an_unknown_outcome_mends_nothing() -> None:
 
 async def test_a_promotion_never_mends_an_api_lane_broken_before() -> None:
     uow = FakeUnitOfWork()
+    await uow.workflows.save(WORKFLOW)
     step, by_id, _ = proven_write_step(read_back="/api/customer-types/{name}")
     await uow.workflows.break_lane(
         TENANT, WORKFLOW.id, Broken(step.order, Lane.API, "a"), cites=cites_key(step), at=NOW
@@ -212,6 +194,7 @@ async def test_a_promotion_never_mends_an_api_lane_broken_before() -> None:
 
 async def test_a_ui_write_with_no_read_back_is_not_promoted() -> None:
     uow = FakeUnitOfWork()
+    await uow.workflows.save(WORKFLOW)
     step, by_id, _ = proven_write_step(read_back=None)
     call = SeenCall("POST", URL, 201, request_body='{"name": "GT2"}')
 
@@ -245,6 +228,7 @@ async def test_a_ui_write_with_no_read_back_is_not_promoted() -> None:
 )
 async def test_a_call_that_is_not_the_writes_own_never_promotes(call: SeenCall) -> None:
     uow = FakeUnitOfWork()
+    await uow.workflows.save(WORKFLOW)
     step, by_id, _ = proven_write_step(read_back="/api/customer-types/{name}")
 
     await Teach(uow, FakeClock()).learn(
@@ -262,6 +246,7 @@ async def test_a_call_that_is_not_the_writes_own_never_promotes(call: SeenCall) 
 
 async def test_a_promotion_never_clears_an_api_lane_that_failed_this_run() -> None:
     uow = FakeUnitOfWork()
+    await uow.workflows.save(WORKFLOW)
     step, by_id, _ = proven_write_step(read_back="/api/customer-types/{name}")
     call = SeenCall("POST", URL, 201, request_body='{"name": "GT2"}')
     tried = (
@@ -287,6 +272,7 @@ async def test_a_locator_that_carries_a_run_value_or_runs_long_is_never_taught(
     query: str,
 ) -> None:
     uow = FakeUnitOfWork()
+    await uow.workflows.save(WORKFLOW)
     step, by_id = save_step(status=201)
     sighted = {**SIGHTED, "strategy": "role_and_name", "query": query}
 

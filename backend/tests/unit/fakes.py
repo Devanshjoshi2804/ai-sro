@@ -2305,6 +2305,7 @@ class FakeWorkflowRunRepository:
         # roll that mark back -- only `record_progress` ever changes it again.
         existing = self.rows.get(run.id)
         kept.progress = dict(run.progress) if existing is None else dict(existing.progress)
+        kept.pinned = kept.pinned if existing is None else deepcopy(existing.pinned)
         # An ended run keeps how and when it ended, same as the store's
         # `CASE` on `outcome`/`finished_at`: a stale copy saved by a worker
         # that loaded the run before a stop cannot reopen it.
@@ -2597,6 +2598,8 @@ class FakeWorkflowRepository:
         """(tenant, gesture) -> the job a folded doing was placed against."""
         """Retired jobs by id, as the store's ``retired_at``: the row stays,
         and a re-save does not bring it back."""
+        self.save_kills = False
+        """The next `save` is the statement that fails, and kills the session."""
         self._saved = count()
         self._created: dict[str, int] = {}
         self.created_at: dict[str, datetime] = {}
@@ -2607,6 +2610,9 @@ class FakeWorkflowRepository:
 
     async def save(self, workflow: Workflow) -> None:
         self._alive()
+        if self.save_kills:
+            self.poisoned = True
+            raise RuntimeError("value too long for type character varying(64)")
         self.rows[workflow.id] = deepcopy(workflow)
         # A re-save keeps the creation time, as the store's upsert does.
         if workflow.id not in self._created:
@@ -2642,7 +2648,7 @@ class FakeWorkflowRepository:
         found.sort(key=lambda row: (self._created[row.id], row.id))
         return tuple(deepcopy(row) for row in found)
 
-    async def get(self, tenant_id: TenantId, workflow_id: str) -> Workflow:
+    async def get(self, tenant_id: TenantId, workflow_id: str, *, lock: bool = False) -> Workflow:
         row = self.rows.get(workflow_id)
         if row is None or row.tenant != tenant_id.value or workflow_id in self.retired:
             raise NotFound(f"workflow {workflow_id} was not found")
@@ -2781,7 +2787,9 @@ class FakeWorkflowRepository:
         # A step the new shape does not have is a step nobody performs, and
         # its learning goes with it.
         self.learned = {
-            ((one, moved[ord_]) if one == workflow.id else (one, ord_)): found
+            ((one, moved[ord_]) if one == workflow.id else (one, ord_)): (
+                replace(found, ord=moved[ord_]) if one == workflow.id else found
+            )
             for (one, ord_), found in self.learned.items()
             if one != workflow.id or ord_ in moved
         }

@@ -110,6 +110,27 @@ def _row_to_workflow(row: WorkflowRow, steps: list[Step]) -> Workflow:
     )
 
 
+def workflow_json(workflow: Workflow) -> dict[str, Any]:
+    columns = _workflow_values(workflow)
+    del columns["created_at"]
+    return {
+        "workflow": columns,
+        "steps": [_step_values(workflow.id, step) for step in workflow.steps],
+    }
+
+
+def workflow_from_json(held: dict[str, Any]) -> Workflow:
+    return _row_to_workflow(
+        WorkflowRow(**_known(WorkflowRow, held["workflow"])),
+        [_row_to_step(WorkflowStepRow(**_known(WorkflowStepRow, step))) for step in held["steps"]],
+    )
+
+
+def _known(table: type[Any], columns: dict[str, Any]) -> dict[str, Any]:
+    names = table.__table__.columns.keys()
+    return {name: value for name, value in columns.items() if name in names}
+
+
 def _row_to_pass(row: MiningPassRow) -> MiningPass:
     return MiningPass(
         id=row.id,
@@ -208,7 +229,7 @@ class SqlWorkflowRepository(WorkflowRepository):
             for row in (await self._session.execute(query)).all()
         )
 
-    async def get(self, tenant_id: TenantId, workflow_id: str) -> Workflow:
+    async def get(self, tenant_id: TenantId, workflow_id: str, *, lock: bool = False) -> Workflow:
         query = (
             select(WorkflowRow)
             .where(
@@ -218,6 +239,8 @@ class SqlWorkflowRepository(WorkflowRepository):
             )
             .execution_options(populate_existing=True)
         )
+        if lock:
+            query = query.with_for_update()
         row = (await self._session.execute(query)).scalar_one_or_none()
         if row is None:
             raise NotFound(f"workflow {workflow_id} was not found")

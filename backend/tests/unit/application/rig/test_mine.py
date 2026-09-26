@@ -929,13 +929,15 @@ async def test_the_bill_is_written_on_a_session_the_save_killed() -> None:
     is why the integration test beside it exists.
     """
     uow, ids = await _day()
-    uow._workflows.poisoned = True
+    uow._workflows.save_kills = True
     asker = FakeAsker(Answer(data={"workflows": [_proposal(ids[:2])]}, cost_usd=0.04))
 
     with pytest.raises(RuntimeError):
         await _mine(uow, asker)
 
-    assert uow.rollbacks == 1, "the session had to be revived before it could be written to"
+    # One rollback ends the heal's transaction before the model is asked (it
+    # healed nothing); the other revives the session the save killed.
+    assert uow.rollbacks == 2, "the session had to be revived before it could be written to"
     assert [one.cost_usd for one in await uow.workflows.passes(TENANT)] == [0.04]
     assert uow.commits == 1
 

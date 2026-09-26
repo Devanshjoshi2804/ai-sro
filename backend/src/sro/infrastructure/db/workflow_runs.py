@@ -23,6 +23,7 @@ from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.infrastructure.db.codec import when
 from sro.infrastructure.db.models import ApprovalRow, WorkflowRunRow, WorkflowRunStepRow
+from sro.infrastructure.db.workflows import workflow_from_json, workflow_json
 
 
 def _run_values(run: WorkflowRun) -> dict[str, Any]:
@@ -58,6 +59,7 @@ def _run_values(run: WorkflowRun) -> dict[str, Any]:
         "progress": dict(run.progress),
         "executor": run.executor,
         "offer": run.offer,
+        "pinned": None if run.pinned is None else workflow_json(run.pinned),
     }
 
 
@@ -156,6 +158,7 @@ def _row_to_run(row: WorkflowRunRow, steps: list[RunStep]) -> WorkflowRun:
         progress=dict(row.progress or {}),
         executor=cast(Executor, row.executor),
         offer=row.offer,
+        pinned=None if row.pinned is None else workflow_from_json(row.pinned),
     )
 
 
@@ -185,7 +188,7 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
                     set_={
                         column.name: kept.get(column.name, statement.excluded[column.name])
                         for column in WorkflowRunRow.__table__.columns
-                        if column.name not in ("id", "progress")
+                        if column.name not in ("id", "progress", "pinned")
                     },
                 )
             )

@@ -642,6 +642,8 @@ class WorkflowRunRow(Base):
 
     offer: Mapped[str | None] = mapped_column(String(128))
 
+    pinned: Mapped[Any] = mapped_column(JSONB, nullable=True)
+
     __table_args__ = (
         Index("ix_workflow_runs_tenant_workflow", "tenant_id", "workflow_id", "started_at"),
         Index(

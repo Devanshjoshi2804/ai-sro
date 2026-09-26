@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import secrets
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Literal
+
+from sro.domain.skill.workflow import Workflow
 
 OUTCOMES = ("running", "held", "stopped", "refused", "aborted", "failed")
 ENDED = ("held", "aborted", "failed")
@@ -110,3 +113,9 @@ class WorkflowRun:
     executor: Executor = "extension"
 
     offer: str | None = None
+
+    pinned: Workflow | None = None
+
+
+def pin(workflow: Workflow) -> Workflow:
+    return deepcopy(workflow)

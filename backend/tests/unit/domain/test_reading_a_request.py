@@ -442,3 +442,41 @@ def test_one_system_s_sign_in_box_name_says_nothing_about_another_system_s_jobs(
     thread = "user: RKUCHIYAGM"
     got = _address(_client(BOX_USER, "other.example"), "RKUCHIYAGM", thread)
     assert got == ({"Address": "RKUCHIYAGM"}, {})
+
+
+COST = Candidate(
+    id="wfl_cc",
+    title="Book a cost",
+    fields=(FieldClass("department", "sometimes", ("department", "Department"), FieldLimits(5)),),
+    aliases={"cost centre": "Department"},
+    seen={},
+)
+
+
+def test_an_alias_lands_on_the_parameter_its_label_names_and_its_limits_apply() -> None:
+    def said(wording: str) -> dict[str, str]:
+        thread = f"Please book it to {wording} Finance Team"
+        read = read_of(
+            {
+                "job": "wfl_cc",
+                "values": [_value(wording, "Finance Team", f"{wording} Finance Team")],
+            },
+            [COST],
+            thread,
+        )
+        return {**read.refused, **{f"value:{k}": v for k, v in read.values.items()}}
+
+    assert field_of("cost centre", COST) == ("department", True)
+    assert said("cost centre") == said("Department") == {"department": "longer than 5 characters"}
+
+
+def test_an_aliased_value_inside_its_limits_is_read_like_one_under_the_label() -> None:
+    def read(wording: str) -> tuple[dict[str, str], dict[str, str]]:
+        got = read_of(
+            {"job": "wfl_cc", "values": [_value(wording, "Fin", f"{wording}: Fin")]},
+            [COST],
+            f"Please book it, {wording}: Fin",
+        )
+        return got.values, got.refused
+
+    assert read("cost centre") == read("Department") == ({"department": "Fin"}, {})

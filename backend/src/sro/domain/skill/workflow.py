@@ -53,6 +53,11 @@ class Workflow:
     repeat: Repeat | None = None
 
     signs_in: bool | None = None
+    signs_out: bool | None = None
+
+    @property
+    def chore(self) -> bool:
+        return bool(self.signs_in or self.signs_out)
 
     def generalise_title(self) -> None:
         seen: list[str] = []
@@ -81,10 +86,6 @@ class Noticed:
     title: str
     systems: tuple[str, ...]
     steps: int
-
-
-def is_a_chore(workflow: Workflow) -> bool:
-    return bool(workflow.signs_in)
 
 
 def cited_ids(workflow: Workflow) -> set[str]:

@@ -10,3 +10,4 @@ class JobAlias:
     field: str
     confirmed_by: str
     at: datetime
+    role: str = ""

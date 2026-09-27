@@ -61,7 +61,7 @@ Code: `repeat: Repeat | None = None`
 > given one item performs exactly like a run of a job with no repeat at all.
 > See `domain/skill/repeats`.
 
-## `ordered_cites`, [line 94](../../../../../../../backend/src/sro/domain/skill/workflow.py#L94): Docstring
+## `ordered_cites`, [line 95](../../../../../../../backend/src/sro/domain/skill/workflow.py#L95): Docstring
 
 > Every gesture the workflow cites, in step order.
 >
@@ -71,7 +71,7 @@ Code: `repeat: Repeat | None = None`
 > caller: the mining pass writes a shape key and `rekey_workflows` rewrites
 > one, and two spellings of "in step order" is two shapes for one job.
 
-## `Workflow.generalise_title`, [line 57](../../../../../../../backend/src/sro/domain/skill/workflow.py#L57): Docstring
+## `Workflow.generalise_title`, [line 62](../../../../../../../backend/src/sro/domain/skill/workflow.py#L62): Docstring
 
 > This job's own parameter values taken out of its name.
 >
@@ -135,7 +135,7 @@ Code: `signs_in: bool | None = None`
 > sweep decides it (`mining_pass.decide_sign_ins`). A job starts undecided;
 > the mining pass decides a proposal before it is stored.
 
-## `field_key`, [line 98](../../../../../../../backend/src/sro/domain/skill/workflow.py#L98): Docstring
+## `field_key`, [line 99](../../../../../../../backend/src/sro/domain/skill/workflow.py#L99): Docstring
 
 > The body key of a learned field step (X10, `with_field`), or "". Such a step
 > cites no gesture and fills one parameter that the job declares with the
@@ -153,10 +153,21 @@ Code: `signs_in: bool | None = None`
 > `unresolved`, the runtime -- asks `role`, which takes that NULL as `main`:
 > the one tab every job ran in before steps knew theirs.
 
-## `is_a_chore`, [line 86](../../../../../../../backend/src/sro/domain/skill/workflow.py#L86): Docstring
+## `Workflow`, [line 56](../../../../../../../backend/src/sro/domain/skill/workflow.py#L56): Note on the line above
 
-> A job that exists to get the operator somewhere rather than to do work: a
-> sign-in today. The one hook for "chore": the typed-values rule mints it no
-> parameters (`learn_parameters`) and the mining eval builds no case from it.
-> F3 adds `signs_out` and extends this one function, so every reader of it
-> follows at once.
+Code: `signs_out: bool | None = None`
+
+> Whether this job signs out (`checks.signs_out`), decided beside `signs_in`
+> by the same decider and written with it (`WorkflowRepository.decide`).
+> `None` is undecided, and read as "not known yet" -- never as a chore. 0087
+> added it NULL on every stored job, so the sweep decides each one.
+
+## `Workflow.chore`, [line 59](../../../../../../../backend/src/sro/domain/skill/workflow.py#L59): Note on the function
+
+> A sign-in or a sign-out: the session broker's work, never a request's.
+> The one place the rule lives, so the candidate list and the chore check
+> cannot disagree about which verdict counts.
+> The typed-values rule mints a chore no parameters (`learn_parameters`)
+> and the mining eval builds no case from one (M3 reads this, not a hook
+> of its own).
+

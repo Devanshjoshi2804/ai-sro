@@ -7,7 +7,7 @@ of the rule last applied to the job, NULL for never, so "once" survives a
 restart and a later rule can bring every job in again.
 
 Revision ID: 0089
-Revises: 0086
+Revises: 0088
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "0089"
-down_revision = "0086"
+down_revision = "0088"
 branch_labels = None
 depends_on = None
 

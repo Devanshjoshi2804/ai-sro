@@ -24,8 +24,9 @@ from sqlalchemy.pool import NullPool
 from sro.application.context import RequestContext
 from sro.application.observation.mine_lately import MineLately
 from sro.application.observation.mining_pass import MineResult
+from sro.domain.observation.gesture import Action, Gesture
 from sro.domain.shared.identifiers import TenantId
-from sro.domain.skill.workflow import Workflow
+from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.db.locks import PostgresAccountLocks
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from tests.integration.test_account_locks import (
@@ -46,6 +47,23 @@ class _NothingRead:
         return 0
 
 
+def _click(tenant: TenantId) -> Gesture:
+    """A plain click, stored: a job is decided only from evidence it can read,
+    so the job this sweep must decide cites one (F3, I1)."""
+    return Gesture(
+        id=f"ges_{tenant.value}",
+        tenant=tenant.value,
+        stream_id="s",
+        batch_id="b",
+        at=1.0,
+        url="https://wms.example/page",
+        system="https://wms.example",
+        tab_id=1,
+        frame_url=None,
+        action=Action(kind="click", at=1.0),
+    )
+
+
 async def _signs_in(
     session_factory: async_sessionmaker[AsyncSession], tenant: TenantId
 ) -> bool | None:
@@ -62,8 +80,17 @@ async def test_the_sweep_skips_a_tenant_mined_elsewhere_and_decides_another(
     caplog.set_level(logging.INFO)
     async with SqlUnitOfWork(session_factory) as uow:
         for tenant in (BUSY, FREE):
+            await uow.gestures.add_gestures((_click(tenant),))
             await uow.workflows.save(
-                Workflow(id=f"wfl_{tenant.value}", tenant=tenant.value, title="t", narrative="n")
+                Workflow(
+                    id=f"wfl_{tenant.value}",
+                    tenant=tenant.value,
+                    title="t",
+                    narrative="n",
+                    steps=[
+                        Step(order=0, says="press it", system=None, cites=[f"ges_{tenant.value}"])
+                    ],
+                )
             )
         await uow.commit()
 

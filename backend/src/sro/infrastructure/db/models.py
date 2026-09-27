@@ -738,6 +738,7 @@ class WorkflowRow(Base):
     repeat: Mapped[Any] = mapped_column(JSONB, nullable=True)
 
     signs_in: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    signs_out: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
     parameters_rule: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
@@ -813,6 +814,19 @@ class JobRecipientRow(Base):
     tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     workflow_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     address: Mapped[str] = mapped_column(String(320), primary_key=True)
+    confirmed_by: Mapped[str] = mapped_column(String(128), nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class JobAliasRow(Base):
+    __tablename__ = "job_aliases"
+
+    tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    workflow_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    wording_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    wording: Mapped[str] = mapped_column(Text, nullable=False)
+    field: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
     confirmed_by: Mapped[str] = mapped_column(String(128), nullable=False)
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

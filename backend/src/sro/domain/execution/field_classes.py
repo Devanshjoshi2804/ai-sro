@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Literal
@@ -50,6 +50,13 @@ class FieldClass:
     kind: FieldKind
     labels: tuple[str, ...]
     limits: FieldLimits
+
+
+def labelled(key: str, fields: Iterable[FieldClass]) -> FieldClass | None:
+    return next(
+        (one for one in fields if key in {normal(label) for label in (one.name, *one.labels)}),
+        None,
+    )
 
 
 def field_classes(

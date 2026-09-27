@@ -88,6 +88,7 @@ from sro.domain.chat.thread import MessageId, Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
 from sro.domain.execution.account import K_LEASE_TTL, LIVE, Account, Lease, LeaseState
 from sro.domain.execution.belts import RunProof, state_verified
+from sro.domain.execution.compose import normal
 from sro.domain.execution.lanes import K_BROKEN_COOL_DOWN, Broken, Lane, SeenCall
 from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
 from sro.domain.execution.mail_job import JobRecipient
@@ -141,6 +142,7 @@ from sro.domain.shared.objective import ObjectiveKey
 # `Answer` is already the trigger confirmation's; this one is a model's reply.
 from sro.domain.shared.prices import Answer as ModelAnswer
 from sro.domain.shared.prices import DaySpend, Effort, ModelSpend
+from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.locator import LocatorStrategy
 from sro.domain.skill.offers import Offer, OfferRow
 from sro.domain.skill.signing_in import PageSignals
@@ -2620,6 +2622,10 @@ class FakeWorkflowRepository:
         # step's cites key when it last broke.
         self.broken: dict[tuple[str, str, int, Lane, str], tuple[str, datetime]] = {}
         self.recipients: dict[tuple[str, str, str], JobRecipient] = {}
+        self.aliases: dict[tuple[str, str], dict[str, JobAlias]] = {}
+        # Written by a unit of work and kept only when it commits, as the
+        # store keeps them: an alias is taught in the answer's own commit.
+        self.staged_aliases: list[tuple[str, str, JobAlias]] = []
         # Append-only, like the store's: a history that can be edited is a
         # history nobody can rely on.
         self.taught: dict[str, list[Taught]] = {}
@@ -2651,7 +2657,13 @@ class FakeWorkflowRepository:
         if self.save_kills:
             self.poisoned = True
             raise RuntimeError("value too long for type character varying(64)")
+        kept = self.rows.get(workflow.id)
         self.rows[workflow.id] = deepcopy(workflow)
+        # A re-save keeps the verdicts, as the store's upsert does: only
+        # `decide` writes them on a stored job.
+        if kept is not None:
+            self.rows[workflow.id].signs_in = kept.signs_in
+            self.rows[workflow.id].signs_out = kept.signs_out
         # A re-save keeps the creation time, as the store's upsert does.
         if workflow.id not in self._created:
             self._created[workflow.id] = next(self._saved)
@@ -2718,16 +2730,27 @@ class FakeWorkflowRepository:
 
     async def undecided(self) -> tuple[Workflow, ...]:
         found = [
-            row for row in self.rows.values() if row.signs_in is None and row.id not in self.retired
+            row
+            for row in self.rows.values()
+            if (row.signs_in is None or row.signs_out is None) and row.id not in self.retired
         ]
         found.sort(key=lambda row: (row.tenant, self._created[row.id], row.id))
         return tuple(deepcopy(row) for row in found)
 
-    async def decide_signs_in(self, tenant_id: TenantId, workflow_id: str, signs_in: bool) -> bool:
-        row = self.rows.get(workflow_id)
-        if row is None or row.tenant != tenant_id.value or row.signs_in is not None:
+    async def decide(
+        self, tenant_id: TenantId, workflow: Workflow, *, signs_in: bool, signs_out: bool
+    ) -> bool:
+        row = self.rows.get(workflow.id)
+        if (
+            row is None
+            or row.tenant != tenant_id.value
+            or workflow.id in self.retired
+            or (row.steps, row.signs_in, row.signs_out)
+            != (workflow.steps, workflow.signs_in, workflow.signs_out)
+        ):
             return False
         row.signs_in = signs_in
+        row.signs_out = signs_out
         return True
 
     async def placed_on(self, tenant_id: TenantId, workflow_id: str) -> tuple[str, ...]:
@@ -2745,6 +2768,7 @@ class FakeWorkflowRepository:
             for row in self.rows.values()
             if row.id not in self.retired
             and row.signs_in is not None
+            and row.signs_out is not None
             and self.rules.get(row.id, 0) < rule
         ]
         found.sort(key=lambda row: (row.tenant, self._created[row.id], row.id))
@@ -2872,6 +2896,21 @@ class FakeWorkflowRepository:
         self, tenant_id: TenantId, workflow_id: str, recipient: JobRecipient
     ) -> None:
         self.recipients[(tenant_id.value, workflow_id, recipient.address)] = recipient
+
+    async def aliases_for(self, tenant_id: TenantId, workflow_id: str) -> tuple[JobAlias, ...]:
+        kept = dict(self.aliases.get((tenant_id.value, workflow_id), {}))
+        for tenant, job, alias in self.staged_aliases:
+            if (tenant, job) == (tenant_id.value, workflow_id):
+                kept[normal(alias.wording)] = alias
+        return tuple(sorted(kept.values(), key=lambda one: (one.at, normal(one.wording))))
+
+    async def confirm_alias(self, tenant_id: TenantId, workflow_id: str, alias: JobAlias) -> None:
+        self.staged_aliases.append((tenant_id.value, workflow_id, alias))
+
+    def commit_aliases(self) -> None:
+        for tenant, job, alias in self.staged_aliases:
+            self.aliases.setdefault((tenant, job), {})[normal(alias.wording)] = alias
+        self.staged_aliases = []
 
     async def mend_lane(self, tenant_id: TenantId, workflow_id: str, step: int, lane: Lane) -> None:
         for key in [
@@ -3290,11 +3329,13 @@ class FakeUnitOfWork:
     async def __aexit__(self, *exc: object) -> None:
         if exc[0] is not None:
             await self.rollback()
+        self._workflows.staged_aliases = []
 
     async def commit(self) -> None:
         if self.commit_raises is not None:
             raise self.commit_raises
         self.commits += 1
+        self._workflows.commit_aliases()
 
     async def rollback(self) -> None:
         self.rollbacks += 1
@@ -3303,6 +3344,7 @@ class FakeUnitOfWork:
         # written -- the class does not simulate rollback at all, and the
         # integration suite is where that half is proved.
         self._workflows.poisoned = False
+        self._workflows.staged_aliases = []
 
 
 class FakeIntentParser:

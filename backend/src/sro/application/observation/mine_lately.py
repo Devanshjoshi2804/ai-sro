@@ -7,12 +7,12 @@ from datetime import UTC, datetime, timedelta
 from itertools import groupby
 
 from sro.application.context import RequestContext
+from sro.application.observation.chores import decide_sign_ins
 from sro.application.observation.mine_pass import MinePass
 from sro.application.observation.mining_pass import (
     K_BRING_IN_TRIES,
     MineResult,
     bring_in_parameters,
-    decide_sign_ins,
     decide_tabs,
     mining_lock,
 )
@@ -113,10 +113,10 @@ class MineLately:
                         )
                         await uow.commit()
             except Exception:
-                logger.exception("%s: could not decide which jobs sign in or their tabs", tenant)
+                logger.exception("%s: could not decide which jobs sign in or out", tenant)
                 continue
             if decided:
-                logger.info("%s: decided whether %d job(s) sign in", tenant, decided)
+                logger.info("%s: decided whether %d job(s) sign in or out", tenant, decided)
             if tabbed:
                 logger.info("%s: decided the tab of %d step(s)", tenant, tabbed)
 

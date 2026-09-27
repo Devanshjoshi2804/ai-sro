@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from sro.domain.execution.compose import normal
-from sro.domain.execution.field_classes import FieldClass, FieldLimits
+from sro.domain.execution.field_classes import FieldClass, FieldLimits, labelled
 from sro.domain.prompts.record import quoted_in
 from sro.domain.skill.signing_in import Logins
 
@@ -46,15 +46,17 @@ class Read:
     refused: dict[str, str] = field(default_factory=dict)
 
 
+def _aliased(label: str, candidate: Candidate) -> tuple[str, bool]:
+    one = labelled(normal(label), candidate.fields)
+    return (label, False) if one is None else (one.name, one.kind != "never")
+
+
 def field_of(said: str, candidate: Candidate) -> tuple[str, bool] | None:
-    key = normal(said)
-    aliased = candidate.aliases.get(key)
+    aliased = candidate.aliases.get(normal(said))
     if aliased is not None:
-        return aliased, aliased in candidate.parameters
-    for one in candidate.fields:
-        if key in {normal(label) for label in (one.name, *one.labels)}:
-            return one.name, one.kind != "never"
-    return None
+        return _aliased(aliased, candidate)
+    one = labelled(normal(said), candidate.fields)
+    return None if one is None else (one.name, one.kind != "never")
 
 
 def _says(said: str, wording: str) -> bool:
@@ -72,7 +74,7 @@ def _rest(value: str, quote: str) -> str | None:
 def _wordings(candidate: Candidate) -> list[tuple[str, str]]:
     return [
         *((label, one.name) for one in candidate.fields for label in (one.name, *one.labels)),
-        *candidate.aliases.items(),
+        *((wording, _aliased(label, candidate)[0]) for wording, label in candidate.aliases.items()),
     ]
 
 

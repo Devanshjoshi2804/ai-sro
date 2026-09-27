@@ -5,7 +5,7 @@ import asyncio
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 
-from sro.application.observation.mining_pass import evidence_of
+from sro.application.observation.chores import evidence_of
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.vault import CredentialVault
 from sro.container import build_container

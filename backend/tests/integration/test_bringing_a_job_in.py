@@ -31,6 +31,14 @@ from tests.integration.test_workflow_repositories import (
 )
 
 
+async def _a_decided_job(session_factory: async_sessionmaker[AsyncSession]) -> Workflow:
+    job, _ = await _a_real_job(session_factory)
+    async with SqlUnitOfWork(session_factory) as uow:
+        assert await uow.workflows.decide(TENANT, job, signs_in=False, signs_out=False)
+        await uow.commit()
+        return await uow.workflows.get(TENANT, job.id)
+
+
 async def _brings_in(session_factory: async_sessionmaker[AsyncSession], job: Workflow) -> int:
     async with SqlUnitOfWork(session_factory) as uow:
         return await bring_in_parameters(uow, TENANT, [job], Counter())
@@ -52,9 +60,18 @@ async def test_the_store_lists_jobs_behind_the_rule_and_stamps_each_once(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
     job, _ = await _a_real_job(session_factory)
+    async with session_factory() as session:
+        await session.execute(
+            text("UPDATE workflows SET signs_in = false WHERE id = :id"), {"id": job.id}
+        )
+        await session.commit()
     async with SqlUnitOfWork(session_factory) as uow:
-        assert await uow.workflows.behind_the_rule(K_PARAMETERS_RULE) == ()
-        await uow.workflows.decide_signs_in(TENANT, job.id, False)
+        assert await uow.workflows.behind_the_rule(K_PARAMETERS_RULE) == (), (
+            "whether it signs out is undecided, so it might be a chore"
+        )
+        assert await uow.workflows.decide(
+            TENANT, await uow.workflows.get(TENANT, job.id), signs_in=False, signs_out=False
+        )
         await uow.workflows.place(TENANT, job.id, ("ges_b", "ges_a"))
         await uow.commit()
 
@@ -74,7 +91,7 @@ async def test_the_store_lists_jobs_behind_the_rule_and_stamps_each_once(
 async def test_the_sweep_waits_for_a_learned_field_and_keeps_it(
     session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
 ) -> None:
-    job, _ = await _a_real_job(session_factory)
+    job = await _a_decided_job(session_factory)
 
     brought = await _against_an_open_grow(
         session_factory, engine, job, lambda: _brings_in(session_factory, job)
@@ -90,7 +107,7 @@ async def test_the_sweep_waits_for_a_learned_field_and_keeps_it(
 async def test_a_field_learned_while_the_sweep_holds_the_job_lands_after_it(
     session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
 ) -> None:
-    job, _ = await _a_real_job(session_factory)
+    job = await _a_decided_job(session_factory)
 
     async with SqlUnitOfWork(session_factory) as sweep:
         await sweep.workflows.get(TENANT, job.id, lock=True)
@@ -108,7 +125,7 @@ async def test_a_field_learned_while_the_sweep_holds_the_job_lands_after_it(
 async def test_two_sweeps_at_once_bring_a_job_in_once(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
-    job, _ = await _a_real_job(session_factory)
+    job = await _a_decided_job(session_factory)
 
     brought = await asyncio.gather(
         _brings_in(session_factory, job), _brings_in(session_factory, job)
@@ -121,7 +138,7 @@ async def test_two_sweeps_at_once_bring_a_job_in_once(
 async def test_a_sweep_that_crashes_between_the_stamp_and_the_save_leaves_the_job_behind(
     session_factory: async_sessionmaker[AsyncSession], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    job, _ = await _a_real_job(session_factory)
+    job = await _a_decided_job(session_factory)
     saving = workflows_module.SqlWorkflowRepository.save
 
     async def _dies(self: workflows_module.SqlWorkflowRepository, workflow: Workflow) -> None:
@@ -139,7 +156,7 @@ async def test_a_sweep_that_crashes_between_the_stamp_and_the_save_leaves_the_jo
 async def test_a_sweep_stopped_while_it_waits_writes_nothing(
     session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
 ) -> None:
-    job, _ = await _a_real_job(session_factory)
+    job = await _a_decided_job(session_factory)
 
     async with SqlUnitOfWork(session_factory) as other:
         await other.workflows.get(TENANT, job.id, lock=True)

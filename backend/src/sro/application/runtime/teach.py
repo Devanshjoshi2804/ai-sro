@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 
 from sro.application.context import RequestContext
+from sro.application.observation.chores import decide_sign_ins
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.domain.execution.belts import confirming_read, expected_statuses
@@ -134,6 +135,7 @@ class Teach:
                 return
             grown, moved = with_field(workflow, field, key=key, value=value)
             await uow.workflows.grew(grown, moved=moved)
+            await decide_sign_ins(uow, ctx.tenant_id, [grown])
             strategy, query = learned.get("strategy", ""), learned.get("query", "")
             if (
                 strategy

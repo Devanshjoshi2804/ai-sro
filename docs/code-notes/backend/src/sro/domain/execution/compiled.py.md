@@ -121,3 +121,11 @@ Code: `filled = bindable(workflow, by_id)`
 > the controls a step types into count (M3 round 1): a required "Customer
 > Type" whose only match was a nav link of that name compiled as bound, and
 > the run then had nowhere to type it.
+
+## `compile_job`, [line 83](../../../../../../../backend/src/sro/domain/execution/compiled.py#L83): Comment
+
+Code: `aliased = labelled(normal(said.get(normal(name), "")), fields)`
+
+> A required parameter named by an alias is bound when the alias's label
+> belongs to a parameter a step fills: the label is resolved to that
+> parameter the way `field_of` resolves it, not compared by exact name.

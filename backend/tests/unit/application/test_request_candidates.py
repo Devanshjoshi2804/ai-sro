@@ -1,7 +1,7 @@
 import json
 
 from sro.application.chat.candidates import candidate_of, chore_named, rank_jobs
-from sro.application.chat.understand import understand
+from sro.application.chat.understand import K_A_CHORE, read_request, understand
 from sro.application.skill.job_facts import JobFacts
 from sro.domain.execution.compiled import Compiled, Reason
 from sro.domain.shared.prices import Answer
@@ -18,6 +18,7 @@ def _facts(
     compiled: Compiled = OK,
     *,
     signs_in: bool | None = None,
+    signs_out: bool | None = None,
 ) -> JobFacts:
     step = Step(order=0, says=title, system=None, cites=["ges_0"])
     job = Workflow(
@@ -28,6 +29,7 @@ def _facts(
         steps=[step],
         parameters=[{"name": f"Field {n}"} for n in range(parameters)],
         signs_in=signs_in,
+        signs_out=signs_out,
     )
     return JobFacts(job, {}, {}, (), (), compiled)
 
@@ -79,6 +81,16 @@ def test_a_sign_in_is_never_a_candidate_and_a_request_naming_only_one_is_that_ch
     assert chore_named("log in and create customer type GT7", facts) is None
 
 
+def test_a_sign_out_is_never_a_candidate_and_a_request_naming_only_one_is_that_chore() -> None:
+    facts = [
+        _facts("wfl_out", "Log Out", signs_out=True),
+        _facts("wfl_ct", "Create a Customer Type"),
+    ]
+    assert [one.workflow.id for one in rank_jobs("log out", facts)] == ["wfl_ct"]
+    named = chore_named("log out please", facts)
+    assert named is not None and named.workflow.id == "wfl_out"
+
+
 def test_only_the_top_k_are_offered() -> None:
     facts = [_facts(f"wfl_{n}", f"Job number {n}") for n in range(20)]
     assert len(rank_jobs("job", facts, k=8)) == 8
@@ -106,3 +118,17 @@ async def test_no_candidate_is_a_reading_of_nothing_and_asks_no_model() -> None:
     asker = FakeAsker()
     got = await understand("x", [], asker)
     assert got.workflow_id is None and got.answer.data == {} and asker.asked == []
+
+
+async def test_a_request_to_log_out_is_answered_as_a_chore_without_asking_a_model() -> None:
+    facts = [
+        _facts("wfl_out", "Log Out", signs_out=True),
+        _facts("wfl_ct", "Create a Customer Type"),
+    ]
+    asker = FakeAsker()
+
+    read = await read_request("please log out", facts, asker, held={})
+
+    assert read.workflow_id == "wfl_out"
+    assert read.cannot_run == [K_A_CHORE]
+    assert "signing in and out" in K_A_CHORE

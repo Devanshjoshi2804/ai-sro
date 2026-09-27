@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sro.application.ports.repositories import WorkflowRepository
 from sro.domain.execution.belts import RunProof, state_verified
+from sro.domain.execution.compose import normal
 from sro.domain.execution.lanes import K_BROKEN_COOL_DOWN, Broken, Lane
 from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
 from sro.domain.execution.mail_job import JobRecipient
@@ -21,10 +22,12 @@ from sro.domain.observation.identity import ShapeKey
 from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import TenantId
+from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.repeats import Repeat
 from sro.domain.skill.workflow import Noticed, Step, Workflow
 from sro.infrastructure.db.codec import when
 from sro.infrastructure.db.models import (
+    JobAliasRow,
     JobRecipientRow,
     KnownBrokenRow,
     LearnedWriteRow,
@@ -60,6 +63,7 @@ def _workflow_values(workflow: Workflow) -> dict[str, Any]:
             }
         ),
         "signs_in": workflow.signs_in,
+        "signs_out": workflow.signs_out,
         "created_at": datetime.now(tz=UTC),
     }
 
@@ -109,6 +113,7 @@ def _row_to_workflow(row: WorkflowRow, steps: list[Step]) -> Workflow:
             else None
         ),
         signs_in=row.signs_in,
+        signs_out=row.signs_out,
     )
 
 
@@ -175,7 +180,7 @@ class SqlWorkflowRepository(WorkflowRepository):
                     set_={
                         name: statement.excluded[name]
                         for name in values
-                        if name not in ("id", "retired_at", "created_at")
+                        if name not in ("id", "retired_at", "created_at", "signs_in", "signs_out")
                     },
                 )
             )
@@ -306,7 +311,10 @@ class SqlWorkflowRepository(WorkflowRepository):
     async def undecided(self) -> tuple[Workflow, ...]:
         query = (
             select(WorkflowRow)
-            .where(WorkflowRow.signs_in.is_(None), WorkflowRow.retired_at.is_(None))
+            .where(
+                or_(WorkflowRow.signs_in.is_(None), WorkflowRow.signs_out.is_(None)),
+                WorkflowRow.retired_at.is_(None),
+            )
             .order_by(WorkflowRow.tenant_id, WorkflowRow.created_at, WorkflowRow.id)
             .execution_options(populate_existing=True)
         )
@@ -316,17 +324,25 @@ class SqlWorkflowRepository(WorkflowRepository):
         steps = await self._steps_of([row.id for row in rows])
         return tuple(_row_to_workflow(row, steps[row.id]) for row in rows)
 
-    async def decide_signs_in(self, tenant_id: TenantId, workflow_id: str, signs_in: bool) -> bool:
-        decided = await self._session.execute(
+    async def decide(
+        self, tenant_id: TenantId, workflow: Workflow, *, signs_in: bool, signs_out: bool
+    ) -> bool:
+        try:
+            stored = await self.get(tenant_id, workflow.id, lock=True)
+        except NotFound:
+            return False
+        if (stored.steps, stored.signs_in, stored.signs_out) != (
+            workflow.steps,
+            workflow.signs_in,
+            workflow.signs_out,
+        ):
+            return False
+        await self._session.execute(
             update(WorkflowRow)
-            .where(
-                WorkflowRow.tenant_id == tenant_id.value,
-                WorkflowRow.id == workflow_id,
-                WorkflowRow.signs_in.is_(None),
-            )
-            .values(signs_in=signs_in)
+            .where(WorkflowRow.tenant_id == tenant_id.value, WorkflowRow.id == workflow.id)
+            .values(signs_in=signs_in, signs_out=signs_out)
         )
-        return cast(CursorResult[Any], decided).rowcount > 0
+        return True
 
     async def placed_on(self, tenant_id: TenantId, workflow_id: str) -> tuple[str, ...]:
         rows = await self._session.execute(
@@ -345,6 +361,7 @@ class SqlWorkflowRepository(WorkflowRepository):
             .where(
                 WorkflowRow.retired_at.is_(None),
                 WorkflowRow.signs_in.is_not(None),
+                WorkflowRow.signs_out.is_not(None),
                 or_(WorkflowRow.parameters_rule.is_(None), WorkflowRow.parameters_rule < rule),
             )
             .order_by(WorkflowRow.tenant_id, WorkflowRow.created_at, WorkflowRow.id)
@@ -642,6 +659,45 @@ class SqlWorkflowRepository(WorkflowRepository):
             statement.on_conflict_do_update(
                 index_elements=["tenant_id", "workflow_id", "address"],
                 set_={
+                    "confirmed_by": statement.excluded.confirmed_by,
+                    "at": statement.excluded.at,
+                },
+            )
+        )
+
+    async def aliases_for(self, tenant_id: TenantId, workflow_id: str) -> tuple[JobAlias, ...]:
+        rows = (
+            await self._session.execute(
+                select(JobAliasRow)
+                .where(
+                    JobAliasRow.tenant_id == tenant_id.value,
+                    JobAliasRow.workflow_id == workflow_id,
+                )
+                .order_by(JobAliasRow.at, JobAliasRow.wording_key)
+            )
+        ).scalars()
+        return tuple(
+            JobAlias(row.wording, row.field, row.confirmed_by, row.at, row.role) for row in rows
+        )
+
+    async def confirm_alias(self, tenant_id: TenantId, workflow_id: str, alias: JobAlias) -> None:
+        statement = pg_insert(JobAliasRow).values(
+            tenant_id=tenant_id.value,
+            workflow_id=workflow_id,
+            wording_key=normal(alias.wording),
+            wording=alias.wording,
+            field=alias.field,
+            role=alias.role,
+            confirmed_by=alias.confirmed_by,
+            at=alias.at,
+        )
+        await self._session.execute(
+            statement.on_conflict_do_update(
+                index_elements=["tenant_id", "workflow_id", "wording_key"],
+                set_={
+                    "wording": statement.excluded.wording,
+                    "field": statement.excluded.field,
+                    "role": statement.excluded.role,
                     "confirmed_by": statement.excluded.confirmed_by,
                     "at": statement.excluded.at,
                 },

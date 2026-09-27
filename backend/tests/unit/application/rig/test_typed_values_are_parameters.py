@@ -18,6 +18,7 @@ from sro.application.observation.mining_pass import (
     K_BRING_IN_TRIES,
     MineResult,
     fill_in_passwords,
+    learn_parameters,
     mine,
 )
 from sro.domain.execution.compiled import compile_job
@@ -26,6 +27,7 @@ from sro.domain.observation.gesture import Action, Body, Call, Component, Gestur
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.learned import K_PARAMETERS_RULE
+from sro.domain.skill.signing_in import Logins
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.application.rig.test_mine_pass import APP, _sign_in_kit
 from tests.unit.fakes import FakeAccountLocks, FakeAsker, FakeUnitOfWork
@@ -133,7 +135,7 @@ async def _mine(uow: FakeUnitOfWork, *proposals: dict[str, object]) -> MineResul
 
 async def _with_a_recorded_sign_in(uow: FakeUnitOfWork) -> None:
     await uow.gestures.add_gestures(tuple(_sign_in("h", user=USERNAME).values()))
-    await uow.workflows.save(_signing_in_job("h", signs_in=True))
+    await uow.workflows.save(replace(_signing_in_job("h", signs_in=True), signs_out=False))
 
 
 def _named(job: Workflow) -> dict[str, list[object]]:
@@ -196,7 +198,7 @@ async def test_a_chore_gets_no_parameters_even_for_a_box_that_is_not_its_login()
         ),
     )
     await uow.gestures.add_gestures((*signing.values(), company))
-    job = _signing_in_job("h", signs_in=True)
+    job = replace(_signing_in_job("h", signs_in=True), signs_out=False)
     job.steps.insert(0, Step(order=-1, says="company", system=None, cites=["h-company"]))
     await uow.workflows.save(job)
 
@@ -433,6 +435,7 @@ def _stored(doing: list[Gesture], **over: object) -> Workflow:
                 for n, one in enumerate(doing)
             ],
             signs_in=False,
+            signs_out=False,
         ),
         **over,
     )
@@ -596,3 +599,33 @@ async def test_the_sweep_reads_only_the_readings_of_the_jobs_it_brings_in() -> N
     await _swept(uow)
 
     assert asked and all(ids is not None and set(ids) <= {g.id for g in doing} for ids in asked)
+
+
+async def test_a_job_whose_chore_flags_are_undecided_gets_the_rule_only_once_they_are() -> None:
+    """It might be a chore: F3 decides sign-out after the job is stored, and a
+    parameter minted meanwhile would stay on a chore for good."""
+    uow = FakeUnitOfWork()
+    doing = _customer_type("ct_a_", 5000.0, "GT7", "Ground transport", "Bill-To Customer")
+    await uow.gestures.add_gestures(tuple(doing))
+    await uow.workflows.save(_stored(doing, signs_out=None))
+
+    assert await uow.workflows.behind_the_rule(K_PARAMETERS_RULE) == ()
+    assert (
+        await learn_parameters(
+            uow,
+            tenant_id=TENANT,
+            known_id="wfl_ct",
+            doings=(),
+            by_id={one.id: one for one in doing},
+            intents={},
+            logins=Logins(),
+        )
+        == 0
+    )
+    assert (await uow.workflows.get(TENANT, "wfl_ct")).parameters == []
+    assert "wfl_ct" not in uow.workflows.rules
+
+    await uow.workflows.save(_stored(doing))
+    await _swept(uow)
+    assert uow.workflows.rules["wfl_ct"] == K_PARAMETERS_RULE
+    assert "Customer Type" in _named(await uow.workflows.get(TENANT, "wfl_ct"))

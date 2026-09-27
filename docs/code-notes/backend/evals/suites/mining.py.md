@@ -48,7 +48,7 @@ The mining suite: does MINE find a job the operator really did?
 
 ## `Mining.cases`, [line 91](../../../../../backend/evals/suites/mining.py#L91): Comment
 
-Code: `if is_a_chore(workflow):`
+Code: `if workflow.chore:`
 
 > No case from a chore. The miner is right to skip a sign-in, so a case
 > expecting one is a miss it could never avoid -- the greyorange baseline

@@ -4407,3 +4407,45 @@ Each prompt also gets 3 to 5 edge cases from real data, redacted, covering the f
 **Gate.** `make eval` on every suite must show accuracy held or improved, sure-but-wrong not higher, and cost not higher (spec §2.2). Paste the report into the task's report file. A prompt whose rewrite fails the gate keeps its old text, and the report says why.
 
 **Tests.** A unit test per rule that asserts the rendered prompt contains it. It catches a rule dropped later, not model behaviour; the eval covers behaviour.
+
+## F1: Chat asks once for everything it needs, and "don't have X" is final (added 2026-09-27; user-approved; from greyorange QA data)
+
+**Why.** Real greyorange chat: 44% of assistant turns asked for a value, one field at a time, including optional fields. In thr_c563 the operator said "i dont have manufature just run whatever we have", and the assistant asked for Manufacturer again. The R1 review traced the root outside the request reader.
+
+**Where the root is:**
+- `domain/chat/asking.py`: `question` (around :82) builds one question per missing field; `answered` (around :301) binds the raw reply to `missing[0]`.
+- `application/runtime/workflow_runs.py`, around :424-436: `also_set` offers "I can also set …" optional fields as questions.
+
+**Behaviour:**
+- When a run needs values, the missing **required** fields (C2's `FieldClass.required`) go in ONE question that lists all of them. The answer is read with R1's checks (quote, limits, logins) and can fill several at once. Whatever is still missing after the answer is asked again, together in one question.
+- Optional fields are never asked for. They are offered once as a list the operator may fill; silence or a refusal means the run goes without them.
+- "don't have X", "skip X" or "run with what we have" drops X for that thread, stored on the thread's asking state, and X is never asked again in that thread. A required X that the operator refuses ends the ask with a note that says the job can't run without X; it never loops.
+- The panel's one-form drawing is design 3's. This task delivers the question shape: every missing required field, each with its limits and options.
+
+**Tests:** the thr_c563 shape (Department, then Manufacturer "don't have", then no re-ask); two required fields answered in one reply; an optional field never asked for; a refused required field ends with a note.
+
+## F2: "check now" is answered from the run and the thread, never explored (added 2026-09-27; user-approved)
+
+**Why.** "check now", "have you recived mail", "what did you fetch from mail" and "i will type it here" were each routed to the screen-explore fallback, as "Nobody has demonstrated that…". R1 handles this for mail; chat still goes through the resolver.
+
+**Where the root is:** the explore fallback in `application/intent/pursue.py` (around :104) and `application/intent/resolve.py` (around :199).
+
+**Behaviour:**
+- In a chat thread that has a standing run or question, a message that asks about it (its status, whether mail arrived, what was fetched) is answered from the run's state: its progress, outcome, waiting reason and last values. It is never started as a job or explored.
+- The classification is made by code, over the thread state and the reader's intent: an intent that names no job while a run or question is standing is treated as a status question. The model is not trusted to decide that on its own.
+- Explore stays for a thread with nothing standing, where the message names work no job covers.
+
+**Tests:** each of the four real phrases, with a standing run and with a standing question, gives a status answer and never an explore; the same phrase with nothing standing behaves as today.
+
+## F3: The sign-in verdict is re-decided when the evidence changes, and sign-out chores are flagged (added 2026-09-27; user-approved)
+
+**Why.** Real QA: 7 of 23 jobs were sign-in or sign-out chores and drew 44% of offers. R1 excludes `signs_in` jobs, but Log Out and some Azure B2C sign-in copies were never flagged, because the verdict is written only once.
+
+**Where the root is:** `domain/skill/checks.py` (around :176) and `application/observation/mining_pass.py` (around :650). The sign-in verdict is decided once and never revisited.
+
+**Behaviour:**
+- `signs_in` is re-decided whenever a job's steps or cites change (a grow, a heal, a learn). The write is a column-only compare-and-set, as in the signs-in fix: never a whole-job save.
+- A new tri-state `signs_out`, decided by code from the evidence: the steps end the session (a sign-out or log-out control, then a sign-in page or a session-ended page). Jobs with `signs_out = true` are chores. R1 excludes them from candidates just like `signs_in`.
+- Migration: add `signs_out` as nullable. Existing rows start NULL, meaning undecided, and the sweep decides every undecided job.
+
+**Tests:** a job whose grow adds sign-in steps flips to `signs_in` true; the real Log Out shape becomes `signs_out` true and is not a candidate; a concurrent learn during the decision is not overwritten (real Postgres).

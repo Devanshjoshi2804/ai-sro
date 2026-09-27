@@ -15,9 +15,11 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
+from sro.application.chat.converse import StartThread
 from sro.application.context import RequestContext
 from sro.application.execution.declared import declared_limits, screen_for
 from sro.domain.chat.asking import Pending
+from sro.domain.chat.thread import Message, MessageId, Speaker
 from sro.domain.execution.learned_step import LearnedStep, limits_for
 from sro.domain.knowledge.entry import (
     EntryKind,
@@ -133,7 +135,11 @@ async def test_the_question_carries_the_limit_before_anybody_has_overflowed_it()
             title="Create a Customer Type",
             narrative="open the screen, type the code, save",
             steps=[Step(order=0, says="type the code", system=None, cites=["g"])],
-            parameters=[{"name": "Customer Type", "seen_values": ["GGD"]}],
+            # Required, as the form marks it: since F1 only a required field is
+            # asked for, and an optional one is offered.
+            parameters=[
+                {"name": "Customer Type", "names": ["Customer Type*"], "seen_values": ["GGD"]}
+            ],
         )
     )
 
@@ -424,3 +430,77 @@ async def test_a_job_this_door_cannot_read_still_asks_its_question() -> None:
 
     assert "What should Customer Type be?" in asked
     assert "I can also set" not in asked
+
+
+# --- F1: optional fields are offered, never asked for ------------------------
+
+
+async def _customer_type_job(uow: FakeUnitOfWork) -> None:
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_1",
+            tenant=f.TENANT.value,
+            title="Create a Customer Type",
+            narrative="open the screen, type the code, save",
+            steps=[Step(order=0, says="type the code", system=None, cites=["g"])],
+            parameters=[
+                {"name": "Customer Type", "names": ["Customer Type*"], "seen_values": ["GGD"]},
+                {"name": "Manufacturer", "names": ["Manufacturer"], "seen_values": ["OUTSIDE"]},
+            ],
+        )
+    )
+
+
+async def test_an_optional_field_is_never_asked_for_even_with_a_value_it_cannot_take() -> None:
+    """thr_c563: Manufacturer "whatever we have" did not fit, and was asked for."""
+    uow = FakeUnitOfWork()
+    await _customer_type_job(uow)
+
+    asked = await AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()).execute(
+        CTX,
+        Pending(
+            workflow_id="wfl_1",
+            title="Create a Customer Type",
+            values={"Manufacturer": "whatever we have"},
+            missing=("Customer Type", "Manufacturer"),
+            limits={"Manufacturer": 10},
+        ),
+    )
+
+    assert "What should Customer Type be?" in asked
+    assert "What should Manufacturer" not in asked and "Manufacturer takes" not in asked
+    threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=CTX.principal_id, limit=1)
+    decision = threads[0].messages[-1].decision
+    assert decision is not None
+    assert decision["missing"] == ["Customer Type"]
+    assert decision["values"] == {}, "a value the box cannot take was carried into the run"
+    assert decision["offered"] == [["Manufacturer", "OUTSIDE"]]
+
+
+async def test_a_required_field_dropped_in_this_thread_is_not_asked_for_again() -> None:
+    uow = FakeUnitOfWork()
+    await _customer_type_job(uow)
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    thread.say(
+        Message(
+            id=MessageId("msg_dropped"),
+            speaker=Speaker.ASSISTANT,
+            text="...",
+            said_at=datetime(2026, 9, 27, 9, 0, tzinfo=UTC),
+            decision={"kind": "note", "workflow_id": "wfl_1", "dropped": ["Customer Type"]},
+        )
+    )
+    await uow.threads.save(thread)
+
+    asked = await AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()).execute(
+        CTX,
+        Pending(
+            workflow_id="wfl_1",
+            title="Create a Customer Type",
+            values={},
+            missing=("Customer Type",),
+        ),
+    )
+
+    assert "cannot run without Customer Type" in asked, asked
+    assert "?" not in asked

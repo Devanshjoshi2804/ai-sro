@@ -18,12 +18,13 @@ any wall clock this runs against, so a use case that reached for
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from sro.application.chat.converse import StartThread
 from sro.application.context import RequestContext
 from sro.application.execution import workflow_runs as door
 from sro.application.execution.approvals import Approvals
@@ -33,6 +34,8 @@ from sro.application.execution.stops import Stops
 from sro.application.execution.workflow_runs import RunRefused, StartWorkflowRun
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
+from sro.domain.chat.asking import NEEDS
+from sro.domain.chat.thread import Message, MessageId, Speaker
 from sro.domain.execution.compose import Composed, with_field
 from sro.domain.execution.progress import Progress, run_budget
 from sro.domain.execution.takeover import Took
@@ -1387,6 +1390,99 @@ async def test_the_question_offers_the_fields_the_page_does_not_ask_for() -> Non
     assert "Customer Type" not in asked.text.split("I can also set")[1].split(" — ")[0], (
         "the field the page DOES ask for was offered as optional"
     )
+
+
+async def _short_of(
+    uow: FakeUnitOfWork, needs: list[str], said_before: Sequence[dict[str, object]] = ()
+) -> tuple[WorkflowRun, StartWorkflowRun]:
+    run = await _press(_starter(uow))
+    workflow = await uow.workflows.get(TENANT, run.workflow_id)
+    workflow.parameters = [
+        {"name": "Customer Type", "names": ["Customer Type*"], "seen_values": ["GGD"]},
+        {"name": "Description", "names": ["Description*"], "seen_values": ["first"]},
+        {"name": "Department", "names": ["Department"], "seen_values": ["IN", "new"]},
+        {"name": "Manufacturer", "names": ["Manufacturer"], "seen_values": ["OUTSIDE"]},
+    ]
+    await uow.workflows.save(workflow)
+    run.steps = [RunStep(order=0, says="type the code", verdict="failed", verdict_by="read")]
+    run.needs = needs
+    run.values = {}
+    await uow.workflow_runs.save(run)
+    if said_before:
+        thread = await StartThread(uow, FakeClock(NOW), FakeIdFactory()).execute(_ctx())
+        for n, decision in enumerate(said_before):
+            thread.say(
+                Message(
+                    id=MessageId(f"msg_before_{n}"),
+                    speaker=Speaker.ASSISTANT,
+                    text="...",
+                    said_at=NOW,
+                    decision={"workflow_id": run.workflow_id, **decision},
+                )
+            )
+        await uow.threads.save(thread)
+    starter = StartWorkflowRun(
+        uow,
+        channel=_Browsers(),
+        asker=_A_MODEL,
+        clock=FakeClock(NOW),
+        cap_usd=CAP,
+        stops=Stops(),
+        approvals=Approvals(),
+        one_time_secrets=OneTimeSecrets(),
+        ids=FakeIdFactory(),
+    )
+    return run, starter
+
+
+async def _asked_last(uow: FakeUnitOfWork, run: WorkflowRun) -> Message:
+    threads = await uow.threads.list_for_tenant(
+        TENANT, opened_by=PrincipalId(run.started_by), limit=1
+    )
+    return threads[0].messages[-1]
+
+
+async def test_a_run_short_of_several_values_asks_for_all_of_them_in_one_question() -> None:
+    """F1: greyorange asked for one value a turn, 44% of its turns."""
+    uow = await _held()
+    run, starter = await _short_of(uow, ["Customer Type", "Description"])
+
+    await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
+
+    asked = await _asked_last(uow, run)
+    assert asked.text.count("?") == 1, asked.text
+    assert "What should Customer Type and Description be?" in asked.text
+    assert asked.decision is not None
+    assert [one["name"] for one in asked.decision["asks"]] == ["Customer Type", "Description"]
+
+
+async def test_fields_offered_once_in_the_thread_are_not_offered_again() -> None:
+    uow = await _held()
+    run, starter = await _short_of(
+        uow,
+        ["Customer Type"],
+        [{"kind": NEEDS, "missing": ["Customer Type"], "offered": [["Department", "new"]]}],
+    )
+
+    await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
+
+    asked = await _asked_last(uow, run)
+    assert "I can also set Manufacturer" in asked.text, asked.text
+    assert "Department" not in asked.text, "an optional field was offered twice in one thread"
+
+
+async def test_a_required_field_the_operator_does_not_have_ends_the_ask_with_a_note() -> None:
+    uow = await _held()
+    run, starter = await _short_of(
+        uow, ["Customer Type"], [{"kind": "job", "dropped": ["Customer Type", "Manufacturer"]}]
+    )
+
+    await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
+
+    asked = await _asked_last(uow, run)
+    assert "cannot run without Customer Type" in asked.text, asked.text
+    assert asked.decision is not None and asked.decision["kind"] != NEEDS
+    assert "Manufacturer" not in asked.text
 
 
 # --- the undo and the run it takes back --------------------------------------

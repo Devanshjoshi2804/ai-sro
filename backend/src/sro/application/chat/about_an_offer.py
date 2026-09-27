@@ -5,11 +5,22 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import replace
 
 from sro.application.chat.announce import SayWhatHappened
+from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.execution.declared import declared_limits, names_of, screen_for
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
-from sro.domain.chat.asking import JOB, NEEDS, Pending, opening, should_we, unusable
+from sro.domain.chat.asking import (
+    JOB,
+    NEEDS,
+    Pending,
+    asking_state,
+    cannot_without,
+    opening,
+    should_we,
+    still_to_ask,
+    unusable,
+)
 from sro.domain.chat.thread import Said, Speaker
 from sro.domain.shared.identifiers import PrincipalId
 from sro.domain.skill.learned import offerable
@@ -32,18 +43,28 @@ class AskAboutTheOffer:
         self._ids = ids
         self._drafts: DraftsForTheAsker | None = drafts
 
-    async def _also_settable(
-        self, ctx: RequestContext, pending: Pending
-    ) -> tuple[tuple[str, str], ...]:
+    async def _only_required(self, ctx: RequestContext, pending: Pending) -> Pending:
         if not pending.workflow_id:
-            return ()
+            return pending
         try:
             async with self._uow as uow:
                 job = await uow.workflows.get(ctx.tenant_id, pending.workflow_id)
         except Exception:
             logger.exception("what else %s can set could not be read", pending.workflow_id)
-            return ()
-        return offerable(job.parameters, pending.values) if job else ()
+            return pending
+        optional = {name for name, _ in offerable(job.parameters, {})}
+        bad = set(unusable(pending.values, pending.limits))
+        values = {
+            name: value
+            for name, value in pending.values.items()
+            if name not in optional or name not in bad
+        }
+        return replace(
+            pending,
+            values=values,
+            missing=tuple(name for name in pending.missing if name not in optional),
+            offered=offerable(job.parameters, values),
+        )
 
     async def _what_the_boxes_hold(self, ctx: RequestContext, pending: Pending) -> dict[str, int]:
         known = dict(pending.limits)
@@ -136,13 +157,25 @@ class AskAboutTheOffer:
         offer: str = "",
     ) -> str:
         pending = replace(pending, limits=await self._what_the_boxes_hold(ctx, pending))
+        pending = await self._only_required(ctx, pending)
         pending = replace(
             pending,
             missing=tuple(
                 dict.fromkeys((*pending.missing, *unusable(pending.values, pending.limits)))
             ),
-            offered=await self._also_settable(ctx, pending),
         )
+        thread = await ReadThreads(self._uow).current(ctx)
+        pending = still_to_ask(pending, thread.messages if thread else ())
+        if pending.without:
+            said, noted = cannot_without(pending)
+            await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+                ctx,
+                for_operator=ctx.principal_id,
+                text=said,
+                speaker=Speaker.ASSISTANT,
+                decision=noted,
+            )
+            return said
         if pending.ready:
             return await self._should_we(ctx, pending, about, sent_to, offer) if ask_to_run else ""
         asked = opening(pending, about)
@@ -164,6 +197,7 @@ class AskAboutTheOffer:
                 "from_step": pending.from_step,
                 "watched": pending.watched,
                 **({"unconfirmed": True} if ask_to_run else {}),
+                **asking_state(pending),
             },
         )
         if self._drafts is not None and mail_thread.strip():

@@ -9,10 +9,14 @@ from sro.domain.chat.asking import (
     Pending,
     _step,
     answered,
+    asking_state,
+    asks,
+    cannot_without,
     let_go,
     opening,
     pending_job,
     question,
+    still_to_ask,
     unusable,
 )
 from sro.domain.chat.thread import Message, MessageId, Speaker
@@ -284,3 +288,176 @@ def test_an_offer_stored_in_a_shape_nobody_wrote_is_no_offer() -> None:
         waiting = pending_job([asked])
 
         assert waiting is not None and waiting.offered == (), f"{bad!r} became an offer"
+
+
+# --- F1: one question for everything required, and "don't have X" is final --
+
+
+def _both(**over: object) -> Pending:
+    fields: dict[str, object] = {
+        "workflow_id": "wfl_1",
+        "title": "Create a Customer Type",
+        "values": {},
+        "missing": ("Customer Type", "Customer Type Description"),
+        "limits": {"Customer Type": 4},
+        "options": {"Customer Type Description": ("RETAIL", "B2B")},
+        **over,
+    }
+    return Pending(**fields)
+
+
+def test_every_required_field_is_asked_for_in_one_question_with_its_limits_and_options() -> None:
+    """greyorange QA: 44% of assistant turns asked for one value at a time."""
+    said = question(_both())
+
+    assert said.count("?") == 1, said
+    assert "What should Customer Type and Customer Type Description be?" in said
+    assert "Customer Type takes 4 characters" in said
+    assert "Customer Type Description is one of RETAIL, B2B" in said
+    assert asks(_both()) == [
+        {"name": "Customer Type", "max_length": 4, "options": []},
+        {"name": "Customer Type Description", "max_length": None, "options": ["RETAIL", "B2B"]},
+    ]
+
+
+def test_an_optional_field_is_never_asked_for() -> None:
+    """Offered once, in the opening, as a list; never in the question."""
+    pending = _both(offered=(("Department", ""), ("Manufacturer", "OUTSIDE")))
+
+    assert "Department" not in question(pending)
+    assert "Manufacturer" not in question(pending)
+    assert [one["name"] for one in asks(pending)] == ["Customer Type", "Customer Type Description"]
+
+
+def test_two_required_fields_are_answered_in_one_reply() -> None:
+    filled = answered(_both(), "Customer Type: RRF, Customer Type Description: B2B")
+
+    assert filled.values == {"Customer Type": "RRF", "Customer Type Description": "B2B"}
+    assert filled.ready
+
+
+def test_each_value_in_one_reply_is_read_with_its_own_checks() -> None:
+    """R1's checks by the answer's natural unit: the bad value is dropped and
+    the good one kept, and only what is still missing is asked again."""
+    filled = answered(_both(), "customer type :- RRF; Customer Type Description = WHOLESALE")
+
+    assert filled.values == {"Customer Type": "RRF"}
+    assert filled.missing == ("Customer Type Description",)
+    assert filled.refused == {"Customer Type Description": "not one of RETAIL, B2B"}
+    assert question(filled).startswith("Customer Type Description is one of RETAIL, B2B")
+
+
+def test_an_offered_field_may_be_filled_in_the_same_reply() -> None:
+    pending = _both(missing=("Customer Type",), options={}, offered=(("Department", "IN"),))
+
+    filled = answered(pending, "Customer Type: RRF and Department: D1")
+
+    assert filled.values == {"Customer Type": "RRF", "Department": "D1"}
+    assert filled.ready and filled.offered == ()
+
+
+def test_thr_c563_department_then_manufacturer_is_not_had_and_never_asked_again() -> None:
+    """thr_c563: "i dont have manufature just run whatever we have", and the
+    assistant asked for Manufacturer again."""
+    pending = _both(
+        missing=("Customer Type",),
+        options={},
+        offered=(("Department", ""), ("Manufacturer", "OUTSIDE")),
+    )
+
+    first = answered(pending, "Department: D1")
+    assert first.values == {"Department": "D1"}
+    assert first.missing == ("Customer Type",)
+    assert "Manufacturer" not in question(first) and "Department" not in question(first)
+
+    last = answered(first, "Customer Type: RRF. i dont have manufature just run whatever we have")
+
+    assert last.values == {"Department": "D1", "Customer Type": "RRF"}
+    assert last.dropped == ("Manufacturer",)
+    assert last.ready and last.offered == ()
+    assert last.without == ()
+
+
+def test_a_field_said_not_to_be_had_is_dropped_by_its_misspelt_name() -> None:
+    pending = _both(missing=("Customer Type",), offered=(("Manufacturer", ""),))
+
+    for said in ("i dont have manufature", "skip Manufacturer", "run without the manufacturer"):
+        filled = answered(pending, said)
+        assert filled.dropped == ("Manufacturer",), said
+        assert filled.values == {} and filled.missing == ("Customer Type",), said
+
+
+def test_a_value_that_merely_mentions_skipping_is_a_value() -> None:
+    pending = _both(missing=("Customer Type Description",), options={})
+
+    filled = answered(pending, "skip the queue at dock 4")
+
+    assert filled.values == {"Customer Type Description": "skip the queue at dock 4"}
+    assert filled.dropped == ()
+
+
+def test_a_required_field_that_is_not_had_ends_the_ask_with_a_note() -> None:
+    filled = answered(_both(), "we don't have a customer type description")
+
+    assert filled.without == ("Customer Type Description",)
+    assert not filled.ready
+    said, decision = cannot_without(filled)
+    assert "cannot run without Customer Type Description" in said
+    assert "?" not in said, "the note is not another question"
+    assert decision["kind"] != NEEDS
+    assert decision["dropped"] == ["Customer Type Description"]
+
+
+def test_what_was_dropped_rides_the_thread_and_is_never_asked_again_there() -> None:
+    dropped = Message(
+        id=MessageId("m1"),
+        speaker=Speaker.ASSISTANT,
+        text="...",
+        said_at=AT,
+        decision={
+            "kind": "job",
+            "workflow_id": "wfl_1",
+            "dropped": ["Manufacturer", "Customer Type Description"],
+            "offered": [["Department", ""]],
+        },
+    )
+    other = Message(
+        id=MessageId("m2"),
+        speaker=Speaker.ASSISTANT,
+        text="...",
+        said_at=AT,
+        decision={"kind": NEEDS, "workflow_id": "wfl_2", "dropped": ["Customer Type"]},
+    )
+    fresh = _both(offered=(("Department", ""), ("Manufacturer", ""), ("Pallet", "")))
+
+    again = still_to_ask(fresh, [dropped, other])
+
+    assert again.missing == ("Customer Type",), "another job's drop is not this job's"
+    assert again.without == ("Customer Type Description",)
+    assert again.offered == (("Pallet", ""),), "offered once in a thread, and never a dropped one"
+    assert set(again.dropped) == {"Manufacturer", "Customer Type Description"}
+
+
+def test_the_drop_survives_the_thread_it_was_written_into() -> None:
+    asked = _said(
+        Speaker.ASSISTANT,
+        "What should Customer Type be?",
+        {
+            "kind": NEEDS,
+            "workflow_id": "wfl_1",
+            "missing": ["Customer Type"],
+            "dropped": ["Manufacturer"],
+            "options": {"Customer Type": ["GT1", "GT2"], "bad": "GT3"},
+        },
+    )
+
+    waiting = pending_job([asked])
+
+    assert waiting is not None
+    assert waiting.dropped == ("Manufacturer",)
+    assert waiting.options == {"Customer Type": ("GT1", "GT2")}
+    assert asking_state(waiting) == {
+        "asks": [{"name": "Customer Type", "max_length": None, "options": ["GT1", "GT2"]}],
+        "dropped": ["Manufacturer"],
+        "options": {"Customer Type": ["GT1", "GT2"]},
+    }

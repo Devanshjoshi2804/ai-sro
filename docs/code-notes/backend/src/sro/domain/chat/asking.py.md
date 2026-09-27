@@ -39,21 +39,21 @@ Comments and docstrings moved out of [`backend/src/sro/domain/chat/asking.py`](.
 > Pure: given the messages, say what is being waited on. Nothing here reads a
 > clock, a repository or a model.
 
-## module, [line 11](../../../../../../../backend/src/sro/domain/chat/asking.py#L11): Note on the line above
+## module, [line 13](../../../../../../../backend/src/sro/domain/chat/asking.py#L13): Note on the line above
 
 Code: `NEEDS = "needs_values"`
 
 > The decision kind of a question waiting on a value. Named here because two
 > sides read it: the door that writes it and the panel that draws it.
 
-## module, [line 13](../../../../../../../backend/src/sro/domain/chat/asking.py#L13): Note on the line above
+## module, [line 15](../../../../../../../backend/src/sro/domain/chat/asking.py#L15): Note on the line above
 
 Code: `JOB = "job"`
 
 > The decision kind of a job this conversation has offered to do. The panel
 > builds its card from one; a sentence agreeing with one starts it.
 
-## module, [line 15](../../../../../../../backend/src/sro/domain/chat/asking.py#L15): Note on the line above
+## module, [line 17](../../../../../../../backend/src/sro/domain/chat/asking.py#L17): Note on the line above
 
 Code: `SAID_YES = frozenset(`
 
@@ -69,7 +69,7 @@ Code: `SAID_YES = frozenset(`
 > Matched whole and lowercased, like `LET_GO`. "do it" is a yes; "do it for the
 > red ones instead" is a new sentence and is placed as one.
 
-## module, [line 40](../../../../../../../backend/src/sro/domain/chat/asking.py#L40): Note on the line above
+## module, [line 42](../../../../../../../backend/src/sro/domain/chat/asking.py#L42): Note on the line above
 
 Code: `K_SAID = 200`
 
@@ -78,7 +78,7 @@ Code: `K_SAID = 200`
 > not a field. Long enough for a description, short enough that a mail body
 > pasted whole cannot become a warehouse record.
 
-## module, [line 42](../../../../../../../backend/src/sro/domain/chat/asking.py#L42): Note on the line above
+## module, [line 44](../../../../../../../backend/src/sro/domain/chat/asking.py#L44): Note on the line above
 
 Code: `LET_GO = frozenset(`
 
@@ -90,7 +90,7 @@ Code: `LET_GO = frozenset(`
 > refused because a description said "leave it in receiving" is worse than one
 > question too many.
 
-## module, [line 103](../../../../../../../backend/src/sro/domain/chat/asking.py#L103): Note on the line above
+## module, [line 205](../../../../../../../backend/src/sro/domain/chat/asking.py#L205): Note on the line above
 
 Code: `K_SHOWN = 90`
 
@@ -100,7 +100,7 @@ Code: `K_SHOWN = 90`
 > may hold two thousand characters and a person checking which job this is about
 > needs the first line of it.
 
-## `Pending`, [line 59](../../../../../../../backend/src/sro/domain/chat/asking.py#L59): Docstring
+## `Pending`, [line 61](../../../../../../../backend/src/sro/domain/chat/asking.py#L61): Docstring
 
 > A job that has been said yes to and is short of values.
 >
@@ -109,7 +109,7 @@ Code: `K_SHOWN = 90`
 > done once per thing in a list is still that job, and the values asked for
 > here are the ones shared across all of them.
 
-## `Pending`, [line 66](../../../../../../../backend/src/sro/domain/chat/asking.py#L66): Note on the line above
+## `Pending`, [line 68](../../../../../../../backend/src/sro/domain/chat/asking.py#L68): Note on the line above
 
 Code: `can_find: bool = False`
 
@@ -117,7 +117,7 @@ Code: `can_find: bool = False`
 > offer it decides what a yes means: start it and let the run find them, or
 > ask for the first one here.
 
-## `Pending`, [line 68](../../../../../../../backend/src/sro/domain/chat/asking.py#L68): Note on the line above
+## `Pending`, [line 70](../../../../../../../backend/src/sro/domain/chat/asking.py#L70): Note on the line above
 
 Code: `mail_thread: str = ""`
 
@@ -130,7 +130,7 @@ Code: `mail_thread: str = ""`
 > precisely so the person who knows the missing value, who is usually
 > whoever sent the request, can say it where they are.
 
-## `Pending`, [line 70](../../../../../../../backend/src/sro/domain/chat/asking.py#L70): Note on the line above
+## `Pending`, [line 72](../../../../../../../backend/src/sro/domain/chat/asking.py#L72): Note on the line above
 
 Code: `offered: tuple[tuple[str, str], ...] = ()`
 
@@ -153,7 +153,7 @@ Code: `offered: tuple[tuple[str, str], ...] = ()`
 > is taken by the same path that takes any named value -- so nothing here
 > needs a new kind of reply.
 
-## `Pending`, [line 72](../../../../../../../backend/src/sro/domain/chat/asking.py#L72): Note on the line above
+## `Pending`, [line 74](../../../../../../../backend/src/sro/domain/chat/asking.py#L74): Note on the line above
 
 Code: `from_step: int = 0`
 
@@ -175,7 +175,7 @@ Code: `from_step: int = 0`
 > Zero for a question asked about an OFFER, which has no run behind it yet
 > and nothing to resume.
 
-## `Pending`, [line 74](../../../../../../../backend/src/sro/domain/chat/asking.py#L74): Note on the line above
+## `Pending`, [line 76](../../../../../../../backend/src/sro/domain/chat/asking.py#L76): Note on the line above
 
 Code: `limits: Mapping[str, int] = field(default_factory=dict)`
 
@@ -190,7 +190,42 @@ Code: `limits: Mapping[str, int] = field(default_factory=dict)`
 > that still will not fit is not an answer, and `answered` keeps asking.
 > Empty for every name nothing has measured or documented, which is most.
 
-## `question`, [line 87](../../../../../../../backend/src/sro/domain/chat/asking.py#L87): Docstring
+## `Pending`, [line 80](../../../../../../../backend/src/sro/domain/chat/asking.py#L80): Note on the line above
+
+Code: `options: Mapping[str, tuple[str, ...]] = field(default_factory=dict)`
+
+> The choices each asked-for box offers, where the screen showed a list
+> (C2's `FieldLimits.options`). Carried beside `limits` so the one
+> question can say both for every field it asks (F1), and so an answer
+> that is not one of them is refused as R1's reader refuses it.
+
+## `Pending`, [line 82](../../../../../../../backend/src/sro/domain/chat/asking.py#L82): Note on the line above
+
+Code: `dropped: tuple[str, ...] = ()`
+
+> Fields the operator said they do not have in this thread -- "don't
+> have X", "skip X", "run with what we have" (F1). Stored on every
+> decision this state writes (`asking_state`, the job decision, the
+> note), so `still_to_ask` finds it in the thread and X is never asked
+> for or offered again there. thr_c563: "i dont have manufature just run
+> whatever we have", and the assistant asked for Manufacturer again.
+
+## `Pending`, [line 84](../../../../../../../backend/src/sro/domain/chat/asking.py#L84): Note on the line above
+
+Code: `without: tuple[str, ...] = ()`
+
+> The REQUIRED fields among `dropped`. The job cannot run without them,
+> so the ask ends with `cannot_without`'s note instead of a question --
+> it never loops -- and `ready` is false while any is named here.
+
+## `Pending`, [line 86](../../../../../../../backend/src/sro/domain/chat/asking.py#L86): Note on the line above
+
+Code: `refused: Mapping[str, str] = field(default_factory=dict)`
+
+> What the last answer offered that R1's checks turned down, and why --
+> for the reply that says so. Not state: never written to a decision.
+
+## `question`, [line 114](../../../../../../../backend/src/sro/domain/chat/asking.py#L114): Docstring
 
 > The question, in words rather than as a field name and a box.
 >
@@ -204,8 +239,51 @@ Code: `limits: Mapping[str, int] = field(default_factory=dict)`
 > should X be?". A value that will not fit is a person who HAS an answer and
 > has been given no reason to change it: asked the first way they send the
 > same ten characters back, and the loop is one nobody can get out of.
+>
+> Every missing REQUIRED field in ONE question, each with its limits and
+> options (F1; greyorange QA 2026-09-27: 44% of assistant turns asked for a
+> value one field at a time). One field keeps the short form every earlier
+> surface used; several are listed together with how to name each in one
+> reply. Two spellings of one field (`_twins`) are asked for once. Optional
+> fields are never here: `also_set` offers them once, in the opening.
 
-## `unusable`, [line 95](../../../../../../../backend/src/sro/domain/chat/asking.py#L95): Docstring
+## `asks`, [line 130](../../../../../../../backend/src/sro/domain/chat/asking.py#L130): Docstring
+
+> The question's shape as data: every field it asks for, each with its
+> limit and options, in the order asked. Carried on the decision as
+> `asks`; the panel's one-form drawing (design 3) is drawn from it.
+
+## `asking_state`, [line 141](../../../../../../../backend/src/sro/domain/chat/asking.py#L141): Docstring
+
+> What a NEEDS decision carries beyond the fields every writer already
+> wrote: the shape (`asks`), what is still offered (so a later reply can
+> still fill it, though it is never offered in words again), what was
+> dropped, and the options. Keys empty for this ask are left out, so a
+> decision with nothing new reads as it always did.
+
+## `turned_down`, [line 154](../../../../../../../backend/src/sro/domain/chat/asking.py#L154): Docstring
+
+> Why each value in the last reply was not taken, said before the
+> question that asks for it again -- R1's own reasons (`request.refusal`).
+
+## `cannot_without`, [line 158](../../../../../../../backend/src/sro/domain/chat/asking.py#L158): Docstring
+
+> The note that ends an ask for a required field the operator does not
+> have (F1): says the job cannot run without it, starts nothing, and is
+> not a question, so `pending_job` finds nothing waiting and nothing
+> loops. It carries `dropped` so the thread keeps the drop.
+
+## `still_to_ask`, [line 173](../../../../../../../backend/src/sro/domain/chat/asking.py#L173): Docstring
+
+> This ask, less what its thread already settled for the same job
+> (F1): every name any assistant decision about this job dropped, and
+> every optional field it already offered -- offered once in a thread.
+> A required name that was dropped moves to `without`. Scoped by
+> `workflow_id`: X is a field of a job, and another job's X is another
+> field.
+
+
+## `unusable`, [line 197](../../../../../../../backend/src/sro/domain/chat/asking.py#L197): Docstring
 
 > Names holding a value the box will not take, in the order given.
 >
@@ -219,7 +297,7 @@ Code: `limits: Mapping[str, int] = field(default_factory=dict)`
 > loop handles both. This is the same rule for an offer, which has not run
 > and so has no `needs` of its own to put them on.
 
-## `opening`, [line 106](../../../../../../../backend/src/sro/domain/chat/asking.py#L106): Docstring
+## `opening`, [line 208](../../../../../../../backend/src/sro/domain/chat/asking.py#L208): Docstring
 
 > The first thing said when a job is taken up but cannot yet run.
 >
@@ -239,7 +317,7 @@ Code: `limits: Mapping[str, int] = field(default_factory=dict)`
 > a press on a page rather than a mail -- and the sentence simply does not
 > claim one.
 
-## `also_set`, [line 136](../../../../../../../backend/src/sro/domain/chat/asking.py#L136): Docstring
+## `also_set`, [line 238](../../../../../../../backend/src/sro/domain/chat/asking.py#L238): Docstring
 
 > What this job could ALSO fill, which nothing has to answer.
 >
@@ -252,32 +330,36 @@ Code: `limits: Mapping[str, int] = field(default_factory=dict)`
 > Empty where there is nothing to offer, so a caller can append it without
 > asking.
 
-## `_listed`, [line 147](../../../../../../../backend/src/sro/domain/chat/asking.py#L147): Docstring
+## `_listed`, [line 249](../../../../../../../backend/src/sro/domain/chat/asking.py#L249): Docstring
 
 > `a`, `a and b`, `a, b and c`. A comma before the last is how a list of
 > two reads as a list of three.
 
-## `_last_time`, [line 153](../../../../../../../backend/src/sro/domain/chat/asking.py#L153): Docstring
+## `_last_time`, [line 255](../../../../../../../backend/src/sro/domain/chat/asking.py#L255): Docstring
 
 > What each was last time, where anything was. An offer a person cannot
 > answer without going to look at the last record is an offer they decline.
 
-## `shortened`, [line 158](../../../../../../../backend/src/sro/domain/chat/asking.py#L158): Docstring
+## `shortened`, [line 260](../../../../../../../backend/src/sro/domain/chat/asking.py#L260): Docstring
 
 > One value, trimmed to something a sentence can carry. Named rather than
 > private because the mail to the asker renders the same values and must trim
 > them the same way -- two answers to "how much of this do we repeat back"
 > is how one surface quotes a paragraph and another quotes a line.
 
-## `too_long_for`, [line 167](../../../../../../../backend/src/sro/domain/chat/asking.py#L167): Docstring
+## `too_long_for`, [line 269](../../../../../../../backend/src/sro/domain/chat/asking.py#L269): Docstring
 
 > The limit this answer breaks, or None if it fits.
+>
+> Only for a bare reply: one that names its fields ("X: …") or says what
+> it does not have is not one value, and its values are measured one by
+> one in `answered`.
 >
 > Measured on the value as it will be TAKEN -- trimmed and cut to `K_SAID` --
 > rather than as it was typed, so the answer this reports on is the one that
 > would be sent.
 
-## `pending_job`, [line 213](../../../../../../../backend/src/sro/domain/chat/asking.py#L213): Docstring
+## `pending_job`, [line 317](../../../../../../../backend/src/sro/domain/chat/asking.py#L317): Docstring
 
 > What the conversation is waiting on, or None.
 >
@@ -288,48 +370,48 @@ Code: `limits: Mapping[str, int] = field(default_factory=dict)`
 > as it should. Reading further back would let a job abandoned twenty minutes
 > ago claim the next sentence somebody typed.
 
-## `_pairs`, [line 238](../../../../../../../backend/src/sro/domain/chat/asking.py#L238): Docstring
+## `_pairs`, [line 354](../../../../../../../backend/src/sro/domain/chat/asking.py#L354): Docstring
 
 > The offered fields as the decision stores them: a list of two-item
 > lists, because JSON has no tuples. Anything else is nothing -- an offer
 > read out of a shape nobody wrote is an offer to fill a field that may not
 > exist.
 
-## `_step`, [line 248](../../../../../../../backend/src/sro/domain/chat/asking.py#L248): Docstring
+## `_step`, [line 364](../../../../../../../backend/src/sro/domain/chat/asking.py#L364): Docstring
 
 > Which step a stored decision names, or 0. A bool is an int in Python and
 > `from_step: true` would otherwise resume a job at its second step.
 
-## `_numbers`, [line 254](../../../../../../../backend/src/sro/domain/chat/asking.py#L254): Docstring
+## `_numbers`, [line 370](../../../../../../../backend/src/sro/domain/chat/asking.py#L370): Docstring
 
 > A decision's limits, as whole numbers. JSON off a row, so anything that
 > is not a usable count is not one -- a bool is an int in Python, and
 > `limits: {"Code": true}` would otherwise read as a one-character field.
 
-## `_strings`, [line 264](../../../../../../../backend/src/sro/domain/chat/asking.py#L264): Docstring
+## `_strings`, [line 380](../../../../../../../backend/src/sro/domain/chat/asking.py#L380): Docstring
 
 > A decision's mapping, as strings. A decision is JSON off a row and its
 > values are `object` to anything reading it honestly.
 
-## `let_go`, [line 268](../../../../../../../backend/src/sro/domain/chat/asking.py#L268): Docstring
+## `let_go`, [line 384](../../../../../../../backend/src/sro/domain/chat/asking.py#L384): Docstring
 
 > Whether that answer was somebody calling it off.
 
-## `said_yes`, [line 272](../../../../../../../backend/src/sro/domain/chat/asking.py#L272): Docstring
+## `said_yes`, [line 388](../../../../../../../backend/src/sro/domain/chat/asking.py#L388): Docstring
 
 > Whether that sentence agrees with what was just offered.
 
-## `_plainly`, [line 276](../../../../../../../backend/src/sro/domain/chat/asking.py#L276): Docstring
+## `_plainly`, [line 392](../../../../../../../backend/src/sro/domain/chat/asking.py#L392): Docstring
 
 > One answer, as it is matched: lowercased, without the punctuation
 > somebody types around a short word.
 
-## `_items`, [line 280](../../../../../../../backend/src/sro/domain/chat/asking.py#L280): Docstring
+## `_items`, [line 396](../../../../../../../backend/src/sro/domain/chat/asking.py#L396): Docstring
 
 > The things a job would be done for, as strings. A decision is JSON off a
 > row, so its `items` is `object` to anything reading it honestly.
 
-## `offered_job`, [line 284](../../../../../../../backend/src/sro/domain/chat/asking.py#L284): Docstring
+## `offered_job`, [line 400](../../../../../../../backend/src/sro/domain/chat/asking.py#L400): Docstring
 
 > The job this conversation has just offered to do, if it is still the
 > last thing said.
@@ -340,9 +422,62 @@ Code: `limits: Mapping[str, int] = field(default_factory=dict)`
 > value is NOT one of these -- `pending_job` owns that, and a sentence there
 > is the value rather than a yes.
 
-## `answered`, [line 304](../../../../../../../backend/src/sro/domain/chat/asking.py#L304): Docstring (debt)
+## module, [line 420](../../../../../../../backend/src/sro/domain/chat/asking.py#L420): Note on the line above
+
+Code: `K_WHAT_WE_HAVE = re.compile(r"(?<!\w)what(?:ever)?\s+(?:we|i)\s+(?:have|got)(?!\w)", re.I)`
+
+> "run with what we have", "whatever we have": everything this ask
+> still wants and the reply did not fill is dropped (F1). Read AFTER the
+> reply's named values, so "Customer Type: RRF, run with what we have"
+> keeps RRF.
+
+## module, [line 422](../../../../../../../backend/src/sro/domain/chat/asking.py#L422): Note on the line above
+
+Code: `K_NOT_HAD = re.compile(`
+
+> "don't have X", "skip X", "leave out X", "without X": the words after
+> it, up to the end of the clause, name what is dropped. They drop a
+> field only when they ARE one of this ask's names (`_alike`), so a
+> description that says "skip the queue" is still a description.
+
+## module, [line 429](../../../../../../../backend/src/sro/domain/chat/asking.py#L429): Note on the line above
+
+Code: `K_LIKE = 0.8`
+
+> How alike a typed name must be to a field's to be that field: thr_c563
+> typed "manufature" for Manufacturer (0.91). Stdlib `difflib`, no
+> dependency. The ceiling: two fields spelled within a letter or two of
+> each other could both match one typo; the upgrade is the alias table
+> R2 keeps per job.
+
+## `_named`, [line 439](../../../../../../../backend/src/sro/domain/chat/asking.py#L439): Docstring
+
+> Every "Name: value" (also `=` and `:-`, the form greyorange writes) in
+> the reply for a name this ask is about, each value running to the next
+> name or the end of its sentence. Names are matched however the form
+> spells them: `long_description` and `Long Description` are one name.
+> Only names this ask is about: `url: http://…` under a question about
+> Address is not a value for Address.
+
+## `named_in`, [line 474](../../../../../../../backend/src/sro/domain/chat/asking.py#L474): Docstring
+
+> Whether the reply names what it answers or what it does not have. Such
+> a reply is the operator saying what the sentence is FOR, and nothing
+> needs a model to read it -- the way out of a reading that is told to
+> refuse when unsure (`Converse._is_it_an_answer`).
+
+## `answered`, [line 483](../../../../../../../backend/src/sro/domain/chat/asking.py#L483): Docstring (debt)
 
 > The same job with this answer in it, and the next question outstanding.
+>
+> One reply can fill several fields (F1): every named value is taken, each
+> checked on its own with R1's checks (quote, limits and options, logins),
+> offered fields included. A bare reply fills the first field the question
+> listed, which is the one-field case every earlier surface relied on. What
+> the reply says it does not have is dropped: out of `missing` and
+> `offered`, into `dropped`, and -- where it was required -- into
+> `without`. `confirmed` goes back to true as it always did: an answer is
+> the press arriving.
 >
 > The answer fills the name that was asked about **and every name that is
 > that same field under another spelling**. `Create a Customer Type` declares
@@ -357,7 +492,7 @@ Code: `limits: Mapping[str, int] = field(default_factory=dict)`
 > the next pass that recognises it, and until then its offer still carries
 > two names for one field. Delete it once no stored job has a pair.
 
-## `_twins`, [line 325](../../../../../../../backend/src/sro/domain/chat/asking.py#L325): Docstring
+## `_twins`, [line 519](../../../../../../../backend/src/sro/domain/chat/asking.py#L519): Docstring
 
 > The other names for the field just answered.
 >
@@ -367,11 +502,11 @@ Code: `limits: Mapping[str, int] = field(default_factory=dict)`
 > name ends with the shorter. Nothing matches when neither contains the
 > other, which is the ordinary case of two unrelated fields.
 
-## `Pending.asking_for`, [line 79](../../../../../../../backend/src/sro/domain/chat/asking.py#L79): Docstring
+## `Pending.asking_for`, [line 89](../../../../../../../backend/src/sro/domain/chat/asking.py#L89): Docstring
 
 > The one value this question is about.
 
-## `opening`, [line 108](../../../../../../../backend/src/sro/domain/chat/asking.py#L108): Comment
+## `opening`, [line 210](../../../../../../../backend/src/sro/domain/chat/asking.py#L210): Comment
 
 Code: `for name in pending.missing:`
 
@@ -379,7 +514,7 @@ Code: `for name in pending.missing:`
 > never supplied, and running them together is how somebody re-sends the
 > value they already sent.
 
-## `opening`, [line 112](../../../../../../../backend/src/sro/domain/chat/asking.py#L112): Comment
+## `opening`, [line 214](../../../../../../../backend/src/sro/domain/chat/asking.py#L214): Comment
 
 Code: `if also := also_set(pending):`
 
@@ -388,12 +523,15 @@ Code: `if also := also_set(pending):`
 > Before rather than after, because the question is what the next sentence
 > answers and a question buried above an offer gets the offer's answer.
 
-## `answered`, [line 309](../../../../../../../backend/src/sro/domain/chat/asking.py#L309): Comment
+## `answered`, [line 495](../../../../../../../backend/src/sro/domain/chat/asking.py#L495): Comment
 
-Code: `if refusal(value, value, FieldLimits(max_length=pending.limits.get(asked)), logins):`
+Code: `if (why := refusal(one, value, _limits(pending, name), logins))`
 
-> An answer the box still will not hold, or the operator's own recorded
-> sign-in name, leaves the question standing. The reader's own check
+> Each value in the reply is checked on its own (invariant 14): the one
+> refused stays missing, with its reason in `refused`, and the others are
+> taken. An answer the box still will not hold, is not one of its options,
+> or is the operator's own recorded sign-in name, leaves that field's
+> question standing. The reader's own check
 > (`request.refusal`), so a bare "RKUCHIYAGM" typed under a pending Address
 > question is refused in chat as it is in a mail (thr_163b; R1 review, I5).
 >
@@ -402,7 +540,7 @@ Code: `if refusal(value, value, FieldLimits(max_length=pending.limits.get(asked)
 > person is at the keyboard, and telling them NOW costs one more sentence
 > where telling them later costs the job.
 
-## `should_we`, [line 121](../../../../../../../backend/src/sro/domain/chat/asking.py#L121): Note
+## `should_we`, [line 223](../../../../../../../backend/src/sro/domain/chat/asking.py#L223): Note
 
 Code: `said.append(f"You sent this to {_listed(list(sent_to))}.")`
 
@@ -410,14 +548,14 @@ Code: `said.append(f"You sent this to {_listed(list(sent_to))}.")`
 > the operator asked somebody else to do it, and the question is whether this
 > system should do it instead.
 
-## `offered_job`, [line 300](../../../../../../../backend/src/sro/domain/chat/asking.py#L300): Note
+## `offered_job`, [line 416](../../../../../../../backend/src/sro/domain/chat/asking.py#L416): Note
 
 Code: `mail_thread=str(decision.get("mail_thread") or ""),`
 
 > Carried so a yes to a request read from mail starts a run a reply on that
 > mail's thread can find, as a press on the card would.
 
-## `asked_under`, [line 174](../../../../../../../backend/src/sro/domain/chat/asking.py#L174): Note
+## `asked_under`, [line 278](../../../../../../../backend/src/sro/domain/chat/asking.py#L278): Note
 
 Code: `def asked_under(messages: Sequence[Message], answering: str | None = None) -> Message | None:`
 
@@ -431,14 +569,14 @@ Code: `def asked_under(messages: Sequence[Message], answering: str | None = None
 > question's offer, never on the newest one, and a press under a closed
 > question resolves to nothing, which the door refuses.
 
-## `offered_job`, [line 289](../../../../../../../backend/src/sro/domain/chat/asking.py#L289): Note
+## `offered_job`, [line 405](../../../../../../../backend/src/sro/domain/chat/asking.py#L405): Note
 
 Code: `if decision.get("resume"):`
 
 > A `resume` decision is a run already started, not an offer: a second "yes"
 > under it would start the same job again.
 
-## `waiting_on_mail`, [line 206](../../../../../../../backend/src/sro/domain/chat/asking.py#L206): Note
+## `waiting_on_mail`, [line 310](../../../../../../../backend/src/sro/domain/chat/asking.py#L310): Note
 
 Code: `return pending_job(messages, last.id.value) if last is not None else None`
 

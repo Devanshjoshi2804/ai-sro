@@ -945,6 +945,9 @@ async def test_the_answer_to_a_question_is_taken_as_the_answer() -> None:
         # starts is findable by a reply. Empty: nothing asked for this by mail.
         "mail_thread": "",
         "watched": True,
+        # Every field still wanted, each with its limits and options: the
+        # shape one form is drawn from.
+        "asks": [{"name": "longDescription", "max_length": None, "options": []}],
     }
 
 
@@ -1335,3 +1338,128 @@ async def test_a_sentence_that_asks_for_work_is_not_looked_up() -> None:
     await converse.execute(CTX, thread_id=thread_id, text="create a customer type called GPP")
 
     assert plans.asked == [], "a sentence asking for work was sent to the lookup door"
+
+
+# --- F1: one question for everything required, and "don't have X" is final --
+
+
+async def _asked_for(
+    uow: FakeUnitOfWork, missing: list[str], **over: object
+) -> tuple[Converse, ThreadId]:
+    converse = await _with_a_job(uow, None)
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    thread.say(
+        Message(
+            id=MessageId("msg_asked"),
+            speaker=Speaker.ASSISTANT,
+            text="What should they be?",
+            said_at=FakeClock().now(),
+            decision={
+                "kind": NEEDS,
+                "workflow_id": "wfl_1",
+                "title": "Create a Customer Type",
+                "values": {},
+                "missing": missing,
+                "items": [],
+                "watched": True,
+                **over,
+            },
+        )
+    )
+    await uow.threads.save(thread)
+    converse._answers = _Reads(answers=False)  # type: ignore[assignment]
+    return converse, thread.id
+
+
+async def test_thr_c563_a_field_the_operator_does_not_have_is_never_asked_again() -> None:
+    """thr_c563: Department, then "i dont have manufature just run whatever we
+    have", and the assistant asked for Manufacturer again."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked_for(
+        uow, ["Customer Type"], offered=[["Department", ""], ["Manufacturer", "OUTSIDE"]]
+    )
+    reads = _Reads(answers=False)
+    converse._answers = reads  # type: ignore[assignment]
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="Department: D1")
+
+    last = said.messages[-1]
+    assert last.text == "What should Customer Type be?", "an optional field was asked for"
+    assert last.decision is not None and last.decision["kind"] == NEEDS
+    assert last.decision["values"] == {"Department": "D1"}
+
+    said = await converse.execute(
+        CTX,
+        thread_id=thread_id,
+        text="Customer Type: RRF. i dont have manufature just run whatever we have",
+    )
+
+    last = said.messages[-1]
+    assert reads.asked == [], "a named answer went to a reading"
+    assert last.decision is not None and last.decision["kind"] == "job", last.text
+    assert last.decision["values"] == {"Department": "D1", "Customer Type": "RRF"}
+    assert last.decision["dropped"] == ["Manufacturer"]
+    assert not any("Manufacturer" in one.text for one in said.messages[1:] if one.decision)
+
+
+async def test_two_required_fields_are_answered_in_one_reply() -> None:
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked_for(uow, ["Customer Type", "longDescription"])
+
+    said = await converse.execute(
+        CTX, thread_id=thread_id, text="Customer Type: GPP, longDescription: first run"
+    )
+
+    last = said.messages[-1]
+    assert last.decision is not None and last.decision["kind"] == "job", last.text
+    assert last.decision["values"] == {"Customer Type": "GPP", "longDescription": "first run"}
+
+
+async def test_what_is_still_missing_is_asked_again_together() -> None:
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked_for(
+        uow, ["Customer Type", "longDescription", "Department Code"]
+    )
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="Customer Type: GPP")
+
+    last = said.messages[-1]
+    assert last.text.count("?") == 1, last.text
+    assert "What should longDescription and Department Code be?" in last.text
+    assert last.decision is not None and last.decision["asks"] == [
+        {"name": "longDescription", "max_length": None, "options": []},
+        {"name": "Department Code", "max_length": None, "options": []},
+    ]
+
+
+async def test_a_required_field_the_operator_does_not_have_ends_with_a_note() -> None:
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked_for(uow, ["Customer Type"])
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="i don't have a customer type")
+
+    last = said.messages[-1]
+    assert "cannot run without Customer Type" in last.text, last.text
+    assert last.decision is not None and last.decision["kind"] != NEEDS
+    assert last.decision["dropped"] == ["Customer Type"]
+    assert pending_job(said.messages) is None, "the ask looped"
+
+
+async def test_a_second_press_under_a_question_a_drop_already_ended_is_refused() -> None:
+    """Invariant 4 with F1's new outcome: the note closes its question, and a
+    later answer to that same question id does nothing."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked_for(uow, ["Customer Type"])
+
+    await converse.execute(
+        CTX, thread_id=thread_id, text="skip customer type", answering="msg_asked"
+    )
+    said = await converse.execute(CTX, thread_id=thread_id, text="GPP", answering="msg_asked")
+
+    assert said.messages[-1].text == "That question is no longer open, so nothing was done."
+    assert not any((one.decision or {}).get("kind") == "job" for one in said.messages)

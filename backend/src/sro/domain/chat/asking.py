@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from difflib import SequenceMatcher
 
 from sro.domain.chat.request import refusal
-from sro.domain.chat.thread import Message, Speaker
+from sro.domain.chat.thread import Message, Said, Speaker
 from sro.domain.execution.field_classes import FieldLimits
 from sro.domain.skill.signing_in import Logins
 
@@ -75,21 +77,121 @@ class Pending:
 
     confirmed: bool = True
 
+    options: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+
+    dropped: tuple[str, ...] = ()
+
+    without: tuple[str, ...] = ()
+
+    refused: Mapping[str, str] = field(default_factory=dict)
+
     @property
     def asking_for(self) -> str:
         return self.missing[0] if self.missing else ""
 
     @property
     def ready(self) -> bool:
-        return not self.missing
+        return not self.missing and not self.without
+
+
+def _holds(pending: Pending, name: str) -> str:
+    said = []
+    if (holds := pending.limits.get(name)) is not None:
+        said.append(f"takes {holds} characters")
+    if choices := pending.options.get(name):
+        said.append("is one of " + ", ".join(choices))
+    return f"{name} {' and '.join(said)}." if said else ""
+
+
+def _distinct(names: Sequence[str]) -> tuple[str, ...]:
+    kept: list[str] = []
+    for name in names:
+        if not _twins(name, kept):
+            kept.append(name)
+    return tuple(kept)
 
 
 def question(pending: Pending) -> str:
-    asked = pending.asking_for
-    holds = pending.limits.get(asked)
-    if holds is None:
-        return f"What should {asked} be?"
-    return f"{asked} takes {holds} characters. What should it be?"
+    wanted = _distinct(pending.missing)
+    if len(wanted) <= 1:
+        asked = pending.asking_for
+        holds = _holds(pending, asked)
+        return f"{holds} What should it be?" if holds else f"What should {asked} be?"
+    held = [one for one in (_holds(pending, name) for name in wanted) if one]
+    return " ".join(
+        [
+            *held,
+            f"What should {_listed(wanted)} be?",
+            "Say them as " + "; ".join(f"{name}: …" for name in wanted) + ".",
+        ]
+    )
+
+
+def asks(pending: Pending) -> list[dict[str, object]]:
+    return [
+        {
+            "name": name,
+            "max_length": pending.limits.get(name),
+            "options": list(pending.options.get(name, ())),
+        }
+        for name in _distinct(pending.missing)
+    ]
+
+
+def asking_state(pending: Pending) -> dict[str, object]:
+    return {
+        "asks": asks(pending),
+        **({"offered": [list(one) for one in pending.offered]} if pending.offered else {}),
+        **({"dropped": list(pending.dropped)} if pending.dropped else {}),
+        **(
+            {"options": {name: list(one) for name, one in pending.options.items()}}
+            if pending.options
+            else {}
+        ),
+    }
+
+
+def turned_down(pending: Pending) -> str:
+    return "".join(f"I did not take {name}: it is {why}. " for name, why in pending.refused.items())
+
+
+def cannot_without(pending: Pending) -> tuple[str, dict[str, object]]:
+    lacking = _listed(pending.without)
+    return (
+        f"{pending.title} cannot run without {lacking}, and you said you do not have it. "
+        "Nothing was started, and I will not ask for it again here.",
+        {
+            "kind": Said.NOTE,
+            "workflow_id": pending.workflow_id,
+            "mail_thread": pending.mail_thread,
+            "cannot_run": [f"it needs {lacking}"],
+            "dropped": list(pending.dropped),
+        },
+    )
+
+
+def still_to_ask(pending: Pending, messages: Sequence[Message]) -> Pending:
+    dropped: dict[str, None] = dict.fromkeys(pending.dropped)
+    offered: set[str] = set()
+    for one in messages:
+        decision = one.decision
+        if one.speaker is not Speaker.ASSISTANT or not decision:
+            continue
+        if decision.get("workflow_id") != pending.workflow_id:
+            continue
+        dropped.update(dict.fromkeys(_names(decision.get("dropped"))))
+        offered.update(name for name, _ in _pairs(decision.get("offered")))
+    return replace(
+        pending,
+        missing=tuple(name for name in pending.missing if name not in dropped),
+        without=tuple(
+            dict.fromkeys((*pending.without, *(n for n in pending.missing if n in dropped)))
+        ),
+        offered=tuple(
+            one for one in pending.offered if one[0] not in dropped and one[0] not in offered
+        ),
+        dropped=tuple(dropped),
+    )
 
 
 def unusable(values: Mapping[str, str], limits: Mapping[str, int]) -> tuple[str, ...]:
@@ -168,6 +270,8 @@ def too_long_for(pending: Pending, said: str) -> int | None:
     asked = pending.asking_for
     holds = pending.limits.get(asked)
     value = said.strip()[:K_SAID]
+    if named_in(pending, value):
+        return None
     return holds if holds is not None and len(value) > holds else None
 
 
@@ -232,7 +336,19 @@ def pending_job(messages: Sequence[Message], answering: str | None = None) -> Pe
         from_step=_step(decision.get("from_step")),
         mail_thread=str(decision.get("mail_thread") or ""),
         confirmed=not decision.get("unconfirmed"),
+        options=_choices(decision.get("options")),
+        dropped=_names(decision.get("dropped")),
     )
+
+
+def _names(said: object) -> tuple[str, ...]:
+    return tuple(str(one) for one in said) if isinstance(said, list | tuple) else ()
+
+
+def _choices(said: object) -> dict[str, tuple[str, ...]]:
+    if not isinstance(said, dict):
+        return {}
+    return {str(key): _names(one) for key, one in said.items() if isinstance(one, list | tuple)}
 
 
 def _pairs(said: object) -> tuple[tuple[str, str], ...]:
@@ -301,24 +417,102 @@ def offered_job(messages: Sequence[Message], answering: str | None = None) -> Pe
     )
 
 
+K_WHAT_WE_HAVE = re.compile(r"(?<!\w)what(?:ever)?\s+(?:we|i)\s+(?:have|got)(?!\w)", re.I)
+
+K_NOT_HAD = re.compile(
+    r"(?<!\w)(?:(?:do\s*n[o']?t|do\s+not|haven'?t|have\s+not)\s+(?:have|got|know)"
+    r"|skip|leave\s+out|without)\s+(?:(?:the|a|an|any)\s+)?"
+    r"(?P<what>.+?)\s*(?=[.,;!?]|(?<!\w)(?:just|and|but|so|then)(?!\w)|$)",
+    re.I,
+)
+
+K_LIKE = 0.8
+
+K_SENTENCE_END = re.compile(r"[;\n]|[.!?](?:\s|$)")
+
+
+def _marker(name: str) -> str:
+    words = re.split(r"[\s_-]+", name.strip())
+    return r"(?<!\w)" + r"[\s_-]*".join(re.escape(one) for one in words) + r"\s*(?::-|:|=)"
+
+
+def _named(said: str, names: Sequence[str]) -> dict[str, str]:
+    found = sorted(
+        (hit.start(), hit.end(), name)
+        for name in names
+        for hit in re.finditer(_marker(name), said, re.I)
+    )
+    kept = [one for n, one in enumerate(found) if all(one[0] >= was[1] for was in found[:n])]
+    named: dict[str, str] = {}
+    for n, (_, end, name) in enumerate(kept):
+        stop = kept[n + 1][0] if n + 1 < len(kept) else len(said)
+        value = K_SENTENCE_END.split(said[end:stop], maxsplit=1)[0]
+        value = re.sub(r"(?:[\s,;.]|(?<!\w)and(?!\w))+$", "", value).strip()
+        if value and name not in named:
+            named[name] = value
+    return named
+
+
+def _alike(what: str, name: str) -> bool:
+    one, other = _plain(what), _plain(name)
+    return bool(one) and (
+        one == other or _shares(one, other) or SequenceMatcher(None, one, other).ratio() >= K_LIKE
+    )
+
+
+def _not_had(said: str, names: Sequence[str]) -> tuple[str, ...]:
+    if K_WHAT_WE_HAVE.search(said):
+        return tuple(names)
+    heard = [hit.group("what") for hit in K_NOT_HAD.finditer(said)]
+    return tuple(name for name in names if any(_alike(what, name) for what in heard))
+
+
+def _askable(pending: Pending) -> tuple[str, ...]:
+    return (*pending.missing, *(name for name, _ in pending.offered))
+
+
+def named_in(pending: Pending, said: str) -> bool:
+    askable = _askable(pending)
+    return bool(_named(said, askable)) or bool(_not_had(said, askable))
+
+
+def _limits(pending: Pending, name: str) -> FieldLimits:
+    return FieldLimits(max_length=pending.limits.get(name), options=pending.options.get(name))
+
+
 def answered(pending: Pending, said: str, logins: Logins = Logins()) -> Pending:
     value = said.strip()[:K_SAID]
+    askable = _askable(pending)
     if not value or not pending.missing:
         return pending
-    asked = pending.missing[0]
-    if refusal(value, value, FieldLimits(max_length=pending.limits.get(asked)), logins):
-        return pending
-    filled = {asked, *_twins(asked, pending.missing[1:])}
-    return Pending(
-        workflow_id=pending.workflow_id,
-        title=pending.title,
-        values={**pending.values, **dict.fromkeys(filled, value)},
-        missing=tuple(name for name in pending.missing if name not in filled),
-        items=pending.items,
-        watched=pending.watched,
-        limits=pending.limits,
-        from_step=pending.from_step,
-        mail_thread=pending.mail_thread,
+    named = _named(value, askable)
+    not_had = _not_had(value, [name for name in askable if name not in named])
+    if not named and not not_had:
+        named = {pending.missing[0]: value}
+    refused = {
+        name: why
+        for name, one in named.items()
+        if (why := refusal(one, value, _limits(pending, name), logins))
+    }
+    taken = {name: one for name, one in named.items() if name not in refused}
+    filled = {
+        twin: one
+        for name, one in taken.items()
+        for twin in (name, *_twins(name, pending.missing))
+        if twin not in taken or twin == name
+    }
+    gone = set(filled) | set(not_had)
+    return replace(
+        pending,
+        values={**pending.values, **filled},
+        missing=tuple(name for name in pending.missing if name not in gone),
+        offered=tuple(one for one in pending.offered if one[0] not in gone),
+        dropped=tuple(dict.fromkeys((*pending.dropped, *not_had))),
+        without=tuple(
+            dict.fromkeys((*pending.without, *(n for n in pending.missing if n in not_had)))
+        ),
+        refused=refused,
+        confirmed=True,
     )
 
 

@@ -124,3 +124,75 @@ Integration (real Postgres), **written, not run**:
 - **The worker must restart.** The sweep, the mining pass and `Teach.learn_field` (an activity) all run in the worker.
 - **The sweep now locks each undecided job's row briefly** (`decide` uses `FOR UPDATE`), where before it ran a bare `UPDATE`. That is one short lock per job; it runs under the tenant's mining lock, one transaction per tenant.
 - **Cross-task.** Anything in P2, F1, F2, K1 or T1 that calls `decide_signs_in`, or relies on a whole-job save writing `signs_in`, has to move to `decide`. On this branch every caller has moved. F1's `domain/chat/asking.py` is not touched.
+
+## Round 1
+
+**Merge.** `origin/feat/execution-runtime` is still at `76e3c88`, the commit `d2/f3` was cut from. `git merge` answered "Already up to date", so there was no merge commit to make.
+
+**Fixes, each test-first. Every new test was seen red before the code changed.**
+
+- **I1: never write a verdict decided without evidence.** `chores.judged` returns `None` when any cited gesture is missing, and `chores.decide` then writes nothing.
+  - A stored `signs_in = true` is never overwritten by a no-evidence judgement.
+  - A job nobody has judged stays undecided.
+  - Tests: `test_a_sign_in_job_missing_one_cited_gesture_keeps_its_verdict` (the probe: a `signs_in = True` job missing one cite keeps `True` after the sweep), and `test_a_job_whose_evidence_is_not_all_stored_is_never_decided`. That second test replaces `test_a_job_with_no_evidence_is_decided_false`, whose ruling this reverses.
+  - Two sweep tests that relied on no-evidence jobs being decided (`busy`, `write fails`) now record the gesture they cite.
+- **I2: "writes nothing" uses `evidence.writes`** (any non-read method, any status), not `_did_business`.
+  - Every step up to and including the control is checked, with the control's own call left out of its step.
+  - `_only_reaches` also refuses any mutating call on any host. That covers the API's own subdomain, which `writes` (same origin only) cannot see.
+  - Test: `test_any_write_before_the_log_out_is_work_whatever_its_method_status_or_host` covers a DELETE 204, a form POST 302, a POST to `api.*` and a POST with no status.
+- **I3: "sign off" is not a control name, and another origin alone is never proof.** A signed-out landing now means the control's own navigation, or the next gesture in the same stream **and tab**, is on a sign-in or signed-out path or is the credential.
+  - Tests:
+    - `test_a_sign_off_queue_is_not_a_sign_out` (Quality → Sign-Off Queue → Outlook);
+    - `test_a_log_out_whose_next_gesture_is_merely_on_another_host_does_not_sign_out`;
+    - `test_a_sign_in_page_in_another_tab_is_not_this_log_out_s_landing`.
+- **M4 (product ruling): the only substantive step is the log-out control.** Every cited gesture before the control must be `_only_reaches`: a hover or scroll, or a click or press that opens a menu, menu item, tab, tree item or navigation, or that moves the page.
+  - Test: `test_a_job_whose_only_substance_is_the_log_out_signs_out_and_one_that_exports_is_work` covers both sides.
+- **M1: one gesture set for every path.** `chores._sitting` is the job's cites plus everything from its first cite to `K_SITTING_GAP_S` after its last, inclusive at both ends.
+  - `judged` always judges against it, so grow and heal (whole store) and sweep and learn (`evidence_of`) see the same gestures.
+  - `evidence_of` now asks from `math.nextafter(first, -inf)`, because the store's `after` is exclusive and missed a gesture at the first cite's own instant.
+  - Test: `test_the_sweep_and_the_heal_judge_the_same_gestures_so_the_verdict_holds`, a password typed in the same burst as the first cite. It was red: the sweep said `(False, False)` and the heal said `True`.
+- **M2: the log lines.**
+  - `_mend` logs "healed N step(s)" only when steps were healed.
+  - A decision logs its verdict in `chores.decide`.
+  - The sweep says "sign in or out", in both its info line and its exception line.
+- **M3: `teach.py` imports the decider from a small module.** It is now `application/observation/chores.py`, with `evidenced`, `judged`, `verdict`, `decide`, `evidence_of` and `decide_sign_ins`.
+  - `mining_pass`, `mine_lately`, `teach` and `scripts/migrate_vault_keys.py` import from it.
+  - `mining_pass` no longer exports `evidence_of` or `decide_sign_ins`.
+- **M5: a log out that is itself a same-origin POST 200 is the control, not a write.**
+  - Test: `test_a_log_out_that_is_itself_a_post_is_the_control_not_a_write`.
+- **M6: the race test now needs the steps comparison.** `test_a_learn_that_lands_during_a_decision_is_not_overwritten` first decides the job `(True, False)` and re-reads it. The learn then changes the steps and leaves the verdict exactly as it was, so a `decide` that compared only the verdicts would write the stale `(False, True)`. It is still integration: **written, not run**.
+  - The fake half of `test_deciding_writes_both_verdicts_only_over_the_job_it_was_decided_from` makes the same point: the grown copy with an equal verdict is refused. That half is run and green.
+
+**Files (round 1):**
+
+- `backend/src/sro/application/observation/chores.py` (new)
+- `mining_pass.py`, `mine_lately.py`, `runtime/teach.py`
+- `domain/skill/checks.py`
+- `scripts/migrate_vault_keys.py`
+- tests:
+  - `test_a_job_that_signs_out.py`
+  - `test_a_verdict_follows_the_steps.py`
+  - `test_mine_lately.py`
+  - `test_migrate_vault_keys.py` (import only)
+  - `integration/test_workflow_repositories.py`
+- notes:
+  - `chores.py.md` (new; the decider's notes moved here from `mining_pass.py.md`)
+  - `checks.py.md`
+  - `mining_pass.py.md`
+
+The migration stays 0087.
+
+**Gates:**
+
+- unit and contract: 4716 passed. The 81 errors are the same `postgres_url` setup errors as before (the `[sql]` half and the OpenAPI fuzz test), because there is no Postgres here.
+- mypy: clean (811 files).
+- ruff check and format: clean.
+- lint-imports: 4 kept.
+- code notes: 0 stale, 0 dead.
+
+**Rulings (round 1):**
+
+- Ruling: `auth` and `authorize` join the sign-in path words — Keycloak's `/protocol/openid-connect/auth` and OAuth's `/oauth2/v2.0/authorize` are sign-in pages, and without the other-origin fallback a Keycloak logout would otherwise never be seen — cost if wrong: a Log Out that lands on some other `/auth` page is still flagged.
+- Ruling: "log off" stays a control name and only "sign off" is dropped, as I3 names — "log off" is an ending, "sign off" is an approval — cost if wrong: a "Log off" that is not a sign-out would need a signed-out landing too, so the risk is small.
+- Ruling: "only reaches" is judged by declared roles (menu, menubar, menuitem, navigation, tab, treeitem; `aria-haspopup` or `aria-expanded`; a navigation landmark) or by a page move. Plain links without a page move count as substance — an export link is a read that moves nowhere — cost if wrong: a Log Out reached through bare, role-less divs stays a candidate, which is the safe side.
+- Ruling: a job with incomplete evidence is left undecided and read again on each sweep — I1 forbids a no-evidence write — cost: one wasted judgement per such job per sweep.

@@ -1358,14 +1358,21 @@ class TestAVerdictFollowsTheSteps:
     async def test_a_learn_that_lands_during_a_decision_is_not_overwritten(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
+        """The learn changes the steps and leaves the verdict exactly as it
+        was, so only the steps can tell the decider its read is stale: a
+        `decide` that compared the verdicts alone would write here."""
         job, _ = await _a_real_job(session_factory)
         async with SqlUnitOfWork(session_factory) as sweep:
             (read,) = await sweep.workflows.undecided()
+            assert await sweep.workflows.decide(TENANT, read, signs_in=True, signs_out=False)
+            await sweep.commit()
+        async with SqlUnitOfWork(session_factory) as sweep:
+            read = await sweep.workflows.get(TENANT, job.id)
 
         await _learns(session_factory, job, "region")
 
         async with SqlUnitOfWork(session_factory) as sweep:
-            decided = await sweep.workflows.decide(TENANT, read, signs_in=True, signs_out=True)
+            decided = await sweep.workflows.decide(TENANT, read, signs_in=False, signs_out=True)
             await sweep.commit()
         async with SqlUnitOfWork(session_factory) as uow:
             now = await uow.workflows.get(TENANT, job.id)

@@ -144,3 +144,90 @@ def test_a_job_that_signs_in_or_out_is_a_chore_and_an_undecided_one_is_not() -> 
     assert replace(job, signs_in=True).chore is True
     assert replace(job, signs_in=False, signs_out=False).chore is False
     assert job.chore is False
+
+
+def _pressed(gesture_id: str, at: float, name: str, *calls: Call) -> Gesture:
+    return replace(
+        _click(gesture_id, at, name),
+        action=Action(kind="press", at=at, target=Target(tag="button", role="button", name=name)),
+        requests=list(calls),
+    )
+
+
+def test_any_write_before_the_log_out_is_work_whatever_its_method_status_or_host() -> None:
+    """The codebase's own write check -- any method that is not a read, at any
+    status -- and not `_did_business`'s 2xx POST/PUT/PATCH. A write to the
+    API's own subdomain or one with no status recorded is still a write."""
+    for call in (
+        Call(method="DELETE", url=f"{WMS}/api/things/1", status=204),
+        Call(method="POST", url=f"{WMS}/portal/form", status=302),
+        Call(method="POST", url="https://api.wms.example/things", status=201),
+        Call(method="POST", url=f"{WMS}/api/things", status=None),
+    ):
+        store = {
+            "save": _pressed("save", 1, "Save", call),
+            **{key: one for key, one in _the_real_log_out().items() if key != "menu"},
+        }
+
+        assert signs_out(_job("save", "out"), store) is False, call
+
+
+def test_a_log_out_that_is_itself_a_post_is_the_control_not_a_write() -> None:
+    store = _the_real_log_out()
+    store["out"] = replace(
+        store["out"], requests=[Call(method="POST", url=f"{WMS}/portal/logout", status=200)]
+    )
+
+    assert signs_out(_job("menu", "out"), store) is True
+
+
+def test_a_sign_off_queue_is_not_a_sign_out() -> None:
+    """Quality -> Sign-Off Queue -> the operator's next gesture is in Outlook.
+    "Sign off" is an approval, and another origin alone never proves the
+    session ended."""
+    store = {
+        "quality": _click("quality", 1, "Quality"),
+        "queue": _click("queue", 2, "Sign-Off Queue"),
+        "mail": _click("mail", 4, "Inbox", url="https://outlook.office.example"),
+    }
+
+    assert signs_out(_job("quality", "queue"), store) is False
+
+
+def test_a_log_out_whose_next_gesture_is_merely_on_another_host_does_not_sign_out() -> None:
+    store = {
+        "menu": _click("menu", 1, "admin"),
+        "out": _landed(_click("out", 2, "Log Out"), "https://intranet.example/home"),
+        "next": _click("next", 4, "News", url="https://intranet.example"),
+    }
+
+    assert signs_out(_job("menu", "out"), store) is False
+
+
+def test_a_sign_in_page_in_another_tab_is_not_this_log_out_s_landing() -> None:
+    store = {
+        "menu": _click("menu", 1, "admin"),
+        "out": _click("out", 2, "Log Out"),
+        "user": replace(_typed_user("user", 4, B2C), tab_id=2),
+    }
+
+    assert signs_out(_job("menu", "out"), store) is False
+
+
+def test_a_job_whose_only_substance_is_the_log_out_signs_out_and_one_that_exports_is_work() -> None:
+    """Product ruling M4: the steps before the control may only open menus and
+    move between pages to reach it. Exporting a report -- a button that reads,
+    moves nowhere and opens nothing -- is work, even with a log out after it."""
+    reach = {
+        **_the_real_log_out(),
+        "settings": _landed(_click("settings", 0.5, "Settings"), f"{WMS}/portal/settings"),
+    }
+    assert signs_out(_job("settings", "menu", "out"), reach) is True
+
+    exports = {
+        **_the_real_log_out(),
+        "export": _pressed(
+            "export", 0.5, "Export", Call(method="GET", url=f"{WMS}/api/report.csv", status=200)
+        ),
+    }
+    assert signs_out(_job("export", "menu", "out"), exports) is False

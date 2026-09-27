@@ -1,10 +1,10 @@
 import re
 from collections import Counter
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from urllib.parse import urlsplit
 
-from sro.domain.execution.evidence import writes
+from sro.domain.execution.evidence import READ_METHODS, writes
 from sro.domain.observation.gesture import Gesture, passed_through
 from sro.domain.observation.identity import K_MIN_SHARED_STEPS, screen_of, target_identity
 from sro.domain.observation.window import Window
@@ -189,35 +189,43 @@ def signs_in(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
     )
 
 
-_SIGN_OUT = re.compile(r"(?<![a-z0-9])(?:log|sign)[\s_-]?(?:out|off)(?![a-z0-9])", re.IGNORECASE)
+_SIGN_OUT = re.compile(r"(?<![a-z0-9])(?:log[\s_-]?(?:out|off)|sign[\s_-]?out)(?![a-z0-9])", re.I)
 _SIGNED_OUT_PAGE = re.compile(
     r"(?<![a-z0-9])(?:(?:log(?:ged)?|sign(?:ed)?)[\s_-]?(?:in|on|out|off)"
-    r"|session[\s_-]?(?:ended|expired|timeout))(?![a-z0-9])",
+    r"|session[\s_-]?(?:ended|expired|timeout)|auth|authorize)(?![a-z0-9])",
     re.IGNORECASE,
 )
+_REACHING_ROLES = frozenset({"menu", "menubar", "menuitem", "navigation", "tab", "treeitem"})
 
 
 def signs_out(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
     cited = _in_time(workflow, gestures)
     control = next((one for one in reversed(cited) if _ends_the_session(one)), None)
-    if control is None or any(_did_business(gesture) for gesture in _during(workflow, gestures)):
+    if control is None:
         return False
-    here = origin_of(control.system or "")
-    if any(_acts(one) and not _signed_out_there(one, here) for one in cited if one.at > control.at):
+    if not all(_only_reaches(one) for one in cited if one.at < control.at):
+        return False
+    if any(
+        writes(replace(step, cites=[one for one in step.cites if one != control.id]), gestures)
+        for step in workflow.steps
+        if any(one in gestures and gestures[one].at <= control.at for one in step.cites)
+    ):
+        return False
+    if any(_acts(one) and not _signed_out_there(one) for one in cited if one.at > control.at):
         return False
     later = min(
         (
             gesture
             for gesture in gestures.values()
             if gesture.stream_id == control.stream_id
+            and gesture.tab_id == control.tab_id
             and control.at < gesture.at <= cited[-1].at + K_SITTING_GAP_S
         ),
         key=lambda gesture: gesture.at,
         default=None,
     )
-    return _left_for_a_signed_out_page(control, here) or (
-        later is not None
-        and (_left_for_a_signed_out_page(later, here) or _signed_out_there(later, here))
+    return _lands_signed_out(control) or (
+        later is not None and (_lands_signed_out(later) or _signed_out_there(later))
     )
 
 
@@ -230,23 +238,35 @@ def _ends_the_session(gesture: Gesture) -> bool:
     )
 
 
+def _only_reaches(gesture: Gesture) -> bool:
+    action = gesture.action
+    if action.kind in ("hover", "scroll"):
+        return True
+    if action.kind not in ("click", "press") or action.value or _signed_in_here(gesture):
+        return False
+    if any(call.method.upper() not in READ_METHODS for call in gesture.requests):
+        return False
+    target = action.target
+    opens = target is not None and (
+        target.role in _REACHING_ROLES
+        or "aria-haspopup" in target.attributes
+        or "aria-expanded" in target.attributes
+        or any(mark.role in _REACHING_ROLES for mark in target.landmarks)
+    )
+    moved = any(mark.page_kind in ("navigated", "load") for mark in gesture.page_events)
+    return opens or moved
+
+
 def _signed_out_page(url: str) -> bool:
     return bool(_SIGNED_OUT_PAGE.search(urlsplit(url).path))
 
 
-def _left_for_a_signed_out_page(gesture: Gesture, here: str) -> bool:
-    return any(
-        mark.url and (_signed_out_page(mark.url) or origin_of(mark.url) not in ("", here))
-        for mark in gesture.page_events
-    )
+def _lands_signed_out(gesture: Gesture) -> bool:
+    return any(mark.url and _signed_out_page(mark.url) for mark in gesture.page_events)
 
 
-def _signed_out_there(gesture: Gesture, here: str) -> bool:
-    return (
-        _signed_in_here(gesture)
-        or origin_of(gesture.system or "") not in ("", here)
-        or _signed_out_page(gesture.page_url or gesture.url or "")
-    )
+def _signed_out_there(gesture: Gesture) -> bool:
+    return _signed_in_here(gesture) or _signed_out_page(gesture.page_url or gesture.url or "")
 
 
 def signs_in_to(workflow: Workflow, gestures: Mapping[str, Gesture]) -> tuple[str, str] | None:

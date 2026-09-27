@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import logging
 import secrets
-from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import cast
 
 from sro.application.intent.spend import over_cap
+from sro.application.observation.chores import decide, evidenced, judged, verdict
 from sro.application.ports.locks import AccountLocks
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
@@ -65,8 +65,6 @@ from sro.whose import attribute
 
 __all__ = [
     "MineResult",
-    "decide_sign_ins",
-    "evidence_of",
     "fill_in_passwords",
     "learn_parameters",
     "mine",
@@ -315,7 +313,7 @@ async def _grow(
     stored.steps, moved = keeping_fields(stored, proposal.steps, by_id)
     stored.shape_key = [list(entry) for entry in shape_key(in_time_order(stored, by_id))]
     await uow.workflows.grew(stored, moved=moved)
-    await _decide(uow, tenant_id, stored, by_id)
+    await decide(uow, tenant_id, stored, by_id)
     logger.info(
         "%s: grew to %d step(s) from a doing that contained it",
         stored.title,
@@ -636,14 +634,12 @@ async def fill_in_passwords(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
     changed = 0
     by_id = {gesture.id: gesture for gesture in await uow.gestures.gestures_for(tenant_id)}
     for listed in await uow.workflows.known(tenant_id):
-        if not _evidenced(listed, by_id) or not (
-            _healed(deepcopy(listed), by_id) or _judged(listed, by_id) != _verdict(listed)
+        if not evidenced(listed, by_id) or not (
+            _healed(deepcopy(listed), by_id) or judged(listed, by_id) not in (None, verdict(listed))
         ):
             continue
         workflow = await uow.workflows.get(tenant_id, listed.id, lock=True)
-        if await _mend(uow, tenant_id, workflow, by_id):
-            changed += 1
-            logger.info("%s: healed the steps no model got right", workflow.title)
+        changed += await _mend(uow, tenant_id, workflow, by_id)
     return changed
 
 
@@ -653,7 +649,8 @@ async def _mend(
     healed = _healed(workflow, by_id)
     if healed:
         await uow.workflows.save(workflow)
-    return await _decide(uow, tenant_id, workflow, by_id) or bool(healed)
+        logger.info("%s: healed %d step(s) no model got right", workflow.title, healed)
+    return await decide(uow, tenant_id, workflow, by_id) or bool(healed)
 
 
 def _healed(workflow: Workflow, by_id: dict[str, Gesture]) -> int:
@@ -665,63 +662,8 @@ def _healed(workflow: Workflow, by_id: dict[str, Gesture]) -> int:
     return changed
 
 
-def _evidenced(workflow: Workflow, by_id: Mapping[str, Gesture]) -> bool:
-    wanted = ordered_cites(workflow)
-    return bool(wanted) and all(cited in by_id for cited in wanted)
-
-
-def _judged(workflow: Workflow, by_id: dict[str, Gesture]) -> tuple[bool, bool]:
-    if not _evidenced(workflow, by_id):
-        return False, False
-    healed = deepcopy(workflow)
-    with_passwords(healed, by_id)
-    with_the_press(healed, by_id)
-    return signs_in(healed, by_id), signs_out(healed, by_id)
-
-
-def _verdict(workflow: Workflow) -> tuple[bool | None, bool | None]:
-    return workflow.signs_in, workflow.signs_out
-
-
-async def _decide(
-    uow: UnitOfWork, tenant_id: TenantId, workflow: Workflow, by_id: dict[str, Gesture]
-) -> bool:
-    now = _judged(workflow, by_id)
-    if now == _verdict(workflow):
-        return False
-    return await uow.workflows.decide(tenant_id, workflow, signs_in=now[0], signs_out=now[1])
-
-
-async def evidence_of(
-    uow: UnitOfWork, tenant_id: TenantId, jobs: Sequence[Workflow]
-) -> dict[str, Gesture]:
-    cited = tuple(sorted({one for job in jobs for one in ordered_cites(job)}))
-    if not cited:
-        return {}
-    seen = {
-        gesture.id: gesture for gesture in await uow.gestures.gestures_for(tenant_id, ids=cited)
-    }
-    for job in jobs:
-        times = [seen[one].at for one in ordered_cites(job) if one in seen]
-        if not times:
-            continue
-        around = await uow.gestures.gestures_for(
-            tenant_id, after=min(times), before=max(times) + K_SITTING_GAP_S
-        )
-        seen.update({gesture.id: gesture for gesture in around})
-    return seen
-
-
 def mining_lock(tenant_id: TenantId) -> str:
     return f"mining:{tenant_id.value}"
-
-
-async def decide_sign_ins(uow: UnitOfWork, tenant_id: TenantId, jobs: Sequence[Workflow]) -> int:
-    by_id = await evidence_of(uow, tenant_id, jobs)
-    decided = 0
-    for job in jobs:
-        decided += await _decide(uow, tenant_id, job, by_id)
-    return decided
 
 
 async def rekey_workflows(uow: UnitOfWork, *, tenant_id: TenantId) -> int:

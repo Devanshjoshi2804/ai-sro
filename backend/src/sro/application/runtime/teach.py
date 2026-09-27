@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 
 from sro.application.context import RequestContext
-from sro.application.observation.mining_pass import decide_sign_ins
+from sro.application.observation.chores import decide_sign_ins
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.domain.execution.belts import confirming_read, expected_statuses

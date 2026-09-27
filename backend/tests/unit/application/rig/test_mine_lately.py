@@ -592,7 +592,7 @@ def _log_out(tenant: str) -> dict[str, Gesture]:
             system="https://wms.example",
             tab_id=1,
             frame_url=None,
-            action=Action(kind="click", at=at, target=Target(name=name)),
+            action=Action(kind="click", at=at, target=Target(role="menuitem", name=name)),
         )
 
     out = _click("ges_out", 2, "Log Out")
@@ -639,18 +639,32 @@ async def test_a_quiet_sweep_decides_a_real_sign_in_job_true() -> None:
     assert (await uow.workflows.get(TenantId("acme"), "wfl_h")).signs_in is True
 
 
-async def test_a_job_with_no_evidence_is_decided_false() -> None:
-    """Gestures are never deleted, so a job whose cites were never stored can
-    never be judged -- and every use of `true` needs those gestures, so
-    `false` hides nothing. Left NULL it would be re-read on every sweep."""
+async def test_a_job_whose_evidence_is_not_all_stored_is_never_decided() -> None:
+    """A verdict is a reading of the evidence; with a cited gesture missing
+    there is nothing to read, so nothing is written -- neither a `false` for
+    a job nobody has judged, nor over a `true` the evidence once gave."""
     uow = FakeUnitOfWork()
     await uow.workflows.save(_job_citing("acme", signs_in=None))
     await uow.workflows.save(replace(_job_citing("acme", signs_in=None), id="wfl_bare", steps=[]))
 
     await _swept(uow, _Passes())
 
-    assert (await uow.workflows.get(TenantId("acme"), "wfl_acme")).signs_in is False
-    assert (await uow.workflows.get(TenantId("acme"), "wfl_bare")).signs_in is False
+    for job_id in ("wfl_acme", "wfl_bare"):
+        job = await uow.workflows.get(TenantId("acme"), job_id)
+        assert (job.signs_in, job.signs_out) == (None, None)
+
+
+async def test_a_sign_in_job_missing_one_cited_gesture_keeps_its_verdict() -> None:
+    uow = FakeUnitOfWork()
+    gestures = _sign_in("h", user="hana")
+    del gestures["h-go"]
+    await uow.gestures.add_gestures(tuple(gestures.values()))
+    await uow.workflows.save(replace(_signing_in_job("h", signs_in=True), signs_out=None))
+
+    await _swept(uow, _Passes())
+
+    job = await uow.workflows.get(TenantId("acme"), "wfl_h")
+    assert (job.signs_in, job.signs_out) == (True, None)
 
 
 async def test_nothing_undecided_reads_no_gestures() -> None:
@@ -701,6 +715,7 @@ async def test_a_tenant_busy_elsewhere_is_skipped_quietly(
     skipped at once with an info line and the tenant after it is decided."""
     caplog.set_level(logging.INFO)
     uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", "zeta")
     await uow.workflows.save(_job_citing("acme", signs_in=None))
     await uow.workflows.save(_job_citing("zeta", signs_in=None))
     locks = FakeAccountLocks()
@@ -716,6 +731,7 @@ async def test_a_tenant_busy_elsewhere_is_skipped_quietly(
 
 async def test_a_tenant_whose_write_fails_does_not_stop_another() -> None:
     uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", "zeta")
     await uow.workflows.save(_job_citing("acme", signs_in=None))
     await uow.workflows.save(_job_citing("zeta", signs_in=None))
     deciding = uow.workflows.decide

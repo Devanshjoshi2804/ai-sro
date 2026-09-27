@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from scripts.migrate_vault_keys import migrate
 
-from sro.application.observation.mining_pass import decide_sign_ins
+from sro.application.observation.chores import decide_sign_ins
 from sro.domain.execution.account import Account
 from sro.domain.execution.secrets import secret_key_of
 from sro.domain.observation.gesture import Action, Gesture, PageMark, Target

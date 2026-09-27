@@ -9,16 +9,18 @@ only the two columns, over the job exactly as it read it.
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import UTC, datetime
 
 from sro.application.context import RequestContext
-from sro.application.observation.mining_pass import _grow, fill_in_passwords
+from sro.application.observation.mine_lately import MineLately
+from sro.application.observation.mining_pass import MineResult, _grow, fill_in_passwords
 from sro.application.runtime.teach import Teach
 from sro.domain.execution.compose import Composed
 from sro.domain.execution.lanes import Lane
 from sro.domain.observation.gesture import Action, Call, Gesture, PageMark, Target
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.skill.workflow import Step, Workflow
-from tests.unit.fakes import FakeClock, FakeUnitOfWork
+from tests.unit.fakes import FakeAccountLocks, FakeClock, FakeUnitOfWork
 
 TENANT = TenantId("acme")
 CTX = RequestContext(tenant_id=TENANT, principal_id=PrincipalId("clerk"))
@@ -62,12 +64,14 @@ def _signing_in() -> dict[str, Gesture]:
 
 def _logging_out() -> dict[str, Gesture]:
     return {
-        "menu": _gesture("menu", 1, WMS, Action(kind="click", at=1, target=Target(name="admin"))),
+        "menu": _gesture(
+            "menu", 1, WMS, Action(kind="click", at=1, target=Target(role="menuitem", name="admin"))
+        ),
         "out": _gesture(
             "out",
             2,
             WMS,
-            Action(kind="click", at=2, target=Target(name="Log Out")),
+            Action(kind="click", at=2, target=Target(role="menuitem", name="Log Out")),
             page_events=[PageMark(at=2, page_kind="navigated", url=f"{WMS}/login")],
         ),
     }
@@ -157,3 +161,35 @@ async def test_a_learn_that_changed_nothing_decides_nothing() -> None:
     )
 
     assert uow.gestures.gestures_for_calls == 0
+
+
+async def test_the_sweep_and_the_heal_judge_the_same_gestures_so_the_verdict_holds() -> None:
+    """The password is typed in the same burst as the job's first cited click,
+    at the same instant. The heal read every gesture the tenant has; the
+    sweep read `at > first` and missed it. The two came to opposite verdicts,
+    and a job flipped between passes."""
+    uow = FakeUnitOfWork()
+    by_id = _signing_in()
+    by_id["b"] = replace(by_id["b"], at=1, action=Action(kind="type", at=1, secret=True))
+    await uow.gestures.add_gestures(tuple(by_id.values()))
+    await uow.workflows.save(_job("wfl_kc", "a", "c"))
+
+    await MineLately(
+        uow, _NoPass(), _NoRead(), FakeAccountLocks(), window_hours=24, max_reads=1
+    ).execute(now=datetime(2026, 9, 27, tzinfo=UTC))
+    swept = await uow.workflows.get(TENANT, "wfl_kc")
+
+    assert (swept.signs_in, swept.signs_out) == (True, False)
+    await fill_in_passwords(uow, tenant_id=TENANT)
+    healed = await uow.workflows.get(TENANT, "wfl_kc")
+    assert (healed.signs_in, healed.signs_out) == (True, False)
+
+
+class _NoPass:
+    async def execute(self, ctx: RequestContext) -> MineResult:
+        raise AssertionError("nothing was captured lately, so nothing is mined")
+
+
+class _NoRead:
+    async def execute(self, ctx: RequestContext) -> int:
+        return 0

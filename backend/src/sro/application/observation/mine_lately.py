@@ -6,8 +6,9 @@ from datetime import UTC, datetime, timedelta
 from itertools import groupby
 
 from sro.application.context import RequestContext
+from sro.application.observation.chores import decide_sign_ins
 from sro.application.observation.mine_pass import MinePass
-from sro.application.observation.mining_pass import MineResult, decide_sign_ins, mining_lock
+from sro.application.observation.mining_pass import MineResult, mining_lock
 from sro.application.observation.read_gesture import ReadGestures
 from sro.application.ports.locks import AccountLocks
 from sro.application.ports.repositories import UnitOfWork
@@ -97,10 +98,10 @@ class MineLately:
                         decided = await decide_sign_ins(uow, tenant_id, list(jobs))
                         await uow.commit()
             except Exception:
-                logger.exception("%s: could not decide which jobs sign in", tenant)
+                logger.exception("%s: could not decide which jobs sign in or out", tenant)
                 continue
             if decided:
-                logger.info("%s: decided whether %d job(s) sign in", tenant, decided)
+                logger.info("%s: decided whether %d job(s) sign in or out", tenant, decided)
 
     async def execute(self, *, now: datetime) -> dict[str, MineResult]:
         await self._decide()

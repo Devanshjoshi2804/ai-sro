@@ -1,5 +1,5 @@
 import json
-from dataclasses import asdict, replace
+from dataclasses import replace
 from pathlib import Path
 from tempfile import mkdtemp
 from types import SimpleNamespace
@@ -174,21 +174,36 @@ def _workflow() -> Workflow:
 
 def _reader_case() -> Case:
     job = _workflow()
+    field = {
+        "labels": [],
+        "aliases": [],
+        "filled_before": True,
+        "kind": "sometimes",
+        "limits": {"max_length": None, "options": None, "required_on_screen": None},
+    }
     return Case(
         id=job.id,
         suite="reader",
         input={
-            "said": "please create customer type GT2 for testsro at " + URL,
-            "jobs": [asdict(job) | {"repeat": None}],
-            "asked_by": {job.id: ["create GT0 please"]},
+            "thread": "please create customer type GT2 for testsro at " + URL,
+            "candidates": [
+                {
+                    "id": job.id,
+                    "title": job.title,
+                    "fields": [
+                        {**field, "name": "Customer Type", "seen": ["GT0", "GT1"]},
+                        {**field, "name": "Owner", "seen": ["testsro"]},
+                    ],
+                    "asked_by": ["create GT0 please"],
+                }
+            ],
         },
         expected={"jobs": [job.id], "values": {"Customer Type": "GT2"}},
         answer={
-            "workflow_id": job.id,
+            "job": job.id,
             "sure": True,
             "also": [],
-            "values": [{"name": "Customer Type", "value": "GT2"}],
-            "missing": [],
+            "values": [{"field": "Customer Type", "value": "GT2", "quote": "customer type GT2"}],
             "items": [],
         },
     )
@@ -249,9 +264,19 @@ async def test_a_redacted_case_loads_and_scores_exactly_as_the_raw_one() -> None
 
 def test_schema_keys_are_never_renamed() -> None:
     out = redacted(_reader_case(), tenant="greyorange")
-    job = out.input["jobs"][0]
-    assert {"shape_key", "same_as", "pass_id", "signs_in", "parameters"} <= set(job)
-    assert set(job["parameters"][0]) == {"name", "seen_values"}
+    candidates = out.input["candidates"]
+    assert isinstance(candidates, list)
+    (job,) = candidates
+    assert set(job) == {"id", "title", "fields", "asked_by"}
+    assert set(job["fields"][0]) == {
+        "name",
+        "labels",
+        "aliases",
+        "seen",
+        "filled_before",
+        "kind",
+        "limits",
+    }
 
 
 def test_values_hosts_and_paths_are_shaped_whatever_their_case() -> None:

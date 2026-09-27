@@ -68,7 +68,7 @@ def test_an_enum_and_a_nullable_are_honoured() -> None:
         IS_IT_AN_ANSWER.output_schema,
     )
     assert conforms(
-        {"workflow_id": None, "values": [], "missing": [], "sure": False},
+        {"job": None, "sure": False, "values": []},
         READ_REQUEST.output_schema,
     )
 

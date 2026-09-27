@@ -12,7 +12,8 @@ _TOKEN = re.compile(r"[\w@.+-]+|[^\w@.+-]+")
 _PART = re.compile(r"\w+")
 _WORD = re.compile(r"[a-z]+")
 _VALUE_KEYS = frozenset(
-    {"value", "values", "seen_values", "system", "systems", "host", "tenant", "query"}
+    {"value", "values", "seen_values", "seen", "options", "system", "systems", "host"}
+    | {"tenant", "query"}
     | {"shape_key", "body_keys", "response_keys"}
 )
 _URL_KEYS = frozenset({"url", "path", "page_url", "frame_url"})

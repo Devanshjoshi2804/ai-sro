@@ -21,6 +21,7 @@ from sro.domain.chat.asking import NEEDS, offered_job, pending_job
 from sro.domain.chat.thread import Message, MessageId, Speaker, ThreadId
 from sro.domain.execution.run import RunId
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel
+from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import PrincipalId, SkillId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.promotion import PromotionStage
@@ -186,17 +187,16 @@ async def test_a_note_to_a_run_is_kept_and_resolves_nothing() -> None:
     which is the opposite of what somebody watching a run means by typing."""
     uow = FakeUnitOfWork()
     await _taught(uow)
-    start, converse = _chat(uow)
-    thread = await start.execute(CTX)
+    converse, thread_id = await _running(uow)
 
     thread = await converse.execute(
-        CTX, thread_id=thread.id, text="use the north yard address", run_id=RunId("run-1")
+        CTX, thread_id=thread_id, text="use the north yard address", run_id=RunId("run_1")
     )
 
-    [only] = thread.messages
+    [_, only] = thread.messages
     assert only.speaker is Speaker.OPERATOR
     assert only.text == "use the north yard address"
-    assert only.decision == {"kind": "note", "run_id": "run-1"}
+    assert only.decision == {"kind": "note", "run_id": "run_1"}
 
 
 # --- the rig's jobs, asked before the taught skills ---------------------------
@@ -1763,21 +1763,14 @@ async def test_what_stands_is_never_the_offer_for_somebody_who_did_not_open_the_
 
 # --- S1: the opener is checked where the answer is taken, and the starter is told
 
-_A_S_OFFER = Message(
-    id=MessageId("msg_offer_late"),
-    speaker=Speaker.ASSISTANT,
-    text="Create a Customer Type does that — say the word and I will run it.",
-    said_at=FakeClock().now(),
-    decision={
-        "kind": "job",
-        "workflow_id": "wfl_1",
-        "title": "Create a Customer Type",
-        "values": {"Description": "north yard"},
-        "items": [],
-        "missing": [],
-        "can_find": True,
-    },
-)
+
+async def _a_s_offer(converse: Converse, thread_id: ThreadId) -> MessageId:
+    """A's offer as `_say_the_job` says it."""
+    placed = _understood("wfl_1", values={"Description": "north yard"})
+    said = await converse._say_the_job(
+        CTX, thread_id=thread_id, text="create a warehouse equipment type", placed=placed
+    )
+    return said.messages[-1].id
 
 
 @pytest.mark.parametrize("phrase", ["yes", "no"])
@@ -1798,7 +1791,7 @@ async def test_an_offer_that_lands_after_the_gate_is_still_not_somebody_else_s(
         reads += 1
         read = await _get(*args)
         if reads == 1:
-            uow.threads.rows[(CTX.tenant_id.value, thread_id.value)].say(_A_S_OFFER)
+            await _a_s_offer(converse, thread_id)
         return read
 
     uow.threads.get = _then_the_offer  # type: ignore[method-assign, assignment]
@@ -1814,29 +1807,75 @@ async def test_an_offer_that_lands_after_the_gate_is_still_not_somebody_else_s(
     assert list(uow.workflow_runs.rows) == []
 
 
-async def test_the_starter_is_told_the_run_under_somebody_else_s_unpressed_offer() -> None:
+@pytest.mark.parametrize("phrase", ["check now", "yes", "create a warehouse equipment type"])
+async def test_the_starter_under_somebody_else_s_offer_is_only_told_the_run(phrase: str) -> None:
+    """B started the thread's run; A's offer stands under it. B is told the
+    run and nothing else: no rig, no resolver, no decision in A's thread."""
     uow = FakeUnitOfWork()
     converse, thread_id = await _running(uow, started_by="b@acme.test")
-    thread = await uow.threads.get(CTX.tenant_id, thread_id)
-    thread.say(_A_S_OFFER)
-    await uow.threads.save(thread)
+    offer = await _a_s_offer(converse, thread_id)
+    reads = _PlacesTheJob(_understood("wfl_1", values={"Description": "b's"}))
+    converse._reads_jobs = reads
+    before = len((await uow.threads.get(CTX.tenant_id, thread_id)).messages)
 
-    said = await converse.execute(SOMEBODY_ELSE, thread_id=thread_id, text="check now")
+    said = await converse.execute(SOMEBODY_ELSE, thread_id=thread_id, text=phrase)
 
-    assert said.messages[-1].text.startswith("Create a Warehouse Equipment Type is running")
-    assert "north yard" not in said.messages[-1].text
-    assert offered_job(said.messages) is not None, "A's offer still stands"
+    added = said.messages[before:]
+    assert [m.speaker for m in added] == [Speaker.OPERATOR, Speaker.ASSISTANT]
+    assert added[-1].text.startswith("Create a Warehouse Equipment Type is running")
+    assert "north yard" not in added[-1].text
+    assert not added[-1].decision
+    assert reads.asked == []
+    assert offered_job(said.messages, offer.value) is not None, "A's offer still stands"
 
 
 async def test_the_starter_s_yes_to_somebody_else_s_offer_is_still_refused() -> None:
     uow = FakeUnitOfWork()
     converse, thread_id = await _running(uow, started_by="b@acme.test")
-    thread = await uow.threads.get(CTX.tenant_id, thread_id)
-    thread.say(_A_S_OFFER)
-    await uow.threads.save(thread)
+    offer = await _a_s_offer(converse, thread_id)
 
-    said = await converse.execute(SOMEBODY_ELSE, thread_id=thread_id, text="yes")
+    said = await converse.execute(
+        SOMEBODY_ELSE, thread_id=thread_id, text="yes", answering=offer.value
+    )
 
     assert said.messages[-1].text == K_NOT_YOURS
     assert offered_job(said.messages) is not None
     assert list(uow.workflow_runs.rows) == ["run_1"]
+
+
+async def test_a_note_to_a_run_is_refused_in_a_thread_somebody_else_opened() -> None:
+    """Invariant 5. A note put B's run id into A's thread, so `_what_stands`
+    read B's run there and let B past the gate under A's offer, where B's
+    request replaced A's offer."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, _ = await _running(uow, started_by="b@acme.test")
+    thread_id = (await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)).id
+    offer = await _a_s_offer(converse, thread_id)
+    converse._reads_jobs = _PlacesTheJob(_understood("wfl_1", values={"Description": "b's"}))
+
+    with pytest.raises(Conflict):
+        await converse.execute(
+            SOMEBODY_ELSE, thread_id=thread_id, text="fyi", run_id=RunId("run_1")
+        )
+    said = await converse.execute(
+        SOMEBODY_ELSE, thread_id=thread_id, text="create a warehouse equipment type"
+    )
+
+    assert said.messages[-1].text == K_NOT_YOURS
+    assert not any((m.decision or {}).get("run_id") for m in said.messages)
+    pressed = await converse.execute(CTX, thread_id=thread_id, text="yes", answering=offer.value)
+    assert pressed.messages[-1].text.startswith("Running Create a Warehouse Equipment Type")
+
+
+async def test_a_note_to_a_run_the_caller_did_not_start_is_refused() -> None:
+    uow = FakeUnitOfWork()
+    converse, thread_id = await _running(uow, started_by="b@acme.test")
+    before = len((await uow.threads.get(CTX.tenant_id, thread_id)).messages)
+
+    with pytest.raises(Conflict):
+        await converse.execute(CTX, thread_id=thread_id, text="fyi", run_id=RunId("run_1"))
+    with pytest.raises(Conflict):
+        await converse.execute(CTX, thread_id=thread_id, text="fyi", run_id=RunId("run_nobody"))
+
+    assert len((await uow.threads.get(CTX.tenant_id, thread_id)).messages) == before

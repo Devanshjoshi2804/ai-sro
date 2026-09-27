@@ -8,6 +8,7 @@ operator's own mailbox and nobody else's, and an offer rather than a run.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, replace
@@ -69,7 +70,8 @@ from tests.unit.fakes import (
     FakeIdFactory,
     FakeUnitOfWork,
 )
-from tests.unit.runtime_support import save_job, save_step
+from tests.unit.runtime_support import CTX as RUN_CTX
+from tests.unit.runtime_support import WORKFLOW, save_job, save_step, steel_run, type_step
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=PrincipalId("devansh"))
 JOB = "wfl_1"
@@ -2619,3 +2621,79 @@ async def test_a_first_mail_for_a_job_with_nothing_to_fill_still_starts_it() -> 
 
     (one,) = looked.offered
     assert one.fresh and one.started
+
+
+# --- S1: a reply to a run's question is its starter's, even on a shared inbox
+
+
+def _colleague(n: int = 0) -> RequestContext:
+    """Sorts before `devansh`, so the poll looks in their mailbox first."""
+    return RequestContext(tenant_id=f.TENANT, principal_id=PrincipalId(f"aaa-{n}"))
+
+
+@pytest.mark.parametrize("colleagues", [1, 2])
+async def test_a_colleague_s_look_leaves_a_reply_to_the_run_for_its_starter(
+    colleagues: int,
+) -> None:
+    """Invariants 5 and 6. The claim is tenant-wide and the poll goes through
+    principals in order, so on a shared inbox a colleague reads the reply
+    first. Only the starter answers, and keeping the colleague's claim dropped
+    the answer for good."""
+    uow = await _held()
+    run = _short("t-9", needs=[], values={})
+    run.outcome, run.executor = "running", "steel"
+    run.progress = {"asking": {"id": "q-1", "kind": "value", "text": "which one?", "step": "0"}}
+    await uow.workflow_runs.save(run)
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("GU9", thread="t-9")})
+    durable = FakeDurableExecution()
+
+    for n in range(colleagues):
+        looked = await _look(uow, mailbox, _Reads(), durable=durable).execute(_colleague(n))
+        assert durable.answered == []
+        assert looked.why == "read 1, and 1 answers a run another operator started"
+    looked = await _look(uow, mailbox, _Reads(), durable=durable).execute(CTX)
+
+    assert looked.read == 1
+    assert durable.answered == [("run_1", "q-1")]
+
+
+@pytest.mark.parametrize("starter_looks", [False, True])
+async def test_a_reply_only_a_colleague_could_read_is_told_to_the_starter_when_the_wait_ends(
+    starter_looks: bool,
+) -> None:
+    step, by_id = type_step()
+    job = replace(
+        WORKFLOW,
+        steps=[replace(step, order=0)],
+        parameters=[{"name": "Customer Type", "required": True}],
+    )
+    world = await steel_run(steps=[(step, by_id)], job=job, values={})
+    assert (await world.run_steps.step(RUN_CTX, world.run_id, stop=asyncio.Event())).asking
+    run = await world.saved_run()
+    run.awaiting = as_said(waiting_on(SERVER, "t-9", now=datetime.now(tz=UTC)))
+    await world.uow.workflow_runs.save(run)
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("GU9", thread="t-9")})
+    await _look(world.uow, mailbox, _Reads(), durable=world.durable).execute(_colleague())
+    if starter_looks:
+        await _look(world.uow, mailbox, _Reads(), durable=world.durable).execute(RUN_CTX)
+
+    await world.run_steps.finish(RUN_CTX, world.run_id)
+    await world.run_steps.finish(RUN_CTX, world.run_id)  # the activity, retried
+
+    told = [one for one in await world.thread_says() if "cannot read" in str(one["text"])]
+    assert len(told) == (0 if starter_looks else 1)
+
+
+async def test_a_wait_that_ends_with_no_reply_anywhere_tells_nothing_about_mailboxes() -> None:
+    step, by_id = type_step()
+    job = replace(
+        WORKFLOW,
+        steps=[replace(step, order=0)],
+        parameters=[{"name": "Customer Type", "required": True}],
+    )
+    world = await steel_run(steps=[(step, by_id)], job=job, values={})
+    assert (await world.run_steps.step(RUN_CTX, world.run_id, stop=asyncio.Event())).asking
+
+    await world.run_steps.finish(RUN_CTX, world.run_id)
+
+    assert not [one for one in await world.thread_says() if "cannot read" in str(one["text"])]

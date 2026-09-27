@@ -47,7 +47,7 @@ from sro.domain.chat.thread import Message, MessageId, Said, Speaker, Thread, Th
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
 from sro.domain.execution.workflow_run import answers_for
 from sro.domain.lookup.asking import is_a_question
-from sro.domain.shared.errors import DomainError
+from sro.domain.shared.errors import Conflict, DomainError
 from sro.domain.skill.learned import demanded
 from sro.domain.skill.skill import Skill
 
@@ -149,12 +149,14 @@ class Converse:
         if before.opened_by != ctx.principal_id and (
             answering is not None
             or pending_job(said_before) is not None
-            or (
-                offered_job(said_before) is not None
-                and await self._what_stands(ctx, before) is None
-            )
+            or offered_job(said_before) is not None
         ):
-            return await self._only_said(ctx, thread_id=thread_id, text=text, said=K_NOT_YOURS)
+            told = None
+            if answering is None and pending_job(said_before) is None:
+                told = await self._what_stands(ctx, before)
+            return await self._only_said(
+                ctx, thread_id=thread_id, text=text, said=told or K_NOT_YOURS
+            )
         if (
             answering is not None
             and pending_job(said_before, answering) is None
@@ -781,6 +783,11 @@ class Converse:
     ) -> Thread:
         async with self._uow as uow:
             thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            run = await uow.workflow_runs.get(ctx.tenant_id, run_id.value)
+            if thread.opened_by != ctx.principal_id or not (
+                run is not None and answers_for(run, ctx.principal_id.value)
+            ):
+                raise Conflict("a note goes only to your own run, in a thread you opened")
             thread.say(
                 Message(
                     id=self._ids.new_message_id(),

@@ -323,8 +323,10 @@ Code: `pinned: Workflow | None = None`
 
 Code: `return principal in {run.started_by, opened_by} - {""}`
 
-> Who may answer a run, and so be told where it stands: the operator who
-> started it, and the opener of the thread it was started from when the caller
-> has that thread (invariant 5; S1). `AnswerRun` passes no opener -- the route
-> and the mail door have no thread -- and chat's `_what_stands` passes the
-> thread's. An empty `started_by` (a legacy row) matches nobody.
+> Who may answer a run: its starter alone (invariant 5; S1). `AnswerRun`
+> passes no opener, so the route and the mail door answer for the starter and
+> nobody else. `opened_by` is the opener of the thread the caller is in now,
+> which is not always the thread the run started from; chat's `_what_stands`
+> passes it only to say where the run stands, beside chat's own offers and
+> questions in that thread. Never pass it to grant an answer. An empty
+> `started_by` (a legacy row) matches nobody.

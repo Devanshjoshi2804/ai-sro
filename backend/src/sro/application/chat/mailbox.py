@@ -29,6 +29,10 @@ def mail_key(message: str) -> str:
     return f"mail:{message}"
 
 
+def elsewhere_key(run_id: str, question_id: str) -> str:
+    return f"elsewhere:{run_id}:{question_id}"
+
+
 def sent_key(message: str) -> str:
     """This system sent it -- apart from mail_key, which only says it was read."""
     return f"sent:{message}"

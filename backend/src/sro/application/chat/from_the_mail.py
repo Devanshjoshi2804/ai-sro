@@ -14,6 +14,7 @@ from sro.application.chat.candidates import candidate_of
 from sro.application.chat.mailbox import (
     K_REMEMBER,
     SERVER,
+    elsewhere_key,
     is_ours,
     mail_key,
     sent_to_others,
@@ -45,7 +46,7 @@ from sro.domain.execution.learned_step import limits_for, too_long
 from sro.domain.execution.mail_job import one_address_in
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.waiting import read_wait, still_waiting
-from sro.domain.execution.workflow_run import WorkflowRun
+from sro.domain.execution.workflow_run import WorkflowRun, answers_for
 from sro.domain.observation.attempts import DONE
 from sro.domain.prompts.record import quoted_in
 from sro.domain.recording.sensitivity import is_secret_field
@@ -188,6 +189,9 @@ class FromTheMail:
                 one = await self._read(ctx, message, look, known)
                 if one is not None:
                     one = await self._settle(ctx, one, workflows)
+            except _Theirs:
+                await self._release(ctx, message)
+                continue
             except (OverCap, ToolsUnavailable, Unread) as stopped:
                 await self._release(ctx, message)
                 logger.info("%s: the look stopped at %s -- %s", tenant, message, stopped)
@@ -205,7 +209,7 @@ class FromTheMail:
         looked = LookedInTheMail(
             offered=tuple(offered),
             read=look.read,
-            why=_sentence(offered, look.read, look.unsure),
+            why=_sentence(offered, look.read, look.unsure, look.theirs),
             spent=look.spent,
         )
         logger.info(
@@ -236,6 +240,10 @@ class FromTheMail:
         back = await self._answering(ctx, thread)
         waits = Progress.of(back.progress).asking.get("kind") if back is not None else None
         if back is not None and (back.executor == "steel" or waits == "recipient"):
+            if not answers_for(back, ctx.principal_id.value):
+                look.theirs += 1
+                await self._elsewhere(ctx, back)
+                raise _Theirs
             await self._answer_the_run(ctx, back, said, message)
             return None
         if back is not None:
@@ -447,6 +455,18 @@ class FromTheMail:
         if waiting is None or not still_waiting(read_wait(waiting.awaiting), datetime.now(tz=UTC)):
             return None
         return waiting
+
+    async def _elsewhere(self, ctx: RequestContext, run: WorkflowRun) -> None:
+        asking = Progress.of(run.progress).asking.get("id", "")
+        async with self._uow as uow:
+            await uow.tool_calls.remember(
+                ctx.tenant_id,
+                elsewhere_key(run.id, asking),
+                tool="a reply its starter's own look has to take",
+                at=datetime.now(tz=UTC),
+                stale_after=K_REMEMBER,
+            )
+            await uow.commit()
 
     async def _answer_the_run(
         self, ctx: RequestContext, run: WorkflowRun, said: str, message: str
@@ -873,10 +893,15 @@ class Unread(Exception):
     pass
 
 
+class _Theirs(Exception):
+    pass
+
+
 @dataclass(slots=True)
 class _Look:
     read: int = 0
     unsure: int = 0
+    theirs: int = 0
     spent: Answer = field(default_factory=Answer)
 
 
@@ -922,9 +947,11 @@ def _caught_key(ctx: RequestContext, message: str) -> str:
     return f"caught:{ctx.principal_id.value}:{message}"
 
 
-def _sentence(offered: Sequence[Offered], read: int, unsure: int = 0) -> str:
+def _sentence(offered: Sequence[Offered], read: int, unsure: int = 0, theirs: int = 0) -> str:
     if not read:
         return "no mail has arrived since the last look"
+    if not offered and theirs:
+        return f"read {read}, and {theirs} answers a run another operator started"
     if not offered and unsure:
         return f"read {read}, and {unsure} asked for a job this tenant holds more than one of"
     if not offered:

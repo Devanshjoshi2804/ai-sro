@@ -60,9 +60,10 @@ Code: `if not answers_for(run, ctx.principal_id.value):`
 > (invariant 5; S1). Until S1 only a recipient question was checked, so anybody
 > in the tenant could answer a run's value, field or step question. A legacy
 > row with no `started_by` has nobody who may. The mail door answers through
-> here too, so a reply read out of a colleague's mailbox answers nothing of a
-> run they did not start. `answers_for` is the same rule chat's `_what_stands`
-> reads a run's status by; there is no thread here, so no opener is passed.
+> here too, and does not even try for a run its principal did not start: it
+> leaves that reply for the starter's own look (`FromTheMail._read`). No
+> opener is passed, and none may be: an opener counts only for chat's own
+> offers and questions.
 >
 > Who a mail goes to names somebody outside the evidence, so it is taken only
 > as addresses that read cleanly (`mailboxes`) -- the same parser the draft's

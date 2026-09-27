@@ -9,6 +9,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 
 from sro.application.chat.announce import SayWhatHappened
+from sro.application.chat.mailbox import K_REMEMBER, elsewhere_key
 from sro.application.context import RequestContext
 from sro.application.execution.mail_job import keep_the_named
 from sro.application.ports.locks import AccountBusy
@@ -298,7 +299,30 @@ class RunSteps:
         async with self._uow as uow:
             await uow.workflow_runs.save(run)
             await uow.commit()
+        if (asked := progress.asking).get("id") and not asked.get("answered"):
+            await self._answered_elsewhere(ctx, run, str(asked["id"]))
         return run.outcome
+
+    async def _answered_elsewhere(self, ctx: RequestContext, run: WorkflowRun, asked: str) -> None:
+        key = elsewhere_key(run.id, asked)
+        async with self._uow as uow:
+            if not await uow.tool_calls.held(
+                ctx.tenant_id, key, since=self._clock.now() - K_REMEMBER
+            ):
+                return
+        await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+            ctx,
+            for_operator=PrincipalId(run.started_by) if run.started_by else ctx.principal_id,
+            text=(
+                "An answer to this run's question arrived in a mailbox you cannot read, "
+                "so it was never taken; the run stopped waiting for it."
+            ),
+            speaker=Speaker.ASSISTANT,
+            decision={"kind": "note", "run_id": run.id},
+        )
+        async with self._uow as uow:
+            await uow.tool_calls.forget(ctx.tenant_id, key)
+            await uow.commit()
 
     async def stopped(self, ctx: RequestContext, run_id: str) -> None:
         run = await self._run(ctx, run_id)

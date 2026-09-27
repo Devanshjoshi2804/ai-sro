@@ -1381,6 +1381,9 @@ export interface paths {
          *     The same run as `/v1/skills/{id}/runs`, kept where it belongs: an operator
          *     who filled in a card and pressed the button has had a conversation, and a
          *     result that lives only in the browser's memory is gone on the next render.
+         *
+         *     409 when the caller did not open the thread, checked before any run
+         *     starts: a run written into somebody else's thread stands over their offer.
          */
         post: operations["run_from_thread_v1_threads__thread_id__runs_post"];
         delete?: never;

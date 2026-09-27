@@ -1879,3 +1879,39 @@ async def test_a_note_to_a_run_the_caller_did_not_start_is_refused() -> None:
         await converse.execute(CTX, thread_id=thread_id, text="fyi", run_id=RunId("run_nobody"))
 
     assert len((await uow.threads.get(CTX.tenant_id, thread_id)).messages) == before
+
+
+async def test_a_run_is_written_only_into_a_thread_its_caller_opened() -> None:
+    """Invariant 5. `started` wrote B's run into A's thread, so `asked_under`
+    read B's run and A's bare "yes" -- all the console sends -- lost A's offer."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, _ = await _running(uow)
+    thread_id = (await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)).id
+    await _a_s_offer(converse, thread_id)
+    skill = await uow.skills.get(f.TENANT, SkillId("skill-adjust"))
+    before = (await uow.threads.get(CTX.tenant_id, thread_id)).messages
+
+    with pytest.raises(Conflict):
+        await converse.started(
+            SOMEBODY_ELSE, thread_id=thread_id, run_id=RunId("run_b"), skill=skill
+        )
+    with pytest.raises(Conflict):
+        await converse.may_start(SOMEBODY_ELSE, thread_id=thread_id)
+
+    assert (await uow.threads.get(CTX.tenant_id, thread_id)).messages == before
+    bare = await converse.execute(CTX, thread_id=thread_id, text="yes")
+    assert bare.messages[-1].text.startswith("Running Create a Warehouse Equipment Type")
+
+
+async def test_a_run_is_written_into_the_caller_s_own_thread() -> None:
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse = _chat(uow)[1]
+    thread_id = (await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)).id
+    skill = await uow.skills.get(f.TENANT, SkillId("skill-adjust"))
+
+    await converse.may_start(CTX, thread_id=thread_id)
+    said = await converse.started(CTX, thread_id=thread_id, run_id=RunId("run_a"), skill=skill)
+
+    assert said.messages[-1].decision["run_id"] == "run_a"

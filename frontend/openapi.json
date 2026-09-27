@@ -16737,7 +16737,7 @@
           "threads"
         ],
         "summary": "Run From Thread",
-        "description": "Start a run and write it into the conversation that asked for it.\n\nThe same run as `/v1/skills/{id}/runs`, kept where it belongs: an operator\nwho filled in a card and pressed the button has had a conversation, and a\nresult that lives only in the browser's memory is gone on the next render.",
+        "description": "Start a run and write it into the conversation that asked for it.\n\nThe same run as `/v1/skills/{id}/runs`, kept where it belongs: an operator\nwho filled in a card and pressed the button has had a conversation, and a\nresult that lives only in the browser's memory is gone on the next render.\n\n409 when the caller did not open the thread, checked before any run\nstarts: a run written into somebody else's thread stands over their offer.",
         "operationId": "run_from_thread_v1_threads__thread_id__runs_post",
         "parameters": [
           {

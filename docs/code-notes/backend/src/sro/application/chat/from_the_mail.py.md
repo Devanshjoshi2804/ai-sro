@@ -263,16 +263,16 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 
 > Read the operator's recent mail, and offer the jobs it asks for.
 
-## `_sentence`, [line 950](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L950): Docstring
+## `_sentence`, [line 962](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L962): Docstring
 
 > What happened, for a person reading the result rather than the code.
 
-## `_also`, [line 962](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L962): Docstring
+## `_also`, [line 974](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L974): Docstring
 
 > What the readings came to, totalled. Kept because every other loop here
 > reports it and the spend line reads it, not as a limit on anything.
 
-## `_told`, [line 975](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L975): Docstring
+## `_told`, [line 987](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L987): Docstring
 
 > One offer, told what its boxes will not hold and what it can write after
 > all.
@@ -324,7 +324,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > falls through to the ordinary reading, which is the right answer for it
 > -- a fresh request on an old thread is a fresh request.
 
-## `FromTheMail._was_asked`, [line 513](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L513): Docstring
+## `FromTheMail._was_asked`, [line 525](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L525): Docstring
 
 > A question standing in the operator's conversation about this mail.
 >
@@ -343,7 +343,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > The operator's own conversation, because that is where the question
 > was put and this look runs as them.
 
-## `FromTheMail._carrying_on`, [line 523](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L523): Docstring
+## `FromTheMail._carrying_on`, [line 535](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L535): Docstring
 
 > The waiting run's offer again, with whatever the reply added.
 >
@@ -356,7 +356,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > thread it arrived in -- the same call, with the same rounds, now
 > looking at a conversation that contains the answer.
 
-## `FromTheMail._answered_by_mail`, [line 565](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L565): Docstring
+## `FromTheMail._answered_by_mail`, [line 577](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L577): Docstring
 
 > The standing question, with whatever the reply answered of it.
 >
@@ -376,7 +376,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > So the reply is read, the value is filled in, and the card comes back
 > naming it. One press, on something visible.
 
-## `FromTheMail._reply_says`, [line 610](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L610): Docstring
+## `FromTheMail._reply_says`, [line 622](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L622): Docstring
 
 > The values this reply actually states, read out of the reply.
 >
@@ -400,7 +400,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > reply that says nothing useful is the case the mailbox search exists
 > for.
 
-## `FromTheMail._the_question_is_answered`, [line 638](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L638): Docstring
+## `FromTheMail._the_question_is_answered`, [line 650](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L650): Docstring
 
 > Close the standing question, because a reply has answered it.
 >
@@ -423,7 +423,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > is a stale question, and a stale question is not worth losing the card
 > that answers it.
 
-## `FromTheMail._what_will_not_fit`, [line 699](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L699): Docstring
+## `FromTheMail._what_will_not_fit`, [line 711](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L711): Docstring
 
 > Each offer, told which of its values its own boxes are too small for.
 >
@@ -434,7 +434,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > A job nothing has been learnt about comes back exactly as it went in,
 > which is most of them -- a limit exists only where a run has hit one.
 
-## `FromTheMail._recent`, [line 774](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L774): Docstring
+## `FromTheMail._recent`, [line 786](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L786): Docstring
 
 > The newest message ids, as this operator. Ids only: what each one
 > says is read one at a time below, and a search answer carries a snippet
@@ -444,7 +444,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > before (Gmail's `pageToken`), and the id list comes back with the next one,
 > or `""` when the search is exhausted.
 
-## `FromTheMail._body`, [line 797](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L797): Docstring
+## `FromTheMail._body`, [line 809](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L809): Docstring
 
 > What one message says, the conversation it belongs to, and its name.
 >
@@ -455,7 +455,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > The subject beside both because a conversation about this request has
 > to be able to say which request. See `Offered.subject`.
 
-## `FromTheMail._conversation`, [line 823](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L823): Docstring
+## `FromTheMail._conversation`, [line 835](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L835): Docstring
 
 > Every mail in one conversation, as one piece of text.
 >
@@ -468,7 +468,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > about a value sitting one mail away. Measured on the deployment,
 > 2026-09-17 at 21:26.
 
-## `FromTheMail._take`, [line 842](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L842): Note
+## `FromTheMail._take`, [line 854](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L854): Note
 
 Code: `tenant, kept, reading = ctx.tenant_id, mail_key(message), _reading_key(message)`
 
@@ -521,7 +521,7 @@ Code: `why = await over_cap(`
 > client would refuse each call anyway; asking here gives the operator the 429
 > and the reason instead of a look that quietly read nothing.
 
-## `_Look`, [line 903](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L903): Comment
+## `_Look`, [line 915](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L915): Comment
 
 Code: `unsure: int = 0`
 
@@ -633,7 +633,7 @@ Code: `except (OverCap, ToolsUnavailable, Unread) as stopped:`
 > stop the look, so the next look reads it; the mails after it were never
 > taken. Any other failure releases it too, and is raised.
 
-## `FromTheMail._answered_by_mail`, [line 600](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L600): Comment
+## `FromTheMail._answered_by_mail`, [line 612](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L612): Comment
 
 Code: `sure=asked.confirmed,`
 
@@ -644,7 +644,7 @@ Code: `sure=asked.confirmed,`
 > request is asked about instead. Nothing here claims a run started: the
 > `resume` cue it used to write was acted on by no browser for a mail reply.
 
-## `FromTheMail._the_question_is_answered`, [line 674](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L674): Comment
+## `FromTheMail._the_question_is_answered`, [line 686](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L686): Comment
 
 Code: `speaker=Speaker.ASSISTANT,`
 
@@ -652,7 +652,7 @@ Code: `speaker=Speaker.ASSISTANT,`
 > question is still standing, and a SYSTEM note leaves the old
 > one to be found by the next sentence somebody types.
 
-## `FromTheMail._the_question_is_answered`, [line 689](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L689): Comment
+## `FromTheMail._the_question_is_answered`, [line 701](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L701): Comment
 
 Code: `else {`
 
@@ -675,7 +675,7 @@ Code: `else {`
 > is about the job's track record and this is about one
 > person's consent, and neither stands in for the other.
 
-## `FromTheMail._the_question_is_answered`, [line 690](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L690): Comment
+## `FromTheMail._the_question_is_answered`, [line 702](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L702): Comment
 
 Code: `"kind": Said.NOTE,`
 
@@ -683,14 +683,14 @@ Code: `"kind": Said.NOTE,`
 > and mail thread), so it stops standing; what comes of the request is
 > `_settle`'s to decide.
 
-## `FromTheMail._what_will_not_fit`, [line 704](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L704): Comment
+## `FromTheMail._what_will_not_fit`, [line 716](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L716): Comment
 
 Code: `placeable: dict[str, dict[str, str]] = {}`
 
 > Per job, like the limits: a mailbox holding four requests for one job
 > is the ordinary case and it is the same answer four times.
 
-## `FromTheMail._what_will_not_fit`, [line 714](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L714): Comment
+## `FromTheMail._what_will_not_fit`, [line 726](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L726): Comment
 
 Code: `await declared_limits(`
 
@@ -699,7 +699,7 @@ Code: `await declared_limits(`
 > the press is lost if the first request too long for a field
 > still has to be sent to find that out.
 
-## `FromTheMail._what_will_not_fit`, [line 723](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L723): Comment
+## `FromTheMail._what_will_not_fit`, [line 735](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L735): Comment
 
 Code: `asked = sorted(`
 
@@ -712,7 +712,7 @@ Code: `asked = sorted(`
 > the dictionary names the slot, the write can fill it -- and the
 > run then proves it landed, because nothing demonstrated it.
 
-## `_sentence`, [line 956](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L956): Comment
+## `_sentence`, [line 968](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L968): Comment
 
 Code: `return f"read {read}, and {unsure} asked for a job this tenant holds more than one of"`
 
@@ -722,7 +722,7 @@ Code: `return f"read {read}, and {unsure} asked for a job this tenant holds more
 > nobody investigates -- the tenant had two workflows with one name for
 > a day, and this sentence is why nobody knew.
 
-## `_told`, [line 985](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L985): Comment
+## `_told`, [line 997](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L997): Comment
 
 Code: `return replace(`
 
@@ -730,7 +730,7 @@ Code: `return replace(`
 > cannot set -- and their values join the ones it was given, because the
 > write is what fills them and the write reads `values`.
 
-## `FromTheMail._answer_the_run`, [line 478](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L478): Note
+## `FromTheMail._answer_the_run`, [line 490](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L490): Note
 
 Code: `if kind not in ("value", "recipient") or not said:`
 
@@ -793,7 +793,7 @@ Code: `K_LOOK_PAGES = 10`
 > Upgrade path: keep the page token the capped look stopped at and resume
 > from it.
 
-## `FromTheMail._unclaimed`, [line 748](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L748): Note
+## `FromTheMail._unclaimed`, [line 760](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L760): Note
 
 Code: `if await self._caught_up_to(ctx, message, now=now):`
 
@@ -803,7 +803,7 @@ Code: `if await self._caught_up_to(ctx, message, now=now):`
 > whole look's newest mail, and a look is whole only when it got there (or to
 > the end of the search) with nothing held by another look along the way.
 
-## `_page_of`, [line 939](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L939): Note
+## `_page_of`, [line 951](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L951): Note
 
 Code: `return more if isinstance(more, str) and K_PAGE_TOKEN.fullmatch(more) else ""`
 
@@ -901,7 +901,7 @@ Code: `if not one.fresh and await self._started_here(ctx, one.thread):`
 > its state: `started_on` says a run exists, and the card already shows where
 > it stands. The note is the mail's outcome, so the claim is kept (invariant 6).
 
-## `FromTheMail._reply_says`, [line 623](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L623): Comment
+## `FromTheMail._reply_says`, [line 635](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L635): Comment
 
 Code: `said, [candidate_of(job, logins=logins)], self._asker, question=question`
 
@@ -921,6 +921,24 @@ Code: `if not answers_for(back, ctx.principal_id.value):`
 > first. `AnswerRun` refuses them, and keeping their claim dropped the answer
 > for good. So their look releases it and the starter's own look takes it.
 > It also leaves a mark (`elsewhere_key`): if the question is still open when
-> the run ends, `RunSteps.finish` tells the starter that an answer arrived in
-> a mailbox they cannot read. The look's summary counts the reply as left for
+> the run ends, `SayWhatHappened.answered_elsewhere` tells the starter that an
+> answer arrived in a mailbox they cannot read. The look's summary counts the reply as left for
 > the starter, and never as "none of them asks for a job".
+
+## `FromTheMail._elsewhere`, [line 471](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L471): Note
+
+Code: `again = await uow.workflow_runs.get(ctx.tenant_id, run.id)`
+
+> The run is read again after the mark commits. `finish` may have ended the
+> run and looked for the mark between this look's read and its mark; then
+> nobody else will tell the starter, so this look does. Whichever of the two
+> forgets the mark tells, so the starter hears it once (S1 round 2).
+
+## `FromTheMail._answer_the_run`, [line 485](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L485): Note
+
+Code: `await uow.tool_calls.forget(ctx.tenant_id, elsewhere_key(run.id, asking.get("id", "")))`
+
+> The starter's own look took the reply, so a colleague's mark for this
+> question is no longer true, whatever comes of the answer: a step or field
+> question mail cannot answer, or a value `AnswerRun` refuses, must not end
+> with "arrived in a mailbox you cannot read" (S1 round 2, N1).

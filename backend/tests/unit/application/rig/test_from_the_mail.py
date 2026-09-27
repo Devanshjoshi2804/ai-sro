@@ -2657,10 +2657,7 @@ async def test_a_colleague_s_look_leaves_a_reply_to_the_run_for_its_starter(
     assert durable.answered == [("run_1", "q-1")]
 
 
-@pytest.mark.parametrize("starter_looks", [False, True])
-async def test_a_reply_only_a_colleague_could_read_is_told_to_the_starter_when_the_wait_ends(
-    starter_looks: bool,
-) -> None:
+async def _asking_on_t9() -> Any:
     step, by_id = type_step()
     job = replace(
         WORKFLOW,
@@ -2672,6 +2669,14 @@ async def test_a_reply_only_a_colleague_could_read_is_told_to_the_starter_when_t
     run = await world.saved_run()
     run.awaiting = as_said(waiting_on(SERVER, "t-9", now=datetime.now(tz=UTC)))
     await world.uow.workflow_runs.save(run)
+    return world
+
+
+@pytest.mark.parametrize("starter_looks", [False, True])
+async def test_a_reply_only_a_colleague_could_read_is_told_to_the_starter_when_the_wait_ends(
+    starter_looks: bool,
+) -> None:
+    world = await _asking_on_t9()
     mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("GU9", thread="t-9")})
     await _look(world.uow, mailbox, _Reads(), durable=world.durable).execute(_colleague())
     if starter_looks:
@@ -2697,3 +2702,49 @@ async def test_a_wait_that_ends_with_no_reply_anywhere_tells_nothing_about_mailb
     await world.run_steps.finish(RUN_CTX, world.run_id)
 
     assert not [one for one in await world.thread_says() if "cannot read" in str(one["text"])]
+
+
+async def test_a_reply_the_starter_s_own_look_took_is_never_told_as_unreadable() -> None:
+    """N1. A colleague marked the question, then the starter's own look took
+    the reply, which mail cannot answer (a step question). The starter was
+    still told it arrived in a mailbox they cannot read."""
+    world = await _asking_on_t9()
+    run = await world.saved_run()
+    step = {**run.progress, "asking": {**run.progress["asking"], "kind": "step"}}
+    async with world.uow as uow:
+        assert await uow.workflow_runs.record_progress(
+            RUN_CTX.tenant_id, run.id, step, was=run.progress
+        )
+        await uow.commit()
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("done it", thread="t-9")})
+    await _look(world.uow, mailbox, _Reads(), durable=world.durable).execute(_colleague())
+    await _look(world.uow, mailbox, _Reads(), durable=world.durable).execute(RUN_CTX)
+
+    await world.run_steps.finish(RUN_CTX, world.run_id)
+
+    assert not [one for one in await world.thread_says() if "cannot read" in str(one["text"])]
+
+
+async def test_a_colleague_s_look_that_lands_during_finish_still_tells_the_starter_once() -> None:
+    """The look reads the run still waiting; `finish` then ends it and finds no
+    mark; the mark lands after. The look re-reads the run and tells the starter
+    itself, and a second `finish` (the activity, retried) does not tell again."""
+    world = await _asking_on_t9()
+    waiting_on_ = world.uow.workflow_runs.waiting_on
+
+    async def _then_finish(*args: Any, **kwargs: Any) -> Any:
+        waiting = await waiting_on_(*args, **kwargs)
+        await world.run_steps.finish(RUN_CTX, world.run_id)
+        return waiting
+
+    world.uow.workflow_runs.waiting_on = _then_finish
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("GU9", thread="t-9")})
+    await _look(world.uow, mailbox, _Reads(), durable=world.durable).execute(_colleague())
+    world.uow.workflow_runs.waiting_on = waiting_on_
+
+    async def _told() -> int:
+        return len([one for one in await world.thread_says() if "cannot read" in str(one["text"])])
+
+    assert await _told() == 1
+    await world.run_steps.finish(RUN_CTX, world.run_id)
+    assert await _told() == 1

@@ -15,7 +15,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/announce
 > record of something that was said, and editing one to report its own answer
 > would make the thread a state machine rather than an account of what happened.
 
-## `SayWhatHappened`, [line 12](../../../../../../../backend/src/sro/application/chat/announce.py#L12): Docstring
+## `SayWhatHappened`, [line 15](../../../../../../../backend/src/sro/application/chat/announce.py#L15): Docstring
 
 > Append a `SYSTEM` message to the conversation one operator is in.
 >
@@ -25,7 +25,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/announce
 > means it is never said at all. That coupling belongs to offering, and
 > folding it into a general helper would hide it.
 
-## `SayWhatHappened.execute`, [line 18](../../../../../../../backend/src/sro/application/chat/announce.py#L18): Docstring
+## `SayWhatHappened.execute`, [line 21](../../../../../../../backend/src/sro/application/chat/announce.py#L21): Docstring
 
 > Say it in `for_operator`'s thread, not the caller's.
 >
@@ -47,3 +47,14 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/announce
 > resolver, which answered `Nobody has demonstrated that`. Every question
 > this door has ever asked was invisible to the reader that exists to
 > answer it, including the run path's since `5a2d10b1`.
+
+## `SayWhatHappened.answered_elsewhere`, [line 48](../../../../../../../backend/src/sro/application/chat/announce.py#L48): Docstring
+
+> A run's wait ended with its question open, and a reply reached only a
+> colleague's mailbox (the mail door left `elsewhere_key`): the starter is told
+> in their own thread. Two callers can reach it at once, `RunSteps.finish` and
+> a colleague's look that marked the question as the run finished. Forgetting
+> the mark is the compare-and-set: the one that removes the row tells, the
+> other finds nothing. The forget and the note commit in one unit of work, so a
+> note that fails to be said leaves the mark for the retried `finish`
+> (invariants 6 and 12; S1 round 2).

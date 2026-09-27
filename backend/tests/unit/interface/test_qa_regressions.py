@@ -135,6 +135,37 @@ class TestARunStartedFromAThread:
         assert response.status_code == 422
         assert "skill_id" in response.json()["detail"]
 
+    async def test_only_the_thread_s_opener_starts_a_run_into_it(
+        self, client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+    ) -> None:
+        """Invariant 5. B's run was started, then written into A's thread,
+        where it stood over A's offer."""
+        version = f.skill_version()
+        skill = f.skill(versions=0)
+        skill.add_version(version)
+        version.promote(PromotionStage.SHADOW, f.at(700), f.OPERATOR)
+        await uow.skills.add(skill)
+        thread_id = (await client.post("/v1/threads")).json()["id"]
+        before = (await client.get(f"/v1/threads/{thread_id}")).json()["messages"]
+        body = {"skill_id": skill.id.value, "parameters": {"shipment_id": "1"}}
+
+        theirs = await client.post(
+            f"/v1/threads/{thread_id}/runs",
+            json={**body, "medium": "network"},
+            headers={"Authorization": f"Bearer {token_for(principal='b@acme.test')}"},
+        )
+
+        assert theirs.status_code == 409
+        assert container.durable.started == []
+        assert (await client.get(f"/v1/threads/{thread_id}")).json()["messages"] == before
+
+        mine = await client.post(
+            f"/v1/threads/{thread_id}/runs", json={**body, "medium": "network"}
+        )
+
+        assert mine.status_code == 201
+        assert len(container.durable.started) == 1
+
 
 class TestABatchOfNothing:
     """`{"items": []}` answered 201 with zero runs and nothing performed --

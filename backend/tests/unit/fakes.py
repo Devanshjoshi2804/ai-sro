@@ -1968,10 +1968,10 @@ class FakeToolCallRepository:
         self.when[where] = at
         return True
 
-    async def forget(self, tenant_id: TenantId, key: str) -> None:
+    async def forget(self, tenant_id: TenantId, key: str) -> bool:
         where = (tenant_id.value, key)
-        self.claimed.pop(where, None)
         self.when.pop(where, None)
+        return self.claimed.pop(where, None) is not None
 
     async def held(
         self, tenant_id: TenantId, key: str, *, since: datetime, tool: str | None = None

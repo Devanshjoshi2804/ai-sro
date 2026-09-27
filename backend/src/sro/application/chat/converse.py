@@ -782,12 +782,10 @@ class Converse:
         self, ctx: RequestContext, *, thread_id: ThreadId, text: str, run_id: RunId
     ) -> Thread:
         async with self._uow as uow:
-            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            thread = _opened_by_the_caller(ctx, await uow.threads.get(ctx.tenant_id, thread_id))
             run = await uow.workflow_runs.get(ctx.tenant_id, run_id.value)
-            if thread.opened_by != ctx.principal_id or not (
-                run is not None and answers_for(run, ctx.principal_id.value)
-            ):
-                raise Conflict("a note goes only to your own run, in a thread you opened")
+            if run is None or not answers_for(run, ctx.principal_id.value):
+                raise Conflict("a note goes only to a run you started")
             thread.say(
                 Message(
                     id=self._ids.new_message_id(),
@@ -801,6 +799,10 @@ class Converse:
             await uow.commit()
         return thread
 
+    async def may_start(self, ctx: RequestContext, *, thread_id: ThreadId) -> None:
+        async with self._uow as uow:
+            _opened_by_the_caller(ctx, await uow.threads.get(ctx.tenant_id, thread_id))
+
     async def started(
         self,
         ctx: RequestContext,
@@ -810,7 +812,7 @@ class Converse:
         skill: Skill,
     ) -> Thread:
         async with self._uow as uow:
-            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            thread = _opened_by_the_caller(ctx, await uow.threads.get(ctx.tenant_id, thread_id))
             thread.say(
                 Message(
                     id=self._ids.new_message_id(),
@@ -1242,3 +1244,9 @@ def _gathered(thread: Thread, skill_id: str | None) -> dict[str, str]:
             if isinstance(item, dict):
                 values.update({str(key): str(value) for key, value in item.items() if value})
     return values
+
+
+def _opened_by_the_caller(ctx: RequestContext, thread: Thread) -> Thread:
+    if thread.opened_by != ctx.principal_id:
+        raise Conflict("only the operator who opened this thread acts in it")
+    return thread

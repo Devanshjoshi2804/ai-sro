@@ -1100,13 +1100,14 @@ class SqlToolCallRepository(ToolCallRepository):
         )
         return claimed.scalar_one_or_none() is not None
 
-    async def forget(self, tenant_id: TenantId, key: str) -> None:
-        await self._session.execute(
+    async def forget(self, tenant_id: TenantId, key: str) -> bool:
+        forgotten = await self._session.execute(
             delete(ToolCallRow).where(
                 ToolCallRow.tenant_id == tenant_id.value,
                 ToolCallRow.idempotency_key == key,
             )
         )
+        return cast(CursorResult[Any], forgotten).rowcount > 0
 
     async def held(
         self, tenant_id: TenantId, key: str, *, since: datetime, tool: str | None = None

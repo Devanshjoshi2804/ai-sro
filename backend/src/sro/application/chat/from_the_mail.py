@@ -467,11 +467,23 @@ class FromTheMail:
                 stale_after=K_REMEMBER,
             )
             await uow.commit()
+        async with self._uow as uow:
+            again = await uow.workflow_runs.get(ctx.tenant_id, run.id)
+        if (
+            again is not None
+            and again.finished_at
+            and self._clock is not None
+            and self._ids is not None
+        ):
+            await SayWhatHappened(self._uow, self._clock, self._ids).answered_elsewhere(ctx, again)
 
     async def _answer_the_run(
         self, ctx: RequestContext, run: WorkflowRun, said: str, message: str
     ) -> None:
         asking = Progress.of(run.progress).asking
+        async with self._uow as uow:
+            await uow.tool_calls.forget(ctx.tenant_id, elsewhere_key(run.id, asking.get("id", "")))
+            await uow.commit()
         kind = asking.get("kind")
         if kind == "recipient":
             said = await self._address_the_operator_named(ctx, message)

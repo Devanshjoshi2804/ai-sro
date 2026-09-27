@@ -67,7 +67,14 @@ def _signing_in() -> dict[str, Gesture]:
 def _logging_out() -> dict[str, Gesture]:
     return {
         "menu": _gesture(
-            "menu", 1, WMS, Action(kind="click", at=1, target=Target(role="menuitem", name="admin"))
+            "menu",
+            1,
+            WMS,
+            Action(
+                kind="click",
+                at=1,
+                target=Target(role="button", name="admin", attributes={"aria-haspopup": "menu"}),
+            ),
         ),
         "out": _gesture(
             "out",

@@ -45,6 +45,7 @@ from sro.domain.chat.request import K_A_LOGIN
 from sro.domain.chat.standing import last_run, of_the_run, stands
 from sro.domain.chat.thread import Message, MessageId, Said, Speaker, Thread, ThreadId
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
+from sro.domain.execution.workflow_run import answers_for
 from sro.domain.lookup.asking import is_a_question
 from sro.domain.shared.errors import DomainError
 from sro.domain.skill.learned import demanded
@@ -148,7 +149,10 @@ class Converse:
         if before.opened_by != ctx.principal_id and (
             answering is not None
             or pending_job(said_before) is not None
-            or offered_job(said_before) is not None
+            or (
+                offered_job(said_before) is not None
+                and await self._what_stands(ctx, before) is None
+            )
         ):
             return await self._only_said(ctx, thread_id=thread_id, text=text, said=K_NOT_YOURS)
         if (
@@ -352,9 +356,8 @@ class Converse:
         if (run_id := last_run(thread.messages)) is not None:
             async with self._uow as uow:
                 run = await uow.workflow_runs.get(ctx.tenant_id, run_id)
-                seen = run is not None and ctx.principal_id.value in (
-                    thread.opened_by.value,
-                    run.started_by,
+                seen = run is not None and answers_for(
+                    run, ctx.principal_id.value, opened_by=thread.opened_by.value
                 )
                 job = (
                     run.pinned or await uow.workflows.get(ctx.tenant_id, run.workflow_id)
@@ -456,8 +459,9 @@ class Converse:
         async with self._uow as uow:
             thread = await uow.threads.get_for_answer(ctx.tenant_id, thread_id)
             still = asked_under(thread.messages, answering)
-            if still is None or still.id != asked:
-                self._told(thread, text, K_CLOSED)
+            theirs = thread.opened_by != ctx.principal_id
+            if theirs or still is None or still.id != asked:
+                self._told(thread, text, K_NOT_YOURS if theirs else K_CLOSED)
                 await uow.threads.save(thread)
                 await uow.commit()
                 return thread
@@ -555,8 +559,9 @@ class Converse:
         async with self._uow as uow:
             thread = await uow.threads.get_for_answer(ctx.tenant_id, thread_id)
             still = asked_under(thread.messages, answering)
-            if still is None or still.id != asked:
-                self._told(thread, text, K_CLOSED)
+            theirs = thread.opened_by != ctx.principal_id
+            if theirs or still is None or still.id != asked:
+                self._told(thread, text, K_NOT_YOURS if theirs else K_CLOSED)
                 await uow.threads.save(thread)
                 await uow.commit()
                 return thread

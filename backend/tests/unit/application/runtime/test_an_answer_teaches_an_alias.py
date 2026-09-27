@@ -56,19 +56,6 @@ async def test_a_label_the_operator_picks_becomes_an_alias_for_that_job() -> Non
     )
 
 
-async def test_the_alias_is_the_answering_operators_not_the_runs() -> None:
-    world, asked = await _asked_where_cost_centre_goes()
-    lead = RequestContext(tenant_id=TENANT, principal_id=PrincipalId("lead"))
-
-    await AnswerRun(world.uow, world.durable).execute(
-        lead, run_id=world.run_id, question_id=asked, value="Department"
-    )
-    await world.run_steps.answered(CTX, world.run_id, asked)
-
-    (alias,) = await world.uow.workflows.aliases_for(TENANT, (await world.job()).id)
-    assert alias.confirmed_by == "lead"
-
-
 async def test_leaving_the_value_out_teaches_nothing() -> None:
     world, asked = await _asked_where_cost_centre_goes()
 
@@ -216,7 +203,7 @@ async def test_a_second_operators_press_on_an_answered_field_is_refused() -> Non
     await press(CTX, run_id=world.run_id, question_id=asked, value="Department")
     await press(CTX, run_id=world.run_id, question_id=asked, value="Department")
 
-    with pytest.raises(Conflict, match="another operator"):
+    with pytest.raises(Conflict, match="only the operator who started this run"):
         await press(lead, run_id=world.run_id, question_id=asked, value="Department")
 
 

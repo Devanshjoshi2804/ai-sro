@@ -117,5 +117,9 @@ class WorkflowRun:
     pinned: Workflow | None = None
 
 
+def answers_for(run: WorkflowRun, principal: str, *, opened_by: str = "") -> bool:
+    return principal in {run.started_by, opened_by} - {""}
+
+
 def pin(workflow: Workflow) -> Workflow:
     return deepcopy(workflow)

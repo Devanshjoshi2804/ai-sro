@@ -1759,3 +1759,84 @@ async def test_what_stands_is_never_the_offer_for_somebody_who_did_not_open_the_
 
     assert await converse._what_stands(SOMEBODY_ELSE, thread) is None
     assert "north yard" in (await converse._what_stands(CTX, thread) or "")
+
+
+# --- S1: the opener is checked where the answer is taken, and the starter is told
+
+_A_S_OFFER = Message(
+    id=MessageId("msg_offer_late"),
+    speaker=Speaker.ASSISTANT,
+    text="Create a Customer Type does that — say the word and I will run it.",
+    said_at=FakeClock().now(),
+    decision={
+        "kind": "job",
+        "workflow_id": "wfl_1",
+        "title": "Create a Customer Type",
+        "values": {"Description": "north yard"},
+        "items": [],
+        "missing": [],
+        "can_find": True,
+    },
+)
+
+
+@pytest.mark.parametrize("phrase", ["yes", "no"])
+async def test_an_offer_that_lands_after_the_gate_is_still_not_somebody_else_s(
+    phrase: str,
+) -> None:
+    """The gate reads the thread, then `_carry_on` reads it again: A's offer
+    landing between the two reads is refused to B where the answer is taken."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse = await _with_a_job(uow, None, can_gather=True)
+    thread_id = (await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)).id
+    _get = uow.threads.get
+    reads = 0
+
+    async def _then_the_offer(*args: Any) -> Any:
+        nonlocal reads
+        reads += 1
+        read = await _get(*args)
+        if reads == 1:
+            uow.threads.rows[(CTX.tenant_id.value, thread_id.value)].say(_A_S_OFFER)
+        return read
+
+    uow.threads.get = _then_the_offer  # type: ignore[method-assign, assignment]
+
+    said = await converse.execute(SOMEBODY_ELSE, thread_id=thread_id, text=phrase)
+
+    assert [(m.speaker, m.text) for m in said.messages[-2:]] == [
+        (Speaker.OPERATOR, phrase),
+        (Speaker.ASSISTANT, K_NOT_YOURS),
+    ]
+    offer = offered_job(said.messages)
+    assert offer is not None and offer.values == {"Description": "north yard"}
+    assert list(uow.workflow_runs.rows) == []
+
+
+async def test_the_starter_is_told_the_run_under_somebody_else_s_unpressed_offer() -> None:
+    uow = FakeUnitOfWork()
+    converse, thread_id = await _running(uow, started_by="b@acme.test")
+    thread = await uow.threads.get(CTX.tenant_id, thread_id)
+    thread.say(_A_S_OFFER)
+    await uow.threads.save(thread)
+
+    said = await converse.execute(SOMEBODY_ELSE, thread_id=thread_id, text="check now")
+
+    assert said.messages[-1].text.startswith("Create a Warehouse Equipment Type is running")
+    assert "north yard" not in said.messages[-1].text
+    assert offered_job(said.messages) is not None, "A's offer still stands"
+
+
+async def test_the_starter_s_yes_to_somebody_else_s_offer_is_still_refused() -> None:
+    uow = FakeUnitOfWork()
+    converse, thread_id = await _running(uow, started_by="b@acme.test")
+    thread = await uow.threads.get(CTX.tenant_id, thread_id)
+    thread.say(_A_S_OFFER)
+    await uow.threads.save(thread)
+
+    said = await converse.execute(SOMEBODY_ELSE, thread_id=thread_id, text="yes")
+
+    assert said.messages[-1].text == K_NOT_YOURS
+    assert offered_job(said.messages) is not None
+    assert list(uow.workflow_runs.rows) == ["run_1"]

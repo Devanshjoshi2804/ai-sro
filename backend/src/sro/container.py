@@ -157,6 +157,7 @@ from sro.application.trigger.read_triggers import DeleteTrigger, ReadTriggers, S
 from sro.application.trigger.receive_inbound import ReceiveInbound
 from sro.config import Settings, get_settings
 from sro.domain.chat.asking import Pending
+from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.prices import DaySpend
 from sro.domain.skill.workflow import Workflow
 from sro.infrastructure.agent.channel import SocketChannel
@@ -309,7 +310,9 @@ class Container:
         )
 
     def answer_run(self) -> AnswerRun:
-        return AnswerRun(self.unit_of_work(), self.durable)
+        return AnswerRun(
+            self.unit_of_work(), self.durable, resume=self.start_workflow_run().answered
+        )
 
     def unit_of_work(self) -> UnitOfWork:
         return SqlUnitOfWork(self.session_factory)
@@ -867,13 +870,18 @@ class Container:
         asker = asker_or_refuse(self.asker)
 
         async def write(
-            workflow: Workflow, values: Mapping[str, str], thread: str
+            workflow: Workflow,
+            values: Mapping[str, str],
+            thread: str,
+            by_id: Mapping[str, Gesture],
         ) -> Written | str:
             return await write_the_mail(
                 ctx,
                 workflow,
                 values,
                 thread,
+                by_id=by_id,
+                uow=self.unit_of_work(),
                 tools=self.tools,
                 asker=asker,
             )

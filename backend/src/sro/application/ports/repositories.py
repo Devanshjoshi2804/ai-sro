@@ -11,6 +11,7 @@ from sro.domain.execution.account import Account, Lease, LeaseState
 from sro.domain.execution.belts import RunProof
 from sro.domain.execution.lanes import Broken, Lane
 from sro.domain.execution.learned_step import LearnedStep, Taught
+from sro.domain.execution.mail_job import JobRecipient
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.verified_writes import VerifiedWrite
@@ -344,7 +345,9 @@ class ToolCallRepository(Protocol):
 
     async def forget(self, tenant_id: TenantId, key: str) -> None: ...
 
-    async def held(self, tenant_id: TenantId, key: str, *, since: datetime) -> bool: ...
+    async def held(
+        self, tenant_id: TenantId, key: str, *, since: datetime, tool: str | None = None
+    ) -> bool: ...
 
 
 class GestureRepository(Protocol):
@@ -529,6 +532,14 @@ class WorkflowRepository(Protocol):
 
     async def mend_lane(
         self, tenant_id: TenantId, workflow_id: str, step: int, lane: Lane
+    ) -> None: ...
+
+    async def recipients_for(
+        self, tenant_id: TenantId, workflow_id: str
+    ) -> tuple[JobRecipient, ...]: ...
+
+    async def confirm_recipient(
+        self, tenant_id: TenantId, workflow_id: str, recipient: JobRecipient
     ) -> None: ...
 
     async def taught_itself(self, workflow_id: str, limit: int = 50) -> tuple[Taught, ...]: ...

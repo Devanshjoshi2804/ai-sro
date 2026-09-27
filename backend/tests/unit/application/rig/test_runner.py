@@ -9618,7 +9618,9 @@ class _Mailbox:
         self.sent: list[Written] = []
 
     def hand(self) -> MailHand:
-        async def write(workflow: Workflow, values: Mapping[str, str], thread: str) -> Written:
+        async def write(
+            workflow: Workflow, values: Mapping[str, str], thread: str, by_id: object
+        ) -> Written:
             return Written("alex@example.com", "Re: client", "SROCLS8 is set up.", thread, "")
 
         async def send(mail: Written) -> tuple[str, str]:

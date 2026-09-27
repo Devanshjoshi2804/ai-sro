@@ -88,6 +88,7 @@ from sro.domain.execution.account import K_LEASE_TTL, LIVE, Account, Lease, Leas
 from sro.domain.execution.belts import RunProof, state_verified
 from sro.domain.execution.lanes import K_BROKEN_COOL_DOWN, Broken, Lane, SeenCall
 from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
+from sro.domain.execution.mail_job import JobRecipient
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
 from sro.domain.execution.verified_writes import VerifiedWrite
@@ -1968,9 +1969,12 @@ class FakeToolCallRepository:
         self.claimed.pop(where, None)
         self.when.pop(where, None)
 
-    async def held(self, tenant_id: TenantId, key: str, *, since: datetime) -> bool:
+    async def held(
+        self, tenant_id: TenantId, key: str, *, since: datetime, tool: str | None = None
+    ) -> bool:
         at = self.when.get((tenant_id.value, key))
-        return at is not None and at >= since
+        mine = tool is None or self.claimed.get((tenant_id.value, key)) == tool
+        return at is not None and at >= since and mine
 
 
 def _read_clock(said: str) -> datetime | None:
@@ -2607,6 +2611,7 @@ class FakeWorkflowRepository:
         # Each known-broken lane, keyed as the store's primary key, to the
         # step's cites key when it last broke.
         self.broken: dict[tuple[str, str, int, Lane, str], tuple[str, datetime]] = {}
+        self.recipients: dict[tuple[str, str, str], JobRecipient] = {}
         # Append-only, like the store's: a history that can be edited is a
         # history nobody can rely on.
         self.taught: dict[str, list[Taught]] = {}
@@ -2791,6 +2796,25 @@ class FakeWorkflowRepository:
             and cites.get(step) == was
             and at > now - K_BROKEN_COOL_DOWN
         )
+
+    async def recipients_for(
+        self, tenant_id: TenantId, workflow_id: str
+    ) -> tuple[JobRecipient, ...]:
+        return tuple(
+            sorted(
+                (
+                    one
+                    for (tenant, job, _), one in self.recipients.items()
+                    if (tenant, job) == (tenant_id.value, workflow_id)
+                ),
+                key=lambda one: (one.at, one.address),
+            )
+        )
+
+    async def confirm_recipient(
+        self, tenant_id: TenantId, workflow_id: str, recipient: JobRecipient
+    ) -> None:
+        self.recipients[(tenant_id.value, workflow_id, recipient.address)] = recipient
 
     async def mend_lane(self, tenant_id: TenantId, workflow_id: str, step: int, lane: Lane) -> None:
         for key in [

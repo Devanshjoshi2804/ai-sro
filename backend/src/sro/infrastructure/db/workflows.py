@@ -15,6 +15,7 @@ from sro.application.ports.repositories import WorkflowRepository
 from sro.domain.execution.belts import RunProof, state_verified
 from sro.domain.execution.lanes import K_BROKEN_COOL_DOWN, Broken, Lane
 from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
+from sro.domain.execution.mail_job import JobRecipient
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.observation.identity import ShapeKey
 from sro.domain.observation.mining import MiningPass
@@ -24,6 +25,7 @@ from sro.domain.skill.repeats import Repeat
 from sro.domain.skill.workflow import Noticed, Step, Workflow
 from sro.infrastructure.db.codec import when
 from sro.infrastructure.db.models import (
+    JobRecipientRow,
     KnownBrokenRow,
     LearnedWriteRow,
     MiningPassRow,
@@ -537,6 +539,41 @@ class SqlWorkflowRepository(WorkflowRepository):
                 KnownBrokenRow.workflow_id == workflow_id,
                 KnownBrokenRow.ord == step,
                 KnownBrokenRow.lane == lane.value,
+            )
+        )
+
+    async def recipients_for(
+        self, tenant_id: TenantId, workflow_id: str
+    ) -> tuple[JobRecipient, ...]:
+        rows = (
+            await self._session.execute(
+                select(JobRecipientRow)
+                .where(
+                    JobRecipientRow.tenant_id == tenant_id.value,
+                    JobRecipientRow.workflow_id == workflow_id,
+                )
+                .order_by(JobRecipientRow.at, JobRecipientRow.address)
+            )
+        ).scalars()
+        return tuple(JobRecipient(row.address, row.confirmed_by, row.at) for row in rows)
+
+    async def confirm_recipient(
+        self, tenant_id: TenantId, workflow_id: str, recipient: JobRecipient
+    ) -> None:
+        statement = pg_insert(JobRecipientRow).values(
+            tenant_id=tenant_id.value,
+            workflow_id=workflow_id,
+            address=recipient.address,
+            confirmed_by=recipient.confirmed_by,
+            at=recipient.at,
+        )
+        await self._session.execute(
+            statement.on_conflict_do_update(
+                index_elements=["tenant_id", "workflow_id", "address"],
+                set_={
+                    "confirmed_by": statement.excluded.confirmed_by,
+                    "at": statement.excluded.at,
+                },
             )
         )
 

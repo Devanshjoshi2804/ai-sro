@@ -10,6 +10,7 @@ from dataclasses import dataclass, replace
 
 from sro.application.chat.announce import SayWhatHappened
 from sro.application.context import RequestContext
+from sro.application.execution.mail_job import keep_the_named
 from sro.application.ports.locks import AccountBusy
 from sro.application.ports.page import PageGone
 from sro.application.ports.repositories import UnitOfWork
@@ -330,6 +331,8 @@ class RunSteps:
                 pass
             elif (hit := choices(workflow, by_id).get(choice)) is not None:
                 progress.composed = [*others, _entry(replace(hit, name=name))]
+        if kind == "recipient":
+            await keep_the_named(ctx, self._uow, workflow.id, asking, at=self._clock.now())
         if kind == "step" and verdict:
             ordered = _ordered(workflow)
             index = progress.step

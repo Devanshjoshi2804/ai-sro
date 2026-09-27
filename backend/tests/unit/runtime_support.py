@@ -496,7 +496,9 @@ def mail_send_step() -> tuple[Step, dict[str, Gesture]]:
     return step, {"g-send": gesture}
 
 
-async def write_ok(workflow: Workflow, values: Mapping[str, str], thread: str) -> Written | str:
+async def write_ok(
+    workflow: Workflow, values: Mapping[str, str], thread: str, by_id: Mapping[str, Gesture]
+) -> Written | str:
     return Written(to="ops@example.com", subject="s", body="b", thread=thread, in_reply_to="")
 
 

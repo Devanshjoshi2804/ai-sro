@@ -4,7 +4,7 @@ import json
 import logging
 
 from sro.application.chat.announce import SayWhatHappened
-from sro.application.chat.mailbox import K_REMEMBER, SERVER
+from sro.application.chat.mailbox import SERVER, NotSent, send_as_this_system
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
@@ -157,20 +157,21 @@ class SendTheDraft:
 
         to = str(draft.get("to") or "")
         try:
-            answered = await self._tools.call(
-                ctx.tenant_id,
-                ctx.principal_id,
-                SERVER,
-                "send_message",
+            answered = await send_as_this_system(
+                ctx,
+                self._uow,
+                self._tools,
                 {
                     "to": to,
+                    **({"bcc": str(draft["bcc"])} if draft.get("bcc") else {}),
                     "subject": str(draft.get("subject") or ""),
                     "body": str(draft.get("body") or ""),
                     "thread_id": str(draft.get("thread") or ""),
                     "in_reply_to": str(draft.get("in_reply_to") or ""),
                 },
+                at=self._clock.now(),
             )
-        except ToolsUnavailable as gone:
+        except (ToolsUnavailable, NotSent) as gone:
             logger.warning(
                 "%s: the mail to %s may not have gone: %s", ctx.tenant_id.value, to, gone
             )
@@ -185,7 +186,6 @@ class SendTheDraft:
             )
             return ""
 
-        await self._never_read(ctx, answered)
         if job:
             await self._finish_the_job(ctx, run_id, answered)
             await self._say(
@@ -245,24 +245,6 @@ class SendTheDraft:
             )
             await uow.commit()
         return mine
-
-    async def _never_read(self, ctx: RequestContext, answered: object) -> None:
-        try:
-            said = json.loads(getattr(answered, "text", "") or "{}")
-            sent_id = str(said.get("id") or "") if isinstance(said, dict) else ""
-            if not sent_id:
-                return
-            async with self._uow as uow:
-                await uow.tool_calls.remember(
-                    ctx.tenant_id,
-                    f"mail:{ctx.principal_id.value}:{sent_id}",
-                    tool="a mail this system sent, which is not a request",
-                    at=self._clock.now(),
-                    stale_after=K_REMEMBER,
-                )
-                await uow.commit()
-        except Exception:
-            logger.exception("the sent mail could not be claimed and may be read as a request")
 
     async def _say(
         self,

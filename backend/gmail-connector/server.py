@@ -11,6 +11,7 @@ import urllib.parse
 import uuid
 import webbrowser
 from email.message import EmailMessage
+from email.utils import getaddresses
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -88,6 +89,7 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "to": {"type": "string"},
+                "bcc": {"type": "string"},
                 "subject": {"type": "string"},
                 "body": {"type": "string"},
                 "thread_id": {
@@ -103,6 +105,14 @@ TOOLS = [
                     "description": (
                         "The RFC822 Message-Id being answered, for mail clients that "
                         "thread on headers rather than on Gmail's own thread id."
+                    ),
+                },
+                "marker": {
+                    "type": "string",
+                    "description": (
+                        "Written as the X-SRO-Marker header and read back by get_message "
+                        "and get_thread: the mail is known as this system's own before "
+                        "Gmail has answered with its id."
                     ),
                 },
             },
@@ -376,6 +386,10 @@ def _get(token: str, arguments: dict[str, Any], mailbox: str = "") -> str:
             "from": head.get("from", ""),
             "to": head.get("to", ""),
             "cc": head.get("cc", ""),
+            "sent": "SENT" in (full.get("labelIds") or []),
+            "in_reply_to": head.get("in-reply-to", ""),
+            "marker": head.get("x-sro-marker", ""),
+            "references": head.get("references", ""),
             "mailbox": mailbox,
             "subject": head.get("subject", ""),
             "body": _body_of(payload),
@@ -403,6 +417,12 @@ def _thread(token: str, arguments: dict[str, Any]) -> str:
                 "id": one.get("id", ""),
                 "rfc822_message_id": head.get("message-id", ""),
                 "from": head.get("from", ""),
+                "to": head.get("to", ""),
+                "cc": head.get("cc", ""),
+                "bcc": head.get("bcc", ""),
+                "sent": "SENT" in (one.get("labelIds") or []),
+                "sent_at": int(one.get("internalDate") or 0) / 1000,
+                "marker": head.get("x-sro-marker", ""),
                 "date": head.get("date", ""),
                 "subject": head.get("subject", ""),
                 "body": _body_of(payload),
@@ -414,7 +434,11 @@ def _thread(token: str, arguments: dict[str, Any]) -> str:
 def _send(token: str, arguments: dict[str, Any]) -> str:
     mail = EmailMessage()
     mail["To"] = str(arguments.get("to", ""))
+    if arguments.get("bcc"):
+        mail["Bcc"] = str(arguments["bcc"])
     mail["Subject"] = str(arguments.get("subject", ""))
+    if arguments.get("marker"):
+        mail["X-SRO-Marker"] = str(arguments["marker"])
     mail.set_content(str(arguments.get("body", "")))
     within = str(arguments.get("thread_id", "")).strip()
     answering = str(arguments.get("in_reply_to", "")).strip()
@@ -430,7 +454,7 @@ def _send(token: str, arguments: dict[str, Any]) -> str:
     )
     if answer.status_code >= 400:
         raise RuntimeError(f"Gmail refused the send ({answer.status_code}): {answer.text[:200]}")
-    print(f"  → sent to {arguments.get('to')}")
+    print(f"  → sent to {len(getaddresses([str(arguments.get('to', ''))]))} recipient(s)")
     return json.dumps({"status": "sent", "id": answer.json().get("id", "")})
 
 

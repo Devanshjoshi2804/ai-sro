@@ -33,7 +33,7 @@ Code: `DRAFTED = "mail_draft"`
 > sides read it: this door writes it, and the panel draws the words with a press
 > under them.
 
-## module, [line 299](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L299): Note on the line above
+## module, [line 281](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L281): Note on the line above
 
 Code: `SENT = "mail_sent"`
 
@@ -76,7 +76,7 @@ Code: `SENT = "mail_sent"`
 > decides that a mail should go -- it decides that this mail, which somebody
 > has read, may.
 
-## `_the_draft`, [line 302](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L302): Docstring
+## `_the_draft`, [line 284](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L284): Docstring
 
 > The drafted mail with that id, if it is still the last word on it.
 >
@@ -154,16 +154,7 @@ Code: `SENT = "mail_sent"`
 > and the guard would let them, which is the one thing this claim
 > exists to stop. The draft id is unique in the tenant on its own.
 
-## `SendTheDraft._never_read`, [line 249](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L249): Docstring
-
-> Claim the id of the mail just sent, so no look ever reads it.
->
-> Silent about everything it cannot do. A connector that answered without
-> an id, an answer that is not JSON, a ledger that refuses -- none of
-> them is a reason to tell somebody their mail did not go, because it
-> did. The cost of missing this is one card somebody dismisses.
-
-## `SendTheDraft._say`, [line 267](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L267): Docstring
+## `SendTheDraft._say`, [line 249](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L249): Docstring
 
 > What happened, in the conversation the draft was read in.
 >
@@ -253,7 +244,7 @@ Code: `"thread_id": str(draft.get("thread") or ""),`
 > its own thread cannot be matched back to the run waiting
 > on it, so the person answers into a void.
 
-## `SendTheDraft.execute`, [line 174](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L174): Comment
+## `SendTheDraft.execute`, [line 175](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L175): Comment
 
 Code: `logger.warning(`
 
@@ -262,25 +253,7 @@ Code: `logger.warning(`
 > ladder keeps, and for a stronger reason: a duplicate mail cannot
 > be deleted afterwards.
 
-## `SendTheDraft.execute`, [line 188](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L188): Comment
-
-Code: `await self._never_read(ctx, answered)`
-
-> And the mail this system just wrote is not a request TO it.
->
-> The look reads the mailbox for anything asking for a job, and what it
-> was handed back was our own question: "I am working on Create a
-> Customer Type... I still need Customer Type" reads, correctly, as
-> somebody asking for a customer type. Measured on the deployment
-> 2026-09-18 -- the mail went out and the next look offered a card for
-> it, which is this system asking itself to do the thing it had just
-> asked a person about.
->
-> Claimed in the same ledger a read claims, because it is the same
-> question -- "have I dealt with this message" -- and a second store
-> for it is a second store to keep in step.
-
-## `SendTheDraft._say`, [line 286](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L286): Comment
+## `SendTheDraft._say`, [line 268](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L268): Comment
 
 Code: `decision={`
 
@@ -290,7 +263,7 @@ Code: `decision={`
 > panel keyed only on that went on showing `Send it` under
 > a mail already in somebody's inbox.
 
-## `SendTheDraft._say`, [line 290](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L290): Comment
+## `SendTheDraft._say`, [line 272](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L272): Comment
 
 Code: `"to": to,`
 
@@ -299,7 +272,7 @@ Code: `"to": to,`
 > a panel parsing prose to find a fact the decision
 > was already carrying everything else about.
 
-## `_the_draft`, [line 307](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L307): Comment
+## `_the_draft`, [line 289](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L289): Comment
 
 Code: `if str(getattr(message, "id", "")) == str(message_id):`
 

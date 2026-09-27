@@ -53,8 +53,8 @@ def test_the_task_is_said_again_after_the_evidence() -> None:
 
 def test_an_answer_missing_a_required_field_does_not_conform() -> None:
     schema = WRITE_MAIL.output_schema
-    assert conforms({"to": "a@b.example", "subject": "s", "body": "b"}, schema)
-    assert not conforms({"to": "a@b.example", "subject": "s"}, schema)
+    assert conforms({"to": "a@b.example", "subject": "s", "body": "b", "cited": []}, schema)
+    assert not conforms({"to": "a@b.example", "subject": "s", "body": "b"}, schema)
     assert not conforms({"to": 7, "subject": "s", "body": "b"}, schema)
 
 

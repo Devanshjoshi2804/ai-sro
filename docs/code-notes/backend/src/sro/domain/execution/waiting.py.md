@@ -80,11 +80,11 @@ Code: `until: str`
 > is one nothing can say the age of, and treating an unknown age as young is
 > how a row from last year answers a mail that arrived this morning.
 
-## `as_said`, [line 48](../../../../../../../backend/src/sro/domain/execution/waiting.py#L48): Docstring
+## `as_said`, [line 52](../../../../../../../backend/src/sro/domain/execution/waiting.py#L52): Docstring
 
 > The wait as it is stored on a run row.
 
-## `read_wait`, [line 54](../../../../../../../backend/src/sro/domain/execution/waiting.py#L54): Docstring
+## `read_wait`, [line 58](../../../../../../../backend/src/sro/domain/execution/waiting.py#L58): Docstring
 
 > The wait a stored row holds, or None where it holds nothing usable.
 >

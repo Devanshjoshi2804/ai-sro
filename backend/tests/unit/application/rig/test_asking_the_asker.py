@@ -20,6 +20,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sro.application.chat.ask_the_asker import DRAFTED, DraftForTheAsker, SendTheDraft
+from sro.application.chat.mailbox import is_ours
 from sro.application.context import RequestContext
 from sro.application.ports.tools import ToolResult, ToolsUnavailable
 from sro.domain.chat.asking import Pending
@@ -391,18 +392,11 @@ async def test_the_mail_this_system_sent_is_never_read_as_a_request() -> None:
         CTX, threads[0].id, drafted.id
     )
 
-    # The id the connector answered with is claimed in the ledger a read
-    # claims, so `_first_time` refuses it and no look ever reads it.
-    async with uow as opened:
-        again = await opened.tool_calls.remember(
-            f.TENANT,
-            "mail:devansh:m-sent",
-            tool="read a mail for what it asks",
-            # The clock the claim was written on, not the wall clock: a window
-            # measured from today against a claim stamped in the fake's own
-            # past reads as stale, and the test would pass for the wrong
-            # reason -- it did.
-            at=FakeClock().now(),
-            stale_after=timedelta(days=30),
-        )
-    assert again is False, "this system's own mail can be read back as a request"
+    # The id the connector answered with is claimed as this system's own
+    # sent mail, which the look checks before it reads a mail at all. The
+    # window runs from the clock the claim was written on, not the wall clock:
+    # a claim stamped in the fake's own past reads as stale, and the test
+    # would pass for the wrong reason -- it did.
+    since = FakeClock().now() - timedelta(days=30)
+    ours = await is_ours(uow, CTX, {"id": "m-sent"}, since=since)
+    assert ours, "this system's own mail can be read back as a request"

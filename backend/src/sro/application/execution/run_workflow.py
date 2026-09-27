@@ -546,13 +546,14 @@ async def _through_the_mailbox(
     record: RunStep,
     workflow: Workflow,
     values: Mapping[str, str],
+    by_id: Mapping[str, Gesture],
     mail: MailHand,
     *,
     approvals: Approvals,
     stops: Stops,
 ) -> None:
     waiting = read_wait(run.awaiting) if run.awaiting else None
-    written = await mail.write(workflow, values, waiting.thread if waiting else "")
+    written = await mail.write(workflow, values, waiting.thread if waiting else "", by_id)
     if isinstance(written, str):
         record.verdict, record.verdict_by, record.reason = "failed", "none", written
         return
@@ -1171,7 +1172,15 @@ async def run_workflow(
                 in_flight = record
                 run.steps.append(record)
                 await _through_the_mailbox(
-                    uow, run, record, workflow, values, mail, approvals=approvals, stops=stops
+                    uow,
+                    run,
+                    record,
+                    workflow,
+                    values,
+                    by_id,
+                    mail,
+                    approvals=approvals,
+                    stops=stops,
                 )
                 in_flight = None
                 await _save(uow, run)

@@ -9,13 +9,15 @@ operator's own mailbox and nobody else's, and an offer rather than a run.
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import pytest
 
+import sro
 from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.from_the_mail import (
@@ -26,8 +28,9 @@ from sro.application.chat.from_the_mail import (
     _page_of,
 )
 from sro.application.chat.look_lately import LookInTheMailLately
-from sro.application.chat.mailbox import SERVER
+from sro.application.chat.mailbox import SERVER, sent_key
 from sro.application.context import RequestContext
+from sro.application.execution.mail_job import Written, send_the_mail
 from sro.application.execution.workflow_runs import RunRefused, StartWorkflowRun
 from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
@@ -216,12 +219,13 @@ def _look(
     cap_usd: float = -1.0,
     start: StartWorkflowRun | None = None,
     durable: FakeDurableExecution | None = None,
+    resume: Callable[[RequestContext, str], Awaitable[None]] | None = None,
 ) -> FromTheMail:
     return FromTheMail(
         uow,
         mailbox,
         reads,
-        answer=AnswerRun(uow, durable or FakeDurableExecution()),
+        answer=AnswerRun(uow, durable or FakeDurableExecution(), resume=resume),
         gather=gather,
         clock=FakeClock(),
         ids=FakeIdFactory(),
@@ -1323,6 +1327,219 @@ async def test_a_reply_on_a_steel_run_s_thread_answers_only_a_value_and_never_st
         # second run: this thread already started one.
         (card,) = looked.offered
         assert not card.started, card
+
+
+@pytest.mark.parametrize(
+    ("mail", "named"),
+    [
+        (
+            {
+                "sent": True,
+                "body": "vendor@supplier.example\n\nOn Fri X wrote:\n> eve@evil.example",
+            },
+            "vendor@supplier.example",
+        ),
+        ({"sent": False, "from": "devansh@wh.example", "body": "eve@evil.example"}, ""),
+        ({"sent": True, "body": "yes, send it\n\n> to eve@evil.example"}, ""),
+        (
+            {"sent": True, "body": "please send to vendor@supplier.example."},
+            "vendor@supplier.example",
+        ),
+        (
+            {"sent": True, "body": "Hi,\nsend it to <Vendor@Supplier.example>, thanks"},
+            "vendor@supplier.example",
+        ),
+        ({"sent": True, "body": "to vendor@supplier.example or boss@wh.example"}, ""),
+        ({"sent": True, "body": "to vendor@supplier.example or evé@evil.com"}, ""),
+        (
+            {
+                "sent": True,
+                "body": "ok\n\nOn Fri, 26 Sep 2026, Eve <eve@evil.example>\nwrote:\n> hi",
+            },
+            "",
+        ),
+        (
+            {
+                "sent": True,
+                "references": "<req@mail>",
+                "body": "ok\n---------- Forwarded message ---------\neve@evil.example",
+            },
+            "",
+        ),
+        (
+            {
+                "sent": True,
+                "in_reply_to": "<req@mail>",
+                "body": "ok\n\nLe jeu. 25 sept. 2026, Eve <eve@evil.example> a écrit :\n> hi",
+            },
+            "",
+        ),
+        (
+            {
+                "sent": True,
+                "in_reply_to": "<req@mail>",
+                "body": (
+                    "ok\n\nAm Do., 25. Sept. 2026 um 10:00 schrieb Eve <eve@evil.example>:\n> hi"
+                ),
+            },
+            "",
+        ),
+        (
+            {"sent": True, "in_reply_to": "<req@mail>", "body": "send to vendor@supplier.example"},
+            "",
+        ),
+    ],
+)
+async def test_only_the_operator_s_own_reply_names_who_a_run_s_mail_goes_to(
+    mail: dict[str, object], named: str
+) -> None:
+    """A third party in the thread never names a recipient (invariant 7): only
+    the operator's own mail, sent from their mailbox, whose first line is the
+    address -- never the quoted text under it."""
+    uow = await _held()
+    run = _short("t-9", needs=[], values={})
+    run.outcome, run.executor = "running", "steel"
+    run.progress = {"asking": {"id": "q-1", "kind": "recipient", "text": "who?"}}
+    await uow.workflow_runs.save(run)
+    reply = json.dumps({"id": "m-1", "subject": "Re: who", "thread_id": "t-9", **mail})
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": reply})
+    durable = FakeDurableExecution()
+
+    await _look(uow, mailbox, _Reads(_reading(JOB)), durable=durable).execute(CTX)
+
+    saved = await uow.workflow_runs.get(f.TENANT, "run_1")
+    assert saved is not None
+    standing = saved.progress.get("asking", {})
+    assert isinstance(standing, dict)
+    assert standing.get("address", "") == named
+    assert durable.answered == ([("run_1", "q-1")] if named else [])
+    assert "eve" not in str(saved.progress)
+
+
+class _SendsAs(_Mailbox):
+    """The same mailbox, whose send comes back as the message the look then finds."""
+
+    async def call(
+        self,
+        tenant_id: TenantId,
+        principal_id: PrincipalId,
+        server: str,
+        tool: str,
+        arguments: Mapping[str, str],
+    ) -> ToolResult:
+        if tool == "send_message":
+            return ToolResult(text=json.dumps({"status": "sent", "id": "m-1"}))
+        return await super().call(tenant_id, principal_id, server, tool, arguments)
+
+
+@pytest.mark.parametrize("kind", ["recipient", "value"])
+async def test_a_mail_this_system_sent_answers_no_question(kind: str) -> None:
+    """What this system sent lands in the thread as the operator's own SENT
+    mail. It is remembered under the one key the look checks, so it is never
+    read: it answers no value, and names no recipient."""
+    uow = await _held()
+    run = _short("t-9", needs=[], values={})
+    run.outcome, run.executor = "running", "steel"
+    run.progress = {"asking": {"id": "q-1", "kind": kind, "text": "who?"}}
+    await uow.workflow_runs.save(run)
+    ours = json.dumps(
+        {"id": "m-1", "thread_id": "t-9", "sent": True, "body": "vendor@supplier.example"}
+    )
+    mailbox = _SendsAs(search=_found("m-1"), **{"m-1": ours})
+    written = Written("alex@example.com", "Re: who", "vendor@supplier.example", "t-9", "")
+    assert await send_the_mail(
+        CTX, uow, mailbox, written, clock=FakeClock(datetime.now(tz=UTC))
+    ) == ("m-1", "")
+    durable = FakeDurableExecution()
+
+    await _look(uow, mailbox, _Reads(_reading(JOB)), durable=durable).execute(CTX)
+
+    saved = await uow.workflow_runs.get(f.TENANT, "run_1")
+    assert saved is not None
+    assert "answered" not in saved.progress["asking"]
+    assert durable.answered == []
+
+
+@pytest.mark.parametrize(("claimed", "answers"), [("mk-1", False), ("m-1", False), ("", True)])
+async def test_a_mail_read_before_its_send_came_back_is_known_by_its_marker(
+    claimed: str, answers: bool
+) -> None:
+    """The gap: Gmail has the mail and the look lists it before the send has
+    answered with its id. It carries the marker claimed before it was sent, so
+    it is known as this system's own; a marker nobody claimed (forged, or
+    another system's) is just a header, and the mail is read as usual. Its id,
+    claimed as sent once Gmail answered, marks it just the same."""
+    uow = await _held()
+    run = _short("t-9", needs=[], values={})
+    run.outcome, run.executor = "running", "steel"
+    run.progress = {"asking": {"id": "q-1", "kind": "recipient", "text": "who?"}}
+    await uow.workflow_runs.save(run)
+    if claimed:
+        async with uow as unit:
+            await unit.tool_calls.remember(
+                f.TENANT, sent_key(claimed), tool="ours", at=datetime.now(tz=UTC)
+            )
+    ours = json.dumps(
+        {
+            "id": "m-1",
+            "thread_id": "t-9",
+            "sent": True,
+            "marker": "mk-1",
+            "body": "vendor@supplier.example",
+        }
+    )
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": ours})
+    durable = FakeDurableExecution()
+
+    await _look(uow, mailbox, _Reads(_reading(JOB)), durable=durable).execute(CTX)
+
+    assert durable.answered == ([("run_1", "q-1")] if answers else [])
+
+
+def test_one_key_says_a_mail_is_this_system_s_own() -> None:
+    """The key a send is remembered under and the key the look checks are the
+    same function's: split, this system's own mail was read back as the
+    operator's. No other module spells it, nor the read-claim's key."""
+    root = Path(sro.__file__).parent
+    spelled = sorted(
+        path.relative_to(root).as_posix()
+        for path in root.rglob("*.py")
+        if any(
+            spelling in path.read_text(encoding="utf-8")
+            for spelling in ('"mail:', 'f"mail:', '"sent:', 'f"sent:')
+        )
+    )
+    assert spelled == ["application/chat/mailbox.py"]
+
+
+@pytest.mark.parametrize(
+    ("mail", "named"),
+    [
+        ({"sent": True, "body": "vendor@supplier.example"}, "vendor@supplier.example"),
+        ({"sent": False, "body": "vendor@supplier.example"}, ""),
+    ],
+)
+async def test_the_draft_path_s_question_of_who_is_answered_through_the_same_door(
+    mail: dict[str, object], named: str
+) -> None:
+    uow = await _held()
+    run = _short("t-9", needs=[], values={})
+    run.outcome, run.executor = "stopped", "extension"
+    run.progress = {"asking": {"id": "q-1", "kind": "recipient", "text": "who?"}}
+    await uow.workflow_runs.save(run)
+    reply = json.dumps({"id": "m-1", "thread_id": "t-9", **mail})
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": reply})
+    resumed: list[str] = []
+
+    async def resume(ctx: RequestContext, run_id: str) -> None:
+        resumed.append(run_id)
+
+    await _look(uow, mailbox, _Reads(_reading(JOB)), resume=resume).execute(CTX)
+
+    saved = await uow.workflow_runs.get(f.TENANT, "run_1")
+    assert saved is not None
+    assert saved.progress["asking"].get("address", "") == named
+    assert resumed == (["run_1"] if named else [])
 
 
 async def test_a_reply_to_a_wait_that_ran_out_is_an_ordinary_new_request() -> None:

@@ -41,8 +41,12 @@ def still_waiting(awaiting: Awaiting | None, now: datetime) -> bool:
 
 
 def asks_a_person(run: WorkflowRun) -> bool:
-    asking = Progress.of(run.progress).asking.get("id")
-    return bool(run.needs) or (run.outcome == "running" and bool(asking))
+    asking = Progress.of(run.progress).asking
+    return (
+        bool(run.needs)
+        or (run.outcome == "running" and bool(asking.get("id")))
+        or (run.outcome == "stopped" and asking.get("kind") == "recipient")
+    )
 
 
 def as_said(awaiting: Awaiting | None) -> dict[str, str] | None:

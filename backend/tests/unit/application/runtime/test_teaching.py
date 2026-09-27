@@ -365,3 +365,24 @@ async def test_a_ui_write_that_did_not_key_the_field_leaves_the_slot_out() -> No
 
     saved = await uow.workflows.get(TENANT, job.id)
     assert learned_slots(saved, write) == {}
+
+
+async def test_a_keyed_sight_write_puts_the_slot_back() -> None:
+    uow = FakeUnitOfWork()
+    job, write, by_id, _ = _learned_job("department")
+    bare = without_slots(job, ["Department"])
+    assert bare is not None
+    await uow.workflows.save(bare)
+
+    await Teach(uow, FakeClock()).learn(
+        CTX,
+        bare,
+        by_id,
+        write,
+        (StepResult("done", Lane.SIGHT, keyed={"Department": "department"}),),
+        run_id="run_1",
+        values={},
+    )
+
+    saved = await uow.workflows.get(TENANT, job.id)
+    assert learned_slots(saved, write) == {"Department": "department"}

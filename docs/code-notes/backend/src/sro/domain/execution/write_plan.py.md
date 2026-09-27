@@ -297,7 +297,9 @@ Code: `entry: VerifiedWrite`
 >
 > **Or one a confirmed write learned** (`learned`, K1). That key is not a
 > guess from a dictionary: the page's own call sent it on a write that was
-> confirmed done, and `with_field` kept it as the parameter's `body_key`. It
+> confirmed done, and `with_field` kept it as the parameter's `body_key`.
+> The exemption belongs to that name alone (`learned.get(name) == slot`): a
+> dictionary name that happens to map to the same key gets none of it. It
 > still has to pass the next refusal: a learned slot the recorded response
 > never names cannot be read back, and a write carrying it would be in doubt
 > by construction -- so the plan declines rather than send it.

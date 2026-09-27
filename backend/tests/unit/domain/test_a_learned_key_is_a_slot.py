@@ -26,9 +26,9 @@ def _answered(by_id: Mapping[str, Gesture]) -> dict[str, Gesture]:
 
 
 def _job(
-    body_key: str | None,
+    body_key: str | None, *, read_back: str | None = None
 ) -> tuple[Workflow, Step, dict[str, Gesture], tuple[VerifiedWrite, ...]]:
-    write, by_id, ledger = proven_write_step(read_back=None)
+    write, by_id, ledger = proven_write_step(read_back=read_back)
     field = Step(order=0, says="Fill Department", system=write.system, parameters=["Department"])
     write = replace(write, order=1)
     department: dict[str, object] = {
@@ -115,3 +115,17 @@ def test_a_removed_slot_leaves_the_field_a_field() -> None:
 def test_only_a_learned_field_takes_a_slot() -> None:
     job, _, _, _ = _job("department")
     assert with_slots(job, {"Customer Type": "name"}) is None
+
+
+def test_a_dictionary_key_never_borrows_a_learned_keys_exemption() -> None:
+    job, write, by_id, ledger = _job("department")
+    plan = write_plan_for(
+        write,
+        by_id,
+        {"Customer Type": "GT2", "Cost Centre": "CC1"},
+        ledger,
+        seen_values(job),
+        keys={"Cost Centre": "department"},
+        learned=learned_slots(job, write),
+    )
+    assert plan is not None and "department" not in json.loads(plan.body or "")

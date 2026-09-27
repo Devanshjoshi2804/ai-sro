@@ -269,7 +269,7 @@ def write_plan_for(
         bodies[0],
         slots,
         _returned(step, by_id, call),
-        learned=frozenset(learned.values()),
+        learned=learned,
     )
     named = frozenset(keys) | {name for name, slot in learned.items() if slot in also}
     claimed = _assigned(slots, bodies, values, seen, named)
@@ -375,7 +375,7 @@ def _undemonstrated(
     slots: frozenset[str],
     returned: frozenset[str] | None,
     *,
-    learned: frozenset[str] = frozenset(),
+    learned: Mapping[str, str] = MappingProxyType({}),
 ) -> dict[str, str]:
     if not keys or returned is None:
         return {}
@@ -385,7 +385,7 @@ def _undemonstrated(
         if (
             value is None
             or slot in slots
-            or (slot not in body and slot not in learned)
+            or (slot not in body and learned.get(name) != slot)
             or slot not in returned
         ):
             continue

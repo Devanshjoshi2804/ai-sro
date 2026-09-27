@@ -44,12 +44,13 @@ from sro.domain.execution.workflow_run import (
     new_run_id,
     pin,
 )
+from sro.domain.execution.write_plan import learned_slots
 from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
-from sro.domain.skill.workflow import Step, Workflow, new_workflow_id
+from sro.domain.skill.workflow import Step, Workflow, field_key, new_workflow_id
 from sro.infrastructure.db import workflows as workflows_module
 from sro.infrastructure.db.locks import PostgresAccountLocks
 from sro.infrastructure.db.models import WorkflowEffectRow
@@ -1456,3 +1457,69 @@ async def _now(
         now = await uow.workflows.get(TENANT, job.id)
         learned = await uow.workflows.learned_for(job.id)
     return [one.says for one in now.steps], sorted((one.ord, one.query) for one in learned)
+
+
+class TestALearnedSlot:
+    """K1: an API break takes a learned field's slot out of the job, a keyed UI
+    write puts it back, and both are saved under the job's row lock."""
+
+    async def _slotted(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> tuple[Workflow, Step, dict[str, Gesture]]:
+        job, by_id = await _a_real_job(session_factory)
+        await _learns(session_factory, job, "department")
+        async with SqlUnitOfWork(session_factory) as uow:
+            grown = await uow.workflows.get(TENANT, job.id)
+        write = next(one for one in grown.steps if one.says == "save it")
+        assert learned_slots(grown, write) == {"department": "department"}
+        return grown, write, by_id
+
+    async def _learn(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        job: Workflow,
+        write: Step,
+        by_id: dict[str, Gesture],
+        result: StepResult,
+    ) -> Workflow:
+        await Teach(SqlUnitOfWork(session_factory), FakeClock()).learn(
+            CTX, job, by_id, write, (result,), run_id="run_k1", values={}
+        )
+        async with SqlUnitOfWork(session_factory) as uow:
+            return await uow.workflows.get(TENANT, job.id)
+
+    async def test_an_api_break_takes_the_slot_out_and_a_keyed_ui_write_puts_it_back(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        job, write, by_id = await self._slotted(session_factory)
+
+        broke = await self._learn(
+            session_factory, job, write, by_id, StepResult("failed", Lane.API, fingerprint="f")
+        )
+        assert learned_slots(broke, write) == {}
+        assert field_key(broke, broke.steps[1]) == "department"
+
+        back = await self._learn(
+            session_factory,
+            broke,
+            write,
+            by_id,
+            StepResult("done", Lane.UI, keyed={"department": "department"}),
+        )
+        assert learned_slots(back, write) == {"department": "department"}
+
+    async def test_two_runs_breaking_the_api_lane_at_once_both_teach_and_the_slot_stays_out(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        job, write, by_id = await self._slotted(session_factory)
+        broken = StepResult("failed", Lane.API, fingerprint="f")
+
+        await asyncio.gather(
+            self._learn(session_factory, job, write, by_id, broken),
+            self._learn(session_factory, job, write, by_id, broken),
+        )
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            now = await uow.workflows.get(TENANT, job.id)
+        assert learned_slots(now, write) == {}
+        assert [one.says for one in now.steps] == ["type it", "Fill Department", "save it"]

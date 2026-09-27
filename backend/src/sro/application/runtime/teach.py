@@ -61,7 +61,10 @@ class Teach:
                 without_slots(job, slots)
                 if api_broke and slots
                 else with_slots(job, won.keyed)
-                if won is not None and won.lane is Lane.UI and won.verdict == "done" and won.keyed
+                if won is not None
+                and won.lane in (Lane.UI, Lane.SIGHT)
+                and won.verdict == "done"
+                and won.keyed
                 else None
             )
             if grown is not None:

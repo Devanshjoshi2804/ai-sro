@@ -35,7 +35,7 @@ Code: `if result.verdict == "failed" and result.fingerprint and not result.expir
 > `missing_header` never breaks a lane), and a failure with no fingerprint
 > has nothing to be known by.
 
-## `Teach.learn`, [line 87](../../../../../../../backend/src/sro/application/runtime/teach.py#L87): Note
+## `Teach.learn`, [line 90](../../../../../../../backend/src/sro/application/runtime/teach.py#L90): Note
 
 Code: `own = next(`
 
@@ -51,7 +51,7 @@ Code: `own = next(`
 > recorded URL (`learned_pattern`), so a path that names the record becomes
 > `{id}` and a segment the recording holds fixed stays fixed.
 
-## `_sighted`, [line 163](../../../../../../../backend/src/sro/application/runtime/teach.py#L163): Function
+## `_sighted`, [line 166](../../../../../../../backend/src/sro/application/runtime/teach.py#L166): Function
 
 > The locator the sight lane learned from the element that satisfied the
 > check (X7 ruling), or nothing: a learned map without a `frame_path` is
@@ -61,7 +61,7 @@ Code: `own = next(`
 > `K_NAME`, the cap `learned_from` keeps (refused, not cut: a cut locator
 > matches nothing, or something else).
 
-## `Teach.learn_field`, [line 116](../../../../../../../backend/src/sro/application/runtime/teach.py#L116): Docstring
+## `Teach.learn_field`, [line 119](../../../../../../../backend/src/sro/application/runtime/teach.py#L119): Docstring
 
 > A composed field the save's own call confirmed becomes part of the job: `grew`
 > with `with_field`'s result, then its locator (`found_by` `composed` from the
@@ -72,7 +72,7 @@ Code: `own = next(`
 > `finish`, or a sibling that learned it first); a field whose step a regrowth
 > lost is learned again, under its one parameter. A locator that would carry the value is not kept.
 
-## `Teach.learn_field`, [line 129](../../../../../../../backend/src/sro/application/runtime/teach.py#L129): Note
+## `Teach.learn_field`, [line 132](../../../../../../../backend/src/sro/application/runtime/teach.py#L132): Note
 
 Code: `workflow = await _still(uow, ctx, pinned)`
 
@@ -95,14 +95,14 @@ Code: `job = await _still(uow, ctx, workflow)`
 > row lock keeps a grow from renumbering the job between this check and the
 > writes.
 
-## `Teach.locators`, [line 110](../../../../../../../backend/src/sro/application/runtime/teach.py#L110): Docstring
+## `Teach.locators`, [line 113](../../../../../../../backend/src/sro/application/runtime/teach.py#L113): Docstring
 
 > The job's learned locators, for a run whose steps are `workflow`: all of them
 > while the job still has those steps, none once it has grown past them (or was
 > retired). The check and the read share the row lock, so a grow cannot commit
 > between them and hand the run the new numbering's locators.
 
-## `_still`, [line 155](../../../../../../../backend/src/sro/application/runtime/teach.py#L155): Docstring
+## `_still`, [line 158](../../../../../../../backend/src/sro/application/runtime/teach.py#L158): Docstring
 
 > The job, read under its row lock, if it still has `workflow`'s steps; None if
 > it has been renumbered or retired since. Everything this class learns or reads
@@ -115,7 +115,8 @@ Code: `grown = (`
 
 > A learned slot comes out when the API lane breaks on the write it feeds
 > (the same failures that join the known-broken list: `failed`, with a
-> fingerprint, not `expired`), and goes back in only on a UI write the page's
-> own call confirmed with the key (`StepResult.keyed`) -- the one proof that
-> the endpoint takes it. Saved under the locked read `_still` took, in the
+> fingerprint, not `expired`), and goes back in only on a UI or Sight write
+> the page's own call confirmed with the key (`StepResult.keyed`) -- the one
+> proof that the endpoint takes it. Sight's `keyed` comes from the same
+> `confirming` of the save's own call as the UI lane's. Saved under the locked read `_still` took, in the
 > same unit of work, so two runs learning at once serialise on the job row.

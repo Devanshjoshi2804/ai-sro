@@ -6,7 +6,7 @@ from dataclasses import replace
 
 from sro.application.ports.locks import AccountBusy
 from sro.application.ports.page import PageGone
-from sro.application.runtime.api_lane import replay_of
+from sro.application.runtime.api_lane import confirmed_keys, replay_of
 from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.step import (
     LaneContext,
@@ -54,8 +54,10 @@ class StepExecutor:
             return (StepResult("read", Lane.TOOL, "the mail this run came from is already read"),)
         tool = sends_mail(step, ctx.by_id)
         adding = ctx.adding.get(step.order)
-        slotted = set(learned_slots(ctx.workflow, step))
-        added_ok = adding is None or (not adding.fresh and set(adding.known.values()) <= slotted)
+        known = set() if adding is None else set(adding.known.values())
+        added_ok = adding is None or (
+            set(adding.fresh) <= known <= set(learned_slots(ctx.workflow, step))
+        )
         api = not tool and added_ok and replay_of(step, values, ctx) is not None
         primary = None if tool else primary_gesture(step, ctx.by_id)
         page = None if primary is None else primary.page_url or primary.url
@@ -103,4 +105,5 @@ class StepExecutor:
             lost.lane,
             "a read-back after signing back in shows the values written",
             read=lost.read,
+            keyed=confirmed_keys(step, values, ctx),
         )

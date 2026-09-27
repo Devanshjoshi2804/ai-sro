@@ -33,7 +33,7 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > step's last outline. No label, or more than one, is an `Unplaced` the run asks
 > about with every label it saw; it is never guessed.
 
-## `keyed`, [line 141](../../../../../../../backend/src/sro/domain/execution/compose.py#L141): Docstring
+## `keyed`, [line 145](../../../../../../../backend/src/sro/domain/execution/compose.py#L145): Docstring
 
 > The pairing rule for the save call's new body keys (spec §6.6.4, X10a review
 > I1/I2). `extra` is the keys the recorded body lacks, each with the value sent.
@@ -50,7 +50,7 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > `unknown` even when the write is `done`: a fill alone never confirms anything
 > (spec §6.2), only the write's own call does.
 
-## `with_field`, [line 153](../../../../../../../backend/src/sro/domain/execution/compose.py#L153): Docstring
+## `with_field`, [line 157](../../../../../../../backend/src/sro/domain/execution/compose.py#L157): Docstring
 
 > Learning a confirmed field: the step goes in at the write's order, and every
 > later step, its `uses` and the repeat bounds shift by one. `moved` maps every
@@ -81,7 +81,7 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > field question places it by the label they chose -- the same exact-label rule,
 > never a guess.
 
-## `field_of`, [line 118](../../../../../../../backend/src/sro/domain/execution/compose.py#L118): Docstring
+## `field_of`, [line 122](../../../../../../../backend/src/sro/domain/execution/compose.py#L122): Docstring
 
 > The field a learned field step fills: its label (the parameter's first
 > name) on the latest outline of the write right after it, found exactly
@@ -92,3 +92,14 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > A job's aliases as `normal(wording) -> field`, so a required parameter named
 > in a request's words binds to the field a step fills. Keyed by `normal`,
 > the same folding the composer matches labels with.
+
+## `compose`, [line 113](../../../../../../../backend/src/sro/domain/execution/compose.py#L113): Comment
+
+Code: `hits = placed(workflow, by_id, name, said.get(normal(name), name))`
+
+> A wording the operator has already placed on this job (spec §4.2, L3) is
+> looked for under the label they chose, not under its own name: a confirmed
+> alias outranks an exact label match, because the operator said so for this
+> very wording. The composed value keeps the request's own name, so it still
+> travels under the words the request used. Aliases are per job, and only an
+> operator's answer makes one (`RunSteps.answered`); nothing here guesses.

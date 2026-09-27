@@ -65,7 +65,7 @@ async def job_facts(
             {step.order: cites_key(step) for step in workflow.steps},
             now=now,
         )
-        aliases: tuple[JobAlias, ...] = ()
+        aliases = await uow.workflows.aliases_for(tenant_id, workflow.id)
         names = names_by_workflow[workflow.id]
         declared = (
             limits_from_rows(names, fields, forms, screen_of_loaded(by_id, workflow))

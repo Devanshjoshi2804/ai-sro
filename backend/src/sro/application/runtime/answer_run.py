@@ -66,7 +66,7 @@ class AnswerRun:
             raise Conflict("say whether the write was done: its verdict is done or not_done")
         answer = {"answered": "yes", "verdict": verdict}
         if kind == "field":
-            answer["choice"] = chosen
+            answer |= {"choice": chosen, "by": ctx.principal_id.value}
         if kind == "recipient":
             named = mailboxes(chosen)
             if not named:

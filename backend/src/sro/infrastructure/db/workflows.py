@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sro.application.ports.repositories import WorkflowRepository
 from sro.domain.execution.belts import RunProof, state_verified
+from sro.domain.execution.compose import normal
 from sro.domain.execution.lanes import K_BROKEN_COOL_DOWN, Broken, Lane
 from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
 from sro.domain.execution.mail_job import JobRecipient
@@ -21,10 +22,12 @@ from sro.domain.observation.identity import ShapeKey
 from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import TenantId
+from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.repeats import Repeat
 from sro.domain.skill.workflow import Noticed, Step, Workflow
 from sro.infrastructure.db.codec import when
 from sro.infrastructure.db.models import (
+    JobAliasRow,
     JobRecipientRow,
     KnownBrokenRow,
     LearnedWriteRow,
@@ -571,6 +574,41 @@ class SqlWorkflowRepository(WorkflowRepository):
             statement.on_conflict_do_update(
                 index_elements=["tenant_id", "workflow_id", "address"],
                 set_={
+                    "confirmed_by": statement.excluded.confirmed_by,
+                    "at": statement.excluded.at,
+                },
+            )
+        )
+
+    async def aliases_for(self, tenant_id: TenantId, workflow_id: str) -> tuple[JobAlias, ...]:
+        rows = (
+            await self._session.execute(
+                select(JobAliasRow)
+                .where(
+                    JobAliasRow.tenant_id == tenant_id.value,
+                    JobAliasRow.workflow_id == workflow_id,
+                )
+                .order_by(JobAliasRow.at, JobAliasRow.wording_key)
+            )
+        ).scalars()
+        return tuple(JobAlias(row.wording, row.field, row.confirmed_by, row.at) for row in rows)
+
+    async def confirm_alias(self, tenant_id: TenantId, workflow_id: str, alias: JobAlias) -> None:
+        statement = pg_insert(JobAliasRow).values(
+            tenant_id=tenant_id.value,
+            workflow_id=workflow_id,
+            wording_key=normal(alias.wording),
+            wording=alias.wording,
+            field=alias.field,
+            confirmed_by=alias.confirmed_by,
+            at=alias.at,
+        )
+        await self._session.execute(
+            statement.on_conflict_do_update(
+                index_elements=["tenant_id", "workflow_id", "wording_key"],
+                set_={
+                    "wording": statement.excluded.wording,
+                    "field": statement.excluded.field,
                     "confirmed_by": statement.excluded.confirmed_by,
                     "at": statement.excluded.at,
                 },

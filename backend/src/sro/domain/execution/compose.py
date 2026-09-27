@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Literal
 
@@ -98,15 +98,19 @@ def placed(
 
 
 def compose(
-    workflow: Workflow, by_id: Mapping[str, Gesture], values: Mapping[str, str]
+    workflow: Workflow,
+    by_id: Mapping[str, Gesture],
+    values: Mapping[str, str],
+    aliases: Sequence[JobAlias] = (),
 ) -> tuple[tuple[Composed, ...], tuple[Unplaced, ...]]:
     filled = bindable(workflow, by_id)
+    said = alias_map(aliases)
     composed: list[Composed] = []
     unplaced: list[Unplaced] = []
     for name, value in values.items():
         if name in filled or not value.strip() or is_secret_field(name):
             continue
-        hits = placed(workflow, by_id, name, name)
+        hits = placed(workflow, by_id, name, said.get(normal(name), name))
         if len(hits) == 1:
             composed.append(hits[0])
         else:

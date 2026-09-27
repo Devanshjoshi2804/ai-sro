@@ -41,6 +41,7 @@ from sro.domain.execution.waiting import read_wait
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.identifiers import PrincipalId
+from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.learned import demanded
 from sro.domain.skill.workflow import Step, Workflow, cited_ids, field_key
 
@@ -93,9 +94,10 @@ class RunSteps:
         ]
         known = {one.get("name") for one in progress.composed}
         resume = ordered[progress.step].order if progress.step < len(ordered) else math.inf
+        aliases = await self._aliases(ctx, workflow)
         fresh = [
             _entry(one)
-            for one in compose(workflow, by_id, run.values)[0]
+            for one in compose(workflow, by_id, run.values, aliases)[0]
             if one.before >= resume and progress.marks.get(one.before, StepMark()).lane != OPERATOR
         ]
         if fresh := [one for one in fresh if one["name"] not in known]:
@@ -136,8 +138,11 @@ class RunSteps:
             return await self._advance(ctx, run, progress, step, ordered, index, done, by=by)
         if index == 0:
             placing = {one.get("name") for one in progress.composed}
+            aliases = await self._aliases(ctx, workflow)
             unplaced = [
-                one for one in compose(workflow, by_id, run.values)[1] if one.name not in placing
+                one
+                for one in compose(workflow, by_id, run.values, aliases)[1]
+                if one.name not in placing
             ]
             if unplaced:
                 one = unplaced[0]
@@ -318,6 +323,7 @@ class RunSteps:
         if kind == "password" and progress.lease:
             await self._broker.unpark(ctx, progress.lease, "password")
         progress.asking = {}
+        taught: JobAlias | None = None
         if kind == "field":
             name, choice = asking.get("name", ""), asking.get("choice", "")
             others = [one for one in progress.composed if one.get("name") != name]
@@ -331,6 +337,8 @@ class RunSteps:
                 pass
             elif (hit := choices(workflow, by_id).get(choice)) is not None:
                 progress.composed = [*others, _entry(replace(hit, name=name))]
+                by = asking.get("by") or ctx.principal_id.value
+                taught = JobAlias(name, hit.label, by, self._clock.now())
         if kind == "recipient":
             await keep_the_named(ctx, self._uow, workflow.id, asking, at=self._clock.now())
         if kind == "step" and verdict:
@@ -354,7 +362,7 @@ class RunSteps:
                     reason="the operator says it was not done; it is tried again",
                 )
             )
-        await self._write(ctx, run, progress, save=True)
+        await self._write(ctx, run, progress, save=True, taught=taught)
 
     async def beat(self, ctx: RequestContext, run_id: str) -> None:
         progress = Progress.of((await self._run(ctx, run_id)).progress)
@@ -762,6 +770,7 @@ class RunSteps:
         save: bool = False,
         index: int | None = None,
         open_step: int | None = None,
+        taught: JobAlias | None = None,
     ) -> None:
         loaded = Progress.of(run.progress)
         if (index is not None and loaded.step != index) or (
@@ -776,11 +785,17 @@ class RunSteps:
             if kept:
                 if save:
                     await uow.workflow_runs.save(run)
+                if taught is not None:
+                    await uow.workflows.confirm_alias(ctx.tenant_id, run.workflow_id, taught)
                 await uow.commit()
         if not kept:
             await self._run(ctx, run.id)
             raise Superseded(f"{run.id} was moved on by another attempt")
         run.progress = now
+
+    async def _aliases(self, ctx: RequestContext, workflow: Workflow) -> tuple[JobAlias, ...]:
+        async with self._uow as uow:
+            return await uow.workflows.aliases_for(ctx.tenant_id, workflow.id)
 
     async def _run(self, ctx: RequestContext, run_id: str) -> WorkflowRun:
         async with self._uow as uow:

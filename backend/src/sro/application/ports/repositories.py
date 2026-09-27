@@ -42,6 +42,7 @@ from sro.domain.shared.identifiers import (
 )
 from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.shared.prices import DaySpend, ModelSpend
+from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.offers import Offer, OfferRow
 from sro.domain.skill.skill import Skill
 from sro.domain.skill.workflow import Noticed, Workflow
@@ -540,6 +541,12 @@ class WorkflowRepository(Protocol):
 
     async def confirm_recipient(
         self, tenant_id: TenantId, workflow_id: str, recipient: JobRecipient
+    ) -> None: ...
+
+    async def aliases_for(self, tenant_id: TenantId, workflow_id: str) -> tuple[JobAlias, ...]: ...
+
+    async def confirm_alias(
+        self, tenant_id: TenantId, workflow_id: str, alias: JobAlias
     ) -> None: ...
 
     async def taught_itself(self, workflow_id: str, limit: int = 50) -> tuple[Taught, ...]: ...

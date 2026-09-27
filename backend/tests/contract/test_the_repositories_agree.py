@@ -95,6 +95,7 @@ from sro.domain.shared.identifiers import (
 )
 from sro.domain.shared.prices import ModelSpend
 from sro.domain.skill import PromotionStage
+from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.offers import Offer
 from sro.domain.skill.workflow import Step, Workflow
 from sro.domain.trigger.confirmation import Answer, Confirmation
@@ -690,6 +691,22 @@ class TestWorkflows:
         # A written step nobody verified is still a written step.
         assert proofs[0].wrote == frozenset({0})
         assert proofs[0].verified == frozenset()
+
+    async def test_a_job_keeps_one_alias_per_wording_oldest_first_and_the_later_wins(
+        self, store: UnitOfWork
+    ) -> None:
+        first = JobAlias("Cost Centre", "Department", "clerk", _when(9))
+        region = JobAlias("region code", "Region", "clerk", _when(10))
+        later = JobAlias("cost  centre", "Region", "lead", _when(11))
+        async with store as work:
+            for one in (first, region, later):
+                await work.workflows.confirm_alias(TENANT, "wfl_1", one)
+            await work.commit()
+
+        async with store as work:
+            assert await work.workflows.aliases_for(TENANT, "wfl_1") == (region, later)
+            assert await work.workflows.aliases_for(TENANT, "wfl_2") == ()
+            assert await work.workflows.aliases_for(OTHER_TENANT, "wfl_1") == ()
 
 
 class TestWorkflowRuns:

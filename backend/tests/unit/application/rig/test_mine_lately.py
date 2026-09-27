@@ -19,7 +19,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from sro.application.context import RequestContext
-from sro.application.observation.mine_lately import MineLately
+from sro.application.observation.mine_lately import K_ERRORED_PASSES, MineLately
 from sro.application.observation.mining_pass import MineResult, mine
 from sro.application.shared.refusals import OverCap
 from sro.domain.observation.gesture import Action, Gesture, GestureBatch
@@ -326,25 +326,8 @@ async def test_a_pass_that_read_and_left_unread_work_is_worth_another_one() -> N
     assert mined["acme"].kept == 1
 
 
-async def test_a_pass_that_read_nothing_stops_the_walk() -> None:
-    """A refused call left the same work unread and read none of it. Walking on
-    would ask again every sweep for a day nobody added to; new capture, or the
-    next sweep after an arrival, starts it again."""
-    uow = FakeUnitOfWork()
-    await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
-    await _mined(uow, "acme", left_out=75, window_size=25, at=NOW - timedelta(hours=1))
-    passes = _Passes()
-
-    assert await _swept(uow, passes) == {}
-    assert passes.asked == []
-
-
-async def test_a_day_four_windows_long_is_read_in_four_passes_and_then_left_alone() -> None:
-    """Through the sweep and the real pass: 100 unread gestures, a window of
-    25. The gate once counted passes against a `left_out` it assumed constant;
-    once `left_out` shrank as the walk read it, that count stopped the walk
-    with a quarter of the day unread."""
-    uow = FakeUnitOfWork()
+async def _a_long_day(uow: FakeUnitOfWork) -> None:
+    """100 unread gestures, received long enough ago to have settled."""
     plain = next(g for g in _gestures("acme") if not g.requests and g.action.kind == "click")
     await uow.gestures.add_batch(
         GestureBatch(
@@ -358,32 +341,78 @@ async def test_a_day_four_windows_long_is_read_in_four_passes_and_then_left_alon
     await uow.gestures.add_gestures(
         tuple(replace(plain, id=f"ges_{i:03d}", at=1000.0 + i * 1000) for i in range(100))
     )
-    asker = FakeAsker(*[Answer(data={"workflows": []}, in_tokens=900) for _ in range(10)])
 
-    class _Mines:
-        """The real pass, one second later each time, as production's clock is."""
 
-        ran = 0
+class _Mines:
+    """The real pass over a window of 25, one second later each time, as
+    production's clock is."""
 
-        async def execute(self, ctx: RequestContext) -> MineResult:
-            _Mines.ran += 1
-            async with uow:
-                return await mine(
-                    uow,
-                    tenant_id=ctx.tenant_id,
-                    asker=asker,
-                    locks=FakeAccountLocks(),
-                    now=NOW + timedelta(seconds=_Mines.ran),
-                    cap_usd=100.0,
-                    kb="x" * 600_000,
-                )
+    def __init__(self, uow: FakeUnitOfWork, asker: FakeAsker) -> None:
+        self._uow, self._asker, self._ran = uow, asker, 0
 
-    swept = [await _swept(uow, _Mines()) for _ in range(6)]
+    async def execute(self, ctx: RequestContext) -> MineResult:
+        self._ran += 1
+        async with self._uow:
+            return await mine(
+                self._uow,
+                tenant_id=ctx.tenant_id,
+                asker=self._asker,
+                locks=FakeAccountLocks(),
+                now=NOW + timedelta(seconds=self._ran),
+                cap_usd=100.0,
+                kb="x" * 600_000,
+            )
+
+
+READ = Answer(data={"workflows": []}, in_tokens=900)
+CLOSED = Answer(error="RuntimeError: Cannot send a request, as the client has been closed")
+
+
+async def test_a_day_four_windows_long_is_read_in_four_passes_and_then_left_alone() -> None:
+    """Through the sweep and the real pass: 100 unread gestures, a window of
+    25. The gate once counted passes against a `left_out` it assumed constant;
+    once `left_out` shrank as the walk read it, that count stopped the walk
+    with a quarter of the day unread."""
+    uow = FakeUnitOfWork()
+    await _a_long_day(uow)
+    asker = FakeAsker(*[READ] * 10)
+    passes = _Mines(uow, asker)
+
+    swept = [await _swept(uow, passes) for _ in range(6)]
 
     assert [one["acme"].left_out for one in swept[:4]] == [75, 50, 25, 0]
     assert swept[4:] == [{}, {}]
     assert len(asker.asked) == 4
     assert all(entry.age > 0 for entry in await uow.pool.waiting(TenantId("acme")))
+
+
+async def test_an_outage_mid_walk_does_not_leave_the_day_unread() -> None:
+    """The QA box's shape: a backlog, and a model client that has been closed.
+    One pass that read nothing is an outage, not the end of the day."""
+    uow = FakeUnitOfWork()
+    await _a_long_day(uow)
+    asker = FakeAsker(READ, CLOSED, *[READ] * 10)
+    passes = _Mines(uow, asker)
+
+    swept = [await _swept(uow, passes) for _ in range(7)]
+
+    assert [one["acme"].left_out for one in swept[:5]] == [75, 75, 50, 25, 0]
+    assert swept[5:] == [{}, {}]
+    assert len(asker.asked) == 5
+
+
+async def test_errored_passes_in_a_row_stop_the_walk_until_something_arrives() -> None:
+    """A model that stays down is not asked on every sweep: K_ERRORED_PASSES
+    in a row that read nothing end the walk. New capture starts it again."""
+    uow = FakeUnitOfWork()
+    await _a_long_day(uow)
+    asker = FakeAsker(*[CLOSED] * 10)
+    passes = _Mines(uow, asker)
+
+    swept = [await _swept(uow, passes) for _ in range(K_ERRORED_PASSES + 2)]
+
+    assert len(asker.asked) == K_ERRORED_PASSES
+    assert swept[K_ERRORED_PASSES:] == [{}, {}]
 
 
 async def test_evidence_arriving_starts_the_sweep_again() -> None:

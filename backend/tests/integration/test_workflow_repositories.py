@@ -50,6 +50,7 @@ from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow, new_workflow_id
+from sro.infrastructure.db import workflows as workflows_module
 from sro.infrastructure.db.locks import PostgresAccountLocks
 from sro.infrastructure.db.models import WorkflowEffectRow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
@@ -809,6 +810,22 @@ class TestStaleSteps:
             assert await uow.workflows.stale_count(workflow.id) == 0
 
 
+FAILS = "the step Postgres refuses"
+
+
+def _a_step_postgres_refuses(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A step whose insert fails on the server. `workflow_from` refuses what a
+    model could send to make one (control characters, orders past int32), so
+    the failure is planted below the domain: the row's key outgrows its column."""
+    real = workflows_module._step_values
+
+    def refused(workflow_id: str, step: Step) -> dict[str, Any]:
+        values = real(workflow_id, step)
+        return {**values, "workflow_id": "w" * 65} if step.says == FAILS else values
+
+    monkeypatch.setattr(workflows_module, "_step_values", refused)
+
+
 class TestWhatAPassHasMined:
     """What a pass read is recorded in the same transaction as what it kept,
     under the tenant's mining lock -- proved against the real lock and store."""
@@ -835,13 +852,16 @@ class TestWhatAPassHasMined:
         assert kept == "wfl_older"
 
     async def test_the_bill_is_written_on_a_session_the_save_killed(
-        self, session_factory: async_sessionmaker[AsyncSession]
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """A pass whose workflow will not go into the store is still a pass that
         was billed. Postgres refuses every further statement on a transaction
         whose statement failed, so without the rollback-and-retry in `_one_pass`'s
-        `finally` the bill went with it. The statement is killed here by a NUL in
-        a step's text, which a model can write and Postgres refuses."""
+        `finally` the bill went with it. The statement is killed on the server:
+        one step's row carries a key longer than its column allows."""
+        _a_step_postgres_refuses(monkeypatch)
         gestures = _gestures(TENANT.value)
         proposal = {
             "title": "create a work operation",
@@ -849,7 +869,7 @@ class TestWhatAPassHasMined:
             "systems": [gestures[0].system],
             "steps": [
                 {"order": 0, "cites": [gestures[0].id], "says": "do it"},
-                {"order": 1, "cites": [gestures[0].id], "says": "save\x00it"},
+                {"order": 1, "cites": [gestures[0].id], "says": FAILS},
             ],
         }
         asker = FakeAsker(Answer(data={"workflows": [proposal]}, cost_usd=0.04))
@@ -876,12 +896,15 @@ class TestWhatAPassHasMined:
         assert kept == ()
 
     async def test_a_job_whose_steps_fail_is_not_stored_and_the_job_before_it_is(
-        self, session_factory: async_sessionmaker[AsyncSession]
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Saving one job is one savepoint. A step insert that fails takes that
         job's row back with it, and the pass's `finally` -- which commits the
         bill -- can then never commit a job without its steps. The job kept
         earlier in the same pass is untouched."""
+        _a_step_postgres_refuses(monkeypatch)
         day = _gestures(TENANT.value)
         gestures = {g.action.kind: g for g in day}
         typed, picked = gestures["type"], gestures["select"]
@@ -900,7 +923,7 @@ class TestWhatAPassHasMined:
             "systems": [picked.system],
             "steps": [
                 {"order": 0, "cites": [picked.id], "says": "pick it"},
-                {"order": 1, "cites": [picked.id], "says": "keep\x00it"},
+                {"order": 1, "cites": [picked.id], "says": FAILS},
             ],
         }
         asker = FakeAsker(Answer(data={"workflows": [good, bad]}, cost_usd=0.04))

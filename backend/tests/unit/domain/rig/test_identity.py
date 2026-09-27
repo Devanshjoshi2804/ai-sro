@@ -774,3 +774,47 @@ def test_a_job_with_parameters_sharing_one_step_is_still_new() -> None:
     )
 
     assert resolve(other, [known]).kind == "new"
+
+
+def test_a_title_alone_does_not_join_jobs_that_share_no_step() -> None:
+    """A "Log out" of the mailbox is not the warehouse's "Log Out"."""
+    known = _workflow(
+        ["ges_1", "ges_2"],
+        [[WMS, "userMenu", "click"], [WMS, "logoutButton", "click"]],
+        id="wfl_known",
+        title="Log Out",
+    )
+    mail = _workflow(
+        ["ges_50", "ges_51"],
+        [[MAIL, "button|Account", "click"], [MAIL, "link|Sign out", "click"]],
+        title="Log out",
+    )
+
+    assert resolve(mail, [known]).kind == "new"
+
+
+FORM = [[WMS, f"field{n}", "type"] for n in range(3)] + [[WMS, "saveButton", "click"]]
+
+
+def test_steps_a_stored_job_already_holds_exactly_are_that_job_whatever_the_title() -> None:
+    known = _workflow(["ges_1"], FORM, id="wfl_known", title="Create a Customer Type")
+    part = _workflow(["ges_50", "ges_51"], [FORM[0], FORM[3]], title="Fill in a record")
+
+    resolution = resolve(part, [known])
+
+    assert (resolution.kind, resolution.workflow_id) == ("same_job", "wfl_known")
+
+
+def test_an_edit_on_the_same_form_with_a_step_of_its_own_stays_its_own_job() -> None:
+    """The covered-steps rule wants EVERY step of the proposal held exactly by
+    the stored job. An edit shares the form's fields and Save and presses Edit,
+    which the create never does, so that rule does not take it -- and under a
+    name of its own the shape rule's name veto keeps it apart too."""
+    known = _workflow(["ges_1"], FORM, id="wfl_known", title="Create a Customer Type")
+    edit = _workflow(
+        ["ges_50", "ges_51", "ges_52"],
+        [[WMS, "editButton", "click"], FORM[0], FORM[3]],
+        title="Edit a record",
+    )
+
+    assert resolve(edit, [known]).kind == "new"

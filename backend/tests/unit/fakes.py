@@ -2211,8 +2211,9 @@ class FakePoolRepository:
                 continue
             if shown is None:
                 entry = replace(entry, age=entry.age + 1)
-            elif entry.gesture_id in shown and failed:
-                entry = replace(entry, failed=entry.failed + 1)
+            elif failed:
+                if entry.gesture_id in shown:
+                    entry = replace(entry, failed=entry.failed + 1)
             elif entry.gesture_id in shown:
                 entry = replace(entry, age=entry.age + 1, waited=0)
             else:

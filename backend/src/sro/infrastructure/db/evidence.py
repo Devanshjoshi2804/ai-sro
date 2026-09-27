@@ -404,9 +404,10 @@ class SqlPoolRepository(PoolRepository):
                         ),
                     )
                 )
-                await self._session.execute(
-                    self._bump(*live, PoolRow.gesture_id.notin_(ids), waited=PoolRow.waited + 1)
-                )
+                if not failed:
+                    await self._session.execute(
+                        self._bump(*live, PoolRow.gesture_id.notin_(ids), waited=PoolRow.waited + 1)
+                    )
 
         passes = await self._session.execute(
             self._bump(

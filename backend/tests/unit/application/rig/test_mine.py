@@ -1042,7 +1042,7 @@ async def test_a_new_doing_grows_the_job_and_no_empty_copy_is_minted() -> None:
     first = _creates_a_customer_type(0, 1000.0, "NEWS", "leaning SRO")
     asker = FakeAsker(_found(_the_job(first)))
     uow, later = await _a_stored_customer_type(asker)
-    fragment = _fragment(later, "Create a Customer Type", later[0], later[4])
+    fragment = _fragment(later, "Create a Customer Type", later[0], later[7])
     asker = FakeAsker(_found(_the_job(later), fragment))
 
     grown = await _mine(uow, asker)
@@ -1862,6 +1862,15 @@ async def test_a_proposal_becomes_a_workflow() -> None:
     assert workflows[0].title == "create a supplier"
     assert workflows[0].steps[0].cites == ["ges_1"]
     assert answer.cost_usd == 0.004
+
+
+async def test_a_job_with_a_control_character_is_dropped_and_its_neighbour_kept() -> None:
+    good = _answer().data["workflows"][0]
+    bad = {**good, "title": "create a\x00 supplier"}
+
+    workflows, _ = await _proposed(FakeAsker(_answer(workflows=[bad, good])))
+
+    assert [one.title for one in workflows] == ["create a supplier"]
 
 
 async def test_a_refusal_proposes_nothing_and_says_why() -> None:

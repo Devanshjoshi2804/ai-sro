@@ -393,7 +393,7 @@ Code: `if (`
 > and `Send` -- have nothing else left to be told apart by. See
 > `K_SAME_NAME`.
 
-## `resolve`, [line 201](../../../../../../../backend/src/sro/domain/observation/identity.py#L201): Comment
+## `resolve`, [line 205](../../../../../../../backend/src/sro/domain/observation/identity.py#L205): Comment
 
 Code: `named = _as_words(proposal.title)`
 
@@ -410,7 +410,7 @@ Code: `named = _as_words(proposal.title)`
 > sign-in filter, so two sign-ins that land in different places are not
 > joined by a title.
 
-## `resolve`, [line 207](../../../../../../../backend/src/sro/domain/observation/identity.py#L207): Comment
+## `resolve`, [line 211](../../../../../../../backend/src/sro/domain/observation/identity.py#L211): Comment
 
 Code: `if not proposal.parameters:`
 
@@ -427,3 +427,31 @@ Code: `if not proposal.parameters:`
 > `test_forwarding_is_not_replying_however_alike_the_clicks_are`. So a
 > covered proposal that fails those guards is refused as a fragment if it
 > has no parameters, and is otherwise new.
+
+## `resolve`, [line 201](../../../../../../../backend/src/sro/domain/observation/identity.py#L201): Comment
+
+Code: `if len(shape) >= K_MIN_SHARED_STEPS:`
+
+> Steps a stored job already holds, every one of them exactly (as a set,
+> no `anon|` alias), and at least K_MIN_SHARED_STEPS of them: that job,
+> whatever the title (M1 round 3). A proposal that is wholly a part of a job
+> is that job; the name veto exists to keep apart jobs that merely look
+> alike. Exact, because the alias is what made Forward look like Reply. At
+> least two distinct entries, because one entry is any doing that touches
+> that control (see the bar above). A proposal with a step of its own --
+> an Edit that presses Edit on the create form -- is not wholly the create,
+> so this rule leaves it to the shape rule above, where its name decides.
+>
+> Known limit: under a name alike at K_SAME_NAME ("Edit a Customer Type"
+> against "Create a Customer Type", 2 words of 4), the shape rule above
+> still joins an Edit sharing two steps and half the form. Telling them
+> apart by the verb is an identity decision of its own, not made here.
+
+## `resolve`, [line 205](../../../../../../../backend/src/sro/domain/observation/identity.py#L205): Comment
+
+Code: `named = _as_words(proposal.title)`
+
+> Equal title, and at least one shared step (M1 round 3): the title is the
+> model's recognition, the shared step is the evidence that it is the same
+> screen. A mailbox "Log out" and the warehouse's "Log Out" share a title
+> and not a step, and stay two jobs.

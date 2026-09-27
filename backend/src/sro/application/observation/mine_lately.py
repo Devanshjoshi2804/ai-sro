@@ -15,7 +15,7 @@ from sro.application.shared.refusals import OverCap
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.whose import about
 
-__all__ = ["MAX_READS", "MineLately"]
+__all__ = ["K_ERRORED_PASSES", "MAX_READS", "MineLately"]
 
 MAX_READS = 25
 
@@ -31,6 +31,8 @@ def _when(stamp: str) -> datetime:
 
 
 K_SETTLE_S = 120.0
+
+K_ERRORED_PASSES = 3
 
 
 class MineLately:
@@ -70,7 +72,16 @@ class MineLately:
         newest = await uow.gestures.newest_arrival(tenant_id)
         if newest is not None and newest >= _when(last.started_at):
             return True
-        return last.left_out > 0 and last.in_tokens > 0
+        if last.left_out <= 0:
+            return False
+        errored = 0
+        for one in reversed(passes):
+            if one.in_tokens > 0 or one.left_out <= 0:
+                break
+            if newest is not None and _when(one.started_at) <= newest:
+                break
+            errored += 1
+        return errored < K_ERRORED_PASSES
 
     async def _decide(self) -> None:
         async with self._uow as uow:

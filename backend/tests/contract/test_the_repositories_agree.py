@@ -1646,9 +1646,7 @@ class TestPool:
             waiting = await work.pool.waiting(TENANT)
             gone = await work.pool.retired(TENANT)
         assert retired == 1
-        assert [(one.gesture_id, one.age, one.waited) for one in waiting] == [
-            ("ges_2", 0, K_MINE_ATTEMPTS)
-        ]
+        assert [(one.gesture_id, one.age, one.waited) for one in waiting] == [("ges_2", 0, 0)]
         assert [(one.gesture_id, one.age, one.failed, one.reason) for one in gone] == [
             ("ges_1", 0, K_MINE_ATTEMPTS, RETIRED_UNMINABLE)
         ]

@@ -497,6 +497,25 @@ def test_a_step_order_is_a_sort_key_and_the_steps_are_numbered_by_position() -> 
     ]
 
 
+def test_a_job_carrying_a_control_character_is_refused_and_only_that_job() -> None:
+    """A NUL in a model's answer is refused by Postgres on insert, which killed
+    the pass's save. It is not text anybody reads, so the job carrying it is
+    dropped, wherever in it the character sits; a newline or a tab is text."""
+    assert workflow_from(_one(title="Create\x00 a type"), tenant="acme") is None
+    assert (
+        workflow_from(
+            _one(steps=[{"order": 0, "cites": ["ges_1"], "says": "save\x1bit"}]), tenant="acme"
+        )
+        is None
+    )
+    assert (
+        workflow_from(_one(parameters=[{"name": "code", "seen_values": ["A\x07"]}]), tenant="acme")
+        is None
+    )
+    kept = workflow_from(_one(narrative="first line\n\tsecond"), tenant="acme")
+    assert kept is not None and kept.narrative == "first line\n\tsecond"
+
+
 def test_a_step_order_of_true_is_not_a_step_order() -> None:
     """True is an int in Python, and sorts as 1."""
     workflow = workflow_from(

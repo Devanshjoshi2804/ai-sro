@@ -198,9 +198,13 @@ def resolve(
             best_score,
             contains=_in_order(best.shape_key, proposal.shape_key),
         )
+    if len(shape) >= K_MIN_SHARED_STEPS:
+        for other in eligible:
+            if shape <= _shape_set(other):
+                return Resolution("same_job", other.id, 1.0)
     named = _as_words(proposal.title)
     for other in eligible:
-        if named and named == _as_words(other.title):
+        if named and named == _as_words(other.title) and _shared(shape, _shape_set(other)):
             return Resolution(
                 "same_job", other.id, 1.0, contains=_in_order(other.shape_key, proposal.shape_key)
             )

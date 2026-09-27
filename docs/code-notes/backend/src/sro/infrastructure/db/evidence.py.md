@@ -248,7 +248,7 @@ Code: `await self._session.execute(`
 
 > Shown: one reading older, and its waiting starts again.
 
-## `SqlPoolRepository.age`, [line 407](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L407): Comment
+## `SqlPoolRepository.age`, [line 408](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L408): Comment
 
 Code: `await self._session.execute(`
 
@@ -256,7 +256,7 @@ Code: `await self._session.execute(`
 > time. Ageing was doing both jobs, so an entry read six times
 > outranked one never seen at all and the day did not rotate.
 
-## `SqlPoolRepository.age`, [line 411](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L411): Comment
+## `SqlPoolRepository.age`, [line 412](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L412): Comment
 
 Code: `passes = await self._session.execute(`
 
@@ -265,13 +265,17 @@ Code: `passes = await self._session.execute(`
 > retires an entry a busy tenant has already reconsidered fifty times.
 > Whichever comes first, and the row says which -- both filtered on
 > `retired = 0`, so nothing is retired twice or re-reported by the
-> other cap. The stale cap takes only what has been read (`age > 0`):
+> other cap. A failed reading (`failed=True`) moves nothing but `failed`:
+> `waited` is untouched, so the next pass packs the same window and
+> K_MINE_ATTEMPTS counts per window rather than over whichever entries the
+> waiting bonus rotates in (M1 round 3).
+> The stale cap takes only what has been read (`age > 0`):
 > retired is never mined again, and an unread entry is backlog.
 > RETURNING rather than ``rowcount``, as in ``add_unclaimed``: which
 > rows actually retired is the answer, and it is one shape everywhere
 > rather than the driver's own count.
 
-## `SqlPoolRepository._bump`, [line 460](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L460): Comment
+## `SqlPoolRepository._bump`, [line 461](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L461): Comment
 
 Code: `return (`
 

@@ -145,7 +145,11 @@ class Converse:
         async with self._uow as uow:
             before = await uow.threads.get(ctx.tenant_id, thread_id)
         said_before = before.messages
-        if answering is not None and before.opened_by != ctx.principal_id:
+        if before.opened_by != ctx.principal_id and (
+            answering is not None
+            or pending_job(said_before) is not None
+            or offered_job(said_before) is not None
+        ):
             return await self._only_said(ctx, thread_id=thread_id, text=text, said=K_NOT_YOURS)
         if (
             answering is not None
@@ -359,7 +363,7 @@ class Converse:
                 )
             if run is not None and seen and stands(run, now):
                 return of_the_run(run, job.title if job is not None else "The run", now)
-        offer = offered_job(thread.messages)
+        offer = offered_job(thread.messages) if thread.opened_by == ctx.principal_id else None
         return of_the_offer(offer) if offer is not None else None
 
     async def _question_stands(self, ctx: RequestContext, thread_id: ThreadId) -> bool:

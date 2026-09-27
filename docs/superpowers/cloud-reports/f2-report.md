@@ -145,3 +145,37 @@ Every fix below had its test written first, and each test was seen failing befor
 
 - Round 0's concern 1 (the explore card) is resolved by the UI ruling.
 - A thread reads its run only through the opener/starter check. A third person on the same tenant who types in the thread gets today's fallback, with the explore card offered under it (`pursuable`).
+
+---
+
+## Round 2
+
+This round covers invariant 5: only the principal a question belongs to may act on it. Each change had its test written first and seen failing. For item 2 the failure was the live bug itself: B's "GGD" under A's question came back as "Running Create a Customer Type now."
+
+### Fixes
+
+1. **The offer is told only to the thread's opener.** In `Converse._what_stands`, the offer branch reads the offer only when the asker opened the thread. This is the same rule as the run branch.
+   - Test: `test_what_stands_is_never_the_offer_for_somebody_who_did_not_open_the_thread`. For B it returns None; for A it returns the offer with its values.
+2. **A standing question or offer is acted on only by the thread's opener. This bug predates F2 and is live.** `Converse.execute` used to refuse only a *press* (`answering` set) from anyone but the opener. A typed sentence with no `answering` was read against the newest question, so a colleague's value became the answer and started the opener's job, and a colleague's "yes" ran the opener's offer.
+   - The check now covers every path. While `answering` is set, or a `needs_values` question or a job offer stands, anybody but the thread's opener gets `K_NOT_YOURS` ("That question was asked of somebody else, so nothing was done.") as words with no decision. Nothing reads what they said: not the answer reader, the rig or the resolver. The question or offer still stands, unchanged, for its opener.
+   - Tests:
+     - `test_somebody_else_under_the_opener_s_question_is_never_its_answer` covers "check now", "yes" and "GGD". The answer reader is never asked, the question still wants `Customer Type`, there is no `job` decision and no run.
+     - `test_somebody_else_under_the_opener_s_offer_does_nothing_to_it` covers the same three phrases. It asserts no values in the reply, the offer still stands with its values, and no run.
+     - `test_the_opener_s_own_answer_is_still_the_answer` is the guard: A's "GGD" still becomes the answer and the job decision.
+
+### Gates (round 2)
+
+- `pytest tests/unit tests/contract`: **4756 passed, 79 errors**. The errors are the same Docker-less `[sql]` and `TestFuzz` ones as before.
+- ruff check and ruff format: clean. `mypy src tests evals`: clean (821 files). `lint-imports`: 4 kept.
+- `check_code_notes.py`: 0 stale, 0 dead. The `_say_the_job` "The run goes and looks" note is ambiguous to the fixer and was re-anchored by hand to line 644 again.
+- `grep unit_of_work() interface/`: nothing. No frontend change.
+
+### Rulings (round 2)
+
+- Ruling: for chat, the principal who may answer is the **thread's opener**, and the "run's starter" rule has no path to apply to here. — Converse never answers a run's own question (`run_asks`); that goes through the workflow-runs route, which checks its own principal. The questions that stand in chat (`needs_values` and the job offer) belong to the thread, and neither carries a run id or starter. — Cost if wrong: if a `needs_values` question in a thread opened by A was raised by a run B started, B cannot answer it in A's thread; B would answer in their own thread or through the run.
+- Ruling: while a question or offer stands, the gate uses the raw `pending_job` / `offered_job`, not `_still_wanted`. — For a principal check, refusing on a question the job no longer wants is the safe direction. — Cost if wrong: in that narrow window, a colleague's unrelated request in someone else's thread is refused with `K_NOT_YOURS` instead of being handled.
+- Ruling: with nothing standing, a colleague's sentence in another's thread is still handled as an ordinary request. — The item scopes the rule to "under a standing question". — Cost if wrong: see concerns.
+
+### Concerns (round 2)
+
+- With nothing standing, a colleague's sentence in someone else's thread still goes through `_carry_on`. Two things there come from the opener's own earlier messages: `pinned=_awaiting(thread)`, which carries on a skill the resolver was asking values for, and `_gathered`, which reuses the values already given for it. So a colleague's request can be resolved against the opener's pinned skill and values. It never runs a write (`_answer_now` refuses writes), but it is the same invariant-5 shape. If the controller wants it closed, both should key on `thread.opened_by == ctx.principal_id`. It is not changed here because it is outside the item.

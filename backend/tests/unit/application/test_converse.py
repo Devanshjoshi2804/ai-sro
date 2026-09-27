@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from sro.application.chat.converse import Converse, StartThread
+from sro.application.chat.converse import K_NOT_YOURS, Converse, StartThread
 from sro.application.chat.read_chat import ReadChat
 from sro.application.chat.reading_an_answer import Read
 from sro.application.chat.understand import Understood
@@ -1656,3 +1656,106 @@ async def test_what_stands_is_not_read_for_a_sentence_that_names_a_job() -> None
     await converse.execute(CTX, thread_id=thread_id, text="adjust inventory at SG")
 
     assert reads == 0
+
+
+# --- F2 round 2: only the thread's opener acts on what stands in it ----------
+
+SOMEBODY_ELSE = RequestContext(tenant_id=f.TENANT, principal_id=PrincipalId("b@acme.test"))
+
+
+async def _offered_with_values(uow: FakeUnitOfWork) -> tuple[Converse, ThreadId]:
+    converse, thread_id = await _offered(uow, can_gather=True, missing=["Customer Type"])
+    thread = await uow.threads.get(CTX.tenant_id, thread_id)
+    thread.say(
+        Message(
+            id=MessageId("msg_offer_2"),
+            speaker=Speaker.ASSISTANT,
+            text="Create a Customer Type does that — say the word and I will run it.",
+            said_at=FakeClock().now(),
+            decision={
+                "kind": "job",
+                "workflow_id": "wfl_1",
+                "title": "Create a Customer Type",
+                "values": {"Description": "north yard"},
+                "items": [],
+                "missing": ["Customer Type"],
+                "can_find": True,
+            },
+        )
+    )
+    await uow.threads.save(thread)
+    return converse, thread_id
+
+
+@pytest.mark.parametrize("phrase", ["check now", "yes", "GGD"])
+async def test_somebody_else_under_the_opener_s_offer_does_nothing_to_it(phrase: str) -> None:
+    """Invariant 5. B, in A's thread, under A's standing offer: never told
+    what it holds, never a yes to it, never a value for it."""
+    uow = FakeUnitOfWork()
+    await _knows_the_screens(uow)
+    converse, thread_id = await _offered_with_values(uow)
+    before = len((await uow.threads.get(CTX.tenant_id, thread_id)).messages)
+
+    said = await converse.execute(SOMEBODY_ELSE, thread_id=thread_id, text=phrase)
+
+    added = said.messages[before:]
+    assert [(m.speaker, m.text) for m in added] == [
+        (Speaker.OPERATOR, phrase),
+        (Speaker.ASSISTANT, K_NOT_YOURS),
+    ]
+    assert not added[-1].decision
+    assert "north yard" not in added[-1].text
+    offer = offered_job(said.messages)
+    assert offer is not None and offer.values == {"Description": "north yard"}, (
+        "A's offer was changed or taken away"
+    )
+    assert list(uow.workflow_runs.rows) == []
+
+
+@pytest.mark.parametrize("phrase", ["check now", "yes", "GGD"])
+async def test_somebody_else_under_the_opener_s_question_is_never_its_answer(phrase: str) -> None:
+    """Pre-existing and live: only `answering` was checked against the
+    opener, so B's message with no `answering` was read as the answer to A's
+    question -- and the answer starts A's job."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked(uow, ["Customer Type"])
+    reads = _Reads(answers=True, value="GGD")
+    converse._answers = reads  # type: ignore[assignment]
+    before = len((await uow.threads.get(CTX.tenant_id, thread_id)).messages)
+
+    said = await converse.execute(SOMEBODY_ELSE, thread_id=thread_id, text=phrase)
+
+    added = said.messages[before:]
+    assert [(m.speaker, m.text) for m in added] == [
+        (Speaker.OPERATOR, phrase),
+        (Speaker.ASSISTANT, K_NOT_YOURS),
+    ]
+    assert reads.asked == [], "B's message was read as a possible answer"
+    waiting = pending_job(said.messages)
+    assert waiting is not None and waiting.missing == ("Customer Type",)
+    assert not any((m.decision or {}).get("kind") == "job" for m in added)
+    assert list(uow.workflow_runs.rows) == []
+
+
+async def test_the_opener_s_own_answer_is_still_the_answer() -> None:
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked(uow, ["Customer Type"])
+    converse._answers = _Reads(answers=True, value="GGD")  # type: ignore[assignment]
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="GGD")
+
+    assert said.messages[-1].decision["kind"] == "job"
+    assert said.messages[-1].decision["values"] == {"Customer Type": "GGD"}
+
+
+async def test_what_stands_is_never_the_offer_for_somebody_who_did_not_open_the_thread() -> None:
+    """Item 1 at its own root: `_what_stands` reads an offer only for the
+    thread's opener, whatever the caller did first."""
+    uow = FakeUnitOfWork()
+    converse, thread_id = await _offered_with_values(uow)
+    thread = await uow.threads.get(CTX.tenant_id, thread_id)
+
+    assert await converse._what_stands(SOMEBODY_ELSE, thread) is None
+    assert "north yard" in (await converse._what_stands(CTX, thread) or "")

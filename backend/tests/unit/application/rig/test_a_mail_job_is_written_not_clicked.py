@@ -22,7 +22,7 @@ from typing import Any
 import pytest
 
 from sro.application.chat.ask_the_asker import DRAFTED, SendTheDraft
-from sro.application.chat.mailbox import mail_key, sent_key
+from sro.application.chat.mailbox import K_OURS, mail_key, sent_key
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
 from sro.application.execution.gather import GatherContext
@@ -434,6 +434,25 @@ async def test_mail_this_system_sent_is_never_the_demonstrated_send(
     is the one."""
     uow = await _claimed(ours.pop("claim", "unrelated"))
     theirs = {**_sent_copy(after=1.0, to="mallory@evil.example"), **ours}
+    mailbox = _Mailbox([theirs, _sent_copy(to="vendor@supplier.example")])
+
+    assert isinstance(await _write(mailbox, "vendor@supplier.example", uow=uow), Written)
+    assert isinstance(await _write(mailbox, "mallory@evil.example", uow=uow), Unaddressed)
+    only_ours = _Mailbox([theirs])
+    assert isinstance(await _write(only_ours, "mallory@evil.example", uow=uow), Unaddressed)
+
+
+@pytest.mark.parametrize("legacy", [mail_key("s-ours"), "mail:devansh:s-ours"])
+async def test_mail_sent_before_sent_key_is_never_the_demonstrated_send(legacy: str) -> None:
+    """Mail sent before `sent_key` was never recipient-checked, and carries no
+    marker. Its claim -- `mail_key(id)`, or main's `mail:{operator}:{id}` --
+    was written with the tool K_OURS, and that alone marks it ours."""
+    uow = FakeUnitOfWork()
+    async with uow as unit:
+        await unit.tool_calls.remember(
+            f.TENANT, legacy, tool=K_OURS, at=datetime.fromtimestamp(CLICKED_AT, UTC)
+        )
+    theirs = {**_sent_copy(after=1.0, to="mallory@evil.example"), "id": "s-ours"}
     mailbox = _Mailbox([theirs, _sent_copy(to="vendor@supplier.example")])
 
     assert isinstance(await _write(mailbox, "vendor@supplier.example", uow=uow), Written)

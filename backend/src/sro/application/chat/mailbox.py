@@ -10,7 +10,6 @@ from email.utils import getaddresses, parseaddr
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.tools import ToolCaller, ToolResult
-from sro.domain.shared.identifiers import TenantId
 
 logger = logging.getLogger(__name__)
 
@@ -79,12 +78,21 @@ async def send_as_this_system(
 
 
 async def is_ours(
-    uow: UnitOfWork, tenant_id: TenantId, message: Mapping[str, object], *, since: datetime
+    uow: UnitOfWork, ctx: RequestContext, message: Mapping[str, object], *, since: datetime
 ) -> bool:
-    keys = [str(message.get(name) or "") for name in ("id", "marker")]
+    ids = [str(message.get(name) or "") for name in ("id", "marker")]
+    legacy = str(message.get("id") or "")
+    # Sends before sent_key were claimed as K_OURS under mail_key(id), or on
+    # main under mail:{operator}:{id}, and were never recipient-checked.
+    # ponytail: drop the legacy keys once K_REMEMBER has passed since deploy.
+    claims = [(sent_key(one), None) for one in ids if one] + (
+        [(mail_key(legacy), K_OURS), (f"mail:{ctx.principal_id.value}:{legacy}", K_OURS)]
+        if legacy
+        else []
+    )
     async with uow as unit:
-        for key in keys:
-            if key and await unit.tool_calls.held(tenant_id, sent_key(key), since=since):
+        for key, tool in claims:
+            if await unit.tool_calls.held(ctx.tenant_id, key, since=since, tool=tool):
                 return True
     return False
 

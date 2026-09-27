@@ -398,5 +398,5 @@ async def test_the_mail_this_system_sent_is_never_read_as_a_request() -> None:
     # a claim stamped in the fake's own past reads as stale, and the test
     # would pass for the wrong reason -- it did.
     since = FakeClock().now() - timedelta(days=30)
-    ours = await is_ours(uow, f.TENANT, {"id": "m-sent"}, since=since)
+    ours = await is_ours(uow, CTX, {"id": "m-sent"}, since=since)
     assert ours, "this system's own mail can be read back as a request"

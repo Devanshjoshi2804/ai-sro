@@ -17,7 +17,14 @@ from typing import Any
 import pytest
 
 import sro
-from sro.application.chat.mailbox import NotSent, is_ours, mail_key, send_as_this_system, sent_key
+from sro.application.chat.mailbox import (
+    K_OURS,
+    NotSent,
+    is_ours,
+    mail_key,
+    send_as_this_system,
+    sent_key,
+)
 from sro.application.context import RequestContext
 from sro.application.ports.tools import ToolResult
 from sro.domain.shared.identifiers import PrincipalId, TenantId
@@ -67,9 +74,9 @@ async def test_the_claim_is_made_before_the_mail_is_sent() -> None:
     assert mailbox.claimed_first == [True]
     (sent,) = mailbox.sent
     tenant = CTX.tenant_id
-    assert await is_ours(uow, tenant, {"id": "unknown", "marker": sent["marker"]}, since=NOW)
-    assert await is_ours(uow, tenant, {"id": "gm-7"}, since=NOW)
-    assert not await is_ours(uow, tenant, {"id": "m-9", "marker": "forged"}, since=NOW)
+    assert await is_ours(uow, CTX, {"id": "unknown", "marker": sent["marker"]}, since=NOW)
+    assert await is_ours(uow, CTX, {"id": "gm-7"}, since=NOW)
+    assert not await is_ours(uow, CTX, {"id": "m-9", "marker": "forged"}, since=NOW)
     assert not await uow.tool_calls.held(tenant, mail_key("gm-7"), since=NOW)
 
 
@@ -81,7 +88,21 @@ async def test_a_read_claim_is_not_this_systems_own() -> None:
         await unit.tool_calls.remember(CTX.tenant_id, mail_key("m-1"), tool="read", at=NOW)
         await unit.commit()
 
-    assert not await is_ours(uow, CTX.tenant_id, {"id": "m-1", "marker": "m-1"}, since=NOW)
+    assert not await is_ours(uow, CTX, {"id": "m-1", "marker": "m-1"}, since=NOW)
+
+
+@pytest.mark.parametrize("legacy", [mail_key("m-1"), "mail:devansh:m-1"])
+async def test_a_legacy_send_claim_is_this_systems_own(legacy: str) -> None:
+    """Before `sent_key`, a send was claimed under `mail_key(id)` (or main's
+    `mail:{operator}:{id}`) with the tool K_OURS. That row still says ours."""
+    uow = FakeUnitOfWork()
+    async with uow as unit:
+        await unit.tool_calls.remember(CTX.tenant_id, legacy, tool=K_OURS, at=NOW)
+        await unit.commit()
+
+    assert await is_ours(uow, CTX, {"id": "m-1"}, since=NOW)
+    other = RequestContext(tenant_id=f.TENANT, principal_id=PrincipalId("someone-else"))
+    assert await is_ours(uow, other, {"id": "m-1"}, since=NOW) == (legacy == mail_key("m-1"))
 
 
 async def test_no_claim_no_send(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -123,7 +144,7 @@ async def test_a_sent_mail_is_not_turned_into_an_error_by_its_id_claim(
     answered = await send_as_this_system(CTX, uow, mailbox, {"to": "a@x.example"}, at=NOW)
 
     assert json.loads(answered.text)["id"] == "gm-7" and len(mailbox.sent) == 1
-    assert await is_ours(uow, CTX.tenant_id, {"marker": mailbox.sent[0]["marker"]}, since=NOW)
+    assert await is_ours(uow, CTX, {"marker": mailbox.sent[0]["marker"]}, since=NOW)
 
 
 def test_every_send_goes_through_the_one_helper() -> None:

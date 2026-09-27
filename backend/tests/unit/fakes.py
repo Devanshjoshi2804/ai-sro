@@ -1967,9 +1967,12 @@ class FakeToolCallRepository:
         self.claimed.pop(where, None)
         self.when.pop(where, None)
 
-    async def held(self, tenant_id: TenantId, key: str, *, since: datetime) -> bool:
+    async def held(
+        self, tenant_id: TenantId, key: str, *, since: datetime, tool: str | None = None
+    ) -> bool:
         at = self.when.get((tenant_id.value, key))
-        return at is not None and at >= since
+        mine = tool is None or self.claimed.get((tenant_id.value, key)) == tool
+        return at is not None and at >= since and mine
 
 
 def _read_clock(said: str) -> datetime | None:

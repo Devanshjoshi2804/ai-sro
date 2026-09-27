@@ -72,7 +72,9 @@ Code: `K_BODY = 2000`
 > A SENT mail this system sent is left out first: one that carries the
 > `X-SRO-Marker` header, or whose id or marker holds a `sent_key`. The look's
 > `mail_key` read-claim alone never leaves it out -- the look reads the
-> operator's own Send too.
+> operator's own Send too -- except a row written with the tool `K_OURS`: that
+> is a send from before `sent_key` (`mail_key(id)`, or main's
+> `mail:{operator}:{id}`), never recipient-checked, so it stays ours.
 
 ## `send_the_mail`, [line 179](../../../../../../../backend/src/sro/application/execution/mail_job.py#L179): Docstring
 

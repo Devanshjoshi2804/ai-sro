@@ -1108,14 +1108,17 @@ class SqlToolCallRepository(ToolCallRepository):
             )
         )
 
-    async def held(self, tenant_id: TenantId, key: str, *, since: datetime) -> bool:
-        found = await self._session.scalar(
-            select(ToolCallRow.idempotency_key).where(
-                ToolCallRow.tenant_id == tenant_id.value,
-                ToolCallRow.idempotency_key == key,
-                ToolCallRow.claimed_at >= since,
-            )
+    async def held(
+        self, tenant_id: TenantId, key: str, *, since: datetime, tool: str | None = None
+    ) -> bool:
+        query = select(ToolCallRow.idempotency_key).where(
+            ToolCallRow.tenant_id == tenant_id.value,
+            ToolCallRow.idempotency_key == key,
+            ToolCallRow.claimed_at >= since,
         )
+        if tool is not None:
+            query = query.where(ToolCallRow.tool == tool)
+        found = await self._session.scalar(query)
         return found is not None
 
 

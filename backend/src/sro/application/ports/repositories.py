@@ -345,7 +345,9 @@ class ToolCallRepository(Protocol):
 
     async def forget(self, tenant_id: TenantId, key: str) -> None: ...
 
-    async def held(self, tenant_id: TenantId, key: str, *, since: datetime) -> bool: ...
+    async def held(
+        self, tenant_id: TenantId, key: str, *, since: datetime, tool: str | None = None
+    ) -> bool: ...
 
 
 class GestureRepository(Protocol):

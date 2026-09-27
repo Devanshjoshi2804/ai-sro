@@ -237,7 +237,7 @@ class FromTheMail:
             return None
         if await is_ours(
             self._uow,
-            ctx.tenant_id,
+            ctx,
             {"id": message, "marker": marker},
             since=datetime.now(tz=UTC) - K_REMEMBER,
         ):

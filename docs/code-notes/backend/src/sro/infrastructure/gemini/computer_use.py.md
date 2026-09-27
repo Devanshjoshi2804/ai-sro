@@ -15,7 +15,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/gemini/com
 > screenshot's own pixels, because a normalised coordinate silently means a
 > different point on a different viewport.
 
-## module, [line 13](../../../../../../../backend/src/sro/infrastructure/gemini/computer_use.py#L13): Note on the line above
+## module, [line 14](../../../../../../../backend/src/sro/infrastructure/gemini/computer_use.py#L14): Note on the line above
 
 Code: `_ACTIONS: dict[str, ActionKind] = {`
 
@@ -27,7 +27,7 @@ Code: `_ACTIONS: dict[str, ActionKind] = {`
 > coordinates at all, and mapping it onto ``HOVER`` turned "let this finish
 > loading" into a real click at whatever an absent x/y defaulted to.
 
-## module, [line 34](../../../../../../../backend/src/sro/infrastructure/gemini/computer_use.py#L34): Note on the line above
+## module, [line 26](../../../../../../../backend/src/sro/infrastructure/gemini/computer_use.py#L26): Note on the line above
 
 Code: `_EXCLUDED = [`
 
@@ -38,12 +38,23 @@ Code: `_EXCLUDED = [`
 > Navigation is excluded for the reason the step allow-list exists: a gesture
 > demonstrated on one screen must not become "go somewhere else and try there".
 
-## `GeminiVisionDriver`, [line 44](../../../../../../../backend/src/sro/infrastructure/gemini/computer_use.py#L44): Docstring
+## `GeminiVisionDriver`, [line 36](../../../../../../../backend/src/sro/infrastructure/gemini/computer_use.py#L36): Docstring
 
 > The SDK is imported inside the adapter: a deployment that sends nothing
 > to a hosted model should not load one in order to boot.
+>
+> Built from a prompt record, `SIGHT` or `SIGHT_ESCALATED`, not a model name:
+> the words, the model and the destination all come off the record. The
+> escalation to pro is a second record rather than the same record on another
+> model because the eval gate measures a record -- each model is measured
+> separately, and one record run on two models would be two measurements filed
+> under one name.
+>
+> The goal quotes the step's `says` and the run's values, the history is what
+> earlier proposals said, and the visible controls are page text: all three
+> are untrusted and go in fences through `Prompt.evidence`.
 
-## `_from_response`, [line 99](../../../../../../../backend/src/sro/infrastructure/gemini/computer_use.py#L99): Docstring
+## `_from_response`, [line 84](../../../../../../../backend/src/sro/infrastructure/gemini/computer_use.py#L84): Docstring
 
 > The model answers with a function call, or with prose meaning it did not act.
 >
@@ -51,11 +62,11 @@ Code: `_EXCLUDED = [`
 > is not a call is the model declining to name a gesture, and guessing one out
 > of it is exactly the confident-wrong-action this rung is bounded against.
 
-## `_gesture`, [line 125](../../../../../../../backend/src/sro/infrastructure/gemini/computer_use.py#L125): Docstring
+## `_gesture`, [line 110](../../../../../../../backend/src/sro/infrastructure/gemini/computer_use.py#L110): Docstring
 
 > A named call becomes a gesture, or a refusal. Never an approximation.
 
-## `_from_response`, [line 111](../../../../../../../backend/src/sro/infrastructure/gemini/computer_use.py#L111): Comment
+## `_from_response`, [line 96](../../../../../../../backend/src/sro/infrastructure/gemini/computer_use.py#L96): Comment
 
 Code: `said = " ".join(`
 

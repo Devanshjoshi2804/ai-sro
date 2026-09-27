@@ -15,46 +15,6 @@ K_EARNED_RUNS = 3
 
 STATE_BELTS = ("status", "read")
 
-SCREEN_SCHEMA: dict[str, object] = {
-    "type": "object",
-    "properties": {"held": {"type": "boolean"}, "why": {"type": "string"}},
-    "required": ["held", "why"],
-    "propertyOrdering": ["held", "why"],
-}
-
-SCREEN_INSTRUCTIONS = """You are checking whether one step of a warehouse job was actually done.
-You are shown the step, what was sent, what the browser answered, the screen
-text before and after, and the screen after. Answer whether the step HELD --
-whether the thing it was meant to do is now true on the screen -- and say why
-in one sentence. Do not assume success from the absence of an error.
-
-Your sentence must be about the thing the STEP names. Where the step names a
-field, a list or a control, say what that one now shows. If it is empty, or
-you cannot find it on the screen at all, the step did not hold -- whatever
-else on the page looks healthy. A page with no errors on it is not evidence
-that this step did anything, and neither is a button further down being
-visible."""
-
-
-WAY_THROUGH_INSTRUCTIONS = """
-You are checking one step of a warehouse job that changes nothing by itself.
-Its own recording sent no request and put no value anywhere: it opened a menu,
-focused a field, moved to a tab. The sentence describing it was written by
-another model from the recording, and it may be a guess about what the click
-was FOR -- so do not check it.
-
-Check only whether the job can go on. Where you are told `next_step`, that is
-the question: could somebody looking at this screen now do that next thing?
-Answer held=false if they could not -- an error, a sign-in page, a blank or
-half-drawn screen, a dialog or a suggestion list sitting over what they would
-have to use, or a screen that has not brought up the thing the next step needs
-to act on. Answer held=true otherwise, including when the screen looks exactly
-as it did before and the next step can still be done from it. Where there is
-no `next_step`, this is the job's last step: answer held=false only if the
-screen is showing something that plainly went wrong.
-
-Say why in one sentence."""
-
 
 @dataclass(frozen=True, slots=True)
 class StepVerdict:

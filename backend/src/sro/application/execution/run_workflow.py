@@ -67,6 +67,9 @@ from sro.domain.execution.write_plan import (
 )
 from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.trim import path_shape
+from sro.domain.prompts.plan_step import PLAN_STEP, PLAN_STEP_ESCALATED
+from sro.domain.prompts.record import Prompt
+from sro.domain.prompts.see_step import SEE_STEP
 from sro.domain.shared.hosts import (
     origin_of as origin_of_url,
 )
@@ -847,8 +850,6 @@ async def run_workflow(
     channel: Channel,
     device_id: DeviceId,
     asker: Asker,
-    plan_model: str,
-    rescue_model: str,
     live: bool,
     allow_focus: bool,
     watched: bool = False,
@@ -1262,14 +1263,14 @@ async def run_workflow(
                 if primary is not None
                 else None
             )
-            rungs: tuple[tuple[str, str], ...] = (
-                (("evidence", plan_model), ("evidence", rescue_model), ("sight", rescue_model))
+            rungs: tuple[tuple[str, Prompt | None], ...] = (
+                (("evidence", PLAN_STEP), ("evidence", PLAN_STEP_ESCALATED), ("sight", SEE_STEP))
                 if primary is not None
                 else ()
             )
             route = route_for(step, _next_after(ordered, step), by_id)
             if route is not None:
-                rungs = (("route", ""), *rungs)
+                rungs = (("route", None), *rungs)
             signed_in_here = False
             waited_here = False
             never_filled = bool(
@@ -1278,13 +1279,13 @@ async def run_workflow(
                 and set(scaffolding_for(workflow, by_id, write_step=step.order)) & collapsed
             )
             if replay is not None and not run.watched:
-                rungs = (("replay", ""),) if never_filled else (("replay", ""), *rungs)
+                rungs = (("replay", None),) if never_filled else (("replay", None), *rungs)
             elif replay is not None and never_filled:
-                rungs = (("replay", ""),)
+                rungs = (("replay", None),)
             elif replay is not None:
-                rungs = (*rungs, ("replay", ""))
+                rungs = (*rungs, ("replay", None))
             if primary is not None and not mutates:
-                rungs = (*rungs, *((("look", rescue_model),) * K_LOOKS))
+                rungs = (*rungs, *((("look", SEE_STEP),) * K_LOOKS))
             logger.info(
                 "%s step %d %r: rungs %s",
                 run.id,
@@ -1297,7 +1298,7 @@ async def run_workflow(
             refused_already: set[str] = set()
             asked_for_a_browser = False
             stepped_over = False
-            for how, model in rungs:
+            for how, prompt in rungs:
                 if stepped_over:
                     break
                 if how == "look" and (
@@ -1349,7 +1350,6 @@ async def run_workflow(
                             look=before,
                             origin=origin,
                             asker=asker,
-                            model=model,
                             failure=verdict.reason if verdict else None,
                             opened=openings > 0,
                         )
@@ -1367,7 +1367,7 @@ async def run_workflow(
                             starts_on=starts_on if sent_nothing_yet else None,
                             allow_focus=allow_focus,
                             asker=asker,
-                            model=model,
+                            prompt=prompt or PLAN_STEP,
                             failure=verdict.reason if verdict else None,
                             failed_look=after_failed,
                             verified_writes=verified_writes,
@@ -1377,7 +1377,7 @@ async def run_workflow(
                             secret_for=secret_for,
                             opened=openings > 0,
                         )
-                    record.planned_by = proposal.by or model
+                    record.planned_by = proposal.by or (prompt.model if prompt else "")
                     record.before_url = before.url
                     _bill(record, proposal.answer)
                     record.sent = {
@@ -1852,7 +1852,6 @@ async def run_workflow(
                         run_id=run.id,
                         origin=origin,
                         asker=asker,
-                        model=plan_model,
                         next_says=(
                             itinerary[position + 1].step.says
                             if position + 1 < len(itinerary)

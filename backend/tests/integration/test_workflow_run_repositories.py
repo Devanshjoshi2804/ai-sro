@@ -502,8 +502,6 @@ class TestWorkflowRuns:
             SqlUnitOfWork(session_factory),
             channel=None,
             asker=None,
-            plan_model="m",
-            rescue_model="m",
             clock=_Clock(),
             cap_usd=1.0,
             stops=Stops(),

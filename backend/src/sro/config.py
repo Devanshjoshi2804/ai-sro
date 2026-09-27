@@ -169,18 +169,7 @@ class Settings(BaseSettings):
 
     daily_usd_cap: float = -1.0
 
-    gemini_transcription_model: str = "gemini-3.8-flash"
     gemini_embedding_model: str = "gemini-embedding-2"
-
-    gemini_vision_model: str = "gemini-3.8-flash"
-
-    gemini_intent_model: str = "gemini-3.8-flash"
-
-    gemini_interpreter_model: str = "gemini-3.1-pro-preview"
-
-    gemini_plan_model: str = "gemini-3.8-flash"
-
-    gemini_rescue_model: str = "gemini-3.1-pro-preview"
 
     interpretation_enabled: bool = False
 

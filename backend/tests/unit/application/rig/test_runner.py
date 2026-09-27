@@ -60,13 +60,16 @@ from sro.application.execution.stops import Stops
 from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Reply
 from sro.application.shared.refusals import OverCap
-from sro.domain.execution.belts import K_EARNED_RUNS, SCREEN_SCHEMA
+from sro.domain.execution.belts import K_EARNED_RUNS
 from sro.domain.execution.gathering import Found, Gathered
 from sro.domain.execution.learned_step import LearnedStep
-from sro.domain.execution.planning import PLAN_SCHEMA, SIGHT_SCHEMA, Look, Planned
+from sro.domain.execution.planning import Look, Planned
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Action, Body, Call, Gesture, PageMark, Target
+from sro.domain.prompts.check_step import CHECK_SCREEN
+from sro.domain.prompts.plan_step import PLAN_STEP, PLAN_STEP_ESCALATED
+from sro.domain.prompts.see_step import SEE_STEP
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer, ModelSpend
 from sro.domain.skill.checks import signs_in
@@ -81,6 +84,7 @@ from tests.unit.fakes import (
     FakeUnitOfWork,
     FakeWorkflowRepository,
     FakeWorkflowRunRepository,
+    fenced_json,
 )
 
 TENANT = TenantId("acme")
@@ -96,6 +100,14 @@ DEVICE = DeviceId("dev_test")
 # fixture dated on the day it was written lets a run whose `started_at` came
 # from somewhere else agree with it by the calendar.
 STARTED = "2026-03-04T10:00:00+00:00"
+
+FLASH = PLAN_STEP.model
+
+_HELD = Answer(data={"held": True, "why": ""})
+
+_NOT_HELD = Answer(data={"held": False, "why": ""})
+
+PRO = PLAN_STEP_ESCALATED.model
 
 
 def _bare_run(**over: object) -> WorkflowRun:
@@ -994,8 +1006,6 @@ async def _ran(
     approvals: Approvals | None = None,
     run_id: str | None = None,
     items: Sequence[Mapping[str, str]] = (),
-    plan_model: str = "flash",
-    rescue_model: str = "pro",
     earned: bool = False,
     from_step: int = 0,
     cap_usd: float = -1.0,
@@ -1024,8 +1034,6 @@ async def _ran(
             channel=channel,
             device_id=device_id,
             asker=asker,
-            plan_model=plan_model,
-            rescue_model=rescue_model,
             live=live,
             allow_focus=allow_focus,
             watched=watched,
@@ -1123,7 +1131,7 @@ async def test_the_run_is_saved_after_every_step_and_not_only_at_the_end() -> No
     uow = await _fixture()
     workflow = await _workflow(uow)
     channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
     seen: list[int] = []
 
     # Earned before the watch goes on, so the saves counted are this run's.
@@ -1199,7 +1207,7 @@ async def test_a_navigate_gets_to_the_page_and_does_not_spend_the_rescue() -> No
     ]
     moved = next(s for s in channel.sent if s["kind"] == "navigate")
     assert _payload(moved)["url"] == "http://127.0.0.1:63319/form", "the url the model gave"
-    assert run.steps[0].verdict == "held" and run.steps[0].planned_by == "flash", (
+    assert run.steps[0].verdict == "held" and run.steps[0].planned_by == FLASH, (
         "the rescue was never needed"
     )
 
@@ -1260,7 +1268,7 @@ async def test_a_weak_locator_match_succeeds_and_flags_the_step_stale() -> None:
     channel = FakeChannel(
         {**_looks(4), "ui.perform": [_performed("component"), _performed("css_path")]}
     )
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
 
     run = await _ran(uow, workflow, channel=channel, asker=asker, run_id="run_claimed", earned=True)
 
@@ -1289,7 +1297,7 @@ async def test_a_step_found_the_strong_way_again_clears_its_stale_mark() -> None
     channel = FakeChannel(
         {**_looks(4), "ui.perform": [_performed("css_path"), _performed("component")]}
     )
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
 
     run = await _ran(uow, workflow, channel=channel, asker=asker, earned=True)
 
@@ -1373,7 +1381,7 @@ async def test_the_step_budget_is_the_workflows_steps_plus_slack() -> None:
     last = run.steps[-1]
     assert last.order == 3 and last.verdict == "refused", "the budget stopped the last step"
     assert str(budget) in last.reason and "budget" in last.reason
-    assert len([a for a in asker.asked if a["schema"] is PLAN_SCHEMA]) == budget
+    assert len([a for a in asker.asked if a["schema"] == PLAN_STEP.output_schema]) == budget
 
 
 async def test_every_model_call_on_a_run_is_billed_to_its_step() -> None:
@@ -1460,7 +1468,7 @@ async def test_a_step_the_planner_could_not_plan_stops_the_run() -> None:
     run = await _ran(uow, workflow, channel=channel, asker=asker)
 
     assert run.outcome == "stopped"
-    assert [a["model"] for a in asker.asked] == ["flash", "pro"], "step 1 was never planned"
+    assert [a["model"] for a in asker.asked] == [FLASH, PRO], "step 1 was never planned"
     assert not [s for s in channel.sent if s["kind"] == "ui.perform"], "nothing was performed"
     assert run.steps[0].verdict == "failed" and run.steps[0].reason, "it says why"
 
@@ -2605,7 +2613,7 @@ async def test_the_claimed_row_says_what_the_run_is_doing_and_the_arguments_do_n
         started_by="offer",
     )
     channel = FakeChannel({**_looks(2), "ui.perform": [_performed()]})
-    asker = _PerSchemaAsker(plan=_plan("type", None), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", None), verdict=_HELD)
 
     run = await _ran(
         uow,
@@ -2908,7 +2916,7 @@ async def test_a_step_that_only_read_neither_earns_nor_un_earns() -> None:
         workflow.id, run_id="run_old", ord_=0, verified_by="status", at=STARTED
     )
     channel = FakeChannel({**_looks(4), "ui.perform": [_performed()]})
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": False}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_NOT_HELD)
 
     run = await _ran(uow, workflow, channel=channel, asker=asker)
 
@@ -2961,9 +2969,7 @@ def _seen(asker: FakeAsker, which: int) -> dict[str, object]:
 
 
 def _prompt(asker: FakeAsker, which: int) -> dict[str, object]:
-    evidence = _seen(asker, which)["evidence"]
-    assert isinstance(evidence, str)
-    parsed = json.loads(evidence)
+    parsed = fenced_json(_seen(asker, which)["evidence"])
     assert isinstance(parsed, dict)
     return parsed
 
@@ -2991,9 +2997,9 @@ async def test_a_step_is_planned_from_the_page_the_browser_is_on_and_verified_ag
     uow = await _fixture()
     workflow = await _one_step(uow, _ids(uow)[0], says="type the code")
     channel = FakeChannel({**_two_screens(), "ui.perform": [_performed()]})
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": ""}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
 
-    run = await _ran(uow, workflow, channel=channel, asker=asker, plan_model="pro")
+    run = await _ran(uow, workflow, channel=channel, asker=asker)
 
     planned, judged = _prompt(asker, 0), _prompt(asker, 1)
     assert planned["browser"] == {
@@ -3004,7 +3010,9 @@ async def test_a_step_is_planned_from_the_page_the_browser_is_on_and_verified_ag
         "and the picture that came with it"
     )
     assert (judged["screen_before"], judged["screen_after"]) == ("BEFORE-SCREEN", "AFTER-SCREEN")
-    assert [a["model"] for a in asker.asked] == ["pro", "pro"], "the model the caller named"
+    assert [a["model"] for a in asker.asked] == [PLAN_STEP.model, CHECK_SCREEN.model], (
+        "each question on its own record's model"
+    )
     assert (run.steps[0].before_url, run.steps[0].after_url) == (
         "http://127.0.0.1:63319/before",
         "http://127.0.0.1:63319/after",
@@ -3050,7 +3058,7 @@ async def test_the_verifier_is_told_what_the_next_step_has_to_do() -> None:
     judged = next(
         _prompt(asker, i)
         for i, one in enumerate(asker.asked)
-        if "next_step" in str(one["evidence"])
+        if "next_step" in fenced_json(one["evidence"])
     )
     assert judged["next_step"] == "Selects the matching customer type from the grid."
 
@@ -3063,7 +3071,7 @@ async def test_the_planned_command_carries_the_origin_and_the_page_the_run_start
     uow = await _fixture()
     workflow = await _one_step(uow, _ids(uow)[0], says="type the code")
     channel = FakeChannel({**_looks(2), "ui.perform": [_performed()]})
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
 
     await _ran(uow, workflow, channel=channel, asker=asker)
 
@@ -3128,7 +3136,7 @@ async def test_the_look_is_taken_on_the_system_the_step_was_demonstrated_on() ->
     uow = await _fixture()
     workflow = await _one_step(uow, _ids(uow)[0], says="type the code")
     channel = FakeChannel({**_looks(2), "ui.perform": [_performed()]})
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
 
     await _ran(uow, workflow, channel=channel, asker=asker)
 
@@ -3404,7 +3412,7 @@ async def test_the_steps_are_performed_in_the_order_the_workflow_gave_them() -> 
     )
     await uow.workflows.save(workflow)
     channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
-    asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("click"), verdict=_HELD)
 
     run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
 
@@ -3430,7 +3438,7 @@ async def test_a_run_that_died_between_two_steps_leaves_the_finished_one_alone()
     uow = await _fixture()
     workflow = await _workflow(uow)
     channel = _AbortIsGone({**_looks(2), "ui.perform": [_performed()]})
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
 
     stops = _StopsAfterTheFirstStep()
 
@@ -3456,7 +3464,7 @@ async def test_a_stale_step_is_recorded_once_per_step_not_once_per_run() -> None
     """
     uow = await _fixture()
     workflow = await _workflow(uow)
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
 
     # A different code each morning, which is what a job done every morning
     # looks like: the same values twice inside half an hour is a duplicate
@@ -3508,14 +3516,14 @@ async def test_a_failed_step_is_retried_once_with_pro_then_the_run_stops_and_ask
     assert run.steps[0].verdict == "failed"
     # Pro is ASKED -- a failed step gets its stronger second opinion, and that
     # is what "retried with pro" has always meant here.
-    assert [a["model"] for a in asker.asked] == ["flash", "pro"]
+    assert [a["model"] for a in asker.asked] == [FLASH, PRO]
     # And what Pro said is not SENT, because this page has answered that exact
     # command already. The record names the command that actually went out,
     # which is Flash's, rather than crediting Pro with a send that never was.
     assert len([one for one in channel.sent if one["kind"] == "ui.perform"]) == 1, (
         "it sent a command this page had already refused"
     )
-    assert run.steps[0].planned_by == "flash", run.steps[0].planned_by
+    assert run.steps[0].planned_by == FLASH, run.steps[0].planned_by
     assert len(run.steps) == 1, "it stopped rather than carrying on to save"
 
 
@@ -3533,8 +3541,8 @@ async def test_a_read_that_failed_is_still_rescued() -> None:
 
     run = await _ran(uow, workflow, channel=channel, asker=asker)
 
-    assert run.outcome == "held" and run.steps[0].planned_by == "pro"
-    assert [a["model"] for a in asker.asked] == ["flash", "flash", "pro", "flash"], (
+    assert run.outcome == "held" and run.steps[0].planned_by == PRO
+    assert [a["model"] for a in asker.asked] == [FLASH, FLASH, PRO, FLASH], (
         "the verifier stays on the model the caller named; only the plan escalates"
     )
 
@@ -3550,8 +3558,8 @@ async def test_the_pro_rescue_sees_the_page_the_flash_attempt_left_behind() -> N
 
     await _ran(uow, workflow, channel=channel, asker=asker, values={"clientCode": "THIRD"})
 
-    plans = [a for a in asker.asked if a["schema"] is PLAN_SCHEMA]
-    assert [p["model"] for p in plans][:2] == ["flash", "pro"]
+    plans = [a for a in asker.asked if a["schema"] == PLAN_STEP.output_schema]
+    assert [p["model"] for p in plans][:2] == [FLASH, PRO]
     assert plans[0]["images"] == (), "the first attempt has no failed attempt to show"
     images = plans[1]["images"]
     assert isinstance(images, tuple) and len(images) == 1, (
@@ -3577,7 +3585,7 @@ async def test_a_rescue_is_told_what_the_attempt_before_it_failed_with() -> None
 
     await _ran(uow, workflow, channel=channel, asker=asker)
 
-    plans = [a for a in asker.asked if a["schema"] is PLAN_SCHEMA]
+    plans = [a for a in asker.asked if a["schema"] == PLAN_STEP.output_schema]
     assert _prompt(asker, 0)["previous_attempt_failed"] is None
     assert plans[1] is _seen(asker, 2)
     # And the screen's own words ride along with it, which is the rescue's best
@@ -3604,7 +3612,7 @@ async def test_a_rung_that_reached_no_command_leaves_the_previous_rungs_plan_sta
 
     step = run.steps[0]
     assert step.verdict == "failed" and "control_not_found" in step.reason
-    assert step.planned_by == "flash", "Pro never got as far as a command"
+    assert step.planned_by == FLASH, "Pro never got as far as a command"
     assert step.sent is not None and step.sent["kind"] == "ui.perform"
     assert step.result == {
         "ok": False,
@@ -3612,7 +3620,7 @@ async def test_a_rung_that_reached_no_command_leaves_the_previous_rungs_plan_sta
         "matched_by": None,
         "error_kind": "control_not_found",
     }
-    assert [a["model"] for a in asker.asked] == ["flash", "pro"], "Pro was still asked"
+    assert [a["model"] for a in asker.asked] == [FLASH, PRO], "Pro was still asked"
 
 
 # --------------------------------------------------------------------------
@@ -3622,7 +3630,15 @@ async def test_a_rung_that_reached_no_command_leaves_the_previous_rungs_plan_sta
 
 def _sight(x: int = 40, y: int = 30, action: str = "type", value: str | None = "x") -> Answer:
     return Answer(
-        data={"found": True, "x": x, "y": y, "action": action, "value": value, "why": "there"},
+        data={
+            "found": True,
+            "x": x,
+            "y": y,
+            "action": action,
+            "value": value,
+            "points_at": "the_control",
+            "why": "there",
+        },
         cost_usd=0.002,
     )
 
@@ -3738,7 +3754,7 @@ async def test_a_control_neither_rung_could_find_is_found_by_sight_and_the_job_m
     assert first.verdict == "held", first.reason
     assert first.matched_by == "sight" and first.stale is True
     assert first.result == {"ok": True, "status": None, "matched_by": "sight"}
-    assert [a["model"] for a in _by_sight(asker)] == ["pro"]
+    assert [a["model"] for a in _by_sight(asker)] == [SEE_STEP.model]
     [sent] = [s for s in channel.sent if s["kind"] == "ui.perform_at"]
     assert _payload(sent) == {
         "origin": "http://127.0.0.1:63319",
@@ -3747,7 +3763,7 @@ async def test_a_control_neither_rung_could_find_is_found_by_sight_and_the_job_m
         "action": "type",
         "value": "x",
     }
-    assert first.planned_by == "pro"
+    assert first.planned_by == PRO
     assert run.outcome == "held", "the run carried on to the save and held"
 
 
@@ -3778,17 +3794,29 @@ async def test_the_sight_rung_comes_after_both_evidence_rungs_and_not_instead_of
     kinds = [
         "sight" if asked in _by_sight(asker) else "evidence"
         for asked in asker.asked
-        if asked["schema"] is not SCREEN_SCHEMA
+        if asked["schema"] != CHECK_SCREEN.output_schema
     ]
     assert kinds[:3] == ["evidence", "evidence", "sight"]
-    assert [a["model"] for a in asker.asked if a["schema"] is PLAN_SCHEMA][:2] == ["flash", "pro"]
+    assert [a["model"] for a in asker.asked if a["schema"] == PLAN_STEP.output_schema][:2] == [
+        FLASH,
+        PRO,
+    ]
     assert run.steps[0].verdict == "held"
 
 
 async def test_a_point_off_the_screen_or_a_control_not_seen_is_a_step_that_stops() -> None:
     for sight in (
         _sight(x=900, y=30),
-        Answer(data={"found": False, "x": 0, "y": 0, "action": "click", "why": "not here"}),
+        Answer(
+            data={
+                "found": False,
+                "x": 0,
+                "y": 0,
+                "action": "click",
+                "points_at": "nothing",
+                "why": "not here",
+            }
+        ),
     ):
         run, channel, _ = await _run_by_sight(
             sights=[sight], perform_at=[Reply(ok=True, result={"performed": True})]
@@ -3835,7 +3863,7 @@ async def test_an_action_a_point_cannot_take_is_a_step_that_stops() -> None:
         perform_at=[Reply(ok=True, result={"performed": True})],
     )
 
-    assert run.outcome == "stopped" and "'select' is not an action" in run.steps[0].reason
+    assert run.outcome == "stopped" and "does not match its schema" in run.steps[0].reason
     assert not [s for s in channel.sent if s["kind"] == "ui.perform_at"]
 
 
@@ -3906,7 +3934,7 @@ async def test_a_write_that_went_out_is_not_performed_a_second_time() -> None:
 
     assert run.outcome == "stopped"
     assert len([s for s in channel.sent if s["kind"] == "ui.perform"]) == 1, "sent once"
-    assert [a["model"] for a in asker.asked] == ["flash", "flash"], "Pro was never asked"
+    assert [a["model"] for a in asker.asked] == [FLASH, FLASH], "Pro was never asked"
     assert run.steps[0].reason.startswith("state unknown after a write; not retried: ")
 
 
@@ -3922,7 +3950,7 @@ async def test_a_click_the_capture_heard_nothing_from_is_not_clicked_twice() -> 
 
     assert run.outcome == "stopped"
     assert len([s for s in channel.sent if s["kind"] == "ui.perform"]) == 1, "clicked once"
-    assert [a["model"] for a in asker.asked] == ["flash", "flash"], "Pro was never asked"
+    assert [a["model"] for a in asker.asked] == [FLASH, FLASH], "Pro was never asked"
     assert "state unknown" in run.steps[0].reason
     assert (run.steps[0].result or {})["wrote"] is True, "and it counts as a write"
 
@@ -3943,7 +3971,7 @@ async def test_a_click_that_fired_a_read_still_gets_its_rescue() -> None:
 
     run = await _ran(uow, workflow, channel=channel, asker=asker)
 
-    assert run.outcome == "held" and run.steps[0].planned_by == "pro"
+    assert run.outcome == "held" and run.steps[0].planned_by == PRO
     assert len([s for s in channel.sent if s["kind"] == "ui.perform"]) == 2
     assert "wrote" not in (run.steps[0].result or {}), "a completed read is not a write"
 
@@ -3965,7 +3993,7 @@ async def test_a_step_the_evidence_calls_a_read_but_the_model_typed_into_is_no_w
 
     run = await _ran(uow, workflow, channel=channel, asker=asker)
 
-    assert run.outcome == "held" and run.steps[0].planned_by == "pro", "it was rescued"
+    assert run.outcome == "held" and run.steps[0].planned_by == PRO, "it was rescued"
     assert "wrote" not in (run.steps[0].result or {})
 
 
@@ -4263,9 +4291,10 @@ async def test_a_write_nobody_approves_stops_the_run(monkeypatch: pytest.MonkeyP
     # declined and park a second time -- ten more minutes and a bigger bill for
     # an answer that has already been given. One plan means one rung and one
     # wait.
-    assert [a["model"] for a in asker.asked if a["schema"] is PLAN_SCHEMA] == ["flash", "flash"], (
-        "one plan for the read and one for the write: Pro was never asked"
-    )
+    assert [a["model"] for a in asker.asked if a["schema"] == PLAN_STEP.output_schema] == [
+        FLASH,
+        FLASH,
+    ], "one plan for the read and one for the write: Pro was never asked"
 
 
 async def test_a_stop_pressed_during_the_wait_aborts_the_run() -> None:
@@ -4622,7 +4651,7 @@ async def test_only_the_first_step_a_run_performs_may_open_a_tab() -> None:
     workflow = await _workflow(uow)
     _demonstrated_on(uow, workflow.steps[1].cites[0], K_SECOND_SCREEN)
     channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": ""}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
 
     await _ran(uow, workflow, channel=channel, asker=asker, earned=True)
 
@@ -4722,7 +4751,7 @@ async def test_a_run_that_starts_at_the_top_starts_on_the_first_steps_page() -> 
     workflow = await _workflow(uow)
     _demonstrated_on(uow, workflow.steps[1].cites[0], K_SECOND_SCREEN)
     channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": ""}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
 
     await _ran(uow, workflow, channel=channel, asker=asker, earned=True)
 
@@ -4766,14 +4795,14 @@ async def test_the_steps_the_operator_did_buy_no_budget() -> None:
     last = run.steps[-1]
     assert last.order == 4 and last.verdict == "refused"
     assert str(budget) in last.reason, "the operator's step is not slack for the rig"
-    assert len([a for a in asker.asked if a["schema"] is PLAN_SCHEMA]) == budget
+    assert len([a for a in asker.asked if a["schema"] == PLAN_STEP.output_schema]) == budget
 
 
 async def test_a_run_started_past_its_last_step_performs_nothing_and_holds() -> None:
     uow = await _fixture()
     workflow = await _workflow(uow)
     channel = FakeChannel(_looks(2))
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": ""}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
 
     run = await _ran(
         uow,
@@ -4803,9 +4832,7 @@ async def test_a_run_started_past_its_last_step_performs_nothing_and_holds() -> 
 
 def _sight_prompt(asker: FakeAsker) -> dict[str, object]:
     [asked] = _by_sight(asker)
-    evidence = asked["evidence"]
-    assert isinstance(evidence, str)
-    parsed = json.loads(evidence)
+    parsed = fenced_json(asked["evidence"])
     assert isinstance(parsed, dict)
     return parsed
 
@@ -4854,7 +4881,7 @@ async def test_a_press_the_capture_heard_nothing_from_is_a_write_too(
     uow = await _fixture()
     workflow = await _one_step(uow, _silent_press(uow), says="press Enter to submit")
     channel = FakeChannel({**_looks(2), "ui.perform": [_performed()]})
-    asker = _PerSchemaAsker(plan=_plan("press", "Enter"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("press", "Enter"), verdict=_HELD)
 
     run = await _ran(uow, workflow, channel=channel, asker=asker, started_by="offer")
 
@@ -4872,7 +4899,7 @@ async def test_a_tap_that_lands_before_the_wait_starts_is_not_lost(
     uow = await _fixture()
     workflow = await _workflow(uow)
     channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
-    asker = _PerSchemaAsker(plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", "THIRD"), verdict=_HELD)
     approvals = Approvals()
     taps: list[bool] = []
 
@@ -4910,7 +4937,7 @@ async def test_an_approved_step_stops_saying_it_is_waiting_before_the_write_goes
     uow = await _fixture()
     workflow = await _workflow(uow)
     channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
-    asker = _PerSchemaAsker(plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", "THIRD"), verdict=_HELD)
     approvals = Approvals()
     saved = uow.workflow_runs.save
     seen: list[str] = []
@@ -4948,7 +4975,7 @@ async def test_a_run_that_dies_while_it_parks_leaves_nothing_waiting() -> None:
     uow = await _fixture()
     workflow = await _workflow(uow)
     channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
-    asker = _PerSchemaAsker(plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", "THIRD"), verdict=_HELD)
     approvals = Approvals()
 
     saved = uow.workflow_runs.save
@@ -4978,7 +5005,7 @@ async def test_the_operators_steps_are_saved_as_the_run_walks_past_them() -> Non
     uow = await _fixture()
     workflow = await _workflow(uow)
     channel = FakeChannel({**_looks(2), "ui.perform": [_performed()]})
-    asker = _PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("click"), verdict=_HELD)
     seen: list[int] = []
 
     await _earn(uow, workflow)
@@ -5149,8 +5176,6 @@ async def test_a_step_that_wants_a_password_keeps_saying_so_after_the_rung_gives
             # The model is asked first and plans the typing; the refusal comes
             # after, from the vault having nothing under the key.
             asker=FakeAsker(_plan("type", "x")),
-            plan_model="flash",
-            rescue_model="pro",
             live=True,
             allow_focus=True,
             started_by="form",
@@ -5196,8 +5221,6 @@ async def test_the_password_asked_for_is_the_one_for_the_page_in_front_of_them()
             channel=FakeChannel(_bounced_to("https://keycloak.example/auth", ours=True)),
             device_id=DEVICE,
             asker=FakeAsker(_plan("type", "x")),
-            plan_model="flash",
-            rescue_model="pro",
             live=True,
             allow_focus=True,
             started_by="form",
@@ -5285,7 +5308,7 @@ async def test_a_step_with_nothing_to_fill_is_skipped_rather_than_emptied() -> N
         uow,
         workflow,
         channel=FakeChannel({**_looks(8), "ui.perform": [_performed()] * 4}),
-        asker=_PerSchemaAsker(plan=_plan("type", "A"), verdict=Answer(data={"held": True})),
+        asker=_PerSchemaAsker(plan=_plan("type", "A"), verdict=_HELD),
         values={"code": "A"},
         earned=True,
     )
@@ -5341,7 +5364,7 @@ async def test_a_run_holding_no_value_at_all_skips_nothing() -> None:
         uow,
         workflow,
         channel=FakeChannel({**_looks(6), "ui.perform": [_performed()] * 3}),
-        asker=_PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True})),
+        asker=_PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD),
         values={},
         earned=True,
     )
@@ -5411,7 +5434,7 @@ async def test_a_step_naming_the_body_key_still_finds_its_parameter() -> None:
         uow,
         workflow,
         channel=FakeChannel({**_looks(8), "ui.perform": [_performed()] * 4}),
-        asker=_PerSchemaAsker(plan=_plan("type", "A"), verdict=Answer(data={"held": True})),
+        asker=_PerSchemaAsker(plan=_plan("type", "A"), verdict=_HELD),
         values={"Customer Type": "A"},
         earned=True,
     )
@@ -5450,7 +5473,7 @@ async def test_a_tail_two_parameters_share_names_neither_of_them() -> None:
         uow,
         workflow,
         channel=FakeChannel({**_looks(4), "ui.perform": [_performed()]}),
-        asker=_PerSchemaAsker(plan=_plan("type", "a"), verdict=Answer(data={"held": True})),
+        asker=_PerSchemaAsker(plan=_plan("type", "a"), verdict=_HELD),
         values={},
         earned=True,
     )
@@ -5471,7 +5494,7 @@ async def test_a_step_that_names_no_parameter_is_never_skipped() -> None:
         uow,
         workflow,
         channel=FakeChannel({**_looks(4), "ui.perform": [_performed()]}),
-        asker=_PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True})),
+        asker=_PerSchemaAsker(plan=_plan("click"), verdict=_HELD),
         values={},
         earned=True,
     )
@@ -5511,7 +5534,7 @@ async def test_a_step_half_answered_still_does_its_work() -> None:
         uow,
         workflow,
         channel=FakeChannel({**_looks(4), "ui.perform": [_performed()]}),
-        asker=_PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True})),
+        asker=_PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD),
         values={"note": "x"},
         earned=True,
     )
@@ -5558,7 +5581,7 @@ async def test_a_field_the_page_never_marked_does_not_stop_a_run() -> None:
         uow,
         workflow,
         channel=FakeChannel({**_looks(8), "ui.perform": [_performed()] * 4}),
-        asker=_PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True, "why": ""})),
+        asker=_PerSchemaAsker(plan=_plan("click"), verdict=_HELD),
         values={},
         earned=True,
         gather_values=_gather,
@@ -5631,8 +5654,6 @@ async def test_the_password_planned_for_is_never_keyed_to_somebody_else_s_window
             channel=FakeChannel(_bounced_to("https://someone-elses-tab.example/x", ours=False)),
             device_id=DEVICE,
             asker=FakeAsker(_plan("type", "x")),
-            plan_model="flash",
-            rescue_model="pro",
             live=True,
             allow_focus=True,
             started_by="form",
@@ -5698,8 +5719,6 @@ async def test_no_credential_goes_out_for_a_page_this_run_never_opened() -> None
             asker=_PerSchemaAsker(
                 plan=_plan("click"), verdict=Answer(data={"held": False, "why": "not there"})
             ),
-            plan_model="flash",
-            rescue_model="pro",
             live=True,
             allow_focus=True,
             started_by="form",
@@ -6144,7 +6163,7 @@ async def test_a_call_the_ledger_has_not_watched_is_still_the_models_to_plan() -
 
     run = await _ran(uow, workflow, channel=channel, asker=asker, values={}, earned=True)
 
-    assert run.steps[0].planned_by == "flash", "the plan model planned it"
+    assert run.steps[0].planned_by == FLASH, "the plan model planned it"
     assert asker.asked, "and it was actually asked"
 
 
@@ -6175,7 +6194,7 @@ async def test_a_replay_that_comes_back_refused_still_falls_to_the_model() -> No
     )
 
     assert [one["kind"] for one in channel.sent].count("http.send") == 1, "the replay went out"
-    assert run.steps[0].planned_by == "flash", "and the click that followed was the model's"
+    assert run.steps[0].planned_by == FLASH, "and the click that followed was the model's"
     assert run.outcome == "held"
 
 
@@ -6873,7 +6892,7 @@ async def test_a_step_that_only_arrives_goes_straight_there() -> None:
     assert customers in run.steps[0].reason
     # And nothing was asked about it: the first plan a model saw was the step
     # after this one.
-    assert not [one for one in asker.asked if one["schema"] is SIGHT_SCHEMA]
+    assert not [one for one in asker.asked if one["schema"] == SEE_STEP.output_schema]
 
 
 # --- a screen answered with as many clicks as it takes -----------------------
@@ -7265,7 +7284,7 @@ async def _ran_where_the_page_went(
             "ui.perform": [_performed(), *[gone] * 8],
         }
     )
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": ""}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
 
     return await _ran(
         uow, workflow, channel=channel, asker=asker, values={}, earned=True, approvals=approvals
@@ -7319,7 +7338,7 @@ async def test_a_sign_in_whose_page_is_gone_asks_rather_than_calling_itself_done
             ],
         }
     )
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": ""}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
     approvals = Approvals()
 
     task = asyncio.create_task(
@@ -7356,7 +7375,7 @@ async def test_a_sign_in_that_never_found_its_page_still_asks() -> None:
             * 5,
         }
     )
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True, "why": ""}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
     approvals = Approvals()
 
     task = asyncio.create_task(
@@ -8069,7 +8088,7 @@ async def test_the_body_is_done_once_for_each_thing_on_the_list() -> None:
             "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
         }
     )
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
 
     run = await _ran(
         uow,
@@ -8105,7 +8124,7 @@ async def test_each_thing_is_finished_before_the_next_is_started() -> None:
             "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
         }
     )
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
 
     run = await _ran(
         uow,
@@ -8138,7 +8157,7 @@ async def test_one_thing_on_the_list_is_the_job_it_always_was() -> None:
             "calls.since": [Reply(ok=True, result={"calls": []})] * 2,
         }
     )
-    asker = _PerSchemaAsker(plan=_plan("type", "ONE"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", "ONE"), verdict=_HELD)
 
     run = await _ran(
         uow,
@@ -8168,7 +8187,7 @@ async def test_each_thing_gets_its_own_write_claim() -> None:
             "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
         }
     )
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
 
     run = await _ran(
         uow,
@@ -8219,7 +8238,7 @@ async def test_what_the_operator_already_did_was_done_once_not_once_per_thing() 
             "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
         }
     )
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
 
     run = await _ran(
         uow,
@@ -8266,7 +8285,7 @@ async def test_a_long_list_reads_the_days_bill_again_and_stops_when_it_is_spent(
         """Somebody else's bill arriving mid-run."""
 
         def __init__(self) -> None:
-            super().__init__(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+            super().__init__(plan=_plan("type", "x"), verdict=_HELD)
             # Not `asked`: the parent keeps the calls it was given under that
             # name, and shadowing it turns a list into a counter three frames
             # from here.
@@ -8319,7 +8338,7 @@ async def test_a_cap_the_meter_refuses_mid_step_stops_the_run_like_the_leg_check
         uow,
         workflow,
         channel=FakeChannel({**_looks(4)}),
-        asker=_Refused(plan=_plan("type", "x"), verdict=Answer(data={"held": True})),
+        asker=_Refused(plan=_plan("type", "x"), verdict=_HELD),
     )
 
     assert run.outcome == "stopped"
@@ -8388,7 +8407,7 @@ async def test_one_tap_answers_for_the_whole_list() -> None:
             "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
         }
     )
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
     approvals = _CountsTheAsks()
     answering = True
 
@@ -8445,7 +8464,7 @@ async def test_a_second_run_of_the_same_list_asks_again(monkeypatch: pytest.Monk
             "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
         }
     )
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
 
     # Nobody taps. The first write parks and the run fails waiting, which is
     # what a fresh list does with no answer -- the previous test's yes is not
@@ -8459,8 +8478,6 @@ async def test_a_second_run_of_the_same_list_asks_again(monkeypatch: pytest.Monk
             channel=channel,
             device_id=DEVICE,
             asker=asker,
-            plan_model="flash",
-            rescue_model="pro",
             live=True,
             allow_focus=True,
             started_by="form",
@@ -8500,7 +8517,7 @@ async def test_a_wrong_list_costs_one_record_and_not_twenty(
             "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
         }
     )
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
 
     # Earned, so the write gate does not ask: what is under test is the gate
     # AFTER the first thing, which asks whether a job that can write unasked
@@ -8537,7 +8554,7 @@ async def test_even_a_job_that_has_earned_its_autonomy_is_asked_after_the_first(
             "calls.since": [Reply(ok=True, result={"calls": []})] * 6,
         }
     )
-    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", "x"), verdict=_HELD)
     approvals = _CountsTheAsks()
 
     run = await _ran(uow, workflow, channel=channel, asker=asker, items=items, approvals=approvals)
@@ -8759,7 +8776,7 @@ async def test_the_planner_is_given_the_value_under_the_name_the_page_uses() -> 
     )
     await uow.workflows.save(workflow)
 
-    asker = _PerSchemaAsker(plan=_plan("type", "NEX"), verdict=Answer(data={"held": True}))
+    asker = _PerSchemaAsker(plan=_plan("type", "NEX"), verdict=_HELD)
     await _ran(
         uow,
         workflow,
@@ -8825,7 +8842,7 @@ async def test_a_delete_the_operator_demonstrated_goes_out_as_one_call() -> None
         uow,
         workflow,
         channel=channel,
-        asker=_PerSchemaAsker(plan=_replay(), verdict=Answer(data={"held": True})),
+        asker=_PerSchemaAsker(plan=_replay(), verdict=_HELD),
         values={"Customer Type": "MRN1"},
         earned=True,
     )
@@ -8845,7 +8862,7 @@ class _ScreenSays(_ByRungAsker):
     after each move, then `held` once the queue is spent."""
 
     def __init__(self, sights: list[Answer], verdicts: list[Answer]) -> None:
-        super().__init__([_plan("type", "x")] * 4, sights, Answer(data={"held": True}))
+        super().__init__([_plan("type", "x")] * 4, sights, Answer(data={"held": True, "why": ""}))
         self.verdicts = list(verdicts)
 
     async def ask(self, **asked: object) -> Answer:
@@ -8895,7 +8912,7 @@ async def test_a_step_the_screen_failed_is_worked_out_with_the_verifiers_own_wor
     assert first.verdict == "held", first.reason
     assert first.matched_by == "sight"
     assert len([s for s in channel.sent if s["kind"] == "ui.perform_at"]) == 1
-    asked = json.loads(str(_by_sight(asker)[0]["evidence"]))
+    asked = fenced_json(_by_sight(asker)[0]["evidence"])
     assert "still empty" in str(asked["previous_attempt_failed"]), (
         "the look was not told what the screen said was wrong"
     )
@@ -9161,7 +9178,7 @@ async def test_a_delete_done_on_screen_earns_the_job_by_its_status() -> None:
         uow,
         workflow,
         channel=channel,
-        asker=_PerSchemaAsker(plan=_plan("click"), verdict=Answer(data={"held": True})),
+        asker=_PerSchemaAsker(plan=_plan("click"), verdict=_HELD),
         values={"Customer Type": "MRN1"},
         # Somebody is watching, so the step is performed on the screen and the
         # call is only the fallback -- which is how the panel runs every job.

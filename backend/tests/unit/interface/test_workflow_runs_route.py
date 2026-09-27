@@ -79,9 +79,6 @@ CAP = 3.25
 """Not the shipped 5.0, so a door wired to a default rather than to the
 container's settings answers 200 where this expects 429."""
 
-PLAN = "gemini-3.8-flash-preview-rig"
-RESCUE = "gemini-3.1-pro-preview-rig"
-
 
 class _Attached:
     """A browser holding a command channel. Nothing is sent down it here."""
@@ -135,8 +132,6 @@ def container(uow: FakeUnitOfWork, spawned: _Spawned) -> _FakeContainer:
     built = _FakeContainer(uow)
     built.settings = Settings(
         daily_usd_cap=CAP,
-        gemini_plan_model=PLAN,
-        gemini_rescue_model=RESCUE,
         _env_file=None,
     )
     # A deployment that has a model. `_FakeContainer` ships `None`, which is
@@ -833,18 +828,15 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
     }
 
 
-def test_the_container_plans_on_one_model_and_rescues_on_the_other(
+def test_the_container_builds_the_starter_on_the_cap_and_the_shared_registers(
     container: _FakeContainer,
 ) -> None:
-    """A clean step never touches the expensive model, and the two settings are
-    one letter apart in the container. Read off the built use case rather than
-    driven through a run, because which model plans is only visible on a model
-    call and every one of those is `test_runner.py`'s.
+    """Read off the built use case rather than driven through a run. Which model
+    plans is no longer a setting the container passes: it is on the prompt
+    records, and every model call is `test_runner.py`'s.
     """
     starter = container.start_workflow_run()
 
-    assert starter._plan_model == PLAN
-    assert starter._rescue_model == RESCUE
     assert starter._cap_usd == CAP
     # The process-wide registers, not new ones: a tap or a stop arriving on
     # another route sets the register this run is waiting on.

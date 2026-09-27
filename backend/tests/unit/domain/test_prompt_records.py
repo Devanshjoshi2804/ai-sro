@@ -4,17 +4,45 @@ import re
 
 import pytest
 
+from sro.domain.prompts.check_step import CHECK_SCREEN, CHECK_WAY_THROUGH
 from sro.domain.prompts.gather import GATHER
+from sro.domain.prompts.interpret import INTERPRET, JUDGE_SKILL, NAME_SKILL
 from sro.domain.prompts.is_it_an_answer import IS_IT_AN_ANSWER
 from sro.domain.prompts.mine import MINE
 from sro.domain.prompts.plan_lookup import PLAN_LOOKUP
+from sro.domain.prompts.plan_step import PLAN_STEP, PLAN_STEP_ESCALATED
 from sro.domain.prompts.read_gesture import READ_GESTURE
 from sro.domain.prompts.read_request import READ_REQUEST
+from sro.domain.prompts.read_sentence import EXTRACT_VALUES, READ_SENTENCE
 from sro.domain.prompts.record import UNTRUSTED_RULE, Prompt, conforms, fenced, quoted_in
+from sro.domain.prompts.see_step import SEE_STEP
+from sro.domain.prompts.sight import SIGHT, SIGHT_ESCALATED
+from sro.domain.prompts.transcribe import TRANSCRIBE
 from sro.domain.prompts.write_mail import WRITE_MAIL
 from sro.domain.skill.umbrella import mining_blocks
 
-RECORDS = (MINE, READ_GESTURE, READ_REQUEST, IS_IT_AN_ANSWER, PLAN_LOOKUP, WRITE_MAIL, GATHER)
+RECORDS = (
+    MINE,
+    READ_GESTURE,
+    READ_REQUEST,
+    IS_IT_AN_ANSWER,
+    PLAN_LOOKUP,
+    WRITE_MAIL,
+    GATHER,
+    PLAN_STEP,
+    PLAN_STEP_ESCALATED,
+    SEE_STEP,
+    CHECK_SCREEN,
+    CHECK_WAY_THROUGH,
+    READ_SENTENCE,
+    EXTRACT_VALUES,
+    SIGHT,
+    SIGHT_ESCALATED,
+    INTERPRET,
+    NAME_SKILL,
+    JUDGE_SKILL,
+    TRANSCRIBE,
+)
 
 
 @pytest.mark.parametrize("prompt", RECORDS, ids=lambda one: one.name)

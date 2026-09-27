@@ -10,7 +10,7 @@ Code: `model="gemini-3.8-flash",`
 > reading`, called once per gesture, hundreds a day. The rig's own
 > `intent_model` (`new_agent_arch/src/rig/config.py:19`); it was the setting
 > `gemini_read_model` until the prompts became records, renamed there
-> because `gemini_intent_model` in `config.py` already names an
+> because `gemini_intent_model` in `config.py` then named an
 > unrelated door -- reading one sentence out of a chat message, not one
 > gesture out of a browser.
 >

@@ -538,12 +538,13 @@ Code: `daily_usd_cap: float = -1.0`
 > and works: a deployment that wants a ceiling sets one, and `over_cap` still
 > says how much of what. What is gone is a ceiling nobody chose.
 
-## `Settings`, [line 173](../../../../../backend/src/sro/config.py#L173): Note on the line above
+## `Settings`, [line 172](../../../../../backend/src/sro/config.py#L172): Note on the line above
 
 Code: `gemini_embedding_model: str = "gemini-embedding-2"`
 
 > The one model here that is not a chat model and cannot be one. Priced
-> separately in `prices.py`; everything else on this list is `3.8-flash`.
+> separately in `prices.py`. Every chat model is on its prompt record in
+> `sro.domain.prompts`, not here: an embedding is not a prompt.
 >
 > **Changing this makes every stored vector meaningless.** A distance between
 > a vector from one model and a vector from another is noise, not a near
@@ -558,56 +559,7 @@ Code: `gemini_embedding_model: str = "gemini-embedding-2"`
 > arrives with no migration on `knowledge_entries.embedding`, no rebuild of
 > the HNSW index that only landed in 0050, and one re-embed.
 
-## `Settings`, [line 175](../../../../../backend/src/sro/config.py#L175): Note on the line above
-
-Code: `gemini_vision_model: str = "gemini-3.8-flash"`
-
-> Computer use is native here rather than a separate specialised model.
-> Checked against the account rather than assumed: the standalone
-> `gemini-2.5-computer-use-preview` still answers, and this one accepts the
-> same tool while being the model everything else already uses.
-
-## `Settings`, [line 177](../../../../../backend/src/sro/config.py#L177): Note on the line above
-
-Code: `gemini_intent_model: str = "gemini-3.8-flash"`
-
-> Chat: reading one sentence, extracting values. An operator is waiting, so
-> this is the fast one -- measured at ~2.3s against ~4.8s for the pro model,
-> for a job where the answer is checked against the skills that exist anyway.
-
-## `Settings`, [line 179](../../../../../backend/src/sro/config.py#L179): Note on the line above
-
-Code: `gemini_interpreter_model: str = "gemini-3.1-pro-preview"`
-
-> Reading a demonstration into a workflow, once per induction. Nobody is
-> watching the clock, being wrong is expensive and lasting, and the reading is
-> what an operator will see for the life of the skill -- so this is the
-> reasoning model. It cannot enable computer use, and does not need to.
-
-## `Settings`, [line 181](../../../../../backend/src/sro/config.py#L181): Note on the line above
-
-Code: `gemini_plan_model: str = "gemini-3.8-flash"`
-
-> What plans each step of a workflow run.
->
-> Three settings above were `gemini-3.7-flash` until 2026-09-15 -- the
-> transcription, the vision rung and the chat door -- and `3.7-flash` is not
-> in `prices.py`. So every call on those three recorded `cost_usd = 0.0` and
-> the day's spend read lower than it was, which is the exact failure
-> `prices.py` opens by describing. They are on the model the rest of the
-> system already uses and the bakeoff already measured. The rig's `plan_model`
-> (`config.py:41`). Deliberately the fast model: a run plans once per step and
-> a slow plan is felt by an operator standing at a screen.
-
-## `Settings`, [line 183](../../../../../backend/src/sro/config.py#L183): Note on the line above
-
-Code: `gemini_rescue_model: str = "gemini-3.1-pro-preview"`
-
-> What re-plans a step the plan model got wrong. The rig's `rescue_model`
-> (`config.py:45`). The expensive model earns its price here and not above:
-> it is asked once per failure, not once per step.
-
-## `Settings`, [line 185](../../../../../backend/src/sro/config.py#L185): Note on the line above
+## `Settings`, [line 174](../../../../../backend/src/sro/config.py#L174): Note on the line above
 
 Code: `interpretation_enabled: bool = False`
 
@@ -617,7 +569,7 @@ Code: `interpretation_enabled: bool = False`
 > becomes a skill -- with mechanical step descriptions and no proposed
 > parameters.
 
-## `Settings`, [line 187](../../../../../backend/src/sro/config.py#L187): Note on the line above
+## `Settings`, [line 176](../../../../../backend/src/sro/config.py#L176): Note on the line above
 
 Code: `vision_enabled: bool = False`
 
@@ -635,7 +587,7 @@ Code: `vision_enabled: bool = False`
 > `keycloak_client_secret`, documenting nothing -- a second orphan of the same
 > move this docstring already records.)
 
-## `Settings`, [line 189](../../../../../backend/src/sro/config.py#L189): Note on the line above
+## `Settings`, [line 178](../../../../../backend/src/sro/config.py#L178): Note on the line above
 
 Code: `keycloak_realm_url: str = ""`
 
@@ -644,7 +596,7 @@ Code: `keycloak_realm_url: str = ""`
 > Empty means no token source: runs authenticate with the session cookies,
 > which work and expire on the identity provider's schedule.
 
-## `Settings`, [line 193](../../../../../backend/src/sro/config.py#L193): Note on the line above
+## `Settings`, [line 182](../../../../../backend/src/sro/config.py#L182): Note on the line above
 
 Code: `keycloak_client_secret: str = ""`
 
@@ -653,7 +605,7 @@ Code: `keycloak_client_secret: str = ""`
 > -- so this is set when the realm says the client is confidential rather
 > than guessed at.
 
-## `Settings`, [line 194](../../../../../backend/src/sro/config.py#L194): Note on the line above
+## `Settings`, [line 183](../../../../../backend/src/sro/config.py#L183): Note on the line above
 
 Code: `knowledge_embeddings_enabled: bool = False`
 

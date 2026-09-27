@@ -7,6 +7,7 @@ rather than a capability, and should be redesigned before it gets an adapter.
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 import sys
 from collections import Counter
@@ -17,6 +18,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from itertools import count
 from types import MappingProxyType
+from typing import Any
 
 from sro.application.context import RequestContext
 from sro.application.execution.execute_skill import ExecuteSkill, ExecutionRequest
@@ -3269,6 +3271,15 @@ class FakeIntentParser:
     async def read(self, utterance: str, *, after: str = "") -> Reading:
         self.asked.append(utterance)
         return self._reading
+
+
+def fenced_block(evidence: object, name: str = "evidence") -> str:
+    assert isinstance(evidence, str)
+    return evidence.split(f'<untrusted name="{name}">\n', 1)[1].split("\n</untrusted>", 1)[0]
+
+
+def fenced_json(evidence: object, name: str = "evidence") -> Any:
+    return json.loads(fenced_block(evidence, name))
 
 
 class FakeAsker:

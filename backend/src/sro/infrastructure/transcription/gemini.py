@@ -5,38 +5,13 @@ import logging
 from typing import Any
 
 from sro.application.ports.transcription import TranscribedSegment
+from sro.domain.prompts.transcribe import TRANSCRIBE
 
 logger = logging.getLogger(__name__)
 
-_PROMPT = (
-    "Transcribe this narration of a warehouse operator demonstrating a task. "
-    "Return every utterance with its start and end offset in milliseconds. "
-    "Transcribe only what is said: do not summarise, infer, or add steps."
-)
-
-_SCHEMA: dict[str, object] = {
-    "type": "object",
-    "properties": {
-        "segments": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "start_ms": {"type": "integer"},
-                    "end_ms": {"type": "integer"},
-                    "text": {"type": "string"},
-                },
-                "required": ["start_ms", "end_ms", "text"],
-            },
-        }
-    },
-    "required": ["segments"],
-}
-
 
 class GeminiTranscriber:
-    def __init__(self, model: str, *, client: Any) -> None:
-        self._model = model
+    def __init__(self, *, client: Any) -> None:
         self._client = client
 
     @property
@@ -49,14 +24,14 @@ class GeminiTranscriber:
         from google.genai import types
 
         response = await self._client.aio.models.generate_content(
-            model=self._model,
+            model=TRANSCRIBE.model,
             contents=[
-                _PROMPT,
+                TRANSCRIBE.instructions,
                 types.Part.from_bytes(data=audio, mime_type=content_type.split(";")[0].strip()),
             ],
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
-                response_schema=_SCHEMA,
+                response_schema=dict(TRANSCRIBE.output_schema),
             ),
         )
         return _parse(response.text)

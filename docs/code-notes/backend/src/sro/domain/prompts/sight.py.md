@@ -1,0 +1,28 @@
+# Notes for `backend/src/sro/domain/prompts/sight.py`
+
+Notes on [`backend/src/sro/domain/prompts/sight.py`](../../../../../../../backend/src/sro/domain/prompts/sight.py). Each note names the code it explains (function or class, then the line in the current file).
+
+## module, [line 22](../../../../../../../backend/src/sro/domain/prompts/sight.py#L22): Note on the line above
+
+Code: `SIGHT = Prompt(`
+
+> One gesture from the computer-use tool, for the sight lane. It was
+> `_INSTRUCTIONS` in `sro.infrastructure.gemini.computer_use`, one paragraph,
+> so its first sentence is the role. The line the adapter added after the
+> evidence -- coordinates are 0-1000 -- is prompt text too, and is the task's
+> last paragraph now.
+>
+> `output_schema` is empty: computer use answers with a function call, not JSON,
+> and a JSON schema beside the tool is refused with a 400.
+>
+> Computer use is native here rather than a separate specialised model.
+> Checked against the account rather than assumed: the standalone
+> `gemini-2.5-computer-use-preview` still answers, and this one accepts the
+> same tool while being the model everything else already uses.
+
+## module, [line 51](../../../../../../../backend/src/sro/domain/prompts/sight.py#L51): Note on the line above
+
+Code: `SIGHT_ESCALATED = replace(SIGHT, name="sight_escalated", model="gemini-3.1-pro-preview")`
+
+> The one escalation to pro (runtime GC 14). A second record, not a model
+> argument: see `GeminiVisionDriver` in `computer_use.py.md`.

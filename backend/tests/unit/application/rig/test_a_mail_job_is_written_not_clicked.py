@@ -22,6 +22,7 @@ from typing import Any
 import pytest
 
 from sro.application.chat.ask_the_asker import DRAFTED, SendTheDraft
+from sro.application.chat.mailbox import mail_key
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
 from sro.application.execution.gather import GatherContext
@@ -405,6 +406,25 @@ async def test_a_send_that_cannot_be_tied_to_one_sent_mail_grants_nobody(
     thread: list[dict[str, object]],
 ) -> None:
     assert isinstance(await _write(_Mailbox(thread), "vendor@supplier.example"), Unaddressed)
+
+
+@pytest.mark.parametrize("claimed", ["s-ours", "mk-ours"])
+async def test_mail_this_system_sent_is_never_the_demonstrated_send(claimed: str) -> None:
+    """A SENT mail in the window that this system sent -- claimed by its id,
+    or by the marker claimed before it was sent -- is not the operator's
+    demonstration: it is left out, and the operator's own send is the one."""
+    uow = FakeUnitOfWork()
+    async with uow as unit:
+        await unit.tool_calls.remember(
+            f.TENANT, mail_key(claimed), tool="ours", at=datetime.fromtimestamp(CLICKED_AT, UTC)
+        )
+    ours = {**_sent_copy(after=1.0, to="mallory@evil.example"), "id": "s-ours", "marker": "mk-ours"}
+    mailbox = _Mailbox([ours, _sent_copy(to="vendor@supplier.example")])
+
+    assert isinstance(await _write(mailbox, "vendor@supplier.example", uow=uow), Written)
+    assert isinstance(await _write(mailbox, "mallory@evil.example", uow=uow), Unaddressed)
+    only_ours = _Mailbox([ours])
+    assert isinstance(await _write(only_ours, "mallory@evil.example", uow=uow), Unaddressed)
 
 
 async def test_a_send_whose_call_names_no_thread_grants_nobody() -> None:

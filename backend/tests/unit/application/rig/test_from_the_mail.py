@@ -28,7 +28,7 @@ from sro.application.chat.from_the_mail import (
     _page_of,
 )
 from sro.application.chat.look_lately import LookInTheMailLately
-from sro.application.chat.mailbox import SERVER
+from sro.application.chat.mailbox import SERVER, mail_key
 from sro.application.context import RequestContext
 from sro.application.execution.mail_job import Written, send_the_mail
 from sro.application.execution.workflow_runs import RunRefused, StartWorkflowRun
@@ -1458,6 +1458,41 @@ async def test_a_mail_this_system_sent_answers_no_question(kind: str) -> None:
     assert saved is not None
     assert "answered" not in saved.progress["asking"]
     assert durable.answered == []
+
+
+@pytest.mark.parametrize(("claimed", "answers"), [(True, False), (False, True)])
+async def test_a_mail_read_before_its_send_came_back_is_known_by_its_marker(
+    claimed: bool, answers: bool
+) -> None:
+    """The gap: Gmail has the mail and the look lists it before the send has
+    answered with its id. It carries the marker claimed before it was sent, so
+    it is known as this system's own; a marker nobody claimed (forged, or
+    another system's) is just a header, and the mail is read as usual."""
+    uow = await _held()
+    run = _short("t-9", needs=[], values={})
+    run.outcome, run.executor = "running", "steel"
+    run.progress = {"asking": {"id": "q-1", "kind": "recipient", "text": "who?"}}
+    await uow.workflow_runs.save(run)
+    if claimed:
+        async with uow as unit:
+            await unit.tool_calls.remember(
+                f.TENANT, mail_key("mk-1"), tool="ours", at=datetime.now(tz=UTC)
+            )
+    ours = json.dumps(
+        {
+            "id": "m-1",
+            "thread_id": "t-9",
+            "sent": True,
+            "marker": "mk-1",
+            "body": "vendor@supplier.example",
+        }
+    )
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": ours})
+    durable = FakeDurableExecution()
+
+    await _look(uow, mailbox, _Reads(_reading(JOB)), durable=durable).execute(CTX)
+
+    assert durable.answered == ([("run_1", "q-1")] if answers else [])
 
 
 def test_one_key_says_a_mail_is_this_system_s_own() -> None:

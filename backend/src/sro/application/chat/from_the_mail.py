@@ -10,7 +10,13 @@ from types import MappingProxyType
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.announce import SayWhatHappened
-from sro.application.chat.mailbox import K_REMEMBER, SERVER, mail_key, sent_to_others
+from sro.application.chat.mailbox import (
+    K_REMEMBER,
+    SERVER,
+    is_ours,
+    mail_key,
+    sent_to_others,
+)
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.chat.understand import understand
 from sro.application.context import RequestContext
@@ -226,8 +232,12 @@ class FromTheMail:
             known.held,
         )
         tenant = ctx.tenant_id.value
-        said, thread, subject, sent_to = await self._body(ctx, message)
+        said, thread, subject, sent_to, marker = await self._body(ctx, message)
         if not said:
+            return None
+        if marker and await is_ours(
+            self._uow, ctx.tenant_id, {"marker": marker}, since=datetime.now(tz=UTC) - K_REMEMBER
+        ):
             return None
         look.read += 1
         back = await self._answering(ctx, thread)
@@ -759,16 +769,16 @@ class FromTheMail:
 
     async def _body(
         self, ctx: RequestContext, message: str
-    ) -> tuple[str, str, str, tuple[str, ...]]:
+    ) -> tuple[str, str, str, tuple[str, ...], str]:
         answered = await self._tools.call(
             ctx.tenant_id, ctx.principal_id, SERVER, "get_message", {"id": message}
         )
         try:
             said = json.loads(answered.text)
         except ValueError:
-            return "", "", "", ()
+            return "", "", "", (), ""
         if not isinstance(said, dict):
-            return "", "", "", ()
+            return "", "", "", (), ""
         whole = " ".join(
             str(said.get(part) or "").strip() for part in ("subject", "body", "snippet")
         )
@@ -780,6 +790,7 @@ class FromTheMail:
             sent_to_others(
                 *(str(said.get(part) or "") for part in ("from", "to", "cc", "mailbox"))
             ),
+            str(said.get("marker") or ""),
         )
 
     async def _conversation(self, ctx: RequestContext, thread: str) -> str:

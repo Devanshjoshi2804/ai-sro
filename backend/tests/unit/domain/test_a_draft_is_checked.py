@@ -293,3 +293,15 @@ def test_a_bcc_alone_is_nobody_to_send_to() -> None:
     allowed = Allowed(bcc=frozenset({"boss@wh.example"}))
     checked = _check("boss@wh.example", "Hello.", allowed=allowed)
     assert checked.recipient and checked.to == () and checked.bcc == ()
+
+
+@pytest.mark.parametrize("sep", ["\u2028", "\u2029", "\u0085", "\x0c", "\x1c"])
+def test_a_display_name_cannot_break_the_attribution_into_lines(sep: str) -> None:
+    """Only `\\n` ends a line. `splitlines()` also breaks on these, and they can
+    sit in a sender's display name, which the client copies into the
+    attribution: the address before them read as the operator's own text."""
+    reply = (
+        f"ok\n\nOn Thu, 25 Sep 2026 at 10:00, mallory@evil.com{sep}{sep}"
+        "Eve <eve@evil.com> wrote:\n\n> hi"
+    )
+    assert one_address_in(reply, reply=True) == ""

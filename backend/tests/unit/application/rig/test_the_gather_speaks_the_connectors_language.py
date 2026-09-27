@@ -269,3 +269,26 @@ def test_a_bcc_goes_out_as_bcc_and_the_console_line_names_nobody(
 
     assert b"To: a@example.com" in posted.raw and b"Bcc: b@example.com" in posted.raw
     assert "@" not in capsys.readouterr().out
+
+
+def test_a_mail_this_system_sends_carries_its_claimed_marker_back() -> None:
+    """`send_as_this_system` claims a marker before it sends and passes it in
+    `marker`; the connector writes it as a header, and a message and a
+    conversation read it back, so a look that sees the mail before the send
+    answered knows it as this system's own."""
+    module = _connector()
+    posted = _Posted()
+    module.httpx = posted
+
+    module._send("token", {"to": "a@example.com", "body": "hi", "marker": "mk-1"})
+
+    assert "marker" in module.TOOLS[-1]["inputSchema"]["properties"]
+    assert b"X-SRO-Marker: mk-1" in posted.raw
+    headers = [{"name": "X-SRO-Marker", "value": "mk-1"}]
+    module.httpx = _Answers({"id": "m-1", "payload": {"headers": headers}})
+    assert json.loads(module._get("token", {"id": "m-1"}))["marker"] == "mk-1"
+    module.httpx = _Answers(
+        {"id": "t-1", "messages": [{"id": "m-1", "payload": {"headers": headers}}]}
+    )
+    (one,) = json.loads(module._thread("token", {"id": "t-1"}))["messages"]
+    assert one["marker"] == "mk-1"

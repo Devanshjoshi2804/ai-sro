@@ -6,11 +6,17 @@ import math
 import secrets
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sro.application.chat.announce import SayWhatHappened
 from sro.application.chat.ask_the_asker import DRAFTED
-from sro.application.chat.mailbox import K_REMEMBER, SERVER, mail_key
+from sro.application.chat.mailbox import (
+    K_REMEMBER,
+    SERVER,
+    NotSent,
+    is_ours,
+    send_as_this_system,
+)
 from sro.application.context import RequestContext
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
@@ -146,12 +152,14 @@ async def _allowed(
     to: set[str] = set()
     bcc: set[str] = set()
     for clicked, threads in sent_from(workflow, by_id):
+        since = datetime.fromtimestamp(clicked, UTC) - K_REMEMBER
         sent = [
             one
             for thread in threads
             for one in await _conversation(ctx, tools, thread)
             if one.get("sent") is True
             and abs(_seconds(one.get("sent_at")) - clicked) <= K_SEND_WINDOW_S
+            and not await is_ours(uow, ctx.tenant_id, one, since=since)
         ]
         if len(sent) != 1:
             continue
@@ -171,11 +179,10 @@ async def send_the_mail(
     ctx: RequestContext, uow: UnitOfWork, tools: ToolCaller, mail: Written, *, clock: Clock
 ) -> tuple[str, str]:
     try:
-        answered = await tools.call(
-            ctx.tenant_id,
-            ctx.principal_id,
-            SERVER,
-            "send_message",
+        answered = await send_as_this_system(
+            ctx,
+            uow,
+            tools,
             {
                 "to": mail.to,
                 **({"bcc": mail.bcc} if mail.bcc else {}),
@@ -184,8 +191,9 @@ async def send_the_mail(
                 "thread_id": mail.thread,
                 "in_reply_to": mail.in_reply_to,
             },
+            at=clock.now(),
         )
-    except ToolsUnavailable as gone:
+    except (ToolsUnavailable, NotSent) as gone:
         return "", f"the mailbox could not be reached, so nothing was sent: {gone}"
     try:
         said = json.loads(answered.text or "{}")
@@ -194,15 +202,6 @@ async def send_the_mail(
     sent_id = str(said.get("id") or "") if isinstance(said, dict) else ""
     if not sent_id:
         return "", f"Gmail did not say the mail went: {answered.text[:200]}"
-    async with uow as unit:
-        await unit.tool_calls.remember(
-            ctx.tenant_id,
-            mail_key(sent_id),
-            tool="a mail this system sent, which is not a request",
-            at=clock.now(),
-            stale_after=K_REMEMBER,
-        )
-        await unit.commit()
     return sent_id, ""
 
 

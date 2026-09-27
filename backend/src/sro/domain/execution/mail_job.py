@@ -101,7 +101,7 @@ def mailboxes(text: str) -> tuple[str, ...] | None:
 
 
 def one_address_in(text: str, *, reply: bool) -> str:
-    lines = text.splitlines()
+    lines = text.replace("\r\n", "\n").split("\n")
     quoted = next((n for n, line in enumerate(lines) if line.lstrip().startswith(">")), None)
     if quoted is None and reply:
         return ""

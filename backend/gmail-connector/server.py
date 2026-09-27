@@ -107,6 +107,14 @@ TOOLS = [
                         "thread on headers rather than on Gmail's own thread id."
                     ),
                 },
+                "marker": {
+                    "type": "string",
+                    "description": (
+                        "Written as the X-SRO-Marker header and read back by get_message "
+                        "and get_thread: the mail is known as this system's own before "
+                        "Gmail has answered with its id."
+                    ),
+                },
             },
             "required": ["to", "body"],
         },
@@ -380,6 +388,7 @@ def _get(token: str, arguments: dict[str, Any], mailbox: str = "") -> str:
             "cc": head.get("cc", ""),
             "sent": "SENT" in (full.get("labelIds") or []),
             "in_reply_to": head.get("in-reply-to", ""),
+            "marker": head.get("x-sro-marker", ""),
             "references": head.get("references", ""),
             "mailbox": mailbox,
             "subject": head.get("subject", ""),
@@ -413,6 +422,7 @@ def _thread(token: str, arguments: dict[str, Any]) -> str:
                 "bcc": head.get("bcc", ""),
                 "sent": "SENT" in (one.get("labelIds") or []),
                 "sent_at": int(one.get("internalDate") or 0) / 1000,
+                "marker": head.get("x-sro-marker", ""),
                 "date": head.get("date", ""),
                 "subject": head.get("subject", ""),
                 "body": _body_of(payload),
@@ -427,6 +437,8 @@ def _send(token: str, arguments: dict[str, Any]) -> str:
     if arguments.get("bcc"):
         mail["Bcc"] = str(arguments["bcc"])
     mail["Subject"] = str(arguments.get("subject", ""))
+    if arguments.get("marker"):
+        mail["X-SRO-Marker"] = str(arguments["marker"])
     mail.set_content(str(arguments.get("body", "")))
     within = str(arguments.get("thread_id", "")).strip()
     answering = str(arguments.get("in_reply_to", "")).strip()

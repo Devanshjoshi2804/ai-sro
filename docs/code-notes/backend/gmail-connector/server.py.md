@@ -96,7 +96,7 @@ Code: `SCOPES = [`
 
 > The grant this bearer reaches, or None. The whole of the gate.
 
-## `_client`, [line 117](../../../../backend/gmail-connector/server.py#L117): Docstring
+## `_client`, [line 125](../../../../backend/gmail-connector/server.py#L125): Docstring
 
 > The OAuth client, from the file Google hands you.
 >
@@ -108,7 +108,7 @@ Code: `SCOPES = [`
 > The environment still wins where it is set, because a deployment that keeps
 > its secrets somewhere else should not have to invent this file.
 
-## `_access_token`, [line 151](../../../../backend/gmail-connector/server.py#L151): Docstring
+## `_access_token`, [line 159](../../../../backend/gmail-connector/server.py#L159): Docstring
 
 > A live access token, refreshed from THIS tenant's grant.
 >
@@ -120,7 +120,7 @@ Code: `SCOPES = [`
 > grant to use is a fact about the request: it is whichever one the caller's
 > bearer reached.
 
-## `_keep`, [line 172](../../../../backend/gmail-connector/server.py#L172): Docstring
+## `_keep`, [line 180](../../../../backend/gmail-connector/server.py#L180): Docstring
 
 > Write one operator's grant, and print the bearer that reaches it once.
 >
@@ -130,7 +130,7 @@ Code: `SCOPES = [`
 > printed value in the vault under `tenant/gmail/mcp-token` and it is never
 > seen again.
 
-## `_vault_key`, [line 189](../../../../backend/gmail-connector/server.py#L189): Docstring
+## `_vault_key`, [line 197](../../../../backend/gmail-connector/server.py#L197): Docstring
 
 > The same key the backend asks the vault for.
 >
@@ -139,7 +139,7 @@ Code: `SCOPES = [`
 > looks for it. Held to the original by
 > `test_the_connector_and_the_backend_agree_on_where_a_grant_lives`.
 
-## `authorize`, [line 194](../../../../backend/gmail-connector/server.py#L194): Docstring
+## `authorize`, [line 202](../../../../backend/gmail-connector/server.py#L202): Docstring
 
 > The one step nobody can take on the operator's behalf.
 >
@@ -158,14 +158,14 @@ Code: `SCOPES = [`
 > is a credential, and deleting somebody's credential is not this script's
 > decision to make.
 
-## `_body_of`, [line 273](../../../../backend/gmail-connector/server.py#L273): Docstring
+## `_body_of`, [line 281](../../../../backend/gmail-connector/server.py#L281): Docstring
 
 > The readable text of a mail, preferring plain over HTML.
 >
 > Walked rather than assumed: a mail is a tree of parts, and the one a person
 > reads is rarely the first.
 
-## `_answered`, [line 286](../../../../backend/gmail-connector/server.py#L286): Docstring
+## `_answered`, [line 294](../../../../backend/gmail-connector/server.py#L294): Docstring
 
 > The body, or a refusal said out loud.
 >
@@ -175,7 +175,7 @@ Code: `SCOPES = [`
 > wearing the face of a success, which is worse than an error because nobody
 > goes looking for the cause of nothing.
 
-## `_thread`, [line 392](../../../../backend/gmail-connector/server.py#L392): Docstring
+## `_thread`, [line 401](../../../../backend/gmail-connector/server.py#L401): Docstring
 
 > Every mail in one conversation, oldest first.
 >
@@ -183,28 +183,28 @@ Code: `SCOPES = [`
 > replies to holds them, and which mail that is, is a fact Gmail already
 > knows. Searching for it is guessing at something nobody has to guess at.
 
-## `Connector`, [line 449](../../../../backend/gmail-connector/server.py#L449): Docstring
+## `Connector`, [line 461](../../../../backend/gmail-connector/server.py#L461): Docstring
 
 > The MCP half: greet, hand out a session, then answer calls.
 >
 > The same protocol the mock connector speaks, and for the same reason -- a
 > client that skipped the greeting could talk to neither.
 
-## `_keep`, [line 185](../../../../backend/gmail-connector/server.py#L185): Comment
+## `_keep`, [line 193](../../../../backend/gmail-connector/server.py#L193): Comment
 
 Code: `print(f"  key: {_vault_key(tenant, operator)}")`
 
 > Printed because the key hashes the operator in and nobody can derive it
 > by eye -- see `secrets.connector_key` for why it has to.
 
-## `authorize`, [line 226](../../../../backend/gmail-connector/server.py#L226): Comment
+## `authorize`, [line 234](../../../../backend/gmail-connector/server.py#L234): Comment
 
 Code: `"access_type": "offline",`
 
 > Offline and forced, so a refresh token comes back. Google sends
 > one only on the first consent unless asked again.
 
-## `_get`, [line 376](../../../../backend/gmail-connector/server.py#L376): Comment
+## `_get`, [line 384](../../../../backend/gmail-connector/server.py#L384): Comment
 
 Code: `"thread_id": full.get("threadId", ""),`
 
@@ -219,7 +219,7 @@ Code: `"thread_id": full.get("threadId", ""),`
 > 21:26: "gathered 0 of 2 ... the mailbox holds none of the values
 > this job needs", about values sitting one mail away.
 
-## `_get`, [line 377](../../../../backend/gmail-connector/server.py#L377): Comment
+## `_get`, [line 385](../../../../backend/gmail-connector/server.py#L385): Comment
 
 Code: `"rfc822_message_id": head.get("message-id", ""),`
 
@@ -227,7 +227,7 @@ Code: `"rfc822_message_id": head.get("message-id", ""),`
 > reply names it in `In-Reply-To`, and Gmail's internal id is not
 > one any other client can thread on.
 
-## `_thread`, [line 409](../../../../backend/gmail-connector/server.py#L409): Comment
+## `_thread`, [line 418](../../../../backend/gmail-connector/server.py#L418): Comment
 
 Code: `"rfc822_message_id": head.get("message-id", ""),`
 
@@ -244,7 +244,7 @@ Code: `"rfc822_message_id": head.get("message-id", ""),`
 > sent arrived in the recipient's mailbox as a NEW
 > conversation, not under the request it was answering.
 
-## `_send`, [line 431](../../../../backend/gmail-connector/server.py#L431): Comment
+## `_send`, [line 443](../../../../backend/gmail-connector/server.py#L443): Comment
 
 Code: `within = str(arguments.get("thread_id", "")).strip()`
 
@@ -256,7 +256,7 @@ Code: `within = str(arguments.get("thread_id", "")).strip()`
 > `In-Reply-To` header is what every OTHER mail client uses, and without it
 > the person who receives this sees an orphan.
 
-## `Connector.do_POST`, [line 487](../../../../backend/gmail-connector/server.py#L487): Comment
+## `Connector.do_POST`, [line 499](../../../../backend/gmail-connector/server.py#L499): Comment
 
 Code: `bearer = self.headers.get("Authorization", "").removeprefix("Bearer ").strip()`
 
@@ -265,7 +265,7 @@ Code: `bearer = self.headers.get("Authorization", "").removeprefix("Bearer ").st
 > is the first thing that would. An unknown bearer reaches no
 > grant, so it reaches no mail.
 
-## `Connector.do_POST`, [line 525](../../../../backend/gmail-connector/server.py#L525): Comment
+## `Connector.do_POST`, [line 537](../../../../backend/gmail-connector/server.py#L537): Comment
 
 Code: `print(f"  ! {refused}")`
 
@@ -273,13 +273,13 @@ Code: `print(f"  ! {refused}")`
 > treats "it refused" and "there was nothing to ask" differently,
 > and both arriving as an exception would collapse them.
 
-## module, [line 575](../../../../backend/gmail-connector/server.py#L575): Inline
+## module, [line 587](../../../../backend/gmail-connector/server.py#L587): Inline
 
 Code: `_client()`
 
 > fail now, with a sentence, rather than on the first call
 
-## `_mailbox`, [line 345](../../../../backend/gmail-connector/server.py#L345): Note
+## `_mailbox`, [line 353](../../../../backend/gmail-connector/server.py#L353): Note
 
 > The grant's own address, from Gmail's `users.getProfile`, so the backend can
 > tell the operator's own mail from everybody else's. Read once per grant and
@@ -287,7 +287,7 @@ Code: `_client()`
 > under a grant, and each message would otherwise cost a second request. A
 > failed read is not kept, so the next message tries again.
 
-## `_thread`, [line 411](../../../../backend/gmail-connector/server.py#L411): Comment
+## `_thread`, [line 420](../../../../backend/gmail-connector/server.py#L420): Comment
 
 Code: `"to": head.get("to", ""),`
 
@@ -295,7 +295,7 @@ Code: `"to": head.get("to", ""),`
 > conversation's participants, and a participant is a recipient as much as a
 > sender -- with `from` alone, everyone but the senders was invisible.
 
-## `_get`, [line 381](../../../../backend/gmail-connector/server.py#L381): Comment
+## `_get`, [line 389](../../../../backend/gmail-connector/server.py#L389): Comment
 
 Code: `"sent": "SENT" in (full.get("labelIds") or []),`
 
@@ -304,7 +304,7 @@ Code: `"sent": "SENT" in (full.get("labelIds") or []),`
 > only mail that may name a recipient. `in_reply_to` and `references` say it is
 > a reply, whose quote must then be found by its structure or it names nobody.
 
-## `_thread`, [line 414](../../../../backend/gmail-connector/server.py#L414): Comment
+## `_thread`, [line 423](../../../../backend/gmail-connector/server.py#L423): Comment
 
 Code: `"sent": "SENT" in (one.get("labelIds") or []),`
 
@@ -315,7 +315,7 @@ Code: `"sent": "SENT" in (one.get("labelIds") or []),`
 > demonstration sent as the one SENT message of the click's thread dated near
 > the click, and reads who it went to from these.
 
-## `_send`, [line 445](../../../../backend/gmail-connector/server.py#L445): Comment
+## `_send`, [line 457](../../../../backend/gmail-connector/server.py#L457): Comment
 
 Code: `print(f"  → sent to {len(getaddresses([str(arguments.get('to', ''))]))} recipient(s)")`
 

@@ -46,12 +46,17 @@ class Read:
     refused: dict[str, str] = field(default_factory=dict)
 
 
+def _aliased(label: str, candidate: Candidate) -> tuple[str, bool]:
+    one = labelled(normal(label), candidate.fields)
+    return (label, False) if one is None else (one.name, one.kind != "never")
+
+
 def field_of(said: str, candidate: Candidate) -> tuple[str, bool] | None:
     aliased = candidate.aliases.get(normal(said))
-    one = labelled(normal(said if aliased is None else aliased), candidate.fields)
-    if one is None:
-        return None if aliased is None else (aliased, False)
-    return one.name, one.kind != "never"
+    if aliased is not None:
+        return _aliased(aliased, candidate)
+    one = labelled(normal(said), candidate.fields)
+    return None if one is None else (one.name, one.kind != "never")
 
 
 def _says(said: str, wording: str) -> bool:
@@ -69,7 +74,7 @@ def _rest(value: str, quote: str) -> str | None:
 def _wordings(candidate: Candidate) -> list[tuple[str, str]]:
     return [
         *((label, one.name) for one in candidate.fields for label in (one.name, *one.labels)),
-        *candidate.aliases.items(),
+        *((wording, _aliased(label, candidate)[0]) for wording, label in candidate.aliases.items()),
     ]
 
 

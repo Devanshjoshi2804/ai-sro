@@ -134,3 +134,35 @@ Each new test was run before its fix and failed for the reason under test: an al
 ### Concerns
 
 - `npm ci` was run in `frontend/` to get `openapi-typescript` for `make types`. Only the two generated files changed.
+
+---
+
+## Round 2
+
+The migration is unchanged (0088, down_revision 0085). The controller re-chains it.
+
+### Fixes
+
+- **N1**: `_wordings` (`domain/chat/request.py`) now maps each alias wording to the parameter its label resolves to, not to the bare form label.
+  - The resolution is a new `_aliased(label, candidate)` helper that uses `labelled`. `field_of` now uses the same helper for its alias branch.
+  - Before this fix, the quote check in `_placed` saw "cost centre" name "Department" while the value landed on "department". It then refused every aliased value as "its quote names Department", even one within its limits.
+- **M3**: the fake `confirm_alias` now honours the unit of work.
+  - A write is staged. `FakeUnitOfWork.commit` keeps it; `rollback`, and an exit without a commit, discard it.
+  - `aliases_for` reads the committed aliases plus this unit's staged ones, the same read-your-writes view a real session gives.
+  - The other fake repositories still do not simulate rollback. This one now does, because the alias is written inside the answer's own commit.
+
+### Tests added
+
+- `test_reading_a_request.py::test_an_aliased_value_inside_its_limits_is_read_like_one_under_the_label`: "cost centre: Fin" and "Department: Fin" both read as `department = Fin`, with nothing refused. It sits next to Round 1's over-limit test. Before the fix it failed with `{}` and a "its quote names Department" refusal.
+- `test_an_answer_teaches_an_alias.py::test_an_answer_whose_unit_of_work_rolls_back_leaves_no_alias`: the answer's commit raises, and no alias is left. Before the fix the alias stayed.
+
+### Gates
+
+- `pytest tests/unit tests/contract -k "not sql" --deselect TestFuzz`: **4716 passed**.
+- `mypy src tests`: clean.
+- `ruff check`, `ruff format --check` and `lint-imports`: clean.
+- `check_code_notes.py`: 0 stale, 0 dead.
+
+### Rulings
+
+- Ruling: the fake discards staged aliases on any exit without a commit, not only on an exception. — A real session closed without a commit keeps nothing. — Cost if wrong: a test that writes an alias without committing now sees it vanish. No test does that.

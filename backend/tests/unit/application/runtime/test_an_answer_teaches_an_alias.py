@@ -218,3 +218,17 @@ async def test_a_second_operators_press_on_an_answered_field_is_refused() -> Non
 
     with pytest.raises(Conflict, match="another operator"):
         await press(lead, run_id=world.run_id, question_id=asked, value="Department")
+
+
+async def test_an_answer_whose_unit_of_work_rolls_back_leaves_no_alias() -> None:
+    world, asked = await _asked_where_cost_centre_goes()
+    await AnswerRun(world.uow, world.durable).execute(
+        CTX, run_id=world.run_id, question_id=asked, value="Department"
+    )
+    world.uow.commit_raises = RuntimeError("the database went away")
+
+    with pytest.raises(RuntimeError):
+        await world.run_steps.answered(CTX, world.run_id, asked)
+    world.uow.commit_raises = None
+
+    assert await world.uow.workflows.aliases_for(TENANT, (await world.job()).id) == ()

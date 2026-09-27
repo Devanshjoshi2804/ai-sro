@@ -468,3 +468,15 @@ def test_an_alias_lands_on_the_parameter_its_label_names_and_its_limits_apply() 
 
     assert field_of("cost centre", COST) == ("department", True)
     assert said("cost centre") == said("Department") == {"department": "longer than 5 characters"}
+
+
+def test_an_aliased_value_inside_its_limits_is_read_like_one_under_the_label() -> None:
+    def read(wording: str) -> tuple[dict[str, str], dict[str, str]]:
+        got = read_of(
+            {"job": "wfl_cc", "values": [_value(wording, "Fin", f"{wording}: Fin")]},
+            [COST],
+            f"Please book it, {wording}: Fin",
+        )
+        return got.values, got.refused
+
+    assert read("cost centre") == read("Department") == ({"department": "Fin"}, {})

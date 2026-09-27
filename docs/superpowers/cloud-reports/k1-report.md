@@ -56,6 +56,6 @@ Integration tests: none added (K1 adds no SQL). `Teach.learn` now calls `uow.wor
 
 ## Concerns
 
-- **Legacy data:** workflows that X10 grew before this change store the learned key as `"key"`. After K1 they are no longer seen as learned field steps (`field_key` returns ""), so on the next run the compiler may report them as `no_lane` until they are re-learned. No migration was allowed. If any exist in a local database, a one-off rewrite of `key` to `body_key` on parameters whose step is a no-cites, single-parameter step would fix them. The controller should decide.
+- **Legacy data (resolved):** workflows that X10 grew before this change would store the learned key as `"key"`, and after K1 `field_key` would not see them as learned field steps. Decision: accept the change as is; no migration needed. On QA, 0 field steps store their learned key under the old name `"key"`. The 14 job-level `"key"` entries there are the miner's control keys, which K1 intentionally leaves alone.
 - Concurrency: `Teach.learn` saves the whole workflow under `_still`'s row lock (`lock=True`) in the same unit of work. Two runs learning at once serialise on the row, and the second sees the first's parameters. A crash before commit writes nothing. A stop mid-way doesn't change this path (it runs after the lanes).
 - `run_workflow.py` (the legacy rig path) calls `replay_without_asking` and `write_plan_for` without `learned`, so it behaves as before.

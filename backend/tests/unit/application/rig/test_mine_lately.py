@@ -581,7 +581,7 @@ def _job_citing(tenant: str, *, signs_in: bool | None, signs_out: bool | None = 
 
 
 def _log_out(tenant: str) -> dict[str, Gesture]:
-    def _click(gesture_id: str, at: float, name: str) -> Gesture:
+    def _click(gesture_id: str, at: float, name: str, **attributes: object) -> Gesture:
         return Gesture(
             id=gesture_id,
             tenant=tenant,
@@ -592,12 +592,19 @@ def _log_out(tenant: str) -> dict[str, Gesture]:
             system="https://wms.example",
             tab_id=1,
             frame_url=None,
-            action=Action(kind="click", at=at, target=Target(role="menuitem", name=name)),
+            action=Action(
+                kind="click",
+                at=at,
+                target=Target(role="menuitem", name=name, attributes=attributes),
+            ),
         )
 
     out = _click("ges_out", 2, "Log Out")
     out.page_events.append(PageMark(at=2.5, page_kind="navigated", url="https://wms.example/login"))
-    return {"ges_menu": _click("ges_menu", 1, "admin"), "ges_out": out}
+    return {
+        "ges_menu": _click("ges_menu", 1, "admin", **{"aria-haspopup": "menu"}),
+        "ges_out": out,
+    }
 
 
 async def test_a_quiet_sweep_decides_every_job_nobody_has_judged() -> None:

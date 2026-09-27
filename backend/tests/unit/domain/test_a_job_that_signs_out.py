@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from sro.domain.observation.gesture import Action, Call, Gesture, PageMark, Target
+from sro.domain.observation.gesture import Action, Call, Component, Gesture, PageMark, Target
 from sro.domain.skill.checks import signs_out
 from sro.domain.skill.workflow import Step, Workflow
 
@@ -60,12 +60,26 @@ def _job(*cites: str) -> Workflow:
     )
 
 
+def _opens(gesture_id: str, at: float, name: str) -> Gesture:
+    """A menu button: it opens a menu in place, calls nothing, moves nowhere."""
+    return replace(
+        _click(gesture_id, at, name),
+        action=Action(
+            kind="click",
+            at=at,
+            target=Target(
+                tag="button", role="button", name=name, attributes={"aria-haspopup": "menu"}
+            ),
+        ),
+    )
+
+
 def _the_real_log_out() -> dict[str, Gesture]:
     """The deployed shape: the user menu, then `Log Out`, which sends the
     browser to Azure B2C's logout and on to its sign-in page, where the
     operator starts typing a username that no step cites."""
     return {
-        "menu": _click("menu", 1, "admin"),
+        "menu": _opens("menu", 1, "admin"),
         "out": _landed(
             _click("out", 2, "Log Out"),
             f"{B2C}/tenant.onmicrosoft.com/b2c_1a_signin/oauth2/v2.0/logout",
@@ -81,7 +95,7 @@ def test_the_real_log_out_signs_out() -> None:
 
 def test_a_log_out_that_lands_on_its_own_sign_in_page_signs_out() -> None:
     store = {
-        "menu": _click("menu", 1, "admin"),
+        "menu": _opens("menu", 1, "admin"),
         "out": _landed(_click("out", 2, "Sign out"), f"{WMS}/login?reason=signed-out"),
     }
 
@@ -97,7 +111,7 @@ def test_a_log_out_followed_by_a_credential_field_signs_out() -> None:
 
 
 def test_a_log_out_control_with_no_sign_of_the_session_ending_does_not_sign_out() -> None:
-    store = {"menu": _click("menu", 1, "admin"), "out": _click("out", 2, "Log Out")}
+    store = {"menu": _opens("menu", 1, "admin"), "out": _click("out", 2, "Log Out")}
 
     assert signs_out(_job("menu", "out"), store) is False
 
@@ -196,7 +210,7 @@ def test_a_sign_off_queue_is_not_a_sign_out() -> None:
 
 def test_a_log_out_whose_next_gesture_is_merely_on_another_host_does_not_sign_out() -> None:
     store = {
-        "menu": _click("menu", 1, "admin"),
+        "menu": _opens("menu", 1, "admin"),
         "out": _landed(_click("out", 2, "Log Out"), "https://intranet.example/home"),
         "next": _click("next", 4, "News", url="https://intranet.example"),
     }
@@ -206,26 +220,12 @@ def test_a_log_out_whose_next_gesture_is_merely_on_another_host_does_not_sign_ou
 
 def test_a_sign_in_page_in_another_tab_is_not_this_log_out_s_landing() -> None:
     store = {
-        "menu": _click("menu", 1, "admin"),
+        "menu": _opens("menu", 1, "admin"),
         "out": _click("out", 2, "Log Out"),
         "user": replace(_typed_user("user", 4, B2C), tab_id=2),
     }
 
     assert signs_out(_job("menu", "out"), store) is False
-
-
-def _opens(gesture_id: str, at: float, name: str) -> Gesture:
-    """A menu button: it opens a menu in place, calls nothing, moves nowhere."""
-    return replace(
-        _click(gesture_id, at, name),
-        action=Action(
-            kind="click",
-            at=at,
-            target=Target(
-                tag="button", role="button", name=name, attributes={"aria-haspopup": "menu"}
-            ),
-        ),
-    )
 
 
 def test_account_menu_then_log_out_is_a_chore() -> None:
@@ -274,3 +274,58 @@ def test_a_job_that_exports_a_report_before_logging_out_is_work() -> None:
         ),
     }
     assert signs_out(_job("export", "menu", "out"), exports) is False
+
+
+def _in_menu(gesture: Gesture, *chain: str) -> Gesture:
+    """An ExtJS control and the component chain the recorder read for it."""
+    target = gesture.action.target
+    assert target is not None
+    return replace(
+        gesture,
+        action=replace(gesture.action, target=replace(target, component=Component(chain=chain))),
+    )
+
+
+def test_a_download_link_in_a_menu_is_substance() -> None:
+    """Actions -> Export to CSV as `<a role=menuitem href download>` -> Log
+    Out. The recorder sees only fetch and XHR, so a download, Print or a
+    report in a new window makes no call it can see; a menu item that opens
+    nothing is a leaf, and a leaf did something. Work, not a chore."""
+    store = {
+        **_the_real_log_out(),
+        "actions": _opens("actions", 0.2, "Actions"),
+        "export": replace(
+            _click("export", 0.5, "Export to CSV"),
+            action=Action(
+                kind="click",
+                at=0.5,
+                target=Target(
+                    tag="a",
+                    role="menuitem",
+                    name="Export to CSV",
+                    attributes={"href": "/api/report.csv", "download": ""},
+                ),
+            ),
+        ),
+    }
+
+    assert signs_out(_job("actions", "export", "menu", "out"), store) is False
+
+
+def test_a_menu_item_that_declares_nothing_opened_is_a_leaf() -> None:
+    store = {**_the_real_log_out(), "menu": _click("menu", 1, "admin")}
+
+    assert signs_out(_job("menu", "out"), store) is False
+
+
+def test_an_ext_menu_item_the_log_out_sits_inside_reaches_it() -> None:
+    """ExtJS often sets no aria on a menu opener, but its component chain says
+    what the log out sits in: the opener's chain is the start of the log
+    out's."""
+    store = _the_real_log_out()
+    store["menu"] = _in_menu(_click("menu", 1, "admin"), "toolbar#top", "button#user")
+    store["out"] = _in_menu(store["out"], "toolbar#top", "button#user", "menu", "menuitem#logout")
+    assert signs_out(_job("menu", "out"), store) is True
+
+    store["menu"] = _in_menu(_click("menu", 1, "Reports"), "toolbar#top", "button#reports")
+    assert signs_out(_job("menu", "out"), store) is False

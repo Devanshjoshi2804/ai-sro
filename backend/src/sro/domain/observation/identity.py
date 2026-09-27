@@ -198,10 +198,15 @@ def resolve(
             best_score,
             contains=_in_order(best.shape_key, proposal.shape_key),
         )
-    if len(shape) >= K_MIN_SHARED_STEPS:
-        for other in eligible:
-            if shape <= _shape_set(other):
-                return Resolution("same_job", other.id, 1.0)
+    if sum(1 for entry in shape if not entry[1].startswith(ANON)) >= K_MIN_SHARED_STEPS:
+        covering = [
+            (len(shape) / len(theirs), other)
+            for other in eligible
+            if shape <= (theirs := _shape_set(other)) and len(shape) / len(theirs) >= K_SAME_JOB
+        ]
+        if covering:
+            share, other = max(covering, key=lambda one: one[0])
+            return Resolution("same_job", other.id, share)
     named = _as_words(proposal.title)
     for other in eligible:
         if named and named == _as_words(other.title) and _shared(shape, _shape_set(other)):

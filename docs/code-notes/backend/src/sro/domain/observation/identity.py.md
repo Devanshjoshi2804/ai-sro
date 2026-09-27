@@ -393,7 +393,7 @@ Code: `if (`
 > and `Send` -- have nothing else left to be told apart by. See
 > `K_SAME_NAME`.
 
-## `resolve`, [line 205](../../../../../../../backend/src/sro/domain/observation/identity.py#L205): Comment
+## `resolve`, [line 210](../../../../../../../backend/src/sro/domain/observation/identity.py#L210): Comment
 
 Code: `named = _as_words(proposal.title)`
 
@@ -410,7 +410,7 @@ Code: `named = _as_words(proposal.title)`
 > sign-in filter, so two sign-ins that land in different places are not
 > joined by a title.
 
-## `resolve`, [line 211](../../../../../../../backend/src/sro/domain/observation/identity.py#L211): Comment
+## `resolve`, [line 216](../../../../../../../backend/src/sro/domain/observation/identity.py#L216): Comment
 
 Code: `if not proposal.parameters:`
 
@@ -430,7 +430,7 @@ Code: `if not proposal.parameters:`
 
 ## `resolve`, [line 201](../../../../../../../backend/src/sro/domain/observation/identity.py#L201): Comment
 
-Code: `if len(shape) >= K_MIN_SHARED_STEPS:`
+Code: `if sum(1 for entry in shape if not entry[1].startswith(ANON)) >= K_MIN_SHARED_STEPS:`
 
 > Steps a stored job already holds, every one of them exactly (as a set,
 > no `anon|` alias), and at least K_MIN_SHARED_STEPS of them: that job,
@@ -442,12 +442,23 @@ Code: `if len(shape) >= K_MIN_SHARED_STEPS:`
 > an Edit that presses Edit on the create form -- is not wholly the create,
 > so this rule leaves it to the shape rule above, where its name decides.
 >
+> Round 4 tightened it twice.
+> - Only NAMED entries count toward K_MIN_SHARED_STEPS, though every entry
+>   must still be contained: `anon|click` equals `anon|click` and names
+>   nothing. Reply and Forward, both read as `[anon|click, Send]`, stay
+>   apart.
+> - The proposal must be at least half (K_SAME_JOB) of the job's distinct
+>   steps, so a short job inside a longer, different one ("Log Out" inside a
+>   six-step password change) stays new. Of the jobs that qualify, the one
+>   it is most of wins. A tie in share is a tie in size (the proposal is
+>   the same set), so "then the most steps" needs no key of its own.
+>
 > Known limit: under a name alike at K_SAME_NAME ("Edit a Customer Type"
 > against "Create a Customer Type", 2 words of 4), the shape rule above
 > still joins an Edit sharing two steps and half the form. Telling them
 > apart by the verb is an identity decision of its own, not made here.
 
-## `resolve`, [line 205](../../../../../../../backend/src/sro/domain/observation/identity.py#L205): Comment
+## `resolve`, [line 210](../../../../../../../backend/src/sro/domain/observation/identity.py#L210): Comment
 
 Code: `named = _as_words(proposal.title)`
 

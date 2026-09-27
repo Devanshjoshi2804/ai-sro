@@ -547,6 +547,18 @@ def test_forwarding_is_not_replying_however_alike_the_clicks_are() -> None:
     assert resolve(forward, [reply]).kind == "new"
 
 
+def test_forwarding_is_not_replying_when_both_were_read_as_an_unnamed_click() -> None:
+    """`anon|click` equals `anon|click` and names nothing, so it is not
+    evidence that two jobs are one: only named steps count toward the
+    covered-steps rule. Both measured readings of Reply and Forward share
+    exactly these two entries."""
+    unnamed = [MAILBOX, "anon|click", "click"]
+    reply = _workflow(["g1", "g2"], [unnamed, SEND], id="wfl_reply", title="Reply to Email")
+    forward = _workflow(["g3", "g4"], [unnamed, SEND], title="Forward Email")
+
+    assert resolve(forward, [reply]).kind == "new"
+
+
 def test_one_job_the_model_phrased_twice_is_still_one_job() -> None:
     """The other direction, and the reason this is a veto rather than a rule
     of its own: a model does not phrase things identically twice, and a name
@@ -818,3 +830,39 @@ def test_an_edit_on_the_same_form_with_a_step_of_its_own_stays_its_own_job() -> 
     )
 
     assert resolve(edit, [known]).kind == "new"
+
+
+def test_a_short_job_inside_a_longer_different_job_stays_its_own() -> None:
+    """Covered steps name the job only when they are at least half of it: a
+    password change opens the user menu and ends by logging out, and "Log Out"
+    is two of its six steps, not the job."""
+    change = _workflow(
+        ["ges_1"],
+        [
+            [WMS, "userMenu", "click"],
+            [WMS, "currentPassword", "type"],
+            [WMS, "newPassword", "type"],
+            [WMS, "confirmPassword", "type"],
+            [WMS, "saveButton", "click"],
+            [WMS, "logoutButton", "click"],
+        ],
+        id="wfl_pw",
+        title="Change password",
+    )
+    log_out = _workflow(
+        ["ges_50", "ges_51"],
+        [[WMS, "userMenu", "click"], [WMS, "logoutButton", "click"]],
+        title="Log Out",
+    )
+
+    assert resolve(log_out, [change]).kind == "new"
+
+
+def test_of_the_jobs_a_proposal_covers_the_one_it_is_most_of_wins() -> None:
+    big = _workflow(["ges_1"], [*FORM, [WMS, "extra", "type"]], id="wfl_big", title="Big")
+    close = _workflow(["ges_2"], FORM[:3], id="wfl_close", title="Close")
+    part = _workflow(["ges_50"], FORM[:3], title="Part")
+
+    resolution = resolve(part, [big, close])
+
+    assert (resolution.kind, resolution.workflow_id) == ("same_job", "wfl_close")

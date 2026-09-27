@@ -591,7 +591,9 @@ class SqlWorkflowRepository(WorkflowRepository):
                 .order_by(JobAliasRow.at, JobAliasRow.wording_key)
             )
         ).scalars()
-        return tuple(JobAlias(row.wording, row.field, row.confirmed_by, row.at) for row in rows)
+        return tuple(
+            JobAlias(row.wording, row.field, row.confirmed_by, row.at, row.role) for row in rows
+        )
 
     async def confirm_alias(self, tenant_id: TenantId, workflow_id: str, alias: JobAlias) -> None:
         statement = pg_insert(JobAliasRow).values(
@@ -600,6 +602,7 @@ class SqlWorkflowRepository(WorkflowRepository):
             wording_key=normal(alias.wording),
             wording=alias.wording,
             field=alias.field,
+            role=alias.role,
             confirmed_by=alias.confirmed_by,
             at=alias.at,
         )
@@ -609,6 +612,7 @@ class SqlWorkflowRepository(WorkflowRepository):
                 set_={
                     "wording": statement.excluded.wording,
                     "field": statement.excluded.field,
+                    "role": statement.excluded.role,
                     "confirmed_by": statement.excluded.confirmed_by,
                     "at": statement.excluded.at,
                 },

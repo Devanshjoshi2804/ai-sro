@@ -1,6 +1,8 @@
 from dataclasses import replace
 from datetime import UTC, datetime
 
+import pytest
+
 from sro.domain.execution.compiled import compile_job
 from sro.domain.execution.compose import (
     Adding,
@@ -8,6 +10,7 @@ from sro.domain.execution.compose import (
     choices,
     compose,
     keyed,
+    teaches,
     with_field,
 )
 from sro.domain.observation.gesture import Gesture, Outline, OutlineField
@@ -66,13 +69,22 @@ def test_a_confirmed_alias_places_a_wording_no_label_matches() -> None:
     assert unplaced == ()
 
 
-def test_an_alias_outranks_a_label_the_wording_also_matches() -> None:
-    job, by_id = _job(OutlineField("combobox", "Department"), OutlineField("textbox", "Region"))
-    alias = JobAlias("region", "Department", "clerk", datetime(2026, 9, 25, tzinfo=UTC))
+def test_an_alias_with_a_role_places_the_wording_on_that_one_of_two_same_labels() -> None:
+    job, by_id = _job(OutlineField("combobox", "Department"), OutlineField("textbox", "Department"))
+    alias = JobAlias(
+        "cost centre", "Department", "clerk", datetime(2026, 9, 25, tzinfo=UTC), "textbox"
+    )
 
-    composed, _ = compose(job, by_id, {"Region": "North"}, aliases=(alias,))
+    composed, unplaced = compose(job, by_id, {"cost centre": "CC-9"}, aliases=(alias,))
 
-    assert [(one.name, one.label) for one in composed] == [("Region", "Department")]
+    assert [(one.label, one.role) for one in composed] == [("Department", "textbox")]
+    assert unplaced == ()
+
+
+@pytest.mark.parametrize("wording", ["value", "Name", " field ", "DATA", "Department"])
+def test_a_generic_word_or_a_label_on_the_form_is_never_taught(wording: str) -> None:
+    assert not teaches(wording, ("Department", "Region"))
+    assert teaches("cost centre", ("Department", "Region"))
 
 
 def test_a_credential_or_a_name_a_step_already_fills_is_never_composed() -> None:

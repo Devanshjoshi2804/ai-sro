@@ -275,7 +275,8 @@ async def answer_workflow_run(
 
     A run of another tenant is a 404. A 409 `Conflict` for: a run no longer
     running; no question standing, or another one than `question_id`; a
-    question already answered differently; a value on anything but a value,
+    question already answered differently, or a field question already
+    answered by another operator; a value on anything but a value,
     field or recipient question; a field answer that is not one of its
     choices; a recipient answer that is not an address, or not from the
     operator who started the run; a missing verdict on a write in doubt. Only the question id

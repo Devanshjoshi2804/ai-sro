@@ -15,7 +15,9 @@ async def test_one_alias_per_wording_and_the_later_answer_wins(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
     first = JobAlias("Cost Centre", "Department", "clerk", datetime(2026, 9, 25, 9, tzinfo=UTC))
-    later = JobAlias("cost  centre", "Region", "lead", datetime(2026, 9, 25, 10, tzinfo=UTC))
+    later = JobAlias(
+        "cost  centre", "Region", "lead", datetime(2026, 9, 25, 10, tzinfo=UTC), role="textbox"
+    )
     async with SqlUnitOfWork(session_factory) as uow:
         await uow.workflows.confirm_alias(ACME, "wfl_ct", first)
         await uow.workflows.confirm_alias(ACME, "wfl_ct", later)

@@ -73,6 +73,8 @@ class AnswerRun:
                 raise Conflict("who a mail goes to is answered with one or more addresses")
             answer |= {"address": ", ".join(named), "by": ctx.principal_id.value}
         if asking.get("answered"):
+            if asking.get("by", answer.get("by")) != answer.get("by"):
+                raise Conflict("that question was already answered by another operator")
             if any(asking.get(key, "") != said for key, said in answer.items()):
                 raise Conflict("that question was already answered")
         else:

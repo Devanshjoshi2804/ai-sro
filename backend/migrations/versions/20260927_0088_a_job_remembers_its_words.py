@@ -2,9 +2,12 @@
 
 When a run asks which field a value belongs to and the operator picks one of
 the form's labels, the wording the request used is kept against that job:
-`(wording, field, confirmed_by, at)`, one per wording after normalisation
-(`wording_key`), so a later answer replaces an earlier one. Only an operator's
-answer writes here; a model never does. Per job, never global.
+`(wording, field, role, confirmed_by, at)`, one per wording after
+normalisation (`wording_key`), so a later answer replaces an earlier one. The
+role is kept only when the form shows that label more than once, so the next
+run can tell the two apart instead of asking again. Only an operator's answer
+to the reader's own "which field" question writes here; a model never does.
+Per job, never global.
 
 Revision ID: 0088
 Revises: 0085
@@ -29,6 +32,7 @@ def upgrade() -> None:
         sa.Column("wording_key", sa.Text(), primary_key=True),
         sa.Column("wording", sa.Text(), nullable=False),
         sa.Column("field", sa.Text(), nullable=False),
+        sa.Column("role", sa.Text(), nullable=False, server_default=""),
         sa.Column("confirmed_by", sa.String(128), nullable=False),
         sa.Column("at", sa.DateTime(timezone=True), nullable=False),
     )

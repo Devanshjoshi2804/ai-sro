@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/application/runtime/run_steps.py`](../../../../../../../backend/src/sro/application/runtime/run_steps.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `RunSteps`, [line 65](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L65): Class
+## `RunSteps`, [line 74](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L74): Class
 
 > A Steel run's activities (spec §7.2): prepare, acquire, one step per call,
 > finish, release, beat. Each loads the run and its `progress` afresh, so a
@@ -11,7 +11,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/run_s
 > the outcome. None of them acts on a run that is no longer `running`. A code
 > change here is live only after the worker restarts (AGENTS.md).
 
-## `RunSteps.step`, [line 188](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L188): Note
+## `RunSteps.step`, [line 203](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L203): Note
 
 Code: `if progress.in_doubt(step.order):`
 
@@ -20,7 +20,7 @@ Code: `if progress.in_doubt(step.order):`
 > write by the API lane's read-back -- signed in afresh when the mark says the
 > session had expired, credited to the lane that sent it -- else it asks.
 
-## `RunSteps.step`, [line 218](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L218): Note
+## `RunSteps.step`, [line 233](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L233): Note
 
 Code: `except (NeedsAPerson, AccountBusy, PageGone) as why:`
 
@@ -30,14 +30,14 @@ Code: `except (NeedsAPerson, AccountBusy, PageGone) as why:`
 > the activity to retry. `Superseded` is raised untouched: another attempt
 > holds the run.
 
-## `RunSteps.step`, [line 248](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L248): Note
+## `RunSteps.step`, [line 263](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L263): Note
 
 Code: `await self._teach.learn(ctx, workflow, by_id, step, tried, run_id=run_id, values=values)`
 
 > Taught after the step is recorded, so a teaching failure never turns a
 > write proven done back into one in doubt.
 
-## `RunSteps.finish`, [line 251](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L251): Note
+## `RunSteps.finish`, [line 266](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L266): Note
 
 Code: `async def finish(self, ctx: RequestContext, run_id: str) -> str:`
 
@@ -45,20 +45,20 @@ Code: `async def finish(self, ctx: RequestContext, run_id: str) -> str:`
 > `held` only when every step was reached and each is held or withheld;
 > an outcome already set (a stop's `aborted`) is kept.
 
-## `RunSteps.beat`, [line 369](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L369): Note
+## `RunSteps.beat`, [line 387](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L387): Note
 
 Code: `if progress.lease and not await self._broker.beat(ctx, progress.lease, holder=run_id):`
 
 > A beat the lease no longer answers is a lost lease: the lost-page path.
 
-## `RunSteps._keep_tab`, [line 418](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L418): Note
+## `RunSteps._keep_tab`, [line 436](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L436): Note
 
 Code: `except BaseException:`
 
 > A tab this attempt opened but could not record is closed at once; a retry
 > would open another, and nothing would ever release the first.
 
-## `RunSteps._sending`, [line 461](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L461): Note
+## `RunSteps._sending`, [line 479](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L479): Note
 
 Code: `if again and wrote == "sending":`
 
@@ -66,7 +66,7 @@ Code: `if again and wrote == "sending":`
 > marked; any other mark means another attempt got there first, and this one
 > sends nothing.
 
-## `RunSteps._settled`, [line 468](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L468): Note
+## `RunSteps._settled`, [line 486](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L486): Note
 
 Code: `async def _settled(`
 
@@ -74,7 +74,7 @@ Code: `async def _settled(`
 > signed in afresh when the result says the session expired; nothing to read
 > back means a person is asked and the mark stays in doubt.
 
-## `RunSteps._advance`, [line 514](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L514): Note
+## `RunSteps._advance`, [line 532](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L532): Note
 
 Code: `progress.step, progress.asking = index + 1, {}`
 
@@ -82,7 +82,7 @@ Code: `progress.step, progress.asking = index + 1, {}`
 > follows the unclear one, and D5 takes an answer to a withdrawn question as
 > already answered.
 
-## `RunSteps._ask`, [line 530](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L530): Note
+## `RunSteps._ask`, [line 548](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L548): Note
 
 Code: `async def _ask(`
 
@@ -91,7 +91,7 @@ Code: `async def _ask(`
 > where and why the run stopped. Asked from prepare and acquire too, at the
 > step the run stands on.
 
-## `RunSteps._write`, [line 783](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L783): Note
+## `RunSteps._write`, [line 804](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L804): Note
 
 Code: `ctx.tenant_id, run.id, now, was=run.progress`
 
@@ -101,21 +101,21 @@ Code: `ctx.tenant_id, run.id, now, was=run.progress`
 > changed and stops with `Superseded`, so one write is never sent twice and
 > a step is never skipped.
 
-## `RunSteps._run`, [line 804](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L804): Note
+## `RunSteps._run`, [line 825](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L825): Note
 
 Code: `raise Stopped(f"run {run_id} is not known")`
 
 > A run this tenant does not hold is a stop: nothing more may be done for it,
 > and retrying cannot bring it back.
 
-## `RunSteps.finish`, [line 271](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L271): Note
+## `RunSteps.finish`, [line 286](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L286): Note
 
 Code: `last = {one.of_step: one.verdict for one in sorted(run.steps, key=lambda s: s.order)}`
 
 > Judged by each step's last row: an `unclear` a read-back later settled as
 > `held` is history, not the step's result.
 
-## `RunSteps._write`, [line 776](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L776): Note
+## `RunSteps._write`, [line 797](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L797): Note
 
 Code: `if (index is not None and loaded.step != index) or (`
 
@@ -125,7 +125,7 @@ Code: `if (index is not None and loaded.step != index) or (`
 > zombie whose lane fails after the retry already held the step asks nothing
 > and adds no row.
 
-## `RunSteps.release`, [line 300](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L300): Note
+## `RunSteps.release`, [line 315](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L315): Note
 
 Code: `if run.outcome == "running" and waits == "code":`
 
@@ -145,7 +145,7 @@ Code: `if run.outcome == "running" and waits == "code":`
 > the tab is closed: an ended park is no longer live and its tab could not
 > be reached.
 
-## `RunSteps.answered`, [line 320](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L320): Note
+## `RunSteps.answered`, [line 335](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L335): Note
 
 Code: `if asking.get("id") != question_id or not asking.get("answered"):`
 
@@ -153,7 +153,7 @@ Code: `if asking.get("id") != question_id or not asking.get("answered"):`
 > only woke the workflow. A question no longer standing, or not answered,
 > changes nothing: the step has moved on, or is asked again.
 
-## `RunSteps.answered`, [line 324](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L324): Note
+## `RunSteps.answered`, [line 339](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L339): Note
 
 Code: `await self._broker.unpark(ctx, progress.lease, "password")`
 
@@ -161,7 +161,7 @@ Code: `await self._broker.unpark(ctx, progress.lease, "password")`
 > on the one question. Once the person has stored a new password the park is
 > ended at once, never waited out, and the next acquire signs in afresh.
 
-## `RunSteps._acquire`, [line 383](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L383): Note
+## `RunSteps._acquire`, [line 401](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L401): Note
 
 Code: `if kept.lease.state is not LeaseState.WAITING:`
 
@@ -170,7 +170,7 @@ Code: `if kept.lease.state is not LeaseState.WAITING:`
 > it is. A code the page still asks for, or a password page in its place, is
 > asked again.
 
-## `RunSteps._ask`, [line 550](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L550): Note
+## `RunSteps._ask`, [line 569](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L569): Note
 
 Code: `if isinstance(asked, WaitingForAPerson):`
 
@@ -180,7 +180,7 @@ Code: `if isinstance(asked, WaitingForAPerson):`
 > so an attempt another one superseded says nothing. Its id is random, so an
 > answer cannot be sent ahead for a question not yet asked.
 
-## `RunSteps.finish`, [line 280](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L280): Note
+## `RunSteps.finish`, [line 295](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L295): Note
 
 Code: `run.awaiting = None`
 
@@ -188,7 +188,7 @@ Code: `run.awaiting = None`
 > Once it has finished with nothing left to ask, a reply there is a new
 > request again, as the extension's `perform` settles it.
 
-## `RunSteps.answered`, [line 344](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L344): Note
+## `RunSteps.answered`, [line 362](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L362): Note
 
 Code: `if kind == "step" and verdict:`
 
@@ -196,7 +196,7 @@ Code: `if kind == "step" and verdict:`
 > done by the operator and the run moves on: no lane runs it again. `not_done`
 > records the write as never sent, which is the one thing that lets the lanes
 > try a write that was in doubt again.
-## `RunSteps.step`, [line 162](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L162): Note
+## `RunSteps.step`, [line 177](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L177): Note
 
 Code: `absent = [name for name in step.parameters if not values.get(name, "").strip()]`
 
@@ -207,12 +207,12 @@ Code: `absent = [name for name in step.parameters if not values.get(name, "").st
 > recorded `skipped`, which `finish` counts as kept. A step that carries some
 > of its values is performed with those.
 
-## `_demanded`, [line 823](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L823): Note
+## `_demanded`, [line 844](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L844): Note
 
 > The job's required parameter names, by the same `demanded` rule the press
 > and the mail reading use.
 
-## `RunSteps.stopped`, [line 287](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L287): Note
+## `RunSteps.stopped`, [line 302](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L302): Note
 
 Code: `async def stopped(self, ctx: RequestContext, run_id: str) -> None:`
 
@@ -221,7 +221,7 @@ Code: `async def stopped(self, ctx: RequestContext, run_id: str) -> None:`
 > while it was signing in. A run the step already closed (a lane raised
 > `Stopped`, or it held) is left as it is.
 
-## `RunSteps.prepare`, [line 90](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L90): Note
+## `RunSteps.prepare`, [line 99](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L99): Note
 
 Code: `for one in ordered[progress.step :]`
 
@@ -230,14 +230,14 @@ Code: `for one in ordered[progress.step :]`
 > first progress's `step`, so Steel opens on the page that step was recorded
 > on rather than on a form the operator already saved.
 
-## `RunSteps.prepare`, [line 93](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L93): Note
+## `RunSteps.prepare`, [line 102](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L102): Note
 
 Code: `and primary_gesture(one, by_id) is not None`
 
 > The run's start page is the first browser step's page; a learned field step
 > has none of its own, so it is passed over here.
 
-## `RunSteps.prepare`, [line 103](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L103): Note
+## `RunSteps.prepare`, [line 112](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L112): Note
 
 Code: `if fresh := [one for one in fresh if one["name"] not in known]:`
 
@@ -245,7 +245,7 @@ Code: `if fresh := [one for one in fresh if one["name"] not in known]:`
 > whose screen shows its label. `prepare` runs again after every answer, so a
 > field already composed (or placed by an answer) is kept as it is.
 
-## `RunSteps.step`, [line 139](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L139): Note
+## `RunSteps.step`, [line 148](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L148): Note
 
 Code: `if index == 0:`
 
@@ -253,7 +253,7 @@ Code: `if index == 0:`
 > about before any step runs (`kind="field"`, choices the form's labels): the
 > operator chooses the field or leaves the value out, and nothing is guessed.
 
-## `RunSteps.finish`, [line 251](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L251): Note
+## `RunSteps.finish`, [line 266](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L266): Note
 
 Code: `async def finish(self, ctx: RequestContext, run_id: str) -> str:`
 
@@ -262,14 +262,14 @@ Code: `async def finish(self, ctx: RequestContext, run_id: str) -> str:`
 > `progress.step`. The fields are learned from the last write back, so each
 > insertion leaves the earlier ones' orders alone.
 
-## `RunSteps.finish`, [line 276](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L276): Note
+## `RunSteps.finish`, [line 291](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L291): Note
 
 Code: `and len(confirmed) == len(progress.composed)`
 
 > A run that filled a field the save did not carry is not `held`: the operator
 > asked for the value and it was not saved, whatever the write's own verdict.
 
-## `RunSteps.answered`, [line 327](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L327): Note
+## `RunSteps.answered`, [line 342](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L342): Note
 
 Code: `if kind == "field":`
 
@@ -279,7 +279,7 @@ Code: `if kind == "field":`
 > Any other choice is one of `choices`, each naming exactly one field, and
 > places the name there.
 
-## `RunSteps._fill_for`, [line 590](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L590): Note
+## `RunSteps._fill_for`, [line 611](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L611): Note
 
 > Before a write, every field composed for it is filled on the page. A fill
 > that asks becomes the question and the write is not started; a fill that
@@ -293,7 +293,7 @@ Code: `if kind == "field":`
 > was reloaded under it) fills its learned fields again too, as it does its
 > composed ones: the value that was on the page may be gone.
 
-## `RunSteps._fill_step`, [line 663](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L663): Note
+## `RunSteps._fill_step`, [line 684](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L684): Note
 
 > A learned field step: filled by its learned locator on the form of the next
 > write, recorded `unknown` until that write's own call carries its key. A
@@ -304,7 +304,7 @@ Code: `if kind == "field":`
 > with no value for it passes over it the way it passes over any step whose
 > optional values are all absent (`skipped`).
 
-## `RunSteps._fill_asks`, [line 704](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L704): Note
+## `RunSteps._fill_asks`, [line 725](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L725): Note
 
 > What a fill that could not be made asks; every such question can be
 > answered "leave it out". A dropdown without the option, or with two options
@@ -314,18 +314,18 @@ Code: `if kind == "field":`
 > step, which has no composed field to re-place -- offers the field itself,
 > to try again. The question never carries the value.
 
-## `_fields_for`, [line 867](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L867): Note
+## `_fields_for`, [line 888](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L888): Note
 
 > The learned field steps filled this run just before the write at `index`.
 
-## `_settle_fields`, [line 879](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L879): Note
+## `_settle_fields`, [line 900](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L900): Note
 
 > Each field filled for this write takes `done` and its key only when the write
 > is `done` and its own call carried the key; it becomes `failed` when the write
 > failed, and otherwise stays `unknown`. A composed field a `done` save did not
 > carry gets its own `unclear` row, so a run that fails for it says why.
 
-## `RunSteps._not_filled`, [line 647](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L647): Note
+## `RunSteps._not_filled`, [line 668](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L668): Note
 
 > A fill that sent the write (sight pressed Save, or Enter submitted the form)
 > is not a field that failed: the write is marked sent and goes down its own
@@ -334,7 +334,7 @@ Code: `if kind == "field":`
 > it a second time. On a learned field step the field step is recorded
 > `unknown` and the next write is the one in doubt.
 
-## `RunSteps.prepare`, [line 96](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L96): Note
+## `RunSteps.prepare`, [line 105](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L105): Note
 
 Code: `resume = ordered[progress.step].order if progress.step < len(ordered) else math.inf`
 
@@ -345,7 +345,7 @@ Code: `resume = ordered[progress.step].order if progress.step < len(ordered) els
 > is out of scope. Composing it anyway left a field nothing would ever fill,
 > and `finish` then failed a run whose every write held.
 
-## `RunSteps.finish`, [line 255](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L255): Note
+## `RunSteps.finish`, [line 270](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L270): Note
 
 Code: `version = workflow`
 
@@ -356,7 +356,7 @@ Code: `version = workflow`
 > learns the rest; once another writer has moved the job, every later field is
 > refused.
 
-## `RunSteps._lane_context`, [line 432](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L432): Note
+## `RunSteps._lane_context`, [line 450](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L450): Note
 
 Code: `learned = await self._teach.locators(ctx, workflow)`
 
@@ -365,7 +365,7 @@ Code: `learned = await self._teach.locators(ctx, workflow)`
 > number -- a field's locator on a save, say -- so it reads none, and its lanes
 > find their controls from the evidence as a first run would.
 
-## `RunSteps._load`, [line 814](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L814): Note
+## `RunSteps._load`, [line 835](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L835): Note
 
 Code: `if run.pinned is not None`
 
@@ -376,7 +376,7 @@ Code: `if run.pinned is not None`
 > read against a job grown since, the index names another step and a write
 > already sent has no mark, and is sent again.
 
-## `RunSteps.answered`, [line 342](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L342): Comment
+## `RunSteps.answered`, [line 360](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L360): Comment
 
 Code: `if kind == "recipient":`
 
@@ -386,21 +386,24 @@ Code: `if kind == "recipient":`
 > run. It is an upsert, so an answer carried out twice (a crash before the
 > question closes) keeps one row.
 
-## `RunSteps.answered`, [line 341](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L341): Comment
+## `RunSteps.answered`, [line 359](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L359): Comment
 
-Code: `taught = JobAlias(name, hit.label, by, self._clock.now())`
+Code: `taught = JobAlias(name, hit.label, by, self._clock.now(), role)`
 
-> Only an answer naming one of the form's labels teaches the job a word (spec
-> §4.2): the wording the request used becomes an alias for that label, so the
-> next request with the same wording is placed without asking. Leaving it out
-> teaches nothing; an option (`no_option`) is a value, not a field; and a
-> `failed` retry names the field the value was already placed on. The alias
-> is the answering operator's (`by`, which `AnswerRun` keeps with the
-> choice), not the run's starter's. It is the form's own label, not the choice
-> as offered: a choice told apart by role or step names a label that is itself
-> ambiguous, and the next run asks again rather than guessing.
+> Only the reader's own question teaches the job a word (spec §4.2): the one
+> asked before the first step because `compose` could not place a wording
+> (`wording=True` on `_ask`). The same `no_field`/`ambiguous` question from
+> `_fill_asks` is the live page lacking a field this run, not a doubt about
+> the wording, so the operator's pick there moves this run's value and teaches
+> nothing. Nor does leaving it out, an option (`no_option`, a value, not a
+> field), a `failed` retry, a wording that is already a label on the form (it
+> would shadow that label forever), or a generic word (`teaches`,
+> `K_GENERIC`). The alias is the answering operator's (`by`, which
+> `AnswerRun` keeps with the choice), not the run's starter's. It stores the
+> form's label, plus the role when the choice had to tell two same labels
+> apart, so the next run places it on that one without asking again.
 
-## `RunSteps._write`, [line 789](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L789): Comment
+## `RunSteps._write`, [line 810](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L810): Comment
 
 Code: `await uow.workflows.confirm_alias(ctx.tenant_id, run.workflow_id, taught)`
 
@@ -411,3 +414,10 @@ Code: `await uow.workflows.confirm_alias(ctx.tenant_id, run.workflow_id, taught)
 > both, and the answer is carried out again. `confirm_alias` is an upsert per
 > normalised wording either way. This is the only writer of an alias
 > (`tests/unit/test_only_an_answer_writes_an_alias.py`).
+
+## `RunSteps._ask`, [line 581](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L581): Comment
+
+Code: `if wording:`
+
+> Marks the question as the reader's "which field does this wording mean",
+> the only question whose answer may become an alias (`RunSteps.answered`).

@@ -74,3 +74,63 @@ Integration (**written, not run**):
 
 - A wording aliased to a field is placed even when the request's own name is also an exact label on the form. This is spec §4.2 ("a confirmed alias outranks"), and it is tested. It means an operator's mistaken answer keeps misplacing that wording until a later answer replaces it. No UI yet lists or removes aliases; per spec §7 that is design 3.
 - The `[sql]` contract half and the integration tests have not been run here, because there is no Postgres in this session.
+
+---
+
+## Round 1
+
+Base: `origin/feat/execution-runtime` was merged into `d2/r2` as merge commit `9b5c357`, with no rebase, so R1 and K1 are in the base. The migration stays **0088** (down_revision 0085). Its table gains a `role` column.
+
+### Fixes
+
+- **I1**: R1's `field_of` (`domain/chat/request.py`) now resolves an alias's label through the same `normal` label match as any wording. This is the new `labelled(key, fields)` in `domain/execution/field_classes.py`. An aliased value therefore lands on the parameter that the label belongs to, and that parameter's limits apply. An alias whose label no field carries is still left aside, as before. `compile_job`'s unbound-parameter check (`domain/execution/compiled.py`) resolves the alias the same way. Its `field_classes` computation moved above that check.
+- **I2**: only the reader's own question teaches. That is the `compose` question asked before the first step, which `_ask(..., wording=True)` marks with `asking["wording"] = "yes"`.
+  - The `_fill_asks` `no_field`/`ambiguous` question moves this run's value and saves nothing.
+  - No alias is ever saved whose wording already equals a label on the form.
+- **M1**:
+  - `AnswerRun` refuses a second operator's press on an answered field question, with the 409 "that question was already answered by another operator". The same operator pressing again is still accepted.
+  - The router docstring (`workflow_runs.py`) now says this. `make types` regenerated `frontend/openapi.json` and `frontend/src/lib/api/generated.ts`.
+- **M2**: `JobAlias` gains `role: str = ""`, and there is a matching `role` column. The role is saved only when the chosen option had to tell two same labels apart (`choice != hit.label`). `compose` then keeps only hits with that role, so the next run places the value without asking.
+- **M4**: the replace test now goes through two real answers. Two runs of the job both ask about "cost centre": the first is answered Department, the second Region, and the alias ends up as Region.
+- **M5**: `teaches(wording, labels)` in `compose.py` refuses words on a small named stoplist, `K_GENERIC`: value, values, name, field, data, text, input, info, item, entry, thing. It also refuses a label already on the form.
+
+### Tests added or changed
+
+- `test_reading_a_request.py::test_an_alias_lands_on_the_parameter_its_label_names_and_its_limits_apply`: alias "cost centre -> Department", Department max 5, value "Finance Team". It is refused with "longer than 5 characters", exactly as when given under "Department". (I1)
+- `test_compiling_a_job.py::test_an_alias_binds_by_the_label_of_the_parameter_a_step_fills`. (I1, compiled)
+- `test_composing_a_field.py`:
+  - `test_an_alias_outranks_a_label_the_wording_also_matches` is removed, because such an alias is now never saved (I2).
+  - New `test_an_alias_with_a_role_places_the_wording_on_that_one_of_two_same_labels` (M2).
+  - New `test_a_generic_word_or_a_label_on_the_form_is_never_taught`, parametrised (M5, I2).
+- `test_an_answer_teaches_an_alias.py`:
+  - `test_a_field_the_page_lacked_this_run_teaches_nothing` (the I2 probe: the page lacks Region once, the operator picks Department, and no alias is saved);
+  - `test_a_wording_that_is_already_a_label_on_the_form_teaches_nothing`;
+  - `test_a_generic_wording_teaches_nothing`;
+  - `test_one_of_two_same_labels_is_taught_with_its_role_and_not_asked_again`;
+  - `test_a_second_operators_press_on_an_answered_field_is_refused`;
+  - `test_a_later_answer_for_the_same_wording_replaces_the_alias`, rewritten (M4).
+- The contract test and `tests/integration/test_job_aliases.py` now store a `role`. They are **written, not run** (Postgres).
+
+Each new test was run before its fix and failed for the reason under test: an alias saved, `role` missing, the wrong 409 wording, or `('Department', False)` returned.
+
+### Gates
+
+- `pytest tests/unit tests/contract -k "not sql" --deselect TestFuzz`: **4714 passed**.
+- `mypy src tests`: clean (811 files).
+- `ruff check`, `ruff format --check` and `lint-imports`: clean.
+- `check_code_notes.py`: 0 stale, 0 dead.
+- `test_the_committed_schema_is_current.py`: passed.
+- Frontend `npx tsc --noEmit`: clean.
+- **Worker restart needed** (`RunSteps`, `AnswerRun`).
+
+### Rulings
+
+- Ruling: the "which field" question is marked by a stored flag, `asking["wording"] = "yes"`. It is not inferred from `why`. — `compose` and `_fill_asks` both use `no_field`/`ambiguous`, so `why` cannot tell them apart. — Cost if wrong: one extra key in `progress.asking`. A question already standing when this is deployed teaches nothing when answered.
+- Ruling: the role is saved only when the choice was told apart by role (`choice != hit.label`). It is not saved on every alias. — This does what M2 asks without tying ordinary aliases to a role that the form may later change. — Cost if wrong: two same labels that also share a role, and differ only by step, are still asked about each run.
+- Ruling: the round-1 answer to M2 supersedes the round-0 ruling "the alias stores the form's label, not the choice as offered". The label is still stored; the role is added beside it.
+- Ruling: `K_GENERIC` lives in `domain/execution/compose.py` next to `normal`, not in `domain/skill/aliases.py`. — `aliases.py` importing `compose` would be circular. — Cost if wrong: none.
+- Ruling: `field_of` returns `(aliased, False)` for an alias whose label resolves to no field, as it did before. — The value is then kept aside under that label. `compose` still places it by label at run time. — Cost if wrong: none new.
+
+### Concerns
+
+- `npm ci` was run in `frontend/` to get `openapi-typescript` for `make types`. Only the two generated files changed.

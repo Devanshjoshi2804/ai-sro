@@ -31,7 +31,16 @@ from sro.application.runtime.teach import Teach
 from sro.domain.chat.asked_by import only_reads_the_mail
 from sro.domain.chat.thread import Speaker
 from sro.domain.execution.account import Account, LeaseState
-from sro.domain.execution.compose import Adding, Composed, choices, compose, field_of, with_field
+from sro.domain.execution.compose import (
+    Adding,
+    Composed,
+    choices,
+    compose,
+    field_of,
+    screens,
+    teaches,
+    with_field,
+)
 from sro.domain.execution.evidence import primary_gesture, writes
 from sro.domain.execution.lanes import Lane, StepResult, cites_key
 from sro.domain.execution.mail_job import sends_mail
@@ -156,7 +165,13 @@ class RunSteps:
                 return StepOutcome(
                     more=True,
                     asking=await self._ask(
-                        ctx, run, step, asked, index=index, about=(one.name, one.why, one.labels)
+                        ctx,
+                        run,
+                        step,
+                        asked,
+                        index=index,
+                        about=(one.name, one.why, one.labels),
+                        wording=True,
                     ),
                 )
         absent = [name for name in step.parameters if not values.get(name, "").strip()]
@@ -337,8 +352,11 @@ class RunSteps:
                 pass
             elif (hit := choices(workflow, by_id).get(choice)) is not None:
                 progress.composed = [*others, _entry(replace(hit, name=name))]
-                by = asking.get("by") or ctx.principal_id.value
-                taught = JobAlias(name, hit.label, by, self._clock.now())
+                labels = (one.label for _, fields in screens(workflow, by_id) for one in fields)
+                if asking.get("wording") and teaches(name, labels):
+                    by = asking.get("by") or ctx.principal_id.value
+                    role = "" if choice == hit.label else hit.role
+                    taught = JobAlias(name, hit.label, by, self._clock.now(), role)
         if kind == "recipient":
             await keep_the_named(ctx, self._uow, workflow.id, asking, at=self._clock.now())
         if kind == "step" and verdict:
@@ -537,6 +555,7 @@ class RunSteps:
         last: StepResult | None = None,
         index: int | None = None,
         about: tuple[str, str, Sequence[str]] | None = None,
+        wording: bool = False,
     ) -> str:
         progress = Progress.of(run.progress)
         if last is not None:
@@ -559,6 +578,8 @@ class RunSteps:
         if about is not None:
             name, why, choices = about
             progress.asking |= {"name": name, "why": why, "choices": json.dumps(list(choices))}
+        if wording:
+            progress.asking["wording"] = "yes"
         by = last.lane.value if last is not None else "none"
         run.steps.append(
             RunStep(

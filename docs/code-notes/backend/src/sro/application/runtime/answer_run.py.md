@@ -24,7 +24,7 @@ Code: `if not asking or asking.get("id") != question_id:`
 > operator's verdict. Without one the question stands and the write stays in
 > doubt, never sent again.
 
-## `AnswerRun.execute`, [line 79](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L79): Note
+## `AnswerRun.execute`, [line 81](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L81): Note
 
 Code: `progress.asking = {**asking, **answer}`
 
@@ -71,3 +71,13 @@ Code: `drafted = run.executor != "steel" and kind == "recipient"`
 > it holds no browser while it waits -- so that one question is answered on a
 > stopped run, and carried out by `resume` (the job redrafted) instead of a
 > Temporal signal, which no workflow would receive.
+
+## `AnswerRun.execute`, [line 77](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L77): Comment
+
+Code: `raise Conflict("that question was already answered by another operator")`
+
+> A field answer is kept with who gave it, because it may teach the job an
+> alias in that operator's name. A press by another operator on a question
+> already answered is refused, even with the same choice, so the alias never
+> changes hands after the fact; the same operator pressing again is still the
+> same answer.

@@ -50,6 +50,16 @@ def alias_map(aliases: Iterable[JobAlias]) -> dict[str, str]:
     return {normal(one.wording): one.field for one in aliases}
 
 
+K_GENERIC = frozenset(
+    {"value", "values", "name", "field", "data", "text", "input", "info", "item", "entry", "thing"}
+)
+
+
+def teaches(wording: str, labels: Iterable[str]) -> bool:
+    key = normal(wording)
+    return bool(key) and key not in K_GENERIC and key not in {normal(one) for one in labels}
+
+
 def screens(
     workflow: Workflow, by_id: Mapping[str, Gesture]
 ) -> list[tuple[Step, tuple[OutlineField, ...]]]:
@@ -104,13 +114,16 @@ def compose(
     aliases: Sequence[JobAlias] = (),
 ) -> tuple[tuple[Composed, ...], tuple[Unplaced, ...]]:
     filled = bindable(workflow, by_id)
-    said = alias_map(aliases)
+    said = {normal(one.wording): one for one in aliases}
     composed: list[Composed] = []
     unplaced: list[Unplaced] = []
     for name, value in values.items():
         if name in filled or not value.strip() or is_secret_field(name):
             continue
-        hits = placed(workflow, by_id, name, said.get(normal(name), name))
+        alias = said.get(normal(name))
+        hits = placed(workflow, by_id, name, name if alias is None else alias.field)
+        if alias is not None and alias.role:
+            hits = tuple(one for one in hits if one.role == alias.role)
         if len(hits) == 1:
             composed.append(hits[0])
         else:

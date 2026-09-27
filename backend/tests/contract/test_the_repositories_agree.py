@@ -697,7 +697,7 @@ class TestWorkflows:
     ) -> None:
         first = JobAlias("Cost Centre", "Department", "clerk", _when(9))
         region = JobAlias("region code", "Region", "clerk", _when(10))
-        later = JobAlias("cost  centre", "Region", "lead", _when(11))
+        later = JobAlias("cost  centre", "Region", "lead", _when(11), role="textbox")
         async with store as work:
             for one in (first, region, later):
                 await work.workflows.confirm_alias(TENANT, "wfl_1", one)

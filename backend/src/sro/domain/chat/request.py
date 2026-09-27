@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from sro.domain.execution.compose import normal
-from sro.domain.execution.field_classes import FieldClass, FieldLimits
+from sro.domain.execution.field_classes import FieldClass, FieldLimits, labelled
 from sro.domain.prompts.record import quoted_in
 from sro.domain.skill.signing_in import Logins
 
@@ -47,14 +47,11 @@ class Read:
 
 
 def field_of(said: str, candidate: Candidate) -> tuple[str, bool] | None:
-    key = normal(said)
-    aliased = candidate.aliases.get(key)
-    if aliased is not None:
-        return aliased, aliased in candidate.parameters
-    for one in candidate.fields:
-        if key in {normal(label) for label in (one.name, *one.labels)}:
-            return one.name, one.kind != "never"
-    return None
+    aliased = candidate.aliases.get(normal(said))
+    one = labelled(normal(said if aliased is None else aliased), candidate.fields)
+    if one is None:
+        return None if aliased is None else (aliased, False)
+    return one.name, one.kind != "never"
 
 
 def _says(said: str, wording: str) -> bool:

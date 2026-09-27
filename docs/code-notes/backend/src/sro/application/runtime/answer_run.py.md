@@ -54,10 +54,11 @@ Code: `if kind == "field" and chosen and chosen not in json.loads(asking.get("ch
 
 ## `AnswerRun.execute`, [line 52](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L52): Comment
 
-Code: `if kind == "recipient" and run.started_by and run.started_by != ctx.principal_id.value:`
+Code: `if kind == "recipient" and run.started_by != ctx.principal_id.value:`
 
 > Who a mail goes to is the one answer that names somebody outside the evidence,
-> so only the operator who started the run gives it (invariant 5), and only as
+> so only the operator who started the run gives it (invariant 5) -- a legacy
+> row with no `started_by` has nobody who may -- and only as
 > addresses that read cleanly (`mailboxes`) -- the same parser the draft's own
 > recipients go through. The answer keeps the addresses and who gave them; the
 > first answer wins, as for every question.

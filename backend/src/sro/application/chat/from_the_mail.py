@@ -10,7 +10,7 @@ from types import MappingProxyType
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.announce import SayWhatHappened
-from sro.application.chat.mailbox import K_REMEMBER, SERVER, sent_to_others
+from sro.application.chat.mailbox import K_REMEMBER, SERVER, mail_key, sent_to_others
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.chat.understand import understand
 from sro.application.context import RequestContext
@@ -231,7 +231,8 @@ class FromTheMail:
             return None
         look.read += 1
         back = await self._answering(ctx, thread)
-        if back is not None and back.executor == "steel":
+        waits = Progress.of(back.progress).asking.get("kind") if back is not None else None
+        if back is not None and (back.executor == "steel" or waits == "recipient"):
             await self._answer_the_run(ctx, back, said, message)
             return None
         if back is not None:
@@ -366,7 +367,7 @@ class FromTheMail:
             mail_thread=one.thread,
             ask_to_run=True,
             sent_to=one.sent_to,
-            offer=_mail_key(one.message),
+            offer=mail_key(one.message),
         )
         return replace(one, asked=True)
 
@@ -406,7 +407,7 @@ class FromTheMail:
                 live=True,
                 allow_focus=False,
                 conversation=(SERVER, one.thread),
-                offer=_mail_key(one.message),
+                offer=mail_key(one.message),
             )
         except OverCap:
             raise
@@ -441,7 +442,7 @@ class FromTheMail:
         self, ctx: RequestContext, run: WorkflowRun, said: str, message: str
     ) -> None:
         asking = Progress.of(run.progress).asking
-        kind = asking.get("kind") if run.outcome == "running" else None
+        kind = asking.get("kind")
         if kind == "recipient":
             said = await self._address_the_operator_named(ctx, message)
         if kind not in ("value", "recipient") or not said:
@@ -476,7 +477,8 @@ class FromTheMail:
             return ""
         if not isinstance(said, dict) or said.get("sent") is not True:
             return ""
-        return one_address_in(str(said.get("body") or ""))
+        reply = bool(said.get("in_reply_to") or said.get("references"))
+        return one_address_in(str(said.get("body") or ""), reply=reply)
 
     async def _was_asked(self, ctx: RequestContext, thread: str) -> Pending | None:
         if not thread.strip():
@@ -799,7 +801,7 @@ class FromTheMail:
         return " ".join(whole.split())[:K_THREAD]
 
     async def _take(self, ctx: RequestContext, message: str, *, now: datetime) -> bool | None:
-        tenant, kept, reading = ctx.tenant_id, _mail_key(message), _reading_key(message)
+        tenant, kept, reading = ctx.tenant_id, mail_key(message), _reading_key(message)
         async with self._uow as uow:
             if await uow.tool_calls.held(tenant, kept, since=now - K_REMEMBER):
                 return False
@@ -818,7 +820,7 @@ class FromTheMail:
         async with self._uow as uow:
             await uow.tool_calls.remember(
                 ctx.tenant_id,
-                _mail_key(message),
+                mail_key(message),
                 tool=K_READING,
                 at=now,
                 stale_after=K_REMEMBER,
@@ -883,10 +885,6 @@ def _page_of(answered: str) -> str:
         return ""
     more = said.get("next_page") if isinstance(said, dict) else None
     return more if isinstance(more, str) and K_PAGE_TOKEN.fullmatch(more) else ""
-
-
-def _mail_key(message: str) -> str:
-    return f"mail:{message}"
 
 
 def _reading_key(message: str) -> str:

@@ -116,3 +116,15 @@ def test_only_an_operator_s_answer_names_a_recipient() -> None:
         and "def confirm_recipient(" not in text
     )
     assert writers == ["application/execution/mail_job.py"]
+
+
+async def test_a_run_nobody_started_takes_no_recipient() -> None:
+    """A legacy row with no `started_by` has no operator to answer for it."""
+    world = await _asked_who()
+    run = await world.uow.workflow_runs.get(TENANT, world.run_id)
+    assert run is not None
+    run.started_by = ""
+    await world.uow.workflow_runs.save(run)
+
+    with pytest.raises(Conflict):
+        await _answer(world, "vendor@supplier.example")

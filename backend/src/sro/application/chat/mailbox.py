@@ -8,6 +8,10 @@ SERVER = "gmail"
 K_REMEMBER = timedelta(days=30)
 
 
+def mail_key(message: str) -> str:
+    return f"mail:{message}"
+
+
 def sent_to_others(sender: str, to: str, cc: str, mailbox: str) -> tuple[str, ...]:
     me = mailbox.strip().casefold()
     if not me or parseaddr(sender)[1].casefold() != me:

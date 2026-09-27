@@ -399,6 +399,31 @@ class TestWorkflowRuns:
             assert await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="") is None
             assert await uow.workflow_runs.waiting_on(TENANT, server="", thread="t-9") is None
 
+    async def test_a_drafted_run_asking_who_its_mail_goes_to_waits_on_its_thread(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The draft path's `recipient` question stands on a stopped run, and a
+        reply on its thread must find it; a stopped run asking anything else,
+        or nothing, is not waiting."""
+        wait = {"server": "gmail", "thread": "t-7", "until": "2099-01-01T00:00:00+00:00"}
+        who = _run(device_id="dev_h", outcome="stopped", awaiting=wait)
+        other = _run(device_id="dev_i", outcome="stopped", awaiting={**wait, "thread": "t-4"})
+        async with SqlUnitOfWork(session_factory) as uow:
+            for one in (who, other):
+                await uow.workflow_runs.save(one)
+            await uow.workflow_runs.record_progress(
+                TENANT, who.id, {"asking": {"id": "q-1", "kind": "recipient", "text": "who?"}}
+            )
+            await uow.workflow_runs.record_progress(
+                TENANT, other.id, {"asking": {"id": "q-2", "kind": "value", "text": "what?"}}
+            )
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            found = await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-7")
+            assert found is not None and found.id == who.id
+            assert await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-4") is None
+
     async def test_clearing_a_wait_without_committing_does_not_clear_it(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:

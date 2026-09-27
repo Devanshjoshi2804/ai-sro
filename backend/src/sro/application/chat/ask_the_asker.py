@@ -4,7 +4,7 @@ import json
 import logging
 
 from sro.application.chat.announce import SayWhatHappened
-from sro.application.chat.mailbox import K_REMEMBER, SERVER
+from sro.application.chat.mailbox import K_REMEMBER, SERVER, mail_key
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
@@ -256,7 +256,7 @@ class SendTheDraft:
             async with self._uow as uow:
                 await uow.tool_calls.remember(
                     ctx.tenant_id,
-                    f"mail:{ctx.principal_id.value}:{sent_id}",
+                    mail_key(sent_id),
                     tool="a mail this system sent, which is not a request",
                     at=self._clock.now(),
                     stale_after=K_REMEMBER,

@@ -64,9 +64,11 @@ _VALUE_LIKE = re.compile(
 
 _SEND_CALL = re.compile(r"/sync/u/\d+/i/s")
 
-_SENT_ID = re.compile(r"msg-f:(\d+)")
+_SENT_THREAD = re.compile(r"thread-f:(\d+)")
 
-K_SENT_IDS = 10
+K_SENT_THREADS = 10
+
+K_SEND_WINDOW_S = 120.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,17 +100,21 @@ def mailboxes(text: str) -> tuple[str, ...] | None:
     return tuple(dict.fromkeys(address.casefold() for _, address in found))
 
 
-_QUOTED = re.compile(r"(>|On\s|-{2,}|From:\s)")
-
-
-def one_address_in(reply: str) -> str:
-    own = []
-    for line in reply.splitlines():
-        if _QUOTED.match(line.strip()):
-            break
-        own.append(line)
+def one_address_in(text: str, *, reply: bool) -> str:
+    lines = text.splitlines()
+    quoted = next((n for n, line in enumerate(lines) if line.lstrip().startswith(">")), None)
+    if quoted is None and reply:
+        return ""
+    end = len(lines) if quoted is None else quoted
+    while end and not lines[end - 1].strip():
+        end -= 1
+    if quoted is not None:
+        while end and lines[end - 1].strip():
+            end -= 1
     named = {
-        mailboxes(word.strip("<>()[]{},.;:!?'\"")) for word in " ".join(own).split() if "@" in word
+        mailboxes(word.strip("<>()[]{},.;:!?'\""))
+        for word in " ".join(lines[:end]).split()
+        if "@" in word
     }
     if len(named) != 1:
         return ""
@@ -126,22 +132,24 @@ def participants(conversation: Sequence[Mapping[str, object]]) -> frozenset[str]
     return frozenset(address for header in headers for address in mailboxes(header) or ())
 
 
-def sent_messages(workflow: Workflow, by_id: Mapping[str, Gesture]) -> tuple[tuple[str, ...], ...]:
+def sent_from(
+    workflow: Workflow, by_id: Mapping[str, Gesture]
+) -> tuple[tuple[float, tuple[str, ...]], ...]:
     found = []
     for step in workflow.steps:
         for cited in step.cites:
             gesture = by_id.get(cited)
             if gesture is None or not on_the_mailbox(gesture) or not _pressed_send(gesture):
                 continue
-            named = tuple(
+            threads = tuple(
                 dict.fromkeys(
                     format(int(number), "x")
                     for call in gesture.requests
                     if _sends(call)
-                    for number in _SENT_ID.findall(_answer_of(call))
+                    for number in _SENT_THREAD.findall(_answer_of(call))
                 )
             )
-            found.append(named if len(named) <= K_SENT_IDS else ())
+            found.append((gesture.at, threads if len(threads) <= K_SENT_THREADS else ()))
     return tuple(found)
 
 
@@ -182,6 +190,13 @@ def check_draft(
             f"{len(strangers)} recipient(s) outside the conversation",
             recipient=True,
         )
+    addressed = tuple(one for one in wanted if one in open_to)
+    if not addressed:
+        return Checked(
+            "the mail names nobody to send it to but a Bcc",
+            "only a Bcc",
+            recipient=True,
+        )
     said = {
         str(one.get("id") or ""): f"{one.get('subject') or ''} {one.get('body') or ''}"
         for one in conversation
@@ -197,10 +212,7 @@ def check_draft(
             "the mail carries values nobody gave it: " + ", ".join(loose),
             f"{len(loose)} value(s) in the body nobody gave",
         )
-    return Checked(
-        to=tuple(one for one in wanted if one in open_to),
-        bcc=tuple(one for one in wanted if one not in open_to),
-    )
+    return Checked(to=addressed, bcc=tuple(one for one in wanted if one not in open_to))
 
 
 def _values_in(texts: Iterable[str]) -> set[str]:

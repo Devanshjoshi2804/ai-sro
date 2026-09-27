@@ -28,7 +28,7 @@ Code: `K_REMEMBER = timedelta(days=30)`
 > comes round again is one nobody acted on in a month, and offering it a second
 > time is not the worst thing this could do.
 
-## `sent_to_others`, [line 11](../../../../../../../backend/src/sro/application/chat/mailbox.py#L11): Note
+## `sent_to_others`, [line 15](../../../../../../../backend/src/sro/application/chat/mailbox.py#L15): Note
 
 > Who else a request went to when the operator sent it: every To and Cc
 > address other than the mailbox's own, when the sender is the mailbox. So a
@@ -37,3 +37,13 @@ Code: `K_REMEMBER = timedelta(days=30)`
 > and for a request addressed ONLY to the operator -- that is how a person forwards themselves
 > work, and how every test request on this deployment is written. Addresses
 > are compared case-folded; `email.utils` does the parsing.
+
+## `mail_key`, [line 11](../../../../../../../backend/src/sro/application/chat/mailbox.py#L11): Docstring
+
+> The one key a mail is known by in the claim ledger, for every door: the look
+> keeps a mail it has read under it, and a send this system made is remembered
+> under it, so the look finds its own mail already taken and never reads it. It
+> was two keys once (`mail:{id}` read, `mail:{operator}:{id}` sent), and this
+> system's own sent mail was read back as the operator's -- a reply that could
+> answer a value, or, once SENT counted as the operator's word, name a
+> recipient.

@@ -20,6 +20,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sro.application.chat.ask_the_asker import DRAFTED, DraftForTheAsker, SendTheDraft
+from sro.application.chat.mailbox import mail_key
 from sro.application.context import RequestContext
 from sro.application.ports.tools import ToolResult, ToolsUnavailable
 from sro.domain.chat.asking import Pending
@@ -396,7 +397,7 @@ async def test_the_mail_this_system_sent_is_never_read_as_a_request() -> None:
     async with uow as opened:
         again = await opened.tool_calls.remember(
             f.TENANT,
-            "mail:devansh:m-sent",
+            mail_key("m-sent"),
             tool="read a mail for what it asks",
             # The clock the claim was written on, not the wall clock: a window
             # measured from today against a claim stamped in the fake's own

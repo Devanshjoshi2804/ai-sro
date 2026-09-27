@@ -37,7 +37,7 @@ from sro.application.execution.stops import Stops
 from sro.application.execution.workflow_runs import StartWorkflowRun
 from sro.application.ports.tools import ToolResult
 from sro.application.runtime.answer_run import AnswerRun
-from sro.domain.execution.mail_job import JobRecipient, is_mail_only
+from sro.domain.execution.mail_job import K_SEND_WINDOW_S, JobRecipient, is_mail_only
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.waiting import as_said, waiting_on
 from sro.domain.execution.workflow_run import WorkflowRun
@@ -65,9 +65,9 @@ GMAIL = "https://mail.google.com/mail/u/0/#inbox"
 class _Mailbox:
     """A connector holding one conversation, and every send it was asked for."""
 
-    def __init__(self, messages: Mapping[str, dict[str, object]] | None = None) -> None:
+    def __init__(self, sent_thread: list[dict[str, object]] | None = None) -> None:
         self.sent: list[dict[str, str]] = []
-        self.messages = dict(messages or {})
+        self.sent_thread = list(sent_thread or [])
 
     @property
     def available(self) -> bool:
@@ -87,11 +87,12 @@ class _Mailbox:
         if tool == "send_message":
             self.sent.append(dict(arguments))
             return ToolResult(text=json.dumps({"status": "sent", "id": "gm-42"}))
-        if tool == "get_message":
-            found = self.messages.get(arguments["id"])
+        if tool == "get_thread" and arguments["id"] == format(SENT_THREAD, "x"):
             return ToolResult(
-                text=json.dumps(found) if found else "no such message", failed=not found
+                text=json.dumps({"id": arguments["id"], "messages": self.sent_thread})
             )
+        if tool != "get_thread" or arguments["id"] != THREAD:
+            return ToolResult(text="no such conversation", failed=True)
         return ToolResult(
             text=json.dumps(
                 {
@@ -310,23 +311,26 @@ async def test_what_the_job_does_reaches_the_model_only_inside_a_fence() -> None
         assert said in inside and sent.count(said) == 1, name
 
 
-SENT_ID = 1778123456789012345
+SENT_THREAD = 1845678901234567890
+CLICKED_AT = 1_000.0
 
 
-def _pressed_send(response: str = f'[["msg-f:{SENT_ID}"]]') -> Gesture:
+def _pressed_send(
+    response: str = f'[["thread-f:{SENT_THREAD}",[["msg-f:1845678901234500001"]]]]',
+) -> Gesture:
     return Gesture(
         id="g-send",
         tenant=f.TENANT.value,
         stream_id="str-1",
         batch_id="bat-1",
-        at=1_000.0,
+        at=CLICKED_AT,
         url=GMAIL,
         system=GMAIL,
         tab_id=7,
         frame_url=None,
         action=Action(
             kind="click",
-            at=1_000.0,
+            at=CLICKED_AT,
             url=GMAIL,
             target=Target(tag="div", role="button", name="Send \u202a(\u2318Enter)\u202c"),
         ),
@@ -341,8 +345,8 @@ def _pressed_send(response: str = f'[["msg-f:{SENT_ID}"]]') -> Gesture:
     )
 
 
-def _sent_copy(**headers: object) -> dict[str, dict[str, object]]:
-    return {format(SENT_ID, "x"): {"id": format(SENT_ID, "x"), "sent": True, **headers}}
+def _sent_copy(*, sent: bool = True, after: float = 3.0, **headers: object) -> dict[str, object]:
+    return {"id": "s-1", "sent": sent, "sent_at": CLICKED_AT + after, **headers}
 
 
 async def _write(
@@ -368,30 +372,45 @@ async def _write(
 async def test_an_address_the_job_was_demonstrated_sending_to_is_written_to() -> None:
     """Decided 2026-09-25: the thread's participants and the addresses the
     job's own evidence sent to when it was shown are who a mail may go to --
-    read from the mail the recorded Send click actually sent."""
-    mailbox = _Mailbox(_sent_copy(to="Vendor <vendor@supplier.example>", bcc="boss@wh.example"))
+    read from the mail the recorded Send click actually sent: the one SENT
+    message of the click's thread dated within the window around the click."""
+    mailbox = _Mailbox(
+        [
+            _sent_copy(after=-3600.0, to="old@supplier.example"),
+            {"id": "r-1", "from": "vendor@supplier.example", "sent_at": CLICKED_AT - 60},
+            _sent_copy(to="Vendor <vendor@supplier.example>", bcc="boss@wh.example"),
+        ]
+    )
 
     written = await _write(mailbox, "vendor@supplier.example, boss@wh.example")
 
     assert isinstance(written, Written)
     assert (written.to, written.bcc) == ("vendor@supplier.example", "boss@wh.example")
+    assert isinstance(await _write(mailbox, "old@supplier.example"), Unaddressed)
 
 
-async def test_a_send_that_cannot_be_tied_to_a_sent_mail_grants_nobody() -> None:
-    for mailbox in (
-        _Mailbox({format(SENT_ID, "x"): {"to": "vendor@supplier.example", "sent": False}}),
-        _Mailbox(),
-    ):
-        written = await _write(mailbox, "vendor@supplier.example")
-        assert isinstance(written, Unaddressed), written
-    two = _Mailbox(
-        {
-            "a": {"to": "vendor@supplier.example", "sent": True},
-            "b": {"to": "other@supplier.example", "sent": True},
-        }
-    )
-    ambiguous = {"g-send": _pressed_send(f'["msg-f:{0xA}","msg-f:{0xB}"]')}
-    assert isinstance(await _write(two, "vendor@supplier.example", by_id=ambiguous), Unaddressed)
+@pytest.mark.parametrize(
+    "thread",
+    [
+        [_sent_copy(sent=False, to="vendor@supplier.example")],
+        [_sent_copy(after=K_SEND_WINDOW_S + 1, to="vendor@supplier.example")],
+        [
+            _sent_copy(to="vendor@supplier.example"),
+            _sent_copy(after=5.0, to="other@supplier.example"),
+        ],
+        [],
+    ],
+)
+async def test_a_send_that_cannot_be_tied_to_one_sent_mail_grants_nobody(
+    thread: list[dict[str, object]],
+) -> None:
+    assert isinstance(await _write(_Mailbox(thread), "vendor@supplier.example"), Unaddressed)
+
+
+async def test_a_send_whose_call_names_no_thread_grants_nobody() -> None:
+    mailbox = _Mailbox([_sent_copy(to="vendor@supplier.example")])
+    msg_only = {"g-send": _pressed_send('[["msg-f:1845678901234500001"],["msg-a:r-44556677"]]')}
+    assert isinstance(await _write(mailbox, "vendor@supplier.example", by_id=msg_only), Unaddressed)
 
 
 async def test_an_address_the_operator_named_for_this_job_is_written_to() -> None:
@@ -492,7 +511,7 @@ async def test_the_model_sees_who_each_message_went_to_and_its_id() -> None:
 
 async def test_a_demonstrated_bcc_is_pressed_out_as_bcc() -> None:
     uow = FakeUnitOfWork()
-    mailbox = _Mailbox(_sent_copy(to="alex.r@example.com", bcc="boss@wh.example"))
+    mailbox = _Mailbox([_sent_copy(to="alex.r@example.com", bcc="boss@wh.example")])
     job = _reply_job()
     job.steps[1].cites = ["g-send"]
     await draft_the_mail_job(

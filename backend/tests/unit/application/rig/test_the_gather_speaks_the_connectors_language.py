@@ -116,11 +116,13 @@ def test_a_conversation_says_who_each_mail_went_to() -> None:
                 {
                     "id": "1a0b5053",
                     "labelIds": ["INBOX"],
+                    "internalDate": "1789057093399",
                     "payload": {
                         "headers": [
                             {"name": "From", "value": "asker@example.com"},
                             {"name": "To", "value": "ops@example.com"},
                             {"name": "Cc", "value": "lead@example.com"},
+                            {"name": "Bcc", "value": "audit@example.com"},
                         ],
                         "body": {},
                     },
@@ -132,6 +134,8 @@ def test_a_conversation_says_who_each_mail_went_to() -> None:
     (one,) = json.loads(module._thread("token", {"id": "t-1"}))["messages"]
 
     assert (one["to"], one["cc"], one["sent"]) == ("ops@example.com", "lead@example.com", False)
+    # Bcc is on the sender's own copy only; when it was sent is Gmail's own clock.
+    assert (one["bcc"], one["sent_at"]) == ("audit@example.com", 1789057093.399)
 
 
 class _Answers:
@@ -180,7 +184,8 @@ def test_a_message_says_whose_mailbox_it_is_and_who_it_went_to() -> None:
                     {"name": "From", "value": "Operator <operator@example.com>"},
                     {"name": "To", "value": "Colleague <colleague@example.com>"},
                     {"name": "Cc", "value": "boss@example.com"},
-                    {"name": "Bcc", "value": "audit@example.com"},
+                    {"name": "In-Reply-To", "value": "<req@mail>"},
+                    {"name": "References", "value": "<first@mail> <req@mail>"},
                 ],
                 "body": {},
             },
@@ -195,8 +200,9 @@ def test_a_message_says_whose_mailbox_it_is_and_who_it_went_to() -> None:
     assert first["mailbox"] == "Operator@Example.com"
     assert first["to"] == "Colleague <colleague@example.com>"
     assert first["cc"] == "boss@example.com"
-    # Gmail keeps Bcc on the sender's own copy, and SENT says it is that copy.
-    assert (first["bcc"], first["sent"]) == ("audit@example.com", True)
+    # SENT says it is the operator's own copy; the reply headers say it is a reply.
+    assert first["sent"] is True
+    assert (first["in_reply_to"], first["references"]) == ("<req@mail>", "<first@mail> <req@mail>")
     assert routed.profiles == 1
 
 

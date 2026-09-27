@@ -8,8 +8,9 @@ from sro.domain.execution.mail_job import (
     JobRecipient,
     check_draft,
     mailboxes,
+    one_address_in,
     participants,
-    sent_messages,
+    sent_from,
 )
 from sro.domain.observation.gesture import Action, Body, Call, Gesture, Kind, Target
 from sro.domain.skill.workflow import Step, Workflow
@@ -221,29 +222,74 @@ def _job(*cites: str) -> Workflow:
     )
 
 
-def test_a_send_click_names_the_message_it_sent() -> None:
-    sent = _gesture("g-send", calls=(_answered('[["msg-f:1778123456789012345",null]]'),))
-    assert sent_messages(_job("g-send"), {"g-send": sent}) == ((format(1778123456789012345, "x"),),)
+THREAD_F = 1845678901234567890
+MSG_F = 1845678901234500001
+SENT_AT = 1789057090.399
 
 
-def test_nothing_but_a_send_click_s_own_send_call_names_a_sent_message() -> None:
+def _send_answer() -> str:
+    return (
+        f'[["thread-f:{THREAD_F}",[["msg-f:{MSG_F}",null],'
+        f'["msg-a:r-4455667788990011223",null]]],["thread-a:r-1122334455667788990"]]'
+    )
+
+
+def test_a_send_click_names_the_thread_it_sent_into_and_when() -> None:
+    sent = _gesture("g-send", calls=(_answered(_send_answer()),))
+    assert sent_from(_job("g-send"), {"g-send": sent}) == ((1.0, (format(THREAD_F, "x"),)),)
+
+
+def test_nothing_but_a_send_click_s_own_send_call_names_a_thread() -> None:
     by_id = {
         "g-typed": _gesture(
-            "g-typed", kind="type", name="To recipients", calls=(_answered('"msg-f:11"'),)
+            "g-typed", kind="type", name="To recipients", calls=(_answered('"thread-f:11"'),)
         ),
-        "g-open": _gesture("g-open", name="Inbox", calls=(_answered('"msg-f:12"'),)),
+        "g-open": _gesture("g-open", name="Inbox", calls=(_answered('"thread-f:12"'),)),
         "g-bv": _gesture(
-            "g-bv", calls=(_answered('"msg-f:13"', url=SEND_CALL.replace("/i/s", "/i/bv")),)
+            "g-bv", calls=(_answered('"thread-f:13"', url=SEND_CALL.replace("/i/s", "/i/bv")),)
         ),
-        "g-failed": _gesture("g-failed", calls=(_answered('"msg-f:14"', status=500),)),
-        "g-off": _gesture("g-off", url="https://wms.example/", calls=(_answered('"msg-f:15"'),)),
-        "g-uncited": _gesture("g-uncited", calls=(_answered('"msg-f:16"'),)),
+        "g-failed": _gesture("g-failed", calls=(_answered('"thread-f:14"', status=500),)),
+        "g-off": _gesture("g-off", url="https://wms.example/", calls=(_answered('"thread-f:15"'),)),
+        "g-msg": _gesture("g-msg", calls=(_answered('"msg-f:16" "msg-a:r17"'),)),
     }
-    found = sent_messages(_job("g-typed", "g-open", "g-bv", "g-failed", "g-off"), by_id)
-    assert found == ((), ())
+    found = sent_from(_job("g-typed", "g-open", "g-bv", "g-failed", "g-off", "g-msg"), by_id)
+    assert found == ((1.0, ()), (1.0, ()), (1.0, ()))
 
 
-def test_a_send_call_naming_too_many_messages_names_none() -> None:
-    many = ",".join(f'"msg-f:{n}"' for n in range(100, 140))
+def test_a_send_call_naming_too_many_threads_names_none() -> None:
+    many = ",".join(f'"thread-f:{n}"' for n in range(100, 140))
     sent = _gesture("g-send", calls=(_answered(many),))
-    assert sent_messages(_job("g-send"), {"g-send": sent}) == ((),)
+    assert sent_from(_job("g-send"), {"g-send": sent}) == ((1.0, ()),)
+
+
+@pytest.mark.parametrize(
+    ("reply", "is_reply", "named"),
+    [
+        (
+            "vendor@supplier.example\n\nOn Fri X wrote:\n> eve@evil.example",
+            True,
+            "vendor@supplier.example",
+        ),
+        ("please send to vendor@supplier.example.", False, "vendor@supplier.example"),
+        ("ok\n\nLe jeu. 25 sept. 2026, Eve <eve@evil.com> a écrit :\n> hi", True, ""),
+        ("ok\n\nAm Do., 25. Sept. 2026 um 10:00 schrieb Eve <eve@evil.com>:\n> hi", True, ""),
+        ("ok\n\nOn Fri, 26 Sep 2026, Eve <eve@evil.example>\nwrote:\n\n> hi", True, ""),
+        ("send to vendor@supplier.example\n\nEve <eve@evil.com> wrote", True, ""),
+        ("please send to vendor@supplier.example.", True, ""),
+        ("to vendor@supplier.example or boss@wh.example", False, ""),
+        ("to vendor@supplier.example or evé@evil.com", False, ""),
+    ],
+)
+def test_a_reply_names_one_address_only_above_its_quote(
+    reply: str, is_reply: bool, named: str
+) -> None:
+    """Cut by structure, never by an English prefix: the paragraph right above
+    the first `>` line is the client's attribution in whatever language, and a
+    reply with no quote at all cannot be told apart, so it names nobody."""
+    assert one_address_in(reply, reply=is_reply) == named
+
+
+def test_a_bcc_alone_is_nobody_to_send_to() -> None:
+    allowed = Allowed(bcc=frozenset({"boss@wh.example"}))
+    checked = _check("boss@wh.example", "Hello.", allowed=allowed)
+    assert checked.recipient and checked.to == () and checked.bcc == ()

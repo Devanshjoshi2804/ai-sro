@@ -49,7 +49,7 @@ class AnswerRun:
             raise Conflict("that run is no longer running")
         if not asking or asking.get("id") != question_id:
             raise Conflict("that is not the question this run is waiting on")
-        if kind == "recipient" and run.started_by and run.started_by != ctx.principal_id.value:
+        if kind == "recipient" and run.started_by != ctx.principal_id.value:
             raise Conflict("only the operator who started this run says who its mail goes to")
         if value and kind not in ("value", "field", "recipient"):
             raise Conflict(

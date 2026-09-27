@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import secrets
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
@@ -9,7 +10,7 @@ from datetime import datetime
 
 from sro.application.chat.announce import SayWhatHappened
 from sro.application.chat.ask_the_asker import DRAFTED
-from sro.application.chat.mailbox import K_REMEMBER, SERVER
+from sro.application.chat.mailbox import K_REMEMBER, SERVER, mail_key
 from sro.application.context import RequestContext
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
@@ -18,11 +19,12 @@ from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.application.shared.asking import ask
 from sro.domain.chat.thread import Speaker
 from sro.domain.execution.mail_job import (
+    K_SEND_WINDOW_S,
     Allowed,
     JobRecipient,
     check_draft,
     mailboxes,
-    sent_messages,
+    sent_from,
 )
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.waiting import read_wait
@@ -143,11 +145,13 @@ async def _allowed(
 ) -> Allowed:
     to: set[str] = set()
     bcc: set[str] = set()
-    for named in sent_messages(workflow, by_id):
+    for clicked, threads in sent_from(workflow, by_id):
         sent = [
             one
-            for one in [await _message(ctx, tools, id_) for id_ in named]
+            for thread in threads
+            for one in await _conversation(ctx, tools, thread)
             if one.get("sent") is True
+            and abs(_seconds(one.get("sent_at")) - clicked) <= K_SEND_WINDOW_S
         ]
         if len(sent) != 1:
             continue
@@ -159,15 +163,8 @@ async def _allowed(
     return Allowed(to=frozenset(to), bcc=frozenset(bcc - to))
 
 
-async def _message(ctx: RequestContext, tools: ToolCaller, message: str) -> dict[str, object]:
-    try:
-        answered = await tools.call(
-            ctx.tenant_id, ctx.principal_id, SERVER, "get_message", {"id": message}
-        )
-        said = json.loads(answered.text)
-    except (ToolsUnavailable, ValueError):
-        return {}
-    return said if isinstance(said, dict) and not answered.failed else {}
+def _seconds(value: object) -> float:
+    return float(value) if isinstance(value, int | float) else math.inf
 
 
 async def send_the_mail(
@@ -200,7 +197,7 @@ async def send_the_mail(
     async with uow as unit:
         await unit.tool_calls.remember(
             ctx.tenant_id,
-            f"mail:{ctx.principal_id.value}:{sent_id}",
+            mail_key(sent_id),
             tool="a mail this system sent, which is not a request",
             at=clock.now(),
             stale_after=K_REMEMBER,

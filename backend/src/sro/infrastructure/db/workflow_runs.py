@@ -381,6 +381,10 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
                         WorkflowRunRow.outcome == "running",
                         WorkflowRunRow.progress["asking"]["id"].astext != "",
                     ),
+                    and_(
+                        WorkflowRunRow.outcome == "stopped",
+                        WorkflowRunRow.progress["asking"]["kind"].astext == "recipient",
+                    ),
                 ),
             )
             .order_by(WorkflowRunRow.started_at.desc(), WorkflowRunRow.id.desc())

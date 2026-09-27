@@ -46,7 +46,7 @@ HERS = "the-secret-the-laptop-was-minted"
 NOW = datetime(2025, 2, 11, 23, 0, tzinfo=UTC)
 CAP = 5.0
 
-SAID = "create a work area for zone 4"
+SAID = "create a work area ZONE4 for zone 4"
 
 
 @pytest.fixture
@@ -111,10 +111,8 @@ def _billed_rows(uow: FakeUnitOfWork) -> list[ChatReading]:
 
 
 def _answer(workflow_id: str | None, values: list[dict[str, str]], **over: object) -> Answer:
-    return Answer(
-        data={"workflow_id": workflow_id, "values": values, "missing": [], "sure": True},
-        **over,
-    )
+    said = [{"field": one["name"], "value": one["value"], "quote": one["value"]} for one in values]
+    return Answer(data={"job": workflow_id, "sure": True, "values": said}, **over)
 
 
 def test_this_containers_clock_is_nowhere_near_the_wall_clock() -> None:
@@ -403,7 +401,7 @@ async def test_the_sentence_itself_is_not_stored_and_is_not_echoed_back(
     -- the 404 quotes none of these words either -- so the door would be proved
     private and absent at the same time, which is no proof of privacy.
     """
-    said = "create a work area for zone 4 for ACME-99, ask Priya"
+    said = "create a work area ZONE4 for zone 4 for ACME-99, ask Priya"
     container.asker = FakeAsker(_answer("wfl_1", [{"name": "areaName", "value": "ZONE4"}]))
 
     answered = await client.post("/v1/ask", json={"said": said})
@@ -469,7 +467,7 @@ async def test_the_jobs_read_against_are_the_ones_on_the_credential(
         body = (await rival.post("/v1/ask", json={"said": SAID})).json()
 
     assert body["job"]["workflow_id"] is None
-    assert "wfl_1" not in str(asked.asked[0]["evidence"])
+    assert asked.asked == [], "the rival holds no job, so no model is asked"
     assert [row.tenant for row in _billed_rows(uow)] == ["rival"], "billed to the wrong tenant"
 
 

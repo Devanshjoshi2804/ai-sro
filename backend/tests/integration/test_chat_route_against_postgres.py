@@ -46,7 +46,7 @@ from tests.unit.fakes import FakeAsker, FakeClock, FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer, token_for
 
 TENANT = TenantId("acme")
-SAID = "create a work area for zone 4"
+SAID = "create a work area ZONE4 for zone 4"
 
 NOW = datetime(2025, 2, 11, 23, 0, tzinfo=UTC)
 """Not today, for the reason every other fixture in this project is not: the
@@ -93,10 +93,8 @@ async def client(container: _RealSessionContainer) -> AsyncIterator[httpx.AsyncC
 
 
 def _answer(workflow_id: str | None, values: list[dict[str, str]], **over: object) -> Answer:
-    return Answer(
-        data={"workflow_id": workflow_id, "values": values, "missing": [], "sure": True},
-        **over,
-    )
+    said = [{"field": one["name"], "value": one["value"], "quote": one["value"]} for one in values]
+    return Answer(data={"job": workflow_id, "sure": True, "values": said}, **over)
 
 
 async def _hold(container: _RealSessionContainer) -> None:
@@ -182,7 +180,7 @@ async def test_the_cap_is_read_off_the_same_store_the_meter_bills_into(
     """
     await _hold(container)
     model = READ_REQUEST.model
-    reading = json.dumps({"workflow_id": "wfl_1", "values": [], "missing": [], "sure": True})
+    reading = json.dumps({"job": "wfl_1", "sure": True, "values": []})
 
     class _Models:
         async def generate_content(self, **_: object) -> object:

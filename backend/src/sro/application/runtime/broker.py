@@ -385,7 +385,7 @@ class SessionBroker:
     async def _recorded(
         self, ctx: RequestContext, start_url: str
     ) -> tuple[Account, Workflow, dict[str, Gesture]]:
-        tagged, seen = await tagged_logins(self._uow, ctx)
+        tagged, seen = await tagged_logins(self._uow, ctx.tenant_id)
         login = recorded_login(start_url, tagged, seen)
         job = next((one for one in tagged if login is not None and one.id == login.job_id), None)
         if login is None or job is None:

@@ -7,6 +7,7 @@ from dataclasses import replace
 from sro.application.chat.read_chat import ReadChat
 from sro.application.chat.reading_an_answer import IsItAnAnswer
 from sro.application.chat.understand import Understood
+from sro.application.connection.sign_in import logins_of
 from sro.application.context import RequestContext
 from sro.application.execution.derived_read import Asked, AskTheSystem
 from sro.application.execution.execute_skill import ExecuteSkill, ExecutionRequest
@@ -39,6 +40,7 @@ from sro.domain.chat.asking import (
     too_long_for,
 )
 from sro.domain.chat.is_it_an_answer import said_as_the_value
+from sro.domain.chat.request import K_A_LOGIN
 from sro.domain.chat.thread import Message, MessageId, Said, Speaker, Thread, ThreadId
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
 from sro.domain.lookup.asking import is_a_question
@@ -411,6 +413,7 @@ class Converse:
         asked: MessageId,
         answering: str | None,
     ) -> Thread:
+        logins = await logins_of(self._uow, ctx.tenant_id)
         async with self._uow as uow:
             thread = await uow.threads.get_for_answer(ctx.tenant_id, thread_id)
             still = asked_under(thread.messages, answering)
@@ -440,7 +443,7 @@ class Converse:
                     },
                 )
             else:
-                filled = answered(pending, text)
+                filled = answered(pending, text, logins)
                 refused = too_long_for(pending, text)
                 said, decision = (
                     (
@@ -468,6 +471,8 @@ class Converse:
                             f"{filled.asking_for} takes {refused}. "
                             f"What should {filled.asking_for} be?"
                             if refused is not None
+                            else f"That is {K_A_LOGIN}. {question(filled)}"
+                            if filled == pending
                             else question(filled)
                         ),
                         {

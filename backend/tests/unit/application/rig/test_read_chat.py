@@ -100,10 +100,7 @@ async def _held(tenant: TenantId = TENANT) -> FakeUnitOfWork:
 
 
 def _answer(workflow_id: str | None, values: list[dict[str, str]], **over: object) -> Answer:
-    return Answer(
-        data={"workflow_id": workflow_id, "values": values, "missing": [], "sure": True},
-        **over,
-    )
+    return Answer(data={"job": workflow_id, "sure": True, "values": values}, **over)
 
 
 def _billed_rows(uow: FakeUnitOfWork) -> list[ChatReading]:
@@ -239,7 +236,7 @@ async def test_the_sentence_read_is_the_one_the_operator_typed() -> None:
     constant, or read the empty string the rig's `body.get` fell back to, still
     answers, still bills and offers whatever the model makes of nothing."""
     uow = await _held()
-    asker = FakeAsker(_answer("wfl_1", [{"name": "areaName", "value": "ZONE4"}]))
+    asker = FakeAsker(_answer("wfl_1", [{"field": "areaName", "value": "4", "quote": "zone 4"}]))
 
     await _read(uow, asker=asker).execute(_ctx(), utterance=SAID)
 
@@ -252,14 +249,13 @@ async def test_the_jobs_it_is_read_against_are_the_ones_this_tenant_holds() -> N
     holds nothing, so the job the model names is one nobody holds -- which is a
     hallucination and not an offer."""
     uow = await _held()
-    asker = FakeAsker(_answer("wfl_1", [{"name": "areaName", "value": "ZONE4"}]))
+    asker = FakeAsker(_answer("wfl_1", [{"field": "areaName", "value": "4", "quote": "zone 4"}]))
 
     got = await _read(uow, asker=asker).execute(_ctx(RIVAL), utterance=SAID)
 
     assert got.workflow_id is None
-    assert "wfl_1" not in str(asker.asked[0]["evidence"]), (
-        "it read the store's jobs, not this tenant's"
-    )
+    assert asker.asked == [], "it read the store's jobs, not this tenant's"
+
     assert [row.tenant for row in _billed_rows(uow)] == ["rival"], "billed to the wrong tenant"
 
 
@@ -301,7 +297,7 @@ async def test_a_sentence_naming_no_job_still_writes_the_bill() -> None:
     """
     both: tuple[dict[str, object] | None, ...] = (
         None,
-        {"workflow_id": "wfl_nope", "values": [], "missing": [], "sure": True},
+        {"job": "wfl_nope", "sure": True, "values": []},
     )
     for data in both:
         uow = await _held()
@@ -369,6 +365,8 @@ _ORDER_UNDER_ONE_SEED = """
 import asyncio
 
 from sro.application.chat.understand import understand
+from sro.domain.chat.request import Candidate
+from sro.domain.execution.field_classes import field_classes
 from sro.domain.shared.prices import Answer, ModelSpend
 from sro.domain.skill.workflow import Workflow
 
@@ -386,7 +384,7 @@ NAMES = [
 
 class _Asker:
     async def ask(self, **_: object) -> Answer:
-        return Answer(data={"workflow_id": "wfl_8", "values": [], "missing": [], "sure": True})
+        return Answer(data={"job": "wfl_8", "sure": True, "values": []})
 
 
 held = Workflow(
@@ -396,7 +394,8 @@ held = Workflow(
     narrative="n",
     parameters=[{"name": name, "required": True} for name in NAMES],
 )
-print(",".join(asyncio.run(understand("x", [held], _Asker())).missing))
+job = Candidate(held.id, held.title, field_classes(held, {}, {}), {}, {})
+print(",".join(asyncio.run(understand("x", [job], _Asker())).missing))
 """
 """One reading, in a fresh interpreter, printing the order its fields came back
 in. Runs `understand` rather than `ReadChat` because that is where the set is

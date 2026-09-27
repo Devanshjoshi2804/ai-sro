@@ -4449,3 +4449,36 @@ Each prompt also gets 3 to 5 edge cases from real data, redacted, covering the f
 - Migration: add `signs_out` as nullable. Existing rows start NULL, meaning undecided, and the sweep decides every undecided job.
 
 **Tests:** a job whose grow adds sign-in steps flips to `signs_in` true; the real Log Out shape becomes `signs_out` true and is not a candidate; a concurrent learn during the decision is not overwritten (real Postgres).
+
+## M3: Typed values are parameters by default; the mining eval stops expecting chores (added 2026-09-27; user-approved; from the greyorange mining baseline)
+
+**Why.** The first greyorange mining baseline (QA box, MINE v2, 15 cases) scored 1/15, with 47% sure-but-wrong. In 8 cases the miner proposed nothing, and several of those were sign-in or log-out chores that the miner is right to skip. In 5 cases the miner found **every** step (recall 1.0) but proposed too few parameters: 0 of 4 typed values, or 2 of 6. This is the root of QA's 0-parameter "Create a Customer Type" copies. The model treats typed values as fixed text.
+
+**1. Parameters are decided in code, not by the model.** After a proposal is resolved, and again when a job grows or heals, every value typed into a field on a write step becomes a parameter unless a parameter already covers it:
+- name: the field's label from the outline; if there's none, the gesture's accessible name;
+- seen_values: from the cited gestures;
+- the same identity rules `learn_parameters` already uses, so a field is never minted twice.
+
+Exceptions:
+- **Credential fields never become parameters.** That covers password, one-time code, and the username a recorded sign-in types (R1's `logins_of` / `recorded_login`).
+- **Chores never get parameters:** jobs with `signs_in` or `signs_out` true.
+- **A constant stays fixed.** A value typed identically in every doing, with at least 2 doings, stays a fixed value. Code decides this from the evidence. The console keeps showing it through C1's `fixed_values` warning.
+
+Put this in one function, shared by the mining pass and the sweep. Never duplicate `parameters_across` / `learn_parameters`; extend them at the root.
+
+**2. Existing jobs are brought in once.**
+- Add a nullable `workflows.parameters_rule` column (the migration is **0089**, chained after the current head at merge). It holds the version of the rule last applied.
+- The sweep applies the rule to every live job whose `parameters_rule` is older or NULL. It saves with the X11 row lock, as a compare-and-set, and never overwrites a concurrent learn.
+- Runs pin their job (X11), so a running run is never affected.
+
+**3. The mining eval stops expecting chores.** `evals/suites/mining.py` builds no case from a job with `signs_in` or `signs_out` true, as R1 did for the reader (M14). The frozen case set must be rebuilt (`rebuild=1`), and that retires the old baseline. That is expected.
+
+**Tests:**
+- The real shape: an 11-step Customer Type doing that typed 4 values gives 4 parameters named by their labels, with no credential among them.
+- A value typed identically in 2 doings stays fixed. A value that differs becomes a parameter.
+- A sign-in job gets no parameters.
+- A concurrent `learn_field` during the sweep survives (real Postgres).
+- The mining eval builds no chore case.
+- The existing `fixed_values` warning still shows for a truly constant value.
+
+**After merge (controller):** redeploy QA, let one sweep run, then run `make eval suite=mining rebuild=1 baseline=1` on the box and compare with this baseline. The case set changes, so compare per case, not by the gate.

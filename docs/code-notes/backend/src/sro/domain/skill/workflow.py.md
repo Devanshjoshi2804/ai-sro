@@ -132,7 +132,7 @@ Code: `signs_in: bool | None = None`
 >
 > `None` is undecided: never evaluated against its evidence. Every reader
 > treats it as "not known yet" -- never as a sign-in job -- and every mining
-> sweep decides it (`mining_pass.decide_sign_ins`). A job starts undecided;
+> sweep decides it (`chores.decide_sign_ins`). A job starts undecided;
 > the mining pass decides a proposal before it is stored.
 
 ## `field_key`, [line 99](../../../../../../../backend/src/sro/domain/skill/workflow.py#L99): Docstring

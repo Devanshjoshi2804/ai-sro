@@ -1027,6 +1027,21 @@ class TestAStepNamesWhatItUses:
 
         assert all(step.uses == [] for step in back.steps)
 
+    async def test_a_steps_tab_survives_a_save(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        workflow = _workflow()
+        workflow.steps[1].tab = "opened_from:main"
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(workflow)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            back = await uow.workflows.get(TENANT, workflow.id)
+
+        assert [step.tab for step in back.steps] == ["main", "opened_from:main"]
+
 
 class TestWhatAJobTaughtItself:
     """The history behind the learning, against the store that overwrites it.

@@ -58,6 +58,7 @@ from sro.domain.skill.passwords import with_passwords
 from sro.domain.skill.presses import with_the_press
 from sro.domain.skill.repeats import detect as repeated_block
 from sro.domain.skill.shape import in_time_order, keeping_fields
+from sro.domain.skill.tabs import MAIN, tab_roles
 from sro.domain.skill.umbrella import mining_blocks, workflow_from
 from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
 from sro.whose import attribute
@@ -65,6 +66,7 @@ from sro.whose import attribute
 __all__ = [
     "MineResult",
     "decide_sign_ins",
+    "decide_tabs",
     "evidence_of",
     "fill_in_passwords",
     "learn_parameters",
@@ -481,6 +483,9 @@ async def _one_pass(
                             order,
                             ", ".join(str(one) for one in used),
                         )
+            roles = tab_roles(proposal, by_id)
+            for step in proposal.steps:
+                step.tab = roles.get(step.order, MAIN)
             proposal.repeat = repeated_block(proposal, by_id)
             if proposal.repeat is not None:
                 logger.info(
@@ -701,6 +706,19 @@ async def decide_sign_ins(uow: UnitOfWork, tenant_id: TenantId, jobs: Sequence[W
     decided = 0
     for job in jobs:
         decided += await uow.workflows.decide_signs_in(tenant_id, job.id, _judged(job, by_id))
+    return decided
+
+
+async def decide_tabs(uow: UnitOfWork, tenant_id: TenantId, jobs: Sequence[Workflow]) -> int:
+    by_id = await evidence_of(uow, tenant_id, jobs)
+    decided = 0
+    for job in jobs:
+        roles = tab_roles(job, by_id)
+        for step in job.steps:
+            if step.tab is None:
+                decided += await uow.workflows.decide_tab(
+                    tenant_id, job.id, step.order, roles.get(step.order, MAIN)
+                )
     return decided
 
 

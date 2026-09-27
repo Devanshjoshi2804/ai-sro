@@ -22,7 +22,7 @@ from sro.application.context import RequestContext
 from sro.application.observation.mine_lately import K_ERRORED_PASSES, MineLately
 from sro.application.observation.mining_pass import MineResult, mine
 from sro.application.shared.refusals import OverCap
-from sro.domain.observation.gesture import Action, Gesture, GestureBatch
+from sro.domain.observation.gesture import Action, Gesture, GestureBatch, PageMark, Target
 from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
@@ -681,3 +681,49 @@ async def test_a_tenant_whose_write_fails_does_not_stop_another() -> None:
     await _swept(uow, _Passes())
 
     assert (await uow.workflows.get(TenantId("zeta"), "wfl_zeta")).signs_in is False
+
+
+def _in_tab(gesture_id: str, at: float, tab: int, *marks: PageMark) -> Gesture:
+    return Gesture(
+        id=gesture_id,
+        tenant="acme",
+        stream_id="str_tabs",
+        batch_id="bat_tabs",
+        at=at,
+        url="https://wms.example/app",
+        system="https://wms.example",
+        tab_id=tab,
+        frame_url=None,
+        action=Action(kind="click", at=at, target=Target(role="button", name=gesture_id)),
+        page_events=list(marks),
+    )
+
+
+async def test_a_quiet_sweep_decides_the_tab_of_every_step_stored_before_steps_knew_it() -> None:
+    """Steps stored before 0086 are NULL -- undecided -- and are decided from
+    their cited gestures, one step at a time, never by saving the job whole."""
+    uow = FakeUnitOfWork()
+    opened = PageMark(at=1.5, page_kind="popup_opened", tab_id=9, opener_tab_id=7)
+    await uow.gestures.add_gestures(
+        (_in_tab("ges_a", 1.0, 7, opened), _in_tab("ges_b", 2.0, 9), _in_tab("ges_c", 3.0, 7))
+    )
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_tabs",
+            tenant="acme",
+            title="t",
+            narrative="n",
+            signs_in=False,
+            steps=[
+                Step(order=0, says="a", system=None, cites=["ges_a"], tab=None),
+                Step(order=1, says="b", system=None, cites=["ges_b"], tab=None),
+                Step(order=2, says="c", system=None, cites=["ges_c"], tab="tab_2"),
+            ],
+        )
+    )
+
+    await _swept(uow, _Passes())
+
+    job = await uow.workflows.get(TenantId("acme"), "wfl_tabs")
+    assert [one.tab for one in job.steps] == ["main", "opened_from:main", "tab_2"]
+    assert await uow.workflows.tabs_undecided() == ()

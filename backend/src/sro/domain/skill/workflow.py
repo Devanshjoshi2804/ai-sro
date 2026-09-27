@@ -10,6 +10,8 @@ if TYPE_CHECKING:
 
 K_MIN_VALUE_LENGTH = 3
 
+MAIN = "main"
+
 _DANGLING = frozenset(
     {"a", "an", "the", "and", "at", "by", "for", "from", "in", "of", "on", "to", "with"}
 )
@@ -28,6 +30,12 @@ class Step:
     parameters: list[str] = field(default_factory=list)
 
     uses: list[int] = field(default_factory=list)
+
+    tab: str | None = MAIN
+
+    @property
+    def role(self) -> str:
+        return self.tab or MAIN
 
 
 @dataclass

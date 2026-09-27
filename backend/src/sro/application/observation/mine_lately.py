@@ -3,11 +3,15 @@ from __future__ import annotations
 import logging
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
-from itertools import groupby
 
 from sro.application.context import RequestContext
 from sro.application.observation.mine_pass import MinePass
-from sro.application.observation.mining_pass import MineResult, decide_sign_ins, mining_lock
+from sro.application.observation.mining_pass import (
+    MineResult,
+    decide_sign_ins,
+    decide_tabs,
+    mining_lock,
+)
 from sro.application.observation.read_gesture import ReadGestures
 from sro.application.ports.locks import AccountLocks
 from sro.application.ports.repositories import UnitOfWork
@@ -86,7 +90,8 @@ class MineLately:
     async def _decide(self) -> None:
         async with self._uow as uow:
             undecided = await uow.workflows.undecided()
-        for tenant, jobs in groupby(undecided, key=lambda job: job.tenant):
+            untabbed = await uow.workflows.tabs_undecided()
+        for tenant in sorted({job.tenant for job in (*undecided, *untabbed)}):
             tenant_id = TenantId(tenant)
             try:
                 async with self._locks.try_hold_named(mining_lock(tenant_id)) as held:
@@ -94,13 +99,20 @@ class MineLately:
                         logger.info("%s: being mined elsewhere; deciding it next sweep", tenant)
                         continue
                     async with self._uow as uow:
-                        decided = await decide_sign_ins(uow, tenant_id, list(jobs))
+                        decided = await decide_sign_ins(
+                            uow, tenant_id, [job for job in undecided if job.tenant == tenant]
+                        )
+                        tabbed = await decide_tabs(
+                            uow, tenant_id, [job for job in untabbed if job.tenant == tenant]
+                        )
                         await uow.commit()
             except Exception:
-                logger.exception("%s: could not decide which jobs sign in", tenant)
+                logger.exception("%s: could not decide which jobs sign in or their tabs", tenant)
                 continue
             if decided:
                 logger.info("%s: decided whether %d job(s) sign in", tenant, decided)
+            if tabbed:
+                logger.info("%s: decided the tab of %d step(s)", tenant, tabbed)
 
     async def execute(self, *, now: datetime) -> dict[str, MineResult]:
         await self._decide()

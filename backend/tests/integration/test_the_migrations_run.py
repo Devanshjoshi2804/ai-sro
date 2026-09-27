@@ -322,6 +322,45 @@ async def test_0082_pins_every_steel_run_still_going_and_back(postgres_url: str)
     assert "pinned" not in columns
 
 
+async def test_0086_leaves_every_stored_step_undecided_and_back(postgres_url: str) -> None:
+    """A step stored before 0086 was mined without its tab, so its tab is
+    NULL -- undecided -- for the sweep to decide from its evidence, and a new
+    row writes its own. The downgrade drops the column."""
+    engine = create_async_engine(postgres_url)
+    now = datetime.now(tz=UTC)
+    step = {"workflow_id": "wfl_1", "says": "save", "cites": ["g1"], "parameters": []}
+    read = text("SELECT ord, tab FROM workflow_steps ORDER BY ord")
+    try:
+        async with engine.begin() as connection:
+            await connection.execute(text("DROP SCHEMA public CASCADE"))
+            await connection.execute(text("CREATE SCHEMA public"))
+            await connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        await _alembic(postgres_url, "upgrade", "0085")
+        async with engine.begin() as connection:
+            await connection.execute(
+                insert(WorkflowRow.__table__),
+                [{"id": "wfl_1", "tenant_id": "acme", "created_at": now, "parameters": []}],
+            )
+            await connection.execute(insert(WorkflowStepRow.__table__), [{**step, "ord": 0}])
+        await _alembic(postgres_url, "upgrade", "0086")
+        async with engine.begin() as connection:
+            await connection.execute(
+                insert(WorkflowStepRow.__table__), [{**step, "ord": 1, "tab": "opened_from:main"}]
+            )
+            upgraded = [tuple(row) for row in (await connection.execute(read)).all()]
+        await _alembic(postgres_url, "downgrade", "0085")
+        async with engine.connect() as connection:
+            columns = await connection.run_sync(
+                lambda sync: {one["name"] for one in inspect(sync).get_columns("workflow_steps")}
+            )
+        await _alembic(postgres_url, "upgrade", "head")
+    finally:
+        await engine.dispose()
+
+    assert upgraded == [(0, None), (1, "opened_from:main")]
+    assert "tab" not in columns
+
+
 # Every test in this directory already runs against the migrated schema --
 # `conftest.postgres_url` builds it with `alembic upgrade head` before the
 # session's first test. Before that fixture ran migrations itself, this test

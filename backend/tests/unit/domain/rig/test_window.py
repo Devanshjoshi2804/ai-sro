@@ -14,7 +14,7 @@ import copy
 import json
 from dataclasses import replace
 
-from sro.domain.observation.gesture import Gesture, Intent, Kind, ValueSeen
+from sro.domain.observation.gesture import Gesture, Intent, Kind, PageMark, ValueSeen
 from sro.domain.observation.window import (
     K_MAX_GESTURE_TOKENS,
     K_MAX_ITEMS,
@@ -716,3 +716,16 @@ def test_a_write_reaches_back_through_its_own_browser_only() -> None:
     assert not {one.id for one in theirs} & shown, (
         "the other browser's work was pulled in by a write that had nothing to do with it"
     )
+
+
+def test_evidence_shows_the_tab_and_the_tabs_it_opened() -> None:
+    """So the miner reads a doing that crossed into a popup as one job."""
+    opened = PageMark(at=1.0, page_kind="popup_opened", tab_id=9, opener_tab_id=7)
+    loaded = PageMark(at=1.1, page_kind="load", tab_id=9)
+    gesture = replace(_gestures()[0], tab_id=7, page_events=[opened, loaded])
+
+    evidence = as_evidence(gesture, None)
+
+    assert evidence["tab"] == 7
+    assert evidence["opened"] == [{"tab": 9, "from": 7}]
+    assert "opened" not in as_evidence(replace(gesture, page_events=[loaded]), None)

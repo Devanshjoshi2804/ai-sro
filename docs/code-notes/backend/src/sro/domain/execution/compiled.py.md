@@ -11,7 +11,7 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 > recipe (L1). The job is compiled again on every read, so what it says is
 > what the evidence says today.
 
-## `Reason`, [line 25](../../../../../../../backend/src/sro/domain/execution/compiled.py#L25): Docstring
+## `Reason`, [line 26](../../../../../../../backend/src/sro/domain/execution/compiled.py#L26): Docstring
 
 > One reason a job cannot run (or, in `Compiled.warnings`, something a reader
 > should know although it runs), and the step it is about (`None` for the job).
@@ -35,8 +35,17 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 >   write's latest outline (`field_of`). With no value it is passed over, and
 >   the job-level view (`values=None`, no run yet) never asks.
 >
+> - `tab_role_unresolved` -- "every step's tab role resolves" (spec §5): a
+>   step in `opened_from:R` with no earlier step in R, or a `tab_N` out of
+>   sequence (`unresolved`).
+>   Asked only of a decided job.
+>
 > Warnings, never refusals:
 >
+> - `tab_roles_undecided` -- a step stored before steps knew their tab (NULL
+>   since 0086). It runs in the first tab, as every job did before, until the
+>   mining sweep decides its roles; refusing it would take every stored job
+>   offline for a column nothing had filled yet.
 > - `every_lane_broken` -- every lane that could run the step failed lately.
 >   A refusal here locked a job out for good: only a winning run mends a lane,
 >   and a job no one is offered never runs. Broken lanes cool down instead
@@ -45,7 +54,7 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 >   write sends a body of captured values runs, and the console says every run
 >   writes the recorded values. A mining-quality case, not a runtime refusal.
 
-## `Compiled`, [line 32](../../../../../../../backend/src/sro/domain/execution/compiled.py#L32): Docstring
+## `Compiled`, [line 33](../../../../../../../backend/src/sro/domain/execution/compiled.py#L33): Docstring
 
 > `runnable` is "no reasons"; warnings never change it. `view` is plain data for
 > reading (`make recipe`, the console): each step's lanes, the lanes known
@@ -55,12 +64,12 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 > limits -- computed by `field_classes` and mirrored into `view["fields"]`
 > for a reader that only sees the wire shape.
 
-## `why_not`, [line 40](../../../../../../../backend/src/sro/domain/execution/compiled.py#L40): Docstring
+## `why_not`, [line 41](../../../../../../../backend/src/sro/domain/execution/compiled.py#L41): Docstring
 
 > The reasons as sentences, "Step N: ..." where a step is named, each said
 > once. What the chat, the mail thread and the start's refusal all say.
 
-## `_ladder`, [line 48](../../../../../../../backend/src/sro/domain/execution/compiled.py#L48): Docstring
+## `_ladder`, [line 49](../../../../../../../backend/src/sro/domain/execution/compiled.py#L49): Docstring
 
 > The ladder the executor would climb, built with the executor's own
 > `lanes_for` and the same three inputs: `sends_mail` for the tool lane, a
@@ -78,7 +87,7 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 > lanes are compared against it in `compile_job`, because `lanes_for` never
 > drops the last lane.
 
-## `compile_job`, [line 58](../../../../../../../backend/src/sro/domain/execution/compiled.py#L58): Docstring
+## `compile_job`, [line 59](../../../../../../../backend/src/sro/domain/execution/compiled.py#L59): Docstring
 
 > `values` and `from_step` are the run's: the start passes its given values
 > and D7's `check_from`, and reasons at steps before `from_step` are dropped,

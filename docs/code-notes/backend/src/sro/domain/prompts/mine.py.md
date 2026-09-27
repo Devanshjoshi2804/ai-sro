@@ -4,8 +4,14 @@ Comments and docstrings moved out of [`backend/src/sro/domain/prompts/mine.py`](
 
 ## module, [line 55](../../../../../../../backend/src/sro/domain/prompts/mine.py#L55): Note on the line above
 
-Code: `version=2,`
+Code: `version=3,`
 
+> Version 3 (T1, 2026-09-27) explains two new keys in `day`: each gesture's
+> `tab`, and `opened` (the tabs it opened, each with its opener), so that work
+> carried on in a popup reads as one job. `_TASK` is unchanged; the input the
+> model is given changed, and that is a prompt change all the same. The mining
+> eval (`make eval suite=mining`) measures v3 against the v2 baseline.
+>
 > Version 2 (M1, 2026-09-26) deleted one sentence from `_TASK`: "Say which
 > values look like the same thing appearing in two systems." No field in
 > `output_schema` carried the answer and no code read it. The code already
@@ -100,14 +106,14 @@ Code: `thinking="medium",`
 > made without them -- and because the first was recorded for one model and not
 > applied to the one actually configured, which is how the $2.00 was spent.
 
-## module, [line 68](../../../../../../../backend/src/sro/domain/prompts/mine.py#L68): Comment
+## module, [line 71](../../../../../../../backend/src/sro/domain/prompts/mine.py#L71): Comment
 
 Code: `"properties": {`
 
 > cites before says: identifying the evidence before
 > composing the answer measurably beats the reverse.
 
-## module, [line 91](../../../../../../../backend/src/sro/domain/prompts/mine.py#L91): Comment
+## module, [line 94](../../../../../../../backend/src/sro/domain/prompts/mine.py#L94): Comment
 
 Code: `"parameters": {`
 
@@ -122,7 +128,7 @@ Code: `"parameters": {`
 > empty every time, on jobs whose evidence plainly showed
 > four different customer types being typed.
 
-## module, [line 113](../../../../../../../backend/src/sro/domain/prompts/mine.py#L113): Comment
+## module, [line 116](../../../../../../../backend/src/sro/domain/prompts/mine.py#L116): Comment
 
 Code: `"unplaced": {"type": "array", "items": {"type": "string"}},`
 

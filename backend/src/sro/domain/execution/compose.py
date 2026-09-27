@@ -11,6 +11,7 @@ from sro.domain.recording.sensitivity import is_secret_field
 from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.checks import bindable
 from sro.domain.skill.repeats import Repeat
+from sro.domain.skill.tabs import MAIN
 from sro.domain.skill.workflow import Step, Workflow, field_key
 
 SELECTS = frozenset({"combobox", "listbox"})
@@ -157,7 +158,7 @@ def with_field(
         step.order: step.order + 1 if step.order >= composed.before else step.order
         for step in workflow.steps
     }
-    system = next((one.system for one in workflow.steps if one.order == composed.before), None)
+    form = next((one for one in workflow.steps if one.order == composed.before), None)
     steps = [
         replace(step, order=moved[step.order], uses=[moved.get(one, one) for one in step.uses])
         for step in workflow.steps
@@ -166,8 +167,9 @@ def with_field(
         Step(
             order=composed.before,
             says=f"Fill {composed.label}",
-            system=system,
+            system=None if form is None else form.system,
             parameters=[composed.name],
+            tab=MAIN if form is None else form.tab,
         )
     )
     repeat = workflow.repeat

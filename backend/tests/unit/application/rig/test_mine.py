@@ -44,6 +44,7 @@ from sro.domain.observation.gesture import (
     Component,
     Gesture,
     Intent,
+    PageMark,
     Target,
     ValueSeen,
 )
@@ -248,6 +249,26 @@ async def test_a_pass_keeps_what_it_can_prove() -> None:
     assert result.kept == 1
     assert result.rejections == []
     assert len(await uow.workflows.known(TENANT)) == 1
+
+
+async def test_a_doing_that_crossed_into_a_popup_is_kept_with_each_steps_tab() -> None:
+    """Code, not the model, names the tab each step acts in."""
+    uow, ids = await _day()
+    rows = _rows(uow)
+    first = rows[ids[0]]
+    opened = PageMark(at=first.at, page_kind="popup_opened", tab_id=99, opener_tab_id=first.tab_id)
+    rows[ids[0]] = replace(first, page_events=[*first.page_events, opened])
+    rows[ids[1]] = replace(rows[ids[1]], tab_id=99)
+    steps = [
+        {"order": 0, "cites": [ids[0]], "says": "do it", "system": HOST, "parameters": []},
+        {"order": 1, "cites": [ids[1]], "says": "save it", "system": HOST, "parameters": []},
+    ]
+
+    result = await _mine(uow, FakeAsker(_found(_proposal(ids[:2], steps=steps))))
+
+    assert result.kept == 1
+    (job,) = await uow.workflows.known(TENANT)
+    assert [step.tab for step in job.steps] == ["main", "opened_from:main"]
 
 
 async def test_a_workflow_citing_evidence_that_does_not_exist_is_refused() -> None:
@@ -801,7 +822,7 @@ async def test_an_unusable_answer_leaves_its_window_unread() -> None:
     first = await _mine(uow, asker)
     second = await _mine(uow, asker)
 
-    assert first.error is not None and "mine v2" in first.error
+    assert first.error is not None and "mine v3" in first.error
     assert first.left_out == len(ids)
     assert len(asker.asked) == 2 and second.window_size == len(ids)
     assert {entry.age for entry in await uow.pool.waiting(TENANT)} == {1}
@@ -1887,7 +1908,7 @@ async def test_a_malformed_answer_does_not_take_the_pass_down() -> None:
     so `propose` never sees a `workflows` that is not a list."""
     for junk in ("not a list", {"a": "dict"}, 7, None):
         workflows, answer = await _proposed(FakeAsker(_answer(workflows=junk)))
-        assert answer.error is not None and "mine v2" in answer.error
+        assert answer.error is not None and "mine v3" in answer.error
 
         assert workflows == []
 

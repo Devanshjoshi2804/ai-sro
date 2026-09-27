@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/application/runtime/teach.py`](../../../../../../../backend/src/sro/application/runtime/teach.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `Teach`, [line 20](../../../../../../../backend/src/sro/application/runtime/teach.py#L20): Class
+## `Teach`, [line 21](../../../../../../../backend/src/sro/application/runtime/teach.py#L21): Class
 
 > Each lane teaches the one above (spec §6.3), per step and in data:
 >
@@ -20,14 +20,14 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/teach
 >   broken API lane: only that lane's own success, or a new demonstration
 >   that changes the step's cites, clears it.
 
-## `Teach.learn`, [line 37](../../../../../../../backend/src/sro/application/runtime/teach.py#L37): Note
+## `Teach.learn`, [line 38](../../../../../../../backend/src/sro/application/runtime/teach.py#L38): Note
 
 Code: `won = tried[-1] if tried and tried[-1].verdict in ("done", "read") else None`
 
 > Only `done` or `read` is a success. An `unknown` is a write nobody
 > confirmed; it mends nothing and teaches nothing.
 
-## `Teach.learn`, [line 42](../../../../../../../backend/src/sro/application/runtime/teach.py#L42): Note
+## `Teach.learn`, [line 44](../../../../../../../backend/src/sro/application/runtime/teach.py#L44): Note
 
 Code: `if result.verdict == "failed" and result.fingerprint and not result.expired:`
 
@@ -35,7 +35,7 @@ Code: `if result.verdict == "failed" and result.fingerprint and not result.expir
 > `missing_header` never breaks a lane), and a failure with no fingerprint
 > has nothing to be known by.
 
-## `Teach.learn`, [line 68](../../../../../../../backend/src/sro/application/runtime/teach.py#L68): Note
+## `Teach.learn`, [line 90](../../../../../../../backend/src/sro/application/runtime/teach.py#L90): Note
 
 Code: `own = next(`
 
@@ -51,7 +51,7 @@ Code: `own = next(`
 > recorded URL (`learned_pattern`), so a path that names the record becomes
 > `{id}` and a segment the recording holds fixed stays fixed.
 
-## `_sighted`, [line 144](../../../../../../../backend/src/sro/application/runtime/teach.py#L144): Function
+## `_sighted`, [line 166](../../../../../../../backend/src/sro/application/runtime/teach.py#L166): Function
 
 > The locator the sight lane learned from the element that satisfied the
 > check (X7 ruling), or nothing: a learned map without a `frame_path` is
@@ -61,7 +61,7 @@ Code: `own = next(`
 > `K_NAME`, the cap `learned_from` keeps (refused, not cut: a cut locator
 > matches nothing, or something else).
 
-## `Teach.learn_field`, [line 97](../../../../../../../backend/src/sro/application/runtime/teach.py#L97): Docstring
+## `Teach.learn_field`, [line 119](../../../../../../../backend/src/sro/application/runtime/teach.py#L119): Docstring
 
 > A composed field the save's own call confirmed becomes part of the job: `grew`
 > with `with_field`'s result, then its locator (`found_by` `composed` from the
@@ -72,7 +72,7 @@ Code: `own = next(`
 > `finish`, or a sibling that learned it first); a field whose step a regrowth
 > lost is learned again, under its one parameter. A locator that would carry the value is not kept.
 
-## `Teach.learn_field`, [line 110](../../../../../../../backend/src/sro/application/runtime/teach.py#L110): Note
+## `Teach.learn_field`, [line 132](../../../../../../../backend/src/sro/application/runtime/teach.py#L132): Note
 
 Code: `workflow = await _still(uow, ctx, pinned)`
 
@@ -84,9 +84,9 @@ Code: `workflow = await _still(uow, ctx, pinned)`
 > here is not lost: the next run with that value composes it again against the
 > job as it then is, and learns it then.
 
-## `Teach.learn`, [line 39](../../../../../../../backend/src/sro/application/runtime/teach.py#L39): Note
+## `Teach.learn`, [line 40](../../../../../../../backend/src/sro/application/runtime/teach.py#L40): Note
 
-Code: `if await _still(uow, ctx, workflow) is None:`
+Code: `job = await _still(uow, ctx, workflow)`
 
 > What `learn` writes -- broken lanes, mends, locators -- is keyed by the job's
 > step numbers, and `workflow` here is the run's pinned version. It teaches only
@@ -95,16 +95,28 @@ Code: `if await _still(uow, ctx, workflow) is None:`
 > row lock keeps a grow from renumbering the job between this check and the
 > writes.
 
-## `Teach.locators`, [line 91](../../../../../../../backend/src/sro/application/runtime/teach.py#L91): Docstring
+## `Teach.locators`, [line 113](../../../../../../../backend/src/sro/application/runtime/teach.py#L113): Docstring
 
 > The job's learned locators, for a run whose steps are `workflow`: all of them
 > while the job still has those steps, none once it has grown past them (or was
 > retired). The check and the read share the row lock, so a grow cannot commit
 > between them and hand the run the new numbering's locators.
 
-## `_still`, [line 136](../../../../../../../backend/src/sro/application/runtime/teach.py#L136): Docstring
+## `_still`, [line 158](../../../../../../../backend/src/sro/application/runtime/teach.py#L158): Docstring
 
 > The job, read under its row lock, if it still has `workflow`'s steps; None if
 > it has been renumbered or retired since. Everything this class learns or reads
 > by step number goes through here, and so does every grow's own read (`_grow`,
 > `learn_parameters`, `fill_in_passwords` take the same lock).
+
+## `Teach.learn`, [line 60](../../../../../../../backend/src/sro/application/runtime/teach.py#L60): Note
+
+Code: `grown = (`
+
+> A learned slot comes out when the API lane breaks on the write it feeds
+> (the same failures that join the known-broken list: `failed`, with a
+> fingerprint, not `expired`), and goes back in only on a UI or Sight write
+> the page's own call confirmed with the key (`StepResult.keyed`) -- the one
+> proof that the endpoint takes it. Sight's `keyed` comes from the same
+> `confirming` of the save's own call as the UI lane's. Saved under the locked read `_still` took, in the
+> same unit of work, so two runs learning at once serialise on the job row.

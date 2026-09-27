@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/application/runtime/executor.py`](../../../../../../../backend/src/sro/application/runtime/executor.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `StepExecutor.run`, [line 43](../../../../../../../backend/src/sro/application/runtime/executor.py#L43): Note
+## `StepExecutor.run`, [line 44](../../../../../../../backend/src/sro/application/runtime/executor.py#L44): Note
 
 > One step, down the ladder (spec §3): the tool lane alone for a mail
 > send; otherwise the API lane when a verified replay can be planned,
@@ -13,7 +13,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/execu
 > that only reads the mail this run came from answers `read` with no
 > lane at all: the mail is already in hand.
 
-## `StepExecutor.run`, [line 79](../../../../../../../backend/src/sro/application/runtime/executor.py#L79): Note
+## `StepExecutor.run`, [line 83](../../../../../../../backend/src/sro/application/runtime/executor.py#L83): Note
 
 Code: `if result.verdict == "unknown":`
 
@@ -26,7 +26,7 @@ Code: `if result.verdict == "unknown":`
 > the values makes it `done`, anything else leaves it `unknown` and the
 > operator is asked.
 
-## `StepExecutor.run`, [line 84](../../../../../../../backend/src/sro/application/runtime/executor.py#L84): Note
+## `StepExecutor.run`, [line 88](../../../../../../../backend/src/sro/application/runtime/executor.py#L88): Note
 
 Code: `if result.verdict != "failed" or result.expired:`
 
@@ -35,7 +35,7 @@ Code: `if result.verdict != "failed" or result.expired:`
 > wrong, and every lower lane drives the same session. Walking on would
 > spend each lane on the same refusal and mark lanes broken that are not.
 
-## `StepExecutor.run`, [line 61](../../../../../../../backend/src/sro/application/runtime/executor.py#L61): Note
+## `StepExecutor.run`, [line 65](../../../../../../../backend/src/sro/application/runtime/executor.py#L65): Note
 
 Code: `ladder = lanes_for(`
 
@@ -43,7 +43,7 @@ Code: `ladder = lanes_for(`
 > (it cites nothing, or only a scroll) has an empty ladder and answers
 > `()`: the caller says no lane could act, rather than the activity dying.
 
-## `StepExecutor.run`, [line 70](../../../../../../../backend/src/sro/application/runtime/executor.py#L70): Note
+## `StepExecutor.run`, [line 74](../../../../../../../backend/src/sro/application/runtime/executor.py#L74): Note
 
 Code: `except (NeedsAPerson, AccountBusy, PageGone) as why:`
 
@@ -54,7 +54,7 @@ Code: `except (NeedsAPerson, AccountBusy, PageGone) as why:`
 > stopped added to its reason: an `unknown` write stays `unknown` and a
 > failure keeps its fingerprint for whoever learns from it.
 
-## `StepExecutor.run`, [line 75](../../../../../../../backend/src/sro/application/runtime/executor.py#L75): Note
+## `StepExecutor.run`, [line 79](../../../../../../../backend/src/sro/application/runtime/executor.py#L79): Note
 
 Code: `except Exception as why:`
 
@@ -65,15 +65,27 @@ Code: `except Exception as why:`
 > class: the text may carry what the browser or the network said. An
 > operator's stop and a cancellation still propagate.
 
-## `StepExecutor.run`, [line 56](../../../../../../../backend/src/sro/application/runtime/executor.py#L56): Note
+## `StepExecutor.run`, [line 59](../../../../../../../backend/src/sro/application/runtime/executor.py#L59): Note
 
-Code: `not tool and not ctx.adding.get(step.order) and replay_of(step, values, ctx) is not None`
+Code: `set(adding.fresh) <= known <= set(learned_slots(ctx.workflow, step))`
 
-> A write that follows a field this run filled (composed, or a learned field
-> step) is never offered the API lane. The replay template is the recorded
-> body, and it cannot carry the new key: replaying it would save the record
-> without the field the operator asked for, and nothing would say so.
->
-> **Ceiling.** Such a write always goes through the page. The upgrade is design
-> 2's recipe compiler (K1): a learned key in the replay template, after which the
-> API lane can carry it.
+> A write that follows a field this run filled is offered the API lane only
+> when every added field was learned with a slot (`learned_slots`, K1): the
+> replay template then carries the learned key, and the read-back checks it.
+> `adding.fresh` is not "composed this run": `_fill_for` puts every filled
+> field's held value there, learned ones included, and names a learned field
+> in `adding.known` too. A field is composed this run when it is in `fresh`
+> and not in `known`. A field composed this run has no learned key, and a learned
+> field whose slot was taken out after an API break has none the template may
+> use; either way the recorded body cannot carry it, and replaying it would
+> save the record without the field the operator asked for, and nothing would
+> say so -- so that write goes through the page.
+
+## `StepExecutor._settled`, [line 108](../../../../../../../backend/src/sro/application/runtime/executor.py#L108): Note
+
+Code: `keyed=confirmed_keys(step, values, ctx),`
+
+> An in-doubt write the API lane's read-back settled as done keys its learned
+> fields the same way the API lane's own write does (`confirmed_keys`): the
+> read-back checked every value the plan confirms, the learned slots' values
+> among them.

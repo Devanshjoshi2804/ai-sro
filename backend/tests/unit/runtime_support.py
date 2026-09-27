@@ -54,11 +54,12 @@ from sro.application.ports.page import PageAnswer, SessionRef
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.application.runtime.answer_run import AnswerRun, WriteVerdict
+from sro.application.runtime.api_lane import ApiLane
 from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.executor import StepExecutor
 from sro.application.runtime.fill_field import Filled, FillField
 from sro.application.runtime.run_steps import RunSteps
-from sro.application.runtime.step import Held, LaneContext
+from sro.application.runtime.step import Held, LaneContext, ReadsBack
 from sro.application.runtime.teach import Teach
 from sro.domain.execution.account import K_LEASE_TTL, Account, Lease, LeaseState, new_lease_id
 from sro.domain.execution.compose import Adding, Composed
@@ -828,6 +829,7 @@ class SteelRun:
     clock: FakeClock
     durable: FakeDurableExecution
     fill: ScriptedFill
+    http: FakeHttpCaller | None = None
 
     def progress(self) -> Progress:
         return Progress.of(self.uow.workflow_runs.rows[self.run_id].progress)
@@ -865,7 +867,9 @@ class SteelRun:
         """The run's steps as a fresh worker process drives them: a new broker
         and executor over the same database and the same browser, holding
         nothing the old process knew."""
-        return _worker(self.uow, self.driver, self.vault, self.clock, self.lanes, self.fill)[1]
+        return _worker(
+            self.uow, self.driver, self.vault, self.clock, self.lanes, self.fill, self.http
+        )[1]
 
     async def saved_run(self, run_id: str = "") -> WorkflowRun:
         run = await self.uow.workflow_runs.get(TENANT, run_id or self.run_id)
@@ -891,6 +895,7 @@ async def steel_run(
     progress: Progress | None = None,
     values: Mapping[str, str] | None = None,
     job: Workflow | None = None,
+    http: FakeHttpCaller | None = None,
 ) -> SteelRun:
     uow, driver, clock, vault = (
         FakeUnitOfWork(),
@@ -936,7 +941,7 @@ async def steel_run(
         *(RecordingLane(lane, settles=None) for lane in (Lane.TOOL, Lane.API, Lane.UI, Lane.SIGHT))
     )
     fill = ScriptedFill()
-    broker, run_steps = _worker(uow, driver, vault, clock, lanes, fill)
+    broker, run_steps = _worker(uow, driver, vault, clock, lanes, fill, http)
     return SteelRun(
         uow,
         run_id,
@@ -949,6 +954,7 @@ async def steel_run(
         clock,
         FakeDurableExecution(),
         fill,
+        http,
     )
 
 
@@ -959,6 +965,7 @@ def _worker(
     clock: FakeClock,
     lanes: Lanes,
     fill: FillField | None = None,
+    http: FakeHttpCaller | None = None,
 ) -> tuple[SessionBroker, RunSteps]:
     broker = SessionBroker(
         uow,
@@ -969,13 +976,14 @@ def _worker(
         clock,
         ui=SigningLane(driver),
     )
-    executor = StepExecutor(lanes.tool, lanes.api, lanes.ui, lanes.sight, broker)
+    api: ReadsBack = lanes.api if http is None else ApiLane(http, broker)
+    executor = StepExecutor(lanes.tool, api, lanes.ui, lanes.sight, broker)
     return broker, RunSteps(
         uow,
         broker,
         executor,
         Teach(uow, clock),
-        lanes.api,
+        api,
         clock,
         FakeIdFactory(),
         fill=fill or ScriptedFill(),

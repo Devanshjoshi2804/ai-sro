@@ -23,7 +23,7 @@ from sro.domain.execution.lanes import (
 )
 from sro.domain.execution.planning import Planned
 from sro.domain.execution.records import made_by
-from sro.domain.execution.write_plan import seen_values
+from sro.domain.execution.write_plan import learned_slots, seen_values
 from sro.domain.observation.trim import path_shape
 from sro.domain.recording.sensitivity import K_TOKENS, classify_header
 from sro.domain.shared.hosts import REDACTED
@@ -127,7 +127,13 @@ class ApiLane:
             return StepResult(
                 "unknown", Lane.API, "no read-back shows the values written", read=made
             )
-        return StepResult("done", Lane.API, "a read-back shows the values written", read=made)
+        return StepResult(
+            "done",
+            Lane.API,
+            "a read-back shows the values written",
+            read=made,
+            keyed=confirmed_keys(step, values, ctx, planned),
+        )
 
     async def read_back(
         self, step: Step, values: Mapping[str, str], ctx: LaneContext
@@ -206,7 +212,21 @@ def replay_of(step: Step, values: Mapping[str, str], ctx: LaneContext) -> Planne
         values=values,
         verified_writes=ctx.ledger,
         seen=seen_values(ctx.workflow),
+        learned=learned_slots(ctx.workflow, step),
     )
+
+
+def confirmed_keys(
+    step: Step, values: Mapping[str, str], ctx: LaneContext, planned: Planned | None = None
+) -> dict[str, str]:
+    planned = planned or replay_of(step, values, ctx)
+    if planned is None:
+        return {}
+    return {
+        name: key
+        for name, key in learned_slots(ctx.workflow, step).items()
+        if key in planned.confirm
+    }
 
 
 def _unsent(reason: str, kind: str, evidence: str = "") -> StepResult:

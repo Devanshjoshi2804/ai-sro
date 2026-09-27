@@ -63,7 +63,7 @@ def test_a_credential_or_a_name_a_step_already_fills_is_never_composed() -> None
 
 def test_a_learned_field_whose_step_was_lost_is_composed_again_never_dropped() -> None:
     job, by_id = _job(OutlineField("combobox", "Department"))
-    job.parameters = [{"name": "department", "required": False, "key": "department"}]
+    job.parameters = [{"name": "department", "required": False, "body_key": "department"}]
 
     composed, _ = compose(job, by_id, {"department": "Finance"})
 
@@ -132,7 +132,7 @@ def test_learning_the_field_puts_its_step_before_the_write_and_keeps_it_optional
         "required": False,
         "seen_values": ["Finance"],
         "names": ["Department"],
-        "key": "department",
+        "body_key": "department",
     }
 
 

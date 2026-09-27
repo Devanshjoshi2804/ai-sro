@@ -88,9 +88,9 @@ def field_key(workflow: Workflow, step: Step) -> str:
         return ""
     return next(
         (
-            str(one["key"])
+            str(one["body_key"])
             for one in workflow.parameters
-            if one.get("name") == step.parameters[0] and one.get("key")
+            if one.get("name") == step.parameters[0] and one.get("body_key")
         ),
         "",
     )

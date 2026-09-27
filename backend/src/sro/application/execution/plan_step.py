@@ -53,12 +53,13 @@ def _replay_of(
     verified_writes: tuple[VerifiedWrite, ...],
     seen: Mapping[str, frozenset[str]],
     keys: Mapping[str, str] = MappingProxyType({}),
+    learned: Mapping[str, str] = MappingProxyType({}),
 ) -> tuple[dict[str, object], WritePlan | None] | None:
     call = recorded_call(step, by_id)
     if call is None or unreplayable(call):
         return None
     verified = verified_write_for(call, verified_writes) is not None
-    aimed = write_plan_for(step, by_id, values, verified_writes, seen, keys)
+    aimed = write_plan_for(step, by_id, values, verified_writes, seen, keys, learned)
     if aimed is None and values and verified:
         return None
     wanted = wanted_by(step, by_id, seen)
@@ -90,6 +91,7 @@ def replay_without_asking(
     verified_writes: tuple[VerifiedWrite, ...],
     seen: Mapping[str, frozenset[str]] = MappingProxyType({}),
     keys: Mapping[str, str] = MappingProxyType({}),
+    learned: Mapping[str, str] = MappingProxyType({}),
     starts_on: str | None = None,
 ) -> Planned | None:
     by_id = {gesture.id: gesture for gesture in cited}
@@ -98,7 +100,7 @@ def replay_without_asking(
         return None
     if _a_cascade(call, cited, verified_writes):
         return None
-    sending = _replay_of(step, by_id, values, verified_writes, seen, keys)
+    sending = _replay_of(step, by_id, values, verified_writes, seen, keys, learned)
     if sending is None:
         return None
     payload, aimed = sending

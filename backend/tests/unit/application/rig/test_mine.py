@@ -36,6 +36,7 @@ from sro.application.observation.mining_pass import (
     rekey_workflows,
 )
 from sro.application.ports.locks import AccountBusy
+from sro.domain.execution.compose import Composed, with_field
 from sro.domain.observation.driving import WAS_OUR_OWN_DRIVING
 from sro.domain.observation.gesture import (
     Action,
@@ -2383,3 +2384,29 @@ async def test_a_tenant_being_mined_elsewhere_is_not_mined_again() -> None:
         await _mine(uow, asker, locks=locks)
 
     assert len(asker.answers) == 1
+
+
+def test_a_learned_body_key_is_never_taken_for_a_control_key() -> None:
+    """A run learns `department` as the key the save posts a field by. A mined
+    control whose id happens to be `department` is some other field; were the
+    body key stored where the control key lives, the fold would merge them."""
+    job = Workflow(
+        id="wfl_k",
+        tenant="acme",
+        title="Save",
+        narrative="",
+        steps=[Step(order=0, says="Save", system="wms.example", cites=["ges_save"])],
+    )
+    learned, _ = with_field(
+        job, Composed("Department", "Department", "combobox", 0), key="department", value="Finance"
+    )
+    mined: dict[str, object] = {
+        "name": "Cost Centre",
+        "names": ["Cost Centre"],
+        "key": "department",
+        "seen_values": ["CC1"],
+    }
+
+    folded = _folded([*learned.parameters, mined])
+
+    assert [one.get("name") for one in folded] == ["Department", "Cost Centre"]

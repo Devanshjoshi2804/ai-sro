@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/domain/execution/progress.py`](../../../../../../../backend/src/sro/domain/execution/progress.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## module, [line 12](../../../../../../../backend/src/sro/domain/execution/progress.py#L12): Note on the line above
+## module, [line 10](../../../../../../../backend/src/sro/domain/execution/progress.py#L10): Note on the line above
 
 Code: `K_STEP_HEARTBEAT_S = 30`
 
@@ -11,7 +11,7 @@ Code: `K_STEP_HEARTBEAT_S = 30`
 > retries; the running step itself sees a stop request no later than its next
 > heartbeat, so this is also the outer bound on how long "stop" takes to land.
 
-## module, [line 13](../../../../../../../backend/src/sro/domain/execution/progress.py#L13): Note on the line above
+## module, [line 11](../../../../../../../backend/src/sro/domain/execution/progress.py#L11): Note on the line above
 
 Code: `K_STEP_LIMIT_S = 300`
 
@@ -20,7 +20,7 @@ Code: `K_STEP_LIMIT_S = 300`
 > is still running after this is stuck rather than merely slow, and Temporal
 > fails the activity rather than let a wedged step hold the run forever.
 
-## module, [line 14](../../../../../../../backend/src/sro/domain/execution/progress.py#L14): Note on the line above
+## module, [line 12](../../../../../../../backend/src/sro/domain/execution/progress.py#L12): Note on the line above
 
 Code: `K_BEAT_EVERY_S = 10`
 
@@ -29,7 +29,7 @@ Code: `K_BEAT_EVERY_S = 10`
 > tick trips the 30 s timeout, which is the gap a GC pause or a busy event
 > loop actually costs.
 
-## module, [line 15](../../../../../../../backend/src/sro/domain/execution/progress.py#L15): Note on the line above
+## module, [line 13](../../../../../../../backend/src/sro/domain/execution/progress.py#L13): Note on the line above
 
 Code: `K_BUDGET_FLOOR_S = 120`
 
@@ -38,7 +38,7 @@ Code: `K_BUDGET_FLOOR_S = 120`
 > a lease acquire, a model call and a retry, so the derived budget never
 > drops below this floor regardless of how quickly the operator moved.
 
-## module, [line 16](../../../../../../../backend/src/sro/domain/execution/progress.py#L16): Note on the line above
+## module, [line 14](../../../../../../../backend/src/sro/domain/execution/progress.py#L14): Note on the line above
 
 Code: `K_BUDGET_PER_STEP_S = 60`
 
@@ -47,7 +47,7 @@ Code: `K_BUDGET_PER_STEP_S = 60`
 > executor time the operator's click never spent, added once per step on top
 > of the scaled demonstrated span.
 
-## module, [line 17](../../../../../../../backend/src/sro/domain/execution/progress.py#L17): Note on the line above
+## module, [line 15](../../../../../../../backend/src/sro/domain/execution/progress.py#L15): Note on the line above
 
 Code: `K_BUDGET_FACTOR = 4`
 
@@ -56,7 +56,7 @@ Code: `K_BUDGET_FACTOR = 4`
 > practised operator's click-through, so the budget scales the demonstrated
 > span by four rather than taking it at face value.
 
-## `Account`, [line 32](../../../../../../../backend/src/sro/domain/execution/progress.py#L32): Docstring
+## `Account`, [line 30](../../../../../../../backend/src/sro/domain/execution/progress.py#L30): Docstring
 
 > Which account is driving the run, never what proves it. `origin` and
 > `username` are the whole type -- not a `dict[str, str]` filtered at the
@@ -70,13 +70,13 @@ Code: `K_BUDGET_FACTOR = 4`
 > `workflow_runs` row, a log, or evidence through this field. Global
 > constraint 10 -- a credential lives in the vault only.
 
-## `Progress.account`, [line 44](../../../../../../../backend/src/sro/domain/execution/progress.py#L44): Comment
+## `Progress.account`, [line 42](../../../../../../../backend/src/sro/domain/execution/progress.py#L42): Comment
 
 Code: `account: Account = field(default_factory=Account)`
 
 > Typed, not filtered: see `Account`.
 
-## `Progress.of`, [line 51](../../../../../../../backend/src/sro/domain/execution/progress.py#L51): Docstring
+## `Progress.of`, [line 49](../../../../../../../backend/src/sro/domain/execution/progress.py#L49): Docstring
 
 > Raises on a malformed row rather than reading it as empty. `step` that is
 > not an integer, or a mark keyed by something that is not a step order,
@@ -86,7 +86,7 @@ Code: `account: Account = field(default_factory=Account)`
 > drops it to `""` rather than raising, since it names a state this code
 > never wrote and the safest reading of an unknown mark is "not sent".
 
-## `Progress.settle`, [line 84](../../../../../../../backend/src/sro/domain/execution/progress.py#L84): Docstring
+## `Progress.settle`, [line 82](../../../../../../../backend/src/sro/domain/execution/progress.py#L82): Docstring
 
 > `done` is sticky: both `sending` and `settle` return before touching a mark
 > already `done`, so nothing after the write was confirmed -- a retried
@@ -97,7 +97,7 @@ Code: `account: Account = field(default_factory=Account)`
 > with `never_left=True`, that this specific attempt is confirmed never to
 > have left -- the one case narrow enough to clear it outright.
 
-## `run_budget`, [line 145](../../../../../../../backend/src/sro/domain/execution/progress.py#L145): Docstring
+## `run_budget`, [line 143](../../../../../../../backend/src/sro/domain/execution/progress.py#L143): Docstring
 
 > Derived from the demonstration because nothing else in a `Workflow` carries
 > a duration -- it is a sequence of steps and cited gestures, not a timing.
@@ -112,35 +112,35 @@ Code: `account: Account = field(default_factory=Account)`
 > order. Trim idle gaps out of `shown`, or cap it outright, once a real job's
 > demonstrated pause makes a run's budget meaningless.
 
-## `Progress`, [line 46](../../../../../../../backend/src/sro/domain/execution/progress.py#L46): Note
+## `Progress`, [line 44](../../../../../../../backend/src/sro/domain/execution/progress.py#L44): Note
 
 Code: `asking: dict[str, str] = field(default_factory=dict)`
 
 > The question a step stands on (`id`, `kind`, `text`), written by D2 when
 > no lane can do the step and read by D5 when the answer comes.
 
-## `StepMark`, [line 28](../../../../../../../backend/src/sro/domain/execution/progress.py#L28): Note
+## `StepMark`, [line 26](../../../../../../../backend/src/sro/domain/execution/progress.py#L26): Note
 
 Code: `expired: bool = False`
 
 > Kept when a write is left `unknown` after the session expired, so the
 > read-back that settles it later signs in afresh first.
 
-## `Progress.sending`, [line 76](../../../../../../../backend/src/sro/domain/execution/progress.py#L76): Note
+## `Progress.sending`, [line 74](../../../../../../../backend/src/sro/domain/execution/progress.py#L74): Note
 
 Code: `mark.lane, mark.wrote = lane, "sending"`
 
 > The lane that is about to send, so a write settled after a crash is
 > credited to the lane that sent it.
 
-## module, [line 18](../../../../../../../backend/src/sro/domain/execution/progress.py#L18): Note
+## module, [line 16](../../../../../../../backend/src/sro/domain/execution/progress.py#L16): Note
 
 Code: `K_BUDGET_MARGIN_S = 600`
 
 > What the workflow timeout adds to a run's budget: room for `finish` and
 > `release` with their retries after the workflow's own deadline.
 
-## `Progress.composed`, [line 47](../../../../../../../backend/src/sro/domain/execution/progress.py#L47): Note
+## `Progress.composed`, [line 45](../../../../../../../backend/src/sro/domain/execution/progress.py#L45): Note
 
 Code: `composed: list[dict[str, object]] = field(default_factory=list)`
 
@@ -150,7 +150,7 @@ Code: `composed: list[dict[str, object]] = field(default_factory=list)`
 > `done` with the body `key` only when the write's own call carried it. Labels,
 > roles and options only: never a value.
 
-## `Progress.filled`, [line 48](../../../../../../../backend/src/sro/domain/execution/progress.py#L48): Note
+## `Progress.filled`, [line 46](../../../../../../../backend/src/sro/domain/execution/progress.py#L46): Note
 
 Code: `filled: dict[str, str] = field(default_factory=dict)`
 
@@ -159,7 +159,7 @@ Code: `filled: dict[str, str] = field(default_factory=dict)`
 > kept because the field step and its write run in separate activities. A
 > secret control holds nothing (`isSecretField`), so no credential lands here.
 
-## `_composed`, [line 113](../../../../../../../backend/src/sro/domain/execution/progress.py#L113): Note
+## `_composed`, [line 111](../../../../../../../backend/src/sro/domain/execution/progress.py#L111): Note
 
 > A `composed` that is not a list of objects raises, like every other field a
 > hand-edited or truncated row could spoil: a run must not silently forget

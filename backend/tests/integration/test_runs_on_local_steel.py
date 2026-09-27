@@ -65,7 +65,7 @@ from sro.application.runtime.ui_lane import UiLane
 from sro.config import get_settings
 from sro.domain.execution.account import K_LEASE_TTL, Account, LeaseState
 from sro.domain.execution.lanes import Lane
-from sro.domain.execution.progress import MAIN, Progress
+from sro.domain.execution.progress import Progress
 from sro.domain.execution.takeover import Took
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.lookup.plan import Lookup, Plan
@@ -82,6 +82,7 @@ from sro.domain.observation.gesture import (
 )
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
+from sro.domain.skill.tabs import MAIN
 from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.db.locks import PostgresAccountLocks
 from sro.infrastructure.db.repositories import SqlUnitOfWork
@@ -891,8 +892,6 @@ async def test_a_takeover_after_the_operator_s_own_save_sends_only_the_rest(
         world.uow,
         channel=FakeChannel(),
         asker=FakeAsker(),
-        plan_model="plan",
-        rescue_model="rescue",
         clock=world.clock,
         cap_usd=5.0,
         stops=Stops(),

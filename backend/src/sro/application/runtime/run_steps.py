@@ -35,13 +35,14 @@ from sro.domain.execution.compose import Adding, Composed, choices, compose, fie
 from sro.domain.execution.evidence import primary_gesture, writes
 from sro.domain.execution.lanes import Lane, StepResult, cites_key
 from sro.domain.execution.mail_job import sends_mail
-from sro.domain.execution.progress import MAIN, Progress, StepMark
+from sro.domain.execution.progress import Progress, StepMark
 from sro.domain.execution.takeover import OPERATOR
 from sro.domain.execution.waiting import read_wait
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.identifiers import PrincipalId
 from sro.domain.skill.learned import demanded
+from sro.domain.skill.tabs import MAIN
 from sro.domain.skill.workflow import Step, Workflow, cited_ids, field_key
 
 _RUN_VERDICT = {"done": "held", "read": "held", "failed": "failed", "unknown": "unclear"}

@@ -7,8 +7,6 @@ from typing import Literal, cast, get_args
 from sro.domain.observation.gesture import Gesture
 from sro.domain.skill.workflow import Workflow, ordered_cites
 
-MAIN = "main"
-
 K_STEP_HEARTBEAT_S = 30
 K_STEP_LIMIT_S = 300
 K_BEAT_EVERY_S = 10

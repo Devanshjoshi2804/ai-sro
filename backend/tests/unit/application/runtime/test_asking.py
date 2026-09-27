@@ -6,10 +6,11 @@ from sro.application.runtime.answer_run import AnswerRun
 from sro.application.runtime.step import WaitingForAPerson
 from sro.domain.execution.account import K_LEASE_TTL, LeaseState
 from sro.domain.execution.lanes import Lane, StepResult
-from sro.domain.execution.progress import MAIN, Progress
+from sro.domain.execution.progress import Progress
 from sro.domain.execution.waiting import as_said, waiting_on
 from sro.domain.shared.errors import Conflict
 from sro.domain.skill.signing_in import PageSignals
+from sro.domain.skill.tabs import MAIN
 from tests.unit.fakes import FakeDurableExecution, FakeUnitOfWork
 from tests.unit.runtime_support import (
     APP,

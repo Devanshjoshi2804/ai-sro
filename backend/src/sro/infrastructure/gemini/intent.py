@@ -1,59 +1,22 @@
 from __future__ import annotations
 
+import copy
 import json
 import logging
 from collections.abc import Awaitable
 from typing import TYPE_CHECKING, Any
 
 from sro.application.ports.intent import Extraction, Reading
+from sro.domain.prompts.read_sentence import EXTRACT_VALUES, READ_SENTENCE
 
 if TYPE_CHECKING:  # pragma: no cover - import cost on a hot path
     from google.genai.types import GenerateContentResponse
 
 logger = logging.getLogger(__name__)
 
-_INSTRUCTIONS = (
-    "Read the operator's request and pull out the values for the named "
-    "parameters. One set per thing they are asking to be done: 'update these "
-    "six SKUs' is six sets.\n\n"
-    "Copy values exactly as written. Do not convert units, pad identifiers, or "
-    "tidy them up.\n\n"
-    "Fill in every parameter the request gives a value for, and leave out the "
-    "ones it does not, naming those in `missing`. A partial set is useful: the "
-    "operator is asked for the rest and their answer is added to what you "
-    "returned. Returning nothing because one value was absent throws away the "
-    "ones that were there, and asks the operator for those again.\n\n"
-    "If the request refers to something you were not given — a spreadsheet, "
-    "'this morning's count', 'the usual ones' — say so in the note. Never "
-    "invent a value."
-)
-
-
-_READING = """You read one sentence from a warehouse operator and say what it means.
-
-You never decide what runs. What you return is checked against the tasks that
-actually exist, and anything you name that does not exist is discarded, so
-guessing buys nothing.
-
-wants:      "ask" if they want to be told something, "act" if they want
-            something done. "Show the list", "how many are there" and "which
-            ones are used for parcel" are all asking, however they are phrased.
-verb:       what they want done, in their words: list, create, adjust, release.
-entity:     what they want it done to, singular: transport mode, wave, LPN.
-continues:  true only when the sentence has no subject of its own and leans on
-            the previous one -- "I want them in detail", "do it again". A
-            sentence that names its own subject does not continue, however
-            conversational it sounds.
-values:     anything they supplied that looks like a value, by name if they
-            gave one.
-confidence: 0 to 1, how sure you are. Be honest; a low number costs a
-            clarifying question and a wrong high one costs a wrong action.
-"""
-
 
 class GeminiIntentParser:
-    def __init__(self, model: str, *, client: Any) -> None:
-        self._model = model
+    def __init__(self, *, client: Any) -> None:
         self._client = client
 
     @property
@@ -63,28 +26,17 @@ class GeminiIntentParser:
     async def read(self, utterance: str, *, after: str = "") -> Reading:
         from google.genai import types
 
-        schema: dict[str, Any] = {
-            "type": "object",
-            "properties": {
-                "wants": {"type": "string", "enum": ["ask", "act"]},
-                "verb": {"type": "string"},
-                "entity": {"type": "string"},
-                "continues": {"type": "boolean"},
-                "values": {"type": "object"},
-                "confidence": {"type": "number"},
-            },
-            "required": ["wants", "verb", "entity", "continues", "confidence"],
-        }
+        untrusted = {"before": after} if after else {}
         response = await _answered(
             self._client.aio.models.generate_content(
-                model=self._model,
+                model=READ_SENTENCE.model,
                 contents=[
-                    _READING,
-                    f"The sentence before this one: {after}" if after else "",
-                    f"Sentence: {utterance}",
+                    READ_SENTENCE.instructions,
+                    READ_SENTENCE.evidence({}, {**untrusted, "sentence": utterance}),
                 ],
                 config=types.GenerateContentConfig(
-                    response_mime_type="application/json", response_schema=schema
+                    response_mime_type="application/json",
+                    response_schema=dict(READ_SENTENCE.output_schema),
                 ),
             )
         )
@@ -110,30 +62,24 @@ class GeminiIntentParser:
     ) -> Extraction:
         from google.genai import types
 
-        schema: dict[str, Any] = {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {name: {"type": "string"} for name in parameters},
-                    },
-                },
-                "missing": {"type": "array", "items": {"type": "string"}},
-                "note": {"type": "string"},
-            },
-            "required": ["items"],
+        schema: dict[str, Any] = copy.deepcopy(dict(EXTRACT_VALUES.output_schema))
+        schema["properties"]["items"]["items"]["properties"] = {
+            name: {"type": "string"} for name in parameters
         }
-
+        untrusted = {"context": context} if context else {}
         response = await _answered(
             self._client.aio.models.generate_content(
-                model=self._model,
+                model=EXTRACT_VALUES.model,
                 contents=[
-                    _INSTRUCTIONS,
-                    f"Parameters: {', '.join(parameters) or 'none'}",
-                    f"Context: {context}" if context else "",
-                    f"Request: {utterance}",
+                    EXTRACT_VALUES.instructions,
+                    EXTRACT_VALUES.evidence(
+                        {},
+                        {
+                            "parameters": json.dumps(list(parameters), ensure_ascii=False),
+                            **untrusted,
+                            "request": utterance,
+                        },
+                    ),
                 ],
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json", response_schema=schema

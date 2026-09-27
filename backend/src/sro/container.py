@@ -158,6 +158,7 @@ from sro.application.trigger.receive_inbound import ReceiveInbound
 from sro.config import Settings, get_settings
 from sro.domain.chat.asking import Pending
 from sro.domain.observation.gesture import Gesture
+from sro.domain.prompts.sight import SIGHT, SIGHT_ESCALATED
 from sro.domain.shared.prices import DaySpend
 from sro.domain.skill.workflow import Workflow
 from sro.infrastructure.agent.channel import SocketChannel
@@ -265,7 +266,7 @@ class Container:
             None
             if self.vision is None
             else GeminiVisionDriver(
-                self.settings.gemini_rescue_model,
+                SIGHT_ESCALATED,
                 client=metered_client(self.settings.gemini_api_key, self.meter),
             )
         )
@@ -659,8 +660,8 @@ class Container:
             self.vision,
             self.clock,
             egress_enabled=self.settings.vision_enabled,
-            destination=f"gemini:{self.settings.gemini_vision_model}",
-            model=self.settings.gemini_vision_model,
+            destination=f"gemini:{SIGHT.model}",
+            model=SIGHT.model,
         )
 
     def execute_skill(self) -> ExecuteSkill:
@@ -699,7 +700,7 @@ class Container:
             self.understand_recording(),
             self.browsers(),
             egress_enabled=self.settings.vision_enabled,
-            model=self.settings.gemini_vision_model,
+            model=SIGHT.model,
         )
 
     def self_heal(self) -> SelfHeal:
@@ -844,8 +845,6 @@ class Container:
             self.unit_of_work(),
             channel=SocketChannel(self.agent_sockets),
             asker=self.asker,
-            plan_model=self.settings.gemini_plan_model,
-            rescue_model=self.settings.gemini_rescue_model,
             clock=self.clock,
             cap_usd=self.settings.daily_usd_cap,
             stops=self.stops,
@@ -930,7 +929,6 @@ class Container:
 def _build_transcriber(settings: Settings, meter: Meter) -> Transcriber:
     if settings.transcription_enabled and settings.gemini_api_key:
         return GeminiTranscriber(
-            settings.gemini_transcription_model,
             client=metered_client(settings.gemini_api_key, meter),
         )
     return NullTranscriber()
@@ -939,7 +937,6 @@ def _build_transcriber(settings: Settings, meter: Meter) -> Transcriber:
 def _build_intent_parser(settings: Settings, meter: Meter) -> IntentParser:
     if settings.interpretation_enabled and settings.gemini_api_key:
         return GeminiIntentParser(
-            settings.gemini_intent_model,
             client=metered_client(settings.gemini_api_key, meter),
         )
     return NoIntentParser()
@@ -948,7 +945,6 @@ def _build_intent_parser(settings: Settings, meter: Meter) -> IntentParser:
 def _build_interpreter(settings: Settings, meter: Meter) -> WorkflowInterpreter:
     if settings.interpretation_enabled and settings.gemini_api_key:
         return GeminiInterpreter(
-            settings.gemini_interpreter_model,
             client=metered_client(settings.gemini_api_key, meter),
         )
     return NoInterpreter()
@@ -973,7 +969,7 @@ def _build_asker(settings: Settings, meter: Meter) -> Asker | None:
 def _build_vision(settings: Settings, meter: Meter) -> VisionDriver | None:
     if settings.vision_enabled and settings.gemini_api_key:
         return GeminiVisionDriver(
-            settings.gemini_vision_model,
+            SIGHT,
             client=metered_client(settings.gemini_api_key, meter),
         )
     return None

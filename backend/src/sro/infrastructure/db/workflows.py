@@ -73,6 +73,7 @@ def _step_values(workflow_id: str, step: Step) -> dict[str, Any]:
         "cites": list(step.cites),
         "parameters": list(step.parameters),
         "uses": list(step.uses),
+        "tab": step.tab,
     }
 
 
@@ -84,6 +85,7 @@ def _row_to_step(row: WorkflowStepRow) -> Step:
         cites=list(row.cites),
         parameters=list(row.parameters),
         uses=list(row.uses or []),
+        tab=row.tab,
     )
 
 
@@ -354,6 +356,20 @@ class SqlWorkflowRepository(WorkflowRepository):
         steps = await self._steps_of([row.id for row in rows])
         return tuple(_row_to_workflow(row, steps[row.id]) for row in rows)
 
+    async def tabs_undecided(self) -> tuple[Workflow, ...]:
+        untabbed = select(WorkflowStepRow.workflow_id).where(WorkflowStepRow.tab.is_(None))
+        query = (
+            select(WorkflowRow)
+            .where(WorkflowRow.id.in_(untabbed), WorkflowRow.retired_at.is_(None))
+            .order_by(WorkflowRow.tenant_id, WorkflowRow.created_at, WorkflowRow.id)
+            .execution_options(populate_existing=True)
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        if not rows:
+            return ()
+        steps = await self._steps_of([row.id for row in rows])
+        return tuple(_row_to_workflow(row, steps[row.id]) for row in rows)
+
     async def ruled(self, tenant_id: TenantId, workflow_id: str, rule: int) -> bool:
         moved = await self._session.execute(
             update(WorkflowRow)
@@ -365,6 +381,21 @@ class SqlWorkflowRepository(WorkflowRepository):
             .values(parameters_rule=rule)
         )
         return cast(CursorResult[Any], moved).rowcount > 0
+
+    async def decide_tab(self, tenant_id: TenantId, workflow_id: str, order: int, tab: str) -> bool:
+        owned = select(WorkflowRow.id).where(
+            WorkflowRow.tenant_id == tenant_id.value, WorkflowRow.id == workflow_id
+        )
+        decided = await self._session.execute(
+            update(WorkflowStepRow)
+            .where(
+                WorkflowStepRow.workflow_id.in_(owned),
+                WorkflowStepRow.ord == order,
+                WorkflowStepRow.tab.is_(None),
+            )
+            .values(tab=tab)
+        )
+        return cast(CursorResult[Any], decided).rowcount > 0
 
     async def add_pass(self, mining_pass: MiningPass) -> None:
         try:

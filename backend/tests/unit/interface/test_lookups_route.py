@@ -39,7 +39,6 @@ planner's own plural handling is held in `test_where_to_look_for_an_answer`,
 where it is the thing under test rather than a fixture detail."""
 HERS = "the-secret-the-laptop-was-minted"
 
-MODEL = "gemini-3.1-flash-preview"
 """Deliberately not the shipped default, so a route wired to a literal fails
 rather than agreeing with it."""
 
@@ -82,7 +81,7 @@ class _Container(_FakeContainer):
 
     def __init__(self, uow: FakeUnitOfWork, answers: Answers | None = None) -> None:
         super().__init__(uow)
-        self.settings = Settings(gemini_plan_model=MODEL, _env_file=None)
+        self.settings = Settings(_env_file=None)
         self.clock = FakeClock()
         self.asker = FakeAsker(_plan_answer())
         self.looked: list[Plan] = []

@@ -3,10 +3,30 @@ from __future__ import annotations
 import subprocess
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
 
-from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator, model_validator
+from pydantic.fields import FieldInfo
+from pydantic_settings import (
+    BaseSettings,
+    EnvSettingsSource,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
+
+RETIRED_MODEL_SETTINGS = frozenset(
+    {
+        "SRO_GEMINI_PLAN_MODEL",
+        "SRO_GEMINI_RESCUE_MODEL",
+        "SRO_GEMINI_VISION_MODEL",
+        "SRO_GEMINI_INTENT_MODEL",
+        "SRO_GEMINI_INTERPRETER_MODEL",
+        "SRO_GEMINI_TRANSCRIPTION_MODEL",
+    }
+)
+
+_RETIRED = "retired_model_settings"
 
 
 def _git_head() -> str:
@@ -45,6 +65,26 @@ def _origins_of(url: str) -> set[tuple[str, str]]:
     prefix = parsed.path.rstrip("/") or "/"
     hosts = _LOOPBACK if host in _LOOPBACK else (host,)
     return {(f"{one}:{port}" if port else one, prefix) for one in hosts}
+
+
+class _RetiredModelSettings(PydanticBaseSettingsSource):
+    def __init__(self, settings_cls: type[BaseSettings], *read: EnvSettingsSource) -> None:
+        super().__init__(settings_cls)
+        self._read = read
+
+    def get_field_value(self, field: FieldInfo, field_name: str) -> tuple[Any, str, bool]:
+        return None, field_name, False
+
+    def __call__(self) -> dict[str, Any]:
+        found = sorted(
+            {
+                key.upper()
+                for source in self._read
+                for key in source.env_vars
+                if key.upper() in RETIRED_MODEL_SETTINGS
+            }
+        )
+        return {_RETIRED: found} if found else {}
 
 
 class Settings(BaseSettings):
@@ -118,6 +158,39 @@ class Settings(BaseSettings):
     otlp_endpoint: str | None = "http://localhost:4318"
     service_name: str = "sro-backend"
 
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        read = tuple(
+            source
+            for source in (env_settings, dotenv_settings)
+            if isinstance(source, EnvSettingsSource)
+        )
+        return (
+            _RetiredModelSettings(settings_cls, *read),
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            file_secret_settings,
+        )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _a_retired_model_setting_is_refused(cls, data: Any) -> Any:
+        retired = data.get(_RETIRED) if isinstance(data, dict) else None
+        if retired:
+            raise ValueError(
+                f"{', '.join(retired)} is retired: the model now lives on the prompt record "
+                "in sro.domain.prompts. Remove the key; a different model is a prompt change."
+            )
+        return data
+
     @field_validator("otlp_endpoint", mode="before")
     @classmethod
     def _blank_otlp_endpoint_is_off(cls, value: str | None) -> str | None:
@@ -169,18 +242,7 @@ class Settings(BaseSettings):
 
     daily_usd_cap: float = -1.0
 
-    gemini_transcription_model: str = "gemini-3.8-flash"
     gemini_embedding_model: str = "gemini-embedding-2"
-
-    gemini_vision_model: str = "gemini-3.8-flash"
-
-    gemini_intent_model: str = "gemini-3.8-flash"
-
-    gemini_interpreter_model: str = "gemini-3.1-pro-preview"
-
-    gemini_plan_model: str = "gemini-3.8-flash"
-
-    gemini_rescue_model: str = "gemini-3.1-pro-preview"
 
     interpretation_enabled: bool = False
 

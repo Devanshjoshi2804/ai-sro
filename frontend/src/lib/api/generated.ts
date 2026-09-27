@@ -4786,6 +4786,8 @@ export interface components {
             cites: string[];
             /** Parameters */
             parameters: string[];
+            /** Tab */
+            tab: string;
         };
         /** WorkflowsResponse */
         WorkflowsResponse: {

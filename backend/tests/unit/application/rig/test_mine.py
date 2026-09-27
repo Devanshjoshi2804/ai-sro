@@ -36,6 +36,7 @@ from sro.application.observation.mining_pass import (
     rekey_workflows,
 )
 from sro.application.ports.locks import AccountBusy
+from sro.domain.execution.compose import Composed, with_field
 from sro.domain.observation.driving import WAS_OUR_OWN_DRIVING
 from sro.domain.observation.gesture import (
     Action,
@@ -43,6 +44,7 @@ from sro.domain.observation.gesture import (
     Component,
     Gesture,
     Intent,
+    PageMark,
     Target,
     ValueSeen,
 )
@@ -247,6 +249,26 @@ async def test_a_pass_keeps_what_it_can_prove() -> None:
     assert result.kept == 1
     assert result.rejections == []
     assert len(await uow.workflows.known(TENANT)) == 1
+
+
+async def test_a_doing_that_crossed_into_a_popup_is_kept_with_each_steps_tab() -> None:
+    """Code, not the model, names the tab each step acts in."""
+    uow, ids = await _day()
+    rows = _rows(uow)
+    first = rows[ids[0]]
+    opened = PageMark(at=first.at, page_kind="popup_opened", tab_id=99, opener_tab_id=first.tab_id)
+    rows[ids[0]] = replace(first, page_events=[*first.page_events, opened])
+    rows[ids[1]] = replace(rows[ids[1]], tab_id=99)
+    steps = [
+        {"order": 0, "cites": [ids[0]], "says": "do it", "system": HOST, "parameters": []},
+        {"order": 1, "cites": [ids[1]], "says": "save it", "system": HOST, "parameters": []},
+    ]
+
+    result = await _mine(uow, FakeAsker(_found(_proposal(ids[:2], steps=steps))))
+
+    assert result.kept == 1
+    (job,) = await uow.workflows.known(TENANT)
+    assert [step.tab for step in job.steps] == ["main", "opened_from:main"]
 
 
 async def test_a_workflow_citing_evidence_that_does_not_exist_is_refused() -> None:
@@ -800,7 +822,7 @@ async def test_an_unusable_answer_leaves_its_window_unread() -> None:
     first = await _mine(uow, asker)
     second = await _mine(uow, asker)
 
-    assert first.error is not None and "mine v2" in first.error
+    assert first.error is not None and "mine v3" in first.error
     assert first.left_out == len(ids)
     assert len(asker.asked) == 2 and second.window_size == len(ids)
     assert {entry.age for entry in await uow.pool.waiting(TENANT)} == {1}
@@ -1888,7 +1910,7 @@ async def test_a_malformed_answer_does_not_take_the_pass_down() -> None:
     so `propose` never sees a `workflows` that is not a list."""
     for junk in ("not a list", {"a": "dict"}, 7, None):
         workflows, answer = await _proposed(FakeAsker(_answer(workflows=junk)))
-        assert answer.error is not None and "mine v2" in answer.error
+        assert answer.error is not None and "mine v3" in answer.error
 
         assert workflows == []
 
@@ -2385,3 +2407,29 @@ async def test_a_tenant_being_mined_elsewhere_is_not_mined_again() -> None:
         await _mine(uow, asker, locks=locks)
 
     assert len(asker.answers) == 1
+
+
+def test_a_learned_body_key_is_never_taken_for_a_control_key() -> None:
+    """A run learns `department` as the key the save posts a field by. A mined
+    control whose id happens to be `department` is some other field; were the
+    body key stored where the control key lives, the fold would merge them."""
+    job = Workflow(
+        id="wfl_k",
+        tenant="acme",
+        title="Save",
+        narrative="",
+        steps=[Step(order=0, says="Save", system="wms.example", cites=["ges_save"])],
+    )
+    learned, _ = with_field(
+        job, Composed("Department", "Department", "combobox", 0), key="department", value="Finance"
+    )
+    mined: dict[str, object] = {
+        "name": "Cost Centre",
+        "names": ["Cost Centre"],
+        "key": "department",
+        "seen_values": ["CC1"],
+    }
+
+    folded = _folded([*learned.parameters, mined])
+
+    assert [one.get("name") for one in folded] == ["Department", "Cost Centre"]

@@ -30,23 +30,18 @@ from sro.application.execution.plan_step import (
 )
 from sro.domain.execution.evidence import locators_for
 from sro.domain.execution.learned_step import LearnedStep
-from sro.domain.execution.planning import (
-    PLAN_INSTRUCTIONS,
-    PLAN_SCHEMA,
-    SIGHT_INSTRUCTIONS,
-    SIGHT_SCHEMA,
-    Look,
-    Planned,
-)
+from sro.domain.execution.planning import Look, Planned
 from sro.domain.execution.secrets import secret_key_for
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.observation.gesture import Body, Call, Component, Gesture, Target
 from sro.domain.observation.trim import trim
+from sro.domain.prompts.plan_step import PLAN_STEP
+from sro.domain.prompts.see_step import SEE_STEP
 from sro.domain.shared.hosts import REDACTED
-from sro.domain.shared.prices import Answer, Effort
+from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step
 from tests.unit.domain.rig.conftest import gestures as _gestures
-from tests.unit.fakes import FakeAsker
+from tests.unit.fakes import FakeAsker, fenced_block, fenced_json
 
 
 def _typed() -> Gesture:
@@ -82,7 +77,7 @@ def test_the_actions_offered_are_the_actions_accepted() -> None:
     """The enum the model is shown and the set its answer is checked against
     are one list. Parting them either offers an action that falls back to the
     gesture's own, or accepts one the schema never allowed."""
-    properties = PLAN_SCHEMA["properties"]
+    properties = PLAN_STEP.output_schema["properties"]
     assert isinstance(properties, dict)
     action = properties["action"]
     assert isinstance(action, dict)
@@ -128,7 +123,6 @@ async def test_a_credential_step_types_whatever_the_model_answers() -> None:
         starts_on=None,
         allow_focus=True,
         asker=asker,
-        model="gemini-3.8-flash",
         secret_for=_vault,
         tenant_id="acme",
     )
@@ -171,7 +165,6 @@ async def test_a_ui_plan_carries_the_evidence_locators_not_the_models() -> None:
         starts_on=None,
         allow_focus=True,
         asker=asker,
-        model="gemini-3.8-flash",
     )
 
     assert planned.kind == "ui.perform"
@@ -210,7 +203,6 @@ async def test_a_learned_locator_leads_the_ladder_and_is_still_visible_only() ->
         starts_on=None,
         allow_focus=False,
         asker=FakeAsker(_answer(action="type", value="THIRD")),
-        model="m",
     )
 
     locators = planned.payload["locators"]
@@ -243,7 +235,6 @@ async def test_an_unusable_learned_locator_is_not_tried_at_all() -> None:
         starts_on=None,
         allow_focus=False,
         asker=FakeAsker(_answer(action="type", value="THIRD")),
-        model="m",
     )
     with_unusable_learning = await plan_step(
         step=Step(
@@ -261,7 +252,6 @@ async def test_an_unusable_learned_locator_is_not_tried_at_all() -> None:
         starts_on=None,
         allow_focus=False,
         asker=FakeAsker(_answer(action="type", value="THIRD")),
-        model="m",
     )
 
     assert with_unusable_learning.payload["locators"] == without_learning.payload["locators"]
@@ -288,7 +278,9 @@ async def test_a_step_declaring_nothing_is_aimed_at_the_box_the_run_has_a_value_
         ),
     )
     asker = FakeAsker(
-        Answer(data={"kind": "ui.perform", "action": "type", "value": "WRONG", "url": None})
+        Answer(
+            data={"kind": "ui.perform", "action": "type", "value": "WRONG", "url": None, "why": "w"}
+        )
     )
 
     planned = await plan_step(
@@ -301,7 +293,6 @@ async def test_a_step_declaring_nothing_is_aimed_at_the_box_the_run_has_a_value_
         starts_on=None,
         allow_focus=True,
         asker=asker,
-        model="gemini-3.8-flash",
     )
 
     locators = planned.payload["locators"]
@@ -326,7 +317,6 @@ async def test_the_values_the_run_was_given_are_what_the_model_sees_not_the_reco
         starts_on=None,
         allow_focus=False,
         asker=asker,
-        model="m",
     )
     evidence = asker.asked[0]["evidence"]
     assert isinstance(evidence, str)
@@ -336,7 +326,7 @@ async def test_the_values_the_run_was_given_are_what_the_model_sees_not_the_reco
     # Not in the rig's suite, and nothing else here reads this key: the whole
     # prompt could stop carrying the cited gestures and every ported test
     # stayed green, because the page above reaches it by another door.
-    seen = json.loads(evidence)
+    seen = fenced_json(evidence)
     assert seen["evidence"] == [trim(gesture)], (
         "the step is planned from the evidence, so the evidence is what is sent"
     )
@@ -388,7 +378,6 @@ async def test_a_call_planned_for_the_step_a_run_begins_at_can_open_its_own_page
         starts_on="http://127.0.0.1:63319/form",
         allow_focus=False,
         asker=asker,
-        model="m",
     )
 
     assert planned.kind == "http.send"
@@ -425,7 +414,6 @@ async def test_an_http_plan_replays_the_recorded_call_with_redacted_headers_drop
         starts_on=None,
         allow_focus=False,
         asker=asker,
-        model="m",
     )
 
     assert planned.kind == "http.send"
@@ -471,7 +459,6 @@ async def test_a_verified_call_names_its_struck_header_for_a_live_fetch_instead(
         starts_on=None,
         allow_focus=False,
         asker=asker,
-        model="m",
         verified_writes=(VerifiedWrite(method="POST", path_pattern=urlsplit(post.url).path),),
     )
 
@@ -526,7 +513,6 @@ async def test_a_struck_header_nothing_can_fetch_live_is_not_named_for_a_live_fe
         starts_on=None,
         allow_focus=False,
         asker=asker,
-        model="m",
         verified_writes=(VerifiedWrite(method="POST", path_pattern=urlsplit(post.url).path),),
     )
 
@@ -566,7 +552,6 @@ async def test_a_call_that_matches_no_verified_write_still_drops_the_header() ->
         starts_on=None,
         allow_focus=False,
         asker=asker,
-        model="m",
         verified_writes=(VerifiedWrite(method="POST", path_pattern="/somewhere/else"),),
     )
 
@@ -606,7 +591,6 @@ async def test_an_http_plan_whose_body_the_store_never_kept_is_downgraded_to_the
         starts_on=None,
         allow_focus=False,
         asker=asker,
-        model="m",
     )
 
     assert planned.kind == "ui.perform"
@@ -625,7 +609,6 @@ async def test_a_model_that_could_not_answer_plans_nothing_and_says_why() -> Non
         starts_on=None,
         allow_focus=False,
         asker=FakeAsker(Answer(error="boom", unpriced=True)),
-        model="m",
     )
     assert planned.kind == "none" and "boom" in planned.why
 
@@ -643,7 +626,6 @@ async def test_a_kind_the_protocol_does_not_have_is_planned_as_nothing() -> None
         asker=FakeAsker(
             Answer(data={"kind": "rm -rf", "action": None, "value": None, "url": None, "why": ""})
         ),
-        model="m",
     )
     assert planned.kind == "none"
 
@@ -670,7 +652,6 @@ async def test_a_retry_carries_the_failure_and_the_second_screenshot() -> None:
         starts_on=None,
         allow_focus=True,
         asker=asker,
-        model="m",
         failure="control_not_found: no visible match",
     )
     evidence = asker.asked[0]["evidence"]
@@ -679,7 +660,7 @@ async def test_a_retry_carries_the_failure_and_the_second_screenshot() -> None:
     # Also not in the rig's suite: `look` reaching the picture was pinned and
     # `look` reaching the words was not, so a planner that told the model
     # nothing about where the browser is could still plan a navigate.
-    assert json.loads(evidence)["browser"] == {
+    assert fenced_json(evidence)["browser"] == {
         "url": "http://127.0.0.1:63319/",
         "screen_text": "Save",
     }
@@ -716,7 +697,6 @@ async def test_an_http_plan_whose_url_carries_a_struck_out_credential_is_downgra
         starts_on=None,
         allow_focus=False,
         asker=asker,
-        model="m",
     )
 
     assert planned.kind == "ui.perform", "the marker would have gone out as the session id"
@@ -740,7 +720,6 @@ async def _planned(
     answer: Answer,
     values: Mapping[str, str] | None = None,
     step: Step | None = None,
-    effort: Effort | None = None,
     starts_on: str | None = None,
     allow_focus: bool = False,
     verified_writes: tuple[VerifiedWrite, ...] = (),
@@ -756,8 +735,6 @@ async def _planned(
         starts_on=starts_on,
         allow_focus=allow_focus,
         asker=asker,
-        model="m",
-        effort=effort,
         verified_writes=verified_writes,
         seen=seen or {},
     )
@@ -772,14 +749,15 @@ async def test_every_way_out_hands_back_the_reading_that_paid_for_it() -> None:
     unusable = Answer(error="boom", unpriced=True, cost_usd=0.0)
     for answer, kind in (
         (unusable, "none"),
-        (_answer(kind="rm -rf"), "none"),
+        (replace(_answer(kind="rm -rf"), cost_usd=0.003), "none"),
         (_answer(kind="navigate", url=""), "none"),
         (_answer(kind="navigate", url="http://127.0.0.1:63319/form"), "navigate"),
         (_answer(action="type", value="x"), "ui.perform"),
     ):
         planned, _ = await _planned(cited=[gesture], answer=answer)
         assert planned.kind == kind, answer
-        assert planned.answer is answer
+        assert planned.answer.cost_usd == answer.cost_usd, "the runner bills it"
+        assert planned.answer.unpriced == answer.unpriced
         assert isinstance(planned.payload, dict)
         assert isinstance(planned.why, str) and planned.why
 
@@ -788,10 +766,13 @@ async def test_a_navigate_with_nowhere_to_go_is_not_a_navigate() -> None:
     """An empty url is not a url. Sent on, the extension would be told to open
     the empty string."""
     gesture = _typed()
-    for url in (None, "", 7):
+    for url in (None, ""):
         planned, _ = await _planned(cited=[gesture], answer=_answer(kind="navigate", url=url))
         assert (planned.kind, planned.payload) == ("none", {}), url
         assert planned.why == "navigate with no url", url
+    numbered, _ = await _planned(cited=[gesture], answer=_answer(kind="navigate", url=7))
+    assert (numbered.kind, numbered.payload) == ("none", {}), "a number is not a url"
+    assert numbered.why == "navigate with no url", "the bad url is dropped, not the plan"
 
 
 async def test_the_why_on_the_plan_is_the_models_own_and_empty_when_it_gave_none() -> None:
@@ -801,8 +782,11 @@ async def test_the_why_on_the_plan_is_the_models_own_and_empty_when_it_gave_none
     )
     assert planned.why == "the field wants the code"
 
-    silent, _ = await _planned(cited=[gesture], answer=_answer(action="type", value="x", why=None))
-    assert silent.why == "", "no explanation is an empty one, not the word None"
+    silent, _ = await _planned(cited=[gesture], answer=_answer(action="type", value="x", why=""))
+    assert silent.kind == "ui.perform" and silent.why == ""
+
+    unsaid, _ = await _planned(cited=[gesture], answer=_answer(action="type", value="x", why=None))
+    assert unsaid.kind == "none", "an answer with no why breaks its schema, so it is unsure"
 
 
 async def test_a_step_that_only_cites_a_scroll_is_still_planned_from_it() -> None:
@@ -837,7 +821,14 @@ async def test_the_action_is_the_models_when_the_protocol_has_it_and_the_gesture
     chosen, _ = await _planned(cited=[gesture], answer=_answer(action="click"))
     assert chosen.payload["action"] == "click"
 
+    unsaid, _ = await _planned(cited=[gesture], answer=_answer(action=None))
+    assert unsaid.payload["action"] == "type", "back to what the operator did"
+
+    # Invariant 14: the bad item is dropped and the rest kept. An action the
+    # schema does not offer is the action alone gone wrong, and the plan it
+    # sits in still stands on the operator's own gesture.
     invented, _ = await _planned(cited=[gesture], answer=_answer(action="jiggle"))
+    assert invented.kind == "ui.perform", "one bad field is not a bad plan"
     assert invented.payload["action"] == "type", "back to what the operator did"
 
 
@@ -857,7 +848,8 @@ async def test_with_no_value_from_the_run_or_the_model_the_recorded_one_stands()
     assert planned.payload["value"] == gesture.action.value
 
     numbered, _ = await _planned(cited=[gesture], answer=_answer(action="type", value=123))
-    assert numbered.payload["value"] == "123", "nothing validates the model's answer for us"
+    assert numbered.kind == "ui.perform", "a value that is not a string is dropped alone"
+    assert numbered.payload["value"] == gesture.action.value, "and the recorded one stands"
 
 
 async def test_a_recorded_call_with_no_body_is_replayed_as_it_was() -> None:
@@ -984,25 +976,20 @@ async def test_an_http_plan_for_a_step_whose_evidence_made_no_call_plans_nothing
     assert planned.answer is not None
 
 
-async def test_the_model_is_told_where_the_step_was_demonstrated_and_under_what_effort() -> None:
+async def test_the_model_is_told_where_the_step_was_demonstrated() -> None:
     gesture = copy.deepcopy(_typed())
     gesture.page_url = "http://127.0.0.1:63319/clients/new"
-    _, asker = await _planned(
-        cited=[gesture], answer=_answer(action="type", value="x"), effort="low"
-    )
+    _, asker = await _planned(cited=[gesture], answer=_answer(action="type", value="x"))
 
     [asked] = asker.asked
-    evidence = asked["evidence"]
-    assert isinstance(evidence, str)
-    assert json.loads(evidence)["step_page"] == "http://127.0.0.1:63319/clients/new"
-    assert asked["effort"] == "low", "a rescue asks harder than a first attempt"
+    assert fenced_json(asked["evidence"])["step_page"] == "http://127.0.0.1:63319/clients/new"
     # Which words, which shape and which model, not merely that there were
     # some: the sight rung pins all three and this one pinned none, so a
     # planner showing the sight prompt against the plan schema on a model
     # nobody chose was green on every test in this file.
-    assert asked["instructions"] == PLAN_INSTRUCTIONS, "a model told nothing plans nothing"
-    assert asked["schema"] is PLAN_SCHEMA
-    assert asked["model"] == "m", "the model the caller chose"
+    assert asked["instructions"] == PLAN_STEP.instructions, "a model told nothing plans nothing"
+    assert asked["schema"] == PLAN_STEP.output_schema
+    assert asked["model"] == PLAN_STEP.model, "the record's model"
 
 
 async def test_a_step_that_waits_for_a_page_carries_it_and_focus_only_when_allowed() -> None:
@@ -1045,7 +1032,6 @@ async def test_a_rescue_is_shown_the_page_the_failed_attempt_left_behind() -> No
         starts_on=None,
         allow_focus=False,
         asker=asker,
-        model="pro",
         failure="the code was not typed",
         failed_look=left,
     )
@@ -1053,9 +1039,9 @@ async def test_a_rescue_is_shown_the_page_the_failed_attempt_left_behind() -> No
     asked = asker.asked[0]
     assert asked["image"] == b"now-png", "the page as it is now is the first picture"
     assert asked["images"] == (b"left-png",), "the page the failed attempt left is the second"
-    assert isinstance(asked["evidence"], str)
-    assert asked["evidence"].splitlines()[1] == '  "step": {', "pretty-printed at two spaces"
-    evidence = json.loads(asked["evidence"])
+    shown = fenced_block(asked["evidence"])
+    assert shown.splitlines()[1] == '  "step": {', "pretty-printed at two spaces"
+    evidence = json.loads(shown)
     assert evidence["previous_attempt_failed"] == "the code was not typed"
     assert evidence["previous_attempt_left"]["screenshot"] == "the second image"
     assert evidence["previous_attempt_left"]["url"].endswith("?after")
@@ -1078,11 +1064,9 @@ async def test_a_first_attempt_carries_no_second_picture() -> None:
         starts_on=None,
         allow_focus=False,
         asker=asker,
-        model="flash",
     )
     assert asker.asked[0]["images"] == ()
-    assert isinstance(asker.asked[0]["evidence"], str)
-    assert json.loads(asker.asked[0]["evidence"])["previous_attempt_left"] is None
+    assert fenced_json(asker.asked[0]["evidence"])["previous_attempt_left"] is None
 
 
 async def test_the_failed_attempts_picture_is_named_by_its_position() -> None:
@@ -1099,14 +1083,12 @@ async def test_the_failed_attempts_picture_is_named_by_its_position() -> None:
         starts_on=None,
         allow_focus=False,
         asker=asker,
-        model="pro",
         failure="f",
         failed_look=Look("http://127.0.0.1:63319/form", b"left-png", "left"),
     )
     asked = asker.asked[0]
     assert asked["image"] is None and asked["images"] == (b"left-png",)
-    assert isinstance(asked["evidence"], str)
-    assert json.loads(asked["evidence"])["previous_attempt_left"]["screenshot"] == "the only image"
+    assert fenced_json(asked["evidence"])["previous_attempt_left"]["screenshot"] == "the only image"
 
 
 async def test_a_replayed_call_still_carries_the_answer_that_planned_it() -> None:
@@ -1126,7 +1108,6 @@ async def test_a_replayed_call_still_carries_the_answer_that_planned_it() -> Non
         starts_on=None,
         allow_focus=False,
         asker=asker,
-        model="m",
     )
     assert planned.kind == "http.send"
     assert planned.answer is not None and planned.answer.cost_usd == 0.002, "the runner bills it"
@@ -1170,7 +1151,6 @@ async def _by_sight(
         look=look or _seen(),
         origin="http://127.0.0.1:63319",
         asker=asker,
-        model="pro",
         failure="control_not_found: gone",
         opened=opened,
     )
@@ -1184,6 +1164,7 @@ def _sight(**data: object) -> Answer:
         "y": 30,
         "action": "type",
         "value": "WRONG",
+        "points_at": "the_control",
         "why": "there",
     }
     return Answer(data={**base, **data})
@@ -1195,12 +1176,11 @@ async def test_the_sight_rung_is_asked_with_the_screen_its_size_and_the_demonstr
     planned, asker = await _by_sight(_sight())
 
     [asked] = asker.asked
-    assert asked["model"] == "pro"
-    assert asked["schema"] is SIGHT_SCHEMA
-    assert asked["instructions"] == SIGHT_INSTRUCTIONS
+    assert asked["model"] == SEE_STEP.model
+    assert asked["schema"] == SEE_STEP.output_schema
+    assert asked["instructions"] == SEE_STEP.instructions
     assert asked["image"] == b"png", "the picture it is asked to look at"
-    assert isinstance(asked["evidence"], str)
-    evidence = json.loads(asked["evidence"])
+    evidence = fenced_json(asked["evidence"])
     assert set(evidence) == {
         "step",
         "demonstrated_on",
@@ -1258,9 +1238,11 @@ async def test_no_picture_no_size_or_no_answer_is_no_plan() -> None:
     refused, _ = await _by_sight(Answer(error="503 UNAVAILABLE", unpriced=True))
     assert refused.kind == "none" and refused.why == "503 UNAVAILABLE"
     assert refused.answer.unpriced is True, "the refused call is still the bill"
-    unseen, _ = await _by_sight(_sight(found=False, why="the form is not open"))
+    unseen, _ = await _by_sight(
+        _sight(found=False, points_at="nothing", why="the form is not open")
+    )
     assert unseen.kind == "none" and unseen.why == "the form is not open"
-    silent, _ = await _by_sight(_sight(found=False, why=""))
+    silent, _ = await _by_sight(_sight(found=False, points_at="nothing", why=""))
     assert silent.why == "the control is not on this screen"
 
 
@@ -1273,21 +1255,19 @@ async def test_nothing_to_type_is_no_plan_and_a_press_carries_no_value() -> None
     press, _ = await _by_sight(_sight(action="press", value="Enter"))
     assert press.kind == "ui.perform_at" and "value" not in press.payload
     # With no run value the model's word is taken, as text, as `plan_step` does.
-    said, _ = await _by_sight(_sight(action="type", value=7), values={})
+    said, _ = await _by_sight(_sight(action="type", value="7"), values={})
     assert said.kind == "ui.perform_at" and said.payload["value"] == "7"
 
 
 async def test_an_action_a_point_cannot_take_is_no_plan() -> None:
-    """`SIGHT_SCHEMA` offers click, type and press and no select, because
-    `sroPage.performAt` has no way to choose an option at a point -- and nothing
-    validates the model's answer against that schema, so the enum is checked
-    again here. Not in the rig's suite: with the check deleted, a select
-    answered by sight became a `ui.perform_at` the extension cannot perform.
+    """`SEE_STEP` offers click, type and press and no select, because
+    `sroPage.performAt` has no way to choose an option at a point -- and `ask`
+    holds the answer to that schema, so any other action is an unsure answer.
     """
     for action in ("select", "upload", "scroll", "jiggle", None):
         refused, _ = await _by_sight(_sight(action=action))
         assert refused.kind == "none", action
-        assert refused.why == f"{action!r} is not an action a point can take"
+        assert refused.why.endswith("does not match its schema"), action
 
 
 async def test_the_redaction_marker_reaches_both_prompts_as_itself() -> None:
@@ -1352,7 +1332,6 @@ async def _picking(
         starts_on=starts_on,
         allow_focus=allow_focus,
         asker=asker,
-        model="m",
         opened=opened,
     )
 
@@ -1450,17 +1429,6 @@ async def test_the_sight_rung_opens_what_the_control_is_under() -> None:
     assert "Partners" in planned.why
 
 
-async def test_an_older_answer_with_no_enum_still_means_what_it_meant() -> None:
-    """`points_at` is required, so every current answer carries it -- but a
-    deployment pinned to an earlier model answers with `found` alone, and those
-    answers still mean what they always did."""
-    planned, _ = await _by_sight(_sight(found=True, x=40, y=50, action="click"))
-    assert planned.kind == "ui.perform_at"
-
-    refused, _ = await _by_sight(_sight(found=False, why="not on this screen"))
-    assert refused.kind == "none"
-
-
 async def test_a_dialog_in_the_way_is_dismissed_like_a_menu_is_opened() -> None:
     """Measured on the deployment, 2026-09-17. The screen rung walked the menu
     and reached the Customer Types screen -- and a modal sat over the form:
@@ -1537,7 +1505,6 @@ async def test_the_sight_rung_with_no_picture_costs_nothing_and_says_so() -> Non
         look=Look(url="http://127.0.0.1:63319/form", screenshot=None, digest=""),
         origin=None,
         asker=asker,
-        model="m",
         failure=None,
     )
 
@@ -1559,7 +1526,6 @@ async def test_the_sight_rung_with_a_picture_and_no_evidence_asks_nobody() -> No
         look=_seen(),
         origin=None,
         asker=asker,
-        model="m",
         failure=None,
     )
 
@@ -1615,7 +1581,6 @@ async def test_a_password_comes_from_the_vault_and_never_from_the_recording() ->
         starts_on=None,
         allow_focus=False,
         asker=_says_type(),
-        model="m",
         tenant_id="new",
         secret_for=vault,
     )
@@ -1643,7 +1608,6 @@ async def test_a_step_that_needs_a_password_nobody_stored_refuses_by_name() -> N
         starts_on=None,
         allow_focus=False,
         asker=_says_type(),
-        model="m",
         tenant_id="new",
         secret_for=nothing_stored,
     )
@@ -1665,7 +1629,6 @@ async def test_a_run_with_no_vault_says_so_rather_than_typing_nothing() -> None:
         starts_on=None,
         allow_focus=False,
         asker=_says_type(),
-        model="m",
     )
 
     assert planned.kind == "none"
@@ -1693,7 +1656,6 @@ async def test_a_password_key_defaults_to_no_tenant_when_none_is_given() -> None
         starts_on=None,
         allow_focus=False,
         asker=_says_type(),
-        model="m",
         secret_for=vault,
     )
 
@@ -1721,7 +1683,6 @@ async def test_the_secret_key_falls_back_to_the_gestures_system_with_no_url() ->
         starts_on=None,
         allow_focus=False,
         asker=_says_type(),
-        model="m",
         tenant_id="new",
         secret_for=vault,
     )
@@ -1749,7 +1710,6 @@ async def test_a_step_that_needs_a_password_says_which_one_as_structure() -> Non
         starts_on=None,
         allow_focus=False,
         asker=_says_type(),
-        model="m",
         tenant_id="new",
         secret_for=nothing_stored,
     )
@@ -1809,7 +1769,6 @@ async def _filtering(
         starts_on="",
         allow_focus=False,
         asker=FakeAsker(_answer(action=says, value="MRN5" if says == "type" else None)),
-        model="m",
         opened=opened,
     )
 
@@ -1892,7 +1851,6 @@ async def test_a_box_that_takes_a_value_and_closes_is_typed_into_once() -> None:
         starts_on="",
         allow_focus=False,
         asker=FakeAsker(_answer(action="type", value="MRN5")),
-        model="m",
     )
 
     assert planned.payload["action"] == "type"
@@ -1928,7 +1886,6 @@ async def test_a_list_whose_wording_the_demonstration_does_not_carry_is_left_alo
         starts_on="",
         allow_focus=False,
         asker=FakeAsker(_answer(action="type", value="MRN5")),
-        model="m",
     )
 
     assert planned.payload["action"] == "type"
@@ -1970,7 +1927,6 @@ async def test_a_click_on_something_other_than_a_list_is_not_a_list() -> None:
         starts_on="",
         allow_focus=False,
         asker=FakeAsker(_answer(action="type", value="MRN5")),
-        model="m",
     )
 
     assert planned.payload["action"] == "type"

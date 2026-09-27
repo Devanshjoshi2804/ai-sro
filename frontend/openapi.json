@@ -30653,6 +30653,10 @@
             },
             "type": "array",
             "title": "Parameters"
+          },
+          "tab": {
+            "type": "string",
+            "title": "Tab"
           }
         },
         "type": "object",
@@ -30661,7 +30665,8 @@
           "says",
           "system",
           "cites",
-          "parameters"
+          "parameters",
+          "tab"
         ],
         "title": "WorkflowStepModel",
         "description": "One mined step: what it says, and the evidence that proves it.\n\n`order` and not the rig's `ord`, which was its column name -- as\n`AuditStepModel` above does, and for the same reason."

@@ -11,113 +11,14 @@ from sro.application.ports.interpretation import (
     StepReading,
     TaskName,
 )
+from sro.domain.prompts.interpret import INTERPRET, JUDGES, NAME_SKILL
+from sro.domain.prompts.record import Prompt
 
 logger = logging.getLogger(__name__)
 
-_INSTRUCTIONS = (
-    "You are reading one recorded demonstration of a warehouse task, performed by "
-    "an operator in a warehouse management system. You are given every gesture, "
-    "every HTTP call it caused, the responses, and anything the operator said.\n\n"
-    "Describe what was done, step by step, in the words the system and the "
-    "operator use. Then name the values that look like inputs to the task — the "
-    "identifiers and quantities that would be different next time — and give the "
-    "exact literal each one had in this run, copied character for character from "
-    "the evidence.\n\n"
-    "Rules: describe only what is in the evidence. Do not invent a step nobody "
-    "performed. Do not name a parameter whose value you cannot find. A value that "
-    "is the same on every run of this task — a site code, a warehouse id — is not "
-    "a parameter. If part of the demonstration makes no sense to you, say so in "
-    "the caveat rather than guessing."
-)
-
-_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "title": {"type": "string"},
-        "summary": {"type": "string"},
-        "when_to_use": {"type": "string"},
-        "caveat": {"type": "string"},
-        "steps": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "index": {"type": "integer"},
-                    "what": {"type": "string"},
-                    "why": {"type": "string"},
-                },
-                "required": ["index", "what"],
-            },
-        },
-        "parameters": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string"},
-                    "value": {"type": "string"},
-                    "description": {"type": "string"},
-                    "step_index": {"type": "integer"},
-                },
-                "required": ["name", "value"],
-            },
-        },
-    },
-    "required": ["title", "summary", "steps"],
-}
-
-
-_NAMING = (
-    "You are naming a task that an operator of a warehouse management system "
-    "performs over and over. You are given what the task is made of: the system "
-    "it happens in, how often it is done, how long it takes, and the calls each "
-    "doing of it makes, in order.\n\n"
-    "Answer with one short line an operator would recognise on a list — what the "
-    "task accomplishes, not what the software does. 'Adjust an LPN quantity after "
-    "a short ship', not 'POST inventory adjust'. No system names, no URLs, no "
-    "HTTP verbs, under about eight words.\n\n"
-    "If the evidence does not say clearly enough what the task accomplishes, "
-    "answer with an empty title rather than a guess: a wrong name on a list is "
-    "worse than a dull one, because somebody will teach it believing the name."
-)
-
-_NAME_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {"title": {"type": "string"}, "because": {"type": "string"}},
-    "required": ["title"],
-}
-
-_JUDGING = {
-    "variant": (
-        "Two tasks were observed in the same system by the same operator, and "
-        "their steps are close but not identical. Decide whether they are the "
-        "same piece of work done two ways — an extra page visited, a step done "
-        "in a different order — or two genuinely different tasks that happen to "
-        "touch the same screens.\n\n"
-        "Say no unless the evidence is clear. These are shown to a person as a "
-        "suggestion, and a confident wrong one costs more than a missed one."
-    ),
-    "workflow": (
-        "Two tasks were observed in different systems, one immediately after the "
-        "other, more than once. Decide whether they are two halves of one piece "
-        "of work — something checked in one system and then recorded in the "
-        "other — or two unrelated tasks that happen to be done at the same time "
-        "of day.\n\n"
-        "Say no unless the evidence is clear. Doing two things in a row is not "
-        "the same as doing one thing across two systems."
-    ),
-}
-
-_JUDGEMENT_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {"joined": {"type": "boolean"}, "because": {"type": "string"}},
-    "required": ["joined", "because"],
-}
-
 
 class GeminiInterpreter:
-    def __init__(self, model: str, *, client: Any) -> None:
-        self._model = model
+    def __init__(self, *, client: Any) -> None:
         self._client = client
 
     @property
@@ -129,10 +30,11 @@ class GeminiInterpreter:
 
         try:
             response = await self._client.aio.models.generate_content(
-                model=self._model,
-                contents=[_INSTRUCTIONS, "EVIDENCE\n" + evidence],
+                model=INTERPRET.model,
+                contents=[INTERPRET.instructions, INTERPRET.evidence({}, {"evidence": evidence})],
                 config=types.GenerateContentConfig(
-                    response_mime_type="application/json", response_schema=_SCHEMA
+                    response_mime_type="application/json",
+                    response_schema=dict(INTERPRET.output_schema),
                 ),
             )
         except Exception:
@@ -141,7 +43,7 @@ class GeminiInterpreter:
         return _parse(response.text)
 
     async def name_task(self, evidence: str) -> TaskName:
-        answer = await self._ask(_NAMING, evidence, _NAME_SCHEMA)
+        answer = await self._ask(NAME_SKILL, {}, {"evidence": evidence})
         if answer is None:
             return TaskName()
         return TaskName(
@@ -150,12 +52,10 @@ class GeminiInterpreter:
         )
 
     async def judge_join(self, kind: str, first: str, second: str) -> Judgement:
-        instructions = _JUDGING.get(kind)
-        if instructions is None:
+        judge = JUDGES.get(kind)
+        if judge is None:
             return Judgement()
-        answer = await self._ask(
-            instructions, f"FIRST\n{first}\n\nSECOND\n{second}", _JUDGEMENT_SCHEMA
-        )
+        answer = await self._ask(judge, {}, {"first": first, "second": second})
         if answer is None:
             return Judgement()
         return Judgement(
@@ -163,16 +63,17 @@ class GeminiInterpreter:
         )
 
     async def _ask(
-        self, instructions: str, evidence: str, schema: dict[str, Any]
+        self, prompt: Prompt, trusted: dict[str, object], untrusted: dict[str, str]
     ) -> dict[str, Any] | None:
         from google.genai import types
 
         try:
             response = await self._client.aio.models.generate_content(
-                model=self._model,
-                contents=[instructions, evidence],
+                model=prompt.model,
+                contents=[prompt.instructions, prompt.evidence(trusted, untrusted)],
                 config=types.GenerateContentConfig(
-                    response_mime_type="application/json", response_schema=schema
+                    response_mime_type="application/json",
+                    response_schema=dict(prompt.output_schema),
                 ),
             )
         except Exception:

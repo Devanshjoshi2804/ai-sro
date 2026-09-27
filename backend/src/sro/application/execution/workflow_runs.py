@@ -106,8 +106,6 @@ class StartWorkflowRun:
         *,
         channel: Channel,
         asker: Asker | None,
-        plan_model: str,
-        rescue_model: str,
         clock: Clock,
         cap_usd: float,
         stops: Stops,
@@ -133,8 +131,6 @@ class StartWorkflowRun:
         self._ids = ids
         self._channel = channel
         self._asker = asker
-        self._plan_model = plan_model
-        self._rescue_model = rescue_model
         self._clock = clock
         self._cap_usd = cap_usd
         self._stops = stops
@@ -369,8 +365,6 @@ class StartWorkflowRun:
                     channel=WatchingChannel(self._channel, secrets),
                     device_id=DeviceId(run.device_id),
                     asker=asker,
-                    plan_model=self._plan_model,
-                    rescue_model=self._rescue_model,
                     live=run.live,
                     allow_focus=run.allow_focus,
                     watched=run.watched,

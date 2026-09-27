@@ -63,7 +63,7 @@ def test_a_credential_or_a_name_a_step_already_fills_is_never_composed() -> None
 
 def test_a_learned_field_whose_step_was_lost_is_composed_again_never_dropped() -> None:
     job, by_id = _job(OutlineField("combobox", "Department"))
-    job.parameters = [{"name": "department", "required": False, "key": "department"}]
+    job.parameters = [{"name": "department", "required": False, "body_key": "department"}]
 
     composed, _ = compose(job, by_id, {"department": "Finance"})
 
@@ -132,7 +132,7 @@ def test_learning_the_field_puts_its_step_before_the_write_and_keeps_it_optional
         "required": False,
         "seen_values": ["Finance"],
         "names": ["Department"],
-        "key": "department",
+        "body_key": "department",
     }
 
 
@@ -190,3 +190,15 @@ def test_a_choice_two_writes_would_both_answer_to_is_never_offered() -> None:
     job.steps.append(replace(job.steps[0], order=job.steps[0].order + 1, cites=["ges_save_2"]))
 
     assert not any(one.startswith("Notes") for one in choices(job, by_id))
+
+
+def test_a_composed_field_acts_in_the_tab_of_the_form_it_fills() -> None:
+    job, _ = _job(OutlineField("combobox", "Department"))
+    job = replace(job, steps=[replace(job.steps[0], tab="opened_from:main")])
+    write = job.steps[0].order
+
+    grown, _ = with_field(
+        job, Composed("department", "Department", "combobox", write), key="department", value="F"
+    )
+
+    assert [one.tab for one in grown.steps] == ["opened_from:main", "opened_from:main"]

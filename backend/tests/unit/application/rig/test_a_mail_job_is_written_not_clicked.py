@@ -731,8 +731,6 @@ async def test_the_answer_s_resume_redrafts_the_run_s_own_mail_job() -> None:
         uow,
         channel=FakeChannel(),
         asker=_written("vendor@supplier.example"),
-        plan_model="plan",
-        rescue_model="rescue",
         clock=FakeClock(),
         cap_usd=1.0,
         stops=Stops(),

@@ -4,8 +4,11 @@ from dataclasses import replace
 import pytest
 
 from sro.application.runtime.teach import Teach
-from sro.domain.execution.compose import Composed
+from sro.domain.execution.compose import Composed, without_slots
 from sro.domain.execution.lanes import Broken, Lane, SeenCall, StepResult, cites_key
+from sro.domain.execution.write_plan import learned_slots
+from sro.domain.skill.workflow import field_key
+from tests.unit.domain.test_a_learned_key_is_a_slot import _job as _learned_job
 from tests.unit.fakes import FakeClock, FakeUnitOfWork
 from tests.unit.runtime_support import (
     CTX,
@@ -58,7 +61,7 @@ async def test_a_learned_field_moves_the_write_and_everything_known_about_it() -
 async def test_a_field_whose_step_was_lost_is_learned_again_under_its_one_parameter() -> None:
     uow = FakeUnitOfWork()
     step, _ = save_step(status=201)
-    was = [{"name": "department", "required": False, "key": "department"}]
+    was = [{"name": "department", "required": False, "body_key": "department"}]
     job = replace(WORKFLOW, steps=[step], parameters=was)
     await uow.workflows.save(job)
     field = Composed("department", "Department", "combobox", step.order)
@@ -287,3 +290,99 @@ async def test_a_locator_that_carries_a_run_value_or_runs_long_is_never_taught(
     )
 
     assert await uow.workflows.learned_for(WORKFLOW.id) == ()
+
+
+async def test_an_api_break_takes_the_learned_slot_out_of_the_write() -> None:
+    uow = FakeUnitOfWork()
+    job, write, by_id, _ = _learned_job("department")
+    await uow.workflows.save(job)
+
+    await Teach(uow, FakeClock()).learn(
+        CTX,
+        job,
+        by_id,
+        write,
+        (StepResult("failed", Lane.API, "rejected", fingerprint="f"),),
+        run_id="run_1",
+        values={},
+    )
+
+    saved = await uow.workflows.get(TENANT, job.id)
+    assert learned_slots(saved, write) == {}
+    assert field_key(saved, saved.steps[0]) == "department", "it is still a learned field"
+
+
+async def test_an_expired_api_failure_keeps_the_slot() -> None:
+    uow = FakeUnitOfWork()
+    job, write, by_id, _ = _learned_job("department")
+    await uow.workflows.save(job)
+
+    await Teach(uow, FakeClock()).learn(
+        CTX,
+        job,
+        by_id,
+        write,
+        (StepResult("failed", Lane.API, "signed out", fingerprint="f", expired=True),),
+        run_id="run_1",
+        values={},
+    )
+
+    saved = await uow.workflows.get(TENANT, job.id)
+    assert learned_slots(saved, write) == {"Department": "department"}
+
+
+async def test_a_keyed_ui_write_puts_the_slot_back() -> None:
+    uow = FakeUnitOfWork()
+    job, write, by_id, _ = _learned_job("department")
+    bare = without_slots(job, ["Department"])
+    assert bare is not None
+    await uow.workflows.save(bare)
+
+    await Teach(uow, FakeClock()).learn(
+        CTX,
+        bare,
+        by_id,
+        write,
+        (StepResult("done", Lane.UI, keyed={"Department": "department"}),),
+        run_id="run_1",
+        values={},
+    )
+
+    saved = await uow.workflows.get(TENANT, job.id)
+    assert learned_slots(saved, write) == {"Department": "department"}
+
+
+async def test_a_ui_write_that_did_not_key_the_field_leaves_the_slot_out() -> None:
+    uow = FakeUnitOfWork()
+    job, write, by_id, _ = _learned_job("department")
+    bare = without_slots(job, ["Department"])
+    assert bare is not None
+    await uow.workflows.save(bare)
+
+    await Teach(uow, FakeClock()).learn(
+        CTX, bare, by_id, write, (StepResult("done", Lane.UI),), run_id="run_1", values={}
+    )
+
+    saved = await uow.workflows.get(TENANT, job.id)
+    assert learned_slots(saved, write) == {}
+
+
+async def test_a_keyed_sight_write_puts_the_slot_back() -> None:
+    uow = FakeUnitOfWork()
+    job, write, by_id, _ = _learned_job("department")
+    bare = without_slots(job, ["Department"])
+    assert bare is not None
+    await uow.workflows.save(bare)
+
+    await Teach(uow, FakeClock()).learn(
+        CTX,
+        bare,
+        by_id,
+        write,
+        (StepResult("done", Lane.SIGHT, keyed={"Department": "department"}),),
+        run_id="run_1",
+        values={},
+    )
+
+    saved = await uow.workflows.get(TENANT, job.id)
+    assert learned_slots(saved, write) == {"Department": "department"}

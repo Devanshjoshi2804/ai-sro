@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Literal
 
@@ -11,6 +11,7 @@ from sro.domain.recording.sensitivity import is_secret_field
 from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.checks import bindable
 from sro.domain.skill.repeats import Repeat
+from sro.domain.skill.tabs import MAIN
 from sro.domain.skill.workflow import Step, Workflow, field_key
 
 SELECTS = frozenset({"combobox", "listbox"})
@@ -157,7 +158,7 @@ def with_field(
         step.order: step.order + 1 if step.order >= composed.before else step.order
         for step in workflow.steps
     }
-    system = next((one.system for one in workflow.steps if one.order == composed.before), None)
+    form = next((one for one in workflow.steps if one.order == composed.before), None)
     steps = [
         replace(step, order=moved[step.order], uses=[moved.get(one, one) for one in step.uses])
         for step in workflow.steps
@@ -166,8 +167,9 @@ def with_field(
         Step(
             order=composed.before,
             says=f"Fill {composed.label}",
-            system=system,
+            system=None if form is None else form.system,
             parameters=[composed.name],
+            tab=MAIN if form is None else form.tab,
         )
     )
     repeat = workflow.repeat
@@ -181,7 +183,7 @@ def with_field(
         "required": False,
         "seen_values": [value],
         "names": [composed.label],
-        "key": key,
+        "body_key": key,
     }
     grown = replace(
         workflow,
@@ -193,3 +195,33 @@ def with_field(
         repeat=repeat,
     )
     return grown, moved
+
+
+def _fields(workflow: Workflow) -> set[str]:
+    return {
+        one.parameters[0] for one in workflow.steps if not one.cites and len(one.parameters) == 1
+    }
+
+
+def with_slots(workflow: Workflow, keyed: Mapping[str, str]) -> Workflow | None:
+    fields = _fields(workflow)
+    changed = False
+    parameters: list[dict[str, object]] = []
+    for one in workflow.parameters:
+        name = one.get("name")
+        key = keyed.get(name) if isinstance(name, str) and name in fields else None
+        if key and (one.get("body_key") != key or one.get("slot") is False):
+            one = {**{k: v for k, v in one.items() if k != "slot"}, "body_key": key}
+            changed = True
+        parameters.append(one)
+    return replace(workflow, parameters=parameters) if changed else None
+
+
+def without_slots(workflow: Workflow, names: Collection[str]) -> Workflow | None:
+    parameters = [
+        {**one, "slot": False}
+        if one.get("name") in names and one.get("body_key") and one.get("slot") is not False
+        else one
+        for one in workflow.parameters
+    ]
+    return replace(workflow, parameters=parameters) if parameters != workflow.parameters else None

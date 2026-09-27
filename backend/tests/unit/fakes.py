@@ -7,6 +7,7 @@ rather than a capability, and should be redesigned before it gets an adapter.
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 import sys
 from collections import Counter
@@ -17,6 +18,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from itertools import count
 from types import MappingProxyType
+from typing import Any
 
 from sro.application.context import RequestContext
 from sro.application.execution.execute_skill import ExecuteSkill, ExecutionRequest
@@ -2742,11 +2744,30 @@ class FakeWorkflowRepository:
         found.sort(key=lambda row: (row.tenant, self._created[row.id], row.id))
         return tuple(deepcopy(row) for row in found)
 
+    async def tabs_undecided(self) -> tuple[Workflow, ...]:
+        found = [
+            row
+            for row in self.rows.values()
+            if row.id not in self.retired and any(step.tab is None for step in row.steps)
+        ]
+        found.sort(key=lambda row: (row.tenant, self._created[row.id], row.id))
+        return tuple(deepcopy(row) for row in found)
+
     async def ruled(self, tenant_id: TenantId, workflow_id: str, rule: int) -> bool:
         row = self.rows.get(workflow_id)
         if row is None or row.tenant != tenant_id.value or self.rules.get(workflow_id, 0) >= rule:
             return False
         self.rules[workflow_id] = rule
+        return True
+
+    async def decide_tab(self, tenant_id: TenantId, workflow_id: str, order: int, tab: str) -> bool:
+        row = self.rows.get(workflow_id)
+        if row is None or row.tenant != tenant_id.value:
+            return False
+        step = next((one for one in row.steps if one.order == order and one.tab is None), None)
+        if step is None:
+            return False
+        step.tab = tab
         return True
 
     async def add_pass(self, mining_pass: MiningPass) -> None:
@@ -3299,6 +3320,15 @@ class FakeIntentParser:
     async def read(self, utterance: str, *, after: str = "") -> Reading:
         self.asked.append(utterance)
         return self._reading
+
+
+def fenced_block(evidence: object, name: str = "evidence") -> str:
+    assert isinstance(evidence, str)
+    return evidence.split(f'<untrusted name="{name}">\n', 1)[1].split("\n</untrusted>", 1)[0]
+
+
+def fenced_json(evidence: object, name: str = "evidence") -> Any:
+    return json.loads(fenced_block(evidence, name))
 
 
 class FakeAsker:

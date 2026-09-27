@@ -7,6 +7,7 @@ from typing import get_args
 
 from sro.application.capture.rig_wire import headers_without_markers
 from sro.application.ports.model import Asker
+from sro.application.shared.asking import ask
 from sro.domain.execution.cascade import writes_of
 from sro.domain.execution.evidence import (
     Locator,
@@ -18,13 +19,7 @@ from sro.domain.execution.evidence import (
 )
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.planning import (
-    KINDS,
     LIVE_FETCHABLE_HEADERS,
-    PLAN_INSTRUCTIONS,
-    PLAN_SCHEMA,
-    SIGHT_ACTIONS,
-    SIGHT_INSTRUCTIONS,
-    SIGHT_SCHEMA,
     Look,
     Planned,
     unreplayable,
@@ -35,8 +30,11 @@ from sro.domain.execution.verified_writes import VerifiedWrite, verified_write_f
 from sro.domain.execution.write_plan import WritePlan, wanted_by, write_plan_for
 from sro.domain.observation.gesture import Call, Gesture, Kind
 from sro.domain.observation.trim import trim
+from sro.domain.prompts.plan_step import PLAN_STEP
+from sro.domain.prompts.record import Prompt
+from sro.domain.prompts.see_step import SEE_STEP
 from sro.domain.shared.hosts import REDACTED, origin_of
-from sro.domain.shared.prices import Answer, Effort
+from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step
 
 SecretFor = Callable[[str], Awaitable[str | None]]
@@ -53,12 +51,13 @@ def _replay_of(
     verified_writes: tuple[VerifiedWrite, ...],
     seen: Mapping[str, frozenset[str]],
     keys: Mapping[str, str] = MappingProxyType({}),
+    learned: Mapping[str, str] = MappingProxyType({}),
 ) -> tuple[dict[str, object], WritePlan | None] | None:
     call = recorded_call(step, by_id)
     if call is None or unreplayable(call):
         return None
     verified = verified_write_for(call, verified_writes) is not None
-    aimed = write_plan_for(step, by_id, values, verified_writes, seen, keys)
+    aimed = write_plan_for(step, by_id, values, verified_writes, seen, keys, learned)
     if aimed is None and values and verified:
         return None
     wanted = wanted_by(step, by_id, seen)
@@ -90,6 +89,7 @@ def replay_without_asking(
     verified_writes: tuple[VerifiedWrite, ...],
     seen: Mapping[str, frozenset[str]] = MappingProxyType({}),
     keys: Mapping[str, str] = MappingProxyType({}),
+    learned: Mapping[str, str] = MappingProxyType({}),
     starts_on: str | None = None,
 ) -> Planned | None:
     by_id = {gesture.id: gesture for gesture in cited}
@@ -98,7 +98,7 @@ def replay_without_asking(
         return None
     if _a_cascade(call, cited, verified_writes):
         return None
-    sending = _replay_of(step, by_id, values, verified_writes, seen, keys)
+    sending = _replay_of(step, by_id, values, verified_writes, seen, keys, learned)
     if sending is None:
         return None
     payload, aimed = sending
@@ -164,9 +164,8 @@ async def plan_step(
     starts_on: str | None,
     allow_focus: bool,
     asker: Asker,
-    model: str,
+    prompt: Prompt = PLAN_STEP,
     opened: bool = False,
-    effort: Effort | None = None,
     failure: str | None = None,
     failed_look: Look | None = None,
     verified_writes: tuple[VerifiedWrite, ...] = (),
@@ -197,14 +196,13 @@ async def plan_step(
         indent=2,
         ensure_ascii=False,
     )
-    answer = await asker.ask(
-        model=model,
-        instructions=PLAN_INSTRUCTIONS,
-        evidence=evidence,
-        schema=PLAN_SCHEMA,
+    answer = await ask(
+        asker,
+        prompt,
+        trusted={},
+        untrusted={"evidence": evidence},
         image=look.screenshot,
         images=(failed_look.screenshot,) if failed_look and failed_look.screenshot else (),
-        effort=effort,
     )
     if answer.data is None or primary is None:
         return Planned("none", {}, answer.error or "no evidence to act on", answer)
@@ -212,11 +210,6 @@ async def plan_step(
     data = answer.data
     kind = data.get("kind")
     why = str(data.get("why") or "")
-    if kind not in KINDS:
-        return Planned(
-            "none", {}, f"the model planned a command the protocol does not have: {kind!r}", answer
-        )
-
     if kind == "navigate":
         url = data.get("url")
         if not isinstance(url, str) or not url:
@@ -391,7 +384,6 @@ async def plan_by_sight(
     look: Look,
     origin: str | None,
     asker: Asker,
-    model: str,
     failure: str | None,
     opened: bool = False,
 ) -> Planned:
@@ -413,20 +405,15 @@ async def plan_by_sight(
         indent=2,
         ensure_ascii=False,
     )
-    answer = await asker.ask(
-        model=model,
-        instructions=SIGHT_INSTRUCTIONS,
-        evidence=evidence,
-        schema=SIGHT_SCHEMA,
-        image=look.screenshot,
+    answer = await ask(
+        asker, SEE_STEP, trusted={}, untrusted={"evidence": evidence}, image=look.screenshot
     )
     data = answer.data
     if data is None:
         return Planned("none", {}, answer.error or "no answer", answer)
     why = str(data.get("why") or "")
     points_at = str(data.get("points_at") or "")
-    found = points_at == "the_control" if points_at else bool(data.get("found"))
-    if not found:
+    if points_at != "the_control":
         clearing = points_at in ("what_reveals_it", "what_is_in_the_way")
         reveal = _point_on({"x": data.get("x"), "y": data.get("y")}, look) if clearing else None
         if reveal is not None:
@@ -456,8 +443,6 @@ async def plan_by_sight(
     ):
         return Planned("none", {}, f"the point ({x}, {y}) is not on the screen", answer)
     action = data.get("action")
-    if action not in SIGHT_ACTIONS:
-        return Planned("none", {}, f"{action!r} is not an action a point can take", answer)
     payload: dict[str, object] = {"origin": origin, "x": x, "y": y, "action": action}
     if action == "type":
         said = data.get("value")

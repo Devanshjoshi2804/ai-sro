@@ -9,12 +9,12 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > it, from the outline stored with that write's gesture (E6). The outline holds
 > labels, roles, required flags and options, never values.
 
-## `SELECTS`, [line 16](../../../../../../../backend/src/sro/domain/execution/compose.py#L16): Constant
+## `SELECTS`, [line 17](../../../../../../../backend/src/sro/domain/execution/compose.py#L17): Constant
 
 > The roles that are chosen, not typed: a combobox or listbox gets `select`,
 > anything else gets `type` (spec §6.6 step 2).
 
-## `normal`, [line 45](../../../../../../../backend/src/sro/domain/execution/compose.py#L45): Docstring
+## `normal`, [line 46](../../../../../../../backend/src/sro/domain/execution/compose.py#L46): Docstring
 
 > The exact-label rule. A name matches a label only after normalising case,
 > spacing and a required star, nothing more. Finding a field from other wording
@@ -22,7 +22,7 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > fill the wrong control on a live system, so anything short of an exact match is
 > asked, never inferred.
 
-## `compose`, [line 100](../../../../../../../backend/src/sro/domain/execution/compose.py#L100): Docstring
+## `compose`, [line 101](../../../../../../../backend/src/sro/domain/execution/compose.py#L101): Docstring
 
 > A name is composed only when it has a value, no step can be given it
 > (`bindable`, the set mining's `undeliverable` keeps parameters by -- so a
@@ -33,7 +33,7 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > step's last outline. No label, or more than one, is an `Unplaced` the run asks
 > about with every label it saw; it is never guessed.
 
-## `keyed`, [line 141](../../../../../../../backend/src/sro/domain/execution/compose.py#L141): Docstring
+## `keyed`, [line 142](../../../../../../../backend/src/sro/domain/execution/compose.py#L142): Docstring
 
 > The pairing rule for the save call's new body keys (spec §6.6.4, X10a review
 > I1/I2). `extra` is the keys the recorded body lacks, each with the value sent.
@@ -50,7 +50,7 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > `unknown` even when the write is `done`: a fill alone never confirms anything
 > (spec §6.2), only the write's own call does.
 
-## `with_field`, [line 153](../../../../../../../backend/src/sro/domain/execution/compose.py#L153): Docstring
+## `with_field`, [line 154](../../../../../../../backend/src/sro/domain/execution/compose.py#L154): Docstring
 
 > Learning a confirmed field: the step goes in at the write's order, and every
 > later step, its `uses` and the repeat bounds shift by one. `moved` maps every
@@ -59,13 +59,20 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > value it was seen with, the label it was found by and the body key it was
 > confirmed by.
 >
+> **`body_key`, never `key`.** The miner's parameters already use `key` for the
+> control's id (`component.item_id`), and `same_control` folds two parameters
+> whose `key`s agree. A learned body key such as `department` stored as `key`
+> would be read as a control id the next time the miner folds, and could merge
+> the learned field with some other control whose id happens to be the same
+> word -- two fields become one parameter and one of them stops being filled.
+>
 > **Ceiling.** A later mining pass that grows the job re-derives its steps from
 > demonstrations. `where_steps_moved` gives a step with no cites no place, so the
 > learned step is dropped. Its parameter stays, and the next run with that value
 > composes it again from the outline. Upgrade path: carry learned field steps
 > through re-derivation as their own kind of step.
 
-## `choices`, [line 68](../../../../../../../backend/src/sro/domain/execution/compose.py#L68): Docstring
+## `choices`, [line 69](../../../../../../../backend/src/sro/domain/execution/compose.py#L69): Docstring
 
 > What a field question offers, each choice naming exactly one field: the
 > label alone when it is on the forms once, with its role when that tells it
@@ -74,21 +81,44 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > writes that say the same) is not offered at all -- choosing it could never land on one control -- so the question may
 > offer only "leave it out".
 
-## `placed`, [line 89](../../../../../../../backend/src/sro/domain/execution/compose.py#L89): Docstring
+## `placed`, [line 90](../../../../../../../backend/src/sro/domain/execution/compose.py#L90): Docstring
 
 > The fields labelled `label` (after `normal`) on those outlines, as `Composed`
 > for `name`. `compose` places a name by its own words; an operator's answer to a
 > field question places it by the label they chose -- the same exact-label rule,
 > never a guess.
 
-## `field_of`, [line 118](../../../../../../../backend/src/sro/domain/execution/compose.py#L118): Docstring
+## `field_of`, [line 119](../../../../../../../backend/src/sro/domain/execution/compose.py#L119): Docstring
 
 > The field a learned field step fills: its label (the parameter's first
 > name) on the latest outline of the write right after it, found exactly
 > once. None when that form no longer shows it, or shows it twice.
 
-## `alias_map`, [line 49](../../../../../../../backend/src/sro/domain/execution/compose.py#L49): Docstring
+## `alias_map`, [line 50](../../../../../../../backend/src/sro/domain/execution/compose.py#L50): Docstring
 
 > A job's aliases as `normal(wording) -> field`, so a required parameter named
 > in a request's words binds to the field a step fills. Keyed by `normal`,
 > the same folding the composer matches labels with.
+
+## `with_slots`, [line 206](../../../../../../../backend/src/sro/domain/execution/compose.py#L206): Docstring
+
+> A learned key back in the API lane's body template (K1). `keyed` is what the
+> page's own call confirmed on a UI write (`StepResult.keyed`: parameter to
+> body key). Only a parameter a learned field step fills takes one, and a key
+> that differs from the one learned replaces it: the page's own call is the
+> latest proof of what the endpoint takes. `None` when nothing changes, so the
+> caller saves nothing.
+
+## `without_slots`, [line 220](../../../../../../../backend/src/sro/domain/execution/compose.py#L220): Docstring
+
+> A learned key out of the API lane's body template, after that lane broke on
+> the write it feeds. The parameter keeps its `body_key` and gains
+> `"slot": False`, rather than losing the key: `body_key` is also what makes its
+> step a learned field (`field_key`) and what `prepare` builds `Adding.known`
+> from, and without `Adding.known` the UI lane could not confirm the field --
+> so the keyed UI write that puts the slot back could never happen.
+## `with_field`, [line 154](../../../../../../../backend/src/sro/domain/execution/compose.py#L154): Note on the function
+
+> The composed field step takes its `system` and its `tab` from the step it is
+> put before: the write whose form names the field. A field step has no
+> gesture of its own, so this is the one place its tab can come from.

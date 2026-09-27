@@ -1712,6 +1712,9 @@ class WorkflowStepModel(BaseModel):
     system: str | None
     cites: list[str]
     parameters: list[str]
+    tab: str
+    """The tab of the run it acts in: `main`, `opened_from:<role>` for a tab
+    a click opened, or `tab_2`, ... for another tab the operator opened."""
 
 
 class ReasonModel(BaseModel):
@@ -1766,6 +1769,7 @@ class WorkflowModel(BaseModel):
                     system=step.system,
                     cites=list(step.cites),
                     parameters=list(step.parameters),
+                    tab=step.role,
                 )
                 for step in sorted(workflow.steps, key=lambda step: step.order)
             ],

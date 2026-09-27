@@ -52,7 +52,7 @@ Do not invent a system that the evidence you cited does not touch."""
 
 MINE = Prompt(
     name="mine",
-    version=2,
+    version=3,
     model="gemini-3.8-flash",
     thinking="medium",
     role=_ROLE,
@@ -61,7 +61,10 @@ MINE = Prompt(
         "Four untrusted blocks. `day` is the window's gestures as JSON. `crossings` is "
         '"Values appearing in more than one system": each value, with the gestures it was '
         "seen on. `known` is the list the task calls Jobs already proven. `knowledge` is "
-        '"What is known about these systems".'
+        '"What is known about these systems". In `day`, a gesture\'s `tab` is the browser tab '
+        "it acted in, and `opened` lists each tab it opened with the tab that opened it "
+        '(`{"tab": 9, "from": 7}`): work that carries on in a tab the job opened is still '
+        "the same job."
     ),
     output_schema={
         "type": "object",

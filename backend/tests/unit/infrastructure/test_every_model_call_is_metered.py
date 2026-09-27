@@ -28,6 +28,7 @@ from sro.application.ports.vision import Screen
 from sro.application.runtime.answer_run import AnswerRun
 from sro.application.shared.refusals import OverCap
 from sro.domain.connection.connection import Connection, ConnectionId
+from sro.domain.prompts.sight import SIGHT
 from sro.domain.recording.events import ActionKind
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import ModelSpend, price
@@ -117,7 +118,7 @@ async def test_an_asked_question_is_billed_to_the_tenant_it_was_asked_for() -> N
 
 async def test_the_intent_parser_is_billed() -> None:
     client, uow = _metered(_Models('{"wants": "ask", "verb": "list", "confidence": 1}'))
-    parser = GeminiIntentParser(MODEL, client=client)
+    parser = GeminiIntentParser(client=client)
 
     with about(tenant="acme"):
         await parser.read("show the waves")
@@ -130,7 +131,7 @@ async def test_the_interpreter_is_capped_and_billed() -> None:
     """A pursue reaches it (pursue_goal -> understand_recording), on a pro model."""
     models = _Models('{"steps": []}')
     client, uow = _metered(models)
-    interpreter = GeminiInterpreter(MODEL, client=client)
+    interpreter = GeminiInterpreter(client=client)
 
     with about(tenant="acme"):
         await interpreter.read("evidence")
@@ -142,13 +143,13 @@ async def test_the_interpreter_is_capped_and_billed() -> None:
     await capped.spend.record(_spent("acme", 6.0))
     over, _ = _metered(models, cap_usd=5.0, uow=capped)
     with about(tenant="acme"):
-        await GeminiInterpreter(MODEL, client=over).read("evidence")
+        await GeminiInterpreter(client=over).read("evidence")
     assert models.called == 2
 
 
 async def test_the_vision_driver_is_billed() -> None:
     client, uow = _metered(_Models())
-    driver = GeminiVisionDriver(MODEL, client=client)
+    driver = GeminiVisionDriver(SIGHT, client=client)
 
     with about(tenant="acme"):
         await driver.propose(
@@ -165,7 +166,7 @@ async def test_the_transcriber_is_billed() -> None:
     client, uow = _metered(_Models('{"segments": []}'))
 
     with about(tenant="acme"):
-        await GeminiTranscriber(MODEL, client=client).transcribe(b"ogg", content_type="audio/ogg")
+        await GeminiTranscriber(client=client).transcribe(b"ogg", content_type="audio/ogg")
 
     [row] = _rows(uow)
     assert row.in_tokens == 100

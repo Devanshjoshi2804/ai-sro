@@ -58,7 +58,11 @@ from sro.domain.skill.checks import (
 )
 from sro.domain.skill.learned import (
     K_PARAMETERS_RULE,
+    TYPING,
     LearnedParameter,
+    Occurrence,
+    control_key,
+    control_names,
     parameters_across,
     placed_doings,
     same_control,
@@ -66,11 +70,11 @@ from sro.domain.skill.learned import (
 from sro.domain.skill.passwords import with_passwords
 from sro.domain.skill.presses import with_the_press
 from sro.domain.skill.repeats import detect as repeated_block
-from sro.domain.skill.shape import in_time_order, keeping_fields
+from sro.domain.skill.shape import cited_pairs, in_time_order, keeping_fields, typed_at
 from sro.domain.skill.signing_in import Logins, recorded_logins
 from sro.domain.skill.tabs import MAIN, tab_roles
 from sro.domain.skill.umbrella import mining_blocks, workflow_from
-from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
+from sro.domain.skill.workflow import Step, Workflow, cited_ids, ordered_cites
 from sro.whose import attribute
 
 __all__ = [
@@ -85,6 +89,7 @@ __all__ = [
     "new_pass_id",
     "propose",
     "rekey_workflows",
+    "shipped",
 ]
 
 K_BRING_IN_TRIES = 3
@@ -189,18 +194,13 @@ async def learn_parameters(
     read = cited_ids(stored).union(*(cited_ids(doing) for doing in doings))
     if set(await uow.workflows.placed_on(tenant_id, known_id)) <= read:
         await uow.workflows.ruled(tenant_id, known_id, K_PARAMETERS_RULE)
+    tied = _tied(stored.parameters, cited_pairs(stored, by_id))
     folded = _folded(stored.parameters)
-    repaired = len(folded) != len(stored.parameters)
+    repaired = tied or len(folded) != len(stored.parameters)
     stored.parameters = folded
 
     occurrences = [(stored, by_id, intents), *((doing, by_id, intents) for doing in doings)]
-    systems = {origin_of(by_id[one].system or "") for one in read if one in by_id} - {""}
-    found = [
-        parameter
-        for parameter in (() if stored.chore else parameters_across(occurrences))
-        if not {(system, normal(name)) for system in systems for name in parameter.names}
-        & logins.labels
-    ]
+    found = [] if stored.chore else shipped(occurrences, by_id, logins)
     if not found:
         if repaired:
             await uow.workflows.save(stored)
@@ -211,7 +211,7 @@ async def learn_parameters(
     told = False
     for parameter in found:
         existing = _known_by(parameter, stored.parameters) or _same_control(
-            parameter, stored.parameters
+            parameter, stored.parameters, found
         )
         if existing is None:
             fresh.append(
@@ -246,6 +246,38 @@ async def learn_parameters(
     return len(fresh) + widened
 
 
+def shipped(
+    occurrences: Sequence[Occurrence], by_id: Mapping[str, Gesture], logins: Logins
+) -> list[LearnedParameter]:
+    """Every control the code rule makes a parameter, less the box the recorded
+    sign-in types its username into on the system it signs in to."""
+    read = set().union(*(cited_ids(one) for one, _, _ in occurrences))
+    systems = {origin_of(by_id[one].system or "") for one in read if one in by_id} - {""}
+    return [
+        parameter
+        for parameter in parameters_across(occurrences)
+        if not {(system, normal(name)) for system in systems for name in parameter.names}
+        & logins.labels
+    ]
+
+
+def _tied(parameters: list[dict[str, object]], cited: list[tuple[Gesture, Step]]) -> bool:
+    """Ties each parameter that names no control to the one its step types it
+    into, so it is only ever matched by that control and never by a value."""
+    typing = [pair for pair in cited if pair[0].action.kind in TYPING]
+    tied = False
+    for parameter in parameters:
+        at = None if _controlled(parameter) else typed_at(typing, parameter)
+        if at is None:
+            continue
+        gesture = typing[at][0]
+        names, key = control_names(gesture), control_key(gesture)
+        if names or key:
+            parameter["names"], parameter["key"] = list(names), key
+            tied = True
+    return tied
+
+
 def _names_of(parameter: dict[str, object]) -> list[str]:
     listed = parameter.get("names")
     known = [str(one) for one in listed] if isinstance(listed, list) else []
@@ -268,6 +300,11 @@ def _known_by(
 
 
 def _folded(parameters: list[dict[str, object]]) -> list[dict[str, object]]:
+    alike = {
+        id(one): [other for other in parameters if _same_typing(one, other)]
+        for one in parameters
+        if not _controlled(one)
+    }
     kept: list[dict[str, object]] = []
     for parameter in parameters:
         names = _names_of(parameter)
@@ -277,7 +314,7 @@ def _folded(parameters: list[dict[str, object]]) -> list[dict[str, object]]:
                 one
                 for one in kept
                 if same_control(_names_of(one), names, key=str(one.get("key") or ""), theirs=key)
-                or _same_typing(one, parameter)
+                or _one_holds(one, parameter, alike)
             ),
             None,
         )
@@ -304,7 +341,7 @@ def _controlled(parameter: dict[str, object]) -> bool:
 
 
 def _same_typing(one: dict[str, object], other: dict[str, object]) -> bool:
-    if _controlled(one) and _controlled(other):
+    if _controlled(one) == _controlled(other):
         return False
     mine, theirs = _values_of(one), _values_of(other)
     if not mine or not theirs:
@@ -312,15 +349,24 @@ def _same_typing(one: dict[str, object], other: dict[str, object]) -> bool:
     return mine <= theirs or theirs <= mine
 
 
+def _one_holds(
+    one: dict[str, object], other: dict[str, object], alike: Mapping[int, list[dict[str, object]]]
+) -> bool:
+    """A value folds an entry that names no control into the one control that
+    holds it; when two hold it, the value cannot say which."""
+    untied, control = (other, one) if _controlled(one) else (one, other)
+    holders = alike.get(id(untied), [])
+    return len(holders) == 1 and holders[0] is control
+
+
 def _same_control(
-    parameter: LearnedParameter, stored: list[dict[str, object]]
+    parameter: LearnedParameter, stored: list[dict[str, object]], found: list[LearnedParameter]
 ) -> dict[str, object] | None:
-    wanted = set(parameter.seen)
     for candidate in stored:
-        was = candidate.get("seen_values")
-        if not isinstance(was, list) or _controlled(candidate):
+        if _controlled(candidate):
             continue
-        if wanted and wanted <= {str(value) for value in was}:
+        held = _values_of(candidate)
+        if [one for one in found if one.seen and set(one.seen) <= held] == [parameter]:
             return candidate
     return None
 

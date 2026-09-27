@@ -19,6 +19,8 @@ from sro.domain.skill.workflow import Step, Workflow
 from tests import factories as f
 from tests.unit.domain.rig.test_asked_by import _gesture, _job
 from tests.unit.fakes import FakeUnitOfWork
+from tests.unit.scripts.test_migrate_vault_keys import _job as _signing_in_job
+from tests.unit.scripts.test_migrate_vault_keys import _sign_in
 
 
 def _report(accuracy: float, wrong: float, cost: float) -> Report:
@@ -156,6 +158,58 @@ async def test_a_mining_case_scores_the_parameters_the_code_rule_ships() -> None
     scored = await Mining().run(case, Replayed(answer))
 
     assert scored.passed
+
+
+async def test_a_mining_case_does_not_credit_a_value_typed_into_the_sign_ins_own_box() -> None:
+    """The eval ships what production ships: the box the recorded sign-in types
+    its username into, on the system it signs in to, is a credential there."""
+    ids = [f"ges_{n:032x}" for n in range(2)]
+    day = [
+        {
+            "id": ids[n],
+            "at": float(n),
+            "evidence": {
+                "id": ids[n],
+                "system": "https://wms.example.com",
+                "gesture": {
+                    "kind": "type",
+                    "target": {"name": label, "field_label": label, "item_id": None},
+                    "value": value,
+                },
+            },
+        }
+        for n, (label, value) in enumerate([("SKU", "A-1"), ("username", "clerk.one")])
+    ]
+    steps = [{"order": n, "says": "x", "cites": [one]} for n, one in enumerate(ids)]
+    answer = {"workflows": [{"title": "Move stock", "steps": steps}]}
+
+    def scored(logins: list[list[str]]) -> Case:
+        return Case(
+            id="wfl_x",
+            suite="mining",
+            input={"day": day, "crossings": {}, "logins": logins},
+            expected={"cites": ids, "values": ["A-1", "clerk.one"]},
+        )
+
+    assert (await Mining().run(scored([]), Replayed(answer))).passed
+    logins = [["wms.example.com", "username"]]
+    assert not (await Mining().run(scored(logins), Replayed(answer))).passed
+
+
+async def test_a_mining_case_carries_the_recorded_sign_ins_boxes() -> None:
+    uow = FakeUnitOfWork()
+    async with uow:
+        await uow.workflows.save(_signing_in_job("h"))
+        await uow.gestures.add_gestures(tuple(_sign_in("h", user="clerk.one").values()))
+        done = replace(_gesture("m-work", said="customer type GGD", at=9), tenant=f.TENANT.value)
+        await uow.gestures.add_gestures((done,))
+        work = replace(_job(["m-work"]), id="wfl_work", tenant=f.TENANT.value, signs_out=False)
+        await uow.workflows.save(work)
+        await uow.commit()
+
+    [case] = await Mining().cases(uow, f.TENANT)
+
+    assert case.input["logins"] == [["wms.example.com", "username"]]
 
 
 def test_a_doing_is_expected_to_hold_what_its_job_was_seen_to_vary() -> None:

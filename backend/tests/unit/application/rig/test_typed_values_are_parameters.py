@@ -12,11 +12,14 @@ import json
 from dataclasses import replace
 from datetime import UTC, datetime
 
+import pytest
+
 from sro.application.execution.run_workflow import _under_every_name
 from sro.application.observation.mine_lately import MineLately
 from sro.application.observation.mining_pass import (
     K_BRING_IN_TRIES,
     MineResult,
+    _folded,
     fill_in_passwords,
     learn_parameters,
     mine,
@@ -276,21 +279,99 @@ async def test_two_fields_typed_with_one_value_are_two_parameters_each_with_its_
     assert typed == {"Quantity": "5", "Priority": "2", "SKU": "Z-1"}
 
 
-async def test_a_parameter_a_model_named_and_another_field_with_its_value_stay_two() -> None:
-    """QA: Code = Description, "Y"/"Y", "EA"/"EA". A stored parameter that
-    names its control is matched by that control, never by a value."""
-    uow = FakeUnitOfWork()
-    doing = _doing("cd_a_", 5000.0, ("Code", "Y"), ("Description", "Y"))
-    await uow.gestures.add_gestures(tuple(doing))
-    proposal = {
-        **_proposed_one(doing),
-        "parameters": [{"name": "Code", "names": ["Code"], "seen_values": ["Y"]}],
+def _typed_into(job: Workflow, doing: list[Gesture], answers: dict[str, str]) -> dict[str, str]:
+    values = _under_every_name(job, answers)
+    by_id = {one.id: one for one in doing}
+    return {
+        str(by_id[step.cites[0]].action.target.name): str(
+            value_for(step, by_id[step.cites[0]], values, None)
+        )
+        for step in job.steps
+        if by_id[step.cites[0]].action.kind == "type"
     }
-    proposal["steps"][0]["parameters"] = ["Code"]
+
+
+@pytest.mark.parametrize("model", ["Code", "Customer Code"])
+async def test_a_parameter_the_model_proposed_is_tied_to_its_step_before_any_value(
+    model: str,
+) -> None:
+    """QA: Code = Description, "Y"/"Y". The model proposes {name, seen_values}
+    only, under the label or a word of its own, and Description is typed first:
+    the model's parameter is tied to the step that lists it, so Description is
+    never taken for it by value."""
+    uow = FakeUnitOfWork()
+    doing = _doing("cd_a_", 5000.0, ("Description", "Y"), ("Code", "Y"))
+    await uow.gestures.add_gestures(tuple(doing))
+    proposal = {**_proposed_one(doing), "parameters": [{"name": model, "seen_values": ["Y"]}]}
+    proposal["steps"][1]["parameters"] = [model]
 
     await _mine(uow, proposal)
 
-    assert _named(await _work(uow)) == {"Code": ["Y"], "Description": ["Y"]}
+    job = await _work(uow)
+    assert _named(job) == {model: ["Y"], "Description": ["Y"]}
+    answers = {model: "C-1", "Description": "D-1"}
+    assert _typed_into(job, doing, answers) == {"Code": "C-1", "Description": "D-1"}
+
+
+async def _learned(doing: list[Gesture], parameters: list[dict[str, object]]) -> Workflow:
+    uow = FakeUnitOfWork()
+    await uow.gestures.add_gestures(tuple(doing))
+    await uow.workflows.save(_stored(doing, parameters=parameters))
+    await learn_parameters(
+        uow,
+        tenant_id=TENANT,
+        known_id="wfl_ct",
+        doings=(),
+        by_id={one.id: one for one in doing},
+        intents={},
+        logins=Logins(),
+    )
+    return await uow.workflows.get(TENANT, "wfl_ct")
+
+
+async def test_an_untied_parameter_is_never_matched_by_a_value_two_fields_hold() -> None:
+    """A stored parameter no step lists: two fields typed its value, so the
+    value cannot say which one it is, and each field is its own parameter."""
+    doing = _doing("un_a_", 5000.0, ("Description", "Y"), ("Code", "Y"))
+
+    job = await _learned(doing, [{"name": "Flag", "seen_values": ["Y"]}])
+
+    assert _named(job) == {"Flag": ["Y"], "Description": ["Y"], "Code": ["Y"]}
+    answers = {"Flag": "F", "Code": "C-1", "Description": "D-1"}
+    assert _typed_into(job, doing, answers) == {"Code": "C-1", "Description": "D-1"}
+
+
+async def test_an_untied_parameter_is_matched_by_a_value_only_one_field_holds() -> None:
+    doing = _doing("un_b_", 5000.0, ("Description", "Y"), ("Code", "Z"))
+
+    job = await _learned(doing, [{"name": "Flag", "seen_values": ["Y"]}])
+
+    assert _named(job) == {"Flag": ["Y"], "Code": ["Z"]}
+    assert _typed_into(job, doing, {"Flag": "F", "Code": "C-1"}) == {
+        "Description": "F",
+        "Code": "C-1",
+    }
+
+
+def test_an_untied_entry_is_folded_by_value_only_into_the_one_control_holding_it() -> None:
+    untied: dict[str, object] = {"name": "Flag", "seen_values": ["Y"]}
+    code: dict[str, object] = {"name": "Code", "names": ["Code"], "seen_values": ["Y"]}
+    said: dict[str, object] = {
+        "name": "Description",
+        "names": ["Description"],
+        "seen_values": ["Y"],
+    }
+
+    assert [one["name"] for one in _folded([dict(untied), dict(said), dict(code)])] == [
+        "Flag",
+        "Description",
+        "Code",
+    ]
+    assert [one["name"] for one in _folded([dict(untied), dict(code)])] == ["Flag"]
+    assert [one["name"] for one in _folded([dict(untied), {**untied, "name": "Other"}])] == [
+        "Flag",
+        "Other",
+    ]
 
 
 async def test_a_field_with_no_label_and_no_name_stays_fixed_text() -> None:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 from sro.application.context import RequestContext
@@ -55,6 +56,10 @@ class Resolution:
 
     why: tuple[str, ...] = field(default_factory=tuple)
 
+    about_what_stands: bool = False
+
+    pursuable: bool = False
+
 
 class ResolveIntent:
     async def _read(self, utterance: str, after: str | None) -> Reading:
@@ -82,6 +87,7 @@ class ResolveIntent:
         parameters: dict[str, str] | None = None,
         after: str | None = None,
         pinned: str | None = None,
+        standing: Callable[[], Awaitable[bool]] | None = None,
     ) -> Resolution:
         async with self._uow as uow:
             skills = await uow.skills.list_for_tenant(ctx.tenant_id, limit=_LIBRARY_PAGE)
@@ -126,6 +132,8 @@ class ResolveIntent:
             ):
                 candidates = ()
 
+        if not candidates and not _work_on_a_thing(reading) and standing and await standing():
+            return Resolution(utterance=utterance, about_what_stands=True)
         if not candidates:
             return await self._nothing_taught(ctx, utterance, system)
 
@@ -195,6 +203,7 @@ class ResolveIntent:
                 utterance=utterance,
                 proposal=proposal,
                 pursuit=pursuit if pursuable else None,
+                pursuable=True,
                 question=(
                     "Nobody has demonstrated reading that, so I will work it out on the "
                     "screen and keep what I learn."
@@ -207,6 +216,7 @@ class ResolveIntent:
             utterance=utterance,
             proposal=proposal,
             pursuit=pursuit if pursuable else None,
+            pursuable=True,
             question=(
                 (pursuit.question if pursuit.goal.facts else None)
                 or "Nothing has been taught for that. "
@@ -218,6 +228,15 @@ class ResolveIntent:
                 )
             ),
         )
+
+
+def _work_on_a_thing(reading: Reading) -> bool:
+    return (
+        reading.confidence >= _READ_FLOOR
+        and reading.wants == "act"
+        and bool(reading.verb.strip())
+        and bool(reading.entity.strip())
+    )
 
 
 def _names_another(candidates: tuple[Candidate, ...], pending: Skill) -> bool:

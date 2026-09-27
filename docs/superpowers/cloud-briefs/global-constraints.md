@@ -64,3 +64,5 @@ Each rule below was broken at least once and caught only in review. A brief that
 13. Before merge, check that the rule holds across tasks, not only inside this task (for example D3 × D5 and D4 × D5), and run the other task's tests too.
 14. Validate by the answer's natural unit: drop the bad item and keep the rest, never all-or-nothing.
 15. A brief's signatures and library APIs are verified against the real code before dispatch. Where they disagree, the code wins, and the report says so.
+
+16. Tests build their input through the real code path that production uses (e.g. `_fill_for`, `propose`, the request reader, the recorder's gesture shape) — never a hand-built shape the code cannot produce. A test that passes on a shape production never makes proves nothing. (Added 2026-09-27 after K1, M3, F1 each shipped green tests on impossible shapes.)

@@ -196,3 +196,37 @@ The migration stays 0087.
 - Ruling: "log off" stays a control name and only "sign off" is dropped, as I3 names — "log off" is an ending, "sign off" is an approval — cost if wrong: a "Log off" that is not a sign-out would need a signed-out landing too, so the risk is small.
 - Ruling: "only reaches" is judged by declared roles (menu, menubar, menuitem, navigation, tab, treeitem; `aria-haspopup` or `aria-expanded`; a navigation landmark) or by a page move. Plain links without a page move count as substance — an export link is a read that moves nowhere — cost if wrong: a Log Out reached through bare, role-less divs stays a candidate, which is the safe side.
 - Ruling: a job with incomplete evidence is left undecided and read again on each sweep — I1 forbids a no-evidence write — cost: one wasted judgement per such job per sweep.
+
+## Round 2
+
+Each fix was test-first, and every new test was seen red before the code changed.
+
+- **M4: a reaching step must lead to the control.** `_only_reaches` now accepts a click or press only if:
+  - it makes no call of its own (background traffic aside);
+  - it does not move the page;
+  - it opens something: a menu, menu item, tab, tree item or navigation role, or an `aria-haspopup` / `aria-expanded` control.
+
+  A menu item that fetches `report.csv` itself is substance. So is any page move. The round-1 test that counted a page move as reaching is replaced.
+
+  Tests:
+  - `test_account_menu_then_log_out_is_a_chore` (Account ▾ → Log Out: chore);
+  - `test_a_menu_item_that_makes_its_own_call_is_substance` (Actions ▾ → Export to CSV, GET `report.csv` → Log Out: work; red before);
+  - `test_opening_a_report_page_and_then_logging_out_is_work` (red before);
+  - `test_a_job_that_exports_a_report_before_logging_out_is_work` (the round-1 export case, kept).
+- **Integration regression.** In `test_the_sweep_skips_a_busy_tenant.py`, each job now cites a stored click. The test proves what it was written for again: the busy tenant stays `None`, the free one is decided `False`. I checked that verdict with the fake stack, because the test itself needs Postgres: **written, not run** here.
+- **M1 leftover.** `_one_pass` now keeps `everything`, the tenant's whole store including this browser's own driving:
+  - a new proposal's first verdict is `judged(proposal, everything)`, through `chores.judged`;
+  - `_grow` is given `everything`. Its other readers (`keeping_fields`, `shape_key`, `credentials_typed`) read cited gestures only, so only the judgement changes.
+  - Only the model's window and the pool still lose our own driving.
+  - Test: `test_a_new_job_is_first_judged_against_what_the_heal_will_judge_it_against`. The operator logs out, then this browser signs back in. Before the fix, the pass said `(False, False)` and the heal would say `(False, True)`.
+  - The grow path has no test of its own. Building a contained grow through `mine` needs two recognised doings. The grow uses the same `everything` variable, and `_grow`'s own verdict behaviour is covered by `test_a_job_whose_grow_adds_sign_in_steps_flips_to_signing_in`.
+- **Migration** not re-chained.
+
+**Gates:**
+- unit and contract: 4720 passed. The 81 errors are the same `postgres_url` setup errors as before.
+- mypy: clean.
+- ruff check and format: clean.
+- lint-imports: 4 kept.
+- code notes: 0 stale, 0 dead.
+
+**Ruling:** a page move is never "reaching", because a log out sits in the user menu on every page. Cost if wrong: a Log Out that exists only on a page reached by a move stays a candidate, which is the safe side. A menu whose opener lazy-loads its items with a call is also read as substance, again the safe side.

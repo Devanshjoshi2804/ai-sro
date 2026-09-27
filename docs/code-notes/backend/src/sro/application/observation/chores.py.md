@@ -12,7 +12,10 @@ and not the whole mining pass.
 
 ## `_sitting`, [line 26](../../../../../../../backend/src/sro/application/observation/chores.py#L26): Note on the function
 
-> The gestures a verdict is judged against: the job's cites and everything
+> The gestures a verdict is judged against -- from the tenant's whole store,
+> this browser's own driving included (round 2: the mining pass strips that
+> from its window, and judged a new proposal and a grow without it while the
+> heal did not) -- the job's cites and everything
 > from its first cite to `K_SITTING_GAP_S` after its last, inclusive at both
 > ends. Every path -- grow and heal, which hold the tenant's whole store, and
 > the sweep and a learn, which load `evidence_of` -- judges this same set, so

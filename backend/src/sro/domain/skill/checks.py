@@ -4,10 +4,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from urllib.parse import urlsplit
 
-from sro.domain.execution.evidence import READ_METHODS, writes
+from sro.domain.execution.evidence import writes
 from sro.domain.observation.gesture import Gesture, passed_through
 from sro.domain.observation.identity import K_MIN_SHARED_STEPS, screen_of, target_identity
 from sro.domain.observation.window import Window
+from sro.domain.recording.background import is_background_traffic
 from sro.domain.shared.hosts import origin_of
 from sro.domain.skill.workflow import Step, Workflow, cited_ids, ordered_cites
 
@@ -244,17 +245,17 @@ def _only_reaches(gesture: Gesture) -> bool:
         return True
     if action.kind not in ("click", "press") or action.value or _signed_in_here(gesture):
         return False
-    if any(call.method.upper() not in READ_METHODS for call in gesture.requests):
+    if any(not is_background_traffic(call.url) for call in gesture.requests):
+        return False
+    if any(mark.page_kind in ("navigated", "load") for mark in gesture.page_events):
         return False
     target = action.target
-    opens = target is not None and (
+    return target is not None and (
         target.role in _REACHING_ROLES
         or "aria-haspopup" in target.attributes
         or "aria-expanded" in target.attributes
         or any(mark.role in _REACHING_ROLES for mark in target.landmarks)
     )
-    moved = any(mark.page_kind in ("navigated", "load") for mark in gesture.page_events)
-    return opens or moved
 
 
 def _signed_out_page(url: str) -> bool:

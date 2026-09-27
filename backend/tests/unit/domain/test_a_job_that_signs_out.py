@@ -214,16 +214,59 @@ def test_a_sign_in_page_in_another_tab_is_not_this_log_out_s_landing() -> None:
     assert signs_out(_job("menu", "out"), store) is False
 
 
-def test_a_job_whose_only_substance_is_the_log_out_signs_out_and_one_that_exports_is_work() -> None:
-    """Product ruling M4: the steps before the control may only open menus and
-    move between pages to reach it. Exporting a report -- a button that reads,
-    moves nowhere and opens nothing -- is work, even with a log out after it."""
-    reach = {
-        **_the_real_log_out(),
-        "settings": _landed(_click("settings", 0.5, "Settings"), f"{WMS}/portal/settings"),
-    }
-    assert signs_out(_job("settings", "menu", "out"), reach) is True
+def _opens(gesture_id: str, at: float, name: str) -> Gesture:
+    """A menu button: it opens a menu in place, calls nothing, moves nowhere."""
+    return replace(
+        _click(gesture_id, at, name),
+        action=Action(
+            kind="click",
+            at=at,
+            target=Target(
+                tag="button", role="button", name=name, attributes={"aria-haspopup": "menu"}
+            ),
+        ),
+    )
 
+
+def test_account_menu_then_log_out_is_a_chore() -> None:
+    store = {**_the_real_log_out(), "menu": _opens("menu", 1, "Account")}
+
+    assert signs_out(_job("menu", "out"), store) is True
+
+
+def test_a_menu_item_that_makes_its_own_call_is_substance() -> None:
+    """Actions -> Export to CSV -> Log Out. The export is a menu item, but it
+    fetched report.csv itself: it did something, it did not lead to the
+    control. Work, not a chore."""
+    store = {
+        **_the_real_log_out(),
+        "actions": _opens("actions", 0.2, "Actions"),
+        "export": replace(
+            _click("export", 0.5, "Export to CSV"),
+            requests=[Call(method="GET", url=f"{WMS}/api/report.csv", status=200)],
+        ),
+    }
+
+    assert signs_out(_job("actions", "export", "menu", "out"), store) is False
+
+
+def test_opening_a_report_page_and_then_logging_out_is_work() -> None:
+    """A page move is not reaching: the log out is in the user menu on every
+    page, so moving to a report first was the operator's own errand."""
+    store = {
+        **_the_real_log_out(),
+        "report": replace(
+            _landed(_click("report", 0.5, "Stock report"), f"{WMS}/portal/reports/stock"),
+            requests=[Call(method="GET", url=f"{WMS}/portal/reports/stock", status=200)],
+        ),
+    }
+
+    assert signs_out(_job("report", "menu", "out"), store) is False
+
+
+def test_a_job_that_exports_a_report_before_logging_out_is_work() -> None:
+    """Product ruling M4: exporting a report -- a button that reads -- is work,
+    even with a log out after it."""
     exports = {
         **_the_real_log_out(),
         "export": _pressed(

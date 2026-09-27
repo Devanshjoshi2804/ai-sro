@@ -13,14 +13,16 @@ from datetime import UTC, datetime
 
 from sro.application.context import RequestContext
 from sro.application.observation.mine_lately import MineLately
-from sro.application.observation.mining_pass import MineResult, _grow, fill_in_passwords
+from sro.application.observation.mining_pass import MineResult, _grow, fill_in_passwords, mine
 from sro.application.runtime.teach import Teach
 from sro.domain.execution.compose import Composed
 from sro.domain.execution.lanes import Lane
-from sro.domain.observation.gesture import Action, Call, Gesture, PageMark, Target
+from sro.domain.observation.driving import WAS_OUR_OWN_DRIVING
+from sro.domain.observation.gesture import Action, Call, Gesture, Intent, PageMark, Target
 from sro.domain.shared.identifiers import PrincipalId, TenantId
+from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow
-from tests.unit.fakes import FakeAccountLocks, FakeClock, FakeUnitOfWork
+from tests.unit.fakes import FakeAccountLocks, FakeAsker, FakeClock, FakeUnitOfWork
 
 TENANT = TenantId("acme")
 CTX = RequestContext(tenant_id=TENANT, principal_id=PrincipalId("clerk"))
@@ -193,3 +195,50 @@ class _NoPass:
 class _NoRead:
     async def execute(self, ctx: RequestContext) -> int:
         return 0
+
+
+async def test_a_new_job_is_first_judged_against_what_the_heal_will_judge_it_against() -> None:
+    """The operator logs out; this browser's own driving then signs the
+    session back in -- a credential on the sign-in page, marked as ours and
+    left out of the pass's window. The pass judged the proposal without that
+    gesture (no sign the session ended: `False`) and the next heal, which
+    reads every gesture, judged it `True`: the verdict flipped between passes."""
+    uow = FakeUnitOfWork()
+    by_id = _logging_out()
+    by_id["out"] = replace(by_id["out"], page_events=[])
+    by_id["again"] = _gesture(
+        "again",
+        4,
+        WMS,
+        Action(kind="type", at=4, secret=True, target=Target(name="password", secret=True)),
+    )
+    await uow.gestures.add_gestures(tuple(by_id.values()))
+    await uow.gestures.save_intent(
+        Intent(gesture_id="again", tenant=TENANT.value, why=WAS_OUR_OWN_DRIVING)
+    )
+    step = {"cites": [], "system": WMS, "parameters": []}
+    proposal = {
+        "title": "Log Out",
+        "narrative": "the operator logged out",
+        "systems": [WMS],
+        "steps": [
+            {**step, "order": 0, "cites": ["menu"], "says": "open the user menu"},
+            {**step, "order": 1, "cites": ["out"], "says": "click Log Out"},
+        ],
+        "parameters": [],
+    }
+
+    await mine(
+        uow,
+        tenant_id=TENANT,
+        asker=FakeAsker(Answer(data={"workflows": [proposal]}, cost_usd=0.01)),
+        locks=FakeAccountLocks(),
+        now=datetime(2026, 9, 27, tzinfo=UTC),
+        cap_usd=100.0,
+    )
+    (kept,) = await uow.workflows.known(TENANT)
+
+    assert (kept.signs_in, kept.signs_out) == (False, True)
+    await fill_in_passwords(uow, tenant_id=TENANT)
+    healed = await uow.workflows.get(TENANT, kept.id)
+    assert (healed.signs_in, healed.signs_out) == (False, True)

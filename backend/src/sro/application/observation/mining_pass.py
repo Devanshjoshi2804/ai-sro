@@ -47,9 +47,7 @@ from sro.domain.skill.checks import (
     coverage,
     credentials_typed,
     one_occurrence,
-    signs_in,
     signs_in_to,
-    signs_out,
     undeliverable,
     validate,
     work_only,
@@ -347,6 +345,7 @@ async def _one_pass(
     attribute(tenant=tenant_id.value, pass_id=pass_id)
 
     gestures = list(await uow.gestures.gestures_for(tenant_id))
+    everything = {gesture.id: gesture for gesture in gestures}
     intents = {intent.gesture_id: intent for intent in await uow.gestures.intents_for(tenant_id)}
     driven = {gesture_id for gesture_id, intent in intents.items() if was_our_own_driving(intent)}
     if driven:
@@ -498,8 +497,7 @@ async def _one_pass(
                     rejection.detail,
                 )
                 continue
-            proposal.signs_in = signs_in(proposal, by_id)
-            proposal.signs_out = signs_out(proposal, by_id)
+            proposal.signs_in, proposal.signs_out = judged(proposal, everything) or (None, None)
             lost = undeliverable(proposal, by_id)
             if lost:
                 logger.warning(
@@ -566,7 +564,7 @@ async def _one_pass(
                         tenant_id=tenant_id,
                         known_id=resolution.workflow_id,
                         proposal=proposal,
-                        by_id=by_id,
+                        by_id=everything,
                     )
 
         result.kept = len(kept)

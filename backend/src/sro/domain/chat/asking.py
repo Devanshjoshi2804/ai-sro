@@ -226,6 +226,20 @@ def should_we(pending: Pending, about: str = "", sent_to: Sequence[str] = ()) ->
     return " ".join(said)
 
 
+def of_the_offer(pending: Pending) -> str:
+    return " ".join(
+        [
+            f"{pending.title} is waiting on your word.",
+            *_held(pending),
+            "Say yes to run it, or no to leave it.",
+            NOTHING_NEW,
+        ]
+    )
+
+
+NOTHING_NEW = "Nothing new was started."
+
+
 def _held(pending: Pending) -> list[str]:
     held = [
         f"{name}: {_short(value)}"

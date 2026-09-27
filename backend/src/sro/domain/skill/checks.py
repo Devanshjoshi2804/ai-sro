@@ -196,7 +196,6 @@ _SIGNED_OUT_PAGE = re.compile(
     r"|session[\s_-]?(?:ended|expired|timeout)|auth|authorize)(?![a-z0-9])",
     re.IGNORECASE,
 )
-_REACHING_ROLES = frozenset({"menu", "menubar", "menuitem", "navigation", "tab", "treeitem"})
 
 
 def signs_out(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
@@ -204,7 +203,7 @@ def signs_out(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
     control = next((one for one in reversed(cited) if _ends_the_session(one)), None)
     if control is None:
         return False
-    if not all(_only_reaches(one) for one in cited if one.at < control.at):
+    if not all(_only_reaches(one, control) for one in cited if one.at < control.at):
         return False
     if any(
         writes(replace(step, cites=[one for one in step.cites if one != control.id]), gestures)
@@ -239,7 +238,7 @@ def _ends_the_session(gesture: Gesture) -> bool:
     )
 
 
-def _only_reaches(gesture: Gesture) -> bool:
+def _only_reaches(gesture: Gesture, control: Gesture) -> bool:
     action = gesture.action
     if action.kind in ("hover", "scroll"):
         return True
@@ -249,13 +248,19 @@ def _only_reaches(gesture: Gesture) -> bool:
         return False
     if any(mark.page_kind in ("navigated", "load") for mark in gesture.page_events):
         return False
-    target = action.target
-    return target is not None and (
-        target.role in _REACHING_ROLES
-        or "aria-haspopup" in target.attributes
-        or "aria-expanded" in target.attributes
-        or any(mark.role in _REACHING_ROLES for mark in target.landmarks)
-    )
+    return _opens(gesture, control)
+
+
+def _opens(gesture: Gesture, control: Gesture) -> bool:
+    target = gesture.action.target
+    if target is None:
+        return False
+    if "aria-haspopup" in target.attributes or "aria-expanded" in target.attributes:
+        return True
+    opener = target.component.chain if target.component else ()
+    inside = control.action.target
+    within = inside.component.chain if inside is not None and inside.component else ()
+    return bool(opener) and len(within) > len(opener) and within[: len(opener)] == opener
 
 
 def _signed_out_page(url: str) -> bool:

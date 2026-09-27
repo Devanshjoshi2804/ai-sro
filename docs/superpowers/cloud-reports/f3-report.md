@@ -230,3 +230,26 @@ Each fix was test-first, and every new test was seen red before the code changed
 - code notes: 0 stale, 0 dead.
 
 **Ruling:** a page move is never "reaching", because a log out sits in the user menu on every page. Cost if wrong: a Log Out that exists only on a page reached by a move stays a candidate, which is the safe side. A menu whose opener lazy-loads its items with a call is also read as substance, again the safe side.
+
+## F3b
+
+Branch `d2/f3b`, cut from `origin/feat/execution-runtime` at `1149c11`, which carries the F3 merge `f71327f`.
+
+- **`_only_reaches`: a menu item, tab or tree item reaches the log-out control only if it opens what the control sits in.** `_opens` accepts one of two signals:
+  - `aria-haspopup` or `aria-expanded` on the clicked target;
+  - on ExtJS, the control's component chain starts with the opener's own chain and is longer.
+
+  A role alone is no longer a signal, so a leaf item is substance: the recorder sees only fetch and XHR, so a download link, Print or a report in a new window makes no visible call. `_REACHING_ROLES` is deleted. The recorder's landmarks never carry menu roles, so they could not be used.
+- **Tests (test-first; the three new ones were red):**
+  - `test_a_download_link_in_a_menu_is_substance`: Actions ▾ → Export to CSV as `<a role=menuitem href download>` → Log Out is work.
+  - `test_a_menu_item_that_declares_nothing_opened_is_a_leaf`.
+  - `test_an_ext_menu_item_the_log_out_sits_inside_reaches_it`: a chain prefix is a chore; a menu whose chain the control is not in is work.
+  - Kept and green: `test_account_menu_then_log_out_is_a_chore` (Account ▾ with `aria-haspopup` → Log Out).
+  - The user-menu opener in the existing fixtures (domain test, `test_a_verdict_follows_the_steps.py`, `test_mine_lately.py`) now carries the `aria-haspopup` a real user-menu button declares. Without it, the fixtures were a bare leaf.
+- **Gates:**
+  - unit and contract: 4843 passed. The 83 errors are all Docker/Postgres setup: 82 `[sql]` cases and the OpenAPI fuzz test.
+  - mypy: clean (828 files).
+  - ruff check and format: clean.
+  - lint-imports: 4 kept.
+  - code notes: 0 stale, 0 dead.
+- **Ruling:** a hand-built menu with neither aria nor an ExtJS chain is read as substance, so its Log Out stays a candidate. That is the safe side. The notes give the upgrade path: record `aria-controls` / `aria-owns` and match them to an ancestor of the control.

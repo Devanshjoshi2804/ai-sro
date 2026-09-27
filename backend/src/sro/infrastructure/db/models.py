@@ -816,6 +816,19 @@ class JobRecipientRow(Base):
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class JobAliasRow(Base):
+    __tablename__ = "job_aliases"
+
+    tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    workflow_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    wording_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    wording: Mapped[str] = mapped_column(Text, nullable=False)
+    field: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    confirmed_by: Mapped[str] = mapped_column(String(128), nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class WorkflowLearnedHistoryRow(Base):
     __tablename__ = "workflow_learned_history"
     __table_args__ = (Index("ix_workflow_learned_history_job", "workflow_id", "at"),)

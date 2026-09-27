@@ -1,4 +1,7 @@
 from dataclasses import replace
+from datetime import UTC, datetime
+
+import pytest
 
 from sro.domain.execution.compiled import compile_job
 from sro.domain.execution.compose import (
@@ -7,9 +10,11 @@ from sro.domain.execution.compose import (
     choices,
     compose,
     keyed,
+    teaches,
     with_field,
 )
 from sro.domain.observation.gesture import Gesture, Outline, OutlineField
+from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.workflow import Workflow
 from tests.unit.runtime_support import save_step
 
@@ -52,6 +57,34 @@ def test_a_name_no_field_has_or_two_fields_have_is_asked_never_guessed() -> None
     assert [one.why for one in twice] == ["ambiguous"]
     assert [one.why for one in nowhere] == ["no_field"]
     assert nowhere[0].labels == ("Department (combobox)", "Department (textbox)")
+
+
+def test_a_confirmed_alias_places_a_wording_no_label_matches() -> None:
+    job, by_id = _job(OutlineField("combobox", "Department"), OutlineField("textbox", "Region"))
+    alias = JobAlias("Cost  Centre", "Department", "clerk", datetime(2026, 9, 25, tzinfo=UTC))
+
+    composed, unplaced = compose(job, by_id, {"cost centre": "Finance"}, aliases=(alias,))
+
+    assert [(one.name, one.label) for one in composed] == [("cost centre", "Department")]
+    assert unplaced == ()
+
+
+def test_an_alias_with_a_role_places_the_wording_on_that_one_of_two_same_labels() -> None:
+    job, by_id = _job(OutlineField("combobox", "Department"), OutlineField("textbox", "Department"))
+    alias = JobAlias(
+        "cost centre", "Department", "clerk", datetime(2026, 9, 25, tzinfo=UTC), "textbox"
+    )
+
+    composed, unplaced = compose(job, by_id, {"cost centre": "CC-9"}, aliases=(alias,))
+
+    assert [(one.label, one.role) for one in composed] == [("Department", "textbox")]
+    assert unplaced == ()
+
+
+@pytest.mark.parametrize("wording", ["value", "Name", " field ", "DATA", "Department"])
+def test_a_generic_word_or_a_label_on_the_form_is_never_taught(wording: str) -> None:
+    assert not teaches(wording, ("Department", "Region"))
+    assert teaches("cost centre", ("Department", "Region"))
 
 
 def test_a_credential_or_a_name_a_step_already_fills_is_never_composed() -> None:

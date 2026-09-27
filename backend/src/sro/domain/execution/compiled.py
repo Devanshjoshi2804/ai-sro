@@ -9,7 +9,7 @@ from sro.domain.chat.asked_by import only_reads_the_mail
 from sro.domain.execution.belts import confirming_read, expected_statuses
 from sro.domain.execution.compose import alias_map, field_of, normal
 from sro.domain.execution.evidence import locators_for, primary_gesture, recorded_call, writes
-from sro.domain.execution.field_classes import FieldClass, field_classes
+from sro.domain.execution.field_classes import FieldClass, field_classes, labelled
 from sro.domain.execution.lanes import Broken, Lane, accepts, lanes_for
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.mail_job import sends_mail
@@ -72,11 +72,13 @@ def compile_job(
     warnings: list[Reason] = []
     filled = {name for step in workflow.steps for name in step.parameters}
     said = alias_map(aliases)
+    fields = field_classes(workflow, by_id, learned, declared)
     for parameter in workflow.parameters:
         name = parameter.get("name")
         if not isinstance(name, str) or not demanded(parameter):
             continue
-        if name not in filled and said.get(normal(name)) not in filled:
+        aliased = labelled(normal(said.get(normal(name), "")), fields)
+        if name not in filled and (aliased is None or aliased.name not in filled):
             reasons.append(
                 Reason("unbound_parameter", None, f"{name} is required and no step fills it")
             )
@@ -178,7 +180,6 @@ def compile_job(
         return [{"code": one.code, "step": one.step, "detail": one.detail} for one in found]
 
     reasons = [one for one in reasons if one.step is None or one.step >= from_step]
-    fields = field_classes(workflow, by_id, learned, declared)
     view: dict[str, object] = {
         "job": workflow.id,
         "title": workflow.title,

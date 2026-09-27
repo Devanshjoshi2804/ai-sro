@@ -88,6 +88,7 @@ from sro.domain.chat.thread import MessageId, Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
 from sro.domain.execution.account import K_LEASE_TTL, LIVE, Account, Lease, LeaseState
 from sro.domain.execution.belts import RunProof, state_verified
+from sro.domain.execution.compose import normal
 from sro.domain.execution.lanes import K_BROKEN_COOL_DOWN, Broken, Lane, SeenCall
 from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
 from sro.domain.execution.mail_job import JobRecipient
@@ -141,6 +142,7 @@ from sro.domain.shared.objective import ObjectiveKey
 # `Answer` is already the trigger confirmation's; this one is a model's reply.
 from sro.domain.shared.prices import Answer as ModelAnswer
 from sro.domain.shared.prices import DaySpend, Effort, ModelSpend
+from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.locator import LocatorStrategy
 from sro.domain.skill.offers import Offer, OfferRow
 from sro.domain.skill.signing_in import PageSignals
@@ -2614,6 +2616,10 @@ class FakeWorkflowRepository:
         # step's cites key when it last broke.
         self.broken: dict[tuple[str, str, int, Lane, str], tuple[str, datetime]] = {}
         self.recipients: dict[tuple[str, str, str], JobRecipient] = {}
+        self.aliases: dict[tuple[str, str], dict[str, JobAlias]] = {}
+        # Written by a unit of work and kept only when it commits, as the
+        # store keeps them: an alias is taught in the answer's own commit.
+        self.staged_aliases: list[tuple[str, str, JobAlias]] = []
         # Append-only, like the store's: a history that can be edited is a
         # history nobody can rely on.
         self.taught: dict[str, list[Taught]] = {}
@@ -2853,6 +2859,21 @@ class FakeWorkflowRepository:
         self, tenant_id: TenantId, workflow_id: str, recipient: JobRecipient
     ) -> None:
         self.recipients[(tenant_id.value, workflow_id, recipient.address)] = recipient
+
+    async def aliases_for(self, tenant_id: TenantId, workflow_id: str) -> tuple[JobAlias, ...]:
+        kept = dict(self.aliases.get((tenant_id.value, workflow_id), {}))
+        for tenant, job, alias in self.staged_aliases:
+            if (tenant, job) == (tenant_id.value, workflow_id):
+                kept[normal(alias.wording)] = alias
+        return tuple(sorted(kept.values(), key=lambda one: (one.at, normal(one.wording))))
+
+    async def confirm_alias(self, tenant_id: TenantId, workflow_id: str, alias: JobAlias) -> None:
+        self.staged_aliases.append((tenant_id.value, workflow_id, alias))
+
+    def commit_aliases(self) -> None:
+        for tenant, job, alias in self.staged_aliases:
+            self.aliases.setdefault((tenant, job), {})[normal(alias.wording)] = alias
+        self.staged_aliases = []
 
     async def mend_lane(self, tenant_id: TenantId, workflow_id: str, step: int, lane: Lane) -> None:
         for key in [
@@ -3271,11 +3292,13 @@ class FakeUnitOfWork:
     async def __aexit__(self, *exc: object) -> None:
         if exc[0] is not None:
             await self.rollback()
+        self._workflows.staged_aliases = []
 
     async def commit(self) -> None:
         if self.commit_raises is not None:
             raise self.commit_raises
         self.commits += 1
+        self._workflows.commit_aliases()
 
     async def rollback(self) -> None:
         self.rollbacks += 1
@@ -3284,6 +3307,7 @@ class FakeUnitOfWork:
         # written -- the class does not simulate rollback at all, and the
         # integration suite is where that half is proved.
         self._workflows.poisoned = False
+        self._workflows.staged_aliases = []
 
 
 class FakeIntentParser:

@@ -86,6 +86,23 @@ def test_an_alias_binds_a_required_parameter_to_the_field_a_step_fills() -> None
     assert "unbound_parameter" not in _codes(got)
 
 
+def test_an_alias_binds_by_the_label_of_the_parameter_a_step_fills() -> None:
+    step, by_id, ledger = proven_write_step(read_back=None)
+    step.parameters = ["department"]
+    job = _job(
+        step,
+        parameters=[
+            {"name": "cost centre", "required": True},
+            {"name": "department", "required": False, "names": ["Department"]},
+        ],
+    )
+    alias = JobAlias("Cost Centre", "Department", "clerk", datetime(2026, 9, 25, tzinfo=UTC))
+
+    got = compile_job(job, by_id, learned={}, ledger=ledger, broken=(), aliases=(alias,))
+
+    assert "unbound_parameter" not in _codes(got)
+
+
 def test_a_write_with_no_status_it_expects_is_unproven() -> None:
     step, by_id = save_step(status=None)
 

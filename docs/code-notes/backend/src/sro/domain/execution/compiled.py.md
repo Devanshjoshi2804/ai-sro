@@ -105,3 +105,11 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 > passes it here; a caller with none gets the page's own limits alone. It
 > reaches `field_classes` unchanged: the stricter of page and knowledge base
 > wins there, not in this function.
+
+## `compile_job`, [line 80](../../../../../../../backend/src/sro/domain/execution/compiled.py#L80): Comment
+
+Code: `aliased = labelled(normal(said.get(normal(name), "")), fields)`
+
+> A required parameter named by an alias is bound when the alias's label
+> belongs to a parameter a step fills: the label is resolved to that
+> parameter the way `field_of` resolves it, not compared by exact name.

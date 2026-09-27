@@ -153,6 +153,11 @@ def parameters_across(occurrences: Iterable[Occurrence]) -> tuple[LearnedParamet
     return _told_apart([one for one, constant in _controls(occurrences) if not constant])
 
 
+def typed_across(occurrences: Iterable[Occurrence]) -> tuple[LearnedParameter, ...]:
+    """Every control the doings typed into, the ones typed identically too."""
+    return tuple(one for one, _ in _controls(occurrences))
+
+
 def _controls(occurrences: Iterable[Occurrence]) -> list[tuple[LearnedParameter, bool]]:
     doings = [_by_control(*occurrence) for occurrence in occurrences]
     found: list[tuple[LearnedParameter, bool]] = []

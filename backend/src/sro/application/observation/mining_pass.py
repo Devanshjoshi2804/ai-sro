@@ -66,6 +66,7 @@ from sro.domain.skill.learned import (
     parameters_across,
     placed_doings,
     same_control,
+    typed_across,
 )
 from sro.domain.skill.passwords import with_passwords
 from sro.domain.skill.presses import with_the_press
@@ -194,12 +195,17 @@ async def learn_parameters(
     read = cited_ids(stored).union(*(cited_ids(doing) for doing in doings))
     if set(await uow.workflows.placed_on(tenant_id, known_id)) <= read:
         await uow.workflows.ruled(tenant_id, known_id, K_PARAMETERS_RULE)
+    occurrences = [(stored, by_id, intents), *((doing, by_id, intents) for doing in doings)]
+    typed: list[dict[str, object]] = [
+        {"names": list(one.names), "key": one.key, "seen_values": list(one.seen)}
+        for one in typed_across(occurrences)
+    ]
     tied = _tied(stored.parameters, cited_pairs(stored, by_id))
-    folded = _folded(stored.parameters)
+    untied, holders = _pools(stored.parameters, typed)
+    folded = _folded(stored.parameters, untied, holders)
     repaired = tied or len(folded) != len(stored.parameters)
     stored.parameters = folded
 
-    occurrences = [(stored, by_id, intents), *((doing, by_id, intents) for doing in doings)]
     found = [] if stored.chore else shipped(occurrences, by_id, logins)
     if not found:
         if repaired:
@@ -211,7 +217,7 @@ async def learn_parameters(
     told = False
     for parameter in found:
         existing = _known_by(parameter, stored.parameters) or _same_control(
-            parameter, stored.parameters, found
+            parameter, untied, holders
         )
         if existing is None:
             fresh.append(
@@ -240,7 +246,7 @@ async def learn_parameters(
             widened += 1
     if not fresh and not widened and not repaired and not named and not told:
         return 0
-    stored.parameters = _folded([*stored.parameters, *fresh])
+    stored.parameters = _folded([*stored.parameters, *fresh], untied, holders)
     stored.generalise_title()
     await uow.workflows.save(stored)
     return len(fresh) + widened
@@ -299,22 +305,18 @@ def _known_by(
     return None
 
 
-def _folded(parameters: list[dict[str, object]]) -> list[dict[str, object]]:
-    alike = {
-        id(one): [other for other in parameters if _same_typing(one, other)]
-        for one in parameters
-        if not _controlled(one)
-    }
+def _folded(
+    parameters: list[dict[str, object]],
+    untied: list[dict[str, object]],
+    holders: list[dict[str, object]],
+) -> list[dict[str, object]]:
     kept: list[dict[str, object]] = []
     for parameter in parameters:
-        names = _names_of(parameter)
-        key = str(parameter.get("key") or "")
         already = next(
             (
                 one
                 for one in kept
-                if same_control(_names_of(one), names, key=str(one.get("key") or ""), theirs=key)
-                or _one_holds(one, parameter, alike)
+                if _one_control(one, parameter) or _held(one, parameter, untied, holders)
             ),
             None,
         )
@@ -322,8 +324,8 @@ def _folded(parameters: list[dict[str, object]]) -> list[dict[str, object]]:
             kept.append(parameter)
             continue
         known = _names_of(already)
-        already["names"] = [*known, *[one for one in names if one not in known]]
-        already["key"] = str(already.get("key") or "") or key
+        already["names"] = [*known, *[one for one in _names_of(parameter) if one not in known]]
+        already["key"] = str(already.get("key") or "") or str(parameter.get("key") or "")
         was, theirs = already.get("seen_values"), parameter.get("seen_values")
         seen = [str(value) for value in was] if isinstance(was, list) else []
         more = [str(value) for value in theirs] if isinstance(theirs, list) else []
@@ -340,33 +342,67 @@ def _controlled(parameter: dict[str, object]) -> bool:
     return bool(parameter.get("names") or parameter.get("key"))
 
 
-def _same_typing(one: dict[str, object], other: dict[str, object]) -> bool:
+def _one_control(one: dict[str, object], other: dict[str, object]) -> bool:
+    return same_control(
+        _names_of(one),
+        _names_of(other),
+        key=str(one.get("key") or ""),
+        theirs=str(other.get("key") or ""),
+    )
+
+
+def _pools(
+    parameters: list[dict[str, object]], typed: list[dict[str, object]]
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    """The entries naming no control, and every control known to have typed
+    something: each field the doings typed into, fixed ones included, and each
+    entry naming a control. Taken once, before any fold changes an entry: an
+    entry folded into a field carries values that field never typed."""
+    return (
+        [one for one in parameters if not _controlled(one)],
+        [*typed, *(one for one in parameters if _controlled(one))],
+    )
+
+
+def _held_by(
+    untied: dict[str, object],
+    untieds: list[dict[str, object]],
+    holders: list[dict[str, object]],
+) -> dict[str, object] | None:
+    """The one control that typed this entry's value, when exactly one control
+    typed it and this is the only entry naming no control that holds what that
+    control typed. Otherwise the value cannot say which, and nothing matches."""
+    values = _values_of(untied)
+    typed = [one for one in holders if values & _values_of(one)]
+    if not typed or not all(_one_control(typed[0], one) for one in typed):
+        return None
+    alike = [one for one in untieds if _values_of(one) & _values_of(typed[0])]
+    return typed[0] if len(alike) == 1 and alike[0] is untied else None
+
+
+def _held(
+    one: dict[str, object],
+    other: dict[str, object],
+    untieds: list[dict[str, object]],
+    holders: list[dict[str, object]],
+) -> bool:
     if _controlled(one) == _controlled(other):
         return False
-    mine, theirs = _values_of(one), _values_of(other)
-    if not mine or not theirs:
-        return False
-    return mine <= theirs or theirs <= mine
-
-
-def _one_holds(
-    one: dict[str, object], other: dict[str, object], alike: Mapping[int, list[dict[str, object]]]
-) -> bool:
-    """A value folds an entry that names no control into the one control that
-    holds it; when two hold it, the value cannot say which."""
     untied, control = (other, one) if _controlled(one) else (one, other)
-    holders = alike.get(id(untied), [])
-    return len(holders) == 1 and holders[0] is control
+    held = _held_by(untied, untieds, holders)
+    return held is not None and _one_control(held, control)
 
 
 def _same_control(
-    parameter: LearnedParameter, stored: list[dict[str, object]], found: list[LearnedParameter]
+    parameter: LearnedParameter,
+    untieds: list[dict[str, object]],
+    holders: list[dict[str, object]],
 ) -> dict[str, object] | None:
-    for candidate in stored:
-        if _controlled(candidate):
-            continue
-        held = _values_of(candidate)
-        if [one for one in found if one.seen and set(one.seen) <= held] == [parameter]:
+    for candidate in untieds:
+        held = _held_by(candidate, untieds, holders)
+        if held is not None and same_control(
+            _names_of(held), parameter.names, key=str(held.get("key") or ""), theirs=parameter.key
+        ):
             return candidate
     return None
 

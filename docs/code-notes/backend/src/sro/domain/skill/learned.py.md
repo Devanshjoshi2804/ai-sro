@@ -253,13 +253,13 @@ Code: `required: bool | None = None`
 > refuses a secret gesture. A recorded sign-in's username and a chore are the
 > caller's to leave out (`learn_parameters`), because only it knows the jobs.
 
-## `_controls`, [line 156](../../../../../../../backend/src/sro/domain/skill/learned.py#L156): Docstring
+## `_controls`, [line 161](../../../../../../../backend/src/sro/domain/skill/learned.py#L161): Docstring
 
 > One walk over the doings that marks each control a parameter or a constant. `seen` keeps each
 > value once, in the order the doings came: from three doings a value can
 > repeat, and a range is a set of what it has been.
 
-## `_told_apart`, [line 204](../../../../../../../backend/src/sro/domain/skill/learned.py#L204): Docstring
+## `_told_apart`, [line 209](../../../../../../../backend/src/sro/domain/skill/learned.py#L209): Docstring
 
 > Two controls that share a label are called by the names that differ.
 >
@@ -275,7 +275,7 @@ Code: `required: bool | None = None`
 > `in_all` and what the page said: a told-apart control became "in every
 > doing" and "nobody said", and lost the key a later doing is matched on.
 
-## `placed_doings`, [line 216](../../../../../../../backend/src/sro/domain/skill/learned.py#L216): Docstring
+## `placed_doings`, [line 221](../../../../../../../backend/src/sro/domain/skill/learned.py#L221): Docstring
 
 > The other doings of a stored job, rebuilt from the gestures placed on it.
 >
@@ -389,7 +389,7 @@ Code: `found = [`
 > Last wins, as it did when this was a dict: a control typed twice in
 > one doing keeps the latest value.
 
-## `_controls`, [line 159](../../../../../../../backend/src/sro/domain/skill/learned.py#L159): Comment
+## `_controls`, [line 164](../../../../../../../backend/src/sro/domain/skill/learned.py#L164): Comment
 
 Code: `for nth, doing in enumerate(doings):`
 
@@ -406,7 +406,7 @@ Code: `for nth, doing in enumerate(doings):`
 > What has gone is the accident of WHICH doing a control first appeared
 > in. (The bar itself changed on 2026-09-27: see `parameters_across`.)
 
-## `_controls`, [line 191](../../../../../../../backend/src/sro/domain/skill/learned.py#L191): Comment
+## `_controls`, [line 196](../../../../../../../backend/src/sro/domain/skill/learned.py#L196): Comment
 
 Code: `name=names[0],`
 
@@ -414,7 +414,7 @@ Code: `name=names[0],`
 > is what the next doing is matched on, so a control
 > recorded either way is recognised either way.
 
-## `_controls`, [line 196](../../../../../../../backend/src/sro/domain/skill/learned.py#L196): Comment
+## `_controls`, [line 201](../../../../../../../backend/src/sro/domain/skill/learned.py#L201): Comment
 
 Code: `said=next((one for one in said if one is not None), None),`
 

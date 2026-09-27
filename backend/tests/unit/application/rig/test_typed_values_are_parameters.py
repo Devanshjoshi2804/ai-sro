@@ -20,6 +20,7 @@ from sro.application.observation.mining_pass import (
     K_BRING_IN_TRIES,
     MineResult,
     _folded,
+    _pools,
     fill_in_passwords,
     learn_parameters,
     mine,
@@ -41,6 +42,12 @@ TENANT = TenantId("acme")
 WMS = "https://wms.example.com"
 NOW = datetime(2025, 2, 11, 23, tzinfo=UTC)
 USERNAME = "clerk.one"
+
+
+def _fold(parameters: list[dict[str, object]]) -> list[dict[str, object]]:
+    """`_folded` with no doing in hand: the entries naming a control are the
+    only holders."""
+    return _folded(parameters, *_pools(parameters, []))
 
 
 def _gesture(
@@ -313,16 +320,18 @@ async def test_a_parameter_the_model_proposed_is_tied_to_its_step_before_any_val
     assert _typed_into(job, doing, answers) == {"Code": "C-1", "Description": "D-1"}
 
 
-async def _learned(doing: list[Gesture], parameters: list[dict[str, object]]) -> Workflow:
+async def _learned(
+    doing: list[Gesture], parameters: list[dict[str, object]], again: list[Gesture] | None = None
+) -> Workflow:
     uow = FakeUnitOfWork()
-    await uow.gestures.add_gestures(tuple(doing))
+    await uow.gestures.add_gestures((*doing, *(again or ())))
     await uow.workflows.save(_stored(doing, parameters=parameters))
     await learn_parameters(
         uow,
         tenant_id=TENANT,
         known_id="wfl_ct",
-        doings=(),
-        by_id={one.id: one for one in doing},
+        doings=[replace(_stored(again), id="wfl_again")] if again else (),
+        by_id={one.id: one for one in (*doing, *(again or ()))},
         intents={},
         logins=Logins(),
     )
@@ -353,6 +362,81 @@ async def test_an_untied_parameter_is_matched_by_a_value_only_one_field_holds() 
     }
 
 
+@pytest.mark.parametrize("again", ["Y", "Z"])
+async def test_an_untied_parameter_is_not_matched_by_a_value_a_constant_field_also_typed(
+    again: str,
+) -> None:
+    """Review round 2, probes 2a and 2b: the stored doing typed Description=Y
+    and Code=Y, and a second typed Description again (fixed Y, or Z). Two
+    fields typed Y, whatever became of Description, so the value cannot say
+    which field Flag is: Flag stays its own parameter under its model name,
+    and a run types each field its own answer."""
+    first = _doing("un_c_", 5000.0, ("Description", "Y"), ("Code", "Y"))
+    second = _doing("un_d_", 90_000.0, ("Description", again))
+
+    job = await _learned(first, [{"name": "Flag", "seen_values": ["Y"]}], second)
+
+    [flag] = [one for one in job.parameters if one["name"] == "Flag"]
+    assert "Code" not in (flag.get("names") or []), job.parameters
+    answers = {str(one["name"]): f"ans-{one['name']}" for one in job.parameters}
+    assert _typed_into(job, first, answers)["Code"] == "ans-Code"
+
+
+async def test_two_clicked_parameters_and_a_typed_field_with_one_value_stay_three() -> None:
+    """Review round 2, probe 3: click A=X and click B=X, each listed by its
+    step, then type Code=X. Two untied parameters hold X, so the value cannot
+    say which is Code's, and a folded one cannot pull the other in."""
+    uow = FakeUnitOfWork()
+    doing = [
+        _gesture("ab_00", 5000.0, "click", label="A", value="X"),
+        _gesture("ab_01", 5001.0, "click", label="B", value="X"),
+        *_doing("ab_1", 5002.0, ("Code", "X")),
+    ]
+    await uow.gestures.add_gestures(tuple(doing))
+    proposal = {
+        **_proposed_one(doing),
+        "parameters": [{"name": "A", "seen_values": ["X"]}, {"name": "B", "seen_values": ["X"]}],
+    }
+    proposal["steps"][0]["parameters"] = ["A"]
+    proposal["steps"][1]["parameters"] = ["B"]
+
+    await _mine(uow, proposal)
+
+    job = await _work(uow)
+    assert sorted(_named(job)) == ["A", "B", "Code"], job.parameters
+    for one in job.parameters:
+        listed = one.get("names") or [one["name"]]
+        assert isinstance(listed, list) and len(set(listed) & {"A", "B", "Code"}) == 1, one
+
+
+async def test_a_parameter_folded_into_a_field_does_not_pull_in_another_by_its_own_values() -> None:
+    """The model says A was X or W, and B was W; only Code=X was typed. A is
+    Code's, the one field that typed X. B's W was typed by no field, so the
+    W that A brought with it must not make Code B's holder too."""
+    uow = FakeUnitOfWork()
+    doing = [
+        _gesture("aw_00", 5000.0, "click", label="A", value="X"),
+        _gesture("aw_01", 5001.0, "click", label="B", value="W"),
+        *_doing("aw_1", 5002.0, ("Code", "X")),
+    ]
+    await uow.gestures.add_gestures(tuple(doing))
+    proposal = {
+        **_proposed_one(doing),
+        "parameters": [
+            {"name": "A", "seen_values": ["X", "W"]},
+            {"name": "B", "seen_values": ["W"]},
+        ],
+    }
+    proposal["steps"][0]["parameters"] = ["A"]
+    proposal["steps"][1]["parameters"] = ["B"]
+
+    await _mine(uow, proposal)
+
+    job = await _work(uow)
+    [b] = [one for one in job.parameters if one["name"] == "B"]
+    assert not b.get("names") or b.get("names") == ["B"], job.parameters
+
+
 def test_an_untied_entry_is_folded_by_value_only_into_the_one_control_holding_it() -> None:
     untied: dict[str, object] = {"name": "Flag", "seen_values": ["Y"]}
     code: dict[str, object] = {"name": "Code", "names": ["Code"], "seen_values": ["Y"]}
@@ -362,13 +446,13 @@ def test_an_untied_entry_is_folded_by_value_only_into_the_one_control_holding_it
         "seen_values": ["Y"],
     }
 
-    assert [one["name"] for one in _folded([dict(untied), dict(said), dict(code)])] == [
+    assert [one["name"] for one in _fold([dict(untied), dict(said), dict(code)])] == [
         "Flag",
         "Description",
         "Code",
     ]
-    assert [one["name"] for one in _folded([dict(untied), dict(code)])] == ["Flag"]
-    assert [one["name"] for one in _folded([dict(untied), {**untied, "name": "Other"}])] == [
+    assert [one["name"] for one in _fold([dict(untied), dict(code)])] == ["Flag"]
+    assert [one["name"] for one in _fold([dict(untied), {**untied, "name": "Other"}])] == [
         "Flag",
         "Other",
     ]

@@ -30,6 +30,7 @@ import pytest
 from sro.application.observation.mining_pass import (
     MineResult,
     _folded,
+    _pools,
     fill_in_passwords,
     mine,
     propose,
@@ -84,6 +85,12 @@ pass that ignores its `now` and reads `datetime.now(UTC)` agree by coincidence.
 CAP = 100.0
 """Far above anything these passes spend, so the cap is out of the way
 everywhere except the one test that is about it."""
+
+
+def _fold(parameters: list[dict[str, object]]) -> list[dict[str, object]]:
+    """`_folded` with no doing in hand: the entries naming a control are the
+    only holders."""
+    return _folded(parameters, *_pools(parameters, []))
 
 
 async def _day(tenant: TenantId = TENANT) -> tuple[FakeUnitOfWork, list[str]]:
@@ -1599,7 +1606,7 @@ def test_two_entries_sharing_no_name_are_one_control_if_the_typing_says_so() -> 
     two parameters demands two values before it will run, and nobody has ever
     been asked for a `filterComboBox`.
     """
-    folded = _folded(
+    folded = _fold(
         [
             {"name": "Customer Type", "seen_values": ["GDD"]},
             {
@@ -1620,7 +1627,7 @@ def test_two_controls_that_merely_crossed_on_one_value_are_still_two() -> None:
     """Containment, not overlap. Two controls that each once held `SG` -- a site
     code is in half the fields on this platform -- are two controls, and folding
     them would take a parameter off a job that has it."""
-    folded = _folded(
+    folded = _fold(
         [
             {"name": "Warehouse", "seen_values": ["SG", "NL"]},
             {"name": "Client Site", "seen_values": ["SG", "DE"]},
@@ -2428,6 +2435,6 @@ def test_a_learned_body_key_is_never_taken_for_a_control_key() -> None:
         "seen_values": ["CC1"],
     }
 
-    folded = _folded([*learned.parameters, mined])
+    folded = _fold([*learned.parameters, mined])
 
     assert [one.get("name") for one in folded] == ["Department", "Cost Centre"]

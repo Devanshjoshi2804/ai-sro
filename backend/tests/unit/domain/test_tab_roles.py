@@ -133,7 +133,7 @@ def test_a_field_a_grown_job_carries_takes_the_tab_of_the_step_before_it() -> No
             Step(order=1, says="Fill Department", system=WMS, parameters=["dept"]),
             Step(order=2, says="b", system=WMS, cites=["b"]),
         ],
-        parameters=[{"name": "dept", "key": "dept"}],
+        parameters=[{"name": "dept", "body_key": "dept"}],
     )
     now = [
         Step(order=0, says="a", system=WMS, cites=["a"], tab="tab_2"),

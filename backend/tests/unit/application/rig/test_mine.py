@@ -158,16 +158,16 @@ def _rows(uow: FakeUnitOfWork) -> dict[str, Gesture]:
 def _seen(parameters: list[dict[str, object]], name: str) -> list[str]:
     """Every value one stored parameter has been given, as strings.
 
-    By ANY of the control's names. A field is `Client Code` on its label and
-    `clientCode` on the input, and which of those a parameter is called is a
-    fact about the recording it was learnt from -- looking it up by one name
-    only is how a test would go on passing while the job grew a second entry
-    for the same field.
+    By ANY of the control's names, or its key. A field is `Client Code` on its
+    label and `clientCode` on the input, and which of those a parameter is
+    called is a fact about the recording it was learnt from -- looking it up by
+    one name only is how a test would go on passing while the job grew a
+    second entry for the same field.
     """
     for parameter in parameters:
         listed = parameter.get("names")
         known = {str(one) for one in listed} if isinstance(listed, list) else set()
-        if parameter.get("name") == name or name in known:
+        if name in {parameter.get("name"), parameter.get("key"), *known}:
             values = parameter.get("seen_values")
             return [str(value) for value in values] if isinstance(values, list) else []
     return []
@@ -965,7 +965,7 @@ def _did(
             value=value,
             target=Target(
                 tag="input" if kind == "type" else "button",
-                component=Component(item_id=control),
+                component=Component(item_id=control, field_label=control),
             ),
         ),
         requests=writes if control == "saveButton" else [],
@@ -1440,7 +1440,7 @@ async def test_a_third_doing_widens_a_parameter_it_does_not_discard_it() -> None
     assert seen, "the parameter is still there"
     assert "A-THIRD-ONE" in seen, "and the third doing widened it"
     assert "SOMETHING-ELSE" in seen, "without losing the second"
-    assert len(stored.parameters) == 1, "one control, not one parameter per doing"
+    assert len(stored.parameters) == 3, "one per control the first doing typed, not per doing"
 
 
 async def test_a_later_doing_teaches_a_stored_parameter_what_the_page_demands() -> None:
@@ -1539,11 +1539,9 @@ async def test_a_control_the_model_already_named_does_not_gain_a_second_paramete
 
     stored = (await uow.workflows.known(TENANT))[0]
     names = [parameter.get("name") for parameter in stored.parameters]
-    assert names == ["Client Code"], f"one control, one parameter; got {names}"
+    assert names == ["Client Code", "Dock", "Manifest"], f"one control, one parameter; got {names}"
     assert "clientCode" not in names, "not the same field again under its item_id"
-    assert second.learned_parameters == 2, (
-        "no new control, and the two the first doing could not tell from constants now can"
-    )
+    assert second.learned_parameters == 0, "recognising a control is not learning a new one"
 
 
 async def test_a_job_already_holding_two_entries_for_one_field_is_folded() -> None:
@@ -1778,8 +1776,8 @@ async def test_a_pass_that_widens_two_parameters_says_two_and_not_one() -> None:
         passes.append(await _mine(uow, FakeAsker(_found(_proposal([g.id for g in rows])))))
 
     stored = (await uow.workflows.known(TENANT))[0]
-    assert len(stored.parameters) == 2, "two controls varied, so two parameters"
-    assert passes[0].learned_parameters == 3, "widened both, and fixed the select it repeated"
+    assert len(stored.parameters) == 3, "the two it varied, and the select it never took back"
+    assert passes[0].learned_parameters == 2, "the second doing widened both"
     assert passes[1].kept == 0, "the third doing is the same job again"
     assert passes[1].learned_parameters == 2, "and widening both is learning two"
 

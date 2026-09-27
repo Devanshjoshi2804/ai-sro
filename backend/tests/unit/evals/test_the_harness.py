@@ -122,6 +122,42 @@ async def test_a_mining_case_misses_when_a_value_the_request_asked_for_is_not_a_
     assert found.passed
 
 
+async def test_a_mining_case_scores_the_parameters_the_code_rule_ships() -> None:
+    """The model proposes no parameters and the rule in code makes one of each
+    typed value: the eval scores what ships, so the case passes."""
+    labels = ["Customer Type", "Description", "Short Description", "Bill To"]
+    typed = ["GT7", "Ground transport", "GT", "Bill-To Customer"]
+    ids = [f"ges_{n:032x}" for n in range(5)]
+    day = [
+        {
+            "id": ids[n],
+            "at": float(n),
+            "evidence": {
+                "id": ids[n],
+                "gesture": {
+                    "kind": "type",
+                    "target": {"name": label, "field_label": label, "item_id": None},
+                    "value": value,
+                },
+            },
+        }
+        for n, (label, value) in enumerate(zip(labels, typed, strict=True))
+    ]
+    day.append({"id": ids[4], "at": 4.0, "evidence": {"id": ids[4], "gesture": {"kind": "click"}}})
+    case = Case(
+        id="wfl_x",
+        suite="mining",
+        input={"day": day, "crossings": {}},
+        expected={"cites": ids, "values": sorted(typed)},
+    )
+    steps = [{"order": n, "says": "x", "cites": [one]} for n, one in enumerate(ids)]
+    answer = {"workflows": [{"title": "Create a Customer Type", "steps": steps}]}
+
+    scored = await Mining().run(case, Replayed(answer))
+
+    assert scored.passed
+
+
 def test_a_doing_is_expected_to_hold_what_its_job_was_seen_to_vary() -> None:
     """Expected values are the values typed in this doing that any job of the
     same title holds as a parameter: a duplicate mined with no parameters is

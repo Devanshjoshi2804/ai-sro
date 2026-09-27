@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import secrets
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
@@ -37,6 +38,7 @@ from sro.domain.observation.window import (
 )
 from sro.domain.prompts.mine import MINE
 from sro.domain.shared.errors import NotFound
+from sro.domain.shared.hosts import origin_of
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.checks import (
@@ -57,7 +59,6 @@ from sro.domain.skill.checks import (
 from sro.domain.skill.learned import (
     K_PARAMETERS_RULE,
     LearnedParameter,
-    constants_across,
     parameters_across,
     placed_doings,
     same_control,
@@ -73,6 +74,7 @@ from sro.domain.skill.workflow import Workflow, cited_ids, is_a_chore, ordered_c
 from sro.whose import attribute
 
 __all__ = [
+    "K_BRING_IN_TRIES",
     "MineResult",
     "bring_in_parameters",
     "decide_sign_ins",
@@ -86,6 +88,8 @@ __all__ = [
     "propose",
     "rekey_workflows",
 ]
+
+K_BRING_IN_TRIES = 3
 
 logger = logging.getLogger(__name__)
 
@@ -182,34 +186,32 @@ async def learn_parameters(
         stored = await uow.workflows.get(tenant_id, known_id, lock=True)
     except NotFound:
         return 0
-    await uow.workflows.ruled(tenant_id, known_id, K_PARAMETERS_RULE)
+    read = cited_ids(stored).union(*(cited_ids(doing) for doing in doings))
+    if set(await uow.workflows.placed_on(tenant_id, known_id)) <= read:
+        await uow.workflows.ruled(tenant_id, known_id, K_PARAMETERS_RULE)
     folded = _folded(stored.parameters)
     repaired = len(folded) != len(stored.parameters)
     stored.parameters = folded
 
     occurrences = [(stored, by_id, intents), *((doing, by_id, intents) for doing in doings)]
-    chore = is_a_chore(stored)
+    systems = {origin_of(by_id[one].system or "") for one in read if one in by_id} - {""}
     found = [
         parameter
-        for parameter in (() if chore else parameters_across(occurrences))
-        if not {normal(value) for value in parameter.seen} & logins.names
+        for parameter in (() if is_a_chore(stored) else parameters_across(occurrences))
+        if not {(system, normal(name)) for system in systems for name in parameter.names}
+        & logins.labels
     ]
-    dropped = _fixed(stored, () if chore else constants_across(occurrences))
-    stored.parameters = [one for one in stored.parameters if one not in dropped]
-    if not found and not dropped:
+    if not found:
         if repaired:
             await uow.workflows.save(stored)
         return 0
-    by_name = {str(p["name"]): p for p in stored.parameters if "name" in p}
     fresh: list[dict[str, object]] = []
     widened = 0
     named = False
     told = False
     for parameter in found:
-        existing = (
-            by_name.get(parameter.name)
-            or _known_by(parameter, stored.parameters)
-            or _same_control(parameter, stored.parameters)
+        existing = _known_by(parameter, stored.parameters) or _same_control(
+            parameter, stored.parameters
         )
         if existing is None:
             fresh.append(
@@ -236,27 +238,12 @@ async def learn_parameters(
         if added:
             existing["seen_values"] = [*seen, *added]
             widened += 1
-    if not fresh and not widened and not repaired and not named and not told and not dropped:
+    if not fresh and not widened and not repaired and not named and not told:
         return 0
     stored.parameters = _folded([*stored.parameters, *fresh])
     stored.generalise_title()
     await uow.workflows.save(stored)
-    return len(fresh) + widened + len(dropped)
-
-
-def _fixed(stored: Workflow, constants: Sequence[LearnedParameter]) -> list[dict[str, object]]:
-    bound = {name for step in stored.steps for name in step.parameters}
-    return [
-        one
-        for constant in constants
-        if (
-            one := _known_by(constant, stored.parameters)
-            or _same_control(constant, stored.parameters)
-        )
-        is not None
-        and _values_of(one) <= set(constant.seen)
-        and not bound.intersection(_names_of(one))
-    ]
+    return len(fresh) + widened
 
 
 def _names_of(parameter: dict[str, object]) -> list[str]:
@@ -312,7 +299,13 @@ def _values_of(parameter: dict[str, object]) -> set[str]:
     return {str(value) for value in seen} if isinstance(seen, list) else set()
 
 
+def _controlled(parameter: dict[str, object]) -> bool:
+    return bool(parameter.get("names") or parameter.get("key"))
+
+
 def _same_typing(one: dict[str, object], other: dict[str, object]) -> bool:
+    if _controlled(one) and _controlled(other):
+        return False
     mine, theirs = _values_of(one), _values_of(other)
     if not mine or not theirs:
         return False
@@ -325,7 +318,7 @@ def _same_control(
     wanted = set(parameter.seen)
     for candidate in stored:
         was = candidate.get("seen_values")
-        if not isinstance(was, list):
+        if not isinstance(was, list) or _controlled(candidate):
             continue
         if wanted and wanted <= {str(value) for value in was}:
             return candidate
@@ -681,7 +674,7 @@ def _billed(pass_id: str, tenant_id: TenantId, started_at: str, result: MineResu
 
 
 async def fill_in_passwords(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
-    changed = 0
+    healed: list[Workflow] = []
     by_id = {gesture.id: gesture for gesture in await uow.gestures.gestures_for(tenant_id)}
     for listed in await uow.workflows.known(tenant_id):
         if not _evidenced(listed, by_id) or not _healed(listed, by_id):
@@ -690,9 +683,25 @@ async def fill_in_passwords(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
         if not _healed(workflow, by_id):
             continue
         await uow.workflows.save(workflow)
-        changed += 1
+        healed.append(workflow)
         logger.info("%s: healed the steps no model got right", workflow.title)
-    return changed
+    if healed:
+        logins = recorded_logins(await uow.workflows.known(tenant_id), by_id)
+        cites = tuple(sorted({one for job in healed for one in ordered_cites(job)}))
+        intents = {
+            one.gesture_id: one for one in await uow.gestures.intents_for(tenant_id, ids=cites)
+        }
+        for workflow in healed:
+            await learn_parameters(
+                uow,
+                tenant_id=tenant_id,
+                known_id=workflow.id,
+                doings=(),
+                by_id=by_id,
+                intents=intents,
+                logins=logins,
+            )
+    return len(healed)
 
 
 def _healed(workflow: Workflow, by_id: dict[str, Gesture]) -> int:
@@ -790,7 +799,7 @@ async def rekey_workflows(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
 
 
 async def bring_in_parameters(
-    uow: UnitOfWork, tenant_id: TenantId, jobs: Sequence[Workflow]
+    uow: UnitOfWork, tenant_id: TenantId, jobs: Sequence[Workflow], failed: Counter[str]
 ) -> int:
     known = await uow.workflows.known(tenant_id)
     placed = {job.id: await uow.workflows.placed_on(tenant_id, job.id) for job in jobs}
@@ -800,7 +809,11 @@ async def bring_in_parameters(
         by_id.update(
             {one.id: one for one in await uow.gestures.gestures_for(tenant_id, ids=missing)}
         )
-    intents = {one.gesture_id: one for one in await uow.gestures.intents_for(tenant_id)}
+    read = {one for job in jobs for one in ordered_cites(job)}.union(*placed.values())
+    intents = {
+        one.gesture_id: one
+        for one in await uow.gestures.intents_for(tenant_id, ids=tuple(sorted(read)))
+    }
     logins = recorded_logins(known, by_id)
     brought = 0
     for job in jobs:
@@ -821,5 +834,12 @@ async def bring_in_parameters(
             await uow.rollback()
         except Exception:
             await uow.rollback()
-            logger.exception("%s: could not bring in its parameters", job.title)
+            failed[job.id] += 1
+            logger.exception(
+                "%s: could not bring in its parameters (%d of %d tries%s)",
+                job.title,
+                failed[job.id],
+                K_BRING_IN_TRIES,
+                "; not tried again" if failed[job.id] >= K_BRING_IN_TRIES else "",
+            )
     return brought

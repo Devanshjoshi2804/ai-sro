@@ -67,11 +67,11 @@ def test_what_the_operator_typed_differently_is_the_parameter() -> None:
     found = parameters_across([_doing("TEST1", "a"), _doing("TEST2", "b")])
 
     # The label, because that is the name a person is shown and asked about;
-    # the input's own name is kept beside it so a doing recorded the other way
-    # is still this control.
+    # the input's own name is its key, never a name, and is what tells a doing
+    # recorded the other way that it is still this control.
     assert [p.name for p in found] == ["Client Code"], "named after the control, not the value"
     assert found[0].seen == ("TEST1", "TEST2")
-    assert "clientCode" in found[0].names, "the name the form posts it under was dropped"
+    assert found[0].key == "clientCode" and "clientCode" not in found[0].names
 
 
 def test_what_they_typed_identically_is_part_of_the_job() -> None:
@@ -89,7 +89,11 @@ def test_a_control_only_one_doing_reached_is_a_parameter_not_every_run_needs() -
     only_here.id = extra_id
     target = only_here.action.target
     if target and target.component:
-        target = replace(target, component=replace(target.component, item_id="seenOnce"))
+        target = replace(
+            target,
+            name="seenOnce",
+            component=replace(target.component, item_id="seenOnce", field_label="seenOnce"),
+        )
     only_here.action = replace(only_here.action, value="ONCE", target=target)
     first[1][extra_id] = only_here
     first[0].steps[0].cites.append(extra_id)
@@ -206,7 +210,12 @@ def test_a_control_only_the_SECOND_doing_reached_is_a_parameter_too() -> None:  
             made.action,
             target=replace(
                 made.action.target,
-                component=replace(made.action.target.component, item_id="seenOnlyInTheSecond"),
+                name="seenOnlyInTheSecond",
+                component=replace(
+                    made.action.target.component,
+                    item_id="seenOnlyInTheSecond",
+                    field_label="seenOnlyInTheSecond",
+                ),
             ),
         )
 
@@ -261,7 +270,12 @@ def test_a_gesture_that_contributes_nothing_does_not_end_the_walk() -> None:
                 made.action,
                 target=replace(
                     made.action.target,
-                    component=replace(made.action.target.component, item_id="typedAfterTheClick"),
+                    name="typedAfterTheClick",
+                    component=replace(
+                        made.action.target.component,
+                        item_id="typedAfterTheClick",
+                        field_label="typedAfterTheClick",
+                    ),
                 ),
             )
 
@@ -359,14 +373,38 @@ def test_one_field_recorded_two_ways_is_one_parameter() -> None:
 
     assert len(found) == 1, [p.name for p in found]
     assert found[0].seen == ("TEST1", "TEST2"), "the two doings were not read as one control"
-    # And it answers to both, so the doing after this recognises it either way.
-    assert set(found[0].names) == {"Client Code", "clientCode"}
+    # Its key is what the two recordings share; a name it is never given.
+    assert found[0].names == ("Client Code",) and found[0].key == "clientCode"
 
 
 def test_two_fields_that_share_a_label_stay_two() -> None:
     """The other half of the same rule. A form can carry a Description in each
-    of two sections; the page's own name for each is what says they are two,
-    and merging them would be one parameter where the job has two."""
+    of two sections; the page's own key for each is what says they are two,
+    and merging them would be one parameter where the job has two. The one
+    with an accessible name of its own is asked for by it."""
+    first, second = _doing("TEST1", "a"), _doing("TEST2", "b")
+    for doing, value in ((first, "ONE"), (second, "TWO")):
+        made = _extra(doing, "ges_other_section", at=9.0, value=value)
+        target = made.action.target
+        assert target is not None and target.component is not None
+        made.action = replace(
+            made.action,
+            target=replace(
+                target,
+                name="Other Section",
+                component=replace(target.component, item_id="otherSection"),
+            ),
+        )
+
+    found = parameters_across([first, second])
+
+    assert sorted(p.name for p in found) == ["Client Code", "Other Section"]
+
+
+def test_two_fields_nothing_but_their_key_tells_apart_stay_fixed() -> None:
+    """Never named by the page's id for them (M3 round 1), and one name for two
+    fields would type one answer into both. They stay fixed text, which the
+    console shows through `fixed_values`."""
     first, second = _doing("TEST1", "a"), _doing("TEST2", "b")
     for doing, value in ((first, "ONE"), (second, "TWO")):
         made = _extra(doing, "ges_other_section", at=9.0, value=value)
@@ -377,12 +415,7 @@ def test_two_fields_that_share_a_label_stay_two() -> None:
             target=replace(target, component=replace(target.component, item_id="otherSection")),
         )
 
-    found = parameters_across([first, second])
-
-    assert len(found) == 2, [p.name for p in found]
-    # And neither is called by the label they share, because two questions
-    # worded identically are worse than one ugly name.
-    assert sorted(p.name for p in found) == ["clientCode", "otherSection"]
+    assert parameters_across([first, second]) == ()
 
 
 # -- a field the first doing never touched -----------------------------------

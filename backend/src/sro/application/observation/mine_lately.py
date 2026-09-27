@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from itertools import groupby
@@ -8,6 +9,7 @@ from itertools import groupby
 from sro.application.context import RequestContext
 from sro.application.observation.mine_pass import MinePass
 from sro.application.observation.mining_pass import (
+    K_BRING_IN_TRIES,
     MineResult,
     bring_in_parameters,
     decide_sign_ins,
@@ -55,6 +57,7 @@ class MineLately:
         settle_seconds: float = K_SETTLE_S,
     ) -> None:
         self._uow = uow
+        self._failed: Counter[str] = Counter()
         self._pass = pass_
         self._reader = reader
         self._locks = locks
@@ -120,7 +123,8 @@ class MineLately:
     async def _bring_in(self) -> None:
         async with self._uow as uow:
             behind = await uow.workflows.behind_the_rule(K_PARAMETERS_RULE)
-        for tenant, jobs in groupby(behind, key=lambda job: job.tenant):
+        trying = [job for job in behind if self._failed[job.id] < K_BRING_IN_TRIES]
+        for tenant, jobs in groupby(trying, key=lambda job: job.tenant):
             tenant_id = TenantId(tenant)
             try:
                 async with self._locks.try_hold_named(mining_lock(tenant_id)) as held:
@@ -128,7 +132,9 @@ class MineLately:
                         logger.info("%s: being mined elsewhere; bringing it in next sweep", tenant)
                         continue
                     async with self._uow as uow:
-                        brought = await bring_in_parameters(uow, tenant_id, list(jobs))
+                        brought = await bring_in_parameters(
+                            uow, tenant_id, list(jobs), self._failed
+                        )
             except Exception:
                 logger.exception("%s: could not bring in its jobs' parameters", tenant)
                 continue

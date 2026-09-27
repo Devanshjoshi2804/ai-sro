@@ -117,4 +117,7 @@ Code: `filled = bindable(workflow, by_id)`
 > `parameters` called every such required parameter unbound, so the moment
 > typed values became parameters (M3) the jobs that gained one stopped being
 > runnable. `bindable` is the same set `undeliverable` checks a proposal
-> against, so the miner and the compiler agree on what can be filled.
+> against, so the miner and the compiler agree on what can be filled. Only
+> the controls a step types into count (M3 round 1): a required "Customer
+> Type" whose only match was a nav link of that name compiled as bound, and
+> the run then had nowhere to type it.

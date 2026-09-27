@@ -66,7 +66,6 @@ def control_names(gesture: Gesture) -> tuple[str, ...]:
     component = target.component if target else None
     found = [
         (component.field_label if component else None),
-        (component.item_id if component else None),
         (target.name if target else None),
     ]
     named: list[str] = []
@@ -94,7 +93,7 @@ def same_control(
 ) -> bool:
     if key and theirs:
         return key == theirs
-    return bool({*one} & {*other})
+    return bool({*one, key} & {*other, theirs} - {""})
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,9 +119,9 @@ def _by_control(
     found: list[_Put] = []
     for cited, gesture in acted:
         values = typed_values(gesture, intents.get(cited))
-        if not values:
+        names = control_names(gesture)
+        if not values or not names:
             continue
-        names = control_names(gesture) or (cited,)
         key = control_key(gesture)
         typed = str(gesture.action.value).strip() if gesture.action.value else ""
         put = _Put(
@@ -152,10 +151,6 @@ Occurrence = tuple[Workflow, Mapping[str, Gesture], Mapping[str, Intent]]
 
 def parameters_across(occurrences: Iterable[Occurrence]) -> tuple[LearnedParameter, ...]:
     return _told_apart([one for one, constant in _controls(occurrences) if not constant])
-
-
-def constants_across(occurrences: Iterable[Occurrence]) -> tuple[LearnedParameter, ...]:
-    return tuple(one for one, constant in _controls(occurrences) if constant)
 
 
 def _controls(occurrences: Iterable[Occurrence]) -> list[tuple[LearnedParameter, bool]]:
@@ -208,12 +203,14 @@ def _controls(occurrences: Iterable[Occurrence]) -> list[tuple[LearnedParameter,
 
 def _told_apart(found: list[LearnedParameter]) -> tuple[LearnedParameter, ...]:
     labels = [one.name for one in found]
-    return tuple(
+    told = [
         one
         if labels.count(one.name) == 1 or len(one.names) < 2
         else replace(one, name=one.names[1])
         for one in found
-    )
+    ]
+    names = [one.name for one in told]
+    return tuple(one for one in told if names.count(one.name) == 1)
 
 
 def placed_doings(

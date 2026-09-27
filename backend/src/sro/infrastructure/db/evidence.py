@@ -264,12 +264,16 @@ class SqlGestureRepository(GestureRepository):
             )
         )
 
-    async def intents_for(self, tenant_id: TenantId) -> tuple[Intent, ...]:
+    async def intents_for(
+        self, tenant_id: TenantId, *, ids: tuple[str, ...] | None = None
+    ) -> tuple[Intent, ...]:
         query = (
             select(IntentRow)
             .where(IntentRow.tenant_id == tenant_id.value)
             .execution_options(populate_existing=True)
         )
+        if ids is not None:
+            query = query.where(IntentRow.gesture_id.in_(ids))
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(_row_to_intent(row) for row in rows)
 

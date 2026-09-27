@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from collections import defaultdict
 from collections.abc import Iterable
+from typing import Any
 
 from evals.model import K_COVERS, K_OWN, Case, Scored
 from sro.application.observation.mining_pass import propose
@@ -10,11 +11,13 @@ from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.container import Container
 from sro.domain.execution.compose import normal
+from sro.domain.observation.gesture import Action, Component, Gesture, Target
 from sro.domain.observation.trim import is_secret
 from sro.domain.observation.values import frequencies_over, shared_values
 from sro.domain.observation.window import Packed, Window, as_evidence, evidence_tokens
 from sro.domain.prompts.mine import MINE
 from sro.domain.shared.identifiers import TenantId
+from sro.domain.skill.learned import parameters_across
 from sro.domain.skill.workflow import Workflow, cited_ids, is_a_chore, ordered_cites
 
 K_NOISE_S = 300.0
@@ -29,6 +32,44 @@ def _seen(workflow: Workflow) -> set[str]:
         str(value)
         for parameter in workflow.parameters
         for value in parameter.get("seen_values", [])  # type: ignore[attr-defined]
+    }
+
+
+def _gesture(one: dict[str, Any]) -> Gesture:
+    said = one["evidence"]
+    shown = said.get("gesture") if isinstance(said, dict) else None
+    shown = shown if isinstance(shown, dict) else {}
+    target = shown.get("target")
+    target = target if isinstance(target, dict) else {}
+    at = float(one["at"])
+    return Gesture(
+        id=str(one["id"]),
+        tenant="eval",
+        stream_id="",
+        batch_id="",
+        at=at,
+        url=None,
+        system=None,
+        tab_id=None,
+        frame_url=None,
+        action=Action(
+            kind=shown.get("kind") or "click",
+            at=at,
+            value=shown.get("value"),
+            target=Target(
+                name=target.get("name"),
+                component=Component(
+                    item_id=target.get("item_id"),
+                    field_label=target.get("field_label"),
+                ),
+            ),
+        ),
+    )
+
+
+def _shipped(workflow: Workflow, by_id: dict[str, Gesture]) -> set[str]:
+    return _seen(workflow) | {
+        value for one in parameters_across([(workflow, by_id, {})]) for value in one.seen
     }
 
 
@@ -102,6 +143,11 @@ class Mining:
             for one in (day if isinstance(day, list) else [])
             if isinstance(one, dict)
         ]
+        by_id = {
+            str(one["id"]): _gesture(one)
+            for one in (day if isinstance(day, list) else [])
+            if isinstance(one, dict)
+        }
         crossings = case.input.get("crossings")
         started = time.monotonic()
         proposed, answer = await propose(
@@ -118,7 +164,7 @@ class Mining:
         passed = any(
             len(wanted & cited_ids(one)) >= K_COVERS * len(wanted)
             and len(wanted & cited_ids(one)) >= K_OWN * len(cited_ids(one))
-            and values <= _seen(one)
+            and values <= _shipped(one, by_id)
             for one in proposed
         )
         return Scored(

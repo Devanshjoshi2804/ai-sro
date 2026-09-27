@@ -9,6 +9,7 @@ sweep that crashes or is stopped mid-way leaves the job to the next one.
 from __future__ import annotations
 
 import asyncio
+from collections import Counter
 from contextlib import suppress
 
 import pytest
@@ -32,7 +33,7 @@ from tests.integration.test_workflow_repositories import (
 
 async def _brings_in(session_factory: async_sessionmaker[AsyncSession], job: Workflow) -> int:
     async with SqlUnitOfWork(session_factory) as uow:
-        return await bring_in_parameters(uow, TENANT, [job])
+        return await bring_in_parameters(uow, TENANT, [job], Counter())
 
 
 async def _state(
@@ -96,7 +97,7 @@ async def test_a_field_learned_while_the_sweep_holds_the_job_lands_after_it(
         learning = asyncio.ensure_future(_learns(session_factory, job, "department"))
         await _until_it_waits_or_ends(engine, learning)
         assert not learning.done(), "the run did not wait for the sweep"
-        assert await bring_in_parameters(sweep, TENANT, [job]) == 1
+        assert await bring_in_parameters(sweep, TENANT, [job], Counter()) == 1
     await learning
 
     steps, _ = await _now(session_factory, job)

@@ -12,9 +12,16 @@ import json
 from dataclasses import replace
 from datetime import UTC, datetime
 
+from sro.application.execution.run_workflow import _under_every_name
 from sro.application.observation.mine_lately import MineLately
-from sro.application.observation.mining_pass import MineResult, mine
+from sro.application.observation.mining_pass import (
+    K_BRING_IN_TRIES,
+    MineResult,
+    fill_in_passwords,
+    mine,
+)
 from sro.domain.execution.compiled import compile_job
+from sro.domain.execution.planning import value_for
 from sro.domain.observation.gesture import Action, Body, Call, Component, Gesture, Target
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
@@ -41,6 +48,7 @@ def _gesture(
     secret: bool = False,
     required: bool | None = None,
     body: dict[str, str] | None = None,
+    item_id: str | None = None,
 ) -> Gesture:
     requests = (
         []
@@ -75,7 +83,9 @@ def _gesture(
                 name=label,
                 secret=secret,
                 required=required,
-                component=Component(field_label=label) if label and not secret else None,
+                component=Component(field_label=label, item_id=item_id)
+                if (label or item_id) and not secret
+                else None,
             ),
         ),
         requests=requests,
@@ -84,7 +94,8 @@ def _gesture(
 
 def _customer_type(n: str, at: float, code: str, says: str, bill_to: str) -> list[Gesture]:
     """One doing, eleven steps: four typed values, the operator's own username
-    typed into a box, and a password confirmed."""
+    typed into the box the recorded sign-in calls "username", and a password
+    confirmed."""
     return [
         _gesture(f"{n}00", at + 0, "click", label="Masters"),
         _gesture(f"{n}01", at + 1, "click", label="Customer Types"),
@@ -93,7 +104,7 @@ def _customer_type(n: str, at: float, code: str, says: str, bill_to: str) -> lis
         _gesture(f"{n}04", at + 4, "type", label="Description", value=says),
         _gesture(f"{n}05", at + 5, "type", label="Short Description", value=code[:2]),
         _gesture(f"{n}06", at + 6, "select", label="Bill To", value=bill_to),
-        _gesture(f"{n}07", at + 7, "type", label="Created By", value=USERNAME),
+        _gesture(f"{n}07", at + 7, "type", label="username", value=USERNAME),
         _gesture(f"{n}08", at + 8, "type", label="Confirm Password", secret=True),
         _gesture(f"{n}09", at + 9, "click", label="Save", body={"code": code, "billTo": bill_to}),
         _gesture(f"{n}10", at + 10, "click", label="Close"),
@@ -211,20 +222,175 @@ async def test_a_value_two_doings_typed_identically_stays_fixed_and_one_that_dif
     assert _named(job) == {"Customer Type": ["GT7", "RL2"], "Short Description": ["GT", "RL"]}
 
 
-async def test_a_value_one_doing_could_not_tell_from_a_constant_is_fixed_by_the_next() -> None:
+def _doing(n: str, at: float, *typed: tuple[str, str]) -> list[Gesture]:
+    """One doing that types each (label, value) and saves."""
+    return [
+        *(
+            _gesture(f"{n}{k:02}", at + k, "type", label=label, value=value)
+            for k, (label, value) in enumerate(typed)
+        ),
+        _gesture(f"{n}99", at + 99, "click", label="Save"),
+    ]
+
+
+def _proposed_one(doing: list[Gesture], title: str = "Move stock") -> dict[str, object]:
+    return {**_proposed(doing), "title": title}
+
+
+async def test_a_parameter_survives_a_later_doing_that_typed_its_first_value_again() -> None:
+    """Mined from one doing with Warehouse=WH1, run with WH2 to WH5 (runs write
+    no seen_values), then done by hand once more with WH1: the parameter the
+    operator relies on is never taken back, or the next run would type WH1
+    whatever its request asked."""
+    uow = FakeUnitOfWork()
+    first = _doing("wh_a_", 5000.0, ("Warehouse", "WH1"), ("SKU", "A-1"))
+    await uow.gestures.add_gestures(tuple(first))
+    await _mine(uow, _proposed_one(first))
+    assert _named(await _work(uow)) == {"Warehouse": ["WH1"], "SKU": ["A-1"]}
+    again = _doing("wh_b_", 90_000.0, ("Warehouse", "WH1"), ("SKU", "B-2"))
+    await uow.gestures.add_gestures(tuple(again))
+
+    await _mine(uow, _proposed_one(again))
+
+    assert _named(await _work(uow)) == {"Warehouse": ["WH1"], "SKU": ["A-1", "B-2"]}
+
+
+async def test_two_fields_typed_with_one_value_are_two_parameters_each_with_its_answer() -> None:
+    uow = FakeUnitOfWork()
+    doing = _doing("qp_a_", 5000.0, ("Quantity", "1"), ("Priority", "1"), ("SKU", "A-9"))
+    await uow.gestures.add_gestures(tuple(doing))
+
+    await _mine(uow, _proposed_one(doing))
+
+    job = await _work(uow)
+    assert _named(job) == {"Quantity": ["1"], "Priority": ["1"], "SKU": ["A-9"]}
+    values = _under_every_name(job, {"Quantity": "5", "Priority": "2", "SKU": "Z-1"})
+    by_id = {one.id: one for one in doing}
+    typed = {
+        by_id[step.cites[0]].action.target.name: value_for(step, by_id[step.cites[0]], values, None)
+        for step in job.steps
+        if by_id[step.cites[0]].action.kind == "type"
+    }
+    assert typed == {"Quantity": "5", "Priority": "2", "SKU": "Z-1"}
+
+
+async def test_a_parameter_a_model_named_and_another_field_with_its_value_stay_two() -> None:
+    """QA: Code = Description, "Y"/"Y", "EA"/"EA". A stored parameter that
+    names its control is matched by that control, never by a value."""
+    uow = FakeUnitOfWork()
+    doing = _doing("cd_a_", 5000.0, ("Code", "Y"), ("Description", "Y"))
+    await uow.gestures.add_gestures(tuple(doing))
+    proposal = {
+        **_proposed_one(doing),
+        "parameters": [{"name": "Code", "names": ["Code"], "seen_values": ["Y"]}],
+    }
+    proposal["steps"][0]["parameters"] = ["Code"]
+
+    await _mine(uow, proposal)
+
+    assert _named(await _work(uow)) == {"Code": ["Y"], "Description": ["Y"]}
+
+
+async def test_a_field_with_no_label_and_no_name_stays_fixed_text() -> None:
+    """Named by its label, else its accessible name; never by the page's id for
+    it or by the gesture's id. A required box with neither would otherwise be
+    asked for as "ges_..." and make the job unrunnable."""
+    uow = FakeUnitOfWork()
+    doing = [
+        _gesture("un_a_00", 5000.0, "type", value="Z-77", required=True),
+        _gesture("un_a_01", 5001.0, "type", value="Q-12", item_id="combo-1034-inputEl"),
+        _gesture("un_a_02", 5002.0, "type", label="Note", value="hello"),
+        _gesture("un_a_99", 5099.0, "click", label="Save"),
+    ]
+    await uow.gestures.add_gestures(tuple(doing))
+
+    await _mine(uow, _proposed_one(doing))
+
+    job = await _work(uow)
+    assert _named(job) == {"Note": ["hello"]}
+    compiled = compile_job(job, {one.id: one for one in doing}, learned={}, ledger=(), broken=())
+    assert "unbound_parameter" not in [one.code for one in compiled.reasons], compiled.reasons
+
+
+def test_a_required_parameter_only_a_click_names_is_unbound() -> None:
+    """A nav link named "Customer Type" fills nothing: only a control a step
+    types into binds a parameter."""
+    doing = [
+        _gesture("nv_00", 1.0, "click", label="Customer Type"),
+        _gesture("nv_01", 2.0, "type", label="Description", value="Rail"),
+    ]
+    job = replace(
+        _stored(doing),
+        parameters=[
+            {"name": "Customer Type", "names": ["Customer Type"], "required": True},
+            {"name": "Description", "names": ["Description"], "required": True},
+        ],
+    )
+
+    compiled = compile_job(job, {one.id: one for one in doing}, learned={}, ledger=(), broken=())
+
+    assert [one.detail for one in compiled.reasons if one.code == "unbound_parameter"] == [
+        "Customer Type is required and no step fills it"
+    ]
+
+
+async def test_a_box_holding_the_username_is_input_unless_it_is_the_sign_ins_own_box() -> None:
+    """A business box that happens to hold the operator's username ("Created
+    By") is the operator's input; the box the recorded sign-in types its
+    username into, on the system it signs in to, is a credential."""
+    uow = FakeUnitOfWork()
+    await _with_a_recorded_sign_in(uow)
+    doing = _doing("cb_a_", 5000.0, ("Created By", USERNAME), ("username", USERNAME))
+    await uow.gestures.add_gestures(tuple(doing))
+
+    await _mine(uow, _proposed_one(doing))
+
+    assert _named(await _work(uow)) == {"Created By": [USERNAME]}
+
+
+async def test_a_healed_job_gets_the_rule_and_a_chore_keeps_what_it_had() -> None:
+    uow = FakeUnitOfWork()
+    doing = _customer_type("ct_a_", 5000.0, "GT7", "Ground transport", "Bill-To Customer")
+    await uow.gestures.add_gestures(tuple(doing))
+    await uow.workflows.save(_stored(doing, signs_in=None))
+    await uow.gestures.add_gestures(tuple(_sign_in("h", user=USERNAME).values()))
+    kept = [{"name": "Legacy", "names": ["Legacy"], "seen_values": ["x"]}]
+    await uow.workflows.save(replace(_signing_in_job("h", signs_in=False), parameters=kept))
+
+    assert await fill_in_passwords(uow, tenant_id=TENANT) == 2
+
+    healed = await uow.workflows.get(TENANT, "wfl_ct")
+    assert set(_named(healed)) == {"Customer Type", "Description", "Short Description", "Bill To"}
+    chore = await uow.workflows.get(TENANT, "wfl_h")
+    assert chore.signs_in is True and chore.parameters == kept
+
+
+async def test_the_rule_is_stamped_only_once_every_placed_doing_was_read() -> None:
+    """A pass reads the stored job and the doing it just recognised. A job with
+    other doings placed on it has not had those read, so the sweep still owes
+    it the rule; a new job has no other doing and is done."""
     uow = FakeUnitOfWork()
     first = _customer_type("ct_a_", 5000.0, "GT7", "Ground transport", "Bill-To Customer")
-    await uow.gestures.add_gestures(tuple(first))
-    await _mine(uow, _proposed(first))
-    assert "Bill To" in _named(await _work(uow))
+    older = _customer_type("ct_o_", 7000.0, "OL1", "Old", "Bill-To Customer")
+    await uow.gestures.add_gestures(tuple(first + older))
+    await uow.workflows.save(_stored(first))
+    await uow.workflows.place(TENANT, "wfl_ct", tuple(one.id for one in older))
     again = _customer_type("ct_b_", 90_000.0, "RL2", "Rail", "Bill-To Customer")
     await uow.gestures.add_gestures(tuple(again))
 
     await _mine(uow, _proposed(again))
 
-    named = _named(await _work(uow))
-    assert "Bill To" not in named and "Created By" not in named
-    assert named["Customer Type"] == ["GT7", "RL2"]
+    assert "wfl_ct" not in uow.workflows.rules
+    assert "RL2" in _named(await _work(uow))["Customer Type"]
+    await _swept(uow)
+    assert uow.workflows.rules["wfl_ct"] == K_PARAMETERS_RULE
+    assert _named(await _work(uow))["Customer Type"] == ["GT7", "RL2", "OL1"]
+
+    alone = FakeUnitOfWork()
+    fresh = _doing("wh_a_", 5000.0, ("Warehouse", "WH1"))
+    await alone.gestures.add_gestures(tuple(fresh))
+    await _mine(alone, _proposed_one(fresh))
+    assert alone.workflows.rules[(await _work(alone)).id] == K_PARAMETERS_RULE
 
 
 async def test_a_parameter_a_step_names_or_that_was_ever_different_is_never_fixed() -> None:
@@ -272,7 +438,7 @@ def _stored(doing: list[Gesture], **over: object) -> Workflow:
     )
 
 
-async def _swept(uow: FakeUnitOfWork, locks: FakeAccountLocks | None = None) -> None:
+def _sweeper(uow: FakeUnitOfWork, locks: FakeAccountLocks | None = None) -> MineLately:
     class _Nothing:
         async def execute(self, ctx: object) -> MineResult:
             return MineResult()
@@ -281,9 +447,11 @@ async def _swept(uow: FakeUnitOfWork, locks: FakeAccountLocks | None = None) -> 
         async def execute(self, ctx: object) -> int:
             return 0
 
-    await MineLately(
-        uow, _Nothing(), _NothingRead(), locks or FakeAccountLocks(), window_hours=24
-    ).execute(now=NOW)
+    return MineLately(uow, _Nothing(), _NothingRead(), locks or FakeAccountLocks(), window_hours=24)
+
+
+async def _swept(uow: FakeUnitOfWork, locks: FakeAccountLocks | None = None) -> None:
+    await _sweeper(uow, locks).execute(now=NOW)
 
 
 async def test_the_sweep_brings_an_existing_job_in_once() -> None:
@@ -377,3 +545,54 @@ async def test_a_tenant_being_mined_elsewhere_is_brought_in_next_sweep() -> None
     locks.busy.clear()
     await _swept(uow, locks)
     assert uow.workflows.rules["wfl_ct"] == K_PARAMETERS_RULE
+
+
+async def test_a_job_that_always_fails_is_tried_a_bounded_number_of_times() -> None:
+    uow = FakeUnitOfWork()
+    doing = _customer_type("ct_a_", 5000.0, "GT7", "Ground transport", "Bill-To Customer")
+    await uow.gestures.add_gestures(tuple(doing))
+    await uow.workflows.save(_stored(doing, id="wfl_bad"))
+    tried = 0
+
+    async def _refuses(tenant_id: TenantId, workflow_id: str, rule: int) -> bool:
+        nonlocal tried
+        tried += 1
+        raise RuntimeError("the store refused")
+
+    uow.workflows.ruled = _refuses  # type: ignore[method-assign]
+    reads = 0
+    reading = uow.gestures.gestures_for
+
+    async def _counted(*args: object, **kwargs: object) -> tuple[Gesture, ...]:
+        nonlocal reads
+        reads += 1
+        return await reading(*args, **kwargs)
+
+    sweeper = _sweeper(uow)
+    for _ in range(K_BRING_IN_TRIES):
+        await sweeper.execute(now=NOW)
+    uow.gestures.gestures_for = _counted  # type: ignore[method-assign]
+    await sweeper.execute(now=NOW)
+
+    assert tried == K_BRING_IN_TRIES
+    assert reads == 0, "a job given up on no longer costs a read of the evidence"
+
+
+async def test_the_sweep_reads_only_the_readings_of_the_jobs_it_brings_in() -> None:
+    uow = FakeUnitOfWork()
+    doing = _customer_type("ct_a_", 5000.0, "GT7", "Ground transport", "Bill-To Customer")
+    elsewhere = _doing("zz_a_", 900_000.0, ("Note", "unrelated"))
+    await uow.gestures.add_gestures(tuple(doing + elsewhere))
+    await uow.workflows.save(_stored(doing))
+    asked: list[tuple[str, ...] | None] = []
+    reading = uow.gestures.intents_for
+
+    async def _spied(tenant_id: TenantId, *, ids: tuple[str, ...] | None = None) -> tuple:
+        asked.append(ids)
+        return await reading(tenant_id, ids=ids)
+
+    uow.gestures.intents_for = _spied  # type: ignore[method-assign]
+
+    await _swept(uow)
+
+    assert asked and all(ids is not None and set(ids) <= {g.id for g in doing} for ids in asked)

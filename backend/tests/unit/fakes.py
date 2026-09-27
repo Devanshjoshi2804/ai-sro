@@ -2116,8 +2116,14 @@ class FakeGestureRepository:
         # second reading: the row is replaced, not appended to.
         self.read_at[intent.gesture_id] = datetime.now(tz=UTC)
 
-    async def intents_for(self, tenant_id: TenantId) -> tuple[Intent, ...]:
-        return tuple(intent for intent in self.intents.values() if intent.tenant == tenant_id.value)
+    async def intents_for(
+        self, tenant_id: TenantId, *, ids: tuple[str, ...] | None = None
+    ) -> tuple[Intent, ...]:
+        return tuple(
+            intent
+            for intent in self.intents.values()
+            if intent.tenant == tenant_id.value and (ids is None or intent.gesture_id in ids)
+        )
 
     async def intents_since(self, tenant_id: TenantId, *, since: str) -> tuple[Intent, ...]:
         # On instants, never on the ISO text: the store compares timestamps,

@@ -23,12 +23,14 @@ Code: `not give. A value stated against a name -- "customer type :- RRF", "code:
 
 > Two sentences added for greyorange's real chat (amendment 2): a value
 > stated against a name ("customer type :- RRF") belongs to that field and no
-> other, and a sign-in username or password is never a job's value. Code
+> other, and the operator's own sign-in username or password is never a job's
+> value -- scoped to the operator's login, so a job's own Username field (a
+> WMS Create-a-User) is still filled (R1 review, M12). Code
 > enforces both anyway (`domain.chat.request._placed`); the prompt says them
 > so the model does not spend its answer on them. The fourth edge case is the
 > real Customer Type message that was asked "which job?" against Reply to Email.
 
-## module, [line 67](../../../../../../../backend/src/sro/domain/prompts/read_request.py#L67): Comment
+## module, [line 68](../../../../../../../backend/src/sro/domain/prompts/read_request.py#L68): Comment
 
 Code: `"sure": {"type": "boolean"},`
 
@@ -46,7 +48,7 @@ Code: `"sure": {"type": "boolean"},`
 > of these jobs plainly. `also` is what it nearly said instead, which
 > is what a person is asked to choose between.
 
-## module, [line 69](../../../../../../../backend/src/sro/domain/prompts/read_request.py#L69): Comment
+## module, [line 70](../../../../../../../backend/src/sro/domain/prompts/read_request.py#L70): Comment
 
 Code: `"values": {"type": "array", "items": _VALUE},`
 
@@ -57,7 +59,7 @@ Code: `"values": {"type": "array", "items": _VALUE},`
 > value is exactly that. Found the first time this door met the real
 > API, which it had shipped without ever doing.
 
-## module, [line 70](../../../../../../../backend/src/sro/domain/prompts/read_request.py#L70): Comment
+## module, [line 71](../../../../../../../backend/src/sro/domain/prompts/read_request.py#L71): Comment
 
 Code: `"items": {`
 

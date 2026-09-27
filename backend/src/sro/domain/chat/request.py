@@ -5,8 +5,9 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from sro.domain.execution.compose import normal
-from sro.domain.execution.field_classes import FieldClass
+from sro.domain.execution.field_classes import FieldClass, FieldLimits
 from sro.domain.prompts.record import quoted_in
+from sro.domain.skill.signing_in import Logins
 
 K_CANDIDATES = 8
 
@@ -21,7 +22,7 @@ class Candidate:
     aliases: Mapping[str, str]
     seen: Mapping[str, tuple[str, ...]]
     asked_by: tuple[str, ...] = ()
-    logins: frozenset[str] = frozenset()
+    logins: Logins = field(default_factory=Logins)
 
     @property
     def parameters(self) -> tuple[str, ...]:
@@ -55,17 +56,44 @@ def field_of(said: str, candidate: Candidate) -> tuple[str, bool] | None:
     return None
 
 
-def _names(quote: str, candidate: Candidate) -> set[str]:
-    said = normal(quote)
-    wordings = [
+def _says(said: str, wording: str) -> bool:
+    key = normal(wording)
+    return bool(key) and re.search(rf"(?<!\w){re.escape(key)}(?!\w)", normal(said)) is not None
+
+
+def _rest(value: str, quote: str) -> str | None:
+    spaced = " ".join(quote.split())
+    whole = rf"(?<!\w){re.escape(' '.join(value.split()))}(?!\w)"
+    rest, found = re.subn(whole, " ", spaced, count=1)
+    return rest if found else None
+
+
+def _wordings(candidate: Candidate) -> list[tuple[str, str]]:
+    return [
         *((label, one.name) for one in candidate.fields for label in (one.name, *one.labels)),
         *candidate.aliases.items(),
     ]
-    return {
-        name
-        for label, name in wordings
-        if normal(label) and re.search(rf"(?<!\w){re.escape(normal(label))}(?!\w)", said)
-    }
+
+
+def _names(said: str, candidate: Candidate) -> set[str]:
+    return {name for label, name in _wordings(candidate) if _says(said, label)}
+
+
+def _signing(value: str, rest: str, logins: Logins, own: frozenset[str]) -> bool:
+    return normal(value) in logins.names or any(_says(rest, label) for label in logins.labels - own)
+
+
+def refusal(
+    value: str,
+    quote: str,
+    limits: FieldLimits,
+    logins: Logins,
+    own: frozenset[str] = frozenset(),
+) -> str:
+    rest = _rest(value, quote)
+    if rest is None:
+        return "not in what was said"
+    return K_A_LOGIN if _signing(value, rest, logins, own) else limits.refuses(value)
 
 
 def _entries(raw: object) -> list[Mapping[str, object]]:
@@ -76,25 +104,22 @@ def _placed(raw: object, job: Candidate, thread: str, read: Read) -> tuple[dict[
     values: dict[str, str] = {}
     clean = True
     limits = {one.name: one.limits for one in job.fields}
+    own = frozenset(normal(label) for label, _ in _wordings(job))
     for one in _entries(raw):
         said, value, quote = (str(one.get(key) or "") for key in ("field", "value", "quote"))
-        if not value.strip() or not quoted_in(quote, thread) or not quoted_in(value, quote):
+        rest = _rest(value, quote)
+        if not value.strip() or not quoted_in(quote, thread) or rest is None:
             clean = False
             continue
         placed = field_of(said, job)
-        login = normal(value) in job.logins
         if placed is None or not placed[1]:
-            if not login:
+            if not _signing(value, rest, job.logins, own):
                 read.aside[said if placed is None else placed[0]] = value
             continue
         name = placed[0]
-        named = _names(quote, job)
-        why = (
-            K_A_LOGIN
-            if login
-            else f"its quote names {', '.join(sorted(named))}"
-            if named and name not in named
-            else limits[name].refuses(value)
+        named = _names(rest, job)
+        why = refusal(value, quote, limits[name], job.logins, own) or (
+            f"its quote names {', '.join(sorted(named))}" if named and name not in named else ""
         )
         if why:
             read.refused[name] = why
@@ -104,7 +129,7 @@ def _placed(raw: object, job: Candidate, thread: str, read: Read) -> tuple[dict[
 
 
 def _fills(job: Candidate, named: set[str]) -> bool:
-    return job.required <= named
+    return bool(named) and named <= set(job.parameters) and job.required <= named
 
 
 def read_of(data: Mapping[str, object], candidates: Sequence[Candidate], thread: str) -> Read:
@@ -135,13 +160,9 @@ def read_of(data: Mapping[str, object], candidates: Sequence[Candidate], thread:
     if settled:
         read.also = []
     supplied = [{**read.values, **one} for one in things] or [read.values]
-    read.missing = sorted(
-        name
-        for name in job.required | set(read.refused)
-        if any(name not in one for one in supplied)
-    )
+    read.missing = sorted(name for name in job.required if any(name not in one for one in supplied))
     read.sure = (data.get("sure") is True or settled) and clean and not read.also
     return read
 
 
-__all__ = ["K_A_LOGIN", "K_CANDIDATES", "Candidate", "Read", "field_of", "read_of"]
+__all__ = ["K_A_LOGIN", "K_CANDIDATES", "Candidate", "Read", "field_of", "read_of", "refusal"]

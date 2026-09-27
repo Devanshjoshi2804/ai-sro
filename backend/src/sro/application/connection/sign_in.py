@@ -18,8 +18,9 @@ from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.execution.secrets import secret_key_of
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.errors import Conflict, DomainError
+from sro.domain.shared.identifiers import TenantId
 from sro.domain.skill.checks import K_SITTING_GAP_S
-from sro.domain.skill.signing_in import RecordedLogin, recorded_login
+from sro.domain.skill.signing_in import Logins, RecordedLogin, recorded_login, recorded_logins
 from sro.domain.skill.skill import Skill
 from sro.domain.skill.workflow import Workflow, ordered_cites
 
@@ -239,26 +240,30 @@ def _is_a_login(skill: Skill) -> bool:
 async def _recorded(
     uow: UnitOfWork, ctx: RequestContext, connection: Connection
 ) -> RecordedLogin | None:
-    tagged, seen = await tagged_logins(uow, ctx)
+    tagged, seen = await tagged_logins(uow, ctx.tenant_id)
     return recorded_login(connection.base_url, tagged, seen)
 
 
+async def logins_of(uow: UnitOfWork, tenant_id: TenantId) -> Logins:
+    return recorded_logins(*await tagged_logins(uow, tenant_id))
+
+
 async def tagged_logins(
-    uow: UnitOfWork, ctx: RequestContext
+    uow: UnitOfWork, tenant_id: TenantId
 ) -> tuple[list[Workflow], dict[str, Gesture]]:
     async with uow:
-        known = await uow.workflows.known(ctx.tenant_id)
+        known = await uow.workflows.known(tenant_id)
         tagged = [job for job in known if job.signs_in]
         cited = tuple(sorted({one for job in tagged for one in ordered_cites(job)}))
         seen = {
             one.id: one
-            for one in (await uow.gestures.gestures_for(ctx.tenant_id, ids=cited) if cited else ())
+            for one in (await uow.gestures.gestures_for(tenant_id, ids=cited) if cited else ())
         }
         for job in tagged:
             times = [seen[one].at for one in ordered_cites(job) if one in seen]
             if times:
                 after = await uow.gestures.gestures_for(
-                    ctx.tenant_id, after=min(times), before=max(times) + K_SITTING_GAP_S
+                    tenant_id, after=min(times), before=max(times) + K_SITTING_GAP_S
                 )
                 seen.update({one.id: one for one in after})
     return tagged, seen

@@ -1,5 +1,7 @@
-from sro.domain.chat.request import Candidate, field_of, read_of
+from sro.domain.chat.asking import Pending, answered
+from sro.domain.chat.request import K_A_LOGIN, Candidate, field_of, read_of
 from sro.domain.execution.field_classes import FieldClass, FieldLimits
+from sro.domain.skill.signing_in import Logins
 
 THREAD = "Hi, please set up a new client category GT7 for Finance. Thanks"
 
@@ -210,7 +212,7 @@ def test_a_sign_in_name_is_never_a_job_value() -> None:
         fields=(FieldClass("Address", "required", ("Address",), FieldLimits()),),
         aliases={},
         seen={},
-        logins=frozenset({"rkuchiyagm"}),
+        logins=Logins(names=frozenset({"rkuchiyagm"})),
     )
     read = read_of(
         {
@@ -253,3 +255,147 @@ def test_one_thing_with_a_bad_value_keeps_the_others() -> None:
     )
     assert read.items == [{"Customer Type": "GT1"}, {"Customer Type": "GT3"}]
     assert read.sure is False
+
+
+# --- review round 1 ----------------------------------------------------------
+
+
+def test_a_value_is_in_its_quote_only_whole_and_in_the_same_case() -> None:
+    """A truncation ("RR" of "RRF") or a recased value ("rrf") is never taken."""
+    thread = "customer type :- RRF"
+    for value in ("RR", "rrf"):
+        read = read_of(
+            {
+                "job": "wfl_ct",
+                "sure": True,
+                "values": [_value("customer type", value, "customer type :- RRF")],
+            },
+            [CUSTOMER_TYPE],
+            thread,
+        )
+        assert read.values == {} and read.sure is False, value
+
+
+ZERO = Candidate(id="wfl_nav", title="Navigate to Receiving", fields=(), aliases={}, seen={})
+
+
+def test_a_job_with_no_fields_never_competes_with_the_job_the_stated_values_settle() -> None:
+    thread = "customer type :- RRF and description :- is the work of cutomer is RRF"
+    read = read_of(
+        {
+            "job": "wfl_ct",
+            "sure": False,
+            "also": ["wfl_nav"],
+            "values": [
+                _value("customer type", "RRF", "customer type :- RRF"),
+                _value(
+                    "description",
+                    "is the work of cutomer is RRF",
+                    "description :- is the work of cutomer is RRF",
+                ),
+            ],
+        },
+        [CUSTOMER_TYPE, ZERO],
+        thread,
+    )
+    assert (read.also, read.sure, read.missing) == ([], True, [])
+
+
+def test_no_stated_value_settles_nothing() -> None:
+    read = read_of(
+        {"job": "wfl_nav", "sure": False, "also": ["wfl_ct"], "values": []},
+        [ZERO, CUSTOMER_TYPE],
+        "go to receiving",
+    )
+    assert (read.also, read.sure) == (["wfl_ct"], False)
+
+
+def test_a_refused_optional_value_is_dropped_never_asked_for() -> None:
+    """thr_c563: Manufacturer "whatever we have" was refused, then asked for."""
+    thread = "customer type RRF, description first run, manufacturer whatever we have"
+    read = read_of(
+        {
+            "job": "wfl_ct",
+            "sure": True,
+            "values": [
+                _value("customer type", "RRF", "customer type RRF"),
+                _value("description", "first run", "description first run"),
+                _value("manufacturer", "whatever we have", "manufacturer whatever we have"),
+            ],
+        },
+        [CUSTOMER_TYPE],
+        thread,
+    )
+    assert read.refused == {"Manufacturer": "longer than 10 characters"}
+    assert read.missing == [] and "Manufacturer" not in read.values
+
+
+def test_a_value_that_names_a_field_itself_is_still_that_value() -> None:
+    thread = "description: returns customer type"
+    read = read_of(
+        {
+            "job": "wfl_ct",
+            "sure": True,
+            "values": [
+                _value("description", "returns customer type", "returns customer type"),
+            ],
+        },
+        [CUSTOMER_TYPE],
+        thread,
+    )
+    assert read.values == {"Customer Type Description": "returns customer type"}
+    assert read.refused == {}
+
+
+SIGNED = Logins(names=frozenset({"rkuchiyagm"}), labels=frozenset({"username"}))
+
+
+def test_a_username_the_thread_states_is_never_a_job_value_nor_carried_aside() -> None:
+    client = Candidate(
+        id="wfl_client",
+        title="Create a Client",
+        fields=(FieldClass("Address", "required", ("Address",), FieldLimits()),),
+        aliases={},
+        seen={},
+        logins=SIGNED,
+    )
+    thread = "username QATEST01, please add the client"
+    read = read_of(
+        {
+            "job": "wfl_client",
+            "sure": True,
+            "values": [
+                _value("Address", "QATEST01", "username QATEST01"),
+                _value("username", "QATEST01", "username QATEST01"),
+            ],
+        },
+        [client],
+        thread,
+    )
+    assert read.values == {} and read.aside == {}
+    assert read.refused == {"Address": K_A_LOGIN}
+
+
+def test_a_job_s_own_username_field_is_filled_like_any_other() -> None:
+    """A WMS Create-a-User job: its Username is the new user's, not a login."""
+    user = Candidate(
+        id="wfl_user",
+        title="Create a User",
+        fields=(FieldClass("Username", "required", ("Username",), FieldLimits()),),
+        aliases={},
+        seen={},
+        logins=SIGNED,
+    )
+    read = read_of(
+        {"job": "wfl_user", "sure": True, "values": [_value("username", "JDOE", "username JDOE")]},
+        [user],
+        "new user, username JDOE",
+    )
+    assert read.values == {"Username": "JDOE"} and read.sure is True
+
+
+def test_a_chat_answer_that_is_a_sign_in_name_is_not_taken() -> None:
+    """thr_163b in chat: a bare "RKUCHIYAGM" under a pending Address question."""
+    pending = Pending("wfl_client", "Create a Client", {}, ("Address",))
+    assert answered(pending, "RKUCHIYAGM", SIGNED) == pending
+    assert answered(pending, "12 Main St", SIGNED).values == {"Address": "12 Main St"}

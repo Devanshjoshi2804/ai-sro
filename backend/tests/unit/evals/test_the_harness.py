@@ -16,6 +16,9 @@ from evals.suites.reader import Reader
 from sro.domain.prompts.mine import MINE
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow
+from tests import factories as f
+from tests.unit.domain.rig.test_asked_by import _gesture, _job
+from tests.unit.fakes import FakeUnitOfWork
 
 
 def _report(accuracy: float, wrong: float, cost: float) -> Report:
@@ -412,3 +415,26 @@ def test_a_limit_is_at_least_one_and_never_a_baseline() -> None:
         with pytest.raises(SystemExit):
             arguments(argv)
     assert arguments(["run", "--suite", "mining", "--tenant", "t", "--limit", "3"]).limit == 3
+
+
+async def test_a_sign_in_job_s_mails_are_no_reader_case() -> None:
+    """A sign-in job is never a candidate, so a case expecting it scores as a
+    miss the reader could never avoid."""
+    uow = FakeUnitOfWork()
+    mails = {
+        one: replace(
+            _gesture(one, said=f"please {one}: customer type GGD for north", at=n), tenant="acme"
+        )
+        for n, one in enumerate(("m-work", "m-login"))
+    }
+    async with uow:
+        await uow.workflows.save(replace(_job(["m-work"]), id="wfl_work", tenant="acme"))
+        await uow.workflows.save(
+            replace(_job(["m-login"]), id="wfl_login", tenant="acme", title="Log in", signs_in=True)
+        )
+        await uow.gestures.add_gestures(tuple(mails.values()))
+        await uow.commit()
+
+    cases = await Reader().cases(uow, f.TENANT)
+
+    assert [one.id.split(":")[0] for one in cases] == ["wfl_work"]

@@ -8,33 +8,12 @@ from sro.application.skill.job_facts import JobFacts
 from sro.domain.chat.asked_by import mails_behind, texts
 from sro.domain.chat.request import K_CANDIDATES, Candidate
 from sro.domain.execution.compose import alias_map, normal
-from sro.domain.observation.trim import is_secret
-from sro.domain.skill.workflow import ordered_cites
+from sro.domain.skill.signing_in import Logins
 
 _NONE: Mapping[str, int] = MappingProxyType({})
 
 
-def sign_in_names(facts: Sequence[JobFacts]) -> frozenset[str]:
-    names: set[str] = set()
-    for one in facts:
-        typed = ""
-        cited = [
-            one.by_id[cite]
-            for cite in dict.fromkeys(ordered_cites(one.workflow))
-            if cite in one.by_id
-        ]
-        for gesture in sorted(cited, key=lambda gesture: gesture.at):
-            if is_secret(gesture):
-                names |= {normal(typed)} - {""}
-                typed = ""
-            elif gesture.action.kind == "type":
-                typed = gesture.action.value or ""
-    return frozenset(names)
-
-
-def candidate_of(
-    facts: JobFacts, *, leave_out: str = "", logins: frozenset[str] = frozenset()
-) -> Candidate:
+def candidate_of(facts: JobFacts, *, leave_out: str = "", logins: Logins = Logins()) -> Candidate:
     job = facts.workflow
     return Candidate(
         id=job.id,
@@ -57,9 +36,9 @@ def _said_about(facts: JobFacts) -> frozenset[str]:
     return words(" ".join([candidate.title, *labels, *candidate.aliases, *candidate.asked_by]))
 
 
-def _first(one: JobFacts, held: Mapping[str, int]) -> tuple[int, int, int, str]:
+def _first(one: JobFacts, held: Mapping[str, int]) -> tuple[int, int, str]:
     job = one.workflow
-    return -one.compiled.runnable, -len(job.parameters), -held.get(job.id, 0), job.id
+    return -len(job.parameters), -held.get(job.id, 0), job.id
 
 
 def rank_jobs(
@@ -88,4 +67,4 @@ def chore_named(said: str, facts: Sequence[JobFacts]) -> JobFacts | None:
     return best if best is not None and overlap[best.workflow.id] > work else None
 
 
-__all__ = ["candidate_of", "chore_named", "rank_jobs", "sign_in_names"]
+__all__ = ["candidate_of", "chore_named", "rank_jobs"]

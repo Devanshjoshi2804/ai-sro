@@ -24,6 +24,8 @@ from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.template import Template
 from sro.domain.skill.workflow import Step, Workflow
 from tests import factories as f
+from tests.unit.domain.test_the_recorded_login import _job as _login_job
+from tests.unit.domain.test_the_recorded_login import _sign_in
 from tests.unit.fakes import FakeClock, FakeEmbedder, FakeIdFactory, FakeUnitOfWork
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
@@ -1115,6 +1117,27 @@ async def test_an_answer_the_box_will_not_hold_is_asked_about_again() -> None:
     assert last.decision["missing"] == ["Customer Type"]
     assert last.decision["values"] == {}
     assert last.decision["limits"] == {"Customer Type": 4}
+
+
+async def test_an_answer_that_is_the_operator_s_sign_in_name_is_never_the_value() -> None:
+    """thr_163b: a bare "RKUCHIYAGM" typed under a pending question was stored
+    as Address. The recorded login is refused here as the reader refuses it."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    async with uow:
+        await uow.workflows.save(_login_job("a"))
+        await uow.gestures.add_gestures(
+            tuple(_sign_in("a", "RKUCHIYAGM", "https://wms.example").values())
+        )
+        await uow.commit()
+    converse, thread_id = await _asked_with_limits(uow, ["Customer Type"], {})
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="RKUCHIYAGM")
+
+    last = said.messages[-1]
+    assert last.decision is not None
+    assert last.decision["missing"] == ["Customer Type"] and last.decision["values"] == {}
+    assert "sign-in name" in last.text, last.text
 
 
 async def test_an_answer_that_fits_ends_the_asking_and_starts_the_job() -> None:

@@ -1,11 +1,9 @@
 import json
-from dataclasses import replace
 
-from sro.application.chat.candidates import candidate_of, chore_named, rank_jobs, sign_in_names
+from sro.application.chat.candidates import candidate_of, chore_named, rank_jobs
 from sro.application.chat.understand import understand
 from sro.application.skill.job_facts import JobFacts
 from sro.domain.execution.compiled import Compiled, Reason
-from sro.domain.observation.gesture import Action, Gesture, Target
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.fakes import FakeAsker
@@ -55,18 +53,19 @@ def test_between_copies_alike_the_one_with_more_held_runs_is_canonical() -> None
     assert [one.workflow.id for one in ranked] == ["wfl_b"]
 
 
-def test_a_runnable_copy_is_canonical_and_a_job_that_cannot_run_is_still_read() -> None:
-    """C1's ruling: the reader sees a job that cannot run, so a request for it is
-    answered with why; it is never read as asking for nothing. A copy that can
-    run is still the one a duplicate hides behind."""
-    broken = Compiled(False, (Reason("no_lane", 0, "x"),), {})
+def test_the_copy_with_the_most_parameters_is_canonical_even_when_it_cannot_run() -> None:
+    """Amendment item 7: most parameters, then most held runs. Runnability never
+    picks the canonical copy: a blocked 4-parameter job is answered with why,
+    never replaced by a 0-parameter copy that replays demonstrated values. C1's
+    ruling keeps a job that cannot run a candidate."""
+    broken = Compiled(False, (Reason("field_gone", 0, "x"),), {})
     facts = [
         _facts("wfl_a", "Create a Customer Type", parameters=4, compiled=broken),
-        _facts("wfl_b", "Create a Customer Type", parameters=2),
+        _facts("wfl_b", "Create a Customer Type", parameters=0),
         _facts("wfl_w", "Create a Work Area", compiled=broken),
     ]
     ranked = [one.workflow.id for one in rank_jobs("create a work area", facts)]
-    assert ranked == ["wfl_w", "wfl_b"]
+    assert ranked == ["wfl_w", "wfl_a"]
 
 
 def test_a_sign_in_is_never_a_candidate_and_a_request_naming_only_one_is_that_chore() -> None:
@@ -83,43 +82,6 @@ def test_a_sign_in_is_never_a_candidate_and_a_request_naming_only_one_is_that_ch
 def test_only_the_top_k_are_offered() -> None:
     facts = [_facts(f"wfl_{n}", f"Job number {n}") for n in range(20)]
     assert len(rank_jobs("job", facts, k=8)) == 8
-
-
-def _typed(gid: str, at: float, value: str, *, secret: bool = False) -> Gesture:
-    return Gesture(
-        id=gid,
-        tenant="acme",
-        stream_id="s",
-        batch_id="b",
-        at=at,
-        url="https://sso.example/login",
-        system="https://sso.example",
-        tab_id=1,
-        frame_url=None,
-        action=Action(
-            kind="type",
-            at=at,
-            value=value,
-            secret=secret,
-            target=Target(role="textbox", name="Password" if secret else "Username"),
-        ),
-    )
-
-
-def test_what_was_typed_before_a_password_is_a_sign_in_name() -> None:
-    by_id = {
-        one.id: one
-        for one in (
-            _typed("ges_u", 1.0, "RKUCHIYAGM"),
-            _typed("ges_p", 2.0, "«redacted»", secret=True),
-            _typed("ges_x", 3.0, "GT7"),
-        )
-    }
-    job = replace(_facts("wfl_kc", "Log in").workflow, steps=[Step(0, "x", None, list(by_id))])
-    facts = JobFacts(job, by_id, {}, (), (), OK)
-
-    assert sign_in_names([facts]) == frozenset({"rkuchiyagm"})
-    assert candidate_of(facts, logins=sign_in_names([facts])).logins == {"rkuchiyagm"}
 
 
 async def test_the_reader_is_given_the_candidates_the_thread_and_the_standing_question() -> None:

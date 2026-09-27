@@ -74,6 +74,8 @@ class Reader:
         found = []
         for one in facts:
             workflow = one.workflow
+            if workflow.signs_in:
+                continue
             same = [w.id for w in workflows if normal(w.title) == normal(workflow.title)]
             for mail in texts(mails_behind(workflow, one.by_id)):
                 values = {

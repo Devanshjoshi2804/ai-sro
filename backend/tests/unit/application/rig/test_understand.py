@@ -13,7 +13,14 @@ from dataclasses import asdict, replace
 from datetime import UTC, datetime
 from typing import Any
 
-from sro.application.chat.understand import K_A_CHORE, read_utterance, understand
+from sro.application.chat.understand import (
+    K_A_CHORE,
+    Understood,
+    offer_check,
+    read_utterance,
+    understand,
+)
+from sro.application.skill.job_facts import job_facts
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.request import Candidate
 from sro.domain.execution.field_classes import field_classes
@@ -650,6 +657,23 @@ async def test_a_value_the_form_it_goes_to_no_longer_has_is_caught_when_offered(
 
     assert got.values == {"department": "F"}
     assert got.cannot_run == [
+        f"Step {field}: the form its save shows has no department field any more"
+    ]
+
+
+async def test_each_item_s_own_values_reach_the_offer_check() -> None:
+    """Merged into one dict, the last item's values hid the first's: a blank
+    department in the second thing let the first thing's gone field through."""
+    gone, by_id, field = _learned_field("Dept")
+    uow = FakeUnitOfWork()
+    await uow.gestures.add_gestures(tuple(by_id.values()))
+    await uow.workflows.save(gone)
+    facts = await job_facts(uow, TENANT, [gone], now=NOW)
+    got = Understood(gone.id, Answer(data={}), items=[{"department": "F"}, {"department": " "}])
+
+    checked = await offer_check(uow, TENANT, got, facts, now=NOW)
+
+    assert checked.cannot_run == [
         f"Step {field}: the form its save shows has no department field any more"
     ]
 

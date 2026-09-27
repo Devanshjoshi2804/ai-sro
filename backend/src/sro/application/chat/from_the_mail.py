@@ -14,6 +14,7 @@ from sro.application.chat.candidates import candidate_of
 from sro.application.chat.mailbox import K_REMEMBER, SERVER, sent_to_others
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.chat.understand import held_runs, offer_check, read_request, understand
+from sro.application.connection.sign_in import logins_of
 from sro.application.context import RequestContext
 from sro.application.execution.declared import (
     declared_keys,
@@ -44,6 +45,7 @@ from sro.domain.recording.sensitivity import is_secret_field
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.learned import offerable
+from sro.domain.skill.signing_in import Logins
 from sro.domain.skill.workflow import Workflow
 
 K_LOOK = 8
@@ -160,6 +162,7 @@ class FromTheMail:
                 return LookedInTheMail(why="this tenant has no mined jobs to recognise")
             facts = await job_facts(uow, ctx.tenant_id, workflows, now=now)
             held_by = await held_runs(uow, ctx.tenant_id)
+            logins = await logins_of(uow, ctx.tenant_id)
         titles = {w.id: w.title for w in workflows}
         held = {one.workflow.id: one for one in facts}
 
@@ -171,7 +174,7 @@ class FromTheMail:
         offered: list[Offered] = []
         look = _Look()
         reach = _Reach()
-        known = _Known(workflows, asker, facts, titles, held, held_by, now)
+        known = _Known(workflows, asker, facts, titles, held, held_by, now, logins)
         tenant = ctx.tenant_id.value
         async for message in self._unclaimed(ctx, arrivals, more, limit, now=now, reach=reach):
             try:
@@ -227,7 +230,7 @@ class FromTheMail:
             return await self._answered_by_mail(ctx, message, asked, said, thread, subject, held)
         whole, earlier = await self._conversation(ctx, thread, message) if thread else ("", "")
         text = whole or said
-        got = await read_request(text, known.facts, asker, held=known.held_by)
+        got = await read_request(text, known.facts, asker, held=known.held_by, logins=known.logins)
         look.spent = _also(look.spent, got.answer)
         if got.answer.data is None:
             raise Unread(got.answer.error or "the model gave no reading")
@@ -283,7 +286,8 @@ class FromTheMail:
             sure=got.sure,
             sent_to=sent_to,
             cannot_run=got.cannot_run,
-            fresh=any(
+            fresh=not earlier
+            or any(
                 not quoted_in(value, earlier)
                 for one in (got.values, *got.items)
                 for value in one.values()
@@ -307,7 +311,8 @@ class FromTheMail:
         if not one.fresh and await self._started_here(ctx, one.thread):
             await self._about_the_run(ctx, one)
             return replace(one, asked=True)
-        one = await self._started(ctx, one)
+        if one.fresh:
+            one = await self._started(ctx, one)
         if (
             one.started
             or self._asks is None
@@ -559,7 +564,10 @@ class FromTheMail:
     ) -> dict[str, str]:
         if not wanted or job is None or self._asker is None or not said.strip():
             return {}
-        read = await understand(said, [candidate_of(job)], self._asker, question=question)
+        logins = await logins_of(self._uow, ctx.tenant_id)
+        read = await understand(
+            said, [candidate_of(job, logins=logins)], self._asker, question=question
+        )
         got = {
             name: value
             for name, value in read.values.items()
@@ -771,7 +779,8 @@ class FromTheMail:
         if not isinstance(rows, list):
             return "", ""
         rows = [one for one in rows if isinstance(one, dict)]
-        return _joined(rows), _joined([one for one in rows if one.get("id") != message])
+        whole = _joined(rows)[-K_THREAD:]
+        return whole, _joined([one for one in rows if one.get("id") != message])
 
     async def _take(self, ctx: RequestContext, message: str, *, now: datetime) -> bool | None:
         tenant, kept, reading = ctx.tenant_id, _mail_key(message), _reading_key(message)
@@ -850,13 +859,14 @@ class _Known:
     held: Mapping[str, JobFacts]
     held_by: Mapping[str, int]
     now: datetime
+    logins: Logins
 
 
 def _joined(rows: Sequence[Mapping[str, object]]) -> str:
     whole = " ".join(
         " ".join(str(one.get(part) or "") for part in ("subject", "body")) for one in rows
     )
-    return " ".join(whole.split())[:K_THREAD]
+    return " ".join(whole.split())
 
 
 def _page_of(answered: str) -> str:

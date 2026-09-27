@@ -4,6 +4,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from urllib.parse import parse_qs, quote, urlsplit, urlunsplit
 
+from sro.domain.execution.compose import normal
 from sro.domain.observation.gesture import Gesture, Target, passed_through
 from sro.domain.observation.trim import is_secret, path_shape
 from sro.domain.shared.hosts import origin_of, page_of
@@ -199,6 +200,13 @@ class RecordedLogin:
     job_id: str
     origin: str
     username: str | None
+    label: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Logins:
+    names: frozenset[str] = frozenset()
+    labels: frozenset[str] = frozenset()
 
 
 def recorded_login(
@@ -225,8 +233,23 @@ def recorded_login(
         and not is_secret(gesture)
         and gesture.action.value
     ]
+    last = before[-1].action if before else None
     return RecordedLogin(
-        job_id=job.id, origin=origin, username=before[-1].action.value if before else None
+        job_id=job.id,
+        origin=origin,
+        username=last.value if last else None,
+        label=last.target.name if last and last.target else None,
+    )
+
+
+def recorded_logins(among: Sequence[Workflow], by_id: Mapping[str, Gesture]) -> Logins:
+    systems = {
+        lands[1] for job in among if job.signs_in and (lands := signs_in_to(job, by_id)) is not None
+    }
+    found = [one for one in (recorded_login(system, among, by_id) for system in systems) if one]
+    return Logins(
+        names=frozenset(normal(one.username) for one in found if one.username),
+        labels=frozenset(normal(one.label) for one in found if one.label),
     )
 
 
@@ -240,6 +263,7 @@ def _in_order(job: Workflow, by_id: Mapping[str, Gesture]) -> list[Gesture]:
 
 
 __all__ = [
+    "Logins",
     "PageSignals",
     "RecordedLogin",
     "a_navigation",
@@ -248,6 +272,7 @@ __all__ = [
     "asks_for_a_code",
     "expired",
     "recorded_login",
+    "recorded_logins",
     "sign_in_chain",
     "signs_in_at",
 ]

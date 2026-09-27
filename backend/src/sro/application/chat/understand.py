@@ -5,7 +5,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 
-from sro.application.chat.candidates import candidate_of, chore_named, rank_jobs, sign_in_names
+from sro.application.chat.candidates import candidate_of, chore_named, rank_jobs
+from sro.application.connection.sign_in import logins_of
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.shared.asking import ask
@@ -16,6 +17,7 @@ from sro.domain.execution.compiled import why_not
 from sro.domain.prompts.read_request import READ_REQUEST
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
+from sro.domain.skill.signing_in import Logins
 
 K_A_CHORE = "signing in is the session broker's work, never a request's"
 
@@ -93,12 +95,16 @@ async def understand(
 
 
 async def read_request(
-    text: str, facts: Sequence[JobFacts], asker: Asker, *, held: Mapping[str, int]
+    text: str,
+    facts: Sequence[JobFacts],
+    asker: Asker,
+    *,
+    held: Mapping[str, int],
+    logins: Logins = Logins(),
 ) -> Understood:
     chore = chore_named(text, facts)
     if chore is not None:
         return Understood(chore.workflow.id, Answer(data={}), cannot_run=[K_A_CHORE])
-    logins = sign_in_names(facts)
     ranked = rank_jobs(text, facts, held=held)
     return await understand(text, [candidate_of(one, logins=logins) for one in ranked], asker)
 
@@ -118,13 +124,15 @@ async def offer_check(
     picked = next((one for one in facts if one.workflow.id == got.workflow_id), None)
     if picked is None or got.cannot_run:
         return got
-    given = {**{name: value for one in got.items for name, value in one.items()}, **got.values}
-    compiled = (
-        (await job_facts(uow, tenant_id, [picked.workflow], now=now, values=given))[0].compiled
-        if given
-        else picked.compiled
-    )
-    return got if compiled.runnable else replace(got, cannot_run=why_not(compiled.reasons))
+    for given in [{**got.values, **one} for one in got.items] or [got.values]:
+        compiled = (
+            (await job_facts(uow, tenant_id, [picked.workflow], now=now, values=given))[0].compiled
+            if given
+            else picked.compiled
+        )
+        if not compiled.runnable:
+            return replace(got, cannot_run=why_not(compiled.reasons))
+    return got
 
 
 async def read_utterance(
@@ -136,7 +144,13 @@ async def read_utterance(
     now: datetime,
 ) -> Understood:
     facts = await job_facts(uow, tenant_id, await uow.workflows.known(tenant_id), now=now)
-    got = await read_request(utterance, facts, asker, held=await held_runs(uow, tenant_id))
+    got = await read_request(
+        utterance,
+        facts,
+        asker,
+        held=await held_runs(uow, tenant_id),
+        logins=await logins_of(uow, tenant_id),
+    )
     got = await offer_check(uow, tenant_id, got, facts, now=now)
     answer = got.answer
     await uow.chats.record(

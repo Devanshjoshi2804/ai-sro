@@ -10,7 +10,7 @@ on somebody's account.
 from __future__ import annotations
 
 from sro.domain.observation.gesture import Action, Gesture, PageMark, Target
-from sro.domain.skill.signing_in import recorded_login
+from sro.domain.skill.signing_in import Logins, recorded_login, recorded_logins
 from sro.domain.skill.workflow import Step, Workflow
 
 A = "https://a.example.com"
@@ -95,3 +95,32 @@ def test_two_sign_ins_landing_on_one_system_and_nothing_to_choose_between_them_i
 
 def test_a_job_with_no_credential_in_it_lends_nothing() -> None:
     assert recorded_login(f"{A}/portal", [_job("a", cites=("user", "go"))], STORE) is None
+
+
+def test_the_logins_are_each_system_s_recorded_username_and_the_box_it_was_typed_in() -> None:
+    """Never a value a work job typed before re-entering a password: a job that
+    types GT7 and then signs in again (session expired, username prefilled)
+    would otherwise make GT7 a login for every job of the tenant."""
+    work = {
+        "w-code": _gesture(
+            "w-code", "w", 50.0, A, Action(kind="type", at=50.0, value="GT7", target=Target())
+        ),
+        "w-pass": _gesture(
+            "w-pass",
+            "w",
+            51.0,
+            IDP,
+            Action(kind="type", at=51.0, target=Target(tag="input", name="password", secret=True)),
+        ),
+    }
+    worked = Workflow(
+        id="w",
+        tenant="acme",
+        title="Create a Customer Type",
+        narrative="n",
+        steps=[Step(order=0, says="s", system=None, cites=list(work))],
+    )
+
+    found = recorded_logins([_job("a"), _job("b"), worked], {**STORE, **work})
+
+    assert found == Logins(names=frozenset({"alice", "bob"}), labels=frozenset({"username"}))

@@ -23,8 +23,9 @@ labels, or one of its aliases -- or the request's own word for it when no field
 fits), `value` exactly as written, and `quote`: the few words of the request the
 value appears in, copied exactly. A value you cannot quote is a value you must
 not give. A value stated against a name -- "customer type :- RRF", "code: GT7"
--- belongs to the field that name is, and to no other. A sign-in username or
-password is never a job's value.
+-- belongs to the field that name is, and to no other. The operator's own
+sign-in username or password is never a job's value; a job's own Username field
+is filled like any other.
 
 Say whether you are SURE: the request plainly names one of these jobs and no
 other does that kind of work. When two could be meant, answer the closest and

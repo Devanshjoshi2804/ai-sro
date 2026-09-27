@@ -738,6 +738,7 @@ class WorkflowRow(Base):
     repeat: Mapped[Any] = mapped_column(JSONB, nullable=True)
 
     signs_in: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    signs_out: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
     same_as: Mapped[str | None] = mapped_column(String(64))
 

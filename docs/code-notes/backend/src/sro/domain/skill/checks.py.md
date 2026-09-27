@@ -23,14 +23,14 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/checks.py`](
 > rather than reading settings -- so it lives in the domain beside them rather
 > than in the application layer with the mining pass that calls it.
 
-## module, [line 15](../../../../../../../backend/src/sro/domain/skill/checks.py#L15): Note on the line above
+## module, [line 18](../../../../../../../backend/src/sro/domain/skill/checks.py#L18): Note on the line above
 
 Code: `_DEFAULT_PORTS = {"http": "80", "https": "443"}`
 
 > `config._origins_of` keeps the same map for the same reason and cannot be
 > imported here: the domain reads settings through arguments or not at all.
 
-## module, [line 397](../../../../../../../backend/src/sro/domain/skill/checks.py#L397): Note on the line above
+## module, [line 480](../../../../../../../backend/src/sro/domain/skill/checks.py#L480): Note on the line above
 
 Code: `K_SITTING_GAP_S = 600.0`
 
@@ -62,7 +62,7 @@ Code: `K_SITTING_GAP_S = 600.0`
 > is then refused by `validate` for an uncited step, which is the honest answer:
 > those 11 steps were never one doing.
 
-## `validate`, [line 32](../../../../../../../backend/src/sro/domain/skill/checks.py#L32): Docstring
+## `validate`, [line 35](../../../../../../../backend/src/sro/domain/skill/checks.py#L35): Docstring
 
 > None when the workflow may be kept, a Rejection when it may not.
 >
@@ -77,16 +77,16 @@ Code: `K_SITTING_GAP_S = 600.0`
 > tidy and wholly invented -- which, in an architecture built to find jobs
 > spanning two systems, is the one lie it must not accept.
 
-## `_gini`, [line 87](../../../../../../../backend/src/sro/domain/skill/checks.py#L87): Docstring
+## `_gini`, [line 90](../../../../../../../backend/src/sro/domain/skill/checks.py#L90): Docstring
 
 > How unequally the citations are spread. Only ever called with a full
 > decile list that sums to 1, so it needs no empty case.
 
-## `coverage`, [line 95](../../../../../../../backend/src/sro/domain/skill/checks.py#L95): Docstring
+## `coverage`, [line 98](../../../../../../../backend/src/sro/domain/skill/checks.py#L98): Docstring
 
 > Which parts of the window were cited at all, and where they clustered.
 
-## `_signed_in_here`, [line 120](../../../../../../../backend/src/sro/domain/skill/checks.py#L120): Docstring
+## `_signed_in_here`, [line 123](../../../../../../../backend/src/sro/domain/skill/checks.py#L123): Docstring
 
 > Whether this gesture put a credential into the page.
 >
@@ -95,7 +95,7 @@ Code: `K_SITTING_GAP_S = 600.0`
 > and a list is exactly what `work_only` below declined to keep, on the
 > grounds that every customer runs an SSO nobody here has heard of.
 
-## `_did_business`, [line 125](../../../../../../../backend/src/sro/domain/skill/checks.py#L125): Docstring
+## `_did_business`, [line 128](../../../../../../../backend/src/sro/domain/skill/checks.py#L128): Docstring
 
 > Whether this gesture wrote something to the system it happened on.
 >
@@ -104,7 +104,7 @@ Code: `K_SITTING_GAP_S = 600.0`
 > separates them: signing in sends you somewhere else, and doing the job
 > writes back to the page you are on.
 
-## `undeliverable`, [line 136](../../../../../../../backend/src/sro/domain/skill/checks.py#L136): Docstring
+## `undeliverable`, [line 139](../../../../../../../backend/src/sro/domain/skill/checks.py#L139): Docstring
 
 > The declared parameters no step of this job could ever be given.
 >
@@ -132,7 +132,7 @@ Code: `K_SITTING_GAP_S = 600.0`
 > last. Nothing anywhere required those two halves of one model answer to
 > agree.
 
-## `_during`, [line 163](../../../../../../../backend/src/sro/domain/skill/checks.py#L163): Docstring
+## `_during`, [line 166](../../../../../../../backend/src/sro/domain/skill/checks.py#L166): Docstring
 
 > Every gesture of this job's own streams inside its own time span.
 >
@@ -144,7 +144,7 @@ Code: `K_SITTING_GAP_S = 600.0`
 > never reaches into another tab or into the next job along. A job that cites
 > nothing gets nothing, which is `validate`'s problem and not this one.
 
-## `signs_in`, [line 176](../../../../../../../backend/src/sro/domain/skill/checks.py#L176): Docstring
+## `signs_in`, [line 179](../../../../../../../backend/src/sro/domain/skill/checks.py#L179): Docstring
 
 > Whether this job signs in: a credential typed and nothing written back.
 >
@@ -199,7 +199,7 @@ Code: `K_SITTING_GAP_S = 600.0`
 > hold none -- including a Warehouse Equipment Type job whose span is 52
 > gestures wide.
 
-## `is_sign_in_step`, [line 310](../../../../../../../backend/src/sro/domain/skill/checks.py#L310): Docstring
+## `is_sign_in_step`, [line 393](../../../../../../../backend/src/sro/domain/skill/checks.py#L393): Docstring
 
 > Whether this step's own evidence proves it is part of signing in, and so
 > not a write. Three shapes, and nothing else:
@@ -253,7 +253,7 @@ Code: `K_SITTING_GAP_S = 600.0`
 > 302 back to the same system or with no status recorded -- proves nothing,
 > and a write must fail safe: it is judged as a write.
 
-## `signs_in_to`, [line 190](../../../../../../../backend/src/sro/domain/skill/checks.py#L190): Docstring
+## `signs_in_to`, [line 273](../../../../../../../backend/src/sro/domain/skill/checks.py#L273): Docstring
 
 > Which sign-in this is: the one host the credential was typed into, and the
 > host the operator next worked on after the browser left it -- or None when
@@ -275,32 +275,32 @@ Code: `K_SITTING_GAP_S = 600.0`
 > and the warehouse only shows up on the click after it. The submit's last
 > foreign mark stands in when nothing was done afterwards.
 
-## `credentials_typed`, [line 228](../../../../../../../backend/src/sro/domain/skill/checks.py#L228): Docstring
+## `credentials_typed`, [line 311](../../../../../../../backend/src/sro/domain/skill/checks.py#L311): Docstring
 
 > How many steps of this job type each credential field, keyed by the field's
 > screen and identity. The mining pass's `_grow` refuses a doing that types a
 > credential the job does not -- a password added to a job that had none, or
 > a second, different one (a second factor) added to a job that had one.
 
-## `_in_time`, [line 240](../../../../../../../backend/src/sro/domain/skill/checks.py#L240): Docstring
+## `_in_time`, [line 323](../../../../../../../backend/src/sro/domain/skill/checks.py#L323): Docstring
 
 > What this job cites, once each, in the order the operator did it. The
 > model's step order is not time order: the Azure chain cites its first
 > password again in a later step.
 
-## `_split`, [line 250](../../../../../../../backend/src/sro/domain/skill/checks.py#L250): Docstring
+## `_split`, [line 333](../../../../../../../backend/src/sro/domain/skill/checks.py#L333): Docstring
 
 > The chain (see `_chain`), whether it left the host, and what the job cites
 > after the leave.
 
-## `_chain`, [line 245](../../../../../../../backend/src/sro/domain/skill/checks.py#L245): Docstring
+## `_chain`, [line 328](../../../../../../../backend/src/sro/domain/skill/checks.py#L328): Docstring
 
 > The sign-in chain: from the first credential gesture this job cites to the
 > first gesture after it that sent the browser to another host, and whether
 > it got there. What comes after that gesture happened on the landed page
 > and is outside the chain.
 
-## `_only_signs_in`, [line 263](../../../../../../../backend/src/sro/domain/skill/checks.py#L263): Docstring
+## `_only_signs_in`, [line 346](../../../../../../../backend/src/sro/domain/skill/checks.py#L346): Docstring
 
 > Whether the chain holds nothing but signing in.
 >
@@ -312,7 +312,7 @@ Code: `K_SITTING_GAP_S = 600.0`
 > which is a refused attempt. Without a leave there is no successful sign-in
 > for either to belong to, and a same-host press is the PIN shape.
 
-## `_lands_on`, [line 285](../../../../../../../backend/src/sro/domain/skill/checks.py#L285): Note
+## `_lands_on`, [line 368](../../../../../../../backend/src/sro/domain/skill/checks.py#L368): Note
 
 > The host a sign-in lands on: `signs_in_to`'s `worked` half, read off
 > what the operator did after the credential left its host, falling back
@@ -321,36 +321,36 @@ Code: `K_SITTING_GAP_S = 600.0`
 > host before the credential (final re-review N-1, 2026-09-24): work done
 > on the system before a lapsed session was signed back into is work.
 
-## `_leaves_at`, [line 290](../../../../../../../backend/src/sro/domain/skill/checks.py#L290): Docstring
+## `_leaves_at`, [line 373](../../../../../../../backend/src/sro/domain/skill/checks.py#L373): Docstring
 
 > When the chain left the host, or None when it never did.
 
-## `_on_the_credential`, [line 295](../../../../../../../backend/src/sro/domain/skill/checks.py#L295): Docstring
+## `_on_the_credential`, [line 378](../../../../../../../backend/src/sro/domain/skill/checks.py#L378): Docstring
 
 > A click or a key press on the secret-marked input itself: the recorder's
 > mark is on the box, not on a typed value.
 
-## `_typed_the_credential`, [line 300](../../../../../../../backend/src/sro/domain/skill/checks.py#L300): Docstring
+## `_typed_the_credential`, [line 383](../../../../../../../backend/src/sro/domain/skill/checks.py#L383): Docstring
 
 > A secret typed -- the only thing that can follow a refused attempt.
 
-## `_acts`, [line 304](../../../../../../../backend/src/sro/domain/skill/checks.py#L304): Docstring
+## `_acts`, [line 387](../../../../../../../backend/src/sro/domain/skill/checks.py#L387): Docstring
 
 > Anything but typing a value. Typing changes a field; everything else --
 > clicking, pressing, choosing, uploading -- can submit. Except a click on the
 > password box, which focuses it: the deployment's operators click into the
 > box before typing, and each of those clicks counted as a possible submit.
 
-## `_carries_the_credential`, [line 340](../../../../../../../backend/src/sro/domain/skill/checks.py#L340): Docstring
+## `_carries_the_credential`, [line 423](../../../../../../../backend/src/sro/domain/skill/checks.py#L423): Docstring
 
 > Whether any gesture this step cites bears the recorder's secret mark.
 
-## `_after_the_credential`, [line 344](../../../../../../../backend/src/sro/domain/skill/checks.py#L344): Docstring
+## `_after_the_credential`, [line 427](../../../../../../../backend/src/sro/domain/skill/checks.py#L427): Docstring
 
 > Whether the step just before this one, in the job's order, typed the
 > credential on the same host this step is on.
 
-## `work_only`, [line 357](../../../../../../../backend/src/sro/domain/skill/checks.py#L357): Docstring
+## `work_only`, [line 440](../../../../../../../backend/src/sro/domain/skill/checks.py#L440): Docstring
 
 > Strike the systems that were never the work, and refuse a job with none
 > left. None when it may be kept, as `validate` answers.
@@ -396,11 +396,11 @@ Code: `K_SITTING_GAP_S = 600.0`
 > somebody has to keep, wrong for every customer running an SSO nobody here
 > has heard of.
 
-## `_sittings`, [line 400](../../../../../../../backend/src/sro/domain/skill/checks.py#L400): Docstring
+## `_sittings`, [line 483](../../../../../../../backend/src/sro/domain/skill/checks.py#L483): Docstring
 
 > Consecutive runs of `times`, split wherever the pause is long enough.
 
-## `one_occurrence`, [line 410](../../../../../../../backend/src/sro/domain/skill/checks.py#L410): Docstring
+## `one_occurrence`, [line 493](../../../../../../../backend/src/sro/domain/skill/checks.py#L493): Docstring
 
 > Strike every citation but one doing's, in place.
 >
@@ -440,7 +440,7 @@ Code: `K_SITTING_GAP_S = 600.0`
 > so the next pass reads them again -- which is the path that already exists
 > for a second doing, and the path `learn_parameters` was written for.
 
-## `validate`, [line 33](../../../../../../../backend/src/sro/domain/skill/checks.py#L33): Comment
+## `validate`, [line 36](../../../../../../../backend/src/sro/domain/skill/checks.py#L36): Comment
 
 Code: `if not workflow.steps:`
 
@@ -448,7 +448,7 @@ Code: `if not workflow.steps:`
 > steps were ALL junk arrives here with steps=[] and no citations at all --
 > nothing uncited for the loop below to catch. This is that rejection.
 
-## `validate`, [line 42](../../../../../../../backend/src/sro/domain/skill/checks.py#L42): Comment
+## `validate`, [line 45](../../../../../../../backend/src/sro/domain/skill/checks.py#L45): Comment
 
 Code: `if not step.says.strip():`
 
@@ -456,7 +456,7 @@ Code: `if not step.says.strip():`
 > model left unworded, and a step that says nothing is not a step
 > however well it is cited -- it reaches an operator as a blank line.
 
-## `validate`, [line 44](../../../../../../../backend/src/sro/domain/skill/checks.py#L44): Comment
+## `validate`, [line 47](../../../../../../../backend/src/sro/domain/skill/checks.py#L47): Comment
 
 Code: `for used in step.uses:`
 
@@ -468,7 +468,7 @@ Code: `for used in step.uses:`
 > smaller. And a step that does not exist is a model inventing an
 > edge -- the one thing citation exists to refuse everywhere else here.
 
-## `validate`, [line 57](../../../../../../../backend/src/sro/domain/skill/checks.py#L57): Comment
+## `validate`, [line 60](../../../../../../../backend/src/sro/domain/skill/checks.py#L60): Comment
 
 Code: `if step.system:`
 
@@ -476,7 +476,7 @@ Code: `if step.system:`
 > substitutes None for a junk value, so an absent system is a silence
 > rather than a claim.
 
-## `validate`, [line 58](../../../../../../../backend/src/sro/domain/skill/checks.py#L58): Comment
+## `validate`, [line 61](../../../../../../../backend/src/sro/domain/skill/checks.py#L61): Comment
 
 Code: `touched = {evidence[cite] for cite in step.cites if evidence[cite]}`
 
@@ -487,7 +487,7 @@ Code: `touched = {evidence[cite] for cite in step.cites if evidence[cite]}`
 > evidence touched" and "your evidence has no known system" are
 > different faults and diagnose differently.
 
-## `validate`, [line 73](../../../../../../../backend/src/sro/domain/skill/checks.py#L73): Comment
+## `validate`, [line 76](../../../../../../../backend/src/sro/domain/skill/checks.py#L76): Comment
 
 Code: `evidenced = {evidence[cite] for cite in cited_ids(workflow)}`
 
@@ -501,7 +501,7 @@ Code: `evidenced = {evidence[cite] for cite in cited_ids(workflow)}`
 > anything it is subtracted from. Filtering both sides is one guard
 > pretending to be two -- deleting it changed no test.
 
-## `validate`, [line 78](../../../../../../../backend/src/sro/domain/skill/checks.py#L78): Comment
+## `validate`, [line 81](../../../../../../../backend/src/sro/domain/skill/checks.py#L81): Comment
 
 Code: `if len(workflow.steps) < K_MIN_SHARED_STEPS:`
 
@@ -525,14 +525,14 @@ Code: `if len(workflow.steps) < K_MIN_SHARED_STEPS:`
 > step is also not a job an operator would want offered: there is nothing
 > to parameterise and nothing in it to save them.
 
-## `coverage`, [line 106](../../../../../../../backend/src/sro/domain/skill/checks.py#L106): Comment
+## `coverage`, [line 109](../../../../../../../backend/src/sro/domain/skill/checks.py#L109): Comment
 
 Code: `total = sum(deciles)`
 
 > An empty window skips the loop and lands here, so this is also the
 > no-items case: one return for "no citation fell anywhere in it".
 
-## `coverage`, [line 111](../../../../../../../backend/src/sro/domain/skill/checks.py#L111): Comment
+## `coverage`, [line 114](../../../../../../../backend/src/sro/domain/skill/checks.py#L114): Comment
 
 Code: `coverage=sum(1 for d in deciles if d > 0) / min(10, n),`
 
@@ -540,14 +540,14 @@ Code: `coverage=sum(1 for d in deciles if d > 0) / min(10, n),`
 > four parts and can only ever land in four deciles, so dividing by ten
 > reported a FULLY cited short window at 0.4 -- under K_MIN_COVERAGE.
 
-## `work_only`, [line 362](../../../../../../../backend/src/sro/domain/skill/checks.py#L362): Comment
+## `work_only`, [line 445](../../../../../../../backend/src/sro/domain/skill/checks.py#L445): Comment
 
 Code: `last = {system: index for index, system in enumerate(order)}`
 
 > Last occurrence per system: what matters is whether the job carried on
 > after this system the LAST time it was on it, not the first.
 
-## `work_only`, [line 370](../../../../../../../backend/src/sro/domain/skill/checks.py#L370): Comment
+## `work_only`, [line 453](../../../../../../../backend/src/sro/domain/skill/checks.py#L453): Comment
 
 Code: `during = _during(workflow, gestures)`
 
@@ -578,15 +578,85 @@ Code: `during = _during(workflow, gestures)`
 > list of identity hostnames -- which this function declined to keep, on
 > the grounds that every customer runs an SSO nobody here has heard of.
 
-## `work_only`, [line 387](../../../../../../../backend/src/sro/domain/skill/checks.py#L387): Comment
+## `work_only`, [line 470](../../../../../../../backend/src/sro/domain/skill/checks.py#L470): Comment
 
 Code: `if workflow.systems and not kept:`
 
 > `workflow.systems` empty to begin with is a model that named none, which
 > `validate` allows and this must not start refusing: nothing was struck.
 
-## `bindable`, [line 145](../../../../../../../backend/src/sro/domain/skill/checks.py#L145): Docstring
+## `bindable`, [line 148](../../../../../../../backend/src/sro/domain/skill/checks.py#L148): Docstring
 
 > Every name some step of the job can be given: its parameters and the names
 > of the controls its gestures cite. `undeliverable` drops a declared
 > parameter outside it; `compose` composes a run's value outside it.
+
+## module, [line 193](../../../../../../../backend/src/sro/domain/skill/checks.py#L193): Note
+
+Code: `_SIGN_OUT = re.compile(r"(?<![a-z0-9])(?:log[\s_-]?(?:out|off)|sign[\s_-]?out)(?![a-z0-9])", re.I)`
+
+> The words a sign-out control is labelled with, and (`_SIGNED_OUT_PAGE`) the
+> words in a sign-in or signed-out page's path. Matched on whole words, by
+> name, as credential fields are: never by reading a value. "Log Out",
+> "Logout", "Log off" match; "Logoutput report" does not. "Sign off" is not a
+> sign-out: in a warehouse it is an approval ("Sign-Off Queue"), F3 round 1.
+> The page's words are read from the URL's path only -- a query string
+> carries redirect targets that name anything. `auth` and `authorize` are
+> the sign-in paths of Keycloak (`/protocol/openid-connect/auth`) and OAuth
+> (`/oauth2/v2.0/authorize`).
+>
+> ponytail: an English vocabulary. A control labelled in another language, or
+> with an icon and no accessible name, is not seen as a sign-out; upgrade by
+> reading what the session did (a call that clears the session cookie) once
+> the recorder keeps response cookies' names.
+
+## `signs_out`, [line 202](../../../../../../../backend/src/sro/domain/skill/checks.py#L202): Note on the function
+
+> Whether this job signs out (F3): its steps end the session, and ending it is
+> all they do (product ruling M4, round 1). Four conditions:
+>
+> 1. The last cited control labelled as a sign-out (`_ends_the_session`).
+> 2. Every cited gesture before it only reaches it (`_only_reaches`): opens a
+>    menu or moves between pages. A job that does anything else first --
+>    exports a report, fills a field -- and then logs out is work.
+> 3. No step up to and including the control writes, by the codebase's own
+>    write check (`evidence.writes`: any method that is not a read, at any
+>    status) -- not `_did_business`'s 2xx POST/PUT/PATCH, which let a DELETE
+>    204, a form POST 302 or a POST with no status through. The control's own
+>    call is left out of its step (M5): a log out that is itself a POST 200 is
+>    the control, not a write. `_only_reaches` refuses any mutating call on
+>    any host, which covers the API's own subdomain that `writes` (same
+>    origin only) does not see.
+> 4. Then a sign-in or signed-out page: the control's own navigation lands on
+>    a path naming signing in or out, or the very next gesture in the same
+>    stream and tab is on such a path or is a credential. Another origin alone
+>    is never proof (round 1, I3): an operator who clicks on and then works in
+>    Outlook has ended nothing. Nothing the job does afterwards may be back in
+>    the signed-in system.
+>
+> Only the next gesture after the control is read, not the whole sitting: an
+> operator who signs back in and goes on working ten minutes later has not
+> shown that this job ended anything.
+>
+> Real QA, 2026-09-27: 7 of 23 jobs were sign-in or sign-out chores and drew
+> 44% of the offers; `Log Out` was never flagged because no rule asked.
+> `Workflow.chore` reads both verdicts; R1 excludes chores from candidates.
+
+## `_only_reaches`, [line 242](../../../../../../../backend/src/sro/domain/skill/checks.py#L242): Note on the function
+
+> A gesture that only leads to the sign-out control: it opens the menu the
+> control sits in, and does nothing of its own. A hover or scroll; or a click
+> or press that types nothing, touches no credential, makes **no call at all**
+> (background traffic aside), **does not move the page**, and opens something
+> (a menu, menu item, tab, tree item or navigation role, on the target or its
+> landmarks; or an `aria-haspopup` / `aria-expanded` control).
+>
+> F3 round 2: a menu item that fetched `report.csv` itself was reaching, and
+> so was any click that moved the page. Both are substance. A page move is
+> never needed to reach a log out, which sits in the user menu on every page:
+> an operator who opened a report and then logged out did an errand first.
+>
+> ponytail: roles are what the page declares, and "no call" is strict. A menu
+> built of bare divs with no role, or one whose opener lazy-loads its items
+> with a call, is read as substance, so its Log Out stays a candidate -- the
+> safe side; upgrade by reading the outline's menu structure.

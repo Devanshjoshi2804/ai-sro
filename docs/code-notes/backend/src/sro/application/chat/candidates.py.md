@@ -14,7 +14,7 @@ Which jobs the reader is shown, chosen in code (R1).
 ## `rank_jobs`, [line 52](../../../../../../../backend/src/sro/application/chat/candidates.py#L52): Design
 
 > Duplicate titles collapse to their canonical copy, so "X or X or X?" can
-> never be asked. Sign-in jobs (`signs_in`) are never candidates. A job that
+> never be asked. Chores (`Workflow.chore`: sign-ins and sign-outs) are never candidates. A job that
 > cannot run stays a candidate (C1's ruling): a request for it is answered
 > with why. The rest are ranked by word overlap between the request and the
 > job's title, field labels, aliases and `asked_by` mails, and the top
@@ -25,7 +25,7 @@ Which jobs the reader is shown, chosen in code (R1).
 
 ## `chore_named`, [line 69](../../../../../../../backend/src/sro/application/chat/candidates.py#L69): Design
 
-> A request whose words match a sign-in job more than any work job names a
-> chore, and gets a note saying the session broker signs in (amendment 2,
-> item 5). Log Out copies are not caught: nothing marks a job as signing out,
-> and `signs_in` is set by the miner's judge (M1/S6).
+> A request whose words match a chore more than any work job names that
+> chore, and gets a note saying the session broker signs in and out
+> (amendment 2, item 5). Both verdicts are set by the miner's judge (M1/S6,
+> and F3 for `signs_out`, which catches the Log Out copies).

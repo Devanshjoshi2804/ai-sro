@@ -1011,3 +1011,11 @@ Code: `self, tenant_id: TenantId, workflow_id: str, *, lock: bool = False`
 > (`learn`) takes it, so none of them reads a numbering another is replacing:
 > two grows from one version would otherwise both land, and `grew` would move
 > the job's learning twice.
+
+## `WorkflowRepository.decide`, [line 507](../../../../../../../backend/src/sro/application/ports/repositories.py#L507): Note on the function
+
+> Writes `signs_in` and `signs_out` together, and only if the stored job's
+> steps and verdicts are still those of `workflow`, the job as it was read
+> when the verdict was decided. Returns whether it wrote. Replaces
+> `decide_signs_in`, which set one column while it was NULL: a job whose
+> steps change has to be decided again, not only once.

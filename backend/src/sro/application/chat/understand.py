@@ -19,7 +19,7 @@ from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.signing_in import Logins
 
-K_A_CHORE = "signing in is the session broker's work, never a request's"
+K_A_CHORE = "signing in and out is the session broker's work, never a request's"
 
 
 @dataclass(frozen=True, slots=True)

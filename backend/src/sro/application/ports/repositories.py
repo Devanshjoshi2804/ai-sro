@@ -504,8 +504,8 @@ class WorkflowRepository(Protocol):
 
     async def undecided(self) -> tuple[Workflow, ...]: ...
 
-    async def decide_signs_in(
-        self, tenant_id: TenantId, workflow_id: str, signs_in: bool
+    async def decide(
+        self, tenant_id: TenantId, workflow: Workflow, *, signs_in: bool, signs_out: bool
     ) -> bool: ...
 
     async def tabs_undecided(self) -> tuple[Workflow, ...]: ...

@@ -27,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sro.application.context import RequestContext
 from sro.application.observation.mining_pass import (
     _grow,
-    _healed,
+    _mend,
     fill_in_passwords,
     learn_parameters,
     mine,
@@ -153,11 +153,11 @@ class TestWorkflows:
     async def test_a_job_that_signs_in_is_read_back_as_one(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
-        """Decided once by the mining pass and read by every run after it, so
-        it has to survive the store -- and a re-save must be able to clear it
-        when the healing pass reads the evidence differently. A job nobody has
-        judged reads back undecided (None), never as decided."""
-        workflow = _workflow(signs_in=True)
+        """Decided by the mining pass and read by every run after it, so it has
+        to survive the store -- and a decision must be able to clear it when
+        the evidence reads differently; a whole-job re-save never does. A job
+        nobody has judged reads back undecided (None), never as decided."""
+        workflow = _workflow(signs_in=True, signs_out=False)
         ordinary = _workflow()
 
         async with SqlUnitOfWork(session_factory) as uow:
@@ -167,13 +167,16 @@ class TestWorkflows:
 
         async with SqlUnitOfWork(session_factory) as uow:
             assert (await uow.workflows.get(TENANT, workflow.id)).signs_in is True
-            assert (await uow.workflows.get(TENANT, ordinary.id)).signs_in is None
-            workflow.signs_in = False
-            await uow.workflows.save(workflow)
+            back = await uow.workflows.get(TENANT, ordinary.id)
+            assert (back.signs_in, back.signs_out) == (None, None)
+            await uow.workflows.save(replace(workflow, signs_in=False))
+            assert (await uow.workflows.get(TENANT, workflow.id)).signs_in is True
+            assert await uow.workflows.decide(TENANT, workflow, signs_in=False, signs_out=True)
             await uow.commit()
 
         async with SqlUnitOfWork(session_factory) as uow:
-            assert (await uow.workflows.get(TENANT, workflow.id)).signs_in is False
+            back = await uow.workflows.get(TENANT, workflow.id)
+        assert (back.signs_in, back.signs_out) == (False, True)
 
     async def test_a_retired_job_stays_retired_and_its_evidence_stays_placed(
         self, session_factory: async_sessionmaker[AsyncSession]
@@ -1325,8 +1328,7 @@ class TestARunKeepsItsVersion:
 
         async with SqlUnitOfWork(session_factory) as healer:
             held = await healer.workflows.get(TENANT, job.id, lock=True)
-            assert _healed(held, by_id)
-            await healer.workflows.save(held)
+            assert await _mend(healer, TENANT, held, by_id)
             mining = asyncio.ensure_future(mines())
             await _until_it_waits_or_ends(engine, mining)
             await healer.commit()
@@ -1362,6 +1364,75 @@ class TestARunKeepsItsVersion:
         async with SqlUnitOfWork(session_factory) as uow:
             back = await uow.workflow_runs.get(TENANT, run.id)
         assert back is not None and back.pinned == job
+
+
+class TestAVerdictFollowsTheSteps:
+    """F3: whether a job signs in or out is decided again whenever a grow, a
+    heal or a learn changes its steps, and the decision writes two columns
+    over the job exactly as it was read -- never a whole-job save."""
+
+    async def test_a_learn_that_lands_during_a_decision_is_not_overwritten(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The learn changes the steps and leaves the verdict exactly as it
+        was, so only the steps can tell the decider its read is stale: a
+        `decide` that compared the verdicts alone would write here."""
+        job, _ = await _a_real_job(session_factory)
+        async with SqlUnitOfWork(session_factory) as sweep:
+            (read,) = await sweep.workflows.undecided()
+            assert await sweep.workflows.decide(TENANT, read, signs_in=True, signs_out=False)
+            await sweep.commit()
+        async with SqlUnitOfWork(session_factory) as sweep:
+            read = await sweep.workflows.get(TENANT, job.id)
+
+        await _learns(session_factory, job, "region")
+
+        async with SqlUnitOfWork(session_factory) as sweep:
+            decided = await sweep.workflows.decide(TENANT, read, signs_in=False, signs_out=True)
+            await sweep.commit()
+        async with SqlUnitOfWork(session_factory) as uow:
+            now = await uow.workflows.get(TENANT, job.id)
+
+        assert decided is False
+        assert [one.says for one in now.steps] == ["type it", "Fill Region", "save it"]
+        assert (now.signs_in, now.signs_out) == (True, False)
+        assert [one["name"] for one in now.parameters] == ["region"]
+
+    async def test_a_learn_waits_for_a_decision_in_flight_and_keeps_both(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        job, _ = await _a_real_job(session_factory)
+        async with SqlUnitOfWork(session_factory) as sweep:
+            (read,) = await sweep.workflows.undecided()
+            assert await sweep.workflows.decide(TENANT, read, signs_in=True, signs_out=False)
+            learning = asyncio.ensure_future(_learns(session_factory, job, "region"))
+            await _until_it_waits_or_ends(engine, learning)
+            assert not learning.done()
+            await sweep.commit()
+        await learning
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            now = await uow.workflows.get(TENANT, job.id)
+        assert [one.says for one in now.steps] == ["type it", "Fill Region", "save it"]
+        assert (now.signs_in, now.signs_out) == (True, False)
+
+    async def test_a_whole_job_save_from_a_stale_read_keeps_the_decision(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        twice = [{"name": "a", "key": "k"}, {"name": "b", "key": "k"}]
+        job, _ = await _a_real_job(session_factory, parameters=twice)
+        async with SqlUnitOfWork(session_factory) as learner:
+            stale = await learner.workflows.get(TENANT, job.id)
+            async with SqlUnitOfWork(session_factory) as sweep:
+                assert await sweep.workflows.decide(TENANT, stale, signs_in=False, signs_out=True)
+                await sweep.commit()
+            await learner.workflows.save(replace(stale, parameters=twice[:1]))
+            await learner.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            now = await uow.workflows.get(TENANT, job.id)
+        assert now.parameters == twice[:1]
+        assert (now.signs_in, now.signs_out) == (False, True)
 
 
 CTX = RequestContext(tenant_id=TENANT, principal_id=PrincipalId("clerk"))

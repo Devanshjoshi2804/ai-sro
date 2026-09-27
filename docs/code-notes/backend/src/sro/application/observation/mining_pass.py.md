@@ -448,10 +448,17 @@ Code: `return 0`
 > Nothing was LEARNT. A fold is not learning -- it is this pass
 > noticing that two of the job's parameters were always one.
 
-## `learn_parameters`, [line 219](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L219): Comment
+## `learn_parameters`, [line 218](../../../../../../../backend/src/sro/application/observation/mining_pass.py#L218): Comment
 
-Code: `existing = _known_by(parameter, stored.parameters) or _same_control(`
+Code: `by_name = [(parameter, _known_by(parameter, stored.parameters)) for parameter in found]`
 
+> Every match by name is made before any match by value. An entry whose name
+> names a field in the doing is that field's: it leaves the untied pool, so
+> no other field can take it by value. Matched in one loop, a legacy entry
+> `Description` seen `Y` was taken by value by Code=Y typed first, then by
+> name by Description, and a run typed Description's answer into both --
+> only in that field order (M3 review round 3, item 7).
+>
 > Matched by control only: `_known_by` compares names and keys. There was a
 > by-name shortcut before it, which matched a stored parameter by its name
 > alone and so ignored the key that tells two same-labelled fields apart.

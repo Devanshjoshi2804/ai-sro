@@ -215,10 +215,10 @@ async def learn_parameters(
     widened = 0
     named = False
     told = False
-    for parameter in found:
-        existing = _known_by(parameter, stored.parameters) or _same_control(
-            parameter, untied, holders
-        )
+    by_name = [(parameter, _known_by(parameter, stored.parameters)) for parameter in found]
+    untied = [one for one in untied if all(one is not claimed for _, claimed in by_name)]
+    for parameter, claimed in by_name:
+        existing = claimed or _same_control(parameter, untied, holders)
         if existing is None:
             fresh.append(
                 {

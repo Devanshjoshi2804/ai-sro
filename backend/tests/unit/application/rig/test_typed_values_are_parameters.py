@@ -382,6 +382,24 @@ async def test_an_untied_parameter_is_not_matched_by_a_value_a_constant_field_al
     assert _typed_into(job, first, answers)["Code"] == "ans-Code"
 
 
+@pytest.mark.parametrize(
+    "order", [[("Code", "Y"), ("Description", "Q")], [("Description", "Q"), ("Code", "Y")]]
+)
+async def test_an_entry_named_after_a_field_is_that_field_and_never_another_by_value(
+    order: list[tuple[str, str]],
+) -> None:
+    """Review round 3, item 7: a legacy entry named Description, seen Y, names
+    no control; the doing typed Code=Y and Description=Q. The entry is
+    Description's by its name, so Code's Y cannot take it, in either order."""
+    doing = _doing("nm_a_", 5000.0, *order)
+
+    job = await _learned(doing, [{"name": "Description", "seen_values": ["Y"]}])
+
+    assert sorted(_named(job)) == ["Code", "Description"], job.parameters
+    answers = {"Code": "C-1", "Description": "D-1"}
+    assert _typed_into(job, doing, answers) == answers
+
+
 async def test_two_clicked_parameters_and_a_typed_field_with_one_value_stay_three() -> None:
     """Review round 2, probe 3: click A=X and click B=X, each listed by its
     step, then type Code=X. Two untied parameters hold X, so the value cannot

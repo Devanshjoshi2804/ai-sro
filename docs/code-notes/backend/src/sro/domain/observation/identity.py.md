@@ -241,9 +241,9 @@ Code: `K_SAME_EVIDENCE = 0.5`
 > already processed. Whether it is the SAME JOB seen on different evidence needs a
 > key derived from the evidence, compared by containment.
 >
-> The model's own `same_as` is recorded and decides neither. A model asked to
-> re-judge its earlier verdict disagrees with itself at roughly 90%, and `same_as`
-> asks precisely that.
+> The model's own opinion (`same_as`, removed in M1) decided neither. A model
+> asked to re-judge its earlier verdict disagrees with itself at roughly 90%,
+> and `same_as` asked precisely that.
 
 ## module, [line 93](../../../../../../../backend/src/sro/domain/observation/identity.py#L93): Comment
 
@@ -349,7 +349,7 @@ Code: `here = lands.get(proposal.id) if proposal.signs_in else None`
 > are never folded by their shape either: identical password pages in front
 > of two applications look the same and are not.
 
-## `resolve`, [line 181](../../../../../../../backend/src/sro/domain/observation/identity.py#L181): Comment
+## `resolve`, [line 184](../../../../../../../backend/src/sro/domain/observation/identity.py#L184): Comment
 
 Code: `matched = _shared(shape, theirs)`
 
@@ -359,7 +359,7 @@ Code: `matched = _shared(shape, theirs)`
 > step aliases a named one scored as though it had not, and `Reply to
 > Email` cleared K_SAME_JOB at exactly 0.5 by arithmetic coincidence.
 
-## `resolve`, [line 183](../../../../../../../backend/src/sro/domain/observation/identity.py#L183): Comment
+## `resolve`, [line 186](../../../../../../../backend/src/sro/domain/observation/identity.py#L186): Comment
 
 Code: `whole = matched >= K_MIN_SHARED_STEPS`
 
@@ -384,7 +384,7 @@ Code: `whole = matched >= K_MIN_SHARED_STEPS`
 > Ranked by how many steps are shared, then by containment, so a one-entry
 > stub 1.0-contained by the proposal cannot beat the real match behind it.
 
-## `resolve`, [line 184](../../../../../../../backend/src/sro/domain/observation/identity.py#L184): Comment
+## `resolve`, [line 187](../../../../../../../backend/src/sro/domain/observation/identity.py#L187): Comment
 
 Code: `if (`
 
@@ -392,3 +392,77 @@ Code: `if (`
 > whose shapes are equally generic -- a mailbox's `Reply`, `Forward`
 > and `Send` -- have nothing else left to be told apart by. See
 > `K_SAME_NAME`.
+
+## `resolve`, [line 210](../../../../../../../backend/src/sro/domain/observation/identity.py#L210): Comment
+
+Code: `named = _as_words(proposal.title)`
+
+> Extend, never mint (M1 round 1). The shape rules above could only say
+> `new` for wfl_88bc: two mail clicks and a Save from a later doing, one step
+> shared with wfl_4857, which is under the bar. It carried the job's own
+> title. A proposal whose title, with punctuation and stop words gone, is a
+> stored job's title is a doing of that job. The model names jobs from the
+> "Jobs already proven" list, so an equal title is its recognition, and
+> two live jobs under one title are what the operator could never pick
+> between ("Did you mean X or X?").
+>
+> After the shape rules, so a shape match still wins, and after the
+> sign-in filter, so two sign-ins that land in different places are not
+> joined by a title.
+
+## `resolve`, [line 216](../../../../../../../backend/src/sro/domain/observation/identity.py#L216): Comment
+
+Code: `if not proposal.parameters:`
+
+> A proposal with nothing that varies, sharing even one step with a stored
+> job, and resolving to nothing else, is a fragment of that job, never a
+> new one. The keep path refuses it by name. A proposal WITH parameters that
+> shares one step stays new: the absolute bar above exists for real jobs
+> that share a lookup or a Save.
+>
+> The review also asked that "steps covered by a stored job" resolve to that
+> job. That is already the shape rule when two or more steps are shared and
+> the names are alike. Below that, two measured cases forbid it:
+> `test_a_doing_of_one_distinct_step_does_not_fold_into_a_bigger_job` and
+> `test_forwarding_is_not_replying_however_alike_the_clicks_are`. So a
+> covered proposal that fails those guards is refused as a fragment if it
+> has no parameters, and is otherwise new.
+
+## `resolve`, [line 201](../../../../../../../backend/src/sro/domain/observation/identity.py#L201): Comment
+
+Code: `if sum(1 for entry in shape if not entry[1].startswith(ANON)) >= K_MIN_SHARED_STEPS:`
+
+> Steps a stored job already holds, every one of them exactly (as a set,
+> no `anon|` alias), and at least K_MIN_SHARED_STEPS of them: that job,
+> whatever the title (M1 round 3). A proposal that is wholly a part of a job
+> is that job; the name veto exists to keep apart jobs that merely look
+> alike. Exact, because the alias is what made Forward look like Reply. At
+> least two distinct entries, because one entry is any doing that touches
+> that control (see the bar above). A proposal with a step of its own --
+> an Edit that presses Edit on the create form -- is not wholly the create,
+> so this rule leaves it to the shape rule above, where its name decides.
+>
+> Round 4 tightened it twice.
+> - Only NAMED entries count toward K_MIN_SHARED_STEPS, though every entry
+>   must still be contained: `anon|click` equals `anon|click` and names
+>   nothing. Reply and Forward, both read as `[anon|click, Send]`, stay
+>   apart.
+> - The proposal must be at least half (K_SAME_JOB) of the job's distinct
+>   steps, so a short job inside a longer, different one ("Log Out" inside a
+>   six-step password change) stays new. Of the jobs that qualify, the one
+>   it is most of wins. A tie in share is a tie in size (the proposal is
+>   the same set), so "then the most steps" needs no key of its own.
+>
+> Known limit: under a name alike at K_SAME_NAME ("Edit a Customer Type"
+> against "Create a Customer Type", 2 words of 4), the shape rule above
+> still joins an Edit sharing two steps and half the form. Telling them
+> apart by the verb is an identity decision of its own, not made here.
+
+## `resolve`, [line 210](../../../../../../../backend/src/sro/domain/observation/identity.py#L210): Comment
+
+Code: `named = _as_words(proposal.title)`
+
+> Equal title, and at least one shared step (M1 round 3): the title is the
+> model's recognition, the shared step is the evidence that it is the same
+> screen. A mailbox "Log out" and the warehouse's "Log Out" share a title
+> and not a step, and stay two jobs.

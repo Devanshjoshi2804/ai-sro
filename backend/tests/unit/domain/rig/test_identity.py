@@ -13,10 +13,15 @@ from sro.domain.skill.workflow import Step, Workflow
 
 
 def _workflow(cites: list[str], shape: list[list[str]], **over: object) -> Workflow:
+    """A job as the miner proposes one: named after itself, and with a value
+    that varies. A title and whether it has parameters both decide identity
+    now (an equal title is the same job; a parameterless piece of a stored job
+    is a fragment), so a fixture has to say them rather than share one default."""
     base: dict[str, object] = {
         "id": "wfl_x",
         "tenant": "acme",
-        "title": "a job",
+        "title": f"a job {over.get('id', 'wfl_x')}",
+        "parameters": [{"name": "value", "seen_values": ["1"]}],
         "narrative": "",
         "systems": ["https://wms.example"],
         "steps": [
@@ -89,19 +94,6 @@ def test_a_small_job_inside_a_big_one_is_the_same_job_and_says_which_contains() 
 
     assert resolution.kind == "same_job"
     assert resolution.contains is False
-
-
-def test_the_models_own_opinion_decides_nothing() -> None:
-    """A model re-judging its earlier verdict disagrees with itself at roughly
-    90%, and same_as asks exactly that."""
-    known = _workflow(["ges_1"], SHAPE, id="wfl_known")
-    unrelated = _workflow(
-        ["ges_50"],
-        [["https://other.example", "wholly", "click"]],
-        same_as="wfl_known",
-    )
-
-    assert resolve(unrelated, [known]).kind == "new"
 
 
 def test_a_workflow_with_no_shape_is_new_rather_than_a_match() -> None:
@@ -555,6 +547,18 @@ def test_forwarding_is_not_replying_however_alike_the_clicks_are() -> None:
     assert resolve(forward, [reply]).kind == "new"
 
 
+def test_forwarding_is_not_replying_when_both_were_read_as_an_unnamed_click() -> None:
+    """`anon|click` equals `anon|click` and names nothing, so it is not
+    evidence that two jobs are one: only named steps count toward the
+    covered-steps rule. Both measured readings of Reply and Forward share
+    exactly these two entries."""
+    unnamed = [MAILBOX, "anon|click", "click"]
+    reply = _workflow(["g1", "g2"], [unnamed, SEND], id="wfl_reply", title="Reply to Email")
+    forward = _workflow(["g3", "g4"], [unnamed, SEND], title="Forward Email")
+
+    assert resolve(forward, [reply]).kind == "new"
+
+
 def test_one_job_the_model_phrased_twice_is_still_one_job() -> None:
     """The other direction, and the reason this is a veto rather than a rule
     of its own: a model does not phrase things identically twice, and a name
@@ -744,3 +748,121 @@ def test_the_sign_in_twin_whose_shape_is_closest_wins() -> None:
     lands = {"wfl_older": key, "wfl_closer": key, doing.id: key}
 
     assert resolve(doing, [older, closer], signs_in_to=lands).workflow_id == "wfl_closer"
+
+
+MAIL_CLICK = ["https://mail.example", "anon|click", "click"]
+
+
+def test_a_proposal_under_a_stored_job_s_own_title_is_that_job() -> None:
+    """wfl_88bc: two mail clicks and a Save, titled exactly as the job it is a
+    piece of. Its shape shares one step with the job, so the shape alone called
+    it new and it was stored with no parameters."""
+    known = _workflow(["ges_1", "ges_2"], SHAPE, id="wfl_known", title="Create a Customer Type")
+    fragment = _workflow(["ges_50", "ges_51"], [MAIL_CLICK, SHAPE[1]], title="create customer type")
+
+    resolution = resolve(fragment, [known])
+
+    assert (resolution.kind, resolution.workflow_id) == ("same_job", "wfl_known")
+
+
+def test_a_nameless_fragment_with_no_parameters_overlapping_a_job_is_a_fragment() -> None:
+    known = _workflow(["ges_1", "ges_2"], SHAPE, id="wfl_known", title="Create a Supplier")
+    fragment = _workflow(
+        ["ges_50", "ges_51"], [MAIL_CLICK, SHAPE[1]], title="Read and save", parameters=[]
+    )
+
+    resolution = resolve(fragment, [known])
+
+    assert (resolution.kind, resolution.workflow_id) == ("fragment", "wfl_known")
+
+
+def test_a_job_with_parameters_sharing_one_step_is_still_new() -> None:
+    known = _workflow(["ges_1", "ges_2"], SHAPE, id="wfl_known", title="Create a Supplier")
+    other = _workflow(
+        ["ges_50", "ges_51"],
+        [MAIL_CLICK, SHAPE[1]],
+        title="Reply to a supplier",
+        parameters=[{"name": "body", "seen_values": ["hi"]}],
+    )
+
+    assert resolve(other, [known]).kind == "new"
+
+
+def test_a_title_alone_does_not_join_jobs_that_share_no_step() -> None:
+    """A "Log out" of the mailbox is not the warehouse's "Log Out"."""
+    known = _workflow(
+        ["ges_1", "ges_2"],
+        [[WMS, "userMenu", "click"], [WMS, "logoutButton", "click"]],
+        id="wfl_known",
+        title="Log Out",
+    )
+    mail = _workflow(
+        ["ges_50", "ges_51"],
+        [[MAIL, "button|Account", "click"], [MAIL, "link|Sign out", "click"]],
+        title="Log out",
+    )
+
+    assert resolve(mail, [known]).kind == "new"
+
+
+FORM = [[WMS, f"field{n}", "type"] for n in range(3)] + [[WMS, "saveButton", "click"]]
+
+
+def test_steps_a_stored_job_already_holds_exactly_are_that_job_whatever_the_title() -> None:
+    known = _workflow(["ges_1"], FORM, id="wfl_known", title="Create a Customer Type")
+    part = _workflow(["ges_50", "ges_51"], [FORM[0], FORM[3]], title="Fill in a record")
+
+    resolution = resolve(part, [known])
+
+    assert (resolution.kind, resolution.workflow_id) == ("same_job", "wfl_known")
+
+
+def test_an_edit_on_the_same_form_with_a_step_of_its_own_stays_its_own_job() -> None:
+    """The covered-steps rule wants EVERY step of the proposal held exactly by
+    the stored job. An edit shares the form's fields and Save and presses Edit,
+    which the create never does, so that rule does not take it -- and under a
+    name of its own the shape rule's name veto keeps it apart too."""
+    known = _workflow(["ges_1"], FORM, id="wfl_known", title="Create a Customer Type")
+    edit = _workflow(
+        ["ges_50", "ges_51", "ges_52"],
+        [[WMS, "editButton", "click"], FORM[0], FORM[3]],
+        title="Edit a record",
+    )
+
+    assert resolve(edit, [known]).kind == "new"
+
+
+def test_a_short_job_inside_a_longer_different_job_stays_its_own() -> None:
+    """Covered steps name the job only when they are at least half of it: a
+    password change opens the user menu and ends by logging out, and "Log Out"
+    is two of its six steps, not the job."""
+    change = _workflow(
+        ["ges_1"],
+        [
+            [WMS, "userMenu", "click"],
+            [WMS, "currentPassword", "type"],
+            [WMS, "newPassword", "type"],
+            [WMS, "confirmPassword", "type"],
+            [WMS, "saveButton", "click"],
+            [WMS, "logoutButton", "click"],
+        ],
+        id="wfl_pw",
+        title="Change password",
+    )
+    log_out = _workflow(
+        ["ges_50", "ges_51"],
+        [[WMS, "userMenu", "click"], [WMS, "logoutButton", "click"]],
+        title="Log Out",
+    )
+
+    assert resolve(log_out, [change]).kind == "new"
+
+
+def test_of_the_jobs_a_proposal_covers_the_one_it_is_most_of_wins() -> None:
+    big = _workflow(["ges_1"], [*FORM, [WMS, "extra", "type"]], id="wfl_big", title="Big")
+    close = _workflow(["ges_2"], FORM[:3], id="wfl_close", title="Close")
+    part = _workflow(["ges_50"], FORM[:3], title="Part")
+
+    resolution = resolve(part, [big, close])
+
+    assert (resolution.kind, resolution.workflow_id) == ("same_job", "wfl_close")

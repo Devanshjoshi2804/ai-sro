@@ -2,7 +2,20 @@
 
 Comments and docstrings moved out of [`backend/src/sro/domain/prompts/mine.py`](../../../../../../../backend/src/sro/domain/prompts/mine.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## module, [line 58](../../../../../../../backend/src/sro/domain/prompts/mine.py#L58): Note on the line above
+## module, [line 55](../../../../../../../backend/src/sro/domain/prompts/mine.py#L55): Note on the line above
+
+Code: `version=2,`
+
+> Version 2 (M1, 2026-09-26) deleted one sentence from `_TASK`: "Say which
+> values look like the same thing appearing in two systems." No field in
+> `output_schema` carried the answer and no code read it. The code already
+> finds those values itself (`values.shared_values`) and shows them to the
+> model as the `crossings` block, so the sentence asked the model to do,
+> with nowhere to put it, what had been done for it. The mining eval
+> (`make eval suite=mining`) measures v2 against the v1 baseline; the report
+> goes in the PR.
+
+## module, [line 56](../../../../../../../backend/src/sro/domain/prompts/mine.py#L56): Note on the line above
 
 Code: `model="gemini-3.8-flash",`
 
@@ -59,7 +72,7 @@ Code: `model="gemini-3.8-flash",`
 > the `thinking` note below -- cited and not copied, because a
 > measurement kept in two places is one that drifts.
 
-## module, [line 59](../../../../../../../backend/src/sro/domain/prompts/mine.py#L59): Note on the line above
+## module, [line 57](../../../../../../../backend/src/sro/domain/prompts/mine.py#L57): Note on the line above
 
 Code: `thinking="medium",`
 
@@ -87,14 +100,14 @@ Code: `thinking="medium",`
 > made without them -- and because the first was recorded for one model and not
 > applied to the one actually configured, which is how the $2.00 was spent.
 
-## module, [line 70](../../../../../../../backend/src/sro/domain/prompts/mine.py#L70): Comment
+## module, [line 68](../../../../../../../backend/src/sro/domain/prompts/mine.py#L68): Comment
 
 Code: `"properties": {`
 
 > cites before says: identifying the evidence before
 > composing the answer measurably beats the reverse.
 
-## module, [line 93](../../../../../../../backend/src/sro/domain/prompts/mine.py#L93): Comment
+## module, [line 91](../../../../../../../backend/src/sro/domain/prompts/mine.py#L91): Comment
 
 Code: `"parameters": {`
 
@@ -109,7 +122,7 @@ Code: `"parameters": {`
 > empty every time, on jobs whose evidence plainly showed
 > four different customer types being typed.
 
-## module, [line 115](../../../../../../../backend/src/sro/domain/prompts/mine.py#L115): Comment
+## module, [line 113](../../../../../../../backend/src/sro/domain/prompts/mine.py#L113): Comment
 
 Code: `"unplaced": {"type": "array", "items": {"type": "string"}},`
 

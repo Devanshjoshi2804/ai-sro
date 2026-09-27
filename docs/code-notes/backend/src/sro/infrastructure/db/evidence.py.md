@@ -39,10 +39,11 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/db/evidenc
 
 > The rig's ``pool`` module, one storage layer down.
 >
-> Live and retired are two reads because a retired entry is still a row: it
-> stops being offered ahead of fresh evidence and goes on being packed on its
-> own merits, so nothing here ever deletes one. The only entry that leaves is
-> one a pass cited, and it leaves because it was placed.
+> Live and retired are two reads because a retired entry is still a row. It
+> is the record that the gesture has been mined (read K_POOL_AGE + 1 times,
+> read and gone stale, or this browser's own driving), so no pass packs it
+> again, and nothing here ever deletes one. The only entry that leaves is one
+> a pass cited, and it leaves because it was placed.
 
 ## `SqlGestureRepository.add_batch`, [line 155](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L155): Comment
 
@@ -128,13 +129,22 @@ Code: `carried = (`
 
 ## `SqlGestureRepository.save_intent`, [line 253](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L253): Comment
 
-Code: `statement = pg_insert(IntentRow).values(`
+Code: `values = _intent_values(intent, created_at=datetime.now(tz=UTC))`
 
 > ``created_at`` is the server's, taken here rather than carried on the
 > record: it is when the reading was stored, and the spend window is
 > summed over it.
 
-## `SqlGestureRepository.save_intent`, [line 259](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L259): Comment
+## `SqlGestureRepository.save_intent`, [line 260](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L260): Comment
+
+Code: `for attribute in IntentRow.__mapper__.column_attrs`
+
+> Only the columns the insert supplied are replaced. `intents.continues`
+> stays in the schema with nothing mapping it (GC 17); replacing every
+> column wrote NULL over what it held. By mapped attribute, because
+> `object_` is the attribute and `object` the column.
+
+## `SqlGestureRepository.save_intent`, [line 258](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L258): Comment
 
 Code: `set_={`
 
@@ -213,14 +223,14 @@ Code: `added = await self._session.execute(`
 > RETURNING rather than rowcount, because how many actually entered is
 > the answer, and it is what the caller reports.
 
-## `SqlPoolRepository.age`, [line 386](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L386): Comment
+## `SqlPoolRepository.age`, [line 388](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L388): Comment
 
 Code: `await self._session.execute(`
 
 > No window named is not the same as an empty one: a caller with no
 > window is not claiming nothing was read.
 
-## `SqlPoolRepository.age`, [line 392](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L392): Comment
+## `SqlPoolRepository.age`, [line 394](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L394): Comment
 
 Code: `await self._session.execute(self._bump(*live, waited=PoolRow.waited + 1))`
 
@@ -232,13 +242,13 @@ Code: `await self._session.execute(self._bump(*live, waited=PoolRow.waited + 1))
 > reads. A pass that packs nothing is exactly when the pool
 > most needs to record that nobody was seen.
 
-## `SqlPoolRepository.age`, [line 394](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L394): Comment
+## `SqlPoolRepository.age`, [line 396](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L396): Comment
 
 Code: `await self._session.execute(`
 
 > Shown: one reading older, and its waiting starts again.
 
-## `SqlPoolRepository.age`, [line 402](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L402): Comment
+## `SqlPoolRepository.age`, [line 408](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L408): Comment
 
 Code: `await self._session.execute(`
 
@@ -246,7 +256,7 @@ Code: `await self._session.execute(`
 > time. Ageing was doing both jobs, so an entry read six times
 > outranked one never seen at all and the day did not rotate.
 
-## `SqlPoolRepository.age`, [line 406](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L406): Comment
+## `SqlPoolRepository.age`, [line 412](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L412): Comment
 
 Code: `passes = await self._session.execute(`
 
@@ -255,12 +265,17 @@ Code: `passes = await self._session.execute(`
 > retires an entry a busy tenant has already reconsidered fifty times.
 > Whichever comes first, and the row says which -- both filtered on
 > `retired = 0`, so nothing is retired twice or re-reported by the
-> other cap.
+> other cap. A failed reading (`failed=True`) moves nothing but `failed`:
+> `waited` is untouched, so the next pass packs the same window and
+> K_MINE_ATTEMPTS counts per window rather than over whichever entries the
+> waiting bonus rotates in (M1 round 3).
+> The stale cap takes only what has been read (`age > 0`):
+> retired is never mined again, and an unread entry is backlog.
 > RETURNING rather than ``rowcount``, as in ``add_unclaimed``: which
 > rows actually retired is the answer, and it is one shape everywhere
 > rather than the driver's own count.
 
-## `SqlPoolRepository._bump`, [line 432](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L432): Comment
+## `SqlPoolRepository._bump`, [line 461](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L461): Comment
 
 Code: `return (`
 

@@ -108,7 +108,7 @@ Code: `modifiers: tuple[str, ...] = ()`
 > separate tables. Both may describe one upload; neither is derived from the
 > other.
 
-## `passed_through`, [line 193](../../../../../../../backend/src/sro/domain/observation/gesture.py#L193): Docstring
+## `passed_through`, [line 192](../../../../../../../backend/src/sro/domain/observation/gesture.py#L192): Docstring
 
 > Whether this gesture ended on a different system from the one it
 > happened on -- the browser moved the operator, the operator did not.

@@ -49,7 +49,7 @@ Code: `uses: list[int] = field(default_factory=list)`
 > comes to it: a value typed in step five that equals what step two's
 > response returned IS this edge, and the recorded calls hold both halves.
 
-## `Workflow`, [line 46](../../../../../../../backend/src/sro/domain/skill/workflow.py#L46): Note on the line above
+## `Workflow`, [line 45](../../../../../../../backend/src/sro/domain/skill/workflow.py#L45): Note on the line above
 
 Code: `repeat: Repeat | None = None`
 
@@ -61,7 +61,7 @@ Code: `repeat: Repeat | None = None`
 > given one item performs exactly like a run of a job with no repeat at all.
 > See `domain/skill/repeats`.
 
-## `ordered_cites`, [line 83](../../../../../../../backend/src/sro/domain/skill/workflow.py#L83): Docstring
+## `ordered_cites`, [line 82](../../../../../../../backend/src/sro/domain/skill/workflow.py#L82): Docstring
 
 > Every gesture the workflow cites, in step order.
 >
@@ -71,7 +71,7 @@ Code: `repeat: Repeat | None = None`
 > caller: the mining pass writes a shape key and `rekey_workflows` rewrites
 > one, and two spellings of "in step order" is two shapes for one job.
 
-## `Workflow.generalise_title`, [line 50](../../../../../../../backend/src/sro/domain/skill/workflow.py#L50): Docstring
+## `Workflow.generalise_title`, [line 49](../../../../../../../backend/src/sro/domain/skill/workflow.py#L49): Docstring
 
 > This job's own parameter values taken out of its name.
 >
@@ -111,18 +111,6 @@ Code: `cites: list[str] = field(default_factory=list)`
 
 ## `Workflow`, [line 43](../../../../../../../backend/src/sro/domain/skill/workflow.py#L43): Comment
 
-Code: `same_as: str | None = None`
-
-> The model's opinion about whether this is one it has proposed before. It is
-> recorded and it decides nothing: a model re-judging its own earlier verdict
-> disagrees with itself at roughly 90%. identity.py decides.
->
-> No longer asked of the model (2026-09-23): the mining schema dropped it.
-> `workflow_from` still takes it from an answer that carries it, and the
-> field and its column stay.
-
-## `Workflow`, [line 44](../../../../../../../backend/src/sro/domain/skill/workflow.py#L44): Comment
-
 Code: `pass_id: str = ""`
 
 > The pass that found it. A workflow has no cost of its own -- one model
@@ -131,7 +119,7 @@ Code: `pass_id: str = ""`
 > times. Empty for a workflow saved outside a pass, which today is only a
 > test.
 
-## `Workflow`, [line 48](../../../../../../../backend/src/sro/domain/skill/workflow.py#L48): Note on the line above
+## `Workflow`, [line 47](../../../../../../../backend/src/sro/domain/skill/workflow.py#L47): Note on the line above
 
 Code: `signs_in: bool | None = None`
 
@@ -147,7 +135,7 @@ Code: `signs_in: bool | None = None`
 > sweep decides it (`mining_pass.decide_sign_ins`). A job starts undecided;
 > the mining pass decides a proposal before it is stored.
 
-## `field_key`, [line 87](../../../../../../../backend/src/sro/domain/skill/workflow.py#L87): Docstring
+## `field_key`, [line 86](../../../../../../../backend/src/sro/domain/skill/workflow.py#L86): Docstring
 
 > The body key of a learned field step (X10, `with_field`), or "". Such a step
 > cites no gesture and fills one parameter that the job declares with the `key`

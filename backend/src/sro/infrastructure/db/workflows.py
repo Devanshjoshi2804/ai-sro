@@ -49,7 +49,6 @@ def _workflow_values(workflow: Workflow) -> dict[str, Any]:
         "systems": list(workflow.systems),
         "parameters": list(workflow.parameters),
         "shape_key": [list(entry) for entry in workflow.shape_key],
-        "same_as": workflow.same_as,
         "repeat": (
             None
             if workflow.repeat is None
@@ -96,7 +95,6 @@ def _row_to_workflow(row: WorkflowRow, steps: list[Step]) -> Workflow:
         steps=steps,
         parameters=list(row.parameters),
         shape_key=[list(entry) for entry in row.shape_key],
-        same_as=row.same_as,
         pass_id=row.pass_id,
         repeat=(
             Repeat(
@@ -164,26 +162,28 @@ class SqlWorkflowRepository(WorkflowRepository):
         self._session = session
 
     async def save(self, workflow: Workflow) -> None:
-        statement = pg_insert(WorkflowRow).values(**_workflow_values(workflow))
-        await self._session.execute(
-            statement.on_conflict_do_update(
-                index_elements=["id"],
-                set_={
-                    column.name: statement.excluded[column.name]
-                    for column in WorkflowRow.__table__.columns
-                    if column.name not in ("id", "retired_at", "created_at")
-                },
-            )
-        )
-        await self._session.execute(
-            delete(WorkflowStepRow).where(WorkflowStepRow.workflow_id == workflow.id)
-        )
-        if workflow.steps:
+        async with self._session.begin_nested():
+            values = _workflow_values(workflow)
+            statement = pg_insert(WorkflowRow).values(**values)
             await self._session.execute(
-                pg_insert(WorkflowStepRow).values(
-                    [_step_values(workflow.id, step) for step in workflow.steps]
+                statement.on_conflict_do_update(
+                    index_elements=["id"],
+                    set_={
+                        name: statement.excluded[name]
+                        for name in values
+                        if name not in ("id", "retired_at", "created_at")
+                    },
                 )
             )
+            await self._session.execute(
+                delete(WorkflowStepRow).where(WorkflowStepRow.workflow_id == workflow.id)
+            )
+            if workflow.steps:
+                await self._session.execute(
+                    pg_insert(WorkflowStepRow).values(
+                        [_step_values(workflow.id, step) for step in workflow.steps]
+                    )
+                )
 
     async def known(self, tenant_id: TenantId) -> tuple[Workflow, ...]:
         query = (

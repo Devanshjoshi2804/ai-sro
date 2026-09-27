@@ -50,6 +50,8 @@ from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow, new_workflow_id
+from sro.infrastructure.db import workflows as workflows_module
+from sro.infrastructure.db.locks import PostgresAccountLocks
 from sro.infrastructure.db.models import WorkflowEffectRow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from tests.unit.domain.rig.conftest import gestures as _gestures
@@ -86,7 +88,6 @@ def _workflow(**overrides: Any) -> Workflow:
         ],
         "parameters": [{"name": "supplier_name", "seen_values": ["TestYonder2"]}],
         "shape_key": [["https://wms.example", "clientCode", "type"]],
-        "same_as": None,
         "pass_id": "pas_1",
     }
     fields.update(overrides)
@@ -809,61 +810,69 @@ class TestStaleSteps:
             assert await uow.workflows.stale_count(workflow.id) == 0
 
 
-class TestTheMiningPass:
-    """The one rule of `mine` that only a real session can prove.
+FAILS = "the step Postgres refuses"
 
-    Everything else about the pass is arithmetic over fakes in
-    `tests/unit/application/rig/test_mine.py`. This is the half no fake can
-    answer: what a store does to a transaction whose statement failed, and
-    whether the bill the pass writes in its `finally` survives it.
-    """
 
-    async def test_the_bill_is_written_on_a_session_the_save_killed(
+def _a_step_postgres_refuses(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A step whose insert fails on the server. `workflow_from` refuses what a
+    model could send to make one (control characters, orders past int32), so
+    the failure is planted below the domain: the row's key outgrows its column."""
+    real = workflows_module._step_values
+
+    def refused(workflow_id: str, step: Step) -> dict[str, Any]:
+        values = real(workflow_id, step)
+        return {**values, "workflow_id": "w" * 65} if step.says == FAILS else values
+
+    monkeypatch.setattr(workflows_module, "_step_values", refused)
+
+
+class TestWhatAPassHasMined:
+    """What a pass read is recorded in the same transaction as what it kept,
+    under the tenant's mining lock -- proved against the real lock and store."""
+
+    async def test_a_re_saved_job_keeps_a_column_nothing_maps_any_more(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
-        """A pass whose workflow will not go into the store is still a pass
-        that was billed.
+        """`workflows.same_as` stays in the schema with nothing writing it
+        (GC 17). A re-save replaces what it supplies, and only that."""
+        job = _workflow()
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(job)
+            await uow.commit()
+        async with session_factory() as session:
+            await session.execute(text("UPDATE workflows SET same_as = 'wfl_older'"))
+            await session.commit()
 
-        `same_as` is `varchar(64)` and comes straight off the model answer, so
-        a model that names a job in a hundred characters is an ordinary
-        statement error rather than a contrived one. Postgres then refuses
-        every further statement on the transaction -- so before the
-        rollback-and-retry this probe read `passes: 0, workflows: 0`, with a
-        DBAPIError in place of the error that caused it, and the only record
-        of a paid-for call was gone.
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(replace(job, title="renamed"))
+            await uow.commit()
 
-        The rig never met this: its `store.execute` opened a connection per
-        statement, so each save was its own committed transaction. One session
-        is this port's shape.
-        """
+        async with session_factory() as session:
+            kept = await session.scalar(text("SELECT same_as FROM workflows"))
+        assert kept == "wfl_older"
+
+    async def test_the_bill_is_written_on_a_session_the_save_killed(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A pass whose workflow will not go into the store is still a pass that
+        was billed. Postgres refuses every further statement on a transaction
+        whose statement failed, so without the rollback-and-retry in `_one_pass`'s
+        `finally` the bill went with it. The statement is killed on the server:
+        one step's row carries a key longer than its column allows."""
+        _a_step_postgres_refuses(monkeypatch)
         gestures = _gestures(TENANT.value)
         proposal = {
             "title": "create a work operation",
             "narrative": "n",
             "systems": [gestures[0].system],
-            # Two steps, because `validate` refuses anything shorter than
-            # `identity.K_MIN_SHARED_STEPS` and this probe needs the workflow
-            # to reach the SAVE, where the oversized `same_as` kills the
-            # statement. Both cite the same gesture, so nothing else moves.
             "steps": [
-                {
-                    "order": 0,
-                    "cites": [gestures[0].id],
-                    "says": "do it",
-                    "system": gestures[0].system,
-                },
-                {
-                    "order": 1,
-                    "cites": [gestures[0].id],
-                    "says": "save it",
-                    "system": gestures[0].system,
-                },
+                {"order": 0, "cites": [gestures[0].id], "says": "do it"},
+                {"order": 1, "cites": [gestures[0].id], "says": FAILS},
             ],
-            # Longer than the column, which is what kills the statement.
-            "same_as": "wfl_" + "0" * 100,
         }
         asker = FakeAsker(Answer(data={"workflows": [proposal]}, cost_usd=0.04))
-
         async with SqlUnitOfWork(session_factory) as uow:
             await uow.gestures.add_gestures(tuple(gestures))
             await uow.commit()
@@ -882,12 +891,105 @@ class TestTheMiningPass:
         async with SqlUnitOfWork(session_factory) as uow:
             billed = await uow.workflows.passes(TENANT)
             kept = await uow.workflows.known(TENANT)
-
-        assert [one.cost_usd for one in billed] == [0.04], "the call was billed; the row proves it"
+        assert [one.cost_usd for one in billed] == [0.04]
         assert billed[0].proposed == 1
-        # Postgres discarded them when the statement failed. Nothing here can
-        # keep them, and the bill is what must not go with them.
         assert kept == ()
+
+    async def test_a_job_whose_steps_fail_is_not_stored_and_the_job_before_it_is(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Saving one job is one savepoint. A step insert that fails takes that
+        job's row back with it, and the pass's `finally` -- which commits the
+        bill -- can then never commit a job without its steps. The job kept
+        earlier in the same pass is untouched."""
+        _a_step_postgres_refuses(monkeypatch)
+        day = _gestures(TENANT.value)
+        gestures = {g.action.kind: g for g in day}
+        typed, picked = gestures["type"], gestures["select"]
+        good = {
+            "title": "create a work operation",
+            "narrative": "n",
+            "systems": [typed.system],
+            "steps": [
+                {"order": 0, "cites": [typed.id], "says": "type it"},
+                {"order": 1, "cites": [typed.id], "says": "save it"},
+            ],
+        }
+        bad = {
+            "title": "pick a dock",
+            "narrative": "n",
+            "systems": [picked.system],
+            "steps": [
+                {"order": 0, "cites": [picked.id], "says": "pick it"},
+                {"order": 1, "cites": [picked.id], "says": FAILS},
+            ],
+        }
+        asker = FakeAsker(Answer(data={"workflows": [good, bad]}, cost_usd=0.04))
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.gestures.add_gestures(tuple(day))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            with pytest.raises(DBAPIError):
+                await mine(
+                    uow,
+                    tenant_id=TENANT,
+                    asker=asker,
+                    locks=FakeAccountLocks(),
+                    now=datetime(2025, 2, 11, 23, tzinfo=UTC),
+                    cap_usd=100.0,
+                )
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            kept = await uow.workflows.known(TENANT)
+            billed = await uow.workflows.passes(TENANT)
+        async with session_factory() as session:
+            rows = await session.scalar(text("SELECT count(*) FROM workflows"))
+            steps = await session.scalar(text("SELECT count(*) FROM workflow_steps"))
+        assert [one.title for one in kept] == ["create a work operation"]
+        assert (rows, steps) == (1, len(kept[0].steps))
+        assert [one.cost_usd for one in billed] == [0.04]
+
+    async def test_two_passes_at_once_ask_the_model_once(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        gestures = _gestures(TENANT.value)
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.gestures.add_gestures(tuple(gestures))
+            await uow.commit()
+        proposal = {
+            "title": "create a work operation",
+            "narrative": "n",
+            "systems": [gestures[0].system],
+            "steps": [
+                {"order": 0, "cites": [gestures[0].id], "says": "do it"},
+                {"order": 1, "cites": [gestures[0].id], "says": "save it"},
+            ],
+        }
+        asker = FakeAsker(*[Answer(data={"workflows": [proposal]}, cost_usd=0.01)] * 2)
+        locks = PostgresAccountLocks(engine)
+
+        async def mines() -> None:
+            async with SqlUnitOfWork(session_factory) as uow:
+                await mine(
+                    uow,
+                    tenant_id=TENANT,
+                    asker=asker,
+                    locks=locks,
+                    now=datetime(2025, 2, 11, 23, tzinfo=UTC),
+                    cap_usd=100.0,
+                )
+
+        await asyncio.gather(mines(), mines())
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            kept = await uow.workflows.known(TENANT)
+            billed = await uow.workflows.passes(TENANT)
+        assert len(asker.asked) == 1
+        assert len(kept) == 1
+        assert sorted(one.cost_usd for one in billed) == [0.0, 0.01]
 
 
 class TestAStepNamesWhatItUses:

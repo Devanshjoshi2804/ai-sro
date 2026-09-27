@@ -102,7 +102,6 @@ def _proposal(cites: list[str], **over: object) -> dict[str, object]:
             {"order": 1, "cites": cites, "says": "save it", "system": HOST, "parameters": []},
         ],
         "parameters": [],
-        "same_as": None,
     }
     return {**base, **over}
 
@@ -246,10 +245,8 @@ async def test_a_replay_of_our_own_is_not_evidence_this_pass_can_mine() -> None:
     result = await _pass(uow, asker=asker).execute(_ctx())
 
     assert result.kept == 0, "a job was mined from this system driving itself"
-    # The pass itself still runs and still asks: a window with nothing in it is
-    # not this rule's business, and a tenant whose whole day was replays is the
-    # same case as one who did nothing at all. What it must not do is propose a
-    # job from that evidence, which is what `kept` says.
+    # A day that was all replays leaves nothing to mine, so nothing is asked.
+    assert asker.asked == []
     assert [one.id for one in await uow.workflows.known(TENANT)] == []
 
 
@@ -810,17 +807,25 @@ def _shown(asker: FakeAsker) -> str:
     return str(asked["evidence"])
 
 
+async def _new_capture(uow: FakeUnitOfWork, ids: list[str]) -> None:
+    """One gesture no pass has read, so the next pass has something to ask about."""
+    await uow.gestures.add_gestures(
+        (replace(_rows(uow)[ids[-1]], id="ges_new", at=_rows(uow)[ids[-1]].at + 1),)
+    )
+
+
 async def test_what_a_stored_job_cites_is_not_read_again() -> None:
     """Every pass used to re-send the gestures stored jobs already cite, so
     the model re-read and re-proposed known jobs at the price of a call every
     time. What a job cites is placed; a pass is for what is not."""
     uow, ids = await _day()
     assert (await _pass(uow, asker=FakeAsker(_answer(ids[:2]))).execute(_ctx())).kept == 1
+    await _new_capture(uow, ids)
 
     second = FakeAsker(Answer(data={"workflows": []}, cost_usd=0.01))
     result = await _pass(uow, asker=second).execute(_ctx())
 
-    assert result.window_size == len(ids) - 2
+    assert result.window_size == len(ids) - 2 + 1
     assert not any(f'"{one}"' in _shown(second) for one in ids[:2])
     assert all(f'"{one}"' in _shown(second) for one in ids[2:])
 
@@ -867,11 +872,12 @@ async def test_a_doing_folded_into_a_job_is_not_read_again() -> None:
     await uow.gestures.add_gestures(tuple(again))
     folded = await _pass(uow, asker=FakeAsker(_answer([row.id for row in again]))).execute(_ctx())
     assert [one.kind for one in folded.resolutions] == ["same_job"]
+    await _new_capture(uow, ids)
 
     third = FakeAsker(Answer(data={"workflows": []}, cost_usd=0.01))
     result = await _pass(uow, asker=third).execute(_ctx())
 
-    assert result.window_size == 0
+    assert result.window_size == 1
     assert not any(f'"{row.id}"' in _shown(third) for row in again)
 
 
@@ -882,6 +888,7 @@ async def test_a_retired_job_is_not_mined_back_and_not_offered() -> None:
     assert (await _pass(uow, asker=FakeAsker(_answer(ids[:2]))).execute(_ctx())).kept == 1
     [job] = await uow.workflows.known(TENANT)
     await uow.workflows.retire(TENANT, job.id, at=NOW)
+    await _new_capture(uow, ids)
 
     asker = FakeAsker(_answer(ids[:2]))
     result = await _pass(uow, asker=asker).execute(_ctx())

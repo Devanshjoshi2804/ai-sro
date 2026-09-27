@@ -109,10 +109,12 @@ from sro.domain.observation.identity import ShapeKey
 from sro.domain.observation.mining import MiningPass
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.observation.pool import (
+    K_MINE_ATTEMPTS,
     K_POOL_AGE,
     K_POOL_DAYS,
     RETIRED_PASSES,
     RETIRED_STALE,
+    RETIRED_UNMINABLE,
     PoolEntry,
 )
 from sro.domain.observation.trim import path_shape
@@ -2174,7 +2176,7 @@ class FakePoolRepository:
 
     Faithful rather than convenient: an entry ages only when it was shown, an
     empty window still moves everything's waiting, and retirement is a flag
-    rather than a delete -- a retired entry is still packed on its own merits.
+    rather than a delete -- and a retired entry has been mined, so no pass packs it again.
     """
 
     def __init__(self) -> None:
@@ -2199,7 +2201,9 @@ class FakePoolRepository:
             added += 1
         return added
 
-    async def age(self, tenant_id: TenantId, *, shown: tuple[str, ...] | None = None) -> int:
+    async def age(
+        self, tenant_id: TenantId, *, shown: tuple[str, ...] | None = None, failed: bool = False
+    ) -> int:
         stale_before = datetime.now(tz=UTC) - timedelta(days=K_POOL_DAYS)
         retired = 0
         for key, entry in list(self.rows.items()):
@@ -2207,6 +2211,9 @@ class FakePoolRepository:
                 continue
             if shown is None:
                 entry = replace(entry, age=entry.age + 1)
+            elif failed:
+                if entry.gesture_id in shown:
+                    entry = replace(entry, failed=entry.failed + 1)
             elif entry.gesture_id in shown:
                 entry = replace(entry, age=entry.age + 1, waited=0)
             else:
@@ -2215,8 +2222,10 @@ class FakePoolRepository:
                 entry = replace(entry, waited=entry.waited + 1)
             if entry.age > K_POOL_AGE:
                 entry = replace(entry, reason=RETIRED_PASSES)
-            elif when(entry.entered_at) < stale_before:
+            elif entry.age > 0 and when(entry.entered_at) < stale_before:
                 entry = replace(entry, reason=RETIRED_STALE)
+            elif entry.failed >= K_MINE_ATTEMPTS:
+                entry = replace(entry, reason=RETIRED_UNMINABLE)
             if entry.reason:
                 self.retired_ids.add(key)
                 retired += 1
@@ -2231,6 +2240,19 @@ class FakePoolRepository:
 
     async def retired(self, tenant_id: TenantId) -> tuple[PoolEntry, ...]:
         return self._entries(tenant_id, retired=True)
+
+    async def retire(
+        self, tenant_id: TenantId, gesture_ids: tuple[str, ...], *, reason: str
+    ) -> int:
+        gone = 0
+        for gesture_id in dict.fromkeys(gesture_ids):
+            key = (tenant_id.value, gesture_id)
+            if key not in self.rows or key in self.retired_ids:
+                continue
+            self.rows[key] = replace(self.rows[key], reason=reason)
+            self.retired_ids.add(key)
+            gone += 1
+        return gone
 
     def _entries(self, tenant_id: TenantId, *, retired: bool) -> tuple[PoolEntry, ...]:
         found = [

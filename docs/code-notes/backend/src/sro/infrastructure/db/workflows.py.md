@@ -68,12 +68,23 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/db/workflo
 
 > One query for every workflow's steps rather than one per workflow.
 
-## `_row_to_step`, [line 85](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L85): Comment
+## `_row_to_step`, [line 84](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L84): Comment
 
 Code: `uses=list(row.uses or []),`
 
 > An older row has no `uses` at all, and a job that predates the column
 > used nothing -- which is what an absent one honestly means.
+
+## `SqlWorkflowRepository.save`, [line 165](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L165): Comment
+
+Code: `async with self._session.begin_nested():`
+
+> One job, one savepoint: its row and its steps go in together, or neither
+> does. A step insert that fails (on the server, or in the driver before it,
+> which leaves the transaction alive) rolls the job's row back with it. The
+> mining pass's `finally` commits whatever the transaction holds, to keep
+> the bill; before this it could commit a job row with no steps. Jobs saved
+> earlier in the same pass are outside this savepoint and survive.
 
 ## `SqlWorkflowRepository.save`, [line 171](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L171): Comment
 
@@ -89,6 +100,10 @@ Code: `set_={`
 > insert's value is always NULL, and copying it over would bring a
 > retired job back the next time anything re-saved the row -- a
 > healing pass, a parameter learnt, a growth.
+>
+> And only the columns the insert supplied (M1 round 1). `same_as` stays in
+> the schema with nothing mapping it (GC 17); copying every table column
+> wrote NULL over what an old row held.
 
 ## `SqlWorkflowRepository.save`, [line 178](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L178): Comment
 
@@ -294,7 +309,7 @@ Code: `KnownBrokenRow,`
 > working lane on the step that now has that number, and leave the moved step
 > retrying one that is known not to work.
 
-## `workflow_json`, [line 113](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L113): Docstring
+## `workflow_json`, [line 111](../../../../../../../backend/src/sro/infrastructure/db/workflows.py#L111): Docstring
 
 > A job as its own rows: the `workflows` row's columns (bar `created_at`) and
 > its `workflow_steps` rows, the encoding `save` and `get` already use. A run's

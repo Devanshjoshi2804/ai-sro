@@ -18,6 +18,7 @@ from sro.domain.observation.driving import was_our_own_driving
 from sro.domain.observation.gesture import Gesture, Intent
 from sro.domain.observation.identity import Resolution, resolve, shape_key
 from sro.domain.observation.mining import MiningPass
+from sro.domain.observation.pool import K_MINE_ATTEMPTS, RETIRED_DRIVING
 from sro.domain.observation.values import (
     frequencies_over,
     shared_values,
@@ -364,10 +365,19 @@ async def _one_pass(
 
     stored_cites = await uow.workflows.placed(tenant_id)
     carried = await uow.pool.waiting(tenant_id)
+    ours_driving = tuple(entry.gesture_id for entry in carried if entry.gesture_id in driven)
+    if ours_driving:
+        await uow.pool.retire(tenant_id, ours_driving, reason=RETIRED_DRIVING)
+        logger.info(
+            "%s: %d pooled gesture(s) retired -- this browser's own driving",
+            tenant_id.value,
+            len(ours_driving),
+        )
+        carried = tuple(entry for entry in carried if entry.gesture_id not in driven)
     pooled_ids = [entry.gesture_id for entry in carried]
     lost = [gesture_id for gesture_id in pooled_ids if gesture_id not in by_id]
     if lost:
-        logger.warning("%d pooled gesture(s) have no row: %s", len(lost), ", ".join(lost))
+        logger.warning("%d pooled gesture(s) have no gesture row: %s", len(lost), ", ".join(lost))
     pooled: list[Packed] = []
     for entry in carried:
         gesture = by_id.get(entry.gesture_id)
@@ -377,11 +387,18 @@ async def _one_pass(
         item.strength += entry.waited * K_POOL_WAIT
         pooled.append(item)
     in_pool = set(pooled_ids)
+    retired = {entry.gesture_id for entry in await uow.pool.retired(tenant_id)}
     fresh = [
         gesture
         for gesture in gestures
-        if gesture.id not in in_pool and gesture.id not in stored_cites
+        if gesture.id not in in_pool
+        and gesture.id not in retired
+        and gesture.id not in stored_cites
     ]
+    read = frozenset(entry.gesture_id for entry in carried if entry.age > 0)
+    unread = {gesture.id for gesture in fresh} | {
+        item.gesture_id for item in pooled if item.gesture_id not in read
+    }
 
     known = list(await uow.workflows.known(tenant_id))
     known = [
@@ -400,7 +417,13 @@ async def _one_pass(
         for w in known
     ]
 
-    window = pack(fresh, intents, pooled, summary, kb, linked=linked)
+    window = pack(fresh, intents, pooled, summary, kb, linked=linked, read=read)
+    if unread.isdisjoint(item.gesture_id for item in window.items):
+        logger.info("%s: every gesture has been mined; the model is not asked", tenant_id.value)
+        idle = MineResult(pass_id=pass_id, lost_pool=lost)
+        await uow.workflows.add_pass(_billed(pass_id, tenant_id, started_at, idle))
+        await uow.commit()
+        return idle
     proposals, answer = await propose(
         window, crossings, summary, kb, asker=asker, tenant=tenant_id.value
     )
@@ -417,7 +440,10 @@ async def _one_pass(
         unpriced=answer.unpriced,
         error=answer.error,
         window_size=len(window.items),
-        left_out=len(window.left_out),
+        left_out=len(
+            unread
+            - ({item.gesture_id for item in window.items} if answer.data is not None else set())
+        ),
         unplaced=len(residue) if isinstance(residue, list) else 0,
         dropped=answer.dropped,
         lost_pool=lost,
@@ -491,6 +517,18 @@ async def _one_pass(
             if where is not None:
                 lands[proposal.id] = where
             resolution = resolve(proposal, known + kept, signs_in_to=lands)
+            if resolution.kind == "fragment":
+                fragment = Rejection(
+                    proposal.title, "fragment of a known job", resolution.workflow_id or ""
+                )
+                result.rejections.append(fragment)
+                logger.info(
+                    "%s: refused -- %s (%s)",
+                    fragment.workflow_title,
+                    fragment.reason,
+                    fragment.detail,
+                )
+                continue
             result.resolutions.append(resolution)
             logger.info(
                 "%s: %s%s",
@@ -543,8 +581,19 @@ async def _one_pass(
             window_ids=tuple(item.gesture_id for item in window.items) + tuple(window.left_out),
             claimed=claimed,
         )
-        if result.error is None or answer.in_tokens:
-            await uow.pool.age(tenant_id, shown=tuple(item.gesture_id for item in window.items))
+        packed = tuple(item.gesture_id for item in window.items)
+        if answer.data is not None:
+            await uow.pool.age(tenant_id, shown=packed)
+        elif answer.in_tokens:
+            gone = await uow.pool.age(tenant_id, shown=packed, failed=True)
+            logger.warning(
+                "%s: the answer could not be used, so its %d gesture(s) stay unread; "
+                "%d retired unminable after %d unusable answers",
+                tenant_id.value,
+                len(packed),
+                gone,
+                K_MINE_ATTEMPTS,
+            )
     finally:
         billed = _billed(pass_id, tenant_id, started_at, result)
         try:

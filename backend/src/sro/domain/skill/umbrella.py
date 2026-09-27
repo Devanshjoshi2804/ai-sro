@@ -1,4 +1,5 @@
 import json
+import unicodedata
 
 from sro.domain.observation.window import tokens
 from sro.domain.prompts.mine import MINE
@@ -52,8 +53,18 @@ PROMPT_OVERHEAD_TOKENS = (
 )
 
 
+def _has_control(value: object) -> bool:
+    if isinstance(value, str):
+        return any(unicodedata.category(char) == "Cc" and char not in "\t\n\r" for char in value)
+    if isinstance(value, dict):
+        return any(_has_control(key) or _has_control(item) for key, item in value.items())
+    if isinstance(value, list):
+        return any(_has_control(item) for item in value)
+    return False
+
+
 def workflow_from(raw: object, tenant: str) -> Workflow | None:
-    if not isinstance(raw, dict):
+    if not isinstance(raw, dict) or _has_control(raw):
         return None
     steps_raw = raw.get("steps")
     if not isinstance(steps_raw, list):
@@ -81,9 +92,8 @@ def workflow_from(raw: object, tenant: str) -> Workflow | None:
         )
 
     steps.sort(key=lambda step: step.order)
-    if len({step.order for step in steps}) != len(steps):
-        for position, step_out in enumerate(steps):
-            step_out.order = position
+    for position, step_out in enumerate(steps):
+        step_out.order = position
 
     return Workflow(
         id=new_workflow_id(),
@@ -101,5 +111,4 @@ def workflow_from(raw: object, tenant: str) -> Workflow | None:
         ]
         if isinstance(raw.get("parameters"), list)
         else [],
-        same_as=raw["same_as"] if isinstance(raw.get("same_as"), str) else None,
     )

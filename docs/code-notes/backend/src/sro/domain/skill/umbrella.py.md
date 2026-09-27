@@ -18,7 +18,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/umbrella.py`
 > use case that calls it. `propose` itself asks a model and belongs to the mining
 > use case.
 
-## module, [line 9](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L9): Note on the line above
+## module, [line 10](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L10): Note on the line above
 
 Code: `K_MAX_CROSSING_TOKENS = 2_000`
 
@@ -37,7 +37,7 @@ Code: `K_MAX_CROSSING_TOKENS = 2_000`
 > caught. It is subtracted from the budget whether or not any crossing fires, so
 > the prompt fits in the case that matters -- the full one.
 
-## `bounded_crossings`, [line 12](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L12): Docstring
+## `bounded_crossings`, [line 13](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L13): Docstring
 
 > The crossings that fit K_MAX_CROSSING_TOKENS, best-evidenced first.
 >
@@ -47,7 +47,18 @@ Code: `K_MAX_CROSSING_TOKENS = 2_000`
 > than one seen on two. Ties break on the value so the same store always
 > produces the same prompt.
 
-## `workflow_from`, [line 55](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L55): Docstring
+## `_has_control`, [line 56](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L56): Comment
+
+Code: `def _has_control(value: object) -> bool:`
+
+> Control characters other than tab, newline and carriage return. A NUL
+> reached the store from a model answer and Postgres refused the insert,
+> killing the pass's save. None of them is text anybody reads, so a job
+> carrying one anywhere -- title, a step, a parameter's values -- is
+> refused whole (M1 round 3); `propose` drops only that job and keeps the
+> rest of the answer.
+
+## `workflow_from`, [line 66](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L66): Docstring
 
 > One workflow out of one model answer, or None if it is not one.
 >
@@ -55,7 +66,7 @@ Code: `K_MAX_CROSSING_TOKENS = 2_000`
 > application layer calls it, and a leading underscore on something that
 > crosses a layer boundary is a lie about who may use it.
 
-## `bounded_crossings`, [line 16](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L16): Comment
+## `bounded_crossings`, [line 17](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L17): Comment
 
 Code: `cost = tokens(json.dumps({value: ids}, indent=1, ensure_ascii=False))`
 
@@ -63,7 +74,7 @@ Code: `cost = tokens(json.dumps({value: ids}, indent=1, ensure_ascii=False))`
 > came before it. Slightly over -- it pays for a pair of braces per entry
 > -- which is the direction a budget should err in.
 
-## `bounded_crossings`, [line 17](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L17): Comment
+## `bounded_crossings`, [line 18](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L18): Comment
 
 Code: `if spent + cost > K_MAX_CROSSING_TOKENS:`
 
@@ -76,13 +87,13 @@ Code: `if spent + cost > K_MAX_CROSSING_TOKENS:`
 > too well evidenced to print. Nothing says so downstream, and the
 > architecture's central claim quietly loses its input.
 
-## `workflow_from`, [line 69](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L69): Comment
+## `workflow_from`, [line 80](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L80): Comment
 
 Code: `order=step["order"]`
 
 > True is an int in Python, and would sort as step 1.
 
-## `workflow_from`, [line 75](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L75): Comment
+## `workflow_from`, [line 86](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L86): Comment
 
 Code: `parameters=[`
 
@@ -95,17 +106,19 @@ Code: `parameters=[`
 > usable name is not a parameter" is one rule now, applied at
 > both. A blank name is no name.
 
-## `workflow_from`, [line 83](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L83): Comment
+## `workflow_from`, [line 94](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L94): Comment
 
 Code: `steps.sort(key=lambda step: step.order)`
 
-> Renumbered only when the model repeated itself. The workflow-step table
-> declares PRIMARY KEY (workflow_id, ord), so two steps at order 1 is a
-> workflow that cannot be saved -- and "order": 1 twice is schema-valid, so
-> it is an ordinary model slip rather than a broken answer. An answer that
-> numbered its steps correctly keeps its own numbering.
+> The model's order is only a sort key: every step is renumbered to its
+> position, 0..n-1 (M1 round 2). The workflow-step table declares PRIMARY
+> KEY (workflow_id, ord) on an integer, and "order": 1 twice or an order
+> past int32 are both schema-valid answers. The second failed in the
+> driver, before the server, so the transaction lived on and the pass
+> committed a job row with no steps. The rule was once to renumber only
+> on a repeat; nothing reads a model's own numbering.
 
-## `workflow_from`, [line 97](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L97): Comment
+## `workflow_from`, [line 107](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L107): Comment
 
 Code: `parameters=[`
 
@@ -114,7 +127,7 @@ Code: `parameters=[`
 > rule against the same-named field one level down; `.strip()` is here
 > too so that `{"name": "  "}` and `"  "` are refused alike.
 
-## `workflow_from`, [line 105](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L105): Comment
+## `workflow_from`, [line 114](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L114): Comment
 
 Code: `)`
 
@@ -124,7 +137,7 @@ Code: `)`
 > workflow made SUM(cost_usd) overstate the bill by the number of
 > workflows found.
 
-## `mining_blocks`, [line 30](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L30): Comment
+## `mining_blocks`, [line 31](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L31): Comment
 
 Code: `in_day = {str(one.get("id")) for one in day}`
 
@@ -147,7 +160,7 @@ Code: `in_day = {str(one.get("id")) for one in day}`
 > id is not a crossing, and "this value appears in more than one system"
 > over a single gesture is a claim the prompt cannot support.
 
-## module, [line 46](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L46): Comment
+## module, [line 47](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L47): Comment
 
 Code: `_PROBE_DAY: list[dict[str, object]] = [{"id": "y"}, {"id": "z"}]`
 

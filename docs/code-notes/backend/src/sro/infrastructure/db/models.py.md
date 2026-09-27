@@ -361,15 +361,15 @@ Code: `waited: Mapped[int] = mapped_column(Integer, nullable=False, default=0)`
 > that had been read six times outrank one never seen at all.
 
 ## `PoolRow`, [line 569](../../../../../../../backend/src/sro/infrastructure/db/models.py#L569): Note on the line above
-## `PoolRow`, [line 580](../../../../../../../backend/src/sro/infrastructure/db/models.py#L580): Note on the line above
+## `PoolRow`, [line 581](../../../../../../../backend/src/sro/infrastructure/db/models.py#L581): Note on the line above
 
 Code: `reason: Mapped[str] = mapped_column(Text, nullable=False, default="")`
 
 > Why it retired, empty while it is still live. Evidence that leaves the
 > prompt without a record is the failure this architecture exists to avoid.
 
-## `WorkflowRunRow`, [line 585](../../../../../../../backend/src/sro/infrastructure/db/models.py#L585): Docstring
-## `WorkflowRunRow`, [line 585](../../../../../../../backend/src/sro/infrastructure/db/models.py#L585): Docstring
+## `WorkflowRunRow`, [line 586](../../../../../../../backend/src/sro/infrastructure/db/models.py#L586): Docstring
+## `WorkflowRunRow`, [line 586](../../../../../../../backend/src/sro/infrastructure/db/models.py#L586): Docstring
 
 > One run of a mined workflow: what it was performed with, and how it ended.
 >
@@ -379,16 +379,16 @@ Code: `reason: Mapped[str] = mapped_column(Text, nullable=False, default="")`
 > Written whole after every step so the panel can poll it, and its steps are
 > replaced rather than appended for the same reason.
 
-## `WorkflowRunRow`, [line 585](../../../../../../../backend/src/sro/infrastructure/db/models.py#L585): Note on the line above
-## `WorkflowRunRow`, [line 593](../../../../../../../backend/src/sro/infrastructure/db/models.py#L593): Note on the line above
+## `WorkflowRunRow`, [line 586](../../../../../../../backend/src/sro/infrastructure/db/models.py#L586): Note on the line above
+## `WorkflowRunRow`, [line 594](../../../../../../../backend/src/sro/infrastructure/db/models.py#L594): Note on the line above
 
 Code: `values_: Mapped[Any] = mapped_column(`
 
 > What this run is performed with. The press is the only source of them:
 > nothing a chat door understood is carried across on its own.
 
-## `WorkflowRunRow`, [line 585](../../../../../../../backend/src/sro/infrastructure/db/models.py#L585): Note on the line above
-## `WorkflowRunRow`, [line 600](../../../../../../../backend/src/sro/infrastructure/db/models.py#L600): Note on the line above
+## `WorkflowRunRow`, [line 586](../../../../../../../backend/src/sro/infrastructure/db/models.py#L586): Note on the line above
+## `WorkflowRunRow`, [line 601](../../../../../../../backend/src/sro/infrastructure/db/models.py#L601): Note on the line above
 
 Code: `items: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")`
 
@@ -397,8 +397,8 @@ Code: `items: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, s
 > once, which is most of them, and for every run made before repeats
 > existed.
 
-## `WorkflowRunRow`, [line 585](../../../../../../../backend/src/sro/infrastructure/db/models.py#L585): Note on the line above
-## `WorkflowRunRow`, [line 607](../../../../../../../backend/src/sro/infrastructure/db/models.py#L607): Note on the line above
+## `WorkflowRunRow`, [line 586](../../../../../../../backend/src/sro/infrastructure/db/models.py#L586): Note on the line above
+## `WorkflowRunRow`, [line 608](../../../../../../../backend/src/sro/infrastructure/db/models.py#L608): Note on the line above
 
 Code: `finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))`
 
@@ -407,8 +407,8 @@ Code: `finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=Tr
 > a string sorts a naive instant beside an offset-bearing one and neither is
 > wrong, and ``started_at`` is what both indexes below order on.
 
-## `WorkflowRunRow`, [line 585](../../../../../../../backend/src/sro/infrastructure/db/models.py#L585): Note on the line above
-## `WorkflowRunRow`, [line 611](../../../../../../../backend/src/sro/infrastructure/db/models.py#L611): Note on the line above
+## `WorkflowRunRow`, [line 586](../../../../../../../backend/src/sro/infrastructure/db/models.py#L586): Note on the line above
+## `WorkflowRunRow`, [line 612](../../../../../../../backend/src/sro/infrastructure/db/models.py#L612): Note on the line above
 
 Code: `from_step: Mapped[int] = mapped_column(Integer, nullable=False, default=0)`
 
@@ -417,32 +417,32 @@ Code: `from_step: Mapped[int] = mapped_column(Integer, nullable=False, default=0
 > for -- without it the row cannot say whether a second press is the same
 > job or a different one.
 
-## `WorkflowRunRow`, [line 585](../../../../../../../backend/src/sro/infrastructure/db/models.py#L585): Note on the line above
-## `WorkflowRunRow`, [line 613](../../../../../../../backend/src/sro/infrastructure/db/models.py#L613): Note on the line above
+## `WorkflowRunRow`, [line 586](../../../../../../../backend/src/sro/infrastructure/db/models.py#L586): Note on the line above
+## `WorkflowRunRow`, [line 614](../../../../../../../backend/src/sro/infrastructure/db/models.py#L614): Note on the line above
 
 Code: `withheld: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)`
 
 > The writes a dry run produced and did not send, in full. This is what a
 > person reads before pressing through to live.
 
-## `WorkflowRunRow`, [line 585](../../../../../../../backend/src/sro/infrastructure/db/models.py#L585): Note on the line above
-## `WorkflowRunRow`, [line 619](../../../../../../../backend/src/sro/infrastructure/db/models.py#L619): Note on the line above
+## `WorkflowRunRow`, [line 586](../../../../../../../backend/src/sro/infrastructure/db/models.py#L586): Note on the line above
+## `WorkflowRunRow`, [line 620](../../../../../../../backend/src/sro/infrastructure/db/models.py#L620): Note on the line above
 
 Code: `unpriced: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)`
 
 > A run that cost nothing and a run whose cost could not be established
 > are the same row without this.
 
-## `WorkflowRunRow`, [line 585](../../../../../../../backend/src/sro/infrastructure/db/models.py#L585): Note on the line above
-## `WorkflowRunRow`, [line 626](../../../../../../../backend/src/sro/infrastructure/db/models.py#L626): Note on the line above
+## `WorkflowRunRow`, [line 586](../../../../../../../backend/src/sro/infrastructure/db/models.py#L586): Note on the line above
+## `WorkflowRunRow`, [line 627](../../../../../../../backend/src/sro/infrastructure/db/models.py#L627): Note on the line above
 
 Code: `needs: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")`
 
 > Where each value came from, for values nobody typed. Empty for a run
 > whose values came from a person.
 
-## `WorkflowRunRow`, [line 585](../../../../../../../backend/src/sro/infrastructure/db/models.py#L585): Note on the line above
-## `WorkflowRunRow`, [line 627](../../../../../../../backend/src/sro/infrastructure/db/models.py#L627): Note on the line above
+## `WorkflowRunRow`, [line 586](../../../../../../../backend/src/sro/infrastructure/db/models.py#L586): Note on the line above
+## `WorkflowRunRow`, [line 628](../../../../../../../backend/src/sro/infrastructure/db/models.py#L628): Note on the line above
 
 Code: `unasked: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")`
 
@@ -454,15 +454,15 @@ Code: `unasked: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list,
 > nothing demonstrated that slot -- and dropping it silently is the fault
 > this column exists to end.
 
-## `WorkflowRunRow`, [line 585](../../../../../../../backend/src/sro/infrastructure/db/models.py#L585): Note on the line above
-## `WorkflowRunRow`, [line 628](../../../../../../../backend/src/sro/infrastructure/db/models.py#L628): Note on the line above
+## `WorkflowRunRow`, [line 586](../../../../../../../backend/src/sro/infrastructure/db/models.py#L586): Note on the line above
+## `WorkflowRunRow`, [line 629](../../../../../../../backend/src/sro/infrastructure/db/models.py#L629): Note on the line above
 
 Code: `undoes_run: Mapped[str | None] = mapped_column(String(64))`
 
 > The run this one takes back. Null on every run that is not an undo.
 
-## `WorkflowRunRow`, [line 585](../../../../../../../backend/src/sro/infrastructure/db/models.py#L585): Note on the line above
-## `WorkflowRunRow`, [line 630](../../../../../../../backend/src/sro/infrastructure/db/models.py#L630): Note on the line above
+## `WorkflowRunRow`, [line 586](../../../../../../../backend/src/sro/infrastructure/db/models.py#L586): Note on the line above
+## `WorkflowRunRow`, [line 631](../../../../../../../backend/src/sro/infrastructure/db/models.py#L631): Note on the line above
 
 Code: `asked_the_asker: Mapped[bool] = mapped_column(`
 
@@ -470,8 +470,8 @@ Code: `asked_the_asker: Mapped[bool] = mapped_column(`
 > mail per run: a worker that restarted between two stops would otherwise buy
 > somebody a second mail about one request, and a mail cannot be unsent.
 
-## `WorkflowRunRow`, [line 585](../../../../../../../backend/src/sro/infrastructure/db/models.py#L585): Note on the line above
-## `WorkflowRunRow`, [line 634](../../../../../../../backend/src/sro/infrastructure/db/models.py#L634): Note on the line above
+## `WorkflowRunRow`, [line 586](../../../../../../../backend/src/sro/infrastructure/db/models.py#L586): Note on the line above
+## `WorkflowRunRow`, [line 635](../../../../../../../backend/src/sro/infrastructure/db/models.py#L635): Note on the line above
 
 Code: `awaiting: Mapped[Any] = mapped_column(JSONB, nullable=True)`
 
@@ -483,8 +483,8 @@ Code: `awaiting: Mapped[Any] = mapped_column(JSONB, nullable=True)`
 > reply is matched against, and the instant after which there is nothing left
 > to match. See `domain/execution/waiting.py`.
 
-## `WorkflowRunRow`, [line 585](../../../../../../../backend/src/sro/infrastructure/db/models.py#L585): Note on the line above
-## `WorkflowRunRow`, [line 636](../../../../../../../backend/src/sro/infrastructure/db/models.py#L636): Note on the line above
+## `WorkflowRunRow`, [line 586](../../../../../../../backend/src/sro/infrastructure/db/models.py#L586): Note on the line above
+## `WorkflowRunRow`, [line 637](../../../../../../../backend/src/sro/infrastructure/db/models.py#L637): Note on the line above
 
 Code: `wrong_because: Mapped[str | None] = mapped_column(Text)`
 
@@ -496,8 +496,8 @@ Code: `wrong_because: Mapped[str | None] = mapped_column(Text)`
 > the warehouse answers 201 for it -- so this is the only place that failure
 > is ever written down.
 
-## `WorkflowRunStepRow`, [line 676](../../../../../../../backend/src/sro/infrastructure/db/models.py#L676): Docstring
-## `WorkflowRunRow`, [line 672](../../../../../../../backend/src/sro/infrastructure/db/models.py#L672): Comment
+## `WorkflowRunStepRow`, [line 677](../../../../../../../backend/src/sro/infrastructure/db/models.py#L677): Docstring
+## `WorkflowRunRow`, [line 673](../../../../../../../backend/src/sro/infrastructure/db/models.py#L673): Comment
 
 Code: `CheckConstraint("executor IN ('extension', 'steel')", name="ck_workflow_runs_executor"),`
 
@@ -510,7 +510,7 @@ Code: `CheckConstraint("executor IN ('extension', 'steel')", name="ck_workflow_r
 > restart never fails it; and outside `in_flight`, so it still reports its
 > device as busy forever, with no way back in but a hand-edited row.
 
-## `WorkflowRunStepRow`, [line 676](../../../../../../../backend/src/sro/infrastructure/db/models.py#L676): Docstring
+## `WorkflowRunStepRow`, [line 677](../../../../../../../backend/src/sro/infrastructure/db/models.py#L677): Docstring
 
 > One step of a run: what was planned, what was sent, and what it earned.
 >
@@ -518,31 +518,31 @@ Code: `CheckConstraint("executor IN ('extension', 'steel')", name="ck_workflow_r
 > only through its run, which carries the tenant, and the run's save deletes
 > and reinserts this whole set every time.
 
-## `WorkflowRunStepRow`, [line 676](../../../../../../../backend/src/sro/infrastructure/db/models.py#L676): Note on the line above
-## `WorkflowRunStepRow`, [line 684](../../../../../../../backend/src/sro/infrastructure/db/models.py#L684): Note on the line above
+## `WorkflowRunStepRow`, [line 677](../../../../../../../backend/src/sro/infrastructure/db/models.py#L677): Note on the line above
+## `WorkflowRunStepRow`, [line 685](../../../../../../../backend/src/sro/infrastructure/db/models.py#L685): Note on the line above
 
 Code: `made: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")`
 
 > What the warehouse called the record this step created, where it made
 > one. `{}` for every step that created nothing, which is most of them.
 
-## `WorkflowRunStepRow`, [line 676](../../../../../../../backend/src/sro/infrastructure/db/models.py#L676): Note on the line above
-## `WorkflowRunStepRow`, [line 686](../../../../../../../backend/src/sro/infrastructure/db/models.py#L686): Note on the line above
+## `WorkflowRunStepRow`, [line 677](../../../../../../../backend/src/sro/infrastructure/db/models.py#L677): Note on the line above
+## `WorkflowRunStepRow`, [line 687](../../../../../../../backend/src/sro/infrastructure/db/models.py#L687): Note on the line above
 
 Code: `of_step: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")`
 
 > Which step of the JOB this row is. `ord` is where in the RUN it happened,
 > and the two are the same number until a job repeats its middle.
 
-## `WorkflowRunStepRow`, [line 676](../../../../../../../backend/src/sro/infrastructure/db/models.py#L676): Note on the line above
-## `WorkflowRunStepRow`, [line 688](../../../../../../../backend/src/sro/infrastructure/db/models.py#L688): Note on the line above
+## `WorkflowRunStepRow`, [line 677](../../../../../../../backend/src/sro/infrastructure/db/models.py#L677): Note on the line above
+## `WorkflowRunStepRow`, [line 689](../../../../../../../backend/src/sro/infrastructure/db/models.py#L689): Note on the line above
 
 Code: `item: Mapped[int | None] = mapped_column(Integer, nullable=True)`
 
 > Which thing on the list it was done for, or NULL for a step done once.
 
-## `WorkflowRunStepRow`, [line 676](../../../../../../../backend/src/sro/infrastructure/db/models.py#L676): Note on the line above
-## `WorkflowRunStepRow`, [line 691](../../../../../../../backend/src/sro/infrastructure/db/models.py#L691): Note on the line above
+## `WorkflowRunStepRow`, [line 677](../../../../../../../backend/src/sro/infrastructure/db/models.py#L677): Note on the line above
+## `WorkflowRunStepRow`, [line 692](../../../../../../../backend/src/sro/infrastructure/db/models.py#L692): Note on the line above
 
 Code: `sent: Mapped[Any | None] = mapped_column(JSONB(none_as_null=True), nullable=True)`
 
@@ -552,15 +552,15 @@ Code: `sent: Mapped[Any | None] = mapped_column(JSONB(none_as_null=True), nullab
 > and every reader that asks whether a step sent anything would be told yes.
 > The rig wrote SQL NULL, and its readers test for it.
 
-## `WorkflowRunStepRow`, [line 676](../../../../../../../backend/src/sro/infrastructure/db/models.py#L676): Note on the line above
-## `WorkflowRunStepRow`, [line 693](../../../../../../../backend/src/sro/infrastructure/db/models.py#L693): Note on the line above
+## `WorkflowRunStepRow`, [line 677](../../../../../../../backend/src/sro/infrastructure/db/models.py#L677): Note on the line above
+## `WorkflowRunStepRow`, [line 694](../../../../../../../backend/src/sro/infrastructure/db/models.py#L694): Note on the line above
 
 Code: `result: Mapped[Any | None] = mapped_column(JSONB(none_as_null=True), nullable=True)`
 
 > What the extension answered, NULL when it never did -- the same reason.
 
-## `WorkflowRunStepRow`, [line 676](../../../../../../../backend/src/sro/infrastructure/db/models.py#L676): Note on the line above
-## `WorkflowRunStepRow`, [line 704](../../../../../../../backend/src/sro/infrastructure/db/models.py#L704): Note on the line above
+## `WorkflowRunStepRow`, [line 677](../../../../../../../backend/src/sro/infrastructure/db/models.py#L677): Note on the line above
+## `WorkflowRunStepRow`, [line 705](../../../../../../../backend/src/sro/infrastructure/db/models.py#L705): Note on the line above
 
 Code: `notes: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")`
 
@@ -569,8 +569,8 @@ Code: `notes: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, s
 > to approve. Empty for every step that writes nothing and for every one the
 > dictionary has nothing to say about, which is most of them.
 
-## `ApprovalRow`, [line 713](../../../../../../../backend/src/sro/infrastructure/db/models.py#L713): Docstring
-## `ApprovalRow`, [line 713](../../../../../../../backend/src/sro/infrastructure/db/models.py#L713): Docstring
+## `ApprovalRow`, [line 714](../../../../../../../backend/src/sro/infrastructure/db/models.py#L714): Docstring
+## `ApprovalRow`, [line 714](../../../../../../../backend/src/sro/infrastructure/db/models.py#L714): Docstring
 
 > An approval a person gave: which step of which run, when, and from where.
 >
@@ -581,16 +581,16 @@ Code: `notes: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list, s
 > Not deleted and rewritten with the run: the run record says a write went
 > out, and this says a person let it.
 
-## `ApprovalRow`, [line 713](../../../../../../../backend/src/sro/infrastructure/db/models.py#L713): Note on the line above
-## `ApprovalRow`, [line 719](../../../../../../../backend/src/sro/infrastructure/db/models.py#L719): Note on the line above
+## `ApprovalRow`, [line 714](../../../../../../../backend/src/sro/infrastructure/db/models.py#L714): Note on the line above
+## `ApprovalRow`, [line 720](../../../../../../../backend/src/sro/infrastructure/db/models.py#L720): Note on the line above
 
 Code: `device_id: Mapped[str | None] = mapped_column(String(64))`
 
 > The browser whose panel the tap came from, when the panel named one. A
 > bare POST is a tap, so this is nullable.
 
-## `WorkflowRow`, [line 722](../../../../../../../backend/src/sro/infrastructure/db/models.py#L722): Docstring
-## `WorkflowRow`, [line 722](../../../../../../../backend/src/sro/infrastructure/db/models.py#L722): Docstring
+## `WorkflowRow`, [line 723](../../../../../../../backend/src/sro/infrastructure/db/models.py#L723): Docstring
+## `WorkflowRow`, [line 723](../../../../../../../backend/src/sro/infrastructure/db/models.py#L723): Docstring
 
 > A workflow a mining pass found: what it says, and the shape it is known by.
 >
@@ -600,15 +600,15 @@ Code: `device_id: Mapped[str | None] = mapped_column(String(64))`
 > summed to $0.12 when they each carried it, an overstatement that grew with
 > how well the pass did.
 
-## `WorkflowRow`, [line 722](../../../../../../../backend/src/sro/infrastructure/db/models.py#L722): Note on the line above
-## `WorkflowRow`, [line 728](../../../../../../../backend/src/sro/infrastructure/db/models.py#L728): Note on the line above
+## `WorkflowRow`, [line 723](../../../../../../../backend/src/sro/infrastructure/db/models.py#L723): Note on the line above
+## `WorkflowRow`, [line 729](../../../../../../../backend/src/sro/infrastructure/db/models.py#L729): Note on the line above
 
 Code: `pass_id: Mapped[str] = mapped_column(Text, nullable=False, default="")`
 
 > Empty for a workflow saved outside a pass, which today is only a test.
 
-## `WorkflowRow`, [line 722](../../../../../../../backend/src/sro/infrastructure/db/models.py#L722): Note on the line above
-## `WorkflowRow`, [line 735](../../../../../../../backend/src/sro/infrastructure/db/models.py#L735): Note on the line above
+## `WorkflowRow`, [line 723](../../../../../../../backend/src/sro/infrastructure/db/models.py#L723): Note on the line above
+## `WorkflowRow`, [line 736](../../../../../../../backend/src/sro/infrastructure/db/models.py#L736): Note on the line above
 
 Code: `shape_key: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)`
 
@@ -617,8 +617,8 @@ Code: `shape_key: Mapped[Any] = mapped_column(JSONB, nullable=False, default=lis
 > mined before the change no longer match keys mined after and a job already
 > held could then be proposed again as a new one.
 
-## `WorkflowRow`, [line 722](../../../../../../../backend/src/sro/infrastructure/db/models.py#L722): Note on the line above
-## `WorkflowRow`, [line 737](../../../../../../../backend/src/sro/infrastructure/db/models.py#L737): Note on the line above
+## `WorkflowRow`, [line 723](../../../../../../../backend/src/sro/infrastructure/db/models.py#L723): Note on the line above
+## `WorkflowRow`, [line 738](../../../../../../../backend/src/sro/infrastructure/db/models.py#L738): Note on the line above
 
 Code: `repeat: Mapped[Any] = mapped_column(JSONB, nullable=True)`
 
@@ -628,8 +628,8 @@ Code: `repeat: Mapped[Any] = mapped_column(JSONB, nullable=True)`
 > integer columns because the pair is one fact and a row with one of them set
 > is a row that means nothing.
 
-## `WorkflowRow`, [line 722](../../../../../../../backend/src/sro/infrastructure/db/models.py#L722): Note on the line above
-## `WorkflowRow`, [line 741](../../../../../../../backend/src/sro/infrastructure/db/models.py#L741): Note on the line above
+## `WorkflowRow`, [line 723](../../../../../../../backend/src/sro/infrastructure/db/models.py#L723): Note on the line above
+## `WorkflowRow`, [line 742](../../../../../../../backend/src/sro/infrastructure/db/models.py#L742): Note on the line above
 
 Code: `same_as: Mapped[str | None] = mapped_column(String(64))`
 
@@ -640,9 +640,14 @@ Code: `same_as: Mapped[str | None] = mapped_column(String(64))`
 > No longer asked for (2026-09-23): the mining schema dropped the field, and
 > the column stays because no column is dropped in that wave. Old rows keep
 > what they had; new rows are NULL.
+>
+> Unmapped from the domain (M1, 2026-09-26): `Workflow` has no such field,
+> so nothing writes or reads this column. It stays declared here because the
+> column stays in the schema (no column is dropped), and a declaration the
+> migrations have and the models do not is drift.
 
-## `WorkflowRow`, [line 722](../../../../../../../backend/src/sro/infrastructure/db/models.py#L722): Note on the line above
-## `WorkflowRow`, [line 745](../../../../../../../backend/src/sro/infrastructure/db/models.py#L745): Note on the line above
+## `WorkflowRow`, [line 723](../../../../../../../backend/src/sro/infrastructure/db/models.py#L723): Note on the line above
+## `WorkflowRow`, [line 746](../../../../../../../backend/src/sro/infrastructure/db/models.py#L746): Note on the line above
 
 Code: `retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))`
 
@@ -651,16 +656,16 @@ Code: `retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=Tru
 > reads a retired job's gestures into a fresh copy of it. `known` and `get`
 > do not return it, and `save` never writes this column.
 
-## `WorkflowPlacementRow`, [line 750](../../../../../../../backend/src/sro/infrastructure/db/models.py#L750): Docstring
-## `WorkflowPlacementRow`, [line 750](../../../../../../../backend/src/sro/infrastructure/db/models.py#L750): Docstring
+## `WorkflowPlacementRow`, [line 751](../../../../../../../backend/src/sro/infrastructure/db/models.py#L751): Docstring
+## `WorkflowPlacementRow`, [line 751](../../../../../../../backend/src/sro/infrastructure/db/models.py#L751): Docstring
 
 > A gesture a job has explained without a step citing it: a doing the mining
 > pass recognised as that job, or one a growth replaced. Keyed by tenant and
 > gesture, because what the mining pass asks is "has anything placed this",
 > once per gesture; the job is kept for whoever asks which.
 
-## `WorkflowStepRow`, [line 758](../../../../../../../backend/src/sro/infrastructure/db/models.py#L758): Docstring
-## `WorkflowStepRow`, [line 758](../../../../../../../backend/src/sro/infrastructure/db/models.py#L758): Docstring
+## `WorkflowStepRow`, [line 759](../../../../../../../backend/src/sro/infrastructure/db/models.py#L759): Docstring
+## `WorkflowStepRow`, [line 759](../../../../../../../backend/src/sro/infrastructure/db/models.py#L759): Docstring
 
 > One step of a workflow, and the gestures that prove it.
 >
@@ -672,8 +677,8 @@ Code: `retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=Tru
 > free-generated workflow JSON hallucinated up to 21% of steps, and forced to
 > select from real evidence that fell below 7.5%. An uncited step is rejected.
 
-## `WorkflowStepRow`, [line 758](../../../../../../../backend/src/sro/infrastructure/db/models.py#L758): Note on the line above
-## `WorkflowStepRow`, [line 768](../../../../../../../backend/src/sro/infrastructure/db/models.py#L768): Note on the line above
+## `WorkflowStepRow`, [line 759](../../../../../../../backend/src/sro/infrastructure/db/models.py#L759): Note on the line above
+## `WorkflowStepRow`, [line 769](../../../../../../../backend/src/sro/infrastructure/db/models.py#L769): Note on the line above
 
 Code: `uses: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)`
 
@@ -682,8 +687,8 @@ Code: `uses: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)`
 > Empty on every job mined so far and honestly so: nothing emits the edge
 > yet. See `Step.uses`, which carries the argument and the measurement.
 
-## `WorkflowStaleRow`, [line 771](../../../../../../../backend/src/sro/infrastructure/db/models.py#L771): Docstring
-## `WorkflowStaleRow`, [line 771](../../../../../../../backend/src/sro/infrastructure/db/models.py#L771): Docstring
+## `WorkflowStaleRow`, [line 772](../../../../../../../backend/src/sro/infrastructure/db/models.py#L772): Docstring
+## `WorkflowStaleRow`, [line 772](../../../../../../../backend/src/sro/infrastructure/db/models.py#L772): Docstring
 
 > A step whose control was only found by the weakest rung of the locator
 > ladder. The run succeeded; the step is about to break.
@@ -693,8 +698,8 @@ Code: `uses: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)`
 > a mining pass writes and this is what a run learned -- rewriting the
 > workflow from here would race a re-mine and lose one of the two.
 
-## `WorkflowLearnedRow`, [line 780](../../../../../../../backend/src/sro/infrastructure/db/models.py#L780): Docstring
-## `WorkflowLearnedRow`, [line 780](../../../../../../../backend/src/sro/infrastructure/db/models.py#L780): Docstring
+## `WorkflowLearnedRow`, [line 781](../../../../../../../backend/src/sro/infrastructure/db/models.py#L781): Docstring
+## `WorkflowLearnedRow`, [line 781](../../../../../../../backend/src/sro/infrastructure/db/models.py#L781): Docstring
 
 > The locator that last worked for a step whose recorded identity did not.
 >
@@ -708,16 +713,16 @@ Code: `uses: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)`
 > this is what a run observed, and one rewriting the other would race a
 > re-mine.
 
-## `WorkflowLearnedRow`, [line 780](../../../../../../../backend/src/sro/infrastructure/db/models.py#L780): Note on the line above
-## `WorkflowLearnedRow`, [line 788](../../../../../../../backend/src/sro/infrastructure/db/models.py#L788): Note on the line above
+## `WorkflowLearnedRow`, [line 781](../../../../../../../backend/src/sro/infrastructure/db/models.py#L781): Note on the line above
+## `WorkflowLearnedRow`, [line 789](../../../../../../../backend/src/sro/infrastructure/db/models.py#L789): Note on the line above
 
 Code: `holds: Mapped[int | None] = mapped_column(Integer)`
 
 > How many characters this step's box will take, where a run has found
 > out. Null until one has, and on every step that is not a typing step.
 
-## `WorkflowLearnedHistoryRow`, [line 806](../../../../../../../backend/src/sro/infrastructure/db/models.py#L806): Docstring
-## `WorkflowLearnedHistoryRow`, [line 806](../../../../../../../backend/src/sro/infrastructure/db/models.py#L806): Docstring
+## `WorkflowLearnedHistoryRow`, [line 807](../../../../../../../backend/src/sro/infrastructure/db/models.py#L807): Docstring
+## `WorkflowLearnedHistoryRow`, [line 807](../../../../../../../backend/src/sro/infrastructure/db/models.py#L807): Docstring
 
 > What a job taught itself, kept rather than overwritten.
 >
@@ -732,8 +737,8 @@ Code: `holds: Mapped[int | None] = mapped_column(Integer)`
 > nobody can rely on. Read by nobody in the hot path, so a job that has
 > learned four hundred times costs a run nothing.
 
-## `WorkflowLearnedHistoryRow`, [line 806](../../../../../../../backend/src/sro/infrastructure/db/models.py#L806): Note on the line above
-## `WorkflowLearnedHistoryRow`, [line 813](../../../../../../../backend/src/sro/infrastructure/db/models.py#L813): Note on the line above
+## `WorkflowLearnedHistoryRow`, [line 807](../../../../../../../backend/src/sro/infrastructure/db/models.py#L807): Note on the line above
+## `WorkflowLearnedHistoryRow`, [line 814](../../../../../../../backend/src/sro/infrastructure/db/models.py#L814): Note on the line above
 
 Code: `about: Mapped[str] = mapped_column(Text, nullable=False)`
 
@@ -741,8 +746,8 @@ Code: `about: Mapped[str] = mapped_column(Text, nullable=False)`
 > -- a job changed its mind about a step -- and a reader wants them in one
 > order.
 
-## `WorkflowLearnedHistoryRow`, [line 806](../../../../../../../backend/src/sro/infrastructure/db/models.py#L806): Note on the line above
-## `WorkflowLearnedHistoryRow`, [line 816](../../../../../../../backend/src/sro/infrastructure/db/models.py#L816): Note on the line above
+## `WorkflowLearnedHistoryRow`, [line 807](../../../../../../../backend/src/sro/infrastructure/db/models.py#L807): Note on the line above
+## `WorkflowLearnedHistoryRow`, [line 817](../../../../../../../backend/src/sro/infrastructure/db/models.py#L817): Note on the line above
 
 Code: `now: Mapped[str] = mapped_column(Text, nullable=False, default="")`
 
@@ -750,16 +755,16 @@ Code: `now: Mapped[str] = mapped_column(Text, nullable=False, default="")`
 > reader is a person, and `4` beside `60` says what a nullable integer column
 > would say less clearly.
 
-## `WorkflowLearnedHistoryRow`, [line 806](../../../../../../../backend/src/sro/infrastructure/db/models.py#L806): Note on the line above
-## `WorkflowLearnedHistoryRow`, [line 819](../../../../../../../backend/src/sro/infrastructure/db/models.py#L819): Note on the line above
+## `WorkflowLearnedHistoryRow`, [line 807](../../../../../../../backend/src/sro/infrastructure/db/models.py#L807): Note on the line above
+## `WorkflowLearnedHistoryRow`, [line 820](../../../../../../../backend/src/sro/infrastructure/db/models.py#L820): Note on the line above
 
 Code: `found_by: Mapped[str] = mapped_column(Text, nullable=False, default="")`
 
 > Which run taught it and which rung produced it, so somebody reading a
 > surprising locator can go and look at the run that found it.
 
-## `LearnedWriteRow`, [line 824](../../../../../../../backend/src/sro/infrastructure/db/models.py#L824): Docstring
-## `LearnedWriteRow`, [line 824](../../../../../../../backend/src/sro/infrastructure/db/models.py#L824): Docstring
+## `LearnedWriteRow`, [line 825](../../../../../../../backend/src/sro/infrastructure/db/models.py#L825): Docstring
+## `LearnedWriteRow`, [line 825](../../../../../../../backend/src/sro/infrastructure/db/models.py#L825): Docstring
 
 > A write this deployment has watched succeed, and may now replay.
 >
@@ -775,16 +780,16 @@ Code: `found_by: Mapped[str] = mapped_column(Text, nullable=False, default="")`
 > than in the key: the ledger's match is on `(method, path)` and a second
 > system serving the same path is the case a tenant scope already answers.
 
-## `LearnedWriteRow`, [line 824](../../../../../../../backend/src/sro/infrastructure/db/models.py#L824): Note on the line above
-## `LearnedWriteRow`, [line 834](../../../../../../../backend/src/sro/infrastructure/db/models.py#L834): Note on the line above
+## `LearnedWriteRow`, [line 825](../../../../../../../backend/src/sro/infrastructure/db/models.py#L825): Note on the line above
+## `LearnedWriteRow`, [line 835](../../../../../../../backend/src/sro/infrastructure/db/models.py#L835): Note on the line above
 
 Code: `verified_by: Mapped[str] = mapped_column(String(16), nullable=False)`
 
 > `status` or `read` -- which state belt saw it. A picture is not an
 > effect and never reaches here; see `state_verified`.
 
-## `WorkflowEffectRow`, [line 839](../../../../../../../backend/src/sro/infrastructure/db/models.py#L839): Docstring
-## `WorkflowEffectRow`, [line 839](../../../../../../../backend/src/sro/infrastructure/db/models.py#L839): Docstring
+## `WorkflowEffectRow`, [line 840](../../../../../../../backend/src/sro/infrastructure/db/models.py#L840): Docstring
+## `WorkflowEffectRow`, [line 840](../../../../../../../backend/src/sro/infrastructure/db/models.py#L840): Docstring
 
 > One write a live run made and the verifier then saw hold by STATE -- a
 > status the server answered, or a read that showed the record.
@@ -793,8 +798,8 @@ Code: `verified_by: Mapped[str] = mapped_column(String(16), nullable=False)`
 > was written. Three runs whose every write is in here is what buys a job the
 > right to write unasked, and one failed write empties it for that workflow.
 
-## `MiningPassRow`, [line 849](../../../../../../../backend/src/sro/infrastructure/db/models.py#L849): Docstring
-## `MiningPassRow`, [line 849](../../../../../../../backend/src/sro/infrastructure/db/models.py#L849): Docstring
+## `MiningPassRow`, [line 850](../../../../../../../backend/src/sro/infrastructure/db/models.py#L850): Docstring
+## `MiningPassRow`, [line 850](../../../../../../../backend/src/sro/infrastructure/db/models.py#L850): Docstring
 
 > One reading of one tenant's day, and what it cost.
 >
@@ -805,22 +810,22 @@ Code: `verified_by: Mapped[str] = mapped_column(String(16), nullable=False)`
 > refused, which is the only record left of a call that cost money and
 > returned nothing.
 
-## `MiningPassRow`, [line 849](../../../../../../../backend/src/sro/infrastructure/db/models.py#L849): Note on the line above
-## `MiningPassRow`, [line 858](../../../../../../../backend/src/sro/infrastructure/db/models.py#L858): Note on the line above
+## `MiningPassRow`, [line 850](../../../../../../../backend/src/sro/infrastructure/db/models.py#L850): Note on the line above
+## `MiningPassRow`, [line 859](../../../../../../../backend/src/sro/infrastructure/db/models.py#L859): Note on the line above
 
 Code: `thought_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)`
 
 > Inside out_tokens, not beside them.
 
-## `MiningPassRow`, [line 849](../../../../../../../backend/src/sro/infrastructure/db/models.py#L849): Note on the line above
-## `MiningPassRow`, [line 866](../../../../../../../backend/src/sro/infrastructure/db/models.py#L866): Note on the line above
+## `MiningPassRow`, [line 850](../../../../../../../backend/src/sro/infrastructure/db/models.py#L850): Note on the line above
+## `MiningPassRow`, [line 867](../../../../../../../backend/src/sro/infrastructure/db/models.py#L867): Note on the line above
 
 Code: `learned_parameters: Mapped[int] = mapped_column(Integer, nullable=False, default=0)`
 
 > What the pass LEARNT, beside what it kept. See `MiningPass`.
 
-## `MiningPassRow`, [line 849](../../../../../../../backend/src/sro/infrastructure/db/models.py#L849): Note on the line above
-## `MiningPassRow`, [line 873](../../../../../../../backend/src/sro/infrastructure/db/models.py#L873): Note on the line above
+## `MiningPassRow`, [line 850](../../../../../../../backend/src/sro/infrastructure/db/models.py#L850): Note on the line above
+## `MiningPassRow`, [line 874](../../../../../../../backend/src/sro/infrastructure/db/models.py#L874): Note on the line above
 
 Code: `unplaced: Mapped[int] = mapped_column(Integer, nullable=False, default=0)`
 
@@ -828,16 +833,16 @@ Code: `unplaced: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 > What the scheduled sweep reads to tell a tenant with more to say from one
 > whose window already held everything. See `MiningPass`.
 
-## `MiningPassRow`, [line 849](../../../../../../../backend/src/sro/infrastructure/db/models.py#L849): Note on the line above
-## `MiningPassRow`, [line 876](../../../../../../../backend/src/sro/infrastructure/db/models.py#L876): Note on the line above
+## `MiningPassRow`, [line 850](../../../../../../../backend/src/sro/infrastructure/db/models.py#L850): Note on the line above
+## `MiningPassRow`, [line 877](../../../../../../../backend/src/sro/infrastructure/db/models.py#L877): Note on the line above
 
 Code: `error: Mapped[str | None] = mapped_column(Text)`
 
 > Why it found nothing, when it found nothing for a reason the API gave.
 > An honest zero and a refused call are the same row without this.
 
-## `AttemptRow`, [line 881](../../../../../../../backend/src/sro/infrastructure/db/models.py#L881): Docstring
-## `AttemptRow`, [line 881](../../../../../../../backend/src/sro/infrastructure/db/models.py#L881): Docstring
+## `AttemptRow`, [line 882](../../../../../../../backend/src/sro/infrastructure/db/models.py#L882): Docstring
+## `AttemptRow`, [line 882](../../../../../../../backend/src/sro/infrastructure/db/models.py#L882): Docstring
 
 > Something a person asked this system for, and what came of it.
 >
@@ -846,8 +851,8 @@ Code: `error: Mapped[str | None] = mapped_column(Text)`
 > something. See `sro.domain.observation.attempts` for what belongs here and
 > what does not.
 
-## `OfferRow`, [line 896](../../../../../../../backend/src/sro/infrastructure/db/models.py#L896): Docstring
-## `OfferRow`, [line 896](../../../../../../../backend/src/sro/infrastructure/db/models.py#L896): Docstring
+## `OfferRow`, [line 897](../../../../../../../backend/src/sro/infrastructure/db/models.py#L897): Docstring
+## `OfferRow`, [line 897](../../../../../../../backend/src/sro/infrastructure/db/models.py#L897): Docstring
 
 > One offer the extension made from a recognised prefix, and its fate.
 >
@@ -861,8 +866,8 @@ Code: `error: Mapped[str | None] = mapped_column(Text)`
 > mean arrival order once ``at`` ties, and Postgres promises no order at all
 > without a column to say so.
 
-## `OfferRow`, [line 896](../../../../../../../backend/src/sro/infrastructure/db/models.py#L896): Note on the line above
-## `OfferRow`, [line 905](../../../../../../../backend/src/sro/infrastructure/db/models.py#L905): Note on the line above
+## `OfferRow`, [line 897](../../../../../../../backend/src/sro/infrastructure/db/models.py#L897): Note on the line above
+## `OfferRow`, [line 906](../../../../../../../backend/src/sro/infrastructure/db/models.py#L906): Note on the line above
 
 Code: `k: Mapped[int] = mapped_column(Integer, nullable=False)`
 
@@ -870,8 +875,8 @@ Code: `k: Mapped[int] = mapped_column(Integer, nullable=False)`
 > arrival nudge -- "you have been here before", nothing typed -- which is
 > neither kind of evidence and is filtered out of the counsel window.
 
-## `ChatRow`, [line 932](../../../../../../../backend/src/sro/infrastructure/db/models.py#L932): Docstring
-## `ChatRow`, [line 932](../../../../../../../backend/src/sro/infrastructure/db/models.py#L932): Docstring
+## `ChatRow`, [line 933](../../../../../../../backend/src/sro/infrastructure/db/models.py#L933): Docstring
+## `ChatRow`, [line 933](../../../../../../../backend/src/sro/infrastructure/db/models.py#L933): Docstring
 
 > One sentence the chat door read, and what the reading cost.
 >
@@ -879,22 +884,22 @@ Code: `k: Mapped[int] = mapped_column(Integer, nullable=False)`
 > words about their warehouse, and the row exists for the cap and the spend
 > line, neither of which needs them.
 
-## `ChatRow`, [line 932](../../../../../../../backend/src/sro/infrastructure/db/models.py#L932): Note on the line above
-## `ChatRow`, [line 937](../../../../../../../backend/src/sro/infrastructure/db/models.py#L937): Note on the line above
+## `ChatRow`, [line 933](../../../../../../../backend/src/sro/infrastructure/db/models.py#L933): Note on the line above
+## `ChatRow`, [line 938](../../../../../../../backend/src/sro/infrastructure/db/models.py#L938): Note on the line above
 
 Code: `workflow_id: Mapped[str | None] = mapped_column(String(64))`
 
 > The job the sentence turned out to be about, when it was about one.
 
-## `ChatRow`, [line 932](../../../../../../../backend/src/sro/infrastructure/db/models.py#L932): Note on the line above
-## `ChatRow`, [line 941](../../../../../../../backend/src/sro/infrastructure/db/models.py#L941): Note on the line above
+## `ChatRow`, [line 933](../../../../../../../backend/src/sro/infrastructure/db/models.py#L933): Note on the line above
+## `ChatRow`, [line 942](../../../../../../../backend/src/sro/infrastructure/db/models.py#L942): Note on the line above
 
 Code: `thought_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)`
 
 > Inside out_tokens, not beside them.
 
-## `ChatRow`, [line 932](../../../../../../../backend/src/sro/infrastructure/db/models.py#L932): Note on the line above
-## `ChatRow`, [line 944](../../../../../../../backend/src/sro/infrastructure/db/models.py#L944): Note on the line above
+## `ChatRow`, [line 933](../../../../../../../backend/src/sro/infrastructure/db/models.py#L933): Note on the line above
+## `ChatRow`, [line 945](../../../../../../../backend/src/sro/infrastructure/db/models.py#L945): Note on the line above
 
 Code: `unpriced: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)`
 
@@ -1168,8 +1173,8 @@ Code: `__table_args__ = (Index("ix_intents_tenant_created", "tenant_id", "create
 > The spend sum reads it: everything this tenant was billed for over a
 > window, and a cap that cannot ask that question is not a cap.
 
-## `WorkflowRunRow`, [line 585](../../../../../../../backend/src/sro/infrastructure/db/models.py#L585): Comment
-## `WorkflowRunRow`, [line 594](../../../../../../../backend/src/sro/infrastructure/db/models.py#L594): Comment
+## `WorkflowRunRow`, [line 586](../../../../../../../backend/src/sro/infrastructure/db/models.py#L586): Comment
+## `WorkflowRunRow`, [line 595](../../../../../../../backend/src/sro/infrastructure/db/models.py#L595): Comment
 
 Code: `quoted_name("values", True),`
 
@@ -1177,16 +1182,16 @@ Code: `quoted_name("values", True),`
 > would emit it bare, which Postgres happens to accept in a column
 > definition and does not in every position a query can put it.
 
-## `WorkflowRunRow`, [line 585](../../../../../../../backend/src/sro/infrastructure/db/models.py#L585): Comment
-## `WorkflowRunRow`, [line 656](../../../../../../../backend/src/sro/infrastructure/db/models.py#L656): Comment
+## `WorkflowRunRow`, [line 586](../../../../../../../backend/src/sro/infrastructure/db/models.py#L586): Comment
+## `WorkflowRunRow`, [line 657](../../../../../../../backend/src/sro/infrastructure/db/models.py#L657): Comment
 
 Code: `Index("ix_workflow_runs_undoes", "undoes_run"),`
 
 > The one question `undoes_run` is asked: has this run been taken back
 > already. Without it, answering it reads every run of the tenant.
 
-## `WorkflowRunRow`, [line 585](../../../../../../../backend/src/sro/infrastructure/db/models.py#L585): Comment
-## `WorkflowRunRow`, [line 657](../../../../../../../backend/src/sro/infrastructure/db/models.py#L657): Comment
+## `WorkflowRunRow`, [line 586](../../../../../../../backend/src/sro/infrastructure/db/models.py#L586): Comment
+## `WorkflowRunRow`, [line 658](../../../../../../../backend/src/sro/infrastructure/db/models.py#L658): Comment
 
 Code: `Index("ix_workflow_runs_tenant_device", "tenant_id", "device_id", "outcome"),`
 
@@ -1194,7 +1199,7 @@ Code: `Index("ix_workflow_runs_tenant_device", "tenant_id", "device_id", "outcom
 > One browser, one hand -- two runs driving the same window interleave
 > their clicks into a form neither of them can then read back.
 
-## `WorkflowRunRow`, [line 649](../../../../../../../backend/src/sro/infrastructure/db/models.py#L649): Comment
+## `WorkflowRunRow`, [line 650](../../../../../../../backend/src/sro/infrastructure/db/models.py#L650): Comment
 
 Code: `Index(`
 
@@ -1206,7 +1211,7 @@ Code: `Index(`
 > would need; it turns out one worker needs it too, because async does
 > not give one request at a time.
 
-## `WorkflowRunRow`, [line 665](../../../../../../../backend/src/sro/infrastructure/db/models.py#L665): Comment
+## `WorkflowRunRow`, [line 666](../../../../../../../backend/src/sro/infrastructure/db/models.py#L666): Comment
 
 Code: `Index(`
 
@@ -1222,8 +1227,8 @@ Code: `Index(`
 > keep every test green while the thing a deployment runs built
 > something else. `test_the_migrations_run` compares the two.
 
-## `WorkflowLearnedHistoryRow`, [line 806](../../../../../../../backend/src/sro/infrastructure/db/models.py#L806): Comment
-## `WorkflowLearnedHistoryRow`, [line 808](../../../../../../../backend/src/sro/infrastructure/db/models.py#L808): Comment
+## `WorkflowLearnedHistoryRow`, [line 807](../../../../../../../backend/src/sro/infrastructure/db/models.py#L807): Comment
+## `WorkflowLearnedHistoryRow`, [line 809](../../../../../../../backend/src/sro/infrastructure/db/models.py#L809): Comment
 
 Code: `__table_args__ = (Index("ix_workflow_learned_history_job", "workflow_id", "at"),)`
 
@@ -1233,8 +1238,8 @@ Code: `__table_args__ = (Index("ix_workflow_learned_history_job", "workflow_id",
 > test -- and an index in one and not the other is a query that is fast in
 > development and a sequential scan in production.
 
-## `AttemptRow`, [line 881](../../../../../../../backend/src/sro/infrastructure/db/models.py#L881): Comment
-## `AttemptRow`, [line 883](../../../../../../../backend/src/sro/infrastructure/db/models.py#L883): Comment
+## `AttemptRow`, [line 882](../../../../../../../backend/src/sro/infrastructure/db/models.py#L882): Comment
+## `AttemptRow`, [line 884](../../../../../../../backend/src/sro/infrastructure/db/models.py#L884): Comment
 
 Code: `__table_args__ = (Index("ix_attempts_tenant_at", "tenant_id", "at"),)`
 
@@ -1242,15 +1247,15 @@ Code: `__table_args__ = (Index("ix_attempts_tenant_at", "tenant_id", "at"),)`
 > since when. A plain index on the tenant would make Postgres sort a
 > tenant's whole history to answer it.
 
-## `AttemptRow`, [line 881](../../../../../../../backend/src/sro/infrastructure/db/models.py#L881): Comment
-## `AttemptRow`, [line 886](../../../../../../../backend/src/sro/infrastructure/db/models.py#L886): Comment
+## `AttemptRow`, [line 882](../../../../../../../backend/src/sro/infrastructure/db/models.py#L882): Comment
+## `AttemptRow`, [line 887](../../../../../../../backend/src/sro/infrastructure/db/models.py#L887): Comment
 
 Code: `seq: Mapped[int] = mapped_column(BigInteger, Identity(), nullable=False)`
 
 > `offers`' tiebreak, for its reason: several attempts share a second and
 > "newest" has to mean arrival order once `at` ties.
 
-## `WorkflowRunRow`, [line 650](../../../../../../../backend/src/sro/infrastructure/db/models.py#L650): Note
+## `WorkflowRunRow`, [line 651](../../../../../../../backend/src/sro/infrastructure/db/models.py#L651): Note
 
 Code: `"uq_workflow_runs_one_per_offer",`
 

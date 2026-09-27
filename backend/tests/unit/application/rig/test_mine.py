@@ -36,10 +36,30 @@ from sro.application.observation.mining_pass import (
     rekey_workflows,
 )
 from sro.application.ports.locks import AccountBusy
-from sro.domain.observation.gesture import Gesture, Intent, Target, ValueSeen
-from sro.domain.observation.pool import K_POOL_AGE
+from sro.domain.observation.driving import WAS_OUR_OWN_DRIVING
+from sro.domain.observation.gesture import (
+    Action,
+    Call,
+    Component,
+    Gesture,
+    Intent,
+    Target,
+    ValueSeen,
+)
+from sro.domain.observation.pool import (
+    K_MINE_ATTEMPTS,
+    K_POOL_AGE,
+    RETIRED_DRIVING,
+    RETIRED_UNMINABLE,
+)
 from sro.domain.observation.trim import is_secret
-from sro.domain.observation.window import K_WINDOW_TOKENS, Packed, Window
+from sro.domain.observation.window import (
+    K_LEAD_UP_S,
+    K_READ_CONTEXT,
+    K_WINDOW_TOKENS,
+    Packed,
+    Window,
+)
 from sro.domain.prompts.mine import MINE
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
@@ -113,7 +133,6 @@ def _proposal(cites: list[str], **over: object) -> dict[str, object]:
             {"order": 1, "cites": cites, "says": "save it", "system": HOST, "parameters": []},
         ],
         "parameters": [],
-        "same_as": None,
     }
     return {**base, **over}
 
@@ -299,19 +318,20 @@ async def test_a_gesture_whose_system_is_unknown_cannot_prove_a_step_that_names_
     assert result.rejections[0].reason == "unattributed evidence"
 
 
-async def test_a_second_pass_over_the_same_evidence_adds_no_second_workflow() -> None:
-    """Mining re-runs over a day it has already read. What the stored job
-    cites is not shown again, so a model that re-proposes it anyway cites
-    gestures the pass never saw, and is refused for it."""
+async def test_a_second_pass_with_no_new_capture_asks_the_model_nothing() -> None:
+    """Measured on the QA box: 91% of 2,358 passes read nothing new and cost
+    $961, and passes over identical input kept 38 jobs between them -- the
+    duplicate copies. What a pass showed the model is mined; a second look at
+    it is paid for and can only disagree with the first."""
     uow, ids = await _day()
-    proposal = _proposal(ids[:2])
-    asker = FakeAsker(_found(proposal), _found(proposal))
+    asker = FakeAsker(_found(_proposal(ids[:2])), _found(_proposal(ids[2:4], title="a copy")))
 
     await _mine(uow, asker)
     second = await _mine(uow, asker)
 
-    assert [one.reason for one in second.rejections] == ["unknown gesture"]
-    assert len(await uow.workflows.known(TENANT)) == 1
+    assert len(asker.asked) == 1
+    assert (second.window_size, second.cost_usd, second.left_out) == (0, 0.0, 0)
+    assert [one.title for one in await uow.workflows.known(TENANT)] == ["create a work operation"]
 
 
 async def test_one_pass_proposing_the_same_job_twice_stores_it_once() -> None:
@@ -339,6 +359,7 @@ async def test_two_passes_at_once_do_not_both_read_the_same_window() -> None:
     await asyncio.gather(_mine(uow, asker, locks=locks), _mine(uow, asker, locks=locks))
 
     assert len(await uow.workflows.known(TENANT)) == 1
+    assert len(asker.asked) == 1, "the second pass found the first had mined it all"
 
 
 async def test_two_tenants_mine_at_the_same_time_rather_than_in_turn() -> None:
@@ -584,9 +605,12 @@ async def test_a_pooled_gesture_the_pass_cited_leaves_the_pool() -> None:
     await _mine(uow, FakeAsker(_found()))
     assert await _pool_ids(uow) == set(ids), "nothing was cited, so everything waits"
 
+    await uow.gestures.add_gestures(
+        (replace(_rows(uow)[ids[-1]], id="ges_new", at=_rows(uow)[ids[-1]].at + 1),)
+    )
     await _mine(uow, FakeAsker(_found(_proposal(ids[:2]))))
 
-    assert await _pool_ids(uow) == set(ids[2:])
+    assert await _pool_ids(uow) == set(ids[2:]) | {"ges_new"}
 
 
 async def test_a_pooled_gesture_whose_row_is_gone_is_named_not_dropped(
@@ -605,12 +629,39 @@ async def test_a_pooled_gesture_whose_row_is_gone_is_named_not_dropped(
         assert caplog.text == ""
 
         del _rows(uow)[ids[0]]
+        await uow.gestures.add_gestures(
+            (replace(_rows(uow)[ids[-1]], id="ges_new", at=_rows(uow)[ids[-1]].at + 1),)
+        )
         result = await _mine(uow, FakeAsker(_found()))
 
     assert result.lost_pool == [ids[0]]
-    assert result.window_size == len(ids) - 1
+    assert result.window_size == len(ids)
     # The result is gone the moment the pass returns; the log is what is left.
     assert ids[0] in caplog.text
+
+
+async def test_our_own_driving_leaves_the_pool_once_and_is_not_warned_about(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """On the QA box every pass warned "82 pooled gesture(s) have no row". All
+    82 had a row: they were pooled before their reading said this browser was
+    driving a run, and a pass that leaves driving out never looked them up
+    again -- so they were lost, warned about, and never retired."""
+    uow, ids = await _day()
+    await _mine(uow, FakeAsker(_found()))
+    for gesture_id in ids[:2]:
+        await uow.gestures.save_intent(
+            Intent(gesture_id=gesture_id, tenant=TENANT.value, why=WAS_OUR_OWN_DRIVING)
+        )
+
+    with caplog.at_level(logging.WARNING, logger="sro.application.observation.mining_pass"):
+        first = await _mine(uow, FakeAsker(_found()))
+        second = await _mine(uow, FakeAsker(_found()))
+
+    assert caplog.text == ""
+    assert first.lost_pool == second.lost_pool == []
+    gone = {entry.gesture_id: entry.reason for entry in await uow.pool.retired(TENANT)}
+    assert gone == dict.fromkeys(ids[:2], RETIRED_DRIVING)
 
 
 async def test_evidence_the_budget_left_out_lands_in_the_pool() -> None:
@@ -682,15 +733,15 @@ async def test_a_gesture_the_budget_left_out_is_read_by_the_next_pass() -> None:
     tail = weak_ids[:5]
     asker = FakeAsker(
         _found(_proposal(strong_ids + weak_ids[-5:])),
-        _found(_proposal(tail, title="the tail")),
+        _found(_proposal(tail)),
     )
 
     await _mine(uow, asker, kb=CROWDED_KB)
     second = await _mine(uow, asker, kb=CROWDED_KB)
 
     assert [r.reason for r in second.rejections] == []
-    # Cited, not kept. The tail's proposal has the shape of the job the first
-    # pass already stored, so `resolve` now folds it in rather than minting a
+    # Cited, not kept. The tail's proposal carries the title of the job the
+    # first pass already stored, so `resolve` folds it in rather than minting a
     # second row -- which is the point of `resolve` and not of this test. What
     # this test is about is that the tail was SHOWN: nothing the window held
     # went uncited, and a tail still outside the window would have been refused
@@ -702,39 +753,23 @@ async def test_a_gesture_the_budget_left_out_is_read_by_the_next_pass() -> None:
     assert second.left_out == 0
 
 
-async def test_a_retired_gesture_loses_its_bonus_and_not_its_place() -> None:
-    """The decision K_POOL_AGE records, asserted from the window's side.
-
-    Retirement takes K_POOL_BONUS away and nothing else: the gesture is packed
-    again as ordinary evidence. So a retired entry loses a contested place to
-    fresh evidence of equal strength (it no longer outranks it), and takes its
-    place in a window with room (it was never removed from the running).
-    """
+async def test_a_retired_gesture_is_not_mined_again() -> None:
+    """Retired after K_POOL_AGE readings, the entry has been mined. It once
+    came back as fresh evidence -- on the QA box, 1,287 retired entries were
+    read again on every pass, which is what kept `left_out` at ~1,157 and the
+    walk going eight passes after every arrival."""
     uow, strong_ids, weak_ids = await _crowded_day(strong=24, weak=5)
-    # The earliest weak gesture: `pack` breaks a tie newest-first, so once the
-    # bonus is gone this is the one fresh evidence beats.
     retiree = weak_ids[0]
     await uow.pool.add_unclaimed(TENANT, window_ids=(retiree,), claimed=frozenset())
     for _ in range(K_POOL_AGE + 1):
         await uow.pool.age(TENANT)
     assert [entry.gesture_id for entry in await uow.pool.retired(TENANT)] == [retiree]
+    asker = FakeAsker(_found())
 
-    asker = FakeAsker(_found(), _found())
-    tight = await _mine(uow, asker, kb=CROWDED_KB)
     roomy = await _mine(uow, asker)
 
-    # 24 strong and one weak, and the weak place goes to the latest of them
-    # rather than to the retiree, which would have taken it at 1.5.
-    assert tight.window_size == 25
-    assert retiree not in str(asker.asked[0]["evidence"]), (
-        "a retired entry competes without its bonus"
-    )
-    assert weak_ids[-1] in str(asker.asked[0]["evidence"]), (
-        "the place it lost went to fresh evidence"
-    )
-    # Same day, a budget with room for everything: it is still evidence.
-    assert roomy.window_size == len(strong_ids) + len(weak_ids)
-    assert retiree in str(asker.asked[1]["evidence"]), "retirement is not removal from the window"
+    assert roomy.window_size == len(strong_ids) + len(weak_ids) - 1
+    assert retiree not in str(asker.asked[0]["evidence"])
 
 
 async def test_a_day_of_refused_calls_does_not_retire_the_pool() -> None:
@@ -754,18 +789,285 @@ async def test_a_day_of_refused_calls_does_not_retire_the_pool() -> None:
     assert {entry.age for entry in await uow.pool.waiting(TENANT)} == {0}
 
 
-async def test_a_read_window_whose_answer_was_unusable_still_ages_the_pool() -> None:
-    """The model was shown the pool and billed for reading it; an answer that
-    breaks its schema is still a reading. Not ageing it hands the same window
-    back with its bonus, billed again, forever."""
+async def test_an_unusable_answer_leaves_its_window_unread() -> None:
+    """GC 10: an answer that breaks its schema -- a truncated one included --
+    is unsure, not an answer. It was billed, and its window is still unread:
+    the next pass reads it again rather than calling it mined."""
     uow, ids = await _day()
-    await uow.pool.add_unclaimed(TENANT, window_ids=tuple(ids), claimed=frozenset())
     unusable = Answer(data={"workflows": "not a list"}, in_tokens=900, cost_usd=0.2)
+    asker = FakeAsker(unusable, _found())
 
-    result = await _mine(uow, FakeAsker(unusable))
+    first = await _mine(uow, asker)
+    second = await _mine(uow, asker)
 
-    assert result.error is not None and "mine v1" in result.error
+    assert first.error is not None and "mine v2" in first.error
+    assert first.left_out == len(ids)
+    assert len(asker.asked) == 2 and second.window_size == len(ids)
     assert {entry.age for entry in await uow.pool.waiting(TENANT)} == {1}
+
+
+async def test_a_window_no_answer_can_read_retires_unminable_and_is_not_billed_again(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A window whose answer is truncated every time would otherwise be billed
+    on every pass, for ever. It gets K_MINE_ATTEMPTS readings."""
+    uow, ids = await _day()
+    truncated = Answer(data=None, error="the answer was truncated", in_tokens=5000, cost_usd=0.1)
+    asker = FakeAsker(*[truncated] * (K_MINE_ATTEMPTS + 2))
+
+    with caplog.at_level(logging.INFO, logger="sro.application.observation.mining_pass"):
+        passes = [await _mine(uow, asker) for _ in range(K_MINE_ATTEMPTS + 1)]
+
+    assert len(asker.asked) == K_MINE_ATTEMPTS
+    assert passes[-1].window_size == 0
+    gone = {entry.gesture_id: entry.reason for entry in await uow.pool.retired(TENANT)}
+    assert gone == dict.fromkeys(ids, RETIRED_UNMINABLE)
+    assert "unminable" in caplog.text
+
+
+# --------------------------------------------------------------------------
+# what a pass mined is not mined again
+
+
+async def test_the_walk_asks_until_nothing_is_unread_and_then_stops() -> None:
+    """`left_out` walks a day bigger than one window. It stops when every
+    gesture has been read, not when some count of passes has gone by."""
+    uow, _strong, weak_ids = await _crowded_day(strong=20, weak=10)
+    asker = FakeAsker(_found(), _found(), _found())
+
+    first = await _mine(uow, asker, kb=CROWDED_KB)
+    second = await _mine(uow, asker, kb=CROWDED_KB)
+    third = await _mine(uow, asker, kb=CROWDED_KB)
+
+    assert len(asker.asked) == 2
+    assert (first.left_out, second.left_out, third.left_out) == (5, 0, 0)
+    assert all(one in str(asker.asked[1]["evidence"]) for one in weak_ids[:5])
+    assert third.window_size == 0
+
+
+async def test_what_was_left_out_comes_before_what_was_already_read() -> None:
+    """A pooled entry already read rides along for context, and never takes
+    the place of one no pass has read. Otherwise a pool larger than a window
+    would leave the unread out for good, and no pass would ever ask."""
+    uow, strong_ids, weak_ids = await _crowded_day(strong=24, weak=5)
+    await uow.pool.add_unclaimed(TENANT, window_ids=tuple(strong_ids), claimed=frozenset())
+    await uow.pool.age(TENANT, shown=tuple(strong_ids))
+    asker = FakeAsker(_found())
+
+    result = await _mine(uow, asker, kb=CROWDED_KB)
+
+    evidence = str(asker.asked[0]["evidence"])
+    assert all(one in evidence for one in weak_ids)
+    assert result.left_out == 0
+
+
+async def test_read_evidence_joins_only_beside_unread_work_and_only_so_much() -> None:
+    """One new gesture used to buy a full window of leftovers already read --
+    the same leftovers that minted wfl_88bc. What was read rides along only as
+    the unread gesture's own neighbours (same tab, within K_LEAD_UP_S), and at
+    most K_READ_CONTEXT of them."""
+    uow, _strong, weak_ids = await _crowded_day(strong=0, weak=K_READ_CONTEXT + 10)
+    await _mine(uow, FakeAsker(_found()))
+    last = _rows(uow)[weak_ids[-1]]
+    await uow.gestures.add_gestures((replace(last, id="ges_far", at=last.at + 10 * K_LEAD_UP_S),))
+    asker = FakeAsker(_found(), _found())
+
+    far = await _mine(uow, asker)
+    await uow.gestures.add_gestures((replace(last, id="ges_near", at=last.at + 1),))
+    near = await _mine(uow, asker)
+
+    assert far.window_size == 1, "nothing read is near it, so nothing read joins it"
+    assert near.window_size == 1 + K_READ_CONTEXT
+    assert weak_ids[-1] in str(asker.asked[1]["evidence"]), "the nearest joins first"
+
+
+async def test_new_capture_is_mined_once_beside_what_waits_for_it() -> None:
+    uow, ids = await _day()
+    asker = FakeAsker(_found(), _found(), _found())
+    await _mine(uow, asker)
+    await uow.gestures.add_gestures(
+        (replace(_rows(uow)[ids[-1]], id="ges_new", at=_rows(uow)[ids[-1]].at + 1),)
+    )
+
+    await _mine(uow, asker)
+    again = await _mine(uow, asker)
+
+    assert len(asker.asked) == 2
+    assert "ges_new" in str(asker.asked[1]["evidence"])
+    assert again.window_size == 0
+
+
+async def test_a_pass_that_raised_before_marking_its_window_read_leaves_it_unread(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An exception after the answer and before `pool.age`, the pass's last
+    write: the window is not recorded as read, so the next pass reads it."""
+    uow, ids = await _day()
+
+    async def boom(tenant_id: TenantId, **_: object) -> int:
+        raise RuntimeError("the worker stopped")
+
+    monkeypatch.setattr(uow.pool, "age", boom)
+    with pytest.raises(RuntimeError):
+        await _mine(uow, FakeAsker(_found()))
+    monkeypatch.undo()
+    asker = FakeAsker(_found())
+
+    again = await _mine(uow, asker)
+
+    assert len(asker.asked) == 1
+    assert again.window_size == len(ids)
+
+
+WMS = "https://wms.example"
+MAIL = "https://mail.example"
+
+
+def _did(
+    n: int, at: float, system: str, kind: str, control: str, value: str | None = None
+) -> Gesture:
+    writes = [Call(method="POST", url=f"{WMS}/api/customertypes", status=200)]
+    return Gesture(
+        id=f"ges_ct_{n:03d}",
+        tenant=TENANT.value,
+        stream_id="str_1",
+        batch_id="bat_1",
+        at=at,
+        url=system + "/",
+        system=system,
+        tab_id=1,
+        frame_url=None,
+        action=Action(
+            kind=kind,
+            at=at,
+            value=value,
+            target=Target(
+                tag="input" if kind == "type" else "button",
+                component=Component(item_id=control),
+            ),
+        ),
+        requests=writes if control == "saveButton" else [],
+    )
+
+
+def _creates_a_customer_type(start: int, at: float, code: str, says: str) -> list[Gesture]:
+    return [
+        _did(start + 0, at + 0, MAIL, "click", "message"),
+        _did(start + 1, at + 6, WMS, "click", "tabItem"),
+        _did(start + 2, at + 9, WMS, "click", "customertype-customerType"),
+        _did(start + 3, at + 11, WMS, "type", "customertype-customerType", code),
+        _did(start + 4, at + 22, MAIL, "click", "message"),
+        _did(start + 5, at + 28, WMS, "click", "customertype-longDescription"),
+        _did(start + 6, at + 35, WMS, "type", "customertype-longDescription", says),
+        _did(start + 7, at + 40, WMS, "click", "saveButton"),
+        _did(start + 8, at + 30, WMS, "type", "customertype-shortDescription", f"{code} short"),
+        _did(start + 9, at + 32, WMS, "type", "customertype-owner", f"owner of {code}"),
+    ]
+
+
+def _the_job(doing: list[Gesture]) -> dict[str, object]:
+    ids = [one.id for one in doing]
+    return {
+        "title": "Create a Customer Type",
+        "narrative": "the operator created a customer type",
+        "systems": [WMS],
+        "steps": [
+            {"order": 0, "cites": [ids[1]], "says": "Open Customer Types", "system": WMS},
+            {
+                "order": 1,
+                "cites": ids[2:4],
+                "says": "Type the Customer Type",
+                "system": WMS,
+                "parameters": ["customertype-customerType"],
+            },
+            {
+                "order": 2,
+                "cites": ids[5:7],
+                "says": "Type the description",
+                "system": WMS,
+                "parameters": ["customertype-longDescription"],
+            },
+            {
+                "order": 3,
+                "cites": ids[8:10],
+                "says": "Type the short description and the owner",
+                "system": WMS,
+                "parameters": ["customertype-shortDescription", "customertype-owner"],
+            },
+            {"order": 4, "cites": [ids[7]], "says": "Click Save", "system": WMS},
+        ],
+        "parameters": [
+            {"name": name, "seen_values": [doing[at].action.value]}
+            for name, at in (
+                ("customertype-customerType", 3),
+                ("customertype-longDescription", 6),
+                ("customertype-shortDescription", 8),
+                ("customertype-owner", 9),
+            )
+        ],
+    }
+
+
+def _fragment(later: list[Gesture], title: str, *cites: Gesture) -> dict[str, object]:
+    return {
+        "title": title,
+        "narrative": "the operator read the instructions",
+        "systems": sorted({one.system or "" for one in cites}),
+        "steps": [
+            {"order": n, "cites": [one.id], "says": "Read email instructions", "system": one.system}
+            for n, one in enumerate(cites)
+        ],
+        "parameters": [],
+    }
+
+
+async def _a_stored_customer_type(asker: FakeAsker) -> tuple[FakeUnitOfWork, list[Gesture]]:
+    uow = FakeUnitOfWork()
+    first = _creates_a_customer_type(0, 1000.0, "NEWS", "leaning SRO")
+    later = _creates_a_customer_type(100, 90_000.0, "GDD", "leaning new SRO type 004")
+    await uow.gestures.add_gestures(tuple(first))
+    await _mine(uow, asker)
+    [job] = await uow.workflows.known(TENANT)
+    assert len(job.parameters) == 4, "the fixture did not store the four-parameter job"
+    await uow.gestures.add_gestures(tuple(later))
+    return uow, later
+
+
+async def test_a_new_doing_grows_the_job_and_no_empty_copy_is_minted() -> None:
+    """The QA store's 'Create a Customer Type' (wfl_4857, four parameters)
+    sits beside copies with none (wfl_88bc, wfl_464d). wfl_88bc cites the two
+    mail clicks and a Save from a later doing, under the job's own title. The
+    fragment is in the same answer as the real doing here, on a pass with new
+    capture -- the case that still minted once idle passes stopped asking."""
+    first = _creates_a_customer_type(0, 1000.0, "NEWS", "leaning SRO")
+    asker = FakeAsker(_found(_the_job(first)))
+    uow, later = await _a_stored_customer_type(asker)
+    fragment = _fragment(later, "Create a Customer Type", later[0], later[7])
+    asker = FakeAsker(_found(_the_job(later), fragment))
+
+    grown = await _mine(uow, asker)
+
+    assert [one.kind for one in grown.resolutions] == ["same_job", "same_job"]
+    [job] = await uow.workflows.known(TENANT)
+    assert len(job.parameters) == 4
+    assert "GDD" in _seen(job.parameters, "customertype-customerType")
+
+
+async def test_a_nameless_fragment_of_a_stored_job_is_refused_by_name() -> None:
+    """Under a title of its own the fragment is not recognised by name; it has
+    no parameters and shares a step with the job, so it is a piece of that job
+    and not a job."""
+    first = _creates_a_customer_type(0, 1000.0, "NEWS", "leaning SRO")
+    uow, later = await _a_stored_customer_type(FakeAsker(_found(_the_job(first))))
+    fragment = _fragment(later, "Read the instructions and save", later[0], later[7])
+
+    result = await _mine(uow, FakeAsker(_found(fragment)))
+
+    assert [(one.reason, one.detail) for one in result.rejections] == [
+        ("fragment of a known job", (await uow.workflows.known(TENANT))[0].id)
+    ]
+    [job] = await uow.workflows.known(TENANT)
+    assert len(job.parameters) == 4
 
 
 # --------------------------------------------------------------------------
@@ -807,18 +1109,18 @@ async def test_the_bill_belongs_to_the_pass_and_is_recorded_once() -> None:
     how well the pass did: three workflows out of this $0.04 call summed to
     $0.12, and a four-workflow pass would have said $0.16."""
     uow, ids = await _day()
-    three = [
+    # Two and not three: the fixture day's middle slice has no parameters and
+    # shares a control with the first, so `resolve` now refuses it as a
+    # fragment of that job.
+    two = [
         _proposal(ids[0:2], title="create a work operation"),
-        _proposal(ids[2:4], title="receive a shipment"),
         _proposal(ids[4:6], title="correct a count"),
     ]
-    asker = FakeAsker(
-        Answer(data={"workflows": three}, in_tokens=900, out_tokens=100, cost_usd=0.04)
-    )
+    asker = FakeAsker(Answer(data={"workflows": two}, in_tokens=900, out_tokens=100, cost_usd=0.04))
 
     result = await _mine(uow, asker)
 
-    assert result.kept == 3
+    assert result.kept == 2
     billed = await uow.workflows.passes(TENANT)
     # One row, at the real figure -- not 0.04 * 3.
     assert len(billed) == 1
@@ -1540,7 +1842,6 @@ def _answer(**over: object) -> Answer:
                     }
                 ],
                 "parameters": [{"name": "code", "seen_values": ["ACME"]}],
-                "same_as": None,
             }
         ]
     }
@@ -1563,6 +1864,15 @@ async def test_a_proposal_becomes_a_workflow() -> None:
     assert answer.cost_usd == 0.004
 
 
+async def test_a_job_with_a_control_character_is_dropped_and_its_neighbour_kept() -> None:
+    good = _answer().data["workflows"][0]
+    bad = {**good, "title": "create a\x00 supplier"}
+
+    workflows, _ = await _proposed(FakeAsker(_answer(workflows=[bad, good])))
+
+    assert [one.title for one in workflows] == ["create a supplier"]
+
+
 async def test_a_refusal_proposes_nothing_and_says_why() -> None:
     workflows, answer = await _proposed(FakeAsker(Answer(error="503")))
 
@@ -1576,7 +1886,7 @@ async def test_a_malformed_answer_does_not_take_the_pass_down() -> None:
     so `propose` never sees a `workflows` that is not a list."""
     for junk in ("not a list", {"a": "dict"}, 7, None):
         workflows, answer = await _proposed(FakeAsker(_answer(workflows=junk)))
-        assert answer.error is not None and "mine v1" in answer.error
+        assert answer.error is not None and "mine v2" in answer.error
 
         assert workflows == []
 

@@ -47,7 +47,6 @@ def intent_from(
     intent.act = _string_field(data, "act")
     intent.object = _string_field(data, "object")
     intent.page = _string_field(data, "page")
-    intent.continues = _string_field(data, "continues") or None
     intent.confidence = _string_field(data, "confidence")
     intent.why = _string_field(data, "why")
     intent.values_seen = _values_seen(data, hide=is_secret(gesture))

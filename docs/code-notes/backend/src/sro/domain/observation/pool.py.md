@@ -21,21 +21,31 @@ Comments and docstrings moved out of [`backend/src/sro/domain/observation/pool.p
 
 Code: `K_POOL_AGE = 6`
 
-> Readings of patience. After six, an entry stops being PRIVILEGED.
+> Readings of patience. After six more, an entry has been mined.
 >
-> Retirement is not removal from the window, and that is a decision rather than
-> an accident. mine() draws `fresh` from every gesture in the tenant, so a
-> retired gesture is packed again on the next pass at its own strength: what it
-> loses is K_POOL_BONUS, not its place. The alternative -- retirement takes it
-> out of the window, as this module's docstring used to imply -- is permanent
-> blindness, because nothing ever un-retires: a gesture the budget dropped six
-> times could then never be read again, not even on the day a second capture
-> finally brings in the other half of its job. Keyed by tenant, that late-arriving
-> cross-system join is the one thing this pool exists for.
+> Retirement IS removal from the window (M1, 2026-09-26). It once was not: a
+> retired gesture came back as fresh evidence at its own strength, so that a
+> gesture the budget dropped six times would not be blind for good. But the
+> age counts READINGS, never passes it was left out of (`waited` counts
+> those), so a retired entry is one the model has already read seven times
+> and never placed. Coming back, those were read on every pass. On the QA
+> box, 1,287 of them kept `left_out` near 1,157 and ran the sweep up to eight
+> passes after every arrival.
 >
-> So the pool is a decaying priority, not a queue with an exit. Six readings of a
-> boost, then compete on merit -- and the cost of the boost is bounded, which is
-> what the cap is for.
+> The late cross-system join this pool exists for still has its seven
+> readings. Since a pass with nothing unread no longer reads anything, those
+> readings are spent only when new capture arrives, and not by idle passes.
+
+## module, [line 14](../../../../../../../backend/src/sro/domain/observation/pool.py#L14): Note on the line above
+
+Code: `K_MINE_ATTEMPTS = 3`
+
+> Unusable answers a window may get before its entries retire as
+> "unminable". An answer that breaks MINE's schema, or is truncated, does
+> not mine its window (GC 10), so the window is read again. Without a bound,
+> a window the model always truncates would be billed on every pass for
+> ever. Three: one retry for a flake, one more for a second, and then it is
+> the window.
 
 ## module, [line 7](../../../../../../../backend/src/sro/domain/observation/pool.py#L7): Note on the line above
 
@@ -46,8 +56,13 @@ Code: `K_POOL_DAYS = 7`
 > The other cap, K_POOL_AGE, counts readings; this one counts days, so evidence
 > in a pool nobody is mining still leaves rather than waiting forever for a
 > reading that is never taken.
+>
+> Only an entry that has been read goes stale (`age > 0`). A retired entry is
+> never mined again, so an unread one retired for its date would be lost
+> without ever being read. Unread entries are packed first, so the next pass
+> that runs reads them.
 
-## `PoolEntry`, [line 14](../../../../../../../backend/src/sro/domain/observation/pool.py#L14): Docstring
+## `PoolEntry`, [line 18](../../../../../../../backend/src/sro/domain/observation/pool.py#L18): Docstring
 
 > One gesture waiting for a better reading, and how long it has waited.
 >

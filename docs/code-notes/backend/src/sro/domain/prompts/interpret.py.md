@@ -9,8 +9,9 @@ Code: `INTERPRET = Prompt(`
 > Reading one demonstration into a workflow. It was `_INSTRUCTIONS` and
 > `_SCHEMA` in `sro.infrastructure.gemini.interpreter`, text verbatim.
 >
-> On the pro model, which was `gemini_interpreter_model`; `NAME_SKILL` and
-> `JUDGE_SKILL` were asked on the same setting and keep the same model.
+> On the pro model, which was `gemini_interpreter_model`; `NAME_SKILL`,
+> `JUDGE_VARIANT` and `JUDGE_WORKFLOW` were asked on the same setting and keep
+> the same model.
 >
 > Reading a demonstration into a workflow, once per induction. Nobody is
 > watching the clock, being wrong is expensive and lasting, and the reading is
@@ -25,12 +26,24 @@ Code: `NAME_SKILL = Prompt(`
 > gives: the LPN example, the list of what a name leaves out, and the empty
 > title.
 
-## module, [line 150](../../../../../../../backend/src/sro/domain/prompts/interpret.py#L150): Note on the line above
+## module, [line 147](../../../../../../../backend/src/sro/domain/prompts/interpret.py#L147): Note on the line above
 
-Code: `JUDGE_SKILL = Prompt(`
+Code: `JUDGE_VARIANT = Prompt(`
 
-> It was `_JUDGING`, a dict of two texts keyed by kind, and `_JUDGEMENT_SCHEMA`.
-> One record holds both, each text verbatim under the `kind` it answers, and the
-> kind is given as trusted JSON. A kind outside `JUDGED` is never asked, as a
-> kind outside the dict never was. The role sentence is new: the two texts had
-> none in common.
+> It was `_JUDGING["variant"]` and `_JUDGEMENT_SCHEMA`, text verbatim: its first
+> paragraph is the role and its second the task. One record per kind, because
+> the two are different questions with different words, and the eval gate
+> measures a record: one record holding both would score two questions as one.
+
+## module, [line 185](../../../../../../../backend/src/sro/domain/prompts/interpret.py#L185): Note on the line above
+
+Code: `JUDGE_WORKFLOW = Prompt(`
+
+> It was `_JUDGING["workflow"]`, text verbatim, split the same way.
+
+## module, [line 210](../../../../../../../backend/src/sro/domain/prompts/interpret.py#L210): Note on the line above
+
+Code: `JUDGES = {"variant": JUDGE_VARIANT, "workflow": JUDGE_WORKFLOW}`
+
+> Which record answers which kind. A kind not here is never asked, as a kind
+> outside `_JUDGING` never was.

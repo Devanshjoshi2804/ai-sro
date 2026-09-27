@@ -11,7 +11,7 @@ from sro.application.ports.interpretation import (
     StepReading,
     TaskName,
 )
-from sro.domain.prompts.interpret import INTERPRET, JUDGE_SKILL, JUDGED, NAME_SKILL
+from sro.domain.prompts.interpret import INTERPRET, JUDGES, NAME_SKILL
 from sro.domain.prompts.record import Prompt
 
 logger = logging.getLogger(__name__)
@@ -52,9 +52,10 @@ class GeminiInterpreter:
         )
 
     async def judge_join(self, kind: str, first: str, second: str) -> Judgement:
-        if kind not in JUDGED:
+        judge = JUDGES.get(kind)
+        if judge is None:
             return Judgement()
-        answer = await self._ask(JUDGE_SKILL, {"kind": kind}, {"first": first, "second": second})
+        answer = await self._ask(judge, {}, {"first": first, "second": second})
         if answer is None:
             return Judgement()
         return Judgement(

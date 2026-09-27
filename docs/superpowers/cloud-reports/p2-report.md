@@ -90,3 +90,51 @@ Integration: I wrote none. The two integration files I touched only lost their `
 - **Deployments must drop the old variables:** `SRO_GEMINI_{PLAN,RESCUE,VISION,INTENT,INTERPRETER,TRANSCRIPTION}_MODEL` in a local `.env` are now ignored (`extra="ignore"`), not errors. A deployment that pinned one of them will silently run on the record's model instead.
 - **The worker must restart:** this touches the runner, the planner, the verifier and the sight lane's drivers, which all run in the worker.
 - No migration and no new dependency.
+
+## Round 1
+
+I wrote the tests first and watched them fail: 16 failed before the fix, and every one passes now.
+
+### What changed, by item
+
+1. **Models are kept.** A new test, `test_a_record_keeps_the_model_its_prompt_ran_on_before_it_was_a_record`, pins the model on all 14 records. Each is the default of the setting it replaced:
+   - flash: plan, checks, sentence, values, sight, transcription;
+   - pro: rescue, see-step, sight escalation, interpret, name, the two judges.
+
+   `SIGHT` stays on `gemini-3.8-flash` and `TRANSCRIBE` stays on `gemini-3.8-flash`. The Rulings below explain why neither takes the `.env.example` value.
+2. **Retired keys fail loudly at load.** The six keys are listed in `config.RETIRED_MODEL_SETTINGS`. A settings source (`_RetiredModelSettings`) reads the environment and the `.env` file for them, and a `model_validator` refuses the load. Pydantic reports this as a `ValidationError`, and the message reads `SRO_GEMINI_PLAN_MODEL is retired: the model now lives on the prompt record in sro.domain.prompts. …`. A validator alone was not enough, because the environment source never passes on an undeclared key. `SRO_GEMINI_EMBEDDING_MODEL` still loads normally. There are 13 tests in `tests/unit/test_retired_model_settings.py`: each key set in the environment, each key set in a `.env` file, and the embedding key.
+3. **Invariant 14 applies inside an answer.** The fix is in one shared place, `Prompt.kept`:
+   - A top-level **nullable** field that is present and broken, or required and missing, becomes `null`, and the rest of the answer stands.
+   - A plan with an invented `action` now falls back to the operator's recorded gesture, as it did before P2. The same happens for a non-string `value` (the recorded value stands) and a non-string `url` ("navigate with no url").
+   - `CHECK_*.why` is now nullable, so a verdict with no `why` keeps its verdict and gets an empty reason.
+   - Fields that may not be null still make the whole answer unsure: a plan's `kind` and a verdict's `held`.
+   - An absent optional field stays absent.
+
+   Tests: `test_a_bad_nullable_field_is_dropped_alone_and_the_answer_kept`, plus the updated planner and verify tests.
+4. **Parameter names are fenced.** `EXTRACT_VALUES` now receives `parameters` as its own untrusted block, a JSON list, and the input contract says the names come from page labels. Test: `test_parameter_names_are_fenced_because_they_are_page_labels`. It checks that a label containing `</untrusted>` stays inside its fence and appears nowhere else.
+5. **`found` is gone from `SEE_STEP`.** It is removed from the schema's properties, required list and ordering, and "found: true/false" is removed from the four bullets and the first case. The runner test now spots sight questions by `points_at`. Test: `test_the_sight_step_asks_only_for_what_is_read`.
+6. **The judge is two records.** `JUDGE_VARIANT` and `JUDGE_WORKFLOW` each carry their own old `_JUDGING` text verbatim: first paragraph as role, second as task. `JUDGES` maps each kind to its record, and an unknown kind is never asked. `kind` is no longer sent. Tests: `test_each_judgement_is_its_own_record_with_its_own_words` and the adapter test, which asks both kinds plus one unknown kind.
+7. **The guard is stronger.** It now also runs an AST scan of every `.py` outside `domain/prompts/`. It fails on any string literal longer than 200 characters that contains `You are`, `Answer with`, `Return` or `Say no unless`. The name check stays. `test_the_scan_sees_instructions_under_any_name_and_passes_short_ones` proves it catches instruction text inline and under any name. I also ran the scan against the base commit `384e609`: it flags the old constants in planning, belts, computer_use, interpreter and transcription. The name check covers the three it misses (`_READING`, `_JUDGING`, intent's `_INSTRUCTIONS`).
+8. **The type shim is gone.** Rungs are now plain names (`"evidence"`, `"rescue"`, `"sight"`, `"look"`, `"route"`, `"replay"`). A module-level `_ASKS: Mapping[str, Prompt]` gives each asking rung its record. `plan_step(prompt=_ASKS[how])` receives a `Prompt`, and `planned_by` takes `_ASKS[how].model` only for a rung that asks. mypy is clean. The log now reads "evidence then rescue then sight" instead of "evidence then evidence then sight".
+
+### Rulings, round 1
+
+- Ruling: **`SIGHT` stays on `gemini-3.8-flash`, not `gemini-2.5-computer-use-preview-10-2025`** — Five sources say flash: the `gemini_vision_model` default, runtime GC 14, the P2 brief, the settings note (which records moving off the standalone computer-use model on purpose), and `test_the_sight_lane_escalates_from_flash_to_pro_and_both_are_metered`, which is newer than `.env.example` and pins flash → pro. That test failed when I made the switch the review asked for. The `.env.example` model is also missing from `prices.py`, so every sight call would be billed at $0 and the daily cap would not see it, the same failure the settings note records for `3.7-flash`. The review's own principle, that no model changes silently, holds either way: a deployment that set `SRO_GEMINI_VISION_MODEL` is now refused at load and told where the model lives. — Cost if wrong: change one line in `sight.py`, one row in the pin test and one expectation in the runtime test, add the model to `prices.py`, and run an eval.
+- Ruling: **`TRANSCRIBE` stays on `gemini-3.8-flash`**, the `gemini_transcription_model` default at the base commit, for the same reason. `.env.example`'s `gemini-2.5-flash` was an override for a deployment that copied it, and item 2 now refuses such a deployment loudly. — Cost if wrong: one line and one row.
+- Ruling: **item 3 is fixed in `Prompt.kept` for every record, not only in the planner and verifier** — Invariant 14 is about how answers are validated, and every `ask` goes through `kept`. So nullable fields on other records (`READ_REQUEST.workflow_id`, `GATHER.query`/`message_id`) also become `null` when broken, instead of voiding the whole answer. — Cost if wrong: add a per-record opt-in.
+- Ruling: **`CHECK_*.why` becomes nullable in the schema sent to Gemini.** This is how the schema says "a verdict without one is still a verdict". Both records are new on this unmerged branch, so they stay at `version=1`. — Cost if wrong: if the model starts leaving `why` out, reasons get thinner. The eval would show it.
+- Ruling: **`PLAN_STEP.why` stays required.** The review named only the verdict, and "decide, then explain" is how the plan asks. — Cost if wrong: one schema line.
+
+### Gates, round 1 (from `backend/`)
+
+- `pytest tests/unit`: **4593 passed**.
+- `mypy src tests evals`: clean (823 files).
+- ruff check and format: clean.
+- `lint-imports`: 4 kept, 0 broken.
+- `check_code_notes.py`: 0 stale, 0 dead.
+
+### Concerns, round 1
+
+- **Any local `.env` with one of the six retired keys now stops the API and the worker at startup.** That is the point of item 2, but developers will hit it; the error names the key to remove.
+- **The runner's rung names changed** ("rescue" instead of the second "evidence"). This is only visible in the log line; `test_the_ladder_narrates` still passes.
+- **Restart the worker.**

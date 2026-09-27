@@ -13,8 +13,10 @@ Code: `PLAN_STEP = Prompt(`
 >
 > `plan_step` asks it through `ask`, with the evidence it has always built as one
 > untrusted block. So the answer is held to this schema before the planner reads
-> it: a `kind` outside the enum, a `why` that is not a string, or a value that is
-> not a string is an unsure answer (`data` is `None`), never a plan. The planner's
+> it: a `kind` outside the enum or a `why` that is not a string is an unsure
+> answer (`data` is `None`), never a plan. The nullable fields -- `action`,
+> `value`, `url` -- are dropped alone when broken (`Prompt.kept`), so an invented
+> action falls back to the operator's recorded gesture, as a null one does. The planner's
 > own check for a kind the protocol does not have went with it: the schema is that
 > check now.
 >

@@ -82,8 +82,8 @@ EXTRACT_VALUES = Prompt(
     role=_EXTRACT_ROLE,
     task=_EXTRACT_TASK,
     input_contract=(
-        "`parameters` as JSON; the `request`, and its `context` when there is one, each in "
-        "its own untrusted block."
+        "The `parameters`, a JSON list of the names to fill (they come from page labels), "
+        "the `request`, and its `context` when there is one, each in its own untrusted block."
     ),
     output_schema={
         "type": "object",

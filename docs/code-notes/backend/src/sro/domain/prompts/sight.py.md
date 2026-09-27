@@ -15,6 +15,14 @@ Code: `SIGHT = Prompt(`
 > `output_schema` is empty: computer use answers with a function call, not JSON,
 > and a JSON schema beside the tool is refused with a 400.
 >
+> `3.8-flash`, the `gemini_vision_model` default and what runtime GC 14 and
+> `test_the_sight_lane_escalates_from_flash_to_pro_and_both_are_metered` pin.
+> `.env.example` pinned `gemini-2.5-computer-use-preview-10-2025`, which a
+> deployment copying it would have run; that model is not in `prices.py`, so its
+> calls were billed at zero, the failure the note below records for `3.7-flash`.
+> A deployment that still sets `SRO_GEMINI_VISION_MODEL` is refused at load and
+> told the model lives here, so it cannot move silently either way.
+>
 > Computer use is native here rather than a separate specialised model.
 > Checked against the account rather than assumed: the standalone
 > `gemini-2.5-computer-use-preview` still answers, and this one accepts the

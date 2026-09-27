@@ -771,8 +771,8 @@ async def test_a_navigate_with_nowhere_to_go_is_not_a_navigate() -> None:
         assert (planned.kind, planned.payload) == ("none", {}), url
         assert planned.why == "navigate with no url", url
     numbered, _ = await _planned(cited=[gesture], answer=_answer(kind="navigate", url=7))
-    assert (numbered.kind, numbered.payload) == ("none", {})
-    assert numbered.why.endswith("does not match its schema"), "a number is not a url"
+    assert (numbered.kind, numbered.payload) == ("none", {}), "a number is not a url"
+    assert numbered.why == "navigate with no url", "the bad url is dropped, not the plan"
 
 
 async def test_the_why_on_the_plan_is_the_models_own_and_empty_when_it_gave_none() -> None:
@@ -824,8 +824,12 @@ async def test_the_action_is_the_models_when_the_protocol_has_it_and_the_gesture
     unsaid, _ = await _planned(cited=[gesture], answer=_answer(action=None))
     assert unsaid.payload["action"] == "type", "back to what the operator did"
 
+    # Invariant 14: the bad item is dropped and the rest kept. An action the
+    # schema does not offer is the action alone gone wrong, and the plan it
+    # sits in still stands on the operator's own gesture.
     invented, _ = await _planned(cited=[gesture], answer=_answer(action="jiggle"))
-    assert invented.kind == "none", "an action outside the schema is an unsure answer"
+    assert invented.kind == "ui.perform", "one bad field is not a bad plan"
+    assert invented.payload["action"] == "type", "back to what the operator did"
 
 
 async def test_a_value_is_carried_for_every_action_that_takes_one_and_for_no_other() -> None:
@@ -844,7 +848,8 @@ async def test_with_no_value_from_the_run_or_the_model_the_recorded_one_stands()
     assert planned.payload["value"] == gesture.action.value
 
     numbered, _ = await _planned(cited=[gesture], answer=_answer(action="type", value=123))
-    assert numbered.kind == "none", "a value that is not a string breaks the schema"
+    assert numbered.kind == "ui.perform", "a value that is not a string is dropped alone"
+    assert numbered.payload["value"] == gesture.action.value, "and the recorded one stands"
 
 
 async def test_a_recorded_call_with_no_body_is_replayed_as_it_was() -> None:

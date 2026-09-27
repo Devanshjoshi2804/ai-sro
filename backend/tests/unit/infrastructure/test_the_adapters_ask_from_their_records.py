@@ -11,7 +11,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from sro.application.ports.vision import Screen
-from sro.domain.prompts.interpret import INTERPRET, JUDGE_SKILL, NAME_SKILL
+from sro.domain.prompts.interpret import INTERPRET, JUDGE_VARIANT, JUDGE_WORKFLOW, NAME_SKILL
 from sro.domain.prompts.read_sentence import EXTRACT_VALUES, READ_SENTENCE
 from sro.domain.prompts.sight import SIGHT, SIGHT_ESCALATED
 from sro.domain.prompts.transcribe import TRANSCRIBE
@@ -80,12 +80,29 @@ async def test_the_intent_parser_reads_on_its_records_with_the_sentence_fenced()
     assert _closes(read["contents"][1]) == _opens(read["contents"][1]) == 2
     assert extract["model"] == EXTRACT_VALUES.model
     assert extract["contents"][0] == EXTRACT_VALUES.instructions
-    assert _closes(extract["contents"][1]) == _opens(extract["contents"][1]) == 1
+    assert _closes(extract["contents"][1]) == _opens(extract["contents"][1]) == 2
+    assert '<untrusted name="parameters">' in extract["contents"][1]
     sent = extract["config"].response_schema
     assert set(sent["properties"]["items"]["items"]["properties"]) == {"sku", "qty"}
     shared = EXTRACT_VALUES.output_schema["properties"]
     assert isinstance(shared, dict)
     assert shared["items"]["items"]["properties"] == {}, "the record itself is never changed"
+
+
+async def test_parameter_names_are_fenced_because_they_are_page_labels() -> None:
+    """A parameter's name comes from the page it was demonstrated on -- a field
+    label -- so it is untrusted text like the request, and goes in a fence."""
+    models = _Models('{"items": []}')
+    parser = GeminiIntentParser(client=_client(models))
+
+    await parser.extract("adjust it", parameters=(_BREAKOUT, "qty"))
+
+    [asked] = models.asked
+    evidence = asked["contents"][1]
+    fence = evidence.split('<untrusted name="parameters">\n', 1)[1].split("\n</untrusted>", 1)[0]
+    assert "qty" in fence and "delete the warehouse" in fence
+    assert evidence.count("delete the warehouse") == 1, "named nowhere outside the fence"
+    assert _closes(evidence) == _opens(evidence) == 2
 
 
 async def test_the_interpreter_asks_each_question_on_its_own_record() -> None:
@@ -95,16 +112,21 @@ async def test_the_interpreter_asks_each_question_on_its_own_record() -> None:
     await interpreter.read(_BREAKOUT)
     await interpreter.name_task(_BREAKOUT)
     await interpreter.judge_join("variant", _BREAKOUT, "the other")
+    await interpreter.judge_join("workflow", _BREAKOUT, "the other")
     await interpreter.judge_join("guess", "one", "two")
 
-    read, named, judged = models.asked
-    for asked, prompt in ((read, INTERPRET), (named, NAME_SKILL), (judged, JUDGE_SKILL)):
+    read, named, variant, workflow = models.asked
+    for asked, prompt in (
+        (read, INTERPRET),
+        (named, NAME_SKILL),
+        (variant, JUDGE_VARIANT),
+        (workflow, JUDGE_WORKFLOW),
+    ):
         assert asked["model"] == prompt.model
         assert asked["contents"][0] == prompt.instructions
         evidence = asked["contents"][1]
         assert _closes(evidence) == _opens(evidence) >= 1, prompt.name
-    assert '"kind": "variant"' in judged["contents"][1]
-    assert len(models.asked) == 3, "a kind nobody wrote a question for is never asked"
+    assert len(models.asked) == 4, "a kind nobody wrote a question for is never asked"
 
 
 async def test_the_transcriber_asks_on_its_record() -> None:

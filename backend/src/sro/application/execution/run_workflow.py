@@ -272,6 +272,13 @@ async def _let_in(
     return True
 
 
+_ASKS: Mapping[str, Prompt] = {
+    "evidence": PLAN_STEP,
+    "rescue": PLAN_STEP_ESCALATED,
+    "sight": SEE_STEP,
+    "look": SEE_STEP,
+}
+
 logger = logging.getLogger(__name__)
 
 K_ACTS = {
@@ -1263,14 +1270,10 @@ async def run_workflow(
                 if primary is not None
                 else None
             )
-            rungs: tuple[tuple[str, Prompt | None], ...] = (
-                (("evidence", PLAN_STEP), ("evidence", PLAN_STEP_ESCALATED), ("sight", SEE_STEP))
-                if primary is not None
-                else ()
-            )
+            rungs: tuple[str, ...] = ("evidence", "rescue", "sight") if primary is not None else ()
             route = route_for(step, _next_after(ordered, step), by_id)
             if route is not None:
-                rungs = (("route", None), *rungs)
+                rungs = ("route", *rungs)
             signed_in_here = False
             waited_here = False
             never_filled = bool(
@@ -1279,26 +1282,26 @@ async def run_workflow(
                 and set(scaffolding_for(workflow, by_id, write_step=step.order)) & collapsed
             )
             if replay is not None and not run.watched:
-                rungs = (("replay", None),) if never_filled else (("replay", None), *rungs)
+                rungs = ("replay",) if never_filled else ("replay", *rungs)
             elif replay is not None and never_filled:
-                rungs = (("replay", None),)
+                rungs = ("replay",)
             elif replay is not None:
-                rungs = (*rungs, ("replay", None))
+                rungs = (*rungs, "replay")
             if primary is not None and not mutates:
-                rungs = (*rungs, *((("look", SEE_STEP),) * K_LOOKS))
+                rungs = (*rungs, *(("look",) * K_LOOKS))
             logger.info(
                 "%s step %d %r: rungs %s",
                 run.id,
                 step.order,
                 step.says[:80],
-                " then ".join(how for how, _ in rungs) or "none",
+                " then ".join(rungs) or "none",
             )
             verdict: StepVerdict | None = None
             after_failed: Look | None = None
             refused_already: set[str] = set()
             asked_for_a_browser = False
             stepped_over = False
-            for how, prompt in rungs:
+            for how in rungs:
                 if stepped_over:
                     break
                 if how == "look" and (
@@ -1367,7 +1370,7 @@ async def run_workflow(
                             starts_on=starts_on if sent_nothing_yet else None,
                             allow_focus=allow_focus,
                             asker=asker,
-                            prompt=prompt or PLAN_STEP,
+                            prompt=_ASKS[how],
                             failure=verdict.reason if verdict else None,
                             failed_look=after_failed,
                             verified_writes=verified_writes,
@@ -1377,7 +1380,7 @@ async def run_workflow(
                             secret_for=secret_for,
                             opened=openings > 0,
                         )
-                    record.planned_by = proposal.by or (prompt.model if prompt else "")
+                    record.planned_by = proposal.by or (_ASKS[how].model if how in _ASKS else "")
                     record.before_url = before.url
                     _bill(record, proposal.answer)
                     record.sent = {

@@ -621,8 +621,10 @@ async def test_the_screen_verdict_is_the_models_own_word_and_its_own_reason() ->
     silent = await _screened({"held": True, "why": ""})
     assert silent.reason == "", "no explanation is an empty one, not the word None"
 
+    # Invariant 14: the verdict is the answer and `why` its commentary. A
+    # verdict that came without one keeps its verdict.
     unsaid = await _screened({"held": True})
-    assert (unsaid.state, unsaid.by) == ("unclear", "screen"), "no why breaks the schema"
+    assert (unsaid.state, unsaid.by, unsaid.reason) == ("held", "screen", "")
 
 
 async def test_the_screen_belt_is_told_the_step_the_command_and_both_pictures_words() -> None:

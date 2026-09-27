@@ -73,7 +73,12 @@ class GeminiIntentParser:
                 contents=[
                     EXTRACT_VALUES.instructions,
                     EXTRACT_VALUES.evidence(
-                        {"parameters": list(parameters)}, {**untrusted, "request": utterance}
+                        {},
+                        {
+                            "parameters": json.dumps(list(parameters), ensure_ascii=False),
+                            **untrusted,
+                            "request": utterance,
+                        },
                     ),
                 ],
                 config=types.GenerateContentConfig(

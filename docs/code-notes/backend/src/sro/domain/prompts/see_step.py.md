@@ -14,6 +14,11 @@ Code: `SEE_STEP = Prompt(`
 > action a point cannot take, or an answer with no `points_at`, is unsure. The
 > `SIGHT_ACTIONS` check in the planner and its `found`-only fallback went with
 > it, because the schema already refuses what they refused.
+>
+> `found` is no longer asked for (P2 round 1). `points_at` decides and nothing
+> read `found`, so it is gone from the schema and from the text: "found: true"
+> and "found: false" were cut from the four bullets, which is the one change to
+> this record's words.
 
 ## module, [line 47](../../../../../../../backend/src/sro/domain/prompts/see_step.py#L47): Note on the line above
 
@@ -25,14 +30,14 @@ Code: `model="gemini-3.1-pro-preview",`
 > this one replaces is the rescue model's. Moving the model is a prompt change
 > that needs its own `make eval`, so this record keeps the model the code ran.
 
-## module, [line 62](../../../../../../../backend/src/sro/domain/prompts/see_step.py#L62): Comment
+## module, [line 61](../../../../../../../backend/src/sro/domain/prompts/see_step.py#L61): Comment
 
 Code: `"action": {"type": "string", "enum": ["click", "type", "press"]},`
 
 > No select: `sroPage.performAt` has no way to choose an option at a
 > point, and an action the browser cannot take is a step that stops.
 
-## module, [line 64](../../../../../../../backend/src/sro/domain/prompts/see_step.py#L64): Comment
+## module, [line 63](../../../../../../../backend/src/sro/domain/prompts/see_step.py#L63): Comment
 
 Code: `"points_at": {`
 

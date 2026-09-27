@@ -4,7 +4,10 @@ from sro.domain.prompts.record import EdgeCase, Prompt
 
 _SCHEMA: dict[str, object] = {
     "type": "object",
-    "properties": {"held": {"type": "boolean"}, "why": {"type": "string"}},
+    "properties": {
+        "held": {"type": "boolean"},
+        "why": {"type": "string", "nullable": True},
+    },
     "required": ["held", "why"],
     "propertyOrdering": ["held", "why"],
 }

@@ -3683,7 +3683,7 @@ class _ByRungAsker(FakeAsker):
         # Named when it runs out, because "pop from empty list" says which
         # LIST is empty and not which rung asked -- and a fixture that ran dry
         # because the ladder changed shape is a different failure from a bug.
-        if "found" in properties:
+        if "points_at" in properties:
             assert self.sights, "the rung that looks was asked more times than this fake answers"
             return self.sights.pop(0)
         assert self.plans, (
@@ -3701,7 +3701,7 @@ def _by_sight(asker: FakeAsker) -> list[dict[str, object]]:
         assert isinstance(schema, dict)
         properties = schema["properties"]
         assert isinstance(properties, dict)
-        if "found" in properties:
+        if "points_at" in properties:
             seen.append(asked)
     return seen
 

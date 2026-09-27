@@ -4,11 +4,15 @@ Notes on [`backend/src/sro/domain/prompts/check_step.py`](../../../../../../../b
 
 ## module, [line 7](../../../../../../../backend/src/sro/domain/prompts/check_step.py#L7): Comment
 
-Code: `"properties": {"held": {"type": "boolean"}, "why": {"type": "string"}},`
+Code: `"properties": {`
 
 > held first, why last: decide, then explain.
+>
+> `why` is nullable: the verdict is the answer and `why` its commentary, so a
+> verdict that came without one keeps its verdict with an empty reason
+> (`Prompt.kept`), where a required string made the whole verdict unsure.
 
-## module, [line 31](../../../../../../../backend/src/sro/domain/prompts/check_step.py#L31): Note on the line above
+## module, [line 34](../../../../../../../backend/src/sro/domain/prompts/check_step.py#L34): Note on the line above
 
 Code: `CHECK_SCREEN = Prompt(`
 
@@ -29,7 +33,7 @@ Code: `CHECK_SCREEN = Prompt(`
 > It was `SCREEN_INSTRUCTIONS` in `sro.domain.execution.belts`; the text is
 > verbatim, split at its first blank line into role and task.
 
-## module, [line 74](../../../../../../../backend/src/sro/domain/prompts/check_step.py#L74): Note on the line above
+## module, [line 77](../../../../../../../backend/src/sro/domain/prompts/check_step.py#L77): Note on the line above
 
 Code: `CHECK_WAY_THROUGH = Prompt(`
 

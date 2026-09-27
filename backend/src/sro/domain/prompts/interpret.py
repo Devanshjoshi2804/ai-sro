@@ -123,52 +123,43 @@ NAME_SKILL = Prompt(
     ),
 )
 
-JUDGED = ("variant", "workflow")
-
-_JUDGE_ROLE = "You are deciding whether two observed tasks are one piece of work."
-
-_JUDGE_TASK = (
-    "`kind` says which question this is.\n\n"
-    "When `kind` is `variant`: "
+_VARIANT_ROLE = (
     "Two tasks were observed in the same system by the same operator, and "
     "their steps are close but not identical. Decide whether they are the "
     "same piece of work done two ways — an extra page visited, a step done "
     "in a different order — or two genuinely different tasks that happen to "
-    "touch the same screens.\n\n"
-    "Say no unless the evidence is clear. These are shown to a person as a "
-    "suggestion, and a confident wrong one costs more than a missed one.\n\n"
-    "When `kind` is `workflow`: "
-    "Two tasks were observed in different systems, one immediately after the "
-    "other, more than once. Decide whether they are two halves of one piece "
-    "of work — something checked in one system and then recorded in the "
-    "other — or two unrelated tasks that happen to be done at the same time "
-    "of day.\n\n"
-    "Say no unless the evidence is clear. Doing two things in a row is not "
-    "the same as doing one thing across two systems."
+    "touch the same screens."
 )
 
-JUDGE_SKILL = Prompt(
-    name="judge_skill",
+_VARIANT_TASK = (
+    "Say no unless the evidence is clear. These are shown to a person as a "
+    "suggestion, and a confident wrong one costs more than a missed one."
+)
+
+_JUDGEMENT_SCHEMA: dict[str, object] = {
+    "type": "object",
+    "properties": {"joined": {"type": "boolean"}, "because": {"type": "string"}},
+    "required": ["joined", "because"],
+}
+
+_JUDGED = "The `first` and `second` task, each in its own untrusted block."
+
+JUDGE_VARIANT = Prompt(
+    name="judge_variant",
     version=1,
     model="gemini-3.1-pro-preview",
     thinking=None,
-    role=_JUDGE_ROLE,
-    task=_JUDGE_TASK,
-    input_contract=(
-        "`kind` as JSON; the `first` and `second` task, each in its own untrusted block."
-    ),
-    output_schema={
-        "type": "object",
-        "properties": {"joined": {"type": "boolean"}, "because": {"type": "string"}},
-        "required": ["joined", "because"],
-    },
+    role=_VARIANT_ROLE,
+    task=_VARIANT_TASK,
+    input_contract=_JUDGED,
+    output_schema=_JUDGEMENT_SCHEMA,
     edge_cases=(
         EdgeCase(
-            "a `variant` whose second doing visits one extra page",
+            "a second doing that visits one extra page",
             "joined: the same work done two ways",
         ),
         EdgeCase(
-            "a `workflow` of two tasks done in a row only because they fall at the same time",
+            "two tasks that touch the same screens to do different things",
             "not joined",
         ),
         EdgeCase(
@@ -177,3 +168,43 @@ JUDGE_SKILL = Prompt(
         ),
     ),
 )
+
+_WORKFLOW_ROLE = (
+    "Two tasks were observed in different systems, one immediately after the "
+    "other, more than once. Decide whether they are two halves of one piece "
+    "of work — something checked in one system and then recorded in the "
+    "other — or two unrelated tasks that happen to be done at the same time "
+    "of day."
+)
+
+_WORKFLOW_TASK = (
+    "Say no unless the evidence is clear. Doing two things in a row is not "
+    "the same as doing one thing across two systems."
+)
+
+JUDGE_WORKFLOW = Prompt(
+    name="judge_workflow",
+    version=1,
+    model="gemini-3.1-pro-preview",
+    thinking=None,
+    role=_WORKFLOW_ROLE,
+    task=_WORKFLOW_TASK,
+    input_contract=_JUDGED,
+    output_schema=_JUDGEMENT_SCHEMA,
+    edge_cases=(
+        EdgeCase(
+            "something checked in one system and then recorded in the other",
+            "joined: two halves of one piece of work",
+        ),
+        EdgeCase(
+            "two tasks done in a row only because they fall at the same time of day",
+            "not joined",
+        ),
+        EdgeCase(
+            "evidence that is not clear either way",
+            "not joined",
+        ),
+    ),
+)
+
+JUDGES = {"variant": JUDGE_VARIANT, "workflow": JUDGE_WORKFLOW}

@@ -14,19 +14,19 @@ and the action to take there. For type, give the value from this run's values.
 
 Every answer carries one point and says what it points at.
 
- - the_control: the control for this step. found: true, and the action to take.
+ - the_control: the control for this step, and the action to take.
  - what_reveals_it: the control is not on this screen, and THIS is the thing
    that would reveal it -- the closed menu it lives under, a collapsed section,
    a tab that is not the open one. It will be clicked and you will be asked
-   again with a new picture. found: false.
+   again with a new picture.
  - what_is_in_the_way: something is covering the screen and has to be dismissed
    before anything under it can be used -- a dialog, an alert, a notice with an
    OK or a Close. Point at the button that dismisses it. Warehouse systems put
    one of these in front of a page for things that are not errors at all: a
    dialog headed "Exception Occurred" whose text is "Processing completed
-   without exception" is one this system has met. found: false.
+   without exception" is one this system has met.
  - nothing: the control is not here and nothing on this screen leads to it.
-   found: false, and the point is ignored.
+   The point is ignored.
 
 Dismissing a dialog is not doing the step, and neither is opening a menu: in
 both cases you will be asked again with a new picture, and the step is what you
@@ -56,7 +56,6 @@ SEE_STEP = Prompt(
     output_schema={
         "type": "object",
         "properties": {
-            "found": {"type": "boolean"},
             "x": {"type": "integer"},
             "y": {"type": "integer"},
             "action": {"type": "string", "enum": ["click", "type", "press"]},
@@ -67,13 +66,13 @@ SEE_STEP = Prompt(
             },
             "why": {"type": "string"},
         },
-        "required": ["found", "x", "y", "action", "points_at", "why"],
-        "propertyOrdering": ["found", "x", "y", "action", "value", "points_at", "why"],
+        "required": ["x", "y", "action", "points_at", "why"],
+        "propertyOrdering": ["x", "y", "action", "value", "points_at", "why"],
     },
     edge_cases=(
         EdgeCase(
             "the control visible on the screen",
-            "`the_control`, found true, and its centre",
+            "`the_control`, and its centre",
         ),
         EdgeCase(
             "the control under a closed menu",

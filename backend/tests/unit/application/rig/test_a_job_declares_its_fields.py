@@ -15,11 +15,9 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
-from sro.application.chat.converse import StartThread
 from sro.application.context import RequestContext
 from sro.application.execution.declared import declared_limits, screen_for
 from sro.domain.chat.asking import Pending
-from sro.domain.chat.thread import Message, MessageId, Speaker
 from sro.domain.execution.learned_step import LearnedStep, limits_for
 from sro.domain.knowledge.entry import (
     EntryKind,
@@ -475,32 +473,3 @@ async def test_an_optional_field_is_never_asked_for_even_with_a_value_it_cannot_
     assert decision["missing"] == ["Customer Type"]
     assert decision["values"] == {}, "a value the box cannot take was carried into the run"
     assert decision["offered"] == [["Manufacturer", "OUTSIDE"]]
-
-
-async def test_a_required_field_dropped_in_this_thread_is_not_asked_for_again() -> None:
-    uow = FakeUnitOfWork()
-    await _customer_type_job(uow)
-    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
-    thread.say(
-        Message(
-            id=MessageId("msg_dropped"),
-            speaker=Speaker.ASSISTANT,
-            text="...",
-            said_at=datetime(2026, 9, 27, 9, 0, tzinfo=UTC),
-            decision={"kind": "note", "workflow_id": "wfl_1", "dropped": ["Customer Type"]},
-        )
-    )
-    await uow.threads.save(thread)
-
-    asked = await AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()).execute(
-        CTX,
-        Pending(
-            workflow_id="wfl_1",
-            title="Create a Customer Type",
-            values={},
-            missing=("Customer Type",),
-        ),
-    )
-
-    assert "cannot run without Customer Type" in asked, asked
-    assert "?" not in asked

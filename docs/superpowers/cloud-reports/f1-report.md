@@ -115,3 +115,102 @@ Integration: none. This task touches no SQL.
 - F2 (on `d2/f2`) also edits `converse.py`. My edits there are confined to the `_is_it_an_answer` named check and the answer and re-ask decisions and text in `_answer_the_question` / `_ask_it_again`. Status handling and the principal check are untouched, so a merge conflict, if any, should be textual.
 - `from_the_mail.py` still writes its own NEEDS decision without `asks` or `dropped`. It uses only `question()`, which now lists every required field. Mail cannot answer a field question (invariant 7), so this task leaves it alone. Design 3 may want `asks` there too.
 - The drop wording is a fixed English pattern set (`K_NOT_HAD`, `K_WHAT_WE_HAVE`). A phrasing outside it goes to the existing model reading, as before, and is not dropped.
+
+## Round 1
+
+Fix round against the review findings as the controller listed them. `task-F1-review.md` itself is not in the repository, so the list in the controller's message was the source.
+
+### Commits
+
+- `f0b95bf` Merge origin/feat/execution-runtime (F2) into d2/f1. Base `0348e05d`.
+  - `converse.py` imports: `named_in`, plus F2's `of_the_offer` and `from sro.domain.chat.standing import last_run, of_the_run, stands`. `said_as_the_value` and `K_A_LOGIN` stay dropped; `grep said_as_the_value` finds nothing.
+  - `test_converse.py`: F2's file, plus F1's `asks` line, plus F1's whole section appended.
+  - Code notes, hunk by hunk: hunks that differed only in line numbers took HEAD. F2's new `_what_stands` and `_carry_on` notes are kept, and its duplicate `if placed.cannot_run:` note was dropped. Then `--fix`.
+  - All gates were green at the merge.
+- (this commit) fix(chat): F1 round 1, covering C1–C3, I1–I4, M1 and M3, plus this report.
+
+### What changed
+
+- **C1** (`domain/chat/asking.py`: `K_DROP`, `K_WITH_WHAT_WE_HAVE`, `K_HOLDING`, `_read`):
+  - Only four phrases drop a field: "don't have X", "skip X", "without X" and "run/go with what(ever) we have". The last one must start with a verb.
+  - "don't know", "let me check", "not yet" and a bare "skip it" drop nothing and take nothing, so the field stays asked.
+  - A question (`is_a_question`) is not parsed at all. Neither `named_in` nor a drop fires for another task or a lookup, so those go to the reader (`IsItAnAnswer`).
+- **C2** (`_field`, `_score`, `K_LIKE`, `K_MARGIN`):
+  - An R2 alias or a label of the job's own field classes wins outright, via `request.field_of`. After that, an exact normalised name wins.
+  - Otherwise a fuzzy match counts only when it is word by word, with the same word count, and only when exactly one field scores ≥ 0.8 and beats the runner-up by ≥ 0.1.
+  - Anything else asks which field was meant (`Pending.which`, rendered by `turned_down`).
+  - The ends-with rule is gone everywhere: `_alike`, `_twins`, `_shares` and `_distinct` are deleted, so the twin fill is gone too.
+- **C3**: with more than one field missing, a bare reply is not taken unless it is an allowed option of exactly one of those fields. Otherwise the ask is repeated with "I could not tell which field … is" and the "Name: …" form. With one field missing, a bare reply is taken as before.
+- **I1** (`Converse._still_wanted`): the waiting ask now carries `known`, a `Candidate` built from `field_classes(job, {}, {})` and `alias_map(aliases_for(...))`. `known` is not persisted. The required set now comes from the same `FieldClass.kind`.
+- **I2 / M3**: a value ends at a comma, semicolon, full stop or " and ". A drop phrase also ends it, but only when that phrase names a field. A "Name:" label counts only at a clause start.
+- **I3**:
+  - `AskAboutTheOffer` no longer reads the thread: every card, "yes" or new request is a fresh ask.
+  - `still_to_ask` continues only the ask whose answer started this run. The structural link is that the thread's latest decision for the job is a `resume` decision whose values equal `run.values`. In that case the ask's drops hold and nothing is offered again.
+  - The note says how to restart: "When you have it, ask for <job> again."
+- **I4** (`workflow_runs._ask_for_values`, `_no_longer_waiting`): the run-side note now reads "<job> stopped — it needs X to run…", and the run's `needs` and `awaiting` are cleared so it is not counted as waiting on a person.
+- **M1**: the note's decision keeps `values`.
+
+### Tests
+
+**Invariant 16:** every F1 converse and run-side test now builds its ask through the real writers. `AskAboutTheOffer.execute` writes the NEEDS decision, `Converse.execute` answers it, and the run carries the values from that answer's `resume` decision. The hand-built `_asked_for` helper, the hand-built thread decisions and the thread-wide-drop tests are deleted, since I3 replaces that behaviour.
+
+**Test first:** the new tests were run against the pre-fix tree (`f0b95bf`), where 20 of them fail. All pass now.
+
+Unit tests added or rewritten:
+- `test_asking.py` (domain probes):
+  - C1: "let me check what we have", "also check what I have in stock for SKU 12", "I don't know the department yet", "skip it" and "not yet" drop nothing and go to the reader;
+  - C1: each explicit drop phrase works;
+  - C2: exact name beats near name ("don't have customer tier"); "ship from code" is never Ship To Code; "don't have code" never drops Zip Code and asks which; "Code: 123" never fills Zip Code; a tie is never settled by guessing; "manufature" still drops Manufacturer;
+  - C3: an unlabelled reply to two fields is not taken, unless it is an option of exactly one; one missing field is unchanged;
+  - I1: a label and an alias resolve;
+  - I2: "Customer Type: RRF i dont have manufacturer" and "Customer Type: RRF, create it without discount";
+  - M3: a label inside a value stays part of the value;
+  - M1: the note keeps its values;
+  - I3: `still_to_ask` continues only its own ask.
+- `test_converse.py`:
+  - thr_c563;
+  - two required fields in one reply;
+  - still-missing fields asked together;
+  - C3 re-ask with names;
+  - C1 sentences go to the reading and the field stays asked;
+  - I1 alias via `confirm_alias`;
+  - a required drop ends with a note that keeps values, says how to restart, and does not loop;
+  - I3: starting again is a fresh ask;
+  - invariant 4: a second press after the note is refused.
+- `test_start_workflow_run.py`:
+  - one question for several values;
+  - the run an answer started does not offer again;
+  - I3: a run started another way is a fresh ask;
+  - I4: stopped note, with `needs` and `awaiting` cleared.
+- `test_is_it_an_answer.py`: "url: …" and "Name: …" under Address are not taken, and are asked about.
+
+Existing tests changed:
+- `test_the_answer_to_a_question_is_taken_as_the_answer` and `test_the_question_says_what_the_box_holds_when_anything_knows` now answer with "Customer Type: GPP". C3 stops a bare "GPP" from being guessed into the first of two fields.
+- The twin test is deleted, because C2 removed the twin rule.
+
+Integration (**written, not run**): `tests/integration/test_asking_once.py`
+- `test_what_is_still_missing_rides_the_real_thread_row`: `asks` and the remaining `missing` survive the SQL thread mapper.
+- `test_two_presses_where_the_first_ends_the_ask_give_one_note`: two concurrent presses, where one may be F1's note. Exactly one press is refused as closed, and a note, if any, keeps its values and closes the ask.
+
+### Gates
+
+- `uv run pytest tests/unit tests/contract -q`: **4924 passed, 83 errors**. The errors are the Postgres-only `[sql]` contract params, the same as on the base.
+- mypy `src tests evals`: clean (840 files).
+- ruff check and ruff format: clean.
+- lint-imports: 4 kept, 0 broken.
+- `check_code_notes.py`: 0 stale, 0 dead.
+- **Worker restart needed**: `StartWorkflowRun._ask_for_values` runs in the worker.
+
+### Rulings
+
+- Ruling: "ask which field was meant" fires when a drop phrase or a label could be one of several fields (a tie, or a said word contained in more than one field name), or when a label names none of this ask's fields. A drop phrase whose object resembles no field at all drops nothing and asks nothing — "skip the queue at dock 4" is a description — cost if wrong: a real drop of a field typed beyond recognition is silently not a drop, and the field is simply asked again.
+- Ruling: a bare pronoun object ("skip it", "without that") is a holding reply, so nothing is taken and nothing dropped — the reviewer's probe says "skip it" drops nothing and the field stays asked — cost if wrong: none; the question stands.
+- Ruling: " and " is a clause boundary for named values only, as the finding says. A bare reply to one field is still taken whole — "One field missing: unchanged" — cost if wrong: a named value containing " and " ("Description: black and white") keeps only "black". The operator sees the value in the next turn.
+- Ruling: I3's link from a run back to its ask is structural: the thread's latest decision for the job is a `resume` whose values equal `run.values`. The run row carries no offer id, and adding one would need a migration the brief does not allow — cost if wrong: another path that starts a run with byte-identical values, with no newer decision about the job in the thread, would inherit that ask's drops. The only effect is not re-offering the optional fields, or noting a dropped field.
+- Ruling: I4's run-side note is reachable only when the job's field classes changed between the answer and the run, so a field that was dropped as optional is required by the run. The test builds exactly that through the real writers — cost if wrong: none; otherwise the branch is idle.
+- Ruling: a label that names no field of this ask ("Name: SROCL01" under Address) is asked about rather than handed to the model reading. The C2 probe "Code: 123 never fills Zip Code" needs that for a single missing field too — cost if wrong: a free-text value that opens with "Word:" gets one extra question.
+
+### Concerns
+
+- The drop phrases are a fixed English set. Anything else goes to the model reading as before, which never drops.
+- `from_the_mail.py` still writes its NEEDS decision without `asks` or `dropped`. Mail never answers a field question (invariant 7), so this round leaves it alone.

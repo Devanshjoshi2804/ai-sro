@@ -5,7 +5,6 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import replace
 
 from sro.application.chat.announce import SayWhatHappened
-from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.execution.declared import declared_limits, names_of, screen_for
 from sro.application.ports.repositories import UnitOfWork
@@ -15,10 +14,8 @@ from sro.domain.chat.asking import (
     NEEDS,
     Pending,
     asking_state,
-    cannot_without,
     opening,
     should_we,
-    still_to_ask,
     unusable,
 )
 from sro.domain.chat.thread import Said, Speaker
@@ -164,18 +161,6 @@ class AskAboutTheOffer:
                 dict.fromkeys((*pending.missing, *unusable(pending.values, pending.limits)))
             ),
         )
-        thread = await ReadThreads(self._uow).current(ctx)
-        pending = still_to_ask(pending, thread.messages if thread else ())
-        if pending.without:
-            said, noted = cannot_without(pending)
-            await SayWhatHappened(self._uow, self._clock, self._ids).execute(
-                ctx,
-                for_operator=ctx.principal_id,
-                text=said,
-                speaker=Speaker.ASSISTANT,
-                decision=noted,
-            )
-            return said
         if pending.ready:
             return await self._should_we(ctx, pending, about, sent_to, offer) if ask_to_run else ""
         asked = opening(pending, about)

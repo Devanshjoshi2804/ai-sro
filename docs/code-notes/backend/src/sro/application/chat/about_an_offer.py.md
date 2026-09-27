@@ -34,7 +34,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/about_an
 > against the same pending state, so there is one set of rules about what an
 > answer means rather than two.
 
-## module, [line 30](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L30): Note on the line above
+## module, [line 27](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L27): Note on the line above
 
 Code: `DraftsForTheAsker = Callable[[RequestContext, Pending, str], Awaitable[bool]]`
 
@@ -42,11 +42,11 @@ Code: `DraftsForTheAsker = Callable[[RequestContext, Pending, str], Awaitable[bo
 > value. A callable rather than the use case, so the drafter can be bound to this
 > request's own tenant and operator.
 
-## `AskAboutTheOffer`, [line 33](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L33): Docstring
+## `AskAboutTheOffer`, [line 30](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L30): Docstring
 
 > Ask, in the operator's own conversation, for what an offer still needs.
 
-## `SayTheRunStarted`, [line 217](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L217): Docstring
+## `SayTheRunStarted`, [line 202](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L202): Docstring
 
 > Put a run into the conversation that authorised it.
 >
@@ -65,7 +65,7 @@ Code: `DraftsForTheAsker = Callable[[RequestContext, Pending, str], Awaitable[bo
 > backwards-looking but true: the run is started in the worker, because the
 > credential lives there, so the worker is the only thing that knows the id.
 
-## `AskAboutTheOffer._only_required`, [line 46](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L46): Docstring
+## `AskAboutTheOffer._only_required`, [line 43](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L43): Docstring
 
 > What this question asks for is the job's REQUIRED fields only; the
 > rest are offered, with what each was last time (F1, from greyorange QA
@@ -80,7 +80,7 @@ Code: `DraftsForTheAsker = Callable[[RequestContext, Pending, str], Awaitable[bo
 >
 > Unchanged where the job is unknown or cannot be read.
 
-## `AskAboutTheOffer._what_the_boxes_hold`, [line 69](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L69): Docstring
+## `AskAboutTheOffer._what_the_boxes_hold`, [line 66](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L66): Docstring
 
 > Every limit known for the names this question is about.
 >
@@ -94,7 +94,7 @@ Code: `DraftsForTheAsker = Callable[[RequestContext, Pending, str], Awaitable[bo
 > the question is asked exactly as it was asked before, which is what
 > happened for every one of these until now.
 
-## `AskAboutTheOffer.execute`, [line 148](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L148): Docstring
+## `AskAboutTheOffer.execute`, [line 145](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L145): Docstring
 
 > The question that was asked, or `""` where there was nothing to ask.
 >
@@ -103,14 +103,14 @@ Code: `DraftsForTheAsker = Callable[[RequestContext, Pending, str], Awaitable[bo
 > and a refusal would make that an error path instead of the ordinary
 > one.
 
-## `AskAboutTheOffer.__init__`, [line 44](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L44): Comment
+## `AskAboutTheOffer.__init__`, [line 41](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L41): Comment
 
 Code: `self._drafts: DraftsForTheAsker | None = drafts`
 
 > Optional throughout: a deployment with no mailbox asks the operator
 > and nobody else, exactly as it did.
 
-## `AskAboutTheOffer._only_required`, [line 49](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L49): Comment
+## `AskAboutTheOffer._only_required`, [line 46](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L46): Comment
 
 Code: `try:`
 
@@ -118,7 +118,7 @@ Code: `try:`
 > job this door cannot read is one whose question is asked as it was
 > asked before. An offer is worth making and never worth a 404.
 
-## `AskAboutTheOffer.execute`, [line 159](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L159): Comment
+## `AskAboutTheOffer.execute`, [line 156](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L156): Comment
 
 Code: `pending = replace(pending, limits=await self._what_the_boxes_hold(ctx, pending))`
 
@@ -150,7 +150,7 @@ Code: `pending = replace(pending, limits=await self._what_the_boxes_hold(ctx, pe
 > the job's own declared limits are read for every name it is about,
 > and the question says the number the first time it asks.
 
-## `AskAboutTheOffer.execute`, [line 160](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L160): Comment
+## `AskAboutTheOffer.execute`, [line 157](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L157): Comment
 
 Code: `pending = await self._only_required(ctx, pending)`
 
@@ -164,18 +164,7 @@ Code: `pending = await self._only_required(ctx, pending)`
 > do it", was asked for Customer Type, and never learnt the job
 > could set Department or Manufacturer at all.
 
-## `AskAboutTheOffer.execute`, [line 168](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L168): Comment
-
-Code: `pending = still_to_ask(pending, thread.messages if thread else ())`
-
-> What this operator's thread already settled for this job: a field they
-> said they do not have is never asked for again there, and an optional
-> field already offered there is not offered twice. A required field
-> they do not have ends the ask with a note (`cannot_without`) instead of
-> a question -- it never loops. The same thread `SayWhatHappened` writes
-> the question into, read the same way (`ReadThreads.current`).
-
-## `AskAboutTheOffer.execute`, [line 181](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L181): Comment
+## `AskAboutTheOffer.execute`, [line 166](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L166): Comment
 
 Code: `asked = opening(pending, about)`
 
@@ -183,7 +172,7 @@ Code: `asked = opening(pending, about)`
 > not standing beside it. Every answer after this one gets the short
 > question -- the context is said once, where it is needed.
 
-## `AskAboutTheOffer.execute`, [line 184](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L184): Comment
+## `AskAboutTheOffer.execute`, [line 169](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L169): Comment
 
 Code: `for_operator=PrincipalId(ctx.principal_id.value),`
 
@@ -191,13 +180,13 @@ Code: `for_operator=PrincipalId(ctx.principal_id.value),`
 > put in front of, and a question in somebody else's conversation
 > is one they never see.
 
-## `AskAboutTheOffer.execute`, [line 186](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L186): Comment
+## `AskAboutTheOffer.execute`, [line 171](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L171): Comment
 
 Code: `speaker=Speaker.ASSISTANT,`
 
 > A question, not an announcement -- see `SayWhatHappened.execute`.
 
-## `AskAboutTheOffer.execute`, [line 193](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L193): Comment
+## `AskAboutTheOffer.execute`, [line 178](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L178): Comment
 
 Code: `"offered": [list(one) for one in pending.offered],`
 
@@ -205,7 +194,7 @@ Code: `"offered": [list(one) for one in pending.offered],`
 > the thread offers the same fields and an answer arriving
 > minutes later is still an answer to this.
 
-## `AskAboutTheOffer.execute`, [line 195](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L195): Comment
+## `AskAboutTheOffer.execute`, [line 180](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L180): Comment
 
 Code: `"limits": dict(pending.limits),`
 
@@ -213,7 +202,7 @@ Code: `"limits": dict(pending.limits),`
 > being asked -- and so an answer that still will not fit is
 > refused rather than carried into the form.
 
-## `AskAboutTheOffer.execute`, [line 196](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L196): Comment
+## `AskAboutTheOffer.execute`, [line 181](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L181): Comment
 
 Code: `"mail_thread": pending.mail_thread,`
 
@@ -221,7 +210,7 @@ Code: `"mail_thread": pending.mail_thread,`
 > is findable by a reply to it -- the same as one the card
 > starts directly.
 
-## `AskAboutTheOffer.execute`, [line 199](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L199): Note
+## `AskAboutTheOffer.execute`, [line 184](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L184): Note
 
 Code: `**({"unconfirmed": True} if ask_to_run else {}),`
 
@@ -229,7 +218,7 @@ Code: `**({"unconfirmed": True} if ask_to_run else {}),`
 > to. A reply that completes it is asked about rather than started; a value
 > question from a card press was the press's own yes.
 
-## `AskAboutTheOffer.execute`, [line 203](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L203): Comment
+## `AskAboutTheOffer.execute`, [line 188](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L188): Comment
 
 Code: `if self._drafts is not None and mail_thread.strip():`
 
@@ -242,7 +231,7 @@ Code: `if self._drafts is not None and mail_thread.strip():`
 >
 > Nothing here can stop the question that has already been asked.
 
-## `SayTheRunStarted.execute`, [line 230](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L230): Comment
+## `SayTheRunStarted.execute`, [line 215](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L215): Comment
 
 Code: `speaker=Speaker.SYSTEM,`
 
@@ -253,7 +242,7 @@ Code: `speaker=Speaker.SYSTEM,`
 > announcement standing where a question should be would answer
 > the next sentence into nothing.
 
-## `AskAboutTheOffer._should_we`, [line 102](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L102): Note
+## `AskAboutTheOffer._should_we`, [line 99](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L99): Note
 
 Code: `"confirm": True,`
 
@@ -269,7 +258,7 @@ Code: `"confirm": True,`
 > (`ask_to_run`); the card's own door keeps answering `""` for
 > an offer that needs nothing, because the card then simply starts it.
 
-## `AskAboutTheOffer.cannot_run`, [line 119](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L119): Docstring
+## `AskAboutTheOffer.cannot_run`, [line 116](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L116): Docstring
 
 > A request named a job that does not compile. The thread gets a note naming
 > the job and each reason, so the mail has an outcome and is never kept in

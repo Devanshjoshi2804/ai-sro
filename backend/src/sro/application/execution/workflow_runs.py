@@ -414,6 +414,16 @@ class StartWorkflowRun:
             await uow.workflow_runs.save(saved)
             await uow.commit()
 
+    async def _no_longer_waiting(self, ctx: RequestContext, run_id: str) -> None:
+        async with self._uow as uow:
+            saved = await uow.workflow_runs.get(ctx.tenant_id, run_id)
+            if saved is None:
+                return
+            saved.needs = []
+            saved.awaiting = None
+            await uow.workflow_runs.save(saved)
+            await uow.commit()
+
     async def _ask_for_values(self, ctx: RequestContext, run: WorkflowRun, title: str) -> None:
         if not run.needs or self._ids is None:
             return
@@ -468,7 +478,8 @@ class StartWorkflowRun:
             thread.messages if thread else (),
         )
         if pending.without:
-            said, noted = cannot_without(pending)
+            await self._no_longer_waiting(ctx, run.id)
+            said, noted = cannot_without(pending, ran=True)
             await SayWhatHappened(self._uow, self._clock, self._ids).execute(
                 ctx, for_operator=operator, text=said, speaker=Speaker.ASSISTANT, decision=noted
             )

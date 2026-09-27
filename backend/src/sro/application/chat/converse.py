@@ -44,12 +44,14 @@ from sro.domain.chat.asking import (
     too_long_for,
     turned_down,
 )
+from sro.domain.chat.request import Candidate
 from sro.domain.chat.standing import last_run, of_the_run, stands
 from sro.domain.chat.thread import Message, MessageId, Said, Speaker, Thread, ThreadId
+from sro.domain.execution.compose import alias_map
+from sro.domain.execution.field_classes import field_classes
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
 from sro.domain.lookup.asking import is_a_question
 from sro.domain.shared.errors import DomainError
-from sro.domain.skill.learned import demanded
 from sro.domain.skill.skill import Skill
 
 logger = logging.getLogger(__name__)
@@ -334,20 +336,16 @@ class Converse:
             return waiting
         async with self._uow as uow:
             job = await uow.workflows.get(ctx.tenant_id, waiting.workflow_id)
+            aliases = (
+                await uow.workflows.aliases_for(ctx.tenant_id, waiting.workflow_id) if job else ()
+            )
         if job is None or not job.parameters:
             return waiting
-        wanted = {
-            str(name)
-            for one in job.parameters
-            if isinstance(one, dict)
-            and isinstance(name := one.get("name"), str)
-            and name
-            and demanded(one)
-        }
+        fields = field_classes(job, {}, {})
+        known = Candidate(job.id, job.title, fields, alias_map(aliases), {})
+        wanted = {one.name for one in fields if one.kind == "required"}
         still = tuple(name for name in waiting.missing if name in wanted)
-        if still == waiting.missing:
-            return waiting
-        return replace(waiting, missing=still) if still else None
+        return replace(waiting, missing=still, known=known) if still else None
 
     async def _what_stands(self, ctx: RequestContext, thread: Thread) -> str | None:
         now = self._clock.now()

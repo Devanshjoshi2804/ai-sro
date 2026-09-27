@@ -11,7 +11,7 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 > recipe (L1). The job is compiled again on every read, so what it says is
 > what the evidence says today.
 
-## `Reason`, [line 25](../../../../../../../backend/src/sro/domain/execution/compiled.py#L25): Docstring
+## `Reason`, [line 26](../../../../../../../backend/src/sro/domain/execution/compiled.py#L26): Docstring
 
 > One reason a job cannot run (or, in `Compiled.warnings`, something a reader
 > should know although it runs), and the step it is about (`None` for the job).
@@ -45,7 +45,7 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 >   write sends a body of captured values runs, and the console says every run
 >   writes the recorded values. A mining-quality case, not a runtime refusal.
 
-## `Compiled`, [line 32](../../../../../../../backend/src/sro/domain/execution/compiled.py#L32): Docstring
+## `Compiled`, [line 33](../../../../../../../backend/src/sro/domain/execution/compiled.py#L33): Docstring
 
 > `runnable` is "no reasons"; warnings never change it. `view` is plain data for
 > reading (`make recipe`, the console): each step's lanes, the lanes known
@@ -55,12 +55,12 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 > limits -- computed by `field_classes` and mirrored into `view["fields"]`
 > for a reader that only sees the wire shape.
 
-## `why_not`, [line 40](../../../../../../../backend/src/sro/domain/execution/compiled.py#L40): Docstring
+## `why_not`, [line 41](../../../../../../../backend/src/sro/domain/execution/compiled.py#L41): Docstring
 
 > The reasons as sentences, "Step N: ..." where a step is named, each said
 > once. What the chat, the mail thread and the start's refusal all say.
 
-## `_ladder`, [line 48](../../../../../../../backend/src/sro/domain/execution/compiled.py#L48): Docstring
+## `_ladder`, [line 49](../../../../../../../backend/src/sro/domain/execution/compiled.py#L49): Docstring
 
 > The ladder the executor would climb, built with the executor's own
 > `lanes_for` and the same three inputs: `sends_mail` for the tool lane, a
@@ -78,7 +78,7 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 > lanes are compared against it in `compile_job`, because `lanes_for` never
 > drops the last lane.
 
-## `compile_job`, [line 58](../../../../../../../backend/src/sro/domain/execution/compiled.py#L58): Docstring
+## `compile_job`, [line 59](../../../../../../../backend/src/sro/domain/execution/compiled.py#L59): Docstring
 
 > `values` and `from_step` are the run's: the start passes its given values
 > and D7's `check_from`, and reasons at steps before `from_step` are dropped,
@@ -96,3 +96,16 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 > passes it here; a caller with none gets the page's own limits alone. It
 > reaches `field_classes` unchanged: the stricter of page and knowledge base
 > wins there, not in this function.
+
+## `compile_job`, [line 73](../../../../../../../backend/src/sro/domain/execution/compiled.py#L73): Comment
+
+Code: `filled = bindable(workflow, by_id)`
+
+> Bound by what the run binds by. `value_for` fills a typed control from the
+> value given under any name the control carries (its item id, field label or
+> accessible name), and a parameter learned from the typing lives on the job,
+> named by those names, with no step listing it. Reading only the steps'
+> `parameters` called every such required parameter unbound, so the moment
+> typed values became parameters (M3) the jobs that gained one stopped being
+> runnable. `bindable` is the same set `undeliverable` checks a proposal
+> against, so the miner and the compiler agree on what can be filled.

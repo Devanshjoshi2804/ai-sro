@@ -2625,6 +2625,9 @@ class FakeWorkflowRepository:
         """(tenant, gesture) -> the job a folded doing was placed against."""
         """Retired jobs by id, as the store's ``retired_at``: the row stays,
         and a re-save does not bring it back."""
+        self.rules: dict[str, int] = {}
+        """Job id -> the parameters rule last applied to it, as the store's
+        ``parameters_rule``; absent is NULL."""
         self.save_kills = False
         """The next `save` is the statement that fails, and kills the session."""
         self._saved = count()
@@ -2717,6 +2720,33 @@ class FakeWorkflowRepository:
         if row is None or row.tenant != tenant_id.value or row.signs_in is not None:
             return False
         row.signs_in = signs_in
+        return True
+
+    async def placed_on(self, tenant_id: TenantId, workflow_id: str) -> tuple[str, ...]:
+        return tuple(
+            sorted(
+                one
+                for (tenant, one), job in self.placements.items()
+                if tenant == tenant_id.value and job == workflow_id
+            )
+        )
+
+    async def behind_the_rule(self, rule: int) -> tuple[Workflow, ...]:
+        found = [
+            row
+            for row in self.rows.values()
+            if row.id not in self.retired
+            and row.signs_in is not None
+            and self.rules.get(row.id, 0) < rule
+        ]
+        found.sort(key=lambda row: (row.tenant, self._created[row.id], row.id))
+        return tuple(deepcopy(row) for row in found)
+
+    async def ruled(self, tenant_id: TenantId, workflow_id: str, rule: int) -> bool:
+        row = self.rows.get(workflow_id)
+        if row is None or row.tenant != tenant_id.value or self.rules.get(workflow_id, 0) >= rule:
+            return False
+        self.rules[workflow_id] = rule
         return True
 
     async def add_pass(self, mining_pass: MiningPass) -> None:

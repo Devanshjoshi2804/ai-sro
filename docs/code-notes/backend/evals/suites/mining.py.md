@@ -27,7 +27,7 @@ The mining suite: does MINE find a job the operator really did?
 > `as_evidence` renders them for the real pass, and the crossings over that
 > day. Expected: the job's cites and its `request_values`.
 
-## `Mining.run`, [line 90](../../../../../backend/evals/suites/mining.py#L90): Design
+## `Mining.run`, [line 92](../../../../../backend/evals/suites/mining.py#L92): Design
 
 > Runs the production `propose`, so the case measures the prompt that ships.
 > Passes when one proposed job cites at least `K_COVERS` of the expected
@@ -38,3 +38,12 @@ The mining suite: does MINE find a job the operator really did?
 > `Mining.asker` is the container's patient mining asker, the one `mine_pass`
 > uses (its timeout is the mining one, not the default 120 s). Sure means anything at all was proposed: a proposal that covers
 > nothing is a confident wrong answer.
+
+## `Mining.cases`, [line 50](../../../../../backend/evals/suites/mining.py#L50): Comment
+
+Code: `if is_a_chore(workflow):`
+
+> No case from a chore. The miner is right to skip a sign-in, so a case
+> expecting one is a miss it could never avoid -- the greyorange baseline
+> (MINE v2) carried several of its 8 empty answers this way. The frozen set must
+> be rebuilt (`rebuild=1`) for this to take, which retires that baseline.

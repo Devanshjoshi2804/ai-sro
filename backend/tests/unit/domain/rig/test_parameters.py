@@ -40,27 +40,27 @@ def _doing(typed: str, suffix: str) -> tuple[Workflow, dict[str, Gesture], dict[
     return workflow, by_id, {}
 
 
-def test_one_doing_names_no_parameters() -> None:
-    """The honest answer. A single occurrence cannot tell a parameter from a
-    constant, and a list that pretends otherwise is worse than an empty one."""
-    assert parameters_across([_doing("TEST1", "a")]) == ()
+def test_one_doing_makes_every_typed_value_a_parameter() -> None:
+    """Decided 2026-09-27 from the greyorange baseline: one doing cannot tell a
+    parameter from a constant, and the model, left to guess, called every
+    typed value fixed text. So a typed value is a parameter until the evidence
+    says it is constant."""
+    found = {p.name: p.seen for p in parameters_across([_doing("TEST1", "a")])}
+
+    assert found == {"Client Code": ("TEST1",), "Dock": ("D3",), "Manifest": ("manifest.csv",)}
 
 
-def test_the_threshold_is_what_decides_it_and_not_the_arithmetic(
+def test_the_threshold_decides_when_an_identical_value_is_a_constant(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """At two doings the guard changes nothing -- one doing gives every control
-    a single value and the diff finds nothing to report either way. It earns
-    its place only above two, which is where somebody raising the bar to three
-    changes a number rather than an argument. Reverting the guard with the bar
-    at three lets two doings name a parameter."""
+    """Two doings that typed the same value make it part of the job; raising
+    the bar to three keeps it a parameter until a third doing agrees."""
+    two = [_doing("TEST1", "a"), _doing("TEST1", "b")]
     monkeypatch.setattr("sro.domain.skill.learned.K_MIN_OCCURRENCES", 3)
 
-    two = [_doing("TEST1", "a"), _doing("TEST2", "b")]
-
-    assert parameters_across(two) == (), "two is not enough when three is asked for"
+    assert [p.name for p in parameters_across(two)] == ["Client Code", "Dock", "Manifest"]
     monkeypatch.setattr("sro.domain.skill.learned.K_MIN_OCCURRENCES", 2)
-    assert parameters_across(two), "and is enough when two is"
+    assert parameters_across(two) == ()
 
 
 def test_what_the_operator_typed_differently_is_the_parameter() -> None:
@@ -80,9 +80,9 @@ def test_what_they_typed_identically_is_part_of_the_job() -> None:
     assert parameters_across([_doing("TEST1", "a"), _doing("TEST1", "b")]) == ()
 
 
-def test_a_control_only_one_doing_reached_is_not_a_parameter() -> None:
-    """It is a difference between the recordings -- the operator took another
-    route that time -- rather than a value the job takes."""
+def test_a_control_only_one_doing_reached_is_a_parameter_not_every_run_needs() -> None:
+    """It was not typed identically in every doing, so it is not a constant;
+    and a route that never reached it is not short of anything."""
     first, second = _doing("TEST1", "a"), _doing("TEST2", "b")
     extra_id = "ges_extra"
     only_here = copy.deepcopy(next(iter(first[1].values())))
@@ -94,9 +94,9 @@ def test_a_control_only_one_doing_reached_is_not_a_parameter() -> None:
     first[1][extra_id] = only_here
     first[0].steps[0].cites.append(extra_id)
 
-    found = parameters_across([first, second])
+    found = {p.name: p for p in parameters_across([first, second])}
 
-    assert "seenOnce" not in [p.name for p in found]
+    assert found["seenOnce"].seen == ("ONCE",) and found["seenOnce"].in_all is False
 
 
 def test_a_credential_is_never_a_parameter() -> None:
@@ -196,14 +196,9 @@ def _extra(
     return made
 
 
-def test_a_control_only_the_SECOND_doing_reached_is_not_a_parameter_either() -> None:  # noqa: N802
-    """The mirror of the test above, and the one that was missing.
-
-    `shared` is seeded from `doings[0]` and intersected with the rest, so a
-    control only the first doing reached was already covered. A control only the
-    LAST doing reached was not: seeding from the wrong end leaves it in `shared`
-    and the diff then reads a doing that never touched it.
-    """
+def test_a_control_only_the_SECOND_doing_reached_is_a_parameter_too() -> None:  # noqa: N802
+    """The mirror of the test above: every doing's controls are looked at, not
+    only the first one's."""
     first, second = _doing("TEST1", "a"), _doing("TEST2", "b")
     made = _extra(second, "ges_only_second", value="ONCE")
     if made.action.target and made.action.target.component:
@@ -215,9 +210,9 @@ def test_a_control_only_the_SECOND_doing_reached_is_not_a_parameter_either() -> 
             ),
         )
 
-    found = parameters_across([first, second])
+    found = {p.name: p for p in parameters_across([first, second])}
 
-    assert "seenOnlyInTheSecond" not in [p.name for p in found]
+    assert found["seenOnlyInTheSecond"].in_all is False
 
 
 def test_a_select_and_an_upload_are_typing_too() -> None:
@@ -453,10 +448,9 @@ def test_a_control_not_every_doing_reached_does_not_ask_every_run_for_a_value() 
     assert code.in_all is True, "a control every doing typed is still asked for"
 
 
-def test_one_appearance_is_still_not_a_parameter() -> None:
-    """The reason the old loop gave, and it has not changed: one appearance is
-    a difference between the recordings rather than a value the job takes, and
-    one value cannot be told from a constant."""
+def test_one_appearance_is_a_parameter_since_one_value_is_no_constant() -> None:
+    """One value cannot be told from a constant, and since 2026-09-27 that
+    doubt makes it a parameter rather than fixed text."""
     found = parameters_across(
         [
             _doing_with(None, "TEST1", "a"),
@@ -464,7 +458,7 @@ def test_one_appearance_is_still_not_a_parameter() -> None:
         ]
     )
 
-    assert "Inbound Dock" not in {one.name for one in found}
+    assert "Inbound Dock" in {one.name for one in found}
 
 
 # --- what the PAGE said about a control, as opposed to what the operator did --

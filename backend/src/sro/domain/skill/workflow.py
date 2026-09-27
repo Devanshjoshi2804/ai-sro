@@ -75,6 +75,10 @@ class Noticed:
     steps: int
 
 
+def is_a_chore(workflow: Workflow) -> bool:
+    return bool(workflow.signs_in)
+
+
 def cited_ids(workflow: Workflow) -> set[str]:
     return {gesture_id for step in workflow.steps for gesture_id in step.cites}
 

@@ -437,3 +437,24 @@ async def test_a_sign_in_job_s_mails_are_no_reader_case() -> None:
     cases = await Reader().cases(uow, f.TENANT)
 
     assert [one.id.split(":")[0] for one in cases] == ["wfl_work"]
+
+
+async def test_a_chore_is_no_mining_case() -> None:
+    """The miner is right to skip a sign-in, so a case expecting one scores a
+    miss it could never avoid; the greyorange baseline carried several."""
+    uow = FakeUnitOfWork()
+    done = {
+        one: replace(_gesture(one, said="customer type GGD", at=n), tenant="acme")
+        for n, one in enumerate(("m-work", "m-login"))
+    }
+    async with uow:
+        await uow.workflows.save(replace(_job(["m-work"]), id="wfl_work", tenant="acme"))
+        await uow.workflows.save(
+            replace(_job(["m-login"]), id="wfl_login", tenant="acme", title="Log in", signs_in=True)
+        )
+        await uow.gestures.add_gestures(tuple(done.values()))
+        await uow.commit()
+
+    cases = await Mining().cases(uow, f.TENANT)
+
+    assert [one.id for one in cases] == ["wfl_work"]

@@ -15,7 +15,7 @@ from sro.domain.observation.values import frequencies_over, shared_values
 from sro.domain.observation.window import Packed, Window, as_evidence, evidence_tokens
 from sro.domain.prompts.mine import MINE
 from sro.domain.shared.identifiers import TenantId
-from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
+from sro.domain.skill.workflow import Workflow, cited_ids, is_a_chore, ordered_cites
 
 K_NOISE_S = 300.0
 
@@ -47,6 +47,8 @@ class Mining:
             family[normal(one.title)] |= _seen(one)
         found = []
         for workflow in known:
+            if is_a_chore(workflow):
+                continue
             cites = ordered_cites(workflow)
             cited = await uow.gestures.gestures_for(tenant_id, ids=tuple(cites))
             if not cited:

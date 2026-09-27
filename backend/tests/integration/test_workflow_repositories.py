@@ -49,6 +49,7 @@ from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
+from sro.domain.skill.signing_in import Logins
 from sro.domain.skill.workflow import Step, Workflow, new_workflow_id
 from sro.infrastructure.db import workflows as workflows_module
 from sro.infrastructure.db.locks import PostgresAccountLocks
@@ -1241,9 +1242,10 @@ class TestARunKeepsItsVersion:
                     uow,
                     tenant_id=TENANT,
                     known_id=job.id,
-                    proposal=replace(job, steps=[]),
+                    doings=(replace(job, steps=[]),),
                     by_id={},
                     intents={},
+                    logins=Logins(),
                 )
                 await uow.commit()
 

@@ -1324,7 +1324,7 @@ async def test_a_pass_that_recognises_a_job_learns_what_varies_in_it() -> None:
 
     first = await _mine(uow, FakeAsker(_found(_proposal(ids))))
     assert first.kept == 1
-    assert first.learned_parameters == 0, "one doing cannot name a parameter"
+    assert first.learned_parameters == 3, "one doing makes each value it typed a parameter"
 
     again_rows = _redone(original, "SOMETHING-ELSE", "again", 10_000.0)
     await uow.gestures.add_gestures(tuple(again_rows))
@@ -1349,18 +1349,18 @@ async def test_a_pass_that_recognises_a_job_learns_what_varies_in_it() -> None:
     # here read [1, 0] and expected [0, 1] -- an ordering assertion the data
     # cannot support, which is this project's fourth instance of exactly that.
     learnt = sorted(one.learned_parameters for one in await uow.workflows.passes(TENANT))
-    assert learnt == [0, again.learned_parameters]
+    assert learnt == sorted([first.learned_parameters, again.learned_parameters])
     kept = {one.kept for one in await uow.workflows.passes(TENANT)}
     assert kept == {0, 1}, "a pass that learnt without keeping still reads as a pass"
 
 
-async def test_the_job_stops_being_named_after_the_first_doing_of_it() -> None:
+async def test_the_job_is_not_named_after_the_first_doing_of_it() -> None:
     """A title is written by a model reading ONE occurrence, so it names that
     occurrence -- and the store holds "Create Customer Type DSS" over a
-    customer type since observed as DSS, DPP, CCD and CCF. The second doing is
-    the first moment anything knows that value varies, and it is where the job
-    gets its own name back: the title is what the offer card shows, and one
-    run's value in it makes every later demonstration look like other work.
+    customer type since observed as DSS, DPP, CCD and CCF. Since 2026-09-27 a
+    typed value is a parameter from the first doing, so that is where the job
+    gets its own name: the title is what the offer card shows, and one run's
+    value in it makes every later demonstration look like other work.
     """
     uow, ids = await _day()
     original = [_rows(uow)[gesture_id] for gesture_id in ids]
@@ -1368,7 +1368,7 @@ async def test_the_job_stops_being_named_after_the_first_doing_of_it() -> None:
     named_after_one = _proposal(ids, title="create a work operation ACME-4471")
     await _mine(uow, FakeAsker(_found(named_after_one)))
     first = (await uow.workflows.known(TENANT))[0]
-    assert first.title == "create a work operation ACME-4471", "one doing proves nothing yet"
+    assert first.title == "create a work operation", "the typed value is a parameter already"
 
     again_rows = _redone(original, "SOMETHING-ELSE", "again", 10_000.0)
     await uow.gestures.add_gestures(tuple(again_rows))
@@ -1519,7 +1519,9 @@ async def test_a_control_the_model_already_named_does_not_gain_a_second_paramete
     names = [parameter.get("name") for parameter in stored.parameters]
     assert names == ["Client Code"], f"one control, one parameter; got {names}"
     assert "clientCode" not in names, "not the same field again under its item_id"
-    assert second.learned_parameters == 0, "recognising a control is not learning a new one"
+    assert second.learned_parameters == 2, (
+        "no new control, and the two the first doing could not tell from constants now can"
+    )
 
 
 async def test_a_job_already_holding_two_entries_for_one_field_is_folded() -> None:
@@ -1755,7 +1757,7 @@ async def test_a_pass_that_widens_two_parameters_says_two_and_not_one() -> None:
 
     stored = (await uow.workflows.known(TENANT))[0]
     assert len(stored.parameters) == 2, "two controls varied, so two parameters"
-    assert passes[0].learned_parameters == 2, "the second doing named both"
+    assert passes[0].learned_parameters == 3, "widened both, and fixed the select it repeated"
     assert passes[1].kept == 0, "the third doing is the same job again"
     assert passes[1].learned_parameters == 2, "and widening both is learning two"
 

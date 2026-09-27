@@ -4,18 +4,21 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/learned.py`]
 
 ## module, [line 1](../../../../../../../backend/src/sro/domain/skill/learned.py#L1): Docstring
 
-> What varies between two doings of one job.
+> What a job takes as input, decided in code from what its doings typed.
 >
-> A parameter cannot be found in a single occurrence. Shown one doing of "Create
-> Work Activity TEST1", nothing in the evidence says whether `TEST1` is the name
-> of this activity or the name of every activity -- and asking a model produces a
-> guess wearing the clothes of a finding. Measured: across the eight workflows
-> mined from 170 hours of real capture, every `parameters` list came back empty,
-> which was the honest answer to a question nobody had asked.
+> Shown one doing of "Create Work Activity TEST1", nothing in the evidence says
+> whether `TEST1` is the name of this activity or the name of every activity.
+> Until 2026-09-27 that doubt made it fixed text; the greyorange mining baseline
+> (MINE v2, 15 cases) then showed the cost: 5 cases where every step was found
+> and 0 of 4, or 2 of 6, typed values were parameters -- QA's 0-parameter
+> "Create a Customer Type" copies. So since M3 (user-approved) the doubt goes the
+> other way: every typed value is a parameter until the evidence proves it
+> constant.
 >
-> Two doings answer it. What the operator typed differently is what the job takes
-> as input; what they typed identically is part of the job. That is arithmetic
-> over evidence rather than an opinion about it.
+> Two doings are that proof. What the operator typed identically in every doing
+> is part of the job; anything else is input. That is arithmetic over evidence
+> rather than an opinion about it -- and not the model's call, which read typed
+> values as fixed text.
 >
 > This is available here because `identity.resolve` already finds the pairs:
 > `same_job` means one job matched by SHAPE while citing different gestures --
@@ -27,13 +30,23 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/learned.py`]
 
 Code: `K_MIN_OCCURRENCES = 2`
 
-> Doings needed before anything is called a parameter.
+> Doings needed before a value typed identically in each is called a constant.
 >
-> One is a recording. The name exists so that a future caller raising it -- three
-> doings before trusting a parameter, say -- changes a number rather than an
-> argument.
+> One is a recording, and one value cannot be told from a constant, so below
+> this a typed value is a parameter. The name exists so that a future caller
+> raising it -- three doings before trusting a constant, say -- changes a number
+> rather than an argument.
 
-## module, [line 11](../../../../../../../backend/src/sro/domain/skill/learned.py#L11): Note on the line above
+## module, [line 10](../../../../../../../backend/src/sro/domain/skill/learned.py#L10): Note on the line above
+
+Code: `K_PARAMETERS_RULE = 1`
+
+> The version of the rule these functions apply, stamped on each job as
+> `workflows.parameters_rule` (0089). The sweep brings in every live job stamped
+> older or never (`MineLately._bring_in`); a later change to the rule raises
+> this and every job is brought in again, once.
+
+## module, [line 13](../../../../../../../backend/src/sro/domain/skill/learned.py#L13): Note on the line above
 
 Code: `K_REQUIRED_MARK = "*"`
 
@@ -45,7 +58,7 @@ Code: `K_REQUIRED_MARK = "*"`
 > never edited by hand -- and until it happens, a page that marks required
 > fields by colour alone tells this system nothing, which reads as optional.
 
-## `demanded`, [line 14](../../../../../../../backend/src/sro/domain/skill/learned.py#L14): Docstring
+## `demanded`, [line 18](../../../../../../../backend/src/sro/domain/skill/learned.py#L18): Docstring
 
 > Whether the page said this stored parameter must be filled.
 >
@@ -60,7 +73,7 @@ Code: `K_REQUIRED_MARK = "*"`
 > already carry. The flag wins where both speak, because a later pass may
 > have learnt from a refusal what no label ever said.
 
-## `offerable`, [line 23](../../../../../../../backend/src/sro/domain/skill/learned.py#L23): Docstring
+## `offerable`, [line 27](../../../../../../../backend/src/sro/domain/skill/learned.py#L27): Docstring
 
 > The fields a job can fill that nobody has to, with what each was last
 > time, for the ones this run has no value for.
@@ -70,7 +83,7 @@ Code: `K_REQUIRED_MARK = "*"`
 > suggestion. Most recent, because `seen` is in the order the occurrences
 > were seen and the newest is the likeliest to still be right.
 
-## `LearnedParameter`, [line 40](../../../../../../../backend/src/sro/domain/skill/learned.py#L40): Docstring
+## `LearnedParameter`, [line 44](../../../../../../../backend/src/sro/domain/skill/learned.py#L44): Docstring
 
 > One thing a job takes as input, and what it has been given so far.
 >
@@ -78,7 +91,7 @@ Code: `K_REQUIRED_MARK = "*"`
 > backend's own, declared on a skill; this one is the difference between two
 > doings, and the two must not be mistaken for each other.
 
-## `LearnedParameter`, [line 41](../../../../../../../backend/src/sro/domain/skill/learned.py#L41): Note on the line above
+## `LearnedParameter`, [line 45](../../../../../../../backend/src/sro/domain/skill/learned.py#L45): Note on the line above
 
 Code: `name: str`
 
@@ -87,14 +100,14 @@ Code: `name: str`
 > Named after the form rather than after the value, because `activityCode`
 > says what it is and `TEST1` says what it was once.
 
-## `LearnedParameter`, [line 43](../../../../../../../backend/src/sro/domain/skill/learned.py#L43): Note on the line above
+## `LearnedParameter`, [line 47](../../../../../../../backend/src/sro/domain/skill/learned.py#L47): Note on the line above
 
 Code: `seen: tuple[str, ...]`
 
 > Every value observed, in the order the occurrences were seen. Two
 > different values is the evidence that this varies at all.
 
-## `LearnedParameter`, [line 45](../../../../../../../backend/src/sro/domain/skill/learned.py#L45): Note on the line above
+## `LearnedParameter`, [line 49](../../../../../../../backend/src/sro/domain/skill/learned.py#L49): Note on the line above
 
 Code: `key: str = ""`
 
@@ -103,7 +116,7 @@ Code: `key: str = ""`
 > it, because two fields can share a label and two fields cannot share an
 > itemId. Empty where no recording of this control carried one.
 
-## `LearnedParameter`, [line 47](../../../../../../../backend/src/sro/domain/skill/learned.py#L47): Note on the line above
+## `LearnedParameter`, [line 51](../../../../../../../backend/src/sro/domain/skill/learned.py#L51): Note on the line above
 
 Code: `in_all: bool = True`
 
@@ -114,7 +127,7 @@ Code: `in_all: bool = True`
 > that does not need it, and a run taking that route must not be stopped for
 > want of a value. See `_not_given`, which is where the difference is felt.
 
-## `LearnedParameter`, [line 49](../../../../../../../backend/src/sro/domain/skill/learned.py#L49): Note on the line above
+## `LearnedParameter`, [line 53](../../../../../../../backend/src/sro/domain/skill/learned.py#L53): Note on the line above
 
 Code: `said: bool | None = None`
 
@@ -124,7 +137,7 @@ Code: `said: bool | None = None`
 > recorder captured it, which is why `required` still falls back to reading
 > the star out of `names`.
 
-## `LearnedParameter`, [line 57](../../../../../../../backend/src/sro/domain/skill/learned.py#L57): Note on the line above
+## `LearnedParameter`, [line 61](../../../../../../../backend/src/sro/domain/skill/learned.py#L61): Note on the line above
 
 Code: `names: tuple[str, ...] = ()`
 
@@ -143,7 +156,7 @@ Code: `names: tuple[str, ...] = ()`
 > this, which is why the matching that uses it still falls back to the value
 > evidence.
 
-## `control_names`, [line 60](../../../../../../../backend/src/sro/domain/skill/learned.py#L60): Docstring
+## `control_names`, [line 64](../../../../../../../backend/src/sro/domain/skill/learned.py#L64): Docstring
 
 > Every name this control answers to, the readable one first.
 >
@@ -154,12 +167,12 @@ Code: `names: tuple[str, ...] = ()`
 > them the page gave it and a later doing has to be able to find this control
 > by either.
 
-## `control_name`, [line 76](../../../../../../../backend/src/sro/domain/skill/learned.py#L76): Docstring
+## `control_name`, [line 80](../../../../../../../backend/src/sro/domain/skill/learned.py#L80): Docstring
 
 > What one control is called, where one name is wanted. The first of
 > `control_names`, which is the readable one.
 
-## `control_key`, [line 81](../../../../../../../backend/src/sro/domain/skill/learned.py#L81): Docstring
+## `control_key`, [line 85](../../../../../../../backend/src/sro/domain/skill/learned.py#L85): Docstring
 
 > The page's own name for this control -- its ExtJS itemId -- or "".
 >
@@ -167,7 +180,7 @@ Code: `names: tuple[str, ...] = ()`
 > answers "which control is this" rather than "what is it called". Two
 > fields can share a label; two fields do not share an itemId.
 
-## `same_control`, [line 88](../../../../../../../backend/src/sro/domain/skill/learned.py#L88): Docstring
+## `same_control`, [line 92](../../../../../../../backend/src/sro/domain/skill/learned.py#L92): Docstring
 
 > Whether these name one control.
 >
@@ -185,19 +198,19 @@ Code: `names: tuple[str, ...] = ()`
 > does that, for parameters stored before any of this was recorded, and it
 > merges two controls that happened to vary over one set.
 
-## `_Put`, [line 97](../../../../../../../backend/src/sro/domain/skill/learned.py#L97): Docstring
+## `_Put`, [line 101](../../../../../../../backend/src/sro/domain/skill/learned.py#L101): Docstring
 
 > One value a doing put into one control, with every name that control
 > had in THAT recording.
 
-## `_Put`, [line 101](../../../../../../../backend/src/sro/domain/skill/learned.py#L101): Note on the line above
+## `_Put`, [line 105](../../../../../../../backend/src/sro/domain/skill/learned.py#L105): Note on the line above
 
 Code: `required: bool | None = None`
 
 > What the page said about this control in THIS recording, or None where
 > it said nothing.
 
-## `_by_control`, [line 104](../../../../../../../backend/src/sro/domain/skill/learned.py#L104): Docstring
+## `_by_control`, [line 108](../../../../../../../backend/src/sro/domain/skill/learned.py#L108): Docstring
 
 > What this doing put into each control it typed into.
 >
@@ -206,7 +219,7 @@ Code: `required: bool | None = None`
 > prose freshly each time, and a step index is its opinion. The control is
 > the evidence.
 
-## `_page_said`, [line 137](../../../../../../../backend/src/sro/domain/skill/learned.py#L137): Docstring
+## `_page_said`, [line 141](../../../../../../../backend/src/sro/domain/skill/learned.py#L141): Docstring
 
 > Whether the page said this control must be filled, in this recording.
 >
@@ -221,20 +234,33 @@ Code: `required: bool | None = None`
 > to the star in the names: the evidence already in the store has to go on
 > answering.
 
-## `parameters_across`, [line 146](../../../../../../../backend/src/sro/domain/skill/learned.py#L146): Docstring
+## `parameters_across`, [line 153](../../../../../../../backend/src/sro/domain/skill/learned.py#L153): Docstring
 
-> The controls whose value changed between doings.
+> Every control the doings typed that is not proven constant.
 >
-> A control typed identically every time is part of the job, not an input to
-> it: "click Add" is not a parameter and neither is a status every doing sets
-> to the same thing. A control that changed is what the job is *about*.
->
-> Returns nothing at all below K_MIN_OCCURRENCES, rather than returning
-> everything the single doing typed. That is the whole point -- one doing
-> cannot distinguish a parameter from a constant, and a list that pretends
-> otherwise is worse than an empty one, because the empty one is honest.
+> A control typed identically in every doing, with at least
+> `K_MIN_OCCURRENCES` doings, is part of the job, not an input to it: a status
+> every doing sets to the same thing. Everything else is a parameter -- a
+> control only some doings reached (`in_all` false, so a run that takes the
+> other route is not short of it), a control whose value changed, and every
+> control of a single doing. Credentials never arrive here: `typed_values`
+> refuses a secret gesture. A recorded sign-in's username and a chore are the
+> caller's to leave out (`learn_parameters`), because only it knows the jobs.
 
-## `_told_apart`, [line 197](../../../../../../../backend/src/sro/domain/skill/learned.py#L197): Docstring
+## `constants_across`, [line 157](../../../../../../../backend/src/sro/domain/skill/learned.py#L157): Docstring
+
+> The other half of the same arithmetic: the controls proven constant. A
+> parameter minted from one doing and then typed identically by the next is
+> one of these, which is how `learn_parameters` puts it back to fixed text.
+
+## `_controls`, [line 161](../../../../../../../backend/src/sro/domain/skill/learned.py#L161): Docstring
+
+> One walk over the doings for both answers, so a parameter and a constant
+> can never be decided by two loops that drifted apart. `seen` keeps each
+> value once, in the order the doings came: from three doings a value can
+> repeat, and a range is a set of what it has been.
+
+## `_told_apart`, [line 209](../../../../../../../backend/src/sro/domain/skill/learned.py#L209): Docstring
 
 > Two controls that share a label are called by the names that differ.
 >
@@ -243,9 +269,27 @@ Code: `required: bool | None = None`
 > each -- and calling both of them "Description" would put two questions
 > with one wording in front of somebody, which is worse than one ugly name.
 > So where a label is not unique, every control that shares it falls back to
-> the name the page knows it by.
+> the name the page knows it by -- and keeps everything else it was found
+> with. It was rebuilt from name, seen and names alone, which dropped `key`,
+> `in_all` and what the page said: a told-apart control became "in every
+> doing" and "nobody said", and lost the key a later doing is matched on.
 
-## `LearnedParameter.required`, [line 52](../../../../../../../backend/src/sro/domain/skill/learned.py#L52): Docstring
+## `placed_doings`, [line 219](../../../../../../../backend/src/sro/domain/skill/learned.py#L219): Docstring
+
+> The other doings of a stored job, rebuilt from the gestures placed on it.
+>
+> A stored job cites one doing. Every later doing recognised as it was placed
+> (`workflow_placements`, 0071) rather than kept, so a sweep that read only
+> the cites would see one doing and mint every constant the job has ever had.
+> Placements do not record which doing a gesture came from, so the doings are
+> rebuilt from the typing alone: in time order per stream, a new doing starts
+> where a control already typed in the current one is typed again. Two doings
+> back to back therefore stay two, and every error this makes -- a correction
+> or a search-as-you-type fragment read as a doing of its own -- makes a
+> control look varied, never constant: it errs toward a parameter, the
+> default. The job's own cites are left out; they are doing one.
+
+## `LearnedParameter.required`, [line 56](../../../../../../../backend/src/sro/domain/skill/learned.py#L56): Docstring
 
 > Whether the PAGE says this field must be filled.
 >
@@ -282,7 +326,7 @@ Code: `required: bool | None = None`
 > that refused a create for the want of a field, which is evidence
 > nothing can argue with -- and which this cannot learn until it happens.
 
-## `_by_control`, [line 107](../../../../../../../backend/src/sro/domain/skill/learned.py#L107): Comment
+## `_by_control`, [line 111](../../../../../../../backend/src/sro/domain/skill/learned.py#L111): Comment
 
 Code: `acted: list[tuple[str, Gesture]] = []`
 
@@ -292,7 +336,7 @@ Code: `acted: list[tuple[str, Gesture]] = []`
 > model happened to list second". Measured: 0 of 66 real steps cite out of
 > order, so this changes nothing today and stops depending on that.
 
-## `_by_control`, [line 112](../../../../../../../backend/src/sro/domain/skill/learned.py#L112): Comment
+## `_by_control`, [line 116](../../../../../../../backend/src/sro/domain/skill/learned.py#L116): Comment
 
 Code: `continue`
 
@@ -300,7 +344,7 @@ Code: `continue`
 > gesture when it is secret, so this is where that refusal keeps a
 > password out of a skill's parameters.
 
-## `_by_control`, [line 121](../../../../../../../backend/src/sro/domain/skill/learned.py#L121): Comment
+## `_by_control`, [line 125](../../../../../../../backend/src/sro/domain/skill/learned.py#L125): Comment
 
 Code: `names = control_names(gesture) or (cited,)`
 
@@ -309,7 +353,7 @@ Code: `names = control_names(gesture) or (cited,)`
 > the same form, and a control keyed on one of them is a control the
 > next doing cannot recognise.
 
-## `_by_control`, [line 123](../../../../../../../backend/src/sro/domain/skill/learned.py#L123): Comment
+## `_by_control`, [line 127](../../../../../../../backend/src/sro/domain/skill/learned.py#L127): Comment
 
 Code: `typed = str(gesture.action.value).strip() if gesture.action.value else ""`
 
@@ -326,14 +370,14 @@ Code: `typed = str(gesture.action.value).strip() if gesture.action.value else ""
 > `values_seen` is populated on 110 of 387 intents, so the mechanism is
 > armed.
 
-## `_by_control`, [line 130](../../../../../../../backend/src/sro/domain/skill/learned.py#L130): Comment
+## `_by_control`, [line 134](../../../../../../../backend/src/sro/domain/skill/learned.py#L134): Comment
 
 Code: `found = [`
 
 > Last wins, as it did when this was a dict: a control typed twice in
 > one doing keeps the latest value.
 
-## `parameters_across`, [line 154](../../../../../../../backend/src/sro/domain/skill/learned.py#L154): Comment
+## `_controls`, [line 164](../../../../../../../backend/src/sro/domain/skill/learned.py#L164): Comment
 
 Code: `for nth, doing in enumerate(doings):`
 
@@ -347,14 +391,10 @@ Code: `for nth, doing in enumerate(doings):`
 > Tuesday and again on Wednesday, each time with a different value, and
 > the job goes on not knowing the field exists.
 >
-> The bar is unchanged. `K_MIN_OCCURRENCES` doings must have reached the
-> control and its value must have varied across them, so the reason the
-> old loop gave still holds -- one appearance is a difference between the
-> recordings rather than a value the job takes, and one value cannot be
-> told from a constant. What has gone is the accident of WHICH doing a
-> control first appeared in.
+> What has gone is the accident of WHICH doing a control first appeared
+> in. (The bar itself changed on 2026-09-27: see `parameters_across`.)
 
-## `parameters_across`, [line 186](../../../../../../../backend/src/sro/domain/skill/learned.py#L186): Comment
+## `_controls`, [line 196](../../../../../../../backend/src/sro/domain/skill/learned.py#L196): Comment
 
 Code: `name=names[0],`
 
@@ -362,7 +402,7 @@ Code: `name=names[0],`
 > is what the next doing is matched on, so a control
 > recorded either way is recognised either way.
 
-## `parameters_across`, [line 191](../../../../../../../backend/src/sro/domain/skill/learned.py#L191): Comment
+## `_controls`, [line 201](../../../../../../../backend/src/sro/domain/skill/learned.py#L201): Comment
 
 Code: `said=next((one for one in said if one is not None), None),`
 

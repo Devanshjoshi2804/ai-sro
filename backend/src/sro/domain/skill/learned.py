@@ -1,14 +1,18 @@
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from sro.domain.observation.gesture import Gesture, Intent
 from sro.domain.observation.values import typed_values
-from sro.domain.skill.workflow import Workflow
+from sro.domain.skill.workflow import Step, Workflow, cited_ids
 
 K_MIN_OCCURRENCES = 2
 
+K_PARAMETERS_RULE = 1
+
 
 K_REQUIRED_MARK = "*"
+
+TYPING = frozenset({"type", "select", "upload"})
 
 
 def demanded(parameter: Mapping[str, object]) -> bool:
@@ -108,7 +112,7 @@ def _by_control(
     for step in workflow.steps:
         for cited in step.cites:
             gesture = gestures.get(cited)
-            if gesture is None or gesture.action.kind not in ("type", "select", "upload"):
+            if gesture is None or gesture.action.kind not in TYPING:
                 continue
             acted.append((cited, gesture))
     acted.sort(key=lambda pair: (pair[1].at, pair[0]))
@@ -143,18 +147,24 @@ def _page_said(gesture: Gesture) -> bool | None:
     return target.component.required if target.component is not None else None
 
 
-def parameters_across(
-    occurrences: Iterable[tuple[Workflow, Mapping[str, Gesture], Mapping[str, Intent]]],
-) -> tuple[LearnedParameter, ...]:
-    doings = [_by_control(*occurrence) for occurrence in occurrences]
-    if len(doings) < K_MIN_OCCURRENCES:
-        return ()
+Occurrence = tuple[Workflow, Mapping[str, Gesture], Mapping[str, Intent]]
 
-    found: list[LearnedParameter] = []
+
+def parameters_across(occurrences: Iterable[Occurrence]) -> tuple[LearnedParameter, ...]:
+    return _told_apart([one for one, constant in _controls(occurrences) if not constant])
+
+
+def constants_across(occurrences: Iterable[Occurrence]) -> tuple[LearnedParameter, ...]:
+    return tuple(one for one, constant in _controls(occurrences) if constant)
+
+
+def _controls(occurrences: Iterable[Occurrence]) -> list[tuple[LearnedParameter, bool]]:
+    doings = [_by_control(*occurrence) for occurrence in occurrences]
+    found: list[tuple[LearnedParameter, bool]] = []
     for nth, doing in enumerate(doings):
         for put in doing:
             if any(
-                same_control(put.names, one.names, key=put.key, theirs=one.key) for one in found
+                same_control(put.names, one.names, key=put.key, theirs=one.key) for one, _ in found
             ):
                 continue
             names = list(put.names)
@@ -180,18 +190,20 @@ def parameters_across(
                 key = key or also.key
                 values.append(also.value)
                 said.append(also.required)
-            if reached >= K_MIN_OCCURRENCES and len(set(values)) > 1:
-                found.append(
+            found.append(
+                (
                     LearnedParameter(
                         name=names[0],
-                        seen=tuple(values),
+                        seen=tuple(dict.fromkeys(values)),
                         names=tuple(names),
                         key=key,
                         in_all=reached == len(doings),
                         said=next((one for one in said if one is not None), None),
-                    )
+                    ),
+                    K_MIN_OCCURRENCES <= reached == len(doings) and len(set(values)) == 1,
                 )
-    return _told_apart(found)
+            )
+    return found
 
 
 def _told_apart(found: list[LearnedParameter]) -> tuple[LearnedParameter, ...]:
@@ -199,6 +211,48 @@ def _told_apart(found: list[LearnedParameter]) -> tuple[LearnedParameter, ...]:
     return tuple(
         one
         if labels.count(one.name) == 1 or len(one.names) < 2
-        else LearnedParameter(name=one.names[1], seen=one.seen, names=one.names)
+        else replace(one, name=one.names[1])
         for one in found
     )
+
+
+def placed_doings(
+    job: Workflow,
+    placed: Iterable[str],
+    gestures: Mapping[str, Gesture],
+    intents: Mapping[str, Intent],
+) -> list[Workflow]:
+    own = cited_ids(job)
+    typed = sorted(
+        (
+            gesture
+            for one in placed
+            if one not in own
+            and (gesture := gestures.get(one)) is not None
+            and gesture.action.kind in TYPING
+            and typed_values(gesture, intents.get(one))
+        ),
+        key=lambda gesture: (gesture.stream_id, gesture.at, gesture.id),
+    )
+    doings: list[list[Gesture]] = []
+    for gesture in typed:
+        names, key = control_names(gesture) or (gesture.id,), control_key(gesture)
+        if not doings or any(
+            one.stream_id != gesture.stream_id
+            or same_control(
+                control_names(one) or (one.id,), names, key=control_key(one), theirs=key
+            )
+            for one in doings[-1]
+        ):
+            doings.append([])
+        doings[-1].append(gesture)
+    return [
+        Workflow(
+            id=job.id,
+            tenant=job.tenant,
+            title=job.title,
+            narrative="",
+            steps=[Step(order=0, says="", system=None, cites=[one.id for one in doing])],
+        )
+        for doing in doings
+    ]

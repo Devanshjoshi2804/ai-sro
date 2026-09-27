@@ -13,6 +13,7 @@ from sro.application.ports.locks import AccountLocks
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.shared.asking import ask
+from sro.domain.execution.compose import normal
 from sro.domain.execution.uses_edges import uses_edges
 from sro.domain.observation.driving import was_our_own_driving
 from sro.domain.observation.gesture import Gesture, Intent
@@ -53,17 +54,26 @@ from sro.domain.skill.checks import (
     validate,
     work_only,
 )
-from sro.domain.skill.learned import LearnedParameter, parameters_across, same_control
+from sro.domain.skill.learned import (
+    K_PARAMETERS_RULE,
+    LearnedParameter,
+    constants_across,
+    parameters_across,
+    placed_doings,
+    same_control,
+)
 from sro.domain.skill.passwords import with_passwords
 from sro.domain.skill.presses import with_the_press
 from sro.domain.skill.repeats import detect as repeated_block
 from sro.domain.skill.shape import in_time_order, keeping_fields
+from sro.domain.skill.signing_in import Logins, recorded_logins
 from sro.domain.skill.umbrella import mining_blocks, workflow_from
-from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
+from sro.domain.skill.workflow import Workflow, cited_ids, is_a_chore, ordered_cites
 from sro.whose import attribute
 
 __all__ = [
     "MineResult",
+    "bring_in_parameters",
     "decide_sign_ins",
     "evidence_of",
     "fill_in_passwords",
@@ -161,20 +171,30 @@ async def learn_parameters(
     *,
     tenant_id: TenantId,
     known_id: str,
-    proposal: Workflow,
-    by_id: dict[str, Gesture],
-    intents: dict[str, Intent],
+    doings: Sequence[Workflow],
+    by_id: Mapping[str, Gesture],
+    intents: Mapping[str, Intent],
+    logins: Logins,
 ) -> int:
     try:
         stored = await uow.workflows.get(tenant_id, known_id, lock=True)
     except NotFound:
         return 0
+    await uow.workflows.ruled(tenant_id, known_id, K_PARAMETERS_RULE)
     folded = _folded(stored.parameters)
     repaired = len(folded) != len(stored.parameters)
     stored.parameters = folded
 
-    found = parameters_across([(stored, by_id, intents), (proposal, by_id, intents)])
-    if not found:
+    occurrences = [(stored, by_id, intents), *((doing, by_id, intents) for doing in doings)]
+    chore = is_a_chore(stored)
+    found = [
+        parameter
+        for parameter in (() if chore else parameters_across(occurrences))
+        if not {normal(value) for value in parameter.seen} & logins.names
+    ]
+    dropped = _fixed(stored, () if chore else constants_across(occurrences))
+    stored.parameters = [one for one in stored.parameters if one not in dropped]
+    if not found and not dropped:
         if repaired:
             await uow.workflows.save(stored)
         return 0
@@ -214,12 +234,27 @@ async def learn_parameters(
         if added:
             existing["seen_values"] = [*seen, *added]
             widened += 1
-    if not fresh and not widened and not repaired and not named and not told:
+    if not fresh and not widened and not repaired and not named and not told and not dropped:
         return 0
     stored.parameters = _folded([*stored.parameters, *fresh])
     stored.generalise_title()
     await uow.workflows.save(stored)
-    return len(fresh) + widened
+    return len(fresh) + widened + len(dropped)
+
+
+def _fixed(stored: Workflow, constants: Sequence[LearnedParameter]) -> list[dict[str, object]]:
+    bound = {name for step in stored.steps for name in step.parameters}
+    return [
+        one
+        for constant in constants
+        if (
+            one := _known_by(constant, stored.parameters)
+            or _same_control(constant, stored.parameters)
+        )
+        is not None
+        and _values_of(one) <= set(constant.seen)
+        and not bound.intersection(_names_of(one))
+    ]
 
 
 def _names_of(parameter: dict[str, object]) -> list[str]:
@@ -547,6 +582,15 @@ async def _one_pass(
                 proposal.pass_id = pass_id
                 await uow.workflows.save(proposal)
                 kept.append(proposal)
+                result.learned_parameters += await learn_parameters(
+                    uow,
+                    tenant_id=tenant_id,
+                    known_id=proposal.id,
+                    doings=(),
+                    by_id=by_id,
+                    intents=intents,
+                    logins=recorded_logins([*known, *kept], by_id),
+                )
             elif resolution.workflow_id:
                 await uow.workflows.place(
                     tenant_id, resolution.workflow_id, tuple(ordered_cites(proposal))
@@ -556,9 +600,10 @@ async def _one_pass(
                     uow,
                     tenant_id=tenant_id,
                     known_id=resolution.workflow_id,
-                    proposal=proposal,
+                    doings=(proposal,),
                     by_id=by_id,
                     intents=intents,
+                    logins=recorded_logins([*known, *kept], by_id),
                 )
                 if resolution.contains:
                     await _grow(
@@ -724,3 +769,39 @@ async def rekey_workflows(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
     if changed:
         await uow.commit()
     return changed
+
+
+async def bring_in_parameters(
+    uow: UnitOfWork, tenant_id: TenantId, jobs: Sequence[Workflow]
+) -> int:
+    known = await uow.workflows.known(tenant_id)
+    placed = {job.id: await uow.workflows.placed_on(tenant_id, job.id) for job in jobs}
+    by_id = await evidence_of(uow, tenant_id, known)
+    missing = tuple(sorted({one for ids in placed.values() for one in ids} - by_id.keys()))
+    if missing:
+        by_id.update(
+            {one.id: one for one in await uow.gestures.gestures_for(tenant_id, ids=missing)}
+        )
+    intents = {one.gesture_id: one for one in await uow.gestures.intents_for(tenant_id)}
+    logins = recorded_logins(known, by_id)
+    brought = 0
+    for job in jobs:
+        try:
+            held = await uow.workflows.get(tenant_id, job.id, lock=True)
+            if await uow.workflows.ruled(tenant_id, job.id, K_PARAMETERS_RULE):
+                brought += await learn_parameters(
+                    uow,
+                    tenant_id=tenant_id,
+                    known_id=job.id,
+                    doings=placed_doings(held, placed[job.id], by_id, intents),
+                    by_id=by_id,
+                    intents=intents,
+                    logins=logins,
+                )
+            await uow.commit()
+        except NotFound:
+            await uow.rollback()
+        except Exception:
+            await uow.rollback()
+            logger.exception("%s: could not bring in its parameters", job.title)
+    return brought

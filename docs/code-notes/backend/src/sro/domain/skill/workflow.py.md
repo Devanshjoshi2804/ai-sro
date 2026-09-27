@@ -61,7 +61,7 @@ Code: `repeat: Repeat | None = None`
 > given one item performs exactly like a run of a job with no repeat at all.
 > See `domain/skill/repeats`.
 
-## `ordered_cites`, [line 82](../../../../../../../backend/src/sro/domain/skill/workflow.py#L82): Docstring
+## `ordered_cites`, [line 86](../../../../../../../backend/src/sro/domain/skill/workflow.py#L86): Docstring
 
 > Every gesture the workflow cites, in step order.
 >
@@ -135,9 +135,17 @@ Code: `signs_in: bool | None = None`
 > sweep decides it (`mining_pass.decide_sign_ins`). A job starts undecided;
 > the mining pass decides a proposal before it is stored.
 
-## `field_key`, [line 86](../../../../../../../backend/src/sro/domain/skill/workflow.py#L86): Docstring
+## `field_key`, [line 90](../../../../../../../backend/src/sro/domain/skill/workflow.py#L90): Docstring
 
 > The body key of a learned field step (X10, `with_field`), or "". Such a step
 > cites no gesture and fills one parameter that the job declares with the `key`
 > the save's own call confirmed it by -- that `key` exists nowhere else, so it is
 > what tells a field nobody demonstrated from a step with its evidence missing.
+
+## `is_a_chore`, [line 78](../../../../../../../backend/src/sro/domain/skill/workflow.py#L78): Docstring
+
+> A job that exists to get the operator somewhere rather than to do work: a
+> sign-in today. The one hook for "chore": the typed-values rule mints it no
+> parameters (`learn_parameters`) and the mining eval builds no case from it.
+> F3 adds `signs_out` and extends this one function, so every reader of it
+> follows at once.

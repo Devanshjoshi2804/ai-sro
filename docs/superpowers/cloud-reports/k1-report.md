@@ -59,3 +59,40 @@ Integration tests: none added (K1 adds no SQL). `Teach.learn` now calls `uow.wor
 - **Legacy data (resolved):** workflows that X10 grew before this change would store the learned key as `"key"`, and after K1 `field_key` would not see them as learned field steps. Decision: accept the change as is; no migration needed. On QA, 0 field steps store their learned key under the old name `"key"`. The 14 job-level `"key"` entries there are the miner's control keys, which K1 intentionally leaves alone.
 - Concurrency: `Teach.learn` saves the whole workflow under `_still`'s row lock (`lock=True`) in the same unit of work. Two runs learning at once serialise on the row, and the second sees the first's parameters. A crash before commit writes nothing. A stop mid-way doesn't change this path (it runs after the lanes).
 - `run_workflow.py` (the legacy rig path) calls `replay_without_asking` and `write_plan_for` without `learned`, so it behaves as before.
+
+## Round 1
+
+### Commits
+
+- `701eb08` fix(api-lane): K1 round 1 -- a known learned field opens the API lane, and its read-back keys it
+- (this section) docs: K1 report, round 1
+
+### Findings and fixes
+
+1. **(Critical) API lane never offered for a learned field.** `_fill_for` puts every filled field's held value in `Adding.fresh`, learned ones included, and names learned fields in `Adding.known`. "Composed this run" is therefore `fresh` minus `known`. `executor.run` now offers the API lane when `set(adding.fresh) <= set(adding.known.values()) <= set(learned_slots(...))`. The unit tests now use `_fill_for`'s own shape (`known={"department": "Department"}, fresh={"Department": "Finance"}`), plus a case with a composed field beside a learned one (UI). The real `_fill_for` is exercised by the end-to-end test (item 3).
+2. **(Important) The API result carries `keyed`.** The new `api_lane.confirmed_keys` returns `{parameter: body_key}` for the learned slots whose key is in the plan's `confirm`. The API lane attaches it only to the `done` result that its read-back produced. `carries_in_slot` checked every `confirm` entry, so nothing is keyed without the read-back confirming it (invariant 1). `StepExecutor._settled` also attaches it when an in-doubt write is settled `done` by the read-back. That is the same confirmation, and without it such a run would still end "failed" at `finish`. Tests: a read-back showing the field keys it; a read-back lacking it is `unknown` and keys nothing; an in-doubt write settled by read-back keys it.
+3. **(Important) End-to-end.** `test_a_run_writes_a_slotted_learned_field_through_the_api_lane_and_holds` covers the whole path: the real `RunSteps.prepare`/`acquire`, the field step, `_fill_for`, the real executor, a real `ApiLane` over `FakeHttpCaller`, `_settle_fields` and `finish`. The run ends `held`, the "Fill Department" row is `held`, the POST body carries `department`, and the UI lane is never called. `steel_run` gained an optional `http:`; when it is given, the worker uses a real `ApiLane` over it (test support only).
+4. **(Minor) Sight puts the slot back.** `Teach.learn` accepts a keyed `done` from `Lane.SIGHT` as well as `Lane.UI`. Sight's `keyed` comes from the same `confirming()` of the save's own call. Test added.
+5. **(Minor) Scoped exemption.** `_undemonstrated(..., learned: Mapping[str, str])` exempts a key outside the recorded body only for the name that learned it (`learned.get(name) == slot`). Test: a dictionary name mapped to the same key is not carried.
+
+### Tests added
+
+- Unit: `test_the_api_lane_after_a_learned_field.py` (7 new or rewritten), `test_teaching.py::test_a_keyed_sight_write_puts_the_slot_back`, `test_a_learned_key_is_a_slot.py::test_a_dictionary_key_never_borrows_a_learned_keys_exemption`. Each failed before its fix.
+- Integration (**written, not run**; no Postgres here): `tests/integration/test_workflow_repositories.py::TestALearnedSlot`:
+  - `test_an_api_break_takes_the_slot_out_and_a_keyed_ui_write_puts_it_back`: persistence through `SqlUnitOfWork`, and the field stays a field.
+  - `test_two_runs_breaking_the_api_lane_at_once_both_teach_and_the_slot_stays_out`: two `Teach.learn` calls at once serialise on the row lock.
+
+### Gate results
+
+- `uv run pytest tests/unit tests/contract -q`: 4664 passed, 79 errors (the `[sql]` contract tests; they need Postgres, same as the base).
+- `uv run mypy src tests evals`: clean. `ruff check` and `ruff format --check`: clean. `lint-imports`: 4 kept. `check_code_notes.py`: 0 stale, 0 dead.
+- **Worker restart needed** (executor, API lane, Teach).
+
+### Rulings
+
+- Ruling: `StepExecutor._settled` also carries `keyed`, although the finding named only the API lane's own result. — Why: an in-doubt write settled by the read-back is the same confirmation; without it, that run's learned field stays unsettled and `finish` ends "failed". — Cost if wrong: none; it is keyed only on a read-back `done`.
+- Ruling: `confirmed_keys` re-plans through `replay_of` in `_settled` rather than threading the plan through `ReadsBack.read_back`. — Why: `replay_of` is pure, and the port's `Verdict` return stays unchanged. — Cost if wrong: one extra plan computation per settled write.
+
+### Concerns
+
+- The reviewer asked for the unit test to use "the production `Adding` shape built by `_fill_for`". The executor unit tests state that shape literally, and the end-to-end test builds it through the real `_fill_for`. Calling `_fill_for` directly from a unit test would need a whole run around it, and the end-to-end test already provides one.
